@@ -1,0 +1,44 @@
+:root {
+  --color-primary: #1a5276;
+  --color-primary-light: #2e86c1;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  font-family: -apple-system, system-ui, sans-serif;
+}
+
+.cell-invalid {
+  border: 2px solid #d9363e !important;
+  background-color: #fff1f0;
+}
+
+/* Подсветка строки таблицы с невалидным расчётом (BR-UI-03) */
+.row-invalid > td {
+  background-color: #fff1f0 !important;
+}
+.row-invalid:hover > td {
+  background-color: #ffe7e6 !important;
+}
+
+.heatcalc-header {
+  background: var(--color-primary);
+  color: white;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.heatcalc-sidebar {
+  background: #ebf5fb;
+  width: 220px;
+  padding: 16px 0;
+}
+
+.heatcalc-content {
+  flex: 1;
+  padding: 24px;
+  background: #ffffff;
+}

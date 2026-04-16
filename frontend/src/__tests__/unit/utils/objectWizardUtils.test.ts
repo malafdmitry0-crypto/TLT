@@ -1,0 +1,211 @@
+import { describe, it, expect } from 'vitest';
+import {
+  findDN,
+  generatePipeName,
+  generateTankName,
+  pipeFormToApiParams,
+  tankFormToApiParams,
+  pipeApiParamsToForm,
+  tankApiParamsToForm,
+} from '@/utils/objectWizardUtils';
+
+describe('findDN', () => {
+  it('возвращает DN если диаметр близок к стандартному (≤5 мм)', () => {
+    expect(findDN(114)).toBe(100);    // OD 114.3 = DN100
+    expect(findDN(60)).toBe(50);      // OD 60.3 = DN50
+    expect(findDN(168.3)).toBe(150);  // exact
+  });
+
+  it('возвращает null если разница > 5 мм', () => {
+    expect(findDN(108)).toBeNull();   // ближайший 114.3, diff 6.3
+    expect(findDN(999)).toBeNull();
+  });
+
+  it('возвращает null для нулевого/отрицательного', () => {
+    expect(findDN(0)).toBeNull();
+    expect(findDN(-50)).toBeNull();
+  });
+});
+
+describe('generatePipeName', () => {
+  it('собирает имя со всеми компонентами', () => {
+    const name = generatePipeName({
+      outer_diameter_mm: 114,
+      pipe_length: 50,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+    });
+    expect(name).toContain('Ø114');
+    expect(name).toContain('DN100');
+    expect(name).toContain('δ=50');
+    expect(name).toContain('L=50');
+    expect(name).toContain('-20');
+    expect(name).toContain('+80');
+  });
+
+  it('без DN если диаметр нестандартный', () => {
+    const name = generatePipeName({
+      outer_diameter_mm: 234,
+      pipe_length: 10,
+      insulation_thickness_mm: 30,
+      insulation_material: 'polyurethane',
+      ambient_temperature: 0,
+      process_temperature: 50,
+    });
+    expect(name).not.toContain('DN');
+  });
+});
+
+describe('generateTankName', () => {
+  it('цилиндр содержит Ø и H', () => {
+    const name = generateTankName({
+      shape: 'cylindrical',
+      diameter_mm: 2000,
+      height_mm: 3000,
+      insulation_thickness_mm: 80,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+    });
+    expect(name).toContain('цил.');
+    expect(name).toContain('Ø2000');
+    expect(name).toContain('H3000');
+  });
+
+  it('параллелепипед собирает все 3 размера', () => {
+    const name = generateTankName({
+      shape: 'rectangular',
+      length_mm: 5000,
+      width_mm: 3000,
+      height_mm: 4000,
+      insulation_thickness_mm: 80,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 60,
+    });
+    expect(name).toContain('5000×3000×4000');
+    expect(name).toContain('прям.');
+  });
+
+  it('шар содержит Ø', () => {
+    const name = generateTankName({
+      shape: 'spherical',
+      diameter_mm: 1500,
+      insulation_thickness_mm: 60,
+      insulation_material: 'polyurethane',
+      ambient_temperature: -20,
+      process_temperature: 60,
+    });
+    expect(name).toContain('сфер.');
+    expect(name).toContain('Ø1500');
+  });
+});
+
+describe('pipeFormToApiParams', () => {
+  it('конвертирует мм → м', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+    });
+    expect(api.outer_diameter).toBeCloseTo(0.108);
+    expect(api.insulation_thickness).toBeCloseTo(0.05);
+    expect(api.pipe_length).toBe(50);
+    expect(api.name).toBeUndefined();
+  });
+
+  it('сохраняет name если задан', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      name: 'Magistral-1',
+    });
+    expect(api.name).toBe('Magistral-1');
+  });
+});
+
+describe('tankFormToApiParams', () => {
+  it('cylindrical: только diameter+height', () => {
+    const api = tankFormToApiParams({
+      shape: 'cylindrical',
+      diameter_mm: 2000,
+      height_mm: 3000,
+      insulation_thickness_mm: 80,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+    });
+    expect(api.diameter).toBeCloseTo(2.0);
+    expect(api.height).toBeCloseTo(3.0);
+    expect(api.length).toBeUndefined();
+    expect(api.width).toBeUndefined();
+  });
+
+  it('rectangular: все 3 размера в м', () => {
+    const api = tankFormToApiParams({
+      shape: 'rectangular',
+      length_mm: 5000,
+      width_mm: 3000,
+      height_mm: 4000,
+      insulation_thickness_mm: 80,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 60,
+    });
+    expect(api.length).toBeCloseTo(5.0);
+    expect(api.width).toBeCloseTo(3.0);
+    expect(api.height).toBeCloseTo(4.0);
+  });
+});
+
+describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
+  it('обратная конвертация м → мм', () => {
+    const form = pipeApiParamsToForm({
+      outer_diameter: 0.108,
+      insulation_thickness: 0.05,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      pipe_length: 50,
+      name: 'X',
+    });
+    expect(form.outer_diameter_mm).toBe(108);
+    expect(form.insulation_thickness_mm).toBe(50);
+    expect(form.name).toBe('X');
+  });
+
+  it('tank: cylindrical с diameter/height', () => {
+    const form = tankApiParamsToForm({
+      shape: 'cylindrical',
+      diameter: 2.0,
+      height: 3.0,
+      insulation_thickness: 0.08,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+    });
+    expect(form.shape).toBe('cylindrical');
+    expect(form.diameter_mm).toBe(2000);
+    expect(form.height_mm).toBe(3000);
+  });
+
+  it('tank без shape → дефолт cylindrical', () => {
+    const form = tankApiParamsToForm({});
+    expect(form.shape).toBe('cylindrical');
+  });
+
+  it('пустые поля не пробрасываются как 0', () => {
+    const form = pipeApiParamsToForm({});
+    expect(form.outer_diameter_mm).toBeUndefined();
+    expect(form.pipe_length).toBeUndefined();
+  });
+});

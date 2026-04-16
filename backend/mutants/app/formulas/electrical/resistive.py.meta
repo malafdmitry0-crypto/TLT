@@ -1,0 +1,11 @@
+{
+    "exit_code_by_key": {
+        "app.formulas.electrical.resistive.x_calc_resistive__mutmut_1": null,
+        "app.formulas.electrical.resistive.x_calc_resistive__mutmut_2": null,
+        "app.formulas.electrical.resistive.x_calc_resistive__mutmut_3": null,
+        "app.formulas.electrical.resistive.x_calc_resistive__mutmut_4": null
+    },
+    "durations_by_key": {},
+    "type_check_error_by_key": {},
+    "estimated_durations_by_key": {}
+}

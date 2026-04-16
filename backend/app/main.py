@@ -1,0 +1,179 @@
+"""FastAPI application entrypoint."""
+
+import asyncio
+import logging
+import os
+from contextlib import asynccontextmanager, suppress
+
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import select
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from app.api.v1.router import api_router
+from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.core.security import hash_password
+from app.models.user import User
+from app.reference_data.loader import preload_all
+from app.services.auth_service import AuthService
+
+logger = logging.getLogger("heatcalc")
+logging.basicConfig(level=logging.INFO)
+
+
+async def ensure_first_admin() -> None:
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(User).where(User.email == settings.FIRST_ADMIN_EMAIL))
+        if result.scalar_one_or_none() is not None:
+            return
+        admin = User(
+            email=settings.FIRST_ADMIN_EMAIL,
+            hashed_password=hash_password(settings.FIRST_ADMIN_PASSWORD),
+            full_name="Администратор",
+            role="admin",
+            is_active=True,
+        )
+        db.add(admin)
+        await db.commit()
+        logger.info("Создан администратор по умолчанию: %s", settings.FIRST_ADMIN_EMAIL)
+
+
+def _try_acquire_cleanup_lock(ttl_seconds: int) -> bool:
+    """Distributed lock через Redis SETNX. Возвращает True если этот инстанс
+    получил эксклюзивное право на cleanup в этом окне.
+
+    Без Redis (нет REDIS_URL) — всегда True (single-instance режим).
+    """
+    redis_url = os.environ.get("REDIS_URL")
+    if not redis_url:
+        return True
+    try:
+        from redis import Redis  # type: ignore[import-not-found]
+
+        client = Redis.from_url(redis_url, decode_responses=True)
+        # SET key value NX EX ttl — атомарный «set if not exists» с TTL
+        return bool(client.set("lock:guest_cleanup", "1", nx=True, ex=ttl_seconds))
+    except Exception as exc:
+        logger.warning("Cleanup lock через Redis недоступен: %s", exc)
+        return True
+
+
+async def cleanup_guest_sessions() -> None:
+    """Удаляет пользовательские сессии без активности дольше GUEST_SESSION_TTL_MINUTES."""
+    try:
+        async with AsyncSessionLocal() as db:
+            service = AuthService(db)
+            await service.cleanup_expired_guest_sessions(settings.GUEST_SESSION_TTL_MINUTES)
+    except Exception as exc:
+        logger.warning("Не удалось выполнить cleanup пользовательских сессий: %s", exc)
+
+
+async def _periodic_guest_cleanup() -> None:
+    """Фоновая задача: раз в GUEST_CLEANUP_INTERVAL_MINUTES чистит протухшие сессии.
+
+    При scale=N все инстансы запускают эту задачу, но только один получает
+    лок в Redis на каждое окно — остальные skip'ают итерацию. Без Redis
+    лок всегда «свободен» (single-instance режим).
+    """
+    interval = max(60, settings.GUEST_CLEANUP_INTERVAL_MINUTES * 60)
+    while True:
+        try:
+            await asyncio.sleep(interval)
+            # TTL лока чуть меньше интервала — освободится перед следующим окном
+            if _try_acquire_cleanup_lock(ttl_seconds=interval - 5):
+                await cleanup_guest_sessions()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.warning("Периодический cleanup упал: %s", exc)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Инициализация при старте: справочники, первый админ, cleanup сессий.
+
+    Миграции Alembic применяются в entrypoint контейнера до запуска uvicorn
+    (см. command в docker-compose.dev.yml / Dockerfile).
+    """
+    preload_all()
+    try:
+        await ensure_first_admin()
+    except Exception as exc:
+        logger.warning("Не удалось создать первого админа: %s", exc)
+    await cleanup_guest_sessions()
+    cleanup_task = asyncio.create_task(_periodic_guest_cleanup())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        with suppress(asyncio.CancelledError, Exception):
+            await cleanup_task
+
+
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version="0.1.0",
+    openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class MaxBodySizeMiddleware(BaseHTTPMiddleware):
+    """Защита от DoS: отвергает запросы с Content-Length > MAX_UPLOAD_BYTES.
+
+    Применяется ко всем POST/PUT/PATCH с multipart или большим телом.
+    Streaming-загрузки без Content-Length проходят (отлавливаются на уровне
+    самого endpoint'а).
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        cl = request.headers.get("content-length")
+        if cl is not None and int(cl) > settings.MAX_UPLOAD_BYTES:
+            return JSONResponse(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                content={
+                    "detail": (
+                        f"Размер запроса превышает лимит " f"{settings.MAX_UPLOAD_BYTES // 1024} КБ"
+                    ),
+                    "error_code": "PAYLOAD_TOO_LARGE",
+                },
+            )
+        return await call_next(request)
+
+
+app.add_middleware(MaxBodySizeMiddleware)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "detail": "Ошибка валидации входных данных",
+            "error_code": "VALIDATION_ERROR",
+            "fields": {".".join(str(x) for x in e["loc"]): e["msg"] for e in exc.errors()},
+        },
+    )
+
+
+app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+
+@app.get("/health", tags=["system"], summary="Проверка здоровья")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}

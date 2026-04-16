@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  docs-drift:
+    name: Docs drift check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Проверить, что AUTO-блоки в CLAUDE.MD / README синхронизированы с кодом
+        run: scripts/sync-docs.py --check
+
+  build-and-smoke:
+    name: Build demo stack + smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Сборка образов
+        run: docker compose build backend frontend
+      - name: Тегирование под demo-версию
+        run: |
+          docker tag heatcalc-backend:latest  heatcalc-backend:1.0.0-demo
+          docker tag heatcalc-frontend:latest heatcalc-frontend:1.0.0-demo
+      - name: Запуск demo-стека
+        run: |
+          cd demo
+          docker compose up -d
+          # ждём backend healthy до 2 минут
+          for i in {1..60}; do
+            docker compose ps backend --format "{{.Status}}" | grep -q healthy && exit 0
+            sleep 2
+          done
+          echo "Backend не стал healthy за 2 минуты" >&2
+          docker compose logs backend
+          exit 1
+      - name: Smoke-тесты против http://localhost:8080
+        run: scripts/smoke.sh http://localhost:8080
+      - name: Логи при падении
+        if: failure()
+        run: |
+          cd demo
+          docker compose logs --tail=200

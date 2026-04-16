@@ -1,0 +1,27 @@
+{
+    "exit_code_by_key": {
+        "app.formulas.heat_loss.common.x_apply_coefficients__mutmut_1": null,
+        "app.formulas.heat_loss.common.x_apply_coefficients__mutmut_2": null,
+        "app.formulas.heat_loss.common.x_apply_coefficients__mutmut_3": null,
+        "app.formulas.heat_loss.common.x_apply_coefficients__mutmut_4": null,
+        "app.formulas.heat_loss.common.x_apply_coefficients__mutmut_5": null,
+        "app.formulas.heat_loss.common.x_validate_positive__mutmut_1": null,
+        "app.formulas.heat_loss.common.x_validate_positive__mutmut_2": null,
+        "app.formulas.heat_loss.common.x_validate_positive__mutmut_3": null,
+        "app.formulas.heat_loss.common.x_validate_temperature_range__mutmut_1": null,
+        "app.formulas.heat_loss.common.x_validate_temperature_range__mutmut_2": null,
+        "app.formulas.heat_loss.common.x_validate_temperature_range__mutmut_3": null,
+        "app.formulas.heat_loss.common.x_validate_temperature_range__mutmut_4": null,
+        "app.formulas.heat_loss.common.x_validate_temperature_range__mutmut_5": null,
+        "app.formulas.heat_loss.common.x_merge_coefficients__mutmut_1": null,
+        "app.formulas.heat_loss.common.x_merge_coefficients__mutmut_2": null,
+        "app.formulas.heat_loss.common.x_merge_coefficients__mutmut_3": null,
+        "app.formulas.heat_loss.common.x_safe_dict_get__mutmut_1": null,
+        "app.formulas.heat_loss.common.x_safe_dict_get__mutmut_2": null,
+        "app.formulas.heat_loss.common.x_safe_dict_get__mutmut_3": null,
+        "app.formulas.heat_loss.common.x_safe_dict_get__mutmut_4": null
+    },
+    "durations_by_key": {},
+    "type_check_error_by_key": {},
+    "estimated_durations_by_key": {}
+}

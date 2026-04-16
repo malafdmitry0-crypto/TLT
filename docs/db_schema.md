@@ -1,0 +1,160 @@
+# Схема базы данных HeatCalc
+
+## Таблицы
+
+### users
+| Колонка          | Тип          | Ограничения                    | Описание                          |
+|------------------|--------------|--------------------------------|-----------------------------------|
+| id               | UUID         | PK                             | Первичный ключ                    |
+| email            | VARCHAR(255) | UNIQUE, NOT NULL, INDEX        | Email / логин                     |
+| hashed_password  | VARCHAR(255) | NOT NULL                       | Хэш пароля (bcrypt)               |
+| full_name        | VARCHAR(255) | nullable                       | Полное имя                        |
+| role             | ENUM         | NOT NULL                       | `employee` / `admin`              |
+| is_active        | BOOLEAN      | NOT NULL, default true         | Активен ли аккаунт                |
+| created_at       | TIMESTAMPTZ  | server default now()           |                                   |
+| updated_at       | TIMESTAMPTZ  | auto-update                    |                                   |
+
+---
+
+### guest_sessions
+| Колонка       | Тип          | Ограничения             | Описание                              |
+|---------------|--------------|-------------------------|---------------------------------------|
+| id            | UUID         | PK                      |                                       |
+| session_id    | VARCHAR(64)  | UNIQUE, NOT NULL, INDEX | Токен сессии гостя (cookie/header)    |
+| created_at    | TIMESTAMPTZ  | server default now()    |                                       |
+| last_activity | TIMESTAMPTZ  | server default, auto-update | Последняя активность (для TTL)    |
+
+---
+
+### projects
+| Колонка     | Тип          | Ограничения                                              | Описание                     |
+|-------------|--------------|----------------------------------------------------------|------------------------------|
+| id          | UUID         | PK                                                       |                              |
+| name        | VARCHAR(255) | NOT NULL                                                 | Название проекта             |
+| description | TEXT         | nullable                                                 | Описание                     |
+| user_id     | UUID         | FK → users.id ON DELETE SET NULL, nullable               | Владелец (сотрудник/админ)   |
+| session_id  | VARCHAR(64)  | FK → guest_sessions.session_id ON DELETE CASCADE, nullable | Владелец (гость)           |
+| status      | ENUM         | NOT NULL, default `draft`                                | `draft` / `completed`        |
+| created_at  | TIMESTAMPTZ  | server default now()                                     |                              |
+| updated_at  | TIMESTAMPTZ  | auto-update                                              |                              |
+
+**CHECK:** `user_id IS NOT NULL OR session_id IS NOT NULL` — проект всегда принадлежит либо зарегистрированному пользователю, либо гостевой сессии.
+
+---
+
+### project_objects
+| Колонка           | Тип         | Ограничения                              | Описание                                      |
+|-------------------|-------------|------------------------------------------|-----------------------------------------------|
+| id                | UUID        | PK                                       |                                               |
+| project_id        | UUID        | FK → projects.id ON DELETE CASCADE, INDEX | Проект                                       |
+| object_type       | ENUM        | NOT NULL                                 | `pipe` / `tank` / `pump` / `platform` / `other` |
+| sort_order        | INTEGER     | NOT NULL, default 0                      | Порядок отображения                           |
+| params            | JSONB       | NOT NULL                                 | Входные параметры (геометрия, изоляция, темп.) |
+| results           | JSONB       | nullable                                 | Результат расчёта теплопотерь                 |
+| is_valid          | BOOLEAN     | NOT NULL, default false                  | Прошёл ли расчёт успешно                     |
+| validation_errors | JSONB       | nullable                                 | Ошибки валидации / расчёта                   |
+| created_at        | TIMESTAMPTZ | server default now()                     |                                               |
+| updated_at        | TIMESTAMPTZ | auto-update                              |                                               |
+
+**params (pipe):** `outer_diameter`, `insulation_thickness`, `insulation_material`, `ambient_temperature`, `process_temperature`, `pipe_length`
+
+**results (pipe):** `heat_loss_per_meter` (Вт/м), `total_heat_loss` (Вт), `effective_length` (м), `thermal_resistance` (м·К/Вт)
+
+**results (tank):** `heat_loss_per_m2` (Вт/м²), `total_heat_loss` (Вт), `surface_area` (м²)
+
+---
+
+### electrical_calculations
+| Колонка        | Тип          | Ограничения                                     | Описание                              |
+|----------------|--------------|-------------------------------------------------|---------------------------------------|
+| id             | UUID         | PK                                              |                                       |
+| project_id     | UUID         | FK → projects.id ON DELETE CASCADE, INDEX       | Проект                                |
+| object_id      | UUID         | FK → project_objects.id ON DELETE CASCADE, INDEX | Объект проекта                       |
+| variant_number | INTEGER      | NOT NULL, default 1                             | Номер варианта расчёта для объекта    |
+| cable_type     | VARCHAR(64)  | NOT NULL                                        | `self_regulating` / `mineral` / …    |
+| cable_mark     | VARCHAR(128) | nullable                                        | Марка кабеля (null = автоподбор)      |
+| params         | JSONB        | NOT NULL                                        | Входные параметры электрорасчёта      |
+| results        | JSONB        | nullable                                        | Результат (кабель, длина, ток, мощность) |
+| created_at     | TIMESTAMPTZ  | server default now()                            |                                       |
+| updated_at     | TIMESTAMPTZ  | auto-update                                     |                                       |
+
+**params:** `required_power_per_meter` (Вт/м), `cable_mark` (nullable), `supply_voltage` (В), `ambient_temperature` (°C), `pipe_length` (м), `safety_factor`
+
+**results:** `selected_cable` (марка), `cable_length` (м, ×1.1 от длины трубы), `total_power` (Вт), `current` (А), `voltage` (В)
+
+---
+
+### cables_extended
+| Колонка              | Тип          | Ограничения      | Описание                            |
+|----------------------|--------------|------------------|-------------------------------------|
+| id                   | UUID         | PK               |                                     |
+| cable_type           | ENUM         | NOT NULL         | `self_regulating` / `single_core` / `three_core` / `mineral` / `skin` |
+| brand                | VARCHAR(128) | NOT NULL         | Производитель                       |
+| model                | VARCHAR(128) | NOT NULL         | Модель / марка                      |
+| power_per_meter      | FLOAT        | nullable         | Удельная мощность, Вт/м             |
+| max_temperature      | FLOAT        | nullable         | Макс. рабочая температура, °C       |
+| min_temperature      | FLOAT        | nullable         | Мин. рабочая температура, °C        |
+| resistance_per_meter | FLOAT        | nullable         | Сопротивление, Ом/м                 |
+| params               | JSONB        | nullable         | Доп. характеристики                 |
+| is_active            | BOOLEAN      | NOT NULL, default true | Активна ли запись               |
+| created_at           | TIMESTAMPTZ  | server default   |                                     |
+| updated_at           | TIMESTAMPTZ  | auto-update      |                                     |
+
+---
+
+### correction_coefficients
+| Колонка     | Тип          | Ограничения                            | Описание                     |
+|-------------|--------------|----------------------------------------|------------------------------|
+| id          | UUID         | PK                                     |                              |
+| key         | VARCHAR(64)  | UNIQUE, NOT NULL, INDEX                | Код коэффициента             |
+| value       | FLOAT        | NOT NULL                               | Значение                     |
+| description | TEXT         | nullable                               | Описание назначения          |
+| updated_by  | UUID         | FK → users.id ON DELETE SET NULL       | Кто последний изменил        |
+| created_at  | TIMESTAMPTZ  | server default                         |                              |
+| updated_at  | TIMESTAMPTZ  | auto-update                            |                              |
+
+---
+
+### accessories_extended
+| Колонка    | Тип          | Ограничения           | Описание                     |
+|------------|--------------|-----------------------|------------------------------|
+| id         | UUID         | PK                    |                              |
+| category   | VARCHAR(64)  | NOT NULL, INDEX       | Категория аксессуара         |
+| name       | VARCHAR(255) | NOT NULL              | Наименование                 |
+| article    | VARCHAR(64)  | nullable              | Артикул                      |
+| params     | JSONB        | nullable              | Доп. параметры               |
+| is_active  | BOOLEAN      | NOT NULL, default true|                              |
+| created_at | TIMESTAMPTZ  | server default        |                              |
+| updated_at | TIMESTAMPTZ  | auto-update           |                              |
+
+---
+
+### specifications
+| Колонка        | Тип         | Ограничения                              | Описание                     |
+|----------------|-------------|------------------------------------------|------------------------------|
+| id             | UUID        | PK                                       |                              |
+| project_id     | UUID        | FK → projects.id ON DELETE CASCADE, INDEX | Проект                      |
+| variant_number | INTEGER     | NOT NULL, default 1                      | Номер варианта               |
+| items          | JSONB       | NOT NULL, default []                     | Позиции спецификации         |
+| created_at     | TIMESTAMPTZ | server default                           |                              |
+| updated_at     | TIMESTAMPTZ | auto-update                              |                              |
+
+---
+
+## Связи
+
+```
+users ──< projects (user_id, nullable)
+guest_sessions ──< projects (session_id, nullable)
+projects ──< project_objects (project_id)
+projects ──< electrical_calculations (project_id)
+projects ──< specifications (project_id)
+project_objects ──< electrical_calculations (object_id)
+users ──< correction_coefficients (updated_by, nullable)
+```
+
+## Справочные данные (файлы, не таблицы)
+
+Загружаются из JSON-файлов при старте:
+- `reference_data/insulation_materials.json` — материалы изоляции с λ (Вт/(м·К))
+- `reference_data/cables_tlt.json` — каталог кабелей ТЛТ (марка, мощность, мин. температура)

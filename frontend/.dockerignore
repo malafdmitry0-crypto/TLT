@@ -1,0 +1,25 @@
+# VCS / IDE
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+
+# Артефакты сборки и зависимостей
+node_modules
+dist
+build
+coverage
+.vite
+.cache
+.eslintcache
+
+# Тесты и тестовые артефакты
+src/__tests__
+playwright-report
+test-results
+
+# Логи и локальные конфиги
+*.log
+.env
+.env.local

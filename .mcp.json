@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "--network", "tlt_default",
+        "-e", "PGHOST=db",
+        "-e", "PGUSER=heatcalc",
+        "-e", "PGPASSWORD=heatcalc_pass",
+        "-e", "PGDATABASE=heatcalc_db",
+        "mcp/postgres"
+      ]
+    }
+  }
+}

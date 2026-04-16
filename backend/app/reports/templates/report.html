@@ -1,0 +1,240 @@
+{% set MATERIALS = {
+  'mineral_wool': 'Минеральная вата',
+  'foam_glass': 'Пеностекло',
+  'polyurethane': 'Пенополиуретан',
+  'polystyrene': 'Пенополистирол',
+  'aerogel': 'Аэрогель',
+  'calcium_silicate': 'Силикат кальция'
+} %}
+{% set SHAPES = {'cylindrical': 'Цилиндрический', 'rectangular': 'Параллелепипед', 'spherical': 'Сферический'} %}
+{% set TYPES = {'pipe': 'Трубопровод', 'tank': 'Резервуар'} %}
+{% macro fmt(v, digits=1) -%}
+  {%- if v is number -%}{{ '%.*f'|format(digits, v) }}{%- else -%}—{%- endif -%}
+{%- endmacro %}
+{% macro mm(v) -%}
+  {%- if v is number -%}{{ '%.0f'|format(v * 1000) }}{%- else -%}—{%- endif -%}
+{%- endmacro %}
+{% macro kwt(v) -%}
+  {%- if v is number -%}
+    {%- if v >= 1000 -%}{{ '%.2f'|format(v / 1000) }} кВт{%- else -%}{{ '%.0f'|format(v) }} Вт{%- endif -%}
+  {%- else -%}—{%- endif -%}
+{%- endmacro %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Отчёт HeatCalc — {{ project.name }}</title>
+  <style>
+    .tlt-report { font-family: 'DejaVu Sans', Arial, sans-serif; color: #1a1a1a; font-size: 13px; line-height: 1.45; }
+    .tlt-report h1 { color: #1a5276; font-size: 22px; margin: 0 0 4px; }
+    .tlt-report h2 { color: #2e86c1; font-size: 16px; border-bottom: 2px solid #aed6f1; padding-bottom: 4px; margin: 22px 0 10px; }
+    .tlt-report h3 { color: #1a5276; font-size: 14px; margin: 14px 0 6px; }
+    .tlt-report .muted { color: #777; font-size: 11px; }
+    .tlt-report .meta { color: #555; font-size: 12px; margin: 0 0 12px; }
+    .tlt-report table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; }
+    .tlt-report th, .tlt-report td { border: 1px solid #d5dbdb; padding: 6px 8px; font-size: 12px; text-align: left; vertical-align: top; }
+    .tlt-report th { background: #ebf5fb; font-weight: 600; color: #1a5276; }
+    .tlt-report tbody tr:nth-child(even) td { background: #fafcfd; }
+    .tlt-report .kv th { width: 40%; background: #f4f6f7; color: #333; }
+    .tlt-report .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .tlt-report .badge-ok { color: #117a65; font-weight: 600; }
+    .tlt-report .badge-err { color: #b03a2e; font-weight: 600; }
+    .tlt-report .summary { background: #eaf7ef; border: 1px solid #a9dfbf; padding: 10px 14px; border-radius: 4px; margin: 10px 0 16px; }
+    .tlt-report .summary .row { display: inline-block; margin-right: 22px; }
+    .tlt-report .summary .lbl { color: #555; font-size: 11px; display: block; }
+    .tlt-report .summary .val { color: #117a65; font-size: 16px; font-weight: 700; }
+    .tlt-report .object-card { border: 1px solid #d5dbdb; border-radius: 4px; padding: 10px 14px; margin: 10px 0; }
+    .tlt-report .object-title { font-size: 14px; font-weight: 600; color: #1a5276; margin-bottom: 6px; }
+    .tlt-report .section-empty { color: #999; font-style: italic; padding: 8px 0; }
+  </style>
+</head>
+<body>
+<div class="tlt-report">
+
+  <h1>Отчёт по проекту</h1>
+  <div class="meta">
+    <strong>{{ project.name }}</strong>
+    {% if project.description %}<br>{{ project.description }}{% endif %}
+    <br><span class="muted">ID: {{ project.id }} · Статус: {{ project.status }}</span>
+  </div>
+
+  {# sections может быть None/пусто — тогда показываем все. Иначе — только перечисленные. #}
+  {% set enabled = sections if sections is defined and sections else ['summary', 'pipes', 'tanks', 'electrical', 'specification'] %}
+
+  {# ─────────── Сводка ─────────── #}
+  {% set valid_objs = objects | selectattr('is_valid') | list %}
+  {% set elec_objs = objects | selectattr('electrical') | list %}
+  {% set total_heat = valid_objs | map(attribute='results') | map('default', {}) | map(attribute='total_heat_loss', default=0) | sum %}
+  {% set total_power = elec_objs | map(attribute='electrical.results') | map('default', {}) | map(attribute='total_power', default=0) | sum %}
+  {% set total_cable = elec_objs | map(attribute='electrical.results') | map('default', {}) | map(attribute='cable_length', default=0) | sum %}
+  {% set total_current = elec_objs | map(attribute='electrical.results') | map('default', {}) | map(attribute='current', default=0) | sum %}
+
+  {% if 'summary' in enabled %}
+  <div class="summary">
+    <div class="row"><span class="lbl">Объектов</span><span class="val">{{ objects|length }}</span></div>
+    <div class="row"><span class="lbl">Рассчитано теплопотерь</span><span class="val">{{ valid_objs|length }}</span></div>
+    <div class="row"><span class="lbl">Подобрано кабелей</span><span class="val">{{ elec_objs|length }}</span></div>
+    <div class="row"><span class="lbl">Суммарные теплопотери</span><span class="val">{{ kwt(total_heat) }}</span></div>
+    <div class="row"><span class="lbl">Суммарная мощность кабелей</span><span class="val">{{ kwt(total_power) }}</span></div>
+    <div class="row"><span class="lbl">Длина кабеля</span><span class="val">{{ fmt(total_cable, 1) }} м</span></div>
+    <div class="row"><span class="lbl">Суммарный ток</span><span class="val">{{ fmt(total_current, 2) }} А</span></div>
+  </div>
+  {% endif %}
+
+  {# ─────────── Трубопроводы ─────────── #}
+  {% if 'pipes' in enabled %}
+  {% set pipes = objects | selectattr('object_type', 'equalto', 'pipe') | list %}
+  <h2>Трубопроводы ({{ pipes|length }})</h2>
+  {% if pipes %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Наименование</th>
+        <th class="num">Ø, мм</th><th class="num">Длина, м</th>
+        <th class="num">δ изол., мм</th><th>Материал</th>
+        <th class="num">T₀, °C</th><th class="num">Tₚ, °C</th>
+        <th class="num">q, Вт/м</th><th class="num">Q, Вт</th>
+        <th>Статус</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in pipes %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ o.params.get('name') or '—' }}</td>
+        <td class="num">{{ mm(o.params.get('outer_diameter')) }}</td>
+        <td class="num">{{ fmt(o.params.get('pipe_length'), 1) }}</td>
+        <td class="num">{{ mm(o.params.get('insulation_thickness')) }}</td>
+        <td>{{ MATERIALS.get(o.params.get('insulation_material'), o.params.get('insulation_material') or '—') }}</td>
+        <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
+        <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_meter'), 1) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss'), 0) }}{% else %}—{% endif %}</td>
+        <td>{% if o.is_valid %}<span class="badge-ok">✓ ОК</span>{% else %}<span class="badge-err">✗ Ошибка</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="section-empty">Трубопроводы не добавлены</p>
+  {% endif %}
+  {% endif %}
+
+  {# ─────────── Резервуары ─────────── #}
+  {% if 'tanks' in enabled %}
+  {% set tanks = objects | selectattr('object_type', 'equalto', 'tank') | list %}
+  <h2>Резервуары ({{ tanks|length }})</h2>
+  {% if tanks %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Наименование</th><th>Форма</th>
+        <th>Габариты</th>
+        <th class="num">δ изол., мм</th><th>Материал</th>
+        <th class="num">T₀, °C</th><th class="num">Tₚ, °C</th>
+        <th class="num">S, м²</th><th class="num">q, Вт/м²</th><th class="num">Q, Вт</th>
+        <th>Статус</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in tanks %}
+      {% set shape = o.params.get('shape') %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ o.params.get('name') or '—' }}</td>
+        <td>{{ SHAPES.get(shape, shape or '—') }}</td>
+        <td>
+          {% if shape == 'cylindrical' %}
+            Ø{{ mm(o.params.get('diameter')) }} × H{{ mm(o.params.get('height')) }} мм
+          {% elif shape == 'rectangular' %}
+            {{ mm(o.params.get('length')) }} × {{ mm(o.params.get('width')) }} × {{ mm(o.params.get('height')) }} мм
+          {% elif shape == 'spherical' %}
+            Ø{{ mm(o.params.get('diameter')) }} мм
+          {% else %}—{% endif %}
+        </td>
+        <td class="num">{{ mm(o.params.get('insulation_thickness')) }}</td>
+        <td>{{ MATERIALS.get(o.params.get('insulation_material'), o.params.get('insulation_material') or '—') }}</td>
+        <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
+        <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area'), 2) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_m2'), 1) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss'), 0) }}{% else %}—{% endif %}</td>
+        <td>{% if o.is_valid %}<span class="badge-ok">✓ ОК</span>{% else %}<span class="badge-err">✗ Ошибка</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="section-empty">Резервуары не добавлены</p>
+  {% endif %}
+  {% endif %}
+
+  {# ─────────── Электрорасчёт ─────────── #}
+  {% if 'electrical' in enabled %}
+  <h2>Электротехнический расчёт ({{ elec_objs|length }})</h2>
+  {% if elec_objs %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Объект</th><th>Марка кабеля</th>
+        <th class="num">Длина кабеля, м</th>
+        <th class="num">Уд. мощность, Вт/м</th>
+        <th class="num">Суммарная мощность</th>
+        <th class="num">Ток, А</th>
+        <th class="num">U, В</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in elec_objs %}
+      {% set r = o.electrical.results %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ o.params.get('name') or TYPES.get(o.object_type, o.object_type) }}</td>
+        <td><strong>{{ o.electrical.cable_mark or r.get('selected_cable') or '—' }}</strong></td>
+        <td class="num">{{ fmt(r.get('cable_length'), 1) }}</td>
+        <td class="num">{{ fmt(r.get('power_at_operating_temp') or r.get('required_power_per_meter'), 1) }}</td>
+        <td class="num">{{ kwt(r.get('total_power')) }}</td>
+        <td class="num">{{ fmt(r.get('current'), 2) }}</td>
+        <td class="num">{{ r.get('voltage', 220) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="section-empty">Электрорасчёт не выполнен</p>
+  {% endif %}
+  {% endif %}
+
+  {# ─────────── Спецификация ─────────── #}
+  {% if 'specification' in enabled %}
+  <h2>Спецификация</h2>
+  {% if specification['items'] %}
+  <table>
+    <thead>
+      <tr><th>#</th><th>Категория</th><th>Наименование</th><th>Артикул</th><th>Ед.</th><th class="num">Кол-во</th></tr>
+    </thead>
+    <tbody>
+      {% for item in specification['items'] %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ item.category }}</td>
+        <td>{{ item.name }}</td>
+        <td>{{ item.article or '—' }}</td>
+        <td>{{ item.unit }}</td>
+        <td class="num">{{ item.quantity }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="section-empty">Спецификация не сформирована. Выполните шаг «Спецификация» в приложении.</p>
+  {% endif %}
+  {% endif %}
+
+  <p class="muted" style="margin-top: 24px; text-align: center;">
+    Отчёт сформирован программным комплексом HeatCalc · Система расчёта систем электрообогрева ТЛТ
+  </p>
+
+</div>
+</body>
+</html>

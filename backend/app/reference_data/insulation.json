@@ -1,0 +1,10 @@
+{
+  "materials": [
+    {"material": "mineral_wool", "name": "Минеральная вата", "conductivity": 0.045, "temperature_range": [-60, 400]},
+    {"material": "foam_glass", "name": "Пеностекло", "conductivity": 0.058, "temperature_range": [-260, 430]},
+    {"material": "polyurethane", "name": "Пенополиуретан", "conductivity": 0.028, "temperature_range": [-60, 120]},
+    {"material": "polystyrene", "name": "Пенополистирол", "conductivity": 0.038, "temperature_range": [-60, 75]},
+    {"material": "aerogel", "name": "Аэрогель", "conductivity": 0.021, "temperature_range": [-200, 650]},
+    {"material": "calcium_silicate", "name": "Силикат кальция", "conductivity": 0.065, "temperature_range": [-30, 650]}
+  ]
+}

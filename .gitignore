@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Local pip --user installs
+.local/
+
+# Демо-поставка (compose, README, образы) — собирается локально, не нужна в репо
+demo/
+demo*.zip
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.claude
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/

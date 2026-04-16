@@ -1,0 +1,38 @@
+{
+  "_fixture_meta": {
+    "topic": "pdf_export_regression",
+    "bug_id": "internal-demo-session",
+    "created_at": "2026-04-14",
+    "description": "Минимальный проект с трубой и электрорасчётом — используется для проверки экспорта PDF/DOCX/XLSX. На нём падал PDF из-за несовместимости weasyprint==62.3 с pydyf>=0.11.",
+    "reproduces": "1) Авторизоваться сотрудником · 2) Создать проект · 3) Добавить этот объект (params ниже) · 4) POST /calc/electrical/batch?project_id={pid} · 5) GET /reports/{pid}/export/pdf → должно быть 200 и >1000 байт.",
+    "fixed_in": "backend/requirements.txt: добавлен pin `pydyf==0.10.0`",
+    "regression_test": "scripts/smoke.sh проверяет этот сценарий для всех 3 форматов"
+  },
+  "project": {
+    "name": "PDF regression fixture",
+    "description": "Минимальный проект для проверки экспорта отчётов"
+  },
+  "objects": [
+    {
+      "object_type": "pipe",
+      "params": {
+        "outer_diameter": 0.108,
+        "insulation_thickness": 0.05,
+        "insulation_material": "mineral_wool",
+        "ambient_temperature": -30,
+        "process_temperature": 80,
+        "pipe_length": 50,
+        "installation": "outdoor"
+      },
+      "expected_results": {
+        "heat_loss_per_meter": 44.9,
+        "total_heat_loss": 2245
+      }
+    }
+  ],
+  "expected_electrical": {
+    "cable_mark": "ТЛТ-50",
+    "cable_length": 55.0,
+    "total_power": 2750.0
+  }
+}

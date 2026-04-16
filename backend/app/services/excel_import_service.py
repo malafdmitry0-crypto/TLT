@@ -1,0 +1,854 @@
+"""Импорт объектов проекта из Excel."""
+
+from __future__ import annotations
+
+import io
+import re
+from typing import Any
+from uuid import UUID
+
+from openpyxl import load_workbook
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies import CurrentPrincipal
+from app.schemas.project import ProjectObjectCreate
+from app.services.calculation_service import CalculationService
+from app.services.project_service import (
+    ProjectAccessError,
+    ProjectLimitError,
+    ProjectNotFoundError,
+    ProjectService,
+)
+
+PIPE_SHEET_NAMES = {"трубопроводы", "трубы", "pipes"}
+TANK_SHEET_NAMES = {"резервуары", "ёмкости", "емкости", "tanks"}
+
+# Алиасы для колонки «Тип» в CSV (различает трубу/резервуар в одном файле)
+TYPE_ALIASES: dict[str, str] = {
+    "труба": "pipe",
+    "трубопровод": "pipe",
+    "pipe": "pipe",
+    "резервуар": "tank",
+    "ёмкость": "tank",
+    "емкость": "tank",
+    "бак": "tank",
+    "tank": "tank",
+}
+
+MATERIAL_ALIASES: dict[str, str] = {
+    "минеральная вата": "mineral_wool",
+    "мин вата": "mineral_wool",
+    "мин. вата": "mineral_wool",
+    "минвата": "mineral_wool",
+    "mineral_wool": "mineral_wool",
+    "пеностекло": "foam_glass",
+    "foam_glass": "foam_glass",
+    "пенополиуретан": "polyurethane",
+    "ппу": "polyurethane",
+    "polyurethane": "polyurethane",
+    "пенополистирол": "polystyrene",
+    "полистирол": "polystyrene",
+    "polystyrene": "polystyrene",
+    "аэрогель": "aerogel",
+    "aerogel": "aerogel",
+    "силикат кальция": "calcium_silicate",
+    "calcium_silicate": "calcium_silicate",
+}
+
+SHAPE_ALIASES: dict[str, str] = {
+    "цилиндр": "cylindrical",
+    "цилиндрический": "cylindrical",
+    "cylindrical": "cylindrical",
+    "параллелепипед": "rectangular",
+    "прямоугольный": "rectangular",
+    "прямоуг": "rectangular",
+    "rectangular": "rectangular",
+    "шар": "spherical",
+    "сфера": "spherical",
+    "сферический": "spherical",
+    "spherical": "spherical",
+}
+
+
+# Заголовок колонки типа в CSV
+TYPE_HEADERS: set[str] = {"тип", "type"}
+
+
+# Возможные заголовки (нормализованные) → каноническое имя поля
+PIPE_HEADERS: dict[str, str] = {
+    "наименование": "name",
+    "название": "name",
+    "имя": "name",
+    "диаметр, мм": "outer_diameter_mm",
+    "диаметр мм": "outer_diameter_mm",
+    "диаметр": "outer_diameter_mm",
+    "ø, мм": "outer_diameter_mm",
+    "ø мм": "outer_diameter_mm",
+    "длина, м": "pipe_length",
+    "длина м": "pipe_length",
+    "длина": "pipe_length",
+    "l, м": "pipe_length",
+    "толщина изоляции, мм": "insulation_thickness_mm",
+    "толщина изоляции мм": "insulation_thickness_mm",
+    "толщина изоляции": "insulation_thickness_mm",
+    "δ, мм": "insulation_thickness_mm",
+    "δ мм": "insulation_thickness_mm",
+    "материал изоляции": "insulation_material",
+    "материал": "insulation_material",
+    "т° среды": "ambient_temperature",
+    "т среды": "ambient_temperature",
+    "t° среды": "ambient_temperature",
+    "t среды": "ambient_temperature",
+    "температура среды": "ambient_temperature",
+    "т° продукта": "process_temperature",
+    "т продукта": "process_temperature",
+    "t° продукта": "process_temperature",
+    "t продукта": "process_temperature",
+    "температура продукта": "process_temperature",
+}
+
+TANK_HEADERS: dict[str, str] = {
+    "наименование": "name",
+    "название": "name",
+    "форма": "shape",
+    "диаметр, мм": "diameter_mm",
+    "диаметр мм": "diameter_mm",
+    "диаметр": "diameter_mm",
+    "длина, мм": "length_mm",
+    "длина мм": "length_mm",
+    "длина": "length_mm",
+    "ширина, мм": "width_mm",
+    "ширина мм": "width_mm",
+    "ширина": "width_mm",
+    "высота, мм": "height_mm",
+    "высота мм": "height_mm",
+    "высота": "height_mm",
+    "толщина изоляции, мм": "insulation_thickness_mm",
+    "толщина изоляции мм": "insulation_thickness_mm",
+    "толщина изоляции": "insulation_thickness_mm",
+    "δ, мм": "insulation_thickness_mm",
+    "δ мм": "insulation_thickness_mm",
+    "материал изоляции": "insulation_material",
+    "материал": "insulation_material",
+    "т° среды": "ambient_temperature",
+    "т среды": "ambient_temperature",
+    "t° среды": "ambient_temperature",
+    "t среды": "ambient_temperature",
+    "температура среды": "ambient_temperature",
+    "т° продукта": "process_temperature",
+    "т продукта": "process_temperature",
+    "t° продукта": "process_temperature",
+    "t продукта": "process_temperature",
+    "температура продукта": "process_temperature",
+}
+
+
+class ExcelImportError(Exception):
+    """Ошибка импорта Excel/CSV."""
+
+
+def _norm(s: Any) -> str:
+    if s is None:
+        return ""
+    return re.sub(r"\s+", " ", str(s).strip().lower())
+
+
+def _to_float(v: Any) -> float | None:
+    if v is None or v == "":
+        return None
+    if isinstance(v, int | float):
+        return float(v)
+    s = str(v).replace(",", ".").strip()
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _resolve_material(v: Any) -> str | None:
+    key = _norm(v)
+    if not key:
+        return None
+    return MATERIAL_ALIASES.get(key)
+
+
+def _resolve_shape(v: Any) -> str | None:
+    key = _norm(v)
+    if not key:
+        return None
+    # Первое слово тоже пробуем (если запись «цилиндрический бак»)
+    return SHAPE_ALIASES.get(key) or SHAPE_ALIASES.get(key.split()[0] if key else "")
+
+
+def _read_sheet(ws: Any, header_map: dict[str, str]) -> list[dict[str, Any]]:
+    """Читает лист, мапит заголовки → канонические имена, возвращает список строк-словарей.
+
+    Строки возвращаются с ключом ``_row`` — номер строки в Excel (1-based).
+    """
+    rows_iter = ws.iter_rows(values_only=True)
+    try:
+        header_row = next(rows_iter)
+    except StopIteration:
+        return []
+    mapped_cols: list[tuple[int, str]] = []
+    for idx, h in enumerate(header_row):
+        key = header_map.get(_norm(h))
+        if key:
+            mapped_cols.append((idx, key))
+    result: list[dict[str, Any]] = []
+    for row_idx, row in enumerate(rows_iter, start=2):
+        if all(v is None or str(v).strip() == "" for v in row):
+            continue
+        item: dict[str, Any] = {"_row": row_idx}
+        for idx, key in mapped_cols:
+            if idx < len(row):
+                item[key] = row[idx]
+        result.append(item)
+    return result
+
+
+def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
+    """Строит params-словарь для трубы (м, не мм). Возвращает (params, error)."""
+    d_mm = _to_float(row.get("outer_diameter_mm"))
+    L = _to_float(row.get("pipe_length"))
+    ins_mm = _to_float(row.get("insulation_thickness_mm"))
+    material = _resolve_material(row.get("insulation_material"))
+    t_a = _to_float(row.get("ambient_temperature"))
+    t_p = _to_float(row.get("process_temperature"))
+
+    missing: list[str] = []
+    if d_mm is None:
+        missing.append("Диаметр")
+    if L is None:
+        missing.append("Длина")
+    if ins_mm is None:
+        missing.append("Толщина изоляции")
+    if not material:
+        missing.append("Материал")
+    if t_a is None:
+        missing.append("T° среды")
+    if t_p is None:
+        missing.append("T° продукта")
+    if missing:
+        return None, "Не заполнены поля: " + ", ".join(missing)
+
+    params: dict[str, Any] = {
+        "outer_diameter": d_mm / 1000.0,
+        "pipe_length": L,
+        "insulation_thickness": ins_mm / 1000.0,
+        "insulation_material": material,
+        "ambient_temperature": t_a,
+        "process_temperature": t_p,
+    }
+    name = row.get("name")
+    if name and str(name).strip():
+        params["name"] = str(name).strip()
+    return params, None
+
+
+def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
+    shape = _resolve_shape(row.get("shape"))
+    if not shape:
+        return None, "Не указана или не распознана форма (цилиндр / параллелепипед / шар)"
+
+    ins_mm = _to_float(row.get("insulation_thickness_mm"))
+    material = _resolve_material(row.get("insulation_material"))
+    t_a = _to_float(row.get("ambient_temperature"))
+    t_p = _to_float(row.get("process_temperature"))
+
+    missing: list[str] = []
+    if ins_mm is None:
+        missing.append("Толщина изоляции")
+    if not material:
+        missing.append("Материал")
+    if t_a is None:
+        missing.append("T° среды")
+    if t_p is None:
+        missing.append("T° продукта")
+
+    params: dict[str, Any] = {
+        "shape": shape,
+        "insulation_thickness": (ins_mm / 1000.0) if ins_mm is not None else None,
+        "insulation_material": material,
+        "ambient_temperature": t_a,
+        "process_temperature": t_p,
+    }
+
+    if shape == "cylindrical":
+        d_mm = _to_float(row.get("diameter_mm"))
+        h_mm = _to_float(row.get("height_mm"))
+        if d_mm is None:
+            missing.append("Диаметр")
+        if h_mm is None:
+            missing.append("Высота")
+        if d_mm is not None:
+            params["diameter"] = d_mm / 1000.0
+        if h_mm is not None:
+            params["height"] = h_mm / 1000.0
+    elif shape == "rectangular":
+        L_mm = _to_float(row.get("length_mm"))
+        W_mm = _to_float(row.get("width_mm"))
+        H_mm = _to_float(row.get("height_mm"))
+        if L_mm is None:
+            missing.append("Длина")
+        if W_mm is None:
+            missing.append("Ширина")
+        if H_mm is None:
+            missing.append("Высота")
+        if L_mm is not None:
+            params["length"] = L_mm / 1000.0
+        if W_mm is not None:
+            params["width"] = W_mm / 1000.0
+        if H_mm is not None:
+            params["height"] = H_mm / 1000.0
+    elif shape == "spherical":
+        d_mm = _to_float(row.get("diameter_mm"))
+        if d_mm is None:
+            missing.append("Диаметр")
+        if d_mm is not None:
+            params["diameter"] = d_mm / 1000.0
+
+    if missing:
+        return None, "Не заполнены поля: " + ", ".join(missing)
+
+    name = row.get("name")
+    if name and str(name).strip():
+        params["name"] = str(name).strip()
+    return {k: v for k, v in params.items() if v is not None}, None
+
+
+def _parse_csv(content: bytes) -> list[tuple[str, list[dict[str, Any]]]]:
+    """Парсит CSV-файл.
+
+    Возвращает список пар (sheet_label, rows) по типу: [('Трубопроводы', [...]), ('Резервуары', [...])].
+    CSV должен содержать колонку «Тип» со значениями «труба» / «резервуар».
+    Автодетект разделителя (``,``, ``;``, ``\t``). Кодировки: UTF-8 / UTF-8-BOM / CP1251.
+    """
+    import csv
+
+    # Определяем кодировку
+    text: str | None = None
+    for enc in ("utf-8-sig", "utf-8", "cp1251"):
+        try:
+            text = content.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+    if text is None:
+        raise ExcelImportError("Не удалось определить кодировку CSV (ожидается UTF-8 или CP1251)")
+
+    # Автодетект разделителя по первой строке
+    first_line = text.splitlines()[0] if text.strip() else ""
+    if not first_line:
+        raise ExcelImportError("CSV-файл пустой")
+    counts = {d: first_line.count(d) for d in (";", ",", "\t")}
+    delimiter = max(counts, key=counts.get) if any(counts.values()) else ","
+
+    reader = csv.reader(io.StringIO(text), delimiter=delimiter)
+    all_rows = list(reader)
+    if not all_rows:
+        raise ExcelImportError("CSV-файл пустой")
+
+    header = all_rows[0]
+    # Индекс колонки «Тип»
+    type_idx = next((i for i, h in enumerate(header) if _norm(h) in TYPE_HEADERS), None)
+    if type_idx is None:
+        raise ExcelImportError(
+            "В CSV не найдена колонка «Тип» (со значениями «труба»/«резервуар»). "
+            "Используйте шаблон CSV или файл Excel."
+        )
+
+    # Разделяем строки по типу
+    pipe_rows_raw: list[tuple[int, list]] = []
+    tank_rows_raw: list[tuple[int, list]] = []
+    for row_idx, row in enumerate(all_rows[1:], start=2):
+        if all((v is None or str(v).strip() == "") for v in row):
+            continue
+        if type_idx >= len(row):
+            continue
+        t = TYPE_ALIASES.get(_norm(row[type_idx]))
+        if t == "pipe":
+            pipe_rows_raw.append((row_idx, row))
+        elif t == "tank":
+            tank_rows_raw.append((row_idx, row))
+
+    def build_mapped(
+        rows_raw: list[tuple[int, list]], header_map: dict[str, str]
+    ) -> list[dict[str, Any]]:
+        # Определяем маппинг колонок общего header
+        mapped_cols: list[tuple[int, str]] = []
+        for idx, h in enumerate(header):
+            key = header_map.get(_norm(h))
+            if key:
+                mapped_cols.append((idx, key))
+        out: list[dict[str, Any]] = []
+        for row_idx, row in rows_raw:
+            item: dict[str, Any] = {"_row": row_idx}
+            for idx, key in mapped_cols:
+                if idx < len(row):
+                    val = row[idx]
+                    # Пустые строки — None
+                    item[key] = val if (val is not None and str(val).strip() != "") else None
+            out.append(item)
+        return out
+
+    result: list[tuple[str, list[dict[str, Any]]]] = []
+    if pipe_rows_raw:
+        result.append(("Трубопроводы (CSV)", build_mapped(pipe_rows_raw, PIPE_HEADERS)))
+    if tank_rows_raw:
+        result.append(("Резервуары (CSV)", build_mapped(tank_rows_raw, TANK_HEADERS)))
+    return result
+
+
+async def _add_rows(
+    db: AsyncSession,
+    project_id: UUID,
+    principal: CurrentPrincipal,
+    sheet_label: str,
+    rows: list[dict[str, Any]],
+    object_type: str,
+    next_sort: int,
+) -> tuple[int, int, list[dict[str, Any]]]:
+    """Создаёт объекты из распарсенных строк. Возвращает (created, next_sort, errors)."""
+    project_service = ProjectService(db)
+    calc_service = CalculationService(db)
+    created = 0
+    errors: list[dict[str, Any]] = []
+    builder = _build_pipe_params if object_type == "pipe" else _build_tank_params
+    for row in rows:
+        params, err = builder(row)
+        if err or params is None:
+            errors.append(
+                {"sheet": sheet_label, "row": row["_row"], "message": err or "Ошибка парсинга"}
+            )
+            continue
+        try:
+            obj = await project_service.add_object(
+                project_id,
+                ProjectObjectCreate(object_type=object_type, params=params, sort_order=next_sort),
+                principal,
+            )
+            await calc_service.recalculate_object(obj)
+            await db.commit()
+            next_sort += 1
+            created += 1
+        except ProjectLimitError as exc:
+            errors.append({"sheet": sheet_label, "row": row["_row"], "message": str(exc)})
+            break
+        except Exception as exc:
+            errors.append(
+                {
+                    "sheet": sheet_label,
+                    "row": row["_row"],
+                    "message": f"{type(exc).__name__}: {exc}",
+                }
+            )
+    return created, next_sort, errors
+
+
+async def import_objects_from_csv(
+    db: AsyncSession,
+    project_id: UUID,
+    principal: CurrentPrincipal,
+    content: bytes,
+) -> dict[str, Any]:
+    """Импортирует объекты из CSV-файла. Требуется колонка «Тип»."""
+    project_service = ProjectService(db)
+    await project_service.get_project(project_id, principal)
+
+    current_objects = await project_service.list_objects(project_id, principal)
+    next_sort = (max((o.sort_order for o in current_objects), default=-1)) + 1
+
+    sheets = _parse_csv(content)
+    if not sheets:
+        raise ExcelImportError(
+            "В CSV не найдено ни одной строки с распознанным типом (труба/резервуар)."
+        )
+
+    total_created = 0
+    all_errors: list[dict[str, Any]] = []
+    for sheet_label, rows in sheets:
+        obj_type = "pipe" if "Трубопровод" in sheet_label else "tank"
+        created, next_sort, errors = await _add_rows(
+            db, project_id, principal, sheet_label, rows, obj_type, next_sort
+        )
+        total_created += created
+        all_errors.extend(errors)
+
+    return {"created": total_created, "errors": all_errors}
+
+
+async def import_objects_from_excel(
+    db: AsyncSession,
+    project_id: UUID,
+    principal: CurrentPrincipal,
+    content: bytes,
+) -> dict[str, Any]:
+    """Импортирует объекты из xlsx-файла в проект.
+
+    Возвращает сводку: {"created": N, "errors": [{"sheet", "row", "message"}]}.
+    """
+    try:
+        wb = load_workbook(io.BytesIO(content), data_only=True)
+    except Exception as exc:
+        raise ExcelImportError(f"Не удалось открыть файл: {exc}") from exc
+
+    project_service = ProjectService(db)
+    calc_service = CalculationService(db)
+
+    # Проверяем доступ к проекту
+    try:
+        await project_service.get_project(project_id, principal)
+    except (ProjectNotFoundError, ProjectAccessError):
+        raise
+
+    # Определяем текущий sort_order
+    current_objects = await project_service.list_objects(project_id, principal)
+    next_sort = (max((o.sort_order for o in current_objects), default=-1)) + 1
+
+    created = 0
+    errors: list[dict[str, Any]] = []
+    found_sheet = False
+
+    for sheet in wb.sheetnames:
+        norm = _norm(sheet)
+        if norm in PIPE_SHEET_NAMES:
+            found_sheet = True
+            ws = wb[sheet]
+            rows = _read_sheet(ws, PIPE_HEADERS)
+            for row in rows:
+                params, err = _build_pipe_params(row)
+                if err or params is None:
+                    errors.append(
+                        {"sheet": sheet, "row": row["_row"], "message": err or "Ошибка парсинга"}
+                    )
+                    continue
+                try:
+                    obj = await project_service.add_object(
+                        project_id,
+                        ProjectObjectCreate(
+                            object_type="pipe",
+                            params=params,
+                            sort_order=next_sort,
+                        ),
+                        principal,
+                    )
+                    await calc_service.recalculate_object(obj)
+                    await db.commit()
+                    next_sort += 1
+                    created += 1
+                except ProjectLimitError as exc:
+                    errors.append({"sheet": sheet, "row": row["_row"], "message": str(exc)})
+                    return {"created": created, "errors": errors}
+                except Exception as exc:
+                    errors.append(
+                        {
+                            "sheet": sheet,
+                            "row": row["_row"],
+                            "message": f"{type(exc).__name__}: {exc}",
+                        }
+                    )
+        elif norm in TANK_SHEET_NAMES:
+            found_sheet = True
+            ws = wb[sheet]
+            rows = _read_sheet(ws, TANK_HEADERS)
+            for row in rows:
+                params, err = _build_tank_params(row)
+                if err or params is None:
+                    errors.append(
+                        {"sheet": sheet, "row": row["_row"], "message": err or "Ошибка парсинга"}
+                    )
+                    continue
+                try:
+                    obj = await project_service.add_object(
+                        project_id,
+                        ProjectObjectCreate(
+                            object_type="tank",
+                            params=params,
+                            sort_order=next_sort,
+                        ),
+                        principal,
+                    )
+                    await calc_service.recalculate_object(obj)
+                    await db.commit()
+                    next_sort += 1
+                    created += 1
+                except ProjectLimitError as exc:
+                    errors.append({"sheet": sheet, "row": row["_row"], "message": str(exc)})
+                    return {"created": created, "errors": errors}
+                except Exception as exc:
+                    errors.append(
+                        {
+                            "sheet": sheet,
+                            "row": row["_row"],
+                            "message": f"{type(exc).__name__}: {exc}",
+                        }
+                    )
+
+    if not found_sheet:
+        raise ExcelImportError(
+            "В файле не найдены листы «Трубопроводы» или «Резервуары». "
+            "Используйте шаблон (кнопка «Скачать шаблон»)."
+        )
+
+    return {"created": created, "errors": errors}
+
+
+MATERIAL_LABELS_RU: dict[str, str] = {
+    "mineral_wool": "Минеральная вата",
+    "foam_glass": "Пеностекло",
+    "polyurethane": "Пенополиуретан",
+    "polystyrene": "Пенополистирол",
+    "aerogel": "Аэрогель",
+    "calcium_silicate": "Силикат кальция",
+}
+
+SHAPE_LABELS_RU: dict[str, str] = {
+    "cylindrical": "Цилиндр",
+    "rectangular": "Параллелепипед",
+    "spherical": "Шар",
+}
+
+
+def build_objects_xlsx(objects: list[Any]) -> bytes:
+    """Экспорт объектов проекта в формат, round-trip-совместимый с импортом.
+
+    Пишет листы `Трубопроводы` и `Резервуары` с теми же колонками, что и
+    `build_template_xlsx` — файл можно сохранить локально и через
+    `POST /objects/import-excel` загрузить обратно.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+
+    wb = Workbook()
+    ws_pipe = wb.active
+    ws_pipe.title = "Трубопроводы"
+    pipe_cols = [
+        "Наименование",
+        "Диаметр, мм",
+        "Длина, м",
+        "Толщина изоляции, мм",
+        "Материал изоляции",
+        "T° среды",
+        "T° продукта",
+    ]
+    for c, h in enumerate(pipe_cols, start=1):
+        cell = ws_pipe.cell(row=1, column=c, value=h)
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill("solid", fgColor="DCEEF7")
+
+    ws_tank = wb.create_sheet("Резервуары")
+    tank_cols = [
+        "Наименование",
+        "Форма",
+        "Диаметр, мм",
+        "Длина, мм",
+        "Ширина, мм",
+        "Высота, мм",
+        "Толщина изоляции, мм",
+        "Материал изоляции",
+        "T° среды",
+        "T° продукта",
+    ]
+    for c, h in enumerate(tank_cols, start=1):
+        cell = ws_tank.cell(row=1, column=c, value=h)
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill("solid", fgColor="DCEEF7")
+
+    for obj in objects:
+        params = obj.params or {}
+        name = params.get("name") or ""
+        material = MATERIAL_LABELS_RU.get(
+            params.get("insulation_material", ""), params.get("insulation_material", "")
+        )
+        if obj.object_type == "pipe":
+            ws_pipe.append(
+                [
+                    name,
+                    round((params.get("outer_diameter") or 0) * 1000, 3) or "",
+                    params.get("pipe_length") or "",
+                    round((params.get("insulation_thickness") or 0) * 1000, 3) or "",
+                    material,
+                    params.get("ambient_temperature", ""),
+                    params.get("process_temperature", ""),
+                ]
+            )
+        elif obj.object_type == "tank":
+            shape_code = params.get("shape") or "cylindrical"
+            shape = SHAPE_LABELS_RU.get(shape_code, shape_code)
+
+            def to_mm(k, _params=params):
+                return round((_params.get(k) or 0) * 1000, 3) or "" if _params.get(k) else ""
+
+            ws_tank.append(
+                [
+                    name,
+                    shape,
+                    to_mm("diameter"),
+                    to_mm("length"),
+                    to_mm("width"),
+                    to_mm("height"),
+                    to_mm("insulation_thickness"),
+                    material,
+                    params.get("ambient_temperature", ""),
+                    params.get("process_temperature", ""),
+                ]
+            )
+
+    ws_pipe.column_dimensions["A"].width = 24
+    for col in "BCDEFG":
+        ws_pipe.column_dimensions[col].width = 18
+    ws_tank.column_dimensions["A"].width = 24
+    for col in "BCDEFGHIJ":
+        ws_tank.column_dimensions[col].width = 18
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def build_template_xlsx() -> bytes:
+    """Формирует xlsx-шаблон с двумя листами и примерами."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+
+    wb = Workbook()
+    ws_pipe = wb.active
+    ws_pipe.title = "Трубопроводы"
+    pipe_cols = [
+        "Наименование",
+        "Диаметр, мм",
+        "Длина, м",
+        "Толщина изоляции, мм",
+        "Материал изоляции",
+        "T° среды",
+        "T° продукта",
+    ]
+    for c, h in enumerate(pipe_cols, start=1):
+        cell = ws_pipe.cell(row=1, column=c, value=h)
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill("solid", fgColor="DCEEF7")
+    ws_pipe.append(["Пример DN100", 108, 50, 50, "Минеральная вата", -20, 80])
+    ws_pipe.append(["Пример DN50", 57, 20, 40, "Пеностекло", -30, 60])
+    ws_pipe.column_dimensions["A"].width = 24
+    for col in "BCDEFG":
+        ws_pipe.column_dimensions[col].width = 18
+
+    ws_tank = wb.create_sheet("Резервуары")
+    tank_cols = [
+        "Наименование",
+        "Форма",
+        "Диаметр, мм",
+        "Длина, мм",
+        "Ширина, мм",
+        "Высота, мм",
+        "Толщина изоляции, мм",
+        "Материал изоляции",
+        "T° среды",
+        "T° продукта",
+    ]
+    for c, h in enumerate(tank_cols, start=1):
+        cell = ws_tank.cell(row=1, column=c, value=h)
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill("solid", fgColor="DCEEF7")
+    ws_tank.append(["Бак цил.", "Цилиндр", 2000, "", "", 3000, 80, "Минеральная вата", -20, 80])
+    ws_tank.append(
+        ["Бак прям.", "Параллелепипед", "", 5000, 3000, 4000, 80, "Минеральная вата", -20, 80]
+    )
+    ws_tank.append(["Шаровой", "Шар", 1500, "", "", "", 60, "Пенополиуретан", -20, 60])
+    ws_tank.column_dimensions["A"].width = 24
+    for col in "BCDEFGHIJ":
+        ws_tank.column_dimensions[col].width = 18
+
+    ws_info = wb.create_sheet("Справка")
+    ws_info["A1"] = "Подсказки по импорту"
+    ws_info["A1"].font = Font(bold=True, size=14)
+    ws_info["A3"] = "Материалы изоляции (допустимы оба варианта):"
+    ws_info["A3"].font = Font(bold=True)
+    for i, mat in enumerate(
+        [
+            "Минеральная вата / mineral_wool",
+            "Пеностекло / foam_glass",
+            "Пенополиуретан (ППУ) / polyurethane",
+            "Пенополистирол / polystyrene",
+            "Аэрогель / aerogel",
+            "Силикат кальция / calcium_silicate",
+        ],
+        start=4,
+    ):
+        ws_info.cell(row=i, column=1, value=mat)
+    ws_info["A11"] = "Формы резервуара:"
+    ws_info["A11"].font = Font(bold=True)
+    ws_info["A12"] = "Цилиндр — требуются Диаметр и Высота"
+    ws_info["A13"] = "Параллелепипед — требуются Длина, Ширина, Высота"
+    ws_info["A14"] = "Шар — требуется Диаметр"
+    ws_info.column_dimensions["A"].width = 60
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def build_template_csv() -> bytes:
+    """Формирует CSV-шаблон: один файл, колонка «Тип» разделяет трубы и резервуары."""
+    import csv
+
+    buf = io.StringIO()
+    writer = csv.writer(buf, delimiter=";", lineterminator="\n")
+    writer.writerow(
+        [
+            "Тип",
+            "Наименование",
+            "Форма",
+            "Диаметр, мм",
+            "Длина, мм",
+            "Ширина, мм",
+            "Высота, мм",
+            "Длина, м",  # для трубы — длина в метрах
+            "Толщина изоляции, мм",
+            "Материал изоляции",
+            "T° среды",
+            "T° продукта",
+        ]
+    )
+    # Для трубы: диаметр в мм, длина в м, форма/ширина/высота пустые
+    writer.writerow(
+        ["труба", "Пример DN100", "", 108, "", "", "", 50, 50, "Минеральная вата", -20, 80]
+    )
+    writer.writerow(["труба", "Пример DN50", "", 57, "", "", "", 20, 40, "Пеностекло", -30, 60])
+    # Резервуары: заполняем Форма + нужные габариты в мм
+    writer.writerow(
+        [
+            "резервуар",
+            "Бак цил.",
+            "Цилиндр",
+            2000,
+            "",
+            "",
+            3000,
+            "",
+            80,
+            "Минеральная вата",
+            -20,
+            80,
+        ]
+    )
+    writer.writerow(
+        [
+            "резервуар",
+            "Бак прям.",
+            "Параллелепипед",
+            "",
+            5000,
+            3000,
+            4000,
+            "",
+            80,
+            "Пенополиуретан",
+            -20,
+            60,
+        ]
+    )
+    writer.writerow(["резервуар", "Шар", "Шар", 1500, "", "", "", "", 60, "Пеностекло", -20, 50])
+    # UTF-8 BOM чтобы Excel правильно открывал файл
+    return ("\ufeff" + buf.getvalue()).encode("utf-8")

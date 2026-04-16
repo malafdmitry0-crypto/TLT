@@ -1,0 +1,269 @@
+"""Сервис управления проектами."""
+
+import copy
+from uuid import UUID
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.config import settings
+from app.core.dependencies import CurrentPrincipal
+from app.models.project import Project
+from app.models.project_object import ProjectObject
+from app.models.user import User
+from app.schemas.project import (
+    ProjectCreate,
+    ProjectObjectCreate,
+    ProjectObjectUpdate,
+    ProjectUpdate,
+)
+
+
+class ProjectNotFoundError(Exception):
+    """Проект не найден."""
+
+
+class ProjectAccessError(Exception):
+    """Нет доступа к проекту."""
+
+
+class ProjectLimitError(Exception):
+    """Превышен лимит."""
+
+
+class ProjectService:
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    async def list_projects(self, principal: CurrentPrincipal) -> list[Project]:
+        stmt = (
+            select(Project, User.email.label("owner_email"))
+            .outerjoin(User, Project.user_id == User.id)
+            .options(selectinload(Project.objects))
+        )
+        if principal.role == "guest":
+            stmt = stmt.where(Project.session_id == principal.session_id)
+        elif principal.role == "employee":
+            pass  # Employee видит все проекты (по матрице доступа)
+        # admin не работает с проектами
+        stmt = stmt.order_by(Project.updated_at.desc())
+        rows = await self.db.execute(stmt)
+        projects = []
+        for project, owner_email in rows.all():
+            project.owner_email = owner_email  # annotate for response schema
+            project.object_types = sorted({o.object_type for o in project.objects})
+            projects.append(project)
+        return projects
+
+    async def create_project(self, data: ProjectCreate, principal: CurrentPrincipal) -> Project:
+        # Лимит проектов для гостевой сессии
+        if principal.role == "guest" and principal.session_id:
+            count_result = await self.db.execute(
+                select(func.count())
+                .select_from(Project)
+                .where(Project.session_id == principal.session_id)
+            )
+            count = count_result.scalar_one()
+            if count >= settings.GUEST_MAX_PROJECTS:
+                raise ProjectLimitError(
+                    "У пользователя может быть только один проект. "
+                    "Войдите как сотрудник, чтобы работать с несколькими проектами."
+                )
+        project = Project(
+            name=data.name,
+            description=data.description,
+            task_number=data.task_number,
+            user_id=principal.user_id,
+            session_id=principal.session_id,
+        )
+        self.db.add(project)
+        await self.db.commit()
+        await self.db.refresh(project)
+        return project
+
+    async def get_project(self, project_id: UUID, principal: CurrentPrincipal) -> Project:
+        result = await self.db.execute(
+            select(Project).where(Project.id == project_id).options(selectinload(Project.objects))
+        )
+        project = result.scalar_one_or_none()
+        if project is None:
+            raise ProjectNotFoundError(f"Проект {project_id} не найден")
+        self._check_access(project, principal)
+        return project
+
+    async def update_project(
+        self, project_id: UUID, data: ProjectUpdate, principal: CurrentPrincipal
+    ) -> Project:
+        project = await self.get_project(project_id, principal)
+        self._check_owner(project, principal)
+        update_data = data.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(project, key, value)
+        await self.db.commit()
+        await self.db.refresh(project)
+        return project
+
+    async def delete_project(self, project_id: UUID, principal: CurrentPrincipal) -> None:
+        project = await self.get_project(project_id, principal)
+        self._check_owner(project, principal)
+        await self.db.delete(project)
+        await self.db.commit()
+
+    async def duplicate_project(self, source_id: UUID, principal: CurrentPrincipal) -> Project:
+        """Создать копию проекта с объектами (без расчётов — будут пересчитаны).
+
+        Доступно только зарегистрированному пользователю (employee/admin).
+        Копируются только `params` объектов; `results`, `is_valid`,
+        `validation_errors` очищаются — теплорасчёт выполняется заново
+        вызывающей стороной (`CalculationService.batch_recalculate` +
+        `batch_calc_electrical`).
+        """
+        if principal.role not in ("employee", "admin"):
+            raise ProjectAccessError(
+                "Копирование проекта доступно только зарегистрированному пользователю"
+            )
+        source = await self.get_project(source_id, principal)
+
+        new_project = Project(
+            name=f"{source.name} (копия)",
+            description=source.description,
+            task_number=source.task_number,
+            user_id=principal.user_id,
+            session_id=None,
+            status="draft",
+        )
+        self.db.add(new_project)
+        await self.db.flush()
+
+        for src_obj in sorted(source.objects, key=lambda o: o.sort_order):
+            self.db.add(
+                ProjectObject(
+                    project_id=new_project.id,
+                    object_type=src_obj.object_type,
+                    sort_order=src_obj.sort_order,
+                    params=copy.deepcopy(src_obj.params),
+                )
+            )
+        await self.db.commit()
+        await self.db.refresh(new_project)
+        return new_project
+
+    # ---- Objects ----
+
+    async def list_objects(
+        self, project_id: UUID, principal: CurrentPrincipal
+    ) -> list[ProjectObject]:
+        await self.get_project(project_id, principal)
+        result = await self.db.execute(
+            select(ProjectObject)
+            .where(ProjectObject.project_id == project_id)
+            .order_by(ProjectObject.sort_order)
+        )
+        return list(result.scalars().all())
+
+    async def add_object(
+        self,
+        project_id: UUID,
+        data: ProjectObjectCreate,
+        principal: CurrentPrincipal,
+    ) -> ProjectObject:
+        project = await self.get_project(project_id, principal)
+        self._check_owner(project, principal)
+        # Лимит объектов в проекте
+        count_result = await self.db.execute(
+            select(func.count())
+            .select_from(ProjectObject)
+            .where(ProjectObject.project_id == project_id)
+        )
+        count = count_result.scalar_one()
+        if count >= settings.GUEST_MAX_OBJECTS_PER_PROJECT:
+            raise ProjectLimitError(
+                f"Достигнут лимит объектов в проекте ({settings.GUEST_MAX_OBJECTS_PER_PROJECT})."
+            )
+        obj = ProjectObject(
+            project_id=project_id,
+            object_type=data.object_type,
+            sort_order=data.sort_order,
+            params=data.params,
+        )
+        self.db.add(obj)
+        await self.db.commit()
+        await self.db.refresh(obj)
+        return obj
+
+    async def update_object(
+        self,
+        project_id: UUID,
+        object_id: UUID,
+        data: ProjectObjectUpdate,
+        principal: CurrentPrincipal,
+    ) -> ProjectObject:
+        project = await self.get_project(project_id, principal)
+        self._check_owner(project, principal)
+        obj = await self._get_object(project_id, object_id)
+        update_data = data.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(obj, key, value)
+        await self.db.commit()
+        await self.db.refresh(obj)
+        return obj
+
+    async def delete_object(
+        self,
+        project_id: UUID,
+        object_id: UUID,
+        principal: CurrentPrincipal,
+    ) -> None:
+        project = await self.get_project(project_id, principal)
+        self._check_owner(project, principal)
+        obj = await self._get_object(project_id, object_id)
+        await self.db.delete(obj)
+        await self.db.commit()
+
+    async def reorder_objects(
+        self,
+        project_id: UUID,
+        order: list[UUID],
+        principal: CurrentPrincipal,
+    ) -> list[ProjectObject]:
+        project = await self.get_project(project_id, principal)
+        self._check_owner(project, principal)
+        for idx, obj_id in enumerate(order):
+            obj = await self._get_object(project_id, obj_id)
+            obj.sort_order = idx
+        await self.db.commit()
+        return await self.list_objects(project_id, principal)
+
+    async def _get_object(self, project_id: UUID, object_id: UUID) -> ProjectObject:
+        result = await self.db.execute(
+            select(ProjectObject).where(
+                ProjectObject.id == object_id,
+                ProjectObject.project_id == project_id,
+            )
+        )
+        obj = result.scalar_one_or_none()
+        if obj is None:
+            raise ProjectNotFoundError(f"Объект {object_id} не найден")
+        return obj
+
+    def _check_access(self, project: Project, principal: CurrentPrincipal) -> None:
+        if principal.role == "employee":
+            return
+        if principal.role == "guest":
+            if project.session_id != principal.session_id:
+                raise ProjectAccessError("Нет доступа к чужому проекту")
+            return
+        raise ProjectAccessError("Нет доступа")
+
+    def _check_owner(self, project: Project, principal: CurrentPrincipal) -> None:
+        if principal.role == "guest":
+            if project.session_id != principal.session_id:
+                raise ProjectAccessError("Нет доступа")
+            return
+        if principal.role == "employee":
+            if project.user_id == principal.user_id:
+                return
+            # сотрудник по ТЗ может видеть, но не редактировать чужие проекты
+            raise ProjectAccessError("Нельзя редактировать чужой проект")
+        raise ProjectAccessError("Нет доступа")

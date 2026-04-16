@@ -1,0 +1,136 @@
+"""FastAPI-зависимости: текущий пользователь / гость / проверка роли."""
+
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Literal, cast
+from uuid import UUID
+
+from fastapi import Depends, Header, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.core.security import decode_token
+from app.models.guest_session import GuestSession
+from app.models.user import User
+
+bearer_scheme = HTTPBearer(auto_error=False)
+
+Role = Literal["guest", "employee", "admin"]
+
+
+@dataclass
+class CurrentPrincipal:
+    """Унифицированное представление текущего актора.
+
+    Для Guest: user_id=None, session_id заполнен.
+    Для Employee/Admin: user_id заполнен, session_id=None.
+    """
+
+    role: Role
+    user_id: UUID | None = None
+    session_id: str | None = None
+    email: str | None = None
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Возвращает User из JWT или 401."""
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Требуется авторизация",
+        )
+    try:
+        payload = decode_token(credentials.credentials)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Недействительный токен",
+        ) from exc
+    if payload.get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Ожидался access-токен",
+        )
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Некорректный токен",
+        )
+    result = await db.execute(select(User).where(User.id == UUID(user_id)))
+    user = result.scalar_one_or_none()
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Пользователь не найден или неактивен",
+        )
+    return user
+
+
+async def get_current_user_or_guest(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    x_session_id: str | None = Header(default=None, alias="X-Session-Id"),
+    db: AsyncSession = Depends(get_db),
+) -> CurrentPrincipal:
+    """JWT → Employee/Admin, иначе X-Session-Id → Guest."""
+    if credentials is not None:
+        user = await get_current_user(credentials, db)
+        # user.role — строка из ENUM в БД; типизируется как Role (employee|admin).
+        # Guest не попадает сюда (приходит по X-Session-Id), поэтому cast безопасен.
+        return CurrentPrincipal(
+            role=cast(Role, user.role),
+            user_id=user.id,
+            email=user.email,
+        )
+    if x_session_id:
+        result = await db.execute(
+            select(GuestSession).where(GuestSession.session_id == x_session_id)
+        )
+        session = result.scalar_one_or_none()
+        if session is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Сессия не найдена или истекла",
+            )
+        # Любой запрос от пользователя продлевает TTL сессии: пока работает —
+        # данные живут, ушёл — через GUEST_SESSION_TTL_MINUTES фоновый cleanup удалит.
+        session.last_activity = datetime.now(UTC)
+        await db.commit()
+        return CurrentPrincipal(role="guest", session_id=session.session_id)
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Требуется авторизация или X-Session-Id",
+    )
+
+
+def require_role(allowed_roles: list[Role]):
+    """Factory: проверяет, что у текущего принципала допустимая роль."""
+
+    async def checker(
+        principal: CurrentPrincipal = Depends(get_current_user_or_guest),
+    ) -> CurrentPrincipal:
+        if principal.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Недостаточно прав",
+            )
+        return principal
+
+    return checker
+
+
+def require_admin():
+    return require_role(["admin"])
+
+
+def require_employee():
+    return require_role(["employee", "admin"])
+
+
+def require_any():
+    return require_role(["guest", "employee", "admin"])

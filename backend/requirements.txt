@@ -1,0 +1,24 @@
+fastapi==0.121.0
+uvicorn[standard]==0.32.0
+sqlalchemy[asyncio]==2.0.35
+alembic==1.13.3
+asyncpg==0.29.0
+# Redis для distributed rate limiter (опционально — fallback на in-memory если REDIS_URL не задан)
+redis==5.2.1
+pydantic==2.9.2
+pydantic-settings==2.5.2
+email-validator==2.2.0
+# Заменили python-jose (unmaintained, тянет за собой уязвимый pyasn1<0.5.0)
+# на PyJWT — активно поддерживается, без транзитивной уязвимости.
+pyjwt[crypto]==2.12.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+# CVE GHSA-{59g5-xgcq-4qw3,wp53-j4wj-2cfg,mj87-hwqh-73pj} — DoS на больших полях
+python-multipart==0.0.26
+python-docx==1.1.2
+openpyxl==3.1.5
+# CVE GHSA-983w-rhvv-gwmv — XSS в Floating Box. 68.0 совместим с pydyf>=0.11.
+weasyprint==68.0
+pydyf==0.11.0
+# CVE GHSA-{q2x7-8rv6-6q7h,gmj6-6f8f-6699,cpwx-vrp4-4pq7} — sandbox bypass
+Jinja2==3.1.6

@@ -1,0 +1,60 @@
+[project]
+name = "heatcalc-backend"
+version = "0.1.0"
+description = "HeatCalc backend (FastAPI)"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "B", "UP", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+testpaths = ["app/tests"]
+python_files = ["test_*.py"]
+addopts = "-ra -q --cov=app --cov-fail-under=85 --cov-report=term-missing:skip-covered"
+
+[tool.mutmut]
+# Mutation testing — проверка качества тестов, не их количества.
+# Цель: критичные формулы (расчёт теплопотерь / подбор кабеля).
+# Запуск: mutmut run; mutmut results
+paths_to_mutate = ["app/formulas/"]
+runner = "python -m pytest -x --no-cov -q app/tests/unit/formulas"
+tests_dir = "app/tests/unit/formulas"
+backup = false
+
+[tool.bandit]
+# SAST-сканер безопасности: только боевой код, без тестов (там assert = норма).
+exclude_dirs = ["app/tests", ".local", "alembic"]
+# Пропускаем assert (B101) — в коде есть защитные утверждения; purge на pre-commit.
+skips = ["B101"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "app/tests/*",
+    "app/main.py",
+    "app/seeds.py",                   # seed-скрипт первого запуска, не бизнес-логика
+    "app/reports/word_generator.py",  # DOCX-рендер: покрыт integration-тестами отчётов
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

@@ -1,0 +1,484 @@
+"""Unit-тесты CalculationService с мок-БД.
+
+Цель — покрыть ветки кода сервиса без обращения к реальной БД:
+* `calc_heat_loss` — pipe / tank / unknown type
+* `recalculate_object` — success / validation error path
+* `batch_recalculate` — агрегация успехов и ошибок
+* `_save_failed_electrical` — создание / обновление
+* `select_cable_manual` — препроверки (объект не найден, теплопотери не посчитаны)
+
+Интеграционные аспекты (commit, транзакции) покрываются через
+test_calculations.py::TestManualCableSelection.
+"""
+
+from __future__ import annotations
+
+import uuid
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from app.services.calculation_service import CalculationError, CalculationService
+
+
+def _mock_db_empty() -> AsyncMock:
+    """Мок AsyncSession, возвращающий пустой список при любом execute()."""
+    db = AsyncMock()
+    result = MagicMock()
+    result.scalars = lambda: MagicMock(all=lambda: [], first=lambda: None)
+    result.scalar_one_or_none = lambda: None
+    db.execute = AsyncMock(return_value=result)
+    db.commit = AsyncMock()
+    db.refresh = AsyncMock()
+    db.add = MagicMock()
+    return db
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# calc_heat_loss — ветки
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestCalcHeatLoss:
+    async def test_pipe_happy_path(self):
+        service = CalculationService(_mock_db_empty())
+        result = await service.calc_heat_loss(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool",
+                "ambient_temperature": -30,
+                "process_temperature": 80,
+                "pipe_length": 10,
+            },
+        )
+        assert "heat_loss_per_meter" in result
+        assert "total_heat_loss" in result
+        assert result["heat_loss_per_meter"] > 0
+
+    async def test_tank_happy_path(self):
+        service = CalculationService(_mock_db_empty())
+        result = await service.calc_heat_loss(
+            "tank",
+            {
+                "shape": "cylindrical",
+                "diameter": 2.0,
+                "height": 3.0,
+                "insulation_thickness": 0.08,
+                "insulation_material": "mineral_wool",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+            },
+        )
+        assert "heat_loss_per_m2" in result
+        assert "surface_area" in result
+        assert result["surface_area"] > 0
+
+    async def test_unknown_object_type_raises(self):
+        service = CalculationService(_mock_db_empty())
+        with pytest.raises(CalculationError, match="Неподдерживаемый"):
+            await service.calc_heat_loss("spaceship", {})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# recalculate_object — success / failure path
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestRecalculateObject:
+    async def test_success_sets_is_valid_true_and_clears_errors(self):
+        """Корректный объект → is_valid=True, validation_errors=None."""
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            object_type="pipe",
+            params={
+                "outer_diameter": 0.1,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool",
+                "ambient_temperature": -30,
+                "process_temperature": 80,
+                "pipe_length": 10,
+            },
+            results=None,
+            is_valid=False,
+            validation_errors={"error": "old"},
+        )
+        result = await service.recalculate_object(obj)
+        assert result is obj
+        assert obj.is_valid is True
+        assert obj.validation_errors is None
+        assert obj.results is not None
+        assert obj.results["heat_loss_per_meter"] > 0
+
+    async def test_failure_sets_is_valid_false_and_captures_error(self):
+        """Некорректные параметры (T_proc ≤ T_amb) → is_valid=False + error."""
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            object_type="pipe",
+            params={
+                "outer_diameter": 0.1,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool",
+                "ambient_temperature": 50,
+                "process_temperature": 50,  # равно → нет перепада
+                "pipe_length": 10,
+            },
+            results=None,
+            is_valid=True,  # начальное состояние
+            validation_errors=None,
+        )
+        result = await service.recalculate_object(obj)
+        assert result is obj
+        assert obj.is_valid is False
+        assert obj.validation_errors is not None
+        assert "error" in obj.validation_errors
+        # Сообщение об ошибке содержит упоминание T_продукта
+        err_msg = obj.validation_errors["error"].lower()
+        assert "выше" in err_msg or "температур" in err_msg
+
+    async def test_failure_clears_results(self):
+        """При ошибке results должен обнулиться (а не сохранить старые)."""
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            object_type="pipe",
+            params={"outer_diameter": -1},  # невалидный
+            results={"heat_loss_per_meter": 123},  # старые данные
+            is_valid=True,
+            validation_errors=None,
+        )
+        await service.recalculate_object(obj)
+        assert obj.results is None
+
+    async def test_tank_recalculate(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            object_type="tank",
+            params={
+                "shape": "spherical",
+                "diameter": 1.5,
+                "insulation_thickness": 0.06,
+                "insulation_material": "mineral_wool",
+                "ambient_temperature": -10,
+                "process_temperature": 60,
+            },
+            results=None,
+            is_valid=False,
+            validation_errors=None,
+        )
+        await service.recalculate_object(obj)
+        assert obj.is_valid is True
+        assert obj.results["surface_area"] > 0
+
+    async def test_unknown_object_type_marks_invalid(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            object_type="what_is_this",
+            params={},
+            results=None,
+            is_valid=True,
+            validation_errors=None,
+        )
+        await service.recalculate_object(obj)
+        assert obj.is_valid is False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# get_coefficients — возвращает словарь по CorrectionCoefficient rows
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestGetCoefficients:
+    async def test_returns_dict_from_db_rows(self):
+        db = AsyncMock()
+        # Имитируем строки CorrectionCoefficient
+        rows = [
+            SimpleNamespace(key="safety_factor", value=1.2),
+            SimpleNamespace(key="wind_factor", value=1.0),
+        ]
+        result = MagicMock()
+        result.scalars = lambda: MagicMock(all=lambda: rows)
+        db.execute = AsyncMock(return_value=result)
+        service = CalculationService(db)
+        coeffs = await service.get_coefficients()
+        assert coeffs == {"safety_factor": 1.2, "wind_factor": 1.0}
+
+    async def test_returns_empty_dict_when_no_rows(self):
+        service = CalculationService(_mock_db_empty())
+        coeffs = await service.get_coefficients()
+        assert coeffs == {}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# batch_recalculate — агрегация
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestBatchRecalculate:
+    async def test_no_objects_returns_zeros(self):
+        service = CalculationService(_mock_db_empty())
+        updated, failed, errors = await service.batch_recalculate(uuid.uuid4())
+        assert updated == 0
+        assert failed == 0
+        assert errors == []
+
+    async def test_mixed_success_and_failure(self):
+        """Один валидный + один невалидный — счётчики и список ошибок правильные."""
+        db = AsyncMock()
+        objects = [
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                object_type="pipe",
+                params={
+                    "outer_diameter": 0.1,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": "mineral_wool",
+                    "ambient_temperature": -10,
+                    "process_temperature": 60,
+                    "pipe_length": 10,
+                },
+                results=None,
+                is_valid=False,
+                validation_errors=None,
+            ),
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                object_type="pipe",
+                params={
+                    "outer_diameter": 0.1,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": "mineral_wool",
+                    "ambient_temperature": 100,
+                    "process_temperature": 50,  # невалидно
+                    "pipe_length": 10,
+                },
+                results=None,
+                is_valid=False,
+                validation_errors=None,
+            ),
+        ]
+        # Первый execute() возвращает объекты проекта, второй (внутри recalc)
+        # — coefficients (пустой список).
+        # Упрощаем: execute всегда даёт scalars().all() → objects для обоих
+        # вызовов, потому что coefficients не критичны для теста.
+        result_objects = MagicMock()
+        result_objects.scalars = lambda: MagicMock(all=lambda: objects)
+        result_empty = MagicMock()
+        result_empty.scalars = lambda: MagicMock(all=lambda: [])
+        # Первый — список объектов, дальше — пустые (коэффициенты)
+        db.execute = AsyncMock(side_effect=[result_objects] + [result_empty] * 10)
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        updated, failed, errors = await service.batch_recalculate(uuid.uuid4())
+        assert updated == 1
+        assert failed == 1
+        assert len(errors) == 1
+        assert errors[0]["object_id"] == str(objects[1].id)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# select_cable_manual — препроверки
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestLoadCableCatalog:
+    """Покрытие веток source: builtin / extended / all + invalid fallback."""
+
+    async def test_builtin_returns_only_builtin(self):
+        service = CalculationService(AsyncMock())
+        result = await service.load_cable_catalog("builtin")
+        assert all(c["source"] == "builtin" for c in result)
+        assert len(result) > 0
+
+    async def test_invalid_source_falls_back_to_builtin(self):
+        service = CalculationService(AsyncMock())
+        result = await service.load_cable_catalog("nonexistent")
+        assert all(c["source"] == "builtin" for c in result)
+
+    async def test_extended_only(self):
+        ext = SimpleNamespace(
+            cable_type="self_regulating",
+            brand="X",
+            model="X-Mod",
+            power_per_meter=20.0,
+            max_temperature=100.0,
+            min_temperature=-30.0,
+            resistance_per_meter=None,
+        )
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars = lambda: MagicMock(all=lambda: [ext])
+        db.execute = AsyncMock(return_value=result)
+        service = CalculationService(db)
+        cables = await service.load_cable_catalog("extended")
+        assert len(cables) == 1
+        assert cables[0]["source"] == "extended"
+        assert cables[0]["brand"] == "X"
+
+    async def test_all_returns_builtin_plus_extended(self):
+        ext = SimpleNamespace(
+            cable_type="self_regulating",
+            brand="Y",
+            model="Y-Mod",
+            power_per_meter=30.0,
+            max_temperature=100,
+            min_temperature=-30,
+            resistance_per_meter=None,
+        )
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars = lambda: MagicMock(all=lambda: [ext])
+        db.execute = AsyncMock(return_value=result)
+        service = CalculationService(db)
+        cables = await service.load_cable_catalog("all")
+        sources = {c["source"] for c in cables}
+        assert sources == {"builtin", "extended"}
+
+
+class TestCoefficientsCaching:
+    """Кэш коэффициентов — ключ-инвалидация работает, второй вызов не идёт в БД."""
+
+    async def test_cache_hit_skips_db_query(self):
+        from app.core.cache import cache as global_cache
+
+        global_cache.invalidate("coefficients")
+        # Первый — кэш пуст, идём в БД
+        rows = [SimpleNamespace(key="k1", value=1.0)]
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars = lambda: MagicMock(all=lambda: rows)
+        db.execute = AsyncMock(return_value=result)
+        service = CalculationService(db)
+        await service.get_coefficients()
+        # Второй раз — execute не должен вызваться
+        db.execute.reset_mock()
+        await service.get_coefficients()
+        db.execute.assert_not_awaited()
+        global_cache.invalidate("coefficients")
+
+
+class TestSaveFailedElectrical:
+    """Прямые unit-тесты на _save_failed_electrical (восстанавливает запись с error)."""
+
+    async def test_creates_new_when_no_existing(self):
+        from app.services.calculation_service import CalculationService
+
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            object_type="pipe",
+            params={"name": "Failing"},
+        )
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars = lambda: MagicMock(first=lambda: None)
+        db.execute = AsyncMock(return_value=result)
+        db.add = MagicMock()
+        db.commit = AsyncMock()
+
+        await CalculationService(db)._save_failed_electrical(obj, "TestError")
+        db.add.assert_called_once()
+        db.commit.assert_awaited_once()
+
+    async def test_updates_existing(self):
+        from app.services.calculation_service import CalculationService
+
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            object_type="tank",
+            params={"name": "T"},
+        )
+        existing = SimpleNamespace(
+            cable_mark="ТЛТ-25",
+            results={"selected_cable": "ТЛТ-25"},
+        )
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars = lambda: MagicMock(first=lambda: existing)
+        db.execute = AsyncMock(return_value=result)
+        db.commit = AsyncMock()
+
+        await CalculationService(db)._save_failed_electrical(obj, "Some error")
+        # cable_mark обнуляется, results заменяются на error
+        assert existing.cable_mark is None
+        assert existing.results["error"] == "Some error"
+
+    async def test_creates_record_with_given_variant_number(self):
+        """Regression: фейл электрорасчёта варианта 2 сохраняется с variant_number=2,
+        а не в дефолтный вариант 1 (иначе затирает успешный расчёт СО1)."""
+        from app.services.calculation_service import CalculationService
+
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            object_type="pipe",
+            params={"name": "P"},
+        )
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars = lambda: MagicMock(first=lambda: None)
+        db.execute = AsyncMock(return_value=result)
+        db.add = MagicMock()
+        db.commit = AsyncMock()
+
+        await CalculationService(db)._save_failed_electrical(obj, "boom", variant_number=2)
+        created = db.add.call_args.args[0]
+        assert created.variant_number == 2
+
+
+class TestGetCableOptions:
+    async def test_returns_builtin_tlt_list(self):
+        from app.services.calculation_service import CalculationService
+
+        result = await CalculationService(AsyncMock()).get_cable_options(uuid.uuid4())
+        assert len(result) > 0
+        assert all("brand" in c or "cable_mark" in c or "model" in c for c in result)
+
+
+class TestSelectCableManual:
+    async def test_object_not_found_raises(self):
+        service = CalculationService(_mock_db_empty())
+        with pytest.raises(CalculationError, match="не найден"):
+            await service.select_cable_manual(uuid.uuid4(), "ТЛТ-25")
+
+    async def test_invalid_object_raises(self):
+        """Если is_valid=False или results пусты — нельзя выбрать кабель."""
+        db = AsyncMock()
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            object_type="pipe",
+            params={},
+            results=None,
+            is_valid=False,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none = lambda: obj
+        db.execute = AsyncMock(return_value=result)
+        service = CalculationService(db)
+        with pytest.raises(CalculationError, match="не рассчитан"):
+            await service.select_cable_manual(obj.id, "ТЛТ-25")
+
+    async def test_zero_heat_loss_raises(self):
+        """q=0 → невозможно подобрать кабель."""
+        db = AsyncMock()
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            object_type="pipe",
+            params={"ambient_temperature": -20, "pipe_length": 10},
+            results={"heat_loss_per_meter": 0},
+            is_valid=True,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none = lambda: obj
+        db.execute = AsyncMock(return_value=result)
+        service = CalculationService(db)
+        with pytest.raises(CalculationError, match="не требуется"):
+            await service.select_cable_manual(obj.id, "ТЛТ-25")
