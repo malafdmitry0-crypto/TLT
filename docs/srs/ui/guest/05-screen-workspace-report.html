@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>SC-06. Отчёт · Гость</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", -apple-system, sans-serif; background: #eef3f6; color: #1a2734; font-size: 13px; }
+  .topbar { background: linear-gradient(180deg, #1f4e69, #163b50); color: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .topbar .right { display: flex; gap: 12px; align-items: center; }
+  .role-tag { background: #ffd35a; color: #5b4400; font-weight: 600; font-size: 11px; padding: 3px 10px; border-radius: 12px; }
+  .session-tag { background: rgba(255,255,255,0.15); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 12px; }
+  .topbar button { background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.30); color: #fff; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .steps { background: #fff; border-bottom: 1px solid #d9e1e6; padding: 10px 20px; display: flex; gap: 24px; }
+  .step { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #607080; }
+  .step.active { color: #1f4e69; font-weight: 600; }
+  .step .dot { width: 22px; height: 22px; border-radius: 50%; background: #c4d2db; color: #fff; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .step.active .dot { background: #1f4e69; }
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 20px; padding: 20px; }
+  .sidebar { background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); padding: 18px; height: fit-content; }
+  .sidebar h3 { margin: 0 0 4px; font-size: 15px; color: #1f4e69; }
+  .sidebar .stat { padding: 8px 0; border-top: 1px solid #eef3f6; font-size: 12px; }
+  .toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: #f4f8fa; border-radius: 6px; margin-bottom: 14px; }
+  .toolbar button { padding: 8px 18px; border: 1px solid #c4d2db; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  .toolbar button:hover { background: #1f4e69; color: #fff; border-color: #1f4e69; }
+  .toolbar .info { color: #607080; font-size: 12px; flex: 1; }
+  .info.warn { color: #5b4400; background: #fff8e0; padding: 6px 10px; border-radius: 4px; border-left: 3px solid #f5b400; }
+  .report { background: #fff; padding: 30px 40px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); max-width: 900px; margin: 0 auto; }
+  .report h1 { color: #1f4e69; font-size: 18px; text-align: center; margin: 0 0 8px; }
+  .report .meta { text-align: center; color: #607080; font-size: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #1f4e69; }
+  .report h2 { color: #1f4e69; font-size: 14px; margin-top: 18px; padding-bottom: 4px; border-bottom: 1px solid #d9e1e6; }
+  .report table { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 11px; }
+  .report th, .report td { padding: 4px 8px; border: 1px solid #d9e1e6; text-align: left; }
+  .report th { background: #eef3f6; }
+  .report .placeholder { color: #91a1ae; font-style: italic; padding: 8px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span style="font-weight: 600;">ТЛТ</span>
+  <div class="right">
+    <span class="role-tag">Гость</span>
+    <span class="session-tag">⏱ осталось 16 мин</span>
+    <button>Выйти</button>
+  </div>
+</div>
+
+<div class="steps">
+  <div class="step"><span class="dot">1</span> Теплопотери</div>
+  <div class="step"><span class="dot">2</span> Электрорасчёт</div>
+  <div class="step"><span class="dot">3</span> Спецификация</div>
+  <div class="step active"><span class="dot">4</span> Отчёт</div>
+</div>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <h3>📁 Мой проект</h3>
+    <div class="stat">Объектов: <strong>3</strong></div>
+    <div class="stat">Электрорасчёт: <strong>Выполнен</strong></div>
+    <div class="stat">Спец-я: <strong>создана</strong></div>
+    <div class="stat">Отчёт: <strong>готов</strong></div>
+  </aside>
+
+  <main>
+    <div class="toolbar">
+      <button>🖨 Печать (Ctrl+P)</button>
+      <span class="info warn">ⓘ Экспорт в PDF / DOCX / XLSX доступен только для авторизованных сотрудников.</span>
+    </div>
+
+    <div class="report">
+      <h1>ОТЧЁТ ПО РАСЧЁТУ СИСТЕМЫ ЭЛЕКТРООБОГРЕВА</h1>
+      <div class="meta">
+        Проект: <strong>«Мой проект»</strong> · № задачи: <strong>T-2026-DEMO</strong> · Дата: <strong>26.04.2026</strong>
+      </div>
+
+      <h2>1. Общие первичные данные</h2>
+      <table>
+        <tr><th>Параметр</th><th>Значение</th></tr>
+        <tr><td>Климатический регион</td><td>Сургут</td></tr>
+        <tr><td>Расч. температура наружного воздуха</td><td>−44 °C</td></tr>
+        <tr><td>Скорость ветра</td><td>4,5 м/с</td></tr>
+        <tr><td>Напряжение питания</td><td>220 В</td></tr>
+        <tr><td>Коэффициент запаса</td><td>1,10</td></tr>
+        <tr><td>Тип прокладки</td><td>надземная</td></tr>
+      </table>
+
+      <h2>2. Исходные данные по объектам</h2>
+      <h3 style="font-size: 13px; margin: 8px 0;">2.1 Трубопроводы</h3>
+      <table>
+        <tr><th>#</th><th>Наим-е</th><th>Ø, мм</th><th>L, м</th><th>T прод.</th><th>T окр.</th></tr>
+        <tr><td>1</td><td>Труба-1 (DN100)</td><td>108</td><td>50</td><td>+80 °C</td><td>−44 °C</td></tr>
+        <tr><td>2</td><td>Труба-2 (DN150)</td><td>159</td><td>80</td><td>+80 °C</td><td>−44 °C</td></tr>
+      </table>
+
+      <h3 style="font-size: 13px; margin: 8px 0;">2.2 Резервуары</h3>
+      <table>
+        <tr><th>#</th><th>Наим-е</th><th>Форма</th><th>Габариты</th><th>T прод.</th><th>T окр.</th></tr>
+        <tr><td>3</td><td>Бак цил. Ø2000 × H3000</td><td>цилиндр</td><td>Ø2000 × H3000 мм</td><td>+60 °C</td><td>−10 °C</td></tr>
+      </table>
+
+      <h2>3. Результаты расчёта теплопотерь</h2>
+      <div class="placeholder">[линейные теплопотери, удельные, суммарные — по объектам]</div>
+
+      <h2>4. Результаты электротехнического расчёта</h2>
+      <div class="placeholder">[марка кабеля, длина, мощность, ток — по объектам и сводно]</div>
+
+      <h2>5. Спецификация материалов</h2>
+      <div class="placeholder">[группировка по категории, артикулы, количество — см. «Спецификация»]</div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

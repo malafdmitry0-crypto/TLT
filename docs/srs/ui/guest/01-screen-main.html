@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>SC-01. Главная страница (выбор режима)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", -apple-system, sans-serif; background: #eef3f6; color: #1a2734; }
+  .topbar { background: linear-gradient(180deg, #1f4e69, #163b50); color: #fff; padding: 10px 20px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .topbar .brand { font-weight: 600; letter-spacing: 0.4px; }
+  .stage { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 60px); padding: 40px 20px; }
+  .card { background: #fff; border-radius: 8px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.10); padding: 40px 50px; max-width: 540px; width: 100%; text-align: center; }
+  .card h1 { margin: 0 0 4px 0; font-size: 22px; color: #1f4e69; }
+  .card .sub { color: #607080; font-size: 14px; margin-bottom: 30px; }
+  .btn { display: block; width: 100%; padding: 16px 20px; margin: 12px 0; font-size: 16px; border: 1px solid #1f4e69; border-radius: 6px; cursor: pointer; transition: all 0.15s; background: #1f4e69; color: #fff; }
+  .btn:hover { background: #266186; }
+  .btn-secondary { background: #fff; color: #1f4e69; }
+  .btn-secondary:hover { background: #f4f8fa; }
+  .btn .small { display: block; font-size: 12px; opacity: 0.85; margin-top: 4px; font-weight: normal; }
+  .footer-note { margin-top: 24px; padding: 12px 16px; background: #f4f8fa; border-left: 3px solid #2a82a8; border-radius: 4px; font-size: 13px; color: #36546b; text-align: left; }
+  .role-tag { display: inline-block; background: #ffd35a; color: #5b4400; font-weight: 600; font-size: 11px; padding: 3px 10px; border-radius: 12px; vertical-align: middle; margin-left: 8px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">ТЛТ — Расчёт систем электрообогрева</span>
+  <span style="opacity: 0.75; font-size: 12px;">Полноценная версия · UI-прототип SC-01</span>
+</div>
+
+<div class="stage">
+  <div class="card">
+    <h1>Программный комплекс ТЛТ</h1>
+    <div class="sub">Теплотехнический и электротехнический расчёт<br>систем электрообогрева</div>
+
+    <button class="btn">
+      Войти без регистрации
+      <span class="small">режим «Пользователь»<span class="role-tag">для Гостя</span></span>
+    </button>
+
+    <button class="btn btn-secondary">
+      Войти как сотрудник
+      <span class="small">по логину и паролю</span>
+    </button>
+
+    <div class="footer-note">
+      ⓘ Уровень «Администратор» назначается через интерфейс конфигурирования и недоступен в форме выбора.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

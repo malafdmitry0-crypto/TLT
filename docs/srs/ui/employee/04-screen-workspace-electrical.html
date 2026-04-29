@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>SC-04. Электрорасчёт · Сотрудник</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", -apple-system, sans-serif; background: #eef3f6; color: #1a2734; font-size: 13px; }
+  .topbar { background: linear-gradient(180deg, #1f4e69, #163b50); color: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .topbar .right { display: flex; gap: 12px; align-items: center; }
+  .role-tag { background: #ffd35a; color: #5b4400; font-weight: 600; font-size: 11px; padding: 3px 10px; border-radius: 12px; }
+  .session-tag { background: rgba(255,255,255,0.15); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 12px; }
+  .topbar button { background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.30); color: #fff; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .steps { background: #fff; border-bottom: 1px solid #d9e1e6; padding: 10px 20px; display: flex; gap: 24px; }
+  .step { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #607080; }
+  .step.active { color: #1f4e69; font-weight: 600; }
+  .step .dot { width: 22px; height: 22px; border-radius: 50%; background: #c4d2db; color: #fff; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .step.active .dot { background: #1f4e69; }
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 20px; padding: 20px; }
+  .sidebar { background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); padding: 18px; height: fit-content; }
+  .sidebar h3 { margin: 0 0 4px; font-size: 15px; color: #1f4e69; }
+  .sidebar .stat { padding: 8px 0; border-top: 1px solid #eef3f6; font-size: 12px; }
+  .sidebar .stat strong { color: #1f4e69; }
+  .stat .err { color: #b1281f; }
+  .main { display: flex; flex-direction: column; gap: 14px; }
+  .panel { background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); padding: 16px 18px; }
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .summary .card { background: #f4f8fa; border-left: 4px solid #1f4e69; padding: 14px; border-radius: 4px; }
+  .summary .card .label { color: #607080; font-size: 11px; text-transform: uppercase; }
+  .summary .card .value { font-size: 22px; font-weight: 600; color: #1f4e69; }
+  .alert-warn { background: #fff8e0; border-left: 4px solid #f5b400; padding: 10px 16px; border-radius: 4px; }
+  .obj-card { border: 1px solid #d9e1e6; border-radius: 6px; margin-top: 10px; overflow: hidden; }
+  .obj-card .head { padding: 8px 14px; font-weight: 600; }
+  .obj-card.success .head { background: #e6f4ea; color: #1f6f3e; border-bottom: 1px solid #c4e0cf; }
+  .obj-card.error .head { background: #fdeaea; color: #b1281f; border-bottom: 1px solid #f3c4c0; }
+  .obj-card .body { padding: 12px 14px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; font-size: 12px; }
+  .obj-card .body .pair { background: #f9fbfc; padding: 6px 10px; border-radius: 4px; }
+  .obj-card .body .pair .lbl { color: #607080; font-size: 10px; text-transform: uppercase; }
+  .obj-card .body .pair .val { font-weight: 600; }
+  .err-text { padding: 10px 14px; color: #b1281f; background: #fdeaea; font-size: 12px; line-height: 1.5; }
+  .nav-buttons { display: flex; justify-content: space-between; margin-top: 10px; }
+  .nav-buttons button { padding: 9px 22px; border-radius: 4px; cursor: pointer; font-size: 13px; border: 1px solid #c4d2db; background: #fff; }
+  .nav-buttons button.next { background: #1f4e69; color: #fff; border-color: #1f4e69; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span style="font-weight: 600;">ТЛТ</span>
+  <div class="right">
+    <span class="role-tag" style="background:#c2e0c0;color:#1f6f3e;">Сотрудник</span>
+    <span style="font-size: 12px; opacity: 0.85;">ivanov@tlt.ru</span>
+    <button>← Все проекты</button>
+    <button>Выйти</button>
+  </div>
+</div>
+
+<div class="steps">
+  <div class="step"><span class="dot">1</span> Теплопотери</div>
+  <div class="step active"><span class="dot">2</span> Электрорасчёт</div>
+  <div class="step"><span class="dot">3</span> Спецификация</div>
+  <div class="step"><span class="dot">4</span> Отчёт</div>
+</div>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <h3>📁 Мой проект</h3>
+    <div class="stat">Объектов: <strong>4</strong> / 50</div>
+    <div class="stat">Электрорасчёт: <strong class="err">⚠ Ошибок: 1</strong></div>
+    <div class="stat">Спецификация: <strong>—</strong></div>
+  </aside>
+
+  <main class="main">
+
+    <!-- Тогглер базы расчёта (только для Сотрудника, UC-E-10) -->
+    <div style="background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); padding: 10px 14px; display: flex; align-items: center; gap: 14px; font-size: 12px;">
+      <strong style="color: #1f4e69;">База расчёта:</strong>
+      <label style="cursor: pointer;"><input type="radio" name="calc-base"> Встроенная</label>
+      <label style="cursor: pointer;"><input type="radio" name="calc-base" checked> Расширенная внешняя</label>
+      <span style="margin-left: auto; color: #607080;">ⓘ Доступно только Сотруднику (VAL-62)</span>
+    </div>
+
+    <!-- Страничный переключатель CO1…CO4: задаёт активный вариант расчёта для всей страницы -->
+    <div style="background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); padding: 12px 14px; border-top: 3px solid #1f4e69;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 13px; color: #1f4e69;">Вариант расчёта (CO1 … CO4)</h3>
+        <span style="font-size: 11px; color: #607080;">ⓘ Выберите вариант сверху — кабель и расчёт по объектам ниже относятся к выбранному варианту. В спецификацию и отчёт идёт вариант, отмеченный ★.</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0; padding: 4px 0; border-bottom: 1px solid #d9e1e6;">
+        <div style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border: 1px solid #1f4e69; border-bottom: none; border-radius: 6px 6px 0 0; background: #fff; color: #b8860b; font-weight: 600; font-size: 12px; margin-right: 2px; margin-bottom: -1px; cursor: pointer;">★ CO1 <span style="font-size: 10px; opacity: 0.8;">(активный · редактируется)</span></div>
+        <div style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border: 1px solid #c4d2db; border-bottom: none; border-radius: 6px 6px 0 0; background: #f4f8fa; color: #607080; font-size: 12px; margin-right: 2px; cursor: pointer;">CO2</div>
+        <div style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border: 1px solid #c4d2db; border-bottom: none; border-radius: 6px 6px 0 0; background: #f4f8fa; color: #607080; font-size: 12px; margin-right: 2px; cursor: pointer;">CO3</div>
+        <div style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border: 1px dashed #1f4e69; border-bottom: none; border-radius: 6px 6px 0 0; background: #fff; color: #1f4e69; font-weight: 600; font-size: 12px; margin-right: 2px; cursor: pointer;">＋ Добавить вариант (CO4)</div>
+      </div>
+      <div style="display: flex; gap: 4px; flex-wrap: wrap; padding: 8px 0 0; font-size: 12px;">
+        <button style="padding: 6px 12px; background: #fff; border: 1px solid #c4d2db; border-radius: 3px; cursor: pointer;">★ Сделать активным</button>
+        <button style="padding: 6px 12px; background: #fff; border: 1px solid #c4d2db; border-radius: 3px; cursor: pointer;">✎ Переименовать</button>
+        <button style="padding: 6px 12px; background: #fff; border: 1px solid #d8a8a3; color: #b1281f; border-radius: 3px; cursor: pointer;">🗑 Удалить вариант</button>
+        <span style="width: 1px; background: #c4d2db; margin: 0 4px;"></span>
+        <button style="padding: 6px 12px; background: #1f4e69; color: #fff; border: 1px solid #1f4e69; border-radius: 3px; cursor: pointer; font-weight: 600;">⚡ Пересчитать вариант</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin: 0 0 10px; color: #1f4e69;">Сводка по проекту <span style="font-size: 11px; font-weight: normal; color: #607080;">— по варианту CO1</span></h3>
+      <div class="summary">
+        <div class="card">
+          <div class="label">Длина кабеля</div>
+          <div class="value">319,0 м</div>
+        </div>
+        <div class="card">
+          <div class="label">Суммарная мощность</div>
+          <div class="value">9 570 Вт</div>
+        </div>
+        <div class="card">
+          <div class="label">Ток</div>
+          <div class="value">43,5 А</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert-warn">⚠ В варианте CO1 у 1 объекта ошибка расчёта. Проверьте карточки ниже.</div>
+
+    <!-- Карточки объектов: каждый объект имеет свою форму выбора кабеля для текущего CO -->
+    <div class="obj-card success">
+      <div class="head">✓ Труба-1 (DN100)</div>
+      <div style="padding: 12px 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 12px; border-bottom: 1px solid #eef3f6;">
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Тип кабеля</label>
+          <select style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+            <option selected>Саморегулирующийся</option><option>Одножильный постоянной мощности</option><option>Трёхжильный постоянной мощности</option><option>Кабель с минеральной изоляцией</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Марка кабеля</label>
+          <select style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+            <option selected>Авто (ТЛТ-10)</option><option>ТЛТ-10</option><option>ТЛТ-15</option><option>ТЛТ-20</option><option>ТЛТ-25</option><option>ТЛТ-30</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Шаг навива (мм)</label>
+          <input type="number" value="0" style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+        </div>
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Количество ниток</label>
+          <select style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+            <option selected>1</option><option>2</option><option>3</option>
+          </select>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pair"><div class="lbl">Длина кабеля</div><div class="val">55,0 м</div></div>
+        <div class="pair"><div class="lbl">Суммарная мощн.</div><div class="val">1 650 Вт</div></div>
+        <div class="pair"><div class="lbl">Ток</div><div class="val">7,5 А</div></div>
+        <div class="pair"><div class="lbl">Статус</div><div class="val" style="color: #1f6f3e;">✓ Успех</div></div>
+      </div>
+    </div>
+
+    <div class="obj-card success">
+      <div class="head">✓ Труба-2 (DN150)</div>
+      <div style="padding: 12px 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 12px; border-bottom: 1px solid #eef3f6;">
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Тип кабеля</label>
+          <select style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+            <option selected>Саморегулирующийся</option><option>Одножильный постоянной мощности</option><option>Трёхжильный постоянной мощности</option><option>Кабель с минеральной изоляцией</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Марка кабеля</label>
+          <select style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+            <option>Авто</option><option>ТЛТ-10</option><option selected>ТЛТ-15</option><option>ТЛТ-20</option><option>ТЛТ-25</option><option>ТЛТ-30</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Шаг навива (мм)</label>
+          <input type="number" value="60" style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+        </div>
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Количество ниток</label>
+          <select style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+            <option>1</option><option selected>2</option><option>3</option>
+          </select>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pair"><div class="lbl">Длина кабеля</div><div class="val">176,0 м</div></div>
+        <div class="pair"><div class="lbl">Суммарная мощн.</div><div class="val">5 280 Вт</div></div>
+        <div class="pair"><div class="lbl">Ток</div><div class="val">24,0 А</div></div>
+        <div class="pair"><div class="lbl">Статус</div><div class="val" style="color: #1f6f3e;">✓ Успех</div></div>
+      </div>
+    </div>
+
+    <div class="obj-card success">
+      <div class="head">✓ Бак цил. Ø2000 × H3000</div>
+      <div style="padding: 12px 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 12px; border-bottom: 1px solid #eef3f6;">
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Тип кабеля</label>
+          <select style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+            <option selected>Саморегулирующийся</option><option>Одножильный постоянной мощности</option><option>Трёхжильный постоянной мощности</option><option>Кабель с минеральной изоляцией</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Марка кабеля</label>
+          <select style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+            <option selected>Авто (ТЛТ-30)</option><option>ТЛТ-10</option><option>ТЛТ-15</option><option>ТЛТ-20</option><option>ТЛТ-25</option><option>ТЛТ-30</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Шаг навива (мм)</label>
+          <input type="number" value="0" style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+        </div>
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Количество ниток</label>
+          <select style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+            <option selected>1</option><option>2</option><option>3</option>
+          </select>
+        </div>
+      </div>
+      <div class="body">
+        <div class="pair"><div class="lbl">Длина кабеля</div><div class="val">88,0 м</div></div>
+        <div class="pair"><div class="lbl">Суммарная мощн.</div><div class="val">2 640 Вт</div></div>
+        <div class="pair"><div class="lbl">Ток</div><div class="val">12,0 А</div></div>
+        <div class="pair"><div class="lbl">Статус</div><div class="val" style="color: #1f6f3e;">✓ Успех</div></div>
+      </div>
+    </div>
+
+    <div class="obj-card error">
+      <div class="head">⚠ Труба-3 (DN200) — ОШИБКА</div>
+      <div style="padding: 12px 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 12px; border-bottom: 1px solid #eef3f6;">
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Тип кабеля</label>
+          <select style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+            <option selected>Саморегулирующийся</option><option>Одножильный постоянной мощности</option><option>Трёхжильный постоянной мощности</option><option>Кабель с минеральной изоляцией</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Марка кабеля</label>
+          <select style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+            <option selected>Авто</option><option>ТЛТ-10</option><option>ТЛТ-15</option><option>ТЛТ-20</option><option>ТЛТ-25</option><option>ТЛТ-30</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Шаг навива (мм)</label>
+          <input type="number" value="0" style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+        </div>
+        <div>
+          <label style="display: block; color: #4a5b6c; font-size: 11px; margin-bottom: 3px;">Количество ниток</label>
+          <select style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #c4d2db; border-radius: 3px;">
+            <option selected>1</option><option>2</option><option>3</option>
+          </select>
+        </div>
+      </div>
+      <div class="err-text">
+        <strong>Совокупная мощность недостаточна.</strong><br>
+        Требуется 16 380 Вт, кабель даёт 12 320 Вт.<br>
+        Рекомендация: уменьшить шаг навива, увеличить количество ниток или выбрать марку большей мощности.
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button>← Вернуться к теплопотерям</button>
+      <button class="next">Спецификация →</button>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>

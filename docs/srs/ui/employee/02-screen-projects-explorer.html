@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>SC-08. Проводник проектов · Сотрудник</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", -apple-system, sans-serif; background: #eef3f6; color: #1a2734; font-size: 13px; }
+  .topbar { background: linear-gradient(180deg, #1f4e69, #163b50); color: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .topbar .right { display: flex; gap: 12px; align-items: center; }
+  .role-tag { background: #c2e0c0; color: #1f6f3e; font-weight: 600; font-size: 11px; padding: 3px 10px; border-radius: 12px; }
+  .topbar button { background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.30); color: #fff; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .container { padding: 20px; }
+  .panel { background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); padding: 18px 20px; }
+  h2 { margin: 0 0 16px; color: #1f4e69; }
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .search { flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid #c4d2db; border-radius: 4px; font-size: 13px; }
+  .filter { padding: 8px 10px; border: 1px solid #c4d2db; border-radius: 4px; background: #fff; font-size: 13px; }
+  .toolbar .add { padding: 8px 16px; background: #1f4e69; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; }
+  .toolbar .upload { padding: 8px 16px; background: #fff; color: #1f4e69; border: 1px solid #1f4e69; border-radius: 4px; cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eef3f6; }
+  th { background: #eef3f6; color: #1f4e69; font-weight: 600; cursor: pointer; user-select: none; }
+  th::after { content: ' ⇅'; opacity: 0.4; }
+  tr:hover { background: #f4f8fa; cursor: pointer; }
+  .actions-cell { white-space: nowrap; }
+  .actions-cell button { padding: 4px 10px; font-size: 11px; margin-right: 4px; border: 1px solid #c4d2db; background: #fff; border-radius: 3px; cursor: pointer; }
+  .actions-cell button:hover { background: #1f4e69; color: #fff; border-color: #1f4e69; }
+  .actions-cell .del:hover { background: #b1281f; color: #fff; border-color: #b1281f; }
+  .tag-draft { background: #fff8e0; color: #5b4400; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+  .tag-done { background: #e6f4ea; color: #1f6f3e; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+  .own { color: #1f4e69; font-weight: 600; }
+  .footer { padding-top: 14px; color: #607080; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span style="font-weight: 600;">ТЛТ</span>
+  <div class="right">
+    <span class="role-tag">Сотрудник</span>
+    <span style="font-size: 12px; opacity: 0.85;">ivanov@tlt.ru</span>
+    <button>Выйти</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="panel">
+    <h2>Проводник проектов</h2>
+
+    <div class="toolbar">
+      <input type="text" class="search" placeholder="🔍 Поиск по названию или № задачи...">
+      <select class="filter"><option>Тип ▾ Любой</option><option>Только трубопроводы</option><option>Только резервуары</option></select>
+      <select class="filter"><option>Год ▾ Все</option><option>2026</option><option>2025</option></select>
+      <select class="filter"><option>Владелец ▾ Все</option><option>ivanov@</option><option>petrov@</option><option>sidorov@</option></select>
+      <button class="add">＋ Новый проект</button>
+      <button class="upload">📥 Загрузить из CSV</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th>№ задачи</th>
+          <th>Владелец</th>
+          <th>Создан</th>
+          <th>Изменён</th>
+          <th>Объ.</th>
+          <th>Стат.</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Усть-Луга нефтебаза</strong></td>
+          <td>T-2026-001</td>
+          <td class="own">ivanov@</td>
+          <td>12.04.26</td>
+          <td>25.04.26</td>
+          <td>17</td>
+          <td><span class="tag-draft">Черновик</span></td>
+          <td class="actions-cell"><button>Открыть</button><button>Копия</button><button>CSV</button><button class="del">Удалить</button></td>
+        </tr>
+        <tr>
+          <td><strong>Новороссийский порт</strong></td>
+          <td>T-2026-014</td>
+          <td class="own">ivanov@</td>
+          <td>03.05.26</td>
+          <td>03.05.26</td>
+          <td>42</td>
+          <td><span class="tag-done">Завершён</span></td>
+          <td class="actions-cell"><button>Открыть</button><button>Копия</button><button>CSV</button><button class="del">Удалить</button></td>
+        </tr>
+        <tr>
+          <td><strong>ХОЯТ-2 Челябинск</strong></td>
+          <td>T-2026-007</td>
+          <td>petrov@</td>
+          <td>18.04.26</td>
+          <td>22.04.26</td>
+          <td>8</td>
+          <td><span class="tag-draft">Черновик</span></td>
+          <td class="actions-cell"><button>Открыть</button><button>Копия</button><button>CSV</button><button class="del">Удалить</button></td>
+        </tr>
+        <tr>
+          <td><strong>Газпром Ямбург</strong></td>
+          <td>T-2025-098</td>
+          <td>sidorov@</td>
+          <td>11.12.25</td>
+          <td>14.01.26</td>
+          <td>31</td>
+          <td><span class="tag-done">Завершён</span></td>
+          <td class="actions-cell"><button>Открыть</button><button>Копия</button><button>CSV</button><button class="del">Удалить</button></td>
+        </tr>
+        <tr>
+          <td>Татнефть Альметьевск (импорт)</td>
+          <td>T-2026-001-импорт</td>
+          <td class="own">ivanov@</td>
+          <td>26.04.26</td>
+          <td>26.04.26</td>
+          <td>12</td>
+          <td><span class="tag-draft">Черновик</span></td>
+          <td class="actions-cell"><button>Открыть</button><button>Копия</button><button>CSV</button><button class="del">Удалить</button></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer">
+      <span>Показано: 5 из 47 проектов системы</span>
+      <span>Стр. 1 из 10 · ⟨ ⟩</span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

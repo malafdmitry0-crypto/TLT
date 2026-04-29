@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>SC-03. Рабочий стол · «Теплопотери» · Гость</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", -apple-system, sans-serif; background: #eef3f6; color: #1a2734; font-size: 13px; }
+
+  /* Header */
+  .topbar { background: linear-gradient(180deg, #1f4e69, #163b50); color: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .topbar .right { display: flex; gap: 12px; align-items: center; }
+  .role-tag { background: #ffd35a; color: #5b4400; font-weight: 600; font-size: 11px; padding: 3px 10px; border-radius: 12px; }
+  .session-tag { background: rgba(255,255,255,0.15); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 12px; }
+  .topbar button { background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.30); color: #fff; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+
+  /* Steps */
+  .steps { background: #fff; border-bottom: 1px solid #d9e1e6; padding: 10px 20px; display: flex; gap: 24px; }
+  .step { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #607080; }
+  .step.active { color: #1f4e69; font-weight: 600; }
+  .step .dot { width: 22px; height: 22px; border-radius: 50%; background: #c4d2db; color: #fff; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .step.active .dot { background: #1f4e69; }
+
+  /* Layout */
+  .layout { display: grid; grid-template-columns: 220px 1fr; gap: 16px; padding: 16px; }
+
+  /* Sidebar */
+  .sidebar { background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); padding: 16px; height: fit-content; }
+  .sidebar h3 { margin: 0 0 4px; font-size: 14px; color: #1f4e69; }
+  .sidebar .meta { color: #607080; font-size: 11px; margin-bottom: 12px; }
+  .sidebar .stat { padding: 6px 0; border-top: 1px solid #eef3f6; font-size: 12px; }
+  .sidebar .stat strong { color: #1f4e69; }
+  .menu-title { margin-top: 12px; padding-top: 10px; border-top: 1px solid #eef3f6; font-size: 11px; color: #607080; font-weight: 600; }
+  .menu-item { padding: 5px 6px; cursor: pointer; border-radius: 3px; font-size: 12px; }
+  .menu-item:hover { background: #eef3f6; }
+
+  /* Main content */
+  .main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+  /* Common data banner */
+  .common-data-banner { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: #fff8e0; border-left: 4px solid #f5b400; border-radius: 4px; font-size: 12px; }
+  .common-data-banner .label { font-weight: 600; }
+  .common-data-banner button { padding: 5px 12px; background: #1f4e69; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+
+  /* Inline form (NOT a modal) */
+  .inline-form {
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    padding: 12px 14px;
+    border-top: 3px solid #1f4e69;
+  }
+  .inline-form-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #eef3f6; }
+  .inline-form-head h3 { margin: 0; font-size: 13px; color: #1f4e69; }
+  .inline-form-head .mode { font-size: 11px; color: #607080; padding: 3px 9px; background: #eef3f6; border-radius: 12px; }
+  .inline-form-head .mode.edit { background: #fff8e0; color: #5b4400; }
+  .inline-form-head .mode.new { background: #c2e0c0; color: #1f6f3e; }
+
+  /* Form grid: 4 columns */
+  .form-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .form-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .form-col h4 { margin: 0 0 4px; font-size: 11px; color: #607080; text-transform: uppercase; letter-spacing: 0.4px; padding-bottom: 3px; border-bottom: 1px dashed #d9e1e6; }
+  .field { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 6px; font-size: 11px; }
+  .field label { color: #4a5b6c; line-height: 1.3; }
+  .field input, .field select { width: 100%; padding: 3px 6px; font-size: 11px; border: 1px solid #c4d2db; border-radius: 3px; background: #fff; }
+  .field input:focus, .field select:focus { outline: 2px solid #b6cee0; border-color: #1f4e69; }
+  .field input:disabled { background: #f4f8fa; color: #91a1ae; }
+  .field .with-unit { display: grid; grid-template-columns: 1fr auto; gap: 3px; align-items: center; }
+  .field .with-unit span { font-size: 10px; color: #91a1ae; }
+  .field .radio-row { display: flex; gap: 8px; font-size: 11px; }
+  .field .radio-row label { display: flex; align-items: center; gap: 3px; color: #1a2734; }
+
+  /* Action bar (Тепломаг-style) */
+  .actionbar { display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 10px; background: #f4f8fa; border-radius: 4px; border: 1px solid #d9e1e6; }
+  .actionbar button { padding: 6px 12px; background: #fff; border: 1px solid #c4d2db; border-radius: 3px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+  .actionbar button:hover:not(:disabled) { background: #1f4e69; color: #fff; border-color: #1f4e69; }
+  .actionbar button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .actionbar .add { background: #1f4e69; color: #fff; border-color: #1f4e69; font-weight: 600; }
+  .actionbar .add:hover { background: #266186; }
+  .actionbar .del { color: #b1281f; border-color: #d8a8a3; }
+  .actionbar .del:hover { background: #b1281f; color: #fff; border-color: #b1281f; }
+  .actionbar .save { background: #1f6f3e; color: #fff; border-color: #1f6f3e; font-weight: 600; }
+  .actionbar .save:hover { background: #28893d; }
+  .actionbar .sep { width: 1px; background: #c4d2db; margin: 0 4px; }
+
+  /* Tabs */
+  .tabs-row { display: flex; align-items: flex-end; gap: 0; border-bottom: 2px solid #d9e1e6; }
+  .tab { padding: 7px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; font-size: 12px; color: #607080; }
+  .tab.active { color: #1f4e69; font-weight: 600; border-color: #1f4e69; }
+
+  /* Table */
+  .table-wrap { background: #fff; border-radius: 0 0 6px 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th, td { padding: 5px 7px; text-align: left; border-bottom: 1px solid #eef3f6; white-space: nowrap; }
+  th { background: #eef3f6; color: #1f4e69; font-weight: 600; position: sticky; top: 0; }
+  tr { cursor: pointer; }
+  tr:hover { background: #f4f8fa; }
+  tr.invalid { background: #fdeaea; }
+  tr.invalid:hover { background: #fad9d9; }
+  tr.selected { background: #d6e9f5; }
+  tr.selected:hover { background: #c1ddee; }
+  tr.selected td:first-child { border-left: 3px solid #1f4e69; padding-left: 4px; }
+
+  .legend-row { padding: 6px 14px; background: #fff; border-top: 1px solid #eef3f6; font-size: 11px; color: #607080; display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 6px 6px; }
+  .next-btn { padding: 7px 18px; background: #1f4e69; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 12px; }
+  .next-btn:hover { background: #266186; }
+</style>
+</head>
+<body>
+
+<!-- Шапка -->
+<div class="topbar">
+  <span style="font-weight: 600;">ТЛТ</span>
+  <div class="right">
+    <span class="role-tag">Гость</span>
+    <span class="session-tag">⏱ осталось 19 мин</span>
+    <button>Выйти</button>
+  </div>
+</div>
+
+<!-- Пошаговая навигация -->
+<div class="steps">
+  <div class="step active"><span class="dot">1</span> Теплопотери</div>
+  <div class="step"><span class="dot">2</span> Электрорасчёт</div>
+  <div class="step"><span class="dot">3</span> Спецификация</div>
+  <div class="step"><span class="dot">4</span> Отчёт</div>
+</div>
+
+<div class="layout">
+
+  <!-- Боковая панель -->
+  <aside class="sidebar">
+    <h3>📁 Мой проект</h3>
+    <div class="meta">создан только что</div>
+    <div class="stat">Объектов: <strong>4</strong> / 50</div>
+    <div class="stat">Электрорасчёт: <strong>не запущен</strong></div>
+    <div class="stat">Спецификация: <strong>—</strong></div>
+
+    <div class="menu-title">Меню проекта</div>
+    <div class="menu-item">▸ Создать новый</div>
+    <div class="menu-item">▸ Загрузить CSV</div>
+    <div class="menu-item">▸ Экспорт CSV</div>
+    <div class="menu-item" style="color: #b1281f;">▸ Удалить проект</div>
+  </aside>
+
+  <!-- Основная область -->
+  <main class="main">
+
+    <!-- Общие первичные данные -->
+    <div class="common-data-banner">
+      <span><span class="label">Общие первичные данные:</span> Сургут · −44 °C · 220 В · надземная</span>
+      <button>Изменить...</button>
+    </div>
+
+    <!-- ВСТРОЕННАЯ ПЛОСКАЯ ФОРМА (часть основного интерфейса, не модалка) -->
+    <div class="inline-form">
+      <div class="inline-form-head">
+        <h3>Параметры объекта «Труба-1 (DN100)» (выделена строка №3)</h3>
+        <span class="mode edit">✎ Режим: редактирование</span>
+      </div>
+
+      <div class="form-grid">
+
+        <!-- Колонка 1 -->
+        <div class="form-col">
+          <h4>Геометрия трубы</h4>
+
+          <div class="field">
+            <label>Наименование</label>
+            <input type="text" value="Труба-1 (DN100)">
+          </div>
+          <div class="field">
+            <label>Наружный диаметр</label>
+            <div class="with-unit"><input type="number" value="108"><span>мм</span></div>
+          </div>
+          <div class="field">
+            <label>Толщина стенки</label>
+            <div class="with-unit"><input type="number" value="4.0" step="0.1"><span>мм</span></div>
+          </div>
+          <div class="field">
+            <label>Длина трубы</label>
+            <div class="with-unit"><input type="number" value="50"><span>м</span></div>
+          </div>
+          <div class="field">
+            <label>Материал трубы</label>
+            <select><option>Сталь углеродистая</option><option>Сталь нержавеющая</option><option>Медь</option></select>
+          </div>
+          <div class="field">
+            <label>Коэф. теплопроводн. трубы</label>
+            <div class="with-unit"><input type="number" value="56.0" step="0.1"><span>Вт/мК</span></div>
+          </div>
+          <div class="field">
+            <label>Размещение трубопровода</label>
+            <select><option selected>На открытом воздухе</option><option>В помещении</option><option>Подземно</option></select>
+          </div>
+          <div class="field">
+            <label>Глубина прокладки</label>
+            <div class="with-unit"><input type="number" disabled placeholder="—"><span>м</span></div>
+          </div>
+          <div class="field">
+            <label>Грунт</label>
+            <select disabled><option>—</option></select>
+          </div>
+          <div class="field">
+            <label>Теплопроводность грунта</label>
+            <div class="with-unit"><input type="number" disabled value="0.00"><span>Вт/мК</span></div>
+          </div>
+        </div>
+
+        <!-- Колонка 2 -->
+        <div class="form-col">
+          <h4>Теплоизоляция</h4>
+
+          <div class="field">
+            <label>Кол-во слоёв ИЗ</label>
+            <select><option>1 слой</option><option selected>2 слоя</option><option>3 слоя</option></select>
+          </div>
+          <div class="field">
+            <label>Материал 1-го слоя</label>
+            <select><option selected>Минеральная вата</option><option>Пенополиуретан</option><option>Пеностекло</option><option>Аэрогель</option><option>Другое</option></select>
+          </div>
+          <div class="field">
+            <label>Толщина 1-го слоя</label>
+            <div class="with-unit"><input type="number" value="50"><span>мм</span></div>
+          </div>
+          <div class="field">
+            <label>Коэф. теплопр. 1-го слоя</label>
+            <div class="with-unit"><input type="number" value="0.045" step="0.001" disabled><span>Вт/мК</span></div>
+          </div>
+          <div class="field">
+            <label>Материал 2-го слоя</label>
+            <select><option selected>Пенополиуретан</option><option>Минеральная вата</option><option>Другое</option></select>
+          </div>
+          <div class="field">
+            <label>Толщина 2-го слоя</label>
+            <div class="with-unit"><input type="number" value="30"><span>мм</span></div>
+          </div>
+          <div class="field">
+            <label>Коэф. теплопр. 2-го слоя</label>
+            <div class="with-unit"><input type="number" value="0.028" step="0.001" disabled><span>Вт/мК</span></div>
+          </div>
+          <div class="field">
+            <label>Материал покрытия</label>
+            <select><option>Не указано</option><option>PolyArm black</option><option>Алюминий рулонный</option></select>
+          </div>
+          <div class="field">
+            <label>Тип покрытия</label>
+            <select><option>Не комбинированный</option><option>Комбинированный</option></select>
+          </div>
+        </div>
+
+        <!-- Колонка 3 -->
+        <div class="form-col">
+          <h4>Температура и среда</h4>
+
+          <div class="field">
+            <label>Требуемая T° трубы</label>
+            <div class="with-unit"><input type="number" value="10.0" step="0.1"><span>°C</span></div>
+          </div>
+          <div class="field">
+            <label>Мин. T° окр. среды</label>
+            <div class="with-unit"><input type="number" value="-44.0" step="0.1"><span>°C</span></div>
+          </div>
+          <div class="field">
+            <label>Макс. T° окр. среды</label>
+            <div class="with-unit"><input type="number" value="30.0" step="0.1"><span>°C</span></div>
+          </div>
+          <div class="field">
+            <label>Макс. техн. T° продукта</label>
+            <div class="with-unit"><input type="number" value="80.0" step="0.1"><span>°C</span></div>
+          </div>
+          <div class="field">
+            <label>Макс. допуст. T° продукта</label>
+            <div class="with-unit"><input type="number" value="90.0" step="0.1"><span>°C</span></div>
+          </div>
+          <div class="field">
+            <label>Среда</label>
+            <select><option selected>Нормальная</option><option>Агрессивная</option></select>
+          </div>
+          <div class="field">
+            <label>Классификация зоны</label>
+            <select><option selected>Безопасная</option><option>Взрывоопасная</option></select>
+          </div>
+          <div class="field">
+            <label>Температурная группа</label>
+            <select><option selected>T1</option><option>T2</option><option>T3</option><option>T4</option><option>T5</option><option>T6</option></select>
+          </div>
+          <div class="field">
+            <label>Макс. T° группы</label>
+            <div class="with-unit"><input type="number" value="450"><span>°C</span></div>
+          </div>
+        </div>
+
+        <!-- Колонка 4 -->
+        <div class="form-col">
+          <h4>Электропараметры и арматура</h4>
+
+          <div class="field">
+            <label>Мин. T° включения</label>
+            <div class="with-unit"><input type="number" value="-20.0" step="0.1"><span>°C</span></div>
+          </div>
+          <div class="field">
+            <label>Рабочее напряжение</label>
+            <select><option selected>220 В</option><option>380 В</option></select>
+          </div>
+          <div class="field">
+            <label>Коэффициент запаса</label>
+            <input type="number" value="1.20" step="0.01">
+          </div>
+          <div class="field">
+            <label>Пропарка</label>
+            <select><option>Да</option><option selected>Нет</option></select>
+          </div>
+          <div class="field">
+            <label>Макс. T° пара</label>
+            <div class="with-unit"><input type="number" disabled placeholder="—"><span>°C</span></div>
+          </div>
+
+          <div style="margin-top: 8px; padding: 8px 10px; background: #f4f8fa; border-left: 3px solid #1f4e69; border-radius: 3px; font-size: 11px; color: #4a5b6c;">
+            ⓘ <strong>Тип кабеля, марка, шаг навива, количество ниток и варианты CO1…CO4</strong> — на следующем шаге <em>«Электрорасчёт»</em>.
+          </div>
+          <div class="field">
+            <label>Задвижки</label>
+            <div class="with-unit"><input type="number" value="2"><span>шт</span></div>
+          </div>
+          <div class="field">
+            <label>Фланцы</label>
+            <div class="with-unit"><input type="number" value="2"><span>шт</span></div>
+          </div>
+          <div class="field">
+            <label>Опоры</label>
+            <div class="with-unit"><input type="number" value="2"><span>шт</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Панель действий -->
+    <div class="actionbar">
+      <button class="add">＋ Добавить</button>
+      <button>📑 Создать на основании</button>
+      <button>✎ Изменить</button>
+      <button>📋 Применить к одному</button>
+      <button>📋 Применить ко всем</button>
+      <button class="del">🗑 Удалить</button>
+      <span class="sep"></span>
+      <button class="save">💾 Сохранить изменения</button>
+      <button>↻ Отменить</button>
+      <span class="sep"></span>
+      <button>📥 Импорт XLSX/CSV ▾</button>
+    </div>
+
+    <!-- Вкладки -->
+    <div class="tabs-row">
+      <div class="tab active">Исходные данные</div>
+      <div class="tab">Результаты расчёта</div>
+    </div>
+
+    <!-- Таблица -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox"></th>
+            <th>№</th>
+            <th>Тип</th>
+            <th>Наименование</th>
+            <th>Ø, мм</th>
+            <th>L, м</th>
+            <th>Слоёв ИЗ</th>
+            <th>δ ИЗ, мм</th>
+            <th>Материал ИЗ</th>
+            <th>T прод.</th>
+            <th>T окр.</th>
+            <th>q, Вт/м</th>
+            <th>Q сум., Вт</th>
+            <th>Зад.</th>
+            <th>Флн.</th>
+            <th>Опр.</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><input type="checkbox"></td><td>1</td><td>Тр.</td><td>Труба-1 (DN100)</td><td>108</td><td>50</td><td>1</td><td>50</td><td>МВ</td><td>+80</td><td>−44</td><td>54.3</td><td>2 715</td><td>2</td><td>2</td><td>2</td></tr>
+          <tr><td><input type="checkbox"></td><td>2</td><td>Тр.</td><td>Труба-2 (DN150)</td><td>159</td><td>80</td><td>2</td><td>80</td><td>МВ + ППУ</td><td>+80</td><td>−44</td><td>72.1</td><td>5 768</td><td>2</td><td>2</td><td>2</td></tr>
+          <tr class="selected"><td><input type="checkbox"></td><td>3</td><td>Тр.</td><td>Труба-1 (DN100)</td><td>108</td><td>50</td><td>2</td><td>80</td><td>МВ + ППУ</td><td>+80</td><td>−44</td><td>49.8</td><td>2 490</td><td>2</td><td>2</td><td>2</td></tr>
+          <tr class="invalid"><td><input type="checkbox"></td><td>4</td><td>⚠ Тр.</td><td>Труба-3 (DN200)</td><td>219</td><td>0</td><td>1</td><td>50</td><td>—</td><td>—</td><td>—</td><td>⚠</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="legend-row">
+      <span>ⓘ Клик по строке таблицы → форма выше показывает её параметры. Клик «＋ Добавить» → форма очищается под новую запись. Красная строка = объект не рассчитан.</span>
+      <button class="next-btn">Электрорасчёт →</button>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>

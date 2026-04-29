@@ -593,7 +593,7 @@ _TANK_CONFIGS = [
         "name": "Резервуар РВС-100 (цилиндр)",
         "params": {
             "shape": "cylindrical",
-            "diameter": 5.0,
+            "diameter": 2.8,
             "height": 6.0,
             "insulation_thickness": 0.08,
             "insulation_material": "mineral_wool",
@@ -769,7 +769,7 @@ async def seed_objects_and_calculations(
             try:
                 elec_params = SelfRegulatingParams(
                     required_power_per_meter=heat_loss_per_meter,
-                    cable_mark="",  # автоподбор
+                    cable_mark=None,  # автоподбор
                     supply_voltage=220.0,
                     ambient_temperature=ambient_temperature,
                     pipe_length=pipe_length,

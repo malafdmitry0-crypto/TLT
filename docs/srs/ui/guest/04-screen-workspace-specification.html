@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>SC-05. Спецификация · Гость</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", -apple-system, sans-serif; background: #eef3f6; color: #1a2734; font-size: 13px; }
+  .topbar { background: linear-gradient(180deg, #1f4e69, #163b50); color: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .topbar .right { display: flex; gap: 12px; align-items: center; }
+  .role-tag { background: #ffd35a; color: #5b4400; font-weight: 600; font-size: 11px; padding: 3px 10px; border-radius: 12px; }
+  .session-tag { background: rgba(255,255,255,0.15); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 12px; }
+  .topbar button { background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.30); color: #fff; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .steps { background: #fff; border-bottom: 1px solid #d9e1e6; padding: 10px 20px; display: flex; gap: 24px; }
+  .step { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #607080; }
+  .step.active { color: #1f4e69; font-weight: 600; }
+  .step .dot { width: 22px; height: 22px; border-radius: 50%; background: #c4d2db; color: #fff; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .step.active .dot { background: #1f4e69; }
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 20px; padding: 20px; }
+  .sidebar { background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); padding: 18px; height: fit-content; }
+  .sidebar h3 { margin: 0 0 4px; font-size: 15px; color: #1f4e69; }
+  .sidebar .stat { padding: 8px 0; border-top: 1px solid #eef3f6; font-size: 12px; }
+  .sidebar .stat strong { color: #1f4e69; }
+  .panel { background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); padding: 16px 18px; }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .panel-head h3 { margin: 0; color: #1f4e69; }
+  .panel-head .meta { color: #607080; font-size: 12px; }
+  .btn-primary { padding: 9px 22px; background: #1f4e69; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; }
+  .btn-primary:hover { background: #266186; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #eef3f6; }
+  th { background: #eef3f6; color: #1f4e69; font-weight: 600; }
+  td.num, th.num { text-align: right; }
+  td.cat-row { background: #f4f8fa; font-weight: 600; color: #1f4e69; padding: 6px 10px; }
+  .nav-buttons { display: flex; justify-content: space-between; margin-top: 12px; }
+  .nav-buttons button { padding: 9px 22px; border-radius: 4px; cursor: pointer; font-size: 13px; border: 1px solid #c4d2db; background: #fff; }
+  .nav-buttons button.next { background: #1f4e69; color: #fff; border-color: #1f4e69; font-weight: 600; }
+  .legend { font-size: 11px; color: #607080; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span style="font-weight: 600;">ТЛТ</span>
+  <div class="right">
+    <span class="role-tag">Гость</span>
+    <span class="session-tag">⏱ осталось 17 мин</span>
+    <button>Выйти</button>
+  </div>
+</div>
+
+<div class="steps">
+  <div class="step"><span class="dot">1</span> Теплопотери</div>
+  <div class="step"><span class="dot">2</span> Электрорасчёт</div>
+  <div class="step active"><span class="dot">3</span> Спецификация</div>
+  <div class="step"><span class="dot">4</span> Отчёт</div>
+</div>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <h3>📁 Мой проект</h3>
+    <div class="stat">Объектов: <strong>3</strong> валидных</div>
+    <div class="stat">Электрорасчёт: <strong>Выполнен</strong></div>
+    <div class="stat">Спец-я: <strong>создана</strong></div>
+  </aside>
+
+  <main>
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Спецификация материалов проекта</h3>
+        <button class="btn-primary">Сформировать спецификацию</button>
+      </div>
+      <div class="meta" style="color: #607080; font-size: 12px; margin-bottom: 12px;">Дата формирования: 26.04.2026 16:42</div>
+
+      <table>
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th>Категория</th>
+            <th>Наименование</th>
+            <th>Артикул</th>
+            <th>Ед.</th>
+            <th class="num">Кол.</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="6" class="cat-row">Кабель</td></tr>
+          <tr><td class="num">1</td><td>Кабель</td><td>Греющий кабель ТЛТ-10</td><td>ТЛТ-10</td><td>м</td><td class="num">55</td></tr>
+          <tr><td class="num">2</td><td>Кабель</td><td>Греющий кабель ТЛТ-15</td><td>ТЛТ-15</td><td>м</td><td class="num">176</td></tr>
+          <tr><td class="num">3</td><td>Кабель</td><td>Греющий кабель ТЛТ-30</td><td>ТЛТ-30</td><td>м</td><td class="num">88</td></tr>
+
+          <tr><td colspan="6" class="cat-row">Муфты</td></tr>
+          <tr><td class="num">4</td><td>Муфты</td><td>Концевая муфта</td><td>MUF-END</td><td>шт</td><td class="num">6</td></tr>
+          <tr><td class="num">5</td><td>Муфты</td><td>Соединительная муфта</td><td>MUF-CON</td><td>шт</td><td class="num">3</td></tr>
+
+          <tr><td colspan="6" class="cat-row">Управление</td></tr>
+          <tr><td class="num">6</td><td>Управление</td><td>Термостат механический</td><td>MBC-EXT</td><td>шт</td><td class="num">3</td></tr>
+          <tr><td class="num">7</td><td>Управление</td><td>Датчик температуры Pt100</td><td>TS-PT100</td><td>шт</td><td class="num">3</td></tr>
+
+          <tr><td colspan="6" class="cat-row">Защита</td></tr>
+          <tr><td class="num">8</td><td>Защита</td><td>УЗО 30 мА</td><td>UZO-30</td><td>шт</td><td class="num">3</td></tr>
+          <tr><td class="num">9</td><td>Защита</td><td>Автомат 16 А</td><td>AB-16A</td><td>шт</td><td class="num">3</td></tr>
+
+          <tr><td colspan="6" class="cat-row">Индикация</td></tr>
+          <tr><td class="num">10</td><td>Индикация</td><td>Индикатор работы кабеля</td><td>IND-LED</td><td>шт</td><td class="num">3</td></tr>
+
+          <tr><td colspan="6" class="cat-row">Монтаж</td></tr>
+          <tr><td class="num">11</td><td>Монтаж</td><td>Лента алюминиевая</td><td>AL-TAPE</td><td>м</td><td class="num">100</td></tr>
+          <tr><td class="num">12</td><td>Монтаж</td><td>Фиксатор кабеля</td><td>FIX-CABLE</td><td>шт</td><td class="num">60</td></tr>
+        </tbody>
+      </table>
+
+      <div class="legend">ⓘ Кабели сгруппированы по марке и просуммированы. Аксессуары — базовый набор по числу управляемых участков.</div>
+    </div>
+
+    <div class="nav-buttons">
+      <button>← Электрорасчёт</button>
+      <button class="next">Отчёт →</button>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>
