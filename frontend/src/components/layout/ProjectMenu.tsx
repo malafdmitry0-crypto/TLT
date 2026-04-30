@@ -80,14 +80,13 @@ export default function ProjectMenu() {
   };
 
   return (
-    <Space>
+    <Space className="project-menu" size={3}>
       {currentProject && (
-        <Space size={6} style={{ marginRight: 8 }}>
-          <FolderOpenOutlined style={{ color: 'rgba(255,255,255,0.7)' }} />
+        <Space className="project-menu-current" size={3}>
+          <FolderOpenOutlined className="project-menu-current-icon" />
           <Text
+            className="project-menu-current-name"
             style={{
-              color: 'white',
-              maxWidth: 240,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',

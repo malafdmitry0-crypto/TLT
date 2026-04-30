@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { Button, Col, Form, Input, InputNumber, Row, Select, Tooltip } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import type { ObjectType } from '@/constants/objectTypes';
-import { OBJECT_TYPE_LABELS } from '@/constants/objectTypes';
 import PipeGeometryStep from './steps/PipeGeometryStep';
 import TankGeometryStep from './steps/TankGeometryStep';
 import ThermalStep from './steps/ThermalStep';
@@ -101,16 +100,6 @@ export default function ObjectWizard({
 
   return (
     <Form form={form} layout="vertical" initialValues={initialValues} className="inline-object-form">
-      <div className="inline-form-head">
-        <h3>
-          {isEditMode
-            ? `Параметры объекта «${String(initialParams?.name ?? OBJECT_TYPE_LABELS[objectType])}»`
-            : `Параметры нового объекта: ${OBJECT_TYPE_LABELS[objectType]}`}
-        </h3>
-        <span className={`mode ${isEditMode ? 'edit' : 'new'}`}>
-          {isEditMode ? '✎ Режим: редактирование' : '＋ Режим: новая запись'}
-        </span>
-      </div>
       <Row gutter={[3, 3]} className="form-grid-srs">
         <Col xs={24} lg={6} className="form-col-srs">
           <h4>{objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара'}</h4>
@@ -302,9 +291,6 @@ export default function ObjectWizard({
           >
             <Select value="no" options={[{ value: 'yes', label: 'Да' }, { value: 'no', label: 'Нет' }]} />
           </Form.Item>
-          <div className="srs-note">
-            Тип кабеля, марка, шаг навива, количество ниток и варианты CO1…CO4 — на следующем шаге «Электрорасчёт».
-          </div>
           {objectType === 'pipe' && (
             <>
               <Form.Item

@@ -160,6 +160,20 @@ export default function HeatCalcPage() {
 
   const validCount = objects.filter((o) => o.is_valid).length;
   const totalCount = objects.length;
+  const formCaptionTitle = wizardState
+    ? wizardState.editingObject
+      ? `Параметры объекта «${String(
+          wizardState.editingObject.params?.name ?? OBJECT_TYPE_LABELS[wizardState.type],
+        )}»`
+      : `Параметры нового объекта: ${OBJECT_TYPE_LABELS[wizardState.type]}`
+    : 'Параметры объекта';
+  const formCaptionMode = wizardState?.editingObject ? 'edit' : wizardState ? 'new' : 'idle';
+  const formCaptionModeLabel =
+    formCaptionMode === 'edit'
+      ? 'Режим: редактирование'
+      : formCaptionMode === 'new'
+        ? 'Режим: новая запись'
+        : 'выберите строку или нажмите «＋ Добавить»';
 
   function openAddWizard(type: WizardObjectType) {
     setWizardState({ type });
@@ -306,32 +320,34 @@ export default function HeatCalcPage() {
   return (
     <>
       <Space direction="vertical" size={5} style={{ width: '100%' }}>
-        <div className="inline-form-srs">
-          {wizardState ? (
-            <ObjectWizard
-              objectType={wizardState.type}
-              onClose={closeWizard}
-              onSubmit={handleWizardSubmit}
-              submitting={add.isPending || edit.isPending}
-              initialParams={wizardState.editingObject?.params}
-            />
-          ) : (
-            <>
-              <div className="inline-form-head">
-                <h3>
-                  <DatabaseOutlined style={{ marginRight: 6 }} />
-                  Параметры объекта
-                </h3>
-                <span className="mode">выберите строку или нажмите «＋ Добавить»</span>
-              </div>
+        <div className="inline-form-shell">
+          <div className="inline-form-caption">
+            <span className="inline-form-caption-title">
+              <DatabaseOutlined className="inline-form-caption-icon" />
+              {formCaptionTitle}
+            </span>
+            <span className={`inline-form-caption-mode ${formCaptionMode}`}>
+              {formCaptionModeLabel}
+            </span>
+          </div>
+          <div className="inline-form-srs">
+            {wizardState ? (
+              <ObjectWizard
+                objectType={wizardState.type}
+                onClose={closeWizard}
+                onSubmit={handleWizardSubmit}
+                submitting={add.isPending || edit.isPending}
+                initialParams={wizardState.editingObject?.params}
+              />
+            ) : (
               <div className="heat-flat-form-preview">
                 <span>Геометрия трубы / резервуара</span>
                 <span>Теплоизоляция</span>
                 <span>Температура и среда</span>
                 <span>Электропараметры и арматура</span>
               </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
 
         <div className="actionbar-srs">
@@ -400,9 +416,8 @@ export default function HeatCalcPage() {
               {[1, 2, 3, 4].map((n) => (
                 <button
                   key={n}
-                  className={elecVariant === n ? 'active' : ''}
+                  className={elecVariant === n ? 'variant active' : 'variant'}
                   onClick={() => setElecVariant(n)}
-                  style={{ padding: '2px 8px' }}
                 >
                   СО{n}
                 </button>

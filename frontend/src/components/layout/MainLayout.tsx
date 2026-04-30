@@ -14,7 +14,7 @@ export default function MainLayout({ children }: Props) {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header className="heatcalc-header">
-        <h2 style={{ color: 'white', margin: 0, marginRight: 24 }}>HeatCalc</h2>
+        <h2 className="heatcalc-title">HeatCalc</h2>
         <ProjectMenu />
       </Header>
       <Layout className="heatcalc-main-layout">

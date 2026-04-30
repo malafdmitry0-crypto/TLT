@@ -25,12 +25,54 @@ html, body, #root {
 .heatcalc-header {
   background: var(--color-primary);
   color: white;
-  height: 44px;
-  line-height: 44px;
-  padding: 0 14px;
+  height: 24px;
+  line-height: 24px;
+  padding: 0 6px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 4px;
+  min-width: 0;
+}
+
+.heatcalc-title {
+  color: white;
+  font-size: 11.2px;
+  line-height: 1;
+  margin: 0 7px 0 0;
+  flex: 0 0 auto;
+}
+
+.project-menu {
+  min-width: 0;
+}
+
+.project-menu-current {
+  margin-right: 3px;
+  min-width: 0;
+}
+
+.project-menu-current-icon {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 8.4px;
+}
+
+.project-menu-current-name {
+  color: white;
+  max-width: 126px;
+  font-size: 8.4px;
+  line-height: 16.8px;
+}
+
+.project-menu .ant-btn {
+  height: 16.8px;
+  padding-inline: 4.2px;
+  font-size: 8.4px;
+  line-height: 1;
+}
+
+.project-menu .ant-btn .anticon {
+  font-size: 8.4px;
+  line-height: 1;
 }
 
 .heatcalc-sidebar {
@@ -96,7 +138,7 @@ html, body, #root {
 }
 
 .inline-object-form {
-  margin-top: 10px;
+  margin-top: 0;
 }
 
 .flat-form-section {
@@ -164,12 +206,12 @@ html, body, #root {
   border-color: #bfbfbf !important;
   color: #262626;
   font-weight: 600;
-  padding: 6px 8px !important;
+  padding: 4px 8px !important;
 }
 
 .calc-spreadsheet .ant-table-tbody > tr > td {
   border-color: #d9d9d9 !important;
-  padding: 5px 8px !important;
+  padding: 3px 8px !important;
   background: #fff;
 }
 
@@ -198,39 +240,56 @@ html, body, #root {
   background: #fff;
   border-radius: 6px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  padding: 8px 10px;
+  padding: 5px 8px;
   border-top: 3px solid var(--color-primary);
 }
 
-.inline-form-head {
+.inline-form-shell {
+  min-width: 0;
+}
+
+.inline-form-caption {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
-  padding-bottom: 5px;
-  border-bottom: 1px solid #eef3f6;
+  gap: 5px;
+  min-width: 0;
+  min-height: 12px;
+  padding: 0 3px 2px;
+  font-size: 8.4px;
+  line-height: 1.15;
 }
 
-.inline-form-head h3 {
-  margin: 0;
-  font-size: 13px;
+.inline-form-caption-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
   color: var(--color-primary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.inline-form-head .mode {
-  font-size: 11px;
+.inline-form-caption-icon {
+  flex: 0 0 auto;
+  font-size: 8.4px;
+}
+
+.inline-form-caption-mode {
+  flex: 0 0 auto;
   color: #607080;
-  padding: 3px 9px;
+  padding: 1px 5px;
   background: #eef3f6;
   border-radius: 12px;
 }
 
-.inline-form-head .mode.edit {
+.inline-form-caption-mode.edit {
   background: #fff8e0;
   color: #5b4400;
 }
 
-.inline-form-head .mode.new {
+.inline-form-caption-mode.new {
   background: #c2e0c0;
   color: #1f6f3e;
 }
@@ -260,9 +319,9 @@ html, body, #root {
 
 .inline-object-form .ant-form-item {
   display: block;
-  margin-bottom: 1px;
+  margin-bottom: 0;
   min-width: 0;
-  padding: 2px;
+  padding: 1px 2px;
 }
 
 .inline-object-form .ant-form-item-label {
@@ -274,8 +333,8 @@ html, body, #root {
 .inline-object-form .ant-form-item-label > label {
   height: auto;
   color: #4a5b6c;
-  font-size: 10px;
-  line-height: 1.08;
+  font-size: 9.5px;
+  line-height: 1.05;
   margin-bottom: 1px;
 }
 
@@ -284,7 +343,7 @@ html, body, #root {
 }
 
 .inline-object-form .ant-form-item-control-input {
-  min-height: 22px;
+  min-height: 20px;
 }
 
 .inline-object-form .ant-form-item-control-input-content {
@@ -294,9 +353,9 @@ html, body, #root {
 .inline-object-form .ant-input,
 .inline-object-form .ant-input-number,
 .inline-object-form .ant-select-selector {
-  border-radius: 3px;
+  border-radius: 2px;
   font-size: 11px;
-  min-height: 22px;
+  min-height: 20px;
   width: 100%;
 }
 
@@ -305,29 +364,47 @@ html, body, #root {
   width: 100%;
 }
 
-.inline-object-form .ant-input-number-input {
+/* InputNumber с addonAfter рендерится в group-wrapper; без явного height он остаётся 32px */
+.inline-object-form .ant-input-number-group-wrapper {
+  width: 100%;
   height: 20px;
-  padding: 0 5px;
+}
+
+.inline-object-form .ant-input-number-group,
+.inline-object-form .ant-input-number-group .ant-input-number {
+  height: 20px;
+}
+
+.inline-object-form .ant-input-number-group-addon {
+  font-size: 10px;
+  padding: 0 4px;
+  line-height: 18px;
+}
+
+.inline-object-form .ant-input-number-input {
+  height: 18px;
+  padding: 0 4px;
 }
 
 .inline-object-form .ant-select-single {
-  height: 22px;
+  height: 20px;
 }
 
 .inline-object-form .ant-select-single .ant-select-selector {
-  height: 22px;
-  padding: 0 6px;
+  height: 20px;
+  padding: 0 5px;
 }
 
 .inline-object-form .ant-input-number-input,
 .inline-object-form .ant-select-selection-item,
 .inline-object-form .ant-select-selection-placeholder {
   font-size: 11px;
+  line-height: 18px;
 }
 
 .inline-object-form .ant-form-item-explain,
 .inline-object-form .ant-form-item-extra {
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .srs-note {
@@ -347,7 +424,7 @@ html, body, #root {
 
 .actionbar-srs {
   display: flex;
-  gap: 2px;
+  gap: 3px;
   flex-wrap: wrap;
   align-items: center;
   padding: 4px 6px;
@@ -358,9 +435,9 @@ html, body, #root {
 
 .actionbar-srs .ant-btn {
   border-radius: 3px;
-  font-size: 12px;
-  height: 26px;
-  padding-inline: 7px;
+  font-size: 11px;
+  height: 24px;
+  padding-inline: 9px;
 }
 
 .actionbar-srs .add,
@@ -377,9 +454,9 @@ html, body, #root {
 
 .actionbar-srs .sep {
   width: 1px;
-  height: 20px;
+  height: 18px;
   background: #c4d2db;
-  margin: 0 4px;
+  margin: 0 3px;
 }
 
 .tabs-row-srs {
@@ -391,12 +468,17 @@ html, body, #root {
 .tabs-row-srs button {
   border: 0;
   background: transparent;
-  padding: 5px 12px;
+  padding: 5px 11px;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
-  font-size: 12px;
+  font-size: 11px;
   color: #607080;
+}
+
+.tabs-row-srs button.variant {
+  padding: 2px 7px;
+  font-size: 11px;
 }
 
 .tabs-row-srs button.active {
@@ -438,13 +520,13 @@ html, body, #root {
 }
 
 .workspace-table-card .ant-table-thead > tr > th {
-  padding-top: 4px !important;
-  padding-bottom: 4px !important;
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
 }
 
 .workspace-table-card .ant-table-tbody > tr > td {
-  padding-top: 3px !important;
-  padding-bottom: 3px !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
 }
 
 .calc-spreadsheet .ant-table-cell {
