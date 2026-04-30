@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Button, Col, Form, Input, InputNumber, Row, Select } from 'antd';
 import type { ObjectType } from '@/constants/objectTypes';
 import { OBJECT_TYPE_LABELS } from '@/constants/objectTypes';
@@ -35,6 +35,7 @@ export default function ObjectWizard({
   const [form] = Form.useForm();
   const isEditMode = !!initialParams;
   const values = Form.useWatch([], form);
+  const prevSuggestedRef = useRef<string>('');
 
   const initialValues =
     initialParams != null
@@ -57,9 +58,9 @@ export default function ObjectWizard({
           : generateTankName(values as TankFormValues);
       if (!suggestedName) return;
       const current = form.getFieldValue('name') as string | undefined;
-      const prevSuggested = form.getFieldValue('_prev_suggested') as string | undefined;
-      if (!current || current === prevSuggested) {
-        form.setFieldsValue({ name: suggestedName, _prev_suggested: suggestedName });
+      if (!current || current === prevSuggestedRef.current) {
+        prevSuggestedRef.current = suggestedName;
+        form.setFieldsValue({ name: suggestedName });
       }
     } catch {
       // Пока форма заполнена частично, автонаименование может быть недоступно.
@@ -204,9 +205,6 @@ export default function ObjectWizard({
         </Button>
         <Button id="inline-object-cancel" onClick={onClose}>Отмена</Button>
       </div>
-      <Form.Item name="_prev_suggested" hidden>
-        <Input />
-      </Form.Item>
     </Form>
   );
 }

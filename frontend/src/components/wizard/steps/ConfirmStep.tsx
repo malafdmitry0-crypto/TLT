@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Form, Input, Descriptions, Alert } from 'antd';
 import type { ObjectType } from '@/constants/objectTypes';
 import {
@@ -16,6 +16,7 @@ interface Props {
 function ConfirmStepInner({ objectType }: Props) {
   const form = Form.useFormInstance();
   const values = Form.useWatch([], form);
+  const prevSuggestedRef = useRef<string>('');
 
   // Build suggested name whenever params change
   const suggestedName = (() => {
@@ -35,10 +36,10 @@ function ConfirmStepInner({ objectType }: Props) {
   useEffect(() => {
     if (!suggestedName) return;
     const current = form.getFieldValue('name') as string | undefined;
-    const prevSuggested = form.getFieldValue('_prev_suggested') as string | undefined;
     // Set name only if blank or if it equals the previous auto-suggestion (user hasn't customised)
-    if (!current || current === prevSuggested) {
-      form.setFieldsValue({ name: suggestedName, _prev_suggested: suggestedName });
+    if (!current || current === prevSuggestedRef.current) {
+      prevSuggestedRef.current = suggestedName;
+      form.setFieldsValue({ name: suggestedName });
     }
   }, [suggestedName, form]);
 
@@ -94,11 +95,6 @@ function ConfirmStepInner({ objectType }: Props) {
         extra="Наименование генерируется автоматически из параметров. Вы можете изменить его."
       >
         <Input placeholder="Напр.: Труба DN100 участок 1" />
-      </Form.Item>
-
-      {/* Hidden field to track last auto-suggested value */}
-      <Form.Item name="_prev_suggested" hidden>
-        <Input />
       </Form.Item>
     </>
   );
