@@ -391,8 +391,8 @@ html, body, #root {
   flex: 1;
   width: 100%;
   height: var(--inline-control-height);
-  padding: 0 6px;
-  font-size: 11px;
+  padding: 0 4px;
+  font-size: 10px;
   border-radius: 2px;
   box-sizing: border-box;
   line-height: calc(var(--inline-control-height) - 2px);
@@ -411,14 +411,14 @@ html, body, #root {
 
 .inline-object-form .ant-select-single .ant-select-selector {
   height: var(--inline-control-height) !important;
-  padding: 0 6px !important;
+  padding: 0 4px !important;
   border-radius: 2px;
   box-sizing: border-box;
 }
 
 .inline-object-form .ant-select-selection-item,
 .inline-object-form .ant-select-selection-placeholder {
-  font-size: 10px;
+  font-size: 9px;
   line-height: calc(var(--inline-control-height) - 2px) !important;
 }
 
@@ -462,15 +462,15 @@ html, body, #root {
 
 .inline-object-form .ant-input-number-input {
   height: calc(var(--inline-control-height) - 2px);
-  padding: 0 4px;
-  font-size: 11px;
+  padding: 0 3px;
+  font-size: 10px;
   line-height: calc(var(--inline-control-height) - 2px);
 }
 
 .inline-object-form .ant-input-number-group-addon {
   height: var(--inline-control-height);
-  font-size: 10px;
-  padding: 0 4px;
+  font-size: 9px;
+  padding: 0 3px;
   line-height: calc(var(--inline-control-height) - 2px);
   vertical-align: middle;
   box-sizing: border-box;
