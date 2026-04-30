@@ -32,7 +32,7 @@ export default function ThermalStep() {
     <>
       <Form.Item
         label={label(
-          'Толщина изоляции, мм',
+          'Толщина изоляции',
           'Толщина слоя тепловой изоляции. Диапазон: 1–500 мм.'
         )}
         name="insulation_thickness_mm"
@@ -60,7 +60,7 @@ export default function ThermalStep() {
 
       <Form.Item
         label={label(
-          'Температура окр. среды, °C',
+          'T° окр. среды',
           'Расчётная температура окружающей среды. Диапазон: −70°C … +70°C.'
         )}
         name="ambient_temperature"
@@ -75,7 +75,7 @@ export default function ThermalStep() {
 
       <Form.Item
         label={label(
-          'Температура продукта, °C',
+          'T° продукта',
           'Температура транспортируемой/хранимой среды. Диапазон: −90°C … +600°C. Должна быть выше температуры окружающей среды.'
         )}
         name="process_temperature"

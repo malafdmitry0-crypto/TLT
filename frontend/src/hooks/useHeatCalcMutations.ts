@@ -3,6 +3,7 @@ import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
   createObject,
+  deleteObject,
   reorderObjects,
   updateObject,
 } from '@/api/projects';
@@ -42,8 +43,8 @@ function notifyObjectResult(obj: ProjectObject, action: 'added' | 'updated') {
  * Все мутации страницы «Расчёт теплопотерь» (HeatCalcPage):
  *   - add:       добавить объект
  *   - edit:      обновить параметры объекта
+ *   - remove:    удалить объект
  *   - reorder:   сменить порядок объектов (drag-and-drop)
- *   - batchCalcVariant: пакетно выполнить электрорасчёт выбранного СО без перехода
  *   - batchCalc: пакетно выполнить электрорасчёт и перейти на шаг 2
  *
  * Все мутации инвалидируют кэш объектов проекта. add/edit показывают
@@ -92,19 +93,12 @@ export function useHeatCalcMutations(
     onError: (e: Error) => message.error(e.message),
   });
 
-  const batchCalcVariant = useMutation({
-    mutationFn: (variant: number) => batchCalcElectrical(projectId!, 'builtin', variant),
-    onSuccess: (res, variant) => {
-      qc.invalidateQueries({
-        queryKey: ['project', projectId, 'electrical-calcs'],
-      });
-      if (res.errors.length > 0) {
-        message.warning(
-          `СО${variant} · рассчитано: ${res.calculated}, пропущено: ${res.skipped}.`,
-        );
-      } else {
-        message.success(`СО${variant} — электрорасчёт выполнен для ${res.calculated} объектов`);
-      }
+  const remove = useMutation({
+    mutationFn: (objectId: string) => deleteObject(projectId!, objectId),
+    onSuccess: () => {
+      invalidateObjects();
+      message.success('Объект удалён');
+      onEditSuccess?.();
     },
     onError: (e: Error) => message.error(e.message),
   });
@@ -127,5 +121,5 @@ export function useHeatCalcMutations(
     onError: (e: Error) => message.error(e.message),
   });
 
-  return { add, edit, reorder, batchCalcVariant, batchCalc };
+  return { add, edit, remove, reorder, batchCalc };
 }

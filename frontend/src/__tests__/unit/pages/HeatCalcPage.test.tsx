@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HeatCalcPage from '@/pages/HeatCalcPage';
@@ -17,7 +17,14 @@ vi.mock('@/api/projects', () => ({
 }));
 
 vi.mock('@/api/calculations', () => ({
-  batchCalcElectrical: vi.fn(),
+  batchCalcElectrical: vi.fn().mockResolvedValue({ calculated: 0, skipped: 0, errors: [], results: [] }),
+  listCables: vi.fn().mockResolvedValue([]),
+  listElectricalCalcs: vi.fn().mockResolvedValue([]),
+  selectCableManual: vi.fn(),
+}));
+
+vi.mock('@/api/references', () => ({
+  getInsulation: vi.fn().mockResolvedValue([]),
 }));
 
 // ── Вспомогательные функции ───────────────────────────────────────────────────
@@ -118,24 +125,77 @@ describe('HeatCalcPage', () => {
     });
   });
 
-  describe('Индикатор прогресса (WorkflowSteps)', () => {
-    it('отображается на странице', () => {
+  describe('Вкладки таблицы', () => {
+    it('отображает вкладки исходных данных и результатов', () => {
       useProjectStore.getState().setCurrentProject(mockProject);
       renderPage();
-      // Ant Design Steps рендерит тексты шагов
-      expect(screen.getByText('Теплопотери')).toBeInTheDocument();
-      expect(screen.getByText('Электрорасчёт')).toBeInTheDocument();
-      expect(screen.getByText('Спецификация')).toBeInTheDocument();
-      expect(screen.getByText('Отчёт')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Исходные данные' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Результаты расчёта' })).toBeInTheDocument();
     });
 
-    it('первый шаг активен (current=0)', () => {
+    it('на вкладке результатов показывает расчёт выбранного СО', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
       useProjectStore.getState().setCurrentProject(mockProject);
       renderPage();
-      // Ant Design помечает активный шаг через aria-selected или класс
-      // Достаточно убедиться что шаги отрисованы и компонент присутствует
-      const steps = screen.getAllByText(/Теплопотери|Электрорасчёт|Спецификация|Отчёт/i);
-      expect(steps.length).toBeGreaterThanOrEqual(4);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Результаты расчёта' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Выполнить электрорасчёт СО1/i })).toBeInTheDocument();
+      });
+      expect(screen.getByText('Тип кабеля:')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'СО4' })).toBeInTheDocument();
+    });
+
+    it('на вкладке результатов запускает электрорасчёт выбранного СО', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const { batchCalcElectrical } = await import('@/api/calculations');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Результаты расчёта' }));
+      fireEvent.click(screen.getByRole('button', { name: 'СО2' }));
+      const button = await screen.findByRole('button', { name: /Выполнить электрорасчёт СО2/i });
+      await waitFor(() => {
+        expect(button).not.toBeDisabled();
+      });
+      fireEvent.click(button);
+
+      await waitFor(() => {
+        expect(batchCalcElectrical).toHaveBeenCalledWith('proj-test-1', 'builtin', 2);
+      });
+    });
+  });
+
+  describe('Панель действий объекта', () => {
+    it('создаёт копию выбранного объекта через «Создать на основании»', async () => {
+      const { listObjects, createObject } = await import('@/api/projects');
+      const source = makeObject();
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
+      (createObject as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeObject({ id: 'obj-copy', params: { ...source.params, name: 'Труба DN100 (копия)' } }),
+      );
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      renderPage();
+
+      fireEvent.click(await screen.findByText('Труба DN100'));
+      fireEvent.click(screen.getByRole('button', { name: 'Создать на основании' }));
+
+      await waitFor(() => {
+        expect(createObject).toHaveBeenCalledWith(
+          'proj-test-1',
+          expect.objectContaining({
+            object_type: 'pipe',
+            params: expect.objectContaining({ name: 'Труба DN100 (копия)' }),
+            sort_order: 1,
+          }),
+        );
+      });
     });
   });
 });

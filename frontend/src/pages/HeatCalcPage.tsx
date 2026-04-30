@@ -1,5 +1,19 @@
-import { useEffect, useState } from 'react';
-import { Button, Card, Dropdown, Space, Table, Tag, Typography, message as antdMessage } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Button,
+  Card,
+  Dropdown,
+  InputNumber,
+  Popconfirm,
+  Select,
+  Segmented,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message as antdMessage,
+} from 'antd';
 import {
   CheckCircleFilled,
   CloseCircleFilled,
@@ -9,7 +23,8 @@ import {
   ReloadOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 
 import ObjectWizard from '@/components/wizard/ObjectWizard';
 import ImportExcelButton from '@/components/ImportExcelButton';
@@ -20,18 +35,34 @@ import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { listObjects } from '@/api/projects';
-import { listElectricalCalcs } from '@/api/calculations';
+import {
+  batchCalcElectrical,
+  listCables,
+  listElectricalCalcs,
+  selectCableManual,
+  type CableSource,
+} from '@/api/calculations';
 import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
 import { useElectricalStats } from '@/hooks/useElectricalStats';
 import { isElectricalCalcSuccess, electricalCalcError } from '@/utils/calcStatus';
 import type { ProjectObject } from '@/types/project';
 import { formatNumber, formatPower } from '@/utils/formatters';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
+import { ROUTES } from '@/routes/routes';
 
 const { Text } = Typography;
 
 /** В MVP мастер знает только две формы — трубу и резервуар. */
 type WizardObjectType = 'pipe' | 'tank';
+type CableTypeKey = 'self_regulating' | 'single_core' | 'three_core' | 'mineral' | 'skin';
+
+const CABLE_TYPE_LABEL: Record<CableTypeKey, string> = {
+  self_regulating: 'Саморегулирующийся',
+  single_core: 'Однож. пост. мощн.',
+  three_core: 'Трёхж. пост. мощн.',
+  mineral: 'С мин. изоляцией',
+  skin: 'Скин-система',
+};
 
 interface WizardState {
   type: WizardObjectType;
@@ -74,10 +105,15 @@ function ObjectCountBadge({
 export default function HeatCalcPage() {
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
+  const isEmployee = role === 'employee' || role === 'admin';
   const [wizardState, setWizardState] = useState<WizardState | null>(null);
   const [tableTab, setTableTab] = useState<'source' | 'results'>('source');
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [elecVariant, setElecVariant] = useState<number>(1);
+  const [cableSource, setCableSource] = useState<CableSource>('builtin');
+  const [cableType, setCableType] = useState<CableTypeKey>('self_regulating');
+  const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: objects = [] } = useQuery({
     queryKey: ['project', project?.id, 'objects'],
@@ -92,7 +128,42 @@ export default function HeatCalcPage() {
     select: (rows) => rows.filter((c) => c.variant_number === elecVariant),
   });
 
+  const effectiveSource: CableSource = isEmployee ? cableSource : 'builtin';
+  const { data: cables = [] } = useQuery({
+    queryKey: ['references', 'cables', effectiveSource],
+    queryFn: () => listCables(effectiveSource),
+    enabled: !!project,
+    staleTime: 5 * 60_000,
+  });
+
   const elecStats = useElectricalStats(objects, elecCalcs);
+  const cableOptions = useMemo(
+    () => cables.map((c) => ({ value: c.model, label: `${c.model} · ${c.power_per_meter} Вт/м` })),
+    [cables],
+  );
+
+  const batchElecMut = useMutation({
+    mutationFn: () => batchCalcElectrical(project!.id, effectiveSource, elecVariant),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
+      if (res.errors.length > 0) {
+        antdMessage.warning(`СО${elecVariant} · рассчитано: ${res.calculated}, пропущено: ${res.skipped}.`);
+      } else {
+        antdMessage.success(`СО${elecVariant} — расчёт выполнен для ${res.calculated} объектов`);
+      }
+    },
+    onError: (e: Error) => antdMessage.error(e.message),
+  });
+
+  const manualCableMut = useMutation({
+    mutationFn: ({ objectId, mark }: { objectId: string; mark: string }) =>
+      selectCableManual(objectId, mark, effectiveSource, elecVariant),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
+      antdMessage.success('Кабель выбран, расчёт обновлён');
+    },
+    onError: (e: Error) => antdMessage.error(e.message),
+  });
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -106,7 +177,7 @@ export default function HeatCalcPage() {
       const isResults = tableTab === 'results';
 
       const header = isResults
-        ? ['Тип', 'Наименование', 'Ø, мм', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T прод., °C', 'T окр., °C', 'q, Вт/м', 'Q сум., Вт', 'Статус']
+        ? ['Тип', 'Наименование', 'Ø, мм', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T прод., °C', 'T окр., °C', 'q, Вт/м', 'Q сум., Вт', 'Марка кабеля', 'Шаг навива, мм', 'Длина каб., м', 'Мощность, Вт', 'Ток, А', 'Статус', 'Сообщение']
         : ['Тип', 'Наименование', 'Ø, мм', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T прод., °C', 'T окр., °C'];
 
       const rows = selected.map((r) => {
@@ -123,13 +194,21 @@ export default function HeatCalcPage() {
           formatNumber(Number(r.params?.ambient_temperature), 0),
         ];
         if (!isResults) return base;
+        const calc = elecStats.calcByObjectId[r.id];
+        const error = electricalCalcError(calc);
         return [
           ...base,
           r.object_type === 'pipe'
             ? formatNumber(Number(r.results?.heat_loss_per_meter), 1)
             : formatNumber(Number(r.results?.heat_loss_per_m2), 1),
           r.results ? formatPower(Number(r.results.total_heat_loss)) : '—',
-          r.is_valid ? 'рассчитан' : 'ошибка',
+          calc?.cable_mark ?? '',
+          formatNumber(Number(calc?.results?.winding_pitch), 0),
+          formatNumber(Number(calc?.results?.cable_length), 1),
+          formatPower(Number(calc?.results?.total_power)),
+          formatNumber(Number(calc?.results?.current), 2),
+          !r.is_valid ? 'тепл. ошибка' : isElectricalCalcSuccess(calc) ? 'рассчитан' : error ? 'эл. ошибка' : 'не рассчитан',
+          error ?? '',
         ];
       });
 
@@ -140,10 +219,10 @@ export default function HeatCalcPage() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedRowKeys, objects, tableTab]);
+  }, [selectedRowKeys, objects, tableTab, elecStats.calcByObjectId]);
 
   const closeWizard = () => setWizardState(null);
-  const { add, edit, batchCalcVariant, batchCalc } = useHeatCalcMutations(
+  const { add, edit, remove, batchCalc } = useHeatCalcMutations(
     project?.id,
     closeWizard,
     closeWizard,
@@ -161,6 +240,17 @@ export default function HeatCalcPage() {
 
   const validCount = objects.filter((o) => o.is_valid).length;
   const totalCount = objects.length;
+  const cableTypeOptions = (Object.keys(CABLE_TYPE_LABEL) as CableTypeKey[]).map((k) => ({
+    label: k === 'self_regulating'
+      ? CABLE_TYPE_LABEL[k]
+      : <Tooltip title="Будет доступно в следующей версии">{CABLE_TYPE_LABEL[k]}</Tooltip>,
+    value: k,
+    disabled: k !== 'self_regulating',
+  }));
+  const showInKW = elecStats.totalPower >= 1000;
+  const powerDisplay = showInKW
+    ? `${(elecStats.totalPower / 1000).toFixed(2)} кВт`
+    : `${elecStats.totalPower.toFixed(0)} Вт`;
   const formCaptionTitle = wizardState
     ? wizardState.editingObject
       ? `Параметры объекта «${String(
@@ -197,6 +287,26 @@ export default function HeatCalcPage() {
         sort_order: objects.length,
       });
     }
+  }
+
+  function duplicateCurrentObject() {
+    const source = wizardState?.editingObject;
+    if (!source || (source.object_type !== 'pipe' && source.object_type !== 'tank')) return;
+    const sourceName = String(source.params?.name ?? OBJECT_TYPE_LABELS[source.object_type]);
+    add.mutate({
+      object_type: source.object_type,
+      params: {
+        ...source.params,
+        name: `${sourceName} (копия)`,
+      },
+      sort_order: objects.length,
+    });
+  }
+
+  function removeCurrentObject() {
+    const source = wizardState?.editingObject;
+    if (!source) return;
+    remove.mutate(source.id);
   }
 
   const selectedRowId = wizardState?.editingObject?.id;
@@ -276,13 +386,55 @@ export default function HeatCalcPage() {
     },
     {
       title: 'Марка кабеля',
-      width: 140,
+      width: 180,
       render: (_: unknown, r: ProjectObject) => {
         const calc = elecStats.calcByObjectId[r.id];
-        return calc?.cable_mark
-          ? <Text style={{ fontSize: 12 }}>{calc.cable_mark}</Text>
-          : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
+        return (
+          <Select
+            size="small"
+            showSearch
+            allowClear
+            placeholder="Авто"
+            value={calc?.cable_mark ?? undefined}
+            options={cableOptions}
+            disabled={!r.is_valid || cables.length === 0}
+            loading={manualCableMut.isPending}
+            style={{ width: '100%' }}
+            onChange={(mark) => {
+              if (mark) manualCableMut.mutate({ objectId: r.id, mark });
+            }}
+          />
+        );
       },
+    },
+    {
+      title: 'Шаг навива, мм',
+      width: 120,
+      align: 'right' as const,
+      render: (_: unknown, r: ProjectObject) => (
+        <InputNumber
+          size="small"
+          min={0}
+          value={Number(elecStats.calcByObjectId[r.id]?.results?.winding_pitch ?? 0)}
+          disabled={cableType === 'mineral'}
+          style={{ width: '100%' }}
+        />
+      ),
+    },
+    {
+      title: 'Ниток',
+      width: 74,
+      align: 'right' as const,
+      render: () => (
+        <InputNumber
+          size="small"
+          min={1}
+          max={8}
+          value={1}
+          disabled={cableType === 'mineral'}
+          style={{ width: '100%' }}
+        />
+      ),
     },
     {
       title: 'Длина каб., м',
@@ -315,6 +467,15 @@ export default function HeatCalcPage() {
         if (electricalCalcError(calc)) return <Tag color="error" icon={<CloseCircleFilled />}>эл. ошибка</Tag>;
         return <Tag>не рассчитан</Tag>;
       },
+    },
+    {
+      title: 'Сообщение',
+      ellipsis: true,
+      render: (_: unknown, r: ProjectObject) => (
+        <Text type="secondary" style={{ fontSize: 11 }}>
+          {electricalCalcError(elecStats.calcByObjectId[r.id]) ?? '—'}
+        </Text>
+      ),
     },
   ];
 
@@ -365,11 +526,33 @@ export default function HeatCalcPage() {
               Добавить
             </Button>
           </Dropdown>
-          <Button disabled={!wizardState?.editingObject}>Создать на основании</Button>
-          <Button disabled={!wizardState?.editingObject}>Изменить</Button>
-          <Button disabled={!wizardState}>Применить к одному</Button>
-          <Button disabled={!wizardState}>Применить ко всем</Button>
-          <Button danger disabled={!wizardState?.editingObject}>Удалить</Button>
+          <Button
+            disabled={!wizardState?.editingObject}
+            loading={add.isPending}
+            onClick={duplicateCurrentObject}
+          >
+            Создать на основании
+          </Button>
+          <Button
+            disabled={!wizardState}
+            onClick={() => document.getElementById('inline-object-save')?.click()}
+          >
+            Применить к одному
+          </Button>
+          <Tooltip title="Массовое применение будет доступно после согласования правил переноса параметров">
+            <Button disabled>Применить ко всем</Button>
+          </Tooltip>
+          <Popconfirm
+            title="Удалить объект?"
+            okText="Удалить"
+            cancelText="Отмена"
+            disabled={!wizardState?.editingObject}
+            onConfirm={removeCurrentObject}
+          >
+            <Button danger loading={remove.isPending} disabled={!wizardState?.editingObject}>
+              Удалить
+            </Button>
+          </Popconfirm>
           <span className="sep" />
           <Button
             className="save"
@@ -426,17 +609,44 @@ export default function HeatCalcPage() {
             </span>
           )}
           {tableTab === 'results' && (
-            <Button
-              size="small"
-              type="primary"
-              icon={<ReloadOutlined />}
-              loading={batchCalcVariant.isPending}
-              disabled={validCount === 0}
-              onClick={() => batchCalcVariant.mutate(elecVariant)}
-              style={{ marginLeft: 'auto', marginBottom: 2 }}
-            >
-              Выполнить электрорасчёт СО{elecVariant}
-            </Button>
+            <>
+              <span className="sep" />
+              <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>Тип кабеля:</Text>
+              <Select<CableTypeKey>
+                size="small"
+                value={cableType}
+                onChange={setCableType}
+                options={cableTypeOptions}
+                style={{ width: 210 }}
+              />
+              {isEmployee && (
+                <>
+                  <span className="sep" />
+                  <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>База:</Text>
+                  <Segmented<CableSource>
+                    size="small"
+                    value={cableSource}
+                    onChange={setCableSource}
+                    options={[
+                      { label: 'Встроенная', value: 'builtin' },
+                      { label: 'Внешняя', value: 'extended' },
+                      { label: 'Все', value: 'all' },
+                    ]}
+                  />
+                </>
+              )}
+              <Button
+                size="small"
+                type="primary"
+                icon={<ReloadOutlined />}
+                loading={batchElecMut.isPending}
+                disabled={validCount === 0}
+                onClick={() => batchElecMut.mutate()}
+                style={{ marginLeft: 'auto', marginBottom: 2 }}
+              >
+                Выполнить электрорасчёт СО{elecVariant}
+              </Button>
+            </>
           )}
         </div>
 
@@ -448,7 +658,7 @@ export default function HeatCalcPage() {
             pagination={false}
             dataSource={objects}
             columns={tableTab === 'source' ? sourceColumns : resultColumns}
-            scroll={{ x: 1180, y: 'calc(100vh - 530px)' }}
+            scroll={{ x: tableTab === 'source' ? 1180 : 1520, y: 'calc(100vh - 530px)' }}
             rowSelection={{
               type: 'checkbox',
               selectedRowKeys,
@@ -458,11 +668,15 @@ export default function HeatCalcPage() {
             rowClassName={(r) => {
               const classes = [];
               if (!r.is_valid) classes.push('row-invalid');
+              if (tableTab === 'results' && electricalCalcError(elecStats.calcByObjectId[r.id])) {
+                classes.push('row-invalid');
+              }
               if (r.id === selectedRowId) classes.push('row-selected');
               return classes.join(' ');
             }}
             onRow={(record) => ({
               onClick: (e) => {
+                if (tableTab === 'results') return;
                 // Ignore clicks on checkbox cell
                 if ((e.target as HTMLElement).closest('.ant-table-selection-column')) return;
                 openEditWizard(record);
@@ -480,7 +694,7 @@ export default function HeatCalcPage() {
             <span>
               {tableTab === 'source'
                 ? 'ⓘ Клик по строке → форма выше показывает параметры. Красная строка = объект не рассчитан.'
-                : `ⓘ Тепловые и электрические результаты для варианта СО${elecVariant}. Красная строка = ошибка расчёта.`}
+                : `ⓘ СО${elecVariant} · ${CABLE_TYPE_LABEL[cableType]} · Кабель: ${elecStats.totalCableLength.toFixed(1)} м · Мощность: ${powerDisplay} · Ток: ${elecStats.totalCurrent.toFixed(2)} А · рассчитано: ${elecStats.calcedCount}/${objects.length}. Красная строка = ошибка расчёта.`}
             </span>
             {tableTab === 'source' && (
               <Button
@@ -491,6 +705,16 @@ export default function HeatCalcPage() {
                 onClick={() => batchCalc.mutate()}
               >
                 Электрорасчёт →
+              </Button>
+            )}
+            {tableTab === 'results' && elecStats.calcedCount > 0 && (
+              <Button
+                size="small"
+                type="primary"
+                icon={<ThunderboltOutlined />}
+                onClick={() => navigate(ROUTES.specification)}
+              >
+                Спецификация →
               </Button>
             )}
           </div>

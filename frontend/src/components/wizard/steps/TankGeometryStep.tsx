@@ -49,7 +49,7 @@ export default function TankGeometryStep() {
               {needDiameter && (
                 <Form.Item
                   label={label(
-                    'Диаметр, мм',
+                    'Диаметр',
                     'Внешний диаметр резервуара. Обязателен для цилиндрической и сферической форм. Диапазон: 100–50 000 мм.'
                   )}
                   name="diameter_mm"
@@ -66,7 +66,7 @@ export default function TankGeometryStep() {
               {needHeight && (
                 <Form.Item
                   label={label(
-                    'Высота, мм',
+                    'Высота',
                     'Высота резервуара. Обязательна для цилиндрической и прямоугольной форм. Диапазон: 100–50 000 мм.'
                   )}
                   name="height_mm"
@@ -82,7 +82,7 @@ export default function TankGeometryStep() {
 
               {needLength && (
                 <Form.Item
-                  label={label('Длина, мм', 'Длина прямоугольного резервуара. Диапазон: 100–50 000 мм.')}
+                  label={label('Длина', 'Длина прямоугольного резервуара. Диапазон: 100–50 000 мм.')}
                   name="length_mm"
                   rules={[
                     { required: true, message: 'Укажите длину' },
@@ -96,7 +96,7 @@ export default function TankGeometryStep() {
 
               {needWidth && (
                 <Form.Item
-                  label={label('Ширина, мм', 'Ширина прямоугольного резервуара. Диапазон: 100–50 000 мм.')}
+                  label={label('Ширина', 'Ширина прямоугольного резервуара. Диапазон: 100–50 000 мм.')}
                   name="width_mm"
                   rules={[
                     { required: true, message: 'Укажите ширину' },

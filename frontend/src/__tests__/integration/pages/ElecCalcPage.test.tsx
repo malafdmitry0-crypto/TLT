@@ -90,7 +90,7 @@ describe('ElecCalcPage (integration)', () => {
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('Вариант системы')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'СО1' })).toBeInTheDocument();
     });
     expect(screen.getAllByRole('button').some((b) => b.textContent === 'СО1')).toBe(true);
     expect(screen.getAllByRole('button').some((b) => b.textContent === 'СО4')).toBe(true);

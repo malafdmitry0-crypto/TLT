@@ -33,7 +33,7 @@ export default function PipeGeometryStep() {
           return (
             <Form.Item
               label={label(
-                'Наружный диаметр трубы, мм',
+                'Наружный диаметр трубы',
                 'Наружный диаметр трубопровода. Диапазон: 10,8–3000 мм. Стандартные размеры DN10–DN1000.'
               )}
               name="outer_diameter_mm"
@@ -67,7 +67,7 @@ export default function PipeGeometryStep() {
 
       <Form.Item
         label={label(
-          'Длина трубопровода, м',
+          'Длина трубопровода',
           'Длина обогреваемого участка. Диапазон: 0,5–200 000 м.'
         )}
         name="pipe_length"

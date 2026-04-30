@@ -616,6 +616,13 @@ html, body, #root {
   border-color: var(--color-primary);
 }
 
+.tabs-row-srs .sep {
+  width: 1px;
+  height: 18px;
+  background: #c4d2db;
+  margin: 0 3px 3px;
+}
+
 .srs-table-wrap .ant-card-body {
   padding: 0;
 }
