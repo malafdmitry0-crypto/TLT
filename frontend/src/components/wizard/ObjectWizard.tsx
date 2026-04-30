@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Button, Col, Form, Input, InputNumber, Row, Select, Tooltip } from 'antd';
+import { useEffect, useRef, useState } from 'react';
+import { Button, Form, Input, InputNumber, Select, Tooltip } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import type { ObjectType } from '@/constants/objectTypes';
 import PipeGeometryStep from './steps/PipeGeometryStep';
@@ -87,21 +87,70 @@ export default function ObjectWizard({
   async function handleFinish() {
     try {
       await form.validateFields();
-      const values = form.getFieldsValue(true);
+      const vals = form.getFieldsValue(true);
       const params =
         objectType === 'pipe'
-          ? pipeFormToApiParams(values)
-          : tankFormToApiParams(values);
+          ? pipeFormToApiParams(vals)
+          : tankFormToApiParams(vals);
       onSubmit(params);
     } catch {
       scrollToFirstError();
     }
   }
 
+  // ── Resizable columns ──────────────────────────────────────────────────────
+  const containerRef = useRef<HTMLDivElement>(null);
+  const colWidthsRef = useRef([25, 25, 25, 25]);
+  const [colWidths, setColWidths] = useState([25, 25, 25, 25]);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => cleanupRef.current?.(), []);
+
+  function onHandleMouseDown(e: React.MouseEvent, idx: number) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidths = [...colWidthsRef.current];
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!containerRef.current) return;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      const pct = ((ev.clientX - startX) / containerRef.current.offsetWidth) * 100;
+      const l = startWidths[idx] + pct;
+      const r = startWidths[idx + 1] - pct;
+      if (l >= 12 && r >= 12) {
+        const w = startWidths.map((v, i) => (i === idx ? l : i === idx + 1 ? r : v));
+        colWidthsRef.current = w;
+        setColWidths([...w]);
+      }
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      cleanupRef.current = null;
+    };
+
+    cleanupRef.current = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   return (
     <Form form={form} layout="vertical" initialValues={initialValues} className="inline-object-form">
-      <Row gutter={[3, 3]} className="form-grid-srs">
-        <Col xs={24} lg={6} className="form-col-srs">
+      <div ref={containerRef} className="form-grid-srs">
+
+        {/* ── Геометрия ──────────────────────────────────────────────── */}
+        <div className="form-col-srs" style={{ width: `${colWidths[0]}%` }}>
           <h4>{objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара'}</h4>
           <Form.Item
             label={hintLabel(
@@ -158,9 +207,12 @@ export default function ObjectWizard({
           >
             <InputNumber disabled placeholder="—" addonAfter="м" style={{ width: '100%' }} />
           </Form.Item>
-        </Col>
+        </div>
 
-        <Col xs={24} lg={6} className="form-col-srs">
+        <div className="form-col-resize-handle" onMouseDown={(e) => onHandleMouseDown(e, 0)} />
+
+        {/* ── Теплоизоляция ──────────────────────────────────────────── */}
+        <div className="form-col-srs" style={{ width: `${colWidths[1]}%` }}>
           <h4>Теплоизоляция</h4>
           <Form.Item
             label={hintLabel(
@@ -203,9 +255,12 @@ export default function ObjectWizard({
           >
             <Select value="none" options={[{ value: 'none', label: 'Не указано' }]} />
           </Form.Item>
-        </Col>
+        </div>
 
-        <Col xs={24} lg={6} className="form-col-srs">
+        <div className="form-col-resize-handle" onMouseDown={(e) => onHandleMouseDown(e, 1)} />
+
+        {/* ── Температура и среда ────────────────────────────────────── */}
+        <div className="form-col-srs" style={{ width: `${colWidths[2]}%` }}>
           <h4>Температура и среда</h4>
           <Form.Item
             label={hintLabel(
@@ -255,9 +310,12 @@ export default function ObjectWizard({
           >
             <Select value="T1" options={['T1', 'T2', 'T3', 'T4', 'T5', 'T6'].map((v) => ({ value: v, label: v }))} />
           </Form.Item>
-        </Col>
+        </div>
 
-        <Col xs={24} lg={6} className="form-col-srs">
+        <div className="form-col-resize-handle" onMouseDown={(e) => onHandleMouseDown(e, 2)} />
+
+        {/* ── Электропараметры и арматура ───────────────────────────── */}
+        <div className="form-col-srs" style={{ width: `${colWidths[3]}%` }}>
           <h4>Электропараметры и арматура</h4>
           <Form.Item
             label={hintLabel(
@@ -319,8 +377,9 @@ export default function ObjectWizard({
               </Form.Item>
             </>
           )}
-        </Col>
-      </Row>
+        </div>
+
+      </div>
       <div className="hidden-submit">
         <Button id="inline-object-save" type="primary" onClick={handleFinish} loading={submitting}>
           {isEditMode ? 'Сохранить изменения' : 'Добавить объект'}
