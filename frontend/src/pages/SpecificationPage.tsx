@@ -32,7 +32,6 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import SpecTable from '@/components/specification/SpecTable';
-import WorkflowSteps from '@/components/WorkflowSteps';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import { ROUTES } from '@/routes/routes';
 import type { SpecificationItem } from '@/types/specification';
@@ -135,7 +134,6 @@ export default function SpecificationPage() {
 
   return (
     <>
-      <WorkflowSteps current={2} />
       <Row gutter={12} align="top">
         <Col flex="0 0 240px">
           <Card size="small" style={{ height: '100%' }}>

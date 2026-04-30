@@ -11,7 +11,6 @@ import {
 import { useQuery } from '@tanstack/react-query';
 
 import ObjectWizard from '@/components/wizard/ObjectWizard';
-import WorkflowSteps from '@/components/WorkflowSteps';
 import ImportExcelButton from '@/components/ImportExcelButton';
 import ExportObjectsButton from '@/components/ExportObjectsButton';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
@@ -306,7 +305,6 @@ export default function HeatCalcPage() {
 
   return (
     <>
-      <WorkflowSteps current={0} />
       <Space direction="vertical" size={5} style={{ width: '100%' }}>
         <div className="inline-form-srs">
           {wizardState ? (

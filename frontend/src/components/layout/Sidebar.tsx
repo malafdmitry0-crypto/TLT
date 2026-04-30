@@ -30,7 +30,7 @@ function StepLabel({
 }) {
   if (!count && !done) return <>{text}</>;
   return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
       {text}
       {done && <CheckCircleFilled style={{ color: '#52c41a', fontSize: 12 }} />}
       {count ? <Badge count={count} color={color ?? '#52c41a'} size="small" /> : null}

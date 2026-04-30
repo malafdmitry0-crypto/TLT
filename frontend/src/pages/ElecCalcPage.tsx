@@ -37,7 +37,6 @@ import { isElectricalCalcSuccess, electricalCalcError } from '@/utils/calcStatus
 import { formatNumber, formatPower } from '@/utils/formatters';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
-import WorkflowSteps from '@/components/WorkflowSteps';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject } from '@/types/project';
 
@@ -144,7 +143,6 @@ export default function ElecCalcPage() {
 
   return (
     <>
-      <WorkflowSteps current={1} />
       <Space direction="vertical" size={5} style={{ width: '100%' }}>
 
         {/* Summary banner */}

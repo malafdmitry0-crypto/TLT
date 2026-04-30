@@ -21,7 +21,6 @@ import { useProjectStore } from '@/store/projectStore';
 import { useAuthStore } from '@/store/authStore';
 import ReportPreview from '@/components/reports/ReportPreview';
 import ReportWizard from '@/components/reports/ReportWizard';
-import WorkflowSteps from '@/components/WorkflowSteps';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 
 const { Paragraph, Text } = Typography;
@@ -67,7 +66,6 @@ export default function ReportPage() {
 
   return (
     <>
-      <WorkflowSteps current={3} />
       <Card
         title={
           <span>
