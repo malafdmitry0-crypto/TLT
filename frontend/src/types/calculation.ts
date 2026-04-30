@@ -59,9 +59,13 @@ export interface ElectricalResponse {
 
 export interface ElectricalCalcSummary {
   id: string;
+  project_id?: string;
   object_id: string;
   cable_type: string;
   cable_mark: string | null;
   variant_number: number;
+  params?: Record<string, unknown> | null;
   results: Record<string, unknown> | null;
+  created_at?: string;
+  updated_at?: string;
 }

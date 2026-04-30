@@ -4,12 +4,13 @@ import {
   Button,
   Card,
   Col,
-  List,
+  InputNumber,
   Row,
   Segmented,
+  Select,
   Space,
+  Table,
   Tag,
-  Tooltip,
   Typography,
   message,
 } from 'antd';
@@ -26,20 +27,21 @@ import {
   batchCalcElectrical,
   listCables,
   listElectricalCalcs,
+  selectCableManual,
   type CableSource,
 } from '@/api/calculations';
 import { listObjects } from '@/api/projects';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
-import { OBJECT_TYPE_LABELS } from '@/constants/objectTypes';
 import { useElectricalStats } from '@/hooks/useElectricalStats';
 import { isElectricalCalcSuccess, electricalCalcError } from '@/utils/calcStatus';
+import { formatNumber, formatPower } from '@/utils/formatters';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import WorkflowSteps from '@/components/WorkflowSteps';
-import ObjectCalcCard from '@/components/electrical/ObjectCalcCard';
 import ElectricalSummary from '@/components/electrical/ElectricalSummary';
 import { ROUTES } from '@/routes/routes';
+import type { ProjectObject } from '@/types/project';
 
 const { Text } = Typography;
 
@@ -61,7 +63,6 @@ export default function ElecCalcPage() {
   const [variant, setVariant] = useState<number>(1);
   const [cableSource, setCableSource] = useState<CableSource>('builtin');
   const [cableType, setCableType] = useState<CableTypeKey>('self_regulating');
-  const [activeObjectId, setActiveObjectId] = useState<string | null>(null);
 
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -104,11 +105,24 @@ export default function ElecCalcPage() {
   });
 
   const stats = useElectricalStats(objects, elecCalcs);
-  const activeObject = useMemo(
-    () => objects.find((o) => o.id === activeObjectId) ?? objects[0],
-    [objects, activeObjectId],
+  const cableOptions = useMemo(
+    () =>
+      cables.map((c) => ({
+        value: c.model,
+        label: `${c.model} · ${c.power_per_meter} Вт/м`,
+      })),
+    [cables],
   );
-  const activeIndex = activeObject ? objects.indexOf(activeObject) : -1;
+
+  const manualCableMut = useMutation({
+    mutationFn: ({ objectId, mark }: { objectId: string; mark: string }) =>
+      selectCableManual(objectId, mark, effectiveSource, variant),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
+      message.success('Кабель выбран, расчёт обновлён');
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
 
   if (!project) {
     return (
@@ -138,178 +152,99 @@ export default function ElecCalcPage() {
   return (
     <>
       <WorkflowSteps current={1} />
-      <Row gutter={8} align="top">
-        {/* Col 1 — Меню управления + варианты СО1..СО4 */}
-        <Col flex="0 0 88px">
-          <Card size="small" style={{ height: '100%' }}>
-            <div style={{ marginBottom: 10 }}>
-              <Text strong style={{ fontSize: 12 }}>
-                <ThunderboltOutlined style={{ marginRight: 4, color: '#faad14' }} />
-                Меню
-              </Text>
-            </div>
-            <Space direction="vertical" size={6} style={{ width: '100%' }}>
+      <Space direction="vertical" size={10} style={{ width: '100%' }}>
+        <Card size="small" className="workspace-control-card">
+          <Row gutter={[12, 12]} align="middle">
+            <Col flex="1 1 360px">
+              <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                <Text strong>
+                  <ThunderboltOutlined style={{ marginRight: 6, color: '#faad14' }} />
+                  Вариант системы
+                </Text>
+                <Space size={4} wrap>
+                  {[1, 2, 3, 4].map((n) => (
+                    <Button
+                      key={n}
+                      size="small"
+                      type={variant === n ? 'primary' : 'default'}
+                      onClick={() => setVariant(n)}
+                    >
+                      СО{n}
+                    </Button>
+                  ))}
+                </Space>
+              </Space>
+            </Col>
+
+            <Col flex="1 1 360px">
+              <Space wrap size={8}>
               <Button size="small" block onClick={() => navigate(ROUTES.heatCalc)}>
                 ← К теплопотерям
               </Button>
               <Button
                 size="small"
-                block
                 type="primary"
                 icon={<ReloadOutlined />}
                 loading={batchMut.isPending}
                 disabled={stats.validObjects.length === 0}
                 onClick={() => batchMut.mutate()}
               >
-                Расчёт СО{variant}
+                Выполнить электрорасчёт СО{variant}
               </Button>
               <Button size="small" block onClick={() => navigate(ROUTES.specification)}>
                 Спец. →
               </Button>
-            </Space>
-
-            <div
-              style={{
-                marginTop: 14,
-                paddingTop: 8,
-                borderTop: '1px dashed #e8e8e8',
-              }}
-            >
-              <Text style={{ fontSize: 10, color: '#888', display: 'block', marginBottom: 4 }}>
-                Вариант системы
-              </Text>
-              <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                {[1, 2, 3, 4].map((n) => (
-                  <Button
-                    key={n}
-                    block
-                    size="small"
-                    type={variant === n ? 'primary' : 'default'}
-                    onClick={() => setVariant(n)}
-                  >
-                    СО{n}
-                  </Button>
-                ))}
               </Space>
-            </div>
-          </Card>
-        </Col>
+            </Col>
 
-        {/* Col 2 — Объекты обогрева системы */}
-        <Col flex="0 0 240px">
-          <Card
-            size="small"
-            title={<Text strong style={{ fontSize: 12 }}>Объекты обогрева — СО{variant}</Text>}
-            bodyStyle={{ paddingTop: 8 }}
-            style={{ height: '100%' }}
-          >
-            {objects.length === 0 ? (
-              <Alert
-                type="warning"
-                showIcon
-                message="Нет объектов"
-                description="Добавьте на шаге «Теплопотери»."
-              />
-            ) : (
-              <List
-                size="small"
-                dataSource={objects}
-                renderItem={(obj, idx) => {
-                  const calc = stats.calcByObjectId[obj.id];
-                  const ok = isElectricalCalcSuccess(calc);
-                  const err = electricalCalcError(calc);
-                  const name = String(
-                    obj.params?.name ??
-                      `${OBJECT_TYPE_LABELS[obj.object_type]} #${idx + 1}`,
-                  );
-                  const isActive = activeObject?.id === obj.id;
-                  return (
-                    <List.Item
-                      style={{
-                        cursor: 'pointer',
-                        background: isActive ? '#e6f4ff' : undefined,
-                        padding: '6px 8px',
-                      }}
-                      onClick={() => setActiveObjectId(obj.id)}
-                    >
-                      <Space size={4} style={{ width: '100%' }}>
-                        <Tag color="blue" style={{ marginRight: 0, fontSize: 10 }}>
-                          {OBJECT_TYPE_LABELS[obj.object_type] ?? obj.object_type}
-                        </Tag>
-                        <Text style={{ fontSize: 12, flex: 1 }} ellipsis={{ tooltip: name }}>
-                          {name}
-                        </Text>
-                        {ok ? (
-                          <CheckCircleFilled style={{ color: '#52c41a', fontSize: 12 }} />
-                        ) : err ? (
-                          <CloseCircleFilled style={{ color: '#ff4d4f', fontSize: 12 }} />
-                        ) : null}
-                      </Space>
-                    </List.Item>
-                  );
-                }}
-              />
-            )}
-          </Card>
-        </Col>
-
-        {/* Col 3 — Структура системы (тип кабеля + источник) */}
-        <Col flex="0 0 260px">
-          <Card
-            size="small"
-            title={<Text strong style={{ fontSize: 12 }}>Структура системы</Text>}
-            bodyStyle={{ paddingTop: 8 }}
-            style={{ height: '100%' }}
-          >
-            <Text style={{ fontSize: 10, color: '#888' }}>Тип кабеля</Text>
-            <Segmented<CableTypeKey>
-              block
-              size="small"
-              vertical
-              value={cableType}
-              onChange={setCableType}
-              options={cableTypeOptions}
-              style={{ marginTop: 4 }}
-            />
-            {cableType !== 'self_regulating' && (
-              <Alert
-                type="info"
-                showIcon
-                style={{ marginTop: 8, padding: '4px 8px' }}
-                message="Доступно в полной версии"
-              />
-            )}
-
+            <Col flex="1 1 420px">
+              <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Тип кабеля</Text>
+                <Segmented<CableTypeKey>
+                  size="small"
+                  value={cableType}
+                  onChange={setCableType}
+                  options={cableTypeOptions}
+                />
+              </Space>
+            </Col>
             {isEmployee && (
-              <div style={{ marginTop: 12 }}>
-                <Text style={{ fontSize: 10, color: '#888' }}>Источник кабелей</Text>
+              <Col flex="0 0 260px">
+                <Text style={{ fontSize: 12, color: '#888', display: 'block' }}>
+                  База расчёта
+                </Text>
                 <Segmented<CableSource>
-                  block
                   size="small"
                   value={cableSource}
                   onChange={setCableSource}
                   options={[
-                    { label: 'ТЛТ', value: 'builtin' },
-                    { label: 'Внешн.', value: 'extended' },
+                    { label: 'Встроенная', value: 'builtin' },
+                    { label: 'Внешняя', value: 'extended' },
                     { label: 'Все', value: 'all' },
                   ]}
                   style={{ marginTop: 4 }}
                 />
-                <Text type="secondary" style={{ fontSize: 11 }}>
-                  Доступно сотруднику · {cables.length} кабелей
-                </Text>
-              </div>
+              </Col>
             )}
-          </Card>
-        </Col>
+          </Row>
+        </Card>
 
-        {/* Col 4 — Блок конфигурирования объекта + сводка */}
-        <Col flex="1" style={{ minWidth: 0 }}>
-          <Card
-            size="small"
-            title={<Text strong style={{ fontSize: 12 }}>Блок конфигурирования объекта</Text>}
-            bodyStyle={{ paddingTop: 8 }}
-          >
+        {stats.calcedCount > 0 && (
+          <ElectricalSummary
+            totalCableLength={stats.totalCableLength}
+            totalPower={stats.totalPower}
+            totalCurrent={stats.totalCurrent}
+            calcedCount={stats.calcedCount}
+            totalObjects={objects.length}
+          />
+        )}
+
+        <Card
+          size="small"
+          className="workspace-table-card"
+          title={<Text strong>Карточки объектов для СО{variant}</Text>}
+          bodyStyle={{ paddingTop: 8 }}
+        >
             {stats.failedCount > 0 && (
               <Alert
                 type="warning"
@@ -318,56 +253,149 @@ export default function ElecCalcPage() {
                 style={{ marginBottom: 10 }}
               />
             )}
-            {stats.calcedCount > 0 && (
-              <ElectricalSummary
-                totalCableLength={stats.totalCableLength}
-                totalPower={stats.totalPower}
-                totalCurrent={stats.totalCurrent}
-                calcedCount={stats.calcedCount}
-                totalObjects={objects.length}
-              />
-            )}
-
-            {activeObject ? (
-              <ObjectCalcCard
-                obj={activeObject}
-                index={activeIndex >= 0 ? activeIndex : 0}
-                calc={stats.calcByObjectId[activeObject.id]}
-                cables={cables}
-                cableSource={effectiveSource}
-                projectId={project.id}
+            {objects.length === 0 ? (
+              <Alert
+                type="warning"
+                showIcon
+                message="Нет объектов"
+                description="Добавьте объекты на шаге «Теплопотери»."
               />
             ) : (
-              <Alert
-                type="info"
-                showIcon
-                message="Выберите объект слева"
-                description="После расчёта здесь появится подобранный кабель и параметры."
-                action={
-                  <Tooltip
-                    title={
-                      stats.validObjects.length === 0
-                        ? 'Нет валидных объектов — проверьте параметры на шаге «Теплопотери»'
-                        : ''
-                    }
-                  >
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<ReloadOutlined />}
-                      loading={batchMut.isPending}
-                      onClick={() => batchMut.mutate()}
-                      disabled={stats.validObjects.length === 0}
-                    >
-                      Выполнить электрорасчёт
-                    </Button>
-                  </Tooltip>
+              <Table<ProjectObject>
+                className="calc-spreadsheet electrical-spreadsheet"
+                rowKey="id"
+                size="small"
+                pagination={false}
+                dataSource={objects}
+                scroll={{ x: 1180, y: 'calc(100vh - 430px)' }}
+                rowClassName={(obj) =>
+                  electricalCalcError(stats.calcByObjectId[obj.id]) ? 'row-invalid' : ''
                 }
+                columns={[
+                  {
+                    title: '#',
+                    width: 44,
+                    render: (_: unknown, __: ProjectObject, idx: number) => idx + 1,
+                  },
+                  {
+                    title: 'Объект',
+                    dataIndex: ['params', 'name'],
+                    width: 220,
+                    ellipsis: true,
+                    render: (v: unknown, obj) => String(v ?? `${obj.object_type} ${obj.id}`),
+                  },
+                  {
+                    title: 'Статус',
+                    width: 130,
+                    render: (_: unknown, obj) => {
+                      const calc = stats.calcByObjectId[obj.id];
+                      const err = electricalCalcError(calc);
+                      if (isElectricalCalcSuccess(calc)) {
+                        return <Tag color="success" icon={<CheckCircleFilled />}>расчёт выполнен</Tag>;
+                      }
+                      if (err) return <Tag color="error" icon={<CloseCircleFilled />}>ошибка</Tag>;
+                      return <Tag>не рассчитан</Tag>;
+                    },
+                  },
+                  {
+                    title: 'Тип кабеля',
+                    width: 210,
+                    render: () => (
+                      <Select
+                        size="small"
+                        value={cableType}
+                        options={cableTypeOptions}
+                        style={{ width: '100%' }}
+                        onChange={setCableType}
+                      />
+                    ),
+                  },
+                  {
+                    title: 'Марка',
+                    width: 180,
+                    render: (_: unknown, obj) => {
+                      const calc = stats.calcByObjectId[obj.id];
+                      return (
+                        <Select
+                          size="small"
+                          showSearch
+                          allowClear
+                          placeholder="Авто"
+                          value={calc?.cable_mark ?? undefined}
+                          options={cableOptions}
+                          disabled={!obj.is_valid || cables.length === 0}
+                          loading={manualCableMut.isPending}
+                          style={{ width: '100%' }}
+                          onChange={(mark) => {
+                            if (mark) manualCableMut.mutate({ objectId: obj.id, mark });
+                          }}
+                        />
+                      );
+                    },
+                  },
+                  {
+                    title: 'Шаг навива, мм',
+                    width: 128,
+                    render: (_: unknown, obj) => (
+                      <InputNumber
+                        size="small"
+                        min={0}
+                        value={Number(stats.calcByObjectId[obj.id]?.results?.winding_pitch ?? 0)}
+                        disabled={cableType === 'mineral'}
+                        style={{ width: '100%' }}
+                      />
+                    ),
+                  },
+                  {
+                    title: 'Ниток',
+                    width: 82,
+                    render: () => (
+                      <InputNumber
+                        size="small"
+                        min={1}
+                        max={8}
+                        value={1}
+                        disabled={cableType === 'mineral'}
+                        style={{ width: '100%' }}
+                      />
+                    ),
+                  },
+                  {
+                    title: 'Длина, м',
+                    width: 100,
+                    align: 'right',
+                    render: (_: unknown, obj) =>
+                      formatNumber(Number(stats.calcByObjectId[obj.id]?.results?.cable_length), 1),
+                  },
+                  {
+                    title: 'Мощность, Вт',
+                    width: 120,
+                    align: 'right',
+                    render: (_: unknown, obj) =>
+                      formatPower(Number(stats.calcByObjectId[obj.id]?.results?.total_power)),
+                  },
+                  {
+                    title: 'Ток, А',
+                    width: 88,
+                    align: 'right',
+                    render: (_: unknown, obj) =>
+                      formatNumber(Number(stats.calcByObjectId[obj.id]?.results?.current), 2),
+                  },
+                  {
+                    title: 'Сообщение',
+                    width: 280,
+                    ellipsis: true,
+                    render: (_: unknown, obj) => (
+                      <Text type="secondary">
+                        {electricalCalcError(stats.calcByObjectId[obj.id]) ?? '—'}
+                      </Text>
+                    ),
+                  },
+                ]}
               />
             )}
-          </Card>
-        </Col>
-      </Row>
+        </Card>
+      </Space>
     </>
   );
 }

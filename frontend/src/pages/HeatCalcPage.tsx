@@ -1,6 +1,11 @@
 import { useState } from 'react';
-import { Button, Card, Col, Row, Space, Tabs, Tooltip, Typography } from 'antd';
-import { FireOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Col, Row, Space, Tabs, Tooltip, Typography } from 'antd';
+import {
+  DatabaseOutlined,
+  FireOutlined,
+  PlusOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 
 import ObjectWizard from '@/components/wizard/ObjectWizard';
@@ -157,22 +162,23 @@ export default function HeatCalcPage() {
   return (
     <>
       <WorkflowSteps current={0} />
-      <Row gutter={12} align="top">
-        {/* Узкая левая панель — добавление объектов */}
-        <Col flex="0 0 172px">
-          <Card size="small" style={{ height: '100%' }}>
-            <div style={{ marginBottom: 10 }}>
-              <Text strong style={{ fontSize: 13 }}>
-                <FireOutlined style={{ marginRight: 5, color: '#e06c1e' }} />
-                Добавить объект
-              </Text>
-            </div>
-
-            <Space direction="vertical" style={{ width: '100%' }} size={6}>
+      <Space direction="vertical" size={10} style={{ width: '100%' }}>
+        <Card size="small" className="workspace-control-card">
+          <Row gutter={[12, 12]} align="middle">
+            <Col flex="1 1 360px">
+              <Alert
+                type="warning"
+                showIcon
+                message="Общие первичные данные проекта"
+                description="Климат, температура окружающей среды, напряжение, коэффициент запаса и тип прокладки используются для пересчета объектов."
+                action={<Button size="small">Открыть...</Button>}
+              />
+            </Col>
+            <Col flex="0 0 auto">
+              <Space wrap size={8}>
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
-                block
                 size="small"
                 onClick={() => openAddWizard('pipe')}
               >
@@ -180,41 +186,57 @@ export default function HeatCalcPage() {
               </Button>
               <Button
                 icon={<PlusOutlined />}
-                block
                 size="small"
                 onClick={() => openAddWizard('tank')}
               >
                 {OBJECT_TYPE_LABELS['tank']}
               </Button>
-            </Space>
-
-            <div
-              style={{
-                marginTop: 10,
-                paddingTop: 10,
-                borderTop: '1px dashed #e8e8e8',
-              }}
-            >
               <ImportExcelButton projectId={project.id} />
               {role === 'employee' && (
-                <div style={{ marginTop: 6 }}>
-                  <ExportObjectsButton
-                    projectId={project.id}
-                    projectName={project.name}
-                    disabled={totalCount === 0}
-                  />
-                </div>
+                <ExportObjectsButton
+                  projectId={project.id}
+                  projectName={project.name}
+                  disabled={totalCount === 0}
+                />
               )}
-            </div>
+              </Space>
+            </Col>
+            <Col flex="0 0 190px">
+              <ObjectCountBadge total={totalCount} valid={validCount} />
+            </Col>
+          </Row>
+        </Card>
 
-            <ObjectCountBadge total={totalCount} valid={validCount} />
-          </Card>
-        </Col>
+        <Card size="small" className="workspace-control-card">
+          <Row gutter={[12, 8]}>
+            <Col flex="1 1 280px">
+              <Text strong>
+                <DatabaseOutlined style={{ marginRight: 6 }} />
+                {wizardState?.editingObject
+                  ? 'Редактирование объекта'
+                  : wizardState
+                    ? `Новый объект: ${OBJECT_TYPE_LABELS[wizardState.type]}`
+                    : 'Плоская форма объекта'}
+              </Text>
+              <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
+                Клик по строке открывает объект на редактирование; кнопки добавления создают новую запись.
+              </Text>
+            </Col>
+            <Col flex="2 1 620px">
+              <div className="heat-flat-form-preview">
+                <span>Геометрия</span>
+                <span>Теплоизоляция</span>
+                <span>Температура и среда</span>
+                <span>Электрические параметры</span>
+                <span>Арматура</span>
+              </div>
+            </Col>
+          </Row>
+        </Card>
 
-        {/* Основная область — таблицы с вкладками */}
-        <Col flex="1" style={{ minWidth: 0 }}>
           <Card
             size="small"
+            className="workspace-table-card"
             title={<Text strong>Объекты проекта</Text>}
             extra={
               <Tooltip
@@ -246,8 +268,7 @@ export default function HeatCalcPage() {
               tabBarStyle={{ marginBottom: 8 }}
             />
           </Card>
-        </Col>
-      </Row>
+      </Space>
 
       {wizardState && (
         <ObjectWizard

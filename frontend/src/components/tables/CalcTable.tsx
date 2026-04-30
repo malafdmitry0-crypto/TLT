@@ -11,10 +11,11 @@ export default function CalcTable<T extends ProjectObject = ProjectObject>(
 ) {
   return (
     <Table<T>
+      className={`calc-spreadsheet ${props.className ?? ''}`.trim()}
       rowKey="id"
       size="small"
       pagination={false}
-      scroll={{ x: 'max-content' }}
+      scroll={{ x: 'max-content', y: 'calc(100vh - 430px)' }}
       {...props}
       dataSource={props.data}
     />

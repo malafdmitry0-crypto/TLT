@@ -39,6 +39,68 @@ html, body, #root {
 
 .heatcalc-content {
   flex: 1;
-  padding: 24px;
+  padding: 16px;
   background: #ffffff;
+}
+
+.workspace-control-card .ant-card-body {
+  padding: 10px 12px;
+}
+
+.workspace-table-card .ant-card-body {
+  padding: 0 10px 10px;
+}
+
+.heat-flat-form-preview {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 6px;
+}
+
+.heat-flat-form-preview span {
+  min-height: 34px;
+  border: 1px solid #d9d9d9;
+  background: #fafafa;
+  color: #595959;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.calc-spreadsheet .ant-table {
+  border: 1px solid #bfbfbf;
+}
+
+.calc-spreadsheet .ant-table-thead > tr > th {
+  background: #f3f6f4 !important;
+  border-color: #bfbfbf !important;
+  color: #262626;
+  font-weight: 600;
+  padding: 6px 8px !important;
+}
+
+.calc-spreadsheet .ant-table-tbody > tr > td {
+  border-color: #d9d9d9 !important;
+  padding: 5px 8px !important;
+  background: #fff;
+}
+
+.calc-spreadsheet .ant-table-tbody > tr:hover > td {
+  background: #f0f7ff !important;
+}
+
+.calc-spreadsheet .ant-table-cell {
+  border-right: 1px solid #d9d9d9;
+}
+
+.electrical-spreadsheet .ant-select-selector,
+.electrical-spreadsheet .ant-input-number {
+  border-radius: 0;
+}
+
+@media (max-width: 900px) {
+  .heat-flat-form-preview {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
 }
