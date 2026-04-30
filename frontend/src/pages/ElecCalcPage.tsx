@@ -152,7 +152,7 @@ export default function ElecCalcPage() {
   return (
     <>
       <WorkflowSteps current={1} />
-      <Space direction="vertical" size={10} style={{ width: '100%' }}>
+      <Space direction="vertical" size={5} style={{ width: '100%' }}>
         <Card size="small" className="workspace-control-card">
           <Row gutter={[12, 12]} align="middle">
             <Col flex="1 1 360px">

@@ -124,11 +124,11 @@ export default function Sidebar() {
 
   return (
     <Menu
-      mode="inline"
+      mode="horizontal"
       selectedKeys={[location.pathname]}
       items={items}
       onClick={(e) => navigate(e.key)}
-      style={{ background: 'transparent', borderRight: 0 }}
+      style={{ background: 'transparent', border: 0, minWidth: 0, flex: 1 }}
     />
   );
 }

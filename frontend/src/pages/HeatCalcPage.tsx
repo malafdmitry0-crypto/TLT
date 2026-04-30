@@ -204,7 +204,7 @@ export default function HeatCalcPage() {
   return (
     <>
       <WorkflowSteps current={0} />
-      <Space direction="vertical" size={10} style={{ width: '100%' }}>
+      <Space direction="vertical" size={5} style={{ width: '100%' }}>
         <div className="common-data-banner">
           <span>
             <span className="label">Общие первичные данные:</span> Сургут · −44 °C · 220 В · надземная

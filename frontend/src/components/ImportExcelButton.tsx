@@ -65,35 +65,32 @@ export default function ImportExcelButton({ projectId }: Props) {
 
   return (
     <>
-      <Space direction="vertical" style={{ width: '100%' }} size={4}>
+      <Space className="import-actions-compact" size={2} wrap>
         <Button
           icon={<UploadOutlined />}
-          block
           size="small"
           loading={importMut.isPending}
           onClick={onPick}
         >
-          Импорт (Excel/CSV)
+          Импорт XLSX/CSV
         </Button>
-        <Space size={4} style={{ width: '100%', justifyContent: 'space-between' }}>
           <Button
             icon={<DownloadOutlined />}
             size="small"
             type="link"
-            style={{ fontSize: 11, height: 22, padding: 0 }}
+            style={{ fontSize: 11, height: 22, padding: '0 3px' }}
             onClick={() => downloadTemplate('xlsx')}
           >
-            Шаблон .xlsx
+            .xlsx
           </Button>
           <Button
             size="small"
             type="link"
-            style={{ fontSize: 11, height: 22, padding: 0 }}
+            style={{ fontSize: 11, height: 22, padding: '0 3px' }}
             onClick={() => downloadTemplate('csv')}
           >
-            Шаблон .csv
+            .csv
           </Button>
-        </Space>
       </Space>
       <input
         ref={fileInputRef}

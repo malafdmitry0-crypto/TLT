@@ -4,7 +4,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ProjectMenu from './ProjectMenu';
 
-const { Header, Sider, Content } = Layout;
+const { Header, Content } = Layout;
 
 interface Props {
   children?: ReactNode;
@@ -17,10 +17,10 @@ export default function MainLayout({ children }: Props) {
         <h2 style={{ color: 'white', margin: 0, marginRight: 24 }}>HeatCalc</h2>
         <ProjectMenu />
       </Header>
-      <Layout>
-        <Sider width={220} className="heatcalc-sidebar" theme="light">
+      <Layout className="heatcalc-main-layout">
+        <div className="heatcalc-topnav">
           <Sidebar />
-        </Sider>
+        </div>
         <Content className="heatcalc-content">{children ?? <Outlet />}</Content>
       </Layout>
     </Layout>

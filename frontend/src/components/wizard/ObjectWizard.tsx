@@ -92,8 +92,8 @@ export default function ObjectWizard({
           {isEditMode ? '✎ Режим: редактирование' : '＋ Режим: новая запись'}
         </span>
       </div>
-      <Row gutter={[10, 0]} className="form-grid-srs">
-        <Col xs={24} lg={12} xxl={6} className="form-col-srs">
+      <Row gutter={[3, 3]} className="form-grid-srs">
+        <Col xs={24} lg={6} className="form-col-srs">
           <h4>{objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара'}</h4>
           <Form.Item
             label="Наименование"
@@ -124,7 +124,7 @@ export default function ObjectWizard({
           </Form.Item>
         </Col>
 
-        <Col xs={24} lg={12} xxl={6} className="form-col-srs">
+        <Col xs={24} lg={6} className="form-col-srs">
           <h4>Теплоизоляция</h4>
           <Form.Item label="Кол-во слоёв ИЗ">
             <Select value="1" options={[{ value: '1', label: '1 слой' }, { value: '2', label: '2 слоя' }]} />
@@ -144,7 +144,7 @@ export default function ObjectWizard({
           </Form.Item>
         </Col>
 
-        <Col xs={24} lg={12} xxl={6} className="form-col-srs">
+        <Col xs={24} lg={6} className="form-col-srs">
           <h4>Температура и среда</h4>
           <Form.Item label="Требуемая T° объекта">
             <InputNumber value={10} step={0.1} addonAfter="°C" style={{ width: '100%' }} />
@@ -166,7 +166,7 @@ export default function ObjectWizard({
           </Form.Item>
         </Col>
 
-        <Col xs={24} lg={12} xxl={6} className="form-col-srs">
+        <Col xs={24} lg={6} className="form-col-srs">
           <h4>Электропараметры и арматура</h4>
           <Form.Item label="Мин. T° включения">
             <InputNumber value={-20} step={0.1} addonAfter="°C" style={{ width: '100%' }} />

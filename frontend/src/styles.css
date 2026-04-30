@@ -25,10 +25,12 @@ html, body, #root {
 .heatcalc-header {
   background: var(--color-primary);
   color: white;
-  padding: 12px 24px;
+  height: 44px;
+  line-height: 44px;
+  padding: 0 14px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
 }
 
 .heatcalc-sidebar {
@@ -41,6 +43,31 @@ html, body, #root {
   flex: 1;
   padding: 16px;
   background: #ffffff;
+}
+
+.heatcalc-main-layout {
+  min-width: 0;
+}
+
+.heatcalc-topnav {
+  background: #ebf5fb;
+  border-bottom: 1px solid #d9e1e6;
+  padding: 0 8px;
+  min-width: 0;
+}
+
+.heatcalc-topnav .ant-menu-horizontal {
+  line-height: 34px;
+}
+
+.heatcalc-topnav .ant-menu-item,
+.heatcalc-topnav .ant-menu-submenu-title {
+  padding-inline: 9px;
+  margin-inline: 0;
+}
+
+.heatcalc-content {
+  padding: 8px;
 }
 
 .workspace-control-card .ant-card-body {
@@ -156,7 +183,7 @@ html, body, #root {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 8px 14px;
+  padding: 5px 10px;
   background: #fff8e0;
   border-left: 4px solid #f5b400;
   border-radius: 4px;
@@ -171,7 +198,7 @@ html, body, #root {
   background: #fff;
   border-radius: 6px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  padding: 12px 14px;
+  padding: 8px 10px;
   border-top: 3px solid var(--color-primary);
 }
 
@@ -179,8 +206,8 @@ html, body, #root {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 5px;
   border-bottom: 1px solid #eef3f6;
 }
 
@@ -209,43 +236,58 @@ html, body, #root {
 }
 
 .form-grid-srs .form-col-srs {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 1px;
   min-width: 0;
+  border: 1px solid #d9e1e6;
+  background: #fcfdfd;
+  padding: 4px 4px 2px;
 }
 
 .form-col-srs h4 {
-  margin: 0 0 6px;
+  grid-column: 1 / -1;
+  margin: -4px -4px 3px;
   font-size: 11px;
   color: #607080;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  padding-bottom: 3px;
-  border-bottom: 1px dashed #d9e1e6;
+  padding: 3px 5px;
+  background: #eef3f6;
+  border-bottom: 1px solid #d9e1e6;
 }
 
 .inline-object-form .ant-form-item {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: start;
-  gap: 6px;
-  margin-bottom: 5px;
+  display: block;
+  margin-bottom: 1px;
+  min-width: 0;
+  padding: 2px;
 }
 
 .inline-object-form .ant-form-item-label {
   padding: 0;
   white-space: normal;
+  line-height: 1;
 }
 
 .inline-object-form .ant-form-item-label > label {
   height: auto;
   color: #4a5b6c;
-  font-size: 11px;
-  line-height: 1.25;
+  font-size: 10px;
+  line-height: 1.08;
+  margin-bottom: 1px;
 }
 
 .inline-object-form .ant-form-item-control {
+  min-width: 0;
+}
+
+.inline-object-form .ant-form-item-control-input {
+  min-height: 22px;
+}
+
+.inline-object-form .ant-form-item-control-input-content {
   min-width: 0;
 }
 
@@ -254,17 +296,44 @@ html, body, #root {
 .inline-object-form .ant-select-selector {
   border-radius: 3px;
   font-size: 11px;
+  min-height: 22px;
+  width: 100%;
+}
+
+.inline-object-form .ant-input-number,
+.inline-object-form .ant-select {
+  width: 100%;
+}
+
+.inline-object-form .ant-input-number-input {
+  height: 20px;
+  padding: 0 5px;
+}
+
+.inline-object-form .ant-select-single {
+  height: 22px;
+}
+
+.inline-object-form .ant-select-single .ant-select-selector {
+  height: 22px;
+  padding: 0 6px;
+}
+
+.inline-object-form .ant-input-number-input,
+.inline-object-form .ant-select-selection-item,
+.inline-object-form .ant-select-selection-placeholder {
+  font-size: 11px;
 }
 
 .inline-object-form .ant-form-item-explain,
 .inline-object-form .ant-form-item-extra {
-  grid-column: 1 / -1;
   font-size: 10px;
 }
 
 .srs-note {
-  margin: 8px 0;
-  padding: 8px 10px;
+  grid-column: 1 / -1;
+  margin: 2px 0;
+  padding: 4px 6px;
   background: #f4f8fa;
   border-left: 3px solid var(--color-primary);
   border-radius: 3px;
@@ -278,10 +347,10 @@ html, body, #root {
 
 .actionbar-srs {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   flex-wrap: wrap;
   align-items: center;
-  padding: 6px 10px;
+  padding: 4px 6px;
   background: #f4f8fa;
   border-radius: 4px;
   border: 1px solid #d9e1e6;
@@ -290,6 +359,8 @@ html, body, #root {
 .actionbar-srs .ant-btn {
   border-radius: 3px;
   font-size: 12px;
+  height: 26px;
+  padding-inline: 7px;
 }
 
 .actionbar-srs .add,
@@ -306,7 +377,7 @@ html, body, #root {
 
 .actionbar-srs .sep {
   width: 1px;
-  height: 24px;
+  height: 20px;
   background: #c4d2db;
   margin: 0 4px;
 }
@@ -320,7 +391,7 @@ html, body, #root {
 .tabs-row-srs button {
   border: 0;
   background: transparent;
-  padding: 7px 14px;
+  padding: 5px 12px;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
@@ -347,7 +418,7 @@ html, body, #root {
 }
 
 .legend-row-srs {
-  padding: 6px 14px;
+  padding: 5px 10px;
   background: #fff;
   border-top: 1px solid #eef3f6;
   font-size: 11px;
@@ -356,6 +427,24 @@ html, body, #root {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+
+.import-actions-compact {
+  gap: 2px !important;
+}
+
+.import-actions-compact .ant-btn {
+  margin: 0;
+}
+
+.workspace-table-card .ant-table-thead > tr > th {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+
+.workspace-table-card .ant-table-tbody > tr > td {
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
 }
 
 .calc-spreadsheet .ant-table-cell {
