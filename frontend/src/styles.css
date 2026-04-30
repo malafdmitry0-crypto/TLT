@@ -158,19 +158,6 @@ html, body, #root {
   font-weight: 600;
 }
 
-.inline-object-form .ant-form-item {
-  margin-bottom: 10px;
-}
-
-.inline-object-form .ant-form-item-label {
-  padding-bottom: 2px;
-}
-
-.inline-object-form .ant-input,
-.inline-object-form .ant-input-number,
-.inline-object-form .ant-select-selector {
-  border-radius: 0;
-}
 
 .flat-form-static-grid {
   display: grid;
@@ -303,10 +290,10 @@ html, body, #root {
 
 .form-grid-srs .form-col-srs {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   align-content: start;
   gap: 1px;
-  min-width: 170px;
+  min-width: 130px;
   overflow: hidden;
   border: 1px solid #d9e1e6;
   background: #fcfdfd;
@@ -346,6 +333,7 @@ html, body, #root {
   border-bottom: 1px solid #d9e1e6;
 }
 
+/* ── Обёртка поля ─────────────────────────────────────────────── */
 .inline-object-form .ant-form-item {
   display: block;
   margin-bottom: 0;
@@ -353,76 +341,66 @@ html, body, #root {
   padding: 1px 2px;
 }
 
-/* Текстовый инпут Наименование — на всю ширину секции */
-.inline-object-form .ant-form-item:has(.ant-input:not(.ant-input-number-input)) {
-  grid-column: 1 / -1;
-}
-
+/* ── Лейбл ────────────────────────────────────────────────────── */
 .inline-object-form .ant-form-item-label {
   padding: 0;
-  white-space: nowrap;
   overflow: hidden;
   line-height: 1;
 }
 
 .inline-object-form .ant-form-item-label > label {
-  height: auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 13px;
   color: #4a5b6c;
-  font-size: 9.5px;
-  line-height: 1.05;
-  margin-bottom: 1px;
-  white-space: nowrap;
+  font-size: 9px;
+  line-height: 1;
+  margin-bottom: 2px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
 }
 
-.inline-object-form .ant-form-item-control {
-  min-width: 0;
+.inline-object-form .ant-form-item-label > label .anticon {
+  flex-shrink: 0;
+  font-size: 9px;
+  line-height: 1;
 }
+
+/* ── Контрол — якорь высоты 20px ──────────────────────────────── */
+.inline-object-form .ant-form-item-control { min-width: 0; }
 
 .inline-object-form .ant-form-item-control-input {
-  min-height: 20px;
+  min-height: 0;
+  height: 20px;
+  display: flex;
+  align-items: stretch;
 }
 
 .inline-object-form .ant-form-item-control-input-content {
+  flex: 1;
+  height: 20px;
   min-width: 0;
+  display: flex;
+  align-items: stretch;
 }
 
-.inline-object-form .ant-input,
-.inline-object-form .ant-input-number,
-.inline-object-form .ant-select-selector {
-  border-radius: 2px;
+/* ── Text Input ───────────────────────────────────────────────── */
+.inline-object-form .ant-input {
+  flex: 1;
+  width: 100%;
+  height: 20px;
+  padding: 0 6px;
   font-size: 11px;
-  min-height: 20px;
-  width: 100%;
-}
-
-.inline-object-form .ant-input-number,
-.inline-object-form .ant-select {
-  width: 100%;
-}
-
-/* InputNumber с addonAfter рендерится в group-wrapper; без явного height он остаётся 32px */
-.inline-object-form .ant-input-number-group-wrapper {
-  width: 100%;
-  height: 20px;
-}
-
-.inline-object-form .ant-input-number-group,
-.inline-object-form .ant-input-number-group .ant-input-number {
-  height: 20px;
-}
-
-.inline-object-form .ant-input-number-group-addon {
-  font-size: 10px;
-  padding: 0 4px;
+  border-radius: 2px;
+  box-sizing: border-box;
   line-height: 18px;
 }
 
-.inline-object-form .ant-input-number-input {
-  height: 18px;
-  padding: 0 4px;
+/* ── Select ───────────────────────────────────────────────────── */
+.inline-object-form .ant-select {
+  width: 100%;
+  height: 20px;
+  flex: 1;
 }
 
 .inline-object-form .ant-select-single {
@@ -430,17 +408,66 @@ html, body, #root {
 }
 
 .inline-object-form .ant-select-single .ant-select-selector {
-  height: 20px;
-  padding: 0 5px;
+  height: 20px !important;
+  padding: 0 6px !important;
+  border-radius: 2px;
+  box-sizing: border-box;
 }
 
-.inline-object-form .ant-input-number-input,
 .inline-object-form .ant-select-selection-item,
 .inline-object-form .ant-select-selection-placeholder {
+  font-size: 10px;
+  line-height: 18px !important;
+}
+
+/* ── InputNumber (без addon) ──────────────────────────────────── */
+.inline-object-form .ant-input-number {
+  height: 20px;
+  width: auto;
+  min-width: 60px;
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+/* ── InputNumber с addonAfter ─────────────────────────────────── */
+.inline-object-form .ant-input-number-group-wrapper {
+  display: inline-block;
+  height: 20px;
+  width: auto;
+  min-width: 60px;
+  box-sizing: border-box;
+  vertical-align: top;
+}
+
+/* antd renders group as display:table — do NOT override display */
+.inline-object-form .ant-input-number-group {
+  height: 20px;
+}
+
+.inline-object-form .ant-input-number-group .ant-input-number {
+  height: 20px;
+  min-width: 40px;
+}
+
+.inline-object-form .ant-input-number-input {
+  height: 18px;
+  padding: 0 4px;
   font-size: 11px;
   line-height: 18px;
 }
 
+.inline-object-form .ant-input-number-group-addon {
+  height: 20px;
+  font-size: 10px;
+  padding: 0 4px;
+  line-height: 18px;
+  vertical-align: middle;
+  box-sizing: border-box;
+  border-radius: 0 2px 2px 0;
+  white-space: nowrap;
+}
+
+/* ── Ошибки / подсказки ───────────────────────────────────────── */
 .inline-object-form .ant-form-item-explain,
 .inline-object-form .ant-form-item-extra {
   font-size: 9px;
@@ -571,4 +598,21 @@ html, body, #root {
   .heat-flat-form-preview {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
   }
+}
+
+/* Компактный dropdown для всех Select в приложении */
+.ant-select-dropdown .ant-select-item {
+  font-size: 10px;
+  min-height: 22px;
+  line-height: 18px;
+  padding: 2px 8px;
+}
+
+.ant-select-dropdown .ant-select-item-option-content {
+  font-size: 10px;
+  line-height: 18px;
+}
+
+.ant-select-dropdown .ant-select-item-option-selected .ant-select-item-option-content {
+  font-weight: 600;
 }

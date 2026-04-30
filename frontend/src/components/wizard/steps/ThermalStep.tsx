@@ -6,17 +6,19 @@ import { getInsulation } from '@/api/references';
 function HelpIcon({ text }: { text: string }) {
   return (
     <Tooltip title={text}>
-      <InfoCircleOutlined style={{ color: '#8c8c8c', marginLeft: 4, cursor: 'help' }} />
+      <InfoCircleOutlined style={{ color: '#8c8c8c', cursor: 'help', flexShrink: 0 }} />
     </Tooltip>
   );
 }
 
 function label(text: string, hint: string) {
   return (
-    <span>
-      {text}
+    <>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+        {text}
+      </span>
       <HelpIcon text={hint} />
-    </span>
+    </>
   );
 }
 
@@ -40,7 +42,7 @@ export default function ThermalStep() {
           { type: 'number', max: 500, message: 'Максимальная толщина — 500 мм' },
         ]}
       >
-        <InputNumber min={1} max={500} step={5} style={{ width: '100%' }} addonAfter="мм" />
+        <InputNumber min={1} max={500} step={5} addonAfter="мм" />
       </Form.Item>
 
       <Form.Item
@@ -68,7 +70,7 @@ export default function ThermalStep() {
           { type: 'number', max: 70, message: 'Максимальная температура среды: +70°C' },
         ]}
       >
-        <InputNumber min={-70} max={70} style={{ width: '100%' }} addonAfter="°C" />
+        <InputNumber min={-70} max={70} addonAfter="°C" />
       </Form.Item>
 
       <Form.Item
@@ -96,7 +98,7 @@ export default function ThermalStep() {
           }),
         ]}
       >
-        <InputNumber min={-90} max={600} style={{ width: '100%' }} addonAfter="°C" />
+        <InputNumber min={-90} max={600} addonAfter="°C" />
       </Form.Item>
     </>
   );

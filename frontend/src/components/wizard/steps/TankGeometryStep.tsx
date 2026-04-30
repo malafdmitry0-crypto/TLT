@@ -10,17 +10,19 @@ const SHAPE_OPTIONS = [
 function HelpIcon({ text }: { text: string }) {
   return (
     <Tooltip title={text}>
-      <InfoCircleOutlined style={{ color: '#8c8c8c', marginLeft: 4, cursor: 'help' }} />
+      <InfoCircleOutlined style={{ color: '#8c8c8c', cursor: 'help', flexShrink: 0 }} />
     </Tooltip>
   );
 }
 
 function label(text: string, hint: string) {
   return (
-    <span>
-      {text}
+    <>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+        {text}
+      </span>
       <HelpIcon text={hint} />
-    </span>
+    </>
   );
 }
 
@@ -57,7 +59,7 @@ export default function TankGeometryStep() {
                     { type: 'number', max: 50000, message: 'Максимальный диаметр — 50 000 мм' },
                   ]}
                 >
-                  <InputNumber min={100} max={50000} step={100} style={{ width: '100%' }} addonAfter="мм" />
+                  <InputNumber min={100} max={50000} step={100} addonAfter="мм" />
                 </Form.Item>
               )}
 
@@ -74,7 +76,7 @@ export default function TankGeometryStep() {
                     { type: 'number', max: 50000, message: 'Максимальная высота — 50 000 мм' },
                   ]}
                 >
-                  <InputNumber min={100} max={50000} step={100} style={{ width: '100%' }} addonAfter="мм" />
+                  <InputNumber min={100} max={50000} step={100} addonAfter="мм" />
                 </Form.Item>
               )}
 
@@ -88,7 +90,7 @@ export default function TankGeometryStep() {
                     { type: 'number', max: 50000, message: 'Максимальная длина — 50 000 мм' },
                   ]}
                 >
-                  <InputNumber min={100} max={50000} step={100} style={{ width: '100%' }} addonAfter="мм" />
+                  <InputNumber min={100} max={50000} step={100} addonAfter="мм" />
                 </Form.Item>
               )}
 
@@ -102,7 +104,7 @@ export default function TankGeometryStep() {
                     { type: 'number', max: 50000, message: 'Максимальная ширина — 50 000 мм' },
                   ]}
                 >
-                  <InputNumber min={100} max={50000} step={100} style={{ width: '100%' }} addonAfter="мм" />
+                  <InputNumber min={100} max={50000} step={100} addonAfter="мм" />
                 </Form.Item>
               )}
             </>

@@ -7,17 +7,19 @@ const { Text } = Typography;
 function HelpIcon({ text }: { text: string }) {
   return (
     <Tooltip title={text}>
-      <InfoCircleOutlined style={{ color: '#8c8c8c', marginLeft: 4, cursor: 'help' }} />
+      <InfoCircleOutlined style={{ color: '#8c8c8c', cursor: 'help', flexShrink: 0 }} />
     </Tooltip>
   );
 }
 
 function label(text: string, hint: string) {
   return (
-    <span>
-      {text}
+    <>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+        {text}
+      </span>
       <HelpIcon text={hint} />
-    </span>
+    </>
   );
 }
 
@@ -56,8 +58,7 @@ export default function PipeGeometryStep() {
                 min={10.8}
                 max={3000}
                 step={1}
-                style={{ width: '100%' }}
-                addonAfter="мм"
+                               addonAfter="мм"
               />
             </Form.Item>
           );

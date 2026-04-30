@@ -28,17 +28,19 @@ interface Props {
 function HelpIcon({ text }: { text: string }) {
   return (
     <Tooltip title={text}>
-      <InfoCircleOutlined style={{ color: '#8c8c8c', marginLeft: 4, cursor: 'help' }} />
+      <InfoCircleOutlined style={{ color: '#8c8c8c', cursor: 'help', flexShrink: 0 }} />
     </Tooltip>
   );
 }
 
 function hintLabel(text: string, hint: string) {
   return (
-    <span>
-      {text}
+    <>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+        {text}
+      </span>
       <HelpIcon text={hint} />
-    </span>
+    </>
   );
 }
 
@@ -171,7 +173,7 @@ export default function ObjectWizard({
                   'Толщина стенки трубы. Целевой диапазон SRS: 1…100 мм. Поле пока справочное и не участвует в расчёте.',
                 )}
               >
-                <InputNumber value={4} step={0.1} addonAfter="мм" style={{ width: '100%' }} />
+                <InputNumber value={4} step={0.1} addonAfter="мм" />
               </Form.Item>
               <Form.Item
                 label={hintLabel(
@@ -187,7 +189,7 @@ export default function ObjectWizard({
                   'λ материала трубы, Вт/(м·К). Сейчас поле справочное и не отправляется в расчётный payload.',
                 )}
               >
-                <InputNumber value={56} step={0.1} addonAfter="Вт/мК" style={{ width: '100%' }} />
+                <InputNumber value={56} step={0.1} addonAfter="Вт/мК" />
               </Form.Item>
             </>
           )}
@@ -205,7 +207,7 @@ export default function ObjectWizard({
               'Используется только для подземной прокладки. Целевой диапазон SRS: 0,1…5,0 м.',
             )}
           >
-            <InputNumber disabled placeholder="—" addonAfter="м" style={{ width: '100%' }} />
+            <InputNumber disabled placeholder="—" addonAfter="м" />
           </Form.Item>
         </div>
 
@@ -229,7 +231,7 @@ export default function ObjectWizard({
               'λ первого слоя, Вт/(м·К). Для материала «Другое» по SRS нужно ручное значение 0,005…5,0.',
             )}
           >
-            <InputNumber disabled value={0.045} step={0.001} addonAfter="Вт/мК" style={{ width: '100%' }} />
+            <InputNumber disabled value={0.045} step={0.001} addonAfter="Вт/мК" />
           </Form.Item>
           <Form.Item
             label={hintLabel(
@@ -245,7 +247,7 @@ export default function ObjectWizard({
               'Целевой диапазон SRS: 1…500 мм при выбранном 2-м слое. Сейчас поле справочное.',
             )}
           >
-            <InputNumber value={0} addonAfter="мм" style={{ width: '100%' }} />
+            <InputNumber value={0} addonAfter="мм" />
           </Form.Item>
           <Form.Item
             label={hintLabel(
@@ -268,7 +270,7 @@ export default function ObjectWizard({
               'Требуемая температура поддержания объекта, °C. Сейчас поле справочное; расчёт использует температуру продукта.',
             )}
           >
-            <InputNumber value={10} step={0.1} addonAfter="°C" style={{ width: '100%' }} />
+            <InputNumber value={10} step={0.1} addonAfter="°C" />
           </Form.Item>
           <Form.Item
             label={hintLabel(
@@ -276,7 +278,7 @@ export default function ObjectWizard({
               'Максимальная температура окружающей среды, °C. Сейчас поле справочное.',
             )}
           >
-            <InputNumber value={30} step={0.1} addonAfter="°C" style={{ width: '100%' }} />
+            <InputNumber value={30} step={0.1} addonAfter="°C" />
           </Form.Item>
           <Form.Item
             label={hintLabel(
@@ -284,7 +286,7 @@ export default function ObjectWizard({
               'Максимально допустимая температура продукта, °C. Сейчас поле справочное.',
             )}
           >
-            <InputNumber value={90} step={0.1} addonAfter="°C" style={{ width: '100%' }} />
+            <InputNumber value={90} step={0.1} addonAfter="°C" />
           </Form.Item>
           <Form.Item
             label={hintLabel(
@@ -323,7 +325,7 @@ export default function ObjectWizard({
               'Температура включения электрообогрева, °C. Сейчас поле справочное; выбор кабеля выполняется на шаге «Электрорасчёт».',
             )}
           >
-            <InputNumber value={-20} step={0.1} addonAfter="°C" style={{ width: '100%' }} />
+            <InputNumber value={-20} step={0.1} addonAfter="°C" />
           </Form.Item>
           <Form.Item
             label={hintLabel(
@@ -339,7 +341,7 @@ export default function ObjectWizard({
               'Целевой диапазон SRS: 1,00…2,00. Сейчас поле справочное; сохранение в payload вынесено в отдельную задачу.',
             )}
           >
-            <InputNumber value={1.2} step={0.01} style={{ width: '100%' }} />
+            <InputNumber value={1.2} step={0.01} />
           </Form.Item>
           <Form.Item
             label={hintLabel(
@@ -357,7 +359,7 @@ export default function ObjectWizard({
                   'Количество задвижек, шт. Целевой диапазон валидации: 0…100. Сейчас поле справочное.',
                 )}
               >
-                <InputNumber value={2} min={0} addonAfter="шт" style={{ width: '100%' }} />
+                <InputNumber value={2} min={0} addonAfter="шт" />
               </Form.Item>
               <Form.Item
                 label={hintLabel(
@@ -365,7 +367,7 @@ export default function ObjectWizard({
                   'Количество фланцев, шт. Целевой диапазон валидации: 0…100. Сейчас поле справочное.',
                 )}
               >
-                <InputNumber value={2} min={0} addonAfter="шт" style={{ width: '100%' }} />
+                <InputNumber value={2} min={0} addonAfter="шт" />
               </Form.Item>
               <Form.Item
                 label={hintLabel(
@@ -373,7 +375,7 @@ export default function ObjectWizard({
                   'Количество опор, шт. Целевой диапазон валидации: 0…100. Сейчас поле справочное.',
                 )}
               >
-                <InputNumber value={2} min={0} addonAfter="шт" style={{ width: '100%' }} />
+                <InputNumber value={2} min={0} addonAfter="шт" />
               </Form.Item>
             </>
           )}
