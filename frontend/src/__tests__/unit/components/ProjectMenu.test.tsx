@@ -40,10 +40,10 @@ describe('ProjectMenu', () => {
     renderMenu();
     expect(screen.queryByRole('button', { name: 'Новый проект' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Открыть' })).not.toBeInTheDocument();
-    // Кнопки загрузить/скачать и Выход — всем
+    // Кнопки загрузить/скачать — всем
     expect(screen.getByRole('button', { name: /Скачать/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Загрузить/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Выход' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Выход' })).not.toBeInTheDocument();
   });
 
   it('сотруднику показываются обе кнопки управления проектами', () => {

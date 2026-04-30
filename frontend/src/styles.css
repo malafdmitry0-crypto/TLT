@@ -22,6 +22,38 @@ html, body, #root {
   background-color: #ffe7e6 !important;
 }
 
+.object-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.object-count-segment {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid #d9e7ef;
+  border-radius: 6px;
+  background: #f8fbfd;
+  color: #34495e;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.object-count-segment.success {
+  border-color: #b7eb8f;
+  background: #f6ffed;
+  color: #389e0d;
+}
+
+.object-count-segment.warning {
+  border-color: #ffd591;
+  background: #fff7e6;
+  color: #d46b08;
+}
+
 .heatcalc-header {
   background: var(--color-primary);
   color: white;
@@ -44,6 +76,7 @@ html, body, #root {
 
 .project-menu {
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .project-menu-current {
@@ -71,6 +104,23 @@ html, body, #root {
 }
 
 .project-menu .ant-btn .anticon {
+  font-size: 8.4px;
+  line-height: 1;
+}
+
+.header-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.header-actions .ant-btn {
+  height: 16.8px;
+  padding-inline: 5px;
+  font-size: 8.4px;
+  line-height: 1;
+}
+
+.header-actions .ant-btn .anticon {
   font-size: 8.4px;
   line-height: 1;
 }

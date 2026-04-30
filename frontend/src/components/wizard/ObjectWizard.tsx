@@ -25,6 +25,36 @@ interface Props {
   initialParams?: Record<string, unknown>;
 }
 
+const SECTION_WIDTHS_STORAGE_KEY = 'object-wizard-section-widths-v2';
+const DEFAULT_SECTION_WIDTHS = [25, 25, 25, 25];
+
+function readSavedSectionWidths() {
+  if (typeof window === 'undefined') return DEFAULT_SECTION_WIDTHS;
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(SECTION_WIDTHS_STORAGE_KEY) ?? 'null');
+    if (
+      Array.isArray(parsed) &&
+      parsed.length === 4 &&
+      parsed.every((value) => typeof value === 'number' && Number.isFinite(value) && value >= 12)
+    ) {
+      return parsed as number[];
+    }
+  } catch {
+    // Некорректное сохранение игнорируем и возвращаем базовые пропорции.
+  }
+
+  return DEFAULT_SECTION_WIDTHS;
+}
+
+function saveSectionWidths(widths: number[]) {
+  try {
+    window.localStorage.setItem(SECTION_WIDTHS_STORAGE_KEY, JSON.stringify(widths));
+  } catch {
+    // Если localStorage недоступен, форма продолжит работать с текущими ширинами.
+  }
+}
+
 function HelpIcon({ text }: { text: string }) {
   return (
     <Tooltip title={text}>
@@ -103,8 +133,8 @@ export default function ObjectWizard({
 
   // ── Resizable columns ──────────────────────────────────────────────────────
   const containerRef = useRef<HTMLDivElement>(null);
-  const colWidthsRef = useRef([25, 25, 25, 25]);
-  const [colWidths, setColWidths] = useState([25, 25, 25, 25]);
+  const [colWidths, setColWidths] = useState(readSavedSectionWidths);
+  const colWidthsRef = useRef(colWidths);
   const cleanupRef = useRef<(() => void) | null>(null);
   const collapsedColumnWidth = 22;
   const resizeHandleWidth = 5;
@@ -135,6 +165,7 @@ export default function ObjectWizard({
       document.removeEventListener('mouseup', onMouseUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      saveSectionWidths(colWidthsRef.current);
       cleanupRef.current = null;
     };
 

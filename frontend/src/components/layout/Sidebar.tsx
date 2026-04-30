@@ -5,7 +5,6 @@ import {
   UnorderedListOutlined,
   FileTextOutlined,
   FolderOutlined,
-  QuestionCircleOutlined,
   CheckCircleFilled,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -43,8 +42,6 @@ export default function Sidebar() {
   const location = useLocation();
   const role = useAuthStore((s) => s.role);
   const project = useProjectStore((s) => s.currentProject);
-
-  const helpRoute = role === 'employee' ? '/help/employee' : '/help/guest';
 
   const { data: objects = [] } = useQuery({
     queryKey: ['project', project?.id, 'objects'],
@@ -114,12 +111,6 @@ export default function Sidebar() {
           },
         ]
       : []),
-    { type: 'divider' as const },
-    {
-      key: helpRoute,
-      label: 'Инструкция',
-      icon: <QuestionCircleOutlined />,
-    },
   ];
 
   return (

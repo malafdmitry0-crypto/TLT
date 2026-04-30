@@ -21,7 +21,6 @@ export default function ProjectMenu() {
   const setCurrent = useProjectStore((s) => s.setCurrentProject);
   const currentProject = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
-  const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const isEmployee = role === 'employee' || role === 'admin';
 
@@ -38,11 +37,6 @@ export default function ProjectMenu() {
     },
     onError: (err: Error) => message.error(err.message),
   });
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -130,8 +124,6 @@ export default function ProjectMenu() {
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />
-      <Button onClick={handleLogout}>Выход</Button>
-
       <Modal
         title="Создать проект"
         open={open}

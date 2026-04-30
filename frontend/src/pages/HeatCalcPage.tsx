@@ -78,25 +78,17 @@ function ObjectCountBadge({
   valid: number;
 }) {
   if (total === 0) return null;
-  const allValid = total > 0 && valid === total;
   return (
-    <div
-      style={{
-        padding: '6px 8px',
-        background: allValid ? '#f6ffed' : '#fff7e6',
-        borderRadius: 6,
-        border: `1px solid ${allValid ? '#b7eb8f' : '#ffd591'}`,
-      }}
-    >
-      <Text style={{ fontSize: 11, display: 'block' }}>
+    <div className="object-count-badge" aria-label="Статус объектов">
+      <span className="object-count-segment">
         Объектов: <strong>{total}</strong>
-      </Text>
+      </span>
       {valid < total ? (
-        <Text style={{ fontSize: 11, color: '#d9363e' }}>
+        <span className="object-count-segment warning">
           Не рассчитано: <strong>{total - valid}</strong>
-        </Text>
+        </span>
       ) : (
-        <Text style={{ fontSize: 11, color: '#52c41a' }}>Все рассчитаны ✓</Text>
+        <span className="object-count-segment success">Все рассчитаны ✓</span>
       )}
     </div>
   );
