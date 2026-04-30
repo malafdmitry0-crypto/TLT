@@ -1,8 +1,21 @@
 import axios, { AxiosError } from 'axios';
+import { useAuthStore } from '@/store/authStore';
+import { useProjectStore } from '@/store/projectStore';
+import type { GuestSessionResponse } from '@/types/auth';
 
+const apiBaseURL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1';
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1',
+  baseURL: apiBaseURL,
 });
+
+type RetryableConfig = NonNullable<AxiosError['config']> & { _guestRetry?: boolean };
+
+async function recoverGuestSession() {
+  const { data } = await axios.post<GuestSessionResponse>(`${apiBaseURL}/auth/guest`);
+  useAuthStore.getState().setGuest(data.session_id);
+  useProjectStore.getState().setCurrentProject(data.project);
+  return data.session_id;
+}
 
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
@@ -26,6 +39,22 @@ apiClient.interceptors.response.use(
         localStorage.removeItem('refresh_token');
         if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
           window.location.href = '/login';
+        }
+      }
+
+      const originalConfig = error.config as RetryableConfig | undefined;
+      const url = originalConfig?.url ?? '';
+      if (!hasToken && originalConfig && !originalConfig._guestRetry && !url.includes('/auth/guest')) {
+        originalConfig._guestRetry = true;
+        try {
+          const sessionId = await recoverGuestSession();
+          originalConfig.headers = originalConfig.headers ?? {};
+          originalConfig.headers['X-Session-Id'] = sessionId;
+          return apiClient(originalConfig);
+        } catch {
+          localStorage.removeItem('session_id');
+          localStorage.removeItem('role');
+          localStorage.removeItem('tlt-current-project');
         }
       }
     }

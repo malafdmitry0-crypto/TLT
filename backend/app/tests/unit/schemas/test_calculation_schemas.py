@@ -58,6 +58,31 @@ class TestTankHeatLossParams:
         )
         assert p.shape == "cylindrical"
 
+    def test_srs_max_dimension_accepted(self):
+        p = TankHeatLossParams(
+            shape="cylindrical",
+            diameter=50.0,
+            height=50.0,
+            insulation_thickness=0.1,
+            insulation_material="mineral_wool",
+            ambient_temperature=-20,
+            process_temperature=80,
+        )
+        assert p.diameter == 50.0
+        assert p.height == 50.0
+
+    def test_too_small_dimension_rejected(self):
+        with pytest.raises(ValidationError):
+            TankHeatLossParams(
+                shape="cylindrical",
+                diameter=0.05,
+                height=1.0,
+                insulation_thickness=0.1,
+                insulation_material="mineral_wool",
+                ambient_temperature=-20,
+                process_temperature=80,
+            )
+
     def test_invalid_shape_rejected(self):
         with pytest.raises(ValidationError):
             TankHeatLossParams(

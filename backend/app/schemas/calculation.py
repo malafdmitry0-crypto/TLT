@@ -165,11 +165,14 @@ class TankHeatLossParams(BaseModel):
 
     shape: Literal["cylindrical", "rectangular", "spherical"] = "cylindrical"
     diameter: float | None = Field(
-        default=None, ge=0.0108, le=3.0, description="d_р — наружный диаметр резервуара, м"
+        default=None,
+        ge=0.1,
+        le=50.0,
+        description="d_р — наружный диаметр резервуара, м (100–50 000 мм)",
     )
-    height: float | None = Field(default=None, gt=0)
-    length: float | None = Field(default=None, gt=0)
-    width: float | None = Field(default=None, gt=0)
+    height: float | None = Field(default=None, ge=0.1, le=50.0)
+    length: float | None = Field(default=None, ge=0.1, le=50.0)
+    width: float | None = Field(default=None, ge=0.1, le=50.0)
     volume: float | None = Field(default=None, gt=0)
     insulation_thickness: float = Field(gt=0)
     insulation_material: str = Field(min_length=1)

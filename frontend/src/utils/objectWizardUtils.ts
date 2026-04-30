@@ -65,6 +65,7 @@ export function findDN(outerDiameterMm: number): number | null {
 const MATERIAL_SHORT: Record<string, string> = {
   mineral_wool: 'МВ',
   glass_wool: 'СВ',
+  polyurethane: 'ППУ',
   polyurethane_foam: 'ППУ',
   foam_glass: 'ПС',
   expanded_perlite: 'Пер',

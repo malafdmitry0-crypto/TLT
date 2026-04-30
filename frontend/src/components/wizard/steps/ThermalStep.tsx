@@ -21,7 +21,7 @@ function label(text: string, hint: string) {
 }
 
 export default function ThermalStep() {
-  const { data: materials = [] } = useQuery({
+  const { data: materials = [], isError, isFetching } = useQuery({
     queryKey: ['insulation'],
     queryFn: getInsulation,
   });
@@ -51,6 +51,8 @@ export default function ThermalStep() {
         <Select
           options={materials.map((m) => ({ value: m.material, label: m.name }))}
           placeholder="Выберите материал"
+          loading={isFetching}
+          notFoundContent={isError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
         />
       </Form.Item>
 

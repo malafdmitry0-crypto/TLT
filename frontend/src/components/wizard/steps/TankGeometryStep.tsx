@@ -48,15 +48,16 @@ export default function TankGeometryStep() {
                 <Form.Item
                   label={label(
                     'Диаметр, мм',
-                    'Внешний диаметр резервуара. Обязателен для цилиндрической и сферической форм.'
+                    'Внешний диаметр резервуара. Обязателен для цилиндрической и сферической форм. Диапазон: 100–50 000 мм.'
                   )}
                   name="diameter_mm"
                   rules={[
                     { required: true, message: 'Укажите диаметр' },
-                    { type: 'number', min: 1, message: 'Диаметр должен быть больше 0' },
+                    { type: 'number', min: 100, message: 'Минимальный диаметр — 100 мм' },
+                    { type: 'number', max: 50000, message: 'Максимальный диаметр — 50 000 мм' },
                   ]}
                 >
-                  <InputNumber min={1} step={100} style={{ width: '100%' }} addonAfter="мм" />
+                  <InputNumber min={100} max={50000} step={100} style={{ width: '100%' }} addonAfter="мм" />
                 </Form.Item>
               )}
 
@@ -64,41 +65,44 @@ export default function TankGeometryStep() {
                 <Form.Item
                   label={label(
                     'Высота, мм',
-                    'Высота резервуара. Обязательна для цилиндрической и прямоугольной форм.'
+                    'Высота резервуара. Обязательна для цилиндрической и прямоугольной форм. Диапазон: 100–50 000 мм.'
                   )}
                   name="height_mm"
                   rules={[
                     { required: true, message: 'Укажите высоту' },
-                    { type: 'number', min: 1, message: 'Высота должна быть больше 0' },
+                    { type: 'number', min: 100, message: 'Минимальная высота — 100 мм' },
+                    { type: 'number', max: 50000, message: 'Максимальная высота — 50 000 мм' },
                   ]}
                 >
-                  <InputNumber min={1} step={100} style={{ width: '100%' }} addonAfter="мм" />
+                  <InputNumber min={100} max={50000} step={100} style={{ width: '100%' }} addonAfter="мм" />
                 </Form.Item>
               )}
 
               {needLength && (
                 <Form.Item
-                  label={label('Длина, мм', 'Длина прямоугольного резервуара.')}
+                  label={label('Длина, мм', 'Длина прямоугольного резервуара. Диапазон: 100–50 000 мм.')}
                   name="length_mm"
                   rules={[
                     { required: true, message: 'Укажите длину' },
-                    { type: 'number', min: 1, message: 'Длина должна быть больше 0' },
+                    { type: 'number', min: 100, message: 'Минимальная длина — 100 мм' },
+                    { type: 'number', max: 50000, message: 'Максимальная длина — 50 000 мм' },
                   ]}
                 >
-                  <InputNumber min={1} step={100} style={{ width: '100%' }} addonAfter="мм" />
+                  <InputNumber min={100} max={50000} step={100} style={{ width: '100%' }} addonAfter="мм" />
                 </Form.Item>
               )}
 
               {needWidth && (
                 <Form.Item
-                  label={label('Ширина, мм', 'Ширина прямоугольного резервуара.')}
+                  label={label('Ширина, мм', 'Ширина прямоугольного резервуара. Диапазон: 100–50 000 мм.')}
                   name="width_mm"
                   rules={[
                     { required: true, message: 'Укажите ширину' },
-                    { type: 'number', min: 1, message: 'Ширина должна быть больше 0' },
+                    { type: 'number', min: 100, message: 'Минимальная ширина — 100 мм' },
+                    { type: 'number', max: 50000, message: 'Максимальная ширина — 50 000 мм' },
                   ]}
                 >
-                  <InputNumber min={1} step={100} style={{ width: '100%' }} addonAfter="мм" />
+                  <InputNumber min={100} max={50000} step={100} style={{ width: '100%' }} addonAfter="мм" />
                 </Form.Item>
               )}
             </>
