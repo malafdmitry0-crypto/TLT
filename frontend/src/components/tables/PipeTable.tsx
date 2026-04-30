@@ -56,6 +56,12 @@ export default function PipeTable({ data, projectId, onEdit, onReorder }: Props)
       data={data}
       components={{ body: { row: DraggableRow } }}
       rowClassName={(r) => (r.is_valid ? '' : 'row-invalid')}
+      onRow={(record) => ({
+        onClick: (event) => {
+          if ((event.target as HTMLElement).closest('button,.ant-popover,.ant-tooltip')) return;
+          onEdit?.(record);
+        },
+      })}
       locale={{
         emptyText: (
           <Text type="secondary">

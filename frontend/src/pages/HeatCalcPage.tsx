@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Button, Card, Col, Row, Space, Tabs, Tooltip, Typography } from 'antd';
+import { Button, Card, Space, Table, Typography } from 'antd';
 import {
   DatabaseOutlined,
   FireOutlined,
@@ -9,19 +9,18 @@ import {
 import { useQuery } from '@tanstack/react-query';
 
 import ObjectWizard from '@/components/wizard/ObjectWizard';
-import PipeTable from '@/components/tables/PipeTable';
-import TankTable from '@/components/tables/TankTable';
 import WorkflowSteps from '@/components/WorkflowSteps';
 import ImportExcelButton from '@/components/ImportExcelButton';
 import ExportObjectsButton from '@/components/ExportObjectsButton';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
-import TabBadge from '@/components/common/TabBadge';
 import { OBJECT_TYPE_LABELS } from '@/constants/objectTypes';
+import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { listObjects } from '@/api/projects';
 import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
 import type { ProjectObject } from '@/types/project';
+import { formatNumber, formatPower } from '@/utils/formatters';
 
 const { Text } = Typography;
 
@@ -71,7 +70,7 @@ export default function HeatCalcPage() {
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
   const [wizardState, setWizardState] = useState<WizardState | null>(null);
-  const [activeTab, setActiveTab] = useState<'pipe' | 'tank'>('pipe');
+  const [tableTab, setTableTab] = useState<'source' | 'results'>('source');
 
   const { data: objects = [] } = useQuery({
     queryKey: ['project', project?.id, 'objects'],
@@ -80,7 +79,7 @@ export default function HeatCalcPage() {
   });
 
   const closeWizard = () => setWizardState(null);
-  const { add, edit, reorder, batchCalc } = useHeatCalcMutations(
+  const { add, edit, batchCalc } = useHeatCalcMutations(
     project?.id,
     closeWizard,
     closeWizard,
@@ -96,14 +95,11 @@ export default function HeatCalcPage() {
     );
   }
 
-  const pipes = objects.filter((o) => o.object_type === 'pipe');
-  const tanks = objects.filter((o) => o.object_type === 'tank');
   const validCount = objects.filter((o) => o.is_valid).length;
   const totalCount = objects.length;
 
   function openAddWizard(type: WizardObjectType) {
     setWizardState({ type });
-    setActiveTab(type);
   }
 
   function openEditWizard(obj: ProjectObject) {
@@ -125,37 +121,83 @@ export default function HeatCalcPage() {
     }
   }
 
-  /** Сшивает новый порядок одной вкладки с неизменным порядком другой. */
-  function handleReorder(kind: 'pipe' | 'tank', newOrder: ProjectObject[]) {
-    const pipeIds = kind === 'pipe' ? newOrder.map((o) => o.id) : pipes.map((o) => o.id);
-    const tankIds = kind === 'tank' ? newOrder.map((o) => o.id) : tanks.map((o) => o.id);
-    reorder.mutate([...pipeIds, ...tankIds]);
-  }
-
-  const tabItems = [
+  const selectedRowId = wizardState?.editingObject?.id;
+  const sourceColumns = [
+    { title: '№', width: 42, render: (_: unknown, __: ProjectObject, idx: number) => idx + 1 },
     {
-      key: 'pipe',
-      label: <TabBadge label="Трубопроводы" count={pipes.length} />,
-      children: (
-        <PipeTable
-          data={pipes}
-          projectId={project.id}
-          onEdit={openEditWizard}
-          onReorder={(newPipes) => handleReorder('pipe', newPipes)}
-        />
-      ),
+      title: 'Тип',
+      width: 70,
+      render: (_: unknown, r: ProjectObject) => (r.object_type === 'pipe' ? 'Тр.' : 'Рез.'),
     },
     {
-      key: 'tank',
-      label: <TabBadge label="Резервуары" count={tanks.length} />,
-      children: (
-        <TankTable
-          data={tanks}
-          projectId={project.id}
-          onEdit={openEditWizard}
-          onReorder={(newTanks) => handleReorder('tank', newTanks)}
-        />
-      ),
+      title: 'Наименование',
+      dataIndex: ['params', 'name'],
+      width: 240,
+      ellipsis: true,
+      render: (v: unknown, r: ProjectObject, idx: number) =>
+        String(v ?? `${OBJECT_TYPE_LABELS[r.object_type]} #${idx + 1}`),
+    },
+    {
+      title: 'Ø, мм',
+      width: 84,
+      render: (_: unknown, r: ProjectObject) =>
+        r.object_type === 'pipe'
+          ? formatNumber(Number(r.params?.outer_diameter) * 1000, 0)
+          : formatNumber(Number(r.params?.diameter) * 1000, 0),
+    },
+    {
+      title: 'L, м',
+      width: 80,
+      render: (_: unknown, r: ProjectObject) =>
+        r.object_type === 'pipe' ? formatNumber(Number(r.params?.pipe_length), 1) : '—',
+    },
+    { title: 'Слоёв ИЗ', width: 86, render: () => '1' },
+    {
+      title: 'δ ИЗ, мм',
+      width: 92,
+      render: (_: unknown, r: ProjectObject) =>
+        formatNumber(Number(r.params?.insulation_thickness) * 1000, 0),
+    },
+    {
+      title: 'Материал ИЗ',
+      width: 120,
+      render: (_: unknown, r: ProjectObject) =>
+        MATERIAL_LABELS[String(r.params?.insulation_material)] ?? String(r.params?.insulation_material ?? '—'),
+    },
+    {
+      title: 'T прод.',
+      width: 86,
+      render: (_: unknown, r: ProjectObject) => formatNumber(Number(r.params?.process_temperature), 0),
+    },
+    {
+      title: 'T окр.',
+      width: 82,
+      render: (_: unknown, r: ProjectObject) => formatNumber(Number(r.params?.ambient_temperature), 0),
+    },
+    { title: 'Зад.', width: 64, render: () => '—' },
+    { title: 'Флн.', width: 64, render: () => '—' },
+    { title: 'Опр.', width: 64, render: () => '—' },
+  ];
+  const resultColumns = [
+    ...sourceColumns.slice(0, 5),
+    {
+      title: 'q, Вт/м',
+      width: 100,
+      render: (_: unknown, r: ProjectObject) =>
+        r.object_type === 'pipe'
+          ? formatNumber(Number(r.results?.heat_loss_per_meter), 1)
+          : formatNumber(Number(r.results?.heat_loss_per_m2), 1),
+    },
+    {
+      title: 'Q сум., Вт',
+      width: 120,
+      render: (_: unknown, r: ProjectObject) =>
+        r.results ? formatPower(Number(r.results.total_heat_loss)) : '—',
+    },
+    {
+      title: 'Статус',
+      width: 130,
+      render: (_: unknown, r: ProjectObject) => (r.is_valid ? 'рассчитан' : 'ошибка'),
     },
   ];
 
@@ -163,122 +205,132 @@ export default function HeatCalcPage() {
     <>
       <WorkflowSteps current={0} />
       <Space direction="vertical" size={10} style={{ width: '100%' }}>
-        <Card size="small" className="workspace-control-card">
-          <Row gutter={[12, 12]} align="middle">
-            <Col flex="1 1 360px">
-              <Alert
-                type="warning"
-                showIcon
-                message="Общие первичные данные проекта"
-                description="Климат, температура окружающей среды, напряжение, коэффициент запаса и тип прокладки используются для пересчета объектов."
-                action={<Button size="small">Открыть...</Button>}
-              />
-            </Col>
-            <Col flex="0 0 auto">
-              <Space wrap size={8}>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                size="small"
-                onClick={() => openAddWizard('pipe')}
-              >
-                {OBJECT_TYPE_LABELS['pipe']}
-              </Button>
-              <Button
-                icon={<PlusOutlined />}
-                size="small"
-                onClick={() => openAddWizard('tank')}
-              >
-                {OBJECT_TYPE_LABELS['tank']}
-              </Button>
-              <ImportExcelButton projectId={project.id} />
-              {role === 'employee' && (
-                <ExportObjectsButton
-                  projectId={project.id}
-                  projectName={project.name}
-                  disabled={totalCount === 0}
-                />
-              )}
-              </Space>
-            </Col>
-            <Col flex="0 0 190px">
-              <ObjectCountBadge total={totalCount} valid={validCount} />
-            </Col>
-          </Row>
-        </Card>
+        <div className="common-data-banner">
+          <span>
+            <span className="label">Общие первичные данные:</span> Сургут · −44 °C · 220 В · надземная
+          </span>
+          <Button size="small" type="primary">Изменить...</Button>
+        </div>
 
-        <Card size="small" className="workspace-control-card">
-          <Row gutter={[12, 8]}>
-            <Col flex="1 1 280px">
-              <Text strong>
-                <DatabaseOutlined style={{ marginRight: 6 }} />
-                {wizardState?.editingObject
-                  ? 'Редактирование объекта'
-                  : wizardState
-                    ? `Новый объект: ${OBJECT_TYPE_LABELS[wizardState.type]}`
-                    : 'Плоская форма объекта'}
-              </Text>
-              <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
-                Клик по строке открывает объект на редактирование; кнопки добавления создают новую запись.
-              </Text>
-            </Col>
-            <Col flex="2 1 620px">
+        <div className="inline-form-srs">
+          {wizardState ? (
+            <ObjectWizard
+              objectType={wizardState.type}
+              onClose={closeWizard}
+              onSubmit={handleWizardSubmit}
+              submitting={add.isPending || edit.isPending}
+              initialParams={wizardState.editingObject?.params}
+            />
+          ) : (
+            <>
+              <div className="inline-form-head">
+                <h3>
+                  <DatabaseOutlined style={{ marginRight: 6 }} />
+                  Параметры объекта
+                </h3>
+                <span className="mode">выберите строку или нажмите «＋ Добавить»</span>
+              </div>
               <div className="heat-flat-form-preview">
-                <span>Геометрия</span>
+                <span>Геометрия трубы / резервуара</span>
                 <span>Теплоизоляция</span>
                 <span>Температура и среда</span>
-                <span>Электрические параметры</span>
-                <span>Арматура</span>
+                <span>Электропараметры и арматура</span>
               </div>
-            </Col>
-          </Row>
-        </Card>
+            </>
+          )}
+        </div>
 
-          <Card
-            size="small"
-            className="workspace-table-card"
-            title={<Text strong>Объекты проекта</Text>}
-            extra={
-              <Tooltip
-                title={
-                  validCount === 0
-                    ? 'Добавьте и рассчитайте хотя бы один объект'
-                    : ''
-                }
-                placement="topRight"
-              >
-                <Button
-                  type="primary"
-                  icon={<ThunderboltOutlined />}
-                  loading={batchCalc.isPending}
-                  disabled={validCount === 0}
-                  onClick={() => batchCalc.mutate()}
-                >
-                  Электрорасчёт →
-                </Button>
-              </Tooltip>
-            }
-            bodyStyle={{ paddingTop: 0 }}
+        <div className="actionbar-srs">
+          <Button className="add" icon={<PlusOutlined />} onClick={() => openAddWizard('pipe')}>
+            Добавить
+          </Button>
+          <Button onClick={() => openAddWizard('tank')}>+ Резервуар</Button>
+          <Button disabled={!wizardState?.editingObject}>Создать на основании</Button>
+          <Button disabled={!wizardState?.editingObject}>Изменить</Button>
+          <Button disabled={!wizardState}>Применить к одному</Button>
+          <Button disabled={!wizardState}>Применить ко всем</Button>
+          <Button danger disabled={!wizardState?.editingObject}>Удалить</Button>
+          <span className="sep" />
+          <Button
+            className="save"
+            disabled={!wizardState}
+            onClick={() => document.getElementById('inline-object-save')?.click()}
           >
-            <Tabs
-              activeKey={activeTab}
-              onChange={(k) => setActiveTab(k as 'pipe' | 'tank')}
-              items={tabItems}
-              size="small"
-              tabBarStyle={{ marginBottom: 8 }}
+            Сохранить изменения
+          </Button>
+          <Button disabled={!wizardState} onClick={closeWizard}>Отменить</Button>
+          <span className="sep" />
+          <ImportExcelButton projectId={project.id} />
+          {role === 'employee' && (
+            <ExportObjectsButton
+              projectId={project.id}
+              projectName={project.name}
+              disabled={totalCount === 0}
             />
-          </Card>
+          )}
+          <div style={{ marginLeft: 'auto' }}>
+            <ObjectCountBadge total={totalCount} valid={validCount} />
+          </div>
+        </div>
+
+        <div className="tabs-row-srs">
+          <button
+            className={tableTab === 'source' ? 'active' : ''}
+            onClick={() => setTableTab('source')}
+          >
+            Исходные данные
+          </button>
+          <button
+            className={tableTab === 'results' ? 'active' : ''}
+            onClick={() => setTableTab('results')}
+          >
+            Результаты расчёта
+          </button>
+        </div>
+
+        <Card size="small" className="workspace-table-card srs-table-wrap">
+          <Table<ProjectObject>
+            className="calc-spreadsheet"
+            rowKey="id"
+            size="small"
+            pagination={false}
+            dataSource={objects}
+            columns={tableTab === 'source' ? sourceColumns : resultColumns}
+            scroll={{ x: 1180, y: 'calc(100vh - 570px)' }}
+            rowClassName={(r) => {
+              const classes = [];
+              if (!r.is_valid) classes.push('row-invalid');
+              if (r.id === selectedRowId) classes.push('row-selected');
+              return classes.join(' ');
+            }}
+            onRow={(record) => ({
+              onClick: () => openEditWizard(record),
+            })}
+            locale={{
+              emptyText: (
+                <Text type="secondary">
+                  Объекты не добавлены. Нажмите «＋ Добавить» или импортируйте XLSX/CSV.
+                </Text>
+              ),
+            }}
+          />
+          <div className="legend-row-srs">
+            <span>
+              ⓘ Клик по строке таблицы → форма выше показывает её параметры. Клик «＋ Добавить» → форма очищается под новую запись. Красная строка = объект не рассчитан.
+            </span>
+            <Button
+              type="primary"
+              icon={<ThunderboltOutlined />}
+              loading={batchCalc.isPending}
+              disabled={validCount === 0}
+              onClick={() => batchCalc.mutate()}
+            >
+              Электрорасчёт →
+            </Button>
+          </div>
+        </Card>
       </Space>
 
-      {wizardState && (
-        <ObjectWizard
-          objectType={wizardState.type}
-          onClose={closeWizard}
-          onSubmit={handleWizardSubmit}
-          submitting={add.isPending || edit.isPending}
-          initialParams={wizardState.editingObject?.params}
-        />
-      )}
     </>
   );
 }

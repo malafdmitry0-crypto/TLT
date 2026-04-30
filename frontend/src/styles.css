@@ -53,7 +53,7 @@ html, body, #root {
 
 .heat-flat-form-preview {
   display: grid;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
   gap: 6px;
 }
 
@@ -66,6 +66,66 @@ html, body, #root {
   align-items: center;
   padding: 0 10px;
   font-size: 12px;
+}
+
+.inline-object-form {
+  margin-top: 10px;
+}
+
+.flat-form-section {
+  height: 100%;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  padding: 10px 10px 2px;
+}
+
+.flat-form-title {
+  margin: -10px -10px 10px;
+  padding: 6px 10px;
+  background: #f3f6f4;
+  border-bottom: 1px solid #d9d9d9;
+  color: #262626;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.inline-object-form .ant-form-item {
+  margin-bottom: 10px;
+}
+
+.inline-object-form .ant-form-item-label {
+  padding-bottom: 2px;
+}
+
+.inline-object-form .ant-input,
+.inline-object-form .ant-input-number,
+.inline-object-form .ant-select-selector {
+  border-radius: 0;
+}
+
+.flat-form-static-grid {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(110px, 1fr);
+  border: 1px solid #d9d9d9;
+  border-bottom: 0;
+  font-size: 12px;
+}
+
+.flat-form-static-grid span,
+.flat-form-static-grid strong {
+  min-height: 30px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #d9d9d9;
+}
+
+.flat-form-static-grid span {
+  background: #fafafa;
+  color: #595959;
+}
+
+.flat-form-static-grid strong {
+  font-weight: 500;
+  color: #262626;
 }
 
 .calc-spreadsheet .ant-table {
@@ -88,6 +148,214 @@ html, body, #root {
 
 .calc-spreadsheet .ant-table-tbody > tr:hover > td {
   background: #f0f7ff !important;
+  cursor: pointer;
+}
+
+.common-data-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: #fff8e0;
+  border-left: 4px solid #f5b400;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.common-data-banner .label {
+  font-weight: 600;
+}
+
+.inline-form-srs {
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  padding: 12px 14px;
+  border-top: 3px solid var(--color-primary);
+}
+
+.inline-form-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eef3f6;
+}
+
+.inline-form-head h3 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-primary);
+}
+
+.inline-form-head .mode {
+  font-size: 11px;
+  color: #607080;
+  padding: 3px 9px;
+  background: #eef3f6;
+  border-radius: 12px;
+}
+
+.inline-form-head .mode.edit {
+  background: #fff8e0;
+  color: #5b4400;
+}
+
+.inline-form-head .mode.new {
+  background: #c2e0c0;
+  color: #1f6f3e;
+}
+
+.form-grid-srs .form-col-srs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.form-col-srs h4 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: #607080;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding-bottom: 3px;
+  border-bottom: 1px dashed #d9e1e6;
+}
+
+.inline-object-form .ant-form-item {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.inline-object-form .ant-form-item-label {
+  padding: 0;
+  white-space: normal;
+}
+
+.inline-object-form .ant-form-item-label > label {
+  height: auto;
+  color: #4a5b6c;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.inline-object-form .ant-form-item-control {
+  min-width: 0;
+}
+
+.inline-object-form .ant-input,
+.inline-object-form .ant-input-number,
+.inline-object-form .ant-select-selector {
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.inline-object-form .ant-form-item-explain,
+.inline-object-form .ant-form-item-extra {
+  grid-column: 1 / -1;
+  font-size: 10px;
+}
+
+.srs-note {
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: #f4f8fa;
+  border-left: 3px solid var(--color-primary);
+  border-radius: 3px;
+  font-size: 11px;
+  color: #4a5b6c;
+}
+
+.hidden-submit {
+  display: none;
+}
+
+.actionbar-srs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 6px 10px;
+  background: #f4f8fa;
+  border-radius: 4px;
+  border: 1px solid #d9e1e6;
+}
+
+.actionbar-srs .ant-btn {
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.actionbar-srs .add,
+.actionbar-srs .save {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.actionbar-srs .save {
+  background: #1f6f3e;
+  border-color: #1f6f3e;
+}
+
+.actionbar-srs .sep {
+  width: 1px;
+  height: 24px;
+  background: #c4d2db;
+  margin: 0 4px;
+}
+
+.tabs-row-srs {
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 2px solid #d9e1e6;
+}
+
+.tabs-row-srs button {
+  border: 0;
+  background: transparent;
+  padding: 7px 14px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 12px;
+  color: #607080;
+}
+
+.tabs-row-srs button.active {
+  color: var(--color-primary);
+  font-weight: 600;
+  border-color: var(--color-primary);
+}
+
+.srs-table-wrap .ant-card-body {
+  padding: 0;
+}
+
+.row-selected > td {
+  background: #d6e9f5 !important;
+}
+
+.row-selected > td:first-child {
+  border-left: 3px solid var(--color-primary);
+}
+
+.legend-row-srs {
+  padding: 6px 14px;
+  background: #fff;
+  border-top: 1px solid #eef3f6;
+  font-size: 11px;
+  color: #607080;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 
 .calc-spreadsheet .ant-table-cell {
