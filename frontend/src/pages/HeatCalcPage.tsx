@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Button, Card, Dropdown, Space, Table, Tag, Typography, message as antdMessage } from 'antd';
 import {
+  CheckCircleFilled,
+  CloseCircleFilled,
   DatabaseOutlined,
   FireOutlined,
   PlusOutlined,
@@ -18,7 +20,10 @@ import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { listObjects } from '@/api/projects';
+import { listElectricalCalcs } from '@/api/calculations';
 import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
+import { useElectricalStats } from '@/hooks/useElectricalStats';
+import { isElectricalCalcSuccess, electricalCalcError } from '@/utils/calcStatus';
 import type { ProjectObject } from '@/types/project';
 import { formatNumber, formatPower } from '@/utils/formatters';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
@@ -72,12 +77,22 @@ export default function HeatCalcPage() {
   const [wizardState, setWizardState] = useState<WizardState | null>(null);
   const [tableTab, setTableTab] = useState<'source' | 'results'>('source');
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [elecVariant, setElecVariant] = useState<number>(1);
 
   const { data: objects = [] } = useQuery({
     queryKey: ['project', project?.id, 'objects'],
     queryFn: () => listObjects(project!.id),
     enabled: !!project,
   });
+
+  const { data: elecCalcs = [] } = useQuery({
+    queryKey: ['project', project?.id, 'electrical-calcs', elecVariant],
+    queryFn: () => listElectricalCalcs(project!.id),
+    enabled: !!project,
+    select: (rows) => rows.filter((c) => c.variant_number === elecVariant),
+  });
+
+  const elecStats = useElectricalStats(objects, elecCalcs);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -228,25 +243,64 @@ export default function HeatCalcPage() {
     { title: 'Опр.', width: 64, render: () => '—' },
   ];
   const resultColumns = [
-    ...sourceColumns.slice(0, 5),
+    ...sourceColumns.slice(0, 3), // #, Тип, Наименование
     {
       title: 'q, Вт/м',
-      width: 100,
+      width: 90,
+      align: 'right' as const,
       render: (_: unknown, r: ProjectObject) =>
         r.object_type === 'pipe'
           ? formatNumber(Number(r.results?.heat_loss_per_meter), 1)
           : formatNumber(Number(r.results?.heat_loss_per_m2), 1),
     },
     {
-      title: 'Q сум., Вт',
-      width: 120,
+      title: 'Q, Вт',
+      width: 100,
+      align: 'right' as const,
       render: (_: unknown, r: ProjectObject) =>
         r.results ? formatPower(Number(r.results.total_heat_loss)) : '—',
     },
     {
+      title: 'Марка кабеля',
+      width: 140,
+      render: (_: unknown, r: ProjectObject) => {
+        const calc = elecStats.calcByObjectId[r.id];
+        return calc?.cable_mark
+          ? <Text style={{ fontSize: 12 }}>{calc.cable_mark}</Text>
+          : <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
+      },
+    },
+    {
+      title: 'Длина каб., м',
+      width: 110,
+      align: 'right' as const,
+      render: (_: unknown, r: ProjectObject) =>
+        formatNumber(Number(elecStats.calcByObjectId[r.id]?.results?.cable_length), 1),
+    },
+    {
+      title: 'Мощность, Вт',
+      width: 115,
+      align: 'right' as const,
+      render: (_: unknown, r: ProjectObject) =>
+        formatPower(Number(elecStats.calcByObjectId[r.id]?.results?.total_power)),
+    },
+    {
+      title: 'Ток, А',
+      width: 80,
+      align: 'right' as const,
+      render: (_: unknown, r: ProjectObject) =>
+        formatNumber(Number(elecStats.calcByObjectId[r.id]?.results?.current), 2),
+    },
+    {
       title: 'Статус',
       width: 130,
-      render: (_: unknown, r: ProjectObject) => (r.is_valid ? 'рассчитан' : 'ошибка'),
+      render: (_: unknown, r: ProjectObject) => {
+        const calc = elecStats.calcByObjectId[r.id];
+        if (!r.is_valid) return <Tag color="error">тепл. ошибка</Tag>;
+        if (isElectricalCalcSuccess(calc)) return <Tag color="success" icon={<CheckCircleFilled />}>рассчитан</Tag>;
+        if (electricalCalcError(calc)) return <Tag color="error" icon={<CloseCircleFilled />}>эл. ошибка</Tag>;
+        return <Tag>не рассчитан</Tag>;
+      },
     },
   ];
 
@@ -342,6 +396,21 @@ export default function HeatCalcPage() {
           >
             Результаты расчёта
           </button>
+          {tableTab === 'results' && (
+            <span style={{ marginLeft: 12, display: 'flex', alignItems: 'center', gap: 4, paddingBottom: 2 }}>
+              <span style={{ fontSize: 11, color: '#607080' }}>Вариант:</span>
+              {[1, 2, 3, 4].map((n) => (
+                <button
+                  key={n}
+                  className={elecVariant === n ? 'active' : ''}
+                  onClick={() => setElecVariant(n)}
+                  style={{ padding: '2px 8px' }}
+                >
+                  СО{n}
+                </button>
+              ))}
+            </span>
+          )}
         </div>
 
         <Card size="small" className="workspace-table-card srs-table-wrap">
@@ -382,17 +451,21 @@ export default function HeatCalcPage() {
           />
           <div className="legend-row-srs">
             <span>
-              ⓘ Клик по строке таблицы → форма выше показывает её параметры. Клик «＋ Добавить» → форма очищается под новую запись. Красная строка = объект не рассчитан.
+              {tableTab === 'source'
+                ? 'ⓘ Клик по строке → форма выше показывает параметры. Красная строка = объект не рассчитан.'
+                : `ⓘ Тепловые и электрические результаты для варианта СО${elecVariant}. Красная строка = ошибка расчёта.`}
             </span>
-            <Button
-              type="primary"
-              icon={<ThunderboltOutlined />}
-              loading={batchCalc.isPending}
-              disabled={validCount === 0}
-              onClick={() => batchCalc.mutate()}
-            >
-              Электрорасчёт →
-            </Button>
+            {tableTab === 'source' && (
+              <Button
+                type="primary"
+                icon={<ThunderboltOutlined />}
+                loading={batchCalc.isPending}
+                disabled={validCount === 0}
+                onClick={() => batchCalc.mutate()}
+              >
+                Электрорасчёт →
+              </Button>
+            )}
           </div>
         </Card>
       </Space>
