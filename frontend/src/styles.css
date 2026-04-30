@@ -139,6 +139,7 @@ html, body, #root {
 
 .inline-object-form {
   margin-top: 0;
+  --inline-control-height: 24px;
 }
 
 .flat-form-section {
@@ -338,6 +339,7 @@ html, body, #root {
   display: block;
   margin-bottom: 0;
   min-width: 0;
+  min-height: 40px;
   padding: 1px 2px;
 }
 
@@ -371,14 +373,14 @@ html, body, #root {
 
 .inline-object-form .ant-form-item-control-input {
   min-height: 0;
-  height: 20px;
+  height: var(--inline-control-height);
   display: flex;
   align-items: stretch;
 }
 
 .inline-object-form .ant-form-item-control-input-content {
   flex: 1;
-  height: 20px;
+  height: var(--inline-control-height);
   min-width: 0;
   display: flex;
   align-items: stretch;
@@ -388,27 +390,27 @@ html, body, #root {
 .inline-object-form .ant-input {
   flex: 1;
   width: 100%;
-  height: 20px;
+  height: var(--inline-control-height);
   padding: 0 6px;
   font-size: 11px;
   border-radius: 2px;
   box-sizing: border-box;
-  line-height: 18px;
+  line-height: calc(var(--inline-control-height) - 2px);
 }
 
 /* ── Select ───────────────────────────────────────────────────── */
 .inline-object-form .ant-select {
   width: 100%;
-  height: 20px;
+  height: var(--inline-control-height);
   flex: 1;
 }
 
 .inline-object-form .ant-select-single {
-  height: 20px;
+  height: var(--inline-control-height);
 }
 
 .inline-object-form .ant-select-single .ant-select-selector {
-  height: 20px !important;
+  height: var(--inline-control-height) !important;
   padding: 0 6px !important;
   border-radius: 2px;
   box-sizing: border-box;
@@ -417,12 +419,16 @@ html, body, #root {
 .inline-object-form .ant-select-selection-item,
 .inline-object-form .ant-select-selection-placeholder {
   font-size: 10px;
-  line-height: 18px !important;
+  line-height: calc(var(--inline-control-height) - 2px) !important;
+}
+
+.inline-object-form .ant-select-single .ant-select-selector .ant-select-selection-search-input {
+  height: calc(var(--inline-control-height) - 2px) !important;
 }
 
 /* ── InputNumber (без addon) ──────────────────────────────────── */
 .inline-object-form .ant-input-number {
-  height: 20px;
+  height: var(--inline-control-height);
   width: auto;
   min-width: 60px;
   border-radius: 2px;
@@ -431,9 +437,9 @@ html, body, #root {
 
 /* ── InputNumber с addonAfter ─────────────────────────────────── */
 .inline-object-form .ant-input-number-group-wrapper {
-  display: inline-block;
-  height: 20px;
-  width: auto;
+  display: block;
+  height: var(--inline-control-height);
+  width: 100%;
   min-width: 60px;
   box-sizing: border-box;
   vertical-align: top;
@@ -441,26 +447,31 @@ html, body, #root {
 
 /* antd renders group as display:table — do NOT override display */
 .inline-object-form .ant-input-number-group {
-  height: 20px;
+  height: var(--inline-control-height);
+  width: 100%;
 }
 
 .inline-object-form .ant-input-number-group .ant-input-number {
-  height: 20px;
+  height: var(--inline-control-height);
   min-width: 40px;
 }
 
+.inline-object-form .ant-input-number-input-wrap {
+  height: calc(var(--inline-control-height) - 2px);
+}
+
 .inline-object-form .ant-input-number-input {
-  height: 18px;
+  height: calc(var(--inline-control-height) - 2px);
   padding: 0 4px;
   font-size: 11px;
-  line-height: 18px;
+  line-height: calc(var(--inline-control-height) - 2px);
 }
 
 .inline-object-form .ant-input-number-group-addon {
-  height: 20px;
+  height: var(--inline-control-height);
   font-size: 10px;
   padding: 0 4px;
-  line-height: 18px;
+  line-height: calc(var(--inline-control-height) - 2px);
   vertical-align: middle;
   box-sizing: border-box;
   border-radius: 0 2px 2px 0;
