@@ -18,3 +18,7 @@ export function parseTsv(text: string): string[][] {
     .filter((line) => line.length > 0)
     .map((line) => line.split('\t'));
 }
+
+export function buildTsv(rows: string[][]): string {
+  return rows.map((row) => row.join('\t')).join('\r\n');
+}

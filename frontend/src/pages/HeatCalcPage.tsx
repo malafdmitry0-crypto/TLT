@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Button, Card, Space, Table, Typography } from 'antd';
+import { useEffect, useState } from 'react';
+import { Button, Card, Dropdown, Space, Table, Tag, Typography, message as antdMessage } from 'antd';
 import {
   DatabaseOutlined,
   FireOutlined,
@@ -21,6 +21,7 @@ import { listObjects } from '@/api/projects';
 import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
 import type { ProjectObject } from '@/types/project';
 import { formatNumber, formatPower } from '@/utils/formatters';
+import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 
 const { Text } = Typography;
 
@@ -45,7 +46,6 @@ function ObjectCountBadge({
   return (
     <div
       style={{
-        marginTop: 12,
         padding: '6px 8px',
         background: allValid ? '#f6ffed' : '#fff7e6',
         borderRadius: 6,
@@ -71,12 +71,61 @@ export default function HeatCalcPage() {
   const role = useAuthStore((s) => s.role);
   const [wizardState, setWizardState] = useState<WizardState | null>(null);
   const [tableTab, setTableTab] = useState<'source' | 'results'>('source');
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
 
   const { data: objects = [] } = useQuery({
     queryKey: ['project', project?.id, 'objects'],
     queryFn: () => listObjects(project!.id),
     enabled: !!project,
   });
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey) || e.key !== 'c') return;
+      if (selectedRowKeys.length === 0) return;
+      // Don't hijack copy when text is selected in an input
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
+
+      const selected = objects.filter((o) => selectedRowKeys.includes(o.id));
+      const isResults = tableTab === 'results';
+
+      const header = isResults
+        ? ['Тип', 'Наименование', 'Ø, мм', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T прод., °C', 'T окр., °C', 'q, Вт/м', 'Q сум., Вт', 'Статус']
+        : ['Тип', 'Наименование', 'Ø, мм', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T прод., °C', 'T окр., °C'];
+
+      const rows = selected.map((r) => {
+        const base = [
+          r.object_type === 'pipe' ? 'Труба' : 'Резервуар',
+          String(r.params?.name ?? ''),
+          r.object_type === 'pipe'
+            ? formatNumber(Number(r.params?.outer_diameter) * 1000, 0)
+            : formatNumber(Number(r.params?.diameter) * 1000, 0),
+          r.object_type === 'pipe' ? formatNumber(Number(r.params?.pipe_length), 1) : '—',
+          formatNumber(Number(r.params?.insulation_thickness) * 1000, 0),
+          MATERIAL_LABELS[String(r.params?.insulation_material)] ?? String(r.params?.insulation_material ?? ''),
+          formatNumber(Number(r.params?.process_temperature), 0),
+          formatNumber(Number(r.params?.ambient_temperature), 0),
+        ];
+        if (!isResults) return base;
+        return [
+          ...base,
+          r.object_type === 'pipe'
+            ? formatNumber(Number(r.results?.heat_loss_per_meter), 1)
+            : formatNumber(Number(r.results?.heat_loss_per_m2), 1),
+          r.results ? formatPower(Number(r.results.total_heat_loss)) : '—',
+          r.is_valid ? 'рассчитан' : 'ошибка',
+        ];
+      });
+
+      copyToClipboard(buildTsv([header, ...rows])).then(() => {
+        antdMessage.success(`Скопировано строк: ${selected.length}`);
+      });
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedRowKeys, objects, tableTab]);
 
   const closeWizard = () => setWizardState(null);
   const { add, edit, batchCalc } = useHeatCalcMutations(
@@ -205,13 +254,6 @@ export default function HeatCalcPage() {
     <>
       <WorkflowSteps current={0} />
       <Space direction="vertical" size={5} style={{ width: '100%' }}>
-        <div className="common-data-banner">
-          <span>
-            <span className="label">Общие первичные данные:</span> Сургут · −44 °C · 220 В · надземная
-          </span>
-          <Button size="small" type="primary">Изменить...</Button>
-        </div>
-
         <div className="inline-form-srs">
           {wizardState ? (
             <ObjectWizard
@@ -241,10 +283,19 @@ export default function HeatCalcPage() {
         </div>
 
         <div className="actionbar-srs">
-          <Button className="add" icon={<PlusOutlined />} onClick={() => openAddWizard('pipe')}>
-            Добавить
-          </Button>
-          <Button onClick={() => openAddWizard('tank')}>+ Резервуар</Button>
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'pipe', label: 'Трубопровод' },
+                { key: 'tank', label: 'Резервуар' },
+              ],
+              onClick: ({ key }) => openAddWizard(key as WizardObjectType),
+            }}
+          >
+            <Button className="add" icon={<PlusOutlined />}>
+              Добавить
+            </Button>
+          </Dropdown>
           <Button disabled={!wizardState?.editingObject}>Создать на основании</Button>
           <Button disabled={!wizardState?.editingObject}>Изменить</Button>
           <Button disabled={!wizardState}>Применить к одному</Button>
@@ -268,7 +319,12 @@ export default function HeatCalcPage() {
               disabled={totalCount === 0}
             />
           )}
-          <div style={{ marginLeft: 'auto' }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            {selectedRowKeys.length > 0 && (
+              <Tag color="blue" style={{ margin: 0 }}>
+                Выбрано: {selectedRowKeys.length} · Ctrl+C для копирования
+              </Tag>
+            )}
             <ObjectCountBadge total={totalCount} valid={validCount} />
           </div>
         </div>
@@ -296,7 +352,13 @@ export default function HeatCalcPage() {
             pagination={false}
             dataSource={objects}
             columns={tableTab === 'source' ? sourceColumns : resultColumns}
-            scroll={{ x: 1180, y: 'calc(100vh - 570px)' }}
+            scroll={{ x: 1180, y: 'calc(100vh - 530px)' }}
+            rowSelection={{
+              type: 'checkbox',
+              selectedRowKeys,
+              onChange: (keys) => setSelectedRowKeys(keys as string[]),
+              columnWidth: 36,
+            }}
             rowClassName={(r) => {
               const classes = [];
               if (!r.is_valid) classes.push('row-invalid');
@@ -304,7 +366,11 @@ export default function HeatCalcPage() {
               return classes.join(' ');
             }}
             onRow={(record) => ({
-              onClick: () => openEditWizard(record),
+              onClick: (e) => {
+                // Ignore clicks on checkbox cell
+                if ((e.target as HTMLElement).closest('.ant-table-selection-column')) return;
+                openEditWizard(record);
+              },
             })}
             locale={{
               emptyText: (
