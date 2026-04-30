@@ -6,6 +6,7 @@ import {
   DatabaseOutlined,
   FireOutlined,
   PlusOutlined,
+  ReloadOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
@@ -142,7 +143,7 @@ export default function HeatCalcPage() {
   }, [selectedRowKeys, objects, tableTab]);
 
   const closeWizard = () => setWizardState(null);
-  const { add, edit, batchCalc } = useHeatCalcMutations(
+  const { add, edit, batchCalcVariant, batchCalc } = useHeatCalcMutations(
     project?.id,
     closeWizard,
     closeWizard,
@@ -423,6 +424,19 @@ export default function HeatCalcPage() {
                 </button>
               ))}
             </span>
+          )}
+          {tableTab === 'results' && (
+            <Button
+              size="small"
+              type="primary"
+              icon={<ReloadOutlined />}
+              loading={batchCalcVariant.isPending}
+              disabled={validCount === 0}
+              onClick={() => batchCalcVariant.mutate(elecVariant)}
+              style={{ marginLeft: 'auto', marginBottom: 2 }}
+            >
+              Выполнить электрорасчёт СО{elecVariant}
+            </Button>
           )}
         </div>
 

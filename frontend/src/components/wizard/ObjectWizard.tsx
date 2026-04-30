@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Form, Input, InputNumber, Select, Tooltip } from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
+import { CaretDownOutlined, CaretRightOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import type { ObjectType } from '@/constants/objectTypes';
 import PipeGeometryStep from './steps/PipeGeometryStep';
 import TankGeometryStep from './steps/TankGeometryStep';
@@ -55,6 +55,7 @@ export default function ObjectWizard({
   const isEditMode = !!initialParams;
   const values = Form.useWatch([], form);
   const prevSuggestedRef = useRef<string>('');
+  const [collapsedSections, setCollapsedSections] = useState([false, false, false, false]);
 
   const initialValues =
     initialParams != null
@@ -105,6 +106,8 @@ export default function ObjectWizard({
   const colWidthsRef = useRef([25, 25, 25, 25]);
   const [colWidths, setColWidths] = useState([25, 25, 25, 25]);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const collapsedColumnWidth = 22;
+  const resizeHandleWidth = 5;
 
   useEffect(() => () => cleanupRef.current?.(), []);
 
@@ -145,6 +148,51 @@ export default function ObjectWizard({
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   }
+
+  function toggleSection(idx: number) {
+    setCollapsedSections((prev) => prev.map((value, i) => (i === idx ? !value : value)));
+  }
+
+  function collapsedClickHandler(idx: number) {
+    return collapsedSections[idx] ? () => toggleSection(idx) : undefined;
+  }
+
+  function sectionStyle(idx: number): React.CSSProperties {
+    if (collapsedSections[idx]) {
+      return { width: collapsedColumnWidth };
+    }
+
+    const expandedTotal = colWidths.reduce(
+      (total, width, i) => (collapsedSections[i] ? total : total + width),
+      0,
+    );
+    const collapsedCount = collapsedSections.filter(Boolean).length;
+    const availableWidth = `100% - ${collapsedCount * collapsedColumnWidth}px - ${resizeHandleWidth * 3}px`;
+    const share = expandedTotal > 0 ? colWidths[idx] / expandedTotal : 1;
+
+    return { width: `calc((${availableWidth}) * ${share})` };
+  }
+
+  function renderSectionTitle(title: string, idx: number) {
+    const collapsed = collapsedSections[idx];
+    return (
+      <h4>
+        <span>{title}</span>
+        <button
+          type="button"
+          className="form-section-toggle"
+          aria-label={collapsed ? `Развернуть: ${title}` : `Свернуть: ${title}`}
+          title={collapsed ? 'Развернуть' : 'Свернуть'}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleSection(idx);
+          }}
+        >
+          {collapsed ? <CaretRightOutlined /> : <CaretDownOutlined />}
+        </button>
+      </h4>
+    );
+  }
   // ──────────────────────────────────────────────────────────────────────────
 
   return (
@@ -152,8 +200,12 @@ export default function ObjectWizard({
       <div ref={containerRef} className="form-grid-srs">
 
         {/* ── Геометрия ──────────────────────────────────────────────── */}
-        <div className="form-col-srs" style={{ width: `${colWidths[0]}%` }}>
-          <h4>{objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара'}</h4>
+        <div
+          className={`form-col-srs ${collapsedSections[0] ? 'collapsed' : ''}`}
+          style={sectionStyle(0)}
+          onClick={collapsedClickHandler(0)}
+        >
+          {renderSectionTitle(objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара', 0)}
           <Form.Item
             label={hintLabel(
               'Наименование',
@@ -214,8 +266,12 @@ export default function ObjectWizard({
         <div className="form-col-resize-handle" onMouseDown={(e) => onHandleMouseDown(e, 0)} />
 
         {/* ── Теплоизоляция ──────────────────────────────────────────── */}
-        <div className="form-col-srs" style={{ width: `${colWidths[1]}%` }}>
-          <h4>Теплоизоляция</h4>
+        <div
+          className={`form-col-srs ${collapsedSections[1] ? 'collapsed' : ''}`}
+          style={sectionStyle(1)}
+          onClick={collapsedClickHandler(1)}
+        >
+          {renderSectionTitle('Теплоизоляция', 1)}
           <Form.Item
             label={hintLabel(
               'Кол-во слоёв ИЗ',
@@ -262,8 +318,12 @@ export default function ObjectWizard({
         <div className="form-col-resize-handle" onMouseDown={(e) => onHandleMouseDown(e, 1)} />
 
         {/* ── Температура и среда ────────────────────────────────────── */}
-        <div className="form-col-srs" style={{ width: `${colWidths[2]}%` }}>
-          <h4>Температура и среда</h4>
+        <div
+          className={`form-col-srs ${collapsedSections[2] ? 'collapsed' : ''}`}
+          style={sectionStyle(2)}
+          onClick={collapsedClickHandler(2)}
+        >
+          {renderSectionTitle('Температура и среда', 2)}
           <Form.Item
             label={hintLabel(
               'Требуемая T° объекта',
@@ -317,8 +377,12 @@ export default function ObjectWizard({
         <div className="form-col-resize-handle" onMouseDown={(e) => onHandleMouseDown(e, 2)} />
 
         {/* ── Электропараметры и арматура ───────────────────────────── */}
-        <div className="form-col-srs" style={{ width: `${colWidths[3]}%` }}>
-          <h4>Электропараметры и арматура</h4>
+        <div
+          className={`form-col-srs ${collapsedSections[3] ? 'collapsed' : ''}`}
+          style={sectionStyle(3)}
+          onClick={collapsedClickHandler(3)}
+        >
+          {renderSectionTitle('Электропараметры и арматура', 3)}
           <Form.Item
             label={hintLabel(
               'Мин. T° включения',

@@ -323,6 +323,10 @@ html, body, #root {
 }
 
 .form-col-srs h4 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
   grid-column: 1 / -1;
   margin: -4px -4px 3px;
   font-size: 11px;
@@ -332,6 +336,64 @@ html, body, #root {
   padding: 3px 5px;
   background: #eef3f6;
   border-bottom: 1px solid #d9e1e6;
+}
+
+.form-col-srs h4 span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.form-section-toggle {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #607080;
+  cursor: pointer;
+  line-height: 18px;
+}
+
+.form-section-toggle:hover {
+  color: var(--color-primary);
+  background: #dde6ed;
+}
+
+.form-col-srs.collapsed {
+  align-content: start;
+  min-width: 22px;
+  padding-inline: 1px;
+  cursor: pointer;
+}
+
+.form-col-srs.collapsed > :not(h4) {
+  display: none;
+}
+
+.form-col-srs.collapsed h4 {
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-inline: 0;
+  min-height: 72px;
+}
+
+.form-col-srs.collapsed h4 span {
+  display: block;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  max-height: 46px;
+  font-size: 8px;
+  line-height: 1;
+  text-align: left;
+}
+
+.form-col-srs.collapsed .form-section-toggle {
+  color: var(--color-primary);
+  order: -1;
+  width: 16px;
 }
 
 /* ── Обёртка поля ─────────────────────────────────────────────── */

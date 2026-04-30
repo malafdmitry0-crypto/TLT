@@ -43,6 +43,7 @@ function notifyObjectResult(obj: ProjectObject, action: 'added' | 'updated') {
  *   - add:       добавить объект
  *   - edit:      обновить параметры объекта
  *   - reorder:   сменить порядок объектов (drag-and-drop)
+ *   - batchCalcVariant: пакетно выполнить электрорасчёт выбранного СО без перехода
  *   - batchCalc: пакетно выполнить электрорасчёт и перейти на шаг 2
  *
  * Все мутации инвалидируют кэш объектов проекта. add/edit показывают
@@ -91,6 +92,23 @@ export function useHeatCalcMutations(
     onError: (e: Error) => message.error(e.message),
   });
 
+  const batchCalcVariant = useMutation({
+    mutationFn: (variant: number) => batchCalcElectrical(projectId!, 'builtin', variant),
+    onSuccess: (res, variant) => {
+      qc.invalidateQueries({
+        queryKey: ['project', projectId, 'electrical-calcs'],
+      });
+      if (res.errors.length > 0) {
+        message.warning(
+          `СО${variant} · рассчитано: ${res.calculated}, пропущено: ${res.skipped}.`,
+        );
+      } else {
+        message.success(`СО${variant} — электрорасчёт выполнен для ${res.calculated} объектов`);
+      }
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+
   const batchCalc = useMutation({
     mutationFn: () => batchCalcElectrical(projectId!),
     onSuccess: (res) => {
@@ -109,5 +127,5 @@ export function useHeatCalcMutations(
     onError: (e: Error) => message.error(e.message),
   });
 
-  return { add, edit, reorder, batchCalc };
+  return { add, edit, reorder, batchCalcVariant, batchCalc };
 }
