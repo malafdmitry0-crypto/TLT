@@ -29,7 +29,7 @@ function label(text: string, hint: string) {
 export default function TankGeometryStep() {
   return (
     <>
-      <Form.Item label="Форма резервуара" name="shape" initialValue="cylindrical">
+      <Form.Item className="wide-select-form-item" label="Форма резервуара" name="shape" initialValue="cylindrical">
         <Select options={SHAPE_OPTIONS} />
       </Form.Item>
 

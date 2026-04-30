@@ -248,14 +248,14 @@ export default function HeatCalcPage() {
       ? `Параметры объекта «${String(
           wizardState.editingObject.params?.name ?? OBJECT_TYPE_LABELS[wizardState.type],
         )}»`
-      : `Параметры нового объекта: ${OBJECT_TYPE_LABELS[wizardState.type]}`
+      : `Параметры: ${OBJECT_TYPE_LABELS[wizardState.type]}`
     : 'Параметры объекта';
   const formCaptionMode = wizardState?.editingObject ? 'edit' : wizardState ? 'new' : 'idle';
   const formCaptionModeLabel =
     formCaptionMode === 'edit'
       ? 'Режим: редактирование'
       : formCaptionMode === 'new'
-        ? 'Режим: новая запись'
+        ? 'новая запись'
         : 'выберите строку или нажмите «＋ Добавить»';
 
   function openAddWizard(type: WizardObjectType) {

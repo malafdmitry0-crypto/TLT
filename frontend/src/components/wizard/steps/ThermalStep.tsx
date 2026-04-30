@@ -46,6 +46,7 @@ export default function ThermalStep() {
       </Form.Item>
 
       <Form.Item
+        className="wide-select-form-item"
         label="Материал изоляции"
         name="insulation_material"
         rules={[{ required: true, message: 'Выберите материал изоляции' }]}

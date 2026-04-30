@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Form, Input, InputNumber, Select, Tooltip } from 'antd';
+import { Button, Checkbox, Form, Input, InputNumber, Select, Tooltip } from 'antd';
 import { CaretDownOutlined, CaretRightOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import type { ObjectType } from '@/constants/objectTypes';
 import PipeGeometryStep from './steps/PipeGeometryStep';
@@ -25,14 +25,102 @@ interface Props {
   initialParams?: Record<string, unknown>;
 }
 
-const SECTION_WIDTHS_STORAGE_KEY = 'object-wizard-section-widths-v2';
-const DEFAULT_SECTION_WIDTHS = [25, 25, 25, 25];
+const SECTION_WIDTHS_STORAGE_KEY = 'object-wizard-section-widths-v5';
+const SECTION_AUTO_ALIGN_STORAGE_KEY = 'object-wizard-section-auto-align';
+const SECTION_MIN_COLUMN_WIDTH = 96;
+const SECTION_RESIZE_HANDLE_WIDTH = 5;
 
-function readSavedSectionWidths() {
-  if (typeof window === 'undefined') return DEFAULT_SECTION_WIDTHS;
+function sectionWidthsStorageKey(objectType: ObjectType) {
+  return `${SECTION_WIDTHS_STORAGE_KEY}-${objectType}`;
+}
+
+function sectionAutoAlignStorageKey(objectType: ObjectType) {
+  return `${SECTION_AUTO_ALIGN_STORAGE_KEY}-${objectType}`;
+}
+
+function normalizeSectionWidths(widths: number[]) {
+  const total = widths.reduce((sum, width) => sum + width, 0);
+  return widths.map((width) => (width / total) * 100);
+}
+
+function getSectionControlCounts(objectType: ObjectType) {
+  return objectType === 'pipe'
+    ? [8, 9, 6, 7]
+    : [6, 9, 6, 4];
+}
+
+function isBetterSectionLayout(
+  score: number[],
+  bestScore: number[] | null,
+) {
+  if (bestScore == null) return true;
+  return score.some((value, idx) => value < bestScore[idx] && score.slice(0, idx).every((prev, i) => prev === bestScore[i]));
+}
+
+function calculateOptimalSectionWidths(controlCounts: number[], availableWidth?: number) {
+  const viewportWidth =
+    availableWidth ??
+    (typeof window === 'undefined' ? 1200 : window.innerWidth);
+  const contentWidth = Math.max(
+    SECTION_MIN_COLUMN_WIDTH * 4,
+    viewportWidth - SECTION_RESIZE_HANDLE_WIDTH * 3,
+  );
+  const maxColumns = controlCounts.reduce((sum, count) => sum + count, 0);
+  const maxFittingColumns = Math.min(
+    maxColumns,
+    Math.max(4, Math.floor(contentWidth / SECTION_MIN_COLUMN_WIDTH)),
+  );
+  let columns = [1, 1, 1, 1];
+  let bestScore: number[] | null = null;
+
+  for (let totalColumns = 4; totalColumns <= maxFittingColumns; totalColumns += 1) {
+    for (let a = 1; a <= controlCounts[0]; a += 1) {
+      for (let b = 1; b <= controlCounts[1]; b += 1) {
+        for (let c = 1; c <= controlCounts[2]; c += 1) {
+          const d = totalColumns - a - b - c;
+          if (d < 1 || d > controlCounts[3]) continue;
+
+          const candidate = [a, b, c, d];
+          const rows = controlCounts.map((count, idx) => Math.ceil(count / candidate[idx]));
+          const sortedRows = [...rows].sort((left, right) => right - left);
+          const totalRows = rows.reduce((sum, rowCount) => sum + rowCount, 0);
+          const singleColumnSections = candidate.filter((columnCount) => columnCount === 1).length;
+          const rowSpread = Math.max(...rows) - Math.min(...rows);
+          const columnSpread = Math.max(...candidate) - Math.min(...candidate);
+          const score = [
+            ...sortedRows,
+            totalRows,
+            singleColumnSections,
+            rowSpread,
+            columnSpread,
+            totalColumns,
+          ];
+
+          if (isBetterSectionLayout(score, bestScore)) {
+            bestScore = score;
+            columns = candidate;
+          }
+        }
+      }
+    }
+  }
+
+  const baseWidths = columns.map((columnCount) => columnCount * SECTION_MIN_COLUMN_WIDTH);
+  const spareWidth = Math.max(0, contentWidth - baseWidths.reduce((sum, width) => sum + width, 0));
+  const widths = baseWidths.map((width) => width + spareWidth / baseWidths.length);
+
+  return normalizeSectionWidths(widths);
+}
+
+function getDefaultSectionWidths(objectType: ObjectType, availableWidth?: number) {
+  return calculateOptimalSectionWidths(getSectionControlCounts(objectType), availableWidth);
+}
+
+function readSavedSectionWidths(objectType: ObjectType) {
+  if (typeof window === 'undefined') return null;
 
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(SECTION_WIDTHS_STORAGE_KEY) ?? 'null');
+    const parsed = JSON.parse(window.localStorage.getItem(sectionWidthsStorageKey(objectType)) ?? 'null');
     if (
       Array.isArray(parsed) &&
       parsed.length === 4 &&
@@ -41,17 +129,42 @@ function readSavedSectionWidths() {
       return parsed as number[];
     }
   } catch {
-    // Некорректное сохранение игнорируем и возвращаем базовые пропорции.
+    // Некорректное сохранение игнорируем и возвращаем авторасчёт.
   }
 
-  return DEFAULT_SECTION_WIDTHS;
+  return null;
 }
 
-function saveSectionWidths(widths: number[]) {
+function getInitialSectionWidths(objectType: ObjectType, availableWidth?: number) {
+  return readSavedSectionWidths(objectType) ?? getDefaultSectionWidths(objectType, availableWidth);
+}
+
+function saveSectionWidths(objectType: ObjectType, widths: number[]) {
   try {
-    window.localStorage.setItem(SECTION_WIDTHS_STORAGE_KEY, JSON.stringify(widths));
+    window.localStorage.setItem(sectionWidthsStorageKey(objectType), JSON.stringify(widths));
   } catch {
     // Если localStorage недоступен, форма продолжит работать с текущими ширинами.
+  }
+}
+
+function clearSavedSectionWidths(objectType: ObjectType) {
+  try {
+    window.localStorage.removeItem(sectionWidthsStorageKey(objectType));
+  } catch {
+    // Если localStorage недоступен, просто работаем с текущим состоянием.
+  }
+}
+
+function readAutoAlign(objectType: ObjectType) {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(sectionAutoAlignStorageKey(objectType)) === 'true';
+}
+
+function saveAutoAlign(objectType: ObjectType, value: boolean) {
+  try {
+    window.localStorage.setItem(sectionAutoAlignStorageKey(objectType), String(value));
+  } catch {
+    // Если localStorage недоступен, настройка останется только в текущей сессии.
   }
 }
 
@@ -86,6 +199,7 @@ export default function ObjectWizard({
   const values = Form.useWatch([], form);
   const prevSuggestedRef = useRef<string>('');
   const [collapsedSections, setCollapsedSections] = useState([false, false, false, false]);
+  const [autoAlign, setAutoAlign] = useState(() => readAutoAlign(objectType));
 
   const initialValues =
     initialParams != null
@@ -133,16 +247,77 @@ export default function ObjectWizard({
 
   // ── Resizable columns ──────────────────────────────────────────────────────
   const containerRef = useRef<HTMLDivElement>(null);
-  const [colWidths, setColWidths] = useState(readSavedSectionWidths);
+  const sectionRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [colWidths, setColWidths] = useState(() => getInitialSectionWidths(objectType));
   const colWidthsRef = useRef(colWidths);
+  const hasManualWidthsRef = useRef(!autoAlign && readSavedSectionWidths(objectType) != null);
+  const autoAlignRef = useRef(autoAlign);
   const cleanupRef = useRef<(() => void) | null>(null);
   const collapsedColumnWidth = 22;
-  const resizeHandleWidth = 5;
+  const resizeHandleWidth = SECTION_RESIZE_HANDLE_WIDTH;
 
   useEffect(() => () => cleanupRef.current?.(), []);
 
+  useEffect(() => {
+    const savedAutoAlign = readAutoAlign(objectType);
+    autoAlignRef.current = savedAutoAlign;
+    setAutoAlign(savedAutoAlign);
+    const savedWidths = readSavedSectionWidths(objectType);
+    hasManualWidthsRef.current = !savedAutoAlign && savedWidths != null;
+    const widths =
+      savedAutoAlign || !savedWidths
+        ? getOptimalSectionWidths()
+        : savedWidths;
+    colWidthsRef.current = widths;
+    setColWidths(widths);
+  }, [objectType]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      if (hasManualWidthsRef.current && !autoAlignRef.current) return;
+      const width = entry.contentRect.width;
+      const widths = getOptimalSectionWidths(width);
+      colWidthsRef.current = widths;
+      setColWidths(widths);
+    });
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [objectType]);
+
+  function getMeasuredSectionControlCounts() {
+    return sectionRefs.current.map((section, idx) => {
+      const count = section?.querySelectorAll(':scope > .ant-form-item').length ?? 0;
+      return Math.max(1, count || getSectionControlCounts(objectType)[idx]);
+    });
+  }
+
+  function getOptimalSectionWidths(availableWidth = containerRef.current?.offsetWidth) {
+    return calculateOptimalSectionWidths(getMeasuredSectionControlCounts(), availableWidth);
+  }
+
+  function applyOptimalLayout() {
+    const widths = getOptimalSectionWidths();
+    setCollapsedSections([false, false, false, false]);
+    hasManualWidthsRef.current = false;
+    clearSavedSectionWidths(objectType);
+    colWidthsRef.current = widths;
+    setColWidths(widths);
+  }
+
+  function handleAutoAlignChange(checked: boolean) {
+    autoAlignRef.current = checked;
+    setAutoAlign(checked);
+    saveAutoAlign(objectType, checked);
+    if (checked) applyOptimalLayout();
+  }
+
   function onHandleMouseDown(e: React.MouseEvent, idx: number) {
     e.preventDefault();
+    if (autoAlignRef.current) return;
     const startX = e.clientX;
     const startWidths = [...colWidthsRef.current];
 
@@ -165,7 +340,8 @@ export default function ObjectWizard({
       document.removeEventListener('mouseup', onMouseUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
-      saveSectionWidths(colWidthsRef.current);
+      hasManualWidthsRef.current = true;
+      saveSectionWidths(objectType, colWidthsRef.current);
       cleanupRef.current = null;
     };
 
@@ -228,10 +404,22 @@ export default function ObjectWizard({
 
   return (
     <Form form={form} layout="vertical" initialValues={initialValues} className="inline-object-form">
+      <div className="form-layout-tools">
+        <Button size="small" onClick={applyOptimalLayout}>
+          Выровнять
+        </Button>
+        <Checkbox
+          checked={autoAlign}
+          onChange={(event) => handleAutoAlignChange(event.target.checked)}
+        >
+          Автовыравнивание
+        </Checkbox>
+      </div>
       <div ref={containerRef} className="form-grid-srs">
 
         {/* ── Геометрия ──────────────────────────────────────────────── */}
         <div
+          ref={(node) => { sectionRefs.current[0] = node; }}
           className={`form-col-srs ${collapsedSections[0] ? 'collapsed' : ''}`}
           style={sectionStyle(0)}
           onClick={collapsedClickHandler(0)}
@@ -259,6 +447,7 @@ export default function ObjectWizard({
                 <InputNumber value={4} step={0.1} addonAfter="мм" />
               </Form.Item>
               <Form.Item
+                className="wide-select-form-item"
                 label={hintLabel(
                   'Материал трубы',
                   'Материал стенки трубопровода. Сейчас поле справочное; теплопотери MVP считаются по сохранённым обязательным параметрам.',
@@ -277,6 +466,7 @@ export default function ObjectWizard({
             </>
           )}
           <Form.Item
+            className={objectType === 'tank' ? 'wide-select-form-item' : undefined}
             label={hintLabel(
               objectType === 'pipe' ? 'Размещение трубопровода' : 'Размещение резервуара',
               'Варианты по SRS: на открытом воздухе, в помещении, подземно. Сейчас поле справочное; подземная логика будет вынесена в отдельную задачу.',
@@ -298,6 +488,7 @@ export default function ObjectWizard({
 
         {/* ── Теплоизоляция ──────────────────────────────────────────── */}
         <div
+          ref={(node) => { sectionRefs.current[1] = node; }}
           className={`form-col-srs ${collapsedSections[1] ? 'collapsed' : ''}`}
           style={sectionStyle(1)}
           onClick={collapsedClickHandler(1)}
@@ -350,6 +541,7 @@ export default function ObjectWizard({
 
         {/* ── Температура и среда ────────────────────────────────────── */}
         <div
+          ref={(node) => { sectionRefs.current[2] = node; }}
           className={`form-col-srs ${collapsedSections[2] ? 'collapsed' : ''}`}
           style={sectionStyle(2)}
           onClick={collapsedClickHandler(2)}
@@ -409,6 +601,7 @@ export default function ObjectWizard({
 
         {/* ── Электропараметры и арматура ───────────────────────────── */}
         <div
+          ref={(node) => { sectionRefs.current[3] = node; }}
           className={`form-col-srs ${collapsedSections[3] ? 'collapsed' : ''}`}
           style={sectionStyle(3)}
           onClick={collapsedClickHandler(3)}

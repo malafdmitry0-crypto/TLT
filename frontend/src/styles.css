@@ -284,6 +284,7 @@ html, body, #root {
 
 .inline-form-shell {
   min-width: 0;
+  position: relative;
 }
 
 .inline-form-caption {
@@ -291,10 +292,12 @@ html, body, #root {
   align-items: center;
   gap: 5px;
   min-width: 0;
-  min-height: 12px;
-  padding: 0 3px 2px;
+  height: 14px;
+  padding: 0 172px 1px 3px;
   font-size: 8.4px;
-  line-height: 1.15;
+  line-height: 1;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .inline-form-caption-title {
@@ -317,9 +320,10 @@ html, body, #root {
 .inline-form-caption-mode {
   flex: 0 0 auto;
   color: #607080;
-  padding: 1px 5px;
+  padding: 0 5px;
   background: #eef3f6;
   border-radius: 12px;
+  line-height: 12px;
 }
 
 .inline-form-caption-mode.edit {
@@ -332,6 +336,48 @@ html, body, #root {
   color: #1f6f3e;
 }
 
+.form-layout-tools {
+  position: absolute;
+  top: 0;
+  right: 3px;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 5px;
+  height: 14px;
+  margin-bottom: 0;
+}
+
+.form-layout-tools .ant-btn {
+  height: 14px;
+  padding-inline: 5px;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.form-layout-tools .ant-checkbox-wrapper {
+  margin-inline-start: 0;
+  font-size: 9px;
+  color: #607080;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.form-layout-tools .ant-checkbox {
+  font-size: 9px;
+}
+
+.form-layout-tools .ant-checkbox-inner {
+  width: 10px;
+  height: 10px;
+}
+
+.form-layout-tools .ant-checkbox-inner::after {
+  width: 3px;
+  height: 5px;
+}
+
 .form-grid-srs {
   display: flex;
   align-items: stretch;
@@ -341,10 +387,10 @@ html, body, #root {
 
 .form-grid-srs .form-col-srs {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   align-content: start;
   gap: 1px;
-  min-width: 130px;
+  min-width: 96px;
   overflow: hidden;
   border: 1px solid #d9e1e6;
   background: #fcfdfd;
@@ -596,6 +642,17 @@ html, body, #root {
   font-size: 9px;
 }
 
+.inline-object-form .wide-select-form-item {
+  grid-column: span 2;
+}
+
+.inline-object-form .wide-select-form-item .ant-select-selection-item,
+.inline-object-form .wide-select-form-item .ant-select-selection-placeholder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 
 .hidden-submit {
   display: none;
@@ -741,6 +798,9 @@ html, body, #root {
 .ant-select-dropdown .ant-select-item-option-content {
   font-size: 10px;
   line-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ant-select-dropdown .ant-select-item-option-selected .ant-select-item-option-content {
