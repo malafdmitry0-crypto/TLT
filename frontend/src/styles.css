@@ -387,10 +387,12 @@ html, body, #root {
 
 .form-grid-srs .form-col-srs {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  --field-pair-min-width: 136px;
+  --field-input-min-width: 92px;
+  grid-template-columns: repeat(auto-fit, minmax(var(--field-pair-min-width), 1fr));
   align-content: start;
   gap: 1px;
-  min-width: 96px;
+  min-width: var(--field-pair-min-width);
   overflow: hidden;
   border: 1px solid #d9e1e6;
   background: #fcfdfd;
@@ -496,34 +498,43 @@ html, body, #root {
 .inline-object-form .ant-form-item {
   display: block;
   margin-bottom: 0;
-  min-width: 0;
-  min-height: 40px;
+  min-width: min(100%, var(--field-pair-min-width, 136px));
+  min-height: 44px;
   padding: 1px 2px;
 }
 
 /* ── Лейбл ────────────────────────────────────────────────────── */
 .inline-object-form .ant-form-item-label {
   padding: 0;
-  overflow: hidden;
-  line-height: 1;
+  overflow: visible;
+  line-height: 1.15;
 }
 
 .inline-object-form .ant-form-item-label > label {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 3px;
-  height: 13px;
+  min-height: 13px;
+  height: auto;
   color: #4a5b6c;
   font-size: 9px;
-  line-height: 1;
+  line-height: 1.15;
   margin-bottom: 2px;
-  overflow: hidden;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.inline-object-form .ant-form-item-label > label > span {
+  flex: 1 1 auto;
+  min-width: max-content;
+  overflow-wrap: normal;
+  white-space: nowrap;
 }
 
 .inline-object-form .ant-form-item-label > label .anticon {
   flex-shrink: 0;
   font-size: 9px;
-  line-height: 1;
+  line-height: 1.15;
 }
 
 /* ── Контрол — якорь высоты 20px ──────────────────────────────── */
@@ -548,6 +559,7 @@ html, body, #root {
 .inline-object-form .ant-input {
   flex: 1;
   width: 100%;
+  min-width: var(--field-input-min-width, 92px);
   height: var(--inline-control-height);
   padding: 0 4px;
   font-size: 10px;
@@ -559,6 +571,7 @@ html, body, #root {
 /* ── Select ───────────────────────────────────────────────────── */
 .inline-object-form .ant-select {
   width: 100%;
+  min-width: var(--field-input-min-width, 92px);
   height: var(--inline-control-height);
   flex: 1;
 }
@@ -587,8 +600,8 @@ html, body, #root {
 /* ── InputNumber (без addon) ──────────────────────────────────── */
 .inline-object-form .ant-input-number {
   height: var(--inline-control-height);
-  width: auto;
-  min-width: 60px;
+  width: 100%;
+  min-width: var(--field-input-min-width, 92px);
   border-radius: 2px;
   box-sizing: border-box;
 }
@@ -598,7 +611,7 @@ html, body, #root {
   display: block;
   height: var(--inline-control-height);
   width: 100%;
-  min-width: 60px;
+  min-width: var(--field-input-min-width, 92px);
   box-sizing: border-box;
   vertical-align: top;
 }
@@ -651,6 +664,43 @@ html, body, #root {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.inline-object-form .fit-label-form-item {
+  width: max-content;
+  min-width: max-content;
+}
+
+.inline-object-form .fit-label-form-item .ant-form-item-control,
+.inline-object-form .fit-label-form-item .ant-form-item-control-input,
+.inline-object-form .fit-label-form-item .ant-form-item-control-input-content {
+  width: 100%;
+  min-width: 100%;
+}
+
+.inline-object-form .fit-label-form-item .ant-input,
+.inline-object-form .fit-label-form-item .ant-select,
+.inline-object-form .fit-label-form-item .ant-input-number,
+.inline-object-form .fit-label-form-item .ant-input-number-group-wrapper {
+  width: 100%;
+  min-width: 100%;
+}
+
+.inline-object-form .pipe-material-form-item,
+.inline-object-form .fixed-select-form-item {
+  width: 160px;
+  min-width: 160px;
+}
+
+.inline-object-form .pipe-material-form-item .ant-form-item-label,
+.inline-object-form .fixed-select-form-item .ant-form-item-label {
+  width: max-content;
+}
+
+.inline-object-form .pipe-material-form-item .ant-select,
+.inline-object-form .fixed-select-form-item .ant-select {
+  width: 160px;
+  min-width: 160px;
 }
 
 

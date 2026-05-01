@@ -14,9 +14,7 @@ function HelpIcon({ text }: { text: string }) {
 function label(text: string, hint: string) {
   return (
     <>
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-        {text}
-      </span>
+      <span>{text}</span>
       <HelpIcon text={hint} />
     </>
   );
@@ -46,7 +44,7 @@ export default function ThermalStep() {
       </Form.Item>
 
       <Form.Item
-        className="wide-select-form-item"
+        className="fixed-select-form-item"
         label="Материал изоляции"
         name="insulation_material"
         rules={[{ required: true, message: 'Выберите материал изоляции' }]}

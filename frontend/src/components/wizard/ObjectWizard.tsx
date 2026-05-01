@@ -25,9 +25,9 @@ interface Props {
   initialParams?: Record<string, unknown>;
 }
 
-const SECTION_WIDTHS_STORAGE_KEY = 'object-wizard-section-widths-v5';
+const SECTION_WIDTHS_STORAGE_KEY = 'object-wizard-section-widths-v6';
 const SECTION_AUTO_ALIGN_STORAGE_KEY = 'object-wizard-section-auto-align';
-const SECTION_MIN_COLUMN_WIDTH = 96;
+const SECTION_MIN_COLUMN_WIDTH = 136;
 const SECTION_RESIZE_HANDLE_WIDTH = 5;
 
 function sectionWidthsStorageKey(objectType: ObjectType) {
@@ -179,9 +179,7 @@ function HelpIcon({ text }: { text: string }) {
 function hintLabel(text: string, hint: string) {
   return (
     <>
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-        {text}
-      </span>
+      <span>{text}</span>
       <HelpIcon text={hint} />
     </>
   );
@@ -323,12 +321,13 @@ export default function ObjectWizard({
 
     const onMouseMove = (ev: MouseEvent) => {
       if (!containerRef.current) return;
+      const minWidthPct = (SECTION_MIN_COLUMN_WIDTH / containerRef.current.offsetWidth) * 100;
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
       const pct = ((ev.clientX - startX) / containerRef.current.offsetWidth) * 100;
       const l = startWidths[idx] + pct;
       const r = startWidths[idx + 1] - pct;
-      if (l >= 12 && r >= 12) {
+      if (l >= minWidthPct && r >= minWidthPct) {
         const w = startWidths.map((v, i) => (i === idx ? l : i === idx + 1 ? r : v));
         colWidthsRef.current = w;
         setColWidths([...w]);
@@ -439,6 +438,7 @@ export default function ObjectWizard({
           {objectType === 'pipe' && (
             <>
               <Form.Item
+                className="fit-label-form-item"
                 label={hintLabel(
                   'Толщина стенки',
                   'Толщина стенки трубы. Целевой диапазон SRS: 1…100 мм. Поле пока справочное и не участвует в расчёте.',
@@ -447,7 +447,7 @@ export default function ObjectWizard({
                 <InputNumber value={4} step={0.1} addonAfter="мм" />
               </Form.Item>
               <Form.Item
-                className="wide-select-form-item"
+                className="pipe-material-form-item"
                 label={hintLabel(
                   'Материал трубы',
                   'Материал стенки трубопровода. Сейчас поле справочное; теплопотери MVP считаются по сохранённым обязательным параметрам.',
@@ -456,9 +456,10 @@ export default function ObjectWizard({
                 <Select value="carbon_steel" options={[{ value: 'carbon_steel', label: 'Сталь углеродистая' }]} />
               </Form.Item>
               <Form.Item
+                className="fit-label-form-item"
                 label={hintLabel(
-                  'Коэф. теплопроводн. трубы',
-                  'λ материала трубы, Вт/(м·К). Сейчас поле справочное и не отправляется в расчётный payload.',
+                  'λ трубы',
+                  'Коэффициент теплопроводности материала трубы λ, Вт/(м·К). Показывает, насколько интенсивно материал стенки проводит тепло. Сейчас поле справочное и не отправляется в расчётный payload.',
                 )}
               >
                 <InputNumber value={56} step={0.1} addonAfter="Вт/мК" />
@@ -466,7 +467,7 @@ export default function ObjectWizard({
             </>
           )}
           <Form.Item
-            className={objectType === 'tank' ? 'wide-select-form-item' : undefined}
+            className="fixed-select-form-item"
             label={hintLabel(
               objectType === 'pipe' ? 'Размещение трубопровода' : 'Размещение резервуара',
               'Варианты по SRS: на открытом воздухе, в помещении, подземно. Сейчас поле справочное; подземная логика будет вынесена в отдельную задачу.',
@@ -475,6 +476,7 @@ export default function ObjectWizard({
             <Select value="outdoor" options={[{ value: 'outdoor', label: 'На открытом воздухе' }]} />
           </Form.Item>
           <Form.Item
+            className="fit-label-form-item"
             label={hintLabel(
               'Глубина прокладки',
               'Используется только для подземной прокладки. Целевой диапазон SRS: 0,1…5,0 м.',
@@ -495,6 +497,7 @@ export default function ObjectWizard({
         >
           {renderSectionTitle('Теплоизоляция', 1)}
           <Form.Item
+            className="fixed-select-form-item"
             label={hintLabel(
               'Кол-во слоёв ИЗ',
               'Целевой диапазон SRS: 1…3 слоя. Сейчас расчётный payload MVP использует основной слой изоляции.',
@@ -505,13 +508,14 @@ export default function ObjectWizard({
           <ThermalStep />
           <Form.Item
             label={hintLabel(
-              'Коэф. теплопр. 1-го слоя',
-              'λ первого слоя, Вт/(м·К). Для материала «Другое» по SRS нужно ручное значение 0,005…5,0.',
+              'λ 1-го слоя',
+              'Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Для материала «Другое» по SRS нужно ручное значение 0,005…5,0.',
             )}
           >
             <InputNumber disabled value={0.045} step={0.001} addonAfter="Вт/мК" />
           </Form.Item>
           <Form.Item
+            className="fixed-select-form-item"
             label={hintLabel(
               'Материал 2-го слоя',
               'Используется при 2 или 3 слоях изоляции. Сейчас поле справочное и не входит в расчётный payload.',
@@ -528,6 +532,7 @@ export default function ObjectWizard({
             <InputNumber value={0} addonAfter="мм" />
           </Form.Item>
           <Form.Item
+            className="fixed-select-form-item"
             label={hintLabel(
               'Материал покрытия',
               'Защитное покрытие теплоизоляции из справочника. Сейчас поле справочное.',
@@ -572,6 +577,7 @@ export default function ObjectWizard({
             <InputNumber value={90} step={0.1} addonAfter="°C" />
           </Form.Item>
           <Form.Item
+            className="fixed-select-form-item"
             label={hintLabel(
               'Среда',
               'Условия эксплуатации: нормальная или агрессивная среда. Сейчас поле справочное.',
@@ -580,6 +586,7 @@ export default function ObjectWizard({
             <Select value="normal" options={[{ value: 'normal', label: 'Нормальная' }, { value: 'aggressive', label: 'Агрессивная' }]} />
           </Form.Item>
           <Form.Item
+            className="fixed-select-form-item"
             label={hintLabel(
               'Классификация зоны',
               'Безопасная или взрывоопасная зона. Сейчас поле справочное.',
@@ -588,6 +595,7 @@ export default function ObjectWizard({
             <Select value="safe" options={[{ value: 'safe', label: 'Безопасная' }, { value: 'explosive', label: 'Взрывоопасная' }]} />
           </Form.Item>
           <Form.Item
+            className="fixed-select-form-item"
             label={hintLabel(
               'Температурная группа',
               'Температурная группа T1…T6 для классификации зоны. Сейчас поле справочное.',
@@ -616,6 +624,7 @@ export default function ObjectWizard({
             <InputNumber value={-20} step={0.1} addonAfter="°C" />
           </Form.Item>
           <Form.Item
+            className="fixed-select-form-item"
             label={hintLabel(
               'Рабочее напряжение',
               'Допустимые значения по SRS: 220 В или 380 В. Сейчас поле справочное для формы SC-03.',
@@ -625,8 +634,8 @@ export default function ObjectWizard({
           </Form.Item>
           <Form.Item
             label={hintLabel(
-              'Коэффициент запаса',
-              'Целевой диапазон SRS: 1,00…2,00. Сейчас поле справочное; сохранение в payload вынесено в отдельную задачу.',
+              'Kзап',
+              'Коэффициент запаса Kзап. Целевой диапазон SRS: 1,00…2,00. Сейчас поле справочное; сохранение в payload вынесено в отдельную задачу.',
             )}
           >
             <InputNumber value={1.2} step={0.01} />

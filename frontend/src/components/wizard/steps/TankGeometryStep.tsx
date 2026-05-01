@@ -18,9 +18,7 @@ function HelpIcon({ text }: { text: string }) {
 function label(text: string, hint: string) {
   return (
     <>
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-        {text}
-      </span>
+      <span>{text}</span>
       <HelpIcon text={hint} />
     </>
   );
@@ -29,7 +27,7 @@ function label(text: string, hint: string) {
 export default function TankGeometryStep() {
   return (
     <>
-      <Form.Item className="wide-select-form-item" label="Форма резервуара" name="shape" initialValue="cylindrical">
+      <Form.Item className="fixed-select-form-item" label="Форма резервуара" name="shape" initialValue="cylindrical">
         <Select options={SHAPE_OPTIONS} />
       </Form.Item>
 
@@ -49,8 +47,8 @@ export default function TankGeometryStep() {
               {needDiameter && (
                 <Form.Item
                   label={label(
-                    'Диаметр',
-                    'Внешний диаметр резервуара. Обязателен для цилиндрической и сферической форм. Диапазон: 100–50 000 мм.'
+                    'Ø',
+                    'Внешний диаметр резервуара Ø, мм. Обязателен для цилиндрической и сферической форм. Диапазон: 100–50 000 мм.'
                   )}
                   name="diameter_mm"
                   rules={[

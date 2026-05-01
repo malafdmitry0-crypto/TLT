@@ -15,9 +15,7 @@ function HelpIcon({ text }: { text: string }) {
 function label(text: string, hint: string) {
   return (
     <>
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-        {text}
-      </span>
+      <span>{text}</span>
       <HelpIcon text={hint} />
     </>
   );
@@ -32,9 +30,10 @@ export default function PipeGeometryStep() {
           const dn = mm ? findDN(mm) : null;
           return (
             <Form.Item
+              className="fit-label-form-item"
               label={label(
-                'Наружный диаметр трубы',
-                'Наружный диаметр трубопровода. Диапазон: 10,8–3000 мм. Стандартные размеры DN10–DN1000.'
+                'Ø',
+                'Наружный диаметр трубопровода Ø, мм. Диапазон: 10,8–3000 мм. Стандартные размеры DN10–DN1000.'
               )}
               name="outer_diameter_mm"
               rules={[
@@ -58,7 +57,7 @@ export default function PipeGeometryStep() {
                 min={10.8}
                 max={3000}
                 step={1}
-                               addonAfter="мм"
+                addonAfter="мм"
               />
             </Form.Item>
           );
@@ -66,6 +65,7 @@ export default function PipeGeometryStep() {
       </Form.Item>
 
       <Form.Item
+        className="fit-label-form-item"
         label={label(
           'Длина трубопровода',
           'Длина обогреваемого участка. Диапазон: 0,5–200 000 м.'

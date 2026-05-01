@@ -77,7 +77,7 @@ services:
     ports:
       - "${FRONTEND_PORT:-3003}:80"
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --spider http://localhost/ || exit 1"]
+      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
