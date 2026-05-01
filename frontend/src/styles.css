@@ -405,7 +405,7 @@ html, body, #root {
 }
 
 .form-col-resize-handle {
-  width: 2px;
+  width: 1px;
   flex-shrink: 0;
   background: #e7edf2;
   cursor: default;
@@ -737,8 +737,22 @@ html, body, #root {
   min-width: 0;
 }
 
+.inline-object-form .compact-select-form-item {
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+}
+
+.inline-object-form .layer-count-form-item {
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+}
+
 .inline-object-form .fit-label-form-item .ant-form-item-row,
-.inline-object-form .numeric-form-item .ant-form-item-row {
+.inline-object-form .numeric-form-item .ant-form-item-row,
+.inline-object-form .compact-select-form-item .ant-form-item-row,
+.inline-object-form .layer-count-form-item .ant-form-item-row {
   grid-template-columns: var(--field-label-width, 76px) max-content 12px;
 }
 
@@ -747,7 +761,13 @@ html, body, #root {
 .inline-object-form .fit-label-form-item .ant-form-item-control-input-content,
 .inline-object-form .numeric-form-item .ant-form-item-control,
 .inline-object-form .numeric-form-item .ant-form-item-control-input,
-.inline-object-form .numeric-form-item .ant-form-item-control-input-content {
+.inline-object-form .numeric-form-item .ant-form-item-control-input-content,
+.inline-object-form .compact-select-form-item .ant-form-item-control,
+.inline-object-form .compact-select-form-item .ant-form-item-control-input,
+.inline-object-form .compact-select-form-item .ant-form-item-control-input-content,
+.inline-object-form .layer-count-form-item .ant-form-item-control,
+.inline-object-form .layer-count-form-item .ant-form-item-control-input,
+.inline-object-form .layer-count-form-item .ant-form-item-control-input-content {
   width: max-content;
   min-width: 0;
 }
@@ -755,9 +775,21 @@ html, body, #root {
 .inline-object-form .fit-label-form-item .ant-input,
 .inline-object-form .fit-label-form-item .ant-select,
 .inline-object-form .numeric-form-item .ant-input,
-.inline-object-form .numeric-form-item .ant-select {
+.inline-object-form .numeric-form-item .ant-select,
+.inline-object-form .compact-select-form-item .ant-select,
+.inline-object-form .layer-count-form-item .ant-select {
   width: max-content;
   min-width: var(--field-input-min-width, 92px);
+}
+
+.inline-object-form .compact-select-form-item .ant-select {
+  width: 72px;
+  min-width: 72px;
+}
+
+.inline-object-form .layer-count-form-item .ant-select {
+  width: 82px;
+  min-width: 82px;
 }
 
 .inline-object-form .fit-label-form-item .ant-input-number,
@@ -782,6 +814,28 @@ html, body, #root {
 .inline-object-form .fixed-select-form-item .ant-select {
   width: 100%;
   min-width: var(--field-input-min-width, 160px);
+}
+
+.inline-object-form .temperature-group-form-item {
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+}
+
+.inline-object-form .temperature-group-form-item .ant-form-item-row {
+  grid-template-columns: var(--field-label-width, 76px) max-content 12px;
+}
+
+.inline-object-form .temperature-group-form-item .ant-form-item-control,
+.inline-object-form .temperature-group-form-item .ant-form-item-control-input,
+.inline-object-form .temperature-group-form-item .ant-form-item-control-input-content {
+  width: max-content;
+  min-width: 0;
+}
+
+.inline-object-form .temperature-group-form-item .ant-select {
+  width: 60px;
+  min-width: 60px;
 }
 
 

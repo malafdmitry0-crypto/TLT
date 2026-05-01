@@ -33,11 +33,11 @@ export default function PipeGeometryStep() {
               ]}
               extra={
                 dn != null ? (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: 9, whiteSpace: 'nowrap' }}>
                     Соответствует DN{dn}
                   </Text>
                 ) : mm ? (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: 9, whiteSpace: 'nowrap' }}>
                     Нестандартный размер
                   </Text>
                 ) : null

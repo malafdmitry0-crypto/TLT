@@ -30,7 +30,8 @@ interface Props {
 const SECTION_WIDTHS_STORAGE_KEY = 'object-wizard-section-widths-v18';
 const SECTION_AUTO_ALIGN_STORAGE_KEY = 'object-wizard-section-auto-align';
 const SECTION_MIN_COLUMN_WIDTH = 296;
-const SECTION_RESIZE_HANDLE_WIDTH = 2;
+const SECTION_RESIZE_HANDLE_WIDTH = 1;
+const SECTION_WIDTH_WEIGHTS = [1, 1.1, 1, 0.9];
 
 function sectionWidthsStorageKey(objectType: ObjectType) {
   return `${SECTION_WIDTHS_STORAGE_KEY}-${objectType}`;
@@ -194,6 +195,9 @@ export default function ObjectWizard({
   const prevSuggestedRef = useRef<string>('');
   const [collapsedSections, setCollapsedSections] = useState([false, false, false, false]);
   const [autoAlign, setAutoAlign] = useState(() => readAutoAlign(objectType));
+  const insulationLayerCount = String(
+    (values as Record<string, unknown> | undefined)?.insulation_layer_count ?? '1',
+  );
 
   const initialValues =
     initialParams != null
@@ -364,11 +368,15 @@ export default function ObjectWizard({
     }
 
     const collapsedCount = collapsedSections.filter(Boolean).length;
-    const expandedCount = Math.max(1, collapsedSections.length - collapsedCount);
+    const expandedWeight = SECTION_WIDTH_WEIGHTS.reduce(
+      (total, weight, i) => (collapsedSections[i] ? total : total + weight),
+      0,
+    );
     const availableWidth = `100% - ${collapsedCount * collapsedColumnWidth}px - ${SECTION_RESIZE_HANDLE_WIDTH * 3}px`;
+    const share = expandedWeight > 0 ? SECTION_WIDTH_WEIGHTS[idx] / expandedWeight : 1;
 
     return {
-      width: `calc((${availableWidth}) / ${expandedCount})`,
+      width: `calc((${availableWidth}) * ${share})`,
     } as React.CSSProperties;
   }
 
@@ -441,21 +449,21 @@ export default function ObjectWizard({
                 )}
               </Form.Item>
               <Form.Item
-                className="pipe-material-form-item helped-form-item"
-                label={fieldLabel('Материал трубы')}
-              >
-                {withHelp(
-                  <Select value="carbon_steel" options={[{ value: 'carbon_steel', label: 'Сталь углеродистая' }]} />,
-                  'Материал стенки трубопровода. Сейчас поле справочное; теплопотери MVP считаются по сохранённым обязательным параметрам.',
-                )}
-              </Form.Item>
-              <Form.Item
                 className="fit-label-form-item helped-form-item"
                 label={fieldLabel('λ трубы')}
               >
                 {withHelp(
                   <InputNumber value={56} step={0.1} addonAfter="Вт/мК" />,
                   'Коэффициент теплопроводности материала трубы λ, Вт/(м·К). Показывает, насколько интенсивно материал стенки проводит тепло. Сейчас поле справочное и не отправляется в расчётный payload.',
+                )}
+              </Form.Item>
+              <Form.Item
+                className="pipe-material-form-item helped-form-item"
+                label={fieldLabel('Материал трубы')}
+              >
+                {withHelp(
+                  <Select value="carbon_steel" options={[{ value: 'carbon_steel', label: 'Сталь углеродистая' }]} />,
+                  'Материал стенки трубопровода. Сейчас поле справочное; теплопотери MVP считаются по сохранённым обязательным параметрам.',
                 )}
               </Form.Item>
             </>
@@ -490,34 +498,7 @@ export default function ObjectWizard({
           onClick={collapsedClickHandler(1)}
         >
           {renderSectionTitle('Теплоизоляция', 1)}
-          <Form.Item
-            className="fixed-select-form-item helped-form-item"
-            label={fieldLabel('Кол-во слоёв ИЗ')}
-          >
-            {withHelp(
-              <Select value="1" options={[{ value: '1', label: '1 слой' }, { value: '2', label: '2 слоя' }]} />,
-              'Целевой диапазон SRS: 1…3 слоя. Сейчас расчётный payload MVP использует основной слой изоляции.',
-            )}
-          </Form.Item>
           <ThermalStep />
-          <Form.Item
-            className="fixed-select-form-item helped-form-item"
-            label={fieldLabel('Материал 2-го слоя')}
-          >
-            {withHelp(
-              <Select value="none" options={[{ value: 'none', label: 'Не указан' }, { value: 'polyurethane_foam', label: 'Пенополиуретан' }]} />,
-              'Используется при 2 или 3 слоях изоляции. Сейчас поле справочное и не входит в расчётный payload.',
-            )}
-          </Form.Item>
-          <Form.Item
-            className="numeric-form-item helped-form-item"
-            label={fieldLabel('Толщина 2-го слоя')}
-          >
-            {withHelp(
-              <InputNumber value={0} addonAfter="мм" />,
-              'Целевой диапазон SRS: 1…500 мм при выбранном 2-м слое. Сейчас поле справочное.',
-            )}
-          </Form.Item>
           <Form.Item
             className="fixed-select-form-item helped-form-item"
             label={fieldLabel('Материал покрытия')}
@@ -527,6 +508,41 @@ export default function ObjectWizard({
               'Защитное покрытие теплоизоляции из справочника. Сейчас поле справочное.',
             )}
           </Form.Item>
+          <Form.Item
+            className="layer-count-form-item helped-form-item"
+            label={fieldLabel('Кол-во слоёв ИЗ')}
+            name="insulation_layer_count"
+            initialValue="1"
+          >
+            {withHelp(
+              <Select options={[{ value: '1', label: '1 слой' }, { value: '2', label: '2 слоя' }]} />,
+              'Целевой диапазон SRS: 1…3 слоя. Сейчас расчётный payload MVP использует основной слой изоляции.',
+            )}
+          </Form.Item>
+          {insulationLayerCount !== '1' && (
+            <>
+              <Form.Item
+                className="fixed-select-form-item helped-form-item"
+                label={fieldLabel('Материал 2-го слоя')}
+                preserve={false}
+              >
+                {withHelp(
+                  <Select value="none" options={[{ value: 'none', label: 'Не указан' }, { value: 'polyurethane_foam', label: 'Пенополиуретан' }]} />,
+                  'Используется при 2 или 3 слоях изоляции. Сейчас поле справочное и не входит в расчётный payload.',
+                )}
+              </Form.Item>
+              <Form.Item
+                className="numeric-form-item helped-form-item"
+                label={fieldLabel('Толщина 2-го слоя')}
+                preserve={false}
+              >
+                {withHelp(
+                  <InputNumber value={0} addonAfter="мм" />,
+                  'Целевой диапазон SRS: 1…500 мм при выбранном 2-м слое. Сейчас поле справочное.',
+                )}
+              </Form.Item>
+            </>
+          )}
         </div>
 
         <div className="form-col-resize-handle" onMouseDown={(e) => onHandleMouseDown(e, 1)} />
@@ -585,7 +601,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="fixed-select-form-item helped-form-item"
+            className="temperature-group-form-item helped-form-item"
             label={fieldLabel('Температурная группа')}
           >
             {withHelp(
@@ -615,7 +631,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="fixed-select-form-item helped-form-item"
+            className="compact-select-form-item helped-form-item"
             label={fieldLabel('Рабочее напряжение')}
           >
             {withHelp(
@@ -633,7 +649,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="fixed-select-form-item helped-form-item"
+            className="compact-select-form-item helped-form-item"
             label={fieldLabel('Пропарка')}
           >
             {withHelp(
