@@ -4,11 +4,11 @@
 инженер построит обогрев на бредовых данных → авария.
 
 Покрываем границы SRS:
-  d_tp:  0.010 - 3.0 м
-  T_zh:  -60 - +350 °C
-  T_os:  -60 - +50 °C
+  d_tp:  0.0108 - 3.0 м
+  T_zh:  -90 - +600 °C
+  T_os:  -70 - +70 °C
   delta_iz: 0.001 - 0.5 м
-  L:     0.5 - 10000 м
+  L:     0.5 - 200000 м
 """
 
 import math
@@ -74,8 +74,8 @@ class TestPipeBoundaries:
         assert r.total_heat_loss == pytest.approx(r.heat_loss_per_meter * 0.5 * 1.1, rel=0.01)
 
     def test_max_pipe_length_no_overflow(self):
-        """10 км — верхняя граница SRS. Не должно быть overflow."""
-        r = calc_pipe_heat_loss(_pipe(pipe_length=10_000.0))
+        """200 км — верхняя граница ТНП. Не должно быть overflow."""
+        r = calc_pipe_heat_loss(_pipe(pipe_length=200_000.0))
         assert math.isfinite(r.total_heat_loss)
         assert r.total_heat_loss > 0
 
@@ -105,10 +105,10 @@ class TestPipeTemperatureExtremes:
         assert r.heat_loss_per_meter > 50  # Большая дельта → большие потери
 
     def test_arctic_extreme_ambient(self):
-        """Граница SRS: -60°C среда, 80°C продукт."""
+        """Граница ТНП: -70°C среда, 80°C продукт."""
         r = calc_pipe_heat_loss(
             _pipe(
-                ambient_temperature=-60,
+                ambient_temperature=-70,
                 process_temperature=80,
             )
         )
@@ -180,7 +180,7 @@ class TestTankShapeBoundaries:
             _tank(
                 shape="rectangular",
                 length=10.0,
-                width=8.0,
+                width=3.0,
                 height=5.0,
                 diameter=None,
             )

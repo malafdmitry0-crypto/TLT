@@ -134,10 +134,10 @@
 
 | Параметр | Граничное значение | Ожидаемый результат |
 |----------|--------------------|---------------------|
-| `outer_diameter` | `< 0.010` | HTTP 422 |
+| `outer_diameter` | `< 0.0108` | HTTP 422 |
 | `outer_diameter` | `> 3.0` | HTTP 422 |
-| `ambient_temperature` | `< -60°C` | HTTP 422 |
-| `process_temperature` | `> 350°C` | HTTP 422 |
+| `ambient_temperature` | `< -70°C` | HTTP 422 |
+| `process_temperature` | `> 600°C` | HTTP 422 |
 | `process_temperature ≤ ambient_temperature` | любые допустимые значения | ошибка расчёта |
 | `pipe_length` | `< 0.5м` | HTTP 422 |
 | `insulation_thickness` | `0` | HTTP 422 |

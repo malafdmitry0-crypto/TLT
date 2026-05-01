@@ -391,8 +391,8 @@ class TestBoundaryValues:
         assert r.total_heat_loss > 0
 
     def test_max_pipe_length_accepted(self):
-        """pipe_length = 10 000 м (максимум по SRS VAL-15)."""
-        r = calc_pipe_heat_loss(_p(pipe_length=10_000))
+        """pipe_length = 200 000 м (максимум по ТНП)."""
+        r = calc_pipe_heat_loss(_p(pipe_length=200_000))
         assert r.total_heat_loss > 0
 
     def test_zero_length_rejected(self):

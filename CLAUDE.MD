@@ -341,7 +341,7 @@ GUEST_MAX_SESSIONS_PER_IP=10
 | POST | `/api/v1/calc/electrical/batch` | Пакетный электрорасчёт всех объектов проекта |
 | GET | `/api/v1/reports/{id}/preview` | HTML-превью отчёта (все роли) |
 | GET | `/api/v1/reports/{id}/export/{pdf\|docx\|xlsx}` | Экспорт отчёта (сотрудник) |
-| GET | `/api/v1/references/climate` | Справочник климата (536 городов) |
+| GET | `/api/v1/references/climate` | Справочник климата (539 населённых пунктов) |
 | GET | `/api/v1/references/insulation` | Справочник материалов изоляции |
 | GET | `/api/v1/references/cables` | Справочник кабелей ТЛТ |
 | GET | `/health` | Healthcheck |
@@ -363,7 +363,7 @@ GUEST_MAX_SESSIONS_PER_IP=10
 |---|---|
 | insulation.json | 6 материалов изоляции с λ и диапазоном температур |
 | cables_tlt.json | 10 марок кабелей ТЛТ: мощность, T_max, T_min, напряжение |
-| climate.json | **536 городов РФ** (t_0.98 / t_0.92 / t_abs_min / wind) по данным СП |
+| climate.json | **539 населённых пунктов РФ** (t_0.98 / t_0.92 / t_abs_min / wind) по данным ТНП |
 | accessories.json | Базовый набор аксессуаров для спецификации |
 
 Полные формулы с примерами и пояснением символов: `formules.md`  
@@ -405,7 +405,7 @@ docker-compose up --build -d
 
 Текущее состояние:
 <!-- AUTO:test-counts -->
-**672 backend** (498 unit + 174 integration) ✅ · **132 frontend vitest** ✅ · **47 e2e Playwright** ✅
+**674 backend** (500 unit + 174 integration) ✅ · **132 frontend vitest** ✅ · **47 e2e Playwright** ✅
 <!-- /AUTO -->
 
 Цифры обновляются командой `scripts/sync-docs.py`.

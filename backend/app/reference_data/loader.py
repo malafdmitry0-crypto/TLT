@@ -7,7 +7,7 @@
 import json
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 _BASE_DIR = Path(__file__).parent
 
@@ -15,37 +15,37 @@ _BASE_DIR = Path(__file__).parent
 def _load_json(name: str) -> dict[str, Any]:
     path = _BASE_DIR / name
     with path.open(encoding="utf-8") as f:
-        return json.load(f)
+        return cast(dict[str, Any], json.load(f))
 
 
 @lru_cache
 def _climate() -> list[dict[str, Any]]:
-    return _load_json("climate.json")["cities"]
+    return cast(list[dict[str, Any]], _load_json("climate.json")["cities"])
 
 
 @lru_cache
 def _insulation() -> list[dict[str, Any]]:
-    return _load_json("insulation.json")["materials"]
+    return cast(list[dict[str, Any]], _load_json("insulation.json")["materials"])
 
 
 @lru_cache
 def _cables_tlt() -> list[dict[str, Any]]:
-    return _load_json("cables_tlt.json")["cables"]
+    return cast(list[dict[str, Any]], _load_json("cables_tlt.json")["cables"])
 
 
 @lru_cache
 def _accessories() -> list[dict[str, Any]]:
-    return _load_json("accessories.json")["accessories"]
+    return cast(list[dict[str, Any]], _load_json("accessories.json")["accessories"])
 
 
 @lru_cache
 def _pipe_materials() -> list[dict[str, Any]]:
-    return _load_json("pipe_materials.json")["materials"]
+    return cast(list[dict[str, Any]], _load_json("pipe_materials.json")["materials"])
 
 
 @lru_cache
 def _soil_conductivity() -> list[dict[str, Any]]:
-    return _load_json("soil_conductivity.json")["entries"]
+    return cast(list[dict[str, Any]], _load_json("soil_conductivity.json")["entries"])
 
 
 @lru_cache

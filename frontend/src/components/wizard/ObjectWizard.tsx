@@ -194,13 +194,13 @@ export default function ObjectWizard({
                 initialValue={4}
                 rules={[
                   { required: true, message: 'Укажите толщину стенки' },
-                  { type: 'number', min: 1, message: 'Минимальная толщина — 1 мм' },
-                  { type: 'number', max: 100, message: 'Максимальная толщина — 100 мм' },
+                  { type: 'number', min: 0.1, message: 'Минимальная толщина — 0,1 мм' },
+                  { type: 'number', max: 40, message: 'Максимальная толщина — 40 мм' },
                 ]}
               >
                 {withHelp(
-                  <InputNumber min={1} max={100} step={0.1} addonAfter="мм" />,
-                  'Толщина стенки трубы. Диапазон: 1…100 мм. Используется в расчёте сопротивления стенки.',
+                  <InputNumber min={0.1} max={40} step={0.1} addonAfter="мм" />,
+                  'Толщина стенки трубы. Диапазон ТНП: 0,1…40 мм. Используется в расчёте сопротивления стенки.',
                 )}
               </Form.Item>
               <Form.Item
@@ -256,13 +256,13 @@ export default function ObjectWizard({
             preserve={false}
             rules={[
               { required: placement === 'underground', message: 'Укажите глубину прокладки' },
-              { type: 'number', min: 0.1, message: 'Минимальная глубина — 0,1 м' },
-              { type: 'number', max: 5, message: 'Максимальная глубина — 5 м' },
+              { type: 'number', min: 0, message: 'Минимальная глубина — 0 м' },
+              { type: 'number', max: 200, message: 'Максимальная глубина — 200 м' },
             ]}
           >
             {withHelp(
-              <InputNumber disabled={placement !== 'underground'} min={0.1} max={5} step={0.1} placeholder="—" addonAfter="м" />,
-              'Используется только для подземной прокладки. Диапазон: 0,1…5,0 м.',
+              <InputNumber disabled={placement !== 'underground'} min={0} max={200} step={0.1} placeholder="—" addonAfter="м" />,
+              'Используется только для подземной прокладки. Диапазон ТНП: 0…200 м.',
             )}
           </Form.Item>
           <Form.Item
@@ -362,13 +362,13 @@ export default function ObjectWizard({
                 preserve={false}
                 rules={[
                   { required: true, message: 'Укажите толщину 2-го слоя' },
-                  { type: 'number', min: 1, message: 'Минимальная толщина — 1 мм' },
+                  { type: 'number', min: 0.01, message: 'Минимальная толщина — 0,01 мм' },
                   { type: 'number', max: 500, message: 'Максимальная толщина — 500 мм' },
                 ]}
               >
                 {withHelp(
-                  <InputNumber min={1} max={500} addonAfter="мм" />,
-                  'Толщина второго слоя изоляции. Диапазон: 1…500 мм.',
+                  <InputNumber min={0.01} max={500} addonAfter="мм" />,
+                  'Толщина второго слоя изоляции. Диапазон ТНП: 0,01…500 мм.',
                 )}
               </Form.Item>
               {secondInsulationMaterial === 'other' && (
@@ -379,13 +379,13 @@ export default function ObjectWizard({
                   preserve={false}
                   rules={[
                     { required: true, message: 'Укажите λ 2-го слоя' },
-                    { type: 'number', min: 0.005, message: 'Минимальная λ — 0,005 Вт/мК' },
-                    { type: 'number', max: 5, message: 'Максимальная λ — 5,0 Вт/мК' },
+                    { type: 'number', min: 0.001, message: 'Минимальная λ — 0,001 Вт/мК' },
+                    { type: 'number', max: 400, message: 'Максимальная λ — 400 Вт/мК' },
                   ]}
                 >
                   {withHelp(
-                    <InputNumber min={0.005} max={5} step={0.001} addonAfter="Вт/мК" />,
-                    'Ручная теплопроводность второго слоя для материала «Другое». Диапазон: 0,005…5,0 Вт/(м·К).',
+                    <InputNumber min={0.001} max={400} step={0.001} addonAfter="Вт/мК" />,
+                    'Ручная теплопроводность второго слоя для материала «Другое». Диапазон ТНП: 0,001…400 Вт/(м·К).',
                   )}
                 </Form.Item>
               )}
@@ -417,13 +417,13 @@ export default function ObjectWizard({
                 preserve={false}
                 rules={[
                   { required: true, message: 'Укажите толщину 3-го слоя' },
-                  { type: 'number', min: 1, message: 'Минимальная толщина — 1 мм' },
+                  { type: 'number', min: 0.01, message: 'Минимальная толщина — 0,01 мм' },
                   { type: 'number', max: 500, message: 'Максимальная толщина — 500 мм' },
                 ]}
               >
                 {withHelp(
-                  <InputNumber min={1} max={500} addonAfter="мм" />,
-                  'Толщина третьего слоя изоляции. Диапазон: 1…500 мм.',
+                  <InputNumber min={0.01} max={500} addonAfter="мм" />,
+                  'Толщина третьего слоя изоляции. Диапазон ТНП: 0,01…500 мм.',
                 )}
               </Form.Item>
               {thirdInsulationMaterial === 'other' && (
@@ -434,13 +434,13 @@ export default function ObjectWizard({
                   preserve={false}
                   rules={[
                     { required: true, message: 'Укажите λ 3-го слоя' },
-                    { type: 'number', min: 0.005, message: 'Минимальная λ — 0,005 Вт/мК' },
-                    { type: 'number', max: 5, message: 'Максимальная λ — 5,0 Вт/мК' },
+                    { type: 'number', min: 0.001, message: 'Минимальная λ — 0,001 Вт/мК' },
+                    { type: 'number', max: 400, message: 'Максимальная λ — 400 Вт/мК' },
                   ]}
                 >
                   {withHelp(
-                    <InputNumber min={0.005} max={5} step={0.001} addonAfter="Вт/мК" />,
-                    'Ручная теплопроводность третьего слоя для материала «Другое». Диапазон: 0,005…5,0 Вт/(м·К).',
+                    <InputNumber min={0.001} max={400} step={0.001} addonAfter="Вт/мК" />,
+                    'Ручная теплопроводность третьего слоя для материала «Другое». Диапазон ТНП: 0,001…400 Вт/(м·К).',
                   )}
                 </Form.Item>
               )}
@@ -463,8 +463,8 @@ export default function ObjectWizard({
             dependencies={['ambient_temperature']}
             rules={[
               { required: true, message: 'Укажите требуемую температуру объекта' },
-              { type: 'number', min: -60, message: 'Минимальная требуемая температура: −60°C' },
-              { type: 'number', max: 350, message: 'Максимальная требуемая температура: +350°C' },
+              { type: 'number', min: -90, message: 'Минимальная требуемая температура: −90°C' },
+              { type: 'number', max: 600, message: 'Максимальная требуемая температура: +600°C' },
               ({ getFieldValue }) => ({
                 validator(_, value) {
                   const ambient = getFieldValue('ambient_temperature');
@@ -480,8 +480,8 @@ export default function ObjectWizard({
             ]}
           >
             {withHelp(
-              <InputNumber min={-60} max={350} step={0.1} addonAfter="°C" />,
-              'Требуемая температура поддержания объекта, °C. Диапазон по SRS: −60…+350 °C. Используется в расчёте теплопотерь и проверке температурного диапазона кабеля.',
+              <InputNumber min={-90} max={600} step={0.1} addonAfter="°C" />,
+              'Требуемая температура поддержания объекта, °C. Диапазон ТНП: −90…+600 °C. Используется в расчёте теплопотерь и проверке температурного диапазона кабеля.',
             )}
           </Form.Item>
           <Form.Item
@@ -490,12 +490,12 @@ export default function ObjectWizard({
             name="max_ambient_temperature"
             initialValue={30}
             rules={[
-              { type: 'number', min: -60, message: 'Минимальная температура среды: −60°C' },
-              { type: 'number', max: 50, message: 'Максимальная температура среды: +50°C' },
+              { type: 'number', min: -70, message: 'Минимальная температура среды: −70°C' },
+              { type: 'number', max: 70, message: 'Максимальная температура среды: +70°C' },
             ]}
           >
             {withHelp(
-              <InputNumber min={-60} max={50} step={0.1} addonAfter="°C" />,
+              <InputNumber min={-70} max={70} step={0.1} addonAfter="°C" />,
               'Максимальная температура окружающей среды, °C. Сохраняется в параметрах объекта для проверки условий эксплуатации.',
             )}
           </Form.Item>
@@ -505,12 +505,12 @@ export default function ObjectWizard({
             name="max_process_temperature"
             initialValue={90}
             rules={[
-              { type: 'number', min: -60, message: 'Минимальная температура продукта: −60°C' },
-              { type: 'number', max: 350, message: 'Максимальная температура продукта: +350°C' },
+              { type: 'number', min: -90, message: 'Минимальная температура продукта: −90°C' },
+              { type: 'number', max: 600, message: 'Максимальная температура продукта: +600°C' },
             ]}
           >
             {withHelp(
-              <InputNumber min={-60} max={350} step={0.1} addonAfter="°C" />,
+              <InputNumber min={-90} max={600} step={0.1} addonAfter="°C" />,
               'Максимально допустимая температура продукта, °C. Сохраняется в параметрах объекта и используется как эксплуатационное ограничение.',
             )}
           </Form.Item>
@@ -589,13 +589,13 @@ export default function ObjectWizard({
             name="safety_factor"
             initialValue={1.2}
             rules={[
-              { type: 'number', min: 1, message: 'Минимальный коэффициент запаса — 1,00' },
-              { type: 'number', max: 2, message: 'Максимальный коэффициент запаса — 2,00' },
+              { type: 'number', min: 1.05, message: 'Минимальный коэффициент запаса — 1,05' },
+              { type: 'number', max: 1.7, message: 'Максимальный коэффициент запаса — 1,70' },
             ]}
           >
             {withHelp(
-              <InputNumber min={1} max={2} step={0.01} />,
-              'Коэффициент запаса Kзап. Диапазон: 1,00…2,00. Используется в суммарных теплопотерях и при подборе кабеля.',
+              <InputNumber min={1.05} max={1.7} step={0.01} />,
+              'Коэффициент запаса Kзап. Диапазон ТНП: 1,05…1,70. Используется в суммарных теплопотерях и при подборе кабеля.',
             )}
           </Form.Item>
           <Form.Item

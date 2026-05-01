@@ -156,7 +156,7 @@ class TestMutationCoverage:
         )
         # Низкий широкий (крышки доминируют)
         flat = calc_tank_heat_loss(
-            TANK.model_copy(update={"diameter": 5.0, "height": 0.5}),
+            TANK.model_copy(update={"diameter": 3.0, "height": 0.5}),
             coefficients={"safety_factor": 1.0},
         )
         # Оба должны иметь positive total

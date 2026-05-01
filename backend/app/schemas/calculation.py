@@ -11,12 +11,12 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class InsulationLayer(BaseModel):
     """Один слой тепловой изоляции (для многослойного расчёта)."""
 
-    thickness: float = Field(gt=0, le=0.5, description="Толщина слоя, м (0.001–0.5)")
+    thickness: float = Field(gt=0, le=0.5, description="Толщина слоя, м (до 500 мм)")
     material: str = Field(min_length=1, description="Код материала из справочника")
     conductivity: float | None = Field(
         default=None,
         gt=0,
-        le=5.0,
+        le=400.0,
         description="λ слоя, Вт/(м·К) — переопределяет справочник если задано",
     )
 
@@ -33,15 +33,15 @@ class PipeHeatLossParams(BaseModel):
 
     # --- Геометрия трубы ---
     outer_diameter: float = Field(
-        ge=0.010,
+        ge=0.0108,
         le=3.0,
         description="d_tp — наружный диаметр трубы, м",
     )
     wall_thickness: float | None = Field(
         default=None,
-        gt=0,
-        le=0.1,
-        description="delta_tp — толщина стенки трубы, м (1–100 мм)",
+        ge=0.0001,
+        le=0.04,
+        description="delta_tp — толщина стенки трубы, м (0.1–40 мм)",
     )
     pipe_material: str | None = Field(
         default=None,
@@ -74,26 +74,26 @@ class PipeHeatLossParams(BaseModel):
 
     # --- Температуры ---
     ambient_temperature: float = Field(
-        ge=-60.0,
-        le=50.0,
+        ge=-70.0,
+        le=70.0,
         description="T_os — температура окружающей среды, °C",
     )
     process_temperature: float = Field(
-        ge=-60.0,
-        le=350.0,
+        ge=-90.0,
+        le=600.0,
         description="T_zh — температура жидкости, °C",
     )
 
     # --- Длина и конфигурация ---
     pipe_length: float = Field(
         ge=0.5,
-        le=10_000.0,
+        le=200_000.0,
         description="L — длина трубопровода / секции, м",
     )
     burial_depth: float | None = Field(
         default=None,
-        ge=0.1,
-        le=5.0,
+        ge=0.0,
+        le=200.0,
         description="H — глубина заложения трубы, м",
     )
     num_local_elements: int | None = Field(
@@ -104,18 +104,18 @@ class PipeHeatLossParams(BaseModel):
     )
     local_element_equiv_length: float | None = Field(
         default=None,
-        ge=0.0,
-        le=50.0,
+        ge=0.1,
+        le=6.9,
         description="L_ekv — эквивалентная длина одного локального элемента, м",
     )
 
     # --- Внешние условия ---
     wind_speed: float | None = Field(
-        default=None, ge=0.0, le=50.0, description="v — скорость ветра, м/с"
+        default=None, ge=0.0, le=20.0, description="v — скорость ветра, м/с"
     )
     alpha_vnesh: float | None = Field(
         default=None,
-        ge=9.0,
+        ge=7.0,
         le=52.0,
         description="alpha — коэф. наружной теплоотдачи, Вт/(м²·К) — рассчитывается из v если не задан",
     )
@@ -127,8 +127,8 @@ class PipeHeatLossParams(BaseModel):
     )
     safety_factor: float | None = Field(
         default=None,
-        ge=1.0,
-        le=2.0,
+        ge=1.05,
+        le=1.7,
         description="K — коэффициент запаса",
     )
     location: Literal["indoor", "outdoor"] = "outdoor"
@@ -176,13 +176,13 @@ class TankHeatLossParams(BaseModel):
     shape: Literal["cylindrical", "rectangular", "spherical"] = "cylindrical"
     diameter: float | None = Field(
         default=None,
-        ge=0.1,
-        le=50.0,
-        description="d_р — наружный диаметр резервуара, м (100–50 000 мм)",
+        ge=0.0108,
+        le=3.0,
+        description="d_р — наружный диаметр резервуара, м",
     )
-    height: float | None = Field(default=None, ge=0.1, le=50.0)
-    length: float | None = Field(default=None, ge=0.1, le=50.0)
-    width: float | None = Field(default=None, ge=0.1, le=50.0)
+    height: float | None = Field(default=None, ge=0.5, le=200_000.0)
+    length: float | None = Field(default=None, gt=0)
+    width: float | None = Field(default=None, gt=0)
     volume: float | None = Field(default=None, gt=0)
     insulation_thickness: float = Field(gt=0)
     insulation_material: str = Field(min_length=1)
@@ -203,7 +203,20 @@ class TankHeatLossParams(BaseModel):
     wall_lambda: float | None = Field(
         default=None,
         gt=0,
+        le=400,
         description="λ_р — теплопроводность стенки резервуара, Вт/(м·К)",
+    )
+    burial_depth: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=200.0,
+        description="h — высота подземной части резервуара, м",
+    )
+    ground_conductivity: float | None = Field(
+        default=None,
+        ge=0.8,
+        le=3.0,
+        description="lambda_gr — теплопроводность грунта, Вт/(м·К)",
     )
     # --- Внешние условия ---
     wind_speed: float | None = Field(
@@ -214,17 +227,17 @@ class TankHeatLossParams(BaseModel):
     )
     safety_factor: float | None = Field(
         default=None,
-        ge=1.0,
-        le=2.0,
+        ge=1.05,
+        le=1.7,
         description="K — коэффициент запаса",
     )
 
     @model_validator(mode="after")
     def check_ranges_and_layers(self) -> "TankHeatLossParams":
-        if not (-60.0 <= self.ambient_temperature <= 50.0):
-            raise ValueError("Температура окружающей среды должна быть в диапазоне −60…+50 °C")
-        if not (-60.0 <= self.process_temperature <= 350.0):
-            raise ValueError("Температура продукта должна быть в диапазоне −60…+350 °C")
+        if not (-70.0 <= self.ambient_temperature <= 70.0):
+            raise ValueError("Температура окружающей среды должна быть в диапазоне −70…+70 °C")
+        if not (-90.0 <= self.process_temperature <= 600.0):
+            raise ValueError("Температура продукта должна быть в диапазоне −90…+600 °C")
         if self.process_temperature <= self.ambient_temperature:
             raise ValueError("Температура продукта должна быть выше температуры окружающей среды")
         if self.insulation_layers and len(self.insulation_layers) > 3:

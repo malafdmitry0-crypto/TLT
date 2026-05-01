@@ -368,19 +368,19 @@ class TestSchemaValidation:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            _params(outer_diameter=0.005)  # меньше 0.010
+            _params(outer_diameter=0.005)  # меньше 0.0108
 
     def test_ambient_temperature_too_cold_rejected(self):
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            _params(ambient_temperature=-80.0)  # меньше -60°C
+            _params(ambient_temperature=-80.0)  # меньше -70°C
 
     def test_process_temperature_too_hot_rejected(self):
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            _params(process_temperature=700.0)  # больше 350°C
+            _params(process_temperature=700.0)  # больше 600°C
 
     def test_pipe_length_too_short_rejected(self):
         from pydantic import ValidationError

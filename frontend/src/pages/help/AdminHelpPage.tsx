@@ -102,7 +102,7 @@ export default function AdminHelpPage() {
                   <div>
                     <Paragraph style={{ margin: 0 }}>В MVP встроены 4 справочника (JSON в образе backend):</Paragraph>
                     <ul style={{ margin: '8px 0 0 0' }}>
-                      <li><Text strong>climate.json</Text> — 536 городов РФ с температурами t_0.98 / t_0.92 / t_abs_min и скоростями ветра</li>
+                      <li><Text strong>climate.json</Text> — 539 населённых пунктов РФ с температурами t_0.98 / t_0.92 / t_abs_min и скоростями ветра</li>
                       <li><Text strong>insulation.json</Text> — 6 материалов изоляции (мин. вата, пеностекло, ППУ, пенополистирол, аэрогель, силикат кальция) с λ и диапазоном температур</li>
                       <li><Text strong>cables_tlt.json</Text> — 10 марок ТЛТ (10…100 Вт/м) с T_max, T_min, напряжением</li>
                       <li><Text strong>accessories.json</Text> — базовый набор аксессуаров для спецификации</li>

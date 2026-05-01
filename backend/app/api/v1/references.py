@@ -33,7 +33,7 @@ _EXTENDED_TTL = 5 * 60
 router = APIRouter()
 
 
-@router.get("/climate", summary="Справочник климата (536 городов РФ)")
+@router.get("/climate", summary="Справочник климата")
 @cache.cached("references:climate", ttl=_BUILTIN_TTL)
 async def climate(_: CurrentPrincipal = Depends(require_any())):
     return list_climate_cities()

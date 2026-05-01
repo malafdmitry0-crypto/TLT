@@ -42,9 +42,9 @@ class TestObjectsLifecycle:
     @pytest.mark.parametrize(
         ("shape", "geometry"),
         [
-            ("cylindrical", {"diameter": 5.0, "height": 12.0}),
+            ("cylindrical", {"diameter": 3.0, "height": 12.0}),
             ("rectangular", {"length": 5.0, "width": 3.0, "height": 4.0}),
-            ("spherical", {"diameter": 5.0}),
+            ("spherical", {"diameter": 3.0}),
         ],
     )
     async def test_add_tank_shapes_trigger_calculation(
@@ -78,7 +78,7 @@ class TestObjectsLifecycle:
         assert body["results"]["heat_loss_per_m2"] > 0
         assert body["results"]["surface_area"] > 0
 
-    async def test_add_large_tank_with_srs_dimensions_is_valid(
+    async def test_add_large_tank_with_tnp_dimensions_is_valid(
         self, client: AsyncClient, guest_session: str
     ):
         pid = await _project(client, guest_session)
@@ -88,8 +88,8 @@ class TestObjectsLifecycle:
                 "object_type": "tank",
                 "params": {
                     "shape": "cylindrical",
-                    "diameter": 50.0,
-                    "height": 50.0,
+                    "diameter": 3.0,
+                    "height": 200_000.0,
                     "insulation_thickness": 0.1,
                     "insulation_material": "mineral_wool",
                     "ambient_temperature": -20,

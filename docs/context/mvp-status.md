@@ -11,7 +11,7 @@
 | Управление проектом (создание/открытие/сохранение/дублирование) | ✅ | `projects/*` CRUD + `projects/{id}/duplicate` + `projectStore` persist |
 | Типы объектов: трубопроводы + ёмкости | ✅ | `PipeTable` / `TankTable`, `ObjectWizard` (3 шага) |
 | Формулы MVP из ТНП | ✅ | `heat_loss/pipe.py`, `heat_loss/tank.py` |
-| Интеграция климата + теплоизоляции | ✅ | `reference_data/climate.json` (536), `insulation.json` (6) |
+| Интеграция климата + теплоизоляции | ✅ | `reference_data/climate.json` (539), `insulation.json` |
 | Подсветка некорректных строк | ✅ | `row-invalid` + Alert-легенда |
 | Drag-and-drop сортировки | ✅ | `@dnd-kit` в Pipe/TankTable |
 | Импорт таблиц из Excel / CSV | ✅ | `/objects/import-excel` |

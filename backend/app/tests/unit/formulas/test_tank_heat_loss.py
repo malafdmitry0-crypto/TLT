@@ -115,6 +115,18 @@ class TestHeatLossFormula:
         r = calc_tank_heat_loss(params)
         assert r.heat_loss_per_m2 == pytest.approx(expected_q, rel=0.01)
 
+    def test_underground_cylindrical_split_uses_ground_resistance(self):
+        """Подземный резервуар считается раздельно по надземной и заглублённой площади."""
+        above = calc_tank_heat_loss(_cyl(burial_depth=0.0, ground_conductivity=1.5))
+        buried = calc_tank_heat_loss(_cyl(burial_depth=1.5, ground_conductivity=1.5))
+        assert buried.total_heat_loss > 0
+        assert buried.surface_area == pytest.approx(above.surface_area, rel=1e-6)
+        assert buried.total_heat_loss != pytest.approx(above.total_heat_loss, rel=1e-6)
+
+    def test_underground_depth_cannot_exceed_height(self):
+        with pytest.raises(ValueError, match="подземной части"):
+            calc_tank_heat_loss(_cyl(burial_depth=4.0, ground_conductivity=1.5))
+
     def test_wall_resistance_reduces_heat_loss(self):
         """С учётом стенки потери должны быть меньше — добавляется сопротивление."""
         without_wall = calc_tank_heat_loss(_cyl())

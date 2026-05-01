@@ -47,31 +47,31 @@ class TestPipeHeatLossParams:
 
     def test_srs_pipe_limits(self):
         p = PipeHeatLossParams(
-            outer_diameter=0.01,
-            wall_thickness=0.1,
+            outer_diameter=0.0108,
+            wall_thickness=0.04,
             pipe_material="carbon_steel",
             insulation_thickness=0.001,
             insulation_material="mineral_wool",
-            ambient_temperature=-60,
-            process_temperature=350,
-            pipe_length=10_000,
-            burial_depth=5,
-            wind_speed=50,
-            local_element_equiv_length=50,
-            safety_factor=1.0,
+            ambient_temperature=-70,
+            process_temperature=600,
+            pipe_length=200_000,
+            burial_depth=200,
+            wind_speed=20,
+            local_element_equiv_length=6.9,
+            safety_factor=1.05,
         )
-        assert p.outer_diameter == 0.01
-        assert p.wall_thickness == 0.1
+        assert p.outer_diameter == 0.0108
+        assert p.wall_thickness == 0.04
 
     @pytest.mark.parametrize(
         "field,value",
         [
-            ("ambient_temperature", -61),
-            ("ambient_temperature", 51),
-            ("process_temperature", -61),
-            ("process_temperature", 351),
-            ("pipe_length", 10_000.1),
-            ("wall_thickness", 0.1001),
+            ("ambient_temperature", -71),
+            ("ambient_temperature", 71),
+            ("process_temperature", -91),
+            ("process_temperature", 601),
+            ("pipe_length", 200_000.1),
+            ("wall_thickness", 0.0401),
         ],
     )
     def test_srs_pipe_limits_rejected(self, field: str, value: float):
@@ -115,9 +115,9 @@ class TestPipeHeatLossParams:
         assert p.pipe_lambda == 56.0
 
     def test_insulation_other_lambda_limits(self):
-        assert InsulationLayer(thickness=0.05, material="other", conductivity=5.0)
+        assert InsulationLayer(thickness=0.05, material="other", conductivity=400.0)
         with pytest.raises(ValidationError):
-            InsulationLayer(thickness=0.05, material="other", conductivity=5.1)
+            InsulationLayer(thickness=0.05, material="other", conductivity=400.1)
 
 
 class TestTankHeatLossParams:
@@ -136,21 +136,21 @@ class TestTankHeatLossParams:
     def test_srs_max_dimension_accepted(self):
         p = TankHeatLossParams(
             shape="cylindrical",
-            diameter=50.0,
-            height=50.0,
+            diameter=3.0,
+            height=200_000.0,
             insulation_thickness=0.1,
             insulation_material="mineral_wool",
-            ambient_temperature=-20,
-            process_temperature=80,
+            ambient_temperature=-70,
+            process_temperature=600,
         )
-        assert p.diameter == 50.0
-        assert p.height == 50.0
+        assert p.diameter == 3.0
+        assert p.height == 200_000.0
 
     def test_too_small_dimension_rejected(self):
         with pytest.raises(ValidationError):
             TankHeatLossParams(
                 shape="cylindrical",
-                diameter=0.05,
+                diameter=0.0107,
                 height=1.0,
                 insulation_thickness=0.1,
                 insulation_material="mineral_wool",
@@ -171,9 +171,9 @@ class TestTankHeatLossParams:
     @pytest.mark.parametrize(
         "field,value",
         [
-            ("ambient_temperature", 51),
-            ("process_temperature", 351),
-            ("process_temperature", -61),
+            ("ambient_temperature", 71),
+            ("process_temperature", 601),
+            ("process_temperature", -91),
         ],
     )
     def test_tank_srs_temperature_limits_rejected(self, field: str, value: float):

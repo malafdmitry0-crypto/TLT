@@ -7,8 +7,9 @@
 R_внеш (воздух):   R = 1 / α_внеш,    α = 11,6 + 7·v  [Вт/(м²·К)]
 R_внеш (помещение): R = 1 / 9.0
 
-Подземное расположение (упрощение — только надземная часть):
-не реализовано в MVP.
+Подземное расположение:
+  Q = (q_air × S_air + q_ground × S_ground) × K
+  q_ground = ΔT / (δ_р/λ_р + Σδ_из/λ_из + h/λ_гр)
 """
 
 import math
@@ -46,6 +47,41 @@ def _surface_area(params: TankHeatLossParams) -> float:
             raise ValueError("Для сферы требуется diameter")
         return 4 * math.pi * (params.diameter / 2) ** 2
     raise ValueError(f"Неизвестная форма ёмкости: {params.shape}")
+
+
+def _surface_area_split(params: TankHeatLossParams, buried_height: float) -> tuple[float, float]:
+    """Площади надземной и подземной частей резервуара по ТНП.
+
+    Возвращает `(S_air, S_ground)`.
+    """
+    if params.height is None:
+        raise ValueError("Для подземного резервуара требуется height")
+    h_total = params.height
+    if buried_height > h_total:
+        raise ValueError("Высота подземной части не может превышать высоту резервуара")
+
+    h_air = h_total - buried_height
+    if params.shape == "cylindrical":
+        if params.diameter is None:
+            raise ValueError("Для цилиндра требуется diameter")
+        d = params.diameter
+        cap_area = math.pi * d**2 / 4
+        return cap_area + math.pi * d * h_air, cap_area + math.pi * d * buried_height
+
+    if params.shape == "rectangular":
+        if params.length is None or params.width is None:
+            raise ValueError("Для параллелепипеда требуются length, width, height")
+        length, width = params.length, params.width
+        cap_area = length * width
+        perimeter_area_factor = 2 * (length + width)
+        return (
+            perimeter_area_factor * h_air + cap_area,
+            perimeter_area_factor * buried_height + cap_area,
+        )
+
+    raise ValueError(
+        "Подземный расчёт резервуара задан в ТНП для круглого и прямоугольного сечения"
+    )
 
 
 def _calc_alpha(params: TankHeatLossParams) -> float:
@@ -87,10 +123,10 @@ def calc_tank_heat_loss(
         1. r_wall = δ_р / λ_р (если заданы толщина и λ стенки)
         2. r_ins  = δ_из / λ_из  (изоляция — плоская стенка)
         3. r_ext  = 1 / α_внеш   (α = 11.6 + 7·v на улице, 9.0 в помещении)
-        4. r_total = r_wall + r_ins + r_ext
+        4. Для подземной части: r_ground = h / λ_гр
         5. q = ΔT / r_total (Вт/м², БЕЗ safety_factor)
-        6. S — площадь по форме (cylinder/rectangle/sphere)
-        7. Q = q · S · K (safety_factor применяется ЗДЕСЬ)
+        6. S — площадь по форме или раздельно S_air/S_ground
+        7. Q = q · S · K или (q_air·S_air + q_ground·S_ground)·K
 
     Args:
         params: валидированные параметры ёмкости. Требует указать геометрию,
@@ -143,19 +179,31 @@ def calc_tank_heat_loss(
     alpha = _calc_alpha(params)
     r_ext = 1.0 / alpha
 
-    # --- 4–5. Тепловой поток на м² ---
-    r_total = r_wall + r_ins + r_ext
-    q_per_m2 = delta_t / r_total
-
-    # --- 6. Площадь ---
-    area = _surface_area(params)
-
     # --- 7. Коэффициент запаса ---
     merged = merge_coefficients(coefficients)
     k = params.safety_factor or merged.get("safety_factor", 1.1)
 
-    # --- 8. Итоговые теплопотери ---
-    q_total = q_per_m2 * area * k
+    r_common = r_wall + r_ins
+    buried_height = params.burial_depth or 0.0
+    if buried_height > 0:
+        lambda_gr = params.ground_conductivity or merged.get("ground_conductivity", 1.5)
+        validate_positive("Теплопроводность грунта", lambda_gr)
+        s_air, s_ground = _surface_area_split(params, buried_height)
+        q_air = delta_t / (r_common + r_ext)
+        q_ground = delta_t / (r_common + buried_height / lambda_gr)
+        area = s_air + s_ground
+        q_total = (q_air * s_air + q_ground * s_ground) * k
+        q_per_m2 = (q_air * s_air + q_ground * s_ground) / area
+    else:
+        # --- 4–5. Тепловой поток на м² ---
+        r_total = r_common + r_ext
+        q_per_m2 = delta_t / r_total
+
+        # --- 6. Площадь ---
+        area = _surface_area(params)
+
+        # --- 8. Итоговые теплопотери ---
+        q_total = q_per_m2 * area * k
 
     return TankHeatLossResult(
         heat_loss_per_m2=round(q_per_m2, 3),

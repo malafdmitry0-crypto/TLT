@@ -51,13 +51,13 @@ export default function ThermalStep() {
         name="ambient_temperature"
         rules={[
           { required: true, message: 'Укажите температуру окружающей среды' },
-          { type: 'number', min: -60, message: 'Минимальная температура среды: −60°C' },
-          { type: 'number', max: 50, message: 'Максимальная температура среды: +50°C' },
+          { type: 'number', min: -70, message: 'Минимальная температура среды: −70°C' },
+          { type: 'number', max: 70, message: 'Максимальная температура среды: +70°C' },
         ]}
       >
         {withHelp(
-          <InputNumber min={-60} max={50} addonAfter="°C" />,
-          'Расчётная температура окружающей среды. Диапазон: −60°C … +50°C.',
+          <InputNumber min={-70} max={70} addonAfter="°C" />,
+          'Расчётная температура окружающей среды. Диапазон ТНП: −70°C … +70°C.',
         )}
       </Form.Item>
 
@@ -68,20 +68,20 @@ export default function ThermalStep() {
         preserve={false}
         rules={isOtherMaterial ? [
           { required: true, message: 'Укажите λ 1-го слоя' },
-          { type: 'number', min: 0.005, message: 'Минимальная λ — 0,005 Вт/мК' },
-          { type: 'number', max: 5, message: 'Максимальная λ — 5,0 Вт/мК' },
+          { type: 'number', min: 0.001, message: 'Минимальная λ — 0,001 Вт/мК' },
+          { type: 'number', max: 400, message: 'Максимальная λ — 400 Вт/мК' },
         ] : undefined}
       >
         {withHelp(
           <InputNumber
             disabled={!isOtherMaterial}
             value={isOtherMaterial ? undefined : selectedMaterial?.conductivity}
-            min={0.005}
-            max={5}
+            min={0.001}
+            max={400}
             step={0.001}
             addonAfter="Вт/мК"
           />,
-          'Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Для материала «Другое» вводится вручную: 0,005…5,0.',
+          'Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Для материала «Другое» вводится вручную: 0,001…400.',
         )}
       </Form.Item>
 
