@@ -22,7 +22,7 @@ export default function ThermalStep() {
   return (
     <>
       <Form.Item
-        className="helped-form-item"
+        className="numeric-form-item helped-form-item"
         label={fieldLabel('Толщина изоляции')}
         name="insulation_thickness_mm"
         rules={[
@@ -38,21 +38,7 @@ export default function ThermalStep() {
       </Form.Item>
 
       <Form.Item
-        className="fixed-select-form-item"
-        label={fieldLabel('Материал изоляции')}
-        name="insulation_material"
-        rules={[{ required: true, message: 'Выберите материал изоляции' }]}
-      >
-        <Select
-          options={materials.map((m) => ({ value: m.material, label: m.name }))}
-          placeholder="Выберите материал"
-          loading={isFetching}
-          notFoundContent={isError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
-        />
-      </Form.Item>
-
-      <Form.Item
-        className="helped-form-item"
+        className="numeric-form-item helped-form-item"
         label={fieldLabel('T° окр. среды')}
         name="ambient_temperature"
         rules={[
@@ -68,7 +54,7 @@ export default function ThermalStep() {
       </Form.Item>
 
       <Form.Item
-        className="helped-form-item"
+        className="numeric-form-item helped-form-item"
         label={fieldLabel('T° продукта')}
         name="process_temperature"
         dependencies={['ambient_temperature']}
@@ -93,6 +79,33 @@ export default function ThermalStep() {
         {withHelp(
           <InputNumber min={-90} max={600} addonAfter="°C" />,
           'Температура транспортируемой/хранимой среды. Диапазон: −90°C … +600°C. Должна быть выше температуры окружающей среды.',
+        )}
+      </Form.Item>
+
+      <Form.Item
+        className="numeric-form-item helped-form-item"
+        label={fieldLabel('λ 1-го слоя')}
+      >
+        {withHelp(
+          <InputNumber disabled value={0.045} step={0.001} addonAfter="Вт/мК" />,
+          'Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Для материала «Другое» по SRS нужно ручное значение 0,005…5,0.',
+        )}
+      </Form.Item>
+
+      <Form.Item
+        className="fixed-select-form-item helped-form-item"
+        label={fieldLabel('Материал изоляции')}
+        name="insulation_material"
+        rules={[{ required: true, message: 'Выберите материал изоляции' }]}
+      >
+        {withHelp(
+          <Select
+            options={materials.map((m) => ({ value: m.material, label: m.name }))}
+            placeholder="Выберите материал"
+            loading={isFetching}
+            notFoundContent={isError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
+          />,
+          'Материал основного слоя изоляции. Значение используется для выбора теплопроводности и расчёта теплопотерь.',
         )}
       </Form.Item>
     </>

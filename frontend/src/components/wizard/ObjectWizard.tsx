@@ -27,10 +27,10 @@ interface Props {
   initialParams?: Record<string, unknown>;
 }
 
-const SECTION_WIDTHS_STORAGE_KEY = 'object-wizard-section-widths-v11';
+const SECTION_WIDTHS_STORAGE_KEY = 'object-wizard-section-widths-v18';
 const SECTION_AUTO_ALIGN_STORAGE_KEY = 'object-wizard-section-auto-align';
-const SECTION_MIN_COLUMN_WIDTH = 316;
-const SECTION_RESIZE_HANDLE_WIDTH = 5;
+const SECTION_MIN_COLUMN_WIDTH = 296;
+const SECTION_RESIZE_HANDLE_WIDTH = 2;
 
 function sectionWidthsStorageKey(objectType: ObjectType) {
   return `${SECTION_WIDTHS_STORAGE_KEY}-${objectType}`;
@@ -59,7 +59,7 @@ function isBetterSectionLayout(
   return score.some((value, idx) => value < bestScore[idx] && score.slice(0, idx).every((prev, i) => prev === bestScore[i]));
 }
 
-function calculateOptimalSectionWidths(controlCounts: number[], availableWidth?: number) {
+function calculateOptimalSectionColumns(controlCounts: number[], availableWidth?: number) {
   const viewportWidth =
     availableWidth ??
     (typeof window === 'undefined' ? 1200 : window.innerWidth);
@@ -107,9 +107,12 @@ function calculateOptimalSectionWidths(controlCounts: number[], availableWidth?:
     }
   }
 
-  const baseWidths = columns.map((columnCount) => columnCount * SECTION_MIN_COLUMN_WIDTH);
-  const spareWidth = Math.max(0, contentWidth - baseWidths.reduce((sum, width) => sum + width, 0));
-  const widths = baseWidths.map((width) => width + spareWidth / baseWidths.length);
+  return columns;
+}
+
+function calculateOptimalSectionWidths(controlCounts: number[], availableWidth?: number) {
+  const columns = calculateOptimalSectionColumns(controlCounts, availableWidth);
+  const widths = columns.map((columnCount) => columnCount * SECTION_MIN_COLUMN_WIDTH);
 
   return normalizeSectionWidths(widths);
 }
@@ -245,7 +248,6 @@ export default function ObjectWizard({
   const autoAlignRef = useRef(autoAlign);
   const cleanupRef = useRef<(() => void) | null>(null);
   const collapsedColumnWidth = 22;
-  const resizeHandleWidth = SECTION_RESIZE_HANDLE_WIDTH;
 
   useEffect(() => () => cleanupRef.current?.(), []);
 
@@ -361,15 +363,13 @@ export default function ObjectWizard({
       return { width: collapsedColumnWidth };
     }
 
-    const expandedTotal = colWidths.reduce(
-      (total, width, i) => (collapsedSections[i] ? total : total + width),
-      0,
-    );
     const collapsedCount = collapsedSections.filter(Boolean).length;
-    const availableWidth = `100% - ${collapsedCount * collapsedColumnWidth}px - ${resizeHandleWidth * 3}px`;
-    const share = expandedTotal > 0 ? colWidths[idx] / expandedTotal : 1;
+    const expandedCount = Math.max(1, collapsedSections.length - collapsedCount);
+    const availableWidth = `100% - ${collapsedCount * collapsedColumnWidth}px - ${SECTION_RESIZE_HANDLE_WIDTH * 3}px`;
 
-    return { width: `calc((${availableWidth}) * ${share})` };
+    return {
+      width: `calc((${availableWidth}) / ${expandedCount})`,
+    } as React.CSSProperties;
   }
 
   function renderSectionTitle(title: string, idx: number) {
@@ -501,15 +501,6 @@ export default function ObjectWizard({
           </Form.Item>
           <ThermalStep />
           <Form.Item
-            className="helped-form-item"
-            label={fieldLabel('λ 1-го слоя')}
-          >
-            {withHelp(
-              <InputNumber disabled value={0.045} step={0.001} addonAfter="Вт/мК" />,
-              'Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Для материала «Другое» по SRS нужно ручное значение 0,005…5,0.',
-            )}
-          </Form.Item>
-          <Form.Item
             className="fixed-select-form-item helped-form-item"
             label={fieldLabel('Материал 2-го слоя')}
           >
@@ -519,7 +510,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="helped-form-item"
+            className="numeric-form-item helped-form-item"
             label={fieldLabel('Толщина 2-го слоя')}
           >
             {withHelp(
@@ -549,7 +540,7 @@ export default function ObjectWizard({
         >
           {renderSectionTitle('Температура и среда', 2)}
           <Form.Item
-            className="helped-form-item"
+            className="numeric-form-item helped-form-item"
             label={fieldLabel('Требуемая T° объекта')}
           >
             {withHelp(
@@ -558,7 +549,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="helped-form-item"
+            className="numeric-form-item helped-form-item"
             label={fieldLabel('Макс. T° окр. среды')}
           >
             {withHelp(
@@ -567,7 +558,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="helped-form-item"
+            className="numeric-form-item helped-form-item"
             label={fieldLabel('Макс. допуст. T° продукта')}
           >
             {withHelp(
@@ -615,7 +606,7 @@ export default function ObjectWizard({
         >
           {renderSectionTitle('Электропараметры и арматура', 3)}
           <Form.Item
-            className="helped-form-item"
+            className="numeric-form-item helped-form-item"
             label={fieldLabel('Мин. T° включения')}
           >
             {withHelp(
@@ -633,7 +624,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="helped-form-item"
+            className="numeric-form-item helped-form-item"
             label={fieldLabel('Kзап')}
           >
             {withHelp(
@@ -642,7 +633,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="helped-form-item"
+            className="fixed-select-form-item helped-form-item"
             label={fieldLabel('Пропарка')}
           >
             {withHelp(
@@ -653,7 +644,7 @@ export default function ObjectWizard({
           {objectType === 'pipe' && (
             <>
               <Form.Item
-                className="helped-form-item"
+                className="numeric-form-item helped-form-item"
                 label={fieldLabel('Задвижки')}
               >
                 {withHelp(
@@ -662,7 +653,7 @@ export default function ObjectWizard({
                 )}
               </Form.Item>
               <Form.Item
-                className="helped-form-item"
+                className="numeric-form-item helped-form-item"
                 label={fieldLabel('Фланцы')}
               >
                 {withHelp(
@@ -671,7 +662,7 @@ export default function ObjectWizard({
                 )}
               </Form.Item>
               <Form.Item
-                className="helped-form-item"
+                className="numeric-form-item helped-form-item"
                 label={fieldLabel('Опоры')}
               >
                 {withHelp(

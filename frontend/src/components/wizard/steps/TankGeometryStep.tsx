@@ -20,8 +20,11 @@ function fieldLabel(text: string) {
 export default function TankGeometryStep() {
   return (
     <>
-      <Form.Item className="fixed-select-form-item" label={fieldLabel('Форма резервуара')} name="shape" initialValue="cylindrical">
-        <Select options={SHAPE_OPTIONS} />
+      <Form.Item className="fixed-select-form-item helped-form-item" label={fieldLabel('Форма резервуара')} name="shape" initialValue="cylindrical">
+        {withHelp(
+          <Select options={SHAPE_OPTIONS} />,
+          'Форма резервуара определяет набор геометрических размеров, необходимых для расчёта площади поверхности.',
+        )}
       </Form.Item>
 
       <Form.Item
@@ -39,7 +42,7 @@ export default function TankGeometryStep() {
             <>
               {needDiameter && (
                 <Form.Item
-                  className="helped-form-item"
+                  className="numeric-form-item helped-form-item"
                   label={fieldLabel('Ø')}
                   name="diameter_mm"
                   rules={[
@@ -57,7 +60,7 @@ export default function TankGeometryStep() {
 
               {needHeight && (
                 <Form.Item
-                  className="helped-form-item"
+                  className="numeric-form-item helped-form-item"
                   label={fieldLabel('Высота')}
                   name="height_mm"
                   rules={[
@@ -75,7 +78,7 @@ export default function TankGeometryStep() {
 
               {needLength && (
                 <Form.Item
-                  className="helped-form-item"
+                  className="numeric-form-item helped-form-item"
                   label={fieldLabel('Длина')}
                   name="length_mm"
                   rules={[
@@ -93,7 +96,7 @@ export default function TankGeometryStep() {
 
               {needWidth && (
                 <Form.Item
-                  className="helped-form-item"
+                  className="numeric-form-item helped-form-item"
                   label={fieldLabel('Ширина')}
                   name="width_mm"
                   rules={[
