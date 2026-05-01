@@ -23,6 +23,8 @@ services:
       # Учётные данные сидов — единый формат с dev/demo (admin@heatcalc.io).
       FIRST_ADMIN_EMAIL: admin@heatcalc.io
       FIRST_ADMIN_PASSWORD: admin
+      # E2E создаёт много гостевых сессий с одного IP; лимит не должен маскировать UI-регрессии.
+      GUEST_SESSION_HOURLY_LIMIT: "500"
     depends_on:
       db-test:
         condition: service_healthy

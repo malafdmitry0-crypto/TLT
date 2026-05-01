@@ -111,7 +111,7 @@ test-frontend-cov: ## Run frontend tests with coverage
 
 test-e2e: ## Run E2E tests (Playwright)
 	$(COMPOSE_E2E) up --build -d
-	npx playwright test
+	cd e2e && PLAYWRIGHT_CHROMIUM_CHANNEL=$${PLAYWRIGHT_CHROMIUM_CHANNEL:-chrome} E2E_BASE_URL=$${E2E_BASE_URL:-http://localhost:3001} E2E_API_BASE=$${E2E_API_BASE:-http://localhost:8001} npx playwright test --reporter=list
 	$(COMPOSE_E2E) down
 
 # ─── Lint ─────────────────────────────────────────────────────────────────────

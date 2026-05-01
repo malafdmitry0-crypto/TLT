@@ -6,7 +6,8 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "playwright test --reporter=list",
+    "test:chrome": "PLAYWRIGHT_CHROMIUM_CHANNEL=chrome playwright test --reporter=list"
   },
   "keywords": [],
   "author": "",

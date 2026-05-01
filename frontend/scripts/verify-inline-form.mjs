@@ -43,7 +43,11 @@ try {
     const layerSelect = page.locator('.layer-count-form-item .ant-select').first();
     if (await layerSelect.count()) {
       await layerSelect.click();
-      await page.getByTitle(`${normalizedLayerCount} ${normalizedLayerCount === 1 ? 'слой' : 'слоя'}`).click();
+      await page
+        .locator('.ant-select-item-option')
+        .filter({ hasText: `${normalizedLayerCount} ${normalizedLayerCount === 1 ? 'слой' : 'слоя'}` })
+        .last()
+        .click();
       await page.waitForTimeout(400);
     }
   }
