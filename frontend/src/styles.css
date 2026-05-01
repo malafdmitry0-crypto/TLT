@@ -405,7 +405,7 @@ html, body, #root {
 
 .inline-object-form .ant-form-item-row {
   display: grid;
-  grid-template-columns: var(--field-label-width, 104px) minmax(var(--field-input-min-width, 160px), 1fr) 12px;
+  grid-template-columns: var(--field-label-width, 104px) minmax(var(--field-input-min-width, 160px), 1fr);
   column-gap: 3px;
   align-items: start;
   width: 100%;
@@ -491,21 +491,48 @@ html, body, #root {
 
 .inline-object-form .helped-form-item .ant-form-item-control,
 .inline-object-form .helped-form-item .ant-form-item-control-input,
-.inline-object-form .helped-form-item .ant-form-item-control-input-content,
-.inline-object-form .field-control-with-help {
+.inline-object-form .helped-form-item .ant-form-item-control-input-content {
   display: contents;
 }
 
-.inline-object-form .field-control-with-help > :not(.anticon) {
+.inline-object-form .field-control-with-help {
   grid-column: 2;
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.inline-object-form .field-control-with-help > :not(.anticon) {
+  max-width: 100%;
 }
 
 .inline-object-form .field-control-with-help > .anticon {
-  grid-column: 3;
-  align-self: start;
-  margin-top: 4px;
+  position: absolute;
+  z-index: 2;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 9px;
   line-height: 1.15;
+  pointer-events: auto;
+}
+
+.inline-object-form .field-control-with-help .ant-input {
+  padding-right: 16px;
+}
+
+.inline-object-form .field-control-with-help .ant-select-single .ant-select-selector {
+  padding-right: 24px !important;
+}
+
+.inline-object-form .field-control-with-help .ant-select-arrow {
+  right: 16px;
+}
+
+.inline-object-form .field-control-with-help .ant-input-number-group-addon {
+  padding-right: 16px;
 }
 
 /* ── Text Input ───────────────────────────────────────────────── */
@@ -663,7 +690,7 @@ html, body, #root {
 .inline-object-form .compact-select-form-item .ant-form-item-row,
 .inline-object-form .medium-select-form-item .ant-form-item-row,
 .inline-object-form .layer-count-form-item .ant-form-item-row {
-  grid-template-columns: var(--field-label-width, 104px) max-content 12px;
+  grid-template-columns: var(--field-label-width, 104px) max-content;
 }
 
 .inline-object-form .fit-label-form-item .ant-form-item-control,
@@ -697,8 +724,8 @@ html, body, #root {
 }
 
 .inline-object-form .compact-select-form-item .ant-select {
-  width: 72px;
-  min-width: 72px;
+  width: 88px;
+  min-width: 88px;
 }
 
 .inline-object-form .medium-select-form-item .ant-select {
@@ -712,7 +739,7 @@ html, body, #root {
 }
 
 .inline-object-form .second-layer-material-form-item .ant-form-item-row {
-  grid-template-columns: 88px max-content 12px;
+  grid-template-columns: 88px max-content;
 }
 
 .inline-object-form .second-layer-thickness-form-item {
@@ -720,8 +747,8 @@ html, body, #root {
 }
 
 .inline-object-form .layer-count-form-item .ant-select {
-  width: 82px;
-  min-width: 82px;
+  width: 94px;
+  min-width: 94px;
 }
 
 .inline-object-form .fit-label-form-item .ant-input-number,
@@ -749,7 +776,7 @@ html, body, #root {
 }
 
 .inline-object-form .reduced-select-form-item .ant-form-item-row {
-  grid-template-columns: var(--field-label-width, 104px) minmax(var(--field-input-min-width, 160px), 52%) 12px;
+  grid-template-columns: var(--field-label-width, 104px) minmax(var(--field-input-min-width, 160px), 52%);
 }
 
 .inline-object-form .temperature-group-form-item {
@@ -759,7 +786,7 @@ html, body, #root {
 }
 
 .inline-object-form .temperature-group-form-item .ant-form-item-row {
-  grid-template-columns: var(--field-label-width, 104px) max-content 12px;
+  grid-template-columns: var(--field-label-width, 104px) max-content;
 }
 
 .inline-object-form .temperature-group-form-item .ant-form-item-control,
@@ -770,8 +797,8 @@ html, body, #root {
 }
 
 .inline-object-form .temperature-group-form-item .ant-select {
-  width: 60px;
-  min-width: 60px;
+  width: 72px;
+  min-width: 72px;
 }
 
 .inline-object-form .short-number-form-item {
@@ -795,11 +822,11 @@ html, body, #root {
 }
 
 .inline-object-form .fitting-count-form-item .ant-input-number-group-wrapper {
-  width: 76px;
+  width: 86px;
 }
 
 .inline-object-form .fitting-count-form-item .ant-input-number {
-  width: 48px;
+  width: 52px;
 }
 
 
