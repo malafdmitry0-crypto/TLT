@@ -24,7 +24,7 @@ export default function PipeGeometryStep() {
           return (
             <Form.Item
               className="fit-label-form-item short-number-form-item helped-form-item"
-              label={fieldLabel('Ø')}
+              label={fieldLabel('Наружный Ø трубопровода')}
               name="outer_diameter_mm"
               rules={[
                 { required: true, message: 'Укажите наружный диаметр' },

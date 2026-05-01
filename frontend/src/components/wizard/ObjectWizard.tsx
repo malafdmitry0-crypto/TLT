@@ -29,8 +29,8 @@ interface Props {
 }
 
 const SECTION_RESIZE_HANDLE_WIDTH = 1;
-const SECTION_WIDTH_WEIGHTS = [1.1, 1.17, 0.68, 1.05];
-const SECTION_FIELD_PAIR_MIN_WIDTHS = [206, 206, 252, 196];
+const SECTION_WIDTH_WEIGHTS = [1.1, 1.17, 0.78, 0.95];
+const SECTION_FIELD_PAIR_MIN_WIDTHS = [206, 206, 252, 180];
 const SECTION_FIELD_GRID =
   'repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr))';
 
@@ -123,6 +123,9 @@ export default function ObjectWizard({
       gridTemplateColumns: SECTION_FIELD_GRID,
     } as React.CSSProperties & Record<string, string>;
     style['--field-pair-min-width'] = `${SECTION_FIELD_PAIR_MIN_WIDTHS[idx]}px`;
+    if (idx === 2) {
+      style['--compact-field-label-width'] = '104px';
+    }
 
     return style;
   }
