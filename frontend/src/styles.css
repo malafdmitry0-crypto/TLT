@@ -336,48 +336,6 @@ html, body, #root {
   color: #1f6f3e;
 }
 
-.form-layout-tools {
-  position: absolute;
-  top: 0;
-  right: 3px;
-  z-index: 1;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 5px;
-  height: 14px;
-  margin-bottom: 0;
-}
-
-.form-layout-tools .ant-btn {
-  height: 14px;
-  padding-inline: 5px;
-  font-size: 9px;
-  line-height: 1;
-}
-
-.form-layout-tools .ant-checkbox-wrapper {
-  margin-inline-start: 0;
-  font-size: 9px;
-  color: #607080;
-  white-space: nowrap;
-  line-height: 1;
-}
-
-.form-layout-tools .ant-checkbox {
-  font-size: 9px;
-}
-
-.form-layout-tools .ant-checkbox-inner {
-  width: 10px;
-  height: 10px;
-}
-
-.form-layout-tools .ant-checkbox-inner::after {
-  width: 3px;
-  height: 5px;
-}
-
 .form-grid-srs {
   display: flex;
   align-items: stretch;
@@ -387,11 +345,11 @@ html, body, #root {
 
 .form-grid-srs .form-col-srs {
   display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-  --field-pair-min-width: 230px;
-  --field-label-width: 92px;
+  --field-pair-min-width: 260px;
+  --field-label-width: 104px;
   --field-input-min-width: 160px;
   --numeric-value-width: 6ch;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr));
   align-content: start;
   align-items: start;
   justify-content: start;
@@ -408,28 +366,11 @@ html, body, #root {
   width: 1px;
   flex-shrink: 0;
   background: #e7edf2;
-  cursor: default;
-  transition: background 0.15s;
-  user-select: none;
-  position: relative;
-  pointer-events: none;
-}
-
-.form-col-resize-handle::after {
-  content: '';
-  position: absolute;
-  inset: 0 -3px;
-}
-
-.form-col-resize-handle:hover {
-  background: var(--color-primary-light);
 }
 
 .form-col-srs h4 {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 4px;
   grid-column: 1 / -1;
   margin: -2px -2px 3px;
   font-size: 11px;
@@ -448,57 +389,6 @@ html, body, #root {
   white-space: nowrap;
 }
 
-.form-section-toggle {
-  flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: #607080;
-  cursor: pointer;
-  line-height: 18px;
-}
-
-.form-section-toggle:hover {
-  color: var(--color-primary);
-  background: #dde6ed;
-}
-
-.form-col-srs.collapsed {
-  align-content: start;
-  min-width: 22px;
-  padding-inline: 1px;
-  cursor: pointer;
-}
-
-.form-col-srs.collapsed > :not(h4) {
-  display: none;
-}
-
-.form-col-srs.collapsed h4 {
-  flex-direction: column;
-  justify-content: flex-start;
-  padding-inline: 0;
-  min-height: 72px;
-}
-
-.form-col-srs.collapsed h4 span {
-  display: block;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  max-height: 46px;
-  font-size: 8px;
-  line-height: 1;
-  text-align: left;
-}
-
-.form-col-srs.collapsed .form-section-toggle {
-  color: var(--color-primary);
-  order: -1;
-  width: 16px;
-}
-
 /* ── Обёртка поля ─────────────────────────────────────────────── */
 .inline-object-form .ant-form-item {
   display: block;
@@ -515,7 +405,7 @@ html, body, #root {
 
 .inline-object-form .ant-form-item-row {
   display: grid;
-  grid-template-columns: var(--field-label-width, 92px) minmax(var(--field-input-min-width, 160px), 1fr) 12px;
+  grid-template-columns: var(--field-label-width, 104px) minmax(var(--field-input-min-width, 160px), 1fr) 12px;
   column-gap: 3px;
   align-items: start;
   width: 100%;
@@ -525,7 +415,7 @@ html, body, #root {
 /* ── Лейбл ────────────────────────────────────────────────────── */
 .inline-object-form .ant-form-item-label {
   padding: 0;
-  width: var(--field-label-width, 92px);
+  width: var(--field-label-width, 104px);
   overflow: visible;
   line-height: 1.15;
   grid-column: 1;
@@ -548,6 +438,12 @@ html, body, #root {
   white-space: normal;
 }
 
+.inline-object-form .ant-form-item-label > label.ant-form-item-required::before {
+  display: none !important;
+  margin: 0 !important;
+  content: '' !important;
+}
+
 .inline-object-form .ant-form-item-label > label > span {
   flex: 1 1 auto;
   min-width: 0;
@@ -555,8 +451,8 @@ html, body, #root {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  overflow-wrap: normal;
-  word-break: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   white-space: normal;
 }
 
@@ -623,6 +519,13 @@ html, body, #root {
   border-radius: 2px;
   box-sizing: border-box;
   line-height: calc(var(--inline-control-height) - 2px);
+}
+
+.inline-object-form .ant-input[aria-required='true'],
+.inline-object-form .ant-select[aria-required='true'] .ant-select-selector,
+.inline-object-form .ant-input-number:has(.ant-input-number-input[aria-required='true']) {
+  box-shadow: inset 2px 0 0 #d48806;
+  background-color: #fffdf6;
 }
 
 /* ── Select ───────────────────────────────────────────────────── */
@@ -760,7 +663,7 @@ html, body, #root {
 .inline-object-form .compact-select-form-item .ant-form-item-row,
 .inline-object-form .medium-select-form-item .ant-form-item-row,
 .inline-object-form .layer-count-form-item .ant-form-item-row {
-  grid-template-columns: var(--field-label-width, 92px) max-content 12px;
+  grid-template-columns: var(--field-label-width, 104px) max-content 12px;
 }
 
 .inline-object-form .fit-label-form-item .ant-form-item-control,
@@ -790,7 +693,7 @@ html, body, #root {
 .inline-object-form .medium-select-form-item .ant-select,
 .inline-object-form .layer-count-form-item .ant-select {
   width: max-content;
-  min-width: var(--field-input-min-width, 92px);
+  min-width: var(--field-input-min-width, 104px);
 }
 
 .inline-object-form .compact-select-form-item .ant-select {
@@ -801,6 +704,19 @@ html, body, #root {
 .inline-object-form .medium-select-form-item .ant-select {
   width: 128px;
   min-width: 128px;
+}
+
+.inline-object-form .second-layer-material-form-item .ant-select {
+  width: 160px;
+  min-width: 160px;
+}
+
+.inline-object-form .second-layer-material-form-item .ant-form-item-row {
+  grid-template-columns: 88px max-content 12px;
+}
+
+.inline-object-form .second-layer-thickness-form-item {
+  grid-column: 1;
 }
 
 .inline-object-form .layer-count-form-item .ant-select {
@@ -823,13 +739,17 @@ html, body, #root {
 
 .inline-object-form .pipe-material-form-item .ant-form-item-label,
 .inline-object-form .fixed-select-form-item .ant-form-item-label {
-  width: var(--field-label-width, 92px);
+  width: var(--field-label-width, 104px);
 }
 
 .inline-object-form .pipe-material-form-item .ant-select,
 .inline-object-form .fixed-select-form-item .ant-select {
   width: 100%;
   min-width: var(--field-input-min-width, 160px);
+}
+
+.inline-object-form .reduced-select-form-item .ant-form-item-row {
+  grid-template-columns: var(--field-label-width, 104px) minmax(var(--field-input-min-width, 160px), 52%) 12px;
 }
 
 .inline-object-form .temperature-group-form-item {
@@ -839,7 +759,7 @@ html, body, #root {
 }
 
 .inline-object-form .temperature-group-form-item .ant-form-item-row {
-  grid-template-columns: var(--field-label-width, 92px) max-content 12px;
+  grid-template-columns: var(--field-label-width, 104px) max-content 12px;
 }
 
 .inline-object-form .temperature-group-form-item .ant-form-item-control,

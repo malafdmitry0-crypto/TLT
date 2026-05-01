@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react';
-import { Button, Checkbox, Form, Input, InputNumber, Select } from 'antd';
-import { CaretDownOutlined, CaretRightOutlined } from '@ant-design/icons';
+import { useEffect, useRef, type ReactElement } from 'react';
+import { Button, Form, Input, InputNumber, Select } from 'antd';
 import type { ObjectType } from '@/constants/objectTypes';
 import PipeGeometryStep from './steps/PipeGeometryStep';
 import TankGeometryStep from './steps/TankGeometryStep';
@@ -27,153 +26,11 @@ interface Props {
   initialParams?: Record<string, unknown>;
 }
 
-const SECTION_WIDTHS_STORAGE_KEY = 'object-wizard-section-widths-v18';
-const SECTION_AUTO_ALIGN_STORAGE_KEY = 'object-wizard-section-auto-align';
-const SECTION_MIN_COLUMN_WIDTH = 296;
 const SECTION_RESIZE_HANDLE_WIDTH = 1;
-const SECTION_WIDTH_WEIGHTS = [1.18, 1.1, 1, 0.72];
-const SECTION_FIELD_PAIR_MIN_WIDTH = 230;
-
-function sectionWidthsStorageKey(objectType: ObjectType) {
-  return `${SECTION_WIDTHS_STORAGE_KEY}-${objectType}`;
-}
-
-function sectionAutoAlignStorageKey(objectType: ObjectType) {
-  return `${SECTION_AUTO_ALIGN_STORAGE_KEY}-${objectType}`;
-}
-
-function normalizeSectionWidths(widths: number[]) {
-  const total = widths.reduce((sum, width) => sum + width, 0);
-  return widths.map((width) => (width / total) * 100);
-}
-
-function getSectionControlCounts(objectType: ObjectType) {
-  return objectType === 'pipe'
-    ? [8, 9, 6, 7]
-    : [6, 9, 6, 4];
-}
-
-function isBetterSectionLayout(
-  score: number[],
-  bestScore: number[] | null,
-) {
-  if (bestScore == null) return true;
-  return score.some((value, idx) => value < bestScore[idx] && score.slice(0, idx).every((prev, i) => prev === bestScore[i]));
-}
-
-function calculateOptimalSectionColumns(controlCounts: number[], availableWidth?: number) {
-  const viewportWidth =
-    availableWidth ??
-    (typeof window === 'undefined' ? 1200 : window.innerWidth);
-  const contentWidth = Math.max(
-    SECTION_MIN_COLUMN_WIDTH * 4,
-    viewportWidth - SECTION_RESIZE_HANDLE_WIDTH * 3,
-  );
-  const maxColumns = controlCounts.reduce((sum, count) => sum + count, 0);
-  const maxFittingColumns = Math.min(
-    maxColumns,
-    Math.max(4, Math.floor(contentWidth / SECTION_MIN_COLUMN_WIDTH)),
-  );
-  let columns = [1, 1, 1, 1];
-  let bestScore: number[] | null = null;
-
-  for (let totalColumns = 4; totalColumns <= maxFittingColumns; totalColumns += 1) {
-    for (let a = 1; a <= controlCounts[0]; a += 1) {
-      for (let b = 1; b <= controlCounts[1]; b += 1) {
-        for (let c = 1; c <= controlCounts[2]; c += 1) {
-          const d = totalColumns - a - b - c;
-          if (d < 1 || d > controlCounts[3]) continue;
-
-          const candidate = [a, b, c, d];
-          const rows = controlCounts.map((count, idx) => Math.ceil(count / candidate[idx]));
-          const sortedRows = [...rows].sort((left, right) => right - left);
-          const totalRows = rows.reduce((sum, rowCount) => sum + rowCount, 0);
-          const singleColumnSections = candidate.filter((columnCount) => columnCount === 1).length;
-          const rowSpread = Math.max(...rows) - Math.min(...rows);
-          const columnSpread = Math.max(...candidate) - Math.min(...candidate);
-          const score = [
-            ...sortedRows,
-            totalRows,
-            singleColumnSections,
-            rowSpread,
-            columnSpread,
-            totalColumns,
-          ];
-
-          if (isBetterSectionLayout(score, bestScore)) {
-            bestScore = score;
-            columns = candidate;
-          }
-        }
-      }
-    }
-  }
-
-  return columns;
-}
-
-function calculateOptimalSectionWidths(controlCounts: number[], availableWidth?: number) {
-  const columns = calculateOptimalSectionColumns(controlCounts, availableWidth);
-  const widths = columns.map((columnCount) => columnCount * SECTION_MIN_COLUMN_WIDTH);
-
-  return normalizeSectionWidths(widths);
-}
-
-function getDefaultSectionWidths(objectType: ObjectType, availableWidth?: number) {
-  return calculateOptimalSectionWidths(getSectionControlCounts(objectType), availableWidth);
-}
-
-function readSavedSectionWidths(objectType: ObjectType) {
-  if (typeof window === 'undefined') return null;
-
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(sectionWidthsStorageKey(objectType)) ?? 'null');
-    if (
-      Array.isArray(parsed) &&
-      parsed.length === 4 &&
-      parsed.every((value) => typeof value === 'number' && Number.isFinite(value) && value >= 12)
-    ) {
-      return parsed as number[];
-    }
-  } catch {
-    // Некорректное сохранение игнорируем и возвращаем авторасчёт.
-  }
-
-  return null;
-}
-
-function getInitialSectionWidths(objectType: ObjectType, availableWidth?: number) {
-  return readSavedSectionWidths(objectType) ?? getDefaultSectionWidths(objectType, availableWidth);
-}
-
-function saveSectionWidths(objectType: ObjectType, widths: number[]) {
-  try {
-    window.localStorage.setItem(sectionWidthsStorageKey(objectType), JSON.stringify(widths));
-  } catch {
-    // Если localStorage недоступен, форма продолжит работать с текущими ширинами.
-  }
-}
-
-function clearSavedSectionWidths(objectType: ObjectType) {
-  try {
-    window.localStorage.removeItem(sectionWidthsStorageKey(objectType));
-  } catch {
-    // Если localStorage недоступен, просто работаем с текущим состоянием.
-  }
-}
-
-function readAutoAlign(objectType: ObjectType) {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(sectionAutoAlignStorageKey(objectType)) === 'true';
-}
-
-function saveAutoAlign(objectType: ObjectType, value: boolean) {
-  try {
-    window.localStorage.setItem(sectionAutoAlignStorageKey(objectType), String(value));
-  } catch {
-    // Если localStorage недоступен, настройка останется только в текущей сессии.
-  }
-}
+const SECTION_WIDTH_WEIGHTS = [1.1, 1.17, 0.68, 1.05];
+const SECTION_FIELD_PAIR_MIN_WIDTHS = [260, 260, 260, 250];
+const SECTION_FIELD_GRID =
+  'repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr))';
 
 function withHelp(control: ReactElement, hint: string) {
   return <HelpedControl hint={hint}>{control}</HelpedControl>;
@@ -194,8 +51,6 @@ export default function ObjectWizard({
   const isEditMode = !!initialParams;
   const values = Form.useWatch([], form);
   const prevSuggestedRef = useRef<string>('');
-  const [collapsedSections, setCollapsedSections] = useState([false, false, false, false]);
-  const [autoAlign, setAutoAlign] = useState(() => readAutoAlign(objectType));
   const insulationLayerCount = String(
     (values as Record<string, unknown> | undefined)?.insulation_layer_count ?? '1',
   );
@@ -244,212 +99,44 @@ export default function ObjectWizard({
     }
   }
 
-  // ── Resizable columns ──────────────────────────────────────────────────────
-  const containerRef = useRef<HTMLDivElement>(null);
-  const sectionRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const [colWidths, setColWidths] = useState(() => getInitialSectionWidths(objectType));
-  const [sectionFieldColumns, setSectionFieldColumns] = useState([1, 1, 1, 1]);
-  const colWidthsRef = useRef(colWidths);
-  const hasManualWidthsRef = useRef(!autoAlign && readSavedSectionWidths(objectType) != null);
-  const autoAlignRef = useRef(autoAlign);
-  const cleanupRef = useRef<(() => void) | null>(null);
-  const collapsedColumnWidth = 22;
-
-  useEffect(() => () => cleanupRef.current?.(), []);
-
-  useEffect(() => {
-    const savedAutoAlign = readAutoAlign(objectType);
-    autoAlignRef.current = savedAutoAlign;
-    setAutoAlign(savedAutoAlign);
-    const savedWidths = readSavedSectionWidths(objectType);
-    hasManualWidthsRef.current = !savedAutoAlign && savedWidths != null;
-    const widths =
-      savedAutoAlign || !savedWidths
-        ? getOptimalSectionWidths()
-        : savedWidths;
-    colWidthsRef.current = widths;
-    setColWidths(widths);
-  }, [objectType]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || typeof ResizeObserver === 'undefined') return;
-
-    const observer = new ResizeObserver(([entry]) => {
-      if (hasManualWidthsRef.current && !autoAlignRef.current) return;
-      const width = entry.contentRect.width;
-      const widths = getOptimalSectionWidths(width);
-      colWidthsRef.current = widths;
-      setColWidths(widths);
-    });
-    observer.observe(container);
-
-    return () => observer.disconnect();
-  }, [objectType]);
-
-  useEffect(() => {
-    if (typeof ResizeObserver === 'undefined') return;
-
-    const updateColumns = () => {
-      const next = sectionRefs.current.map((section) => {
-        const width = section?.getBoundingClientRect().width ?? 0;
-        return width >= SECTION_FIELD_PAIR_MIN_WIDTH * 2 ? 2 : 1;
-      });
-      setSectionFieldColumns((prev) =>
-        prev.every((value, idx) => value === next[idx]) ? prev : next,
-      );
-    };
-
-    const observer = new ResizeObserver(updateColumns);
-    sectionRefs.current.forEach((section) => {
-      if (section) observer.observe(section);
-    });
-    updateColumns();
-
-    return () => observer.disconnect();
-  }, [collapsedSections, colWidths, objectType]);
-
-  function getMeasuredSectionControlCounts() {
-    return sectionRefs.current.map((section, idx) => {
-      const count = section?.querySelectorAll(':scope > .ant-form-item').length ?? 0;
-      return Math.max(1, count || getSectionControlCounts(objectType)[idx]);
-    });
-  }
-
-  function getOptimalSectionWidths(availableWidth = containerRef.current?.offsetWidth) {
-    return calculateOptimalSectionWidths(getMeasuredSectionControlCounts(), availableWidth);
-  }
-
-  function applyOptimalLayout() {
-    const widths = getOptimalSectionWidths();
-    setCollapsedSections([false, false, false, false]);
-    hasManualWidthsRef.current = false;
-    clearSavedSectionWidths(objectType);
-    colWidthsRef.current = widths;
-    setColWidths(widths);
-  }
-
-  function handleAutoAlignChange(checked: boolean) {
-    autoAlignRef.current = checked;
-    setAutoAlign(checked);
-    saveAutoAlign(objectType, checked);
-    if (checked) applyOptimalLayout();
-  }
-
-  function onHandleMouseDown(e: React.MouseEvent, idx: number) {
-    e.preventDefault();
-    if (autoAlignRef.current) return;
-    const startX = e.clientX;
-    const startWidths = [...colWidthsRef.current];
-
-    const onMouseMove = (ev: MouseEvent) => {
-      if (!containerRef.current) return;
-      const minWidthPct = (SECTION_MIN_COLUMN_WIDTH / containerRef.current.offsetWidth) * 100;
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-      const pct = ((ev.clientX - startX) / containerRef.current.offsetWidth) * 100;
-      const l = startWidths[idx] + pct;
-      const r = startWidths[idx + 1] - pct;
-      if (l >= minWidthPct && r >= minWidthPct) {
-        const w = startWidths.map((v, i) => (i === idx ? l : i === idx + 1 ? r : v));
-        colWidthsRef.current = w;
-        setColWidths([...w]);
-      }
-    };
-
-    const onMouseUp = () => {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      hasManualWidthsRef.current = true;
-      saveSectionWidths(objectType, colWidthsRef.current);
-      cleanupRef.current = null;
-    };
-
-    cleanupRef.current = () => {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-  }
-
-  function toggleSection(idx: number) {
-    setCollapsedSections((prev) => prev.map((value, i) => (i === idx ? !value : value)));
-  }
-
-  function collapsedClickHandler(idx: number) {
-    return collapsedSections[idx] ? () => toggleSection(idx) : undefined;
-  }
-
   function sectionStyle(idx: number): React.CSSProperties {
-    if (collapsedSections[idx]) {
-      return { width: collapsedColumnWidth };
-    }
-
-    const collapsedCount = collapsedSections.filter(Boolean).length;
     const expandedWeight = SECTION_WIDTH_WEIGHTS.reduce(
-      (total, weight, i) => (collapsedSections[i] ? total : total + weight),
+      (total, weight) => total + weight,
       0,
     );
-    const availableWidth = `100% - ${collapsedCount * collapsedColumnWidth}px - ${SECTION_RESIZE_HANDLE_WIDTH * 3}px`;
+    const availableWidth = `100% - ${SECTION_RESIZE_HANDLE_WIDTH * 3}px`;
     const share = expandedWeight > 0 ? SECTION_WIDTH_WEIGHTS[idx] / expandedWeight : 1;
 
-    return {
+    const style = {
       width: `calc((${availableWidth}) * ${share})`,
-      gridTemplateColumns: `repeat(${sectionFieldColumns[idx] ?? 1}, minmax(0, 1fr))`,
-    } as React.CSSProperties;
+      gridTemplateColumns: SECTION_FIELD_GRID,
+    } as React.CSSProperties & Record<string, string>;
+    style['--field-pair-min-width'] = `${SECTION_FIELD_PAIR_MIN_WIDTHS[idx]}px`;
+
+    return style;
   }
 
-  function renderSectionTitle(title: string, idx: number) {
-    const collapsed = collapsedSections[idx];
-    return (
-      <h4>
-        <span>{title}</span>
-        <button
-          type="button"
-          className="form-section-toggle"
-          aria-label={collapsed ? `Развернуть: ${title}` : `Свернуть: ${title}`}
-          title={collapsed ? 'Развернуть' : 'Свернуть'}
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleSection(idx);
-          }}
-        >
-          {collapsed ? <CaretRightOutlined /> : <CaretDownOutlined />}
-        </button>
-      </h4>
-    );
+  function renderSectionTitle(title: string) {
+    return <h4><span>{title}</span></h4>;
   }
   // ──────────────────────────────────────────────────────────────────────────
 
   return (
-    <Form form={form} layout="vertical" initialValues={initialValues} className="inline-object-form">
-      <div className="form-layout-tools">
-        <Button size="small" onClick={applyOptimalLayout}>
-          Выровнять
-        </Button>
-        <Checkbox
-          checked={autoAlign}
-          onChange={(event) => handleAutoAlignChange(event.target.checked)}
-        >
-          Автовыравнивание
-        </Checkbox>
-      </div>
-      <div ref={containerRef} className="form-grid-srs">
+    <Form
+      form={form}
+      layout="vertical"
+      requiredMark={false}
+      initialValues={initialValues}
+      className="inline-object-form"
+    >
+      <div className="form-grid-srs">
 
         {/* ── Геометрия ──────────────────────────────────────────────── */}
         <div
-          ref={(node) => { sectionRefs.current[0] = node; }}
-          className={`form-col-srs ${collapsedSections[0] ? 'collapsed' : ''}`}
+          className="form-col-srs"
           style={sectionStyle(0)}
-          onClick={collapsedClickHandler(0)}
         >
-          {renderSectionTitle(objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара', 0)}
+          {renderSectionTitle(objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара')}
           <Form.Item
             className="helped-form-item"
             label={fieldLabel('Наименование')}
@@ -486,7 +173,7 @@ export default function ObjectWizard({
                 )}
               </Form.Item>
               <Form.Item
-                className="pipe-material-form-item helped-form-item"
+                className="pipe-material-form-item reduced-select-form-item helped-form-item"
                 label={fieldLabel('Материал трубы')}
               >
                 {withHelp(
@@ -497,7 +184,7 @@ export default function ObjectWizard({
             </>
           )}
           <Form.Item
-            className="fixed-select-form-item helped-form-item"
+            className="fixed-select-form-item reduced-select-form-item helped-form-item"
             label={fieldLabel(objectType === 'pipe' ? 'Размещение трубопровода' : 'Размещение резервуара')}
           >
             {withHelp(
@@ -516,19 +203,17 @@ export default function ObjectWizard({
           </Form.Item>
         </div>
 
-        <div className="form-col-resize-handle" onMouseDown={(e) => onHandleMouseDown(e, 0)} />
+        <div className="form-col-resize-handle" />
 
         {/* ── Теплоизоляция ──────────────────────────────────────────── */}
         <div
-          ref={(node) => { sectionRefs.current[1] = node; }}
-          className={`form-col-srs ${collapsedSections[1] ? 'collapsed' : ''}`}
+          className="form-col-srs"
           style={sectionStyle(1)}
-          onClick={collapsedClickHandler(1)}
         >
-          {renderSectionTitle('Теплоизоляция', 1)}
+          {renderSectionTitle('Теплоизоляция')}
           <ThermalStep />
           <Form.Item
-            className="fixed-select-form-item helped-form-item"
+            className="fixed-select-form-item reduced-select-form-item helped-form-item"
             label={fieldLabel('Материал покрытия')}
           >
             {withHelp(
@@ -550,7 +235,7 @@ export default function ObjectWizard({
           {insulationLayerCount !== '1' && (
             <>
               <Form.Item
-                className="fixed-select-form-item helped-form-item"
+                className="medium-select-form-item second-layer-material-form-item helped-form-item"
                 label={fieldLabel('Материал 2-го слоя')}
                 preserve={false}
               >
@@ -560,7 +245,7 @@ export default function ObjectWizard({
                 )}
               </Form.Item>
               <Form.Item
-                className="numeric-form-item short-number-form-item helped-form-item"
+                className="numeric-form-item short-number-form-item second-layer-thickness-form-item helped-form-item"
                 label={fieldLabel('Толщина 2-го слоя')}
                 preserve={false}
               >
@@ -573,16 +258,14 @@ export default function ObjectWizard({
           )}
         </div>
 
-        <div className="form-col-resize-handle" onMouseDown={(e) => onHandleMouseDown(e, 1)} />
+        <div className="form-col-resize-handle" />
 
         {/* ── Температура и среда ────────────────────────────────────── */}
         <div
-          ref={(node) => { sectionRefs.current[2] = node; }}
-          className={`form-col-srs ${collapsedSections[2] ? 'collapsed' : ''}`}
+          className="form-col-srs"
           style={sectionStyle(2)}
-          onClick={collapsedClickHandler(2)}
         >
-          {renderSectionTitle('Температура и среда', 2)}
+          {renderSectionTitle('Температура и среда')}
           <Form.Item
             className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('Требуемая T° объекта')}
@@ -639,16 +322,14 @@ export default function ObjectWizard({
           </Form.Item>
         </div>
 
-        <div className="form-col-resize-handle" onMouseDown={(e) => onHandleMouseDown(e, 2)} />
+        <div className="form-col-resize-handle" />
 
         {/* ── Электропараметры и арматура ───────────────────────────── */}
         <div
-          ref={(node) => { sectionRefs.current[3] = node; }}
-          className={`form-col-srs ${collapsedSections[3] ? 'collapsed' : ''}`}
+          className="form-col-srs"
           style={sectionStyle(3)}
-          onClick={collapsedClickHandler(3)}
         >
-          {renderSectionTitle('Электропараметры и арматура', 3)}
+          {renderSectionTitle('Электропараметры и арматура')}
           <Form.Item
             className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('Мин. T° включения')}

@@ -93,7 +93,7 @@ export default function ThermalStep() {
       </Form.Item>
 
       <Form.Item
-        className="fixed-select-form-item helped-form-item"
+        className="fixed-select-form-item reduced-select-form-item helped-form-item"
         label={fieldLabel('Материал изоляции')}
         name="insulation_material"
         rules={[{ required: true, message: 'Выберите материал изоляции' }]}
