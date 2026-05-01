@@ -1,23 +1,16 @@
-import { Form, InputNumber, Select, Tooltip } from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
+import { Form, InputNumber, Select } from 'antd';
+import type { ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getInsulation } from '@/api/references';
+import HelpedControl from '../HelpedControl';
+import FieldLabel from '../FieldLabel';
 
-function HelpIcon({ text }: { text: string }) {
-  return (
-    <Tooltip title={text}>
-      <InfoCircleOutlined style={{ color: '#8c8c8c', cursor: 'help', flexShrink: 0 }} />
-    </Tooltip>
-  );
+function withHelp(control: ReactElement, hint: string) {
+  return <HelpedControl hint={hint}>{control}</HelpedControl>;
 }
 
-function label(text: string, hint: string) {
-  return (
-    <>
-      <span>{text}</span>
-      <HelpIcon text={hint} />
-    </>
-  );
+function fieldLabel(text: string) {
+  return <FieldLabel text={text} />;
 }
 
 export default function ThermalStep() {
@@ -29,10 +22,8 @@ export default function ThermalStep() {
   return (
     <>
       <Form.Item
-        label={label(
-          'Толщина изоляции',
-          'Толщина слоя тепловой изоляции. Диапазон: 1–500 мм.'
-        )}
+        className="helped-form-item"
+        label={fieldLabel('Толщина изоляции')}
         name="insulation_thickness_mm"
         rules={[
           { required: true, message: 'Укажите толщину изоляции' },
@@ -40,12 +31,15 @@ export default function ThermalStep() {
           { type: 'number', max: 500, message: 'Максимальная толщина — 500 мм' },
         ]}
       >
-        <InputNumber min={1} max={500} step={5} addonAfter="мм" />
+        {withHelp(
+          <InputNumber min={1} max={500} step={5} addonAfter="мм" />,
+          'Толщина слоя тепловой изоляции. Диапазон: 1–500 мм.',
+        )}
       </Form.Item>
 
       <Form.Item
         className="fixed-select-form-item"
-        label="Материал изоляции"
+        label={fieldLabel('Материал изоляции')}
         name="insulation_material"
         rules={[{ required: true, message: 'Выберите материал изоляции' }]}
       >
@@ -58,10 +52,8 @@ export default function ThermalStep() {
       </Form.Item>
 
       <Form.Item
-        label={label(
-          'T° окр. среды',
-          'Расчётная температура окружающей среды. Диапазон: −70°C … +70°C.'
-        )}
+        className="helped-form-item"
+        label={fieldLabel('T° окр. среды')}
         name="ambient_temperature"
         rules={[
           { required: true, message: 'Укажите температуру окружающей среды' },
@@ -69,14 +61,15 @@ export default function ThermalStep() {
           { type: 'number', max: 70, message: 'Максимальная температура среды: +70°C' },
         ]}
       >
-        <InputNumber min={-70} max={70} addonAfter="°C" />
+        {withHelp(
+          <InputNumber min={-70} max={70} addonAfter="°C" />,
+          'Расчётная температура окружающей среды. Диапазон: −70°C … +70°C.',
+        )}
       </Form.Item>
 
       <Form.Item
-        label={label(
-          'T° продукта',
-          'Температура транспортируемой/хранимой среды. Диапазон: −90°C … +600°C. Должна быть выше температуры окружающей среды.'
-        )}
+        className="helped-form-item"
+        label={fieldLabel('T° продукта')}
         name="process_temperature"
         dependencies={['ambient_temperature']}
         rules={[
@@ -97,7 +90,10 @@ export default function ThermalStep() {
           }),
         ]}
       >
-        <InputNumber min={-90} max={600} addonAfter="°C" />
+        {withHelp(
+          <InputNumber min={-90} max={600} addonAfter="°C" />,
+          'Температура транспортируемой/хранимой среды. Диапазон: −90°C … +600°C. Должна быть выше температуры окружающей среды.',
+        )}
       </Form.Item>
     </>
   );

@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { Button, Checkbox, Form, Input, InputNumber, Select, Tooltip } from 'antd';
-import { CaretDownOutlined, CaretRightOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { Button, Checkbox, Form, Input, InputNumber, Select } from 'antd';
+import { CaretDownOutlined, CaretRightOutlined } from '@ant-design/icons';
 import type { ObjectType } from '@/constants/objectTypes';
 import PipeGeometryStep from './steps/PipeGeometryStep';
 import TankGeometryStep from './steps/TankGeometryStep';
 import ThermalStep from './steps/ThermalStep';
+import HelpedControl from './HelpedControl';
+import FieldLabel from './FieldLabel';
 import {
   generatePipeName,
   generateTankName,
@@ -25,9 +27,9 @@ interface Props {
   initialParams?: Record<string, unknown>;
 }
 
-const SECTION_WIDTHS_STORAGE_KEY = 'object-wizard-section-widths-v6';
+const SECTION_WIDTHS_STORAGE_KEY = 'object-wizard-section-widths-v11';
 const SECTION_AUTO_ALIGN_STORAGE_KEY = 'object-wizard-section-auto-align';
-const SECTION_MIN_COLUMN_WIDTH = 136;
+const SECTION_MIN_COLUMN_WIDTH = 316;
 const SECTION_RESIZE_HANDLE_WIDTH = 5;
 
 function sectionWidthsStorageKey(objectType: ObjectType) {
@@ -168,21 +170,12 @@ function saveAutoAlign(objectType: ObjectType, value: boolean) {
   }
 }
 
-function HelpIcon({ text }: { text: string }) {
-  return (
-    <Tooltip title={text}>
-      <InfoCircleOutlined style={{ color: '#8c8c8c', cursor: 'help', flexShrink: 0 }} />
-    </Tooltip>
-  );
+function withHelp(control: ReactElement, hint: string) {
+  return <HelpedControl hint={hint}>{control}</HelpedControl>;
 }
 
-function hintLabel(text: string, hint: string) {
-  return (
-    <>
-      <span>{text}</span>
-      <HelpIcon text={hint} />
-    </>
-  );
+function fieldLabel(text: string) {
+  return <FieldLabel text={text} />;
 }
 
 export default function ObjectWizard({
@@ -425,64 +418,65 @@ export default function ObjectWizard({
         >
           {renderSectionTitle(objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара', 0)}
           <Form.Item
-            label={hintLabel(
-              'Наименование',
-              'Автоматически формируется из параметров объекта. Можно изменить вручную; до 200 символов.',
-            )}
+            className="helped-form-item"
+            label={fieldLabel('Наименование')}
             name="name"
             rules={[{ required: true, message: 'Укажите наименование объекта' }]}
           >
-            <Input />
+            {withHelp(
+              <Input />,
+              'Автоматически формируется из параметров объекта. Можно изменить вручную; до 200 символов.',
+            )}
           </Form.Item>
           {objectType === 'pipe' ? <PipeGeometryStep /> : <TankGeometryStep />}
           {objectType === 'pipe' && (
             <>
               <Form.Item
-                className="fit-label-form-item"
-                label={hintLabel(
-                  'Толщина стенки',
+                className="fit-label-form-item helped-form-item"
+                label={fieldLabel('Толщина стенки')}
+              >
+                {withHelp(
+                  <InputNumber value={4} step={0.1} addonAfter="мм" />,
                   'Толщина стенки трубы. Целевой диапазон SRS: 1…100 мм. Поле пока справочное и не участвует в расчёте.',
                 )}
-              >
-                <InputNumber value={4} step={0.1} addonAfter="мм" />
               </Form.Item>
               <Form.Item
-                className="pipe-material-form-item"
-                label={hintLabel(
-                  'Материал трубы',
+                className="pipe-material-form-item helped-form-item"
+                label={fieldLabel('Материал трубы')}
+              >
+                {withHelp(
+                  <Select value="carbon_steel" options={[{ value: 'carbon_steel', label: 'Сталь углеродистая' }]} />,
                   'Материал стенки трубопровода. Сейчас поле справочное; теплопотери MVP считаются по сохранённым обязательным параметрам.',
                 )}
-              >
-                <Select value="carbon_steel" options={[{ value: 'carbon_steel', label: 'Сталь углеродистая' }]} />
               </Form.Item>
               <Form.Item
-                className="fit-label-form-item"
-                label={hintLabel(
-                  'λ трубы',
+                className="fit-label-form-item helped-form-item"
+                label={fieldLabel('λ трубы')}
+              >
+                {withHelp(
+                  <InputNumber value={56} step={0.1} addonAfter="Вт/мК" />,
                   'Коэффициент теплопроводности материала трубы λ, Вт/(м·К). Показывает, насколько интенсивно материал стенки проводит тепло. Сейчас поле справочное и не отправляется в расчётный payload.',
                 )}
-              >
-                <InputNumber value={56} step={0.1} addonAfter="Вт/мК" />
               </Form.Item>
             </>
           )}
           <Form.Item
-            className="fixed-select-form-item"
-            label={hintLabel(
-              objectType === 'pipe' ? 'Размещение трубопровода' : 'Размещение резервуара',
+            className="fixed-select-form-item helped-form-item"
+            label={fieldLabel(objectType === 'pipe' ? 'Размещение трубопровода' : 'Размещение резервуара')}
+          >
+            {withHelp(
+              <Select value="outdoor" options={[{ value: 'outdoor', label: 'На открытом воздухе' }]} />,
               'Варианты по SRS: на открытом воздухе, в помещении, подземно. Сейчас поле справочное; подземная логика будет вынесена в отдельную задачу.',
             )}
-          >
-            <Select value="outdoor" options={[{ value: 'outdoor', label: 'На открытом воздухе' }]} />
           </Form.Item>
           <Form.Item
-            className="fit-label-form-item"
-            label={hintLabel(
-              'Глубина прокладки',
+            className="fit-label-form-item helped-form-item"
+            label={fieldLabel('Глубина прокладки')}
+          >
+            {withHelp(
+              <InputNumber disabled placeholder="—" addonAfter="м" />,
               'Используется только для подземной прокладки. Целевой диапазон SRS: 0,1…5,0 м.',
             )}
-          >
-            <InputNumber disabled placeholder="—" addonAfter="м" />
           </Form.Item>
         </div>
 
@@ -497,48 +491,50 @@ export default function ObjectWizard({
         >
           {renderSectionTitle('Теплоизоляция', 1)}
           <Form.Item
-            className="fixed-select-form-item"
-            label={hintLabel(
-              'Кол-во слоёв ИЗ',
+            className="fixed-select-form-item helped-form-item"
+            label={fieldLabel('Кол-во слоёв ИЗ')}
+          >
+            {withHelp(
+              <Select value="1" options={[{ value: '1', label: '1 слой' }, { value: '2', label: '2 слоя' }]} />,
               'Целевой диапазон SRS: 1…3 слоя. Сейчас расчётный payload MVP использует основной слой изоляции.',
             )}
-          >
-            <Select value="1" options={[{ value: '1', label: '1 слой' }, { value: '2', label: '2 слоя' }]} />
           </Form.Item>
           <ThermalStep />
           <Form.Item
-            label={hintLabel(
-              'λ 1-го слоя',
+            className="helped-form-item"
+            label={fieldLabel('λ 1-го слоя')}
+          >
+            {withHelp(
+              <InputNumber disabled value={0.045} step={0.001} addonAfter="Вт/мК" />,
               'Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Для материала «Другое» по SRS нужно ручное значение 0,005…5,0.',
             )}
-          >
-            <InputNumber disabled value={0.045} step={0.001} addonAfter="Вт/мК" />
           </Form.Item>
           <Form.Item
-            className="fixed-select-form-item"
-            label={hintLabel(
-              'Материал 2-го слоя',
+            className="fixed-select-form-item helped-form-item"
+            label={fieldLabel('Материал 2-го слоя')}
+          >
+            {withHelp(
+              <Select value="none" options={[{ value: 'none', label: 'Не указан' }, { value: 'polyurethane_foam', label: 'Пенополиуретан' }]} />,
               'Используется при 2 или 3 слоях изоляции. Сейчас поле справочное и не входит в расчётный payload.',
             )}
-          >
-            <Select value="none" options={[{ value: 'none', label: 'Не указан' }, { value: 'polyurethane_foam', label: 'Пенополиуретан' }]} />
           </Form.Item>
           <Form.Item
-            label={hintLabel(
-              'Толщина 2-го слоя',
+            className="helped-form-item"
+            label={fieldLabel('Толщина 2-го слоя')}
+          >
+            {withHelp(
+              <InputNumber value={0} addonAfter="мм" />,
               'Целевой диапазон SRS: 1…500 мм при выбранном 2-м слое. Сейчас поле справочное.',
             )}
-          >
-            <InputNumber value={0} addonAfter="мм" />
           </Form.Item>
           <Form.Item
-            className="fixed-select-form-item"
-            label={hintLabel(
-              'Материал покрытия',
+            className="fixed-select-form-item helped-form-item"
+            label={fieldLabel('Материал покрытия')}
+          >
+            {withHelp(
+              <Select value="none" options={[{ value: 'none', label: 'Не указано' }]} />,
               'Защитное покрытие теплоизоляции из справочника. Сейчас поле справочное.',
             )}
-          >
-            <Select value="none" options={[{ value: 'none', label: 'Не указано' }]} />
           </Form.Item>
         </div>
 
@@ -553,55 +549,58 @@ export default function ObjectWizard({
         >
           {renderSectionTitle('Температура и среда', 2)}
           <Form.Item
-            label={hintLabel(
-              'Требуемая T° объекта',
+            className="helped-form-item"
+            label={fieldLabel('Требуемая T° объекта')}
+          >
+            {withHelp(
+              <InputNumber value={10} step={0.1} addonAfter="°C" />,
               'Требуемая температура поддержания объекта, °C. Сейчас поле справочное; расчёт использует температуру продукта.',
             )}
-          >
-            <InputNumber value={10} step={0.1} addonAfter="°C" />
           </Form.Item>
           <Form.Item
-            label={hintLabel(
-              'Макс. T° окр. среды',
+            className="helped-form-item"
+            label={fieldLabel('Макс. T° окр. среды')}
+          >
+            {withHelp(
+              <InputNumber value={30} step={0.1} addonAfter="°C" />,
               'Максимальная температура окружающей среды, °C. Сейчас поле справочное.',
             )}
-          >
-            <InputNumber value={30} step={0.1} addonAfter="°C" />
           </Form.Item>
           <Form.Item
-            label={hintLabel(
-              'Макс. допуст. T° продукта',
+            className="helped-form-item"
+            label={fieldLabel('Макс. допуст. T° продукта')}
+          >
+            {withHelp(
+              <InputNumber value={90} step={0.1} addonAfter="°C" />,
               'Максимально допустимая температура продукта, °C. Сейчас поле справочное.',
             )}
-          >
-            <InputNumber value={90} step={0.1} addonAfter="°C" />
           </Form.Item>
           <Form.Item
-            className="fixed-select-form-item"
-            label={hintLabel(
-              'Среда',
+            className="fixed-select-form-item helped-form-item"
+            label={fieldLabel('Среда')}
+          >
+            {withHelp(
+              <Select value="normal" options={[{ value: 'normal', label: 'Нормальная' }, { value: 'aggressive', label: 'Агрессивная' }]} />,
               'Условия эксплуатации: нормальная или агрессивная среда. Сейчас поле справочное.',
             )}
-          >
-            <Select value="normal" options={[{ value: 'normal', label: 'Нормальная' }, { value: 'aggressive', label: 'Агрессивная' }]} />
           </Form.Item>
           <Form.Item
-            className="fixed-select-form-item"
-            label={hintLabel(
-              'Классификация зоны',
+            className="fixed-select-form-item helped-form-item"
+            label={fieldLabel('Классификация зоны')}
+          >
+            {withHelp(
+              <Select value="safe" options={[{ value: 'safe', label: 'Безопасная' }, { value: 'explosive', label: 'Взрывоопасная' }]} />,
               'Безопасная или взрывоопасная зона. Сейчас поле справочное.',
             )}
-          >
-            <Select value="safe" options={[{ value: 'safe', label: 'Безопасная' }, { value: 'explosive', label: 'Взрывоопасная' }]} />
           </Form.Item>
           <Form.Item
-            className="fixed-select-form-item"
-            label={hintLabel(
-              'Температурная группа',
+            className="fixed-select-form-item helped-form-item"
+            label={fieldLabel('Температурная группа')}
+          >
+            {withHelp(
+              <Select value="T1" options={['T1', 'T2', 'T3', 'T4', 'T5', 'T6'].map((v) => ({ value: v, label: v }))} />,
               'Температурная группа T1…T6 для классификации зоны. Сейчас поле справочное.',
             )}
-          >
-            <Select value="T1" options={['T1', 'T2', 'T3', 'T4', 'T5', 'T6'].map((v) => ({ value: v, label: v }))} />
           </Form.Item>
         </div>
 
@@ -616,63 +615,69 @@ export default function ObjectWizard({
         >
           {renderSectionTitle('Электропараметры и арматура', 3)}
           <Form.Item
-            label={hintLabel(
-              'Мин. T° включения',
+            className="helped-form-item"
+            label={fieldLabel('Мин. T° включения')}
+          >
+            {withHelp(
+              <InputNumber value={-20} step={0.1} addonAfter="°C" />,
               'Температура включения электрообогрева, °C. Сейчас поле справочное; выбор кабеля выполняется на шаге «Электрорасчёт».',
             )}
-          >
-            <InputNumber value={-20} step={0.1} addonAfter="°C" />
           </Form.Item>
           <Form.Item
-            className="fixed-select-form-item"
-            label={hintLabel(
-              'Рабочее напряжение',
+            className="fixed-select-form-item helped-form-item"
+            label={fieldLabel('Рабочее напряжение')}
+          >
+            {withHelp(
+              <Select value="220" options={[{ value: '220', label: '220 В' }, { value: '380', label: '380 В' }]} />,
               'Допустимые значения по SRS: 220 В или 380 В. Сейчас поле справочное для формы SC-03.',
             )}
-          >
-            <Select value="220" options={[{ value: '220', label: '220 В' }, { value: '380', label: '380 В' }]} />
           </Form.Item>
           <Form.Item
-            label={hintLabel(
-              'Kзап',
+            className="helped-form-item"
+            label={fieldLabel('Kзап')}
+          >
+            {withHelp(
+              <InputNumber value={1.2} step={0.01} />,
               'Коэффициент запаса Kзап. Целевой диапазон SRS: 1,00…2,00. Сейчас поле справочное; сохранение в payload вынесено в отдельную задачу.',
             )}
-          >
-            <InputNumber value={1.2} step={0.01} />
           </Form.Item>
           <Form.Item
-            label={hintLabel(
-              'Пропарка',
+            className="helped-form-item"
+            label={fieldLabel('Пропарка')}
+          >
+            {withHelp(
+              <Select value="no" options={[{ value: 'yes', label: 'Да' }, { value: 'no', label: 'Нет' }]} />,
               'Если «Да», по SRS требуется максимальная температура пара. Сейчас поле справочное.',
             )}
-          >
-            <Select value="no" options={[{ value: 'yes', label: 'Да' }, { value: 'no', label: 'Нет' }]} />
           </Form.Item>
           {objectType === 'pipe' && (
             <>
               <Form.Item
-                label={hintLabel(
-                  'Задвижки',
+                className="helped-form-item"
+                label={fieldLabel('Задвижки')}
+              >
+                {withHelp(
+                  <InputNumber value={2} min={0} addonAfter="шт" />,
                   'Количество задвижек, шт. Целевой диапазон валидации: 0…100. Сейчас поле справочное.',
                 )}
-              >
-                <InputNumber value={2} min={0} addonAfter="шт" />
               </Form.Item>
               <Form.Item
-                label={hintLabel(
-                  'Фланцы',
+                className="helped-form-item"
+                label={fieldLabel('Фланцы')}
+              >
+                {withHelp(
+                  <InputNumber value={2} min={0} addonAfter="шт" />,
                   'Количество фланцев, шт. Целевой диапазон валидации: 0…100. Сейчас поле справочное.',
                 )}
-              >
-                <InputNumber value={2} min={0} addonAfter="шт" />
               </Form.Item>
               <Form.Item
-                label={hintLabel(
-                  'Опоры',
+                className="helped-form-item"
+                label={fieldLabel('Опоры')}
+              >
+                {withHelp(
+                  <InputNumber value={2} min={0} addonAfter="шт" />,
                   'Количество опор, шт. Целевой диапазон валидации: 0…100. Сейчас поле справочное.',
                 )}
-              >
-                <InputNumber value={2} min={0} addonAfter="шт" />
               </Form.Item>
             </>
           )}

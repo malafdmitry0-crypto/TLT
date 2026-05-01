@@ -386,12 +386,15 @@ html, body, #root {
 }
 
 .form-grid-srs .form-col-srs {
-  display: grid;
-  --field-pair-min-width: 136px;
+  display: flex;
+  flex-wrap: wrap;
+  --field-pair-min-width: 316px;
+  --field-label-width: 112px;
   --field-input-min-width: 92px;
-  grid-template-columns: repeat(auto-fit, minmax(var(--field-pair-min-width), 1fr));
+  --numeric-value-width: 6ch;
   align-content: start;
-  gap: 1px;
+  align-items: flex-start;
+  gap: 3px 6px;
   min-width: var(--field-pair-min-width);
   overflow: hidden;
   border: 1px solid #d9e1e6;
@@ -425,7 +428,7 @@ html, body, #root {
   align-items: center;
   justify-content: space-between;
   gap: 4px;
-  grid-column: 1 / -1;
+  flex: 0 0 100%;
   margin: -4px -4px 3px;
   font-size: 11px;
   color: #607080;
@@ -497,48 +500,79 @@ html, body, #root {
 /* ── Обёртка поля ─────────────────────────────────────────────── */
 .inline-object-form .ant-form-item {
   display: block;
+  overflow: hidden;
   margin-bottom: 0;
-  min-width: min(100%, var(--field-pair-min-width, 136px));
-  min-height: 44px;
+  width: var(--field-pair-min-width, 316px);
+  max-width: var(--field-pair-min-width, 316px);
+  min-width: 0;
+  min-height: 24px;
   padding: 1px 2px;
+}
+
+.inline-object-form .ant-form-item-row {
+  display: grid;
+  grid-template-columns: var(--field-label-width, 112px) auto 12px;
+  column-gap: 2px;
+  align-items: start;
+  width: 100%;
+  min-width: 0;
 }
 
 /* ── Лейбл ────────────────────────────────────────────────────── */
 .inline-object-form .ant-form-item-label {
   padding: 0;
+  width: var(--field-label-width, 118px);
   overflow: visible;
   line-height: 1.15;
+  grid-column: 1;
+  text-align: left;
+  white-space: nowrap;
 }
 
 .inline-object-form .ant-form-item-label > label {
   display: flex;
   align-items: flex-start;
   gap: 3px;
-  min-height: 13px;
+  min-height: 20px;
   height: auto;
   color: #4a5b6c;
   font-size: 9px;
   line-height: 1.15;
-  margin-bottom: 2px;
-  overflow: visible;
-  white-space: nowrap;
+  margin-bottom: 0;
+  padding-top: 4px;
+  overflow: hidden;
+  white-space: normal;
 }
 
 .inline-object-form .ant-form-item-label > label > span {
   flex: 1 1 auto;
-  min-width: max-content;
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow-wrap: normal;
-  white-space: nowrap;
+  word-break: normal;
+  white-space: normal;
 }
 
-.inline-object-form .ant-form-item-label > label .anticon {
-  flex-shrink: 0;
-  font-size: 9px;
+.inline-object-form .field-label-two-line {
+  display: inline-flex !important;
+  flex-direction: column;
+  gap: 0;
   line-height: 1.15;
 }
 
+.inline-object-form .field-label-two-line > span {
+  display: block;
+  white-space: nowrap;
+}
+
 /* ── Контрол — якорь высоты 20px ──────────────────────────────── */
-.inline-object-form .ant-form-item-control { min-width: 0; }
+.inline-object-form .ant-form-item-control {
+  min-width: 0;
+  width: max-content;
+}
 
 .inline-object-form .ant-form-item-control-input {
   min-height: 0;
@@ -553,6 +587,25 @@ html, body, #root {
   min-width: 0;
   display: flex;
   align-items: stretch;
+}
+
+.inline-object-form .helped-form-item .ant-form-item-control,
+.inline-object-form .helped-form-item .ant-form-item-control-input,
+.inline-object-form .helped-form-item .ant-form-item-control-input-content,
+.inline-object-form .field-control-with-help {
+  display: contents;
+}
+
+.inline-object-form .field-control-with-help > :not(.anticon) {
+  grid-column: 2;
+}
+
+.inline-object-form .field-control-with-help > .anticon {
+  grid-column: 3;
+  align-self: start;
+  margin-top: 4px;
+  font-size: 9px;
+  line-height: 1.15;
 }
 
 /* ── Text Input ───────────────────────────────────────────────── */
@@ -600,8 +653,8 @@ html, body, #root {
 /* ── InputNumber (без addon) ──────────────────────────────────── */
 .inline-object-form .ant-input-number {
   height: var(--inline-control-height);
-  width: 100%;
-  min-width: var(--field-input-min-width, 92px);
+  width: calc(var(--numeric-value-width, 6ch) + 22px);
+  min-width: calc(var(--numeric-value-width, 6ch) + 22px);
   border-radius: 2px;
   box-sizing: border-box;
 }
@@ -610,8 +663,8 @@ html, body, #root {
 .inline-object-form .ant-input-number-group-wrapper {
   display: block;
   height: var(--inline-control-height);
-  width: 100%;
-  min-width: var(--field-input-min-width, 92px);
+  width: max-content;
+  min-width: 0;
   box-sizing: border-box;
   vertical-align: top;
 }
@@ -619,12 +672,13 @@ html, body, #root {
 /* antd renders group as display:table — do NOT override display */
 .inline-object-form .ant-input-number-group {
   height: var(--inline-control-height);
-  width: 100%;
+  width: max-content;
 }
 
 .inline-object-form .ant-input-number-group .ant-input-number {
   height: var(--inline-control-height);
-  min-width: 40px;
+  width: calc(var(--numeric-value-width, 6ch) + 22px);
+  min-width: calc(var(--numeric-value-width, 6ch) + 22px);
 }
 
 .inline-object-form .ant-input-number-input-wrap {
@@ -653,10 +707,11 @@ html, body, #root {
 .inline-object-form .ant-form-item-explain,
 .inline-object-form .ant-form-item-extra {
   font-size: 9px;
+  grid-column: 2;
 }
 
 .inline-object-form .wide-select-form-item {
-  grid-column: span 2;
+  flex-basis: auto;
 }
 
 .inline-object-form .wide-select-form-item .ant-select-selection-item,
@@ -667,29 +722,32 @@ html, body, #root {
 }
 
 .inline-object-form .fit-label-form-item {
-  width: max-content;
-  min-width: max-content;
+  width: var(--field-pair-min-width, 316px);
+  min-width: 0;
 }
 
 .inline-object-form .fit-label-form-item .ant-form-item-control,
 .inline-object-form .fit-label-form-item .ant-form-item-control-input,
 .inline-object-form .fit-label-form-item .ant-form-item-control-input-content {
-  width: 100%;
-  min-width: 100%;
+  width: max-content;
+  min-width: 0;
 }
 
 .inline-object-form .fit-label-form-item .ant-input,
-.inline-object-form .fit-label-form-item .ant-select,
+.inline-object-form .fit-label-form-item .ant-select {
+  width: max-content;
+  min-width: var(--field-input-min-width, 92px);
+}
+
 .inline-object-form .fit-label-form-item .ant-input-number,
 .inline-object-form .fit-label-form-item .ant-input-number-group-wrapper {
-  width: 100%;
-  min-width: 100%;
+  min-width: 0;
 }
 
 .inline-object-form .pipe-material-form-item,
 .inline-object-form .fixed-select-form-item {
-  width: 160px;
-  min-width: 160px;
+  width: var(--field-pair-min-width, 316px);
+  min-width: 0;
 }
 
 .inline-object-form .pipe-material-form-item .ant-form-item-label,

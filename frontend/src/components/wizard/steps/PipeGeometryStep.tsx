@@ -1,24 +1,17 @@
-import { Form, InputNumber, Tooltip, Typography } from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
+import { Form, InputNumber, Typography } from 'antd';
+import type { ReactElement } from 'react';
 import { findDN } from '@/utils/objectWizardUtils';
+import HelpedControl from '../HelpedControl';
+import FieldLabel from '../FieldLabel';
 
 const { Text } = Typography;
 
-function HelpIcon({ text }: { text: string }) {
-  return (
-    <Tooltip title={text}>
-      <InfoCircleOutlined style={{ color: '#8c8c8c', cursor: 'help', flexShrink: 0 }} />
-    </Tooltip>
-  );
+function withHelp(control: ReactElement, hint: string) {
+  return <HelpedControl hint={hint}>{control}</HelpedControl>;
 }
 
-function label(text: string, hint: string) {
-  return (
-    <>
-      <span>{text}</span>
-      <HelpIcon text={hint} />
-    </>
-  );
+function fieldLabel(text: string) {
+  return <FieldLabel text={text} />;
 }
 
 export default function PipeGeometryStep() {
@@ -30,11 +23,8 @@ export default function PipeGeometryStep() {
           const dn = mm ? findDN(mm) : null;
           return (
             <Form.Item
-              className="fit-label-form-item"
-              label={label(
-                'Ø',
-                'Наружный диаметр трубопровода Ø, мм. Диапазон: 10,8–3000 мм. Стандартные размеры DN10–DN1000.'
-              )}
+              className="fit-label-form-item helped-form-item"
+              label={fieldLabel('Ø')}
               name="outer_diameter_mm"
               rules={[
                 { required: true, message: 'Укажите наружный диаметр' },
@@ -53,23 +43,23 @@ export default function PipeGeometryStep() {
                 ) : null
               }
             >
-              <InputNumber
-                min={10.8}
-                max={3000}
-                step={1}
-                addonAfter="мм"
-              />
+              {withHelp(
+                <InputNumber
+                  min={10.8}
+                  max={3000}
+                  step={1}
+                  addonAfter="мм"
+                />,
+                'Наружный диаметр трубопровода Ø, мм. Диапазон: 10,8–3000 мм. Стандартные размеры DN10–DN1000.',
+              )}
             </Form.Item>
           );
         }}
       </Form.Item>
 
       <Form.Item
-        className="fit-label-form-item"
-        label={label(
-          'Длина трубопровода',
-          'Длина обогреваемого участка. Диапазон: 0,5–200 000 м.'
-        )}
+        className="fit-label-form-item helped-form-item"
+        label={fieldLabel('Длина трубопровода')}
         name="pipe_length"
         rules={[
           { required: true, message: 'Укажите длину трубопровода' },
@@ -77,7 +67,10 @@ export default function PipeGeometryStep() {
           { type: 'number', max: 200000, message: 'Максимальная длина — 200 000 м' },
         ]}
       >
-        <InputNumber min={0.5} max={200000} step={1} style={{ width: '100%' }} addonAfter="м" />
+        {withHelp(
+          <InputNumber min={0.5} max={200000} step={1} style={{ width: '100%' }} addonAfter="м" />,
+          'Длина обогреваемого участка. Диапазон: 0,5–200 000 м.',
+        )}
       </Form.Item>
     </>
   );

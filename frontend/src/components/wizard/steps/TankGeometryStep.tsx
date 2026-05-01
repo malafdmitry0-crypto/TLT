@@ -1,5 +1,7 @@
-import { Form, InputNumber, Select, Tooltip } from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
+import { Form, InputNumber, Select } from 'antd';
+import type { ReactElement } from 'react';
+import HelpedControl from '../HelpedControl';
+import FieldLabel from '../FieldLabel';
 
 const SHAPE_OPTIONS = [
   { value: 'cylindrical', label: 'Цилиндрическая' },
@@ -7,27 +9,18 @@ const SHAPE_OPTIONS = [
   { value: 'spherical', label: 'Сферическая' },
 ];
 
-function HelpIcon({ text }: { text: string }) {
-  return (
-    <Tooltip title={text}>
-      <InfoCircleOutlined style={{ color: '#8c8c8c', cursor: 'help', flexShrink: 0 }} />
-    </Tooltip>
-  );
+function withHelp(control: ReactElement, hint: string) {
+  return <HelpedControl hint={hint}>{control}</HelpedControl>;
 }
 
-function label(text: string, hint: string) {
-  return (
-    <>
-      <span>{text}</span>
-      <HelpIcon text={hint} />
-    </>
-  );
+function fieldLabel(text: string) {
+  return <FieldLabel text={text} />;
 }
 
 export default function TankGeometryStep() {
   return (
     <>
-      <Form.Item className="fixed-select-form-item" label="Форма резервуара" name="shape" initialValue="cylindrical">
+      <Form.Item className="fixed-select-form-item" label={fieldLabel('Форма резервуара')} name="shape" initialValue="cylindrical">
         <Select options={SHAPE_OPTIONS} />
       </Form.Item>
 
@@ -46,10 +39,8 @@ export default function TankGeometryStep() {
             <>
               {needDiameter && (
                 <Form.Item
-                  label={label(
-                    'Ø',
-                    'Внешний диаметр резервуара Ø, мм. Обязателен для цилиндрической и сферической форм. Диапазон: 100–50 000 мм.'
-                  )}
+                  className="helped-form-item"
+                  label={fieldLabel('Ø')}
                   name="diameter_mm"
                   rules={[
                     { required: true, message: 'Укажите диаметр' },
@@ -57,16 +48,17 @@ export default function TankGeometryStep() {
                     { type: 'number', max: 50000, message: 'Максимальный диаметр — 50 000 мм' },
                   ]}
                 >
-                  <InputNumber min={100} max={50000} step={100} addonAfter="мм" />
+                  {withHelp(
+                    <InputNumber min={100} max={50000} step={100} addonAfter="мм" />,
+                    'Внешний диаметр резервуара Ø, мм. Обязателен для цилиндрической и сферической форм. Диапазон: 100–50 000 мм.',
+                  )}
                 </Form.Item>
               )}
 
               {needHeight && (
                 <Form.Item
-                  label={label(
-                    'Высота',
-                    'Высота резервуара. Обязательна для цилиндрической и прямоугольной форм. Диапазон: 100–50 000 мм.'
-                  )}
+                  className="helped-form-item"
+                  label={fieldLabel('Высота')}
                   name="height_mm"
                   rules={[
                     { required: true, message: 'Укажите высоту' },
@@ -74,13 +66,17 @@ export default function TankGeometryStep() {
                     { type: 'number', max: 50000, message: 'Максимальная высота — 50 000 мм' },
                   ]}
                 >
-                  <InputNumber min={100} max={50000} step={100} addonAfter="мм" />
+                  {withHelp(
+                    <InputNumber min={100} max={50000} step={100} addonAfter="мм" />,
+                    'Высота резервуара. Обязательна для цилиндрической и прямоугольной форм. Диапазон: 100–50 000 мм.',
+                  )}
                 </Form.Item>
               )}
 
               {needLength && (
                 <Form.Item
-                  label={label('Длина', 'Длина прямоугольного резервуара. Диапазон: 100–50 000 мм.')}
+                  className="helped-form-item"
+                  label={fieldLabel('Длина')}
                   name="length_mm"
                   rules={[
                     { required: true, message: 'Укажите длину' },
@@ -88,13 +84,17 @@ export default function TankGeometryStep() {
                     { type: 'number', max: 50000, message: 'Максимальная длина — 50 000 мм' },
                   ]}
                 >
-                  <InputNumber min={100} max={50000} step={100} addonAfter="мм" />
+                  {withHelp(
+                    <InputNumber min={100} max={50000} step={100} addonAfter="мм" />,
+                    'Длина прямоугольного резервуара. Диапазон: 100–50 000 мм.',
+                  )}
                 </Form.Item>
               )}
 
               {needWidth && (
                 <Form.Item
-                  label={label('Ширина', 'Ширина прямоугольного резервуара. Диапазон: 100–50 000 мм.')}
+                  className="helped-form-item"
+                  label={fieldLabel('Ширина')}
                   name="width_mm"
                   rules={[
                     { required: true, message: 'Укажите ширину' },
@@ -102,7 +102,10 @@ export default function TankGeometryStep() {
                     { type: 'number', max: 50000, message: 'Максимальная ширина — 50 000 мм' },
                   ]}
                 >
-                  <InputNumber min={100} max={50000} step={100} addonAfter="мм" />
+                  {withHelp(
+                    <InputNumber min={100} max={50000} step={100} addonAfter="мм" />,
+                    'Ширина прямоугольного резервуара. Диапазон: 100–50 000 мм.',
+                  )}
                 </Form.Item>
               )}
             </>
