@@ -31,7 +31,8 @@ const SECTION_WIDTHS_STORAGE_KEY = 'object-wizard-section-widths-v18';
 const SECTION_AUTO_ALIGN_STORAGE_KEY = 'object-wizard-section-auto-align';
 const SECTION_MIN_COLUMN_WIDTH = 296;
 const SECTION_RESIZE_HANDLE_WIDTH = 1;
-const SECTION_WIDTH_WEIGHTS = [1, 1.1, 1, 0.9];
+const SECTION_WIDTH_WEIGHTS = [1.18, 1.1, 1, 0.72];
+const SECTION_FIELD_PAIR_MIN_WIDTH = 230;
 
 function sectionWidthsStorageKey(objectType: ObjectType) {
   return `${SECTION_WIDTHS_STORAGE_KEY}-${objectType}`;
@@ -247,6 +248,7 @@ export default function ObjectWizard({
   const containerRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [colWidths, setColWidths] = useState(() => getInitialSectionWidths(objectType));
+  const [sectionFieldColumns, setSectionFieldColumns] = useState([1, 1, 1, 1]);
   const colWidthsRef = useRef(colWidths);
   const hasManualWidthsRef = useRef(!autoAlign && readSavedSectionWidths(objectType) != null);
   const autoAlignRef = useRef(autoAlign);
@@ -284,6 +286,28 @@ export default function ObjectWizard({
 
     return () => observer.disconnect();
   }, [objectType]);
+
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return;
+
+    const updateColumns = () => {
+      const next = sectionRefs.current.map((section) => {
+        const width = section?.getBoundingClientRect().width ?? 0;
+        return width >= SECTION_FIELD_PAIR_MIN_WIDTH * 2 ? 2 : 1;
+      });
+      setSectionFieldColumns((prev) =>
+        prev.every((value, idx) => value === next[idx]) ? prev : next,
+      );
+    };
+
+    const observer = new ResizeObserver(updateColumns);
+    sectionRefs.current.forEach((section) => {
+      if (section) observer.observe(section);
+    });
+    updateColumns();
+
+    return () => observer.disconnect();
+  }, [collapsedSections, colWidths, objectType]);
 
   function getMeasuredSectionControlCounts() {
     return sectionRefs.current.map((section, idx) => {
@@ -377,6 +401,7 @@ export default function ObjectWizard({
 
     return {
       width: `calc((${availableWidth}) * ${share})`,
+      gridTemplateColumns: `repeat(${sectionFieldColumns[idx] ?? 1}, minmax(0, 1fr))`,
     } as React.CSSProperties;
   }
 
@@ -586,7 +611,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="fixed-select-form-item helped-form-item"
+            className="medium-select-form-item helped-form-item"
             label={fieldLabel('Среда')}
           >
             {withHelp(
@@ -595,7 +620,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="fixed-select-form-item helped-form-item"
+            className="medium-select-form-item helped-form-item"
             label={fieldLabel('Классификация зоны')}
           >
             {withHelp(
