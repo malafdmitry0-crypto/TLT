@@ -532,9 +532,7 @@ class TestVariantIsolation:
     расчёт СО1 по тем же 7 объектам.
     """
 
-    async def test_list_filters_by_variant_number(
-        self, client: AsyncClient, guest_session: str
-    ):
+    async def test_list_filters_by_variant_number(self, client: AsyncClient, guest_session: str):
         """GET /calc/electrical?variant_number=N возвращает только расчёты этого варианта."""
         project = await _create_project(client, guest_session)
         await _create_pipe_object(client, project["id"], guest_session)
@@ -627,6 +625,6 @@ class TestVariantIsolation:
             )
         ).json()
         assert len(v1_after) == 1
-        assert v1_after[0]["cable_mark"] == v1_cable, (
-            "Успешный расчёт СО1 был затёрт при ошибке в СО2"
-        )
+        assert (
+            v1_after[0]["cable_mark"] == v1_cable
+        ), "Успешный расчёт СО1 был затёрт при ошибке в СО2"

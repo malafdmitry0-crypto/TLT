@@ -16,7 +16,7 @@ import math
 import pytest
 
 from app.formulas.heat_loss.tank import _calc_alpha, calc_tank_heat_loss
-from app.schemas.calculation import TankHeatLossParams
+from app.schemas.calculation import InsulationLayer, TankHeatLossParams
 
 # ---------------------------------------------------------------------------
 # Фабрика параметров
@@ -120,6 +120,21 @@ class TestHeatLossFormula:
         without_wall = calc_tank_heat_loss(_cyl())
         with_wall = calc_tank_heat_loss(_cyl(wall_thickness=0.008, wall_lambda=50.0))
         assert with_wall.heat_loss_per_m2 < without_wall.heat_loss_per_m2
+
+    def test_three_insulation_layers_reduce_heat_loss(self):
+        """Три слоя должны учитываться как сумма сопротивлений изоляции."""
+        one_layer = calc_tank_heat_loss(_cyl(insulation_thickness=0.04))
+        three_layers = calc_tank_heat_loss(
+            _cyl(
+                insulation_thickness=0.04,
+                insulation_layers=[
+                    InsulationLayer(thickness=0.04, material="mineral_wool"),
+                    InsulationLayer(thickness=0.02, material="polyurethane"),
+                    InsulationLayer(thickness=0.01, material="foam_glass"),
+                ],
+            )
+        )
+        assert three_layers.heat_loss_per_m2 < one_layer.heat_loss_per_m2
 
     def test_wall_resistance_manual(self):
         """q с учётом стенки."""

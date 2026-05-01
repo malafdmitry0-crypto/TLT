@@ -176,6 +176,10 @@ class TankHeatLossParams(BaseModel):
     volume: float | None = Field(default=None, gt=0)
     insulation_thickness: float = Field(gt=0)
     insulation_material: str = Field(min_length=1)
+    insulation_layers: list[InsulationLayer] | None = Field(
+        default=None,
+        description="N_iz — слои изоляции (1–3), многослойный режим",
+    )
     ambient_temperature: float
     process_temperature: float
     location: Literal["indoor", "outdoor"] = "outdoor"

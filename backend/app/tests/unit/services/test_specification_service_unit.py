@@ -127,9 +127,7 @@ class TestGenerate:
         no_spec = MagicMock()
         no_spec.scalars = lambda: MagicMock(first=lambda: None, all=lambda: [])
         calc_result = MagicMock()
-        calc_result.scalars = lambda: MagicMock(
-            first=lambda: calc, all=lambda: [calc, calc, calc]
-        )
+        calc_result.scalars = lambda: MagicMock(first=lambda: calc, all=lambda: [calc, calc, calc])
         db.execute = AsyncMock(side_effect=[no_spec, calc_result])
         db.scalar = AsyncMock(return_value=5)  # 5 объектов в проекте
         db.commit = AsyncMock()
@@ -140,9 +138,9 @@ class TestGenerate:
         assert accessories, "Аксессуары должны быть"
         for acc in accessories:
             per_object = acc.quantity / 5.0
-            assert per_object == float(int(per_object)), (
-                f"{acc.name}: {acc.quantity} не кратно 5 (объектов в проекте)"
-            )
+            assert per_object == float(
+                int(per_object)
+            ), f"{acc.name}: {acc.quantity} не кратно 5 (объектов в проекте)"
 
 
 class TestSaveItems:

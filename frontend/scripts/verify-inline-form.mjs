@@ -6,6 +6,8 @@ const mode = process.argv.includes('--tank') ? 'tank' : 'pipe';
 const printReport = process.argv.includes('--report');
 const screenshotPath = process.argv.find((arg) => arg.startsWith('--screenshot='))?.split('=')[1];
 const viewportWidth = Number(process.argv.find((arg) => arg.startsWith('--width='))?.split('=')[1] ?? 2048);
+const layerCount = Number(process.argv.find((arg) => arg.startsWith('--layers='))?.split('=')[1] ?? 2);
+const normalizedLayerCount = Math.min(Math.max(layerCount || 2, 1), 3);
 
 const browser = await chromium.launch({ headless: true, channel });
 const page = await browser.newPage({
@@ -41,7 +43,7 @@ try {
     const layerSelect = page.locator('.layer-count-form-item .ant-select').first();
     if (await layerSelect.count()) {
       await layerSelect.click();
-      await page.getByTitle('2 слоя').click();
+      await page.getByTitle(`${normalizedLayerCount} ${normalizedLayerCount === 1 ? 'слой' : 'слоя'}`).click();
       await page.waitForTimeout(400);
     }
   }

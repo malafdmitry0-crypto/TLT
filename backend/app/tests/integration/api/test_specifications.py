@@ -136,9 +136,7 @@ class TestSpecAccessoryCountForAllObjects:
     число УЗО падало вместе с числом успешных расчётов.
     """
 
-    async def _add_pipe(
-        self, client: AsyncClient, project_id: str, session_id: str
-    ) -> dict:
+    async def _add_pipe(self, client: AsyncClient, project_id: str, session_id: str) -> dict:
         resp = await client.post(
             f"/api/v1/projects/{project_id}/objects",
             json={
@@ -188,6 +186,6 @@ class TestSpecAccessoryCountForAllObjects:
         for acc in accessories:
             qty = float(acc["quantity"])
             per_object = qty / 3.0
-            assert per_object == float(int(per_object)), (
-                f"{acc['name']}: quantity={qty}, не кратно 3 (числу объектов проекта)"
-            )
+            assert per_object == float(
+                int(per_object)
+            ), f"{acc['name']}: quantity={qty}, не кратно 3 (числу объектов проекта)"

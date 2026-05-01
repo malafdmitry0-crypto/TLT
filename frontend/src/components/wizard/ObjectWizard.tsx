@@ -1,11 +1,13 @@
 import { useEffect, useRef, type ReactElement } from 'react';
 import { Button, Form, Input, InputNumber, Select } from 'antd';
+import { useQuery } from '@tanstack/react-query';
 import type { ObjectType } from '@/constants/objectTypes';
 import PipeGeometryStep from './steps/PipeGeometryStep';
 import TankGeometryStep from './steps/TankGeometryStep';
 import ThermalStep from './steps/ThermalStep';
 import HelpedControl from './HelpedControl';
 import FieldLabel from './FieldLabel';
+import { getInsulation } from '@/api/references';
 import {
   generatePipeName,
   generateTankName,
@@ -28,7 +30,7 @@ interface Props {
 
 const SECTION_RESIZE_HANDLE_WIDTH = 1;
 const SECTION_WIDTH_WEIGHTS = [1.1, 1.17, 0.68, 1.05];
-const SECTION_FIELD_PAIR_MIN_WIDTHS = [248, 252, 252, 238];
+const SECTION_FIELD_PAIR_MIN_WIDTHS = [206, 206, 252, 196];
 const SECTION_FIELD_GRID =
   'repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr))';
 
@@ -54,6 +56,15 @@ export default function ObjectWizard({
   const insulationLayerCount = String(
     (values as Record<string, unknown> | undefined)?.insulation_layer_count ?? '1',
   );
+  const layerCount = Math.min(Math.max(Number(insulationLayerCount) || 1, 1), 3);
+  const { data: insulationMaterials = [], isError: insulationMaterialsError, isFetching: isInsulationMaterialsFetching } = useQuery({
+    queryKey: ['insulation'],
+    queryFn: getInsulation,
+  });
+  const insulationMaterialOptions = insulationMaterials.map((m) => ({
+    value: m.material,
+    label: m.name,
+  }));
 
   const initialValues =
     initialParams != null
@@ -138,7 +149,7 @@ export default function ObjectWizard({
         >
           {renderSectionTitle(objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара')}
           <Form.Item
-            className="helped-form-item"
+            className="name-form-item helped-form-item"
             label={fieldLabel('Наименование')}
             name="name"
             rules={[
@@ -229,29 +240,79 @@ export default function ObjectWizard({
           >
             {withHelp(
               <Select options={[{ value: '1', label: '1 слой' }, { value: '2', label: '2 слоя' }, { value: '3', label: '3 слоя' }]} />,
-              'Целевой диапазон SRS: 1…3 слоя. Сейчас расчётный payload MVP использует основной слой изоляции.',
+              'Количество слоёв изоляции. При 2 или 3 слоях форма добавляет отдельные материал и толщину для каждого дополнительного слоя.',
             )}
           </Form.Item>
           {insulationLayerCount !== '1' && (
             <>
               <Form.Item
-                className="medium-select-form-item second-layer-material-form-item helped-form-item"
+                className="medium-select-form-item layer-material-form-item second-layer-material-form-item helped-form-item"
                 label={fieldLabel('Материал 2-го слоя')}
+                name="second_insulation_material"
                 preserve={false}
+                rules={[{ required: true, message: 'Выберите материал 2-го слоя' }]}
               >
                 {withHelp(
-                  <Select value="none" options={[{ value: 'none', label: 'Не указан' }, { value: 'polyurethane_foam', label: 'Пенополиуретан' }]} />,
-                  'Используется при 2 или 3 слоях изоляции. Сейчас поле справочное и не входит в расчётный payload.',
+                  <Select
+                    options={insulationMaterialOptions}
+                    placeholder="Выберите материал"
+                    loading={isInsulationMaterialsFetching}
+                    notFoundContent={insulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
+                  />,
+                  'Материал второго слоя изоляции. Используется в многослойном расчёте при 2 или 3 слоях.',
                 )}
               </Form.Item>
               <Form.Item
                 className="numeric-form-item short-number-form-item second-layer-thickness-form-item helped-form-item"
                 label={fieldLabel('Толщина 2-го слоя')}
+                name="second_insulation_thickness_mm"
                 preserve={false}
+                rules={[
+                  { required: true, message: 'Укажите толщину 2-го слоя' },
+                  { type: 'number', min: 1, message: 'Минимальная толщина — 1 мм' },
+                  { type: 'number', max: 500, message: 'Максимальная толщина — 500 мм' },
+                ]}
               >
                 {withHelp(
-                  <InputNumber value={1} min={1} max={500} addonAfter="мм" />,
-                  'Целевой диапазон SRS: 1…500 мм при выбранном 2-м слое. Сейчас поле справочное.',
+                  <InputNumber min={1} max={500} addonAfter="мм" />,
+                  'Толщина второго слоя изоляции. Диапазон: 1…500 мм.',
+                )}
+              </Form.Item>
+            </>
+          )}
+          {layerCount >= 3 && (
+            <>
+              <Form.Item
+                className="medium-select-form-item layer-material-form-item third-layer-material-form-item helped-form-item"
+                label={fieldLabel('Материал 3-го слоя')}
+                name="third_insulation_material"
+                preserve={false}
+                rules={[{ required: true, message: 'Выберите материал 3-го слоя' }]}
+              >
+                {withHelp(
+                  <Select
+                    options={insulationMaterialOptions}
+                    placeholder="Выберите материал"
+                    loading={isInsulationMaterialsFetching}
+                    notFoundContent={insulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
+                  />,
+                  'Материал третьего слоя изоляции. Используется в многослойном расчёте при 3 слоях.',
+                )}
+              </Form.Item>
+              <Form.Item
+                className="numeric-form-item short-number-form-item third-layer-thickness-form-item helped-form-item"
+                label={fieldLabel('Толщина 3-го слоя')}
+                name="third_insulation_thickness_mm"
+                preserve={false}
+                rules={[
+                  { required: true, message: 'Укажите толщину 3-го слоя' },
+                  { type: 'number', min: 1, message: 'Минимальная толщина — 1 мм' },
+                  { type: 'number', max: 500, message: 'Максимальная толщина — 500 мм' },
+                ]}
+              >
+                {withHelp(
+                  <InputNumber min={1} max={500} addonAfter="мм" />,
+                  'Толщина третьего слоя изоляции. Диапазон: 1…500 мм.',
                 )}
               </Form.Item>
             </>

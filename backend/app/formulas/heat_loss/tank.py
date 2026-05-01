@@ -20,7 +20,7 @@ from app.formulas.heat_loss.common import (
     validate_temperature_range,
 )
 from app.reference_data.loader import get_insulation_conductivity
-from app.schemas.calculation import TankHeatLossParams, TankHeatLossResult
+from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHeatLossResult
 
 
 def _surface_area(params: TankHeatLossParams) -> float:
@@ -60,6 +60,17 @@ def _calc_alpha(params: TankHeatLossParams) -> float:
     v = params.wind_speed or 0.0
     alpha = 11.6 + 7.0 * v
     return min(max(alpha, 11.6), 52.0)
+
+
+def _resolve_layers(params: TankHeatLossParams) -> list[InsulationLayer]:
+    if params.insulation_layers:
+        return list(params.insulation_layers)
+    return [
+        InsulationLayer(
+            thickness=params.insulation_thickness,
+            material=params.insulation_material,
+        )
+    ]
 
 
 def calc_tank_heat_loss(
@@ -111,11 +122,22 @@ def calc_tank_heat_loss(
         r_wall = params.wall_thickness / params.wall_lambda
 
     # --- 2. Сопротивление изоляции (плоская стенка) ---
-    lambda_ins = get_insulation_conductivity(
-        material=params.insulation_material,
-        temperature=t_mean,
-    )
-    r_ins = params.insulation_thickness / lambda_ins
+    r_ins = 0.0
+    layers = _resolve_layers(params)
+    if len(layers) > 3:
+        raise ValueError("Максимальное количество слоёв изоляции: 3 (N_iz ≤ 3)")
+    for i, layer in enumerate(layers):
+        validate_positive(f"Толщина изоляции слоя {i + 1}", layer.thickness)
+        lambda_ins = (
+            layer.conductivity
+            if layer.conductivity is not None
+            else get_insulation_conductivity(
+                material=layer.material,
+                temperature=t_mean,
+            )
+        )
+        validate_positive(f"Теплопроводность изоляции слоя {i + 1}", lambda_ins)
+        r_ins += layer.thickness / lambda_ins
 
     # --- 3. Внешнее сопротивление ---
     alpha = _calc_alpha(params)

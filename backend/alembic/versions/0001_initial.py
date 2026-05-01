@@ -5,11 +5,13 @@ Revises:
 Create Date: 2026-04-10 00:00:00
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "0001"
 down_revision: str | None = None
@@ -18,16 +20,12 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
+    op.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
 
-    user_role = postgresql.ENUM(
-        "employee", "admin", name="user_role", create_type=False
-    )
+    user_role = postgresql.ENUM("employee", "admin", name="user_role", create_type=False)
     user_role.create(op.get_bind(), checkfirst=True)
 
-    project_status = postgresql.ENUM(
-        "draft", "completed", name="project_status", create_type=False
-    )
+    project_status = postgresql.ENUM("draft", "completed", name="project_status", create_type=False)
     project_status.create(op.get_bind(), checkfirst=True)
 
     object_type = postgresql.ENUM(
@@ -60,8 +58,12 @@ def upgrade() -> None:
         sa.Column("full_name", sa.String(255), nullable=True),
         sa.Column("role", user_role, nullable=False),
         sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.true()),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_index("ix_users_email", "users", ["email"], unique=True)
 
@@ -69,8 +71,15 @@ def upgrade() -> None:
         "guest_sessions",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("session_id", sa.String(64), nullable=False, unique=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("last_activity", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "last_activity",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
     op.create_index("ix_guest_sessions_session_id", "guest_sessions", ["session_id"], unique=True)
 
@@ -92,8 +101,12 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column("status", project_status, nullable=False, server_default="draft"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.CheckConstraint(
             "user_id IS NOT NULL OR session_id IS NOT NULL",
             name="ck_project_owner_present",
@@ -115,8 +128,12 @@ def upgrade() -> None:
         sa.Column("results", postgresql.JSONB, nullable=True),
         sa.Column("is_valid", sa.Boolean, nullable=False, server_default=sa.false()),
         sa.Column("validation_errors", postgresql.JSONB, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_index("ix_project_objects_project_id", "project_objects", ["project_id"])
 
@@ -140,8 +157,12 @@ def upgrade() -> None:
         sa.Column("cable_mark", sa.String(128), nullable=True),
         sa.Column("params", postgresql.JSONB, nullable=False),
         sa.Column("results", postgresql.JSONB, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
     op.create_table(
@@ -155,8 +176,12 @@ def upgrade() -> None:
         ),
         sa.Column("variant_number", sa.Integer, nullable=False, server_default="1"),
         sa.Column("items", postgresql.JSONB, nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
     op.create_table(
@@ -171,8 +196,12 @@ def upgrade() -> None:
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
         ),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
     op.create_table(
@@ -187,8 +216,12 @@ def upgrade() -> None:
         sa.Column("resistance_per_meter", sa.Float, nullable=True),
         sa.Column("params", postgresql.JSONB, nullable=True),
         sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.true()),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
     op.create_table(
@@ -199,8 +232,12 @@ def upgrade() -> None:
         sa.Column("article", sa.String(64), nullable=True),
         sa.Column("params", postgresql.JSONB, nullable=True),
         sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.true()),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_index("ix_accessories_extended_category", "accessories_extended", ["category"])
 

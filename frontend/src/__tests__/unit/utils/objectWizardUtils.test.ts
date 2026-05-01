@@ -131,6 +131,29 @@ describe('pipeFormToApiParams', () => {
     });
     expect(api.name).toBe('Magistral-1');
   });
+
+  it('формирует insulation_layers для трёх слоёв', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 40,
+      insulation_material: 'mineral_wool',
+      insulation_layer_count: '3',
+      second_insulation_thickness_mm: 20,
+      second_insulation_material: 'polyurethane_foam',
+      third_insulation_thickness_mm: 10,
+      third_insulation_material: 'foam_glass',
+      ambient_temperature: -20,
+      process_temperature: 80,
+    });
+    expect(api.insulation_layer_count).toBe('3');
+    expect(api.insulation_layers).toEqual([
+      { thickness: 0.04, material: 'mineral_wool' },
+      { thickness: 0.02, material: 'polyurethane_foam' },
+      { thickness: 0.01, material: 'foam_glass' },
+    ]);
+    expect(api.insulation_thickness).toBeCloseTo(0.04);
+  });
 });
 
 describe('tankFormToApiParams', () => {
@@ -181,6 +204,27 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
     expect(form.outer_diameter_mm).toBe(108);
     expect(form.insulation_thickness_mm).toBe(50);
     expect(form.name).toBe('X');
+  });
+
+  it('обратная конвертация трёх insulation_layers → поля формы', () => {
+    const form = pipeApiParamsToForm({
+      outer_diameter: 0.108,
+      pipe_length: 50,
+      ambient_temperature: -20,
+      process_temperature: 80,
+      insulation_layers: [
+        { thickness: 0.04, material: 'mineral_wool' },
+        { thickness: 0.02, material: 'polyurethane_foam' },
+        { thickness: 0.01, material: 'foam_glass' },
+      ],
+    });
+    expect(form.insulation_layer_count).toBe('3');
+    expect(form.insulation_thickness_mm).toBe(40);
+    expect(form.insulation_material).toBe('mineral_wool');
+    expect(form.second_insulation_thickness_mm).toBe(20);
+    expect(form.second_insulation_material).toBe('polyurethane_foam');
+    expect(form.third_insulation_thickness_mm).toBe(10);
+    expect(form.third_insulation_material).toBe('foam_glass');
   });
 
   it('tank: cylindrical с diameter/height', () => {

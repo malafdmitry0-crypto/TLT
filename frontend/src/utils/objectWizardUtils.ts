@@ -96,6 +96,11 @@ export interface PipeFormValues {
   outer_diameter_mm: number;
   insulation_thickness_mm: number;
   insulation_material: string;
+  insulation_layer_count?: '1' | '2' | '3';
+  second_insulation_thickness_mm?: number;
+  second_insulation_material?: string;
+  third_insulation_thickness_mm?: number;
+  third_insulation_material?: string;
   ambient_temperature: number;
   process_temperature: number;
   pipe_length: number;
@@ -109,6 +114,11 @@ export interface TankFormValues {
   width_mm?: number;
   insulation_thickness_mm: number;
   insulation_material: string;
+  insulation_layer_count?: '1' | '2' | '3';
+  second_insulation_thickness_mm?: number;
+  second_insulation_material?: string;
+  third_insulation_thickness_mm?: number;
+  third_insulation_material?: string;
   ambient_temperature: number;
   process_temperature: number;
 }
@@ -162,6 +172,7 @@ export function pipeFormToApiParams(
     process_temperature: v.process_temperature,
     pipe_length: v.pipe_length,
   };
+  applyInsulationLayers(params, v);
   if (v.name) params.name = v.name;
   return params;
 }
@@ -176,6 +187,7 @@ export function tankFormToApiParams(
     ambient_temperature: v.ambient_temperature,
     process_temperature: v.process_temperature,
   };
+  applyInsulationLayers(params, v);
   if (v.diameter_mm != null) params.diameter = v.diameter_mm / 1000;
   if (v.height_mm != null) params.height = v.height_mm / 1000;
   if (v.length_mm != null) params.length = v.length_mm / 1000;
@@ -184,16 +196,71 @@ export function tankFormToApiParams(
   return params;
 }
 
+type LayeredFormValues = Pick<
+  PipeFormValues,
+  | 'insulation_thickness_mm'
+  | 'insulation_material'
+  | 'insulation_layer_count'
+  | 'second_insulation_thickness_mm'
+  | 'second_insulation_material'
+  | 'third_insulation_thickness_mm'
+  | 'third_insulation_material'
+>;
+
+function applyInsulationLayers(params: Record<string, unknown>, v: LayeredFormValues) {
+  const count = Number(v.insulation_layer_count ?? '1');
+  params.insulation_layer_count = String(Math.min(Math.max(count || 1, 1), 3));
+  if (count <= 1) return;
+
+  const layers = [
+    {
+      thickness: v.insulation_thickness_mm / 1000,
+      material: v.insulation_material,
+    },
+  ];
+
+  if (count >= 2 && v.second_insulation_thickness_mm != null && v.second_insulation_material) {
+    layers.push({
+      thickness: v.second_insulation_thickness_mm / 1000,
+      material: v.second_insulation_material,
+    });
+  }
+  if (count >= 3 && v.third_insulation_thickness_mm != null && v.third_insulation_material) {
+    layers.push({
+      thickness: v.third_insulation_thickness_mm / 1000,
+      material: v.third_insulation_material,
+    });
+  }
+
+  params.insulation_layers = layers;
+}
+
 // ---------------------------------------------------------------------------
 // Conversion: API params (metres) → form values (mm) for edit mode
 // ---------------------------------------------------------------------------
 
 export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFormValues & { name: string }> {
+  const layers = Array.isArray(p.insulation_layers)
+    ? (p.insulation_layers as Record<string, unknown>[])
+    : [];
   return {
     outer_diameter_mm: p.outer_diameter != null ? Number(p.outer_diameter) * 1000 : undefined,
     insulation_thickness_mm:
-      p.insulation_thickness != null ? Number(p.insulation_thickness) * 1000 : undefined,
-    insulation_material: p.insulation_material as string | undefined,
+      layers[0]?.thickness != null
+        ? Number(layers[0].thickness) * 1000
+        : p.insulation_thickness != null ? Number(p.insulation_thickness) * 1000 : undefined,
+    insulation_material:
+      (layers[0]?.material as string | undefined) ?? (p.insulation_material as string | undefined),
+    insulation_layer_count:
+      p.insulation_layer_count != null
+        ? String(p.insulation_layer_count) as PipeFormValues['insulation_layer_count']
+        : layers.length > 0 ? String(Math.min(layers.length, 3)) as PipeFormValues['insulation_layer_count'] : '1',
+    second_insulation_thickness_mm:
+      layers[1]?.thickness != null ? Number(layers[1].thickness) * 1000 : undefined,
+    second_insulation_material: layers[1]?.material as string | undefined,
+    third_insulation_thickness_mm:
+      layers[2]?.thickness != null ? Number(layers[2].thickness) * 1000 : undefined,
+    third_insulation_material: layers[2]?.material as string | undefined,
     ambient_temperature: p.ambient_temperature as number | undefined,
     process_temperature: p.process_temperature as number | undefined,
     pipe_length: p.pipe_length as number | undefined,
@@ -202,6 +269,9 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
 }
 
 export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFormValues & { name: string }> {
+  const layers = Array.isArray(p.insulation_layers)
+    ? (p.insulation_layers as Record<string, unknown>[])
+    : [];
   return {
     shape: (p.shape as TankFormValues['shape']) ?? 'cylindrical',
     diameter_mm: p.diameter != null ? Number(p.diameter) * 1000 : undefined,
@@ -209,8 +279,21 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     length_mm: p.length != null ? Number(p.length) * 1000 : undefined,
     width_mm: p.width != null ? Number(p.width) * 1000 : undefined,
     insulation_thickness_mm:
-      p.insulation_thickness != null ? Number(p.insulation_thickness) * 1000 : undefined,
-    insulation_material: p.insulation_material as string | undefined,
+      layers[0]?.thickness != null
+        ? Number(layers[0].thickness) * 1000
+        : p.insulation_thickness != null ? Number(p.insulation_thickness) * 1000 : undefined,
+    insulation_material:
+      (layers[0]?.material as string | undefined) ?? (p.insulation_material as string | undefined),
+    insulation_layer_count:
+      p.insulation_layer_count != null
+        ? String(p.insulation_layer_count) as TankFormValues['insulation_layer_count']
+        : layers.length > 0 ? String(Math.min(layers.length, 3)) as TankFormValues['insulation_layer_count'] : '1',
+    second_insulation_thickness_mm:
+      layers[1]?.thickness != null ? Number(layers[1].thickness) * 1000 : undefined,
+    second_insulation_material: layers[1]?.material as string | undefined,
+    third_insulation_thickness_mm:
+      layers[2]?.thickness != null ? Number(layers[2].thickness) * 1000 : undefined,
+    third_insulation_material: layers[2]?.material as string | undefined,
     ambient_temperature: p.ambient_temperature as number | undefined,
     process_temperature: p.process_temperature as number | undefined,
     name: p.name as string | undefined,

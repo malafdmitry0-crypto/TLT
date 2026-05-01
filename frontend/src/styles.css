@@ -346,7 +346,8 @@ html, body, #root {
 .form-grid-srs .form-col-srs {
   display: grid;
   --field-pair-min-width: 260px;
-  --field-label-width: 104px;
+  --field-label-width: 84px;
+  --compact-field-label-width: 84px;
   --field-input-min-width: 160px;
   --numeric-value-width: 6ch;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr));
@@ -535,6 +536,10 @@ html, body, #root {
   padding-right: 16px;
 }
 
+.inline-object-form .name-form-item .field-control-with-help {
+  width: 85%;
+}
+
 /* ── Text Input ───────────────────────────────────────────────── */
 .inline-object-form .ant-input {
   flex: 1 1 auto;
@@ -690,7 +695,15 @@ html, body, #root {
 .inline-object-form .compact-select-form-item .ant-form-item-row,
 .inline-object-form .medium-select-form-item .ant-form-item-row,
 .inline-object-form .layer-count-form-item .ant-form-item-row {
-  grid-template-columns: var(--field-label-width, 104px) max-content;
+  grid-template-columns: var(--compact-field-label-width, 84px) max-content;
+}
+
+.inline-object-form .fit-label-form-item .ant-form-item-label,
+.inline-object-form .numeric-form-item .ant-form-item-label,
+.inline-object-form .compact-select-form-item .ant-form-item-label,
+.inline-object-form .medium-select-form-item .ant-form-item-label,
+.inline-object-form .layer-count-form-item .ant-form-item-label {
+  width: var(--compact-field-label-width, 84px);
 }
 
 .inline-object-form .fit-label-form-item .ant-form-item-control,
@@ -733,13 +746,13 @@ html, body, #root {
   min-width: 128px;
 }
 
-.inline-object-form .second-layer-material-form-item .ant-select {
-  width: 160px;
-  min-width: 160px;
+.inline-object-form .layer-material-form-item .ant-select {
+  width: 128px;
+  min-width: 128px;
 }
 
-.inline-object-form .second-layer-material-form-item .ant-form-item-row {
-  grid-template-columns: 88px max-content;
+.inline-object-form .layer-material-form-item .ant-form-item-row {
+  grid-template-columns: var(--compact-field-label-width, 84px) max-content;
 }
 
 .inline-object-form .second-layer-thickness-form-item {
@@ -786,7 +799,11 @@ html, body, #root {
 }
 
 .inline-object-form .temperature-group-form-item .ant-form-item-row {
-  grid-template-columns: var(--field-label-width, 104px) max-content;
+  grid-template-columns: var(--compact-field-label-width, 84px) max-content;
+}
+
+.inline-object-form .temperature-group-form-item .ant-form-item-label {
+  width: var(--compact-field-label-width, 84px);
 }
 
 .inline-object-form .temperature-group-form-item .ant-form-item-control,
