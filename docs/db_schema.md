@@ -156,5 +156,10 @@ users ──< correction_coefficients (updated_by, nullable)
 ## Справочные данные (файлы, не таблицы)
 
 Загружаются из JSON-файлов при старте:
-- `reference_data/insulation_materials.json` — материалы изоляции с λ (Вт/(м·К))
+- `reference_data/climate.json` — климатические параметры населённых пунктов
+- `reference_data/insulation.json` — материалы изоляции с λ (Вт/(м·К))
+- `reference_data/pipe_materials.json` — материалы трубы и формулы λ(T)
+- `reference_data/soil_conductivity.json` — теплопроводность грунтов
 - `reference_data/cables_tlt.json` — каталог кабелей ТЛТ (марка, мощность, мин. температура)
+- `reference_data/resistive_cables.json` — резистивные кабели ТТ Р1/ТТ Р3
+- `reference_data/accessories.json` — базовые аксессуары

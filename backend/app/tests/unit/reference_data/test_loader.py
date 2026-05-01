@@ -10,10 +10,14 @@ from app.reference_data.loader import (
     clear_cache,
     get_climate_by_city,
     get_insulation_conductivity,
+    get_pipe_material_lambda,
     get_tlt_cable_by_mark,
     list_basic_accessories,
     list_climate_cities,
     list_insulation_materials,
+    list_pipe_materials,
+    list_resistive_cables,
+    list_soil_conductivity,
     list_tlt_cables,
     preload_all,
 )
@@ -33,6 +37,23 @@ class TestListFunctions:
         assert "mineral_wool" in codes
         assert "foam_glass" in codes
         assert "polyurethane" in codes
+        assert "mineral_wool_cylinders_100" in codes
+
+    def test_pipe_materials_loaded_from_internal_reference(self):
+        materials = list_pipe_materials()
+        codes = {m["material"] for m in materials}
+        assert codes == {"carbon_steel", "stainless_304", "copper", "aluminum", "plastic"}
+
+    def test_soil_conductivity_loaded_from_internal_reference(self):
+        soils = list_soil_conductivity()
+        assert len(soils) >= 20
+        assert any(s["soil"] == "Песок" and s["conductivity"] == 0.86 for s in soils)
+
+    def test_resistive_cables_loaded_from_internal_reference(self):
+        cables = list_resistive_cables()
+        assert len(cables["single_core"]) == 32
+        assert len(cables["three_core"]) == 18
+        assert cables["single_core"][0]["model"].startswith("ТТ Р1")
 
     def test_tlt_cables_full_range(self):
         cables = list_tlt_cables()
@@ -88,6 +109,20 @@ class TestGetInsulationConductivity:
             get_insulation_conductivity("vacuum", 20)
 
 
+class TestGetPipeMaterialLambda:
+    def test_known_material_formula(self):
+        assert get_pipe_material_lambda("carbon_steel", 20) == pytest.approx(54.0)
+        assert get_pipe_material_lambda("stainless_304", 20) == pytest.approx(14.6)
+
+    def test_none_material_rejected(self):
+        with pytest.raises(ValueError, match="Не задан материал трубы"):
+            get_pipe_material_lambda(None, 20)
+
+    def test_unknown_material_raises(self):
+        with pytest.raises(ValueError, match="Неизвестный материал трубы"):
+            get_pipe_material_lambda("unknown", 20)
+
+
 class TestGetTltCableByMark:
     def test_full_name_lookup(self):
         cable = get_tlt_cable_by_mark("ТЛТ-25")
@@ -122,3 +157,6 @@ class TestCacheControl:
         assert len(list_insulation_materials()) > 0
         assert len(list_tlt_cables()) > 0
         assert len(list_basic_accessories()) > 0
+        assert len(list_pipe_materials()) > 0
+        assert len(list_soil_conductivity()) > 0
+        assert len(list_resistive_cables()["single_core"]) > 0

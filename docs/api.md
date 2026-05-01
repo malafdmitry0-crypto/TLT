@@ -16,7 +16,7 @@
 | `/api/v1/calc/electrical/*` | Батч-электрорасчёт, настройки подбора |
 | `/api/v1/specifications/*` | Генерация/просмотр спецификации |
 | `/api/v1/reports/{id}/{preview,export/{fmt}}` | HTML-превью и экспорт PDF/DOCX/XLSX |
-| `/api/v1/references/*` | Встроенные справочники (climate, insulation, cables, accessories) |
+| `/api/v1/references/*` | Встроенные справочники (climate, insulation, pipe-materials, soil-conductivity, cables, resistive-cables, accessories) |
 | `/api/v1/admin/*` | Пользователи, коэффициенты (только admin) |
 | `/health` | Liveness-проба |
 

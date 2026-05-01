@@ -284,7 +284,7 @@ class TestTankValidation:
 
     def test_process_below_ambient_raises(self):
         with pytest.raises(ValueError, match="выше"):
-            calc_tank_heat_loss(_cyl(ambient_temperature=60, process_temperature=40))
+            calc_tank_heat_loss(_cyl(ambient_temperature=50, process_temperature=40))
 
     def test_invalid_wall_lambda_rejected(self):
         """Pydantic отвергает wall_lambda=0 (constraint gt=0)."""

@@ -7,7 +7,7 @@ import TankGeometryStep from './steps/TankGeometryStep';
 import ThermalStep from './steps/ThermalStep';
 import HelpedControl from './HelpedControl';
 import FieldLabel from './FieldLabel';
-import { getInsulation } from '@/api/references';
+import { getInsulation, getPipeMaterials } from '@/api/references';
 import {
   generatePipeName,
   generateTankName,
@@ -68,6 +68,10 @@ export default function ObjectWizard({
     queryKey: ['insulation'],
     queryFn: getInsulation,
   });
+  const { data: pipeMaterials = [] } = useQuery({
+    queryKey: ['pipe-materials'],
+    queryFn: getPipeMaterials,
+  });
   const insulationMaterialOptions = [
     ...insulationMaterials.map((m) => ({
       value: m.material,
@@ -75,6 +79,9 @@ export default function ObjectWizard({
     })),
     { value: 'other', label: 'Другое' },
   ];
+  const pipeMaterialOptions = pipeMaterials.length > 0
+    ? pipeMaterials.map((m) => ({ value: m.material, label: m.name }))
+    : [{ value: 'carbon_steel', label: 'Углеродистая сталь' }];
 
   const initialValues = useMemo(() =>
     initialParams != null
@@ -200,7 +207,6 @@ export default function ObjectWizard({
                 className="fit-label-form-item helped-form-item"
                 label={fieldLabel('λ трубы')}
                 name="pipe_lambda"
-                initialValue={56}
                 rules={[
                   { type: 'number', min: 0.001, message: 'λ должна быть больше 0' },
                   { type: 'number', max: 400, message: 'Максимальное значение λ — 400 Вт/мК' },
@@ -208,7 +214,7 @@ export default function ObjectWizard({
               >
                 {withHelp(
                   <InputNumber min={0.001} max={400} step={0.1} addonAfter="Вт/мК" />,
-                  'Коэффициент теплопроводности материала трубы λ, Вт/(м·К). Переопределяет справочное значение материала трубы в расчёте.',
+                  'Ручное переопределение теплопроводности трубы, Вт/(м·К). Если поле пустое, расчёт берёт λ из справочника материала трубы.',
                 )}
               </Form.Item>
               <Form.Item
@@ -219,7 +225,7 @@ export default function ObjectWizard({
                 rules={[{ required: true, message: 'Выберите материал трубы' }]}
               >
                 {withHelp(
-                  <Select options={[{ value: 'carbon_steel', label: 'Сталь углеродистая' }]} />,
+                  <Select options={pipeMaterialOptions} />,
                   'Материал стенки трубопровода. Используется для выбора теплопроводности, если λ трубы не задана вручную.',
                 )}
               </Form.Item>

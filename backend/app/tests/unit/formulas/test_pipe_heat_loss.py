@@ -223,7 +223,7 @@ class TestPipeWall:
         )
         r1 = calc_pipe_heat_loss(PipeHeatLossParams(**{**base, "pipe_material": "carbon_steel"}))
         r2 = calc_pipe_heat_loss(PipeHeatLossParams(**{**base, "pipe_lambda": 0.5}))  # пластик-like
-        # λ=50 vs λ=0.5 → разница в R_wall в 100 раз
+        # Справочная λ стали vs λ=0.5 → вклад стенки становится заметно выше.
         assert r2.thermal_resistance > r1.thermal_resistance
 
 
@@ -368,25 +368,25 @@ class TestSchemaValidation:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            _params(outer_diameter=0.005)  # меньше 0.0108
+            _params(outer_diameter=0.005)  # меньше 0.010
 
     def test_ambient_temperature_too_cold_rejected(self):
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            _params(ambient_temperature=-80.0)  # меньше -70°C
+            _params(ambient_temperature=-80.0)  # меньше -60°C
 
     def test_process_temperature_too_hot_rejected(self):
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            _params(process_temperature=700.0)  # больше 600°C
+            _params(process_temperature=700.0)  # больше 350°C
 
     def test_pipe_length_too_short_rejected(self):
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            _params(pipe_length=0.005)  # меньше 0.01 м (минимум по ТНП)
+            _params(pipe_length=0.005)  # меньше 0.5 м (минимум по SRS)
 
     def test_temperature_inversion_raises(self):
         # Оба в допустимом диапазоне схемы, но T_os > T_zh

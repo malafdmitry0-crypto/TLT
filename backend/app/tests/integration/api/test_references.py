@@ -26,7 +26,47 @@ class TestReferences:
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 200
-        assert any(m["material"] == "mineral_wool" for m in resp.json())
+        data = resp.json()
+        assert any(m["material"] == "mineral_wool" for m in data)
+        assert any(m["material"] == "mineral_wool_cylinders_100" for m in data)
+
+    async def test_pipe_materials_public(self, client: AsyncClient, guest_session: str):
+        resp = await client.get(
+            "/api/v1/references/pipe-materials",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert any(m["material"] == "carbon_steel" for m in data)
+        assert all("a" in m and "b" in m for m in data)
+
+    async def test_soil_conductivity_public(self, client: AsyncClient, guest_session: str):
+        resp = await client.get(
+            "/api/v1/references/soil-conductivity",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert any(s["soil"] == "Песок" for s in data)
+
+    async def test_resistive_cables_public(self, client: AsyncClient, guest_session: str):
+        resp = await client.get(
+            "/api/v1/references/resistive-cables",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["single_core"]) >= 30
+        assert len(data["three_core"]) >= 18
+
+    async def test_internal_references_public(self, client: AsyncClient, guest_session: str):
+        resp = await client.get(
+            "/api/v1/references/internal",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert {"climate", "insulation", "pipe_materials", "soil_conductivity"}.issubset(data)
 
     async def test_cables_tlt_public(self, client: AsyncClient, guest_session: str):
         resp = await client.get(

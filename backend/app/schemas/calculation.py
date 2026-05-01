@@ -25,7 +25,7 @@ class PipeHeatLossParams(BaseModel):
     """Параметры для расчёта теплопотерь трубопровода.
 
     Поддерживает два режима:
-    - Однослойный (обратная совместимость): insulation_thickness + insulation_material
+    - Однослойный: insulation_thickness + insulation_material
     - Многослойный: insulation_layers (список InsulationLayer, 1–3 слоя)
     """
 
@@ -54,7 +54,7 @@ class PipeHeatLossParams(BaseModel):
         description="lambda_tp — ручное задание теплопроводности трубы, Вт/(м·К)",
     )
 
-    # --- Изоляция (однослойный режим, обратная совместимость) ---
+    # --- Изоляция (однослойный режим) ---
     insulation_thickness: float | None = Field(
         default=None,
         gt=0,
@@ -137,6 +137,14 @@ class PipeHeatLossParams(BaseModel):
     def check_insulation_provided(self) -> "PipeHeatLossParams":
         if self.process_temperature <= self.ambient_temperature:
             raise ValueError("Температура продукта должна быть выше температуры окружающей среды")
+        if (
+            self.wall_thickness is not None
+            and self.pipe_material is None
+            and self.pipe_lambda is None
+        ):
+            raise ValueError(
+                "Для расчёта стенки трубы необходимо задать материал трубы или λ трубы"
+            )
         has_single = self.insulation_thickness is not None and self.insulation_material is not None
         multi_layers = self.insulation_layers or []
         has_multi = len(multi_layers) > 0

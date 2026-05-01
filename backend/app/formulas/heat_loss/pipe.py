@@ -18,42 +18,18 @@ from app.formulas.heat_loss.common import (
     validate_positive,
     validate_temperature_range,
 )
-from app.reference_data.loader import get_insulation_conductivity
+from app.reference_data.loader import get_insulation_conductivity, get_pipe_material_lambda
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, PipeHeatLossResult
-
-# ---------------------------------------------------------------------------
-# Температурозависимая теплопроводность материалов трубы
-# lambda(T) = A + B * (T + 40),  T в °C
-# ---------------------------------------------------------------------------
-
-_PIPE_MATERIAL_LAMBDA: dict[str, tuple[float, float]] = {
-    "carbon_steel": (60.0, -0.10),  # Углеродистая сталь        ±2%
-    "stainless_304": (14.0, 0.01),  # Нерж. сталь AISI 304      ±1%
-    "copper": (410.0, -0.16),  # Медь (электролитическая)  ±1.5%
-    "aluminum": (242.0, -0.07),  # Алюминий (чистый)         ±1%
-    "plastic": (0.20, 0.0005),  # Пластик (усредн.)         ±10%
-}
-
-_LAMBDA_PIPE_DEFAULT = 50.0  # Вт/(м·К) — углеродистая сталь при 20°C
 
 
 def pipe_material_lambda(material: str | None, temperature: float) -> float:
     """Теплопроводность материала трубы λ(T), Вт/(м·К).
 
     Args:
-        material: ключ из _PIPE_MATERIAL_LAMBDA или None → значение по умолчанию
+        material: ключ из справочника `pipe_materials.json`
         temperature: средняя температура стенки, °C
     """
-    if material is None:
-        return _LAMBDA_PIPE_DEFAULT
-    coeffs = _PIPE_MATERIAL_LAMBDA.get(material)
-    if coeffs is None:
-        raise ValueError(
-            f"Неизвестный материал трубы: '{material}'. "
-            f"Допустимые: {list(_PIPE_MATERIAL_LAMBDA)}"
-        )
-    A, B = coeffs
-    return max(A + B * (temperature + 40), 0.001)
+    return get_pipe_material_lambda(material, temperature)
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +65,7 @@ def _resolve_layers(params: PipeHeatLossParams) -> list[InsulationLayer]:
     """
     if params.insulation_layers:
         return list(params.insulation_layers)
-    # однослойный режим (обратная совместимость)
+    # однослойный режим
     thickness = params.insulation_thickness
     material = params.insulation_material
     # Инвариант гарантирован валидатором — assert для mypy + runtime safety net.
@@ -253,7 +229,7 @@ def calc_pipe_heat_loss(
             if params.alpha_vnesh is not None
             else calc_alpha_vnesh(params.wind_speed, params.location)
         )
-        # Поправка на скорость ветра через коэффициент (обратная совместимость)
+        # Дополнительный коэффициент внешней теплоотдачи из настроек расчёта.
         wind_k = merged_coeffs.get("wind_factor", 1.0)
         if wind_k != 1.0:
             alpha = min(alpha * wind_k, 52.0)

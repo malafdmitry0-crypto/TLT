@@ -38,6 +38,21 @@ def _accessories() -> list[dict[str, Any]]:
     return _load_json("accessories.json")["accessories"]
 
 
+@lru_cache
+def _pipe_materials() -> list[dict[str, Any]]:
+    return _load_json("pipe_materials.json")["materials"]
+
+
+@lru_cache
+def _soil_conductivity() -> list[dict[str, Any]]:
+    return _load_json("soil_conductivity.json")["entries"]
+
+
+@lru_cache
+def _resistive_cables() -> dict[str, Any]:
+    return _load_json("resistive_cables.json")
+
+
 # ---- public API ----
 
 
@@ -66,6 +81,18 @@ def list_basic_accessories() -> list[dict[str, Any]]:
     return list(_accessories())
 
 
+def list_pipe_materials() -> list[dict[str, Any]]:
+    return list(_pipe_materials())
+
+
+def list_soil_conductivity() -> list[dict[str, Any]]:
+    return list(_soil_conductivity())
+
+
+def list_resistive_cables() -> dict[str, Any]:
+    return dict(_resistive_cables())
+
+
 def get_insulation_conductivity(material: str, temperature: float) -> float:
     """Возвращает теплопроводность λ материала.
 
@@ -75,6 +102,19 @@ def get_insulation_conductivity(material: str, temperature: float) -> float:
         if m["material"] == material:
             return float(m["conductivity"])
     raise ValueError(f"Неизвестный материал изоляции: {material}")
+
+
+def get_pipe_material_lambda(material: str | None, temperature: float) -> float:
+    """Возвращает λ(T) материала трубы из внутреннего справочника."""
+    if material is None:
+        raise ValueError("Не задан материал трубы для расчёта λ(T)")
+    for entry in _pipe_materials():
+        if entry["material"] == material:
+            a = float(entry["a"])
+            b = float(entry["b"])
+            return max(a + b * (temperature + 40), 0.001)
+    allowed = [entry["material"] for entry in _pipe_materials()]
+    raise ValueError(f"Неизвестный материал трубы: '{material}'. Допустимые: {allowed}")
 
 
 def get_tlt_cable_by_mark(mark: str | None) -> dict[str, Any] | None:
@@ -91,6 +131,9 @@ def clear_cache() -> None:
     _insulation.cache_clear()
     _cables_tlt.cache_clear()
     _accessories.cache_clear()
+    _pipe_materials.cache_clear()
+    _soil_conductivity.cache_clear()
+    _resistive_cables.cache_clear()
 
 
 def preload_all() -> None:
@@ -99,3 +142,6 @@ def preload_all() -> None:
     _insulation()
     _cables_tlt()
     _accessories()
+    _pipe_materials()
+    _soil_conductivity()
+    _resistive_cables()

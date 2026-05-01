@@ -4,6 +4,9 @@ import type {
   CableTltEntry,
   ClimateEntry,
   InsulationEntry,
+  PipeMaterialEntry,
+  ResistiveCablesReference,
+  SoilConductivityEntry,
 } from '@/types/reference';
 
 export async function getClimate(): Promise<ClimateEntry[]> {
@@ -23,5 +26,20 @@ export async function getCablesTlt(): Promise<CableTltEntry[]> {
 
 export async function getAccessories(): Promise<AccessoryEntry[]> {
   const { data } = await apiClient.get<AccessoryEntry[]>('/references/accessories');
+  return data;
+}
+
+export async function getPipeMaterials(): Promise<PipeMaterialEntry[]> {
+  const { data } = await apiClient.get<PipeMaterialEntry[]>('/references/pipe-materials');
+  return data;
+}
+
+export async function getSoilConductivity(): Promise<SoilConductivityEntry[]> {
+  const { data } = await apiClient.get<SoilConductivityEntry[]>('/references/soil-conductivity');
+  return data;
+}
+
+export async function getResistiveCables(): Promise<ResistiveCablesReference> {
+  const { data } = await apiClient.get<ResistiveCablesReference>('/references/resistive-cables');
   return data;
 }

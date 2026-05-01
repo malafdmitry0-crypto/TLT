@@ -49,6 +49,7 @@ class TestPipeHeatLossParams:
         p = PipeHeatLossParams(
             outer_diameter=0.01,
             wall_thickness=0.1,
+            pipe_material="carbon_steel",
             insulation_thickness=0.001,
             insulation_material="mineral_wool",
             ambient_temperature=-60,
@@ -77,6 +78,7 @@ class TestPipeHeatLossParams:
         data = {
             "outer_diameter": 0.1,
             "wall_thickness": 0.004,
+            "pipe_material": "carbon_steel",
             "insulation_thickness": 0.05,
             "insulation_material": "mineral_wool",
             "ambient_temperature": -20,
@@ -86,6 +88,31 @@ class TestPipeHeatLossParams:
         data[field] = value
         with pytest.raises(ValidationError):
             PipeHeatLossParams(**data)
+
+    def test_wall_thickness_requires_pipe_material_or_lambda(self):
+        with pytest.raises(ValidationError, match="материал трубы или λ трубы"):
+            PipeHeatLossParams(
+                outer_diameter=0.1,
+                wall_thickness=0.004,
+                insulation_thickness=0.05,
+                insulation_material="mineral_wool",
+                ambient_temperature=-30,
+                process_temperature=80,
+                pipe_length=10,
+            )
+
+    def test_wall_thickness_accepts_manual_pipe_lambda_without_material(self):
+        p = PipeHeatLossParams(
+            outer_diameter=0.1,
+            wall_thickness=0.004,
+            pipe_lambda=56.0,
+            insulation_thickness=0.05,
+            insulation_material="mineral_wool",
+            ambient_temperature=-30,
+            process_temperature=80,
+            pipe_length=10,
+        )
+        assert p.pipe_lambda == 56.0
 
     def test_insulation_other_lambda_limits(self):
         assert InsulationLayer(thickness=0.05, material="other", conductivity=5.0)

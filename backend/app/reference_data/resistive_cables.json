@@ -1,0 +1,630 @@
+{
+  "single_core": [
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 8000",
+      "resistance_ohm_km": 8000.0,
+      "conductor_section_mm2": 0.14,
+      "diameter_mm": 3.52,
+      "nominal_section_length_m": {
+        "20": 17,
+        "30": 14,
+        "40": 12
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 7000",
+      "resistance_ohm_km": 7000.0,
+      "conductor_section_mm2": 0.15,
+      "diameter_mm": 3.56,
+      "nominal_section_length_m": {
+        "20": 19,
+        "30": 15,
+        "40": 13
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 5900",
+      "resistance_ohm_km": 5900.0,
+      "conductor_section_mm2": 0.18,
+      "diameter_mm": 3.58,
+      "nominal_section_length_m": {
+        "20": 20,
+        "30": 17,
+        "40": 14
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 3950",
+      "resistance_ohm_km": 3950.0,
+      "conductor_section_mm2": 0.35,
+      "diameter_mm": 3.81,
+      "nominal_section_length_m": {
+        "20": 25,
+        "30": 20,
+        "40": 18
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 2825",
+      "resistance_ohm_km": 2825.0,
+      "conductor_section_mm2": 0.38,
+      "diameter_mm": 3.86,
+      "nominal_section_length_m": {
+        "20": 29,
+        "30": 24,
+        "40": 21
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 1865",
+      "resistance_ohm_km": 1865.0,
+      "conductor_section_mm2": 0.38,
+      "diameter_mm": 3.83,
+      "nominal_section_length_m": {
+        "20": 36,
+        "30": 29,
+        "40": 25
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 1480",
+      "resistance_ohm_km": 1480.0,
+      "conductor_section_mm2": 0.49,
+      "diameter_mm": 3.9,
+      "nominal_section_length_m": {
+        "20": 40,
+        "30": 33,
+        "40": 29
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 1300",
+      "resistance_ohm_km": 1300.0,
+      "conductor_section_mm2": 0.53,
+      "diameter_mm": 3.97,
+      "nominal_section_length_m": {
+        "20": 43,
+        "30": 35,
+        "40": 30
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 1000",
+      "resistance_ohm_km": 1000.0,
+      "conductor_section_mm2": 1.37,
+      "diameter_mm": 4.5,
+      "nominal_section_length_m": {
+        "20": 49,
+        "30": 40,
+        "40": 35
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 765",
+      "resistance_ohm_km": 765.0,
+      "conductor_section_mm2": 0.92,
+      "diameter_mm": 4.32,
+      "nominal_section_length_m": {
+        "20": 56,
+        "30": 45,
+        "40": 40
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 665",
+      "resistance_ohm_km": 665.0,
+      "conductor_section_mm2": 1.06,
+      "diameter_mm": 4.41,
+      "nominal_section_length_m": {
+        "20": 60,
+        "30": 49,
+        "40": 43
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 590",
+      "resistance_ohm_km": 590.0,
+      "conductor_section_mm2": 0.33,
+      "diameter_mm": 3.78,
+      "nominal_section_length_m": {
+        "20": 64,
+        "30": 52,
+        "40": 45
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 490",
+      "resistance_ohm_km": 490.0,
+      "conductor_section_mm2": 0.41,
+      "diameter_mm": 3.88,
+      "nominal_section_length_m": {
+        "20": 70,
+        "30": 57,
+        "40": 50
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 410",
+      "resistance_ohm_km": 410.0,
+      "conductor_section_mm2": 0.5,
+      "diameter_mm": 3.98,
+      "nominal_section_length_m": {
+        "20": 77,
+        "30": 63,
+        "40": 54
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 340",
+      "resistance_ohm_km": 340.0,
+      "conductor_section_mm2": 0.58,
+      "diameter_mm": 3.98,
+      "nominal_section_length_m": {
+        "20": 84,
+        "30": 69,
+        "40": 60
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 250",
+      "resistance_ohm_km": 250.0,
+      "conductor_section_mm2": 0.41,
+      "diameter_mm": 3.87,
+      "nominal_section_length_m": {
+        "20": 98,
+        "30": 82,
+        "40": 69
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 200",
+      "resistance_ohm_km": 200.0,
+      "conductor_section_mm2": 0.99,
+      "diameter_mm": 4.35,
+      "nominal_section_length_m": {
+        "20": 109,
+        "30": 89,
+        "40": 77
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 178",
+      "resistance_ohm_km": 178.0,
+      "conductor_section_mm2": 0.57,
+      "diameter_mm": 3.97,
+      "nominal_section_length_m": {
+        "20": 117,
+        "30": 95,
+        "40": 83
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 142",
+      "resistance_ohm_km": 142.0,
+      "conductor_section_mm2": 1.41,
+      "diameter_mm": 4.58,
+      "nominal_section_length_m": {
+        "20": 131,
+        "30": 107,
+        "40": 92
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 100",
+      "resistance_ohm_km": 100.0,
+      "conductor_section_mm2": 0.47,
+      "diameter_mm": 3.88,
+      "nominal_section_length_m": {
+        "20": 155,
+        "30": 126,
+        "40": 109
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 80",
+      "resistance_ohm_km": 80.0,
+      "conductor_section_mm2": 0.22,
+      "diameter_mm": 3.6,
+      "nominal_section_length_m": {
+        "20": 175,
+        "30": 143,
+        "40": 124
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 62",
+      "resistance_ohm_km": 62.0,
+      "conductor_section_mm2": 0.28,
+      "diameter_mm": 3.74,
+      "nominal_section_length_m": {
+        "20": 197,
+        "30": 161,
+        "40": 139
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 50",
+      "resistance_ohm_km": 50.0,
+      "conductor_section_mm2": 0.35,
+      "diameter_mm": 3.81,
+      "nominal_section_length_m": {
+        "20": 219,
+        "30": 179,
+        "40": 155
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 32,7",
+      "resistance_ohm_km": 32.7,
+      "conductor_section_mm2": 0.53,
+      "diameter_mm": 3.97,
+      "nominal_section_length_m": {
+        "20": null,
+        "30": 222,
+        "40": 192
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 24,8",
+      "resistance_ohm_km": 24.8,
+      "conductor_section_mm2": 0.71,
+      "diameter_mm": 4.2,
+      "nominal_section_length_m": {
+        "20": null,
+        "30": 312,
+        "40": 221
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 17,4",
+      "resistance_ohm_km": 17.4,
+      "conductor_section_mm2": 1.0,
+      "diameter_mm": 4.34,
+      "nominal_section_length_m": {
+        "20": null,
+        "30": null,
+        "40": 305
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 11,9",
+      "resistance_ohm_km": 11.9,
+      "conductor_section_mm2": 1.48,
+      "diameter_mm": 4.59,
+      "nominal_section_length_m": {
+        "20": 451,
+        "30": 368,
+        "40": 319
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 9,65",
+      "resistance_ohm_km": 9.65,
+      "conductor_section_mm2": 1.8,
+      "diameter_mm": 4.85,
+      "nominal_section_length_m": {
+        "20": 501,
+        "30": 409,
+        "40": null
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 7,13",
+      "resistance_ohm_km": 7.13,
+      "conductor_section_mm2": 2.49,
+      "diameter_mm": 5.1,
+      "nominal_section_length_m": {
+        "20": 582,
+        "30": 412,
+        "40": null
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 4,4",
+      "resistance_ohm_km": 4.4,
+      "conductor_section_mm2": 4.02,
+      "diameter_mm": 5.69,
+      "nominal_section_length_m": {
+        "20": 604,
+        "30": null,
+        "40": null
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 2,95",
+      "resistance_ohm_km": 2.95,
+      "conductor_section_mm2": 6.09,
+      "diameter_mm": 6.36,
+      "nominal_section_length_m": {
+        "20": 906,
+        "30": 641,
+        "40": null
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    },
+    {
+      "cable_type": "resistive_single_core",
+      "brand": "ТТ Р1",
+      "model": "ТТ Р1 1,81",
+      "resistance_ohm_km": 1.81,
+      "conductor_section_mm2": 9.69,
+      "diameter_mm": 8.04,
+      "nominal_section_length_m": {
+        "20": 1156,
+        "30": 944,
+        "40": 818
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf"
+    }
+  ],
+  "three_core": [
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 1,5-1,0",
+      "nominal_size_mm": "20,40 х 9,20",
+      "mass_kg_km": 281.51,
+      "min_bend_radius_mm": 40,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 2,0-1,0",
+      "nominal_size_mm": "21,15 х 9,45",
+      "mass_kg_km": 306.71,
+      "min_bend_radius_mm": 40,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 3,0-1,0",
+      "nominal_size_mm": "22,35 х 9,85",
+      "mass_kg_km": 351.47,
+      "min_bend_radius_mm": 45,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 4,0-1,0",
+      "nominal_size_mm": "23,60 х 10,40",
+      "mass_kg_km": 421.58,
+      "min_bend_radius_mm": 45,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 6,0-1,0",
+      "nominal_size_mm": "25,25 х 10,95",
+      "mass_kg_km": 498.66,
+      "min_bend_radius_mm": 50,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 8,0-1,0",
+      "nominal_size_mm": "27,98 х 12,64",
+      "mass_kg_km": 632.89,
+      "min_bend_radius_mm": 60,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 10,0-1,0",
+      "nominal_size_mm": "31,10 х 13,70",
+      "mass_kg_km": 751.84,
+      "min_bend_radius_mm": 80,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 12,0-1,0",
+      "nominal_size_mm": "32,30 х 14,10",
+      "mass_kg_km": 852.16,
+      "min_bend_radius_mm": 80,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 14,0-1,0",
+      "nominal_size_mm": "33,20 х 14,40",
+      "mass_kg_km": 914.68,
+      "min_bend_radius_mm": 100,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 16,0-1,0",
+      "nominal_size_mm": "34,40 х 14,80",
+      "mass_kg_km": 1009.91,
+      "min_bend_radius_mm": 100,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 0,5-0,6",
+      "nominal_size_mm": "12,60 х 7,10",
+      "mass_kg_km": 130.23,
+      "min_bend_radius_mm": 40,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 0,7-0,6",
+      "nominal_size_mm": "13,23 х 7,31",
+      "mass_kg_km": 145.16,
+      "min_bend_radius_mm": 40,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 1,0-0,6",
+      "nominal_size_mm": "13,68 х 7,46",
+      "mass_kg_km": 157.61,
+      "min_bend_radius_mm": 40,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 1,5-0,6",
+      "nominal_size_mm": "14,90 х 7,80",
+      "mass_kg_km": 185.36,
+      "min_bend_radius_mm": 40,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 2,0-0,6",
+      "nominal_size_mm": "15,65 х 8,05",
+      "mass_kg_km": 209.72,
+      "min_bend_radius_mm": 40,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 3,0-0,6",
+      "nominal_size_mm": "16,85 х 8,45",
+      "mass_kg_km": 255.24,
+      "min_bend_radius_mm": 45,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 4,0-0,6",
+      "nominal_size_mm": "17,90 х 8,80",
+      "mass_kg_km": 312.78,
+      "min_bend_radius_mm": 45,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    },
+    {
+      "cable_type": "resistive_three_core",
+      "brand": "ТТ Р3",
+      "model": "ТТ Р3 х 6,0-0,6",
+      "nominal_size_mm": "19,55 х 9,35",
+      "mass_kg_km": 384.93,
+      "min_bend_radius_mm": 50,
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf"
+    }
+  ],
+  "common": {
+    "three_core": {
+      "max_temperature_loaded_c": 130,
+      "max_temperature_unloaded_c": 180,
+      "min_operating_temperature_c": -60,
+      "min_storage_temperature_c": -60,
+      "min_installation_temperature_c": -60,
+      "max_supply_voltage_v": 1000,
+      "standard_supply_voltage_v": 380,
+      "max_linear_power_w_m": 50,
+      "temperature_class": "T6...T3",
+      "explosion_protection_marking": "Ex 60079-30-1 IIC T6...T3 Gb X"
+    }
+  }
+}

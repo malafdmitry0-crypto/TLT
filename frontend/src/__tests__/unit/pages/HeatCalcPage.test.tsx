@@ -25,6 +25,7 @@ vi.mock('@/api/calculations', () => ({
 
 vi.mock('@/api/references', () => ({
   getInsulation: vi.fn().mockResolvedValue([]),
+  getPipeMaterials: vi.fn().mockResolvedValue([]),
 }));
 
 // ── Вспомогательные функции ───────────────────────────────────────────────────

@@ -19,6 +19,9 @@ from app.reference_data.loader import (
     list_basic_accessories,
     list_climate_cities,
     list_insulation_materials,
+    list_pipe_materials,
+    list_resistive_cables,
+    list_soil_conductivity,
     list_tlt_cables,
 )
 
@@ -40,6 +43,38 @@ async def climate(_: CurrentPrincipal = Depends(require_any())):
 @cache.cached("references:insulation", ttl=_BUILTIN_TTL)
 async def insulation(_: CurrentPrincipal = Depends(require_any())):
     return list_insulation_materials()
+
+
+@router.get("/pipe-materials", summary="Справочник материалов трубы и λ(T)")
+@cache.cached("references:pipe-materials", ttl=_BUILTIN_TTL)
+async def pipe_materials(_: CurrentPrincipal = Depends(require_any())):
+    return list_pipe_materials()
+
+
+@router.get("/soil-conductivity", summary="Справочник теплопроводности грунтов")
+@cache.cached("references:soil-conductivity", ttl=_BUILTIN_TTL)
+async def soil_conductivity(_: CurrentPrincipal = Depends(require_any())):
+    return list_soil_conductivity()
+
+
+@router.get("/resistive-cables", summary="Справочник резистивных кабелей ТТ Р1/ТТ Р3")
+@cache.cached("references:resistive-cables", ttl=_BUILTIN_TTL)
+async def resistive_cables(_: CurrentPrincipal = Depends(require_any())):
+    return list_resistive_cables()
+
+
+@router.get("/internal", summary="Все встроенные внутренние справочники")
+@cache.cached("references:internal", ttl=_BUILTIN_TTL)
+async def internal_references(_: CurrentPrincipal = Depends(require_any())):
+    return {
+        "climate": list_climate_cities(),
+        "insulation": list_insulation_materials(),
+        "pipe_materials": list_pipe_materials(),
+        "soil_conductivity": list_soil_conductivity(),
+        "cables": list_tlt_cables(),
+        "resistive_cables": list_resistive_cables(),
+        "accessories": list_basic_accessories(),
+    }
 
 
 @router.get(

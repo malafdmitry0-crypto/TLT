@@ -101,7 +101,7 @@ class TestMetamorphicPipe:
         q_high = calc_pipe_heat_loss(_p(insulation_thickness=high)).heat_loss_per_meter
         assert q_high < q_low
 
-    @pytest.mark.parametrize("t_amb", [-60, -40, -20, 0, 20])
+    @pytest.mark.parametrize("t_amb", [-50, -40, -20, 0, 20])
     def test_colder_ambient_strictly_increases_loss(self, t_amb):
         """MR6: ∂q/∂T_среды < 0 (холоднее снаружи — больше потерь)."""
         r_base = calc_pipe_heat_loss(_p(ambient_temperature=t_amb))
@@ -269,10 +269,10 @@ class TestPipeMaterialLambda:
         """Пример из formules.md: углеродистая сталь, T_ср=30°C → λ≈53."""
         assert pipe_material_lambda("carbon_steel", 30) == pytest.approx(53.0, abs=0.01)
 
-    def test_default_when_material_is_none(self):
-        """При неуказанном материале — значение по умолчанию 50 Вт/(м·К)."""
-        assert pipe_material_lambda(None, 20) == 50.0
-        assert pipe_material_lambda(None, -40) == 50.0, "Default не должен зависеть от T"
+    def test_missing_material_rejected(self):
+        """Материал трубы обязателен для справочного расчёта λ(T)."""
+        with pytest.raises(ValueError, match="Не задан материал трубы"):
+            pipe_material_lambda(None, 20)
 
     def test_unknown_material_raises(self):
         with pytest.raises(ValueError, match="Неизвестный материал"):
@@ -318,7 +318,7 @@ class TestBuriedPipe:
                 _p(
                     outer_diameter=0.5,
                     insulation_thickness=0.1,
-                    burial_depth=0.05,  # меньше r_нар_из
+                    burial_depth=0.2,  # допустимо схемой, но меньше r_нар_из
                 )
             )
 
@@ -386,13 +386,13 @@ class TestBoundaryValues:
             _p(outer_diameter=10.0)
 
     def test_min_pipe_length_accepted(self):
-        """pipe_length = 0.01 (минимум) — принимается."""
-        r = calc_pipe_heat_loss(_p(pipe_length=0.01))
+        """pipe_length = 0.5 м (минимум по SRS VAL-15) — принимается."""
+        r = calc_pipe_heat_loss(_p(pipe_length=0.5))
         assert r.total_heat_loss > 0
 
     def test_max_pipe_length_accepted(self):
-        """pipe_length = 200000 (максимум из ТЗ)."""
-        r = calc_pipe_heat_loss(_p(pipe_length=200_000))
+        """pipe_length = 10 000 м (максимум по SRS VAL-15)."""
+        r = calc_pipe_heat_loss(_p(pipe_length=10_000))
         assert r.total_heat_loss > 0
 
     def test_zero_length_rejected(self):
