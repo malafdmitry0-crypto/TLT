@@ -23,7 +23,7 @@ export default function PipeGeometryStep() {
           const dn = mm ? findDN(mm) : null;
           return (
             <Form.Item
-              className="fit-label-form-item helped-form-item"
+              className="fit-label-form-item short-number-form-item helped-form-item"
               label={fieldLabel('Ø')}
               name="outer_diameter_mm"
               rules={[
@@ -58,7 +58,7 @@ export default function PipeGeometryStep() {
       </Form.Item>
 
       <Form.Item
-        className="fit-label-form-item helped-form-item"
+        className="fit-label-form-item long-number-form-item helped-form-item"
         label={fieldLabel('Длина трубопровода')}
         name="pipe_length"
         rules={[
@@ -68,7 +68,7 @@ export default function PipeGeometryStep() {
         ]}
       >
         {withHelp(
-          <InputNumber min={0.5} max={200000} step={1} style={{ width: '100%' }} addonAfter="м" />,
+          <InputNumber min={0.5} max={200000} step={1} addonAfter="м" />,
           'Длина обогреваемого участка. Диапазон: 0,5–200 000 м.',
         )}
       </Form.Item>

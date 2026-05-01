@@ -493,14 +493,7 @@ export default function HeatCalcPage() {
                 submitting={add.isPending || edit.isPending}
                 initialParams={wizardState.editingObject?.params}
               />
-            ) : (
-              <div className="heat-flat-form-preview">
-                <span>Геометрия трубы / резервуара</span>
-                <span>Теплоизоляция</span>
-                <span>Температура и среда</span>
-                <span>Электропараметры и арматура</span>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
 

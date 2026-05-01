@@ -429,10 +429,13 @@ export default function ObjectWizard({
             className="helped-form-item"
             label={fieldLabel('Наименование')}
             name="name"
-            rules={[{ required: true, message: 'Укажите наименование объекта' }]}
+            rules={[
+              { required: true, message: 'Укажите наименование объекта' },
+              { max: 200, message: 'Максимальная длина — 200 символов' },
+            ]}
           >
             {withHelp(
-              <Input />,
+              <Input maxLength={200} />,
               'Автоматически формируется из параметров объекта. Можно изменить вручную; до 200 символов.',
             )}
           </Form.Item>
@@ -440,11 +443,11 @@ export default function ObjectWizard({
           {objectType === 'pipe' && (
             <>
               <Form.Item
-                className="fit-label-form-item helped-form-item"
+                className="fit-label-form-item short-number-form-item helped-form-item"
                 label={fieldLabel('Толщина стенки')}
               >
                 {withHelp(
-                  <InputNumber value={4} step={0.1} addonAfter="мм" />,
+                  <InputNumber value={4} min={1} max={100} step={0.1} addonAfter="мм" />,
                   'Толщина стенки трубы. Целевой диапазон SRS: 1…100 мм. Поле пока справочное и не участвует в расчёте.',
                 )}
               </Form.Item>
@@ -482,7 +485,7 @@ export default function ObjectWizard({
             label={fieldLabel('Глубина прокладки')}
           >
             {withHelp(
-              <InputNumber disabled placeholder="—" addonAfter="м" />,
+              <InputNumber disabled min={0.1} max={5} step={0.1} placeholder="—" addonAfter="м" />,
               'Используется только для подземной прокладки. Целевой диапазон SRS: 0,1…5,0 м.',
             )}
           </Form.Item>
@@ -515,7 +518,7 @@ export default function ObjectWizard({
             initialValue="1"
           >
             {withHelp(
-              <Select options={[{ value: '1', label: '1 слой' }, { value: '2', label: '2 слоя' }]} />,
+              <Select options={[{ value: '1', label: '1 слой' }, { value: '2', label: '2 слоя' }, { value: '3', label: '3 слоя' }]} />,
               'Целевой диапазон SRS: 1…3 слоя. Сейчас расчётный payload MVP использует основной слой изоляции.',
             )}
           </Form.Item>
@@ -532,12 +535,12 @@ export default function ObjectWizard({
                 )}
               </Form.Item>
               <Form.Item
-                className="numeric-form-item helped-form-item"
+                className="numeric-form-item short-number-form-item helped-form-item"
                 label={fieldLabel('Толщина 2-го слоя')}
                 preserve={false}
               >
                 {withHelp(
-                  <InputNumber value={0} addonAfter="мм" />,
+                  <InputNumber value={1} min={1} max={500} addonAfter="мм" />,
                   'Целевой диапазон SRS: 1…500 мм при выбранном 2-м слое. Сейчас поле справочное.',
                 )}
               </Form.Item>
@@ -556,7 +559,7 @@ export default function ObjectWizard({
         >
           {renderSectionTitle('Температура и среда', 2)}
           <Form.Item
-            className="numeric-form-item helped-form-item"
+            className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('Требуемая T° объекта')}
           >
             {withHelp(
@@ -565,7 +568,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="numeric-form-item helped-form-item"
+            className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('Макс. T° окр. среды')}
           >
             {withHelp(
@@ -574,7 +577,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="numeric-form-item helped-form-item"
+            className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('Макс. допуст. T° продукта')}
           >
             {withHelp(
@@ -622,7 +625,7 @@ export default function ObjectWizard({
         >
           {renderSectionTitle('Электропараметры и арматура', 3)}
           <Form.Item
-            className="numeric-form-item helped-form-item"
+            className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('Мин. T° включения')}
           >
             {withHelp(
@@ -640,11 +643,11 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="numeric-form-item helped-form-item"
+            className="numeric-form-item coefficient-form-item helped-form-item"
             label={fieldLabel('Kзап')}
           >
             {withHelp(
-              <InputNumber value={1.2} step={0.01} />,
+              <InputNumber value={1.2} min={1} max={2} step={0.01} />,
               'Коэффициент запаса Kзап. Целевой диапазон SRS: 1,00…2,00. Сейчас поле справочное; сохранение в payload вынесено в отдельную задачу.',
             )}
           </Form.Item>
@@ -660,29 +663,29 @@ export default function ObjectWizard({
           {objectType === 'pipe' && (
             <>
               <Form.Item
-                className="numeric-form-item helped-form-item"
+                className="numeric-form-item fitting-count-form-item helped-form-item"
                 label={fieldLabel('Задвижки')}
               >
                 {withHelp(
-                  <InputNumber value={2} min={0} addonAfter="шт" />,
+                  <InputNumber value={2} min={0} max={100} addonAfter="шт" />,
                   'Количество задвижек, шт. Целевой диапазон валидации: 0…100. Сейчас поле справочное.',
                 )}
               </Form.Item>
               <Form.Item
-                className="numeric-form-item helped-form-item"
+                className="numeric-form-item fitting-count-form-item helped-form-item"
                 label={fieldLabel('Фланцы')}
               >
                 {withHelp(
-                  <InputNumber value={2} min={0} addonAfter="шт" />,
+                  <InputNumber value={2} min={0} max={100} addonAfter="шт" />,
                   'Количество фланцев, шт. Целевой диапазон валидации: 0…100. Сейчас поле справочное.',
                 )}
               </Form.Item>
               <Form.Item
-                className="numeric-form-item helped-form-item"
+                className="numeric-form-item fitting-count-form-item helped-form-item"
                 label={fieldLabel('Опоры')}
               >
                 {withHelp(
-                  <InputNumber value={2} min={0} addonAfter="шт" />,
+                  <InputNumber value={2} min={0} max={100} addonAfter="шт" />,
                   'Количество опор, шт. Целевой диапазон валидации: 0…100. Сейчас поле справочное.',
                 )}
               </Form.Item>

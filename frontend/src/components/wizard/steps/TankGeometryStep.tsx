@@ -42,7 +42,7 @@ export default function TankGeometryStep() {
             <>
               {needDiameter && (
                 <Form.Item
-                  className="numeric-form-item helped-form-item"
+                  className="numeric-form-item tank-size-form-item helped-form-item"
                   label={fieldLabel('Ø')}
                   name="diameter_mm"
                   rules={[
@@ -60,7 +60,7 @@ export default function TankGeometryStep() {
 
               {needHeight && (
                 <Form.Item
-                  className="numeric-form-item helped-form-item"
+                  className="numeric-form-item tank-size-form-item helped-form-item"
                   label={fieldLabel('Высота')}
                   name="height_mm"
                   rules={[
@@ -78,7 +78,7 @@ export default function TankGeometryStep() {
 
               {needLength && (
                 <Form.Item
-                  className="numeric-form-item helped-form-item"
+                  className="numeric-form-item tank-size-form-item helped-form-item"
                   label={fieldLabel('Длина')}
                   name="length_mm"
                   rules={[
@@ -96,7 +96,7 @@ export default function TankGeometryStep() {
 
               {needWidth && (
                 <Form.Item
-                  className="numeric-form-item helped-form-item"
+                  className="numeric-form-item tank-size-form-item helped-form-item"
                   label={fieldLabel('Ширина')}
                   name="width_mm"
                   rules={[

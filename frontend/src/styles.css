@@ -387,9 +387,9 @@ html, body, #root {
 
 .form-grid-srs .form-col-srs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  --field-pair-min-width: 268px;
-  --field-label-width: 76px;
+  grid-template-columns: repeat(auto-fit, minmax(var(--field-pair-min-width), 1fr));
+  --field-pair-min-width: 274px;
+  --field-label-width: 92px;
   --field-input-min-width: 160px;
   --numeric-value-width: 6ch;
   align-content: start;
@@ -515,7 +515,7 @@ html, body, #root {
 
 .inline-object-form .ant-form-item-row {
   display: grid;
-  grid-template-columns: var(--field-label-width, 76px) minmax(var(--field-input-min-width, 160px), 1fr) 12px;
+  grid-template-columns: var(--field-label-width, 92px) minmax(var(--field-input-min-width, 160px), 1fr) 12px;
   column-gap: 3px;
   align-items: start;
   width: 100%;
@@ -525,7 +525,7 @@ html, body, #root {
 /* ── Лейбл ────────────────────────────────────────────────────── */
 .inline-object-form .ant-form-item-label {
   padding: 0;
-  width: var(--field-label-width, 76px);
+  width: var(--field-label-width, 92px);
   overflow: visible;
   line-height: 1.15;
   grid-column: 1;
@@ -753,7 +753,7 @@ html, body, #root {
 .inline-object-form .numeric-form-item .ant-form-item-row,
 .inline-object-form .compact-select-form-item .ant-form-item-row,
 .inline-object-form .layer-count-form-item .ant-form-item-row {
-  grid-template-columns: var(--field-label-width, 76px) max-content 12px;
+  grid-template-columns: var(--field-label-width, 92px) max-content 12px;
 }
 
 .inline-object-form .fit-label-form-item .ant-form-item-control,
@@ -807,7 +807,7 @@ html, body, #root {
 
 .inline-object-form .pipe-material-form-item .ant-form-item-label,
 .inline-object-form .fixed-select-form-item .ant-form-item-label {
-  width: var(--field-label-width, 76px);
+  width: var(--field-label-width, 92px);
 }
 
 .inline-object-form .pipe-material-form-item .ant-select,
@@ -823,7 +823,7 @@ html, body, #root {
 }
 
 .inline-object-form .temperature-group-form-item .ant-form-item-row {
-  grid-template-columns: var(--field-label-width, 76px) max-content 12px;
+  grid-template-columns: var(--field-label-width, 92px) max-content 12px;
 }
 
 .inline-object-form .temperature-group-form-item .ant-form-item-control,
@@ -836,6 +836,34 @@ html, body, #root {
 .inline-object-form .temperature-group-form-item .ant-select {
   width: 60px;
   min-width: 60px;
+}
+
+.inline-object-form .short-number-form-item {
+  --numeric-value-width: 4ch;
+}
+
+.inline-object-form .temperature-number-form-item {
+  --numeric-value-width: 4ch;
+}
+
+.inline-object-form .coefficient-form-item {
+  --numeric-value-width: 5ch;
+}
+
+.inline-object-form .tank-size-form-item {
+  --numeric-value-width: 5ch;
+}
+
+.inline-object-form .long-number-form-item {
+  --numeric-value-width: 6ch;
+}
+
+.inline-object-form .fitting-count-form-item .ant-input-number-group-wrapper {
+  width: 76px;
+}
+
+.inline-object-form .fitting-count-form-item .ant-input-number {
+  width: 48px;
 }
 
 

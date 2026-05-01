@@ -22,7 +22,7 @@ export default function ThermalStep() {
   return (
     <>
       <Form.Item
-        className="numeric-form-item helped-form-item"
+        className="numeric-form-item short-number-form-item helped-form-item"
         label={fieldLabel('Толщина изоляции')}
         name="insulation_thickness_mm"
         rules={[
@@ -38,7 +38,7 @@ export default function ThermalStep() {
       </Form.Item>
 
       <Form.Item
-        className="numeric-form-item helped-form-item"
+        className="numeric-form-item temperature-number-form-item helped-form-item"
         label={fieldLabel('T° окр. среды')}
         name="ambient_temperature"
         rules={[
@@ -54,7 +54,7 @@ export default function ThermalStep() {
       </Form.Item>
 
       <Form.Item
-        className="numeric-form-item helped-form-item"
+        className="numeric-form-item temperature-number-form-item helped-form-item"
         label={fieldLabel('T° продукта')}
         name="process_temperature"
         dependencies={['ambient_temperature']}
@@ -83,11 +83,11 @@ export default function ThermalStep() {
       </Form.Item>
 
       <Form.Item
-        className="numeric-form-item helped-form-item"
+        className="numeric-form-item coefficient-form-item helped-form-item"
         label={fieldLabel('λ 1-го слоя')}
       >
         {withHelp(
-          <InputNumber disabled value={0.045} step={0.001} addonAfter="Вт/мК" />,
+          <InputNumber disabled value={0.045} min={0.005} max={5} step={0.001} addonAfter="Вт/мК" />,
           'Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Для материала «Другое» по SRS нужно ручное значение 0,005…5,0.',
         )}
       </Form.Item>
