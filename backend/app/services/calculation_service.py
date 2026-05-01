@@ -180,7 +180,10 @@ class CalculationService:
 
     async def calc_electrical(self, request: ElectricalRequest) -> ElectricalCalculation:
         if request.cable_type != "self_regulating":
-            raise CalculationError("В MVP поддерживается только саморегулирующийся кабель ТЛТ")
+            raise CalculationError(
+                "Для выбранного типа кабеля нет расчётной формулы/каталога в поставке. "
+                "Сейчас рассчитывается только саморегулирующийся кабель ТЛТ"
+            )
         params = SelfRegulatingParams(**request.data)
         result = calc_self_regulating(params)
 
@@ -255,7 +258,7 @@ class CalculationService:
             data={
                 "required_power_per_meter": float(required_power),
                 "cable_mark": cable_mark,
-                "supply_voltage": 220.0,
+                "supply_voltage": float(params.get("supply_voltage", 220.0)),
                 "ambient_temperature": float(params.get("ambient_temperature", -20.0)),
                 "process_temperature": (
                     float(params["process_temperature"])
@@ -263,7 +266,7 @@ class CalculationService:
                     else None
                 ),
                 "pipe_length": float(params.get("pipe_length") or params.get("height") or 1.0),
-                "safety_factor": 1.1,
+                "safety_factor": float(params.get("safety_factor", 1.1)),
                 "cable_catalog": catalog,
             },
         )
@@ -318,13 +321,13 @@ class CalculationService:
                     data={
                         "required_power_per_meter": float(required_power),
                         "cable_mark": None,
-                        "supply_voltage": 220.0,
+                        "supply_voltage": float(params.get("supply_voltage", 220.0)),
                         "ambient_temperature": float(ambient_temperature),
                         "process_temperature": (
                             float(process_temperature) if process_temperature is not None else None
                         ),
                         "pipe_length": float(pipe_length),
-                        "safety_factor": 1.1,
+                        "safety_factor": float(params.get("safety_factor", 1.1)),
                         "cable_catalog": catalog,
                     },
                 )

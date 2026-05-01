@@ -53,6 +53,46 @@ MATERIAL_ALIASES: dict[str, str] = {
     "aerogel": "aerogel",
     "силикат кальция": "calcium_silicate",
     "calcium_silicate": "calcium_silicate",
+    "другое": "other",
+    "other": "other",
+}
+
+PIPE_MATERIAL_ALIASES: dict[str, str] = {
+    "углеродистая сталь": "carbon_steel",
+    "сталь углеродистая": "carbon_steel",
+    "carbon_steel": "carbon_steel",
+    "нержавеющая сталь": "stainless_304",
+    "stainless_304": "stainless_304",
+    "медь": "copper",
+    "copper": "copper",
+    "алюминий": "aluminum",
+    "aluminum": "aluminum",
+    "пластик": "plastic",
+    "plastic": "plastic",
+}
+
+PLACEMENT_ALIASES: dict[str, str] = {
+    "на открытом воздухе": "outdoor",
+    "улица": "outdoor",
+    "надземная": "outdoor",
+    "outdoor": "outdoor",
+    "в помещении": "indoor",
+    "помещение": "indoor",
+    "indoor": "indoor",
+    "подземно": "underground",
+    "подземная": "underground",
+    "underground": "underground",
+}
+
+GROUND_ALIASES: dict[str, str] = {
+    "сухой песок": "dry_sand",
+    "dry_sand": "dry_sand",
+    "влажный песок": "wet_sand",
+    "wet_sand": "wet_sand",
+    "глина": "clay",
+    "clay": "clay",
+    "другое": "custom",
+    "custom": "custom",
 }
 
 SHAPE_ALIASES: dict[str, str] = {
@@ -105,6 +145,45 @@ PIPE_HEADERS: dict[str, str] = {
     "t° продукта": "process_temperature",
     "t продукта": "process_temperature",
     "температура продукта": "process_temperature",
+    "требуемая температура": "process_temperature",
+    "требуемая температура трубы": "process_temperature",
+    "температура поддержания": "process_temperature",
+    "т° поддержания": "process_temperature",
+    "t° поддержания": "process_temperature",
+    "макс. t° окр. среды": "max_ambient_temperature",
+    "макс t° окр. среды": "max_ambient_temperature",
+    "макс. допуст. t° продукта": "max_process_temperature",
+    "макс допуст t° продукта": "max_process_temperature",
+    "толщина стенки, мм": "wall_thickness_mm",
+    "толщина стенки мм": "wall_thickness_mm",
+    "толщина стенки": "wall_thickness_mm",
+    "материал трубы": "pipe_material",
+    "λ трубы": "pipe_lambda",
+    "лямбда трубы": "pipe_lambda",
+    "количество слоёв изоляции": "insulation_layer_count",
+    "кол-во слоёв из": "insulation_layer_count",
+    "слоёв из": "insulation_layer_count",
+    "материал 2-го слоя": "second_insulation_material",
+    "толщина 2-го слоя, мм": "second_insulation_thickness_mm",
+    "толщина 2-го слоя": "second_insulation_thickness_mm",
+    "λ 1-го слоя": "first_insulation_lambda",
+    "λ 2-го слоя": "second_insulation_lambda",
+    "материал 3-го слоя": "third_insulation_material",
+    "толщина 3-го слоя, мм": "third_insulation_thickness_mm",
+    "толщина 3-го слоя": "third_insulation_thickness_mm",
+    "λ 3-го слоя": "third_insulation_lambda",
+    "материал покрытия": "insulation_cover_material",
+    "размещение": "placement",
+    "размещение трубопровода": "placement",
+    "глубина прокладки": "burial_depth",
+    "грунт": "ground_type",
+    "λ грунта": "ground_conductivity",
+    "kзап": "safety_factor",
+    "коэффициент запаса": "safety_factor",
+    "рабочее напряжение": "supply_voltage",
+    "задвижки": "valve_count",
+    "фланцы": "flange_count",
+    "опоры": "support_count",
 }
 
 TANK_HEADERS: dict[str, str] = {
@@ -140,6 +219,36 @@ TANK_HEADERS: dict[str, str] = {
     "t° продукта": "process_temperature",
     "t продукта": "process_temperature",
     "температура продукта": "process_temperature",
+    "требуемая температура": "process_temperature",
+    "требуемая температура трубы": "process_temperature",
+    "температура поддержания": "process_temperature",
+    "т° поддержания": "process_temperature",
+    "t° поддержания": "process_temperature",
+    "макс. t° окр. среды": "max_ambient_temperature",
+    "макс t° окр. среды": "max_ambient_temperature",
+    "макс. допуст. t° продукта": "max_process_temperature",
+    "макс допуст t° продукта": "max_process_temperature",
+    "количество слоёв изоляции": "insulation_layer_count",
+    "кол-во слоёв из": "insulation_layer_count",
+    "слоёв из": "insulation_layer_count",
+    "материал 2-го слоя": "second_insulation_material",
+    "толщина 2-го слоя, мм": "second_insulation_thickness_mm",
+    "толщина 2-го слоя": "second_insulation_thickness_mm",
+    "λ 1-го слоя": "first_insulation_lambda",
+    "λ 2-го слоя": "second_insulation_lambda",
+    "материал 3-го слоя": "third_insulation_material",
+    "толщина 3-го слоя, мм": "third_insulation_thickness_mm",
+    "толщина 3-го слоя": "third_insulation_thickness_mm",
+    "λ 3-го слоя": "third_insulation_lambda",
+    "материал покрытия": "insulation_cover_material",
+    "размещение": "placement",
+    "размещение резервуара": "placement",
+    "глубина прокладки": "burial_depth",
+    "грунт": "ground_type",
+    "λ грунта": "ground_conductivity",
+    "kзап": "safety_factor",
+    "коэффициент запаса": "safety_factor",
+    "рабочее напряжение": "supply_voltage",
 }
 
 
@@ -159,6 +268,9 @@ def _to_float(v: Any) -> float | None:
     if isinstance(v, int | float):
         return float(v)
     s = str(v).replace(",", ".").strip()
+    match = re.search(r"[-+]?\d+(?:\.\d+)?", s)
+    if match:
+        s = match.group(0)
     try:
         return float(s)
     except ValueError:
@@ -172,12 +284,111 @@ def _resolve_material(v: Any) -> str | None:
     return MATERIAL_ALIASES.get(key)
 
 
+def _resolve_pipe_material(v: Any) -> str | None:
+    key = _norm(v)
+    if not key:
+        return None
+    return PIPE_MATERIAL_ALIASES.get(key)
+
+
+def _resolve_alias(v: Any, aliases: dict[str, str]) -> str | None:
+    key = _norm(v)
+    if not key:
+        return None
+    return aliases.get(key)
+
+
 def _resolve_shape(v: Any) -> str | None:
     key = _norm(v)
     if not key:
         return None
     # Первое слово тоже пробуем (если запись «цилиндрический бак»)
     return SHAPE_ALIASES.get(key) or SHAPE_ALIASES.get(key.split()[0] if key else "")
+
+
+def _apply_common_srs_params(params: dict[str, Any], row: dict[str, Any]) -> None:
+    """Добавляет необязательные SRS-поля объекта из Excel/CSV в params."""
+    placement = _resolve_alias(row.get("placement"), PLACEMENT_ALIASES)
+    if placement:
+        params["placement"] = placement
+        params["location"] = "indoor" if placement == "indoor" else "outdoor"
+    burial_depth = _to_float(row.get("burial_depth"))
+    if burial_depth is not None:
+        params["burial_depth"] = burial_depth
+    ground_type = _resolve_alias(row.get("ground_type"), GROUND_ALIASES)
+    if ground_type:
+        params["ground_type"] = ground_type
+    ground_conductivity = _to_float(row.get("ground_conductivity"))
+    if ground_conductivity is not None:
+        params["ground_conductivity"] = ground_conductivity
+    safety_factor = _to_float(row.get("safety_factor"))
+    if safety_factor is not None:
+        params["safety_factor"] = safety_factor
+    supply_voltage = _to_float(row.get("supply_voltage"))
+    if supply_voltage is not None:
+        params["supply_voltage"] = supply_voltage
+    max_ambient = _to_float(row.get("max_ambient_temperature"))
+    if max_ambient is not None:
+        params["max_ambient_temperature"] = max_ambient
+    max_process = _to_float(row.get("max_process_temperature"))
+    if max_process is not None:
+        params["max_process_temperature"] = max_process
+    cover = row.get("insulation_cover_material")
+    if cover and str(cover).strip():
+        params["insulation_cover_material"] = str(cover).strip()
+
+
+def _apply_layered_insulation(params: dict[str, Any], row: dict[str, Any]) -> str | None:
+    count = int(_to_float(row.get("insulation_layer_count")) or 1)
+    count = min(max(count, 1), 3)
+    params["insulation_layer_count"] = str(count)
+
+    layers: list[dict[str, Any]] = [
+        {
+            "thickness": params["insulation_thickness"],
+            "material": params["insulation_material"],
+        }
+    ]
+    first_lambda = _to_float(row.get("first_insulation_lambda"))
+    if first_lambda is not None:
+        layers[0]["conductivity"] = first_lambda
+    elif params["insulation_material"] == "other":
+        return "Для материала изоляции «Другое» нужно заполнить λ 1-го слоя"
+
+    if count >= 2:
+        material2 = _resolve_material(row.get("second_insulation_material"))
+        thickness2 = _to_float(row.get("second_insulation_thickness_mm"))
+        if material2 and thickness2 is not None:
+            layer2: dict[str, Any] = {
+                "thickness": thickness2 / 1000.0,
+                "material": material2,
+            }
+            lambda2 = _to_float(row.get("second_insulation_lambda"))
+            if lambda2 is not None:
+                layer2["conductivity"] = lambda2
+            elif material2 == "other":
+                return "Для материала 2-го слоя «Другое» нужно заполнить λ 2-го слоя"
+            layers.append(layer2)
+
+    if count >= 3:
+        material3 = _resolve_material(row.get("third_insulation_material"))
+        thickness3 = _to_float(row.get("third_insulation_thickness_mm"))
+        if material3 and thickness3 is not None:
+            layer3: dict[str, Any] = {
+                "thickness": thickness3 / 1000.0,
+                "material": material3,
+            }
+            lambda3 = _to_float(row.get("third_insulation_lambda"))
+            if lambda3 is not None:
+                layer3["conductivity"] = lambda3
+            elif material3 == "other":
+                return "Для материала 3-го слоя «Другое» нужно заполнить λ 3-го слоя"
+            layers.append(layer3)
+
+    if len(layers) == count:
+        params["insulation_layers"] = layers
+        return None
+    return f"Для {count} слоёв изоляции нужно заполнить материал и толщину каждого слоя"
 
 
 def _read_sheet(ws: Any, header_map: dict[str, str]) -> list[dict[str, Any]]:
@@ -240,6 +451,28 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
         "ambient_temperature": t_a,
         "process_temperature": t_p,
     }
+    wall_mm = _to_float(row.get("wall_thickness_mm"))
+    if wall_mm is not None:
+        params["wall_thickness"] = wall_mm / 1000.0
+    pipe_material = _resolve_pipe_material(row.get("pipe_material"))
+    if pipe_material:
+        params["pipe_material"] = pipe_material
+    pipe_lambda = _to_float(row.get("pipe_lambda"))
+    if pipe_lambda is not None:
+        params["pipe_lambda"] = pipe_lambda
+    for count_field in ("valve_count", "flange_count", "support_count"):
+        value = _to_float(row.get(count_field))
+        if value is not None:
+            params[count_field] = int(value)
+    local_count = sum(
+        int(params.get(k, 0) or 0) for k in ("valve_count", "flange_count", "support_count")
+    )
+    if local_count:
+        params["num_local_elements"] = local_count
+    _apply_common_srs_params(params, row)
+    layer_error = _apply_layered_insulation(params, row)
+    if layer_error:
+        return None, layer_error
     name = row.get("name")
     if name and str(name).strip():
         params["name"] = str(name).strip()
@@ -310,6 +543,11 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
 
     if missing:
         return None, "Не заполнены поля: " + ", ".join(missing)
+
+    _apply_common_srs_params(params, row)
+    layer_error = _apply_layered_insulation(params, row)
+    if layer_error:
+        return None, layer_error
 
     name = row.get("name")
     if name and str(name).strip():

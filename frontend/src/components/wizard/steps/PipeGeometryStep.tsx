@@ -28,7 +28,7 @@ export default function PipeGeometryStep() {
               name="outer_diameter_mm"
               rules={[
                 { required: true, message: 'Укажите наружный диаметр' },
-                { type: 'number', min: 10.8, message: 'Минимальный диаметр — 10,8 мм (DN10)' },
+                { type: 'number', min: 10, message: 'Минимальный диаметр — 10 мм' },
                 { type: 'number', max: 3000, message: 'Максимальный диаметр — 3000 мм' },
               ]}
               extra={
@@ -45,12 +45,12 @@ export default function PipeGeometryStep() {
             >
               {withHelp(
                 <InputNumber
-                  min={10.8}
+                  min={10}
                   max={3000}
                   step={1}
                   addonAfter="мм"
                 />,
-                'Наружный диаметр трубопровода Ø, мм. Диапазон: 10,8–3000 мм. Стандартные размеры DN10–DN1000.',
+                'Наружный диаметр трубопровода Ø, мм. Диапазон: 10–3000 мм. Стандартные размеры DN10–DN1000.',
               )}
             </Form.Item>
           );
@@ -64,12 +64,12 @@ export default function PipeGeometryStep() {
         rules={[
           { required: true, message: 'Укажите длину трубопровода' },
           { type: 'number', min: 0.5, message: 'Минимальная длина — 0,5 м' },
-          { type: 'number', max: 200000, message: 'Максимальная длина — 200 000 м' },
+          { type: 'number', max: 10000, message: 'Максимальная длина — 10 000 м' },
         ]}
       >
         {withHelp(
-          <InputNumber min={0.5} max={200000} step={1} addonAfter="м" />,
-          'Длина обогреваемого участка. Диапазон: 0,5–200 000 м.',
+          <InputNumber min={0.5} max={10000} step={1} addonAfter="м" />,
+          'Длина обогреваемого участка. Диапазон: 0,5–10 000 м.',
         )}
       </Form.Item>
     </>

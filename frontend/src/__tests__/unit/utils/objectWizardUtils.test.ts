@@ -132,6 +132,47 @@ describe('pipeFormToApiParams', () => {
     expect(api.name).toBe('Magistral-1');
   });
 
+  it('передаёт расчётные и эксплуатационные поля из inline-формы', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      wall_thickness_mm: 4,
+      pipe_material: 'carbon_steel',
+      pipe_lambda: 56,
+      pipe_length: 50,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      insulation_cover_material: 'none',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      max_ambient_temperature: 30,
+      max_process_temperature: 90,
+      placement: 'underground',
+      burial_depth: 1.2,
+      ground_type: 'clay',
+      ground_conductivity: 1.7,
+      safety_factor: 1.2,
+      supply_voltage: 380,
+      valve_count: 1,
+      flange_count: 2,
+      support_count: 3,
+    });
+
+    expect(api.wall_thickness).toBeCloseTo(0.004);
+    expect(api.pipe_material).toBe('carbon_steel');
+    expect(api.pipe_lambda).toBe(56);
+    expect(api.location).toBe('outdoor');
+    expect(api.placement).toBe('underground');
+    expect(api.burial_depth).toBe(1.2);
+    expect(api.ground_type).toBe('clay');
+    expect(api.ground_conductivity).toBe(1.7);
+    expect(api.safety_factor).toBe(1.2);
+    expect(api.supply_voltage).toBe(380);
+    expect(api.insulation_cover_material).toBe('none');
+    expect(api.max_ambient_temperature).toBe(30);
+    expect(api.max_process_temperature).toBe(90);
+    expect(api.num_local_elements).toBe(6);
+  });
+
   it('формирует insulation_layers для трёх слоёв', () => {
     const api = pipeFormToApiParams({
       outer_diameter_mm: 108,
@@ -153,6 +194,27 @@ describe('pipeFormToApiParams', () => {
       { thickness: 0.01, material: 'foam_glass' },
     ]);
     expect(api.insulation_thickness).toBeCloseTo(0.04);
+  });
+
+  it('передаёт ручную λ для материала «Другое» в каждом слое', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 40,
+      insulation_material: 'other',
+      first_insulation_lambda: 0.037,
+      insulation_layer_count: '2',
+      second_insulation_thickness_mm: 20,
+      second_insulation_material: 'other',
+      second_insulation_lambda: 0.052,
+      ambient_temperature: -20,
+      process_temperature: 80,
+    });
+
+    expect(api.insulation_layers).toEqual([
+      { thickness: 0.04, material: 'other', conductivity: 0.037 },
+      { thickness: 0.02, material: 'other', conductivity: 0.052 },
+    ]);
   });
 });
 
@@ -213,18 +275,24 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
       ambient_temperature: -20,
       process_temperature: 80,
       insulation_layers: [
-        { thickness: 0.04, material: 'mineral_wool' },
-        { thickness: 0.02, material: 'polyurethane_foam' },
+        { thickness: 0.04, material: 'mineral_wool', conductivity: undefined },
+        { thickness: 0.02, material: 'polyurethane_foam', conductivity: 0.028 },
         { thickness: 0.01, material: 'foam_glass' },
       ],
+      placement: 'underground',
+      ground_type: 'dry_sand',
+      ground_conductivity: 1.3,
     });
     expect(form.insulation_layer_count).toBe('3');
     expect(form.insulation_thickness_mm).toBe(40);
     expect(form.insulation_material).toBe('mineral_wool');
     expect(form.second_insulation_thickness_mm).toBe(20);
     expect(form.second_insulation_material).toBe('polyurethane_foam');
+    expect(form.second_insulation_lambda).toBe(0.028);
     expect(form.third_insulation_thickness_mm).toBe(10);
     expect(form.third_insulation_material).toBe('foam_glass');
+    expect(form.ground_type).toBe('dry_sand');
+    expect(form.ground_conductivity).toBe(1.3);
   });
 
   it('tank: cylindrical с diameter/height', () => {

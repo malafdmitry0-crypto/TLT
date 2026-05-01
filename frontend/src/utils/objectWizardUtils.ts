@@ -94,16 +94,39 @@ function tempSign(t: number): string {
 
 export interface PipeFormValues {
   outer_diameter_mm: number;
+  wall_thickness_mm?: number;
+  pipe_material?: string;
+  pipe_lambda?: number;
   insulation_thickness_mm: number;
   insulation_material: string;
+  insulation_cover_material?: string;
   insulation_layer_count?: '1' | '2' | '3';
+  first_insulation_lambda?: number;
   second_insulation_thickness_mm?: number;
   second_insulation_material?: string;
+  second_insulation_lambda?: number;
   third_insulation_thickness_mm?: number;
   third_insulation_material?: string;
+  third_insulation_lambda?: number;
   ambient_temperature: number;
   process_temperature: number;
+  max_ambient_temperature?: number;
+  max_process_temperature?: number;
+  environment?: 'normal' | 'aggressive';
+  zone_classification?: 'safe' | 'explosive';
+  temperature_group?: 'T1' | 'T2' | 'T3' | 'T4' | 'T5' | 'T6';
+  placement?: 'outdoor' | 'indoor' | 'underground';
+  burial_depth?: number;
+  ground_type?: 'dry_sand' | 'wet_sand' | 'clay' | 'custom';
+  ground_conductivity?: number;
   pipe_length: number;
+  min_switch_temperature?: number;
+  supply_voltage?: number;
+  safety_factor?: number;
+  steam_tracing?: 'yes' | 'no';
+  valve_count?: number;
+  flange_count?: number;
+  support_count?: number;
 }
 
 export interface TankFormValues {
@@ -114,13 +137,30 @@ export interface TankFormValues {
   width_mm?: number;
   insulation_thickness_mm: number;
   insulation_material: string;
+  insulation_cover_material?: string;
   insulation_layer_count?: '1' | '2' | '3';
+  first_insulation_lambda?: number;
   second_insulation_thickness_mm?: number;
   second_insulation_material?: string;
+  second_insulation_lambda?: number;
   third_insulation_thickness_mm?: number;
   third_insulation_material?: string;
+  third_insulation_lambda?: number;
   ambient_temperature: number;
   process_temperature: number;
+  max_ambient_temperature?: number;
+  max_process_temperature?: number;
+  environment?: 'normal' | 'aggressive';
+  zone_classification?: 'safe' | 'explosive';
+  temperature_group?: 'T1' | 'T2' | 'T3' | 'T4' | 'T5' | 'T6';
+  placement?: 'outdoor' | 'indoor' | 'underground';
+  burial_depth?: number;
+  ground_type?: 'dry_sand' | 'wet_sand' | 'clay' | 'custom';
+  ground_conductivity?: number;
+  min_switch_temperature?: number;
+  supply_voltage?: number;
+  safety_factor?: number;
+  steam_tracing?: 'yes' | 'no';
 }
 
 export function generatePipeName(v: PipeFormValues): string {
@@ -172,6 +212,16 @@ export function pipeFormToApiParams(
     process_temperature: v.process_temperature,
     pipe_length: v.pipe_length,
   };
+  applyCommonObjectParams(params, v);
+  if (v.wall_thickness_mm != null) params.wall_thickness = v.wall_thickness_mm / 1000;
+  if (v.pipe_material) params.pipe_material = v.pipe_material;
+  if (v.pipe_lambda != null) params.pipe_lambda = v.pipe_lambda;
+  const localCount =
+    Number(v.valve_count ?? 0) + Number(v.flange_count ?? 0) + Number(v.support_count ?? 0);
+  params.valve_count = Number(v.valve_count ?? 0);
+  params.flange_count = Number(v.flange_count ?? 0);
+  params.support_count = Number(v.support_count ?? 0);
+  if (localCount > 0) params.num_local_elements = localCount;
   applyInsulationLayers(params, v);
   if (v.name) params.name = v.name;
   return params;
@@ -187,6 +237,7 @@ export function tankFormToApiParams(
     ambient_temperature: v.ambient_temperature,
     process_temperature: v.process_temperature,
   };
+  applyCommonObjectParams(params, v);
   applyInsulationLayers(params, v);
   if (v.diameter_mm != null) params.diameter = v.diameter_mm / 1000;
   if (v.height_mm != null) params.height = v.height_mm / 1000;
@@ -201,21 +252,49 @@ type LayeredFormValues = Pick<
   | 'insulation_thickness_mm'
   | 'insulation_material'
   | 'insulation_layer_count'
+  | 'first_insulation_lambda'
   | 'second_insulation_thickness_mm'
   | 'second_insulation_material'
+  | 'second_insulation_lambda'
   | 'third_insulation_thickness_mm'
   | 'third_insulation_material'
+  | 'third_insulation_lambda'
 >;
+
+function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormValues | TankFormValues) {
+  const placement = v.placement ?? 'outdoor';
+  params.placement = placement;
+  params.location = placement === 'indoor' ? 'indoor' : 'outdoor';
+  if (placement === 'underground' && v.burial_depth != null) {
+    params.burial_depth = v.burial_depth;
+  }
+  if (placement === 'underground' && v.ground_type) params.ground_type = v.ground_type;
+  if (placement === 'underground' && v.ground_conductivity != null) {
+    params.ground_conductivity = v.ground_conductivity;
+  }
+  if (v.insulation_cover_material) params.insulation_cover_material = v.insulation_cover_material;
+  if (v.max_ambient_temperature != null) params.max_ambient_temperature = v.max_ambient_temperature;
+  if (v.max_process_temperature != null) params.max_process_temperature = v.max_process_temperature;
+  if (v.environment) params.environment = v.environment;
+  if (v.zone_classification) params.zone_classification = v.zone_classification;
+  if (v.temperature_group) params.temperature_group = v.temperature_group;
+  if (v.min_switch_temperature != null) params.min_switch_temperature = v.min_switch_temperature;
+  if (v.supply_voltage != null) params.supply_voltage = v.supply_voltage;
+  if (v.safety_factor != null) params.safety_factor = v.safety_factor;
+  if (v.steam_tracing) params.steam_tracing = v.steam_tracing;
+}
 
 function applyInsulationLayers(params: Record<string, unknown>, v: LayeredFormValues) {
   const count = Number(v.insulation_layer_count ?? '1');
   params.insulation_layer_count = String(Math.min(Math.max(count || 1, 1), 3));
-  if (count <= 1) return;
 
   const layers = [
     {
       thickness: v.insulation_thickness_mm / 1000,
       material: v.insulation_material,
+      ...(v.insulation_material === 'other' && v.first_insulation_lambda != null
+        ? { conductivity: v.first_insulation_lambda }
+        : {}),
     },
   ];
 
@@ -223,12 +302,18 @@ function applyInsulationLayers(params: Record<string, unknown>, v: LayeredFormVa
     layers.push({
       thickness: v.second_insulation_thickness_mm / 1000,
       material: v.second_insulation_material,
+      ...(v.second_insulation_material === 'other' && v.second_insulation_lambda != null
+        ? { conductivity: v.second_insulation_lambda }
+        : {}),
     });
   }
   if (count >= 3 && v.third_insulation_thickness_mm != null && v.third_insulation_material) {
     layers.push({
       thickness: v.third_insulation_thickness_mm / 1000,
       material: v.third_insulation_material,
+      ...(v.third_insulation_material === 'other' && v.third_insulation_lambda != null
+        ? { conductivity: v.third_insulation_lambda }
+        : {}),
     });
   }
 
@@ -245,12 +330,17 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     : [];
   return {
     outer_diameter_mm: p.outer_diameter != null ? Number(p.outer_diameter) * 1000 : undefined,
+    wall_thickness_mm: p.wall_thickness != null ? Number(p.wall_thickness) * 1000 : undefined,
+    pipe_material: p.pipe_material as string | undefined,
+    pipe_lambda: p.pipe_lambda as number | undefined,
     insulation_thickness_mm:
       layers[0]?.thickness != null
         ? Number(layers[0].thickness) * 1000
         : p.insulation_thickness != null ? Number(p.insulation_thickness) * 1000 : undefined,
     insulation_material:
       (layers[0]?.material as string | undefined) ?? (p.insulation_material as string | undefined),
+    first_insulation_lambda: layers[0]?.conductivity as number | undefined,
+    insulation_cover_material: p.insulation_cover_material as string | undefined,
     insulation_layer_count:
       p.insulation_layer_count != null
         ? String(p.insulation_layer_count) as PipeFormValues['insulation_layer_count']
@@ -258,12 +348,32 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     second_insulation_thickness_mm:
       layers[1]?.thickness != null ? Number(layers[1].thickness) * 1000 : undefined,
     second_insulation_material: layers[1]?.material as string | undefined,
+    second_insulation_lambda: layers[1]?.conductivity as number | undefined,
     third_insulation_thickness_mm:
       layers[2]?.thickness != null ? Number(layers[2].thickness) * 1000 : undefined,
     third_insulation_material: layers[2]?.material as string | undefined,
+    third_insulation_lambda: layers[2]?.conductivity as number | undefined,
     ambient_temperature: p.ambient_temperature as number | undefined,
     process_temperature: p.process_temperature as number | undefined,
+    max_ambient_temperature: p.max_ambient_temperature as number | undefined,
+    max_process_temperature: p.max_process_temperature as number | undefined,
+    environment: p.environment as PipeFormValues['environment'],
+    zone_classification: p.zone_classification as PipeFormValues['zone_classification'],
+    temperature_group: p.temperature_group as PipeFormValues['temperature_group'],
+    placement:
+      (p.placement as PipeFormValues['placement']) ??
+      (p.burial_depth != null ? 'underground' : p.location as PipeFormValues['placement']),
+    burial_depth: p.burial_depth as number | undefined,
+    ground_type: p.ground_type as PipeFormValues['ground_type'],
+    ground_conductivity: p.ground_conductivity as number | undefined,
     pipe_length: p.pipe_length as number | undefined,
+    min_switch_temperature: p.min_switch_temperature as number | undefined,
+    supply_voltage: p.supply_voltage as number | undefined,
+    safety_factor: p.safety_factor as number | undefined,
+    steam_tracing: p.steam_tracing as PipeFormValues['steam_tracing'],
+    valve_count: p.valve_count as number | undefined,
+    flange_count: p.flange_count as number | undefined,
+    support_count: p.support_count as number | undefined,
     name: p.name as string | undefined,
   };
 }
@@ -284,6 +394,8 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
         : p.insulation_thickness != null ? Number(p.insulation_thickness) * 1000 : undefined,
     insulation_material:
       (layers[0]?.material as string | undefined) ?? (p.insulation_material as string | undefined),
+    first_insulation_lambda: layers[0]?.conductivity as number | undefined,
+    insulation_cover_material: p.insulation_cover_material as string | undefined,
     insulation_layer_count:
       p.insulation_layer_count != null
         ? String(p.insulation_layer_count) as TankFormValues['insulation_layer_count']
@@ -291,11 +403,28 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     second_insulation_thickness_mm:
       layers[1]?.thickness != null ? Number(layers[1].thickness) * 1000 : undefined,
     second_insulation_material: layers[1]?.material as string | undefined,
+    second_insulation_lambda: layers[1]?.conductivity as number | undefined,
     third_insulation_thickness_mm:
       layers[2]?.thickness != null ? Number(layers[2].thickness) * 1000 : undefined,
     third_insulation_material: layers[2]?.material as string | undefined,
+    third_insulation_lambda: layers[2]?.conductivity as number | undefined,
     ambient_temperature: p.ambient_temperature as number | undefined,
     process_temperature: p.process_temperature as number | undefined,
+    max_ambient_temperature: p.max_ambient_temperature as number | undefined,
+    max_process_temperature: p.max_process_temperature as number | undefined,
+    environment: p.environment as TankFormValues['environment'],
+    zone_classification: p.zone_classification as TankFormValues['zone_classification'],
+    temperature_group: p.temperature_group as TankFormValues['temperature_group'],
+    placement:
+      (p.placement as TankFormValues['placement']) ??
+      (p.burial_depth != null ? 'underground' : p.location as TankFormValues['placement']),
+    burial_depth: p.burial_depth as number | undefined,
+    ground_type: p.ground_type as TankFormValues['ground_type'],
+    ground_conductivity: p.ground_conductivity as number | undefined,
+    min_switch_temperature: p.min_switch_temperature as number | undefined,
+    supply_voltage: p.supply_voltage as number | undefined,
+    safety_factor: p.safety_factor as number | undefined,
+    steam_tracing: p.steam_tracing as TankFormValues['steam_tracing'],
     name: p.name as string | undefined,
   };
 }

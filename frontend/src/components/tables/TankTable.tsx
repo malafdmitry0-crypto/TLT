@@ -112,7 +112,7 @@ export default function TankTable({ data, projectId, onEdit, onReorder }: Props)
           render: (v: number) => formatNumber(v, 1),
         },
         {
-          title: 'Tₚ, °C',
+          title: 'Tподд., °C',
           dataIndex: ['params', 'process_temperature'],
           width: 68,
           render: (v: number) => formatNumber(v, 1),

@@ -1,10 +1,26 @@
 export interface PipeParams {
   outer_diameter: number;
+  wall_thickness?: number | null;
+  pipe_material?: string | null;
+  pipe_lambda?: number | null;
   insulation_thickness: number;
   insulation_material: string;
+  insulation_cover_material?: string | null;
+  insulation_layers?: Array<{ thickness: number; material: string; conductivity?: number | null }>;
   ambient_temperature: number;
   process_temperature: number;
+  max_ambient_temperature?: number | null;
+  max_process_temperature?: number | null;
   pipe_length: number;
+  placement?: 'indoor' | 'outdoor' | 'underground';
+  burial_depth?: number | null;
+  ground_type?: 'dry_sand' | 'wet_sand' | 'clay' | 'custom' | null;
+  ground_conductivity?: number | null;
+  valve_count?: number | null;
+  flange_count?: number | null;
+  support_count?: number | null;
+  supply_voltage?: number | null;
+  safety_factor?: number | null;
   location?: 'indoor' | 'outdoor';
 }
 
@@ -22,8 +38,18 @@ export interface TankParams {
   width?: number;
   insulation_thickness: number;
   insulation_material: string;
+  insulation_cover_material?: string | null;
+  insulation_layers?: Array<{ thickness: number; material: string; conductivity?: number | null }>;
   ambient_temperature: number;
   process_temperature: number;
+  max_ambient_temperature?: number | null;
+  max_process_temperature?: number | null;
+  placement?: 'indoor' | 'outdoor' | 'underground';
+  burial_depth?: number | null;
+  ground_type?: 'dry_sand' | 'wet_sand' | 'clay' | 'custom' | null;
+  ground_conductivity?: number | null;
+  supply_voltage?: number | null;
+  safety_factor?: number | null;
   location?: 'indoor' | 'outdoor';
 }
 

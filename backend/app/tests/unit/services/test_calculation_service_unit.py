@@ -482,3 +482,34 @@ class TestSelectCableManual:
         service = CalculationService(db)
         with pytest.raises(CalculationError, match="не требуется"):
             await service.select_cable_manual(obj.id, "ТЛТ-25")
+
+    async def test_object_voltage_and_safety_factor_passed_to_electrical_request(self):
+        """Рабочее напряжение и Kзап из формы объекта должны доходить до электрорасчёта."""
+        db = AsyncMock()
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            object_type="pipe",
+            params={
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 10,
+                "supply_voltage": 380,
+                "safety_factor": 1.2,
+            },
+            results={"heat_loss_per_meter": 20},
+            is_valid=True,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none = lambda: obj
+        db.execute = AsyncMock(return_value=result)
+
+        service = CalculationService(db)
+        service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service.calc_electrical = AsyncMock(return_value={"ok": True})  # type: ignore[method-assign]
+
+        await service.select_cable_manual(obj.id, "ТЛТ-25")
+
+        request = service.calc_electrical.call_args.args[0]
+        assert request.data["supply_voltage"] == 380
+        assert request.data["safety_factor"] == 1.2

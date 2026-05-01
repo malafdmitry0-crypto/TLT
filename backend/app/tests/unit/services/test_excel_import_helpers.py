@@ -336,7 +336,7 @@ class TestAliasTables:
         """Все алиасы материалов должны указывать на коды из insulation.json."""
         from app.reference_data.loader import list_insulation_materials
 
-        known = {m["material"] for m in list_insulation_materials()}
+        known = {m["material"] for m in list_insulation_materials()} | {"other"}
         for alias, code in MATERIAL_ALIASES.items():
             assert code in known, f"Алиас {alias!r} → {code!r} не найден в справочнике"
 

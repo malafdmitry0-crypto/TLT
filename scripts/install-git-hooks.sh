@@ -42,8 +42,13 @@ if [ -n "$STAGED_PY" ]; then
       exit 1
     }
     cd ..
-  elif docker compose -f docker-compose.yml -f docker-compose.dev.yml ps backend --format "{{.Name}}" 2>/dev/null | grep -q heatcalc_backend; then
-    docker exec heatcalc_backend sh -c "ruff check app/ 2>&1" || {
+  elif command -v docker >/dev/null 2>&1; then
+    docker compose -f docker-compose.yml -f docker-compose.dev.yml build backend >/dev/null || {
+      echo "❌ Не удалось собрать backend dev-образ для ruff."
+      exit 1
+    }
+    docker compose -f docker-compose.yml -f docker-compose.dev.yml run -T --rm --entrypoint '' backend \
+      sh -c "cd /app && ruff check app/" || {
       echo "❌ ruff (через dev-стек) нашёл проблемы."
       exit 1
     }

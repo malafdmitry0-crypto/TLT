@@ -84,18 +84,32 @@ class PipeParamsDict(TypedDict, total=False):
     pipe_lambda: float | None
     insulation_thickness: float | None
     insulation_material: str | None
+    insulation_cover_material: str | None
     insulation_layers: list[dict[str, float | str | None]]
     ambient_temperature: float
     process_temperature: float
+    max_ambient_temperature: float | None
+    max_process_temperature: float | None
     pipe_length: float
+    placement: Literal["indoor", "outdoor", "underground"]
     burial_depth: float | None
+    ground_type: Literal["dry_sand", "wet_sand", "clay", "custom"] | None
     num_local_elements: int | None
     local_element_equiv_length: float | None
+    valve_count: int | None
+    flange_count: int | None
+    support_count: int | None
     wind_speed: float | None
     alpha_vnesh: float | None
     ground_conductivity: float | None
     safety_factor: float | None
     location: Literal["indoor", "outdoor"]
+    environment: Literal["normal", "aggressive"] | None
+    zone_classification: Literal["safe", "explosive"] | None
+    temperature_group: Literal["T1", "T2", "T3", "T4", "T5", "T6"] | None
+    min_switch_temperature: float | None
+    supply_voltage: float | None
+    steam_tracing: Literal["yes", "no"] | None
 
 
 class TankParamsDict(TypedDict, total=False):
@@ -110,13 +124,26 @@ class TankParamsDict(TypedDict, total=False):
     volume: float | None
     insulation_thickness: float
     insulation_material: str
+    insulation_cover_material: str | None
+    insulation_layers: list[dict[str, float | str | None]]
     ambient_temperature: float
     process_temperature: float
+    max_ambient_temperature: float | None
+    max_process_temperature: float | None
+    placement: Literal["indoor", "outdoor", "underground"]
+    burial_depth: float | None
+    ground_type: Literal["dry_sand", "wet_sand", "clay", "custom"] | None
     location: Literal["indoor", "outdoor"]
     wall_thickness: float | None
     wall_lambda: float | None
     wind_speed: float | None
     safety_factor: float | None
+    environment: Literal["normal", "aggressive"] | None
+    zone_classification: Literal["safe", "explosive"] | None
+    temperature_group: Literal["T1", "T2", "T3", "T4", "T5", "T6"] | None
+    min_switch_temperature: float | None
+    supply_voltage: float | None
+    steam_tracing: Literal["yes", "no"] | None
 
 
 # ---------------------------------------------------------------------------

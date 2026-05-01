@@ -13,6 +13,7 @@ COMPOSE_DEV    = $(COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml
 COMPOSE_PROD   = $(COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml
 COMPOSE_E2E    = $(COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.e2e.yml
 BACKEND        = $(COMPOSE_DEV) exec backend
+BACKEND_RUN    = $(COMPOSE_DEV) run -T --rm --entrypoint '' backend
 FRONTEND_CTR   = $(COMPOSE_DEV) exec frontend
 
 # Тег для production-образов. Переопределить: make package IMAGE_TAG=v1.0.0
@@ -118,12 +119,14 @@ test-e2e: ## Run E2E tests (Playwright)
 lint: lint-backend lint-frontend ## Run all linters
 
 lint-backend: ## Lint backend (ruff)
-	$(BACKEND) ruff check .
-	$(BACKEND) ruff format --check .
+	$(COMPOSE_DEV) build backend
+	$(BACKEND_RUN) ruff check app
+	$(BACKEND_RUN) ruff format --check app
 
 lint-backend-fix: ## Auto-fix backend lint issues
-	$(BACKEND) ruff check --fix .
-	$(BACKEND) ruff format .
+	$(COMPOSE_DEV) build backend
+	$(BACKEND_RUN) ruff check --fix app
+	$(BACKEND_RUN) ruff format app
 
 lint-frontend: ## Lint frontend (eslint)
 	$(FRONTEND_CTR) npm run lint

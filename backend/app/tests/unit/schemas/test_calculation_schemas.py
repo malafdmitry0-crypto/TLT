@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.calculation import (
+    InsulationLayer,
     PipeHeatLossParams,
     SelfRegulatingParams,
     TankHeatLossParams,
@@ -43,6 +44,53 @@ class TestPipeHeatLossParams:
                 process_temperature=80,
                 pipe_length=10,
             )
+
+    def test_srs_pipe_limits(self):
+        p = PipeHeatLossParams(
+            outer_diameter=0.01,
+            wall_thickness=0.1,
+            insulation_thickness=0.001,
+            insulation_material="mineral_wool",
+            ambient_temperature=-60,
+            process_temperature=350,
+            pipe_length=10_000,
+            burial_depth=5,
+            wind_speed=50,
+            local_element_equiv_length=50,
+            safety_factor=1.0,
+        )
+        assert p.outer_diameter == 0.01
+        assert p.wall_thickness == 0.1
+
+    @pytest.mark.parametrize(
+        "field,value",
+        [
+            ("ambient_temperature", -61),
+            ("ambient_temperature", 51),
+            ("process_temperature", -61),
+            ("process_temperature", 351),
+            ("pipe_length", 10_000.1),
+            ("wall_thickness", 0.1001),
+        ],
+    )
+    def test_srs_pipe_limits_rejected(self, field: str, value: float):
+        data = {
+            "outer_diameter": 0.1,
+            "wall_thickness": 0.004,
+            "insulation_thickness": 0.05,
+            "insulation_material": "mineral_wool",
+            "ambient_temperature": -20,
+            "process_temperature": 80,
+            "pipe_length": 10,
+        }
+        data[field] = value
+        with pytest.raises(ValidationError):
+            PipeHeatLossParams(**data)
+
+    def test_insulation_other_lambda_limits(self):
+        assert InsulationLayer(thickness=0.05, material="other", conductivity=5.0)
+        with pytest.raises(ValidationError):
+            InsulationLayer(thickness=0.05, material="other", conductivity=5.1)
 
 
 class TestTankHeatLossParams:
@@ -92,6 +140,28 @@ class TestTankHeatLossParams:
                 ambient_temperature=-20,
                 process_temperature=80,
             )
+
+    @pytest.mark.parametrize(
+        "field,value",
+        [
+            ("ambient_temperature", 51),
+            ("process_temperature", 351),
+            ("process_temperature", -61),
+        ],
+    )
+    def test_tank_srs_temperature_limits_rejected(self, field: str, value: float):
+        data = {
+            "shape": "cylindrical",
+            "diameter": 2,
+            "height": 3,
+            "insulation_thickness": 0.1,
+            "insulation_material": "mineral_wool",
+            "ambient_temperature": -20,
+            "process_temperature": 80,
+        }
+        data[field] = value
+        with pytest.raises(ValidationError):
+            TankHeatLossParams(**data)
 
 
 class TestSelfRegulatingParams:

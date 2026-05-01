@@ -169,8 +169,8 @@ export default function HeatCalcPage() {
       const isResults = tableTab === 'results';
 
       const header = isResults
-        ? ['Тип', 'Наименование', 'Ø, мм', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T прод., °C', 'T окр., °C', 'q, Вт/м', 'Q сум., Вт', 'Марка кабеля', 'Шаг навива, мм', 'Длина каб., м', 'Мощность, Вт', 'Ток, А', 'Статус', 'Сообщение']
-        : ['Тип', 'Наименование', 'Ø, мм', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T прод., °C', 'T окр., °C'];
+        ? ['Тип', 'Наименование', 'Ø, мм', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C', 'q, Вт/м', 'Q сум., Вт', 'Марка кабеля', 'Шаг навива, мм', 'Длина каб., м', 'Мощность, Вт', 'Ток, А', 'Статус', 'Сообщение']
+        : ['Тип', 'Наименование', 'Ø, мм', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C'];
 
       const rows = selected.map((r) => {
         const base = [
@@ -235,7 +235,7 @@ export default function HeatCalcPage() {
   const cableTypeOptions = (Object.keys(CABLE_TYPE_LABEL) as CableTypeKey[]).map((k) => ({
     label: k === 'self_regulating'
       ? CABLE_TYPE_LABEL[k]
-      : <Tooltip title="Будет доступно в следующей версии">{CABLE_TYPE_LABEL[k]}</Tooltip>,
+      : <Tooltip title="Нет формулы/каталога в текущей поставке">{CABLE_TYPE_LABEL[k]}</Tooltip>,
     value: k,
     disabled: k !== 'self_regulating',
   }));
@@ -345,7 +345,7 @@ export default function HeatCalcPage() {
         MATERIAL_LABELS[String(r.params?.insulation_material)] ?? String(r.params?.insulation_material ?? '—'),
     },
     {
-      title: 'T прод.',
+      title: 'T подд.',
       width: 86,
       render: (_: unknown, r: ProjectObject) => formatNumber(Number(r.params?.process_temperature), 0),
     },

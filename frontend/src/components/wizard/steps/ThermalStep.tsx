@@ -14,10 +14,18 @@ function fieldLabel(text: string) {
 }
 
 export default function ThermalStep() {
+  const form = Form.useFormInstance();
+  const insulationMaterial = Form.useWatch('insulation_material', form);
   const { data: materials = [], isError, isFetching } = useQuery({
     queryKey: ['insulation'],
     queryFn: getInsulation,
   });
+  const materialOptions = [
+    ...materials.map((m) => ({ value: m.material, label: m.name })),
+    { value: 'other', label: 'Другое' },
+  ];
+  const selectedMaterial = materials.find((m) => m.material === insulationMaterial);
+  const isOtherMaterial = insulationMaterial === 'other';
 
   return (
     <>
@@ -43,52 +51,37 @@ export default function ThermalStep() {
         name="ambient_temperature"
         rules={[
           { required: true, message: 'Укажите температуру окружающей среды' },
-          { type: 'number', min: -70, message: 'Минимальная температура среды: −70°C' },
-          { type: 'number', max: 70, message: 'Максимальная температура среды: +70°C' },
+          { type: 'number', min: -60, message: 'Минимальная температура среды: −60°C' },
+          { type: 'number', max: 50, message: 'Максимальная температура среды: +50°C' },
         ]}
       >
         {withHelp(
-          <InputNumber min={-70} max={70} addonAfter="°C" />,
-          'Расчётная температура окружающей среды. Диапазон: −70°C … +70°C.',
-        )}
-      </Form.Item>
-
-      <Form.Item
-        className="numeric-form-item temperature-number-form-item helped-form-item"
-        label={fieldLabel('T° продукта')}
-        name="process_temperature"
-        dependencies={['ambient_temperature']}
-        rules={[
-          { required: true, message: 'Укажите температуру продукта' },
-          { type: 'number', min: -90, message: 'Минимальная температура продукта: −90°C' },
-          { type: 'number', max: 600, message: 'Максимальная температура продукта: +600°C' },
-          ({ getFieldValue }) => ({
-            validator(_, value) {
-              const ambient = getFieldValue('ambient_temperature');
-              if (value == null || ambient == null) return Promise.resolve();
-              if (value <= ambient) {
-                return Promise.reject(
-                  new Error('Температура продукта должна быть выше температуры среды')
-                );
-              }
-              return Promise.resolve();
-            },
-          }),
-        ]}
-      >
-        {withHelp(
-          <InputNumber min={-90} max={600} addonAfter="°C" />,
-          'Температура транспортируемой/хранимой среды. Диапазон: −90°C … +600°C. Должна быть выше температуры окружающей среды.',
+          <InputNumber min={-60} max={50} addonAfter="°C" />,
+          'Расчётная температура окружающей среды. Диапазон: −60°C … +50°C.',
         )}
       </Form.Item>
 
       <Form.Item
         className="numeric-form-item coefficient-form-item helped-form-item"
         label={fieldLabel('λ 1-го слоя')}
+        name={isOtherMaterial ? 'first_insulation_lambda' : undefined}
+        preserve={false}
+        rules={isOtherMaterial ? [
+          { required: true, message: 'Укажите λ 1-го слоя' },
+          { type: 'number', min: 0.005, message: 'Минимальная λ — 0,005 Вт/мК' },
+          { type: 'number', max: 5, message: 'Максимальная λ — 5,0 Вт/мК' },
+        ] : undefined}
       >
         {withHelp(
-          <InputNumber disabled value={0.045} min={0.005} max={5} step={0.001} addonAfter="Вт/мК" />,
-          'Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Для материала «Другое» по SRS нужно ручное значение 0,005…5,0.',
+          <InputNumber
+            disabled={!isOtherMaterial}
+            value={isOtherMaterial ? undefined : selectedMaterial?.conductivity}
+            min={0.005}
+            max={5}
+            step={0.001}
+            addonAfter="Вт/мК"
+          />,
+          'Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Для материала «Другое» вводится вручную: 0,005…5,0.',
         )}
       </Form.Item>
 
@@ -100,7 +93,7 @@ export default function ThermalStep() {
       >
         {withHelp(
           <Select
-            options={materials.map((m) => ({ value: m.material, label: m.name }))}
+            options={materialOptions}
             placeholder="Выберите материал"
             loading={isFetching}
             notFoundContent={isError ? 'Не удалось загрузить справочник' : 'Нет материалов'}

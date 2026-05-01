@@ -127,7 +127,7 @@ export default function ElecCalcPage() {
   const cableTypeOptions = (Object.keys(CABLE_TYPE_LABEL) as CableTypeKey[]).map((k) => ({
     label: k === 'self_regulating'
       ? CABLE_TYPE_LABEL[k]
-      : <Tooltip title="Будет доступно в следующей версии">{CABLE_TYPE_LABEL[k]}</Tooltip>,
+      : <Tooltip title="Нет формулы/каталога в текущей поставке">{CABLE_TYPE_LABEL[k]}</Tooltip>,
     value: k,
     disabled: k !== 'self_regulating',
   }));

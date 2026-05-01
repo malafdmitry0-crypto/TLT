@@ -44,7 +44,7 @@ CalcId = NewType("CalcId", UUID)
 
 
 class CableType(str, enum.Enum):
-    """Типы кабелей. В MVP поддерживается только `self_regulating`."""
+    """Типы кабелей. Расчётная формула сейчас поставлена для `self_regulating`."""
 
     SELF_REGULATING = "self_regulating"
     SINGLE_CORE = "single_core"

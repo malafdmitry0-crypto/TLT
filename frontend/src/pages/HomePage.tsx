@@ -13,7 +13,7 @@ export default function HomePage() {
     try {
       await loginAsGuest();
       navigate('/workspace/heat-calc');
-    } catch (e) {
+    } catch {
       message.error('Не удалось создать гостевую сессию');
     }
   };

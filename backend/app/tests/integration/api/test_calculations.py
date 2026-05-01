@@ -187,7 +187,7 @@ class TestElectricalCalculation:
     async def test_unsupported_cable_type_returns_400(
         self, client: AsyncClient, guest_session: str
     ):
-        """MVP: только self_regulating. Другие типы → 400."""
+        """Типы без поставленных формул/каталогов → 400."""
         project = await _create_project(client, guest_session)
         obj = await _create_pipe_object(client, project["id"], guest_session)
 
@@ -201,7 +201,7 @@ class TestElectricalCalculation:
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 400
-        assert "саморегулирующийся" in resp.json()["detail"]
+        assert "нет расчётной формулы" in resp.json()["detail"]
 
     async def test_nonexistent_object_returns_400(self, client: AsyncClient, guest_session: str):
         """Несуществующий object_id → 400 с читаемым сообщением."""

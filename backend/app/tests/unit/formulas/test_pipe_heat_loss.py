@@ -245,7 +245,14 @@ class TestBuriedPipe:
 
     def test_burial_depth_less_than_radius_raises(self):
         with pytest.raises(ValueError, match="Глубина заложения"):
-            calc_pipe_heat_loss(_params(burial_depth=0.05, ground_conductivity=1.5))
+            calc_pipe_heat_loss(
+                _params(
+                    outer_diameter=0.5,
+                    insulation_thickness=0.2,
+                    burial_depth=0.1,
+                    ground_conductivity=1.5,
+                )
+            )
 
     def test_higher_ground_conductivity_increases_loss(self):
         low = calc_pipe_heat_loss(_params(burial_depth=1.5, ground_conductivity=0.8))
@@ -384,7 +391,7 @@ class TestSchemaValidation:
     def test_temperature_inversion_raises(self):
         # Оба в допустимом диапазоне схемы, но T_os > T_zh
         with pytest.raises(ValueError, match="температуры"):
-            calc_pipe_heat_loss(_params(ambient_temperature=60, process_temperature=50))
+            calc_pipe_heat_loss(_params(ambient_temperature=50, process_temperature=40))
 
     def test_no_insulation_raises(self):
         from pydantic import ValidationError

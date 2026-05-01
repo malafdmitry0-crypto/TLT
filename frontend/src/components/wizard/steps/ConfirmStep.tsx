@@ -62,7 +62,7 @@ function ConfirmStepInner({ objectType }: Props) {
           <Descriptions.Item label="Толщина изоляции">{getVal('insulation_thickness_mm') as number} мм</Descriptions.Item>
           <Descriptions.Item label="Материал изоляции">{getVal('insulation_material') as string}</Descriptions.Item>
           <Descriptions.Item label="Т° среды">{getVal('ambient_temperature') as number}°C</Descriptions.Item>
-          <Descriptions.Item label="Т° продукта">{getVal('process_temperature') as number}°C</Descriptions.Item>
+          <Descriptions.Item label="Т° поддержания">{getVal('process_temperature') as number}°C</Descriptions.Item>
         </Descriptions>
       ) : (
         <Descriptions size="small" column={2} bordered style={{ marginBottom: 16 }}>
@@ -84,7 +84,7 @@ function ConfirmStepInner({ objectType }: Props) {
           <Descriptions.Item label="Толщина изоляции">{getVal('insulation_thickness_mm') as number} мм</Descriptions.Item>
           <Descriptions.Item label="Материал изоляции">{getVal('insulation_material') as string}</Descriptions.Item>
           <Descriptions.Item label="Т° среды">{getVal('ambient_temperature') as number}°C</Descriptions.Item>
-          <Descriptions.Item label="Т° продукта">{getVal('process_temperature') as number}°C</Descriptions.Item>
+          <Descriptions.Item label="Т° поддержания">{getVal('process_temperature') as number}°C</Descriptions.Item>
         </Descriptions>
       )}
 
