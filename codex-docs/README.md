@@ -16,17 +16,16 @@
 
 | Тема | Главный источник | Рабочая заметка |
 |---|---|---|
-| Назначение, MVP, архитектура | `CLAUDE.MD` | [project-map.md](project-map.md) |
+| Назначение, архитектура, текущие границы | `CLAUDE.MD` | [project-map.md](project-map.md) |
 | Backend | `backend/CLAUDE.MD` + код `backend/app/` | [development-guide.md](development-guide.md) |
 | Frontend | `frontend/CLAUDE.MD` + код `frontend/src/` | [development-guide.md](development-guide.md) |
 | ТЗ/SRS | `docs/srs.md`, `docs/srs/`, `docs/tz-compliance.md` | [requirements-map.md](requirements-map.md) |
 | Формулы | `formules.md`, `coefficients.MD`, `backend/app/formulas/` | [project-map.md](project-map.md) |
 | Приёмка и QA | `docs/qa/`, `e2e/tests/`, тесты backend/frontend | [testing.md](testing.md) |
-| Текущие пробелы | `TO_DO.md` | [backlog-and-risks.md](backlog-and-risks.md) |
+| Текущие пробелы | `TO_DO.md`, `docs/analysis/current-status-and-missing-info.md` | [backlog-and-risks.md](backlog-and-risks.md) |
 
 ## Правило актуализации
 
 Если меняется поведение системы, обновлять не только код и тесты, но и минимум
 один документ-источник: `CLAUDE.MD`, `docs/srs*`, `docs/api.md`,
 `docs/db_schema.md`, `docs/qa/*` или профильный playbook.
-

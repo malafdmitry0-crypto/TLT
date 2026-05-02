@@ -237,6 +237,8 @@ html, body, #root {
 
 .calc-spreadsheet .ant-table {
   border: 1px solid #bfbfbf;
+  font-size: 12px;
+  line-height: 1.2;
 }
 
 .calc-spreadsheet .ant-table-thead > tr > th {
@@ -244,12 +246,16 @@ html, body, #root {
   border-color: #bfbfbf !important;
   color: #262626;
   font-weight: 600;
-  padding: 4px 8px !important;
+  font-size: 12px;
+  line-height: 1.15;
+  padding: 3px 6px !important;
 }
 
 .calc-spreadsheet .ant-table-tbody > tr > td {
   border-color: #d9d9d9 !important;
-  padding: 3px 8px !important;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 2px 6px !important;
   background: #fff;
 }
 
@@ -374,11 +380,11 @@ html, body, #root {
   align-items: center;
   grid-column: 1 / -1;
   margin: -2px -2px 3px;
-  font-size: 11px;
+  font-size: 10px;
   color: #607080;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  padding: 3px 5px;
+  letter-spacing: 0.2px;
+  padding: 2px 5px;
   background: #eef3f6;
   border-bottom: 1px solid #d9e1e6;
 }
@@ -995,17 +1001,24 @@ html, body, #root {
 }
 
 .workspace-table-card .ant-table-thead > tr > th {
-  padding-top: 3px !important;
-  padding-bottom: 3px !important;
-}
-
-.workspace-table-card .ant-table-tbody > tr > td {
   padding-top: 2px !important;
   padding-bottom: 2px !important;
 }
 
+.workspace-table-card .ant-table-tbody > tr > td {
+  padding-top: 1px !important;
+  padding-bottom: 1px !important;
+}
+
 .calc-spreadsheet .ant-table-cell {
   border-right: 1px solid #d9d9d9;
+}
+
+.calc-spreadsheet .ant-table-cell .ant-typography,
+.calc-spreadsheet .ant-select,
+.calc-spreadsheet .ant-input-number,
+.calc-spreadsheet .ant-tag {
+  font-size: 12px;
 }
 
 .electrical-spreadsheet .ant-select-selector,

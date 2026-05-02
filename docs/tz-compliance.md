@@ -1,10 +1,10 @@
 # Аудит соответствия бизнес-логики ТЗ
 
 Таблица сверки ТЗ (Приложение № 1 + Приложения 1–4) с фактической реализацией
-в коде и тестами. Дата прогона: **2026-04-13**.
+в коде и тестами. Дата актуализации: **2026-05-02**.
 
-**Статус тестов на момент аудита:** Backend `444/444` ✅ · Frontend `73/73` ✅ ·
-E2E `29/29` ✅ · CVE `0` (см. `make test`, `npx playwright test`, `pip-audit`).
+**Статус тестов на момент актуализации:** Backend `676` ✅ · Frontend vitest `139` ✅ ·
+E2E Playwright `40` ✅. Числа синхронизируются через `scripts/sync-docs.py`.
 
 ## Условные обозначения
 
@@ -24,12 +24,12 @@ E2E `29/29` ✅ · CVE `0` (см. `make test`, `npx playwright test`, `pip-audit
 | 4.1.1 Форма выбора уровня доступа на главной | ✅ | `frontend/src/pages/HomePage.tsx` | `e2e/tests/auth.spec.ts:4` (4.1.1) |
 | 4.1.1 Доступ Администратор только через конфиг (не в форме выбора) | ✅ | `frontend/src/pages/HomePage.tsx` (только Гость+Сотрудник) | matrix в `docs/analysis/personas.md` |
 | 4.1.2 Управление проектами (создание/открытие/сохранение) | ✅ | `pages/ProjectsPage.tsx`, `components/layout/ProjectMenu.tsx`, `services/project_service.py` | `e2e/tests/projects.spec.ts:4` (4.2.1) |
-| 4.1.3 Мастер пошагового добавления объектов с подсказками и валидацией | ✅ | `components/wizard/ObjectWizard.tsx` (3 шага) + Zod-валидация | `e2e/tests/heat-calculation.spec.ts:23` |
+| 4.1.3 Ввод/редактирование объектов с подсказками и валидацией | ✅ | `components/wizard/ObjectWizard.tsx` как встроенная плоская форма SC-03; матрица видимости VAL-65..VAL-80 | `e2e/tests/inline-form-dependencies.spec.ts`, `ObjectWizardDependencies.test.tsx` |
 | 4.1.3 Табличное представление по типам (отдельная таблица) | ✅ | `components/tables/PipeTable.tsx`, `TankTable.tsx` | `e2e/tests/heat-calculation.spec.ts:13` |
 | 4.1.3 Автоматический пересчёт при изменении параметра | ✅ | `useHeatCalcMutations.ts` + TanStack Query `invalidateQueries` | `__tests__/unit/pages/HeatCalcPage.test.tsx` |
 | 4.1.3 Подсветка незаполненных/некорректных ячеек | ✅ | `components/common/ValidationHighlight.tsx` + класс `row-invalid` | `__tests__/unit/components/ValidationHighlight.test.tsx` |
 | 4.1.3 Drag-and-drop порядка строк | ✅ | `@dnd-kit` в PipeTable/TankTable, `PUT /objects/reorder` | `app/tests/integration/api/test_objects.py` |
-| 4.1.3 **Копирование/вставка диапазонов ячеек** | ❌ | `utils/clipboard.ts` есть, но к таблицам не подключено (B-список TODO) | — |
+| 4.1.3 **Копирование/вставка диапазонов ячеек** | ✅ | `utils/clipboard.ts`, `HeatCalcPage.tsx`: выбранные строки копируются в TSV через Ctrl+C | `clipboard.test.ts`, `HeatCalcPage.test.tsx` |
 | 4.1.3 Импорт таблиц из Excel/CSV | ✅ | `components/ImportExcelButton.tsx`, `services/excel_import_service.py` | `app/tests/integration/api/test_import_excel.py` (12 тестов) |
 | 4.1.3 Экспорт таблицы объектов в Excel | ✅ | `components/ExportObjectsButton.tsx`, `GET /objects/export-excel` | manual (UI) |
 | 4.1.4 Корректирующие коэффициенты администратора | ✅ | `pages/admin/CoefficientsPage.tsx`, `models/coefficient.py`, `formulas/heat_loss/common.py:merge_coefficients` | `app/tests/unit/services/test_calculation_service_unit.py` |
@@ -44,8 +44,8 @@ E2E `29/29` ✅ · CVE `0` (см. `make test`, `npx playwright test`, `pip-audit
 |---|:--:|---|
 | 4.2.1 Расчёт теплопотерь — типы из ТНП «для MVP» (труба, резервуар) | ✅ | `formulas/heat_loss/{pipe,tank}.py` |
 | 4.2.1 Формулы строго из ТНП «для MVP» | ✅ | Закон Фурье для цилиндрической стенки (труба) и плоская стенка (резервуар); 100% покрытие unit-тестами |
-| 4.2.1 Климат / теплопроводность / параметры — встроенные справочники | ✅ | `reference_data/{climate,insulation,cables_tlt,accessories}.json` + `loader.py` |
-| 4.2.2 Электротехнический расчёт — только саморегулирующийся | ✅ | `formulas/electrical/self_regulating.py` |
+| 4.2.1 Климат / теплопроводность / параметры — встроенные справочники | ✅ | `reference_data/{climate,insulation,pipe_materials,soil_conductivity,cables_tlt,resistive_cables,accessories}.json` + `loader.py` |
+| 4.2.2 Электротехнический расчёт — расчётно поддержан саморегулирующийся ТЛТ | ✅ | `formulas/electrical/self_regulating.py` |
 | 4.2.2 Бренд ТЛТ встроенный, без внешней БД | ✅ | `cables_tlt.json` + `seeds.py` |
 | 4.2.2 Один вариант обогрева | ✅ | `variant_number=1` по умолчанию |
 | 4.2.3 Подбор греющего кабеля по теплопотерям | ✅ | `calc_self_regulating()` — минимально-достаточный по 3 условиям (P, T_min, T_max) |
@@ -61,7 +61,7 @@ E2E `29/29` ✅ · CVE `0` (см. `make test`, `npx playwright test`, `pip-audit
 |---|:--:|---|
 | 4.3.1 Все типы объектов из ТНП (включая отсутствующие в MVP) | ❌ | pump/platform/other перечислены в `ObjectType`, форм мастера и формул нет — формул в ТНП не предоставлено |
 | 4.3.1 Все формулы «Полной версии» из ТНП | ❌ | Формулы помечены в `.docx` как «MVP» и «Полная версия», но физически файлов с формулами «Полной версии» в `/ТНП/` нет |
-| 4.3.2 Все типы кабеля (саморег, одножил, трёхжил, минер. изол., скин) | ❌ | `formulas/electrical/{mineral,resistive}.py` — `NotImplementedError`, формулы не предоставлены |
+| 4.3.2 Все типы кабеля (саморег, одножил, трёхжил, минер. изол., скин) | ⚠️ | Типы, справочники и UI-контур есть частично (`resistive_cables.json`, external DB, селектор типов), но расчётные формулы для `single_core`, `three_core`, `mineral`, `skin` не реализованы |
 | 4.3.2 Доступ к расширенной внешней БД (альтернативные кабели/аксессуары) | ✅ | `models/{cable,accessory}.py` (CableExtended/AccessoryExtended) + админ-CRUD `pages/admin/DatabasePage.tsx` |
 | 4.3.2 Обновление номенклатуры через админку | ✅ | `api/v1/admin.py:cables_create/update/delete` |
 | 4.3.2 Расчёт, сравнение, сохранение нескольких вариантов CO1..CO4 | ✅ | `variant_number` сквозной: API+service+UI; `pages/ElecCalcPage.tsx` Segmented СО1..СО4; `pages/SpecificationPage.tsx` тоже |
@@ -86,8 +86,8 @@ E2E `29/29` ✅ · CVE `0` (см. `make test`, `npx playwright test`, `pip-audit
 |---|:--:|---|
 | Защита backend (auth, ролевая модель) | ✅ | JWT + `core/dependencies.py:require_*` |
 | **Обфускация/минификация frontend** | ⚠️ | Vite по умолчанию минифицирует `dist/` (esbuild); явной обфускации (mangle имён) нет — отдельный таргет TODO |
-| Шифрование расчётных формул в backend | ❌ | Вариант А (см. SRS): формулы в коде .py внутри образа Docker; «обновление ключа» = пересборка образа |
-| Шифрование встроенных справочников | ❌ | JSON в открытом виде в образе |
+| Шифрование расчётных формул в backend | ⚠️ | Зафиксирован рабочий вариант А: формулы в коде `.py` внутри Docker-образа; требуется финальное подтверждение политики защиты |
+| Шифрование встроенных справочников | ⚠️ | JSON в образе; требуется решение, нужно ли шифровать справочники или оставить вариант А |
 | Шифрование конфигов | ⚠️ | `.env` не шифруется; в проде рекомендуется Docker Secrets / Vault |
 | Учётные данные сотрудников хранятся в открытой части БД | ✅ | Хешированный пароль (passlib bcrypt), сами хеши не шифруются |
 | Внешняя БД не подлежит шифрованию | ✅ | `cables_extended` / `accessories_extended` в Postgres без шифрования (по требованию ТЗ) |
@@ -139,13 +139,13 @@ E2E-тесты (`e2e/tests/`) автоматизируют ключевые пр
 
 | Раздел ТЗ | Готовность |
 |---|---|
-| 4.1 Общие требования | **96%** (нет копирования диапазонов ячеек) |
+| 4.1 Общие требования | **≈100%** по реализуемому контуру; оставшиеся Excel-like детали зависят от Q-B |
 | 4.2 MVP | **100%** ✅ |
-| 4.3 Полная версия | **70%** (нет формул mineral/resistive/three-core/skin и формул pump/platform — заблокировано ТНП) |
-| 5 Безопасность | **30%** (нет шифрования формул и справочников; зафиксирован Вариант А) |
+| 4.3 Полная версия | **≈80%**: реализованы CO1..CO4, внешняя БД, спецификация, отчёты; остаются формулы кабелей полной версии и pump/platform/other |
+| 5 Безопасность | **частично**: auth/roles готовы, по формулам/справочникам нужен финальный выбор варианта защиты |
 | 6 Документация | **90%** (нет отдельного справочника кодов ошибок) |
 
 **Критерии приёмки (раздел 5 ТЗ):**
-- ✅ Все критические функции (создание проекта, расчёт, подбор кабеля, формирование спецификации) работают без ошибок — подтверждено 419 backend-тестами и 24 e2e.
+- ✅ Все критические функции (создание проекта, расчёт, подбор кабеля ТЛТ, формирование спецификации) работают без ошибок — подтверждено актуальными backend/frontend/e2e тестами.
 - ✅ Отсутствуют ошибки, ведущие к потере данных или некорректному счёту — 100% покрытие чистых формул, property-based тесты.
 - ✅ Разграничение прав доступа работает согласно матрице — `core/dependencies.py:require_*` + e2e на каждой роли.

@@ -27,7 +27,7 @@ async function saveDownload(
 async function createEmployeeProject(page: Page, name: string): Promise<void> {
   await page.getByRole('button', { name: /Новый проект/i }).click();
   await page.getByPlaceholder('Название проекта').fill(name);
-  await page.getByRole('button', { name: 'Создать' }).click();
+  await page.getByRole('button', { name: /^Создать$/ }).click();
   await expect(page.getByText('Проект создан')).toBeVisible();
 }
 

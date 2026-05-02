@@ -30,8 +30,8 @@ interface Props {
 }
 
 const SECTION_RESIZE_HANDLE_WIDTH = 1;
-const SECTION_WIDTH_WEIGHTS = [1.05, 1.1, 1.05, 0.8];
-const SECTION_FIELD_PAIR_MIN_WIDTHS = [206, 206, 252, 180];
+const SECTION_WIDTH_WEIGHTS = [1.095, 1.095, 1.45, 0.56];
+const SECTION_FIELD_PAIR_MIN_WIDTHS = [206, 206, 220, 180];
 const SECTION_FIELD_GRID =
   'repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr))';
 

@@ -56,7 +56,7 @@ def count_frontend_tests() -> int:
 
 def count_e2e_tests() -> int:
     out = subprocess.check_output(
-        ["grep", "-rhE", r"^\s*test(\.\w+)?\(",
+        ["grep", "-rhE", r"^\s*test(\.(only|skip|fixme|fail))?\(",
          str(ROOT / "e2e/tests"), "--include=*.ts"],
         text=True,
     )

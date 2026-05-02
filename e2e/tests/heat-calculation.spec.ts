@@ -43,7 +43,7 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     await expect(page.getByText(pipeName)).toBeVisible();
     await expect(page.getByText('108')).toBeVisible();
     await expect(page.getByText('50,0')).toBeVisible();
-    await expect(page.getByText('Мин. вата')).toBeVisible();
+    await expect(page.getByText('Минеральная вата')).toBeVisible();
 
     await page.getByText('Результаты расчёта').click();
     await expect(page.getByRole('columnheader', { name: 'q, Вт/м', exact: true })).toBeVisible();

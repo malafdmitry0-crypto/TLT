@@ -35,6 +35,7 @@ import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { listObjects } from '@/api/projects';
+import { getInsulation } from '@/api/references';
 import {
   batchCalcElectrical,
   listCables,
@@ -48,6 +49,7 @@ import { isElectricalCalcSuccess, electricalCalcError } from '@/utils/calcStatus
 import type { ProjectObject } from '@/types/project';
 import { formatNumber, formatPower } from '@/utils/formatters';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
+import { findDN } from '@/utils/objectWizardUtils';
 import { ROUTES } from '@/routes/routes';
 
 const { Text } = Typography;
@@ -63,6 +65,12 @@ const CABLE_TYPE_LABEL: Record<CableTypeKey, string> = {
   mineral: 'С мин. изоляцией',
   skin: 'Скин-система',
 };
+
+function insulationEntryLabel(entry: { name: string; density_kg_m3?: number | string }) {
+  return entry.density_kg_m3 != null
+    ? `${entry.name}, ${entry.density_kg_m3} кг/м³`
+    : entry.name;
+}
 
 interface WizardState {
   type: WizardObjectType;
@@ -127,12 +135,27 @@ export default function HeatCalcPage() {
     enabled: !!project,
     staleTime: 5 * 60_000,
   });
+  const { data: insulationMaterials = [] } = useQuery({
+    queryKey: ['insulation'],
+    queryFn: getInsulation,
+    enabled: !!project,
+    staleTime: 5 * 60_000,
+  });
 
   const elecStats = useElectricalStats(objects, elecCalcs);
   const cableOptions = useMemo(
     () => cables.map((c) => ({ value: c.model, label: `${c.model} · ${c.power_per_meter} Вт/м` })),
     [cables],
   );
+  const insulationLabelByCode = useMemo(
+    () => new Map(insulationMaterials.map((m) => [m.material, insulationEntryLabel(m)])),
+    [insulationMaterials],
+  );
+  const insulationLabel = (material: unknown) => {
+    const code = String(material ?? '');
+    if (!code) return '—';
+    return insulationLabelByCode.get(code) ?? MATERIAL_LABELS[code] ?? code;
+  };
 
   const batchElecMut = useMutation({
     mutationFn: () => batchCalcElectrical(project!.id, effectiveSource, elecVariant),
@@ -169,8 +192,8 @@ export default function HeatCalcPage() {
       const isResults = tableTab === 'results';
 
       const header = isResults
-        ? ['Тип', 'Наименование', 'Ø, мм', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C', 'q, Вт/м', 'Q сум., Вт', 'Марка кабеля', 'Шаг навива, мм', 'Длина каб., м', 'Мощность, Вт', 'Ток, А', 'Статус', 'Сообщение']
-        : ['Тип', 'Наименование', 'Ø, мм', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C'];
+        ? ['Тип', 'Наименование', 'Ø, мм', 'DN', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C', 'Зад.', 'Флн.', 'Опр.', 'q, Вт/м', 'Q сум., Вт', 'Марка кабеля', 'Шаг навива, мм', 'Длина каб., м', 'Мощность, Вт', 'Ток, А', 'Статус']
+        : ['Тип', 'Наименование', 'Ø, мм', 'DN', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C', 'Зад.', 'Флн.', 'Опр.'];
 
       const rows = selected.map((r) => {
         const base = [
@@ -179,11 +202,15 @@ export default function HeatCalcPage() {
           r.object_type === 'pipe'
             ? formatNumber(Number(r.params?.outer_diameter) * 1000, 0)
             : formatNumber(Number(r.params?.diameter) * 1000, 0),
+          dnValue(r),
           r.object_type === 'pipe' ? formatNumber(Number(r.params?.pipe_length), 1) : '—',
           formatNumber(Number(r.params?.insulation_thickness) * 1000, 0),
-          MATERIAL_LABELS[String(r.params?.insulation_material)] ?? String(r.params?.insulation_material ?? ''),
+          insulationLabel(r.params?.insulation_material),
           formatNumber(Number(r.params?.process_temperature), 0),
           formatNumber(Number(r.params?.ambient_temperature), 0),
+          countParamValue(r, 'valve_count'),
+          countParamValue(r, 'flange_count'),
+          countParamValue(r, 'support_count'),
         ];
         if (!isResults) return base;
         const calc = elecStats.calcByObjectId[r.id];
@@ -200,7 +227,6 @@ export default function HeatCalcPage() {
           formatPower(Number(calc?.results?.total_power)),
           formatNumber(Number(calc?.results?.current), 2),
           !r.is_valid ? 'тепл. ошибка' : isElectricalCalcSuccess(calc) ? 'рассчитан' : error ? 'эл. ошибка' : 'не рассчитан',
-          error ?? '',
         ];
       });
 
@@ -214,9 +240,18 @@ export default function HeatCalcPage() {
   }, [selectedRowKeys, objects, tableTab, elecStats.calcByObjectId]);
 
   const closeWizard = () => setWizardState(null);
+  const keepEditedObjectOpen = (obj: ProjectObject) => {
+    const type =
+      obj.object_type === 'pipe' || obj.object_type === 'tank'
+        ? obj.object_type
+        : wizardState?.type;
+    if (type !== 'pipe' && type !== 'tank') return;
+    setWizardState({ type, editingObject: { ...obj, object_type: type } });
+  };
   const { add, edit, remove, batchCalc } = useHeatCalcMutations(
     project?.id,
     closeWizard,
+    keepEditedObjectOpen,
     closeWizard,
   );
 
@@ -271,7 +306,23 @@ export default function HeatCalcPage() {
 
   function handleWizardSubmit(params: Record<string, unknown>) {
     if (wizardState?.editingObject) {
-      edit.mutate({ objectId: wizardState.editingObject.id, params });
+      const currentState = wizardState;
+      const optimisticObject: ProjectObject = {
+        ...currentState.editingObject,
+        params,
+      };
+      setWizardState({ type: currentState.type, editingObject: optimisticObject });
+      edit.mutate(
+        { objectId: currentState.editingObject.id, params },
+        {
+          onSuccess: (obj) => {
+            setWizardState({
+              type: currentState.type,
+              editingObject: { ...obj, object_type: currentState.type },
+            });
+          },
+        },
+      );
     } else if (wizardState) {
       add.mutate({
         object_type: wizardState.type,
@@ -320,6 +371,27 @@ export default function HeatCalcPage() {
     if (source === 'climate') return 'из климата';
     if (source === 'manual') return 'вручную';
     return '—';
+  }
+
+  function countParamValue(record: ProjectObject, key: string) {
+    if (record.object_type !== 'pipe') return '—';
+    const value = Number(record.params?.[key]);
+    return Number.isFinite(value) ? formatNumber(value, 0) : '—';
+  }
+
+  function outerDiameterMm(record: ProjectObject) {
+    const value = record.object_type === 'pipe'
+      ? Number(record.params?.outer_diameter) * 1000
+      : Number(record.params?.diameter) * 1000;
+    return Number.isFinite(value) ? value : null;
+  }
+
+  function dnValue(record: ProjectObject) {
+    if (record.object_type !== 'pipe') return '—';
+    const diameter = outerDiameterMm(record);
+    if (diameter == null) return '—';
+    const dn = findDN(diameter);
+    return dn != null ? `DN${dn}` : '—';
   }
 
   function renderAssumptionsPanel() {
@@ -372,15 +444,20 @@ export default function HeatCalcPage() {
     },
     {
       title: 'Ø, мм',
-      width: 84,
-      render: (_: unknown, r: ProjectObject) =>
-        r.object_type === 'pipe'
-          ? formatNumber(Number(r.params?.outer_diameter) * 1000, 0)
-          : formatNumber(Number(r.params?.diameter) * 1000, 0),
+      width: 76,
+      render: (_: unknown, r: ProjectObject) => {
+        const diameter = outerDiameterMm(r);
+        return diameter != null ? formatNumber(diameter, 0) : '—';
+      },
+    },
+    {
+      title: 'DN',
+      width: 58,
+      render: (_: unknown, r: ProjectObject) => dnValue(r),
     },
     {
       title: 'L, м',
-      width: 80,
+      width: 74,
       render: (_: unknown, r: ProjectObject) =>
         r.object_type === 'pipe' ? formatNumber(Number(r.params?.pipe_length), 1) : '—',
     },
@@ -400,9 +477,10 @@ export default function HeatCalcPage() {
     },
     {
       title: 'Материал ИЗ',
-      width: 120,
+      width: 160,
+      ellipsis: true,
       render: (_: unknown, r: ProjectObject) =>
-        MATERIAL_LABELS[String(r.params?.insulation_material)] ?? String(r.params?.insulation_material ?? '—'),
+        insulationLabel(r.params?.insulation_material),
     },
     {
       title: 'T подд.',
@@ -414,9 +492,21 @@ export default function HeatCalcPage() {
       width: 82,
       render: (_: unknown, r: ProjectObject) => formatNumber(Number(r.params?.ambient_temperature), 0),
     },
-    { title: 'Зад.', width: 64, render: () => '—' },
-    { title: 'Флн.', width: 64, render: () => '—' },
-    { title: 'Опр.', width: 64, render: () => '—' },
+    {
+      title: 'Зад.',
+      width: 64,
+      render: (_: unknown, r: ProjectObject) => countParamValue(r, 'valve_count'),
+    },
+    {
+      title: 'Флн.',
+      width: 64,
+      render: (_: unknown, r: ProjectObject) => countParamValue(r, 'flange_count'),
+    },
+    {
+      title: 'Опр.',
+      width: 64,
+      render: (_: unknown, r: ProjectObject) => countParamValue(r, 'support_count'),
+    },
   ];
   const resultColumns = [
     ...sourceColumns.slice(0, 3), // #, Тип, Наименование
@@ -516,18 +606,16 @@ export default function HeatCalcPage() {
         const calc = elecStats.calcByObjectId[r.id];
         if (!r.is_valid) return <Tag color="error">тепл. ошибка</Tag>;
         if (isElectricalCalcSuccess(calc)) return <Tag color="success" icon={<CheckCircleFilled />}>рассчитан</Tag>;
-        if (electricalCalcError(calc)) return <Tag color="error" icon={<CloseCircleFilled />}>эл. ошибка</Tag>;
+        const error = electricalCalcError(calc);
+        if (error) {
+          return (
+            <Tooltip title={error}>
+              <Tag color="error" icon={<CloseCircleFilled />}>эл. ошибка</Tag>
+            </Tooltip>
+          );
+        }
         return <Tag>не рассчитан</Tag>;
       },
-    },
-    {
-      title: 'Сообщение',
-      ellipsis: true,
-      render: (_: unknown, r: ProjectObject) => (
-        <Text type="secondary" style={{ fontSize: 11 }}>
-          {electricalCalcError(elecStats.calcByObjectId[r.id]) ?? '—'}
-        </Text>
-      ),
     },
   ];
 

@@ -52,8 +52,9 @@ function notifyObjectResult(obj: ProjectObject, action: 'added' | 'updated') {
  */
 export function useHeatCalcMutations(
   projectId: string | undefined,
-  onAddSuccess?: () => void,
-  onEditSuccess?: () => void,
+  onAddSuccess?: (obj: ProjectObject) => void,
+  onEditSuccess?: (obj: ProjectObject) => void,
+  onRemoveSuccess?: () => void,
 ) {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -66,7 +67,7 @@ export function useHeatCalcMutations(
     onSuccess: (obj) => {
       invalidateObjects();
       notifyObjectResult(obj, 'added');
-      onAddSuccess?.();
+      onAddSuccess?.(obj);
     },
     onError: (e: Error) => message.error(e.message),
   });
@@ -82,7 +83,7 @@ export function useHeatCalcMutations(
     onSuccess: (obj) => {
       invalidateObjects();
       notifyObjectResult(obj, 'updated');
-      onEditSuccess?.();
+      onEditSuccess?.(obj);
     },
     onError: (e: Error) => message.error(e.message),
   });
@@ -98,7 +99,7 @@ export function useHeatCalcMutations(
     onSuccess: () => {
       invalidateObjects();
       message.success('Объект удалён');
-      onEditSuccess?.();
+      onRemoveSuccess?.();
     },
     onError: (e: Error) => message.error(e.message),
   });

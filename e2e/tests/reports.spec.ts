@@ -10,7 +10,7 @@ async function openReportAsGuest(page: Page) {
 test.describe('4.6 Отчёты', () => {
   test('4.6.1 Предпросмотр доступен гостю', async ({ page }) => {
     await openReportAsGuest(page);
-    await expect(page.getByText(/Отчёт по проекту/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Отчёт по проекту' })).toBeVisible();
   });
 
   test('4.6.2 Кнопки экспорта скрыты у гостя', async ({ page }) => {

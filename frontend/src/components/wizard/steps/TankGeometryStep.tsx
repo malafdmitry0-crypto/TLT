@@ -22,7 +22,7 @@ export default function TankGeometryStep() {
     <>
       <Form.Item className="fixed-select-form-item helped-form-item" label={fieldLabel('Форма резервуара')} name="shape" initialValue="cylindrical">
         {withHelp(
-          <Select options={SHAPE_OPTIONS} />,
+          <Select data-testid="tank-shape-select" options={SHAPE_OPTIONS} />,
           'Форма резервуара определяет набор геометрических размеров, необходимых для расчёта площади поверхности.',
         )}
       </Form.Item>
@@ -52,7 +52,7 @@ export default function TankGeometryStep() {
                   ]}
                 >
                   {withHelp(
-                    <InputNumber min={10.8} max={3000} step={1} addonAfter="мм" />,
+                    <InputNumber data-testid="tank-diameter-input" min={10.8} max={3000} step={1} addonAfter="мм" />,
                     'Внешний диаметр резервуара Ø, мм. Обязателен для цилиндрической и сферической форм. Диапазон ТНП: 10,8–3000 мм.',
                   )}
                 </Form.Item>
@@ -70,7 +70,7 @@ export default function TankGeometryStep() {
                   ]}
                 >
                   {withHelp(
-                    <InputNumber min={500} max={200000000} step={100} addonAfter="мм" />,
+                    <InputNumber data-testid="tank-height-input" min={500} max={200000000} step={100} addonAfter="мм" />,
                     'Высота резервуара. Обязательна для цилиндрической и прямоугольной форм. Диапазон ТНП: 0,5–200 000 м.',
                   )}
                 </Form.Item>
@@ -87,7 +87,7 @@ export default function TankGeometryStep() {
                   ]}
                 >
                   {withHelp(
-                    <InputNumber min={1} step={100} addonAfter="мм" />,
+                    <InputNumber data-testid="tank-length-input" min={1} step={100} addonAfter="мм" />,
                     'Длина прямоугольного резервуара L, мм. В новых переменных ТНП отдельный диапазон для L не задан.',
                   )}
                 </Form.Item>
@@ -104,7 +104,7 @@ export default function TankGeometryStep() {
                   ]}
                 >
                   {withHelp(
-                    <InputNumber min={1} step={100} addonAfter="мм" />,
+                    <InputNumber data-testid="tank-width-input" min={1} step={100} addonAfter="мм" />,
                     'Ширина прямоугольного резервуара B, мм. В новых переменных ТНП отдельный диапазон для B не задан.',
                   )}
                 </Form.Item>

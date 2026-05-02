@@ -754,15 +754,15 @@ test.describe('4.1 Авторизация и доступ', () => {
 
 // e2e/tests/heat-calculation.spec.ts
 test.describe('4.3 Теплотехнический расчёт', () => {
-  test('4.3.1 Добавить трубу через мастер → расчёт выполнен', async ({ page }) => {
+  test('4.3.1 Добавить трубу через встроенную форму → расчёт выполнен', async ({ page }) => {
     await page.goto('/');
     await page.click('text=Пользователь');
     await page.click('text=Трубы');
-    // заполнение мастера...
+    // заполнение встроенной формы SC-03...
     await page.fill('[name=outer_diameter]', '108');
     await page.fill('[name=insulation_thickness]', '50');
     // ...
-    await page.click('text=Завершить');
+    await page.click('text=Сохранить изменения');
     const result = page.locator('[data-testid=pipe-table] >> text=/\\d+.*Вт/');
     await expect(result).toBeVisible();
   });
@@ -829,7 +829,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 alembic upgrade head
 alembic revision --autogenerate -m "описание"
 
-# Тесты (419 backend в сумме)
+# Тесты (676 backend в сумме на 2026-05-02)
 pytest tests/unit -v                          # Unit
 pytest tests/integration -v                   # Integration (требует БД heatcalc_test)
 pytest --cov=app --cov-report=html            # Покрытие
