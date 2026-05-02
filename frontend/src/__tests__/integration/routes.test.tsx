@@ -41,8 +41,10 @@ vi.mock('@/api/admin', () => ({
   updateCoefficient: vi.fn(),
 }));
 vi.mock('@/api/references', () => ({
+  getClimate: vi.fn().mockResolvedValue([]),
   getInsulation: vi.fn().mockResolvedValue([]),
   getPipeMaterials: vi.fn().mockResolvedValue([]),
+  getSoilConductivity: vi.fn().mockResolvedValue([]),
   listInsulationMaterials: vi.fn().mockResolvedValue([]),
   listClimateCities: vi.fn().mockResolvedValue([]),
   listAccessoriesExtended: vi.fn().mockResolvedValue([]),

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, type ReactElement } from 'react';
-import { Button, Form, Input, InputNumber, Select } from 'antd';
+import { Button, Form, Input, InputNumber, Select, Tag, type FormInstance } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import type { ObjectType } from '@/constants/objectTypes';
 import PipeGeometryStep from './steps/PipeGeometryStep';
@@ -7,7 +7,8 @@ import TankGeometryStep from './steps/TankGeometryStep';
 import ThermalStep from './steps/ThermalStep';
 import HelpedControl from './HelpedControl';
 import FieldLabel from './FieldLabel';
-import { getInsulation, getPipeMaterials } from '@/api/references';
+import { getClimate, getInsulation, getPipeMaterials, getSoilConductivity } from '@/api/references';
+import type { ClimateEntry } from '@/types/reference';
 import {
   generatePipeName,
   generateTankName,
@@ -29,7 +30,7 @@ interface Props {
 }
 
 const SECTION_RESIZE_HANDLE_WIDTH = 1;
-const SECTION_WIDTH_WEIGHTS = [1.1, 1.17, 0.78, 0.95];
+const SECTION_WIDTH_WEIGHTS = [1.05, 1.1, 1.05, 0.8];
 const SECTION_FIELD_PAIR_MIN_WIDTHS = [206, 206, 252, 180];
 const SECTION_FIELD_GRID =
   'repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr))';
@@ -42,6 +43,47 @@ function fieldLabel(text: string) {
   return <FieldLabel text={text} />;
 }
 
+type ClimateBasis = 't_0_92' | 't_0_98' | 't_abs_min';
+
+const CLIMATE_BASIS_OPTIONS: { value: ClimateBasis; label: string }[] = [
+  { value: 't_0_92', label: '0,92' },
+  { value: 't_0_98', label: '0,98' },
+  { value: 't_abs_min', label: 'Абс. мин.' },
+];
+
+function climateKey(entry: ClimateEntry) {
+  return `${entry.region}|||${entry.city ?? entry.region}`;
+}
+
+function climateTemperature(entry: ClimateEntry, basis: ClimateBasis) {
+  if (basis === 't_abs_min') return entry.t_abs_min;
+  if (basis === 't_0_98') return entry.t_0_98 ?? entry.t_cold_day_0_98;
+  return entry.t_0_92 ?? entry.t_cold_fiveday_0_92;
+}
+
+function climateWind(entry: ClimateEntry) {
+  return entry.wind_avg_cold ?? entry.wind_max_jan;
+}
+
+function sourceTag(source: unknown) {
+  if (source === 'climate') return <Tag className="field-source-tag">из климата</Tag>;
+  if (source === 'manual') return <Tag className="field-source-tag">вручную</Tag>;
+  return null;
+}
+
+function FieldSourceTag({
+  form,
+  name,
+  fallback,
+}: {
+  form: FormInstance;
+  name: string;
+  fallback?: unknown;
+}) {
+  const source = Form.useWatch(name, form);
+  return sourceTag(source ?? fallback);
+}
+
 export default function ObjectWizard({
   objectType,
   onClose,
@@ -51,19 +93,48 @@ export default function ObjectWizard({
 }: Props) {
   const [form] = Form.useForm();
   const isEditMode = !!initialParams;
+  const initialValues = useMemo(() =>
+    initialParams != null
+      ? objectType === 'pipe'
+        ? pipeApiParamsToForm(initialParams)
+        : tankApiParamsToForm(initialParams)
+      : undefined,
+    [initialParams, objectType],
+  );
+  const formInitialValues = useMemo(
+    () => ({
+      pipe_lambda_mode: 'reference',
+      insulation_layer_count: '1',
+      ...initialValues,
+    }),
+    [initialValues],
+  );
   const values = Form.useWatch([], form);
+  const watchedValues = values as Record<string, unknown> | undefined;
+  const watchedValue = (name: string, fallback?: unknown) => {
+    if (watchedValues && Object.prototype.hasOwnProperty.call(watchedValues, name)) {
+      return watchedValues[name];
+    }
+    return (formInitialValues as Record<string, unknown>)[name] ?? fallback;
+  };
+  const watchedString = (name: string, fallback = '') => {
+    const value = watchedValue(name, fallback);
+    return value == null ? fallback : String(value);
+  };
   const prevSuggestedRef = useRef<string>('');
-  const insulationLayerCount = String(
-    (values as Record<string, unknown> | undefined)?.insulation_layer_count ?? '1',
-  );
-  const placement = String((values as Record<string, unknown> | undefined)?.placement ?? 'outdoor');
-  const secondInsulationMaterial = String(
-    (values as Record<string, unknown> | undefined)?.second_insulation_material ?? '',
-  );
-  const thirdInsulationMaterial = String(
-    (values as Record<string, unknown> | undefined)?.third_insulation_material ?? '',
-  );
+  const insulationLayerCount = watchedString('insulation_layer_count', '1');
+  const placement = watchedString('placement', 'outdoor');
+  const pipeLambdaMode = watchedString('pipe_lambda_mode', 'reference');
+  const selectedClimateKey = watchedString('climate_key');
+  const climateBasis = watchedString('climate_temperature_basis', 't_0_92') as ClimateBasis;
+  const selectedGroundType = watchedString('ground_type');
+  const secondInsulationMaterial = watchedString('second_insulation_material');
+  const thirdInsulationMaterial = watchedString('third_insulation_material');
   const layerCount = Math.min(Math.max(Number(insulationLayerCount) || 1, 1), 3);
+  const hasClimate = selectedClimateKey.length > 0;
+  const isUnderground = placement === 'underground';
+  const showWindField = placement === 'outdoor' || (objectType === 'tank' && isUnderground);
+  const showAlphaField = !isUnderground || objectType === 'tank';
   const { data: insulationMaterials = [], isError: insulationMaterialsError, isFetching: isInsulationMaterialsFetching } = useQuery({
     queryKey: ['insulation'],
     queryFn: getInsulation,
@@ -71,6 +142,14 @@ export default function ObjectWizard({
   const { data: pipeMaterials = [] } = useQuery({
     queryKey: ['pipe-materials'],
     queryFn: getPipeMaterials,
+  });
+  const { data: climateEntries = [], isFetching: isClimateFetching } = useQuery({
+    queryKey: ['climate'],
+    queryFn: getClimate,
+  });
+  const { data: soilEntries = [], isFetching: isSoilFetching } = useQuery({
+    queryKey: ['soil-conductivity'],
+    queryFn: getSoilConductivity,
   });
   const insulationMaterialOptions = [
     ...insulationMaterials.map((m) => ({
@@ -82,20 +161,56 @@ export default function ObjectWizard({
   const pipeMaterialOptions = pipeMaterials.length > 0
     ? pipeMaterials.map((m) => ({ value: m.material, label: m.name }))
     : [{ value: 'carbon_steel', label: 'Углеродистая сталь' }];
-
-  const initialValues = useMemo(() =>
-    initialParams != null
-      ? objectType === 'pipe'
-        ? pipeApiParamsToForm(initialParams)
-        : tankApiParamsToForm(initialParams)
-      : undefined,
-    [initialParams, objectType],
+  const climateOptions = useMemo(
+    () => climateEntries.map((entry) => ({
+      value: climateKey(entry),
+      label: `${entry.city ?? entry.region} · ${entry.region}`,
+    })),
+    [climateEntries],
+  );
+  const selectedClimate = climateEntries.find((entry) => climateKey(entry) === selectedClimateKey);
+  const soilOptions = useMemo(
+    () => soilEntries.map((entry) => ({
+      value: `${entry.soil_code}:${entry.density_kg_m3 ?? 'na'}:${entry.moisture_percent}`,
+      label: `${entry.soil}, W=${entry.moisture_percent}% · λ=${entry.conductivity}`,
+      entry,
+    })),
+    [soilEntries],
   );
 
   useEffect(() => {
     form.resetFields();
     if (initialValues) form.setFieldsValue(initialValues);
   }, [form, initialValues]);
+
+  useEffect(() => {
+    if (!selectedClimate) return;
+    const tAmbient = climateTemperature(selectedClimate, climateBasis);
+    const wind = climateWind(selectedClimate);
+    form.setFieldsValue({
+      climate_city: selectedClimate.city ?? selectedClimate.region,
+      climate_region: selectedClimate.region,
+      ...(tAmbient != null
+        ? {
+            ambient_temperature: tAmbient,
+            ambient_temperature_source: 'climate',
+          }
+        : {}),
+      ...(wind != null
+        ? {
+            wind_speed: wind,
+            wind_speed_source: 'climate',
+          }
+        : {}),
+    });
+  }, [climateBasis, form, selectedClimate]);
+
+  useEffect(() => {
+    if (!selectedGroundType) return;
+    const selectedSoil = soilOptions.find((option) => option.value === selectedGroundType)?.entry;
+    if (!selectedSoil) return;
+    form.setFieldsValue({ ground_conductivity: selectedSoil.conductivity });
+  }, [form, selectedGroundType, soilOptions]);
 
   useEffect(() => {
     if (!values) return;
@@ -129,6 +244,23 @@ export default function ObjectWizard({
     }
   }
 
+  function handleValuesChange(changed: Record<string, unknown>) {
+    if (Object.prototype.hasOwnProperty.call(changed, 'climate_key') && !changed.climate_key) {
+      form.setFieldsValue({
+        climate_city: undefined,
+        climate_region: undefined,
+        ambient_temperature_source: form.getFieldValue('ambient_temperature') == null ? undefined : 'manual',
+        wind_speed_source: form.getFieldValue('wind_speed') == null ? undefined : 'manual',
+      });
+    }
+    if (Object.prototype.hasOwnProperty.call(changed, 'ambient_temperature')) {
+      form.setFieldsValue({ ambient_temperature_source: 'manual' });
+    }
+    if (Object.prototype.hasOwnProperty.call(changed, 'wind_speed')) {
+      form.setFieldsValue({ wind_speed_source: 'manual' });
+    }
+  }
+
   function sectionStyle(idx: number): React.CSSProperties {
     const expandedWeight = SECTION_WIDTH_WEIGHTS.reduce(
       (total, weight) => total + weight,
@@ -159,9 +291,22 @@ export default function ObjectWizard({
       form={form}
       layout="vertical"
       requiredMark={false}
-      initialValues={initialValues}
+      initialValues={formInitialValues}
       className="inline-object-form"
+      onValuesChange={handleValuesChange}
     >
+      <Form.Item name="climate_city" hidden noStyle>
+        <Input type="hidden" />
+      </Form.Item>
+      <Form.Item name="climate_region" hidden noStyle>
+        <Input type="hidden" />
+      </Form.Item>
+      <Form.Item name="ambient_temperature_source" hidden noStyle>
+        <Input type="hidden" />
+      </Form.Item>
+      <Form.Item name="wind_speed_source" hidden noStyle>
+        <Input type="hidden" />
+      </Form.Item>
       <div className="form-grid-srs">
 
         {/* ── Геометрия ──────────────────────────────────────────────── */}
@@ -180,7 +325,7 @@ export default function ObjectWizard({
             ]}
           >
             {withHelp(
-              <Input maxLength={200} />,
+              <Input data-testid="object-name-input" maxLength={200} />,
               'Автоматически формируется из параметров объекта. Можно изменить вручную; до 200 символов.',
             )}
           </Form.Item>
@@ -199,36 +344,58 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber min={0.1} max={40} step={0.1} addonAfter="мм" />,
+                  <InputNumber data-testid="wall-thickness-input" min={0.1} max={40} step={0.1} addonAfter="мм" />,
                   'Толщина стенки трубы. Диапазон ТНП: 0,1…40 мм. Используется в расчёте сопротивления стенки.',
                 )}
               </Form.Item>
               <Form.Item
-                className="fit-label-form-item helped-form-item"
-                label={fieldLabel('λ трубы')}
-                name="pipe_lambda"
-                rules={[
-                  { type: 'number', min: 0.001, message: 'λ должна быть больше 0' },
-                  { type: 'number', max: 400, message: 'Максимальное значение λ — 400 Вт/мК' },
-                ]}
+                className="compact-select-form-item helped-form-item"
+                label={fieldLabel('Режим λ трубы')}
+                name="pipe_lambda_mode"
               >
                 {withHelp(
-                  <InputNumber min={0.001} max={400} step={0.1} addonAfter="Вт/мК" />,
-                  'Ручное переопределение теплопроводности трубы, Вт/(м·К). Если поле пустое, расчёт берёт λ из справочника материала трубы.',
+                  <Select
+                    data-testid="pipe-lambda-mode-select"
+                    options={[
+                      { value: 'reference', label: 'Справ.' },
+                      { value: 'manual', label: 'Вручн.' },
+                    ]}
+                  />,
+                  'Источник теплопроводности стенки трубы: из справочника материала или ручной ввод λ.',
                 )}
               </Form.Item>
-              <Form.Item
-                className="pipe-material-form-item reduced-select-form-item helped-form-item"
-                label={fieldLabel('Материал трубы')}
-                name="pipe_material"
-                initialValue="carbon_steel"
-                rules={[{ required: true, message: 'Выберите материал трубы' }]}
-              >
-                {withHelp(
-                  <Select options={pipeMaterialOptions} />,
-                  'Материал стенки трубопровода. Используется для выбора теплопроводности, если λ трубы не задана вручную.',
-                )}
-              </Form.Item>
+              {pipeLambdaMode === 'manual' ? (
+                <Form.Item
+                  className="fit-label-form-item helped-form-item"
+                  label={fieldLabel('λ трубы')}
+                  name="pipe_lambda"
+                  preserve={false}
+                  rules={[
+                    { required: true, message: 'Укажите λ трубы' },
+                    { type: 'number', min: 0.001, message: 'λ должна быть больше 0' },
+                    { type: 'number', max: 400, message: 'Максимальное значение λ — 400 Вт/мК' },
+                  ]}
+                >
+                  {withHelp(
+                    <InputNumber data-testid="pipe-lambda-input" min={0.001} max={400} step={0.1} addonAfter="Вт/мК" />,
+                    'Ручная теплопроводность трубы, Вт/(м·К). Используется вместо справочника материала.',
+                  )}
+                </Form.Item>
+              ) : (
+                <Form.Item
+                  className="pipe-material-form-item reduced-select-form-item helped-form-item"
+                  label={fieldLabel('Материал трубы')}
+                  name="pipe_material"
+                  initialValue="carbon_steel"
+                  preserve={false}
+                  rules={[{ required: true, message: 'Выберите материал трубы' }]}
+                >
+                  {withHelp(
+                    <Select data-testid="pipe-material-select" options={pipeMaterialOptions} />,
+                    'Материал стенки трубопровода. Backend берёт λ из справочника материала трубы.',
+                  )}
+                </Form.Item>
+              )}
             </>
           )}
           <Form.Item
@@ -240,6 +407,7 @@ export default function ObjectWizard({
           >
             {withHelp(
               <Select
+                data-testid="placement-select"
                 options={[
                   { value: 'outdoor', label: 'На открытом воздухе' },
                   { value: 'indoor', label: 'В помещении' },
@@ -249,60 +417,66 @@ export default function ObjectWizard({
               'Размещение объекта. В помещении меняет коэффициент внешней теплоотдачи; для подземной прокладки используется глубина.',
             )}
           </Form.Item>
-          <Form.Item
-            className="fit-label-form-item helped-form-item"
-            label={fieldLabel('Глубина прокладки')}
-            name="burial_depth"
-            preserve={false}
-            rules={[
-              { required: placement === 'underground', message: 'Укажите глубину прокладки' },
-              { type: 'number', min: 0, message: 'Минимальная глубина — 0 м' },
-              { type: 'number', max: 200, message: 'Максимальная глубина — 200 м' },
-            ]}
-          >
-            {withHelp(
-              <InputNumber disabled={placement !== 'underground'} min={0} max={200} step={0.1} placeholder="—" addonAfter="м" />,
-              'Используется только для подземной прокладки. Диапазон ТНП: 0…200 м.',
-            )}
-          </Form.Item>
-          <Form.Item
-            className="fixed-select-form-item helped-form-item"
-            label={fieldLabel('Грунт')}
-            name="ground_type"
-            initialValue="dry_sand"
-            preserve={false}
-            rules={[{ required: placement === 'underground', message: 'Выберите грунт' }]}
-          >
-            {withHelp(
-              <Select
-                disabled={placement !== 'underground'}
-                options={[
-                  { value: 'dry_sand', label: 'Сухой песок' },
-                  { value: 'wet_sand', label: 'Влажный песок' },
-                  { value: 'clay', label: 'Глина' },
-                  { value: 'custom', label: 'Другое' },
+          {isUnderground && (
+            <>
+              <Form.Item
+                className="fit-label-form-item helped-form-item"
+                label={fieldLabel(objectType === 'pipe' ? 'Глубина прокладки' : 'Высота подземной части')}
+                name="burial_depth"
+                preserve={false}
+                rules={[
+                  { required: true, message: 'Укажите глубину прокладки' },
+                  { type: 'number', min: 0, message: 'Минимальная глубина — 0 м' },
+                  { type: 'number', max: 200, message: 'Максимальная глубина — 200 м' },
                 ]}
-              />,
-              'Тип грунта для подземной прокладки. Используется вместе с теплопроводностью грунта.',
-            )}
-          </Form.Item>
-          <Form.Item
-            className="numeric-form-item coefficient-form-item helped-form-item"
-            label={fieldLabel('λ грунта')}
-            name="ground_conductivity"
-            initialValue={1.5}
-            preserve={false}
-            rules={[
-              { required: placement === 'underground', message: 'Укажите λ грунта' },
-              { type: 'number', min: 0.8, message: 'Минимальная λ грунта — 0,8 Вт/мК' },
-              { type: 'number', max: 3, message: 'Максимальная λ грунта — 3,0 Вт/мК' },
-            ]}
-          >
-            {withHelp(
-              <InputNumber disabled={placement !== 'underground'} min={0.8} max={3} step={0.1} addonAfter="Вт/мК" />,
-              'Теплопроводность грунта для подземной прокладки. Диапазон: 0,8…3,0 Вт/(м·К).',
-            )}
-          </Form.Item>
+              >
+                {withHelp(
+                  <InputNumber data-testid="burial-depth-input" min={0} max={200} step={0.1} addonAfter="м" />,
+                  objectType === 'pipe'
+                    ? 'Используется только для подземной прокладки. Диапазон ТНП: 0…200 м.'
+                    : 'Высота подземной части резервуара. Backend делит расчёт на Sвозд и Sгр. Диапазон ТНП: 0…200 м.',
+                )}
+              </Form.Item>
+              <Form.Item
+                className="fixed-select-form-item helped-form-item"
+                label={fieldLabel('Грунт')}
+                name="ground_type"
+                initialValue="dry_sand"
+                preserve={false}
+                rules={[{ required: true, message: 'Выберите грунт' }]}
+              >
+                {withHelp(
+                  <Select
+                    data-testid="ground-type-select"
+                    showSearch
+                    loading={isSoilFetching}
+                    options={[...soilOptions.map(({ value, label }) => ({ value, label })), { value: 'custom', label: 'Другое' }]}
+                    filterOption={(input, option) =>
+                      String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                  />,
+                  'Тип грунта из справочника теплопроводности. При выборе справочного грунта λ грунта заполняется автоматически; можно переопределить вручную.',
+                )}
+              </Form.Item>
+              <Form.Item
+                className="numeric-form-item coefficient-form-item helped-form-item"
+                label={fieldLabel('λ грунта')}
+                name="ground_conductivity"
+                initialValue={1.5}
+                preserve={false}
+                rules={[
+                  { required: true, message: 'Укажите λ грунта' },
+                  { type: 'number', min: 0.8, message: 'Минимальная λ грунта — 0,8 Вт/мК' },
+                  { type: 'number', max: 3, message: 'Максимальная λ грунта — 3,0 Вт/мК' },
+                ]}
+              >
+                {withHelp(
+                  <InputNumber data-testid="ground-conductivity-input" min={0.8} max={3} step={0.1} addonAfter="Вт/мК" />,
+                  'Теплопроводность грунта для подземной прокладки. Диапазон: 0,8…3,0 Вт/(м·К).',
+                )}
+              </Form.Item>
+            </>
+          )}
         </div>
 
         <div className="form-col-resize-handle" />
@@ -329,10 +503,9 @@ export default function ObjectWizard({
             className="layer-count-form-item helped-form-item"
             label={fieldLabel('Кол-во слоёв ИЗ')}
             name="insulation_layer_count"
-            initialValue="1"
           >
             {withHelp(
-              <Select options={[{ value: '1', label: '1 слой' }, { value: '2', label: '2 слоя' }, { value: '3', label: '3 слоя' }]} />,
+              <Select data-testid="insulation-layer-count-select" options={[{ value: '1', label: '1 слой' }, { value: '2', label: '2 слоя' }, { value: '3', label: '3 слоя' }]} />,
               'Количество слоёв изоляции. При 2 или 3 слоях форма добавляет отдельные материал и толщину для каждого дополнительного слоя.',
             )}
           </Form.Item>
@@ -347,6 +520,7 @@ export default function ObjectWizard({
               >
                 {withHelp(
                   <Select
+                    data-testid="second-insulation-material-select"
                     options={insulationMaterialOptions}
                     placeholder="Выберите материал"
                     loading={isInsulationMaterialsFetching}
@@ -367,7 +541,7 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber min={0.01} max={500} addonAfter="мм" />,
+                  <InputNumber data-testid="second-insulation-thickness-input" min={0.01} max={500} addonAfter="мм" />,
                   'Толщина второго слоя изоляции. Диапазон ТНП: 0,01…500 мм.',
                 )}
               </Form.Item>
@@ -384,7 +558,7 @@ export default function ObjectWizard({
                   ]}
                 >
                   {withHelp(
-                    <InputNumber min={0.001} max={400} step={0.001} addonAfter="Вт/мК" />,
+                    <InputNumber data-testid="second-insulation-lambda-input" min={0.001} max={400} step={0.001} addonAfter="Вт/мК" />,
                     'Ручная теплопроводность второго слоя для материала «Другое». Диапазон ТНП: 0,001…400 Вт/(м·К).',
                   )}
                 </Form.Item>
@@ -402,6 +576,7 @@ export default function ObjectWizard({
               >
                 {withHelp(
                   <Select
+                    data-testid="third-insulation-material-select"
                     options={insulationMaterialOptions}
                     placeholder="Выберите материал"
                     loading={isInsulationMaterialsFetching}
@@ -422,7 +597,7 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber min={0.01} max={500} addonAfter="мм" />,
+                  <InputNumber data-testid="third-insulation-thickness-input" min={0.01} max={500} addonAfter="мм" />,
                   'Толщина третьего слоя изоляции. Диапазон ТНП: 0,01…500 мм.',
                 )}
               </Form.Item>
@@ -439,7 +614,7 @@ export default function ObjectWizard({
                   ]}
                 >
                   {withHelp(
-                    <InputNumber min={0.001} max={400} step={0.001} addonAfter="Вт/мК" />,
+                    <InputNumber data-testid="third-insulation-lambda-input" min={0.001} max={400} step={0.001} addonAfter="Вт/мК" />,
                     'Ручная теплопроводность третьего слоя для материала «Другое». Диапазон ТНП: 0,001…400 Вт/(м·К).',
                   )}
                 </Form.Item>
@@ -456,6 +631,62 @@ export default function ObjectWizard({
           style={sectionStyle(2)}
         >
           {renderSectionTitle('Температура и среда')}
+          <Form.Item
+            className="fixed-select-form-item reduced-select-form-item helped-form-item"
+            label={fieldLabel('Климат')}
+            name="climate_key"
+          >
+            {withHelp(
+              <Select
+                data-testid="climate-select"
+                showSearch
+                allowClear
+                options={climateOptions}
+                loading={isClimateFetching}
+                placeholder="Выберите город"
+                filterOption={(input, option) =>
+                  String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+              />,
+              'Климатический справочник: выбор города заполняет расчётную температуру среды и скорость ветра.',
+            )}
+          </Form.Item>
+          {hasClimate && (
+            <Form.Item
+              className="compact-select-form-item helped-form-item"
+              label={fieldLabel('Обеспеченность климата')}
+              name="climate_temperature_basis"
+              initialValue="t_0_92"
+              preserve={false}
+            >
+              {withHelp(
+                <Select data-testid="climate-basis-select" options={CLIMATE_BASIS_OPTIONS} />,
+                'Какое значение из климатического справочника использовать для T° окр. среды: 0,92, 0,98 или абсолютный минимум.',
+              )}
+            </Form.Item>
+          )}
+          <Form.Item
+            className="numeric-form-item temperature-number-form-item helped-form-item"
+            label={fieldLabel('T° окр. среды')}
+            name="ambient_temperature"
+            extra={
+              <FieldSourceTag
+                form={form}
+                name="ambient_temperature_source"
+                fallback={watchedValue('ambient_temperature_source')}
+              />
+            }
+            rules={[
+              { required: true, message: 'Укажите температуру окружающей среды' },
+              { type: 'number', min: -70, message: 'Минимальная температура среды: −70°C' },
+              { type: 'number', max: 70, message: 'Максимальная температура среды: +70°C' },
+            ]}
+          >
+            {withHelp(
+              <InputNumber data-testid="ambient-temperature-input" min={-70} max={70} addonAfter="°C" />,
+              'Расчётная температура окружающей среды. Диапазон ТНП: −70°C … +70°C. Может заполняться из климатического справочника.',
+            )}
+          </Form.Item>
           <Form.Item
             className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('Требуемая T° объекта')}
@@ -480,10 +711,51 @@ export default function ObjectWizard({
             ]}
           >
             {withHelp(
-              <InputNumber min={-90} max={600} step={0.1} addonAfter="°C" />,
+              <InputNumber data-testid="process-temperature-input" min={-90} max={600} step={0.1} addonAfter="°C" />,
               'Требуемая температура поддержания объекта, °C. Диапазон ТНП: −90…+600 °C. Используется в расчёте теплопотерь и проверке температурного диапазона кабеля.',
             )}
           </Form.Item>
+          {showWindField && (
+            <Form.Item
+              className="numeric-form-item short-number-form-item helped-form-item"
+              label={fieldLabel('Скорость ветра')}
+              name="wind_speed"
+              preserve={false}
+              extra={
+                <FieldSourceTag
+                  form={form}
+                  name="wind_speed_source"
+                  fallback={watchedValue('wind_speed_source')}
+                />
+              }
+              rules={[
+                { type: 'number', min: 0, message: 'Минимальная скорость ветра — 0 м/с' },
+                { type: 'number', max: 20, message: 'Максимальная скорость ветра — 20 м/с' },
+              ]}
+            >
+              {withHelp(
+                <InputNumber data-testid="wind-speed-input" min={0} max={20} step={0.1} addonAfter="м/с" />,
+                'Скорость ветра для расчёта внешней теплоотдачи α. Если выбран климатический город, берётся из справочника; можно переопределить вручную.',
+              )}
+            </Form.Item>
+          )}
+          {showAlphaField && (
+            <Form.Item
+              className="numeric-form-item coefficient-form-item helped-form-item"
+              label={fieldLabel('α внеш')}
+              name="alpha_vnesh"
+              preserve={false}
+              rules={[
+                { type: 'number', min: 7, message: 'Минимальный α — 7 Вт/(м²·К)' },
+                { type: 'number', max: 52, message: 'Максимальный α — 52 Вт/(м²·К)' },
+              ]}
+            >
+              {withHelp(
+                <InputNumber data-testid="alpha-vnesh-input" min={7} max={52} step={0.1} addonAfter="Вт/м²К" />,
+                'Ручное значение коэффициента внешней теплоотдачи. Если пусто, backend рассчитывает α из скорости ветра и размещения.',
+              )}
+            </Form.Item>
+          )}
           <Form.Item
             className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('Макс. T° окр. среды')}
@@ -495,7 +767,7 @@ export default function ObjectWizard({
             ]}
           >
             {withHelp(
-              <InputNumber min={-70} max={70} step={0.1} addonAfter="°C" />,
+              <InputNumber data-testid="max-ambient-temperature-input" min={-70} max={70} step={0.1} addonAfter="°C" />,
               'Максимальная температура окружающей среды, °C. Сохраняется в параметрах объекта для проверки условий эксплуатации.',
             )}
           </Form.Item>
@@ -510,7 +782,7 @@ export default function ObjectWizard({
             ]}
           >
             {withHelp(
-              <InputNumber min={-90} max={600} step={0.1} addonAfter="°C" />,
+              <InputNumber data-testid="max-process-temperature-input" min={-90} max={600} step={0.1} addonAfter="°C" />,
               'Максимально допустимая температура продукта, °C. Сохраняется в параметрах объекта и используется как эксплуатационное ограничение.',
             )}
           </Form.Item>
@@ -521,7 +793,7 @@ export default function ObjectWizard({
             initialValue="normal"
           >
             {withHelp(
-              <Select options={[{ value: 'normal', label: 'Нормальная' }, { value: 'aggressive', label: 'Агрессивная' }]} />,
+              <Select data-testid="environment-select" options={[{ value: 'normal', label: 'Нормальная' }, { value: 'aggressive', label: 'Агрессивная' }]} />,
               'Условия эксплуатации: нормальная или агрессивная среда. Сохраняется в параметрах объекта для спецификации и отчёта.',
             )}
           </Form.Item>
@@ -532,7 +804,7 @@ export default function ObjectWizard({
             initialValue="safe"
           >
             {withHelp(
-              <Select options={[{ value: 'safe', label: 'Безопасная' }, { value: 'explosive', label: 'Взрывоопасная' }]} />,
+              <Select data-testid="zone-classification-select" options={[{ value: 'safe', label: 'Безопасная' }, { value: 'explosive', label: 'Взрывоопасная' }]} />,
               'Безопасная или взрывоопасная зона. Сохраняется в параметрах объекта для подбора исполнения и отчёта.',
             )}
           </Form.Item>
@@ -543,7 +815,7 @@ export default function ObjectWizard({
             initialValue="T1"
           >
             {withHelp(
-              <Select options={['T1', 'T2', 'T3', 'T4', 'T5', 'T6'].map((v) => ({ value: v, label: v }))} />,
+              <Select data-testid="temperature-group-select" options={['T1', 'T2', 'T3', 'T4', 'T5', 'T6'].map((v) => ({ value: v, label: v }))} />,
               'Температурная группа T1…T6 для классификации зоны. Сохраняется в параметрах объекта для подбора исполнения и отчёта.',
             )}
           </Form.Item>
@@ -568,7 +840,7 @@ export default function ObjectWizard({
             ]}
           >
             {withHelp(
-              <InputNumber min={-70} max={70} step={0.1} addonAfter="°C" />,
+              <InputNumber data-testid="min-switch-temperature-input" min={-70} max={70} step={0.1} addonAfter="°C" />,
               'Температура включения электрообогрева, °C. Сохраняется в параметрах объекта для электрораздела.',
             )}
           </Form.Item>
@@ -579,7 +851,7 @@ export default function ObjectWizard({
             initialValue={220}
           >
             {withHelp(
-              <Select options={[{ value: 220, label: '220 В' }, { value: 380, label: '380 В' }]} />,
+              <Select data-testid="supply-voltage-select" options={[{ value: 220, label: '220 В' }, { value: 380, label: '380 В' }]} />,
               'Рабочее напряжение питания. Используется при расчёте тока в электротехническом расчёте.',
             )}
           </Form.Item>
@@ -594,7 +866,7 @@ export default function ObjectWizard({
             ]}
           >
             {withHelp(
-              <InputNumber min={1.05} max={1.7} step={0.01} />,
+              <InputNumber data-testid="safety-factor-input" min={1.05} max={1.7} step={0.01} />,
               'Коэффициент запаса Kзап. Диапазон ТНП: 1,05…1,70. Используется в суммарных теплопотерях и при подборе кабеля.',
             )}
           </Form.Item>
@@ -605,7 +877,7 @@ export default function ObjectWizard({
             initialValue="no"
           >
             {withHelp(
-              <Select options={[{ value: 'yes', label: 'Да' }, { value: 'no', label: 'Нет' }]} />,
+              <Select data-testid="steam-tracing-select" options={[{ value: 'yes', label: 'Да' }, { value: 'no', label: 'Нет' }]} />,
               'Признак пропарки. Сохраняется в параметрах объекта для проверки эксплуатационных ограничений.',
             )}
           </Form.Item>
@@ -622,7 +894,7 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber min={0} max={100} addonAfter="шт" />,
+                  <InputNumber data-testid="valve-count-input" min={0} max={100} addonAfter="шт" />,
                   'Количество задвижек, шт. Диапазон: 0…100. Сохраняется как локальные элементы объекта.',
                 )}
               </Form.Item>
@@ -637,7 +909,7 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber min={0} max={100} addonAfter="шт" />,
+                  <InputNumber data-testid="flange-count-input" min={0} max={100} addonAfter="шт" />,
                   'Количество фланцев, шт. Диапазон: 0…100. Сохраняется как локальные элементы объекта.',
                 )}
               </Form.Item>
@@ -652,7 +924,7 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber min={0} max={100} addonAfter="шт" />,
+                  <InputNumber data-testid="support-count-input" min={0} max={100} addonAfter="шт" />,
                   'Количество опор, шт. Диапазон: 0…100. Сохраняется как локальные элементы объекта.',
                 )}
               </Form.Item>

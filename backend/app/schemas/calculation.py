@@ -165,6 +165,36 @@ class PipeHeatLossResult(BaseModel):
     )
     effective_length: float = Field(description="Расчётная длина с учётом локальных элементов, м")
     thermal_resistance: float = Field(description="Суммарное термическое сопротивление, м·К/Вт")
+    wall_resistance: float | None = Field(
+        default=None,
+        description="Сопротивление стенки трубы, м·К/Вт",
+    )
+    insulation_resistance: float | None = Field(
+        default=None,
+        description="Суммарное сопротивление слоёв изоляции, м·К/Вт",
+    )
+    external_resistance: float | None = Field(
+        default=None,
+        description="Внешнее/грунтовое сопротивление, м·К/Вт",
+    )
+    alpha_vnesh: float | None = Field(
+        default=None,
+        description="Коэффициент внешней теплоотдачи, Вт/(м²·К)",
+    )
+    wind_speed: float | None = Field(default=None, description="Скорость ветра, м/с")
+    ground_conductivity: float | None = Field(
+        default=None,
+        description="Теплопроводность грунта, Вт/(м·К)",
+    )
+    safety_factor: float | None = Field(default=None, description="Коэффициент запаса")
+    local_elements_count: int | None = Field(
+        default=None,
+        description="Количество локальных элементов",
+    )
+    local_element_equiv_length: float | None = Field(
+        default=None,
+        description="Эквивалентная длина одного локального элемента, м",
+    )
     surface_temperature: float | None = None
 
 
@@ -225,6 +255,12 @@ class TankHeatLossParams(BaseModel):
         le=20.0,
         description="v — скорость ветра, м/с",
     )
+    alpha_vnesh: float | None = Field(
+        default=None,
+        ge=7.0,
+        le=52.0,
+        description="alpha — ручной коэф. наружной теплоотдачи, Вт/(м²·К)",
+    )
     safety_factor: float | None = Field(
         default=None,
         ge=1.05,
@@ -249,6 +285,18 @@ class TankHeatLossResult(BaseModel):
     heat_loss_per_m2: float
     total_heat_loss: float
     surface_area: float
+    wall_resistance: float | None = None
+    insulation_resistance: float | None = None
+    external_resistance: float | None = None
+    ground_resistance: float | None = None
+    alpha_vnesh: float | None = None
+    wind_speed: float | None = None
+    ground_conductivity: float | None = None
+    safety_factor: float | None = None
+    air_surface_area: float | None = None
+    ground_surface_area: float | None = None
+    heat_loss_air_per_m2: float | None = None
+    heat_loss_ground_per_m2: float | None = None
 
 
 class HeatLossRequest(BaseModel):

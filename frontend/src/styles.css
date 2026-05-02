@@ -404,6 +404,13 @@ html, body, #root {
   box-sizing: border-box;
 }
 
+.inline-object-form .ant-form-item[hidden],
+.inline-object-form .ant-form-item-hidden {
+  display: none !important;
+  min-height: 0;
+  padding: 0;
+}
+
 .inline-object-form .ant-form-item-row {
   display: grid;
   grid-template-columns: var(--field-label-width, 104px) minmax(var(--field-input-min-width, 160px), 1fr);
@@ -647,6 +654,16 @@ html, body, #root {
 .inline-object-form .ant-form-item-extra {
   font-size: 9px;
   grid-column: 2;
+}
+
+.inline-object-form .field-source-tag {
+  margin: 0;
+  padding: 0 3px;
+  font-size: 8px;
+  line-height: 12px;
+  color: #5d7180;
+  border-color: #d5dde3;
+  background: #f8fafb;
 }
 
 .inline-object-form .wide-select-form-item {
@@ -945,6 +962,28 @@ html, body, #root {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+
+.calc-assumptions-panel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid #d9e1e6;
+  background: #fbfcfd;
+  color: #4a5b6c;
+  font-size: 11px;
+}
+
+.calc-assumptions-panel strong {
+  color: #2f4f66;
+  margin-right: 2px;
+}
+
+.calc-assumptions-panel span {
+  white-space: nowrap;
 }
 
 .import-actions-compact {

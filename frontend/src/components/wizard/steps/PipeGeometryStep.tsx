@@ -45,6 +45,7 @@ export default function PipeGeometryStep() {
             >
               {withHelp(
                 <InputNumber
+                  data-testid="outer-diameter-input"
                   min={10.8}
                   max={3000}
                   step={1}
@@ -68,7 +69,7 @@ export default function PipeGeometryStep() {
         ]}
       >
         {withHelp(
-          <InputNumber min={0.5} max={200000} step={1} addonAfter="м" />,
+          <InputNumber data-testid="pipe-length-input" min={0.5} max={200000} step={1} addonAfter="м" />,
           'Длина обогреваемого участка. Диапазон ТНП: 0,5–200 000 м.',
         )}
       </Form.Item>

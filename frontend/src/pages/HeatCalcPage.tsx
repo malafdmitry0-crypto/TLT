@@ -302,6 +302,59 @@ export default function HeatCalcPage() {
   }
 
   const selectedRowId = wizardState?.editingObject?.id;
+  const selectedObject = selectedRowId ? objects.find((o) => o.id === selectedRowId) : null;
+  const selectedResults = selectedObject?.results as Record<string, unknown> | undefined;
+  const selectedParams = selectedObject?.params as Record<string, unknown> | undefined;
+
+  function resultValue(key: string, digits = 3) {
+    const value = Number(selectedResults?.[key]);
+    return Number.isFinite(value) ? formatNumber(value, digits) : '—';
+  }
+
+  function paramValue(key: string, digits = 1) {
+    const value = Number(selectedParams?.[key]);
+    return Number.isFinite(value) ? formatNumber(value, digits) : '—';
+  }
+
+  function sourceText(source: unknown) {
+    if (source === 'climate') return 'из климата';
+    if (source === 'manual') return 'вручную';
+    return '—';
+  }
+
+  function renderAssumptionsPanel() {
+    if (!selectedObject || !selectedResults) return null;
+    const isPipe = selectedObject.object_type === 'pipe';
+    const isUnderground = selectedParams?.placement === 'underground'
+      || selectedParams?.burial_depth != null;
+    return (
+      <div className="calc-assumptions-panel">
+        <strong>Расчётные допущения:</strong>
+        <span>Tср: {paramValue('ambient_temperature', 0)}°C ({sourceText(selectedParams?.ambient_temperature_source)})</span>
+        <span>ветер: {paramValue('wind_speed', 1)} м/с ({sourceText(selectedParams?.wind_speed_source)})</span>
+        <span>α: {resultValue('alpha_vnesh', 1)} Вт/м²К</span>
+        <span>K: {resultValue('safety_factor', 2)}</span>
+        {isPipe ? (
+          <>
+            <span>Rст: {resultValue('wall_resistance', 4)}</span>
+            <span>Rиз: {resultValue('insulation_resistance', 4)}</span>
+            <span>{isUnderground ? 'Rгр' : 'Rвнеш'}: {resultValue('external_resistance', 4)}</span>
+            <span>Lэфф: {resultValue('effective_length', 1)} м</span>
+          </>
+        ) : (
+          <>
+            <span>Rст: {resultValue('wall_resistance', 4)}</span>
+            <span>Rиз: {resultValue('insulation_resistance', 4)}</span>
+            <span>Rвнеш: {resultValue('external_resistance', 4)}</span>
+            {isUnderground && <span>Rгр: {resultValue('ground_resistance', 4)}</span>}
+            {isUnderground && <span>Sвозд: {resultValue('air_surface_area', 1)} м²</span>}
+            {isUnderground && <span>Sгр: {resultValue('ground_surface_area', 1)} м²</span>}
+          </>
+        )}
+        {isUnderground && <span>λгр: {resultValue('ground_conductivity', 2)} Вт/мК</span>}
+      </div>
+    );
+  }
   const sourceColumns = [
     { title: '№', width: 42, render: (_: unknown, __: ProjectObject, idx: number) => idx + 1 },
     {
@@ -331,7 +384,14 @@ export default function HeatCalcPage() {
       render: (_: unknown, r: ProjectObject) =>
         r.object_type === 'pipe' ? formatNumber(Number(r.params?.pipe_length), 1) : '—',
     },
-    { title: 'Слоёв ИЗ', width: 86, render: () => '1' },
+    {
+      title: 'Слоёв ИЗ',
+      width: 86,
+      render: (_: unknown, r: ProjectObject) =>
+        String(r.params?.insulation_layer_count ?? (
+          Array.isArray(r.params?.insulation_layers) ? r.params.insulation_layers.length : 1
+        )),
+    },
     {
       title: 'δ ИЗ, мм',
       width: 92,
@@ -634,6 +694,8 @@ export default function HeatCalcPage() {
             </>
           )}
         </div>
+
+        {renderAssumptionsPanel()}
 
         <Card size="small" className="workspace-table-card srs-table-wrap">
           <Table<ProjectObject>

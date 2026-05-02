@@ -136,6 +136,7 @@ describe('pipeFormToApiParams', () => {
     const api = pipeFormToApiParams({
       outer_diameter_mm: 108,
       wall_thickness_mm: 4,
+      pipe_lambda_mode: 'manual',
       pipe_material: 'carbon_steel',
       pipe_lambda: 56,
       pipe_length: 50,
@@ -158,7 +159,7 @@ describe('pipeFormToApiParams', () => {
     });
 
     expect(api.wall_thickness).toBeCloseTo(0.004);
-    expect(api.pipe_material).toBe('carbon_steel');
+    expect(api.pipe_material).toBeUndefined();
     expect(api.pipe_lambda).toBe(56);
     expect(api.location).toBe('outdoor');
     expect(api.placement).toBe('underground');

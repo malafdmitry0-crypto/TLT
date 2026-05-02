@@ -157,3 +157,107 @@ class TestObjectsLifecycle:
         body = resp.json()
         assert body["is_valid"] is False
         assert body["validation_errors"] is not None
+
+    async def test_pipe_preserves_climate_layers_and_returns_assumptions(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "name": "Pipe with climate",
+                    "outer_diameter": 0.108,
+                    "wall_thickness": 0.004,
+                    "pipe_material": "carbon_steel",
+                    "pipe_length": 35,
+                    "insulation_thickness": 0.04,
+                    "insulation_material": "mineral_wool",
+                    "insulation_layers": [
+                        {"thickness": 0.04, "material": "mineral_wool"},
+                        {"thickness": 0.02, "material": "foam_glass"},
+                        {"thickness": 0.01, "material": "other", "conductivity": 0.061},
+                    ],
+                    "insulation_layer_count": "3",
+                    "ambient_temperature": -25,
+                    "process_temperature": 80,
+                    "wind_speed": 4.2,
+                    "alpha_vnesh": 14.0,
+                    "safety_factor": 1.2,
+                    "num_local_elements": 3,
+                    "local_element_equiv_length": 1.1,
+                    "climate_city": "Москва",
+                    "climate_region": "Москва",
+                    "climate_temperature_basis": "t_0_92",
+                    "ambient_temperature_source": "climate",
+                    "wind_speed_source": "climate",
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["is_valid"] is True
+        assert body["params"]["climate_city"] == "Москва"
+        assert body["params"]["insulation_layer_count"] == "3"
+        assert len(body["params"]["insulation_layers"]) == 3
+
+        results = body["results"]
+        assert results["heat_loss_per_meter"] > 0
+        assert results["total_heat_loss"] > 0
+        assert results["wall_resistance"] > 0
+        assert results["insulation_resistance"] > 0
+        assert results["external_resistance"] > 0
+        assert results["alpha_vnesh"] == 14.0
+        assert results["wind_speed"] == 4.2
+        assert results["safety_factor"] == 1.2
+        assert results["local_elements_count"] == 3
+        assert results["local_element_equiv_length"] == 1.1
+
+    async def test_underground_tank_returns_air_ground_split(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "tank",
+                "params": {
+                    "name": "Buried tank",
+                    "shape": "cylindrical",
+                    "diameter": 2.0,
+                    "height": 4.0,
+                    "insulation_thickness": 0.08,
+                    "insulation_material": "mineral_wool",
+                    "ambient_temperature": -25,
+                    "process_temperature": 70,
+                    "placement": "underground",
+                    "burial_depth": 1.5,
+                    "ground_type": "dry_sand",
+                    "ground_conductivity": 0.8,
+                    "wind_speed": 4.2,
+                    "alpha_vnesh": 12.0,
+                    "safety_factor": 1.15,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["is_valid"] is True
+        assert body["params"]["placement"] == "underground"
+        assert body["params"]["ground_conductivity"] == 0.8
+
+        results = body["results"]
+        assert results["total_heat_loss"] > 0
+        assert results["air_surface_area"] > 0
+        assert results["ground_surface_area"] > 0
+        assert results["heat_loss_air_per_m2"] > 0
+        assert results["heat_loss_ground_per_m2"] > 0
+        assert results["ground_resistance"] > 0
+        assert results["ground_conductivity"] == 0.8
+        assert results["alpha_vnesh"] == 12.0
+        assert results["safety_factor"] == 1.15

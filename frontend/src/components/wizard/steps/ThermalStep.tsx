@@ -40,24 +40,8 @@ export default function ThermalStep() {
         ]}
       >
         {withHelp(
-          <InputNumber min={1} max={500} step={5} addonAfter="мм" />,
+          <InputNumber data-testid="insulation-thickness-input" min={1} max={500} step={5} addonAfter="мм" />,
           'Толщина слоя тепловой изоляции. Диапазон: 1–500 мм.',
-        )}
-      </Form.Item>
-
-      <Form.Item
-        className="numeric-form-item temperature-number-form-item helped-form-item"
-        label={fieldLabel('T° окр. среды')}
-        name="ambient_temperature"
-        rules={[
-          { required: true, message: 'Укажите температуру окружающей среды' },
-          { type: 'number', min: -70, message: 'Минимальная температура среды: −70°C' },
-          { type: 'number', max: 70, message: 'Максимальная температура среды: +70°C' },
-        ]}
-      >
-        {withHelp(
-          <InputNumber min={-70} max={70} addonAfter="°C" />,
-          'Расчётная температура окружающей среды. Диапазон ТНП: −70°C … +70°C.',
         )}
       </Form.Item>
 
@@ -74,6 +58,7 @@ export default function ThermalStep() {
       >
         {withHelp(
           <InputNumber
+            data-testid="first-insulation-lambda-input"
             disabled={!isOtherMaterial}
             value={isOtherMaterial ? undefined : selectedMaterial?.conductivity}
             min={0.001}
@@ -93,6 +78,7 @@ export default function ThermalStep() {
       >
         {withHelp(
           <Select
+            data-testid="insulation-material-select"
             options={materialOptions}
             placeholder="Выберите материал"
             loading={isFetching}

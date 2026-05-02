@@ -15,6 +15,7 @@
 | [diagrams-domain.md](diagrams-domain.md) | ER-диаграмма, UML-классы, диаграммы состояний (5 шт.) |
 | [diagrams-flows.md](diagrams-flows.md) | Диаграммы последовательностей (5 шт.), диаграммы активности (2 шт.) |
 | [business-rules.md](business-rules.md) | Каталог бизнес-правил по категориям AUTH / CALC / CABLE / SPEC / ADMIN / DATA / UI |
+| [current-status-and-missing-info.md](current-status-and-missing-info.md) | Актуальный срез: что реализовано и какой информации не хватает для полной версии |
 
 ## Контекст проекта
 

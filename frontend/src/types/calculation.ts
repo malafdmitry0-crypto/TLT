@@ -14,8 +14,15 @@ export interface PipeParams {
   pipe_length: number;
   placement?: 'indoor' | 'outdoor' | 'underground';
   burial_depth?: number | null;
-  ground_type?: 'dry_sand' | 'wet_sand' | 'clay' | 'custom' | null;
+  ground_type?: string | null;
   ground_conductivity?: number | null;
+  wind_speed?: number | null;
+  alpha_vnesh?: number | null;
+  climate_city?: string | null;
+  climate_region?: string | null;
+  climate_temperature_basis?: 't_0_92' | 't_0_98' | 't_abs_min' | null;
+  ambient_temperature_source?: 'manual' | 'climate' | null;
+  wind_speed_source?: 'manual' | 'climate' | null;
   valve_count?: number | null;
   flange_count?: number | null;
   support_count?: number | null;
@@ -27,6 +34,17 @@ export interface PipeParams {
 export interface PipeResult {
   heat_loss_per_meter: number;
   total_heat_loss: number;
+  effective_length?: number | null;
+  thermal_resistance?: number | null;
+  wall_resistance?: number | null;
+  insulation_resistance?: number | null;
+  external_resistance?: number | null;
+  alpha_vnesh?: number | null;
+  wind_speed?: number | null;
+  ground_conductivity?: number | null;
+  safety_factor?: number | null;
+  local_elements_count?: number | null;
+  local_element_equiv_length?: number | null;
   surface_temperature?: number | null;
 }
 
@@ -46,8 +64,15 @@ export interface TankParams {
   max_process_temperature?: number | null;
   placement?: 'indoor' | 'outdoor' | 'underground';
   burial_depth?: number | null;
-  ground_type?: 'dry_sand' | 'wet_sand' | 'clay' | 'custom' | null;
+  ground_type?: string | null;
   ground_conductivity?: number | null;
+  wind_speed?: number | null;
+  alpha_vnesh?: number | null;
+  climate_city?: string | null;
+  climate_region?: string | null;
+  climate_temperature_basis?: 't_0_92' | 't_0_98' | 't_abs_min' | null;
+  ambient_temperature_source?: 'manual' | 'climate' | null;
+  wind_speed_source?: 'manual' | 'climate' | null;
   supply_voltage?: number | null;
   safety_factor?: number | null;
   location?: 'indoor' | 'outdoor';
@@ -57,6 +82,18 @@ export interface TankResult {
   heat_loss_per_m2: number;
   total_heat_loss: number;
   surface_area: number;
+  wall_resistance?: number | null;
+  insulation_resistance?: number | null;
+  external_resistance?: number | null;
+  ground_resistance?: number | null;
+  alpha_vnesh?: number | null;
+  wind_speed?: number | null;
+  ground_conductivity?: number | null;
+  safety_factor?: number | null;
+  air_surface_area?: number | null;
+  ground_surface_area?: number | null;
+  heat_loss_air_per_m2?: number | null;
+  heat_loss_ground_per_m2?: number | null;
 }
 
 export interface HeatLossRequest {

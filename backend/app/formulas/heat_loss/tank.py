@@ -91,6 +91,8 @@ def _calc_alpha(params: TankHeatLossParams) -> float:
     Помещение: α = 9.0
     Диапазон: [11.6, 52] Вт/(м²·К)
     """
+    if params.alpha_vnesh is not None:
+        return params.alpha_vnesh
     if params.location == "indoor":
         return 9.0
     v = params.wind_speed or 0.0
@@ -185,12 +187,19 @@ def calc_tank_heat_loss(
 
     r_common = r_wall + r_ins
     buried_height = params.burial_depth or 0.0
+    lambda_gr: float | None = None
+    r_ground: float | None = None
+    s_air: float | None = None
+    s_ground: float | None = None
+    q_air: float | None = None
+    q_ground: float | None = None
     if buried_height > 0:
         lambda_gr = params.ground_conductivity or merged.get("ground_conductivity", 1.5)
         validate_positive("Теплопроводность грунта", lambda_gr)
         s_air, s_ground = _surface_area_split(params, buried_height)
         q_air = delta_t / (r_common + r_ext)
-        q_ground = delta_t / (r_common + buried_height / lambda_gr)
+        r_ground = buried_height / lambda_gr
+        q_ground = delta_t / (r_common + r_ground)
         area = s_air + s_ground
         q_total = (q_air * s_air + q_ground * s_ground) * k
         q_per_m2 = (q_air * s_air + q_ground * s_ground) / area
@@ -209,4 +218,16 @@ def calc_tank_heat_loss(
         heat_loss_per_m2=round(q_per_m2, 3),
         total_heat_loss=round(q_total, 3),
         surface_area=round(area, 3),
+        wall_resistance=round(r_wall, 6),
+        insulation_resistance=round(r_ins, 6),
+        external_resistance=round(r_ext, 6),
+        ground_resistance=round(r_ground, 6) if r_ground is not None else None,
+        alpha_vnesh=round(alpha, 3),
+        wind_speed=params.wind_speed,
+        ground_conductivity=round(lambda_gr, 3) if lambda_gr is not None else None,
+        safety_factor=round(k, 3),
+        air_surface_area=round(s_air, 3) if s_air is not None else None,
+        ground_surface_area=round(s_ground, 3) if s_ground is not None else None,
+        heat_loss_air_per_m2=round(q_air, 3) if q_air is not None else None,
+        heat_loss_ground_per_m2=round(q_ground, 3) if q_ground is not None else None,
     )

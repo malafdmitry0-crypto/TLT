@@ -219,6 +219,8 @@ def calc_pipe_heat_loss(
     burial_depth = params.burial_depth
     is_buried = burial_depth is not None and burial_depth > 0
 
+    alpha: float | None = None
+    lambda_gr: float | None = None
     if is_buried:
         assert burial_depth is not None  # сужение типа для mypy
         lambda_gr = params.ground_conductivity or merged_coeffs.get("ground_conductivity", 1.5)
@@ -256,5 +258,14 @@ def calc_pipe_heat_loss(
         total_heat_loss=round(q_total, 3),
         effective_length=round(l_eff, 3),
         thermal_resistance=round(r_total, 6),
+        wall_resistance=round(r_pipe_wall, 6),
+        insulation_resistance=round(r_ins, 6),
+        external_resistance=round(r_external, 6),
+        alpha_vnesh=round(alpha, 3) if alpha is not None else None,
+        wind_speed=params.wind_speed,
+        ground_conductivity=round(lambda_gr, 3) if lambda_gr is not None else None,
+        safety_factor=round(k, 3),
+        local_elements_count=n_i,
+        local_element_equiv_length=round(l_ekv, 3),
         surface_temperature=None,
     )

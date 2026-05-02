@@ -97,6 +97,7 @@ export interface PipeFormValues {
   wall_thickness_mm?: number;
   pipe_material?: string;
   pipe_lambda?: number;
+  pipe_lambda_mode?: 'reference' | 'manual';
   insulation_thickness_mm: number;
   insulation_material: string;
   insulation_cover_material?: string;
@@ -117,8 +118,16 @@ export interface PipeFormValues {
   temperature_group?: 'T1' | 'T2' | 'T3' | 'T4' | 'T5' | 'T6';
   placement?: 'outdoor' | 'indoor' | 'underground';
   burial_depth?: number;
-  ground_type?: 'dry_sand' | 'wet_sand' | 'clay' | 'custom';
+  ground_type?: string;
   ground_conductivity?: number;
+  wind_speed?: number;
+  alpha_vnesh?: number;
+  climate_city?: string;
+  climate_region?: string;
+  climate_key?: string;
+  climate_temperature_basis?: 't_0_92' | 't_0_98' | 't_abs_min';
+  ambient_temperature_source?: 'manual' | 'climate';
+  wind_speed_source?: 'manual' | 'climate';
   pipe_length: number;
   min_switch_temperature?: number;
   supply_voltage?: number;
@@ -155,8 +164,16 @@ export interface TankFormValues {
   temperature_group?: 'T1' | 'T2' | 'T3' | 'T4' | 'T5' | 'T6';
   placement?: 'outdoor' | 'indoor' | 'underground';
   burial_depth?: number;
-  ground_type?: 'dry_sand' | 'wet_sand' | 'clay' | 'custom';
+  ground_type?: string;
   ground_conductivity?: number;
+  wind_speed?: number;
+  alpha_vnesh?: number;
+  climate_city?: string;
+  climate_region?: string;
+  climate_key?: string;
+  climate_temperature_basis?: 't_0_92' | 't_0_98' | 't_abs_min';
+  ambient_temperature_source?: 'manual' | 'climate';
+  wind_speed_source?: 'manual' | 'climate';
   min_switch_temperature?: number;
   supply_voltage?: number;
   safety_factor?: number;
@@ -214,8 +231,11 @@ export function pipeFormToApiParams(
   };
   applyCommonObjectParams(params, v);
   if (v.wall_thickness_mm != null) params.wall_thickness = v.wall_thickness_mm / 1000;
-  if (v.pipe_material) params.pipe_material = v.pipe_material;
-  if (v.pipe_lambda != null) params.pipe_lambda = v.pipe_lambda;
+  if (v.pipe_lambda_mode === 'manual') {
+    if (v.pipe_lambda != null) params.pipe_lambda = v.pipe_lambda;
+  } else if (v.pipe_material) {
+    params.pipe_material = v.pipe_material;
+  }
   const localCount =
     Number(v.valve_count ?? 0) + Number(v.flange_count ?? 0) + Number(v.support_count ?? 0);
   params.valve_count = Number(v.valve_count ?? 0);
@@ -272,6 +292,17 @@ function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormVal
   if (placement === 'underground' && v.ground_conductivity != null) {
     params.ground_conductivity = v.ground_conductivity;
   }
+  if (v.wind_speed != null) params.wind_speed = v.wind_speed;
+  if (v.alpha_vnesh != null) params.alpha_vnesh = v.alpha_vnesh;
+  if (v.climate_city) params.climate_city = v.climate_city;
+  if (v.climate_region) params.climate_region = v.climate_region;
+  if (v.climate_temperature_basis) {
+    params.climate_temperature_basis = v.climate_temperature_basis;
+  }
+  if (v.ambient_temperature_source) {
+    params.ambient_temperature_source = v.ambient_temperature_source;
+  }
+  if (v.wind_speed_source) params.wind_speed_source = v.wind_speed_source;
   if (v.insulation_cover_material) params.insulation_cover_material = v.insulation_cover_material;
   if (v.max_ambient_temperature != null) params.max_ambient_temperature = v.max_ambient_temperature;
   if (v.max_process_temperature != null) params.max_process_temperature = v.max_process_temperature;
@@ -333,6 +364,7 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     wall_thickness_mm: p.wall_thickness != null ? Number(p.wall_thickness) * 1000 : undefined,
     pipe_material: p.pipe_material as string | undefined,
     pipe_lambda: p.pipe_lambda as number | undefined,
+    pipe_lambda_mode: p.pipe_lambda != null ? 'manual' : 'reference',
     insulation_thickness_mm:
       layers[0]?.thickness != null
         ? Number(layers[0].thickness) * 1000
@@ -364,8 +396,21 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
       (p.placement as PipeFormValues['placement']) ??
       (p.burial_depth != null ? 'underground' : p.location as PipeFormValues['placement']),
     burial_depth: p.burial_depth as number | undefined,
-    ground_type: p.ground_type as PipeFormValues['ground_type'],
+    ground_type: p.ground_type as string | undefined,
     ground_conductivity: p.ground_conductivity as number | undefined,
+    wind_speed: p.wind_speed as number | undefined,
+    alpha_vnesh: p.alpha_vnesh as number | undefined,
+    climate_city: p.climate_city as string | undefined,
+    climate_region: p.climate_region as string | undefined,
+    climate_key:
+      p.climate_region != null && p.climate_city != null
+        ? `${String(p.climate_region)}|||${String(p.climate_city)}`
+        : undefined,
+    climate_temperature_basis:
+      p.climate_temperature_basis as PipeFormValues['climate_temperature_basis'],
+    ambient_temperature_source:
+      p.ambient_temperature_source as PipeFormValues['ambient_temperature_source'],
+    wind_speed_source: p.wind_speed_source as PipeFormValues['wind_speed_source'],
     pipe_length: p.pipe_length as number | undefined,
     min_switch_temperature: p.min_switch_temperature as number | undefined,
     supply_voltage: p.supply_voltage as number | undefined,
@@ -419,8 +464,21 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
       (p.placement as TankFormValues['placement']) ??
       (p.burial_depth != null ? 'underground' : p.location as TankFormValues['placement']),
     burial_depth: p.burial_depth as number | undefined,
-    ground_type: p.ground_type as TankFormValues['ground_type'],
+    ground_type: p.ground_type as string | undefined,
     ground_conductivity: p.ground_conductivity as number | undefined,
+    wind_speed: p.wind_speed as number | undefined,
+    alpha_vnesh: p.alpha_vnesh as number | undefined,
+    climate_city: p.climate_city as string | undefined,
+    climate_region: p.climate_region as string | undefined,
+    climate_key:
+      p.climate_region != null && p.climate_city != null
+        ? `${String(p.climate_region)}|||${String(p.climate_city)}`
+        : undefined,
+    climate_temperature_basis:
+      p.climate_temperature_basis as TankFormValues['climate_temperature_basis'],
+    ambient_temperature_source:
+      p.ambient_temperature_source as TankFormValues['ambient_temperature_source'],
+    wind_speed_source: p.wind_speed_source as TankFormValues['wind_speed_source'],
     min_switch_temperature: p.min_switch_temperature as number | undefined,
     supply_voltage: p.supply_voltage as number | undefined,
     safety_factor: p.safety_factor as number | undefined,

@@ -24,8 +24,10 @@ vi.mock('@/api/calculations', () => ({
 }));
 
 vi.mock('@/api/references', () => ({
+  getClimate: vi.fn().mockResolvedValue([]),
   getInsulation: vi.fn().mockResolvedValue([]),
   getPipeMaterials: vi.fn().mockResolvedValue([]),
+  getSoilConductivity: vi.fn().mockResolvedValue([]),
 }));
 
 // ── Вспомогательные функции ───────────────────────────────────────────────────

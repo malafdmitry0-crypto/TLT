@@ -27,6 +27,15 @@ class PipeHeatLossResultDict(TypedDict):
     total_heat_loss: float  # q_linear × L_eff × K (с safety_factor)
     effective_length: float  # L + n·L_экв
     thermal_resistance: float  # м·К/Вт
+    wall_resistance: NotRequired[float | None]
+    insulation_resistance: NotRequired[float | None]
+    external_resistance: NotRequired[float | None]
+    alpha_vnesh: NotRequired[float | None]
+    wind_speed: NotRequired[float | None]
+    ground_conductivity: NotRequired[float | None]
+    safety_factor: NotRequired[float | None]
+    local_elements_count: NotRequired[int | None]
+    local_element_equiv_length: NotRequired[float | None]
     surface_temperature: NotRequired[float | None]
 
 
@@ -36,6 +45,18 @@ class TankHeatLossResultDict(TypedDict):
     heat_loss_per_m2: float  # q — без учёта safety_factor
     total_heat_loss: float  # q × S × K (с safety_factor)
     surface_area: float  # м²
+    wall_resistance: NotRequired[float | None]
+    insulation_resistance: NotRequired[float | None]
+    external_resistance: NotRequired[float | None]
+    ground_resistance: NotRequired[float | None]
+    alpha_vnesh: NotRequired[float | None]
+    wind_speed: NotRequired[float | None]
+    ground_conductivity: NotRequired[float | None]
+    safety_factor: NotRequired[float | None]
+    air_surface_area: NotRequired[float | None]
+    ground_surface_area: NotRequired[float | None]
+    heat_loss_air_per_m2: NotRequired[float | None]
+    heat_loss_ground_per_m2: NotRequired[float | None]
 
 
 # Алиас: результат любого теплорасчёта
@@ -93,7 +114,12 @@ class PipeParamsDict(TypedDict, total=False):
     pipe_length: float
     placement: Literal["indoor", "outdoor", "underground"]
     burial_depth: float | None
-    ground_type: Literal["dry_sand", "wet_sand", "clay", "custom"] | None
+    ground_type: str | None
+    climate_city: str | None
+    climate_region: str | None
+    climate_temperature_basis: Literal["t_0_92", "t_0_98", "t_abs_min"] | None
+    ambient_temperature_source: Literal["manual", "climate"] | None
+    wind_speed_source: Literal["manual", "climate"] | None
     num_local_elements: int | None
     local_element_equiv_length: float | None
     valve_count: int | None
@@ -132,11 +158,17 @@ class TankParamsDict(TypedDict, total=False):
     max_process_temperature: float | None
     placement: Literal["indoor", "outdoor", "underground"]
     burial_depth: float | None
-    ground_type: Literal["dry_sand", "wet_sand", "clay", "custom"] | None
+    ground_type: str | None
+    climate_city: str | None
+    climate_region: str | None
+    climate_temperature_basis: Literal["t_0_92", "t_0_98", "t_abs_min"] | None
+    ambient_temperature_source: Literal["manual", "climate"] | None
+    wind_speed_source: Literal["manual", "climate"] | None
     location: Literal["indoor", "outdoor"]
     wall_thickness: float | None
     wall_lambda: float | None
     wind_speed: float | None
+    alpha_vnesh: float | None
     safety_factor: float | None
     environment: Literal["normal", "aggressive"] | None
     zone_classification: Literal["safe", "explosive"] | None
