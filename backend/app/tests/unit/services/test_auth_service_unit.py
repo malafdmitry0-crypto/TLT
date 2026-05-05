@@ -117,6 +117,18 @@ class TestLogin:
         assert tokens.refresh_token
         assert tokens.access_token != tokens.refresh_token
 
+    async def test_expected_role_mismatch_raises_generic_auth_error(self):
+        user = SimpleNamespace(
+            id=uuid.uuid4(),
+            email="admin@b.c",
+            hashed_password=hash_password("pw"),
+            is_active=True,
+            role="admin",
+        )
+        db = _mock_db(scalar_value=user)
+        with pytest.raises(AuthError, match="Неверный"):
+            await AuthService(db).login("admin@b.c", "pw", expected_role="employee")
+
 
 class TestRefresh:
     async def test_invalid_token_raises(self):

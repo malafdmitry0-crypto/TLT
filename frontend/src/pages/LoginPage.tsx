@@ -1,7 +1,6 @@
 import { Button, Card, Form, Input, Typography, message } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useAuthStore } from '@/store/authStore';
 
 const { Title } = Typography;
 
@@ -12,15 +11,17 @@ interface LoginForm {
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { loginAsEmployee } = useAuth();
+  const [searchParams] = useSearchParams();
+  const loginRole = searchParams.get('role') === 'admin' ? 'admin' : 'employee';
+  const { loginAsEmployee, loginAsAdmin } = useAuth();
 
   const onFinish = async (values: LoginForm) => {
     try {
-      await loginAsEmployee(values.email, values.password);
-      const currentRole = useAuthStore.getState().role;
-      if (currentRole === 'admin') {
+      if (loginRole === 'admin') {
+        await loginAsAdmin(values.email, values.password);
         navigate('/admin/users');
       } else {
+        await loginAsEmployee(values.email, values.password);
         navigate('/workspace/heat-calc');
       }
     } catch {
@@ -40,7 +41,7 @@ export default function LoginPage() {
     >
       <Card style={{ width: 420 }}>
         <Title level={3} style={{ textAlign: 'center', color: '#1a5276' }}>
-          Вход сотрудника
+          {loginRole === 'admin' ? 'Вход администратора' : 'Вход сотрудника'}
         </Title>
         <Form layout="vertical" onFinish={onFinish}>
           <Form.Item
@@ -71,10 +72,10 @@ export default function LoginPage() {
           type="link"
           size="small"
           block
-          onClick={() => navigate('/help/employee')}
+          onClick={() => navigate(loginRole === 'admin' ? '/help/admin' : '/help/employee')}
           style={{ color: '#888' }}
         >
-          Инструкция для сотрудника
+          {loginRole === 'admin' ? 'Инструкция для администратора' : 'Инструкция для сотрудника'}
         </Button>
       </Card>
     </div>

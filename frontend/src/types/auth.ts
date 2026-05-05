@@ -4,6 +4,7 @@ import type { Project } from '@/types/project';
 export interface LoginRequest {
   email: string;
   password: string;
+  role?: Extract<Role, 'employee' | 'admin'>;
 }
 
 export interface TokenPair {

@@ -2,12 +2,14 @@
 
 from pydantic import BaseModel, EmailStr, Field
 
+from app.models.user import UserRole
 from app.schemas.project import ProjectResponse
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
+    role: UserRole | None = None
 
 
 class TokenPair(BaseModel):

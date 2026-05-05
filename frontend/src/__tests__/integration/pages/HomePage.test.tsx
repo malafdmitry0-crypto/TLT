@@ -33,6 +33,21 @@ describe('HomePage', () => {
     );
     expect(screen.getAllByText(/без регистрации/i)[0]).toBeInTheDocument();
     expect(screen.getAllByText(/как сотрудник/i)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/как администратор/i)[0]).toBeInTheDocument();
+  });
+
+  it('разводит вход сотрудника и администратора по разным режимам логина', async () => {
+    render(
+      <MemoryRouter>
+        <HomePage />
+      </MemoryRouter>
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /Войти с паролем/i }));
+    expect(navigateMock).toHaveBeenLastCalledWith('/login?role=employee');
+
+    await userEvent.click(screen.getByRole('button', { name: /Войти в админку/i }));
+    expect(navigateMock).toHaveBeenLastCalledWith('/login?role=admin');
   });
 
   it('гостевой вход авто-загружает единственный проект в store', async () => {

@@ -41,7 +41,7 @@ export async function ensureTestEmployee(apiBase: string): Promise<void> {
 }
 
 export async function loginAsTestEmployee(page: Page): Promise<void> {
-  await page.goto('/login');
+  await page.goto('/login?role=employee');
   await page.getByLabel('Email').fill(TEST_EMPLOYEE_EMAIL);
   await page.getByLabel('Пароль').fill(TEST_EMPLOYEE_PASSWORD);
   await page.getByRole('button', { name: 'Войти' }).click();

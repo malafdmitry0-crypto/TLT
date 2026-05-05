@@ -2,6 +2,9 @@ import { useCallback } from 'react';
 import { createGuestSession, login as loginApi, getMe } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
+import type { Role } from '@/constants/roles';
+
+type LoginRole = Extract<Role, 'employee' | 'admin'>;
 
 export function useAuth() {
   const store = useAuthStore();
@@ -18,12 +21,16 @@ export function useAuth() {
     setCurrentProject(project);
   }, [store, setCurrentProject]);
 
-  const loginAsEmployee = useCallback(
-    async (email: string, password: string) => {
+  const loginAsRole = useCallback(
+    async (email: string, password: string, role: LoginRole) => {
       setCurrentProject(null);
-      const tokens = await loginApi({ email, password });
+      const tokens = await loginApi({ email, password, role });
       localStorage.setItem('access_token', tokens.access_token);
       const user = await getMe();
+      if (user.role !== role) {
+        store.logout();
+        throw new Error('Пользователь не соответствует выбранной роли');
+      }
       store.setEmployee(user, {
         access: tokens.access_token,
         refresh: tokens.refresh_token,
@@ -32,9 +39,20 @@ export function useAuth() {
     [store, setCurrentProject]
   );
 
+  const loginAsEmployee = useCallback(
+    async (email: string, password: string) => loginAsRole(email, password, 'employee'),
+    [loginAsRole]
+  );
+
+  const loginAsAdmin = useCallback(
+    async (email: string, password: string) => loginAsRole(email, password, 'admin'),
+    [loginAsRole]
+  );
+
   return {
     ...store,
     loginAsGuest,
     loginAsEmployee,
+    loginAsAdmin,
   };
 }

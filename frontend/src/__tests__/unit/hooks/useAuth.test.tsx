@@ -73,6 +73,61 @@ describe('useAuth', () => {
     expect(localStorage.getItem('access_token')).toBe('A');
   });
 
+  it('loginAsEmployee запрашивает только роль employee', async () => {
+    const { login, getMe } = await import('@/api/auth');
+    (login as ReturnType<typeof vi.fn>).mockResolvedValue({
+      access_token: 'A',
+      refresh_token: 'R',
+      token_type: 'bearer',
+    });
+    (getMe as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'u1',
+      email: 'e@t.ru',
+      full_name: null,
+      role: 'employee',
+      is_active: true,
+    });
+
+    const { result } = renderHook(() => useAuth());
+    await act(async () => {
+      await result.current.loginAsEmployee('e@t.ru', 'pass');
+    });
+
+    expect(login).toHaveBeenCalledWith({
+      email: 'e@t.ru',
+      password: 'pass',
+      role: 'employee',
+    });
+  });
+
+  it('loginAsAdmin запрашивает только роль admin', async () => {
+    const { login, getMe } = await import('@/api/auth');
+    (login as ReturnType<typeof vi.fn>).mockResolvedValue({
+      access_token: 'A',
+      refresh_token: 'R',
+      token_type: 'bearer',
+    });
+    (getMe as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'u2',
+      email: 'admin@t.ru',
+      full_name: null,
+      role: 'admin',
+      is_active: true,
+    });
+
+    const { result } = renderHook(() => useAuth());
+    await act(async () => {
+      await result.current.loginAsAdmin('admin@t.ru', 'pass');
+    });
+
+    expect(useAuthStore.getState().role).toBe('admin');
+    expect(login).toHaveBeenCalledWith({
+      email: 'admin@t.ru',
+      password: 'pass',
+      role: 'admin',
+    });
+  });
+
   it('loginAsGuest сбрасывает старый currentProject перед запросом', async () => {
     const { createGuestSession } = await import('@/api/auth');
     (createGuestSession as ReturnType<typeof vi.fn>).mockResolvedValue({

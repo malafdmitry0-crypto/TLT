@@ -16,7 +16,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models.guest_session import GuestSession
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.auth import TokenPair
 
 logger = logging.getLogger("heatcalc.auth")
@@ -68,13 +68,24 @@ class AuthService:
             session.last_activity = datetime.now(UTC)
             await self.db.commit()
 
-    async def login(self, email: str, password: str) -> TokenPair:
+    async def login(
+        self,
+        email: str,
+        password: str,
+        expected_role: UserRole | str | None = None,
+    ) -> TokenPair:
         result = await self.db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
         if user is None or not verify_password(password, user.hashed_password):
             raise AuthError("Неверный email или пароль")
         if not user.is_active:
             raise AuthError("Пользователь деактивирован")
+        user_role = user.role.value if isinstance(user.role, UserRole) else user.role
+        expected_role_value = (
+            expected_role.value if isinstance(expected_role, UserRole) else expected_role
+        )
+        if expected_role_value is not None and user_role != expected_role_value:
+            raise AuthError("Неверный email или пароль")
 
         return TokenPair(
             access_token=create_access_token(str(user.id), role=user.role),

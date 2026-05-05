@@ -130,6 +130,19 @@ class TestEmployeeAuth:
         )
         assert resp.status_code == 401
 
+    async def test_employee_login_rejects_admin_credentials(
+        self, client: AsyncClient, admin_user
+    ):
+        resp = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "admin@test.com",
+                "password": "admin123",
+                "role": "employee",
+            },
+        )
+        assert resp.status_code == 401
+
     async def test_access_admin_as_employee_forbidden(self, client: AsyncClient, employee_token):
         resp = await client.get(
             "/api/v1/admin/users",
@@ -146,3 +159,16 @@ class TestAdminAuth:
         )
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
+
+    async def test_admin_login_rejects_employee_credentials(
+        self, client: AsyncClient, employee_user
+    ):
+        resp = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "employee@test.com",
+                "password": "emp12345",
+                "role": "admin",
+            },
+        )
+        assert resp.status_code == 401

@@ -75,7 +75,7 @@ async def login(
     """Авторизация сотрудника/администратора."""
     service = AuthService(db)
     try:
-        return await service.login(data.email, data.password)
+        return await service.login(data.email, data.password, expected_role=data.role)
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 
