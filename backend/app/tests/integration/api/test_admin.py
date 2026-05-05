@@ -276,6 +276,131 @@ class TestAdminAccessories:
         assert resp.status_code == 404
 
 
+# ─── Formula check ─────────────────────────────────────────────────────────
+
+
+class TestFormulaCheck:
+    async def test_pipe_formula_check_success(self, client: AsyncClient, admin_token: str):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={
+                "formula_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.108,
+                    "insulation_layers": [
+                        {"material": "mineral_wool", "thickness": 0.05}
+                    ],
+                    "ambient_temperature": -26.0,
+                    "process_temperature": 80.0,
+                    "pipe_length": 50.0,
+                    "wind_speed": 4.9,
+                },
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "heat_loss_per_meter" in data
+        assert "total_heat_loss" in data
+        assert data["heat_loss_per_meter"] > 0
+        assert data["total_heat_loss"] > 0
+
+    async def test_tank_formula_check_success(self, client: AsyncClient, admin_token: str):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={
+                "formula_type": "tank",
+                "params": {
+                    "shape": "cylindrical",
+                    "diameter": 1.0,
+                    "height": 2.0,
+                    "insulation_thickness": 0.08,
+                    "insulation_material": "mineral_wool",
+                    "ambient_temperature": -26.0,
+                    "process_temperature": 60.0,
+                    "wind_speed": 4.9,
+                },
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "total_heat_loss" in data
+        assert data["total_heat_loss"] > 0
+
+    async def test_electrical_formula_check_success(self, client: AsyncClient, admin_token: str):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={
+                "formula_type": "electrical",
+                "params": {
+                    "required_power_per_meter": 42.0,
+                    "pipe_length": 50.0,
+                    "ambient_temperature": -26.0,
+                },
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "selected_cable" in data or "error" in data
+
+    async def test_pipe_invalid_temperatures_returns_422(
+        self, client: AsyncClient, admin_token: str
+    ):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={
+                "formula_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.108,
+                    "insulation_layers": [{"material": "mineral_wool", "thickness": 0.05}],
+                    "ambient_temperature": 80.0,
+                    "process_temperature": 20.0,
+                    "pipe_length": 50.0,
+                },
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 422
+        assert "detail" in resp.json()
+
+    async def test_unknown_formula_type_rejected(self, client: AsyncClient, admin_token: str):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={"formula_type": "unknown", "params": {}},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 422
+
+    async def test_employee_cannot_use_formula_check(
+        self, client: AsyncClient, employee_token: str
+    ):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={"formula_type": "pipe", "params": {}},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+        assert resp.status_code == 403
+
+    async def test_guest_cannot_use_formula_check(
+        self, client: AsyncClient, guest_session: str
+    ):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={"formula_type": "pipe", "params": {}},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 403
+
+    async def test_unauthenticated_cannot_use_formula_check(self, client: AsyncClient):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={"formula_type": "pipe", "params": {}},
+        )
+        assert resp.status_code == 401
+
+
 # ─── Access control ────────────────────────────────────────────────────────
 
 
