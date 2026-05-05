@@ -11,6 +11,8 @@ import AdminLayout from '@/pages/admin/AdminLayout';
 import UsersPage from '@/pages/admin/UsersPage';
 import CoefficientsPage from '@/pages/admin/CoefficientsPage';
 import DatabasePage from '@/pages/admin/DatabasePage';
+import ReferencesPage from '@/pages/admin/ReferencesPage';
+import FormulasPage from '@/pages/admin/FormulasPage';
 import GuestHelpPage from '@/pages/help/GuestHelpPage';
 import EmployeeHelpPage from '@/pages/help/EmployeeHelpPage';
 import AdminHelpPage from '@/pages/help/AdminHelpPage';
@@ -73,6 +75,8 @@ export default function AppRoutes() {
         <Route path="users" element={<UsersPage />} />
         <Route path="coefficients" element={<CoefficientsPage />} />
         <Route path="database" element={<DatabasePage />} />
+        <Route path="references" element={<ReferencesPage />} />
+        <Route path="formulas" element={<FormulasPage />} />
       </Route>
     </Routes>
   );

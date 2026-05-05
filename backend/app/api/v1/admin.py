@@ -1,12 +1,19 @@
 """Endpoints администрирования."""
 
+from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_admin
+from app.formulas.electrical.self_regulating import calc_self_regulating
+from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
+from app.formulas.heat_loss.tank import calc_tank_heat_loss
+from app.schemas.calculation import PipeHeatLossParams, SelfRegulatingParams, TankHeatLossParams
 from app.schemas.coefficient import CoefficientResponse, CoefficientUpdate
 from app.schemas.reference import (
     AccessoryExtendedCreate,
@@ -18,6 +25,11 @@ from app.schemas.reference import (
 )
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.services.admin_service import AdminError, AdminService
+
+
+class FormulaCheckRequest(BaseModel):
+    formula_type: Literal["pipe", "tank", "electrical"]
+    params: dict[str, Any]
 
 router = APIRouter()
 
@@ -230,3 +242,32 @@ async def delete_accessory(
         await AdminService(db).delete_accessory(acc_id)
     except AdminError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+# ---- Formula check ----
+
+
+@router.post("/formula-check", summary="Пробный расчёт по формуле (проверка)")
+async def formula_check(
+    data: FormulaCheckRequest,
+    _: CurrentPrincipal = Depends(require_admin()),
+) -> dict[str, Any]:
+    """Выполняет расчёт по выбранной формуле с переданными параметрами.
+    Возвращает результат в виде словаря. При невалидных параметрах — 422.
+    """
+    try:
+        if data.formula_type == "pipe":
+            params = PipeHeatLossParams(**data.params)
+            return calc_pipe_heat_loss(params).model_dump()
+        if data.formula_type == "tank":
+            params = TankHeatLossParams(**data.params)
+            return calc_tank_heat_loss(params).model_dump()
+        # electrical
+        params = SelfRegulatingParams(**data.params)
+        return calc_self_regulating(params).model_dump()
+    except PydanticValidationError as exc:
+        # exc.errors() содержит ctx["error"] = ValueError — не сериализуется напрямую
+        msgs = "; ".join(e.get("msg", "") for e in exc.errors())
+        raise HTTPException(status_code=422, detail=msgs) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

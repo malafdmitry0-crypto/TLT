@@ -12,4 +12,6 @@ export const ROUTES = {
   adminUsers: '/admin/users',
   adminCoefficients: '/admin/coefficients',
   adminDatabase: '/admin/database',
+  adminReferences: '/admin/references',
+  adminFormulas: '/admin/formulas',
 } as const;

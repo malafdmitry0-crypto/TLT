@@ -36,3 +36,14 @@ export async function updateCoefficient(
   });
   return data;
 }
+
+export async function checkFormula(
+  formulaType: 'pipe' | 'tank' | 'electrical',
+  params: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const { data } = await apiClient.post<Record<string, unknown>>('/admin/formula-check', {
+    formula_type: formulaType,
+    params,
+  });
+  return data;
+}

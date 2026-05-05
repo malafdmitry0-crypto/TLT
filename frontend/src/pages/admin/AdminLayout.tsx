@@ -33,6 +33,8 @@ export default function AdminLayout() {
               { key: '/admin/users', label: 'Пользователи' },
               { key: '/admin/coefficients', label: 'Коэффициенты' },
               { key: '/admin/database', label: 'База данных' },
+              { key: '/admin/references', label: 'Справочники' },
+              { key: '/admin/formulas', label: 'Формулы' },
               { type: 'divider' as const },
               { key: '/help/admin', label: 'Инструкция', icon: <QuestionCircleOutlined /> },
             ]}
