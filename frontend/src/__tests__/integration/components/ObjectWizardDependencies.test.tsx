@@ -165,6 +165,44 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.getByTestId('alpha-vnesh-input')).toBeVisible();
   });
 
+  it('Q_доп: показывается только для резервуара и сохраняется в payload', async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    renderWizard({
+      objectType: 'tank',
+      onSubmit,
+      initialParams: {
+        name: 'Бак',
+        shape: 'cylindrical',
+        diameter: 2,
+        height: 3,
+        insulation_thickness: 0.08,
+        insulation_material: 'mineral_wool',
+        ambient_temperature: -20,
+        process_temperature: 70,
+        placement: 'outdoor',
+        q_additional: 250,
+      },
+    });
+
+    const input = await screen.findByTestId('q-additional-input');
+    expect(input).toBeVisible();
+
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.q_additional).toBe(250);
+  });
+
+  it('Q_доп: для трубы поле не отображается', async () => {
+    renderWizard({
+      objectType: 'pipe',
+      initialParams: basePipeParams,
+    });
+    await screen.findByTestId('safety-factor-input');
+    expect(screen.queryByTestId('q-additional-input')).not.toBeInTheDocument();
+  });
+
   it('отправляет ручную λ трубы и три слоя изоляции', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();

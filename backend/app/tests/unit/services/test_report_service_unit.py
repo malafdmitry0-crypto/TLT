@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.reports.pdf_generator import render_html
 from app.services.report_service import ReportError, ReportService
 
 
@@ -131,6 +132,44 @@ class TestExport:
         )
         with pytest.raises(ReportError, match="Неизвестный формат"):
             await ReportService(db).export(pid, "txt")
+
+
+class TestReportRendering:
+    def test_electrical_table_uses_tt_power_per_meter(self):
+        html = render_html(
+            {
+                "project": {
+                    "id": "p1",
+                    "name": "P",
+                    "description": "",
+                    "status": "draft",
+                },
+                "objects": [
+                    {
+                        "id": "o1",
+                        "object_type": "pipe",
+                        "params": {"name": "Т1"},
+                        "results": {},
+                        "is_valid": True,
+                        "electrical": {
+                            "cable_mark": "30ТТВ2-СТ",
+                            "results": {
+                                "selected_cable": "30ТТВ2",
+                                "cable_length": 55.0,
+                                "power_per_meter": 24.95,
+                                "total_power": 1372.25,
+                                "current": 6.24,
+                                "voltage": 220,
+                            },
+                        },
+                    }
+                ],
+                "specification": {"items": []},
+                "sections": ["electrical"],
+            }
+        )
+        assert "30ТТВ2-СТ" in html
+        assert "24.9" in html
 
 
 def _r(scalar_one_or_none=None, first=None, all_=None):

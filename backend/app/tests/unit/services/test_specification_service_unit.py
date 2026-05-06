@@ -142,6 +142,33 @@ class TestGenerate:
                 int(per_object)
             ), f"{acc.name}: {acc.quantity} не кратно 5 (объектов в проекте)"
 
+    async def test_generate_preserves_tt_order_mark_suffix(self):
+        from app.models.electrical_calculation import ElectricalCalculation
+
+        calc = ElectricalCalculation(
+            project_id=uuid.uuid4(),
+            object_id=uuid.uuid4(),
+            variant_number=1,
+            cable_type="self_regulating_tt",
+            cable_mark="30ТТВ2-СТ",
+            params={},
+            results={"selected_cable": "30ТТВ2", "cable_length": 10},
+        )
+        db = AsyncMock()
+        no_spec = MagicMock()
+        no_spec.scalars = lambda: MagicMock(first=lambda: None, all=lambda: [])
+        calc_result = MagicMock()
+        calc_result.scalars = lambda: MagicMock(first=lambda: calc, all=lambda: [calc])
+        db.execute = AsyncMock(side_effect=[no_spec, calc_result])
+        db.scalar = AsyncMock(return_value=1)
+        db.commit = AsyncMock()
+        db.add = MagicMock()
+
+        items = await SpecificationService(db).generate(uuid.uuid4())
+        cables = [i for i in items if i.category == "Кабель"]
+        assert len(cables) == 1
+        assert cables[0].article == "30ТТВ2-СТ"
+
 
 class TestSaveItems:
     async def test_creates_new_when_no_existing(self):

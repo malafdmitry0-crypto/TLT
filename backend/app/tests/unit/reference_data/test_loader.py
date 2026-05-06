@@ -12,6 +12,7 @@ from app.reference_data.loader import (
     get_insulation_conductivity,
     get_pipe_material_lambda,
     get_tlt_cable_by_mark,
+    get_tt_cable_by_model,
     list_basic_accessories,
     list_climate_cities,
     list_insulation_materials,
@@ -19,6 +20,7 @@ from app.reference_data.loader import (
     list_resistive_cables,
     list_soil_conductivity,
     list_tlt_cables,
+    list_tt_cables,
     preload_all,
 )
 
@@ -160,3 +162,34 @@ class TestCacheControl:
         assert len(list_pipe_materials()) > 0
         assert len(list_soil_conductivity()) > 0
         assert len(list_resistive_cables()["single_core"]) > 0
+        assert len(list_tt_cables()) > 0
+
+
+class TestTTCables:
+    def test_list_tt_cables_has_14_entries(self):
+        cables = list_tt_cables()
+        assert len(cables) == 14
+
+    def test_all_three_series_present(self):
+        cables = list_tt_cables()
+        series = {c["series"] for c in cables}
+        assert series == {"ТТН", "ТТВ", "ТТХ"}
+
+    def test_each_cable_has_required_fields(self):
+        for c in list_tt_cables():
+            assert "model" in c
+            assert "series" in c
+            assert "q1" in c
+            assert "q2" in c
+            assert "max_product_temp" in c
+            assert "max_vapor_temp" in c
+
+    def test_get_tt_cable_by_model_found(self):
+        cable = get_tt_cable_by_model("30ТТВ2")
+        assert cable is not None
+        assert cable["series"] == "ТТВ"
+        assert cable["q1"] == -0.141
+        assert cable["q2"] == 32.0
+
+    def test_get_tt_cable_by_model_not_found(self):
+        assert get_tt_cable_by_model("99ТТХ9") is None

@@ -85,3 +85,18 @@ class TestSpecBuilder:
         cables = [i for i in items if i.category == "Кабель"]
         assert len(cables) == 1
         assert cables[0].quantity == 10.0
+
+    def test_tt_cable_uses_full_order_mark_with_suffix(self):
+        """Для агрессивной среды в спецификацию должна попасть марка -СТ, не база."""
+        results = [
+            {
+                "selected_cable": "30ТТВ2",
+                "cable_mark": "30ТТВ2-СТ",
+                "cable_length": 42.5,
+            }
+        ]
+        items = build_basic_specification(results, total_objects_count=1)
+        cables = [i for i in items if i.category == "Кабель"]
+        assert len(cables) == 1
+        assert cables[0].article == "30ТТВ2-СТ"
+        assert cables[0].name == "Греющий кабель 30ТТВ2-СТ"

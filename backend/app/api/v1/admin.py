@@ -10,10 +10,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_admin
-from app.formulas.electrical.self_regulating import calc_self_regulating
+from app.formulas.electrical.cable_geometry import compute_tank_cable_length
+from app.formulas.electrical.resistive import calc_resistive_single_core, calc_resistive_three_core
+from app.formulas.electrical.self_regulating import calc_self_regulating, calc_self_regulating_tt
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
-from app.schemas.calculation import PipeHeatLossParams, SelfRegulatingParams, TankHeatLossParams
+from app.schemas.calculation import (
+    PipeHeatLossParams,
+    ResistiveSingleCoreParams,
+    ResistiveThreeCoreParams,
+    SelfRegulatingParams,
+    SelfRegulatingTTParams,
+    TankHeatLossParams,
+)
 from app.schemas.coefficient import CoefficientResponse, CoefficientUpdate
 from app.schemas.reference import (
     AccessoryExtendedCreate,
@@ -28,8 +37,26 @@ from app.services.admin_service import AdminError, AdminService
 
 
 class FormulaCheckRequest(BaseModel):
-    formula_type: Literal["pipe", "tank", "electrical"]
+    formula_type: Literal[
+        "pipe",
+        "tank",
+        "electrical",
+        "electrical_tt",
+        "resistive_single",
+        "resistive_three",
+        "tank_cable_geometry",
+    ]
     params: dict[str, Any]
+
+
+class TankCableGeometryCheckParams(BaseModel):
+    shape: Literal["cylindrical", "rectangular"]
+    diameter: float | None = None
+    length: float | None = None
+    width: float | None = None
+    heating_height: float
+    laying_step: float
+
 
 router = APIRouter()
 
@@ -262,9 +289,23 @@ async def formula_check(
         if data.formula_type == "tank":
             params = TankHeatLossParams(**data.params)
             return calc_tank_heat_loss(params).model_dump()
-        # electrical
-        params = SelfRegulatingParams(**data.params)
-        return calc_self_regulating(params).model_dump()
+        if data.formula_type == "electrical":
+            params = SelfRegulatingParams(**data.params)
+            return calc_self_regulating(params).model_dump()
+        if data.formula_type == "electrical_tt":
+            params = SelfRegulatingTTParams(**data.params)
+            return calc_self_regulating_tt(params).model_dump()
+        if data.formula_type == "resistive_single":
+            params = ResistiveSingleCoreParams(**data.params)
+            return calc_resistive_single_core(params).model_dump()
+        if data.formula_type == "resistive_three":
+            params = ResistiveThreeCoreParams(**data.params)
+            return calc_resistive_three_core(params).model_dump()
+        if data.formula_type == "tank_cable_geometry":
+            params = TankCableGeometryCheckParams(**data.params)
+            cable_length = compute_tank_cable_length(**params.model_dump())
+            return {"cable_length": round(cable_length, 3)}
+        raise HTTPException(status_code=422, detail="Неподдерживаемый тип формулы")
     except PydanticValidationError as exc:
         # exc.errors() содержит ctx["error"] = ValueError — не сериализуется напрямую
         msgs = "; ".join(e.get("msg", "") for e in exc.errors())

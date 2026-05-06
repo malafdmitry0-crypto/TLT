@@ -187,12 +187,16 @@
     <tbody>
       {% for o in elec_objs %}
       {% set r = o.electrical.results %}
+      {% set p_meter = r.get('power_per_meter') or r.get('power_at_operating_temp') or r.get('required_power_per_meter') %}
+      {% if not p_meter and r.get('total_power') and r.get('cable_length') %}
+        {% set p_meter = r.get('total_power') / r.get('cable_length') %}
+      {% endif %}
       <tr>
         <td>{{ loop.index }}</td>
         <td>{{ o.params.get('name') or TYPES.get(o.object_type, o.object_type) }}</td>
         <td><strong>{{ o.electrical.cable_mark or r.get('selected_cable') or '—' }}</strong></td>
         <td class="num">{{ fmt(r.get('cable_length'), 1) }}</td>
-        <td class="num">{{ fmt(r.get('power_at_operating_temp') or r.get('required_power_per_meter'), 1) }}</td>
+        <td class="num">{{ fmt(p_meter, 1) }}</td>
         <td class="num">{{ kwt(r.get('total_power')) }}</td>
         <td class="num">{{ fmt(r.get('current'), 2) }}</td>
         <td class="num">{{ r.get('voltage', 220) }}</td>

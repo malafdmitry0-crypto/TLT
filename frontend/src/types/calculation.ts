@@ -109,7 +109,13 @@ export interface HeatLossResponse {
 
 export interface ElectricalRequest {
   object_id: string;
-  cable_type: 'self_regulating' | 'single_core' | 'three_core' | 'mineral' | 'skin';
+  cable_type:
+    | 'self_regulating'
+    | 'self_regulating_tt'
+    | 'single_core'
+    | 'three_core'
+    | 'mineral'
+    | 'skin';
   variant_number?: number;
   data: Record<string, unknown>;
 }

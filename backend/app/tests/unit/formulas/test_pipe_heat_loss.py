@@ -11,6 +11,8 @@
 - Валидация входных данных
 """
 
+import math
+
 import pytest
 
 from app.formulas.heat_loss.pipe import (
@@ -313,17 +315,17 @@ class TestAlphaVnesh:
         assert alpha == pytest.approx(9.0)
 
     def test_zero_wind_outdoor(self):
-        # α = 11,6 + 7·v, при v=0 → 11,6  (формула ТНП)
+        # α = 11,6 + 7·√v, при v=0 → 11,6  (SNiP 41-03-2003)
         alpha = calc_alpha_vnesh(wind_speed=0, location="outdoor")
         assert alpha == pytest.approx(11.6)
 
     def test_low_wind_linear(self):
         alpha = calc_alpha_vnesh(wind_speed=3.0, location="outdoor")
-        assert alpha == pytest.approx(11.6 + 7.0 * 3.0, rel=1e-3)
+        assert alpha == pytest.approx(11.6 + 7.0 * math.sqrt(3.0), rel=1e-3)
 
     def test_high_wind_capped(self):
-        # При сильном ветре α ограничен 52 Вт/(м²·К)
-        alpha = calc_alpha_vnesh(wind_speed=20.0, location="outdoor")
+        # При v≥33.3 м/с α ограничен 52 Вт/(м²·К): 11.6+7*√34 ≈ 52.4 → cap
+        alpha = calc_alpha_vnesh(wind_speed=34.0, location="outdoor")
         assert alpha == pytest.approx(52.0)
 
     def test_alpha_in_range(self):
@@ -340,7 +342,7 @@ class TestAlphaVnesh:
         params = _params(wind_speed=20.0, alpha_vnesh=15.0)
         r = calc_pipe_heat_loss(params)
         # При alpha=15 потери меньше чем при alpha от v=20 (~48 Вт/м²К)
-        params_high_alpha = _params(wind_speed=20.0)
+        params_high_alpha = _params(wind_speed=20.0)  # α ≈ 42.9 Вт/(м²·К)
         r_high = calc_pipe_heat_loss(params_high_alpha)
         assert r.heat_loss_per_meter < r_high.heat_loss_per_meter
 

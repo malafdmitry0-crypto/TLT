@@ -33,7 +33,7 @@ def build_basic_specification(
     # Суммируем длины кабелей по маркам (только успешные расчёты)
     cable_totals: dict[str, float] = defaultdict(float)
     for r in electrical_results:
-        cable = r.get("selected_cable")
+        cable = r.get("cable_mark") or r.get("selected_cable")
         length = r.get("cable_length", 0)
         if cable and length:
             cable_totals[str(cable)] += float(length)

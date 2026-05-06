@@ -238,12 +238,14 @@ class TestGoldenFromFormulesMd:
         assert r.total_heat_loss == pytest.approx(r.heat_loss_per_meter * 50 * 1.1, rel=1e-3)
 
     def test_alpha_formula_vnesh_exact(self):
-        """α_внеш = 11.6 + 7·v (ТНП)."""
+        """α_внеш = 11.6 + 7·√v  (SNiP 41-03-2003)."""
+        import math
+
         assert calc_alpha_vnesh(None, "outdoor") == pytest.approx(11.6)
         assert calc_alpha_vnesh(0, "outdoor") == pytest.approx(11.6)
-        assert calc_alpha_vnesh(3, "outdoor") == pytest.approx(32.6)
-        assert calc_alpha_vnesh(5, "outdoor") == pytest.approx(46.6)
-        # Верхний cap — 52 Вт/(м²·К)
+        assert calc_alpha_vnesh(3, "outdoor") == pytest.approx(11.6 + 7 * math.sqrt(3), rel=1e-4)
+        assert calc_alpha_vnesh(5, "outdoor") == pytest.approx(11.6 + 7 * math.sqrt(5), rel=1e-4)
+        # Верхний cap — 52 Вт/(м²·К) достигается при v≥33.3 м/с
         assert calc_alpha_vnesh(100, "outdoor") == pytest.approx(52.0)
 
     def test_alpha_indoor_is_9(self):

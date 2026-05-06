@@ -26,6 +26,20 @@ class TestSpecBuilder:
         assert cables[0].quantity == 55.0
         assert cables[0].unit == "м"
 
+    def test_order_mark_has_priority_over_base_selected_cable(self):
+        items = build_basic_specification(
+            [
+                {
+                    "selected_cable": "30ТТВ2",
+                    "cable_mark": "30ТТВ2-СТ",
+                    "cable_length": 55.0,
+                },
+            ]
+        )
+        cables = [i for i in items if i.category == "Кабель"]
+        assert len(cables) == 1
+        assert cables[0].article == "30ТТВ2-СТ"
+
     def test_same_cable_summed_across_objects(self):
         """Одинаковые марки суммируются по длине."""
         items = build_basic_specification(

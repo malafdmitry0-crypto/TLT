@@ -178,6 +178,7 @@ export interface TankFormValues {
   supply_voltage?: number;
   safety_factor?: number;
   steam_tracing?: 'yes' | 'no';
+  q_additional?: number;
 }
 
 export function generatePipeName(v: PipeFormValues): string {
@@ -263,6 +264,7 @@ export function tankFormToApiParams(
   if (v.height_mm != null) params.height = v.height_mm / 1000;
   if (v.length_mm != null) params.length = v.length_mm / 1000;
   if (v.width_mm != null) params.width = v.width_mm / 1000;
+  if (v.q_additional != null) params.q_additional = v.q_additional;
   if (v.name) params.name = v.name;
   return params;
 }
@@ -483,6 +485,7 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     supply_voltage: p.supply_voltage as number | undefined,
     safety_factor: p.safety_factor as number | undefined,
     steam_tracing: p.steam_tracing as TankFormValues['steam_tracing'],
+    q_additional: p.q_additional as number | undefined,
     name: p.name as string | undefined,
   };
 }

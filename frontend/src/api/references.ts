@@ -2,6 +2,7 @@ import apiClient from './client';
 import type {
   AccessoryEntry,
   CableTltEntry,
+  CableTtEntry,
   ClimateEntry,
   InsulationEntry,
   PipeMaterialEntry,
@@ -21,6 +22,11 @@ export async function getInsulation(): Promise<InsulationEntry[]> {
 
 export async function getCablesTlt(): Promise<CableTltEntry[]> {
   const { data } = await apiClient.get<CableTltEntry[]>('/references/cables');
+  return data;
+}
+
+export async function getCablesTt(): Promise<CableTtEntry[]> {
+  const { data } = await apiClient.get<CableTtEntry[]>('/references/tt-cables');
   return data;
 }
 

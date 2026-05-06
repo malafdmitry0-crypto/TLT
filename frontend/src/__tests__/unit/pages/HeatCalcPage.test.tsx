@@ -25,8 +25,10 @@ vi.mock('@/api/calculations', () => ({
 
 vi.mock('@/api/references', () => ({
   getClimate: vi.fn().mockResolvedValue([]),
+  getCablesTt: vi.fn().mockResolvedValue([]),
   getInsulation: vi.fn().mockResolvedValue([]),
   getPipeMaterials: vi.fn().mockResolvedValue([]),
+  getResistiveCables: vi.fn().mockResolvedValue({ single_core: [], three_core: [], common: {} }),
   getSoilConductivity: vi.fn().mockResolvedValue([]),
 }));
 
@@ -138,6 +140,7 @@ describe('HeatCalcPage', () => {
 
     it('на вкладке результатов показывает расчёт выбранного СО', async () => {
       const { listObjects } = await import('@/api/projects');
+      const { listElectricalCalcs } = await import('@/api/calculations');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
 
       useProjectStore.getState().setCurrentProject(mockProject);
@@ -148,6 +151,7 @@ describe('HeatCalcPage', () => {
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /Выполнить электрорасчёт СО1/i })).toBeInTheDocument();
       });
+      expect(listElectricalCalcs).toHaveBeenCalledWith('proj-test-1', 1);
       expect(screen.getByText('Тип кабеля:')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'СО4' })).toBeInTheDocument();
     });

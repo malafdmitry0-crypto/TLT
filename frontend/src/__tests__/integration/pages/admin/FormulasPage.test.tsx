@@ -33,12 +33,15 @@ describe('FormulasPage', () => {
     (refs.getInsulation as ReturnType<typeof vi.fn>).mockResolvedValue(insulationMock);
   });
 
-  it('рендерит заголовок и три таба', () => {
+  it('рендерит заголовок и все вкладки реализованных формул', () => {
     renderPage();
     expect(screen.getByText('Расчётные формулы')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Трубопровод/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Резервуар/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Электрорасчёт/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Резервуар$/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Саморег\. ТЛТ/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Саморег\. ТТ/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Резистивный/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Укладка на резервуар/i })).toBeInTheDocument();
   });
 
   it('таб Трубопровод отображает формулу и поля калькулятора', async () => {
@@ -57,13 +60,13 @@ describe('FormulasPage', () => {
     // Ждём пока query выполнится
     await waitFor(() => {
       // в DOM должны быть label для материала изоляции
-      expect(screen.getByText(/Материал изоляции/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Материал изоляции/i).length).toBeGreaterThan(0);
     });
   });
 
   it('переключается на таб Резервуар — кнопка и поля присутствуют', async () => {
     renderPage();
-    const tab = screen.getByRole('tab', { name: /Резервуар/i });
+    const tab = screen.getByRole('tab', { name: /^Резервуар$/i });
     await userEvent.click(tab);
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Рассчитать/i })).toBeInTheDocument();
@@ -72,13 +75,36 @@ describe('FormulasPage', () => {
     });
   });
 
-  it('переключается на таб Электрорасчёт — кнопка «Подобрать кабель» присутствует', async () => {
+  it('переключается на таб Саморег. ТЛТ — кнопка «Подобрать кабель» присутствует', async () => {
     renderPage();
-    const tab = screen.getByRole('tab', { name: /Электрорасчёт/i });
+    const tab = screen.getByRole('tab', { name: /Саморег\. ТЛТ/i });
     await userEvent.click(tab);
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Подобрать кабель/i })).toBeInTheDocument();
     });
+  });
+
+  it('переключается на таб Саморег. ТТ и показывает формулу qб', async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole('tab', { name: /Саморег\. ТТ/i }));
+    expect(screen.getByText(/Выбор серии ТТН/i)).toBeInTheDocument();
+    expect(screen.getByText(/Количество ниток и мощность/i)).toBeInTheDocument();
+  });
+
+  it('переключается на таб Резистивный и показывает схемы TT R1/R3', async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole('tab', { name: /Резистивный/i }));
+    expect(screen.getAllByText(/ТТ Р1/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/ТТ Р3/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /Подобрать кабель/i })).toBeInTheDocument();
+  });
+
+  it('переключается на таб Укладка на резервуар и показывает формулу длины кабеля', async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole('tab', { name: /Укладка на резервуар/i }));
+    expect(screen.getAllByText(/Периметр/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/шаг укладки/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /Рассчитать/i })).toBeInTheDocument();
   });
 
   it('после успешного расчёта трубопровода показывает результат', async () => {
@@ -96,20 +122,8 @@ describe('FormulasPage', () => {
 
     // Заполняем числовые поля через spinbutton
     const spinbuttons = screen.getAllByRole('spinbutton');
-    // Заполняем первые 5 числовых полей (diameter, pipe_length, insulation, T_process, T_ambient)
-    for (const input of spinbuttons.slice(0, 5)) {
+    for (const input of spinbuttons) {
       fireEvent.change(input, { target: { value: '50' } });
-    }
-
-    // Материал изоляции — Select. Открываем и выбираем опцию.
-    const selects = document.querySelectorAll('.ant-select-selector');
-    const matSelect = Array.from(selects).find(
-      (el) => el.closest('.ant-form-item')?.querySelector('label')?.textContent?.includes('Материал изоляции')
-    );
-    if (matSelect) {
-      fireEvent.mouseDown(matSelect);
-      const option = await screen.findByText('Минеральная вата');
-      fireEvent.click(option);
     }
 
     const btn = screen.getByRole('button', { name: /Рассчитать/i });
@@ -136,19 +150,8 @@ describe('FormulasPage', () => {
 
     // Заполняем числовые поля
     const spinbuttons = screen.getAllByRole('spinbutton');
-    for (const input of spinbuttons.slice(0, 5)) {
+    for (const input of spinbuttons) {
       fireEvent.change(input, { target: { value: '50' } });
-    }
-
-    // Выбираем материал изоляции
-    const selects = document.querySelectorAll('.ant-select-selector');
-    const matSelect = Array.from(selects).find(
-      (el) => el.closest('.ant-form-item')?.querySelector('label')?.textContent?.includes('Материал изоляции')
-    );
-    if (matSelect) {
-      fireEvent.mouseDown(matSelect);
-      const option = await screen.findByText('Минеральная вата');
-      fireEvent.click(option);
     }
 
     const btn = screen.getByRole('button', { name: /Рассчитать/i });

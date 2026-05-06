@@ -31,6 +31,7 @@ export async function currentGuestContext(page: Page): Promise<{
 export async function createCalculatedPipe(
   page: Page,
   name = `E2E труба ${Date.now()}`,
+  params: Record<string, unknown> = {},
 ) {
   const { projectId, sessionId } = await currentGuestContext(page);
   const response = await page.request.post(
@@ -47,6 +48,7 @@ export async function createCalculatedPipe(
           insulation_material: 'mineral_wool',
           ambient_temperature: -30,
           process_temperature: 150,
+          ...params,
         },
       },
     },

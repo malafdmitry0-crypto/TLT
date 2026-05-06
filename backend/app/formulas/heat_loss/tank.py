@@ -4,7 +4,7 @@
   q = ΔT / (δ_р/λ_р + δ_из/λ_из + R_внеш)   [Вт/м²]
   Q = q × S × K                                 [Вт]
 
-R_внеш (воздух):   R = 1 / α_внеш,    α = 11,6 + 7·v  [Вт/(м²·К)]
+R_внеш (воздух):   R = 1 / α_внеш,    α = 11,6 + 7·√v  [Вт/(м²·К)]
 R_внеш (помещение): R = 1 / 9.0
 
 Подземное расположение:
@@ -87,7 +87,7 @@ def _surface_area_split(params: TankHeatLossParams, buried_height: float) -> tup
 def _calc_alpha(params: TankHeatLossParams) -> float:
     """Коэффициент наружной теплоотдачи α, Вт/(м²·К).
 
-    α = 11,6 + 7·v  (формула ТНП)
+    α = 11,6 + 7·√v  (SNiP 41-03-2003, формула ТНП)
     Помещение: α = 9.0
     Диапазон: [11.6, 52] Вт/(м²·К)
     """
@@ -95,8 +95,8 @@ def _calc_alpha(params: TankHeatLossParams) -> float:
         return params.alpha_vnesh
     if params.location == "indoor":
         return 9.0
-    v = params.wind_speed or 0.0
-    alpha = 11.6 + 7.0 * v
+    v = max(params.wind_speed or 0.0, 0.0)
+    alpha = 11.6 + 7.0 * math.sqrt(v)
     return min(max(alpha, 11.6), 52.0)
 
 
@@ -214,10 +214,14 @@ def calc_tank_heat_loss(
         # --- 8. Итоговые теплопотери ---
         q_total = q_per_m2 * area * k
 
+    q_additional = getattr(params, "q_additional", 0.0) or 0.0
+    q_total += q_additional
+
     return TankHeatLossResult(
         heat_loss_per_m2=round(q_per_m2, 3),
         total_heat_loss=round(q_total, 3),
         surface_area=round(area, 3),
+        q_additional=round(q_additional, 3),
         wall_resistance=round(r_wall, 6),
         insulation_resistance=round(r_ins, 6),
         external_resistance=round(r_ext, 6),

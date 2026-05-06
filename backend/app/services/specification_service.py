@@ -54,7 +54,14 @@ class SpecificationService:
             )
         )
         calcs = list(result.scalars().all())
-        electrical_results = [c.results or {} for c in calcs]
+        electrical_results = [
+            {
+                **(c.results or {}),
+                "cable_mark": c.cable_mark,
+                "cable_type": c.cable_type,
+            }
+            for c in calcs
+        ]
 
         # Общее число объектов проекта — аксессуары заказываются на каждый
         # заявленный объект, даже если электрорасчёт для него не выполнен.

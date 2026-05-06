@@ -215,6 +215,70 @@ class TestGetCoefficients:
         assert coeffs == {}
 
 
+class TestCableLayoutMapping:
+    def test_pipe_winding_pitch_converts_to_geometric_coefficient(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(object_type="pipe")
+        coefficient = service._winding_coefficient(
+            obj,
+            {"winding_pitch": 200},
+            {"outer_diameter": 0.1},
+            1.0,
+        )
+        assert coefficient > 1.0
+
+    def test_pipe_winding_pitch_must_exceed_outer_diameter(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(object_type="pipe")
+        with pytest.raises(ValueError, match="больше наружного диаметра"):
+            service._winding_coefficient(
+                obj,
+                {"winding_pitch": 50},
+                {"outer_diameter": 0.1},
+                1.0,
+            )
+
+    def test_saved_layout_is_used_when_batch_has_no_explicit_layout(self):
+        service = CalculationService(_mock_db_empty())
+        saved = SimpleNamespace(
+            results={
+                "winding_pitch": 120.0,
+                "winding_coefficient": 2.79,
+                "num_circuits": 2,
+            }
+        )
+        layout = service._layout_overrides_from_existing(saved)
+        merged = service._merge_electrical_overrides(
+            {"supply_voltage": 220, "winding_pitch": None, "number_of_threads": None},
+            layout,
+        )
+        assert merged["winding_pitch"] == 120.0
+        assert merged["number_of_threads"] == 2
+        assert "winding_coefficient" not in merged
+
+    def test_explicit_batch_layout_overrides_saved_layout(self):
+        service = CalculationService(_mock_db_empty())
+        saved = SimpleNamespace(results={"winding_pitch": 120.0, "num_circuits": 2})
+        merged = service._merge_electrical_overrides(
+            {"winding_pitch": 0.0, "number_of_threads": 1},
+            service._layout_overrides_from_existing(saved),
+        )
+        assert merged["winding_pitch"] == 0.0
+        assert merged["number_of_threads"] == 1
+
+    def test_tank_q_additional_is_not_safetied_twice_for_electrical_input(self):
+        service = CalculationService(_mock_db_empty())
+        heat_loss = service._tank_heat_loss_without_double_safety(
+            {
+                "total_heat_loss": 1300.0,
+                "safety_factor": 1.2,
+                "q_additional": 100.0,
+            },
+            fallback_safety_factor=1.1,
+        )
+        assert heat_loss == pytest.approx(1300.0 / 1.2)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # batch_recalculate — агрегация
 # ═══════════════════════════════════════════════════════════════════════════

@@ -23,6 +23,7 @@ from app.reference_data.loader import (
     list_resistive_cables,
     list_soil_conductivity,
     list_tlt_cables,
+    list_tt_cables,
 )
 
 # TTL для статичных JSON-справочников: 24 часа (изменения = пересборка образа).
@@ -63,6 +64,12 @@ async def resistive_cables(_: CurrentPrincipal = Depends(require_any())):
     return list_resistive_cables()
 
 
+@router.get("/tt-cables", summary="Справочник саморегулирующихся кабелей ТТН/ТТВ/ТТХ")
+@cache.cached("references:tt-cables", ttl=_BUILTIN_TTL)
+async def tt_cables(_: CurrentPrincipal = Depends(require_any())):
+    return list_tt_cables()
+
+
 @router.get("/internal", summary="Все встроенные внутренние справочники")
 @cache.cached("references:internal", ttl=_BUILTIN_TTL)
 async def internal_references(_: CurrentPrincipal = Depends(require_any())):
@@ -72,6 +79,7 @@ async def internal_references(_: CurrentPrincipal = Depends(require_any())):
         "pipe_materials": list_pipe_materials(),
         "soil_conductivity": list_soil_conductivity(),
         "cables": list_tlt_cables(),
+        "tt_cables": list_tt_cables(),
         "resistive_cables": list_resistive_cables(),
         "accessories": list_basic_accessories(),
     }

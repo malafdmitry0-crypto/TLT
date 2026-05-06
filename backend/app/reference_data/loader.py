@@ -53,6 +53,11 @@ def _resistive_cables() -> dict[str, Any]:
     return _load_json("resistive_cables.json")
 
 
+@lru_cache
+def _cables_tt() -> list[dict[str, Any]]:
+    return cast(list[dict[str, Any]], _load_json("cables_tt.json")["cables"])
+
+
 # ---- public API ----
 
 
@@ -91,6 +96,18 @@ def list_soil_conductivity() -> list[dict[str, Any]]:
 
 def list_resistive_cables() -> dict[str, Any]:
     return dict(_resistive_cables())
+
+
+def list_tt_cables() -> list[dict[str, Any]]:
+    return list(_cables_tt())
+
+
+def get_tt_cable_by_model(model: str) -> dict[str, Any] | None:
+    """Кабель ТТН/ТТВ/ТТХ по базовому имени модели (без суффикса -СР/-СТ)."""
+    for c in _cables_tt():
+        if c["model"] == model:
+            return dict(c)
+    return None
 
 
 def get_insulation_conductivity(material: str, temperature: float) -> float:
@@ -134,6 +151,7 @@ def clear_cache() -> None:
     _pipe_materials.cache_clear()
     _soil_conductivity.cache_clear()
     _resistive_cables.cache_clear()
+    _cables_tt.cache_clear()
 
 
 def preload_all() -> None:
@@ -145,3 +163,4 @@ def preload_all() -> None:
     _pipe_materials()
     _soil_conductivity()
     _resistive_cables()
+    _cables_tt()

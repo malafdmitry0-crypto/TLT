@@ -38,7 +38,14 @@ export async function updateCoefficient(
 }
 
 export async function checkFormula(
-  formulaType: 'pipe' | 'tank' | 'electrical',
+  formulaType:
+    | 'pipe'
+    | 'tank'
+    | 'electrical'
+    | 'electrical_tt'
+    | 'resistive_single'
+    | 'resistive_three'
+    | 'tank_cable_geometry',
   params: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
   const { data } = await apiClient.post<Record<string, unknown>>('/admin/formula-check', {

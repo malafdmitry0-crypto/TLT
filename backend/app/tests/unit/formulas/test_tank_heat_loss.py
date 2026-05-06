@@ -5,7 +5,7 @@
 - Площадь поверхности для всех форм
 - Новая формула: q = ΔT / (δ_р/λ_р + δ_из/λ_из + 1/α)
 - Влияние стенки резервуара (wall_thickness / wall_lambda)
-- Коэффициент наружной теплоотдачи α = 11,6 + 7·v
+- Коэффициент наружной теплоотдачи α = 11,6 + 7·√v  (SNiP 41-03-2003)
 - Коэффициент запаса K
 - Параметры indoor / outdoor
 - Валидация входных данных
@@ -179,15 +179,17 @@ class TestAlpha:
 
     def test_wind_3ms(self):
         alpha = _calc_alpha(_cyl(wind_speed=3.0))
-        assert alpha == pytest.approx(11.6 + 7.0 * 3.0, rel=1e-3)
+        assert alpha == pytest.approx(11.6 + 7.0 * math.sqrt(3.0), rel=1e-3)
 
     def test_indoor_fixed(self):
         alpha = _calc_alpha(_cyl(location="indoor"))
         assert alpha == pytest.approx(9.0)
 
-    def test_capped_at_52(self):
+    def test_max_wind_in_range(self):
+        # При max разрешённом v=20: 11.6 + 7*√20 ≈ 42.9 — не превышает 52
         alpha = _calc_alpha(_cyl(wind_speed=20.0))
-        assert alpha == pytest.approx(52.0)
+        assert alpha == pytest.approx(11.6 + 7.0 * math.sqrt(20.0), rel=1e-3)
+        assert alpha < 52.0
 
     def test_higher_wind_higher_losses(self):
         """Больше ветра → меньше R_ext → больше теплопотерь."""
@@ -275,3 +277,29 @@ class TestValidation:
         assert without.heat_loss_per_m2 == pytest.approx(
             with_thickness_only.heat_loss_per_m2, rel=1e-6
         )
+
+
+# ---------------------------------------------------------------------------
+# Дополнительные теплопотери Q_доп
+# ---------------------------------------------------------------------------
+
+
+class TestQAdditional:
+    def test_zero_by_default(self):
+        r = calc_tank_heat_loss(_cyl())
+        assert r.q_additional == 0.0
+
+    def test_adds_to_total_heat_loss(self):
+        base = calc_tank_heat_loss(_cyl())
+        with_extra = calc_tank_heat_loss(_cyl(q_additional=500.0))
+        assert with_extra.total_heat_loss == pytest.approx(base.total_heat_loss + 500.0, rel=1e-4)
+
+    def test_does_not_affect_heat_loss_per_m2(self):
+        """Q_доп не входит в удельные потери — только в суммарные."""
+        base = calc_tank_heat_loss(_cyl())
+        with_extra = calc_tank_heat_loss(_cyl(q_additional=1000.0))
+        assert with_extra.heat_loss_per_m2 == pytest.approx(base.heat_loss_per_m2, rel=1e-6)
+
+    def test_q_additional_reflected_in_result(self):
+        r = calc_tank_heat_loss(_cyl(q_additional=250.0))
+        assert r.q_additional == pytest.approx(250.0, rel=1e-4)

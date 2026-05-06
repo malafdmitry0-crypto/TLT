@@ -3,6 +3,7 @@ import { Card, Input, Table, Tabs, Tag, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import {
   getAccessories,
+  getCablesTt,
   getCablesTlt,
   getClimate,
   getInsulation,
@@ -32,6 +33,10 @@ export default function ReferencesPage() {
   const { data: cables = [], isFetching: cablesLoading } = useQuery({
     queryKey: ['references', 'cables-tlt'],
     queryFn: getCablesTlt,
+  });
+  const { data: ttCables = [], isFetching: ttCablesLoading } = useQuery({
+    queryKey: ['references', 'cables-tt'],
+    queryFn: getCablesTt,
   });
   const { data: resistive, isFetching: resistiveLoading } = useQuery({
     queryKey: ['references', 'resistive-cables'],
@@ -145,6 +150,30 @@ export default function ReferencesPage() {
                   { title: 'Мощность, Вт/м', dataIndex: 'power_per_meter', key: 'power', width: 130, render: (v: number) => v.toFixed(0) },
                   { title: 'T мин, °C', dataIndex: 'min_temperature', key: 'tmin', width: 100 },
                   { title: 'T макс, °C', dataIndex: 'max_temperature', key: 'tmax', width: 100 },
+                  { title: 'Напряжение, В', dataIndex: 'voltage', key: 'voltage', width: 120 },
+                ]}
+              />
+            ),
+          },
+          {
+            key: 'cables_tt',
+            label: `Кабели ТТ (${ttCables.length})`,
+            children: (
+              <Table
+                size="small"
+                loading={ttCablesLoading}
+                dataSource={ttCables}
+                rowKey="model"
+                pagination={false}
+                scroll={{ x: 'max-content' }}
+                columns={[
+                  { title: 'Модель', dataIndex: 'model', key: 'model', width: 130 },
+                  { title: 'Серия', dataIndex: 'series', key: 'series', width: 90, render: (v: string) => <Tag>{v}</Tag> },
+                  { title: 'Номинал, Вт/м', dataIndex: 'nominal_power', key: 'nominal_power', width: 130 },
+                  { title: 'q₁', dataIndex: 'q1', key: 'q1', width: 90, render: (v: number) => v.toFixed(4) },
+                  { title: 'q₂', dataIndex: 'q2', key: 'q2', width: 90, render: (v: number) => v.toFixed(2) },
+                  { title: 'T продукта макс., °C', dataIndex: 'max_product_temp', key: 'max_product_temp', width: 160 },
+                  { title: 'T пропарки макс., °C', dataIndex: 'max_vapor_temp', key: 'max_vapor_temp', width: 160 },
                   { title: 'Напряжение, В', dataIndex: 'voltage', key: 'voltage', width: 120 },
                 ]}
               />

@@ -287,9 +287,7 @@ class TestFormulaCheck:
                 "formula_type": "pipe",
                 "params": {
                     "outer_diameter": 0.108,
-                    "insulation_layers": [
-                        {"material": "mineral_wool", "thickness": 0.05}
-                    ],
+                    "insulation_layers": [{"material": "mineral_wool", "thickness": 0.05}],
                     "ambient_temperature": -26.0,
                     "process_temperature": 80.0,
                     "pipe_length": 50.0,
@@ -345,6 +343,86 @@ class TestFormulaCheck:
         data = resp.json()
         assert "selected_cable" in data or "error" in data
 
+    async def test_electrical_tt_formula_check_success(self, client: AsyncClient, admin_token: str):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={
+                "formula_type": "electrical_tt",
+                "params": {
+                    "required_power_per_meter": 20.0,
+                    "pipe_length": 50.0,
+                    "process_temperature": 60.0,
+                    "vapor_temperature": 80.0,
+                },
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["selected_cable"]
+        assert data["cable_length"] > 0
+
+    async def test_resistive_single_formula_check_success(
+        self, client: AsyncClient, admin_token: str
+    ):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={
+                "formula_type": "resistive_single",
+                "params": {
+                    "required_heat_loss": 1000.0,
+                    "pipe_length": 50.0,
+                    "process_temperature": 60.0,
+                    "connection_type": "line_1ph",
+                },
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["selected_cable"]
+        assert data["required_cross_section"] > 0
+
+    async def test_resistive_three_formula_check_success(
+        self, client: AsyncClient, admin_token: str
+    ):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={
+                "formula_type": "resistive_three",
+                "params": {
+                    "required_heat_loss": 1000.0,
+                    "pipe_length": 50.0,
+                    "process_temperature": 60.0,
+                    "connection_type": "line_1ph",
+                },
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["selected_cable"]
+        assert data["required_cross_section"] > 0
+
+    async def test_tank_cable_geometry_formula_check_success(
+        self, client: AsyncClient, admin_token: str
+    ):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={
+                "formula_type": "tank_cable_geometry",
+                "params": {
+                    "shape": "cylindrical",
+                    "diameter": 2.0,
+                    "heating_height": 2.0,
+                    "laying_step": 0.2,
+                },
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["cable_length"] > 0
+
     async def test_pipe_invalid_temperatures_returns_422(
         self, client: AsyncClient, admin_token: str
     ):
@@ -383,9 +461,7 @@ class TestFormulaCheck:
         )
         assert resp.status_code == 403
 
-    async def test_guest_cannot_use_formula_check(
-        self, client: AsyncClient, guest_session: str
-    ):
+    async def test_guest_cannot_use_formula_check(self, client: AsyncClient, guest_session: str):
         resp = await client.post(
             "/api/v1/admin/formula-check",
             json={"formula_type": "pipe", "params": {}},

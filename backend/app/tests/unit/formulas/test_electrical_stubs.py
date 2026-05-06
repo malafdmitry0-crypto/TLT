@@ -1,15 +1,13 @@
 """Тесты stub-реализаций электрических формул полной версии.
 
-По ТЗ §4.3.2 поддержка резистивных кабелей и кабелей с минеральной изоляцией
-— в «Полной версии», а не MVP. Тесты гарантируют, что:
-1. Вызов этих функций явно сообщает пользователю о недоступности
-2. Они не молча возвращают мусор
+По ТЗ §4.3.2 кабель с минеральной изоляцией — в «Полной версии».
+Тест гарантирует, что stub явно сообщает о недоступности, а не молча
+возвращает мусор.
 """
 
 import pytest
 
 from app.formulas.electrical.mineral import calc_mineral
-from app.formulas.electrical.resistive import calc_resistive
 from app.schemas.calculation import SelfRegulatingParams
 
 
@@ -22,11 +20,6 @@ def _params() -> SelfRegulatingParams:
         pipe_length=50.0,
         safety_factor=1.1,
     )
-
-
-def test_resistive_stub_raises_not_implemented():
-    with pytest.raises(NotImplementedError, match="полной версии"):
-        calc_resistive(_params())
 
 
 def test_mineral_stub_raises_not_implemented():

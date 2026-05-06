@@ -201,7 +201,60 @@ class TestElectricalCalculation:
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 400
-        assert "нет расчётной формулы" in resp.json()["detail"]
+        assert "расчётная формула не реализована" in resp.json()["detail"]
+
+    async def test_self_regulating_tt_calc(self, client: AsyncClient, guest_session: str):
+        """self_regulating_tt: возвращает cable_mark с суффиксом -СР/-СТ."""
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical",
+            json={
+                "object_id": obj["id"],
+                "cable_type": "self_regulating_tt",
+                "data": {
+                    "required_power_per_meter": 18.0,
+                    "pipe_length": 50.0,
+                    "process_temperature": 50.0,
+                    "safety_factor": 1.1,
+                    "aggressive_product": False,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200, resp.text
+        result = resp.json()["result"]
+        assert "cable_mark" in result
+        assert result["cable_mark"].endswith("-СР")
+        assert result["series"] in ("ТТН", "ТТВ", "ТТХ")
+        assert result["power_per_meter"] > 0
+
+    async def test_single_core_resistive_calc(self, client: AsyncClient, guest_session: str):
+        """single_core: возвращает selected_cable и conductor_cross_section."""
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical",
+            json={
+                "object_id": obj["id"],
+                "cable_type": "single_core",
+                "data": {
+                    "required_heat_loss": 5000.0,
+                    "pipe_length": 100.0,
+                    "process_temperature": 60.0,
+                    "supply_voltage": 220.0,
+                    "connection_type": "line_1ph",
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200, resp.text
+        result = resp.json()["result"]
+        assert "conductor_cross_section" in result
+        assert result["conductor_cross_section"] > 0
+        assert result["total_power"] > 0
 
     async def test_nonexistent_object_returns_400(self, client: AsyncClient, guest_session: str):
         """Несуществующий object_id → 400 с читаемым сообщением."""

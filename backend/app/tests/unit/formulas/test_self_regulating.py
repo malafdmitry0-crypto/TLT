@@ -95,6 +95,28 @@ class TestSelfRegulating:
         r = calc_self_regulating(_params())
         assert r.current == pytest.approx(r.total_power / r.voltage, rel=1e-4)
 
+    def test_threads_and_winding_can_compensate_lower_power_cable(self):
+        """US-G-20: проверка идёт по совокупной мощности укладки, а не только по Вт/м марки."""
+        r = calc_self_regulating(
+            _params(
+                cable_mark="ТЛТ-15",
+                required_power_per_meter=20,
+                winding_coefficient=1.0,
+                number_of_threads=2,
+            )
+        )
+        assert r.selected_cable == "ТЛТ-15"
+        assert r.num_circuits == 2
+        assert r.cable_length == pytest.approx(50 * CABLE_LENGTH_FACTOR * 2, rel=1e-3)
+
+    def test_layout_is_reported_in_result(self):
+        r = calc_self_regulating(
+            _params(winding_pitch=80, winding_coefficient=1.25, number_of_threads=2)
+        )
+        assert r.winding_pitch == 80
+        assert r.winding_coefficient == pytest.approx(1.25)
+        assert r.num_circuits == 2
+
 
 class TestAutoSelectionWithTemperature:
     """Автоподбор учитывает T_max и T_min кабелей (регрессия-тест)."""

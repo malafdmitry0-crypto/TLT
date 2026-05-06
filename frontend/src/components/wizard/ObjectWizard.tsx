@@ -870,6 +870,28 @@ export default function ObjectWizard({
               'Коэффициент запаса Kзап. Диапазон ТНП: 1,05…1,70. Используется в суммарных теплопотерях и при подборе кабеля.',
             )}
           </Form.Item>
+          {objectType === 'tank' && (
+            <Form.Item
+              className="numeric-form-item coefficient-form-item helped-form-item"
+              label={fieldLabel('Q_доп')}
+              name="q_additional"
+              initialValue={0}
+              preserve={false}
+              rules={[
+                { type: 'number', min: 0, message: 'Q_доп не может быть отрицательным' },
+              ]}
+            >
+              {withHelp(
+                <InputNumber
+                  data-testid="q-additional-input"
+                  min={0}
+                  step={10}
+                  addonAfter="Вт"
+                />,
+                'Дополнительные теплопотери (днище, штуцера и пр.). Прибавляется к суммарным теплопотерям, не влияет на удельные.',
+              )}
+            </Form.Item>
+          )}
           <Form.Item
             className="compact-select-form-item helped-form-item"
             label={fieldLabel('Пропарка')}

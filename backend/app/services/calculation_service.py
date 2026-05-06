@@ -1,24 +1,30 @@
 """Сервис расчётов: теплопотери + электротехнический расчёт."""
 
+import math
 from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.formulas.electrical.self_regulating import calc_self_regulating
+from app.formulas.electrical.cable_geometry import compute_tank_cable_length
+from app.formulas.electrical.resistive import calc_resistive_single_core, calc_resistive_three_core
+from app.formulas.electrical.self_regulating import calc_self_regulating, calc_self_regulating_tt
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project_object import ProjectObject
-from app.reference_data.loader import list_tlt_cables
+from app.reference_data.loader import list_resistive_cables, list_tlt_cables
 from app.result import Err, Ok, Result
 from app.schemas.calculation import (
     ElectricalRequest,
     PipeHeatLossParams,
+    ResistiveSingleCoreParams,
+    ResistiveThreeCoreParams,
     SelfRegulatingParams,
+    SelfRegulatingTTParams,
     TankHeatLossParams,
 )
 from app.schemas.json_shapes import (
@@ -58,7 +64,7 @@ class CalculationService:
     async def load_cable_catalog(self, source: CableSource = "builtin") -> list[dict[str, Any]]:
         """Возвращает каталог кабелей по запрошенному источнику.
 
-        builtin  — только встроенная линейка ТЛТ
+        builtin  — встроенная линейка ТЛТ для self_regulating
         extended — только `cables_extended` (self_regulating)
         all      — объединение
         """
@@ -179,13 +185,31 @@ class CalculationService:
         return updated, failed, errors
 
     async def calc_electrical(self, request: ElectricalRequest) -> ElectricalCalculation:
-        if request.cable_type != "self_regulating":
+        cable_type = request.cable_type
+        if cable_type == "self_regulating":
+            params_sr = SelfRegulatingParams(**request.data)
+            result_obj = calc_self_regulating(params_sr)
+            cable_mark = result_obj.selected_cable
+            result_dict = result_obj.model_dump()
+        elif cable_type == "self_regulating_tt":
+            params_tt = SelfRegulatingTTParams(**request.data)
+            result_tt = calc_self_regulating_tt(params_tt)
+            cable_mark = result_tt.cable_mark
+            result_dict = result_tt.model_dump()
+        elif cable_type == "single_core":
+            params_sc = ResistiveSingleCoreParams(**request.data)
+            result_sc = calc_resistive_single_core(params_sc)
+            cable_mark = result_sc.selected_cable
+            result_dict = result_sc.model_dump()
+        elif cable_type == "three_core":
+            params_tc = ResistiveThreeCoreParams(**request.data)
+            result_tc = calc_resistive_three_core(params_tc)
+            cable_mark = result_tc.selected_cable
+            result_dict = result_tc.model_dump()
+        else:
             raise CalculationError(
-                "Для выбранного типа кабеля нет расчётной формулы/каталога в поставке. "
-                "Сейчас рассчитывается только саморегулирующийся кабель ТЛТ"
+                f"Для типа кабеля «{cable_type}» расчётная формула не реализована"
             )
-        params = SelfRegulatingParams(**request.data)
-        result = calc_self_regulating(params)
 
         # Получаем объект, чтобы узнать project_id
         obj_result = await self.db.execute(
@@ -210,19 +234,337 @@ class CalculationService:
                 object_id=obj.id,
                 variant_number=request.variant_number,
                 cable_type=request.cable_type,
-                cable_mark=result.selected_cable,
+                cable_mark=cable_mark,
                 params=request.data,
-                results=result.model_dump(),
+                results=result_dict,
             )
             self.db.add(calc)
         else:
             calc.cable_type = request.cable_type
-            calc.cable_mark = result.selected_cable
+            calc.cable_mark = cable_mark
             calc.params = request.data
-            calc.results = result.model_dump()
+            calc.results = result_dict
         await self.db.commit()
         await self.db.refresh(calc)
         return calc
+
+    @staticmethod
+    def _num(value: Any, default: float | None = None) -> float | None:
+        if value is None or value == "":
+            return default
+        return float(value)
+
+    @staticmethod
+    def _positive(value: Any, message: str) -> float:
+        parsed = CalculationService._num(value)
+        if parsed is None or parsed <= 0:
+            raise CalculationError(message)
+        return parsed
+
+    @staticmethod
+    def _required_num(value: Any, message: str) -> float:
+        parsed = CalculationService._num(value)
+        if parsed is None:
+            raise CalculationError(message)
+        return parsed
+
+    @staticmethod
+    def _positive_heat_loss(value: Any) -> float:
+        parsed = CalculationService._num(value)
+        if parsed is None:
+            raise CalculationError(
+                "Теплопотери не рассчитаны или равны нулю — электрорасчёт невозможен"
+            )
+        if parsed <= 0:
+            raise CalculationError("Теплопотери равны нулю — кабель не требуется")
+        return parsed
+
+    def _tank_geometry_payload(
+        self,
+        obj: ProjectObject,
+        overrides: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Параметры укладки кабеля на резервуар из формы/объекта.
+
+        Для расчёта длины нужны `heating_height` и `laying_step`. Если высота
+        обогрева не задана явно, используем высоту резервуара как инженерный
+        дефолт для полного обогрева стенки.
+        """
+        if obj.object_type != "tank":
+            return {}
+        params = obj.params or {}
+        shape = params.get("shape")
+        if shape not in ("cylindrical", "rectangular"):
+            return {}
+
+        pitch_mm = self._num(overrides.get("winding_pitch"))
+        laying_step = self._num(overrides.get("laying_step") or params.get("laying_step"))
+        if laying_step is None and pitch_mm is not None and pitch_mm > 0:
+            laying_step = pitch_mm / 1000.0
+        heating_height = self._num(
+            overrides.get("heating_height") or params.get("heating_height") or params.get("height")
+        )
+        if laying_step is None or heating_height is None:
+            return {}
+
+        payload: dict[str, Any] = {
+            "tank_shape": shape,
+            "heating_height": heating_height,
+            "laying_step": laying_step,
+        }
+        if shape == "cylindrical":
+            payload["tank_diameter"] = self._positive(
+                params.get("diameter"), "Для резервуара требуется diameter > 0"
+            )
+        else:
+            payload["tank_length"] = self._positive(
+                params.get("length"), "Для прямоугольного резервуара требуется length > 0"
+            )
+            payload["tank_width"] = self._positive(
+                params.get("width"), "Для прямоугольного резервуара требуется width > 0"
+            )
+        return payload
+
+    def _number_of_threads(
+        self,
+        overrides: dict[str, Any],
+        params: dict[str, Any],
+        default: int | None = 1,
+    ) -> int | None:
+        raw = overrides.get("number_of_threads")
+        if raw is None:
+            raw = params.get("number_of_threads")
+        if raw is None:
+            return default
+        value = int(raw)
+        if value < 1 or value > 3:
+            raise ValueError("Количество ниток должно быть 1, 2 или 3")
+        return value
+
+    def _winding_pitch_mm(
+        self,
+        overrides: dict[str, Any],
+        params: dict[str, Any],
+    ) -> float | None:
+        raw = overrides.get("winding_pitch")
+        if raw is None:
+            raw = overrides.get("winding_pitch_mm")
+        if raw is None:
+            raw = params.get("winding_pitch")
+        return self._num(raw)
+
+    def _winding_coefficient(
+        self,
+        obj: ProjectObject,
+        overrides: dict[str, Any],
+        params: dict[str, Any],
+        default: float,
+    ) -> float:
+        pitch_mm = self._winding_pitch_mm(overrides, params)
+        if pitch_mm is not None:
+            if pitch_mm == 0:
+                return 1.0
+            if obj.object_type == "pipe":
+                diameter = self._positive(
+                    params.get("outer_diameter"),
+                    "Для навива требуется наружный диаметр трубы",
+                )
+                pitch_m = pitch_mm / 1000.0
+                if pitch_m <= diameter:
+                    raise ValueError("Шаг навива должен быть больше наружного диаметра трубы")
+                return math.sqrt(1.0 + (math.pi * diameter / pitch_m) ** 2)
+
+        coefficient = self._num(
+            overrides.get("winding_coefficient") or params.get("winding_coefficient"),
+            default,
+        )
+        return coefficient or default
+
+    def _tank_base_cable_length(
+        self,
+        obj: ProjectObject,
+        overrides: dict[str, Any],
+    ) -> float | None:
+        payload = self._tank_geometry_payload(obj, overrides)
+        if not payload:
+            return None
+        return compute_tank_cable_length(
+            shape=str(payload["tank_shape"]),
+            diameter=cast(float | None, payload.get("tank_diameter")),
+            length=cast(float | None, payload.get("tank_length")),
+            width=cast(float | None, payload.get("tank_width")),
+            heating_height=float(payload["heating_height"]),
+            laying_step=float(payload["laying_step"]),
+        )
+
+    def _tank_heat_loss_without_double_safety(
+        self,
+        results: dict[str, Any],
+        fallback_safety_factor: float,
+    ) -> float:
+        """Возвращает Q для передачи в формулы, которые сами добавляют K.
+
+        `total_heat_loss` у резервуара уже содержит K, а электрическая
+        формула применит K повторно. Значит на вход ей нужно отдать `Q / K`,
+        включая часть `Q_доп`; иначе дополнительная теплопотеря будет
+        ошибочно умножена на K второй раз.
+        """
+        total = self._positive_heat_loss(results.get("total_heat_loss"))
+        k = float(results.get("safety_factor") or fallback_safety_factor or 1.1)
+        return total / k
+
+    def _required_power_per_meter(
+        self,
+        obj: ProjectObject,
+        cable_type: str,
+        overrides: dict[str, Any],
+        safety_factor: float,
+    ) -> float:
+        results = obj.results or {}
+        if obj.object_type == "pipe":
+            return self._positive_heat_loss(results.get("heat_loss_per_meter"))
+
+        # Для ТЛТ сохраняем прежний контракт: q резервуара берётся как Вт/м².
+        if cable_type == "self_regulating":
+            return self._positive_heat_loss(results.get("heat_loss_per_m2"))
+
+        # Для ТТН/ТТВ/ТТХ на резервуаре считаем требуемые Вт/м кабеля по
+        # полной площади и реальной длине укладки, чтобы не сравнивать Вт/м²
+        # напрямую с паспортными Вт/м кабеля.
+        base_length = self._tank_base_cable_length(obj, overrides)
+        if base_length is not None and base_length > 0:
+            heat_loss = self._tank_heat_loss_without_double_safety(obj.results or {}, safety_factor)
+            return heat_loss / base_length
+        return self._positive_heat_loss(results.get("heat_loss_per_m2"))
+
+    def _resistive_manual_catalog(
+        self,
+        cable_type: str,
+        cable_mark: str | None,
+    ) -> list[dict[str, Any]] | None:
+        if cable_mark is None:
+            return None
+        catalog = list_resistive_cables()
+        key = "single_core" if cable_type == "single_core" else "three_core"
+        match = [c for c in catalog.get(key, []) if c.get("model") == cable_mark]
+        if not match:
+            raise ValueError(f"Кабель «{cable_mark}» не найден в справочнике")
+        return match
+
+    def _build_electrical_data(
+        self,
+        *,
+        obj: ProjectObject,
+        cable_type: str,
+        cable_mark: str | None,
+        tlt_catalog: list[dict[str, Any]],
+        overrides: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Единый маппинг теплопотери/объект → payload электрической формулы."""
+        if not obj.is_valid or not obj.results:
+            raise CalculationError("Теплопотери объекта не рассчитаны — невозможно выбрать кабель")
+
+        params = obj.params or {}
+        results = obj.results or {}
+        process_temperature = self._num(params.get("process_temperature"))
+        supply_voltage = self._num(
+            overrides.get("supply_voltage") or params.get("supply_voltage"),
+            220.0,
+        )
+        safety_factor = self._num(
+            overrides.get("safety_factor") or params.get("safety_factor"),
+            1.1,
+        )
+        pipe_length = self._num(
+            params.get("pipe_length") or results.get("effective_length") or params.get("height"),
+            1.0,
+        )
+        winding_pitch = self._winding_pitch_mm(overrides, params)
+
+        if cable_type == "self_regulating":
+            return {
+                "required_power_per_meter": self._required_power_per_meter(
+                    obj, cable_type, overrides, safety_factor or 1.1
+                ),
+                "cable_mark": cable_mark,
+                "supply_voltage": supply_voltage,
+                "ambient_temperature": float(params.get("ambient_temperature", -20.0)),
+                "process_temperature": process_temperature,
+                "pipe_length": pipe_length,
+                "safety_factor": safety_factor,
+                "cable_catalog": tlt_catalog,
+                "winding_coefficient": self._winding_coefficient(obj, overrides, params, 1.0),
+                "winding_pitch": winding_pitch,
+                "number_of_threads": self._number_of_threads(overrides, params, 1),
+            }
+
+        if cable_type == "self_regulating_tt":
+            data = {
+                "required_power_per_meter": self._required_power_per_meter(
+                    obj, cable_type, overrides, safety_factor or 1.1
+                ),
+                "pipe_length": pipe_length,
+                "process_temperature": self._required_num(
+                    process_temperature,
+                    "Для ТТН/ТТВ/ТТХ требуется температура продукта",
+                ),
+                "supply_voltage": supply_voltage,
+                "safety_factor": safety_factor,
+                "cable_mark": cable_mark,
+                "vapor_temperature": self._num(overrides.get("vapor_temperature")),
+                "aggressive_product": bool(overrides.get("aggressive_product", False)),
+                "winding_coefficient": self._winding_coefficient(obj, overrides, params, 1.1),
+                "winding_pitch": winding_pitch,
+                "number_of_threads": self._number_of_threads(overrides, params, None),
+            }
+            data.update(self._tank_geometry_payload(obj, overrides))
+            return data
+
+        if cable_type in ("single_core", "three_core"):
+            default_connection = "line_1ph"
+            data = {
+                "required_heat_loss": self._positive_heat_loss(results.get("total_heat_loss")),
+                "pipe_length": pipe_length,
+                "add_length": self._num(overrides.get("add_length"), 0.0),
+                "process_temperature": self._required_num(
+                    process_temperature,
+                    "Для резистивного кабеля требуется температура продукта",
+                ),
+                "supply_voltage": supply_voltage,
+                "connection_type": overrides.get("connection_type") or default_connection,
+                "winding_coefficient": self._winding_coefficient(obj, overrides, params, 1.0),
+                "winding_pitch": winding_pitch,
+                "number_of_threads": self._number_of_threads(overrides, params, 1),
+                "cable_catalog": self._resistive_manual_catalog(cable_type, cable_mark),
+            }
+            data.update(self._tank_geometry_payload(obj, overrides))
+            return data
+
+        return {}
+
+    def _layout_overrides_from_existing(self, calc: ElectricalCalculation | None) -> dict[str, Any]:
+        if calc is None or not calc.results:
+            return {}
+        results = calc.results
+        overrides: dict[str, Any] = {}
+        if results.get("winding_pitch") is not None:
+            overrides["winding_pitch"] = results.get("winding_pitch")
+        if results.get("num_circuits") is not None:
+            overrides["number_of_threads"] = results.get("num_circuits")
+        if results.get("winding_coefficient") is not None and "winding_pitch" not in overrides:
+            overrides["winding_coefficient"] = results.get("winding_coefficient")
+        return overrides
+
+    @staticmethod
+    def _merge_electrical_overrides(
+        base: dict[str, Any],
+        saved_layout: dict[str, Any],
+    ) -> dict[str, Any]:
+        merged = dict(saved_layout)
+        for key, value in base.items():
+            if value is not None:
+                merged[key] = value
+        return merged
 
     async def select_cable_manual(
         self,
@@ -230,6 +572,8 @@ class CalculationService:
         cable_mark: str,
         cable_source: CableSource = "builtin",
         variant_number: int = 1,
+        cable_type: str = "self_regulating",
+        electrical_params: dict[str, Any] | None = None,
     ) -> ElectricalCalculation:
         """Ручной выбор кабеля: берёт параметры из объекта, пересчитывает, upsert."""
         obj_result = await self.db.execute(
@@ -241,34 +585,19 @@ class CalculationService:
         if not obj.is_valid or not obj.results:
             raise CalculationError("Теплопотери объекта не рассчитаны — невозможно выбрать кабель")
 
-        params = obj.params or {}
-        results = obj.results or {}
-        if obj.object_type == "pipe":
-            required_power = results.get("heat_loss_per_meter")
-        else:
-            required_power = results.get("heat_loss_per_m2")
-        if required_power is None or float(required_power) <= 0:
-            raise CalculationError("Теплопотери равны нулю — кабель не требуется")
-
         catalog = await self.load_cable_catalog(cable_source)
+        data = self._build_electrical_data(
+            obj=obj,
+            cable_type=cable_type,
+            cable_mark=cable_mark,
+            tlt_catalog=catalog,
+            overrides=electrical_params or {},
+        )
         request = ElectricalRequest(
             object_id=object_id,
-            cable_type="self_regulating",
+            cable_type=cast(Any, cable_type),
             variant_number=variant_number,
-            data={
-                "required_power_per_meter": float(required_power),
-                "cable_mark": cable_mark,
-                "supply_voltage": float(params.get("supply_voltage", 220.0)),
-                "ambient_temperature": float(params.get("ambient_temperature", -20.0)),
-                "process_temperature": (
-                    float(params["process_temperature"])
-                    if params.get("process_temperature") is not None
-                    else None
-                ),
-                "pipe_length": float(params.get("pipe_length") or params.get("height") or 1.0),
-                "safety_factor": float(params.get("safety_factor", 1.1)),
-                "cable_catalog": catalog,
-            },
+            data=data,
         )
         return await self.calc_electrical(request)
 
@@ -277,6 +606,8 @@ class CalculationService:
         project_id: UUID,
         cable_source: CableSource = "builtin",
         variant_number: int = 1,
+        cable_type: str = "self_regulating",
+        electrical_params: dict[str, Any] | None = None,
     ) -> tuple[int, int, list[dict[str, Any]], list[ElectricalCalculation]]:
         """Автоподбор кабеля для всех валидных объектов проекта (cable_mark=None)."""
         result = await self.db.execute(
@@ -291,45 +622,36 @@ class CalculationService:
         errors: list[dict[str, Any]] = []
         calcs: list[ElectricalCalculation] = []
         catalog = await self.load_cable_catalog(cable_source)
+        existing_result = await self.db.execute(
+            select(ElectricalCalculation).where(
+                ElectricalCalculation.project_id == project_id,
+                ElectricalCalculation.variant_number == variant_number,
+            )
+        )
+        existing_by_object_id = {
+            c.object_id: c
+            for c in existing_result.scalars().all()
+            if getattr(c, "object_id", None) is not None
+        }
+        base_overrides = electrical_params or {}
 
         for obj in objects:
             try:
-                params = obj.params or {}
-                results = obj.results or {}
-
-                # Определяем required_power_per_meter из результатов теплопотерь
-                if obj.object_type == "pipe":
-                    required_power = results.get("heat_loss_per_meter")
-                else:  # tank — используем тепловой поток на м²
-                    required_power = results.get("heat_loss_per_m2")
-
-                if required_power is None or float(required_power) <= 0:
-                    skipped += 1
-                    err_msg = "Теплопотери не рассчитаны или равны нулю — электрорасчёт невозможен"
-                    errors.append({"object_id": str(obj.id), "error": err_msg})
-                    await self._save_failed_electrical(obj, err_msg, variant_number)
-                    continue
-
-                pipe_length = params.get("pipe_length") or params.get("height") or 1.0
-                ambient_temperature = params.get("ambient_temperature", -20.0)
-                process_temperature = params.get("process_temperature")
-
+                overrides = self._merge_electrical_overrides(
+                    base_overrides,
+                    self._layout_overrides_from_existing(existing_by_object_id.get(obj.id)),
+                )
                 request = ElectricalRequest(
                     object_id=obj.id,
-                    cable_type="self_regulating",
+                    cable_type=cast(Any, cable_type),
                     variant_number=variant_number,
-                    data={
-                        "required_power_per_meter": float(required_power),
-                        "cable_mark": None,
-                        "supply_voltage": float(params.get("supply_voltage", 220.0)),
-                        "ambient_temperature": float(ambient_temperature),
-                        "process_temperature": (
-                            float(process_temperature) if process_temperature is not None else None
-                        ),
-                        "pipe_length": float(pipe_length),
-                        "safety_factor": float(params.get("safety_factor", 1.1)),
-                        "cable_catalog": catalog,
-                    },
+                    data=self._build_electrical_data(
+                        obj=obj,
+                        cable_type=cable_type,
+                        cable_mark=None,
+                        tlt_catalog=catalog,
+                        overrides=overrides,
+                    ),
                 )
                 calc = await self.calc_electrical(request)
                 calcs.append(calc)
@@ -338,12 +660,16 @@ class CalculationService:
                 skipped += 1
                 err_msg = f"{type(exc).__name__}: {exc}"
                 errors.append({"object_id": str(obj.id), "error": err_msg})
-                await self._save_failed_electrical(obj, err_msg, variant_number)
+                await self._save_failed_electrical(obj, err_msg, variant_number, cable_type)
 
         return calculated, skipped, errors, calcs
 
     async def _save_failed_electrical(
-        self, obj: ProjectObject, error_message: str, variant_number: int = 1
+        self,
+        obj: ProjectObject,
+        error_message: str,
+        variant_number: int = 1,
+        cable_type: str = "self_regulating",
     ) -> None:
         """Сохраняет или обновляет запись ElectricalCalculation с ошибкой."""
         existing = await self.db.execute(
@@ -363,13 +689,14 @@ class CalculationService:
                 project_id=obj.project_id,
                 object_id=obj.id,
                 variant_number=variant_number,
-                cable_type="self_regulating",
+                cable_type=cable_type,
                 cable_mark=None,
                 params={},
                 results=payload,
             )
             self.db.add(row)
         else:
+            row.cable_type = cable_type
             row.cable_mark = None
             row.results = payload
         await self.db.commit()

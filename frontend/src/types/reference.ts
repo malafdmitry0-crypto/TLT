@@ -40,6 +40,17 @@ export interface CableTltEntry {
   voltage: number;
 }
 
+export interface CableTtEntry {
+  model: string;
+  series: 'ТТН' | 'ТТВ' | 'ТТХ';
+  nominal_power: number;
+  q1: number;
+  q2: number;
+  max_product_temp: number;
+  max_vapor_temp: number;
+  voltage: number;
+}
+
 export interface AccessoryEntry {
   category: string;
   name: string;

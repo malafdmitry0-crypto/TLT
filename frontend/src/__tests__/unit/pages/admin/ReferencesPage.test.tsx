@@ -9,6 +9,7 @@ vi.mock('@/api/references', () => ({
   getInsulation: vi.fn(),
   getPipeMaterials: vi.fn(),
   getCablesTlt: vi.fn(),
+  getCablesTt: vi.fn(),
   getResistiveCables: vi.fn(),
   getSoilConductivity: vi.fn(),
   getAccessories: vi.fn(),
@@ -40,6 +41,10 @@ const cablesTltData = [
   { model: 'ТЛТ-10', brand: 'ТЛТ', power_per_meter: 10, min_temperature: -60, max_temperature: 65, voltage: 230 },
 ];
 
+const cablesTtData = [
+  { model: '5ТТН2', series: 'ТТН', nominal_power: 5, q1: -0.025, q2: 8.0, max_product_temp: 65, max_vapor_temp: 85, voltage: 220 },
+];
+
 const resistiveData = {
   single_core: [{ brand: 'ПНСВ', model: 'ПНСВ-1', resistance_ohm_km: 0.15, conductor_section_mm2: 1.2, diameter_mm: 3.8 }],
   three_core: [{ brand: 'КМВЭВ', model: '3×2.5', nominal_size_mm: '3×2.5', mass_kg_km: 120, min_bend_radius_mm: 50 }],
@@ -62,6 +67,7 @@ describe('ReferencesPage', () => {
     (refs.getInsulation as ReturnType<typeof vi.fn>).mockResolvedValue(insulationData);
     (refs.getPipeMaterials as ReturnType<typeof vi.fn>).mockResolvedValue(pipeMaterialsData);
     (refs.getCablesTlt as ReturnType<typeof vi.fn>).mockResolvedValue(cablesTltData);
+    (refs.getCablesTt as ReturnType<typeof vi.fn>).mockResolvedValue(cablesTtData);
     (refs.getResistiveCables as ReturnType<typeof vi.fn>).mockResolvedValue(resistiveData);
     (refs.getSoilConductivity as ReturnType<typeof vi.fn>).mockResolvedValue(soilData);
     (refs.getAccessories as ReturnType<typeof vi.fn>).mockResolvedValue(accessoriesData);
@@ -130,6 +136,18 @@ describe('ReferencesPage', () => {
     await userEvent.click(tab);
     await waitFor(() => {
       expect(screen.getByText('ТЛТ-10')).toBeInTheDocument();
+    });
+  });
+
+  it('переключается на таб Кабели ТТ и показывает формульные коэффициенты', async () => {
+    await mockAll();
+    renderPage();
+    const tab = await screen.findByRole('tab', { name: /Кабели ТТ/i });
+    await userEvent.click(tab);
+    await waitFor(() => {
+      expect(screen.getByText('5ТТН2')).toBeInTheDocument();
+      expect(screen.getByText('ТТН')).toBeInTheDocument();
+      expect(screen.getByText('-0.0250')).toBeInTheDocument();
     });
   });
 

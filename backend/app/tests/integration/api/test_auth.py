@@ -130,9 +130,7 @@ class TestEmployeeAuth:
         )
         assert resp.status_code == 401
 
-    async def test_employee_login_rejects_admin_credentials(
-        self, client: AsyncClient, admin_user
-    ):
+    async def test_employee_login_rejects_admin_credentials(self, client: AsyncClient, admin_user):
         resp = await client.post(
             "/api/v1/auth/login",
             json={

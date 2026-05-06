@@ -1,14 +1,16 @@
-"""Электротехнический расчёт саморегулирующегося кабеля ТЛТ.
+"""Электротехнический расчёт саморегулирующихся кабелей ТЛТ и ТТН/ТТВ/ТТХ."""
 
-Placeholder-реализация: подбор кабеля с мощностью ≥ требуемой с учётом
-safety_factor, расчёт длины, тока, напряжения. Финальные формулы будут
-предоставлены отдельно.
-"""
-
+import math
 from typing import Any
 
-from app.reference_data.loader import get_tlt_cable_by_mark, list_tlt_cables
-from app.schemas.calculation import SelfRegulatingParams, SelfRegulatingResult
+from app.formulas.electrical.cable_geometry import compute_tank_cable_length
+from app.reference_data.loader import get_tlt_cable_by_mark, list_tlt_cables, list_tt_cables
+from app.schemas.calculation import (
+    SelfRegulatingParams,
+    SelfRegulatingResult,
+    SelfRegulatingTTParams,
+    SelfRegulatingTTResult,
+)
 
 CableRow = dict[str, Any]
 
@@ -68,17 +70,18 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
 
     required_effective = params.required_power_per_meter * params.safety_factor
     process_temp = getattr(params, "process_temperature", None)
+    layout_factor = params.winding_coefficient * params.number_of_threads
 
     if params.cable_mark is None:
         # Автоподбор: минимально-мощный кабель, удовлетворяющий ВСЕМ трём условиям
-        #   1) power_per_meter ≥ required_effective
+        #   1) power_per_meter × k_навива × ниток ≥ required_effective
         #   2) min_temperature ≤ ambient_temperature (монтаж при холоде)
         #   3) max_temperature ≥ process_temperature (не перегреется)
         candidates = [
             c
             for c in catalog
             if c.get("power_per_meter") is not None
-            and c["power_per_meter"] >= required_effective
+            and c["power_per_meter"] * layout_factor >= required_effective
             and c.get("min_temperature") is not None
             and c["min_temperature"] <= params.ambient_temperature
             and (
@@ -91,12 +94,13 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
                 c
                 for c in catalog
                 if c.get("power_per_meter") is not None
-                and c["power_per_meter"] >= required_effective
+                and c["power_per_meter"] * layout_factor >= required_effective
             ]
             if not by_power:
                 raise ValueError(
                     f"Не найден кабель с мощностью ≥ {required_effective:.2f} Вт/м "
-                    f"(максимум линейки — 100 Вт/м)"
+                    "с учётом навива и количества ниток "
+                    "(максимум линейки — 100 Вт/м на одну нитку)"
                 )
             by_min_t = [
                 c
@@ -120,9 +124,11 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
             raise ValueError(f"Кабель «{params.cable_mark}» не найден в справочнике")
         cable = looked_up
 
-    if cable["power_per_meter"] < required_effective:
+    installed_power_per_meter = cable["power_per_meter"] * layout_factor
+    if installed_power_per_meter < required_effective:
         raise ValueError(
-            f"Кабель {cable['model']} ({cable['power_per_meter']} Вт/м) "
+            f"Кабель {cable['model']} ({cable['power_per_meter']} Вт/м × "
+            f"{params.winding_coefficient:.3f} × {params.number_of_threads}) "
             f"не обеспечивает требуемую мощность {required_effective:.1f} Вт/м"
         )
     if params.ambient_temperature < cable["min_temperature"]:
@@ -138,7 +144,7 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
 
     # BR-CABLE-02: запас 10% на монтажные петли, крепёж, соединительные муфты
     CABLE_LENGTH_FACTOR = 1.1
-    cable_length = params.pipe_length * CABLE_LENGTH_FACTOR
+    cable_length = params.pipe_length * CABLE_LENGTH_FACTOR * layout_factor
     total_power = cable["power_per_meter"] * cable_length
     current = total_power / params.supply_voltage
 
@@ -148,4 +154,164 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
         total_power=round(total_power, 3),
         current=round(current, 3),
         voltage=params.supply_voltage,
+        winding_pitch=round(params.winding_pitch or 0.0, 3),
+        winding_coefficient=round(params.winding_coefficient, 6),
+        num_circuits=params.number_of_threads,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Расчёт кабелей серии ТТН / ТТВ / ТТХ
+# ---------------------------------------------------------------------------
+
+_SERIES_LIMITS: dict[str, dict[str, float]] = {
+    "ТТН": {"max_product_temp": 65.0, "max_vapor_temp": 85.0},
+    "ТТВ": {"max_product_temp": 120.0, "max_vapor_temp": 210.0},
+    "ТТХ": {"max_product_temp": 150.0, "max_vapor_temp": 250.0},
+}
+
+
+def _select_tt_series(process_temp: float, vapor_temp: float | None) -> str:
+    """Выбирает минимальную подходящую серию ТТН→ТТВ→ТТХ."""
+    for series, limits in _SERIES_LIMITS.items():
+        if process_temp > limits["max_product_temp"]:
+            continue
+        if vapor_temp is not None and vapor_temp > limits["max_vapor_temp"]:
+            continue
+        return series
+    raise ValueError(
+        f"Температура продукта {process_temp}°C или пропарки {vapor_temp}°C "
+        "превышает предел ТТХ (150°C / 250°C). Требуется другой тип кабеля."
+    )
+
+
+def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTResult:
+    """Подбор саморегулирующегося кабеля ТТН/ТТВ/ТТХ.
+
+    Формула мощности: q_б(T_ж) = q1 × T_ж + q2  [Вт/м]
+    Марка: <мощность>ТТН/ТТВ/ТТХ2-СР (агрессивная среда → СТ)
+    Количество ниток: N = задано пользователем или ceil(q_required / q_б)
+
+    Алгоритм серии: начинаем с минимально подходящей по температуре серии,
+    затем эскалируем ТТН → ТТВ → ТТХ если ни один кабель серии не даёт нужную мощность.
+    """
+    catalog = list_tt_cables()
+    suffix = "СТ" if params.aggressive_product else "СР"
+    q_required = params.required_power_per_meter * params.safety_factor
+    selected_threads: int | None = None
+
+    if params.cable_mark is not None:
+        if params.cable_mark.endswith("-СТ"):
+            suffix = "СТ"
+        elif params.cable_mark.endswith("-СР"):
+            suffix = "СР"
+        base_model = (
+            params.cable_mark.split("-")[0] if "-" in params.cable_mark else params.cable_mark
+        )
+        match = next((c for c in catalog if c["model"] == base_model), None)
+        if match is None:
+            raise ValueError(f"Кабель «{params.cable_mark}» не найден в справочнике")
+        cable = match
+        series = cable["series"]
+        if params.process_temperature > float(cable["max_product_temp"]):
+            raise ValueError(
+                f"Температура продукта {params.process_temperature}°C превышает предел "
+                f"серии {series} ({cable['max_product_temp']}°C)"
+            )
+        if params.vapor_temperature is not None and params.vapor_temperature > float(
+            cable["max_vapor_temp"]
+        ):
+            raise ValueError(
+                f"Температура пропарки {params.vapor_temperature}°C превышает предел "
+                f"серии {series} ({cable['max_vapor_temp']}°C)"
+            )
+    else:
+        min_series = _select_tt_series(params.process_temperature, params.vapor_temperature)
+        series_order = list(_SERIES_LIMITS.keys())
+        start_idx = series_order.index(min_series)
+
+        cable = None
+        series = min_series
+        for s in series_order[start_idx:]:
+            limits = _SERIES_LIMITS[s]
+            if params.process_temperature > limits["max_product_temp"]:
+                continue
+            if (
+                params.vapor_temperature is not None
+                and params.vapor_temperature > limits["max_vapor_temp"]
+            ):
+                continue
+            s_cables = sorted(
+                [c for c in catalog if c["series"] == s],
+                key=lambda c: c["nominal_power"],
+            )
+            candidates: list[tuple[float, int, float, CableRow]] = []
+            for c in s_cables:
+                q_b = c["q1"] * params.process_temperature + c["q2"]
+                if q_b <= 0:
+                    continue
+                threads = (
+                    params.number_of_threads
+                    if params.number_of_threads is not None
+                    else math.ceil(q_required / q_b)
+                )
+                if threads <= 3 and q_b * threads >= q_required:
+                    candidates.append((q_b * threads, threads, c["nominal_power"], c))
+            if candidates:
+                _, selected_threads, _, cable = min(candidates, key=lambda item: item[:3])
+                series = s
+                break
+
+        if cable is None:
+            raise ValueError(
+                f"Ни один кабель серии ТТН/ТТВ/ТТХ не обеспечивает {q_required:.2f} Вт/м "
+                f"при T_ж={params.process_temperature}°C. Требуется другой тип кабеля."
+            )
+
+    q_b = cable["q1"] * params.process_temperature + cable["q2"]
+    if q_b <= 0:
+        raise ValueError(
+            f"Кабель {cable['model']} при T={params.process_temperature}°C "
+            f"имеет нулевую или отрицательную мощность ({q_b:.2f} Вт/м)"
+        )
+
+    if params.number_of_threads is not None:
+        num_circuits = params.number_of_threads
+        if q_b * num_circuits < q_required:
+            raise ValueError(
+                f"Кабель {cable['model']} при {num_circuits} нитк. обеспечивает "
+                f"{q_b * num_circuits:.2f} Вт/м, требуется {q_required:.2f} Вт/м"
+            )
+    elif selected_threads is not None:
+        num_circuits = selected_threads
+    else:
+        num_circuits = math.ceil(q_required / q_b) if q_b < q_required else 1
+    cable_mark = f"{cable['model']}-{suffix}"
+
+    if params.tank_shape and params.heating_height and params.laying_step:
+        base_length = compute_tank_cable_length(
+            shape=params.tank_shape,
+            diameter=params.tank_diameter,
+            length=params.tank_length,
+            width=params.tank_width,
+            heating_height=params.heating_height,
+            laying_step=params.laying_step,
+        )
+    else:
+        base_length = params.pipe_length
+    cable_length = base_length * params.winding_coefficient * num_circuits
+    total_power = q_b * cable_length
+
+    return SelfRegulatingTTResult(
+        selected_cable=cable["model"],
+        cable_mark=cable_mark,
+        series=series,
+        cable_length=round(cable_length, 3),
+        num_circuits=num_circuits,
+        power_per_meter=round(q_b, 3),
+        total_power=round(total_power, 3),
+        current=round(total_power / params.supply_voltage, 3),
+        voltage=params.supply_voltage,
+        winding_pitch=round(params.winding_pitch or 0.0, 3),
+        winding_coefficient=round(params.winding_coefficient, 6),
     )

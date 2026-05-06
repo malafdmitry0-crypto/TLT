@@ -117,13 +117,23 @@ async def list_electrical(
 @router.post(
     "/electrical/select-cable",
     response_model=ElectricalCalcSummary,
-    summary="Ручной выбор кабеля ТЛТ для объекта (с пересчётом)",
+    summary="Ручной выбор кабеля для объекта (с пересчётом)",
 )
 async def select_cable(
     object_id: UUID,
     cable_mark: str,
     cable_source: str = "builtin",
     variant_number: int = 1,
+    cable_type: str = "self_regulating",
+    supply_voltage: float | None = None,
+    connection_type: str | None = None,
+    winding_coefficient: float | None = None,
+    winding_pitch: float | None = None,
+    number_of_threads: int | None = None,
+    heating_height: float | None = None,
+    laying_step: float | None = None,
+    vapor_temperature: float | None = None,
+    aggressive_product: bool = False,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -140,7 +150,22 @@ async def select_cable(
     service = CalculationService(db)
     try:
         calc = await service.select_cable_manual(
-            object_id, cable_mark, cable_source, variant_number
+            object_id,
+            cable_mark,
+            cable_source,
+            variant_number,
+            cable_type,
+            {
+                "supply_voltage": supply_voltage,
+                "connection_type": connection_type,
+                "winding_coefficient": winding_coefficient,
+                "winding_pitch": winding_pitch,
+                "number_of_threads": number_of_threads,
+                "heating_height": heating_height,
+                "laying_step": laying_step,
+                "vapor_temperature": vapor_temperature,
+                "aggressive_product": aggressive_product,
+            },
         )
     except (ValueError, ValidationError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -165,11 +190,21 @@ async def batch_calc_electrical(
     project_id: UUID,
     cable_source: str = "builtin",
     variant_number: int = 1,
+    cable_type: str = "self_regulating",
+    supply_voltage: float | None = None,
+    connection_type: str | None = None,
+    winding_coefficient: float | None = None,
+    winding_pitch: float | None = None,
+    number_of_threads: int | None = None,
+    heating_height: float | None = None,
+    laying_step: float | None = None,
+    vapor_temperature: float | None = None,
+    aggressive_product: bool = False,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
-    """Автоматически подбирает кабель ТЛТ для каждого валидного объекта проекта.
-    Использует результаты теплопотерь как required_power_per_meter (cable_mark = null → auto-select).
+    """Автоматически подбирает кабель для каждого валидного объекта проекта.
+    Использует результаты теплопотерь и выбранный `cable_type`.
     """
     if cable_source != "builtin" and principal.role not in ("employee", "admin"):
         raise HTTPException(
@@ -177,7 +212,21 @@ async def batch_calc_electrical(
         )
     service = CalculationService(db)
     calculated, skipped, errors, calcs = await service.batch_calc_electrical(
-        project_id, cable_source, variant_number
+        project_id,
+        cable_source,
+        variant_number,
+        cable_type,
+        {
+            "supply_voltage": supply_voltage,
+            "connection_type": connection_type,
+            "winding_coefficient": winding_coefficient,
+            "winding_pitch": winding_pitch,
+            "number_of_threads": number_of_threads,
+            "heating_height": heating_height,
+            "laying_step": laying_step,
+            "vapor_temperature": vapor_temperature,
+            "aggressive_product": aggressive_product,
+        },
     )
     return BatchElectricalResponse(
         calculated=calculated,

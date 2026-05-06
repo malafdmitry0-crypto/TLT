@@ -47,7 +47,9 @@
 
 ## Электрорасчёт
 
-**`POST /calc/electrical/batch`** — автоподбор ТЛТ для всех валидных объектов
-проекта. **Upsert** по `(object_id, variant_number)`. При ошибке расчёта
+**`POST /calc/electrical/batch`** — автоподбор выбранного расчётного типа
+кабеля для всех валидных объектов проекта: ТЛТ (`self_regulating`),
+ТТН/ТТВ/ТТХ (`self_regulating_tt`), ТТ Р1 (`single_core`) или ТТ Р3
+(`three_core`). **Upsert** по `(object_id, variant_number)`. При ошибке расчёта
 сохраняется запись с `results.error`, `cable_mark=null` — причина видна на UI
 после reload.

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
+  Checkbox,
   Dropdown,
   InputNumber,
   Popconfirm,
@@ -35,7 +36,7 @@ import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { listObjects } from '@/api/projects';
-import { getInsulation } from '@/api/references';
+import { getCablesTt, getInsulation, getResistiveCables } from '@/api/references';
 import {
   batchCalcElectrical,
   listCables,
@@ -46,6 +47,7 @@ import {
 import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
 import { useElectricalStats } from '@/hooks/useElectricalStats';
 import { isElectricalCalcSuccess, electricalCalcError } from '@/utils/calcStatus';
+import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 import { formatNumber, formatPower } from '@/utils/formatters';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
@@ -56,15 +58,41 @@ const { Text } = Typography;
 
 /** В MVP мастер знает только две формы — трубу и резервуар. */
 type WizardObjectType = 'pipe' | 'tank';
-type CableTypeKey = 'self_regulating' | 'single_core' | 'three_core' | 'mineral' | 'skin';
+type CableTypeKey =
+  | 'self_regulating'
+  | 'self_regulating_tt'
+  | 'single_core'
+  | 'three_core'
+  | 'mineral'
+  | 'skin';
 
 const CABLE_TYPE_LABEL: Record<CableTypeKey, string> = {
   self_regulating: 'Саморегулирующийся',
+  self_regulating_tt: 'ТТН/ТТВ/ТТХ',
   single_core: 'Однож. пост. мощн.',
   three_core: 'Трёхж. пост. мощн.',
   mineral: 'С мин. изоляцией',
   skin: 'Скин-система',
 };
+
+const ENABLED_CABLE_TYPES: ReadonlySet<CableTypeKey> = new Set([
+  'self_regulating',
+  'self_regulating_tt',
+  'single_core',
+  'three_core',
+]);
+
+type CableLayoutDraft = {
+  windingPitchMm?: number | null;
+  numberOfThreads?: number | null;
+};
+
+function calcLayoutValues(calc: ElectricalCalcSummary | undefined, draft?: CableLayoutDraft) {
+  return {
+    windingPitchMm: draft?.windingPitchMm ?? Number(calc?.results?.winding_pitch ?? 0),
+    numberOfThreads: draft?.numberOfThreads ?? Number(calc?.results?.num_circuits ?? 1),
+  };
+}
 
 function insulationEntryLabel(entry: { name: string; density_kg_m3?: number | string }) {
   return entry.density_kg_m3 != null
@@ -112,6 +140,14 @@ export default function HeatCalcPage() {
   const [elecVariant, setElecVariant] = useState<number>(1);
   const [cableSource, setCableSource] = useState<CableSource>('builtin');
   const [cableType, setCableType] = useState<CableTypeKey>('self_regulating');
+  const [supplyVoltage, setSupplyVoltage] = useState<number | null>(220);
+  const [connectionType, setConnectionType] = useState<string>('line_1ph');
+  const [windingCoefficient, setWindingCoefficient] = useState<number | null>(1);
+  const [heatingHeight, setHeatingHeight] = useState<number | null>(null);
+  const [layingStep, setLayingStep] = useState<number | null>(0.1);
+  const [vaporTemperature, setVaporTemperature] = useState<number | null>(null);
+  const [aggressiveProduct, setAggressiveProduct] = useState(false);
+  const [layoutDrafts, setLayoutDrafts] = useState<Record<string, CableLayoutDraft>>({});
   const qc = useQueryClient();
   const navigate = useNavigate();
 
@@ -123,7 +159,7 @@ export default function HeatCalcPage() {
 
   const { data: elecCalcs = [] } = useQuery({
     queryKey: ['project', project?.id, 'electrical-calcs', elecVariant],
-    queryFn: () => listElectricalCalcs(project!.id),
+    queryFn: () => listElectricalCalcs(project!.id, elecVariant),
     enabled: !!project,
     select: (rows) => rows.filter((c) => c.variant_number === elecVariant),
   });
@@ -133,6 +169,18 @@ export default function HeatCalcPage() {
     queryKey: ['references', 'cables', effectiveSource],
     queryFn: () => listCables(effectiveSource),
     enabled: !!project,
+    staleTime: 5 * 60_000,
+  });
+  const { data: ttCables = [] } = useQuery({
+    queryKey: ['references', 'tt-cables'],
+    queryFn: getCablesTt,
+    enabled: !!project && cableType === 'self_regulating_tt',
+    staleTime: 5 * 60_000,
+  });
+  const { data: resistiveCables } = useQuery({
+    queryKey: ['references', 'resistive-cables'],
+    queryFn: getResistiveCables,
+    enabled: !!project && (cableType === 'single_core' || cableType === 'three_core'),
     staleTime: 5 * 60_000,
   });
   const { data: insulationMaterials = [] } = useQuery({
@@ -147,18 +195,69 @@ export default function HeatCalcPage() {
     () => cables.map((c) => ({ value: c.model, label: `${c.model} · ${c.power_per_meter} Вт/м` })),
     [cables],
   );
+  const manualCableOptions = useMemo(() => {
+    if (cableType === 'self_regulating') return cableOptions;
+    if (cableType === 'self_regulating_tt') {
+      const suffix = aggressiveProduct ? 'СТ' : 'СР';
+      return ttCables.map((c) => ({
+        value: `${c.model}-${suffix}`,
+        label: `${c.model}-${suffix} · ${c.series} · ${c.nominal_power} Вт/м`,
+      }));
+    }
+    if (cableType === 'single_core') {
+      return (resistiveCables?.single_core ?? []).map((c) => ({
+        value: c.model,
+        label: `${c.model} · ${c.resistance_ohm_km ?? '—'} Ом/км`,
+      }));
+    }
+    if (cableType === 'three_core') {
+      return (resistiveCables?.three_core ?? []).map((c) => ({
+        value: c.model,
+        label: `${c.model} · ${c.nominal_size_mm ?? '—'}`,
+      }));
+    }
+    return [];
+  }, [aggressiveProduct, cableOptions, cableType, resistiveCables, ttCables]);
   const insulationLabelByCode = useMemo(
     () => new Map(insulationMaterials.map((m) => [m.material, insulationEntryLabel(m)])),
     [insulationMaterials],
   );
-  const insulationLabel = (material: unknown) => {
+  const insulationLabel = useCallback((material: unknown) => {
     const code = String(material ?? '');
     if (!code) return '—';
     return insulationLabelByCode.get(code) ?? MATERIAL_LABELS[code] ?? code;
-  };
+  }, [insulationLabelByCode]);
+
+  const outerDiameterMm = useCallback((record: ProjectObject) => {
+    const value = record.object_type === 'pipe'
+      ? Number(record.params?.outer_diameter) * 1000
+      : Number(record.params?.diameter) * 1000;
+    return Number.isFinite(value) ? value : null;
+  }, []);
+
+  const dnValue = useCallback((record: ProjectObject) => {
+    if (record.object_type !== 'pipe') return '—';
+    const diameter = outerDiameterMm(record);
+    if (diameter == null) return '—';
+    const dn = findDN(diameter);
+    return dn != null ? `DN${dn}` : '—';
+  }, [outerDiameterMm]);
 
   const batchElecMut = useMutation({
-    mutationFn: () => batchCalcElectrical(project!.id, effectiveSource, elecVariant),
+    mutationFn: () => {
+      if (cableType === 'self_regulating') {
+        return batchCalcElectrical(project!.id, effectiveSource, elecVariant);
+      }
+      return batchCalcElectrical(project!.id, effectiveSource, elecVariant, cableType, {
+        supplyVoltage,
+        connectionType,
+        windingCoefficient,
+        heatingHeight,
+        layingStep,
+        vaporTemperature,
+        aggressiveProduct,
+      });
+    },
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
       if (res.errors.length > 0) {
@@ -172,13 +271,75 @@ export default function HeatCalcPage() {
 
   const manualCableMut = useMutation({
     mutationFn: ({ objectId, mark }: { objectId: string; mark: string }) =>
-      selectCableManual(objectId, mark, effectiveSource, elecVariant),
+      selectCableManual(objectId, mark, effectiveSource, elecVariant, cableType, {
+        supplyVoltage,
+        connectionType,
+        windingCoefficient,
+        heatingHeight,
+        layingStep,
+        vaporTemperature,
+        aggressiveProduct,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
       antdMessage.success('Кабель выбран, расчёт обновлён');
     },
     onError: (e: Error) => antdMessage.error(e.message),
   });
+
+  const layoutMut = useMutation({
+    mutationFn: ({
+      objectId,
+      mark,
+      windingPitchMm,
+      numberOfThreads,
+    }: {
+      objectId: string;
+      mark: string;
+      windingPitchMm: number;
+      numberOfThreads: number;
+    }) =>
+      selectCableManual(objectId, mark, effectiveSource, elecVariant, cableType, {
+        supplyVoltage,
+        connectionType,
+        windingCoefficient,
+        windingPitchMm,
+        numberOfThreads,
+        heatingHeight,
+        layingStep,
+        vaporTemperature,
+        aggressiveProduct,
+      }),
+    onSuccess: (_calc, vars) => {
+      setLayoutDrafts((prev) => {
+        const next = { ...prev };
+        delete next[vars.objectId];
+        return next;
+      });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
+      antdMessage.success('Параметры укладки применены');
+    },
+    onError: (e: Error) => antdMessage.error(e.message),
+  });
+
+  function updateLayoutDraft(objectId: string, patch: CableLayoutDraft) {
+    setLayoutDrafts((prev) => ({ ...prev, [objectId]: { ...prev[objectId], ...patch } }));
+  }
+
+  function commitLayout(obj: ProjectObject) {
+    const calc = elecStats.calcByObjectId[obj.id];
+    if (!calc?.cable_mark) {
+      antdMessage.warning('Сначала выполните электрорасчёт или выберите марку кабеля');
+      return;
+    }
+    const values = calcLayoutValues(calc, layoutDrafts[obj.id]);
+    layoutMut.mutate({
+      objectId: obj.id,
+      mark: calc.cable_mark,
+      windingPitchMm: values.windingPitchMm,
+      numberOfThreads: values.numberOfThreads,
+    });
+  }
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -237,7 +398,7 @@ export default function HeatCalcPage() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedRowKeys, objects, tableTab, elecStats.calcByObjectId]);
+  }, [selectedRowKeys, objects, tableTab, elecStats.calcByObjectId, dnValue, insulationLabel]);
 
   const closeWizard = () => setWizardState(null);
   const keepEditedObjectOpen = (obj: ProjectObject) => {
@@ -268,11 +429,11 @@ export default function HeatCalcPage() {
   const validCount = objects.filter((o) => o.is_valid).length;
   const totalCount = objects.length;
   const cableTypeOptions = (Object.keys(CABLE_TYPE_LABEL) as CableTypeKey[]).map((k) => ({
-    label: k === 'self_regulating'
+    label: ENABLED_CABLE_TYPES.has(k)
       ? CABLE_TYPE_LABEL[k]
       : <Tooltip title="Нет формулы/каталога в текущей поставке">{CABLE_TYPE_LABEL[k]}</Tooltip>,
     value: k,
-    disabled: k !== 'self_regulating',
+    disabled: !ENABLED_CABLE_TYPES.has(k),
   }));
   const showInKW = elecStats.totalPower >= 1000;
   const powerDisplay = showInKW
@@ -307,13 +468,14 @@ export default function HeatCalcPage() {
   function handleWizardSubmit(params: Record<string, unknown>) {
     if (wizardState?.editingObject) {
       const currentState = wizardState;
+      const editingObject = currentState.editingObject!;
       const optimisticObject: ProjectObject = {
-        ...currentState.editingObject,
+        ...editingObject,
         params,
       };
       setWizardState({ type: currentState.type, editingObject: optimisticObject });
       edit.mutate(
-        { objectId: currentState.editingObject.id, params },
+        { objectId: editingObject.id, params },
         {
           onSuccess: (obj) => {
             setWizardState({
@@ -379,21 +541,6 @@ export default function HeatCalcPage() {
     return Number.isFinite(value) ? formatNumber(value, 0) : '—';
   }
 
-  function outerDiameterMm(record: ProjectObject) {
-    const value = record.object_type === 'pipe'
-      ? Number(record.params?.outer_diameter) * 1000
-      : Number(record.params?.diameter) * 1000;
-    return Number.isFinite(value) ? value : null;
-  }
-
-  function dnValue(record: ProjectObject) {
-    if (record.object_type !== 'pipe') return '—';
-    const diameter = outerDiameterMm(record);
-    if (diameter == null) return '—';
-    const dn = findDN(diameter);
-    return dn != null ? `DN${dn}` : '—';
-  }
-
   function renderAssumptionsPanel() {
     if (!selectedObject || !selectedResults) return null;
     const isPipe = selectedObject.object_type === 'pipe';
@@ -426,6 +573,64 @@ export default function HeatCalcPage() {
         {isUnderground && <span>λгр: {resultValue('ground_conductivity', 2)} Вт/мК</span>}
       </div>
     );
+  }
+
+  function renderElectricalTypeControls() {
+    if (cableType === 'self_regulating') return null;
+    if (cableType === 'self_regulating_tt') {
+      return (
+        <>
+          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>T проп., °C:</Text>
+          <InputNumber<number>
+            size="small"
+            value={vaporTemperature}
+            onChange={setVaporTemperature}
+            style={{ width: 92 }}
+          />
+          <Checkbox
+            checked={aggressiveProduct}
+            onChange={(e) => setAggressiveProduct(e.target.checked)}
+          >
+            <span style={{ fontSize: 12 }}>агр.</span>
+          </Checkbox>
+        </>
+      );
+    }
+    if (cableType === 'single_core' || cableType === 'three_core') {
+      const connectionOptions = cableType === 'single_core'
+        ? [
+            { value: 'line_1ph', label: 'Линия' },
+            { value: 'loop_1ph', label: 'Петля' },
+            { value: 'star_3ph', label: 'Звезда' },
+          ]
+        : [
+            { value: 'line_1ph', label: 'Линия' },
+            { value: 'loop_2x3', label: 'Петля 2×3' },
+            { value: 'loop_1x3', label: 'Петля 1×3' },
+            { value: 'star_3x3', label: 'Звезда 3×3' },
+            { value: 'star_1x3', label: 'Звезда 1×3' },
+          ];
+      return (
+        <>
+          <Select
+            size="small"
+            value={connectionType}
+            onChange={setConnectionType}
+            options={connectionOptions}
+            style={{ width: 118 }}
+          />
+          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>U:</Text>
+          <InputNumber<number> size="small" min={1} value={supplyVoltage} onChange={setSupplyVoltage} style={{ width: 76 }} />
+          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>w:</Text>
+          <InputNumber<number> size="small" min={1} max={1.5} step={0.05} value={windingCoefficient} onChange={setWindingCoefficient} style={{ width: 72 }} />
+          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>h:</Text>
+          <InputNumber<number> size="small" min={0} step={0.1} value={heatingHeight} onChange={setHeatingHeight} style={{ width: 76 }} />
+          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>шаг:</Text>
+          <InputNumber<number> size="small" min={0.05} max={0.5} step={0.01} value={layingStep} onChange={setLayingStep} style={{ width: 76 }} />
+        </>
+      );
+    }
+    return null;
   }
   const sourceColumns = [
     { title: '№', width: 42, render: (_: unknown, __: ProjectObject, idx: number) => idx + 1 },
@@ -538,8 +743,8 @@ export default function HeatCalcPage() {
             allowClear
             placeholder="Авто"
             value={calc?.cable_mark ?? undefined}
-            options={cableOptions}
-            disabled={!r.is_valid || cables.length === 0}
+            options={manualCableOptions}
+            disabled={!r.is_valid || manualCableOptions.length === 0}
             loading={manualCableMut.isPending}
             style={{ width: '100%' }}
             onChange={(mark) => {
@@ -553,30 +758,57 @@ export default function HeatCalcPage() {
       title: 'Шаг навива, мм',
       width: 120,
       align: 'right' as const,
-      render: (_: unknown, r: ProjectObject) => (
-        <InputNumber
-          size="small"
-          min={0}
-          value={Number(elecStats.calcByObjectId[r.id]?.results?.winding_pitch ?? 0)}
-          disabled={cableType === 'mineral'}
-          style={{ width: '100%' }}
-        />
-      ),
+      render: (_: unknown, r: ProjectObject) => {
+        const calc = elecStats.calcByObjectId[r.id];
+        const values = calcLayoutValues(calc, layoutDrafts[r.id]);
+        return (
+          <Tooltip title={calc?.cable_mark ? 'Применяется после выхода из поля' : 'Сначала выполните электрорасчёт или выберите марку'}>
+            <InputNumber
+              size="small"
+              min={0}
+              max={500}
+              value={values.windingPitchMm}
+              disabled={!r.is_valid || !calc?.cable_mark || layoutMut.isPending}
+              style={{ width: '100%' }}
+              onChange={(v) => updateLayoutDraft(r.id, { windingPitchMm: Number(v ?? 0) })}
+              onBlur={() => commitLayout(r)}
+              onPressEnter={() => commitLayout(r)}
+            />
+          </Tooltip>
+        );
+      },
     },
     {
       title: 'Ниток',
       width: 74,
       align: 'right' as const,
-      render: () => (
-        <InputNumber
-          size="small"
-          min={1}
-          max={8}
-          value={1}
-          disabled={cableType === 'mineral'}
-          style={{ width: '100%' }}
-        />
-      ),
+      render: (_: unknown, r: ProjectObject) => {
+        const calc = elecStats.calcByObjectId[r.id];
+        const values = calcLayoutValues(calc, layoutDrafts[r.id]);
+        return (
+          <Select
+            size="small"
+            value={values.numberOfThreads}
+            disabled={!r.is_valid || !calc?.cable_mark || layoutMut.isPending}
+            options={[
+              { value: 1, label: '1' },
+              { value: 2, label: '2' },
+              { value: 3, label: '3' },
+            ]}
+            style={{ width: '100%' }}
+            onChange={(v) => {
+              updateLayoutDraft(r.id, { numberOfThreads: v });
+              const current = calcLayoutValues(calc, layoutDrafts[r.id]);
+              layoutMut.mutate({
+                objectId: r.id,
+                mark: calc!.cable_mark!,
+                windingPitchMm: current.windingPitchMm,
+                numberOfThreads: v,
+              });
+            }}
+          />
+        );
+      },
     },
     {
       title: 'Длина каб., м',
@@ -748,10 +980,14 @@ export default function HeatCalcPage() {
               <Select<CableTypeKey>
                 size="small"
                 value={cableType}
-                onChange={setCableType}
+                onChange={(next) => {
+                  setCableType(next);
+                  setConnectionType('line_1ph');
+                }}
                 options={cableTypeOptions}
                 style={{ width: 210 }}
               />
+              {renderElectricalTypeControls()}
               {isEmployee && (
                 <>
                   <span className="sep" />
