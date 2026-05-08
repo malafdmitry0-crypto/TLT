@@ -18,17 +18,12 @@ vi.mock('@/api/projects', () => ({
 
 vi.mock('@/api/calculations', () => ({
   batchCalcElectrical: vi.fn().mockResolvedValue({ calculated: 0, skipped: 0, heat_loss_failed: 0, errors: [], results: [] }),
-  listCables: vi.fn().mockResolvedValue([]),
-  listElectricalCalcs: vi.fn().mockResolvedValue([]),
-  selectCableManual: vi.fn(),
 }));
 
 vi.mock('@/api/references', () => ({
   getClimate: vi.fn().mockResolvedValue([]),
-  getCablesTt: vi.fn().mockResolvedValue([]),
   getInsulation: vi.fn().mockResolvedValue([]),
   getPipeMaterials: vi.fn().mockResolvedValue([]),
-  getResistiveCables: vi.fn().mockResolvedValue({ single_core: [], three_core: [], common: {} }),
   getSoilConductivity: vi.fn().mockResolvedValue([]),
 }));
 
@@ -56,15 +51,28 @@ function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
     sort_order: 0,
     params: {
       name: 'Труба DN100',
+      placement: 'outdoor',
       outer_diameter: 0.1143,
+      wall_thickness: 0.004,
+      pipe_material: 'carbon_steel',
       pipe_length: 25,
       insulation_thickness: 0.05,
       insulation_material: 'mineral_wool',
       process_temperature: 60,
       ambient_temperature: -20,
+      max_ambient_temperature: 35,
+      max_process_temperature: 110,
+      environment: 'normal',
+      zone_classification: 'safe',
+      temperature_group: 'T3',
+      min_switch_temperature: -20,
+      supply_voltage: 220,
+      safety_factor: 1.2,
+      steam_tracing: 'no',
       valve_count: 1,
       flange_count: 2,
       support_count: 3,
+      local_element_equiv_length: 1.5,
     },
     results: { heat_loss_per_meter: 50, total_heat_loss: 5000 },
     is_valid: true,
@@ -164,61 +172,13 @@ describe('HeatCalcPage', () => {
     });
   });
 
-  describe('Вкладки таблицы', () => {
-    it('отображает вкладки исходных данных и результатов', () => {
+  describe('Навигация таблицы', () => {
+    it('не показывает внутренние вкладки исходных данных и результатов', () => {
       useProjectStore.getState().setCurrentProject(mockProject);
       renderPage();
-      expect(screen.getByRole('button', { name: 'Исходные данные' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Результаты расчёта' })).toBeInTheDocument();
-    });
-
-    it('на вкладке результатов показывает расчёт выбранного СО', async () => {
-      const { listObjects } = await import('@/api/projects');
-      const { listElectricalCalcs } = await import('@/api/calculations');
-      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
-
-      useProjectStore.getState().setCurrentProject(mockProject);
-      renderPage();
-
-      fireEvent.click(screen.getByRole('button', { name: 'Результаты расчёта' }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Выполнить электрорасчёт СО1/i })).toBeInTheDocument();
-      });
-      expect(listElectricalCalcs).toHaveBeenCalledWith('proj-test-1', 1);
-      expect(screen.getByText('Тип кабеля:')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'СО4' })).toBeInTheDocument();
-    });
-
-    it('на вкладке результатов запускает электрорасчёт выбранного СО', async () => {
-      const { listObjects } = await import('@/api/projects');
-      const { batchCalcElectrical } = await import('@/api/calculations');
-      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
-
-      useProjectStore.getState().setCurrentProject(mockProject);
-      renderPage();
-
-      fireEvent.click(screen.getByRole('button', { name: 'Результаты расчёта' }));
-      fireEvent.click(screen.getByRole('button', { name: 'СО2' }));
-      const button = await screen.findByRole('button', { name: /Выполнить электрорасчёт СО2/i });
-      await waitFor(() => {
-        expect(button).not.toBeDisabled();
-      });
-      fireEvent.click(button);
-
-      await waitFor(() => {
-        expect(batchCalcElectrical).toHaveBeenCalledWith(
-          'proj-test-1',
-          'builtin',
-          2,
-          'self_regulating',
-          expect.objectContaining({
-            supplyVoltage: 220,
-            windingCoefficient: 1,
-            layingStep: 0.1,
-          }),
-        );
-      });
+      expect(screen.queryByRole('button', { name: 'Исходные данные' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Результаты расчёта' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Тип кабеля:')).not.toBeInTheDocument();
     });
   });
 
@@ -252,11 +212,13 @@ describe('HeatCalcPage', () => {
       const user = (await import('@testing-library/user-event')).default.setup();
       renderPage();
 
-      await user.click(await screen.findByText('Резервуары'));
+      await user.click(await screen.findByLabelText('Резервуары'));
+      expect(screen.getByText('Резервуар')).toBeInTheDocument();
 
       await waitFor(() => {
         expect(screen.getByText('Резервуар прямоугольный')).toBeInTheDocument();
       });
+      expect(screen.getByText(/Параметры объекта «Резервуар прямоугольный»/)).toBeInTheDocument();
       expect(screen.queryByText('Труба DN100')).not.toBeInTheDocument();
       expect(screen.getAllByText('Форма').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Габариты').length).toBeGreaterThan(0);
@@ -265,6 +227,10 @@ describe('HeatCalcPage', () => {
       expect(screen.queryByText('L, м')).not.toBeInTheDocument();
       expect(screen.queryByText('Зад.')).not.toBeInTheDocument();
       expect(document.body.textContent).toMatch(/3\s*000.*2\s*000.*1\s*500 мм/);
+
+      await user.click(screen.getByLabelText('Трубопровод'));
+      expect(screen.getByText('Труба')).toBeInTheDocument();
+      expect(screen.getByText(/Параметры объекта «Труба DN100»/)).toBeInTheDocument();
     });
 
     it('кнопка «Добавить» открывает форму активного типа без dropdown', async () => {
@@ -276,7 +242,7 @@ describe('HeatCalcPage', () => {
       expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Отменить' }));
-      await user.click(screen.getByText('Резервуары'));
+      await user.click(screen.getByLabelText('Резервуары'));
       await user.click(screen.getByRole('button', { name: /Добавить/i }));
 
       expect(await screen.findByText('Форма и геометрия резервуара')).toBeInTheDocument();
@@ -289,11 +255,20 @@ describe('HeatCalcPage', () => {
 
       const addButton = screen.getByRole('button', { name: 'Добавить' });
       const saveButton = screen.getByRole('button', { name: 'Сохранить изменения' });
+      const importButton = screen.getByRole('button', { name: 'Импорт XLSX/CSV' });
 
+      expect(screen.getByText('Труба')).toBeInTheDocument();
+      expect(screen.getByLabelText('Трубопровод')).toBeInTheDocument();
+      expect(screen.getByLabelText('Резервуары')).toBeInTheDocument();
+      expect(screen.queryByText('Трубопровод')).not.toBeInTheDocument();
+      expect(screen.queryByText('Резервуары')).not.toBeInTheDocument();
       expect(addButton).toHaveClass('action-icon-button');
       expect(addButton.textContent?.trim()).toBe('');
       expect(saveButton).toHaveClass('action-icon-button');
       expect(saveButton).toBeDisabled();
+      expect(importButton).toHaveClass('action-icon-button');
+      expect(importButton.textContent?.trim()).toBe('');
+      expect(screen.queryByText('Импорт XLSX/CSV')).not.toBeInTheDocument();
 
       await user.click(addButton);
 
@@ -318,36 +293,57 @@ describe('HeatCalcPage', () => {
       await user.click(rowCheckboxes[1]);
 
       expect(await screen.findByText(/Выбрано: 1/)).toBeInTheDocument();
-      await user.click(screen.getByText('Резервуары'));
+      await user.click(screen.getByLabelText('Резервуары'));
       await waitFor(() => {
         expect(screen.queryByText(/Выбрано: 1/)).not.toBeInTheDocument();
       });
     });
 
-    it('на вкладке результатов меняет единицы q для труб и резервуаров', async () => {
-      const { listObjects } = await import('@/api/projects');
-      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
-        makeObject(),
-        makeTank(),
-      ]);
+  });
+
+  describe('Панель действий объекта', () => {
+    it('после сохранения редактируемого объекта оставляет форму открытой в режиме новой записи', async () => {
+      const { listObjects, updateObject } = await import('@/api/projects');
+      const source = makeObject();
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
+      (updateObject as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeObject({
+          id: source.id,
+          params: { ...source.params, name: 'Труба DN100' },
+        }),
+      );
 
       useProjectStore.getState().setCurrentProject(mockProject);
       const user = (await import('@testing-library/user-event')).default.setup();
       renderPage();
 
-      await user.click(screen.getByRole('button', { name: 'Результаты расчёта' }));
-      await waitFor(() => {
-        expect(screen.getAllByText('q, Вт/м').length).toBeGreaterThan(0);
-      });
+      await user.click(await screen.findByText('Труба DN100'));
+      expect(screen.getByText(/Параметры объекта «Труба DN100»/)).toBeInTheDocument();
+      expect(screen.getByText('Режим: редактирование')).toBeInTheDocument();
 
-      await user.click(screen.getByText('Резервуары'));
+      const toolbarSaveButton = screen
+        .getAllByRole('button', { name: 'Сохранить изменения' })
+        .find((button) => button.classList.contains('action-icon-button'));
+      expect(toolbarSaveButton).toBeDefined();
+      await user.click(toolbarSaveButton!);
+
       await waitFor(() => {
-        expect(screen.getAllByText('q, Вт/м²').length).toBeGreaterThan(0);
+        expect(updateObject).toHaveBeenCalledWith(
+          'proj-test-1',
+          source.id,
+          expect.objectContaining({
+            params: expect.objectContaining({
+              name: 'Труба DN100',
+            }),
+          }),
+        );
       });
+      expect(screen.getByText('Параметры: Трубы')).toBeInTheDocument();
+      expect(screen.getByText('новая запись')).toBeInTheDocument();
+      expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
+      expect(screen.queryByText(/Параметры объекта «Труба DN100»/)).not.toBeInTheDocument();
     });
-  });
 
-  describe('Панель действий объекта', () => {
     it('создаёт копию выбранного объекта через «Создать на основании»', async () => {
       const { listObjects, createObject } = await import('@/api/projects');
       const source = makeObject();

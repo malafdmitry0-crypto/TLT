@@ -567,6 +567,11 @@ async function selectObjectType(page, label) {
       // Some AntD versions expose the radio input but only the segmented item is clickable.
     }
   }
+  const iconOption = page.getByLabel(label, { exact: true });
+  if (await iconOption.count()) {
+    await iconOption.click({ timeout: 2_000 });
+    return;
+  }
   await page.locator('.ant-segmented-item', { hasText: label }).click();
 }
 
@@ -644,10 +649,10 @@ async function main() {
     await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 30_000 });
     await page.waitForTimeout(700);
     await selectObjectType(page, 'Трубопровод');
-    await page.getByText('P01 · труба', { exact: false }).waitFor({ state: 'visible', timeout: 10_000 });
+    await page.locator('td.ant-table-cell', { hasText: 'P01 · труба' }).first().waitFor({ state: 'visible', timeout: 10_000 });
     const uiPipeRows = await tableRowCount(page);
     await selectObjectType(page, 'Резервуары');
-    await page.getByText('T01 · резервуар', { exact: false }).waitFor({ state: 'visible', timeout: 10_000 });
+    await page.locator('td.ant-table-cell', { hasText: 'T01 · резервуар' }).first().waitFor({ state: 'visible', timeout: 10_000 });
     const uiTankRows = await tableRowCount(page);
     if (uiPipeRows !== expectedUiRows.pipe || uiTankRows !== expectedUiRows.tank) {
       throw new Error(
@@ -660,7 +665,16 @@ async function main() {
     await addButton.click();
     await page.getByText('Форма и геометрия резервуара').waitFor({ state: 'visible', timeout: 10_000 });
     await page.getByRole('button', { name: 'Отменить' }).click();
-    await page.getByRole('button', { name: /Результаты расчёта/ }).click();
+    await selectObjectType(page, 'Трубопровод');
+    await page.getByText('Параметры объекта «P01', { exact: false }).waitFor({ state: 'visible', timeout: 10_000 });
+    await selectObjectType(page, 'Резервуары');
+    await page.getByText('Параметры объекта «T01', { exact: false }).waitFor({ state: 'visible', timeout: 10_000 });
+    await page.getByRole('button', { name: 'Сохранить изменения' }).click();
+    await page.getByText('Параметры: Резервуары', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
+    await page.getByText('новая запись', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
+    if (await page.getByRole('button', { name: 'Результаты расчёта' }).count() > 0) {
+      throw new Error('Unexpected inner results tab is visible on heat-calc page');
+    }
     await page.waitForTimeout(500);
     await page.screenshot({ path: screenshotPath, fullPage: true });
     await writeOpener(sessionId, storedProject, targetUrl);

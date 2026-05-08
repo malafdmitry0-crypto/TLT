@@ -19,6 +19,7 @@
 | [object-type-switch-prompt.md](object-type-switch-prompt.md) | Разделить таблицу HeatCalc по типам объектов без изменения БД |
 | [heatcalc-ui-improvement-prompt.md](heatcalc-ui-improvement-prompt.md) | Улучшить рабочий UI HeatCalc: actionbar, icon-only actions, accessibility |
 | [font-size-harmonization-prompt.md](font-size-harmonization-prompt.md) | Согласовать типографическую шкалу и размеры шрифта в рабочем UI |
+| [heatcalc-command-bar-consolidation-proposals.md](heatcalc-command-bar-consolidation-proposals.md) | Совместить глобальную навигацию HeatCalc и локальную панель действий в одну строку |
 
 Для крошечных стандартных операций (версия, сиды, smoke) используйте
 соответствующие `.claude/commands/*.md` — Клод подхватит их как slash-команды.

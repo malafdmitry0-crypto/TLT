@@ -878,10 +878,10 @@ html, body, #root {
 
 .actionbar-srs {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: wrap;
   align-items: center;
-  padding: 4px 6px;
+  padding: 2px 6px;
   background: #f4f8fa;
   border-radius: 4px;
   border: 1px solid #d9e1e6;
@@ -907,6 +907,33 @@ html, body, #root {
   flex: 0 0 auto;
 }
 
+.actionbar-context-label {
+  color: #607080;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.object-type-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  line-height: 1;
+}
+
+.object-type-svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .actionbar-edit-group,
 .actionbar-save-group,
 .actionbar-io-group {
@@ -924,13 +951,25 @@ html, body, #root {
 .actionbar-srs .ant-btn {
   border-radius: 3px;
   font-size: 12px;
-  height: 24px;
-  padding-inline: 9px;
+  height: 22px;
+  padding-inline: 8px;
   line-height: 1;
 }
 
 .actionbar-srs .ant-segmented {
   font-size: 12px;
+  padding: 1px;
+}
+
+.actionbar-srs .ant-segmented-item {
+  min-height: 22px;
+  line-height: 22px;
+  padding: 0 8px;
+}
+
+.actionbar-srs .ant-segmented-item-label {
+  min-height: 22px;
+  line-height: 22px;
 }
 
 .actionbar-srs .action-tooltip-wrap {
@@ -938,8 +977,8 @@ html, body, #root {
 }
 
 .actionbar-srs .action-icon-button {
-  width: 26px;
-  min-width: 26px;
+  width: 24px;
+  min-width: 24px;
   padding-inline: 0;
   display: inline-flex;
   align-items: center;
@@ -985,41 +1024,6 @@ html, body, #root {
   font-size: 11px;
   line-height: 20px;
   font-variant-numeric: tabular-nums;
-}
-
-.tabs-row-srs {
-  display: flex;
-  align-items: flex-end;
-  border-bottom: 2px solid #d9e1e6;
-}
-
-.tabs-row-srs button {
-  border: 0;
-  background: transparent;
-  padding: 5px 11px;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
-  font-size: 11px;
-  color: #607080;
-}
-
-.tabs-row-srs button.variant {
-  padding: 2px 7px;
-  font-size: 11px;
-}
-
-.tabs-row-srs button.active {
-  color: var(--color-primary);
-  font-weight: 600;
-  border-color: var(--color-primary);
-}
-
-.tabs-row-srs .sep {
-  width: 1px;
-  height: 18px;
-  background: #c4d2db;
-  margin: 0 3px 3px;
 }
 
 .srs-table-wrap .ant-card-body {
@@ -1077,7 +1081,7 @@ html, body, #root {
 }
 
 .import-actions-compact .template-download-button {
-  height: 22px;
+  height: 20px;
   padding: 0 3px;
   font-size: 11px;
 }
