@@ -4,7 +4,7 @@ import math
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
@@ -608,8 +608,16 @@ class CalculationService:
         variant_number: int = 1,
         cable_type: str = "self_regulating",
         electrical_params: dict[str, Any] | None = None,
-    ) -> tuple[int, int, list[dict[str, Any]], list[ElectricalCalculation]]:
+    ) -> tuple[int, int, int, list[dict[str, Any]], list[ElectricalCalculation]]:
         """Автоподбор кабеля для всех валидных объектов проекта (cable_mark=None)."""
+        # Считаем общее количество объектов в проекте — чтобы сообщить фронту,
+        # сколько объектов исключено из-за ошибок теплопотерь.
+        total_count: int = await self.db.scalar(
+            select(func.count()).select_from(ProjectObject).where(
+                ProjectObject.project_id == project_id,
+            )
+        ) or 0
+
         result = await self.db.execute(
             select(ProjectObject).where(
                 ProjectObject.project_id == project_id,
@@ -617,6 +625,7 @@ class CalculationService:
             )
         )
         objects = list(result.scalars().all())
+        heat_loss_failed = total_count - len(objects)
         calculated = 0
         skipped = 0
         errors: list[dict[str, Any]] = []
@@ -662,7 +671,7 @@ class CalculationService:
                 errors.append({"object_id": str(obj.id), "error": err_msg})
                 await self._save_failed_electrical(obj, err_msg, variant_number, cable_type)
 
-        return calculated, skipped, errors, calcs
+        return calculated, skipped, heat_loss_failed, errors, calcs
 
     async def _save_failed_electrical(
         self,

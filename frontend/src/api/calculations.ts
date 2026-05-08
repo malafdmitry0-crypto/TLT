@@ -45,6 +45,7 @@ export async function listElectricalCalcs(
 export interface BatchElectricalResponse {
   calculated: number;
   skipped: number;
+  heat_loss_failed: number;
   errors: Array<{ object_id: string; error: string }>;
   results: ElectricalCalcSummary[];
 }

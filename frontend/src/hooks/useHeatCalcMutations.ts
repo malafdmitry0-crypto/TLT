@@ -112,10 +112,14 @@ export function useHeatCalcMutations(
       });
       if (res.errors.length > 0) {
         message.warning(
-          `Рассчитано: ${res.calculated}. Пропущено: ${res.skipped}. Проверьте параметры объектов.`,
+          `Рассчитано: ${res.calculated}. Пропущено: ${res.skipped}` +
+          `${res.heat_loss_failed > 0 ? `. Ошибок теплопотерь: ${res.heat_loss_failed}` : ''}. Проверьте параметры объектов.`,
         );
       } else {
-        message.success(`Электрорасчёт выполнен для ${res.calculated} объектов`);
+        message.success(
+          `Электрорасчёт выполнен для ${res.calculated} объектов` +
+          `${res.heat_loss_failed > 0 ? ` (ещё ${res.heat_loss_failed} с ошибками теплопотерь)` : ''}`,
+        );
       }
       navigate(ROUTES.elecCalc);
     },

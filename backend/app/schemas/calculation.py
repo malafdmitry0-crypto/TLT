@@ -580,5 +580,9 @@ class BatchElectricalResponse(BaseModel):
 
     calculated: int
     skipped: int
+    heat_loss_failed: int = Field(
+        default=0,
+        description="Количество объектов с ошибками теплопотерь, исключённых из расчёта",
+    )
     errors: list[dict[str, Any]] = Field(default_factory=list)
     results: list[ElectricalCalcSummary] = Field(default_factory=list)

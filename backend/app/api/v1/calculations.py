@@ -211,7 +211,7 @@ async def batch_calc_electrical(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"
         )
     service = CalculationService(db)
-    calculated, skipped, errors, calcs = await service.batch_calc_electrical(
+    calculated, skipped, heat_loss_failed, errors, calcs = await service.batch_calc_electrical(
         project_id,
         cable_source,
         variant_number,
@@ -231,6 +231,7 @@ async def batch_calc_electrical(
     return BatchElectricalResponse(
         calculated=calculated,
         skipped=skipped,
+        heat_loss_failed=heat_loss_failed,
         errors=errors,
         results=[
             ElectricalCalcSummary(

@@ -151,9 +151,15 @@ export default function ElecCalcPage() {
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
       if (res.errors.length > 0) {
-        message.warning(`СО${variant} · рассчитано: ${res.calculated}, пропущено: ${res.skipped}.`);
+        message.warning(
+          `СО${variant} · рассчитано: ${res.calculated}, пропущено: ${res.skipped}` +
+          `${res.heat_loss_failed > 0 ? `, ошибок теплопотерь: ${res.heat_loss_failed}` : ''}.`,
+        );
       } else {
-        message.success(`СО${variant} — расчёт выполнен для ${res.calculated} объектов`);
+        message.success(
+          `СО${variant} — расчёт выполнен для ${res.calculated} объектов` +
+          `${res.heat_loss_failed > 0 ? ` (ещё ${res.heat_loss_failed} с ошибками теплопотерь)` : ''}`,
+        );
       }
     },
     onError: (e: Error) => message.error(e.message),

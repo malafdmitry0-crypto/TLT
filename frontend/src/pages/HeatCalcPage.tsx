@@ -261,9 +261,15 @@ export default function HeatCalcPage() {
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
       if (res.errors.length > 0) {
-        antdMessage.warning(`СО${elecVariant} · рассчитано: ${res.calculated}, пропущено: ${res.skipped}.`);
+        antdMessage.warning(
+          `СО${elecVariant} · рассчитано: ${res.calculated}, пропущено: ${res.skipped}` +
+          `${res.heat_loss_failed > 0 ? `, ошибок теплопотерь: ${res.heat_loss_failed}` : ''}.`,
+        );
       } else {
-        antdMessage.success(`СО${elecVariant} — расчёт выполнен для ${res.calculated} объектов`);
+        antdMessage.success(
+          `СО${elecVariant} — расчёт выполнен для ${res.calculated} объектов` +
+          `${res.heat_loss_failed > 0 ? ` (ещё ${res.heat_loss_failed} с ошибками теплопотерь)` : ''}`,
+        );
       }
     },
     onError: (e: Error) => antdMessage.error(e.message),
