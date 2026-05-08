@@ -10,11 +10,13 @@ from app.models.project import Project, ProjectStatus
 from app.models.project_object import ObjectType, ProjectObject
 from app.models.specification import Specification
 from app.models.user import User, UserRole
+from app.models.user_preference import UserPreference
 
 __all__ = [
     "Base",
     "User",
     "UserRole",
+    "UserPreference",
     "GuestSession",
     "Project",
     "ProjectStatus",

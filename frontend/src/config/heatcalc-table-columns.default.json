@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "table": {
+    "pipe": [
+      "index",
+      "type",
+      "name",
+      "pipe_outer_diameter",
+      "pipe_dn",
+      "pipe_length",
+      "insulation_layer_count",
+      "insulation_thickness",
+      "insulation_material",
+      "process_temperature",
+      "ambient_temperature",
+      "valve_count",
+      "flange_count",
+      "support_count"
+    ],
+    "tank": [
+      "index",
+      "type",
+      "name",
+      "tank_shape",
+      "tank_dimensions",
+      "placement",
+      "insulation_layer_count",
+      "insulation_thickness",
+      "insulation_material",
+      "process_temperature",
+      "ambient_temperature",
+      "q_additional"
+    ]
+  },
+  "export": {
+    "pipe": ["*"],
+    "tank": ["*"]
+  }
+}

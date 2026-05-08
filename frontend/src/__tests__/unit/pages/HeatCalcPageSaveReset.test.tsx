@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HeatCalcPage from '@/pages/HeatCalcPage';
+import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import type { Project, ProjectObject } from '@/types/project';
@@ -61,6 +62,15 @@ vi.mock('@/api/references', () => ({
   getSoilConductivity: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock('@/api/preferences', () => ({
+  getUserPreference: vi.fn().mockResolvedValue({
+    key: 'heatcalc.tableColumns.v1',
+    value: null,
+    user_id: 'user-test-1',
+  }),
+  updateUserPreference: vi.fn(),
+}));
+
 const mockProject: Project = {
   id: 'proj-test-1',
   name: 'Тестовый проект',
@@ -106,6 +116,8 @@ function renderPage() {
 
 describe('HeatCalcPage save reset', () => {
   beforeEach(() => {
+    localStorage.clear();
+    useAuthStore.getState().logout();
     useProjectStore.getState().setCurrentProject(null);
     useWorkspaceHeaderStore.getState().setContext(null);
     vi.clearAllMocks();

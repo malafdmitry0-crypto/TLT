@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
+  Checkbox,
+  Modal,
   Popconfirm,
   Segmented,
   Space,
@@ -20,9 +22,11 @@ import {
   FireOutlined,
   PlusOutlined,
   SaveOutlined,
+  TableOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import type { ColumnsType, ColumnType } from 'antd/es/table';
 
 import ObjectWizard from '@/components/wizard/ObjectWizard';
 import ImportExcelButton from '@/components/ImportExcelButton';
@@ -34,17 +38,45 @@ import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import { listObjects } from '@/api/projects';
+import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { getInsulation } from '@/api/references';
 import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
 import type { ProjectObject } from '@/types/project';
 import { formatNumber } from '@/utils/formatters';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 import { findDN } from '@/utils/objectWizardUtils';
+import {
+  HEATCALC_TABLE_COLUMN_CATALOG,
+  HEATCALC_TABLE_COLUMN_PREF_KEY,
+  clearRegisteredTableColumnCache,
+  createTableColumnSettingsPatch,
+  getAvailableTableColumnKeys,
+  getDefaultTableColumnSettings,
+  getDefaultVisibleTableColumnKeys,
+  getVisibleTableColumnMetas,
+  normalizeTableColumnSettings,
+  readGuestTableColumnSettings,
+  readRegisteredTableColumnCache,
+  writeGuestTableColumnSettings,
+  writeRegisteredTableColumnCache,
+  type HeatCalcColumnKey,
+  type HeatCalcObjectType,
+  type HeatCalcTableColumnSettings,
+} from '@/utils/heatCalcTableColumns';
 
 const { Text } = Typography;
 
 /** В MVP мастер знает только две формы — трубу и резервуар. */
-type WizardObjectType = 'pipe' | 'tank';
+type WizardObjectType = HeatCalcObjectType;
+
+type TableColumnRenderSpec = Pick<ColumnType<ProjectObject>, 'render' | 'ellipsis' | 'align'> & {
+  copyValue: (record: ProjectObject, index: number) => string;
+};
+
+const TABLE_SETTINGS_TYPE_LABELS: Record<HeatCalcObjectType, string> = {
+  pipe: 'Труба',
+  tank: 'Резервуар',
+};
 
 function PipeTypeIcon() {
   return (
@@ -95,6 +127,92 @@ function placementLabel(placement: unknown) {
 function mmParam(record: ProjectObject, key: string) {
   const value = Number(record.params?.[key]);
   return Number.isFinite(value) ? formatNumber(value * 1000, 0) : '—';
+}
+
+function formatNumericValue(value: unknown, digits = 0) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? formatNumber(numericValue, digits) : '—';
+}
+
+function formatParamNumber(record: ProjectObject, key: string, digits = 0) {
+  return formatNumericValue(record.params?.[key], digits);
+}
+
+function formatParamMetersAsMm(record: ProjectObject, key: string) {
+  const value = Number(record.params?.[key]);
+  return Number.isFinite(value) ? formatNumber(value * 1000, 0) : '—';
+}
+
+function formatParamText(record: ProjectObject, key: string) {
+  const value = record.params?.[key];
+  return value == null || value === '' ? '—' : String(value);
+}
+
+function insulationLayer(record: ProjectObject, index: number) {
+  const layers = record.params?.insulation_layers;
+  return Array.isArray(layers) && typeof layers[index] === 'object' && layers[index] !== null
+    ? layers[index] as Record<string, unknown>
+    : null;
+}
+
+function insulationLayerThickness(record: ProjectObject, index: number) {
+  const layer = insulationLayer(record, index);
+  const value = Number(layer?.thickness);
+  return Number.isFinite(value) ? formatNumber(value * 1000, 0) : '—';
+}
+
+function insulationLayerMaterial(
+  record: ProjectObject,
+  index: number,
+  materialLabel: (material: unknown) => string,
+) {
+  return materialLabel(insulationLayer(record, index)?.material);
+}
+
+function insulationLayerConductivity(record: ProjectObject, index: number) {
+  return formatNumericValue(insulationLayer(record, index)?.conductivity, 3);
+}
+
+function lambdaModeLabel(value: unknown) {
+  if (value === 'manual') return 'Ручн.';
+  if (value === 'reference') return 'Справ.';
+  return value == null || value === '' ? '—' : String(value);
+}
+
+function environmentLabel(value: unknown) {
+  if (value === 'normal') return 'Нормальная';
+  if (value === 'aggressive') return 'Агрессивная';
+  return value == null || value === '' ? '—' : String(value);
+}
+
+function zoneLabel(value: unknown) {
+  if (value === 'safe') return 'Безопасная';
+  if (value === 'hazardous') return 'Взрывоопасная';
+  return value == null || value === '' ? '—' : String(value);
+}
+
+function booleanChoiceLabel(value: unknown) {
+  if (value === true || value === 'yes') return 'Да';
+  if (value === false || value === 'no') return 'Нет';
+  return value == null || value === '' ? '—' : String(value);
+}
+
+function climateBasisLabel(value: unknown) {
+  if (value == null || value === '') return '—';
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? formatNumber(numericValue, 2) : String(value);
+}
+
+function sourceText(source: unknown) {
+  if (source === 'climate') return 'из климата';
+  if (source === 'manual') return 'вручную';
+  return '—';
+}
+
+function countParamValue(record: ProjectObject, key: string) {
+  if (record.object_type !== 'pipe') return '—';
+  const value = Number(record.params?.[key]);
+  return Number.isFinite(value) ? formatNumber(value, 0) : '—';
 }
 
 function tankDimensions(record: ProjectObject) {
@@ -156,10 +274,25 @@ function ObjectCountBadge({
 export default function HeatCalcPage() {
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
+  const registeredUserId = useAuthStore((s) => s.user?.id ?? null);
+  const isRegisteredUser = role === 'employee' || role === 'admin';
   const [wizardState, setWizardState] = useState<WizardState | null>(null);
   const [newWizardRevision, setNewWizardRevision] = useState(0);
   const [activeObjectType, setActiveObjectType] = useState<WizardObjectType>('pipe');
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [tableColumnSettings, setTableColumnSettings] = useState<HeatCalcTableColumnSettings>(() => {
+    const auth = useAuthStore.getState();
+    const cached = readRegisteredTableColumnCache(auth.user?.id ?? null);
+    if (auth.role === 'employee' || auth.role === 'admin') {
+      return cached ?? getDefaultTableColumnSettings();
+    }
+    return readGuestTableColumnSettings();
+  });
+  const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
+  const [columnSettingsType, setColumnSettingsType] = useState<HeatCalcObjectType>('pipe');
+  const [draftTableColumnSettings, setDraftTableColumnSettings] = useState<HeatCalcTableColumnSettings>(
+    () => tableColumnSettings,
+  );
   const setWorkspaceHeaderContext = useWorkspaceHeaderStore((s) => s.setContext);
 
   const { data: objects = [] } = useQuery({
@@ -175,6 +308,33 @@ export default function HeatCalcPage() {
     staleTime: 5 * 60_000,
   });
 
+  const { data: persistedTableColumnPreference } = useQuery({
+    queryKey: ['preference', HEATCALC_TABLE_COLUMN_PREF_KEY],
+    queryFn: () => getUserPreference<HeatCalcTableColumnSettings>(HEATCALC_TABLE_COLUMN_PREF_KEY),
+    enabled: isRegisteredUser,
+    staleTime: 30_000,
+  });
+
+  const updateTableColumnPreference = useMutation({
+    mutationFn: (settings: HeatCalcTableColumnSettings) =>
+      updateUserPreference<HeatCalcTableColumnSettings>(
+        HEATCALC_TABLE_COLUMN_PREF_KEY,
+        normalizeTableColumnSettings(settings),
+      ),
+    onSuccess: (preference) => {
+      const normalized = normalizeTableColumnSettings(preference.value);
+      setTableColumnSettings(normalized);
+      if (preference.user_id) {
+        writeRegisteredTableColumnCache(preference.user_id, normalized);
+      }
+      setColumnSettingsOpen(false);
+      antdMessage.success('Поля таблицы сохранены');
+    },
+    onError: (error) => {
+      antdMessage.error(error instanceof Error ? error.message : 'Не удалось сохранить поля таблицы');
+    },
+  });
+
   const visibleObjects = useMemo(
     () => objects.filter((obj) => obj.object_type === activeObjectType),
     [objects, activeObjectType],
@@ -188,6 +348,30 @@ export default function HeatCalcPage() {
     if (!code) return '—';
     return insulationLabelByCode.get(code) ?? MATERIAL_LABELS[code] ?? code;
   }, [insulationLabelByCode]);
+
+  useEffect(() => {
+    if (isRegisteredUser) {
+      setTableColumnSettings(
+        readRegisteredTableColumnCache(registeredUserId) ?? getDefaultTableColumnSettings(),
+      );
+      return;
+    }
+    setTableColumnSettings(readGuestTableColumnSettings());
+  }, [isRegisteredUser, registeredUserId]);
+
+  useEffect(() => {
+    if (!isRegisteredUser || !persistedTableColumnPreference) return;
+    if (persistedTableColumnPreference.value) {
+      const normalized = normalizeTableColumnSettings(persistedTableColumnPreference.value);
+      setTableColumnSettings(normalized);
+      if (persistedTableColumnPreference.user_id) {
+        writeRegisteredTableColumnCache(persistedTableColumnPreference.user_id, normalized);
+      }
+      return;
+    }
+    clearRegisteredTableColumnCache(registeredUserId ?? persistedTableColumnPreference.user_id);
+    setTableColumnSettings(getDefaultTableColumnSettings());
+  }, [isRegisteredUser, persistedTableColumnPreference, registeredUserId]);
 
   const outerDiameterMm = useCallback((record: ProjectObject) => {
     const value = record.object_type === 'pipe'
@@ -211,60 +395,6 @@ export default function HeatCalcPage() {
       return null;
     });
   }, [activeObjectType]);
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (!(e.ctrlKey || e.metaKey) || e.key !== 'c') return;
-      if (selectedRowKeys.length === 0) return;
-      // Don't hijack copy when text is selected in an input
-      const active = document.activeElement;
-      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
-
-      const selected = visibleObjects.filter((o) => selectedRowKeys.includes(o.id));
-      const isPipeTable = activeObjectType === 'pipe';
-
-      const header = isPipeTable
-        ? ['Тип', 'Наименование', 'Ø, мм', 'DN', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C', 'Зад.', 'Флн.', 'Опр.']
-        : ['Тип', 'Наименование', 'Форма', 'Габариты', 'Размещение', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C', 'Q доп., Вт'];
-
-      const rows = selected.map((r) => {
-        return isPipeTable
-          ? [
-              'Труба',
-              String(r.params?.name ?? ''),
-              formatNumber(Number(r.params?.outer_diameter) * 1000, 0),
-              dnValue(r),
-              formatNumber(Number(r.params?.pipe_length), 1),
-              formatNumber(Number(r.params?.insulation_thickness) * 1000, 0),
-              insulationLabel(r.params?.insulation_material),
-              formatNumber(Number(r.params?.process_temperature), 0),
-              formatNumber(Number(r.params?.ambient_temperature), 0),
-              countParamValue(r, 'valve_count'),
-              countParamValue(r, 'flange_count'),
-              countParamValue(r, 'support_count'),
-            ]
-          : [
-              'Резервуар',
-              String(r.params?.name ?? ''),
-              tankShapeLabel(r.params?.shape),
-              tankDimensions(r),
-              placementLabel(r.params?.placement ?? r.params?.location),
-              formatNumber(Number(r.params?.insulation_thickness) * 1000, 0),
-              insulationLabel(r.params?.insulation_material),
-              formatNumber(Number(r.params?.process_temperature), 0),
-              formatNumber(Number(r.params?.ambient_temperature), 0),
-              formatNumber(Number(r.params?.q_additional), 0),
-            ];
-      });
-
-      copyToClipboard(buildTsv([header, ...rows])).then(() => {
-        antdMessage.success(`Скопировано строк: ${selected.length}`);
-      });
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [activeObjectType, selectedRowKeys, visibleObjects, dnValue, insulationLabel]);
 
   const closeWizard = () => setWizardState(null);
   const openNewObjectMode = (obj?: ProjectObject) => {
@@ -326,16 +456,6 @@ export default function HeatCalcPage() {
     project,
     setWorkspaceHeaderContext,
   ]);
-
-  if (!project) {
-    return (
-      <EmptyProjectState
-        icon={<FireOutlined style={{ marginRight: 8, color: '#e06c1e' }} />}
-        title="Расчёт теплопотерь"
-        description="Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери."
-      />
-    );
-  }
 
   function openAddWizard(type: WizardObjectType = activeObjectType) {
     setNewWizardRevision((revision) => revision + 1);
@@ -410,18 +530,6 @@ export default function HeatCalcPage() {
     return Number.isFinite(value) ? formatNumber(value, digits) : '—';
   }
 
-  function sourceText(source: unknown) {
-    if (source === 'climate') return 'из климата';
-    if (source === 'manual') return 'вручную';
-    return '—';
-  }
-
-  function countParamValue(record: ProjectObject, key: string) {
-    if (record.object_type !== 'pipe') return '—';
-    const value = Number(record.params?.[key]);
-    return Number.isFinite(value) ? formatNumber(value, 0) : '—';
-  }
-
   function renderAssumptionsPanel() {
     if (!selectedObject || !selectedResults) return null;
     const isPipe = selectedObject.object_type === 'pipe';
@@ -456,140 +564,376 @@ export default function HeatCalcPage() {
     );
   }
 
-  const baseColumns = [
-    { title: '№', width: 42, render: (_: unknown, __: ProjectObject, idx: number) => idx + 1 },
-    {
-      title: 'Тип',
-      width: 70,
+  const columnRenderers = useMemo<Record<HeatCalcColumnKey, TableColumnRenderSpec>>(() => ({
+    index: {
+      render: (_: unknown, __: ProjectObject, idx: number) => idx + 1,
+      copyValue: (_record, idx) => String(idx + 1),
+    },
+    type: {
       render: (_: unknown, r: ProjectObject) => (r.object_type === 'pipe' ? 'Тр.' : 'Рез.'),
+      copyValue: (r) => (r.object_type === 'pipe' ? 'Труба' : 'Резервуар'),
     },
-    {
-      title: 'Наименование',
-      dataIndex: ['params', 'name'],
-      width: 240,
+    name: {
       ellipsis: true,
-      render: (v: unknown, r: ProjectObject, idx: number) =>
-        String(v ?? `${OBJECT_TYPE_LABELS[r.object_type]} #${idx + 1}`),
+      render: (_: unknown, r: ProjectObject, idx: number) =>
+        String(r.params?.name ?? `${OBJECT_TYPE_LABELS[r.object_type]} #${idx + 1}`),
+      copyValue: (r, idx) => String(r.params?.name ?? `${OBJECT_TYPE_LABELS[r.object_type]} #${idx + 1}`),
     },
-  ];
-  const pipeSourceColumns = [
-    ...baseColumns,
-    {
-      title: 'Ø, мм',
-      width: 76,
+    pipe_outer_diameter: {
       render: (_: unknown, r: ProjectObject) => {
         const diameter = outerDiameterMm(r);
         return diameter != null ? formatNumber(diameter, 0) : '—';
       },
+      copyValue: (r) => {
+        const diameter = outerDiameterMm(r);
+        return diameter != null ? formatNumber(diameter, 0) : '—';
+      },
     },
-    {
-      title: 'DN',
-      width: 58,
+    pipe_dn: {
       render: (_: unknown, r: ProjectObject) => dnValue(r),
+      copyValue: (r) => dnValue(r),
     },
-    {
-      title: 'L, м',
-      width: 74,
-      render: (_: unknown, r: ProjectObject) =>
-        r.object_type === 'pipe' ? formatNumber(Number(r.params?.pipe_length), 1) : '—',
+    pipe_length: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'pipe_length', 1),
+      copyValue: (r) => formatParamNumber(r, 'pipe_length', 1),
     },
-    {
-      title: 'Слоёв ИЗ',
-      width: 86,
-      render: (_: unknown, r: ProjectObject) => insulationLayerCount(r),
+    pipe_wall_thickness: {
+      render: (_: unknown, r: ProjectObject) => formatParamMetersAsMm(r, 'wall_thickness'),
+      copyValue: (r) => formatParamMetersAsMm(r, 'wall_thickness'),
     },
-    {
-      title: 'δ ИЗ, мм',
-      width: 92,
-      render: (_: unknown, r: ProjectObject) =>
-        formatNumber(Number(r.params?.insulation_thickness) * 1000, 0),
-    },
-    {
-      title: 'Материал ИЗ',
-      width: 160,
+    pipe_material: {
       ellipsis: true,
-      render: (_: unknown, r: ProjectObject) =>
-        insulationLabel(r.params?.insulation_material),
+      render: (_: unknown, r: ProjectObject) => formatParamText(r, 'pipe_material'),
+      copyValue: (r) => formatParamText(r, 'pipe_material'),
     },
-    {
-      title: 'T подд.',
-      width: 86,
-      render: (_: unknown, r: ProjectObject) => formatNumber(Number(r.params?.process_temperature), 0),
+    pipe_lambda: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'pipe_lambda', 3),
+      copyValue: (r) => formatParamNumber(r, 'pipe_lambda', 3),
     },
-    {
-      title: 'T окр.',
-      width: 82,
-      render: (_: unknown, r: ProjectObject) => formatNumber(Number(r.params?.ambient_temperature), 0),
+    pipe_lambda_mode: {
+      render: (_: unknown, r: ProjectObject) => lambdaModeLabel(r.params?.pipe_lambda_mode),
+      copyValue: (r) => lambdaModeLabel(r.params?.pipe_lambda_mode),
     },
-    {
-      title: 'Зад.',
-      width: 64,
+    placement: {
+      render: (_: unknown, r: ProjectObject) => placementLabel(r.params?.placement ?? r.params?.location),
+      copyValue: (r) => placementLabel(r.params?.placement ?? r.params?.location),
+    },
+    insulation_layer_count: {
+      render: (_: unknown, r: ProjectObject) => insulationLayerCount(r),
+      copyValue: (r) => insulationLayerCount(r),
+    },
+    insulation_thickness: {
+      render: (_: unknown, r: ProjectObject) => formatParamMetersAsMm(r, 'insulation_thickness'),
+      copyValue: (r) => formatParamMetersAsMm(r, 'insulation_thickness'),
+    },
+    insulation_material: {
+      ellipsis: true,
+      render: (_: unknown, r: ProjectObject) => insulationLabel(r.params?.insulation_material),
+      copyValue: (r) => insulationLabel(r.params?.insulation_material),
+    },
+    first_insulation_lambda: {
+      render: (_: unknown, r: ProjectObject) => insulationLayerConductivity(r, 0),
+      copyValue: (r) => insulationLayerConductivity(r, 0),
+    },
+    second_insulation_thickness: {
+      render: (_: unknown, r: ProjectObject) => insulationLayerThickness(r, 1),
+      copyValue: (r) => insulationLayerThickness(r, 1),
+    },
+    second_insulation_material: {
+      ellipsis: true,
+      render: (_: unknown, r: ProjectObject) => insulationLayerMaterial(r, 1, insulationLabel),
+      copyValue: (r) => insulationLayerMaterial(r, 1, insulationLabel),
+    },
+    second_insulation_lambda: {
+      render: (_: unknown, r: ProjectObject) => insulationLayerConductivity(r, 1),
+      copyValue: (r) => insulationLayerConductivity(r, 1),
+    },
+    third_insulation_thickness: {
+      render: (_: unknown, r: ProjectObject) => insulationLayerThickness(r, 2),
+      copyValue: (r) => insulationLayerThickness(r, 2),
+    },
+    third_insulation_material: {
+      ellipsis: true,
+      render: (_: unknown, r: ProjectObject) => insulationLayerMaterial(r, 2, insulationLabel),
+      copyValue: (r) => insulationLayerMaterial(r, 2, insulationLabel),
+    },
+    third_insulation_lambda: {
+      render: (_: unknown, r: ProjectObject) => insulationLayerConductivity(r, 2),
+      copyValue: (r) => insulationLayerConductivity(r, 2),
+    },
+    insulation_cover_material: {
+      ellipsis: true,
+      render: (_: unknown, r: ProjectObject) => formatParamText(r, 'insulation_cover_material'),
+      copyValue: (r) => formatParamText(r, 'insulation_cover_material'),
+    },
+    process_temperature: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'process_temperature', 0),
+      copyValue: (r) => formatParamNumber(r, 'process_temperature', 0),
+    },
+    ambient_temperature: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'ambient_temperature', 0),
+      copyValue: (r) => formatParamNumber(r, 'ambient_temperature', 0),
+    },
+    ambient_temperature_source: {
+      render: (_: unknown, r: ProjectObject) => sourceText(r.params?.ambient_temperature_source),
+      copyValue: (r) => sourceText(r.params?.ambient_temperature_source),
+    },
+    max_ambient_temperature: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'max_ambient_temperature', 0),
+      copyValue: (r) => formatParamNumber(r, 'max_ambient_temperature', 0),
+    },
+    max_process_temperature: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'max_process_temperature', 0),
+      copyValue: (r) => formatParamNumber(r, 'max_process_temperature', 0),
+    },
+    wind_speed: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'wind_speed', 1),
+      copyValue: (r) => formatParamNumber(r, 'wind_speed', 1),
+    },
+    wind_speed_source: {
+      render: (_: unknown, r: ProjectObject) => sourceText(r.params?.wind_speed_source),
+      copyValue: (r) => sourceText(r.params?.wind_speed_source),
+    },
+    alpha_vnesh: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'alpha_vnesh', 1),
+      copyValue: (r) => formatParamNumber(r, 'alpha_vnesh', 1),
+    },
+    environment: {
+      render: (_: unknown, r: ProjectObject) => environmentLabel(r.params?.environment),
+      copyValue: (r) => environmentLabel(r.params?.environment),
+    },
+    zone_classification: {
+      render: (_: unknown, r: ProjectObject) => zoneLabel(r.params?.zone_classification),
+      copyValue: (r) => zoneLabel(r.params?.zone_classification),
+    },
+    temperature_group: {
+      render: (_: unknown, r: ProjectObject) => formatParamText(r, 'temperature_group'),
+      copyValue: (r) => formatParamText(r, 'temperature_group'),
+    },
+    climate_city: {
+      ellipsis: true,
+      render: (_: unknown, r: ProjectObject) => formatParamText(r, 'climate_city'),
+      copyValue: (r) => formatParamText(r, 'climate_city'),
+    },
+    climate_region: {
+      ellipsis: true,
+      render: (_: unknown, r: ProjectObject) => formatParamText(r, 'climate_region'),
+      copyValue: (r) => formatParamText(r, 'climate_region'),
+    },
+    climate_key: {
+      ellipsis: true,
+      render: (_: unknown, r: ProjectObject) => formatParamText(r, 'climate_key'),
+      copyValue: (r) => formatParamText(r, 'climate_key'),
+    },
+    climate_temperature_basis: {
+      render: (_: unknown, r: ProjectObject) => climateBasisLabel(r.params?.climate_temperature_basis),
+      copyValue: (r) => climateBasisLabel(r.params?.climate_temperature_basis),
+    },
+    burial_depth: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'burial_depth', 2),
+      copyValue: (r) => formatParamNumber(r, 'burial_depth', 2),
+    },
+    ground_type: {
+      ellipsis: true,
+      render: (_: unknown, r: ProjectObject) => formatParamText(r, 'ground_type'),
+      copyValue: (r) => formatParamText(r, 'ground_type'),
+    },
+    ground_conductivity: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'ground_conductivity', 2),
+      copyValue: (r) => formatParamNumber(r, 'ground_conductivity', 2),
+    },
+    min_switch_temperature: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'min_switch_temperature', 0),
+      copyValue: (r) => formatParamNumber(r, 'min_switch_temperature', 0),
+    },
+    supply_voltage: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'supply_voltage', 0),
+      copyValue: (r) => formatParamNumber(r, 'supply_voltage', 0),
+    },
+    safety_factor: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'safety_factor', 2),
+      copyValue: (r) => formatParamNumber(r, 'safety_factor', 2),
+    },
+    steam_tracing: {
+      render: (_: unknown, r: ProjectObject) => booleanChoiceLabel(r.params?.steam_tracing),
+      copyValue: (r) => booleanChoiceLabel(r.params?.steam_tracing),
+    },
+    valve_count: {
       render: (_: unknown, r: ProjectObject) => countParamValue(r, 'valve_count'),
+      copyValue: (r) => countParamValue(r, 'valve_count'),
     },
-    {
-      title: 'Флн.',
-      width: 64,
+    flange_count: {
       render: (_: unknown, r: ProjectObject) => countParamValue(r, 'flange_count'),
+      copyValue: (r) => countParamValue(r, 'flange_count'),
     },
-    {
-      title: 'Опр.',
-      width: 64,
+    support_count: {
       render: (_: unknown, r: ProjectObject) => countParamValue(r, 'support_count'),
+      copyValue: (r) => countParamValue(r, 'support_count'),
     },
-  ];
-  const tankSourceColumns = [
-    ...baseColumns,
-    {
-      title: 'Форма',
-      width: 92,
+    local_element_equiv_length: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'local_element_equiv_length', 1),
+      copyValue: (r) => formatParamNumber(r, 'local_element_equiv_length', 1),
+    },
+    tank_shape: {
       render: (_: unknown, r: ProjectObject) => tankShapeLabel(r.params?.shape),
+      copyValue: (r) => tankShapeLabel(r.params?.shape),
     },
-    {
-      title: 'Габариты',
-      width: 190,
+    tank_dimensions: {
       ellipsis: true,
       render: (_: unknown, r: ProjectObject) => tankDimensions(r),
+      copyValue: (r) => tankDimensions(r),
     },
-    {
-      title: 'Размещение',
-      width: 116,
-      render: (_: unknown, r: ProjectObject) => placementLabel(r.params?.placement ?? r.params?.location),
+    tank_diameter: {
+      render: (_: unknown, r: ProjectObject) => mmParam(r, 'diameter'),
+      copyValue: (r) => mmParam(r, 'diameter'),
     },
-    {
-      title: 'Слоёв ИЗ',
-      width: 86,
-      render: (_: unknown, r: ProjectObject) => insulationLayerCount(r),
+    tank_height: {
+      render: (_: unknown, r: ProjectObject) => mmParam(r, 'height'),
+      copyValue: (r) => mmParam(r, 'height'),
     },
-    {
-      title: 'δ ИЗ, мм',
-      width: 92,
-      render: (_: unknown, r: ProjectObject) =>
-        formatNumber(Number(r.params?.insulation_thickness) * 1000, 0),
+    tank_length: {
+      render: (_: unknown, r: ProjectObject) => mmParam(r, 'length'),
+      copyValue: (r) => mmParam(r, 'length'),
     },
-    {
-      title: 'Материал ИЗ',
-      width: 160,
-      ellipsis: true,
-      render: (_: unknown, r: ProjectObject) =>
-        insulationLabel(r.params?.insulation_material),
+    tank_width: {
+      render: (_: unknown, r: ProjectObject) => mmParam(r, 'width'),
+      copyValue: (r) => mmParam(r, 'width'),
     },
-    {
-      title: 'T подд.',
-      width: 86,
-      render: (_: unknown, r: ProjectObject) => formatNumber(Number(r.params?.process_temperature), 0),
+    tank_wall_thickness: {
+      render: (_: unknown, r: ProjectObject) => formatParamMetersAsMm(r, 'wall_thickness'),
+      copyValue: (r) => formatParamMetersAsMm(r, 'wall_thickness'),
     },
-    {
-      title: 'T окр.',
-      width: 82,
-      render: (_: unknown, r: ProjectObject) => formatNumber(Number(r.params?.ambient_temperature), 0),
+    tank_wall_lambda: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'wall_lambda', 3),
+      copyValue: (r) => formatParamNumber(r, 'wall_lambda', 3),
     },
-    {
-      title: 'Q доп., Вт',
-      width: 94,
-      render: (_: unknown, r: ProjectObject) => formatNumber(Number(r.params?.q_additional), 0),
+    q_additional: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'q_additional', 0),
+      copyValue: (r) => formatParamNumber(r, 'q_additional', 0),
     },
-  ];
-  const sourceColumns = activeObjectType === 'pipe' ? pipeSourceColumns : tankSourceColumns;
+  }), [dnValue, insulationLabel, outerDiameterMm]);
+
+  const sourceColumnMetas = useMemo(
+    () => getVisibleTableColumnMetas(activeObjectType, tableColumnSettings),
+    [activeObjectType, tableColumnSettings],
+  );
+  const sourceColumns: ColumnsType<ProjectObject> = useMemo(
+    () => sourceColumnMetas.map((meta) => {
+      const renderer = columnRenderers[meta.key];
+      return {
+        title: meta.title,
+        width: meta.width,
+        ellipsis: meta.ellipsis ?? renderer.ellipsis,
+        align: renderer.align,
+        render: renderer.render,
+      };
+    }),
+    [columnRenderers, sourceColumnMetas],
+  );
+  const tableScrollX = useMemo(
+    () => Math.max(640, sourceColumnMetas.reduce((sum, column) => sum + column.width, 36)),
+    [sourceColumnMetas],
+  );
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey) || e.key !== 'c') return;
+      if (selectedRowKeys.length === 0) return;
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
+
+      const selected = visibleObjects
+        .map((object, index) => ({ object, index }))
+        .filter(({ object }) => selectedRowKeys.includes(object.id));
+      const header = sourceColumnMetas.map((meta) => meta.copyTitle ?? meta.title);
+      const rows = selected.map(({ object, index }) =>
+        sourceColumnMetas.map((meta) => columnRenderers[meta.key].copyValue(object, index)),
+      );
+
+      copyToClipboard(buildTsv([header, ...rows])).then(() => {
+        antdMessage.success(`Скопировано строк: ${selected.length}`);
+      });
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [columnRenderers, selectedRowKeys, sourceColumnMetas, visibleObjects]);
+
+  function openColumnSettings() {
+    setColumnSettingsType(activeObjectType);
+    setDraftTableColumnSettings(normalizeTableColumnSettings(tableColumnSettings));
+    setColumnSettingsOpen(true);
+  }
+
+  function updateDraftColumn(type: HeatCalcObjectType, key: HeatCalcColumnKey, checked: boolean) {
+    const current = draftTableColumnSettings.table[type];
+    const nextKeys = checked ? [...current, key] : current.filter((item) => item !== key);
+    setDraftTableColumnSettings((settings) => createTableColumnSettingsPatch(settings, type, nextKeys));
+  }
+
+  function resetDraftColumns(type: HeatCalcObjectType) {
+    setDraftTableColumnSettings((settings) =>
+      createTableColumnSettingsPatch(settings, type, getDefaultVisibleTableColumnKeys(type)),
+    );
+  }
+
+  function selectAllDraftColumns(type: HeatCalcObjectType) {
+    setDraftTableColumnSettings((settings) =>
+      createTableColumnSettingsPatch(settings, type, getAvailableTableColumnKeys(type)),
+    );
+  }
+
+  function applyColumnSettings() {
+    const normalized = normalizeTableColumnSettings(draftTableColumnSettings);
+    if (isRegisteredUser) {
+      clearRegisteredTableColumnCache(registeredUserId);
+      updateTableColumnPreference.mutate(normalized);
+      return;
+    }
+    writeGuestTableColumnSettings(normalized);
+    setTableColumnSettings(normalized);
+    setColumnSettingsOpen(false);
+    antdMessage.success('Поля таблицы сохранены');
+  }
+
+  function renderColumnSettingsGroups(type: HeatCalcObjectType) {
+    const visibleKeys = new Set(draftTableColumnSettings.table[type]);
+    const groups = HEATCALC_TABLE_COLUMN_CATALOG[type].reduce<Record<string, typeof HEATCALC_TABLE_COLUMN_CATALOG[HeatCalcObjectType]>>(
+      (acc, column) => {
+        acc[column.group] = acc[column.group] ?? [];
+        acc[column.group].push(column);
+        return acc;
+      },
+      {},
+    );
+    return Object.entries(groups).map(([group, columns]) => (
+      <div className="column-settings-group" key={group}>
+        <div className="column-settings-group-title">{group}</div>
+        <div className="column-settings-options">
+          {columns.map((column) => (
+            <Checkbox
+              key={column.key}
+              checked={visibleKeys.has(column.key)}
+              disabled={column.required}
+              onChange={(event) => updateDraftColumn(type, column.key, event.target.checked)}
+            >
+              {column.label}
+            </Checkbox>
+          ))}
+        </div>
+      </div>
+    ));
+  }
+
+  if (!project) {
+    return (
+      <EmptyProjectState
+        icon={<FireOutlined style={{ marginRight: 8, color: '#e06c1e' }} />}
+        title="Расчёт теплопотерь"
+        description="Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери."
+      />
+    );
+  }
 
   return (
     <>
@@ -641,6 +985,14 @@ export default function HeatCalcPage() {
           </div>
 
           <div className="actionbar-group actionbar-edit-group">
+            <Tooltip title="Поля таблицы">
+              <Button
+                className="action-icon-button"
+                icon={<TableOutlined />}
+                aria-label="Настроить поля таблицы"
+                onClick={openColumnSettings}
+              />
+            </Tooltip>
             <Tooltip title="Добавить">
               <Button
                 className="action-icon-button add"
@@ -768,7 +1120,7 @@ export default function HeatCalcPage() {
             dataSource={visibleObjects}
             columns={sourceColumns}
             scroll={{
-              x: activeObjectType === 'pipe' ? 1180 : 1160,
+              x: tableScrollX,
               y: 'calc(100vh - 500px)',
             }}
             rowSelection={{
@@ -817,6 +1169,40 @@ export default function HeatCalcPage() {
         </Card>
       </Space>
 
+      <Modal
+        title="Поля таблицы"
+        open={columnSettingsOpen}
+        width={780}
+        okText="Применить"
+        cancelText="Отмена"
+        confirmLoading={updateTableColumnPreference.isPending}
+        onOk={applyColumnSettings}
+        onCancel={() => setColumnSettingsOpen(false)}
+      >
+        <div className="column-settings-modal">
+          <div className="column-settings-toolbar">
+            <Segmented<HeatCalcObjectType>
+              value={columnSettingsType}
+              onChange={setColumnSettingsType}
+              options={[
+                { label: TABLE_SETTINGS_TYPE_LABELS.pipe, value: 'pipe' },
+                { label: TABLE_SETTINGS_TYPE_LABELS.tank, value: 'tank' },
+              ]}
+            />
+            <Space size={6}>
+              <Button size="small" onClick={() => selectAllDraftColumns(columnSettingsType)}>
+                Все поля
+              </Button>
+              <Button size="small" onClick={() => resetDraftColumns(columnSettingsType)}>
+                По умолчанию
+              </Button>
+            </Space>
+          </div>
+          <div className="column-settings-list">
+            {renderColumnSettingsGroups(columnSettingsType)}
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

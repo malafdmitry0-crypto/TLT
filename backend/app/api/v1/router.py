@@ -7,6 +7,7 @@ from app.api.v1 import (
     auth,
     calculations,
     objects,
+    preferences,
     projects,
     references,
     reports,
@@ -21,4 +22,5 @@ api_router.include_router(calculations.router, prefix="/calc", tags=["calc"])
 api_router.include_router(specifications.router, prefix="/specifications", tags=["specifications"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(references.router, prefix="/references", tags=["references"])
+api_router.include_router(preferences.router, prefix="/preferences", tags=["preferences"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])

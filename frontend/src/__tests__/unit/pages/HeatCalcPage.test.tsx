@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HeatCalcPage from '@/pages/HeatCalcPage';
+import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import type { Project, ProjectObject } from '@/types/project';
+import {
+  HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY,
+  HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY,
+  HEATCALC_TABLE_COLUMN_PREF_KEY,
+} from '@/utils/heatCalcTableColumns';
 
 // ── Моки API ─────────────────────────────────────────────────────────────────
 
@@ -26,6 +32,15 @@ vi.mock('@/api/references', () => ({
   getInsulation: vi.fn().mockResolvedValue([]),
   getPipeMaterials: vi.fn().mockResolvedValue([]),
   getSoilConductivity: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock('@/api/preferences', () => ({
+  getUserPreference: vi.fn().mockResolvedValue({
+    key: 'heatcalc.tableColumns.v1',
+    value: null,
+    user_id: 'user-test-1',
+  }),
+  updateUserPreference: vi.fn(),
 }));
 
 // ── Вспомогательные функции ───────────────────────────────────────────────────
@@ -124,6 +139,8 @@ function renderPage() {
 
 describe('HeatCalcPage', () => {
   beforeEach(() => {
+    localStorage.clear();
+    useAuthStore.getState().logout();
     useProjectStore.getState().setCurrentProject(null);
     useWorkspaceHeaderStore.getState().setContext(null);
     vi.clearAllMocks();
@@ -264,6 +281,7 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       const addButton = screen.getByRole('button', { name: 'Добавить' });
+      const tableFieldsButton = screen.getByRole('button', { name: 'Настроить поля таблицы' });
       const saveButton = screen.getByRole('button', { name: 'Сохранить изменения' });
       const importButton = screen.getByRole('button', { name: 'Импорт XLSX/CSV' });
 
@@ -272,6 +290,7 @@ describe('HeatCalcPage', () => {
       expect(screen.getByLabelText('Резервуары')).toBeInTheDocument();
       expect(screen.queryByText('Трубопровод')).not.toBeInTheDocument();
       expect(screen.queryByText('Резервуары')).not.toBeInTheDocument();
+      expect(tableFieldsButton).toHaveClass('action-icon-button');
       expect(addButton).toHaveClass('action-icon-button');
       expect(addButton.textContent?.trim()).toBe('');
       expect(saveButton).toHaveClass('action-icon-button');
@@ -285,6 +304,139 @@ describe('HeatCalcPage', () => {
       expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Сохранить изменения' })).not.toBeDisabled();
       expect(screen.getByRole('button', { name: 'Отменить' })).not.toBeDisabled();
+    });
+
+    it('берёт дефолтные колонки из JSON и не пишет гостевой localStorage до изменения', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      expect(screen.getAllByText('DN').length).toBeGreaterThan(0);
+      expect(localStorage.getItem(HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY)).toBeNull();
+    });
+
+    it('сохраняет гостевые настройки колонок в localStorage и применяет их только к выбранному типу', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject(),
+        makeTank(),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await user.click(screen.getByRole('button', { name: 'Настроить поля таблицы' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Поля таблицы' });
+      await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('columnheader', { name: /^DN$/ })).not.toBeInTheDocument();
+      });
+      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY) ?? '{}');
+      expect(saved.table.pipe).not.toContain('pipe_dn');
+      expect(saved.table.tank).toContain('tank_dimensions');
+
+      await user.click(screen.getByLabelText('Резервуары'));
+      await waitFor(() => {
+        expect(screen.getByText('Резервуар прямоугольный')).toBeInTheDocument();
+      });
+      expect(screen.getAllByText('Габариты').length).toBeGreaterThan(0);
+    });
+
+    it('для зарегистрированного пользователя без записи очищает кеш и возвращает дефолтный JSON', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const { getUserPreference } = await import('@/api/preferences');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+      (getUserPreference as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        key: HEATCALC_TABLE_COLUMN_PREF_KEY,
+        value: null,
+        user_id: 'user-test-1',
+      });
+      localStorage.setItem(
+        HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY,
+        JSON.stringify({
+          userId: 'user-test-1',
+          settings: { version: 1, table: { pipe: ['name'], tank: ['name'] } },
+          cachedAt: '2026-05-08T00:00:00.000Z',
+        }),
+      );
+      useAuthStore.getState().setEmployee(
+        {
+          id: 'user-test-1',
+          email: 'user@test.local',
+          full_name: null,
+          role: 'employee',
+          is_active: true,
+        },
+        { access: 'access-token', refresh: 'refresh-token' },
+      );
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      renderPage();
+
+      await waitFor(() => {
+        expect(getUserPreference).toHaveBeenCalledWith(HEATCALC_TABLE_COLUMN_PREF_KEY);
+      });
+      await waitFor(() => {
+        expect(localStorage.getItem(HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY)).toBeNull();
+      });
+      await waitFor(() => {
+        expect(screen.getAllByText('DN').length).toBeGreaterThan(0);
+      });
+    });
+
+    it('для зарегистрированного пользователя сохраняет настройки через API и кеширует только ответ БД', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const { updateUserPreference } = await import('@/api/preferences');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+      (updateUserPreference as ReturnType<typeof vi.fn>).mockImplementation(async (key, value) => ({
+        key,
+        value,
+        user_id: 'user-test-1',
+      }));
+      useAuthStore.getState().setEmployee(
+        {
+          id: 'user-test-1',
+          email: 'user@test.local',
+          full_name: null,
+          role: 'employee',
+          is_active: true,
+        },
+        { access: 'access-token', refresh: 'refresh-token' },
+      );
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await user.click(screen.getByRole('button', { name: 'Настроить поля таблицы' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Поля таблицы' });
+      await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(updateUserPreference).toHaveBeenCalledWith(
+          HEATCALC_TABLE_COLUMN_PREF_KEY,
+          expect.objectContaining({
+            table: expect.objectContaining({
+              pipe: expect.not.arrayContaining(['pipe_dn']),
+            }),
+          }),
+        );
+      });
+      await waitFor(() => {
+        expect(screen.queryByRole('columnheader', { name: /^DN$/ })).not.toBeInTheDocument();
+      });
+      const cached = JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY) ?? '{}');
+      expect(cached.userId).toBe('user-test-1');
+      expect(cached.settings.table.pipe).not.toContain('pipe_dn');
     });
 
     it('при переключении типа очищает выбранные строки', async () => {
