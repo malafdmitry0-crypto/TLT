@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HeatCalcPage from '@/pages/HeatCalcPage';
 import { useProjectStore } from '@/store/projectStore';
+import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import type { Project, ProjectObject } from '@/types/project';
 
 vi.mock('@/components/wizard/ObjectWizard', async () => {
@@ -106,6 +107,7 @@ function renderPage() {
 describe('HeatCalcPage save reset', () => {
   beforeEach(() => {
     useProjectStore.getState().setCurrentProject(null);
+    useWorkspaceHeaderStore.getState().setContext(null);
     vi.clearAllMocks();
   });
 
@@ -139,6 +141,11 @@ describe('HeatCalcPage save reset', () => {
     await waitFor(() => {
       expect(screen.getByTestId('fake-draft-name')).toHaveValue('');
     });
-    expect(screen.getByText('новая запись')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(useWorkspaceHeaderStore.getState().context).toMatchObject({
+        title: 'Параметры: Трубы',
+        modeLabel: 'новая запись',
+      });
+    });
   });
 });

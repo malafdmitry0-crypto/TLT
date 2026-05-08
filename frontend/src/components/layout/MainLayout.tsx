@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { Button, Layout, Space } from 'antd';
-import { LogoutOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { DatabaseOutlined, LogoutOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ProjectMenu from './ProjectMenu';
 import { useAuthStore } from '@/store/authStore';
+import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 
 const { Header, Content } = Layout;
 
@@ -35,6 +36,24 @@ function HeaderActions() {
   );
 }
 
+function WorkspaceHeaderContext() {
+  const context = useWorkspaceHeaderStore((s) => s.context);
+
+  if (!context) return null;
+
+  return (
+    <div className="workspace-header-context" aria-label="Контекст рабочей области">
+      <DatabaseOutlined className="workspace-header-context-icon" />
+      <span className="workspace-header-context-title" title={context.title}>
+        {context.title}
+      </span>
+      <span className={`workspace-header-context-mode ${context.mode}`}>
+        {context.modeLabel}
+      </span>
+    </div>
+  );
+}
+
 export default function MainLayout({ children }: Props) {
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -46,6 +65,7 @@ export default function MainLayout({ children }: Props) {
       <Layout className="heatcalc-main-layout">
         <div className="heatcalc-topnav">
           <Sidebar />
+          <WorkspaceHeaderContext />
         </div>
         <Content className="heatcalc-content">{children ?? <Outlet />}</Content>
       </Layout>

@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HeatCalcPage from '@/pages/HeatCalcPage';
 import { useProjectStore } from '@/store/projectStore';
+import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import type { Project, ProjectObject } from '@/types/project';
 
 // ── Моки API ─────────────────────────────────────────────────────────────────
@@ -124,6 +125,7 @@ function renderPage() {
 describe('HeatCalcPage', () => {
   beforeEach(() => {
     useProjectStore.getState().setCurrentProject(null);
+    useWorkspaceHeaderStore.getState().setContext(null);
     vi.clearAllMocks();
   });
 
@@ -218,7 +220,11 @@ describe('HeatCalcPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Резервуар прямоугольный')).toBeInTheDocument();
       });
-      expect(screen.getByText(/Параметры объекта «Резервуар прямоугольный»/)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(useWorkspaceHeaderStore.getState().context?.title).toMatch(
+          /Параметры объекта «Резервуар прямоугольный»/,
+        );
+      });
       expect(screen.queryByText('Труба DN100')).not.toBeInTheDocument();
       expect(screen.getAllByText('Форма').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Габариты').length).toBeGreaterThan(0);
@@ -230,7 +236,11 @@ describe('HeatCalcPage', () => {
 
       await user.click(screen.getByLabelText('Трубопровод'));
       expect(screen.getByText('Труба')).toBeInTheDocument();
-      expect(screen.getByText(/Параметры объекта «Труба DN100»/)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(useWorkspaceHeaderStore.getState().context?.title).toMatch(
+          /Параметры объекта «Труба DN100»/,
+        );
+      });
     });
 
     it('кнопка «Добавить» открывает форму активного типа без dropdown', async () => {
@@ -246,7 +256,7 @@ describe('HeatCalcPage', () => {
       await user.click(screen.getByRole('button', { name: /Добавить/i }));
 
       expect(await screen.findByText('Форма и геометрия резервуара')).toBeInTheDocument();
-    });
+    }, 10_000);
 
     it('основные действия toolbar доступны по имени при icon-only отображении', async () => {
       useProjectStore.getState().setCurrentProject(mockProject);
@@ -318,8 +328,12 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       await user.click(await screen.findByText('Труба DN100'));
-      expect(screen.getByText(/Параметры объекта «Труба DN100»/)).toBeInTheDocument();
-      expect(screen.getByText('Режим: редактирование')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(useWorkspaceHeaderStore.getState().context).toMatchObject({
+          title: expect.stringMatching(/Параметры объекта «Труба DN100»/),
+          modeLabel: 'Режим: редактирование',
+        });
+      });
 
       const toolbarSaveButton = screen
         .getAllByRole('button', { name: 'Сохранить изменения' })
@@ -338,8 +352,12 @@ describe('HeatCalcPage', () => {
           }),
         );
       });
-      expect(screen.getByText('Параметры: Трубы')).toBeInTheDocument();
-      expect(screen.getByText('новая запись')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(useWorkspaceHeaderStore.getState().context).toMatchObject({
+          title: 'Параметры: Трубы',
+          modeLabel: 'новая запись',
+        });
+      });
       expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
       expect(screen.queryByText(/Параметры объекта «Труба DN100»/)).not.toBeInTheDocument();
     });

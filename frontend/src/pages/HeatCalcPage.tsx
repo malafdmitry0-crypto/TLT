@@ -16,7 +16,6 @@ import {
   CheckSquareOutlined,
   CloseOutlined,
   CopyOutlined,
-  DatabaseOutlined,
   DeleteOutlined,
   FireOutlined,
   PlusOutlined,
@@ -33,6 +32,7 @@ import { OBJECT_TYPE_LABELS } from '@/constants/objectTypes';
 import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
+import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import { listObjects } from '@/api/projects';
 import { getInsulation } from '@/api/references';
 import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
@@ -160,6 +160,7 @@ export default function HeatCalcPage() {
   const [newWizardRevision, setNewWizardRevision] = useState(0);
   const [activeObjectType, setActiveObjectType] = useState<WizardObjectType>('pipe');
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const setWorkspaceHeaderContext = useWorkspaceHeaderStore((s) => s.setContext);
 
   const { data: objects = [] } = useQuery({
     queryKey: ['project', project?.id, 'objects'],
@@ -282,16 +283,6 @@ export default function HeatCalcPage() {
     closeWizard,
   );
 
-  if (!project) {
-    return (
-      <EmptyProjectState
-        icon={<FireOutlined style={{ marginRight: 8, color: '#e06c1e' }} />}
-        title="Расчёт теплопотерь"
-        description="Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери."
-      />
-    );
-  }
-
   const validCount = visibleObjects.filter((o) => o.is_valid).length;
   const totalCount = visibleObjects.length;
   const pipeCount = objects.filter((o) => o.object_type === 'pipe').length;
@@ -314,6 +305,37 @@ export default function HeatCalcPage() {
   const hasWizard = !!wizardState;
   const hasEditingObject = !!wizardState?.editingObject;
   const submittingObject = add.isPending || edit.isPending;
+
+  useEffect(() => {
+    if (!project) {
+      setWorkspaceHeaderContext(null);
+      return undefined;
+    }
+
+    setWorkspaceHeaderContext({
+      title: formCaptionTitle,
+      mode: formCaptionMode,
+      modeLabel: formCaptionModeLabel,
+    });
+
+    return () => setWorkspaceHeaderContext(null);
+  }, [
+    formCaptionMode,
+    formCaptionModeLabel,
+    formCaptionTitle,
+    project,
+    setWorkspaceHeaderContext,
+  ]);
+
+  if (!project) {
+    return (
+      <EmptyProjectState
+        icon={<FireOutlined style={{ marginRight: 8, color: '#e06c1e' }} />}
+        title="Расчёт теплопотерь"
+        description="Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери."
+      />
+    );
+  }
 
   function openAddWizard(type: WizardObjectType = activeObjectType) {
     setNewWizardRevision((revision) => revision + 1);
@@ -573,15 +595,6 @@ export default function HeatCalcPage() {
     <>
       <Space direction="vertical" size={5} style={{ width: '100%' }}>
         <div className="inline-form-shell">
-          <div className="inline-form-caption">
-            <span className="inline-form-caption-title">
-              <DatabaseOutlined className="inline-form-caption-icon" />
-              {formCaptionTitle}
-            </span>
-            <span className={`inline-form-caption-mode ${formCaptionMode}`}>
-              {formCaptionModeLabel}
-            </span>
-          </div>
           <div className="inline-form-srs">
             {wizardState ? (
               <ObjectWizard
