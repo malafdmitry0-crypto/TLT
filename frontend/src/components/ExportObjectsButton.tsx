@@ -1,4 +1,4 @@
-import { Button, message } from 'antd';
+import { Button, Tooltip, message } from 'antd';
 import { FileExcelOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { exportObjectsExcel } from '@/api/projects';
@@ -30,15 +30,18 @@ export default function ExportObjectsButton({ projectId, projectName, disabled }
   };
 
   return (
-    <Button
-      icon={<FileExcelOutlined />}
-      block
-      size="small"
-      loading={loading}
-      disabled={disabled}
-      onClick={handleExport}
-    >
-      Экспорт в Excel
-    </Button>
+    <Tooltip title={disabled ? 'Нет объектов для экспорта' : 'Экспорт в Excel'}>
+      <span className="action-tooltip-wrap">
+        <Button
+          icon={<FileExcelOutlined />}
+          size="small"
+          loading={loading}
+          disabled={disabled}
+          onClick={handleExport}
+        >
+          Экспорт в Excel
+        </Button>
+      </span>
+    </Tooltip>
   );
 }

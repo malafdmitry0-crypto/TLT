@@ -654,6 +654,12 @@ async function main() {
         `Unexpected UI rows after type switch: pipe=${uiPipeRows}/${expectedUiRows.pipe}, tank=${uiTankRows}/${expectedUiRows.tank}`,
       );
     }
+    const addButton = page.getByRole('button', { name: 'Добавить' });
+    await addButton.hover();
+    await page.getByText('Добавить', { exact: true }).waitFor({ state: 'visible', timeout: 5_000 });
+    await addButton.click();
+    await page.getByText('Форма и геометрия резервуара').waitFor({ state: 'visible', timeout: 10_000 });
+    await page.getByRole('button', { name: 'Отменить' }).click();
     await page.getByRole('button', { name: /Результаты расчёта/ }).click();
     await page.waitForTimeout(500);
     await page.screenshot({ path: screenshotPath, fullPage: true });
@@ -690,6 +696,7 @@ async function main() {
         pipe: uiPipeRows,
         tank: uiTankRows,
       },
+      ui_add_tooltip_checked: true,
       screenshot_path: screenshotPath,
       opener_path: openerPath,
     }, null, 2));

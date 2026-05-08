@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Button, Modal, Space, Typography, message } from 'antd';
+import { Button, Modal, Space, Tooltip, Typography, message } from 'antd';
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -74,23 +74,30 @@ export default function ImportExcelButton({ projectId }: Props) {
         >
           Импорт XLSX/CSV
         </Button>
+        <Tooltip title="Скачать шаблон XLSX">
           <Button
             icon={<DownloadOutlined />}
+            aria-label="Скачать шаблон XLSX"
             size="small"
             type="link"
-            style={{ fontSize: 11, height: 22, padding: '0 3px' }}
+            className="template-download-button"
             onClick={() => downloadTemplate('xlsx')}
           >
             .xlsx
           </Button>
+        </Tooltip>
+        <Tooltip title="Скачать шаблон CSV">
           <Button
+            icon={<DownloadOutlined />}
+            aria-label="Скачать шаблон CSV"
             size="small"
             type="link"
-            style={{ fontSize: 11, height: 22, padding: '0 3px' }}
+            className="template-download-button"
             onClick={() => downloadTemplate('csv')}
           >
             .csv
           </Button>
+        </Tooltip>
       </Space>
       <input
         ref={fileInputRef}

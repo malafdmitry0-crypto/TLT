@@ -16,6 +16,9 @@
 | [add-formula.md](add-formula.md) | Добавить новую расчётную формулу (тепло/электрика) |
 | [add-role-or-permission.md](add-role-or-permission.md) | Расширить RBAC-матрицу |
 | [debug-pdf-export.md](debug-pdf-export.md) | Отладить экспорт отчёта в PDF/DOCX/XLSX |
+| [object-type-switch-prompt.md](object-type-switch-prompt.md) | Разделить таблицу HeatCalc по типам объектов без изменения БД |
+| [heatcalc-ui-improvement-prompt.md](heatcalc-ui-improvement-prompt.md) | Улучшить рабочий UI HeatCalc: actionbar, icon-only actions, accessibility |
+| [font-size-harmonization-prompt.md](font-size-harmonization-prompt.md) | Согласовать типографическую шкалу и размеры шрифта в рабочем UI |
 
 Для крошечных стандартных операций (версия, сиды, smoke) используйте
 соответствующие `.claude/commands/*.md` — Клод подхватит их как slash-команды.

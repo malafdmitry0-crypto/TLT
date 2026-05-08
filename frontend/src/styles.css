@@ -6,7 +6,7 @@
 html, body, #root {
   height: 100%;
   margin: 0;
-  font-family: -apple-system, system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
 
 .cell-invalid {
@@ -40,6 +40,7 @@ html, body, #root {
   color: #34495e;
   font-size: 11px;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .object-count-segment.success {
@@ -239,6 +240,7 @@ html, body, #root {
   border: 1px solid #bfbfbf;
   font-size: 12px;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
 .calc-spreadsheet .ant-table-thead > tr > th {
@@ -876,32 +878,99 @@ html, body, #root {
 
 .actionbar-srs {
   display: flex;
-  gap: 3px;
+  gap: 6px;
   flex-wrap: wrap;
   align-items: center;
   padding: 4px 6px;
   background: #f4f8fa;
   border-radius: 4px;
   border: 1px solid #d9e1e6;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.actionbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding-right: 6px;
+  border-right: 1px solid #c4d2db;
+}
+
+.actionbar-group:last-of-type,
+.actionbar-io-group {
+  border-right: 0;
+}
+
+.actionbar-context-group {
+  flex: 0 0 auto;
+}
+
+.actionbar-edit-group,
+.actionbar-save-group,
+.actionbar-io-group {
+  flex: 0 0 auto;
+}
+
+.actionbar-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-left: auto;
 }
 
 .actionbar-srs .ant-btn {
   border-radius: 3px;
-  font-size: 11px;
+  font-size: 12px;
   height: 24px;
   padding-inline: 9px;
+  line-height: 1;
 }
 
-.actionbar-srs .add,
-.actionbar-srs .save {
+.actionbar-srs .ant-segmented {
+  font-size: 12px;
+}
+
+.actionbar-srs .action-tooltip-wrap {
+  display: inline-flex;
+}
+
+.actionbar-srs .action-icon-button {
+  width: 26px;
+  min-width: 26px;
+  padding-inline: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.actionbar-srs .action-icon-button .ant-btn-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.actionbar-srs .action-icon-button.add:not(:disabled),
+.actionbar-srs .action-icon-button.save:not(:disabled) {
   background: var(--color-primary);
   color: #fff;
   border-color: var(--color-primary);
 }
 
-.actionbar-srs .save {
+.actionbar-srs .action-icon-button.save:not(:disabled) {
   background: #1f6f3e;
   border-color: #1f6f3e;
+}
+
+.actionbar-srs .action-icon-button.add:not(:disabled):hover,
+.actionbar-srs .action-icon-button.save:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+.actionbar-srs .action-icon-button:focus-visible {
+  outline: 2px solid #2e86c1;
+  outline-offset: 1px;
 }
 
 .actionbar-srs .sep {
@@ -909,6 +978,13 @@ html, body, #root {
   height: 18px;
   background: #c4d2db;
   margin: 0 3px;
+}
+
+.selection-status-tag {
+  margin: 0;
+  font-size: 11px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
 }
 
 .tabs-row-srs {
@@ -998,6 +1074,12 @@ html, body, #root {
 
 .import-actions-compact .ant-btn {
   margin: 0;
+}
+
+.import-actions-compact .template-download-button {
+  height: 22px;
+  padding: 0 3px;
+  font-size: 11px;
 }
 
 .workspace-table-card .ant-table-thead > tr > th {

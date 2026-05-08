@@ -16,11 +16,17 @@ import {
 } from 'antd';
 import {
   CheckCircleFilled,
+  CheckOutlined,
+  CheckSquareOutlined,
+  CloseOutlined,
   CloseCircleFilled,
+  CopyOutlined,
   DatabaseOutlined,
+  DeleteOutlined,
   FireOutlined,
   PlusOutlined,
   ReloadOutlined,
+  SaveOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -543,7 +549,10 @@ export default function HeatCalcPage() {
       ? 'Режим: редактирование'
       : formCaptionMode === 'new'
         ? 'новая запись'
-        : 'выберите строку или нажмите «＋ Добавить»';
+        : 'выберите строку или нажмите «+»';
+  const hasWizard = !!wizardState;
+  const hasEditingObject = !!wizardState?.editingObject;
+  const submittingObject = add.isPending || edit.isPending;
 
   function openAddWizard(type: WizardObjectType = activeObjectType) {
     setWizardState({ type });
@@ -1021,67 +1030,124 @@ export default function HeatCalcPage() {
           </div>
         </div>
 
-        <div className="actionbar-srs">
-          <Segmented<WizardObjectType>
-            value={activeObjectType}
-            onChange={setActiveObjectType}
-            options={[
-              { label: 'Трубопровод', value: 'pipe' },
-              { label: 'Резервуары', value: 'tank' },
-            ]}
-          />
-          <Button className="add" icon={<PlusOutlined />} onClick={() => openAddWizard()}>
-            Добавить
-          </Button>
-          <Button
-            disabled={!wizardState?.editingObject}
-            loading={add.isPending}
-            onClick={duplicateCurrentObject}
-          >
-            Создать на основании
-          </Button>
-          <Button
-            disabled={!wizardState}
-            onClick={() => document.getElementById('inline-object-save')?.click()}
-          >
-            Применить к одному
-          </Button>
-          <Tooltip title="Массовое применение будет доступно после согласования правил переноса параметров">
-            <Button disabled>Применить ко всем</Button>
-          </Tooltip>
-          <Popconfirm
-            title="Удалить объект?"
-            okText="Удалить"
-            cancelText="Отмена"
-            disabled={!wizardState?.editingObject}
-            onConfirm={removeCurrentObject}
-          >
-            <Button danger loading={remove.isPending} disabled={!wizardState?.editingObject}>
-              Удалить
-            </Button>
-          </Popconfirm>
-          <span className="sep" />
-          <Button
-            className="save"
-            disabled={!wizardState}
-            onClick={() => document.getElementById('inline-object-save')?.click()}
-          >
-            Сохранить изменения
-          </Button>
-          <Button disabled={!wizardState} onClick={closeWizard}>Отменить</Button>
-          <span className="sep" />
-          <ImportExcelButton projectId={project.id} />
-          {role === 'employee' && (
-            <ExportObjectsButton
-              projectId={project.id}
-              projectName={project.name}
-              disabled={objects.length === 0}
+        <div className="actionbar-srs" aria-label="Действия с объектами">
+          <div className="actionbar-group actionbar-context-group">
+            <Segmented<WizardObjectType>
+              value={activeObjectType}
+              onChange={setActiveObjectType}
+              options={[
+                { label: 'Трубопровод', value: 'pipe' },
+                { label: 'Резервуары', value: 'tank' },
+              ]}
             />
-          )}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          </div>
+
+          <div className="actionbar-group actionbar-edit-group">
+            <Tooltip title="Добавить">
+              <Button
+                className="action-icon-button add"
+                icon={<PlusOutlined />}
+                aria-label="Добавить"
+                onClick={() => openAddWizard()}
+              />
+            </Tooltip>
+            <Tooltip title={hasEditingObject ? 'Создать на основании' : 'Выберите строку для копирования'}>
+              <span className="action-tooltip-wrap">
+                <Button
+                  className="action-icon-button"
+                  icon={<CopyOutlined />}
+                  aria-label="Создать на основании"
+                  disabled={!hasEditingObject}
+                  loading={add.isPending}
+                  onClick={duplicateCurrentObject}
+                />
+              </span>
+            </Tooltip>
+            <Tooltip title={hasWizard ? 'Применить к одному' : 'Откройте или создайте объект'}>
+              <span className="action-tooltip-wrap">
+                <Button
+                  className="action-icon-button"
+                  icon={<CheckOutlined />}
+                  aria-label="Применить к одному"
+                  disabled={!hasWizard}
+                  loading={submittingObject}
+                  onClick={() => document.getElementById('inline-object-save')?.click()}
+                />
+              </span>
+            </Tooltip>
+            <Tooltip title="Массовое применение будет доступно после согласования правил переноса параметров">
+              <span className="action-tooltip-wrap">
+                <Button
+                  className="action-icon-button"
+                  icon={<CheckSquareOutlined />}
+                  aria-label="Применить ко всем"
+                  disabled
+                />
+              </span>
+            </Tooltip>
+            <Tooltip title={hasEditingObject ? 'Удалить' : 'Выберите строку для удаления'}>
+              <span className="action-tooltip-wrap">
+                <Popconfirm
+                  title="Удалить объект?"
+                  okText="Удалить"
+                  cancelText="Отмена"
+                  disabled={!hasEditingObject}
+                  onConfirm={removeCurrentObject}
+                >
+                  <Button
+                    danger
+                    className="action-icon-button"
+                    icon={<DeleteOutlined />}
+                    aria-label="Удалить"
+                    loading={remove.isPending}
+                    disabled={!hasEditingObject}
+                  />
+                </Popconfirm>
+              </span>
+            </Tooltip>
+          </div>
+
+          <div className="actionbar-group actionbar-save-group">
+            <Tooltip title={hasWizard ? 'Сохранить изменения' : 'Откройте или создайте объект'}>
+              <span className="action-tooltip-wrap">
+                <Button
+                  className="action-icon-button save"
+                  icon={<SaveOutlined />}
+                  aria-label="Сохранить изменения"
+                  disabled={!hasWizard}
+                  loading={submittingObject}
+                  onClick={() => document.getElementById('inline-object-save')?.click()}
+                />
+              </span>
+            </Tooltip>
+            <Tooltip title={hasWizard ? 'Отменить' : 'Нет открытой формы'}>
+              <span className="action-tooltip-wrap">
+                <Button
+                  className="action-icon-button"
+                  icon={<CloseOutlined />}
+                  aria-label="Отменить"
+                  disabled={!hasWizard}
+                  onClick={closeWizard}
+                />
+              </span>
+            </Tooltip>
+          </div>
+
+          <div className="actionbar-group actionbar-io-group">
+            <ImportExcelButton projectId={project.id} />
+            {role === 'employee' && (
+              <ExportObjectsButton
+                projectId={project.id}
+                projectName={project.name}
+                disabled={objects.length === 0}
+              />
+            )}
+          </div>
+
+          <div className="actionbar-status">
             {selectedRowKeys.length > 0 && (
-              <Tag color="blue" style={{ margin: 0 }}>
-                Выбрано: {selectedRowKeys.length} · Ctrl+C для копирования
+              <Tag color="blue" className="selection-status-tag">
+                Выбрано: {selectedRowKeys.length} · Ctrl+C
               </Tag>
             )}
             <ObjectCountBadge
@@ -1209,8 +1275,8 @@ export default function HeatCalcPage() {
               emptyText: (
                 <Text type="secondary">
                   {activeObjectType === 'pipe'
-                    ? 'Трубопроводы не добавлены. Нажмите «＋ Добавить» или импортируйте XLSX/CSV.'
-                    : 'Резервуары не добавлены. Нажмите «＋ Добавить» или импортируйте XLSX/CSV.'}
+                    ? 'Трубопроводы не добавлены. Нажмите «+» или импортируйте XLSX/CSV.'
+                    : 'Резервуары не добавлены. Нажмите «+» или импортируйте XLSX/CSV.'}
                 </Text>
               ),
             }}

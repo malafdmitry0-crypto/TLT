@@ -282,6 +282,26 @@ describe('HeatCalcPage', () => {
       expect(await screen.findByText('Форма и геометрия резервуара')).toBeInTheDocument();
     });
 
+    it('основные действия toolbar доступны по имени при icon-only отображении', async () => {
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      const addButton = screen.getByRole('button', { name: 'Добавить' });
+      const saveButton = screen.getByRole('button', { name: 'Сохранить изменения' });
+
+      expect(addButton).toHaveClass('action-icon-button');
+      expect(addButton.textContent?.trim()).toBe('');
+      expect(saveButton).toHaveClass('action-icon-button');
+      expect(saveButton).toBeDisabled();
+
+      await user.click(addButton);
+
+      expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Сохранить изменения' })).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Отменить' })).not.toBeDisabled();
+    });
+
     it('при переключении типа очищает выбранные строки', async () => {
       const { listObjects } = await import('@/api/projects');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
