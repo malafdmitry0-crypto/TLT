@@ -14,13 +14,17 @@ from app.core.dependencies import (
     require_employee,
 )
 from app.schemas.project import (
+    ObjectQueryCapabilitiesResponse,
     ProjectObjectCreate,
     ProjectObjectResponse,
+    ProjectObjectsQueryRequest,
+    ProjectObjectsQueryResponse,
     ProjectObjectUpdate,
     ReorderRequest,
 )
 from app.services.calculation_service import CalculationService
 from app.services.excel_import_service import build_objects_xlsx
+from app.services.object_query_service import ObjectQueryService, ObjectQueryValidationError
 from app.services.project_service import (
     ProjectAccessError,
     ProjectLimitError,
@@ -46,6 +50,48 @@ async def list_objects(
 ):
     try:
         return await ProjectService(db).list_objects(project_id, principal)
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ProjectAccessError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.get(
+    "/{project_id}/objects/query-capabilities",
+    response_model=ObjectQueryCapabilitiesResponse,
+    summary="Возможности backend-фильтров и сортировок таблицы объектов",
+)
+async def object_query_capabilities(
+    project_id: UUID,
+    object_type: str,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await ObjectQueryService(db).capabilities(project_id, object_type, principal)
+    except ObjectQueryValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ProjectAccessError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.post(
+    "/{project_id}/objects/query",
+    response_model=ProjectObjectsQueryResponse,
+    summary="Постраничный backend-query объектов проекта",
+)
+async def query_objects(
+    project_id: UUID,
+    data: ProjectObjectsQueryRequest,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await ObjectQueryService(db).query(project_id, data, principal)
+    except ObjectQueryValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:

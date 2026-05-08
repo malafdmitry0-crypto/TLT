@@ -3,22 +3,28 @@ import {
   Button,
   Card,
   Checkbox,
+  Input,
+  InputNumber,
   Modal,
   Popconfirm,
   Segmented,
+  Select,
   Space,
   Table,
   Tag,
   Tooltip,
   Typography,
   message as antdMessage,
+  type TableProps,
 } from 'antd';
 import {
   CheckOutlined,
   CheckSquareOutlined,
+  CloseCircleOutlined,
   CloseOutlined,
   CopyOutlined,
   DeleteOutlined,
+  FilterFilled,
   FireOutlined,
   PlusOutlined,
   SaveOutlined,
@@ -37,11 +43,17 @@ import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
-import { listObjects } from '@/api/projects';
+import { getObjectQueryCapabilities, listObjects, queryObjects } from '@/api/projects';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { getInsulation } from '@/api/references';
 import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
-import type { ProjectObject } from '@/types/project';
+import type {
+  ObjectQueryCapabilities,
+  ObjectQueryFieldCapability,
+  ObjectQueryFilter as BackendObjectQueryFilter,
+  ProjectObject,
+  ProjectObjectsQueryRequest,
+} from '@/types/project';
 import { formatNumber } from '@/utils/formatters';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 import { findDN } from '@/utils/objectWizardUtils';
@@ -63,6 +75,15 @@ import {
   type HeatCalcObjectType,
   type HeatCalcTableColumnSettings,
 } from '@/utils/heatCalcTableColumns';
+import {
+  activeTableFilterCount,
+  createEmptyTableViewState,
+  hasActiveTableViewState,
+  isColumnFilterActive,
+  removeHiddenTableViewState,
+  type HeatCalcColumnFilter,
+  type HeatCalcTableViewState,
+} from '@/utils/heatCalcTableFindability';
 
 const { Text } = Typography;
 
@@ -77,6 +98,302 @@ const TABLE_SETTINGS_TYPE_LABELS: Record<HeatCalcObjectType, string> = {
   pipe: 'Труба',
   tank: 'Резервуар',
 };
+
+type HeatCalcFilterKind = 'text' | 'numberRange' | 'enum';
+const DEFAULT_OBJECT_QUERY_PAGE_SIZE = 100;
+
+const NUMBER_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
+  'index',
+  'pipe_outer_diameter',
+  'pipe_length',
+  'pipe_wall_thickness',
+  'pipe_lambda',
+  'insulation_layer_count',
+  'insulation_thickness',
+  'first_insulation_lambda',
+  'second_insulation_thickness',
+  'second_insulation_lambda',
+  'third_insulation_thickness',
+  'third_insulation_lambda',
+  'process_temperature',
+  'ambient_temperature',
+  'max_ambient_temperature',
+  'max_process_temperature',
+  'wind_speed',
+  'alpha_vnesh',
+  'climate_temperature_basis',
+  'burial_depth',
+  'ground_conductivity',
+  'min_switch_temperature',
+  'supply_voltage',
+  'safety_factor',
+  'valve_count',
+  'flange_count',
+  'support_count',
+  'local_element_equiv_length',
+  'tank_diameter',
+  'tank_height',
+  'tank_length',
+  'tank_width',
+  'tank_wall_thickness',
+  'tank_wall_lambda',
+  'q_additional',
+]);
+
+const ENUM_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
+  'type',
+  'pipe_dn',
+  'pipe_material',
+  'pipe_lambda_mode',
+  'placement',
+  'insulation_material',
+  'second_insulation_material',
+  'third_insulation_material',
+  'insulation_cover_material',
+  'ambient_temperature_source',
+  'wind_speed_source',
+  'environment',
+  'zone_classification',
+  'temperature_group',
+  'climate_city',
+  'climate_region',
+  'climate_key',
+  'ground_type',
+  'steam_tracing',
+  'tank_shape',
+]);
+
+function filterKindForColumn(
+  key: HeatCalcColumnKey,
+  capability?: ObjectQueryFieldCapability,
+): HeatCalcFilterKind {
+  if (capability?.filter.enabled) {
+    if (capability.filter.ops.includes('range')) return 'numberRange';
+    if (capability.filter.ops.includes('in')) return 'enum';
+    return 'text';
+  }
+  if (NUMBER_FILTER_COLUMNS.has(key)) return 'numberRange';
+  if (ENUM_FILTER_COLUMNS.has(key)) return 'enum';
+  return 'text';
+}
+
+function backendFilterFromColumnFilter(
+  key: HeatCalcColumnKey,
+  filter: HeatCalcColumnFilter,
+  capability?: ObjectQueryFieldCapability,
+): BackendObjectQueryFilter | null {
+  if (!isColumnFilterActive(filter)) return null;
+  const ops = capability?.filter.ops ?? [];
+  if (filter.kind === 'text') {
+    return { key, op: 'contains', value: filter.value };
+  }
+  if (filter.kind === 'numberRange') {
+    return {
+      key,
+      op: 'range',
+      min: Number.isFinite(filter.min) ? filter.min : undefined,
+      max: Number.isFinite(filter.max) ? filter.max : undefined,
+      include_empty: !!filter.includeEmpty,
+    };
+  }
+  if (filter.kind === 'enum') {
+    return {
+      key,
+      op: ops.includes('equals') && filter.values.length === 1 ? 'equals' : 'in',
+      value: ops.includes('equals') && filter.values.length === 1 ? filter.values[0] : undefined,
+      values: ops.includes('equals') && filter.values.length === 1 ? undefined : filter.values,
+      include_empty: !!filter.includeEmpty,
+    };
+  }
+  if (filter.kind === 'boolean') {
+    return {
+      key,
+      op: 'equals',
+      value: filter.value === 'empty' ? null : filter.value,
+      include_empty: filter.value === 'empty',
+    };
+  }
+  return null;
+}
+
+function buildObjectQueryRequest(
+  objectType: HeatCalcObjectType,
+  state: HeatCalcTableViewState,
+  page: number,
+  pageSize: number,
+  capabilities?: ObjectQueryCapabilities,
+): ProjectObjectsQueryRequest {
+  const capabilityByKey = new Map(capabilities?.fields.map((field) => [field.key, field]) ?? []);
+  const filters = Object.entries(state.filters)
+    .map(([key, filter]) => filter
+      ? backendFilterFromColumnFilter(key, filter, capabilityByKey.get(key))
+      : null)
+    .filter((filter): filter is BackendObjectQueryFilter => filter != null);
+  const sortCapability = state.sort ? capabilityByKey.get(state.sort.columnKey) : undefined;
+  return {
+    object_type: objectType,
+    page,
+    page_size: pageSize,
+    filters,
+    sort: state.sort && (sortCapability?.sort.enabled ?? true)
+      ? { key: state.sort.columnKey, dir: state.sort.direction }
+      : null,
+  };
+}
+
+function toInputNumberValue(value: unknown) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function ColumnFilterDropdown({
+  title,
+  kind,
+  filter,
+  enumOptions,
+  onApply,
+  onReset,
+  onClose,
+}: {
+  title: string;
+  kind: HeatCalcFilterKind;
+  filter?: HeatCalcColumnFilter;
+  enumOptions: { label: string; value: string }[];
+  onApply: (filter?: HeatCalcColumnFilter) => void;
+  onReset: () => void;
+  onClose: () => void;
+}) {
+  const [textValue, setTextValue] = useState('');
+  const [minValue, setMinValue] = useState<number | null>(null);
+  const [maxValue, setMaxValue] = useState<number | null>(null);
+  const [enumValues, setEnumValues] = useState<string[]>([]);
+  const [includeEmpty, setIncludeEmpty] = useState(false);
+
+  useEffect(() => {
+    setTextValue(filter?.kind === 'text' ? filter.value : '');
+    setMinValue(filter?.kind === 'numberRange' ? toInputNumberValue(filter.min) : null);
+    setMaxValue(filter?.kind === 'numberRange' ? toInputNumberValue(filter.max) : null);
+    setEnumValues(filter?.kind === 'enum' ? filter.values : []);
+    setIncludeEmpty(
+      filter?.kind === 'numberRange' || filter?.kind === 'enum'
+        ? !!filter.includeEmpty
+        : false,
+    );
+  }, [filter]);
+
+  const invalidRange = kind === 'numberRange'
+    && minValue != null
+    && maxValue != null
+    && minValue > maxValue;
+
+  function applyFilter() {
+    if (kind === 'text') {
+      const value = textValue.trim();
+      onApply(value ? { kind: 'text', value } : undefined);
+      onClose();
+      return;
+    }
+
+    if (kind === 'numberRange') {
+      if (invalidRange) return;
+      onApply(
+        minValue != null || maxValue != null || includeEmpty
+          ? {
+              kind: 'numberRange',
+              min: minValue ?? undefined,
+              max: maxValue ?? undefined,
+              includeEmpty,
+            }
+          : undefined,
+      );
+      onClose();
+      return;
+    }
+
+    onApply(
+      enumValues.length > 0 || includeEmpty
+        ? { kind: 'enum', values: enumValues, includeEmpty }
+        : undefined,
+    );
+    onClose();
+  }
+
+  function resetFilter() {
+    setTextValue('');
+    setMinValue(null);
+    setMaxValue(null);
+    setEnumValues([]);
+    setIncludeEmpty(false);
+    onReset();
+    onClose();
+  }
+
+  return (
+    <div className="table-filter-dropdown" onKeyDown={(event) => {
+      if (event.key === 'Enter') applyFilter();
+    }}>
+      <div className="table-filter-title">{title}</div>
+      {kind === 'text' && (
+        <Input
+          autoFocus
+          allowClear
+          size="small"
+          value={textValue}
+          placeholder="Найти"
+          aria-label={`Поиск: ${title}`}
+          onChange={(event) => setTextValue(event.target.value)}
+        />
+      )}
+      {kind === 'numberRange' && (
+        <div className="table-filter-number-range">
+          <InputNumber
+            size="small"
+            value={minValue}
+            placeholder="от"
+            aria-label={`Минимум: ${title}`}
+            onChange={(value) => setMinValue(toInputNumberValue(value))}
+          />
+          <InputNumber
+            size="small"
+            value={maxValue}
+            placeholder="до"
+            aria-label={`Максимум: ${title}`}
+            onChange={(value) => setMaxValue(toInputNumberValue(value))}
+          />
+          {invalidRange && <Text type="danger">Минимум больше максимума</Text>}
+        </div>
+      )}
+      {kind === 'enum' && (
+        <Select
+          mode="multiple"
+          allowClear
+          showSearch
+          size="small"
+          value={enumValues}
+          options={enumOptions}
+          placeholder="Значения"
+          aria-label={`Значения: ${title}`}
+          optionFilterProp="label"
+          maxTagCount="responsive"
+          onChange={setEnumValues}
+        />
+      )}
+      {(kind === 'numberRange' || kind === 'enum') && (
+        <Checkbox checked={includeEmpty} onChange={(event) => setIncludeEmpty(event.target.checked)}>
+          Пустые
+        </Checkbox>
+      )}
+      <div className="table-filter-actions">
+        <Button size="small" onClick={resetFilter}>
+          Сбросить
+        </Button>
+        <Button size="small" type="primary" disabled={invalidRange} onClick={applyFilter}>
+          Применить
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function PipeTypeIcon() {
   return (
@@ -280,6 +597,17 @@ export default function HeatCalcPage() {
   const [newWizardRevision, setNewWizardRevision] = useState(0);
   const [activeObjectType, setActiveObjectType] = useState<WizardObjectType>('pipe');
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [tableViewStateByType, setTableViewStateByType] = useState<
+    Record<HeatCalcObjectType, HeatCalcTableViewState>
+  >(() => ({
+    pipe: createEmptyTableViewState(),
+    tank: createEmptyTableViewState(),
+  }));
+  const [tablePageByType, setTablePageByType] = useState<Record<HeatCalcObjectType, number>>({
+    pipe: 1,
+    tank: 1,
+  });
+  const [lastSavedObject, setLastSavedObject] = useState<ProjectObject | null>(null);
   const [tableColumnSettings, setTableColumnSettings] = useState<HeatCalcTableColumnSettings>(() => {
     const auth = useAuthStore.getState();
     const cached = readRegisteredTableColumnCache(auth.user?.id ?? null);
@@ -299,6 +627,15 @@ export default function HeatCalcPage() {
     queryKey: ['project', project?.id, 'objects'],
     queryFn: () => listObjects(project!.id),
     enabled: !!project,
+  });
+  const activeTableViewState = tableViewStateByType[activeObjectType];
+  const activeTablePage = tablePageByType[activeObjectType];
+
+  const { data: objectQueryCapabilities } = useQuery({
+    queryKey: ['project', project?.id, 'objects', 'query-capabilities', activeObjectType],
+    queryFn: () => getObjectQueryCapabilities(project!.id, activeObjectType),
+    enabled: !!project,
+    staleTime: 5 * 60_000,
   });
 
   const { data: insulationMaterials = [] } = useQuery({
@@ -339,6 +676,22 @@ export default function HeatCalcPage() {
     () => objects.filter((obj) => obj.object_type === activeObjectType),
     [objects, activeObjectType],
   );
+  const objectQueryRequest = useMemo(
+    () => buildObjectQueryRequest(
+      activeObjectType,
+      activeTableViewState,
+      activeTablePage,
+      objectQueryCapabilities?.default_page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE,
+      objectQueryCapabilities,
+    ),
+    [activeObjectType, activeTablePage, activeTableViewState, objectQueryCapabilities],
+  );
+  const { data: objectQueryResult } = useQuery({
+    queryKey: ['project', project?.id, 'objects', 'query', objectQueryRequest],
+    queryFn: () => queryObjects(project!.id, objectQueryRequest),
+    enabled: !!project && !!objectQueryCapabilities,
+    placeholderData: (previous) => previous,
+  });
   const insulationLabelByCode = useMemo(
     () => new Map(insulationMaterials.map((m) => [m.material, insulationEntryLabel(m)])),
     [insulationMaterials],
@@ -408,8 +761,8 @@ export default function HeatCalcPage() {
   };
   const { add, edit, remove, batchCalc } = useHeatCalcMutations(
     project?.id,
-    openNewObjectMode,
-    openNewObjectMode,
+    handleObjectSaved,
+    handleObjectSaved,
     closeWizard,
   );
 
@@ -513,6 +866,11 @@ export default function HeatCalcPage() {
     const source = wizardState?.editingObject;
     if (!source) return;
     remove.mutate(source.id);
+  }
+
+  function handleObjectSaved(obj: ProjectObject) {
+    setLastSavedObject(obj);
+    openNewObjectMode(obj);
   }
 
   const selectedRowId = wizardState?.editingObject?.id;
@@ -817,18 +1175,183 @@ export default function HeatCalcPage() {
     () => getVisibleTableColumnMetas(activeObjectType, tableColumnSettings),
     [activeObjectType, tableColumnSettings],
   );
+  const fieldCapabilityByKey = useMemo(
+    () => new Map(objectQueryCapabilities?.fields.map((field) => [field.key, field]) ?? []),
+    [objectQueryCapabilities],
+  );
+  const visibleTableColumnKeys = useMemo(
+    () => sourceColumnMetas.map((meta) => meta.key),
+    [sourceColumnMetas],
+  );
+  const visibleTableObjects = useMemo(
+    () => objectQueryResult?.items ?? [],
+    [objectQueryResult],
+  );
+  const visibleTableRows = useMemo(
+    () => visibleTableObjects.map((record, index) => ({
+      record,
+      sourceIndex: (objectQueryResult?.page_info.offset ?? 0) + index,
+    })),
+    [objectQueryResult, visibleTableObjects],
+  );
+  const currentActiveFilterCount = activeTableFilterCount(activeTableViewState);
+  const currentTableViewActive = hasActiveTableViewState(activeTableViewState);
+  const activeTypeTotalCount = objectQueryResult?.counts.by_type[activeObjectType] ?? visibleObjects.length;
+  const filteredTableCount = objectQueryResult?.counts.filtered ?? visibleTableObjects.length;
+  const enumOptionsByColumn = useMemo(() => {
+    const result: Record<HeatCalcColumnKey, { label: string; value: string }[]> = {};
+    for (const meta of sourceColumnMetas) {
+      const capability = fieldCapabilityByKey.get(meta.key);
+      if (filterKindForColumn(meta.key, capability) !== 'enum') continue;
+      result[meta.key] = (capability?.options?.items ?? []).map((item) => ({
+        label: item.label,
+        value: String(item.value),
+      }));
+    }
+    return result;
+  }, [fieldCapabilityByKey, sourceColumnMetas]);
+
+  useEffect(() => {
+    setTableViewStateByType((current) => {
+      const cleaned = removeHiddenTableViewState(current[activeObjectType], visibleTableColumnKeys);
+      if (
+        cleaned.sort === current[activeObjectType].sort
+        && Object.keys(cleaned.filters).length === Object.keys(current[activeObjectType].filters).length
+      ) {
+        return current;
+      }
+      return { ...current, [activeObjectType]: cleaned };
+    });
+  }, [activeObjectType, visibleTableColumnKeys]);
+
+  useEffect(() => {
+    const visibleIds = new Set(visibleTableObjects.map((object) => object.id));
+    setSelectedRowKeys((keys) => {
+      const nextKeys = keys.filter((key) => visibleIds.has(key));
+      return nextKeys.length === keys.length && nextKeys.every((key, index) => key === keys[index])
+        ? keys
+        : nextKeys;
+    });
+  }, [visibleTableObjects]);
+
+  useEffect(() => {
+    if (!lastSavedObject) return;
+    if (lastSavedObject.object_type !== activeObjectType) {
+      setLastSavedObject(null);
+      return;
+    }
+    if (!currentTableViewActive) {
+      setLastSavedObject(null);
+      return;
+    }
+    if (!visibleTableObjects.some((object) => object.id === lastSavedObject.id)) {
+      antdMessage.info('Объект сохранён, но скрыт текущими фильтрами');
+    }
+    setLastSavedObject(null);
+  }, [activeObjectType, currentTableViewActive, lastSavedObject, visibleTableObjects]);
+
+  const setColumnFilter = useCallback((columnKey: HeatCalcColumnKey, filter?: HeatCalcColumnFilter) => {
+    setTablePageByType((current) => ({ ...current, [activeObjectType]: 1 }));
+    setTableViewStateByType((current) => {
+      const nextFilters = { ...current[activeObjectType].filters };
+      if (filter && isColumnFilterActive(filter)) {
+        nextFilters[columnKey] = filter;
+      } else {
+        delete nextFilters[columnKey];
+      }
+      return {
+        ...current,
+        [activeObjectType]: {
+          ...current[activeObjectType],
+          filters: nextFilters,
+        },
+      };
+    });
+  }, [activeObjectType]);
+
+  const resetColumnFilter = useCallback((columnKey: HeatCalcColumnKey) => {
+    setColumnFilter(columnKey, undefined);
+  }, [setColumnFilter]);
+
+  const resetCurrentTableViewState = useCallback(() => {
+    setTablePageByType((current) => ({ ...current, [activeObjectType]: 1 }));
+    setTableViewStateByType((current) => ({
+      ...current,
+      [activeObjectType]: createEmptyTableViewState(),
+    }));
+  }, [activeObjectType]);
+
+  const handleSourceTableChange = useCallback<NonNullable<TableProps<ProjectObject>['onChange']>>((pagination, _filters, sorter, extra) => {
+    const nextPage = extra.action === 'sort' ? 1 : pagination.current ?? 1;
+    const nextSorter = Array.isArray(sorter)
+      ? sorter.find((item) => item.order)
+      : sorter;
+    const columnKey = typeof nextSorter?.columnKey === 'string' ? nextSorter.columnKey : null;
+    const order = nextSorter?.order;
+    setTablePageByType((current) => ({ ...current, [activeObjectType]: nextPage }));
+    setTableViewStateByType((current) => ({
+      ...current,
+      [activeObjectType]: {
+        ...current[activeObjectType],
+        sort: columnKey && order
+          ? { columnKey, direction: order === 'ascend' ? 'asc' : 'desc' }
+          : undefined,
+      },
+    }));
+  }, [activeObjectType]);
+
   const sourceColumns: ColumnsType<ProjectObject> = useMemo(
     () => sourceColumnMetas.map((meta) => {
       const renderer = columnRenderers[meta.key];
+      const capability = fieldCapabilityByKey.get(meta.key);
+      const filterEnabled = capability?.filter.enabled ?? true;
+      const sortEnabled = capability?.sort.enabled ?? true;
+      const filterKind = filterKindForColumn(meta.key, capability);
+      const activeFilter = activeTableViewState.filters[meta.key];
       return {
+        key: meta.key,
         title: meta.title,
         width: meta.width,
         ellipsis: meta.ellipsis ?? renderer.ellipsis,
         align: renderer.align,
         render: renderer.render,
+        sorter: sortEnabled,
+        sortOrder: sortEnabled && activeTableViewState.sort?.columnKey === meta.key
+          ? activeTableViewState.sort.direction === 'asc'
+            ? 'ascend'
+            : 'descend'
+          : null,
+        showSorterTooltip: false,
+        filtered: isColumnFilterActive(activeFilter),
+        filterIcon: filterEnabled ? () => (
+          <span role="button" aria-label={`Фильтр ${meta.label}`} className="table-filter-trigger">
+            <FilterFilled
+              className={isColumnFilterActive(activeFilter) ? 'table-filter-icon active' : 'table-filter-icon'}
+            />
+          </span>
+        ) : undefined,
+        filterDropdown: filterEnabled ? ({ close }) => (
+          <ColumnFilterDropdown
+            title={meta.label}
+            kind={filterKind}
+            filter={activeFilter}
+            enumOptions={enumOptionsByColumn[meta.key] ?? []}
+            onApply={(filter) => setColumnFilter(meta.key, filter)}
+            onReset={() => resetColumnFilter(meta.key)}
+            onClose={close}
+          />
+        ) : undefined,
       };
     }),
-    [columnRenderers, sourceColumnMetas],
+    [
+      activeTableViewState,
+      columnRenderers,
+      enumOptionsByColumn,
+      fieldCapabilityByKey,
+      resetColumnFilter,
+      setColumnFilter,
+      sourceColumnMetas,
+    ],
   );
   const tableScrollX = useMemo(
     () => Math.max(640, sourceColumnMetas.reduce((sum, column) => sum + column.width, 36)),
@@ -842,8 +1365,8 @@ export default function HeatCalcPage() {
       const active = document.activeElement;
       if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
 
-      const selected = visibleObjects
-        .map((object, index) => ({ object, index }))
+      const selected = visibleTableRows
+        .map((row) => ({ object: row.record, index: row.sourceIndex }))
         .filter(({ object }) => selectedRowKeys.includes(object.id));
       const header = sourceColumnMetas.map((meta) => meta.copyTitle ?? meta.title);
       const rows = selected.map(({ object, index }) =>
@@ -857,7 +1380,7 @@ export default function HeatCalcPage() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [columnRenderers, selectedRowKeys, sourceColumnMetas, visibleObjects]);
+  }, [columnRenderers, selectedRowKeys, sourceColumnMetas, visibleTableRows]);
 
   function openColumnSettings() {
     setColumnSettingsType(activeObjectType);
@@ -993,6 +1516,26 @@ export default function HeatCalcPage() {
                 onClick={openColumnSettings}
               />
             </Tooltip>
+            {currentTableViewActive && (
+              <Tooltip
+                title={`Показано ${filteredTableCount} из ${activeTypeTotalCount}. Активных фильтров: ${currentActiveFilterCount}`}
+              >
+                <Tag color="blue" className="table-filter-status-tag">
+                  {filteredTableCount}/{activeTypeTotalCount}
+                </Tag>
+              </Tooltip>
+            )}
+            <Tooltip title={currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
+              <span className="action-tooltip-wrap">
+                <Button
+                  className="action-icon-button"
+                  icon={<CloseCircleOutlined />}
+                  aria-label="Сбросить фильтры таблицы"
+                  disabled={!currentTableViewActive}
+                  onClick={resetCurrentTableViewState}
+                />
+              </span>
+            </Tooltip>
             <Tooltip title="Добавить">
               <Button
                 className="action-icon-button add"
@@ -1116,9 +1659,17 @@ export default function HeatCalcPage() {
             className="calc-spreadsheet"
             rowKey="id"
             size="small"
-            pagination={false}
-            dataSource={visibleObjects}
+            pagination={{
+              current: objectQueryResult?.page_info.page ?? activeTablePage,
+              pageSize: objectQueryResult?.page_info.page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE,
+              total: filteredTableCount,
+              showSizeChanger: false,
+              hideOnSinglePage: true,
+              size: 'small',
+            }}
+            dataSource={visibleTableObjects}
             columns={sourceColumns}
+            onChange={handleSourceTableChange}
             scroll={{
               x: tableScrollX,
               y: 'calc(100vh - 500px)',
@@ -1144,11 +1695,20 @@ export default function HeatCalcPage() {
             })}
             locale={{
               emptyText: (
-                <Text type="secondary">
-                  {activeObjectType === 'pipe'
-                    ? 'Трубопроводы не добавлены. Нажмите «+» или импортируйте XLSX/CSV.'
-                    : 'Резервуары не добавлены. Нажмите «+» или импортируйте XLSX/CSV.'}
-                </Text>
+                currentTableViewActive && activeTypeTotalCount > 0 ? (
+                  <div className="table-filter-empty">
+                    <Text type="secondary">Нет строк по текущим фильтрам</Text>
+                    <Button size="small" onClick={resetCurrentTableViewState}>
+                      Сбросить фильтры
+                    </Button>
+                  </div>
+                ) : (
+                  <Text type="secondary">
+                    {activeObjectType === 'pipe'
+                      ? 'Трубопроводы не добавлены. Нажмите «+» или импортируйте XLSX/CSV.'
+                      : 'Резервуары не добавлены. Нажмите «+» или импортируйте XLSX/CSV.'}
+                  </Text>
+                )
               ),
             }}
           />

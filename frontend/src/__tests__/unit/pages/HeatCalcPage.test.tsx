@@ -6,7 +6,7 @@ import HeatCalcPage from '@/pages/HeatCalcPage';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
-import type { Project, ProjectObject } from '@/types/project';
+import type { Project, ProjectObject, ProjectObjectsQueryRequest } from '@/types/project';
 import {
   HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY,
   HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY,
@@ -15,13 +15,87 @@ import {
 
 // ── Моки API ─────────────────────────────────────────────────────────────────
 
-vi.mock('@/api/projects', () => ({
-  listObjects: vi.fn().mockResolvedValue([]),
-  createObject: vi.fn(),
-  updateObject: vi.fn(),
-  deleteObject: vi.fn(),
-  reorderObjects: vi.fn(),
-}));
+vi.mock('@/api/projects', () => {
+  const listObjects = vi.fn().mockResolvedValue([]);
+  function valueFor(record: ProjectObject, key: string) {
+    if (key === 'name') return record.params.name;
+    if (key === 'pipe_outer_diameter') return Number(record.params.outer_diameter) * 1000;
+    if (key === 'process_temperature') return record.params.process_temperature;
+    return record.params[key];
+  }
+  const queryObjects = vi.fn(async (_projectId: string, payload: ProjectObjectsQueryRequest) => {
+    const all = await listObjects();
+    const typeItems = all.filter((item: ProjectObject) => item.object_type === payload.object_type);
+    let items = [...typeItems];
+    for (const filter of payload.filters ?? []) {
+      items = items.filter((item) => {
+        const value = valueFor(item, filter.key);
+        if (filter.op === 'contains') {
+          return String(value ?? '').toLocaleLowerCase('ru').includes(String(filter.value ?? '').toLocaleLowerCase('ru'));
+        }
+        if (filter.op === 'range') {
+          const numericValue = Number(value);
+          if (!Number.isFinite(numericValue)) return !!filter.include_empty;
+          if (Number.isFinite(filter.min) && numericValue < Number(filter.min)) return false;
+          if (Number.isFinite(filter.max) && numericValue > Number(filter.max)) return false;
+          return true;
+        }
+        return true;
+      });
+    }
+    if (payload.sort?.key) {
+      const sort = payload.sort;
+      items.sort((left, right) => {
+        const leftValue = Number(valueFor(left, sort.key));
+        const rightValue = Number(valueFor(right, sort.key));
+        const comparison = leftValue - rightValue;
+        return sort.dir === 'desc' ? -comparison : comparison;
+      });
+    }
+    const page = Number(payload.page ?? 1);
+    const pageSize = Number(payload.page_size ?? 100);
+    const offset = (page - 1) * pageSize;
+    const pageItems = items.slice(offset, offset + pageSize);
+    return {
+      items: pageItems,
+      page_info: {
+        page,
+        page_size: pageSize,
+        offset,
+        total_pages: items.length ? Math.ceil(items.length / pageSize) : 0,
+        has_next_page: page * pageSize < items.length,
+        has_previous_page: page > 1,
+      },
+      counts: {
+        total: all.length,
+        by_type: {
+          pipe: all.filter((item: ProjectObject) => item.object_type === 'pipe').length,
+          tank: all.filter((item: ProjectObject) => item.object_type === 'tank').length,
+        },
+        filtered: items.length,
+      },
+      query: { object_type: payload.object_type, sort: payload.sort ?? null },
+    };
+  });
+  const getObjectQueryCapabilities = vi.fn(async (_projectId: string, objectType: 'pipe' | 'tank') => ({
+    version: 1,
+    object_type: objectType,
+    default_page_size: 100,
+    max_page_size: 200,
+    default_sort: { key: 'sort_order', dir: 'asc' },
+    search: { enabled: true, max_text_length: 120, default_columns: ['name'] },
+    fields: [],
+  }));
+  return {
+    listObjects,
+    queryObjects,
+    getObjectQueryCapabilities,
+    createObject: vi.fn(),
+    updateObject: vi.fn(),
+    deleteObject: vi.fn(),
+    reorderObjects: vi.fn(),
+  };
+});
 
 vi.mock('@/api/calculations', () => ({
   batchCalcElectrical: vi.fn().mockResolvedValue({ calculated: 0, skipped: 0, heat_loss_failed: 0, errors: [], results: [] }),
@@ -133,6 +207,10 @@ function renderPage() {
       </MemoryRouter>
     </QueryClientProvider>
   );
+}
+
+async function openColumnFilter(user: { click: (element: Element) => Promise<unknown> }, label: string) {
+  await user.click(screen.getAllByLabelText(`Фильтр ${label}`)[0]);
 }
 
 // ── Тесты ────────────────────────────────────────────────────────────────────
@@ -437,6 +515,140 @@ describe('HeatCalcPage', () => {
       const cached = JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY) ?? '{}');
       expect(cached.userId).toBe('user-test-1');
       expect(cached.settings.table.pipe).not.toContain('pipe_dn');
+    });
+
+    it('фильтр по наименованию скрывает строки только в таблице, не меняя счётчики расчёта', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const base = makeObject().params;
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject({ id: 'pipe-north', params: { ...base, name: 'Труба Север' } }),
+        makeObject({ id: 'pipe-south', params: { ...base, name: 'Труба Юг' } }),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба Север');
+      await screen.findByText('Труба Юг');
+      await openColumnFilter(user, 'Наименование');
+      await user.type(await screen.findByLabelText('Поиск: Наименование'), 'юг');
+      await user.click(screen.getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(screen.queryByText('Труба Север')).not.toBeInTheDocument();
+      });
+      expect(screen.getByText('Труба Юг')).toBeInTheDocument();
+      expect(screen.getByText('1/2')).toBeInTheDocument();
+      expect(screen.getByLabelText('Статус объектов').textContent).toMatch(/Труб:\s*2/);
+      expect(screen.getByLabelText('Статус объектов').textContent).toMatch(/Объектов:\s*2/);
+    });
+
+    it('range-фильтр по числовой колонке работает в отображаемых единицах и сбрасывается общей кнопкой', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const base = makeObject().params;
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject({ id: 'pipe-60', params: { ...base, name: 'Труба 60', outer_diameter: 0.06 } }),
+        makeObject({ id: 'pipe-219', params: { ...base, name: 'Труба 219', outer_diameter: 0.219 } }),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба 60');
+      await openColumnFilter(user, 'Наружный диаметр');
+      await user.type(await screen.findByLabelText('Минимум: Наружный диаметр'), '100');
+      await user.click(screen.getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(screen.queryByText('Труба 60')).not.toBeInTheDocument();
+      });
+      expect(screen.getByText('Труба 219')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Сбросить фильтры таблицы' }));
+      expect(await screen.findByText('Труба 60')).toBeInTheDocument();
+      expect(screen.getByText('Труба 219')).toBeInTheDocument();
+    });
+
+    it('сортировка по диаметру меняет только визуальный порядок строк', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const base = makeObject().params;
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject({ id: 'pipe-219', sort_order: 0, params: { ...base, name: 'Труба 219', outer_diameter: 0.219 } }),
+        makeObject({ id: 'pipe-60', sort_order: 1, params: { ...base, name: 'Труба 60', outer_diameter: 0.06 } }),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба 219');
+      await user.click(screen.getByRole('columnheader', { name: /Ø, мм/ }));
+
+      await waitFor(() => {
+        const rows = [...document.querySelectorAll('.calc-spreadsheet .ant-table-tbody > tr[data-row-key]')];
+        expect(rows[0]).toHaveTextContent('Труба 60');
+        expect(rows[1]).toHaveTextContent('Труба 219');
+      });
+      expect(screen.getByLabelText('Статус объектов').textContent).toMatch(/Труб:\s*2/);
+    });
+
+    it('фильтры труб не переносятся на резервуары', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const base = makeObject().params;
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject({ id: 'pipe-north', params: { ...base, name: 'Труба Север' } }),
+        makeObject({ id: 'pipe-south', params: { ...base, name: 'Труба Юг' } }),
+        makeTank({ id: 'tank-main', params: { ...makeTank().params, name: 'Резервуар основной' } }),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба Север');
+      await openColumnFilter(user, 'Наименование');
+      await user.type(await screen.findByLabelText('Поиск: Наименование'), 'юг');
+      await user.click(screen.getByRole('button', { name: 'Применить' }));
+      await waitFor(() => {
+        expect(screen.queryByText('Труба Север')).not.toBeInTheDocument();
+      });
+
+      await user.click(screen.getByLabelText('Резервуары'));
+      expect(await screen.findByText('Резервуар основной')).toBeInTheDocument();
+      expect(screen.queryByText('1/1')).not.toBeInTheDocument();
+    });
+
+    it('скрытая фильтром выбранная строка снимается с выбора, но форма остаётся открытой', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const base = makeObject().params;
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject({ id: 'pipe-north', params: { ...base, name: 'Труба Север' } }),
+        makeObject({ id: 'pipe-south', params: { ...base, name: 'Труба Юг' } }),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await user.click(await screen.findByText('Труба Север'));
+      await waitFor(() => {
+        expect(useWorkspaceHeaderStore.getState().context?.title).toMatch(/Труба Север/);
+      });
+      const rowCheckboxes = screen.getAllByRole('checkbox');
+      await user.click(rowCheckboxes[1]);
+      expect(await screen.findByText(/Выбрано: 1/)).toBeInTheDocument();
+
+      await openColumnFilter(user, 'Наименование');
+      await user.type(await screen.findByLabelText('Поиск: Наименование'), 'юг');
+      await user.click(screen.getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Выбрано: 1/)).not.toBeInTheDocument();
+      });
+      expect(useWorkspaceHeaderStore.getState().context?.title).toMatch(/Труба Север/);
+      expect(screen.getByText('Труба Юг')).toBeInTheDocument();
     });
 
     it('при переключении типа очищает выбранные строки', async () => {

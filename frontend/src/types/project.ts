@@ -52,3 +52,115 @@ export interface UpdateObjectRequest {
   params?: Record<string, unknown>;
   sort_order?: number;
 }
+
+export type HeatCalcObjectType = 'pipe' | 'tank';
+export type ObjectQueryFilterOp = 'contains' | 'range' | 'in' | 'equals';
+export type ObjectQuerySortDir = 'asc' | 'desc';
+
+export interface ObjectQuerySearch {
+  text?: string;
+  columns?: string[];
+}
+
+export interface ObjectQueryFilter {
+  key: string;
+  op: ObjectQueryFilterOp;
+  value?: unknown;
+  values?: unknown[];
+  min?: number;
+  max?: number;
+  include_empty?: boolean;
+}
+
+export interface ObjectQuerySort {
+  key: string;
+  dir: ObjectQuerySortDir;
+}
+
+export interface ProjectObjectsQueryRequest {
+  object_type: HeatCalcObjectType;
+  page?: number;
+  page_size?: number;
+  search?: ObjectQuerySearch | null;
+  filters?: ObjectQueryFilter[];
+  sort?: ObjectQuerySort | null;
+}
+
+export interface ProjectObjectsPageInfo {
+  page: number;
+  page_size: number;
+  offset: number;
+  total_pages: number;
+  has_next_page: boolean;
+  has_previous_page: boolean;
+}
+
+export interface ProjectObjectsQueryCounts {
+  total: number;
+  by_type: Record<HeatCalcObjectType, number>;
+  filtered: number;
+}
+
+export interface ProjectObjectsQueryResponse {
+  items: ProjectObject[];
+  page_info: ProjectObjectsPageInfo;
+  counts: ProjectObjectsQueryCounts;
+  query: {
+    object_type: HeatCalcObjectType;
+    sort: ObjectQuerySort | null;
+  };
+}
+
+export interface ObjectQueryOptionItem {
+  value: unknown;
+  label: string;
+}
+
+export interface ObjectQueryFieldOptions {
+  mode: 'inline' | 'dictionary' | 'project_values' | 'derived';
+  items: ObjectQueryOptionItem[];
+  include_empty: boolean;
+}
+
+export interface ObjectQueryFieldFilterCapability {
+  enabled: boolean;
+  ops: ObjectQueryFilterOp[];
+  include_empty: boolean;
+  reason?: string | null;
+}
+
+export interface ObjectQueryFieldSortCapability {
+  enabled: boolean;
+  type?: 'text' | 'number' | 'label' | 'enum_rank' | null;
+  nulls?: 'last' | null;
+  collation?: string | null;
+  reason?: string | null;
+}
+
+export interface ObjectQueryFieldCapability {
+  key: string;
+  label: string;
+  title: string;
+  data_type: 'display' | 'text' | 'number' | 'enum' | 'boolean';
+  unit: string | null;
+  filter: ObjectQueryFieldFilterCapability;
+  sort: ObjectQueryFieldSortCapability;
+  options: ObjectQueryFieldOptions | null;
+}
+
+export interface ObjectQueryCapabilities {
+  version: number;
+  object_type: HeatCalcObjectType;
+  default_page_size: number;
+  max_page_size: number;
+  default_sort: {
+    key: string;
+    dir: ObjectQuerySortDir;
+  };
+  search: {
+    enabled: boolean;
+    max_text_length: number;
+    default_columns: string[];
+  };
+  fields: ObjectQueryFieldCapability[];
+}

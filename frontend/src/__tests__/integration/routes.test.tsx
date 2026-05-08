@@ -14,6 +14,28 @@ import { useProjectStore } from '@/store/projectStore';
 vi.mock('@/api/projects', () => ({
   listProjects: vi.fn().mockResolvedValue([]),
   listObjects: vi.fn().mockResolvedValue([]),
+  queryObjects: vi.fn().mockResolvedValue({
+    items: [],
+    page_info: {
+      page: 1,
+      page_size: 100,
+      offset: 0,
+      total_pages: 0,
+      has_next_page: false,
+      has_previous_page: false,
+    },
+    counts: { total: 0, by_type: { pipe: 0, tank: 0 }, filtered: 0 },
+    query: { object_type: 'pipe', sort: null },
+  }),
+  getObjectQueryCapabilities: vi.fn().mockResolvedValue({
+    version: 1,
+    object_type: 'pipe',
+    default_page_size: 100,
+    max_page_size: 200,
+    default_sort: { key: 'sort_order', dir: 'asc' },
+    search: { enabled: true, max_text_length: 120, default_columns: ['name'] },
+    fields: [],
+  }),
   createProject: vi.fn(),
   deleteProject: vi.fn(),
   duplicateProject: vi.fn(),

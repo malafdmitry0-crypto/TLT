@@ -4,6 +4,9 @@ import type {
   CreateProjectRequest,
   Project,
   ProjectObject,
+  ObjectQueryCapabilities,
+  ProjectObjectsQueryRequest,
+  ProjectObjectsQueryResponse,
   UpdateObjectRequest,
   UpdateProjectRequest,
 } from '@/types/project';
@@ -83,6 +86,28 @@ export async function importProjectsCsvBulk(file: File): Promise<BulkImportResul
 export async function listObjects(projectId: string): Promise<ProjectObject[]> {
   const { data } = await apiClient.get<ProjectObject[]>(
     `/projects/${projectId}/objects`
+  );
+  return data;
+}
+
+export async function getObjectQueryCapabilities(
+  projectId: string,
+  objectType: 'pipe' | 'tank'
+): Promise<ObjectQueryCapabilities> {
+  const { data } = await apiClient.get<ObjectQueryCapabilities>(
+    `/projects/${projectId}/objects/query-capabilities`,
+    { params: { object_type: objectType } }
+  );
+  return data;
+}
+
+export async function queryObjects(
+  projectId: string,
+  payload: ProjectObjectsQueryRequest
+): Promise<ProjectObjectsQueryResponse> {
+  const { data } = await apiClient.post<ProjectObjectsQueryResponse>(
+    `/projects/${projectId}/objects/query`,
+    payload
   );
   return data;
 }

@@ -7,7 +7,7 @@ import HeatCalcPage from '@/pages/HeatCalcPage';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
-import type { Project, ProjectObject } from '@/types/project';
+import type { Project, ProjectObject, ProjectObjectsQueryRequest } from '@/types/project';
 
 vi.mock('@/components/wizard/ObjectWizard', async () => {
   const React = await import('react');
@@ -43,13 +43,49 @@ vi.mock('@/components/wizard/ObjectWizard', async () => {
   };
 });
 
-vi.mock('@/api/projects', () => ({
-  listObjects: vi.fn().mockResolvedValue([]),
-  createObject: vi.fn(),
-  updateObject: vi.fn(),
-  deleteObject: vi.fn(),
-  reorderObjects: vi.fn(),
-}));
+vi.mock('@/api/projects', () => {
+  const listObjects = vi.fn().mockResolvedValue([]);
+  return {
+    listObjects,
+    queryObjects: vi.fn(async (_projectId: string, payload: ProjectObjectsQueryRequest) => {
+      const all = await listObjects();
+      const items = all.filter((item: ProjectObject) => item.object_type === payload.object_type);
+      return {
+        items,
+        page_info: {
+          page: payload.page ?? 1,
+          page_size: payload.page_size ?? 100,
+          offset: 0,
+          total_pages: items.length ? 1 : 0,
+          has_next_page: false,
+          has_previous_page: false,
+        },
+        counts: {
+          total: all.length,
+          by_type: {
+            pipe: all.filter((item: ProjectObject) => item.object_type === 'pipe').length,
+            tank: all.filter((item: ProjectObject) => item.object_type === 'tank').length,
+          },
+          filtered: items.length,
+        },
+        query: { object_type: payload.object_type, sort: payload.sort ?? null },
+      };
+    }),
+    getObjectQueryCapabilities: vi.fn(async (_projectId: string, objectType: 'pipe' | 'tank') => ({
+      version: 1,
+      object_type: objectType,
+      default_page_size: 100,
+      max_page_size: 200,
+      default_sort: { key: 'sort_order', dir: 'asc' },
+      search: { enabled: true, max_text_length: 120, default_columns: ['name'] },
+      fields: [],
+    })),
+    createObject: vi.fn(),
+    updateObject: vi.fn(),
+    deleteObject: vi.fn(),
+    reorderObjects: vi.fn(),
+  };
+});
 
 vi.mock('@/api/calculations', () => ({
   batchCalcElectrical: vi.fn().mockResolvedValue({ calculated: 0, skipped: 0, heat_loss_failed: 0, errors: [], results: [] }),

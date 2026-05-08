@@ -1083,6 +1083,15 @@ html, body, #root {
   font-variant-numeric: tabular-nums;
 }
 
+.table-filter-status-tag {
+  margin: 0;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
 .srs-table-wrap .ant-card-body {
   padding: 0;
 }
@@ -1223,6 +1232,67 @@ html, body, #root {
 .calc-spreadsheet .ant-input-number,
 .calc-spreadsheet .ant-tag {
   font-size: 12px;
+}
+
+.calc-spreadsheet .ant-table-column-sorters {
+  padding: 0;
+}
+
+.calc-spreadsheet .ant-table-filter-column {
+  column-gap: 2px;
+}
+
+.table-filter-icon {
+  color: #7a8b99;
+  font-size: 11px;
+}
+
+.table-filter-icon.active {
+  color: var(--color-primary);
+}
+
+.table-filter-dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 220px;
+  padding: 8px;
+}
+
+.table-filter-title {
+  color: #536577;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.table-filter-number-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.table-filter-number-range .ant-typography {
+  grid-column: 1 / -1;
+  font-size: 11px;
+}
+
+.table-filter-dropdown .ant-select {
+  width: 100%;
+}
+
+.table-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.table-filter-empty {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
 }
 
 .electrical-spreadsheet .ant-select-selector,
