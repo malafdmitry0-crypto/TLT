@@ -397,6 +397,29 @@ class CalculationService:
             laying_step=float(payload["laying_step"]),
         )
 
+    def _base_cable_length(
+        self,
+        obj: ProjectObject,
+        overrides: dict[str, Any],
+        params: dict[str, Any],
+        results: dict[str, Any],
+    ) -> float:
+        """Базовая длина обогрева до монтажного запаса кабеля.
+
+        Для труб электрический расчёт должен идти по `effective_length`, потому
+        что теплорасчёт уже включает локальные элементы в эту длину. Для
+        резервуаров используем длину укладки по поверхности, если задана
+        геометрия укладки.
+        """
+        if obj.object_type == "tank":
+            tank_length = self._tank_base_cable_length(obj, overrides)
+            if tank_length is not None and tank_length > 0:
+                return tank_length
+        return self._num(
+            results.get("effective_length") or params.get("pipe_length") or params.get("height"),
+            1.0,
+        ) or 1.0
+
     def _tank_heat_loss_without_double_safety(
         self,
         results: dict[str, Any],
@@ -424,18 +447,17 @@ class CalculationService:
         if obj.object_type == "pipe":
             return self._positive_heat_loss(results.get("heat_loss_per_meter"))
 
-        # Для ТЛТ сохраняем прежний контракт: q резервуара берётся как Вт/м².
-        if cable_type == "self_regulating":
-            return self._positive_heat_loss(results.get("heat_loss_per_m2"))
-
-        # Для ТТН/ТТВ/ТТХ на резервуаре считаем требуемые Вт/м кабеля по
+        # Для кабеля на резервуаре считаем требуемые Вт/м кабеля по
         # полной площади и реальной длине укладки, чтобы не сравнивать Вт/м²
         # напрямую с паспортными Вт/м кабеля.
         base_length = self._tank_base_cable_length(obj, overrides)
-        if base_length is not None and base_length > 0:
-            heat_loss = self._tank_heat_loss_without_double_safety(obj.results or {}, safety_factor)
-            return heat_loss / base_length
-        return self._positive_heat_loss(results.get("heat_loss_per_m2"))
+        if base_length is None or base_length <= 0:
+            raise CalculationError(
+                "Для электрорасчёта резервуара требуется геометрия укладки кабеля: "
+                "цилиндр/параллелепипед, высота обогрева и шаг укладки"
+            )
+        heat_loss = self._tank_heat_loss_without_double_safety(obj.results or {}, safety_factor)
+        return heat_loss / base_length
 
     def _resistive_manual_catalog(
         self,
@@ -472,13 +494,10 @@ class CalculationService:
             220.0,
         )
         safety_factor = self._num(
-            overrides.get("safety_factor") or params.get("safety_factor"),
+            params.get("safety_factor") or overrides.get("safety_factor"),
             1.1,
         )
-        pipe_length = self._num(
-            params.get("pipe_length") or results.get("effective_length") or params.get("height"),
-            1.0,
-        )
+        pipe_length = self._base_cable_length(obj, overrides, params, results)
         winding_pitch = self._winding_pitch_mm(overrides, params)
 
         if cable_type == "self_regulating":
@@ -608,6 +627,7 @@ class CalculationService:
         variant_number: int = 1,
         cable_type: str = "self_regulating",
         electrical_params: dict[str, Any] | None = None,
+        skip_manual: bool = False,
     ) -> tuple[int, int, int, list[dict[str, Any]], list[ElectricalCalculation]]:
         """Автоподбор кабеля для всех валидных объектов проекта (cable_mark=None)."""
         # Считаем общее количество объектов в проекте — чтобы сообщить фронту,
@@ -646,9 +666,18 @@ class CalculationService:
 
         for obj in objects:
             try:
+                existing_calc = existing_by_object_id.get(obj.id)
+                if (
+                    skip_manual
+                    and existing_calc is not None
+                    and isinstance(existing_calc.params, dict)
+                    and existing_calc.params.get("cable_mark") is not None
+                ):
+                    skipped += 1
+                    continue
                 overrides = self._merge_electrical_overrides(
                     base_overrides,
-                    self._layout_overrides_from_existing(existing_by_object_id.get(obj.id)),
+                    self._layout_overrides_from_existing(existing_calc),
                 )
                 request = ElectricalRequest(
                     object_id=obj.id,

@@ -146,6 +146,42 @@ describe('ElecCalcPage (integration)', () => {
     });
   });
 
+  it('запускает batch ТЛТ с electrical params, а не пустым набором', async () => {
+    const { listObjects } = await import('@/api/projects');
+    const { batchCalcElectrical, listElectricalCalcs } = await import('@/api/calculations');
+    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (batchCalcElectrical as ReturnType<typeof vi.fn>).mockResolvedValue({
+      calculated: 1,
+      skipped: 0,
+      heat_loss_failed: 0,
+      errors: [],
+      results: [],
+    });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Выполнить электрорасчёт СО1/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }));
+
+    await waitFor(() => {
+      expect(batchCalcElectrical).toHaveBeenCalledWith(
+        'p-1',
+        'builtin',
+        1,
+        'self_regulating',
+        expect.objectContaining({
+          supplyVoltage: 220,
+          windingCoefficient: 1,
+          layingStep: 0.1,
+        }),
+      );
+    });
+  });
+
   it('селектор типа кабеля содержит ТТН/ТТВ/ТТХ, single_core, three_core как доступные', async () => {
     const { listObjects } = await import('@/api/projects');
     const { listElectricalCalcs } = await import('@/api/calculations');
@@ -262,6 +298,7 @@ describe('ElecCalcPage (integration)', () => {
     (batchCalcElectrical as ReturnType<typeof vi.fn>).mockResolvedValue({
       calculated: 1,
       skipped: 0,
+      heat_loss_failed: 0,
       errors: [],
       results: [],
     });

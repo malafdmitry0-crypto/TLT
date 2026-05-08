@@ -69,6 +69,7 @@ export interface ElectricalBatchOptions {
   layingStep?: number | null;
   vaporTemperature?: number | null;
   aggressiveProduct?: boolean;
+  skipManual?: boolean;
 }
 
 function electricalParams(
@@ -86,6 +87,7 @@ function electricalParams(
     laying_step: options.layingStep ?? undefined,
     vapor_temperature: options.vaporTemperature ?? undefined,
     aggressive_product: options.aggressiveProduct ?? undefined,
+    skip_manual: options.skipManual ?? undefined,
   };
 }
 

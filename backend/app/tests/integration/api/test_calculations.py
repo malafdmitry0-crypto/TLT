@@ -279,6 +279,44 @@ class TestElectricalCalculation:
         assert resp.status_code == 400
         assert "не найден" in resp.json()["detail"].lower()
 
+    async def test_tlt_tank_batch_uses_laying_geometry(
+        self, client: AsyncClient, guest_session: str
+    ):
+        """ТЛТ на резервуаре сравнивает Вт/м кабеля с Q/длину укладки, не с Вт/м²."""
+        project = await _create_project(client, guest_session)
+        obj_resp = await client.post(
+            f"/api/v1/projects/{project['id']}/objects",
+            json={
+                "object_type": "tank",
+                "params": {
+                    "shape": "cylindrical",
+                    "diameter": 2.0,
+                    "height": 3.0,
+                    "insulation_thickness": 0.08,
+                    "insulation_material": "mineral_wool",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "safety_factor": 1.1,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert obj_resp.status_code in (200, 201), obj_resp.text
+        tank = obj_resp.json()
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/batch",
+            params={"project_id": project["id"], "laying_step": 0.1},
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["calculated"] == 1
+        result = body["results"][0]["results"]
+        assert result["cable_length"] > tank["params"]["height"] * 1.1
+        assert result["total_power"] >= tank["results"]["total_heat_loss"]
+
 
 class TestManualCableSelection:
     """POST /calc/electrical/select-cable — ручной выбор кабеля."""
@@ -458,6 +496,39 @@ class TestManualCableSelection:
         assert len(after) == 1
         assert not after[0]["results"].get("error")
         assert after[0]["cable_mark"] == "ТЛТ-50"
+
+    async def test_batch_skip_manual_preserves_manual_cable(
+        self, client: AsyncClient, guest_session: str
+    ):
+        """skip_manual=true не затирает ручной выбор повторным автоподбором."""
+        pid, oid = await self._create_pipe_project(client, guest_session)
+
+        manual = await client.post(
+            "/api/v1/calc/electrical/select-cable",
+            params={"object_id": oid, "cable_mark": "ТЛТ-50"},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert manual.status_code == 200, manual.text
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/batch",
+            params={"project_id": pid, "skip_manual": True},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["calculated"] == 0
+        assert body["skipped"] == 1
+
+        listing = (
+            await client.get(
+                "/api/v1/calc/electrical",
+                params={"project_id": pid},
+                headers={"X-Session-Id": guest_session},
+            )
+        ).json()
+        assert len(listing) == 1
+        assert listing[0]["cable_mark"] == "ТЛТ-50"
 
 
 class TestNoDoubleSafetyFactor:

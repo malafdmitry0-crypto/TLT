@@ -13,6 +13,7 @@ test_calculations.py::TestManualCableSelection.
 
 from __future__ import annotations
 
+import math
 import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -277,6 +278,95 @@ class TestCableLayoutMapping:
             fallback_safety_factor=1.1,
         )
         assert heat_loss == pytest.approx(1300.0 / 1.2)
+
+    def test_pipe_electrical_length_uses_effective_length(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(
+            object_type="pipe",
+            params={
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 50,
+                "safety_factor": 1.1,
+            },
+            results={
+                "heat_loss_per_meter": 20,
+                "effective_length": 60,
+            },
+            is_valid=True,
+        )
+
+        data = service._build_electrical_data(
+            obj=obj,
+            cable_type="self_regulating",
+            cable_mark=None,
+            tlt_catalog=[],
+            overrides={},
+        )
+
+        assert data["pipe_length"] == pytest.approx(60.0)
+
+    def test_tlt_tank_required_power_uses_cable_geometry_not_m2(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(
+            object_type="tank",
+            params={
+                "shape": "cylindrical",
+                "diameter": 2.0,
+                "height": 3.0,
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "safety_factor": 1.1,
+            },
+            results={
+                "heat_loss_per_m2": 60.0,
+                "total_heat_loss": 1100.0,
+                "safety_factor": 1.1,
+            },
+            is_valid=True,
+        )
+        base_length = (math.pi * 2.0 / 2.0) * (3.0 / 0.1)
+
+        data = service._build_electrical_data(
+            obj=obj,
+            cable_type="self_regulating",
+            cable_mark=None,
+            tlt_catalog=[],
+            overrides={"laying_step": 0.1},
+        )
+
+        assert data["pipe_length"] == pytest.approx(base_length)
+        assert data["required_power_per_meter"] == pytest.approx((1100.0 / 1.1) / base_length)
+        assert data["required_power_per_meter"] != pytest.approx(60.0)
+
+    def test_tank_electrical_requires_laying_geometry(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(
+            object_type="tank",
+            params={
+                "shape": "cylindrical",
+                "diameter": 2.0,
+                "height": 3.0,
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "safety_factor": 1.1,
+            },
+            results={
+                "heat_loss_per_m2": 60.0,
+                "total_heat_loss": 1100.0,
+                "safety_factor": 1.1,
+            },
+            is_valid=True,
+        )
+
+        with pytest.raises(CalculationError, match="геометрия укладки"):
+            service._build_electrical_data(
+                obj=obj,
+                cable_type="self_regulating",
+                cable_mark=None,
+                tlt_catalog=[],
+                overrides={},
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════════

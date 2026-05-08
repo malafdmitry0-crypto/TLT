@@ -3,7 +3,6 @@ import {
   Button,
   Card,
   Checkbox,
-  Dropdown,
   InputNumber,
   Popconfirm,
   Select,
@@ -100,6 +99,45 @@ function insulationEntryLabel(entry: { name: string; density_kg_m3?: number | st
     : entry.name;
 }
 
+function insulationLayerCount(record: ProjectObject) {
+  return String(record.params?.insulation_layer_count ?? (
+    Array.isArray(record.params?.insulation_layers) ? record.params.insulation_layers.length : 1
+  ));
+}
+
+function tankShapeLabel(shape: unknown) {
+  if (shape === 'cylindrical') return 'Цилиндр';
+  if (shape === 'rectangular') return 'Прямоуг.';
+  if (shape === 'spherical') return 'Сфера';
+  return '—';
+}
+
+function placementLabel(placement: unknown) {
+  if (placement === 'indoor') return 'В помещении';
+  if (placement === 'underground') return 'Подземно';
+  if (placement === 'outdoor') return 'Открыто';
+  return '—';
+}
+
+function mmParam(record: ProjectObject, key: string) {
+  const value = Number(record.params?.[key]);
+  return Number.isFinite(value) ? formatNumber(value * 1000, 0) : '—';
+}
+
+function tankDimensions(record: ProjectObject) {
+  const shape = record.params?.shape;
+  if (shape === 'cylindrical') {
+    return `Ø${mmParam(record, 'diameter')} × H${mmParam(record, 'height')} мм`;
+  }
+  if (shape === 'rectangular') {
+    return `${mmParam(record, 'length')} × ${mmParam(record, 'width')} × ${mmParam(record, 'height')} мм`;
+  }
+  if (shape === 'spherical') {
+    return `Ø${mmParam(record, 'diameter')} мм`;
+  }
+  return '—';
+}
+
 interface WizardState {
   type: WizardObjectType;
   editingObject?: ProjectObject;
@@ -109,17 +147,29 @@ interface WizardState {
 function ObjectCountBadge({
   total,
   valid,
+  pipeTotal,
+  tankTotal,
 }: {
   total: number;
   valid: number;
+  pipeTotal: number;
+  tankTotal: number;
 }) {
-  if (total === 0) return null;
+  if (pipeTotal + tankTotal === 0) return null;
   return (
     <div className="object-count-badge" aria-label="Статус объектов">
       <span className="object-count-segment">
+        Труб: <strong>{pipeTotal}</strong>
+      </span>
+      <span className="object-count-segment">
+        Рез.: <strong>{tankTotal}</strong>
+      </span>
+      <span className="object-count-segment">
         Объектов: <strong>{total}</strong>
       </span>
-      {valid < total ? (
+      {total === 0 ? (
+        <span className="object-count-segment warning">Нет выбранного типа</span>
+      ) : valid < total ? (
         <span className="object-count-segment warning">
           Не рассчитано: <strong>{total - valid}</strong>
         </span>
@@ -135,6 +185,7 @@ export default function HeatCalcPage() {
   const role = useAuthStore((s) => s.role);
   const isEmployee = role === 'employee' || role === 'admin';
   const [wizardState, setWizardState] = useState<WizardState | null>(null);
+  const [activeObjectType, setActiveObjectType] = useState<WizardObjectType>('pipe');
   const [tableTab, setTableTab] = useState<'source' | 'results'>('source');
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [elecVariant, setElecVariant] = useState<number>(1);
@@ -190,7 +241,19 @@ export default function HeatCalcPage() {
     staleTime: 5 * 60_000,
   });
 
-  const elecStats = useElectricalStats(objects, elecCalcs);
+  const visibleObjects = useMemo(
+    () => objects.filter((obj) => obj.object_type === activeObjectType),
+    [objects, activeObjectType],
+  );
+  const visibleObjectIds = useMemo(
+    () => new Set(visibleObjects.map((obj) => obj.id)),
+    [visibleObjects],
+  );
+  const visibleElecCalcs = useMemo(
+    () => elecCalcs.filter((calc) => visibleObjectIds.has(String(calc.object_id))),
+    [elecCalcs, visibleObjectIds],
+  );
+  const elecStats = useElectricalStats(visibleObjects, visibleElecCalcs);
   const cableOptions = useMemo(
     () => cables.map((c) => ({ value: c.model, label: `${c.model} · ${c.power_per_meter} Вт/м` })),
     [cables],
@@ -243,12 +306,17 @@ export default function HeatCalcPage() {
     return dn != null ? `DN${dn}` : '—';
   }, [outerDiameterMm]);
 
+  useEffect(() => {
+    setSelectedRowKeys([]);
+    setWizardState((current) => {
+      if (!current || current.type === activeObjectType) return current;
+      return null;
+    });
+  }, [activeObjectType]);
+
   const batchElecMut = useMutation({
-    mutationFn: () => {
-      if (cableType === 'self_regulating') {
-        return batchCalcElectrical(project!.id, effectiveSource, elecVariant);
-      }
-      return batchCalcElectrical(project!.id, effectiveSource, elecVariant, cableType, {
+    mutationFn: () =>
+      batchCalcElectrical(project!.id, effectiveSource, elecVariant, cableType, {
         supplyVoltage,
         connectionType,
         windingCoefficient,
@@ -256,8 +324,7 @@ export default function HeatCalcPage() {
         layingStep,
         vaporTemperature,
         aggressiveProduct,
-      });
-    },
+      }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
       if (res.errors.length > 0) {
@@ -355,36 +422,52 @@ export default function HeatCalcPage() {
       const active = document.activeElement;
       if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
 
-      const selected = objects.filter((o) => selectedRowKeys.includes(o.id));
+      const selected = visibleObjects.filter((o) => selectedRowKeys.includes(o.id));
       const isResults = tableTab === 'results';
+      const isPipeTable = activeObjectType === 'pipe';
 
-      const header = isResults
-        ? ['Тип', 'Наименование', 'Ø, мм', 'DN', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C', 'Зад.', 'Флн.', 'Опр.', 'q, Вт/м', 'Q сум., Вт', 'Марка кабеля', 'Шаг навива, мм', 'Длина каб., м', 'Мощность, Вт', 'Ток, А', 'Статус']
-        : ['Тип', 'Наименование', 'Ø, мм', 'DN', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C', 'Зад.', 'Флн.', 'Опр.'];
+      const header = isPipeTable
+        ? isResults
+          ? ['Тип', 'Наименование', 'Ø, мм', 'DN', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C', 'Зад.', 'Флн.', 'Опр.', 'q, Вт/м', 'Q сум., Вт', 'Марка кабеля', 'Шаг навива, мм', 'Длина каб., м', 'Мощность, Вт', 'Ток, А', 'Статус']
+          : ['Тип', 'Наименование', 'Ø, мм', 'DN', 'L, м', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C', 'Зад.', 'Флн.', 'Опр.']
+        : isResults
+          ? ['Тип', 'Наименование', 'Форма', 'Габариты', 'Размещение', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C', 'Q доп., Вт', 'q, Вт/м²', 'Q сум., Вт', 'Марка кабеля', 'Шаг навива, мм', 'Длина каб., м', 'Мощность, Вт', 'Ток, А', 'Статус']
+          : ['Тип', 'Наименование', 'Форма', 'Габариты', 'Размещение', 'δ ИЗ, мм', 'Материал ИЗ', 'T подд., °C', 'T окр., °C', 'Q доп., Вт'];
 
       const rows = selected.map((r) => {
-        const base = [
-          r.object_type === 'pipe' ? 'Труба' : 'Резервуар',
-          String(r.params?.name ?? ''),
-          r.object_type === 'pipe'
-            ? formatNumber(Number(r.params?.outer_diameter) * 1000, 0)
-            : formatNumber(Number(r.params?.diameter) * 1000, 0),
-          dnValue(r),
-          r.object_type === 'pipe' ? formatNumber(Number(r.params?.pipe_length), 1) : '—',
-          formatNumber(Number(r.params?.insulation_thickness) * 1000, 0),
-          insulationLabel(r.params?.insulation_material),
-          formatNumber(Number(r.params?.process_temperature), 0),
-          formatNumber(Number(r.params?.ambient_temperature), 0),
-          countParamValue(r, 'valve_count'),
-          countParamValue(r, 'flange_count'),
-          countParamValue(r, 'support_count'),
-        ];
+        const base = isPipeTable
+          ? [
+              'Труба',
+              String(r.params?.name ?? ''),
+              formatNumber(Number(r.params?.outer_diameter) * 1000, 0),
+              dnValue(r),
+              formatNumber(Number(r.params?.pipe_length), 1),
+              formatNumber(Number(r.params?.insulation_thickness) * 1000, 0),
+              insulationLabel(r.params?.insulation_material),
+              formatNumber(Number(r.params?.process_temperature), 0),
+              formatNumber(Number(r.params?.ambient_temperature), 0),
+              countParamValue(r, 'valve_count'),
+              countParamValue(r, 'flange_count'),
+              countParamValue(r, 'support_count'),
+            ]
+          : [
+              'Резервуар',
+              String(r.params?.name ?? ''),
+              tankShapeLabel(r.params?.shape),
+              tankDimensions(r),
+              placementLabel(r.params?.placement ?? r.params?.location),
+              formatNumber(Number(r.params?.insulation_thickness) * 1000, 0),
+              insulationLabel(r.params?.insulation_material),
+              formatNumber(Number(r.params?.process_temperature), 0),
+              formatNumber(Number(r.params?.ambient_temperature), 0),
+              formatNumber(Number(r.params?.q_additional), 0),
+            ];
         if (!isResults) return base;
         const calc = elecStats.calcByObjectId[r.id];
         const error = electricalCalcError(calc);
         return [
           ...base,
-          r.object_type === 'pipe'
+          isPipeTable
             ? formatNumber(Number(r.results?.heat_loss_per_meter), 1)
             : formatNumber(Number(r.results?.heat_loss_per_m2), 1),
           r.results ? formatPower(Number(r.results.total_heat_loss)) : '—',
@@ -404,7 +487,7 @@ export default function HeatCalcPage() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedRowKeys, objects, tableTab, elecStats.calcByObjectId, dnValue, insulationLabel]);
+  }, [activeObjectType, selectedRowKeys, visibleObjects, tableTab, elecStats.calcByObjectId, dnValue, insulationLabel]);
 
   const closeWizard = () => setWizardState(null);
   const keepEditedObjectOpen = (obj: ProjectObject) => {
@@ -432,8 +515,10 @@ export default function HeatCalcPage() {
     );
   }
 
-  const validCount = objects.filter((o) => o.is_valid).length;
-  const totalCount = objects.length;
+  const validCount = visibleObjects.filter((o) => o.is_valid).length;
+  const totalCount = visibleObjects.length;
+  const pipeCount = objects.filter((o) => o.object_type === 'pipe').length;
+  const tankCount = objects.filter((o) => o.object_type === 'tank').length;
   const cableTypeOptions = (Object.keys(CABLE_TYPE_LABEL) as CableTypeKey[]).map((k) => ({
     label: ENABLED_CABLE_TYPES.has(k)
       ? CABLE_TYPE_LABEL[k]
@@ -460,7 +545,7 @@ export default function HeatCalcPage() {
         ? 'новая запись'
         : 'выберите строку или нажмите «＋ Добавить»';
 
-  function openAddWizard(type: WizardObjectType) {
+  function openAddWizard(type: WizardObjectType = activeObjectType) {
     setWizardState({ type });
   }
 
@@ -521,7 +606,7 @@ export default function HeatCalcPage() {
   }
 
   const selectedRowId = wizardState?.editingObject?.id;
-  const selectedObject = selectedRowId ? objects.find((o) => o.id === selectedRowId) : null;
+  const selectedObject = selectedRowId ? visibleObjects.find((o) => o.id === selectedRowId) : null;
   const selectedResults = selectedObject?.results as Record<string, unknown> | undefined;
   const selectedParams = selectedObject?.params as Record<string, unknown> | undefined;
 
@@ -638,7 +723,7 @@ export default function HeatCalcPage() {
     }
     return null;
   }
-  const sourceColumns = [
+  const baseColumns = [
     { title: '№', width: 42, render: (_: unknown, __: ProjectObject, idx: number) => idx + 1 },
     {
       title: 'Тип',
@@ -653,6 +738,9 @@ export default function HeatCalcPage() {
       render: (v: unknown, r: ProjectObject, idx: number) =>
         String(v ?? `${OBJECT_TYPE_LABELS[r.object_type]} #${idx + 1}`),
     },
+  ];
+  const pipeSourceColumns = [
+    ...baseColumns,
     {
       title: 'Ø, мм',
       width: 76,
@@ -675,10 +763,7 @@ export default function HeatCalcPage() {
     {
       title: 'Слоёв ИЗ',
       width: 86,
-      render: (_: unknown, r: ProjectObject) =>
-        String(r.params?.insulation_layer_count ?? (
-          Array.isArray(r.params?.insulation_layers) ? r.params.insulation_layers.length : 1
-        )),
+      render: (_: unknown, r: ProjectObject) => insulationLayerCount(r),
     },
     {
       title: 'δ ИЗ, мм',
@@ -719,14 +804,67 @@ export default function HeatCalcPage() {
       render: (_: unknown, r: ProjectObject) => countParamValue(r, 'support_count'),
     },
   ];
-  const resultColumns = [
-    ...sourceColumns.slice(0, 3), // #, Тип, Наименование
+  const tankSourceColumns = [
+    ...baseColumns,
     {
-      title: 'q, Вт/м',
+      title: 'Форма',
+      width: 92,
+      render: (_: unknown, r: ProjectObject) => tankShapeLabel(r.params?.shape),
+    },
+    {
+      title: 'Габариты',
+      width: 190,
+      ellipsis: true,
+      render: (_: unknown, r: ProjectObject) => tankDimensions(r),
+    },
+    {
+      title: 'Размещение',
+      width: 116,
+      render: (_: unknown, r: ProjectObject) => placementLabel(r.params?.placement ?? r.params?.location),
+    },
+    {
+      title: 'Слоёв ИЗ',
+      width: 86,
+      render: (_: unknown, r: ProjectObject) => insulationLayerCount(r),
+    },
+    {
+      title: 'δ ИЗ, мм',
+      width: 92,
+      render: (_: unknown, r: ProjectObject) =>
+        formatNumber(Number(r.params?.insulation_thickness) * 1000, 0),
+    },
+    {
+      title: 'Материал ИЗ',
+      width: 160,
+      ellipsis: true,
+      render: (_: unknown, r: ProjectObject) =>
+        insulationLabel(r.params?.insulation_material),
+    },
+    {
+      title: 'T подд.',
+      width: 86,
+      render: (_: unknown, r: ProjectObject) => formatNumber(Number(r.params?.process_temperature), 0),
+    },
+    {
+      title: 'T окр.',
+      width: 82,
+      render: (_: unknown, r: ProjectObject) => formatNumber(Number(r.params?.ambient_temperature), 0),
+    },
+    {
+      title: 'Q доп., Вт',
+      width: 94,
+      render: (_: unknown, r: ProjectObject) => formatNumber(Number(r.params?.q_additional), 0),
+    },
+  ];
+  const sourceColumns = activeObjectType === 'pipe' ? pipeSourceColumns : tankSourceColumns;
+  const resultColumns = [
+    ...baseColumns,
+    {
+      title: activeObjectType === 'pipe' ? 'q, Вт/м' : 'q, Вт/м²',
       width: 90,
       align: 'right' as const,
       render: (_: unknown, r: ProjectObject) =>
-        r.object_type === 'pipe'
+        activeObjectType === 'pipe'
           ? formatNumber(Number(r.results?.heat_loss_per_meter), 1)
           : formatNumber(Number(r.results?.heat_loss_per_m2), 1),
     },
@@ -884,19 +1022,17 @@ export default function HeatCalcPage() {
         </div>
 
         <div className="actionbar-srs">
-          <Dropdown
-            menu={{
-              items: [
-                { key: 'pipe', label: 'Трубопровод' },
-                { key: 'tank', label: 'Резервуар' },
-              ],
-              onClick: ({ key }) => openAddWizard(key as WizardObjectType),
-            }}
-          >
-            <Button className="add" icon={<PlusOutlined />}>
-              Добавить
-            </Button>
-          </Dropdown>
+          <Segmented<WizardObjectType>
+            value={activeObjectType}
+            onChange={setActiveObjectType}
+            options={[
+              { label: 'Трубопровод', value: 'pipe' },
+              { label: 'Резервуары', value: 'tank' },
+            ]}
+          />
+          <Button className="add" icon={<PlusOutlined />} onClick={() => openAddWizard()}>
+            Добавить
+          </Button>
           <Button
             disabled={!wizardState?.editingObject}
             loading={add.isPending}
@@ -939,7 +1075,7 @@ export default function HeatCalcPage() {
             <ExportObjectsButton
               projectId={project.id}
               projectName={project.name}
-              disabled={totalCount === 0}
+              disabled={objects.length === 0}
             />
           )}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -948,7 +1084,12 @@ export default function HeatCalcPage() {
                 Выбрано: {selectedRowKeys.length} · Ctrl+C для копирования
               </Tag>
             )}
-            <ObjectCountBadge total={totalCount} valid={validCount} />
+            <ObjectCountBadge
+              total={totalCount}
+              valid={validCount}
+              pipeTotal={pipeCount}
+              tankTotal={tankCount}
+            />
           </div>
         </div>
 
@@ -1033,9 +1174,14 @@ export default function HeatCalcPage() {
             rowKey="id"
             size="small"
             pagination={false}
-            dataSource={objects}
+            dataSource={visibleObjects}
             columns={tableTab === 'source' ? sourceColumns : resultColumns}
-            scroll={{ x: tableTab === 'source' ? 1180 : 1520, y: 'calc(100vh - 530px)' }}
+            scroll={{
+              x: tableTab === 'source'
+                ? activeObjectType === 'pipe' ? 1180 : 1160
+                : 1520,
+              y: 'calc(100vh - 530px)',
+            }}
             rowSelection={{
               type: 'checkbox',
               selectedRowKeys,
@@ -1062,7 +1208,9 @@ export default function HeatCalcPage() {
             locale={{
               emptyText: (
                 <Text type="secondary">
-                  Объекты не добавлены. Нажмите «＋ Добавить» или импортируйте XLSX/CSV.
+                  {activeObjectType === 'pipe'
+                    ? 'Трубопроводы не добавлены. Нажмите «＋ Добавить» или импортируйте XLSX/CSV.'
+                    : 'Резервуары не добавлены. Нажмите «＋ Добавить» или импортируйте XLSX/CSV.'}
                 </Text>
               ),
             }}
@@ -1071,7 +1219,7 @@ export default function HeatCalcPage() {
             <span>
               {tableTab === 'source'
                 ? 'ⓘ Клик по строке → форма выше показывает параметры. Красная строка = объект не рассчитан.'
-                : `ⓘ СО${elecVariant} · ${CABLE_TYPE_LABEL[cableType]} · Кабель: ${elecStats.totalCableLength.toFixed(1)} м · Мощность: ${powerDisplay} · Ток: ${elecStats.totalCurrent.toFixed(2)} А · рассчитано: ${elecStats.calcedCount}/${objects.length}. Красная строка = ошибка расчёта.`}
+                : `ⓘ СО${elecVariant} · ${CABLE_TYPE_LABEL[cableType]} · Кабель: ${elecStats.totalCableLength.toFixed(1)} м · Мощность: ${powerDisplay} · Ток: ${elecStats.totalCurrent.toFixed(2)} А · рассчитано: ${elecStats.calcedCount}/${visibleObjects.length}. Красная строка = ошибка расчёта.`}
             </span>
             {tableTab === 'source' && (
               <Button

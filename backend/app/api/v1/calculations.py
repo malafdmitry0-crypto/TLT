@@ -200,6 +200,7 @@ async def batch_calc_electrical(
     laying_step: float | None = None,
     vapor_temperature: float | None = None,
     aggressive_product: bool = False,
+    skip_manual: bool = False,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -227,6 +228,7 @@ async def batch_calc_electrical(
             "vapor_temperature": vapor_temperature,
             "aggressive_product": aggressive_product,
         },
+        skip_manual=skip_manual,
     )
     return BatchElectricalResponse(
         calculated=calculated,

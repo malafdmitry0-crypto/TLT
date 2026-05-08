@@ -134,11 +134,8 @@ export default function ElecCalcPage() {
   });
 
   const batchMut = useMutation({
-    mutationFn: () => {
-      if (cableType === 'self_regulating') {
-        return batchCalcElectrical(project!.id, effectiveSource, variant);
-      }
-      return batchCalcElectrical(project!.id, effectiveSource, variant, cableType, {
+    mutationFn: () =>
+      batchCalcElectrical(project!.id, effectiveSource, variant, cableType, {
         supplyVoltage,
         connectionType,
         windingCoefficient,
@@ -146,8 +143,7 @@ export default function ElecCalcPage() {
         layingStep,
         vaporTemperature,
         aggressiveProduct,
-      });
-    },
+      }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
       if (res.errors.length > 0) {

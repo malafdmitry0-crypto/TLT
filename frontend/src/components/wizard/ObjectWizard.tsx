@@ -950,6 +950,21 @@ export default function ObjectWizard({
                   'Количество опор, шт. Диапазон: 0…100. Сохраняется как локальные элементы объекта.',
                 )}
               </Form.Item>
+              <Form.Item
+                className="numeric-form-item coefficient-form-item helped-form-item"
+                label={fieldLabel('Lэкв')}
+                name="local_element_equiv_length"
+                initialValue={1.5}
+                rules={[
+                  { type: 'number', min: 0.1, message: 'Минимальная эквивалентная длина — 0,1 м' },
+                  { type: 'number', max: 6.9, message: 'Максимальная эквивалентная длина — 6,9 м' },
+                ]}
+              >
+                {withHelp(
+                  <InputNumber data-testid="local-element-equiv-length-input" min={0.1} max={6.9} step={0.1} addonAfter="м" />,
+                  'Эквивалентная длина одного локального элемента Lэкв. Прибавляется к длине трубы как N × Lэкв.',
+                )}
+              </Form.Item>
             </>
           )}
         </div>

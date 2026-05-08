@@ -203,6 +203,60 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.queryByTestId('q-additional-input')).not.toBeInTheDocument();
   });
 
+  it('L_ekv отображается для трубы и уходит в payload', async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    renderWizard({
+      onSubmit,
+      initialParams: {
+        ...basePipeParams,
+        valve_count: 1,
+        flange_count: 1,
+        support_count: 0,
+        local_element_equiv_length: 2.4,
+      },
+    });
+
+    expect(await screen.findByTestId('local-element-equiv-length-input')).toBeVisible();
+
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.num_local_elements).toBe(2);
+    expect(payload.local_element_equiv_length).toBe(2.4);
+  });
+
+  it('стенка резервуара отображается и уходит в payload', async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    renderWizard({
+      objectType: 'tank',
+      onSubmit,
+      initialParams: {
+        name: 'Бак',
+        shape: 'cylindrical',
+        diameter: 2,
+        height: 3,
+        wall_thickness: 0.012,
+        wall_lambda: 45,
+        insulation_thickness: 0.08,
+        insulation_material: 'mineral_wool',
+        ambient_temperature: -20,
+        process_temperature: 70,
+        placement: 'outdoor',
+      },
+    });
+
+    expect(await screen.findByTestId('tank-wall-thickness-input')).toBeVisible();
+    expect(screen.getByTestId('tank-wall-lambda-input')).toBeVisible();
+
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.wall_thickness).toBe(0.012);
+    expect(payload.wall_lambda).toBe(45);
+  });
+
   it('отправляет ручную λ трубы и три слоя изоляции', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();

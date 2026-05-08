@@ -136,6 +136,7 @@ export interface PipeFormValues {
   valve_count?: number;
   flange_count?: number;
   support_count?: number;
+  local_element_equiv_length?: number;
 }
 
 export interface TankFormValues {
@@ -144,6 +145,8 @@ export interface TankFormValues {
   height_mm?: number;
   length_mm?: number;
   width_mm?: number;
+  wall_thickness_mm?: number;
+  wall_lambda?: number;
   insulation_thickness_mm: number;
   insulation_material: string;
   insulation_cover_material?: string;
@@ -243,6 +246,9 @@ export function pipeFormToApiParams(
   params.flange_count = Number(v.flange_count ?? 0);
   params.support_count = Number(v.support_count ?? 0);
   if (localCount > 0) params.num_local_elements = localCount;
+  if (localCount > 0 && v.local_element_equiv_length != null) {
+    params.local_element_equiv_length = v.local_element_equiv_length;
+  }
   applyInsulationLayers(params, v);
   if (v.name) params.name = v.name;
   return params;
@@ -264,6 +270,8 @@ export function tankFormToApiParams(
   if (v.height_mm != null) params.height = v.height_mm / 1000;
   if (v.length_mm != null) params.length = v.length_mm / 1000;
   if (v.width_mm != null) params.width = v.width_mm / 1000;
+  if (v.wall_thickness_mm != null) params.wall_thickness = v.wall_thickness_mm / 1000;
+  if (v.wall_lambda != null) params.wall_lambda = v.wall_lambda;
   if (v.q_additional != null) params.q_additional = v.q_additional;
   if (v.name) params.name = v.name;
   return params;
@@ -421,6 +429,7 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     valve_count: p.valve_count as number | undefined,
     flange_count: p.flange_count as number | undefined,
     support_count: p.support_count as number | undefined,
+    local_element_equiv_length: p.local_element_equiv_length as number | undefined,
     name: p.name as string | undefined,
   };
 }
@@ -435,6 +444,8 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     height_mm: p.height != null ? Number(p.height) * 1000 : undefined,
     length_mm: p.length != null ? Number(p.length) * 1000 : undefined,
     width_mm: p.width != null ? Number(p.width) * 1000 : undefined,
+    wall_thickness_mm: p.wall_thickness != null ? Number(p.wall_thickness) * 1000 : undefined,
+    wall_lambda: p.wall_lambda as number | undefined,
     insulation_thickness_mm:
       layers[0]?.thickness != null
         ? Number(layers[0].thickness) * 1000

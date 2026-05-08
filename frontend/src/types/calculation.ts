@@ -26,6 +26,7 @@ export interface PipeParams {
   valve_count?: number | null;
   flange_count?: number | null;
   support_count?: number | null;
+  local_element_equiv_length?: number | null;
   supply_voltage?: number | null;
   safety_factor?: number | null;
   location?: 'indoor' | 'outdoor';
@@ -54,6 +55,8 @@ export interface TankParams {
   height?: number;
   length?: number;
   width?: number;
+  wall_thickness?: number | null;
+  wall_lambda?: number | null;
   insulation_thickness: number;
   insulation_material: string;
   insulation_cover_material?: string | null;

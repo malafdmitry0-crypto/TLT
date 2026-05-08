@@ -156,6 +156,7 @@ describe('pipeFormToApiParams', () => {
       valve_count: 1,
       flange_count: 2,
       support_count: 3,
+      local_element_equiv_length: 1.5,
     });
 
     expect(api.wall_thickness).toBeCloseTo(0.004);
@@ -172,6 +173,7 @@ describe('pipeFormToApiParams', () => {
     expect(api.max_ambient_temperature).toBe(30);
     expect(api.max_process_temperature).toBe(90);
     expect(api.num_local_elements).toBe(6);
+    expect(api.local_element_equiv_length).toBe(1.5);
   });
 
   it('формирует insulation_layers для трёх слоёв', () => {
@@ -225,6 +227,8 @@ describe('tankFormToApiParams', () => {
       shape: 'cylindrical',
       diameter_mm: 2000,
       height_mm: 3000,
+      wall_thickness_mm: 12,
+      wall_lambda: 45,
       insulation_thickness_mm: 80,
       insulation_material: 'mineral_wool',
       ambient_temperature: -20,
@@ -232,6 +236,8 @@ describe('tankFormToApiParams', () => {
     });
     expect(api.diameter).toBeCloseTo(2.0);
     expect(api.height).toBeCloseTo(3.0);
+    expect(api.wall_thickness).toBeCloseTo(0.012);
+    expect(api.wall_lambda).toBe(45);
     expect(api.length).toBeUndefined();
     expect(api.width).toBeUndefined();
   });
@@ -262,10 +268,12 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
       ambient_temperature: -20,
       process_temperature: 80,
       pipe_length: 50,
+      local_element_equiv_length: 1.2,
       name: 'X',
     });
     expect(form.outer_diameter_mm).toBe(108);
     expect(form.insulation_thickness_mm).toBe(50);
+    expect(form.local_element_equiv_length).toBe(1.2);
     expect(form.name).toBe('X');
   });
 
@@ -301,6 +309,8 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
       shape: 'cylindrical',
       diameter: 2.0,
       height: 3.0,
+      wall_thickness: 0.012,
+      wall_lambda: 45,
       insulation_thickness: 0.08,
       insulation_material: 'mineral_wool',
       ambient_temperature: -20,
@@ -309,6 +319,8 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
     expect(form.shape).toBe('cylindrical');
     expect(form.diameter_mm).toBe(2000);
     expect(form.height_mm).toBe(3000);
+    expect(form.wall_thickness_mm).toBe(12);
+    expect(form.wall_lambda).toBe(45);
   });
 
   it('tank без shape → дефолт cylindrical', () => {

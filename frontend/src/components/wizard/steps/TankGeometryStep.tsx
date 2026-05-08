@@ -66,12 +66,12 @@ export default function TankGeometryStep() {
                   rules={[
                     { required: true, message: 'Укажите высоту' },
                     { type: 'number', min: 500, message: 'Минимальная высота — 500 мм' },
-                    { type: 'number', max: 200000000, message: 'Максимальная высота — 200 000 м' },
+                    { type: 'number', max: 200000, message: 'Максимальная высота — 200 000 мм' },
                   ]}
                 >
                   {withHelp(
-                    <InputNumber data-testid="tank-height-input" min={500} max={200000000} step={100} addonAfter="мм" />,
-                    'Высота резервуара. Обязательна для цилиндрической и прямоугольной форм. Диапазон ТНП: 0,5–200 000 м.',
+                    <InputNumber data-testid="tank-height-input" min={500} max={200000} step={100} addonAfter="мм" />,
+                    'Высота резервуара. Обязательна для цилиндрической и прямоугольной форм. Диапазон ТНП: 500–200 000 мм.',
                   )}
                 </Form.Item>
               )}
@@ -112,6 +112,36 @@ export default function TankGeometryStep() {
             </>
           );
         }}
+      </Form.Item>
+
+      <Form.Item
+        className="numeric-form-item tank-size-form-item helped-form-item"
+        label={fieldLabel('Стенка')}
+        name="wall_thickness_mm"
+        rules={[
+          { type: 'number', min: 1, message: 'Минимальная толщина — 1 мм' },
+          { type: 'number', max: 500, message: 'Максимальная толщина — 500 мм' },
+        ]}
+      >
+        {withHelp(
+          <InputNumber data-testid="tank-wall-thickness-input" min={1} max={500} step={1} addonAfter="мм" />,
+          'Толщина стенки резервуара. Если задана вместе с λ стенки, учитывается как δ/λ в теплопотерях.',
+        )}
+      </Form.Item>
+
+      <Form.Item
+        className="numeric-form-item tank-size-form-item helped-form-item"
+        label={fieldLabel('λ стенки')}
+        name="wall_lambda"
+        rules={[
+          { type: 'number', min: 0.001, message: 'λ должна быть больше 0' },
+          { type: 'number', max: 400, message: 'Максимальное значение λ — 400 Вт/мК' },
+        ]}
+      >
+        {withHelp(
+          <InputNumber data-testid="tank-wall-lambda-input" min={0.001} max={400} step={0.1} addonAfter="Вт/мК" />,
+          'Теплопроводность стенки резервуара. Работает в паре с толщиной стенки.',
+        )}
       </Form.Item>
     </>
   );
