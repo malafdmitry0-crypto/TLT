@@ -16,6 +16,10 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db"
+    DB_POOL_SIZE: int = 20
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_RECYCLE_SECONDS: int = 3600
+    DB_STATEMENT_TIMEOUT_MS: int = 30_000
 
     # JWT / Security
     SECRET_KEY: str = "change-me-in-production"

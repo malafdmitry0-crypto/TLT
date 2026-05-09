@@ -185,6 +185,38 @@ class CalculationService:
         return updated, failed, errors
 
     async def calc_electrical(self, request: ElectricalRequest) -> ElectricalCalculation:
+        cable_mark, result_dict = self._calculate_electrical_result(request)
+
+        # Получаем объект, чтобы узнать project_id
+        obj_result = await self.db.execute(
+            select(ProjectObject).where(ProjectObject.id == request.object_id)
+        )
+        obj = obj_result.scalar_one_or_none()
+        if obj is None:
+            raise CalculationError("Объект не найден")
+
+        # Upsert по (object_id, variant_number) — чтобы повторный пересчёт
+        # обновлял существующую строку и «затирал» предыдущую ошибку.
+        existing = await self.db.execute(
+            select(ElectricalCalculation).where(
+                ElectricalCalculation.object_id == obj.id,
+                ElectricalCalculation.variant_number == request.variant_number,
+            )
+        )
+        calc = self._upsert_electrical_calculation(
+            obj=obj,
+            request=request,
+            cable_mark=cable_mark,
+            result_dict=result_dict,
+            existing_calc=existing.scalars().first(),
+        )
+        await self.db.commit()
+        await self.db.refresh(calc)
+        return calc
+
+    def _calculate_electrical_result(
+        self, request: ElectricalRequest
+    ) -> tuple[str | None, dict[str, Any]]:
         cable_type = request.cable_type
         if cable_type == "self_regulating":
             params_sr = SelfRegulatingParams(**request.data)
@@ -211,23 +243,18 @@ class CalculationService:
                 f"Для типа кабеля «{cable_type}» расчётная формула не реализована"
             )
 
-        # Получаем объект, чтобы узнать project_id
-        obj_result = await self.db.execute(
-            select(ProjectObject).where(ProjectObject.id == request.object_id)
-        )
-        obj = obj_result.scalar_one_or_none()
-        if obj is None:
-            raise CalculationError("Объект не найден")
+        return cable_mark, result_dict
 
-        # Upsert по (object_id, variant_number) — чтобы повторный пересчёт
-        # обновлял существующую строку и «затирал» предыдущую ошибку.
-        existing = await self.db.execute(
-            select(ElectricalCalculation).where(
-                ElectricalCalculation.object_id == obj.id,
-                ElectricalCalculation.variant_number == request.variant_number,
-            )
-        )
-        calc = existing.scalars().first()
+    def _upsert_electrical_calculation(
+        self,
+        *,
+        obj: ProjectObject,
+        request: ElectricalRequest,
+        cable_mark: str | None,
+        result_dict: dict[str, Any],
+        existing_calc: ElectricalCalculation | None,
+    ) -> ElectricalCalculation:
+        calc = existing_calc
         if calc is None:
             calc = ElectricalCalculation(
                 project_id=obj.project_id,
@@ -244,8 +271,6 @@ class CalculationService:
             calc.cable_mark = cable_mark
             calc.params = request.data
             calc.results = result_dict
-        await self.db.commit()
-        await self.db.refresh(calc)
         return calc
 
     @staticmethod
@@ -701,37 +726,48 @@ class CalculationService:
                         overrides=overrides,
                     ),
                 )
-                calc = await self.calc_electrical(request)
+                cable_mark, result_dict = self._calculate_electrical_result(request)
+                calc = self._upsert_electrical_calculation(
+                    obj=obj,
+                    request=request,
+                    cable_mark=cable_mark,
+                    result_dict=result_dict,
+                    existing_calc=existing_calc,
+                )
                 calcs.append(calc)
                 calculated += 1
             except Exception as exc:
                 skipped += 1
                 err_msg = f"{type(exc).__name__}: {exc}"
                 errors.append({"object_id": str(obj.id), "error": err_msg})
-                await self._save_failed_electrical(obj, err_msg, variant_number, cable_type)
+                self._upsert_failed_electrical(
+                    obj,
+                    err_msg,
+                    variant_number,
+                    cable_type,
+                    existing_calc=existing_by_object_id.get(obj.id),
+                )
+
+        await self.db.flush()
+        await self.db.commit()
 
         return calculated, skipped, heat_loss_failed, errors, calcs
 
-    async def _save_failed_electrical(
+    def _upsert_failed_electrical(
         self,
         obj: ProjectObject,
         error_message: str,
-        variant_number: int = 1,
-        cable_type: str = "self_regulating",
-    ) -> None:
-        """Сохраняет или обновляет запись ElectricalCalculation с ошибкой."""
-        existing = await self.db.execute(
-            select(ElectricalCalculation).where(
-                ElectricalCalculation.object_id == obj.id,
-                ElectricalCalculation.variant_number == variant_number,
-            )
-        )
-        row = existing.scalars().first()
+        variant_number: int,
+        cable_type: str,
+        *,
+        existing_calc: ElectricalCalculation | None,
+    ) -> ElectricalCalculation:
         payload = {
             "error": error_message,
             "object_type": obj.object_type,
             "object_name": (obj.params or {}).get("name"),
         }
+        row = existing_calc
         if row is None:
             row = ElectricalCalculation(
                 project_id=obj.project_id,
@@ -747,6 +783,29 @@ class CalculationService:
             row.cable_type = cable_type
             row.cable_mark = None
             row.results = payload
+        return row
+
+    async def _save_failed_electrical(
+        self,
+        obj: ProjectObject,
+        error_message: str,
+        variant_number: int = 1,
+        cable_type: str = "self_regulating",
+    ) -> None:
+        """Сохраняет или обновляет запись ElectricalCalculation с ошибкой."""
+        existing = await self.db.execute(
+            select(ElectricalCalculation).where(
+                ElectricalCalculation.object_id == obj.id,
+                ElectricalCalculation.variant_number == variant_number,
+            )
+        )
+        self._upsert_failed_electrical(
+            obj,
+            error_message,
+            variant_number,
+            cable_type,
+            existing_calc=existing.scalars().first(),
+        )
         await self.db.commit()
 
     async def get_cable_options(self, object_id: UUID) -> list[dict[str, Any]]:

@@ -35,6 +35,7 @@ class ProjectObject(Base, TimestampMixin):
             "project_id",
             "object_type",
             "sort_order",
+            "id",
         ),
     )
 

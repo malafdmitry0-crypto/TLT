@@ -18,6 +18,11 @@ class ElectricalCalculation(Base, TimestampMixin):
             "project_id",
             "variant_number",
         ),
+        Index(
+            "ix_electrical_calculations_object_variant",
+            "object_id",
+            "variant_number",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -25,13 +30,11 @@ class ElectricalCalculation(Base, TimestampMixin):
         UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     object_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("project_objects.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     variant_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     cable_type: Mapped[str] = mapped_column(String(64), nullable=False)

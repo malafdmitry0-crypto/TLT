@@ -4,7 +4,7 @@
         test test-backend test-frontend test-e2e \
         lint lint-backend lint-frontend \
         shell-backend shell-frontend shell-db \
-        build clean ps \
+        build clean ps db-perf-report \
         package package-backend package-frontend release
 
 # ─── Defaults ────────────────────────────────────────────────────────────────
@@ -140,6 +140,9 @@ shell-frontend: ## Open shell in frontend container
 
 shell-db: ## Open psql shell in database container
 	$(COMPOSE_DEV) exec db psql -U $${POSTGRES_USER:-heatcalc} -d $${POSTGRES_DB:-heatcalc_db}
+
+db-perf-report: ## Print pg_stat_statements, seq scan, bloat, and unused-index report
+	$(COMPOSE_DEV) exec -T db psql -U $${POSTGRES_USER:-heatcalc} -d $${POSTGRES_DB:-heatcalc_db} -f - < scripts/db-perf-report.sql
 
 # ─── Cleanup ──────────────────────────────────────────────────────────────────
 clean: ## Remove stopped containers, unused images and build cache

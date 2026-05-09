@@ -3,7 +3,7 @@
 import enum
 import uuid
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, Text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -30,6 +30,8 @@ class Project(Base, TimestampMixin):
             "user_id IS NOT NULL OR session_id IS NOT NULL",
             name="ck_project_owner_present",
         ),
+        Index("ix_projects_user_updated", "user_id", "updated_at"),
+        Index("ix_projects_session_updated", "session_id", "updated_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

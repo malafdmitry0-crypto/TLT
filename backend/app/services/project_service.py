@@ -295,11 +295,27 @@ class ProjectService:
     ) -> list[ProjectObject]:
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
+        if not order:
+            return await self.list_objects(project_id, principal)
+        result = await self.db.execute(
+            select(ProjectObject).where(
+                ProjectObject.project_id == project_id,
+                ProjectObject.id.in_(set(order)),
+            )
+        )
+        objects_by_id = {obj.id: obj for obj in result.scalars().all()}
         for idx, obj_id in enumerate(order):
-            obj = await self._get_object(project_id, obj_id)
+            obj = objects_by_id.get(obj_id)
+            if obj is None:
+                raise ProjectNotFoundError(f"Объект {obj_id} не найден")
             obj.sort_order = idx
         await self.db.commit()
-        return await self.list_objects(project_id, principal)
+        result = await self.db.execute(
+            select(ProjectObject)
+            .where(ProjectObject.project_id == project_id)
+            .order_by(ProjectObject.sort_order)
+        )
+        return list(result.scalars().all())
 
     async def _get_object(self, project_id: UUID, object_id: UUID) -> ProjectObject:
         result = await self.db.execute(

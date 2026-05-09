@@ -17,7 +17,8 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "verify:inline-form": "node scripts/verify-inline-form.mjs",
-    "seed:guest:playwright": "node scripts/seed-guest-all-variants.mjs"
+    "seed:guest:playwright": "node scripts/seed-guest-all-variants.mjs",
+    "load:guest-query": "node scripts/load-guest-query.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.1",
