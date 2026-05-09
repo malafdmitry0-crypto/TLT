@@ -293,10 +293,38 @@ html, body, #root {
   color: #262626;
 }
 
+.calc-spreadsheet {
+  --heatcalc-table-font-size: 12px;
+  --heatcalc-table-line-height: 1.22;
+  --heatcalc-table-cell-padding-y: 2px;
+  --heatcalc-table-header-padding-y: 3px;
+}
+
+.calc-spreadsheet--compact {
+  --heatcalc-table-font-size: 11px;
+  --heatcalc-table-line-height: 1.18;
+  --heatcalc-table-cell-padding-y: 1px;
+  --heatcalc-table-header-padding-y: 2px;
+}
+
+.calc-spreadsheet--comfortable {
+  --heatcalc-table-font-size: 13px;
+  --heatcalc-table-line-height: 1.28;
+  --heatcalc-table-cell-padding-y: 3px;
+  --heatcalc-table-header-padding-y: 4px;
+}
+
+.calc-spreadsheet--large {
+  --heatcalc-table-font-size: 14px;
+  --heatcalc-table-line-height: 1.32;
+  --heatcalc-table-cell-padding-y: 4px;
+  --heatcalc-table-header-padding-y: 5px;
+}
+
 .calc-spreadsheet .ant-table {
   border: 1px solid #bfbfbf;
-  font-size: 12px;
-  line-height: 1.2;
+  font-size: var(--heatcalc-table-font-size);
+  line-height: var(--heatcalc-table-line-height);
   font-variant-numeric: tabular-nums;
 }
 
@@ -305,16 +333,16 @@ html, body, #root {
   border-color: #bfbfbf !important;
   color: #262626;
   font-weight: 600;
-  font-size: 12px;
-  line-height: 1.15;
-  padding: 3px 6px !important;
+  font-size: var(--heatcalc-table-font-size);
+  line-height: var(--heatcalc-table-line-height);
+  padding: var(--heatcalc-table-header-padding-y) 6px !important;
 }
 
 .calc-spreadsheet .ant-table-tbody > tr > td {
   border-color: #d9d9d9 !important;
-  font-size: 12px;
-  line-height: 1.2;
-  padding: 2px 6px !important;
+  font-size: var(--heatcalc-table-font-size);
+  line-height: var(--heatcalc-table-line-height);
+  padding: var(--heatcalc-table-cell-padding-y) 6px !important;
   background: #fff;
 }
 
@@ -1151,6 +1179,23 @@ html, body, #root {
   gap: 12px;
 }
 
+.table-view-settings-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 8px;
+  border: 1px solid #dce5ec;
+  border-radius: 4px;
+  background: #f8fafc;
+}
+
+.table-view-settings-label {
+  color: #536577;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .column-settings-list {
   max-height: min(62vh, 620px);
   overflow: auto;
@@ -1320,13 +1365,13 @@ html, body, #root {
 }
 
 .workspace-table-card .ant-table-thead > tr > th {
-  padding-top: 2px !important;
-  padding-bottom: 2px !important;
+  padding-top: var(--heatcalc-table-header-padding-y, 2px) !important;
+  padding-bottom: var(--heatcalc-table-header-padding-y, 2px) !important;
 }
 
 .workspace-table-card .ant-table-tbody > tr > td {
-  padding-top: 1px !important;
-  padding-bottom: 1px !important;
+  padding-top: var(--heatcalc-table-cell-padding-y, 1px) !important;
+  padding-bottom: var(--heatcalc-table-cell-padding-y, 1px) !important;
 }
 
 .calc-spreadsheet .ant-table-cell {
@@ -1337,7 +1382,7 @@ html, body, #root {
 .calc-spreadsheet .ant-select,
 .calc-spreadsheet .ant-input-number,
 .calc-spreadsheet .ant-tag {
-  font-size: 12px;
+  font-size: var(--heatcalc-table-font-size);
 }
 
 .calc-spreadsheet .ant-table-column-sorters {

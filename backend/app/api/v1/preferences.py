@@ -18,6 +18,10 @@ HEATCALC_TABLE_COLUMNS_VERSION = 3
 HEATCALC_TABLE_COLUMN_WIDTH_MIN = 3
 HEATCALC_TABLE_COLUMN_WIDTH_MAX = 60
 HEATCALC_TABLE_COLUMN_LAYOUT_KEYS = {"widthPct"}
+HEATCALC_TABLE_VIEW_PREF_KEY = "heatcalc.tableView.v1"
+HEATCALC_TABLE_VIEW_VERSION = 1
+HEATCALC_TABLE_VIEW_KEYS = {"version", "fontSize"}
+HEATCALC_TABLE_VIEW_FONT_SIZES = {"compact", "standard", "comfortable", "large"}
 
 HEATCALC_TABLE_COLUMN_KEYS: dict[str, set[str]] = {
     "pipe": {
@@ -188,9 +192,22 @@ def _validate_heatcalc_table_columns(value: dict[str, object]) -> None:
                 _preference_validation_error("HeatCalc table column widthPct is out of range")
 
 
+def _validate_heatcalc_table_view(value: dict[str, object]) -> None:
+    if set(value) - HEATCALC_TABLE_VIEW_KEYS:
+        _preference_validation_error(
+            "HeatCalc table view payload can contain only version and fontSize"
+        )
+    if value.get("version") != HEATCALC_TABLE_VIEW_VERSION:
+        _preference_validation_error("Unsupported heatcalc table view settings version")
+    if value.get("fontSize") not in HEATCALC_TABLE_VIEW_FONT_SIZES:
+        _preference_validation_error("HeatCalc table view fontSize is unsupported")
+
+
 def _validate_preference_value(key: str, value: dict[str, object]) -> None:
     if key == HEATCALC_TABLE_COLUMNS_PREF_KEY:
         _validate_heatcalc_table_columns(value)
+    if key == HEATCALC_TABLE_VIEW_PREF_KEY:
+        _validate_heatcalc_table_view(value)
 
 
 @router.get(

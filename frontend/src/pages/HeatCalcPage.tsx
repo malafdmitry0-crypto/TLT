@@ -118,6 +118,22 @@ import {
   type HeatCalcColumnFilter,
   type HeatCalcTableViewState,
 } from '@/utils/heatCalcTableFindability';
+import {
+  HEATCALC_TABLE_FONT_SIZE_OPTIONS,
+  HEATCALC_TABLE_VIEW_PREF_KEY,
+  clearGuestTableViewSettings,
+  clearRegisteredTableViewCache,
+  getDefaultTableViewSettings,
+  isDefaultTableViewSettings,
+  normalizeTableViewSettings,
+  readGuestTableViewSettings,
+  readRegisteredTableViewCache,
+  resolveTableFontSize,
+  writeGuestTableViewSettings,
+  writeRegisteredTableViewCache,
+  type HeatCalcTableFontSize,
+  type HeatCalcTableViewSettings,
+} from '@/utils/heatCalcTableViewSettings';
 
 const { Text } = Typography;
 
@@ -139,6 +155,10 @@ type TableColumnPreferenceMutation = {
   settings: HeatCalcTableColumnSettings;
   closeModal?: boolean;
   showMessage?: boolean;
+};
+type TableSettingsPreferenceMutation = {
+  columnSettings: HeatCalcTableColumnSettings;
+  viewSettings?: HeatCalcTableViewSettings;
 };
 
 const NUMBER_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
@@ -884,10 +904,21 @@ export default function HeatCalcPage() {
     }
     return readGuestTableColumnSettings();
   });
+  const [tableViewSettings, setTableViewSettings] = useState<HeatCalcTableViewSettings>(() => {
+    const auth = useAuthStore.getState();
+    const cached = readRegisteredTableViewCache(auth.user?.id ?? null);
+    if (auth.role === 'employee' || auth.role === 'admin') {
+      return cached ?? getDefaultTableViewSettings();
+    }
+    return readGuestTableViewSettings();
+  });
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [columnSettingsType, setColumnSettingsType] = useState<HeatCalcObjectType>('pipe');
   const [draftTableColumnSettings, setDraftTableColumnSettings] = useState<HeatCalcTableColumnSettings>(
     () => tableColumnSettings,
+  );
+  const [draftTableViewSettings, setDraftTableViewSettings] = useState<HeatCalcTableViewSettings>(
+    () => tableViewSettings,
   );
   const columnSettingsSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -924,6 +955,13 @@ export default function HeatCalcPage() {
     staleTime: 30_000,
   });
 
+  const { data: persistedTableViewPreference } = useQuery({
+    queryKey: ['preference', HEATCALC_TABLE_VIEW_PREF_KEY],
+    queryFn: () => getUserPreference<HeatCalcTableViewSettings>(HEATCALC_TABLE_VIEW_PREF_KEY),
+    enabled: isRegisteredUser,
+    staleTime: 30_000,
+  });
+
   const updateTableColumnPreference = useMutation({
     mutationFn: ({ settings }: TableColumnPreferenceMutation) =>
       updateUserPreference<HeatCalcTableColumnSettings>(
@@ -937,10 +975,45 @@ export default function HeatCalcPage() {
         writeRegisteredTableColumnCache(preference.user_id, normalized);
       }
       if (variables.closeModal) setColumnSettingsOpen(false);
-      if (variables.showMessage !== false) antdMessage.success('Поля таблицы сохранены');
+      if (variables.showMessage !== false) antdMessage.success('Настройки таблицы сохранены');
     },
     onError: (error) => {
-      antdMessage.error(error instanceof Error ? error.message : 'Не удалось сохранить поля таблицы');
+      antdMessage.error(error instanceof Error ? error.message : 'Не удалось сохранить настройки таблицы');
+    },
+  });
+
+  const updateTableSettingsPreference = useMutation({
+    mutationFn: async ({ columnSettings, viewSettings }: TableSettingsPreferenceMutation) => {
+      const columnPreference = await updateUserPreference<HeatCalcTableColumnSettings>(
+        HEATCALC_TABLE_COLUMN_PREF_KEY,
+        normalizeTableColumnSettings(columnSettings),
+      );
+      const viewPreference = viewSettings
+        ? await updateUserPreference<HeatCalcTableViewSettings>(
+          HEATCALC_TABLE_VIEW_PREF_KEY,
+          normalizeTableViewSettings(viewSettings),
+        )
+        : null;
+      return { columnPreference, viewPreference };
+    },
+    onSuccess: ({ columnPreference, viewPreference }) => {
+      const normalizedColumns = normalizeTableColumnSettings(columnPreference.value);
+      setTableColumnSettings(normalizedColumns);
+      if (columnPreference.user_id) {
+        writeRegisteredTableColumnCache(columnPreference.user_id, normalizedColumns);
+      }
+      if (viewPreference) {
+        const normalizedView = normalizeTableViewSettings(viewPreference.value);
+        setTableViewSettings(normalizedView);
+        if (viewPreference.user_id) {
+          writeRegisteredTableViewCache(viewPreference.user_id, normalizedView);
+        }
+      }
+      setColumnSettingsOpen(false);
+      antdMessage.success('Настройки таблицы сохранены');
+    },
+    onError: (error) => {
+      antdMessage.error(error instanceof Error ? error.message : 'Не удалось сохранить настройки таблицы');
     },
   });
 
@@ -979,9 +1052,13 @@ export default function HeatCalcPage() {
       setTableColumnSettings(
         readRegisteredTableColumnCache(registeredUserId) ?? getDefaultTableColumnSettings(),
       );
+      setTableViewSettings(
+        readRegisteredTableViewCache(registeredUserId) ?? getDefaultTableViewSettings(),
+      );
       return;
     }
     setTableColumnSettings(readGuestTableColumnSettings());
+    setTableViewSettings(readGuestTableViewSettings());
   }, [isRegisteredUser, registeredUserId]);
 
   useEffect(() => {
@@ -997,6 +1074,20 @@ export default function HeatCalcPage() {
     clearRegisteredTableColumnCache(registeredUserId ?? persistedTableColumnPreference.user_id);
     setTableColumnSettings(getDefaultTableColumnSettings());
   }, [isRegisteredUser, persistedTableColumnPreference, registeredUserId]);
+
+  useEffect(() => {
+    if (!isRegisteredUser || !persistedTableViewPreference) return;
+    if (persistedTableViewPreference.value) {
+      const normalized = normalizeTableViewSettings(persistedTableViewPreference.value);
+      setTableViewSettings(normalized);
+      if (persistedTableViewPreference.user_id) {
+        writeRegisteredTableViewCache(persistedTableViewPreference.user_id, normalized);
+      }
+      return;
+    }
+    clearRegisteredTableViewCache(registeredUserId ?? persistedTableViewPreference.user_id);
+    setTableViewSettings(getDefaultTableViewSettings());
+  }, [isRegisteredUser, persistedTableViewPreference, registeredUserId]);
 
   const outerDiameterMm = useCallback((record: ProjectObject) => {
     const value = record.object_type === 'pipe'
@@ -1447,6 +1538,10 @@ export default function HeatCalcPage() {
     () => getVisibleTableColumnMetas(activeObjectType, tableColumnSettings),
     [activeObjectType, tableColumnSettings],
   );
+  const resolvedTableFontSize = useMemo(
+    () => resolveTableFontSize(tableViewSettings),
+    [tableViewSettings],
+  );
   const fieldCapabilityByKey = useMemo(
     () => new Map(objectQueryCapabilities?.fields.map((field) => [field.key, field]) ?? []),
     [objectQueryCapabilities],
@@ -1589,8 +1684,38 @@ export default function HeatCalcPage() {
     }
     writeGuestTableColumnSettings(normalized);
     if (options.closeModal) setColumnSettingsOpen(false);
-    if (options.showMessage !== false) antdMessage.success('Поля таблицы сохранены');
+    if (options.showMessage !== false) antdMessage.success('Настройки таблицы сохранены');
   }, [isRegisteredUser, registeredUserId, updateTableColumnPreference]);
+
+  const persistTableSettings = useCallback((
+    columnSettings: HeatCalcTableColumnSettings,
+    viewSettings: HeatCalcTableViewSettings,
+  ) => {
+    const normalizedColumns = normalizeTableColumnSettings(columnSettings);
+    const normalizedView = normalizeTableViewSettings(viewSettings);
+    const viewChanged = normalizedView.fontSize !== normalizeTableViewSettings(tableViewSettings).fontSize;
+    setTableColumnSettings(normalizedColumns);
+    setTableViewSettings(normalizedView);
+    if (isRegisteredUser) {
+      clearRegisteredTableColumnCache(registeredUserId);
+      if (viewChanged) clearRegisteredTableViewCache(registeredUserId);
+      updateTableSettingsPreference.mutate({
+        columnSettings: normalizedColumns,
+        viewSettings: viewChanged ? normalizedView : undefined,
+      });
+      return;
+    }
+    writeGuestTableColumnSettings(normalizedColumns);
+    if (viewChanged) {
+      if (isDefaultTableViewSettings(normalizedView)) {
+        clearGuestTableViewSettings();
+      } else {
+        writeGuestTableViewSettings(normalizedView);
+      }
+    }
+    setColumnSettingsOpen(false);
+    antdMessage.success('Настройки таблицы сохранены');
+  }, [isRegisteredUser, registeredUserId, tableViewSettings, updateTableSettingsPreference]);
 
   const applyColumnWidth = useCallback((
     type: HeatCalcObjectType,
@@ -1727,6 +1852,7 @@ export default function HeatCalcPage() {
   function openColumnSettings() {
     setColumnSettingsType(activeObjectType);
     setDraftTableColumnSettings(normalizeTableColumnSettings(tableColumnSettings));
+    setDraftTableViewSettings(normalizeTableViewSettings(tableViewSettings));
     setColumnSettingsOpen(true);
   }
 
@@ -1740,6 +1866,10 @@ export default function HeatCalcPage() {
 
   function updateDraftColumnWidth(type: HeatCalcObjectType, key: HeatCalcColumnKey, widthPct: number) {
     setDraftTableColumnSettings((settings) => setTableColumnWidthPct(settings, type, key, widthPct));
+  }
+
+  function updateDraftTableFontSize(fontSize: HeatCalcTableFontSize) {
+    setDraftTableViewSettings((settings) => normalizeTableViewSettings({ ...settings, fontSize }));
   }
 
   function resetDraftColumnWidth(type: HeatCalcObjectType, key: HeatCalcColumnKey) {
@@ -1765,6 +1895,7 @@ export default function HeatCalcPage() {
 
   function applyColumnSettings() {
     const normalized = normalizeTableColumnSettings(draftTableColumnSettings);
+    const normalizedView = normalizeTableViewSettings(draftTableViewSettings);
     setTableViewStateByType((current) => {
       let changed = false;
       const next = { ...current };
@@ -1780,7 +1911,7 @@ export default function HeatCalcPage() {
       });
       return changed ? next : current;
     });
-    persistTableColumnSettings(normalized, { closeModal: true, showMessage: true });
+    persistTableSettings(normalized, normalizedView);
   }
 
   function renderColumnSettingsRows(type: HeatCalcObjectType) {
@@ -1794,7 +1925,7 @@ export default function HeatCalcPage() {
         collisionDetection={closestCenter}
         onDragEnd={(event) => handleColumnSettingsDragEnd(type, event)}
       >
-        <div className="column-layout-list" role="list" aria-label={`Поля таблицы: ${TABLE_SETTINGS_TYPE_LABELS[type]}`}>
+        <div className="column-layout-list" role="list" aria-label={`Настройки таблицы: ${TABLE_SETTINGS_TYPE_LABELS[type]}`}>
           <div className="column-layout-header" aria-hidden="true">
             <span />
             <span>Вид</span>
@@ -1897,11 +2028,11 @@ export default function HeatCalcPage() {
           </div>
 
           <div className="actionbar-group actionbar-edit-group">
-            <Tooltip title="Поля таблицы">
+            <Tooltip title="Настройки таблицы">
               <Button
                 className="action-icon-button"
                 icon={<TableOutlined />}
-                aria-label="Настроить поля таблицы"
+                aria-label="Настройки таблицы"
                 onClick={openColumnSettings}
               />
             </Tooltip>
@@ -2045,7 +2176,7 @@ export default function HeatCalcPage() {
 
         <Card size="small" className="workspace-table-card srs-table-wrap">
           <Table<ProjectObject>
-            className="calc-spreadsheet"
+            className={`calc-spreadsheet calc-spreadsheet--${resolvedTableFontSize.key}`}
             rowKey="id"
             size="small"
             pagination={{
@@ -2119,12 +2250,12 @@ export default function HeatCalcPage() {
       </Space>
 
       <Modal
-        title="Поля таблицы"
+        title="Настройки таблицы"
         open={columnSettingsOpen}
         width={860}
         okText="Применить"
         cancelText="Отмена"
-        confirmLoading={updateTableColumnPreference.isPending}
+        confirmLoading={updateTableColumnPreference.isPending || updateTableSettingsPreference.isPending}
         onOk={applyColumnSettings}
         onCancel={() => setColumnSettingsOpen(false)}
       >
@@ -2146,6 +2277,28 @@ export default function HeatCalcPage() {
                 Сбросить текущий тип
               </Button>
             </Space>
+          </div>
+          <div className="table-view-settings-panel">
+            <Text className="table-view-settings-label">Размер текста таблицы</Text>
+            <Segmented<HeatCalcTableFontSize>
+              aria-label="Размер текста таблицы"
+              value={draftTableViewSettings.fontSize}
+              onChange={updateDraftTableFontSize}
+              options={HEATCALC_TABLE_FONT_SIZE_OPTIONS.map((option) => ({
+                value: option.key,
+                label: (
+                  <Tooltip title={`${option.fontSizePx}px`}>
+                    <span>{option.label}</span>
+                  </Tooltip>
+                ),
+              }))}
+            />
+            <Button
+              size="small"
+              onClick={() => setDraftTableViewSettings(getDefaultTableViewSettings())}
+            >
+              Сбросить размер
+            </Button>
           </div>
           <div className="column-settings-list">
             {renderColumnSettingsRows(columnSettingsType)}

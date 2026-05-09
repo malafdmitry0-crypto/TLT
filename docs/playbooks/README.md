@@ -21,7 +21,8 @@
 | [font-size-harmonization-prompt.md](font-size-harmonization-prompt.md) | Согласовать типографическую шкалу и размеры шрифта в рабочем UI |
 | [heatcalc-command-bar-consolidation-proposals.md](heatcalc-command-bar-consolidation-proposals.md) | Совместить глобальную навигацию HeatCalc и локальную панель действий в одну строку |
 | [heatcalc-table-columns-settings-prompt.md](heatcalc-table-columns-settings-prompt.md) | Добавить модальное окно настройки отображаемых колонок таблицы HeatCalc |
-| [heatcalc-table-column-layout-prompt.md](heatcalc-table-column-layout-prompt.md) | Расширить `Поля таблицы`: порядок колонок, drag-and-drop и сохранение ширины |
+| [heatcalc-table-column-layout-prompt.md](heatcalc-table-column-layout-prompt.md) | Расширить `Настройки таблицы`: порядок колонок, drag-and-drop и сохранение ширины |
+| [heatcalc-table-font-size-preference-prompt.md](heatcalc-table-font-size-preference-prompt.md) | Добавить в `Настройки таблицы` пользовательский размер шрифта таблицы HeatCalc |
 | [heatcalc-table-findability-prompt.md](heatcalc-table-findability-prompt.md) | Добавить поиск, фильтры и сортировку по полям таблицы HeatCalc без влияния на расчёты |
 | [heatcalc-backend-table-query-prompt.md](heatcalc-backend-table-query-prompt.md) | Перенести поиск, фильтры, сортировку и обычную пагинацию таблицы HeatCalc на backend |
 

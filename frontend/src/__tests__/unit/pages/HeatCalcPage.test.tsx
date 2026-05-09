@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HeatCalcPage from '@/pages/HeatCalcPage';
+import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
@@ -12,6 +13,11 @@ import {
   HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY,
   HEATCALC_TABLE_COLUMN_PREF_KEY,
 } from '@/utils/heatCalcTableColumns';
+import {
+  HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY,
+  HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY,
+  HEATCALC_TABLE_VIEW_PREF_KEY,
+} from '@/utils/heatCalcTableViewSettings';
 
 // ── Моки API ─────────────────────────────────────────────────────────────────
 
@@ -109,11 +115,11 @@ vi.mock('@/api/references', () => ({
 }));
 
 vi.mock('@/api/preferences', () => ({
-  getUserPreference: vi.fn().mockResolvedValue({
-    key: 'heatcalc.tableColumns.v1',
+  getUserPreference: vi.fn(async (key: string) => ({
+    key,
     value: null,
     user_id: 'user-test-1',
-  }),
+  })),
   updateUserPreference: vi.fn(),
 }));
 
@@ -222,6 +228,12 @@ describe('HeatCalcPage', () => {
     useProjectStore.getState().setCurrentProject(null);
     useWorkspaceHeaderStore.getState().setContext(null);
     vi.clearAllMocks();
+    (getUserPreference as ReturnType<typeof vi.fn>).mockImplementation(async (key: string) => ({
+      key,
+      value: null,
+      user_id: 'user-test-1',
+    }));
+    (updateUserPreference as ReturnType<typeof vi.fn>).mockReset();
   });
 
   describe('Кнопка «Сформировать отчёт»', () => {
@@ -359,7 +371,7 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       const addButton = screen.getByRole('button', { name: 'Добавить' });
-      const tableFieldsButton = screen.getByRole('button', { name: 'Настроить поля таблицы' });
+      const tableFieldsButton = screen.getByRole('button', { name: 'Настройки таблицы' });
       const saveButton = screen.getByRole('button', { name: 'Сохранить изменения' });
       const importButton = screen.getByRole('button', { name: 'Импорт XLSX/CSV' });
 
@@ -408,8 +420,8 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      await user.click(screen.getByRole('button', { name: 'Настроить поля таблицы' }));
-      const dialog = await screen.findByRole('dialog', { name: 'Поля таблицы' });
+      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
@@ -429,7 +441,7 @@ describe('HeatCalcPage', () => {
       expect(screen.getAllByText('Габариты').length).toBeGreaterThan(0);
     }, 10_000);
 
-    it('сохраняет порядок и ширину колонок из окна «Поля таблицы»', async () => {
+    it('сохраняет порядок и ширину колонок из окна «Настройки таблицы»', async () => {
       const { listObjects } = await import('@/api/projects');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
 
@@ -438,8 +450,8 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      await user.click(screen.getByRole('button', { name: 'Настроить поля таблицы' }));
-      const dialog = await screen.findByRole('dialog', { name: 'Поля таблицы' });
+      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       const visibleColumnKeys = () =>
         Array.from(dialog.querySelectorAll('.column-layout-row:not(.hidden)'))
           .map((row) => row.getAttribute('data-column-key'));
@@ -481,6 +493,29 @@ describe('HeatCalcPage', () => {
       expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
     });
 
+    it('сохраняет размер текста таблицы отдельной guest-настройкой', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      expect(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY)).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      await user.click(within(dialog).getByText('Крупный'));
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(document.querySelector('.calc-spreadsheet--large')).toBeInTheDocument();
+      });
+      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
+      expect(saved).toEqual({ version: 1, fontSize: 'large' });
+      expect(saved).not.toHaveProperty('fontSizePx');
+    });
+
     it('для зарегистрированного пользователя без записи очищает кеш и возвращает дефолтный JSON', async () => {
       const { listObjects } = await import('@/api/projects');
       const { getUserPreference } = await import('@/api/preferences');
@@ -495,6 +530,14 @@ describe('HeatCalcPage', () => {
         JSON.stringify({
           userId: 'user-test-1',
           settings: { version: 1, table: { pipe: ['name'], tank: ['name'] } },
+          cachedAt: '2026-05-08T00:00:00.000Z',
+        }),
+      );
+      localStorage.setItem(
+        HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY,
+        JSON.stringify({
+          userId: 'user-test-1',
+          settings: { version: 1, fontSize: 'large' },
           cachedAt: '2026-05-08T00:00:00.000Z',
         }),
       );
@@ -514,9 +557,11 @@ describe('HeatCalcPage', () => {
 
       await waitFor(() => {
         expect(getUserPreference).toHaveBeenCalledWith(HEATCALC_TABLE_COLUMN_PREF_KEY);
+        expect(getUserPreference).toHaveBeenCalledWith(HEATCALC_TABLE_VIEW_PREF_KEY);
       });
       await waitFor(() => {
         expect(localStorage.getItem(HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY)).toBeNull();
+        expect(localStorage.getItem(HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY)).toBeNull();
       });
       await waitFor(() => {
         expect(screen.getAllByText('DN').length).toBeGreaterThan(0);
@@ -548,9 +593,10 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      await user.click(screen.getByRole('button', { name: 'Настроить поля таблицы' }));
-      const dialog = await screen.findByRole('dialog', { name: 'Поля таблицы' });
+      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
+      await user.click(within(dialog).getByText('Крупный'));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
       await waitFor(() => {
@@ -558,8 +604,15 @@ describe('HeatCalcPage', () => {
           HEATCALC_TABLE_COLUMN_PREF_KEY,
           expect.any(Object),
         );
+        expect(updateUserPreference).toHaveBeenCalledWith(
+          HEATCALC_TABLE_VIEW_PREF_KEY,
+          expect.any(Object),
+        );
       });
-      const preferencePayload = (updateUserPreference as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      const preferencePayload = (updateUserPreference as ReturnType<typeof vi.fn>).mock.calls.find(
+        ([key]) => key === HEATCALC_TABLE_COLUMN_PREF_KEY,
+      )?.[1];
+      expect(preferencePayload).toBeDefined();
       expect(preferencePayload.types.pipe.visibleOrder).not.toContain('pipe_dn');
       expect(preferencePayload.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
       expect(preferencePayload.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
@@ -571,6 +624,9 @@ describe('HeatCalcPage', () => {
       expect(cached.settings.types.pipe.visibleOrder).not.toContain('pipe_dn');
       expect(cached.settings.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
       expect(cached.settings.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
+      const viewCached = JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY) ?? '{}');
+      expect(viewCached.userId).toBe('user-test-1');
+      expect(viewCached.settings).toEqual({ version: 1, fontSize: 'large' });
     });
 
     it('фильтр по наименованию скрывает строки только в таблице, не меняя счётчики расчёта', async () => {
@@ -647,8 +703,8 @@ describe('HeatCalcPage', () => {
         expect(screen.queryByText('Труба 60')).not.toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Настроить поля таблицы' }));
-      const dialog = await screen.findByRole('dialog', { name: 'Поля таблицы' });
+      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       await user.click(within(dialog).getByRole('checkbox', { name: 'Наружный диаметр' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 

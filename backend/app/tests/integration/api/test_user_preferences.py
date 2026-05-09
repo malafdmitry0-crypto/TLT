@@ -33,6 +33,13 @@ def heatcalc_table_columns_value(
     }
 
 
+def heatcalc_table_view_value(font_size: str = "standard") -> dict[str, object]:
+    return {
+        "version": 1,
+        "fontSize": font_size,
+    }
+
+
 class TestUserPreferencesApi:
     async def test_missing_preference_returns_null_value(
         self,
@@ -123,6 +130,57 @@ class TestUserPreferencesApi:
 
         resp = await client.put(
             "/api/v1/preferences/heatcalc.tableColumns.v1",
+            json={"value": value},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 422
+
+    async def test_employee_can_upsert_heatcalc_table_view_preference(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        headers = {"Authorization": f"Bearer {employee_token}"}
+
+        resp = await client.put(
+            "/api/v1/preferences/heatcalc.tableView.v1",
+            json={"value": heatcalc_table_view_value("comfortable")},
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["value"] == heatcalc_table_view_value("comfortable")
+
+        read_back = await client.get(
+            "/api/v1/preferences/heatcalc.tableView.v1",
+            headers=headers,
+        )
+        assert read_back.status_code == 200
+        assert read_back.json()["value"] == heatcalc_table_view_value("comfortable")
+
+    async def test_heatcalc_table_view_rejects_unknown_font_size(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        resp = await client.put(
+            "/api/v1/preferences/heatcalc.tableView.v1",
+            json={"value": heatcalc_table_view_value("huge")},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 422
+
+    async def test_heatcalc_table_view_rejects_css_payload(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        value = heatcalc_table_view_value()
+        value["fontSizePx"] = 16
+
+        resp = await client.put(
+            "/api/v1/preferences/heatcalc.tableView.v1",
             json={"value": value},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
