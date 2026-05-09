@@ -196,6 +196,30 @@ async def test_batch_electrical_uses_constant_select_count(
     assert select_count == 3, "\n\n".join(statements)
 
 
+async def test_batch_electrical_recalculation_uses_single_bulk_write(
+    db_session: AsyncSession,
+    employee_user: User,
+    test_engine: AsyncEngine,
+):
+    project = await _seed_valid_pipes_for_batch(db_session, employee_user, count=100)
+    await CalculationService(db_session).batch_calc_electrical(project.id)
+
+    with count_sql(test_engine) as statements:
+        calculated, skipped, heat_loss_failed, errors, calcs = await CalculationService(
+            db_session
+        ).batch_calc_electrical(project.id)
+
+    write_count = sum(
+        1 for statement in statements if statement.lstrip().upper().startswith(("INSERT", "UPDATE"))
+    )
+    assert calculated == 100
+    assert skipped == 0
+    assert heat_loss_failed == 0
+    assert errors == []
+    assert len(calcs) == 100
+    assert write_count == 1, "\n\n".join(statements)
+
+
 async def test_object_query_capabilities_loads_only_requested_type(
     db_session: AsyncSession,
     employee_user: User,
@@ -316,3 +340,9 @@ async def test_perf_indexes_are_declared_in_metadata():
         }
         for index_name, columns in indexes.items():
             assert actual[index_name] == columns
+
+    electrical_indexes = Project.metadata.tables["electrical_calculations"].indexes
+    assert any(
+        index.name == "ix_electrical_calculations_object_variant" and index.unique
+        for index in electrical_indexes
+    )

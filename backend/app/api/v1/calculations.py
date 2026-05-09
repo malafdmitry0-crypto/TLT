@@ -201,6 +201,8 @@ async def batch_calc_electrical(
     vapor_temperature: float | None = None,
     aggressive_product: bool = False,
     skip_manual: bool = False,
+    include_results: bool = True,
+    include_errors: bool = True,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -229,12 +231,13 @@ async def batch_calc_electrical(
             "aggressive_product": aggressive_product,
         },
         skip_manual=skip_manual,
+        return_calcs=include_results,
     )
     return BatchElectricalResponse(
         calculated=calculated,
         skipped=skipped,
         heat_loss_failed=heat_loss_failed,
-        errors=errors,
+        errors=errors if include_errors else [],
         results=[
             ElectricalCalcSummary(
                 id=c.id,
@@ -245,7 +248,9 @@ async def batch_calc_electrical(
                 results=c.results,
             )
             for c in calcs
-        ],
+        ]
+        if include_results
+        else [],
     )
 
 

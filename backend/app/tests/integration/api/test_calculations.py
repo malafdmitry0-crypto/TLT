@@ -317,6 +317,60 @@ class TestElectricalCalculation:
         assert result["cable_length"] > tank["params"]["height"] * 1.1
         assert result["total_power"] >= tank["results"]["total_heat_loss"]
 
+    async def test_batch_can_skip_result_payload(self, client: AsyncClient, guest_session: str):
+        project = await _create_project(client, guest_session)
+        await _create_pipe_object(client, project["id"], guest_session)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/batch",
+            params={"project_id": project["id"], "include_results": False},
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["calculated"] == 1
+        assert body["results"] == []
+
+        listing = (
+            await client.get(
+                "/api/v1/calc/electrical",
+                params={"project_id": project["id"]},
+                headers={"X-Session-Id": guest_session},
+            )
+        ).json()
+        assert len(listing) == 1
+
+    async def test_batch_can_skip_error_payload(self, client: AsyncClient, guest_session: str):
+        project = await _create_project(client, guest_session)
+        await _create_pipe_object(client, project["id"], guest_session)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/batch",
+            params={
+                "project_id": project["id"],
+                "cable_type": "mineral",
+                "include_errors": False,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["calculated"] == 0
+        assert body["skipped"] == 1
+        assert body["errors"] == []
+
+        listing = (
+            await client.get(
+                "/api/v1/calc/electrical",
+                params={"project_id": project["id"]},
+                headers={"X-Session-Id": guest_session},
+            )
+        ).json()
+        assert len(listing) == 1
+        assert "расчётная формула не реализована" in listing[0]["results"]["error"]
+
 
 class TestManualCableSelection:
     """POST /calc/electrical/select-cable — ручной выбор кабеля."""

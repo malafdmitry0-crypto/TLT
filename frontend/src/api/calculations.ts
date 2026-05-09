@@ -103,6 +103,8 @@ export async function batchCalcElectrical(
       project_id: projectId,
       cable_source: cableSource,
       variant_number: variantNumber,
+      include_results: false,
+      include_errors: false,
       ...electricalParams(cableType, options),
     },
   });

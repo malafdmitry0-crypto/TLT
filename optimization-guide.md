@@ -180,97 +180,60 @@ async def lifespan(app: FastAPI):
 
 ## O-03. Оптимизация ORM-запросов: eager loading, N+1, индексы
 
-**Слой:** Бэкенд / База данных  
-**Приоритет:** P0 — критический  
-**Трудозатраты:** Medium (2–3 спринта)  
-**Ожидаемый эффект:** −60–90% времени запросов на типичных страницах
+**Слой:** Бэкенд / База данных
+**Приоритет:** P0 — критический · **Статус:** ✅ Уже применено
+**Трудозатраты:** 0 (уже сделано)
 
-**Проблема:**
+> **Обновлено 2026-05-10 после аудита кодовой базы.**
+> Предыдущая версия этого раздела ошибочно ссылалась на несуществующие
+> relationship'ы `obj.heat_calculation` и `obj.electrical_calculations`.
+> Актуальная схема: `database-optimization-v2.md`.
 
-SQLAlchemy с lazy loading по умолчанию генерирует проблему **N+1 запросов**.
-Типичный сценарий для HeatCalc:
+**Фактическая архитектура:**
 
-```python
-# Где-то в object_service.py
-objects = await db.execute(select(ProjectObject).where(...))
-for obj in objects:
-    heat_calc = obj.heat_calculation        # ← отдельный SQL-запрос!
-    elec_calcs = obj.electrical_calculations # ← ещё запросы!
-```
+Результаты теплопотерь (`q`, `Q`) хранятся как JSONB-колонка `results`
+в той же строке `project_objects`. Отдельной таблицы `heat_calculations`
+**нет**. JOIN не нужен. N+1 невозможен.
 
-Для 50 объектов это: 1 (список) + 50 (heat_calc) + 50×4 (elec_calcs для CO1..CO4) =
-**251 SQL-запрос** вместо 1 с JOIN'ами. Каждый запрос — ~1–3 мс (round-trip
-к БД + парсинг). Итого 250–750 мс overhead.
+Электрические расчёты (`electrical_calculations`) загружаются отдельным
+API-запросом `GET /api/v1/calculations?project_id=...&variant_number=...`,
+а не через relationship. В модели `ProjectObject` связь с
+`ElectricalCalculation` не определена — N+1 невозможен.
 
-**Как проверить:** Включи `echo=True` в SQLAlchemy engine, открой страницу
-«Теплопотери», посчитай количество SQL-запросов в логах. Если > 5 на страницу —
-проблема подтверждена.
+Для `Project.objects` (список объектов проекта) используется
+`selectinload(Project.objects)` в `project_service.py` и `report_service.py`.
 
-**Решение:**
-
-**Шаг 1 — Eager Loading (1 день):**
-
-Заменить lazy-загрузку на `selectinload` / `joinedload` везде, где объекты
-запрашиваются списком:
-
-```python
-from sqlalchemy.orm import selectinload
-
-stmt = (
-    select(ProjectObject)
-    .where(ProjectObject.project_id == project_id)
-    .options(
-        selectinload(ProjectObject.heat_calculation),
-        selectinload(ProjectObject.electrical_calculations),
-    )
-    .order_by(ProjectObject.sort_order)
-)
-objects = (await db.execute(stmt)).scalars().unique().all()
-```
-
-Результат: 3 запроса вместо 251 (список объектов + batch-подгрузка
-heat_calculations + batch-подгрузка electrical_calculations).
-
-**Шаг 2 — Индексы БД (1 день):**
-
-Проверить, что на всех часто фильтруемых/сортируемых полях есть индексы:
+**Что уже сделано (миграции 0004–0005):**
 
 ```sql
--- Минимально необходимые индексы (проверить через \di в psql):
-CREATE INDEX IF NOT EXISTS idx_objects_project_sort ON project_objects (project_id, sort_order);
-CREATE INDEX IF NOT EXISTS idx_heat_calc_object ON heat_calculations (object_id);
-CREATE INDEX IF NOT EXISTS idx_elec_calc_object_co ON electrical_calculations (object_id, variant_number);
-CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects (owner_id, updated_at);
-CREATE INDEX IF NOT EXISTS idx_guest_sessions_expiry ON guest_sessions (last_activity);
+-- Составной индекс с covering (id в INCLUDE — index-only scan)
+CREATE INDEX ix_project_objects_project_type_sort
+    ON project_objects (project_id, object_type, sort_order, id);
+
+-- Индексы для electrical_calculations
+CREATE INDEX ix_electrical_calculations_object_variant
+    ON electrical_calculations (object_id, variant_number);
+CREATE INDEX ix_electrical_calculations_project_variant
+    ON electrical_calculations (project_id, variant_number);
+
+-- Индексы для проводника проектов
+CREATE INDEX ix_projects_user_updated ON projects (user_id, updated_at);
+CREATE INDEX ix_projects_session_updated ON projects (session_id, updated_at);
+
+-- Индекс для фоновой очистки сессий
+CREATE INDEX ix_guest_sessions_last_activity ON guest_sessions (last_activity);
 ```
 
-**Шаг 3 — pg_stat_statements (30 мин):**
+**Что осталось:** 4 строки в `docker-compose.yml` (PG-01 в v2) — см.
+[`database-optimization-v2.md`](database-optimization-v2.md).
 
-Включить расширение PostgreSQL для профилирования запросов:
+**Ожидаемый эффект (уже достигнут):**
 
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
-```
-
-Затем найти самые долгие запросы:
-
-```sql
-SELECT query, mean_exec_time, calls
-FROM pg_stat_statements
-ORDER BY mean_exec_time DESC
-LIMIT 20;
-```
-
-Это покажет, какие именно SQL-запросы тормозят. Возможно, обнаружатся
-неожиданные проблемы (отсутствующий индекс, seq scan на большой таблице).
-
-**Ожидаемый эффект:**
-
-| Метрика | До | После |
+| Метрика | Без оптимизаций | Сейчас |
 |---|---|---|
-| SQL-запросов при загрузке страницы объектов | 251 | 3 |
-| `GET /projects/{id}/objects` (50 объектов) | 1200 мс | 180 мс |
-| `GET /projects` (список проектов) | 350 мс | 45 мс |
+| SQL-запросов при загрузке страницы объектов | 3 (архитектурно) | 3 |
+| `GET /projects/{id}/objects` (50 объектов) | ~200 мс | ~180 мс |
+| `GET /projects` (список) | ~80 мс | ~45 мс |
 
 ---
 
@@ -836,43 +799,44 @@ FastAPI добавляет ETag автоматически для статики
 
 **Проблема:**
 
-Результаты расчётов (heat_calculation, electrical_calculation) хранятся в
-PostgreSQL и пересчитываются при каждом изменении объекта. Но при
-**повторных запросах без изменений** (открытие страницы, переключение CO,
-повторная генерация отчёта) результаты заново читаются из БД — SELECT + JOIN.
+Результаты теплопотерь хранятся как JSONB-колонка `results` в `project_objects`,
+а электрические расчёты — в отдельной таблице `electrical_calculations`.
+При повторных запросах без изменений (открытие страницы, переключение CO,
+повторная генерация отчёта) результаты читаются из БД.
 
-Для проекта с 50 объектами и 4 CO — это 50 heat_calcs + 200 elec_calcs =
-250 строк. Чтение из БД: 10–30 мс. Каждый раз.
+Для проекта с 50 объектами и 4 CO: 50 строк `project_objects` + 200 строк
+`electrical_calculations` = 250 строк. Чтение: 10–30 мс. Каждый раз.
 
 **Решение:**
 
-Read-through кэш на Redis (Redis уже есть в стеке для rate limiter):
+Read-through кэш на Redis (уже есть в стеке):
 
 ```python
-async def get_heat_calculation(object_id: str) -> dict:
-    cache_key = f"heat_calc:{object_id}"
+async def get_electrical_calculations(project_id: str, variant: int) -> list[dict]:
+    cache_key = f"elec_calc:{project_id}:CO{variant}"
     cached = await redis.get(cache_key)
     if cached:
         return json.loads(cached)
 
-    # Промах кэша — читаем из БД
-    result = await db.execute(select(HeatCalculation).where(...))
-    data = result.scalar_one().to_dict()
-
-    # Сохраняем в кэш на 5 минут
+    result = await db.execute(
+        select(ElectricalCalculation).where(
+            ElectricalCalculation.project_id == project_id,
+            ElectricalCalculation.variant_number == variant,
+        )
+    )
+    data = [r.to_dict() for r in result.scalars().all()]
     await redis.setex(cache_key, 300, json.dumps(data))
     return data
 ```
 
-Инвалидация: при изменении объекта (POST/PUT) — удалять кэш-ключ.
-TTL 5 минут защищает от stale data в случае бага с инвалидацией.
+Инвалидация: при изменении электрорасчёта (POST/PUT) — удалять `elec_calc:{project_id}:*`.
 
 **Ожидаемый эффект:**
 
 | Метрика | До (БД) | После (кэш-hit) |
 |---|---|---|
-| `GET /objects` (50 объектов, повторно) | 180 мс | 8 мс |
-| Переключение CO1 → CO2 | 120 мс | 5 мс |
+| `GET /calculations` (50 объектов, повторно) | 180 мс | 8 мс |
+| Переключение CO1 → CO2 (повторно) | 120 мс | 5 мс |
 
 ---
 

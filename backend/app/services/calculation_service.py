@@ -1,10 +1,12 @@
 """Сервис расчётов: теплопотери + электротехнический расчёт."""
 
 import math
+import uuid
 from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
@@ -272,6 +274,41 @@ class CalculationService:
             calc.params = request.data
             calc.results = result_dict
         return calc
+
+    async def _bulk_upsert_electrical_calculations(
+        self,
+        rows: list[dict[str, Any]],
+        *,
+        return_calcs: bool = True,
+    ) -> list[ElectricalCalculation]:
+        if not rows:
+            return []
+
+        insert_stmt = pg_insert(ElectricalCalculation).values(rows)
+        upsert_stmt = insert_stmt.on_conflict_do_update(
+            index_elements=["object_id", "variant_number"],
+            set_={
+                "project_id": insert_stmt.excluded.project_id,
+                "cable_type": insert_stmt.excluded.cable_type,
+                "cable_mark": insert_stmt.excluded.cable_mark,
+                "params": insert_stmt.excluded.params,
+                "results": insert_stmt.excluded.results,
+                "updated_at": func.now(),
+            },
+        )
+        if not return_calcs:
+            await self.db.execute(upsert_stmt)
+            return []
+
+        upsert_stmt = upsert_stmt.returning(ElectricalCalculation)
+        orm_stmt = (
+            select(ElectricalCalculation)
+            .from_statement(upsert_stmt)
+            .execution_options(populate_existing=True)
+        )
+        result = await self.db.execute(orm_stmt)
+        returned_by_object_id = {calc.object_id: calc for calc in result.scalars().all()}
+        return [returned_by_object_id[row["object_id"]] for row in rows]
 
     @staticmethod
     def _num(value: Any, default: float | None = None) -> float | None:
@@ -658,6 +695,7 @@ class CalculationService:
         cable_type: str = "self_regulating",
         electrical_params: dict[str, Any] | None = None,
         skip_manual: bool = False,
+        return_calcs: bool = True,
     ) -> tuple[int, int, int, list[dict[str, Any]], list[ElectricalCalculation]]:
         """Автоподбор кабеля для всех валидных объектов проекта (cable_mark=None)."""
         # Считаем общее количество объектов в проекте — чтобы сообщить фронту,
@@ -685,6 +723,7 @@ class CalculationService:
         skipped = 0
         errors: list[dict[str, Any]] = []
         calcs: list[ElectricalCalculation] = []
+        successful_rows: list[dict[str, Any]] = []
         catalog = await self.load_cable_catalog(cable_source)
         existing_result = await self.db.execute(
             select(ElectricalCalculation).where(
@@ -727,14 +766,18 @@ class CalculationService:
                     ),
                 )
                 cable_mark, result_dict = self._calculate_electrical_result(request)
-                calc = self._upsert_electrical_calculation(
-                    obj=obj,
-                    request=request,
-                    cable_mark=cable_mark,
-                    result_dict=result_dict,
-                    existing_calc=existing_calc,
+                successful_rows.append(
+                    {
+                        "id": existing_calc.id if existing_calc is not None else uuid.uuid4(),
+                        "project_id": obj.project_id,
+                        "object_id": obj.id,
+                        "variant_number": request.variant_number,
+                        "cable_type": request.cable_type,
+                        "cable_mark": cable_mark,
+                        "params": request.data,
+                        "results": result_dict,
+                    }
                 )
-                calcs.append(calc)
                 calculated += 1
             except Exception as exc:
                 skipped += 1
@@ -748,6 +791,10 @@ class CalculationService:
                     existing_calc=existing_by_object_id.get(obj.id),
                 )
 
+        calcs = await self._bulk_upsert_electrical_calculations(
+            successful_rows,
+            return_calcs=return_calcs,
+        )
         await self.db.flush()
         await self.db.commit()
 

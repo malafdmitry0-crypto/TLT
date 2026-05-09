@@ -22,6 +22,7 @@ class ElectricalCalculation(Base, TimestampMixin):
             "ix_electrical_calculations_object_variant",
             "object_id",
             "variant_number",
+            unique=True,
         ),
     )
 

@@ -148,7 +148,7 @@ export default function ElecCalcPage() {
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
-      if (res.errors.length > 0) {
+      if (res.skipped > 0) {
         message.warning(
           `СО${variant} · рассчитано: ${res.calculated}, пропущено: ${res.skipped}` +
           `${res.heat_loss_failed > 0 ? `, ошибок теплопотерь: ${res.heat_loss_failed}` : ''}.`,
