@@ -149,6 +149,12 @@ def _result_with(scalar=None, scalars_all=None):
     return r
 
 
+def _rows_with(rows):
+    r = MagicMock()
+    r.all = lambda: rows
+    return r
+
+
 class TestCreateProject:
     async def test_guest_within_limit_creates(self, monkeypatch):
         from app.services.project_service import settings
@@ -344,6 +350,56 @@ class TestObjectsCRUD:
             _principal(role="employee", user_id=my_id),
         )
         db.delete.assert_awaited_once_with(obj)
+
+
+class TestObjectsSummary:
+    async def test_counts_valid_objects_and_successful_electrical_results(self):
+        session_id = "sess-summary"
+        project_id = uuid.uuid4()
+        project = SimpleNamespace(id=project_id, session_id=session_id, user_id=None)
+        pipe_ok_id = uuid.uuid4()
+        tank_ok_id = uuid.uuid4()
+        pipe_bad_id = uuid.uuid4()
+
+        db = AsyncMock()
+        db.execute = AsyncMock(
+            side_effect=[
+                _result_with(scalar=project),
+                _rows_with(
+                    [
+                        ("pipe", True, 2),
+                        ("pipe", False, 1),
+                        ("tank", True, 1),
+                        ("other", True, 1),
+                    ]
+                ),
+                _rows_with(
+                    [
+                        (pipe_ok_id, None, {"selected_cable": {"mark": "HTM"}}),
+                        (tank_ok_id, "HTM", {"total_power": 1200}),
+                        (pipe_bad_id, "HTM", {"error": "invalid heat loss"}),
+                        (pipe_bad_id, "HTM", None),
+                    ]
+                ),
+            ]
+        )
+
+        summary = await ProjectService(db).objects_summary(
+            project_id,
+            _principal(role="guest", session_id=session_id),
+        )
+
+        assert summary == {
+            "total": 5,
+            "valid": 4,
+            "invalid": 1,
+            "by_type": {"pipe": 3, "tank": 1},
+            "valid_by_type": {"pipe": 2, "tank": 1},
+            "electrical_calculations_total": 4,
+            "successful_electrical_calculations": 2,
+            "failed_electrical_calculations": 2,
+            "objects_with_successful_electrical_calculation": 2,
+        }
 
 
 class TestListProjects:

@@ -59,8 +59,10 @@ export function useHeatCalcMutations(
   const qc = useQueryClient();
   const navigate = useNavigate();
 
-  const invalidateObjects = () =>
+  const invalidateObjects = () => {
     qc.invalidateQueries({ queryKey: ['project', projectId, 'objects'] });
+    qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
+  };
 
   const add = useMutation({
     mutationFn: (payload: CreateObjectRequest) => createObject(projectId!, payload),
@@ -110,6 +112,7 @@ export function useHeatCalcMutations(
       qc.invalidateQueries({
         queryKey: ['project', projectId, 'electrical-calcs'],
       });
+      qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
       if (res.errors.length > 0) {
         message.warning(
           `Рассчитано: ${res.calculated}. Пропущено: ${res.skipped}` +

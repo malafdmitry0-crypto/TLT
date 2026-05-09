@@ -4,7 +4,7 @@ import enum
 import uuid
 from typing import Any
 
-from sqlalchemy import Boolean, ForeignKey, Integer
+from sqlalchemy import Boolean, ForeignKey, Index, Integer
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -29,6 +29,14 @@ object_type_enum = ENUM(
 
 class ProjectObject(Base, TimestampMixin):
     __tablename__ = "project_objects"
+    __table_args__ = (
+        Index(
+            "ix_project_objects_project_type_sort",
+            "project_id",
+            "object_type",
+            "sort_order",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(

@@ -20,6 +20,7 @@ Options:
   --channel=<name>      Playwright browser channel, default chrome
   --session-id=<id>     Reuse existing guest session instead of creating a new one
   --project-id=<uuid>   Reuse existing guest project; if omitted, first session project is used
+  --per-type=<n>        Create exactly n objects for each type by cycling variants
   --clear              Delete existing objects in reused project before seeding
   --screenshot=<path>   Screenshot path, default <tmp>/tlt-seeded-guest.png
   --opener=<path>       HTML opener path, default <tmp>/tlt-open-seeded-guest.html
@@ -47,6 +48,10 @@ const apiBaseUrl = argValue('api', process.env.API_BASE_URL ?? DEFAULT_API_BASE_
 const browserChannel = argValue('channel', process.env.PLAYWRIGHT_CHANNEL ?? 'chrome');
 const providedSessionId = argValue('session-id', process.env.GUEST_SESSION_ID ?? '');
 const providedProjectId = argValue('project-id', process.env.PROJECT_ID ?? '');
+const objectsPerType = parseOptionalPositiveInt(
+  argValue('per-type', process.env.SEED_OBJECTS_PER_TYPE ?? ''),
+  'per-type',
+);
 const shouldClear = hasFlag('clear');
 const screenshotPath = argValue(
   'screenshot',
@@ -63,6 +68,15 @@ const publicOpenerName = argValue(
 
 function apiUrl(route) {
   return `${apiBaseUrl}${route.startsWith('/') ? route : `/${route}`}`;
+}
+
+function parseOptionalPositiveInt(value, label) {
+  if (!value) return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`--${label} must be a positive integer`);
+  }
+  return parsed;
 }
 
 async function launchBrowser() {
@@ -1000,9 +1014,45 @@ const additionalTankObjects = [
 
 seedObjects.push(...additionalPipeObjects, ...additionalTankObjects);
 
+function cloneSeedObject(object) {
+  return JSON.parse(JSON.stringify(object));
+}
+
+function renumberObjectName(name, objectType, number) {
+  const prefix = objectType === 'pipe' ? 'P' : 'T';
+  const code = `${prefix}${String(number).padStart(3, '0')}`;
+  const rest = String(name ?? '').replace(/^[PT]\d+\s*·\s*/, '');
+  return `${code} · ${rest}`;
+}
+
+function expandObjectsOfType(objects, objectType, targetCount) {
+  const variants = objects.filter((object) => object.object_type === objectType);
+  if (targetCount == null) return variants;
+  return Array.from({ length: targetCount }, (_, index) => {
+    const object = cloneSeedObject(variants[index % variants.length]);
+    if (index >= variants.length) {
+      object.params.name = renumberObjectName(object.params.name, objectType, index + 1);
+    }
+    return object;
+  });
+}
+
+if (objectsPerType != null) {
+  seedObjects.splice(
+    0,
+    seedObjects.length,
+    ...expandObjectsOfType(seedObjects, 'pipe', objectsPerType),
+    ...expandObjectsOfType(seedObjects, 'tank', objectsPerType),
+  );
+}
+
 const expectedUiRows = {
   pipe: seedObjects.filter((object) => object.object_type === 'pipe').length,
   tank: seedObjects.filter((object) => object.object_type === 'tank').length,
+};
+const expectedVisibleUiRows = {
+  pipe: Math.min(expectedUiRows.pipe, 50),
+  tank: Math.min(expectedUiRows.tank, 50),
 };
 
 const electricalVariants = [
@@ -1184,8 +1234,10 @@ async function main() {
 
     await apiFetch(api, 'PUT', `/projects/${project.id}`, {
       name: 'Playwright · все варианты · гостевой режим',
-      description:
+      description: [
         'Автозаполнение через Playwright: трубы/резервуары, размещения, слои, стенки, грунт, электрорасчёты СО1-СО4.',
+        `Объекты: ${expectedUiRows.pipe} трубопроводов и ${expectedUiRows.tank} резервуаров.`,
+      ].join(' '),
       task_number: 'PW-GUEST-ALL',
     });
 
@@ -1195,6 +1247,9 @@ async function main() {
         sort_order: index,
         params: item.params,
       });
+      if ((index + 1) % 25 === 0 || index + 1 === seedObjects.length) {
+        console.error(`Created ${index + 1}/${seedObjects.length} objects`);
+      }
     }
 
     const batchResults = [];
@@ -1233,9 +1288,9 @@ async function main() {
     await selectObjectType(page, 'Резервуары');
     await page.locator('td.ant-table-cell', { hasText: 'T01 · резервуар' }).first().waitFor({ state: 'visible', timeout: 10_000 });
     const uiTankRows = await tableRowCount(page);
-    if (uiPipeRows !== expectedUiRows.pipe || uiTankRows !== expectedUiRows.tank) {
+    if (uiPipeRows !== expectedVisibleUiRows.pipe || uiTankRows !== expectedVisibleUiRows.tank) {
       throw new Error(
-        `Unexpected UI rows after type switch: pipe=${uiPipeRows}/${expectedUiRows.pipe}, tank=${uiTankRows}/${expectedUiRows.tank}`,
+        `Unexpected UI rows after type switch: pipe=${uiPipeRows}/${expectedVisibleUiRows.pipe}, tank=${uiTankRows}/${expectedVisibleUiRows.tank}`,
       );
     }
     const addButton = page.getByRole('button', { name: 'Добавить' });
@@ -1245,8 +1300,10 @@ async function main() {
     await page.getByText('Форма и геометрия резервуара').waitFor({ state: 'visible', timeout: 10_000 });
     await page.getByRole('button', { name: 'Отменить' }).click();
     await selectObjectType(page, 'Трубопровод');
+    await page.locator('td.ant-table-cell', { hasText: 'P01 · труба' }).first().click();
     await page.getByText('Параметры объекта «P01', { exact: false }).waitFor({ state: 'visible', timeout: 10_000 });
     await selectObjectType(page, 'Резервуары');
+    await page.locator('td.ant-table-cell', { hasText: 'T01 · резервуар' }).first().click();
     await page.getByText('Параметры объекта «T01', { exact: false }).waitFor({ state: 'visible', timeout: 10_000 });
     await page.getByRole('button', { name: 'Сохранить изменения' }).click();
     await page.getByText('Параметры: Резервуары', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });

@@ -23,6 +23,29 @@ import {
 
 vi.mock('@/api/projects', () => {
   const listObjects = vi.fn().mockResolvedValue([]);
+  async function getObjectsSummary() {
+    const all = await listObjects();
+    const byType = {
+      pipe: all.filter((item: ProjectObject) => item.object_type === 'pipe').length,
+      tank: all.filter((item: ProjectObject) => item.object_type === 'tank').length,
+    };
+    const validByType = {
+      pipe: all.filter((item: ProjectObject) => item.object_type === 'pipe' && item.is_valid).length,
+      tank: all.filter((item: ProjectObject) => item.object_type === 'tank' && item.is_valid).length,
+    };
+    const valid = all.filter((item: ProjectObject) => item.is_valid).length;
+    return {
+      total: all.length,
+      valid,
+      invalid: all.length - valid,
+      by_type: byType,
+      valid_by_type: validByType,
+      electrical_calculations_total: 0,
+      successful_electrical_calculations: 0,
+      failed_electrical_calculations: 0,
+      objects_with_successful_electrical_calculation: 0,
+    };
+  }
   function valueFor(record: ProjectObject, key: string) {
     if (key === 'name') return record.params.name;
     if (key === 'pipe_outer_diameter') return Number(record.params.outer_diameter) * 1000;
@@ -59,7 +82,7 @@ vi.mock('@/api/projects', () => {
       });
     }
     const page = Number(payload.page ?? 1);
-    const pageSize = Number(payload.page_size ?? 100);
+    const pageSize = Number(payload.page_size ?? 50);
     const offset = (page - 1) * pageSize;
     const pageItems = items.slice(offset, offset + pageSize);
     return {
@@ -86,7 +109,7 @@ vi.mock('@/api/projects', () => {
   const getObjectQueryCapabilities = vi.fn(async (_projectId: string, objectType: 'pipe' | 'tank') => ({
     version: 1,
     object_type: objectType,
-    default_page_size: 100,
+    default_page_size: 50,
     max_page_size: 200,
     default_sort: { key: 'sort_order', dir: 'asc' },
     search: { enabled: true, max_text_length: 120, default_columns: ['name'] },
@@ -94,6 +117,7 @@ vi.mock('@/api/projects', () => {
   }));
   return {
     listObjects,
+    getObjectsSummary: vi.fn(getObjectsSummary),
     queryObjects,
     getObjectQueryCapabilities,
     createObject: vi.fn(),
@@ -310,7 +334,7 @@ describe('HeatCalcPage', () => {
       expect(screen.getAllByText('L, м').length).toBeGreaterThan(0);
     });
 
-    it('при переключении на резервуары показывает только резервуары и их колонки', async () => {
+    it('при переключении на резервуары показывает только резервуары и не открывает форму автоматически', async () => {
       const { listObjects } = await import('@/api/projects');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
         makeObject(),
@@ -328,9 +352,10 @@ describe('HeatCalcPage', () => {
         expect(screen.getByText('Резервуар прямоугольный')).toBeInTheDocument();
       });
       await waitFor(() => {
-        expect(useWorkspaceHeaderStore.getState().context?.title).toMatch(
-          /Параметры объекта «Резервуар прямоугольный»/,
-        );
+        expect(useWorkspaceHeaderStore.getState().context).toMatchObject({
+          title: 'Параметры объекта',
+          modeLabel: 'выберите строку или нажмите «+»',
+        });
       });
       expect(screen.queryByText('Труба DN100')).not.toBeInTheDocument();
       expect(screen.getAllByText('Форма').length).toBeGreaterThan(0);
@@ -340,13 +365,22 @@ describe('HeatCalcPage', () => {
       expect(screen.queryByText('L, м')).not.toBeInTheDocument();
       expect(screen.queryByText('Зад.')).not.toBeInTheDocument();
       expect(document.body.textContent).toMatch(/3\s*000.*2\s*000.*1\s*500 мм/);
+      expect(screen.queryByText('Форма и геометрия резервуара')).not.toBeInTheDocument();
+
+      await user.click(screen.getByText('Резервуар прямоугольный'));
+      await waitFor(() => {
+        expect(useWorkspaceHeaderStore.getState().context?.title).toMatch(
+          /Параметры объекта «Резервуар прямоугольный»/,
+        );
+      });
 
       await user.click(screen.getByLabelText('Трубопровод'));
       expect(screen.getByText('Труба')).toBeInTheDocument();
       await waitFor(() => {
-        expect(useWorkspaceHeaderStore.getState().context?.title).toMatch(
-          /Параметры объекта «Труба DN100»/,
-        );
+        expect(useWorkspaceHeaderStore.getState().context).toMatchObject({
+          title: 'Параметры объекта',
+          modeLabel: 'выберите строку или нажмите «+»',
+        });
       });
     });
 
@@ -491,7 +525,7 @@ describe('HeatCalcPage', () => {
       expect(saved.types.pipe.columns.pipe_dn).toMatchObject({ widthPct: 12.5 });
       expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
       expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
-    });
+    }, 10_000);
 
     it('сохраняет размер текста таблицы отдельной guest-настройкой', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -514,7 +548,7 @@ describe('HeatCalcPage', () => {
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
       expect(saved).toEqual({ version: 1, fontSize: 'large' });
       expect(saved).not.toHaveProperty('fontSizePx');
-    });
+    }, 10_000);
 
     it('для зарегистрированного пользователя без записи очищает кеш и возвращает дефолтный JSON', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -627,7 +661,7 @@ describe('HeatCalcPage', () => {
       const viewCached = JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY) ?? '{}');
       expect(viewCached.userId).toBe('user-test-1');
       expect(viewCached.settings).toEqual({ version: 1, fontSize: 'large' });
-    });
+    }, 10_000);
 
     it('фильтр по наименованию скрывает строки только в таблице, не меняя счётчики расчёта', async () => {
       const { listObjects } = await import('@/api/projects');

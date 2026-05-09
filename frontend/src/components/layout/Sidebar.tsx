@@ -12,9 +12,7 @@ import { ROUTES } from '@/routes/routes';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useQuery } from '@tanstack/react-query';
-import { listObjects } from '@/api/projects';
-import { listElectricalCalcs } from '@/api/calculations';
-import { isElectricalCalcSuccess } from '@/utils/calcStatus';
+import { getObjectsSummary } from '@/api/projects';
 
 function StepLabel({
   text,
@@ -43,25 +41,15 @@ export default function Sidebar() {
   const role = useAuthStore((s) => s.role);
   const project = useProjectStore((s) => s.currentProject);
 
-  const { data: objects = [] } = useQuery({
-    queryKey: ['project', project?.id, 'objects'],
-    queryFn: () => listObjects(project!.id),
+  const { data: summary } = useQuery({
+    queryKey: ['project', project?.id, 'objects', 'summary'],
+    queryFn: () => getObjectsSummary(project!.id),
     enabled: !!project,
     staleTime: 30_000,
   });
 
-  const { data: elecCalcs = [] } = useQuery({
-    queryKey: ['project', project?.id, 'electrical-calcs'],
-    queryFn: () => listElectricalCalcs(project!.id),
-    enabled: !!project,
-    staleTime: 30_000,
-  });
-
-  const validObjectCount = objects.filter((o) => o.is_valid).length;
-  const successCalcIds = new Set(
-    elecCalcs.filter(isElectricalCalcSuccess).map((c) => String(c.object_id))
-  );
-  const elecCalcCount = objects.filter((o) => successCalcIds.has(o.id)).length;
+  const validObjectCount = summary?.valid ?? 0;
+  const elecCalcCount = summary?.objects_with_successful_electrical_calculation ?? 0;
   const heatDone = validObjectCount > 0;
   const elecDone = validObjectCount > 0 && elecCalcCount === validObjectCount;
 

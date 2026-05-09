@@ -19,6 +19,7 @@ from app.schemas.project import (
     ProjectObjectResponse,
     ProjectObjectsQueryRequest,
     ProjectObjectsQueryResponse,
+    ProjectObjectsSummaryResponse,
     ProjectObjectUpdate,
     ReorderRequest,
 )
@@ -57,6 +58,24 @@ async def list_objects(
 
 
 @router.get(
+    "/{project_id}/objects/summary",
+    response_model=ProjectObjectsSummaryResponse,
+    summary="Сводные счётчики объектов и электрорасчётов проекта",
+)
+async def objects_summary(
+    project_id: UUID,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await ProjectService(db).objects_summary(project_id, principal)
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ProjectAccessError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.get(
     "/{project_id}/objects/query-capabilities",
     response_model=ObjectQueryCapabilitiesResponse,
     summary="Возможности backend-фильтров и сортировок таблицы объектов",
@@ -70,7 +89,9 @@ async def object_query_capabilities(
     try:
         return await ObjectQueryService(db).capabilities(project_id, object_type, principal)
     except ObjectQueryValidationError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
@@ -91,7 +112,9 @@ async def query_objects(
     try:
         return await ObjectQueryService(db).query(project_id, data, principal)
     except ObjectQueryValidationError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:

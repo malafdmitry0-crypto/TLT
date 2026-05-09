@@ -69,7 +69,7 @@ import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
-import { getObjectQueryCapabilities, listObjects, queryObjects } from '@/api/projects';
+import { getObjectQueryCapabilities, getObjectsSummary, queryObjects } from '@/api/projects';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { getInsulation } from '@/api/references';
 import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
@@ -150,7 +150,7 @@ const TABLE_SETTINGS_TYPE_LABELS: Record<HeatCalcObjectType, string> = {
 };
 
 type HeatCalcFilterKind = 'text' | 'numberRange' | 'enum';
-const DEFAULT_OBJECT_QUERY_PAGE_SIZE = 100;
+const DEFAULT_OBJECT_QUERY_PAGE_SIZE = 50;
 type TableColumnPreferenceMutation = {
   settings: HeatCalcTableColumnSettings;
   closeModal?: boolean;
@@ -926,9 +926,9 @@ export default function HeatCalcPage() {
   );
   const setWorkspaceHeaderContext = useWorkspaceHeaderStore((s) => s.setContext);
 
-  const { data: objects = [] } = useQuery({
-    queryKey: ['project', project?.id, 'objects'],
-    queryFn: () => listObjects(project!.id),
+  const { data: objectsSummary } = useQuery({
+    queryKey: ['project', project?.id, 'objects', 'summary'],
+    queryFn: () => getObjectsSummary(project!.id),
     enabled: !!project,
   });
   const activeTableViewState = tableViewStateByType[activeObjectType];
@@ -1017,10 +1017,6 @@ export default function HeatCalcPage() {
     },
   });
 
-  const visibleObjects = useMemo(
-    () => objects.filter((obj) => obj.object_type === activeObjectType),
-    [objects, activeObjectType],
-  );
   const objectQueryRequest = useMemo(
     () => buildObjectQueryRequest(
       activeObjectType,
@@ -1129,10 +1125,11 @@ export default function HeatCalcPage() {
     closeWizard,
   );
 
-  const validCount = visibleObjects.filter((o) => o.is_valid).length;
-  const totalCount = visibleObjects.length;
-  const pipeCount = objects.filter((o) => o.object_type === 'pipe').length;
-  const tankCount = objects.filter((o) => o.object_type === 'tank').length;
+  const pipeCount = objectsSummary?.by_type.pipe ?? 0;
+  const tankCount = objectsSummary?.by_type.tank ?? 0;
+  const totalCount = objectsSummary?.by_type[activeObjectType] ?? 0;
+  const validCount = objectsSummary?.valid_by_type[activeObjectType] ?? 0;
+  const projectObjectCount = objectsSummary?.total ?? totalCount;
   const activeObjectTypeLabel = activeObjectType === 'pipe' ? 'Труба' : 'Резервуар';
   const formCaptionTitle = wizardState
     ? wizardState.editingObject
@@ -1181,8 +1178,7 @@ export default function HeatCalcPage() {
   function handleObjectTypeChange(type: WizardObjectType) {
     setActiveObjectType(type);
     setSelectedRowKeys([]);
-    const firstObject = objects.find((obj) => obj.object_type === type);
-    setWizardState(firstObject ? { type, editingObject: { ...firstObject, object_type: type } } : null);
+    setWizardState(null);
   }
 
   function openEditWizard(obj: ProjectObject) {
@@ -1206,7 +1202,7 @@ export default function HeatCalcPage() {
       add.mutate({
         object_type: wizardState.type,
         params,
-        sort_order: objects.length,
+        sort_order: projectObjectCount,
       });
     }
   }
@@ -1221,7 +1217,7 @@ export default function HeatCalcPage() {
         ...source.params,
         name: `${sourceName} (копия)`,
       },
-      sort_order: objects.length,
+      sort_order: projectObjectCount,
     });
   }
 
@@ -1237,7 +1233,7 @@ export default function HeatCalcPage() {
   }
 
   const selectedRowId = wizardState?.editingObject?.id;
-  const selectedObject = selectedRowId ? visibleObjects.find((o) => o.id === selectedRowId) : null;
+  const selectedObject = wizardState?.editingObject ?? null;
   const selectedResults = selectedObject?.results as Record<string, unknown> | undefined;
   const selectedParams = selectedObject?.params as Record<string, unknown> | undefined;
 
@@ -1563,7 +1559,7 @@ export default function HeatCalcPage() {
   );
   const currentActiveFilterCount = activeTableFilterCount(activeTableViewState);
   const currentTableViewActive = hasActiveTableViewState(activeTableViewState);
-  const activeTypeTotalCount = objectQueryResult?.counts.by_type[activeObjectType] ?? visibleObjects.length;
+  const activeTypeTotalCount = objectQueryResult?.counts.by_type[activeObjectType] ?? totalCount;
   const filteredTableCount = objectQueryResult?.counts.filtered ?? visibleTableObjects.length;
   const enumOptionsByColumn = useMemo(() => {
     const result: Record<HeatCalcColumnKey, { label: string; value: string }[]> = {};
@@ -2152,7 +2148,7 @@ export default function HeatCalcPage() {
               <ExportObjectsButton
                 projectId={project.id}
                 projectName={project.name}
-                disabled={objects.length === 0}
+                disabled={projectObjectCount === 0}
               />
             )}
           </div>

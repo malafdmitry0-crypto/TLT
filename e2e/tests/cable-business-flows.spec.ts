@@ -215,7 +215,7 @@ test.describe('business flow: cable layout controls', () => {
     expect(calc?.results.connection_type).toBe('loop_1x3');
   });
 
-  test('на странице теплопотерь новый тип кабеля работает в результатах расчёта', async ({
+  test('новый тип кабеля работает после перехода из теплопотерь в электрорасчёт', async ({
     page,
   }) => {
     await loginAsGuest(page);
@@ -223,9 +223,8 @@ test.describe('business flow: cable layout controls', () => {
     const pipeName = `E2E heat R3 ${Date.now()}`;
     const pipe = await createCalculatedPipe(page, pipeName);
 
-    await page.reload({ waitUntil: 'networkidle' });
-    await page.getByText('Результаты расчёта').click();
-    await selectCableType(page, 'Саморегулирующийся', 'Трёхж. пост. мощн.', '.tabs-row-srs');
+    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
+    await selectCableType(page, 'Саморегулирующийся', 'Трёхж. пост. мощн.');
     await expect(page.getByText('U:')).toBeVisible();
     await expect(page.getByText('w:')).toBeVisible();
     await expect(page.getByText('h:')).toBeVisible();

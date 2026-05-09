@@ -51,7 +51,7 @@ test.describe('Visual regression', () => {
 
   test('сотрудник — шапка ProjectMenu (стабильная область)', async ({ page }) => {
     await loginAsTestEmployee(page);
-    await page.getByRole('menuitem', { name: /Проекты/i }).click();
+    await page.getByRole('button', { name: 'Открыть', exact: true }).click();
     await expect(page).toHaveURL(/\/projects/);
     await page.waitForLoadState('networkidle');
     // Снимаем только banner — в нём только статичные кнопки

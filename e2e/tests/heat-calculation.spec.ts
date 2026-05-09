@@ -10,27 +10,28 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
 
     await expect(page.getByText('Параметры объекта')).toBeVisible();
     await expect(page.getByRole('button', { name: /Добавить/ })).toBeVisible();
-    await expect(page.getByText(/Объекты не добавлены/i)).toBeVisible();
+    await expect(page.getByText(/Трубопроводы не добавлены/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /Электрорасчёт/i })).toBeDisabled();
   });
 
-  test('кнопка «Добавить» открывает выбор объекта и inline-форму трубопровода', async ({
+  test('кнопка «Добавить» открывает inline-форму активного типа', async ({
     page,
   }) => {
     await loginAsGuest(page);
 
-    await page.getByRole('button', { name: /Добавить/ }).click();
-    await expect(page.getByText('Трубопровод')).toBeVisible();
-    await expect(page.getByText('Резервуар')).toBeVisible();
+    await expect(page.locator('.inline-object-form')).toHaveCount(0);
+    const typeSwitch = page.locator('.actionbar-context-group');
+    await expect(typeSwitch.getByLabel('Трубопровод', { exact: true })).toBeVisible();
+    await expect(typeSwitch.getByLabel('Резервуары', { exact: true })).toBeVisible();
 
-    await page.getByText('Трубопровод').click();
+    await page.getByRole('button', { name: /Добавить/ }).click();
     await expect(page.locator('.inline-object-form')).toBeVisible();
     await expect(page.getByText('ГЕОМЕТРИЯ ТРУБЫ')).toBeVisible();
     await expect(page.getByLabel(/Наружный Ø/i)).toBeVisible();
     await expect(page.locator('#inline-object-save')).toBeAttached();
   });
 
-  test('рассчитанный трубопровод отображается в исходных данных и результатах q/Q', async ({
+  test('рассчитанный трубопровод отображается в исходных данных', async ({
     page,
   }) => {
     await loginAsGuest(page);
@@ -45,12 +46,7 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     await expect(page.getByText('50,0')).toBeVisible();
     await expect(page.getByText('Минеральная вата')).toBeVisible();
 
-    await page.getByText('Результаты расчёта').click();
-    await expect(page.getByRole('columnheader', { name: 'q, Вт/м', exact: true })).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: 'Q, Вт', exact: true })).toBeVisible();
-    await expect(page.getByText('73,5')).toBeVisible();
-    await expect(page.getByText('4,04 кВт')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Выполнить электрорасчёт СО1/i })).toBeEnabled();
+    await expect(page.getByRole('button', { name: /Электрорасчёт/i })).toBeEnabled();
   });
 
   test('со страницы теплопотерь запускается электрорасчёт выбранного СО', async ({
@@ -61,10 +57,10 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     await createCalculatedPipe(page, pipeName);
 
     await page.reload({ waitUntil: 'networkidle' });
-    await page.getByText('Результаты расчёта').click();
-    await page.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }).click();
+    await page.getByRole('button', { name: /Электрорасчёт/i }).click();
 
-    await expect(page.getByText(/СО1 — расчёт выполнен для 1 объектов/i)).toBeVisible();
+    await expect(page).toHaveURL(/\/workspace\/elec-calc/);
+    await expect(page.getByText(/Электрорасчёт выполнен для 1 объектов/i)).toBeVisible();
     await expect(page.getByText('рассчитан', { exact: true })).toBeVisible();
     await expect(page.getByText(/ТЛТ-100/)).toBeVisible();
     await expect(page.getByText('55,0')).toBeVisible();

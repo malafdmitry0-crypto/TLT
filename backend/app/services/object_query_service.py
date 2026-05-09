@@ -10,6 +10,7 @@ from math import ceil
 from typing import Any, Literal
 from uuid import UUID
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
@@ -122,7 +123,11 @@ def _param(key: str) -> Callable[[ProjectObject], Any]:
 
 
 def _param_m_as_mm(key: str) -> Callable[[ProjectObject], Any]:
-    return lambda obj: _to_float(obj.params.get(key)) * 1000 if _to_float(obj.params.get(key)) is not None else None
+    return (
+        lambda obj: _to_float(obj.params.get(key)) * 1000
+        if _to_float(obj.params.get(key)) is not None
+        else None
+    )
 
 
 def _placement(obj: ProjectObject) -> Any:
@@ -234,7 +239,10 @@ def _insulation_options() -> tuple[tuple[Any, str], ...]:
 
 
 def _pipe_material_options() -> tuple[tuple[Any, str], ...]:
-    return tuple((item.get("material"), str(item.get("name") or item.get("material"))) for item in list_pipe_materials())
+    return tuple(
+        (item.get("material"), str(item.get("name") or item.get("material")))
+        for item in list_pipe_materials()
+    )
 
 
 def _soil_options() -> tuple[tuple[Any, str], ...]:
@@ -259,74 +267,696 @@ def _field_label(field: FieldDef, value: Any) -> str:
 
 def _common_fields(object_type: str) -> list[FieldDef]:
     return [
-        FieldDef("index", "Номер строки", "№", (object_type,), "display", lambda _obj: None, filter_reason="display_only", sort_reason="page_position"),
-        FieldDef("type", "Тип объекта", "Тип", (object_type,), "display", lambda _obj: object_type, filter_reason="object_type_query", sort_reason="object_type_query"),
-        FieldDef("name", "Наименование", "Наименование", (object_type,), "text", _param("name"), filter_ops=("contains",), sortable=True, sort_type="text"),
-        FieldDef("placement", "Размещение", "Размещение", (object_type,), "enum", _placement, filter_ops=("in",), sortable=True, sort_type="label", options_mode="inline", static_options=PLACEMENT_OPTIONS),
-        FieldDef("insulation_layer_count", "Количество слоёв ИЗ", "Слоёв ИЗ", (object_type,), "number", _insulation_layer_count, filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("insulation_thickness", "Толщина ИЗ", "δ ИЗ, мм", (object_type,), "number", _param_m_as_mm("insulation_thickness"), unit="mm", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("insulation_material", "Материал ИЗ", "Материал ИЗ", (object_type,), "enum", _param("insulation_material"), filter_ops=("in",), sortable=True, sort_type="label", options_mode="dictionary", static_options=_insulation_options()),
-        FieldDef("first_insulation_lambda", "λ 1-го слоя", "λ 1 слоя", (object_type,), "number", _layer_value(0, "conductivity"), unit="W/mK", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("second_insulation_thickness", "Толщина 2-го слоя", "δ 2 ИЗ, мм", (object_type,), "number", _layer_m_as_mm(1, "thickness"), unit="mm", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("second_insulation_material", "Материал 2-го слоя", "Материал 2 ИЗ", (object_type,), "enum", _layer_value(1, "material"), filter_ops=("in",), sortable=True, sort_type="label", options_mode="dictionary", static_options=_insulation_options()),
-        FieldDef("second_insulation_lambda", "λ 2-го слоя", "λ 2 слоя", (object_type,), "number", _layer_value(1, "conductivity"), unit="W/mK", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("third_insulation_thickness", "Толщина 3-го слоя", "δ 3 ИЗ, мм", (object_type,), "number", _layer_m_as_mm(2, "thickness"), unit="mm", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("third_insulation_material", "Материал 3-го слоя", "Материал 3 ИЗ", (object_type,), "enum", _layer_value(2, "material"), filter_ops=("in",), sortable=True, sort_type="label", options_mode="dictionary", static_options=_insulation_options()),
-        FieldDef("third_insulation_lambda", "λ 3-го слоя", "λ 3 слоя", (object_type,), "number", _layer_value(2, "conductivity"), unit="W/mK", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("insulation_cover_material", "Материал покрытия", "Покрытие", (object_type,), "text", _param("insulation_cover_material"), filter_ops=("contains", "in"), sortable=True, sort_type="text", options_mode="project_values"),
-        FieldDef("process_temperature", "Температура поддержания", "T подд.", (object_type,), "number", _param("process_temperature"), unit="°C", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("ambient_temperature", "Температура окружающей среды", "T окр.", (object_type,), "number", _param("ambient_temperature"), unit="°C", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("ambient_temperature_source", "Источник T окр.", "T окр. ист.", (object_type,), "enum", _param("ambient_temperature_source"), filter_ops=("in",), options_mode="inline", static_options=SOURCE_OPTIONS, sort_reason="value_source"),
-        FieldDef("max_ambient_temperature", "Макс. T окружающей среды", "Макс. T окр.", (object_type,), "number", _param("max_ambient_temperature"), unit="°C", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("max_process_temperature", "Макс. допуст. T продукта", "Макс. T прод.", (object_type,), "number", _param("max_process_temperature"), unit="°C", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("wind_speed", "Скорость ветра", "Ветер", (object_type,), "number", _param("wind_speed"), unit="m/s", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("wind_speed_source", "Источник ветра", "Ветер ист.", (object_type,), "enum", _param("wind_speed_source"), filter_ops=("in",), options_mode="inline", static_options=SOURCE_OPTIONS, sort_reason="value_source"),
-        FieldDef("alpha_vnesh", "α внеш", "α внеш", (object_type,), "number", _param("alpha_vnesh"), unit="W/m²K", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("environment", "Среда", "Среда", (object_type,), "enum", _param("environment"), filter_ops=("in",), sortable=True, sort_type="label", options_mode="inline", static_options=ENVIRONMENT_OPTIONS),
-        FieldDef("zone_classification", "Классификация зоны", "Зона", (object_type,), "enum", _param("zone_classification"), filter_ops=("in",), sortable=True, sort_type="label", options_mode="inline", static_options=ZONE_OPTIONS),
-        FieldDef("temperature_group", "Температурная группа", "Темп. группа", (object_type,), "text", _param("temperature_group"), filter_ops=("contains", "in"), sortable=True, sort_type="text", options_mode="project_values"),
-        FieldDef("climate_city", "Климатический город", "Климат", (object_type,), "text", _param("climate_city"), filter_ops=("contains",), sortable=True, sort_type="text"),
-        FieldDef("climate_region", "Климатический регион", "Регион", (object_type,), "text", _param("climate_region"), filter_ops=("contains",), sortable=True, sort_type="text"),
-        FieldDef("climate_key", "Ключ климата", "Ключ клим.", (object_type,), "text", _param("climate_key"), filter_ops=("contains",), sort_reason="technical_key"),
-        FieldDef("climate_temperature_basis", "Обеспеченность климата", "Обесп.", (object_type,), "number", _param("climate_temperature_basis"), filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("burial_depth", "Глубина заложения", "Глубина, м", (object_type,), "number", _param("burial_depth"), unit="m", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("ground_type", "Тип грунта", "Грунт", (object_type,), "text", _param("ground_type"), filter_ops=("contains", "in"), sortable=True, sort_type="text", options_mode="dictionary", static_options=_soil_options()),
-        FieldDef("ground_conductivity", "λ грунта", "λ гр.", (object_type,), "number", _param("ground_conductivity"), unit="W/mK", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("min_switch_temperature", "Мин. T включения", "Мин. T вкл.", (object_type,), "number", _param("min_switch_temperature"), unit="°C", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("supply_voltage", "Рабочее напряжение", "U, В", (object_type,), "number", _param("supply_voltage"), unit="V", filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("safety_factor", "Коэффициент запаса", "Кзап", (object_type,), "number", _param("safety_factor"), filter_ops=("range",), sortable=True, sort_type="number"),
-        FieldDef("steam_tracing", "Пропарка", "Пропарка", (object_type,), "enum", _param("steam_tracing"), filter_ops=("in",), options_mode="inline", static_options=STEAM_OPTIONS, sort_reason="boolean_flag"),
+        FieldDef(
+            "index",
+            "Номер строки",
+            "№",
+            (object_type,),
+            "display",
+            lambda _obj: None,
+            filter_reason="display_only",
+            sort_reason="page_position",
+        ),
+        FieldDef(
+            "type",
+            "Тип объекта",
+            "Тип",
+            (object_type,),
+            "display",
+            lambda _obj: object_type,
+            filter_reason="object_type_query",
+            sort_reason="object_type_query",
+        ),
+        FieldDef(
+            "name",
+            "Наименование",
+            "Наименование",
+            (object_type,),
+            "text",
+            _param("name"),
+            filter_ops=("contains",),
+            sortable=True,
+            sort_type="text",
+        ),
+        FieldDef(
+            "placement",
+            "Размещение",
+            "Размещение",
+            (object_type,),
+            "enum",
+            _placement,
+            filter_ops=("in",),
+            sortable=True,
+            sort_type="label",
+            options_mode="inline",
+            static_options=PLACEMENT_OPTIONS,
+        ),
+        FieldDef(
+            "insulation_layer_count",
+            "Количество слоёв ИЗ",
+            "Слоёв ИЗ",
+            (object_type,),
+            "number",
+            _insulation_layer_count,
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "insulation_thickness",
+            "Толщина ИЗ",
+            "δ ИЗ, мм",
+            (object_type,),
+            "number",
+            _param_m_as_mm("insulation_thickness"),
+            unit="mm",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "insulation_material",
+            "Материал ИЗ",
+            "Материал ИЗ",
+            (object_type,),
+            "enum",
+            _param("insulation_material"),
+            filter_ops=("in",),
+            sortable=True,
+            sort_type="label",
+            options_mode="dictionary",
+            static_options=_insulation_options(),
+        ),
+        FieldDef(
+            "first_insulation_lambda",
+            "λ 1-го слоя",
+            "λ 1 слоя",
+            (object_type,),
+            "number",
+            _layer_value(0, "conductivity"),
+            unit="W/mK",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "second_insulation_thickness",
+            "Толщина 2-го слоя",
+            "δ 2 ИЗ, мм",
+            (object_type,),
+            "number",
+            _layer_m_as_mm(1, "thickness"),
+            unit="mm",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "second_insulation_material",
+            "Материал 2-го слоя",
+            "Материал 2 ИЗ",
+            (object_type,),
+            "enum",
+            _layer_value(1, "material"),
+            filter_ops=("in",),
+            sortable=True,
+            sort_type="label",
+            options_mode="dictionary",
+            static_options=_insulation_options(),
+        ),
+        FieldDef(
+            "second_insulation_lambda",
+            "λ 2-го слоя",
+            "λ 2 слоя",
+            (object_type,),
+            "number",
+            _layer_value(1, "conductivity"),
+            unit="W/mK",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "third_insulation_thickness",
+            "Толщина 3-го слоя",
+            "δ 3 ИЗ, мм",
+            (object_type,),
+            "number",
+            _layer_m_as_mm(2, "thickness"),
+            unit="mm",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "third_insulation_material",
+            "Материал 3-го слоя",
+            "Материал 3 ИЗ",
+            (object_type,),
+            "enum",
+            _layer_value(2, "material"),
+            filter_ops=("in",),
+            sortable=True,
+            sort_type="label",
+            options_mode="dictionary",
+            static_options=_insulation_options(),
+        ),
+        FieldDef(
+            "third_insulation_lambda",
+            "λ 3-го слоя",
+            "λ 3 слоя",
+            (object_type,),
+            "number",
+            _layer_value(2, "conductivity"),
+            unit="W/mK",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "insulation_cover_material",
+            "Материал покрытия",
+            "Покрытие",
+            (object_type,),
+            "text",
+            _param("insulation_cover_material"),
+            filter_ops=("contains", "in"),
+            sortable=True,
+            sort_type="text",
+            options_mode="project_values",
+        ),
+        FieldDef(
+            "process_temperature",
+            "Температура поддержания",
+            "T подд.",
+            (object_type,),
+            "number",
+            _param("process_temperature"),
+            unit="°C",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "ambient_temperature",
+            "Температура окружающей среды",
+            "T окр.",
+            (object_type,),
+            "number",
+            _param("ambient_temperature"),
+            unit="°C",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "ambient_temperature_source",
+            "Источник T окр.",
+            "T окр. ист.",
+            (object_type,),
+            "enum",
+            _param("ambient_temperature_source"),
+            filter_ops=("in",),
+            options_mode="inline",
+            static_options=SOURCE_OPTIONS,
+            sort_reason="value_source",
+        ),
+        FieldDef(
+            "max_ambient_temperature",
+            "Макс. T окружающей среды",
+            "Макс. T окр.",
+            (object_type,),
+            "number",
+            _param("max_ambient_temperature"),
+            unit="°C",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "max_process_temperature",
+            "Макс. допуст. T продукта",
+            "Макс. T прод.",
+            (object_type,),
+            "number",
+            _param("max_process_temperature"),
+            unit="°C",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "wind_speed",
+            "Скорость ветра",
+            "Ветер",
+            (object_type,),
+            "number",
+            _param("wind_speed"),
+            unit="m/s",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "wind_speed_source",
+            "Источник ветра",
+            "Ветер ист.",
+            (object_type,),
+            "enum",
+            _param("wind_speed_source"),
+            filter_ops=("in",),
+            options_mode="inline",
+            static_options=SOURCE_OPTIONS,
+            sort_reason="value_source",
+        ),
+        FieldDef(
+            "alpha_vnesh",
+            "α внеш",
+            "α внеш",
+            (object_type,),
+            "number",
+            _param("alpha_vnesh"),
+            unit="W/m²K",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "environment",
+            "Среда",
+            "Среда",
+            (object_type,),
+            "enum",
+            _param("environment"),
+            filter_ops=("in",),
+            sortable=True,
+            sort_type="label",
+            options_mode="inline",
+            static_options=ENVIRONMENT_OPTIONS,
+        ),
+        FieldDef(
+            "zone_classification",
+            "Классификация зоны",
+            "Зона",
+            (object_type,),
+            "enum",
+            _param("zone_classification"),
+            filter_ops=("in",),
+            sortable=True,
+            sort_type="label",
+            options_mode="inline",
+            static_options=ZONE_OPTIONS,
+        ),
+        FieldDef(
+            "temperature_group",
+            "Температурная группа",
+            "Темп. группа",
+            (object_type,),
+            "text",
+            _param("temperature_group"),
+            filter_ops=("contains", "in"),
+            sortable=True,
+            sort_type="text",
+            options_mode="project_values",
+        ),
+        FieldDef(
+            "climate_city",
+            "Климатический город",
+            "Климат",
+            (object_type,),
+            "text",
+            _param("climate_city"),
+            filter_ops=("contains",),
+            sortable=True,
+            sort_type="text",
+        ),
+        FieldDef(
+            "climate_region",
+            "Климатический регион",
+            "Регион",
+            (object_type,),
+            "text",
+            _param("climate_region"),
+            filter_ops=("contains",),
+            sortable=True,
+            sort_type="text",
+        ),
+        FieldDef(
+            "climate_key",
+            "Ключ климата",
+            "Ключ клим.",
+            (object_type,),
+            "text",
+            _param("climate_key"),
+            filter_ops=("contains",),
+            sort_reason="technical_key",
+        ),
+        FieldDef(
+            "climate_temperature_basis",
+            "Обеспеченность климата",
+            "Обесп.",
+            (object_type,),
+            "number",
+            _param("climate_temperature_basis"),
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "burial_depth",
+            "Глубина заложения",
+            "Глубина, м",
+            (object_type,),
+            "number",
+            _param("burial_depth"),
+            unit="m",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "ground_type",
+            "Тип грунта",
+            "Грунт",
+            (object_type,),
+            "text",
+            _param("ground_type"),
+            filter_ops=("contains", "in"),
+            sortable=True,
+            sort_type="text",
+            options_mode="dictionary",
+            static_options=_soil_options(),
+        ),
+        FieldDef(
+            "ground_conductivity",
+            "λ грунта",
+            "λ гр.",
+            (object_type,),
+            "number",
+            _param("ground_conductivity"),
+            unit="W/mK",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "min_switch_temperature",
+            "Мин. T включения",
+            "Мин. T вкл.",
+            (object_type,),
+            "number",
+            _param("min_switch_temperature"),
+            unit="°C",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "supply_voltage",
+            "Рабочее напряжение",
+            "U, В",
+            (object_type,),
+            "number",
+            _param("supply_voltage"),
+            unit="V",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "safety_factor",
+            "Коэффициент запаса",
+            "Кзап",
+            (object_type,),
+            "number",
+            _param("safety_factor"),
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
+        FieldDef(
+            "steam_tracing",
+            "Пропарка",
+            "Пропарка",
+            (object_type,),
+            "enum",
+            _param("steam_tracing"),
+            filter_ops=("in",),
+            options_mode="inline",
+            static_options=STEAM_OPTIONS,
+            sort_reason="boolean_flag",
+        ),
     ]
 
 
 PIPE_FIELDS: tuple[FieldDef, ...] = (
     *_common_fields("pipe")[:3],
-    FieldDef("pipe_outer_diameter", "Наружный диаметр", "Ø, мм", ("pipe",), "number", _param_m_as_mm("outer_diameter"), unit="mm", filter_ops=("range",), sortable=True, sort_type="number"),
-    FieldDef("pipe_dn", "DN", "DN", ("pipe",), "enum", _pipe_dn, filter_ops=("in",), sortable=True, sort_type="number", options_mode="derived"),
-    FieldDef("pipe_length", "Длина трубопровода", "L, м", ("pipe",), "number", _param("pipe_length"), unit="m", filter_ops=("range",), sortable=True, sort_type="number"),
-    FieldDef("pipe_wall_thickness", "Толщина стенки", "δ ст., мм", ("pipe",), "number", _param_m_as_mm("wall_thickness"), unit="mm", filter_ops=("range",), sortable=True, sort_type="number"),
-    FieldDef("pipe_material", "Материал трубы", "Материал трубы", ("pipe",), "enum", _param("pipe_material"), filter_ops=("in", "contains"), sortable=True, sort_type="label", options_mode="dictionary", static_options=_pipe_material_options()),
-    FieldDef("pipe_lambda", "λ трубы", "λ тр.", ("pipe",), "number", _param("pipe_lambda"), unit="W/mK", filter_ops=("range",), sortable=True, sort_type="number"),
-    FieldDef("pipe_lambda_mode", "Режим λ трубы", "Режим λ", ("pipe",), "enum", _param("pipe_lambda_mode"), filter_ops=("in",), options_mode="inline", static_options=LAMBDA_MODE_OPTIONS, sort_reason="calculation_mode"),
+    FieldDef(
+        "pipe_outer_diameter",
+        "Наружный диаметр",
+        "Ø, мм",
+        ("pipe",),
+        "number",
+        _param_m_as_mm("outer_diameter"),
+        unit="mm",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "pipe_dn",
+        "DN",
+        "DN",
+        ("pipe",),
+        "enum",
+        _pipe_dn,
+        filter_ops=("in",),
+        sortable=True,
+        sort_type="number",
+        options_mode="derived",
+    ),
+    FieldDef(
+        "pipe_length",
+        "Длина трубопровода",
+        "L, м",
+        ("pipe",),
+        "number",
+        _param("pipe_length"),
+        unit="m",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "pipe_wall_thickness",
+        "Толщина стенки",
+        "δ ст., мм",
+        ("pipe",),
+        "number",
+        _param_m_as_mm("wall_thickness"),
+        unit="mm",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "pipe_material",
+        "Материал трубы",
+        "Материал трубы",
+        ("pipe",),
+        "enum",
+        _param("pipe_material"),
+        filter_ops=("in", "contains"),
+        sortable=True,
+        sort_type="label",
+        options_mode="dictionary",
+        static_options=_pipe_material_options(),
+    ),
+    FieldDef(
+        "pipe_lambda",
+        "λ трубы",
+        "λ тр.",
+        ("pipe",),
+        "number",
+        _param("pipe_lambda"),
+        unit="W/mK",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "pipe_lambda_mode",
+        "Режим λ трубы",
+        "Режим λ",
+        ("pipe",),
+        "enum",
+        _param("pipe_lambda_mode"),
+        filter_ops=("in",),
+        options_mode="inline",
+        static_options=LAMBDA_MODE_OPTIONS,
+        sort_reason="calculation_mode",
+    ),
     *_common_fields("pipe")[3:],
-    FieldDef("valve_count", "Задвижки", "Зад.", ("pipe",), "number", _param("valve_count"), unit="pcs", filter_ops=("range",), sortable=True, sort_type="number"),
-    FieldDef("flange_count", "Фланцы", "Флн.", ("pipe",), "number", _param("flange_count"), unit="pcs", filter_ops=("range",), sortable=True, sort_type="number"),
-    FieldDef("support_count", "Опоры", "Опр.", ("pipe",), "number", _param("support_count"), unit="pcs", filter_ops=("range",), sortable=True, sort_type="number"),
-    FieldDef("local_element_equiv_length", "Эквивалентная длина локальных элементов", "L экв.", ("pipe",), "number", _param("local_element_equiv_length"), unit="m", filter_ops=("range",), sortable=True, sort_type="number"),
+    FieldDef(
+        "valve_count",
+        "Задвижки",
+        "Зад.",
+        ("pipe",),
+        "number",
+        _param("valve_count"),
+        unit="pcs",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "flange_count",
+        "Фланцы",
+        "Флн.",
+        ("pipe",),
+        "number",
+        _param("flange_count"),
+        unit="pcs",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "support_count",
+        "Опоры",
+        "Опр.",
+        ("pipe",),
+        "number",
+        _param("support_count"),
+        unit="pcs",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "local_element_equiv_length",
+        "Эквивалентная длина локальных элементов",
+        "L экв.",
+        ("pipe",),
+        "number",
+        _param("local_element_equiv_length"),
+        unit="m",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
 )
 
 TANK_FIELDS: tuple[FieldDef, ...] = (
     *_common_fields("tank")[:3],
-    FieldDef("tank_shape", "Форма резервуара", "Форма", ("tank",), "enum", _param("shape"), filter_ops=("in",), sortable=True, sort_type="label", options_mode="inline", static_options=SHAPE_OPTIONS),
-    FieldDef("tank_dimensions", "Габариты", "Габариты", ("tank",), "text", _tank_dimensions, filter_ops=("contains",), sort_reason="combined_dimensions"),
-    FieldDef("tank_diameter", "Диаметр", "Ø, мм", ("tank",), "number", _param_m_as_mm("diameter"), unit="mm", filter_ops=("range",), sortable=True, sort_type="number"),
-    FieldDef("tank_height", "Высота", "H, мм", ("tank",), "number", _param_m_as_mm("height"), unit="mm", filter_ops=("range",), sortable=True, sort_type="number"),
-    FieldDef("tank_length", "Длина", "L, мм", ("tank",), "number", _param_m_as_mm("length"), unit="mm", filter_ops=("range",), sortable=True, sort_type="number"),
-    FieldDef("tank_width", "Ширина", "B, мм", ("tank",), "number", _param_m_as_mm("width"), unit="mm", filter_ops=("range",), sortable=True, sort_type="number"),
-    FieldDef("tank_wall_thickness", "Толщина стенки", "δ ст., мм", ("tank",), "number", _param_m_as_mm("wall_thickness"), unit="mm", filter_ops=("range",), sortable=True, sort_type="number"),
-    FieldDef("tank_wall_lambda", "λ стенки", "λ ст.", ("tank",), "number", _param("wall_lambda"), unit="W/mK", filter_ops=("range",), sortable=True, sort_type="number"),
+    FieldDef(
+        "tank_shape",
+        "Форма резервуара",
+        "Форма",
+        ("tank",),
+        "enum",
+        _param("shape"),
+        filter_ops=("in",),
+        sortable=True,
+        sort_type="label",
+        options_mode="inline",
+        static_options=SHAPE_OPTIONS,
+    ),
+    FieldDef(
+        "tank_dimensions",
+        "Габариты",
+        "Габариты",
+        ("tank",),
+        "text",
+        _tank_dimensions,
+        filter_ops=("contains",),
+        sort_reason="combined_dimensions",
+    ),
+    FieldDef(
+        "tank_diameter",
+        "Диаметр",
+        "Ø, мм",
+        ("tank",),
+        "number",
+        _param_m_as_mm("diameter"),
+        unit="mm",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "tank_height",
+        "Высота",
+        "H, мм",
+        ("tank",),
+        "number",
+        _param_m_as_mm("height"),
+        unit="mm",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "tank_length",
+        "Длина",
+        "L, мм",
+        ("tank",),
+        "number",
+        _param_m_as_mm("length"),
+        unit="mm",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "tank_width",
+        "Ширина",
+        "B, мм",
+        ("tank",),
+        "number",
+        _param_m_as_mm("width"),
+        unit="mm",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "tank_wall_thickness",
+        "Толщина стенки",
+        "δ ст., мм",
+        ("tank",),
+        "number",
+        _param_m_as_mm("wall_thickness"),
+        unit="mm",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "tank_wall_lambda",
+        "λ стенки",
+        "λ ст.",
+        ("tank",),
+        "number",
+        _param("wall_lambda"),
+        unit="W/mK",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
     *_common_fields("tank")[3:],
-    FieldDef("q_additional", "Q доп.", "Q доп., Вт", ("tank",), "number", _param("q_additional"), unit="W", filter_ops=("range",), sortable=True, sort_type="number"),
+    FieldDef(
+        "q_additional",
+        "Q доп.",
+        "Q доп., Вт",
+        ("tank",),
+        "number",
+        _param("q_additional"),
+        unit="W",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
 )
 
 FIELDS_BY_TYPE: dict[str, tuple[FieldDef, ...]] = {"pipe": PIPE_FIELDS, "tank": TANK_FIELDS}
@@ -375,12 +1005,20 @@ class ObjectQueryService:
     ) -> ObjectQueryCapabilitiesResponse:
         if object_type not in FIELDS_BY_TYPE:
             raise ObjectQueryValidationError(f"Неподдерживаемый тип объекта: {object_type}")
-        project = await ProjectService(self.db).get_project(project_id, principal)
-        objects = [obj for obj in project.objects if obj.object_type == object_type]
+        await ProjectService(self.db).get_project_basic(project_id, principal)
+        objects_result = await self.db.execute(
+            select(ProjectObject)
+            .where(
+                ProjectObject.project_id == project_id,
+                ProjectObject.object_type == object_type,
+            )
+            .order_by(ProjectObject.sort_order, ProjectObject.id)
+        )
+        objects = list(objects_result.scalars().all())
         return ObjectQueryCapabilitiesResponse(
             version=1,
             object_type=object_type,  # type: ignore[arg-type]
-            default_page_size=100,
+            default_page_size=50,
             max_page_size=200,
             default_sort=ObjectQueryDefaultSort(key="sort_order", dir="asc"),
             search=ObjectQuerySearchCapability(
@@ -388,7 +1026,9 @@ class ObjectQueryService:
                 max_text_length=120,
                 default_columns=list(DEFAULT_SEARCH_COLUMNS[object_type]),
             ),
-            fields=[self._field_capability(field, objects) for field in FIELDS_BY_TYPE[object_type]],
+            fields=[
+                self._field_capability(field, objects) for field in FIELDS_BY_TYPE[object_type]
+            ],
         )
 
     async def query(
@@ -397,9 +1037,20 @@ class ObjectQueryService:
         data: ProjectObjectsQueryRequest,
         principal: CurrentPrincipal,
     ) -> ProjectObjectsQueryResponse:
-        project = await ProjectService(self.db).get_project(project_id, principal)
-        all_objects = sorted(project.objects, key=lambda obj: (obj.sort_order, str(obj.id)))
-        by_type = Counter(obj.object_type for obj in all_objects if obj.object_type in FIELDS_BY_TYPE)
+        await ProjectService(self.db).get_project_basic(project_id, principal)
+        by_type = await self._counts_by_type(project_id)
+        if self._can_use_sql_page(data):
+            return await self._query_default_page(project_id, data, by_type)
+
+        objects_result = await self.db.execute(
+            select(ProjectObject)
+            .where(ProjectObject.project_id == project_id)
+            .order_by(ProjectObject.sort_order, ProjectObject.id)
+        )
+        all_objects = list(objects_result.scalars().all())
+        by_type = Counter(
+            obj.object_type for obj in all_objects if obj.object_type in FIELDS_BY_TYPE
+        )
         type_objects = [obj for obj in all_objects if obj.object_type == data.object_type]
 
         filtered = self._apply_search(type_objects, data)
@@ -409,6 +1060,57 @@ class ObjectQueryService:
         filtered_count = len(sorted_objects)
         offset = (data.page - 1) * data.page_size
         items = sorted_objects[offset : offset + data.page_size]
+        total_pages = ceil(filtered_count / data.page_size) if filtered_count else 0
+
+        return ProjectObjectsQueryResponse(
+            items=items,
+            page_info=ProjectObjectsPageInfo(
+                page=data.page,
+                page_size=data.page_size,
+                offset=offset,
+                total_pages=total_pages,
+                has_next_page=data.page * data.page_size < filtered_count,
+                has_previous_page=data.page > 1,
+            ),
+            counts=ProjectObjectsQueryCounts(
+                total=sum(by_type.values()),
+                by_type={"pipe": by_type.get("pipe", 0), "tank": by_type.get("tank", 0)},
+                filtered=filtered_count,
+            ),
+            query=ProjectObjectsQueryEcho(object_type=data.object_type, sort=data.sort),
+        )
+
+    async def _counts_by_type(self, project_id: UUID) -> Counter[str]:
+        result = await self.db.execute(
+            select(ProjectObject.object_type, func.count().label("count"))
+            .where(ProjectObject.project_id == project_id)
+            .group_by(ProjectObject.object_type)
+        )
+        return Counter({object_type: int(count) for object_type, count in result.all()})
+
+    def _can_use_sql_page(self, data: ProjectObjectsQueryRequest) -> bool:
+        search_text = (data.search.text if data.search else "").strip()
+        return not search_text and not data.filters and data.sort is None
+
+    async def _query_default_page(
+        self,
+        project_id: UUID,
+        data: ProjectObjectsQueryRequest,
+        by_type: Counter[str],
+    ) -> ProjectObjectsQueryResponse:
+        filtered_count = by_type.get(data.object_type, 0)
+        offset = (data.page - 1) * data.page_size
+        result = await self.db.execute(
+            select(ProjectObject)
+            .where(
+                ProjectObject.project_id == project_id,
+                ProjectObject.object_type == data.object_type,
+            )
+            .order_by(ProjectObject.sort_order, ProjectObject.id)
+            .offset(offset)
+            .limit(data.page_size)
+        )
+        items = list(result.scalars().all())
         total_pages = ceil(filtered_count / data.page_size) if filtered_count else 0
 
         return ProjectObjectsQueryResponse(
@@ -449,7 +1151,9 @@ class ObjectQueryService:
                 enabled=field.sortable,
                 type=field.sort_type,
                 nulls="last" if field.sortable else None,
-                collation="db_ru" if field.sortable and field.sort_type in {"text", "label"} else None,
+                collation="db_ru"
+                if field.sortable and field.sort_type in {"text", "label"}
+                else None,
                 reason=None if field.sortable else field.sort_reason or "unsupported",
             ),
             options=options,
@@ -496,13 +1200,19 @@ class ObjectQueryService:
         text = (data.search.text if data.search else "").strip()
         if not text:
             return objects
-        columns = data.search.columns if data.search and data.search.columns else list(DEFAULT_SEARCH_COLUMNS[data.object_type])
+        columns = (
+            data.search.columns
+            if data.search and data.search.columns
+            else list(DEFAULT_SEARCH_COLUMNS[data.object_type])
+        )
         fields = [self._field(data.object_type, key) for key in columns]
         needle = _normal_text(text)
         return [
             obj
             for obj in objects
-            if any(needle in _normal_text(_field_label(field, field.value(obj))) for field in fields)
+            if any(
+                needle in _normal_text(_field_label(field, field.value(obj))) for field in fields
+            )
         ]
 
     def _apply_filters(
@@ -515,7 +1225,12 @@ class ObjectQueryService:
                 raise ObjectQueryValidationError(
                     f"Операция {item.op} недоступна для поля {item.key}"
                 )
-            if item.op == "range" and item.min is not None and item.max is not None and item.min > item.max:
+            if (
+                item.op == "range"
+                and item.min is not None
+                and item.max is not None
+                and item.min > item.max
+            ):
                 raise ObjectQueryValidationError("min не может быть больше max")
             result = [obj for obj in result if self._matches_filter(obj, field, item)]
         return result

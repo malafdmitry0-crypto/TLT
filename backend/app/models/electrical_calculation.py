@@ -3,7 +3,7 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,6 +12,13 @@ from app.models.base import Base, TimestampMixin
 
 class ElectricalCalculation(Base, TimestampMixin):
     __tablename__ = "electrical_calculations"
+    __table_args__ = (
+        Index(
+            "ix_electrical_calculations_project_variant",
+            "project_id",
+            "variant_number",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(

@@ -14,11 +14,22 @@ import { useProjectStore } from '@/store/projectStore';
 vi.mock('@/api/projects', () => ({
   listProjects: vi.fn().mockResolvedValue([]),
   listObjects: vi.fn().mockResolvedValue([]),
+  getObjectsSummary: vi.fn().mockResolvedValue({
+    total: 0,
+    valid: 0,
+    invalid: 0,
+    by_type: { pipe: 0, tank: 0 },
+    valid_by_type: { pipe: 0, tank: 0 },
+    electrical_calculations_total: 0,
+    successful_electrical_calculations: 0,
+    failed_electrical_calculations: 0,
+    objects_with_successful_electrical_calculation: 0,
+  }),
   queryObjects: vi.fn().mockResolvedValue({
     items: [],
     page_info: {
       page: 1,
-      page_size: 100,
+      page_size: 50,
       offset: 0,
       total_pages: 0,
       has_next_page: false,
@@ -30,7 +41,7 @@ vi.mock('@/api/projects', () => ({
   getObjectQueryCapabilities: vi.fn().mockResolvedValue({
     version: 1,
     object_type: 'pipe',
-    default_page_size: 100,
+    default_page_size: 50,
     max_page_size: 200,
     default_sort: { key: 'sort_order', dir: 'asc' },
     search: { enabled: true, max_text_length: 120, default_columns: ['name'] },

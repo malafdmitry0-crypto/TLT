@@ -415,10 +415,15 @@ class CalculationService:
             tank_length = self._tank_base_cable_length(obj, overrides)
             if tank_length is not None and tank_length > 0:
                 return tank_length
-        return self._num(
-            results.get("effective_length") or params.get("pipe_length") or params.get("height"),
-            1.0,
-        ) or 1.0
+        return (
+            self._num(
+                results.get("effective_length")
+                or params.get("pipe_length")
+                or params.get("height"),
+                1.0,
+            )
+            or 1.0
+        )
 
     def _tank_heat_loss_without_double_safety(
         self,
@@ -632,11 +637,16 @@ class CalculationService:
         """Автоподбор кабеля для всех валидных объектов проекта (cable_mark=None)."""
         # Считаем общее количество объектов в проекте — чтобы сообщить фронту,
         # сколько объектов исключено из-за ошибок теплопотерь.
-        total_count: int = await self.db.scalar(
-            select(func.count()).select_from(ProjectObject).where(
-                ProjectObject.project_id == project_id,
+        total_count: int = (
+            await self.db.scalar(
+                select(func.count())
+                .select_from(ProjectObject)
+                .where(
+                    ProjectObject.project_id == project_id,
+                )
             )
-        ) or 0
+            or 0
+        )
 
         result = await self.db.execute(
             select(ProjectObject).where(

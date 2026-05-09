@@ -143,9 +143,10 @@ export default function ElecCalcPage() {
         layingStep,
         vaporTemperature,
         aggressiveProduct,
-      }),
+    }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
       if (res.errors.length > 0) {
         message.warning(
           `СО${variant} · рассчитано: ${res.calculated}, пропущено: ${res.skipped}` +
@@ -201,9 +202,10 @@ export default function ElecCalcPage() {
         layingStep,
         vaporTemperature,
         aggressiveProduct,
-      }),
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
       message.success('Кабель выбран, расчёт обновлён');
     },
     onError: (e: Error) => message.error(e.message),
@@ -239,6 +241,7 @@ export default function ElecCalcPage() {
         return next;
       });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
       message.success('Параметры укладки применены');
     },
     onError: (e: Error) => message.error(e.message),

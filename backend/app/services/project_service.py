@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.dependencies import CurrentPrincipal
+from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.user import User
@@ -92,10 +93,18 @@ class ProjectService:
         self._check_access(project, principal)
         return project
 
+    async def get_project_basic(self, project_id: UUID, principal: CurrentPrincipal) -> Project:
+        result = await self.db.execute(select(Project).where(Project.id == project_id))
+        project = result.scalar_one_or_none()
+        if project is None:
+            raise ProjectNotFoundError(f"Проект {project_id} не найден")
+        self._check_access(project, principal)
+        return project
+
     async def update_project(
         self, project_id: UUID, data: ProjectUpdate, principal: CurrentPrincipal
     ) -> Project:
-        project = await self.get_project(project_id, principal)
+        project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
         update_data = data.model_dump(exclude_unset=True)
         for key, value in update_data.items():
@@ -105,7 +114,7 @@ class ProjectService:
         return project
 
     async def delete_project(self, project_id: UUID, principal: CurrentPrincipal) -> None:
-        project = await self.get_project(project_id, principal)
+        project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
         await self.db.delete(project)
         await self.db.commit()
@@ -154,7 +163,7 @@ class ProjectService:
     async def list_objects(
         self, project_id: UUID, principal: CurrentPrincipal
     ) -> list[ProjectObject]:
-        await self.get_project(project_id, principal)
+        await self.get_project_basic(project_id, principal)
         result = await self.db.execute(
             select(ProjectObject)
             .where(ProjectObject.project_id == project_id)
@@ -162,13 +171,70 @@ class ProjectService:
         )
         return list(result.scalars().all())
 
+    async def objects_summary(
+        self, project_id: UUID, principal: CurrentPrincipal
+    ) -> dict[str, object]:
+        await self.get_project_basic(project_id, principal)
+
+        object_rows = await self.db.execute(
+            select(
+                ProjectObject.object_type,
+                ProjectObject.is_valid,
+                func.count().label("count"),
+            )
+            .where(ProjectObject.project_id == project_id)
+            .group_by(ProjectObject.object_type, ProjectObject.is_valid)
+        )
+
+        by_type = {"pipe": 0, "tank": 0}
+        valid_by_type = {"pipe": 0, "tank": 0}
+        total = 0
+        valid = 0
+        for object_type, is_valid, count in object_rows.all():
+            count_int = int(count)
+            if object_type in by_type:
+                by_type[object_type] += count_int
+                if is_valid:
+                    valid_by_type[object_type] += count_int
+            total += count_int
+            if is_valid:
+                valid += count_int
+
+        calc_rows = await self.db.execute(
+            select(
+                ElectricalCalculation.object_id,
+                ElectricalCalculation.cable_mark,
+                ElectricalCalculation.results,
+            ).where(ElectricalCalculation.project_id == project_id)
+        )
+        electrical_total = 0
+        electrical_success = 0
+        successful_object_ids: set[UUID] = set()
+        for object_id, cable_mark, results in calc_rows.all():
+            electrical_total += 1
+            if self._is_successful_electrical_calculation(cable_mark, results):
+                electrical_success += 1
+                successful_object_ids.add(object_id)
+
+        return {
+            "total": total,
+            "valid": valid,
+            "invalid": total - valid,
+            "by_type": by_type,
+            "valid_by_type": valid_by_type,
+            "electrical_calculations_total": electrical_total,
+            "successful_electrical_calculations": electrical_success,
+            "failed_electrical_calculations": electrical_total - electrical_success,
+            "objects_with_successful_electrical_calculation": len(successful_object_ids),
+        }
+
     async def add_object(
         self,
         project_id: UUID,
         data: ProjectObjectCreate,
         principal: CurrentPrincipal,
     ) -> ProjectObject:
-        project = await self.get_project(project_id, principal)
+        project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
         # Лимит объектов в проекте
         count_result = await self.db.execute(
@@ -199,7 +265,7 @@ class ProjectService:
         data: ProjectObjectUpdate,
         principal: CurrentPrincipal,
     ) -> ProjectObject:
-        project = await self.get_project(project_id, principal)
+        project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
         obj = await self._get_object(project_id, object_id)
         update_data = data.model_dump(exclude_unset=True)
@@ -215,7 +281,7 @@ class ProjectService:
         object_id: UUID,
         principal: CurrentPrincipal,
     ) -> None:
-        project = await self.get_project(project_id, principal)
+        project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
         obj = await self._get_object(project_id, object_id)
         await self.db.delete(obj)
@@ -227,7 +293,7 @@ class ProjectService:
         order: list[UUID],
         principal: CurrentPrincipal,
     ) -> list[ProjectObject]:
-        project = await self.get_project(project_id, principal)
+        project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
         for idx, obj_id in enumerate(order):
             obj = await self._get_object(project_id, obj_id)
@@ -267,3 +333,14 @@ class ProjectService:
             # сотрудник по ТЗ может видеть, но не редактировать чужие проекты
             raise ProjectAccessError("Нельзя редактировать чужой проект")
         raise ProjectAccessError("Нет доступа")
+
+    @staticmethod
+    def _is_successful_electrical_calculation(
+        cable_mark: str | None,
+        results: dict[str, object] | None,
+    ) -> bool:
+        if not results:
+            return False
+        if results.get("error"):
+            return False
+        return bool(results.get("selected_cable") or cable_mark)

@@ -4,6 +4,7 @@ import type {
   CreateProjectRequest,
   Project,
   ProjectObject,
+  ProjectObjectsSummary,
   ObjectQueryCapabilities,
   ProjectObjectsQueryRequest,
   ProjectObjectsQueryResponse,
@@ -86,6 +87,13 @@ export async function importProjectsCsvBulk(file: File): Promise<BulkImportResul
 export async function listObjects(projectId: string): Promise<ProjectObject[]> {
   const { data } = await apiClient.get<ProjectObject[]>(
     `/projects/${projectId}/objects`
+  );
+  return data;
+}
+
+export async function getObjectsSummary(projectId: string): Promise<ProjectObjectsSummary> {
+  const { data } = await apiClient.get<ProjectObjectsSummary>(
+    `/projects/${projectId}/objects/summary`
   );
   return data;
 }

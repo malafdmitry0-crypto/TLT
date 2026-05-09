@@ -42,6 +42,18 @@ export interface ProjectObject {
   updated_at: string;
 }
 
+export interface ProjectObjectsSummary {
+  total: number;
+  valid: number;
+  invalid: number;
+  by_type: Record<HeatCalcObjectType, number>;
+  valid_by_type: Record<HeatCalcObjectType, number>;
+  electrical_calculations_total: number;
+  successful_electrical_calculations: number;
+  failed_electrical_calculations: number;
+  objects_with_successful_electrical_calculation: number;
+}
+
 export interface CreateObjectRequest {
   object_type: ObjectType;
   sort_order?: number;

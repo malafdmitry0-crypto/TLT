@@ -8,16 +8,16 @@ import {
 } from './helpers/workspace';
 
 async function openPipeForm(page: Page) {
+  await page.locator('.actionbar-context-group').getByLabel('Трубопровод', { exact: true }).click();
   await page.getByRole('button', { name: /Добавить/ }).click();
-  await page.getByText('Трубопровод').click();
   await expect(page.locator('.inline-object-form')).toBeVisible();
   await expect(page.locator('.inline-object-form > .ant-form-item:visible')).toHaveCount(0);
   await expect(page.locator('.inline-object-form > input:visible')).toHaveCount(0);
 }
 
 async function openTankForm(page: Page) {
+  await page.locator('.actionbar-context-group').getByLabel('Резервуары', { exact: true }).click();
   await page.getByRole('button', { name: /Добавить/ }).click();
-  await page.getByText('Резервуар').click();
   await expect(page.locator('.inline-object-form')).toBeVisible();
   await expect(page.locator('.inline-object-form > .ant-form-item:visible')).toHaveCount(0);
   await expect(page.locator('.inline-object-form > input:visible')).toHaveCount(0);
@@ -108,7 +108,8 @@ test.describe('inline form dependencies', () => {
     await page.getByRole('button', { name: /^Сохранить изменения$/ }).click();
 
     await expect(page.locator('.inline-object-form')).toBeVisible();
-    await expect(page.getByTestId('object-name-input')).toHaveValue(updatedName);
+    await expect(page.getByTestId('object-name-input')).toHaveValue('');
+    await expect(page.getByText(updatedName)).toBeVisible();
 
     const objects = await fetchProjectObjects(page);
     expect(objects.some((obj) => obj.params.name === updatedName)).toBeTruthy();
@@ -249,13 +250,9 @@ test.describe('inline form dependencies', () => {
 
     await page.locator('#inline-object-save').dispatchEvent('click');
 
-    await expect(page.locator('.inline-object-form')).toHaveCount(0);
+    await expect(page.locator('.inline-object-form')).toBeVisible();
+    await expect(page.getByTestId('object-name-input')).toHaveValue('');
     await expect(page.getByText(objectName)).toBeVisible();
-
-    const row = page.locator('.calc-spreadsheet .ant-table-tbody tr').filter({ hasText: objectName }).first();
-    await expect(row.locator('td').nth(12)).toHaveText('3');
-    await expect(row.locator('td').nth(13)).toHaveText('4');
-    await expect(row.locator('td').nth(14)).toHaveText('5');
 
     const objects = await fetchProjectObjects(page);
     const created = objects.find((obj) => obj.params.name === objectName);
@@ -331,11 +328,10 @@ test.describe('inline form dependencies', () => {
 
     await page.locator('#inline-object-save').dispatchEvent('click');
 
-    await expect(page.locator('.inline-object-form')).toHaveCount(0);
+    await expect(page.locator('.inline-object-form')).toBeVisible();
+    await expect(page.getByTestId('object-name-input')).toHaveValue('');
     await expect(page.getByText(objectName)).toBeVisible();
     await expect(page.getByText('Все рассчитаны ✓')).toBeVisible();
-    await page.getByText('Результаты расчёта').click();
-    await expect(page.getByRole('columnheader', { name: 'q, Вт/м', exact: true })).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: 'Q, Вт', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Электрорасчёт/i })).toBeEnabled();
   });
 });

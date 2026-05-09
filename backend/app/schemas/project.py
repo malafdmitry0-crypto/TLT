@@ -64,6 +64,18 @@ class ProjectObjectResponse(ProjectObjectBase):
     updated_at: datetime
 
 
+class ProjectObjectsSummaryResponse(BaseModel):
+    total: int = 0
+    valid: int = 0
+    invalid: int = 0
+    by_type: dict[str, int] = Field(default_factory=dict)
+    valid_by_type: dict[str, int] = Field(default_factory=dict)
+    electrical_calculations_total: int = 0
+    successful_electrical_calculations: int = 0
+    failed_electrical_calculations: int = 0
+    objects_with_successful_electrical_calculation: int = 0
+
+
 class ReorderRequest(BaseModel):
     order: list[UUID]
 
@@ -96,7 +108,7 @@ class ObjectQuerySort(BaseModel):
 class ProjectObjectsQueryRequest(BaseModel):
     object_type: ObjectQueryType
     page: int = Field(default=1, ge=1)
-    page_size: int = Field(default=100, ge=1, le=200)
+    page_size: int = Field(default=50, ge=1, le=200)
     search: ObjectQuerySearch | None = None
     filters: list[ObjectQueryFilter] = Field(default_factory=list, max_length=20)
     sort: ObjectQuerySort | None = None

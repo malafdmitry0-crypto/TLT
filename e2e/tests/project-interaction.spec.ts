@@ -116,7 +116,7 @@ test.describe('Проекты: import/export scenarios', () => {
     await page.getByRole('button', { name: 'download Скачать' }).click();
     const file = await saveDownload(dl);
 
-    await page.getByRole('menuitem', { name: /Проекты/i }).click();
+    await page.getByRole('button', { name: 'Открыть', exact: true }).click();
     await expect(page).toHaveURL(/\/projects/);
     // filechooser-паттерн: клик по кнопке открывает диалог, перехватываем и подставляем файл
     const fc = page.waitForEvent('filechooser');

@@ -9,6 +9,20 @@ const viewportWidth = Number(process.argv.find((arg) => arg.startsWith('--width=
 const layerCount = Number(process.argv.find((arg) => arg.startsWith('--layers='))?.split('=')[1] ?? 2);
 const normalizedLayerCount = Math.min(Math.max(layerCount || 2, 1), 3);
 
+async function selectObjectType(page, label) {
+  const byLabel = page.getByLabel(label, { exact: true });
+  if (await byLabel.count()) {
+    await byLabel.click();
+    return;
+  }
+  const byRole = page.getByRole('radio', { name: label });
+  if (await byRole.count()) {
+    await byRole.click();
+    return;
+  }
+  await page.locator('.ant-segmented-item', { hasText: label }).click();
+}
+
 const browser = await chromium.launch({ headless: true, channel });
 const page = await browser.newPage({
   viewport: { width: viewportWidth, height: 900 },
@@ -27,13 +41,20 @@ try {
   }
 
   if ((await page.locator('.inline-object-form').count()) === 0) {
+    if (mode === 'tank') {
+      await selectObjectType(page, 'Резервуары');
+    } else {
+      await selectObjectType(page, 'Трубопровод');
+    }
     const addButton = page.getByRole('button', { name: /Добавить/ });
     if ((await addButton.count()) === 0) {
       console.error(await page.locator('body').innerText({ timeout: 5000 }));
       throw new Error('Add button not found');
     }
     await addButton.click();
-    await page.getByText(mode === 'tank' ? 'Резервуар' : 'Трубопровод').click();
+    if ((await page.locator('.inline-object-form').count()) === 0) {
+      await page.getByText(mode === 'tank' ? 'Резервуар' : 'Трубопровод', { exact: true }).click();
+    }
     await page.waitForSelector('.inline-object-form', { timeout: 5000 });
   }
 

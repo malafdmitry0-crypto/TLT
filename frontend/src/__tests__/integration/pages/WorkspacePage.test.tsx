@@ -6,8 +6,7 @@ import WorkspacePage from '@/pages/WorkspacePage';
 import { useProjectStore } from '@/store/projectStore';
 import type { Project } from '@/types/project';
 
-vi.mock('@/api/projects', () => ({ listObjects: vi.fn() }));
-vi.mock('@/api/calculations', () => ({ listElectricalCalcs: vi.fn() }));
+vi.mock('@/api/projects', () => ({ getObjectsSummary: vi.fn() }));
 vi.mock('@/api/specifications', () => ({ getSpecification: vi.fn() }));
 
 const project: Project = {
@@ -16,6 +15,33 @@ const project: Project = {
   owner_email: null, object_types: [],
   created_at: '2026-04-15T00:00:00Z', updated_at: '2026-04-15T00:00:00Z',
 };
+
+function summary(overrides: Partial<{
+  total: number;
+  valid: number;
+  invalid: number;
+  by_type: { pipe: number; tank: number };
+  valid_by_type: { pipe: number; tank: number };
+  electrical_calculations_total: number;
+  successful_electrical_calculations: number;
+  failed_electrical_calculations: number;
+  objects_with_successful_electrical_calculation: number;
+}> = {}) {
+  const total = overrides.total ?? 0;
+  const valid = overrides.valid ?? 0;
+  return {
+    total,
+    valid,
+    invalid: overrides.invalid ?? total - valid,
+    by_type: overrides.by_type ?? { pipe: 0, tank: 0 },
+    valid_by_type: overrides.valid_by_type ?? { pipe: 0, tank: 0 },
+    electrical_calculations_total: overrides.electrical_calculations_total ?? 0,
+    successful_electrical_calculations: overrides.successful_electrical_calculations ?? 0,
+    failed_electrical_calculations: overrides.failed_electrical_calculations ?? 0,
+    objects_with_successful_electrical_calculation:
+      overrides.objects_with_successful_electrical_calculation ?? 0,
+  };
+}
 
 function renderPage() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -41,11 +67,9 @@ describe('WorkspacePage', () => {
   });
 
   it('с пустым проектом показывает шаги, шаг 1 активен', async () => {
-    const { listObjects } = await import('@/api/projects');
-    const { listElectricalCalcs } = await import('@/api/calculations');
+    const { getObjectsSummary } = await import('@/api/projects');
     const { getSpecification } = await import('@/api/specifications');
-    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (getObjectsSummary as ReturnType<typeof vi.fn>).mockResolvedValue(summary());
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
     useProjectStore.getState().setCurrentProject(project);
@@ -57,17 +81,17 @@ describe('WorkspacePage', () => {
   });
 
   it('с объектами + расчётами показывает прогресс', async () => {
-    const { listObjects } = await import('@/api/projects');
-    const { listElectricalCalcs } = await import('@/api/calculations');
+    const { getObjectsSummary } = await import('@/api/projects');
     const { getSpecification } = await import('@/api/specifications');
-    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { id: 'o1', is_valid: true, object_type: 'pipe', params: {}, results: {}, validation_errors: null, sort_order: 0, project_id: 'p1' },
-      { id: 'o2', is_valid: true, object_type: 'pipe', params: {}, results: {}, validation_errors: null, sort_order: 1, project_id: 'p1' },
-    ]);
-    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { id: 'e1', object_id: 'o1', cable_mark: 'ТЛТ-25', results: { selected_cable: 'ТЛТ-25' }, variant_number: 1, project_id: 'p1' },
-      { id: 'e2', object_id: 'o2', cable_mark: 'ТЛТ-30', results: { selected_cable: 'ТЛТ-30' }, variant_number: 1, project_id: 'p1' },
-    ]);
+    (getObjectsSummary as ReturnType<typeof vi.fn>).mockResolvedValue(summary({
+      total: 2,
+      valid: 2,
+      by_type: { pipe: 2, tank: 0 },
+      valid_by_type: { pipe: 2, tank: 0 },
+      electrical_calculations_total: 2,
+      successful_electrical_calculations: 2,
+      objects_with_successful_electrical_calculation: 2,
+    }));
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 's1', items: [{ category: 'cable', name: 'X', unit: 'м', quantity: 5 }],
     });
@@ -81,15 +105,16 @@ describe('WorkspacePage', () => {
   });
 
   it('failed calcs показывает количество ошибок', async () => {
-    const { listObjects } = await import('@/api/projects');
-    const { listElectricalCalcs } = await import('@/api/calculations');
+    const { getObjectsSummary } = await import('@/api/projects');
     const { getSpecification } = await import('@/api/specifications');
-    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { id: 'o1', is_valid: true, object_type: 'pipe', params: {}, results: {}, validation_errors: null, sort_order: 0, project_id: 'p1' },
-    ]);
-    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { id: 'e1', object_id: 'o1', cable_mark: null, results: { error: 'failed' }, variant_number: 1, project_id: 'p1' },
-    ]);
+    (getObjectsSummary as ReturnType<typeof vi.fn>).mockResolvedValue(summary({
+      total: 1,
+      valid: 1,
+      by_type: { pipe: 1, tank: 0 },
+      valid_by_type: { pipe: 1, tank: 0 },
+      electrical_calculations_total: 1,
+      failed_electrical_calculations: 1,
+    }));
     (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
     useProjectStore.getState().setCurrentProject(project);

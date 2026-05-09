@@ -11,6 +11,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db
       # Высокий лимит для dev/E2E — продакшен оставляет дефолт 10
       GUEST_SESSION_HOURLY_LIMIT: "500"
+      GUEST_MAX_OBJECTS_PER_PROJECT: "500"
 
   frontend:
     build:

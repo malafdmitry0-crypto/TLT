@@ -61,6 +61,7 @@ export default function ObjectCalcCard({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['project', projectId, 'objects'] });
       qc.invalidateQueries({ queryKey: ['project', projectId, 'electrical-calcs'] });
+      qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
       message.success('Объект и связанный электрорасчёт удалены');
     },
     onError: (e: Error) => message.error(e.message),

@@ -16,8 +16,8 @@ test.describe('4.2 Управление проектами', () => {
     await expect(page.getByRole('button', { name: 'Новый проект' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Открыть' })).toHaveCount(0);
     // Но есть экспорт/импорт
-    await expect(page.getByRole('button', { name: /Скачать/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Загрузить/i })).toBeVisible();
+    await expect(page.locator('button[title="Скачать проект (CSV)"]')).toBeVisible();
+    await expect(page.locator('button[title="Загрузить проект (CSV)"]')).toBeVisible();
   });
 
   test('4.2.2 Сотрудник создаёт проект через ProjectMenu', async ({ page }) => {
@@ -38,8 +38,8 @@ test.describe('4.2 Управление проектами', () => {
     await page.getByRole('button', { name: 'Создать' }).click();
     await expect(page.getByText('Проект создан')).toBeVisible();
 
-    // SPA-навигация через клик по пункту меню
-    await page.getByRole('menuitem', { name: /Проекты/i }).click();
+    // SPA-навигация через ProjectMenu
+    await page.getByRole('button', { name: 'Открыть', exact: true }).click();
     await expect(page).toHaveURL(/\/projects/);
     await page.getByPlaceholder('По названию').fill(unique);
     const row = page.getByRole('row', { name: new RegExp(unique) }).first();

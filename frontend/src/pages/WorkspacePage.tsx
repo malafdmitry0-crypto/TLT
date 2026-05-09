@@ -10,11 +10,9 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useProjectStore } from '@/store/projectStore';
-import { listObjects } from '@/api/projects';
-import { listElectricalCalcs } from '@/api/calculations';
+import { getObjectsSummary } from '@/api/projects';
 import { getSpecification } from '@/api/specifications';
 import { ROUTES } from '@/routes/routes';
-import { isElectricalCalcSuccess } from '@/utils/calcStatus';
 
 const { Title, Paragraph } = Typography;
 
@@ -22,15 +20,9 @@ export default function WorkspacePage() {
   const navigate = useNavigate();
   const project = useProjectStore((s) => s.currentProject);
 
-  const { data: objects = [] } = useQuery({
-    queryKey: ['project', project?.id, 'objects'],
-    queryFn: () => listObjects(project!.id),
-    enabled: !!project,
-  });
-
-  const { data: elecCalcs = [] } = useQuery({
-    queryKey: ['project', project?.id, 'electrical-calcs'],
-    queryFn: () => listElectricalCalcs(project!.id),
+  const { data: summary } = useQuery({
+    queryKey: ['project', project?.id, 'objects', 'summary'],
+    queryFn: () => getObjectsSummary(project!.id),
     enabled: !!project,
   });
 
@@ -60,14 +52,10 @@ export default function WorkspacePage() {
   }
 
   // Подсчёт прогресса
-  const totalObjects = objects.length;
-  const validObjects = objects.filter((o) => o.is_valid).length;
-  const successCalcIds = new Set(
-    elecCalcs.filter(isElectricalCalcSuccess).map((c) => String(c.object_id))
-  );
-  const elecCalcCount = objects.filter((o) => successCalcIds.has(o.id)).length;
-  const failedCalcCount =
-    elecCalcs.length - elecCalcs.filter(isElectricalCalcSuccess).length;
+  const totalObjects = summary?.total ?? 0;
+  const validObjects = summary?.valid ?? 0;
+  const elecCalcCount = summary?.objects_with_successful_electrical_calculation ?? 0;
+  const failedCalcCount = summary?.failed_electrical_calculations ?? 0;
   const hasSpec = (spec?.items?.length ?? 0) > 0;
 
   // Текущий шаг (0-based)

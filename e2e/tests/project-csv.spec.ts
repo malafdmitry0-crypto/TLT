@@ -27,7 +27,7 @@ test.describe('CSV-обмен проектами (US-02.6, US-02.7, US-02.8)', (
     await expect(page).toHaveURL(/\/workspace/);
 
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: /Скачать/i }).click();
+    await page.locator('button[title="Скачать проект (CSV)"]').click();
     const file = await saveDownload(downloadPromise);
     const content = fs.readFileSync(file, 'utf-8').replace(/^\uFEFF/, '');
     expect(content).toContain('[SECTION];metadata');
@@ -40,7 +40,7 @@ test.describe('CSV-обмен проектами (US-02.6, US-02.7, US-02.8)', (
     await page.goto('/');
     await page.getByRole('button', { name: /Начать без регистрации/i }).click();
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: /Скачать/i }).click();
+    await page.locator('button[title="Скачать проект (CSV)"]').click();
     const file = await saveDownload(downloadPromise);
 
     // Шаг 2: загружаем его обратно — проект должен замеситься
@@ -75,7 +75,7 @@ test.describe('CSV-обмен проектами (US-02.6, US-02.7, US-02.8)', (
 
     // Шаг 2: пользователь скачивает проект в CSV (без reload — auth-hydration race)
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: /Скачать/i }).click();
+    await page.locator('button[title="Скачать проект (CSV)"]').click();
     const csvFile = await saveDownload(downloadPromise);
     // Убеждаемся что файл содержит JSON с запятыми (ранее ломало sniffer)
     const content = fs.readFileSync(csvFile, 'utf-8');
@@ -92,7 +92,7 @@ test.describe('CSV-обмен проектами (US-02.6, US-02.7, US-02.8)', (
 
   test('сотруднику в ProjectsPage доступны пакетный экспорт и загрузка', async ({ page }) => {
     await loginAsTestEmployee(page);
-    await page.getByRole('menuitem', { name: /Проекты/i }).click();
+    await page.getByRole('button', { name: 'Открыть', exact: true }).click();
     await expect(page).toHaveURL(/\/projects/);
     await expect(page.getByRole('button', { name: /Экспорт/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Пакетная загрузка/i })).toBeVisible();
@@ -107,7 +107,7 @@ test.describe('CSV-обмен проектами (US-02.6, US-02.7, US-02.8)', (
     await page.getByRole('button', { name: 'Создать' }).click();
     await expect(page.getByText('Проект создан')).toBeVisible();
 
-    await page.getByRole('menuitem', { name: /Проекты/i }).click();
+    await page.getByRole('button', { name: 'Открыть', exact: true }).click();
     await expect(page).toHaveURL(/\/projects/);
     // Ждём пока проект появится в ячейке таблицы (не просто в header)
     await expect(page.getByRole('cell', { name: unique })).toBeVisible({ timeout: 10_000 });

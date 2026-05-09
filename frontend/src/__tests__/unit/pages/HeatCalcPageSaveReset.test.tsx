@@ -45,8 +45,32 @@ vi.mock('@/components/wizard/ObjectWizard', async () => {
 
 vi.mock('@/api/projects', () => {
   const listObjects = vi.fn().mockResolvedValue([]);
+  async function getObjectsSummary() {
+    const all = await listObjects();
+    const byType = {
+      pipe: all.filter((item: ProjectObject) => item.object_type === 'pipe').length,
+      tank: all.filter((item: ProjectObject) => item.object_type === 'tank').length,
+    };
+    const validByType = {
+      pipe: all.filter((item: ProjectObject) => item.object_type === 'pipe' && item.is_valid).length,
+      tank: all.filter((item: ProjectObject) => item.object_type === 'tank' && item.is_valid).length,
+    };
+    const valid = all.filter((item: ProjectObject) => item.is_valid).length;
+    return {
+      total: all.length,
+      valid,
+      invalid: all.length - valid,
+      by_type: byType,
+      valid_by_type: validByType,
+      electrical_calculations_total: 0,
+      successful_electrical_calculations: 0,
+      failed_electrical_calculations: 0,
+      objects_with_successful_electrical_calculation: 0,
+    };
+  }
   return {
     listObjects,
+    getObjectsSummary: vi.fn(getObjectsSummary),
     queryObjects: vi.fn(async (_projectId: string, payload: ProjectObjectsQueryRequest) => {
       const all = await listObjects();
       const items = all.filter((item: ProjectObject) => item.object_type === payload.object_type);
@@ -54,7 +78,7 @@ vi.mock('@/api/projects', () => {
         items,
         page_info: {
           page: payload.page ?? 1,
-          page_size: payload.page_size ?? 100,
+          page_size: payload.page_size ?? 50,
           offset: 0,
           total_pages: items.length ? 1 : 0,
           has_next_page: false,
@@ -74,7 +98,7 @@ vi.mock('@/api/projects', () => {
     getObjectQueryCapabilities: vi.fn(async (_projectId: string, objectType: 'pipe' | 'tank') => ({
       version: 1,
       object_type: objectType,
-      default_page_size: 100,
+      default_page_size: 50,
       max_page_size: 200,
       default_sort: { key: 'sort_order', dir: 'asc' },
       search: { enabled: true, max_text_length: 120, default_columns: ['name'] },
