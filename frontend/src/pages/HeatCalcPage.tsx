@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import {
   Button,
   Card,
@@ -26,13 +34,31 @@ import {
   DeleteOutlined,
   FilterFilled,
   FireOutlined,
+  HolderOutlined,
   PlusOutlined,
+  ReloadOutlined,
   SaveOutlined,
   TableOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { ColumnsType, ColumnType } from 'antd/es/table';
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 import ObjectWizard from '@/components/wizard/ObjectWizard';
 import ImportExcelButton from '@/components/ImportExcelButton';
@@ -58,21 +84,29 @@ import { formatNumber } from '@/utils/formatters';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 import { findDN } from '@/utils/objectWizardUtils';
 import {
-  HEATCALC_TABLE_COLUMN_CATALOG,
   HEATCALC_TABLE_COLUMN_PREF_KEY,
+  clampTableColumnWidthPct,
   clearRegisteredTableColumnCache,
   createTableColumnSettingsPatch,
+  getAllTableColumnMetas,
   getAvailableTableColumnKeys,
   getDefaultTableColumnSettings,
-  getDefaultVisibleTableColumnKeys,
   getVisibleTableColumnMetas,
+  moveTableColumnToOrder,
   normalizeTableColumnSettings,
   readGuestTableColumnSettings,
   readRegisteredTableColumnCache,
+  reorderTableColumn,
+  resetTableColumnTypeSettings,
+  resetTableColumnWidth,
+  setTableColumnVisibility,
+  setTableColumnWidthPct,
+  tableColumnWidthPxToPct,
   writeGuestTableColumnSettings,
   writeRegisteredTableColumnCache,
   type HeatCalcColumnKey,
   type HeatCalcObjectType,
+  type HeatCalcResolvedColumnMeta,
   type HeatCalcTableColumnSettings,
 } from '@/utils/heatCalcTableColumns';
 import {
@@ -101,6 +135,11 @@ const TABLE_SETTINGS_TYPE_LABELS: Record<HeatCalcObjectType, string> = {
 
 type HeatCalcFilterKind = 'text' | 'numberRange' | 'enum';
 const DEFAULT_OBJECT_QUERY_PAGE_SIZE = 100;
+type TableColumnPreferenceMutation = {
+  settings: HeatCalcTableColumnSettings;
+  closeModal?: boolean;
+  showMessage?: boolean;
+};
 
 const NUMBER_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
   'index',
@@ -415,6 +454,235 @@ function TankTypeIcon() {
   );
 }
 
+function ResizableColumnTitle({
+  title,
+  label,
+  onResizeStart,
+}: {
+  title: string;
+  label: string;
+  onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <span className="resizable-column-title">
+      <span className="resizable-column-title-text">{title}</span>
+      <button
+        type="button"
+        className="column-resize-handle"
+        aria-label={`Изменить ширину: ${label}`}
+        onPointerDown={onResizeStart}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+      />
+    </span>
+  );
+}
+
+function ColumnSettingsRowContent({
+  column,
+  rowCount,
+  dragHandle,
+  onVisibleChange,
+  onOrderChange,
+  onWidthChange,
+  onResetWidth,
+}: {
+  column: HeatCalcResolvedColumnMeta;
+  rowCount: number;
+  dragHandle: ReactNode;
+  onVisibleChange: (key: HeatCalcColumnKey, visible: boolean) => void;
+  onOrderChange: (key: HeatCalcColumnKey, order: number) => void;
+  onWidthChange: (key: HeatCalcColumnKey, widthPct: number) => void;
+  onResetWidth: (key: HeatCalcColumnKey) => void;
+}) {
+  const orderValue = column.visible && column.order != null ? column.order : null;
+  const [draftOrder, setDraftOrder] = useState<number | null>(orderValue);
+  const [orderEditing, setOrderEditing] = useState(false);
+
+  useEffect(() => {
+    if (!orderEditing) setDraftOrder(orderValue);
+  }, [orderEditing, orderValue]);
+
+  function commitOrderChange() {
+    setOrderEditing(false);
+    if (!column.visible) {
+      setDraftOrder(null);
+      return;
+    }
+    const nextOrder = Number(draftOrder);
+    if (!Number.isFinite(nextOrder)) {
+      setDraftOrder(orderValue);
+      return;
+    }
+    const boundedOrder = Math.min(Math.max(1, Math.round(nextOrder)), Math.max(1, rowCount));
+    setDraftOrder(boundedOrder);
+    if (boundedOrder !== orderValue) onOrderChange(column.key, boundedOrder);
+  }
+
+  return (
+    <>
+      {dragHandle}
+      <Checkbox
+        checked={column.visible}
+        disabled={column.required}
+        aria-label={column.label}
+        onChange={(event) => onVisibleChange(column.key, event.target.checked)}
+      />
+      <InputNumber
+        size="small"
+        min={1}
+        max={Math.max(1, rowCount)}
+        precision={0}
+        value={orderEditing ? draftOrder : orderValue}
+        disabled={!column.visible}
+        placeholder="—"
+        aria-label={`Порядок: ${column.label}`}
+        onFocus={() => setOrderEditing(true)}
+        onChange={(value) => {
+          const nextOrder = Number(value);
+          setOrderEditing(true);
+          setDraftOrder(Number.isFinite(nextOrder) ? nextOrder : null);
+        }}
+        onBlur={commitOrderChange}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.currentTarget.blur();
+          }
+          if (event.key === 'Escape') {
+            setDraftOrder(orderValue);
+            setOrderEditing(false);
+            event.currentTarget.blur();
+          }
+        }}
+      />
+      <div className="column-layout-label">
+        <span className="column-layout-title">{column.label}</span>
+        <span className="column-layout-meta">{column.title} · {column.group}</span>
+      </div>
+      <InputNumber
+        size="small"
+        min={3}
+        max={60}
+        step={0.5}
+        value={column.widthPct}
+        aria-label={`Ширина: ${column.label}`}
+        onChange={(value) => {
+          const nextWidth = Number(value);
+          if (Number.isFinite(nextWidth)) onWidthChange(column.key, nextWidth);
+        }}
+      />
+      <span className="column-layout-unit">%</span>
+      <Tooltip title="Сбросить ширину">
+        <Button
+          size="small"
+          icon={<ReloadOutlined />}
+          aria-label={`Сбросить ширину: ${column.label}`}
+          onClick={() => onResetWidth(column.key)}
+        />
+      </Tooltip>
+    </>
+  );
+}
+
+function ColumnSettingsRow({
+  column,
+  rowCount,
+  onVisibleChange,
+  onOrderChange,
+  onWidthChange,
+  onResetWidth,
+}: {
+  column: HeatCalcResolvedColumnMeta;
+  rowCount: number;
+  onVisibleChange: (key: HeatCalcColumnKey, visible: boolean) => void;
+  onOrderChange: (key: HeatCalcColumnKey, order: number) => void;
+  onWidthChange: (key: HeatCalcColumnKey, widthPct: number) => void;
+  onResetWidth: (key: HeatCalcColumnKey) => void;
+}) {
+  return (
+    <div className="column-layout-row hidden" data-column-key={column.key}>
+      <ColumnSettingsRowContent
+        column={column}
+        rowCount={rowCount}
+        dragHandle={(
+          <button
+            type="button"
+            className="column-layout-drag"
+            aria-label={`Поле скрыто: ${column.label}`}
+            disabled
+          >
+            <HolderOutlined />
+          </button>
+        )}
+        onVisibleChange={onVisibleChange}
+        onOrderChange={onOrderChange}
+        onWidthChange={onWidthChange}
+        onResetWidth={onResetWidth}
+      />
+    </div>
+  );
+}
+
+function SortableColumnSettingsRow({
+  column,
+  rowCount,
+  onVisibleChange,
+  onOrderChange,
+  onWidthChange,
+  onResetWidth,
+}: {
+  column: HeatCalcResolvedColumnMeta;
+  rowCount: number;
+  onVisibleChange: (key: HeatCalcColumnKey, visible: boolean) => void;
+  onOrderChange: (key: HeatCalcColumnKey, order: number) => void;
+  onWidthChange: (key: HeatCalcColumnKey, widthPct: number) => void;
+  onResetWidth: (key: HeatCalcColumnKey) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: column.key });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={isDragging ? 'column-layout-row dragging' : 'column-layout-row'}
+      data-column-key={column.key}
+    >
+      <ColumnSettingsRowContent
+        column={column}
+        rowCount={rowCount}
+        dragHandle={(
+          <button
+            type="button"
+            className="column-layout-drag"
+            aria-label={`Переместить поле: ${column.label}`}
+            {...attributes}
+            {...listeners}
+          >
+            <HolderOutlined />
+          </button>
+        )}
+        onVisibleChange={onVisibleChange}
+        onOrderChange={onOrderChange}
+        onWidthChange={onWidthChange}
+        onResetWidth={onResetWidth}
+      />
+    </div>
+  );
+}
+
 function insulationEntryLabel(entry: { name: string; density_kg_m3?: number | string }) {
   return entry.density_kg_m3 != null
     ? `${entry.name}, ${entry.density_kg_m3} кг/м³`
@@ -621,6 +889,10 @@ export default function HeatCalcPage() {
   const [draftTableColumnSettings, setDraftTableColumnSettings] = useState<HeatCalcTableColumnSettings>(
     () => tableColumnSettings,
   );
+  const columnSettingsSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
   const setWorkspaceHeaderContext = useWorkspaceHeaderStore((s) => s.setContext);
 
   const { data: objects = [] } = useQuery({
@@ -653,19 +925,19 @@ export default function HeatCalcPage() {
   });
 
   const updateTableColumnPreference = useMutation({
-    mutationFn: (settings: HeatCalcTableColumnSettings) =>
+    mutationFn: ({ settings }: TableColumnPreferenceMutation) =>
       updateUserPreference<HeatCalcTableColumnSettings>(
         HEATCALC_TABLE_COLUMN_PREF_KEY,
         normalizeTableColumnSettings(settings),
       ),
-    onSuccess: (preference) => {
+    onSuccess: (preference, variables) => {
       const normalized = normalizeTableColumnSettings(preference.value);
       setTableColumnSettings(normalized);
       if (preference.user_id) {
         writeRegisteredTableColumnCache(preference.user_id, normalized);
       }
-      setColumnSettingsOpen(false);
-      antdMessage.success('Поля таблицы сохранены');
+      if (variables.closeModal) setColumnSettingsOpen(false);
+      if (variables.showMessage !== false) antdMessage.success('Поля таблицы сохранены');
     },
     onError: (error) => {
       antdMessage.error(error instanceof Error ? error.message : 'Не удалось сохранить поля таблицы');
@@ -1300,6 +1572,67 @@ export default function HeatCalcPage() {
     }));
   }, [activeObjectType]);
 
+  const persistTableColumnSettings = useCallback((
+    settings: HeatCalcTableColumnSettings,
+    options: { closeModal?: boolean; showMessage?: boolean } = {},
+  ) => {
+    const normalized = normalizeTableColumnSettings(settings);
+    setTableColumnSettings(normalized);
+    if (isRegisteredUser) {
+      clearRegisteredTableColumnCache(registeredUserId);
+      updateTableColumnPreference.mutate({
+        settings: normalized,
+        closeModal: options.closeModal,
+        showMessage: options.showMessage,
+      });
+      return;
+    }
+    writeGuestTableColumnSettings(normalized);
+    if (options.closeModal) setColumnSettingsOpen(false);
+    if (options.showMessage !== false) antdMessage.success('Поля таблицы сохранены');
+  }, [isRegisteredUser, registeredUserId, updateTableColumnPreference]);
+
+  const applyColumnWidth = useCallback((
+    type: HeatCalcObjectType,
+    key: HeatCalcColumnKey,
+    widthPct: number,
+  ) => {
+    const nextSettings = setTableColumnWidthPct(
+      tableColumnSettings,
+      type,
+      key,
+      clampTableColumnWidthPct(widthPct),
+    );
+    persistTableColumnSettings(nextSettings, { showMessage: false });
+  }, [persistTableColumnSettings, tableColumnSettings]);
+
+  const startColumnResize = useCallback((
+    type: HeatCalcObjectType,
+    meta: HeatCalcResolvedColumnMeta,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth = meta.width;
+    let latestWidthPct = meta.widthPct;
+
+    function handlePointerMove(pointerEvent: PointerEvent) {
+      const nextWidthPx = Math.max(30, startWidth + pointerEvent.clientX - startX);
+      latestWidthPct = tableColumnWidthPxToPct(nextWidthPx);
+      setTableColumnSettings((settings) => setTableColumnWidthPct(settings, type, meta.key, latestWidthPct));
+    }
+
+    function handlePointerUp() {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      applyColumnWidth(type, meta.key, latestWidthPct);
+    }
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }, [applyColumnWidth]);
+
   const sourceColumns: ColumnsType<ProjectObject> = useMemo(
     () => sourceColumnMetas.map((meta) => {
       const renderer = columnRenderers[meta.key];
@@ -1310,7 +1643,14 @@ export default function HeatCalcPage() {
       const activeFilter = activeTableViewState.filters[meta.key];
       return {
         key: meta.key,
-        title: meta.title,
+        title: (
+          <ResizableColumnTitle
+            title={meta.title}
+            label={meta.label}
+            onResizeStart={(event) => startColumnResize(activeObjectType, meta, event)}
+          />
+        ),
+        columnKey: meta.key,
         width: meta.width,
         ellipsis: meta.ellipsis ?? renderer.ellipsis,
         align: renderer.align,
@@ -1351,6 +1691,8 @@ export default function HeatCalcPage() {
       resetColumnFilter,
       setColumnFilter,
       sourceColumnMetas,
+      activeObjectType,
+      startColumnResize,
     ],
   );
   const tableScrollX = useMemo(
@@ -1389,15 +1731,30 @@ export default function HeatCalcPage() {
   }
 
   function updateDraftColumn(type: HeatCalcObjectType, key: HeatCalcColumnKey, checked: boolean) {
-    const current = draftTableColumnSettings.table[type];
-    const nextKeys = checked ? [...current, key] : current.filter((item) => item !== key);
-    setDraftTableColumnSettings((settings) => createTableColumnSettingsPatch(settings, type, nextKeys));
+    setDraftTableColumnSettings((settings) => setTableColumnVisibility(settings, type, key, checked));
+  }
+
+  function updateDraftColumnOrder(type: HeatCalcObjectType, key: HeatCalcColumnKey, order: number) {
+    setDraftTableColumnSettings((settings) => moveTableColumnToOrder(settings, type, key, order));
+  }
+
+  function updateDraftColumnWidth(type: HeatCalcObjectType, key: HeatCalcColumnKey, widthPct: number) {
+    setDraftTableColumnSettings((settings) => setTableColumnWidthPct(settings, type, key, widthPct));
+  }
+
+  function resetDraftColumnWidth(type: HeatCalcObjectType, key: HeatCalcColumnKey) {
+    setDraftTableColumnSettings((settings) => resetTableColumnWidth(settings, type, key));
+  }
+
+  function handleColumnSettingsDragEnd(type: HeatCalcObjectType, event: DragEndEvent) {
+    const activeKey = String(event.active.id);
+    const overKey = event.over?.id == null ? null : String(event.over.id);
+    if (!overKey || activeKey === overKey) return;
+    setDraftTableColumnSettings((settings) => reorderTableColumn(settings, type, activeKey, overKey));
   }
 
   function resetDraftColumns(type: HeatCalcObjectType) {
-    setDraftTableColumnSettings((settings) =>
-      createTableColumnSettingsPatch(settings, type, getDefaultVisibleTableColumnKeys(type)),
-    );
+    setDraftTableColumnSettings((settings) => resetTableColumnTypeSettings(settings, type));
   }
 
   function selectAllDraftColumns(type: HeatCalcObjectType) {
@@ -1408,44 +1765,76 @@ export default function HeatCalcPage() {
 
   function applyColumnSettings() {
     const normalized = normalizeTableColumnSettings(draftTableColumnSettings);
-    if (isRegisteredUser) {
-      clearRegisteredTableColumnCache(registeredUserId);
-      updateTableColumnPreference.mutate(normalized);
-      return;
-    }
-    writeGuestTableColumnSettings(normalized);
-    setTableColumnSettings(normalized);
-    setColumnSettingsOpen(false);
-    antdMessage.success('Поля таблицы сохранены');
+    setTableViewStateByType((current) => {
+      let changed = false;
+      const next = { ...current };
+      (['pipe', 'tank'] as const).forEach((type) => {
+        const visibleKeys = getVisibleTableColumnMetas(type, normalized).map((column) => column.key);
+        const cleaned = removeHiddenTableViewState(current[type], visibleKeys);
+        const currentFilterCount = Object.keys(current[type].filters).length;
+        const cleanedFilterCount = Object.keys(cleaned.filters).length;
+        if (cleaned.sort !== current[type].sort || cleanedFilterCount !== currentFilterCount) {
+          next[type] = cleaned;
+          changed = true;
+        }
+      });
+      return changed ? next : current;
+    });
+    persistTableColumnSettings(normalized, { closeModal: true, showMessage: true });
   }
 
-  function renderColumnSettingsGroups(type: HeatCalcObjectType) {
-    const visibleKeys = new Set(draftTableColumnSettings.table[type]);
-    const groups = HEATCALC_TABLE_COLUMN_CATALOG[type].reduce<Record<string, typeof HEATCALC_TABLE_COLUMN_CATALOG[HeatCalcObjectType]>>(
-      (acc, column) => {
-        acc[column.group] = acc[column.group] ?? [];
-        acc[column.group].push(column);
-        return acc;
-      },
-      {},
-    );
-    return Object.entries(groups).map(([group, columns]) => (
-      <div className="column-settings-group" key={group}>
-        <div className="column-settings-group-title">{group}</div>
-        <div className="column-settings-options">
-          {columns.map((column) => (
-            <Checkbox
+  function renderColumnSettingsRows(type: HeatCalcObjectType) {
+    const columns = getAllTableColumnMetas(type, draftTableColumnSettings);
+    const visibleColumns = columns.filter((column) => column.visible);
+    const hiddenColumns = columns.filter((column) => !column.visible);
+    const visibleRowCount = visibleColumns.length;
+    return (
+      <DndContext
+        sensors={columnSettingsSensors}
+        collisionDetection={closestCenter}
+        onDragEnd={(event) => handleColumnSettingsDragEnd(type, event)}
+      >
+        <div className="column-layout-list" role="list" aria-label={`Поля таблицы: ${TABLE_SETTINGS_TYPE_LABELS[type]}`}>
+          <div className="column-layout-header" aria-hidden="true">
+            <span />
+            <span>Вид</span>
+            <span>№</span>
+            <span>Поле</span>
+            <span>Ширина</span>
+            <span />
+          </div>
+          <SortableContext items={visibleColumns.map((column) => column.key)} strategy={verticalListSortingStrategy}>
+            {visibleColumns.map((column) => (
+              <SortableColumnSettingsRow
+                key={column.key}
+                column={column}
+                rowCount={visibleRowCount}
+                onVisibleChange={(key, visible) => updateDraftColumn(type, key, visible)}
+                onOrderChange={(key, order) => updateDraftColumnOrder(type, key, order)}
+                onWidthChange={(key, widthPct) => updateDraftColumnWidth(type, key, widthPct)}
+                onResetWidth={(key) => resetDraftColumnWidth(type, key)}
+              />
+            ))}
+          </SortableContext>
+          {hiddenColumns.length > 0 && (
+            <div className="column-layout-section" aria-hidden="true">
+              Скрытые поля
+            </div>
+          )}
+          {hiddenColumns.map((column) => (
+            <ColumnSettingsRow
               key={column.key}
-              checked={visibleKeys.has(column.key)}
-              disabled={column.required}
-              onChange={(event) => updateDraftColumn(type, column.key, event.target.checked)}
-            >
-              {column.label}
-            </Checkbox>
+              column={column}
+              rowCount={visibleRowCount}
+              onVisibleChange={(key, visible) => updateDraftColumn(type, key, visible)}
+              onOrderChange={(key, order) => updateDraftColumnOrder(type, key, order)}
+              onWidthChange={(key, widthPct) => updateDraftColumnWidth(type, key, widthPct)}
+              onResetWidth={(key) => resetDraftColumnWidth(type, key)}
+            />
           ))}
         </div>
-      </div>
-    ));
+      </DndContext>
+    );
   }
 
   if (!project) {
@@ -1732,7 +2121,7 @@ export default function HeatCalcPage() {
       <Modal
         title="Поля таблицы"
         open={columnSettingsOpen}
-        width={780}
+        width={860}
         okText="Применить"
         cancelText="Отмена"
         confirmLoading={updateTableColumnPreference.isPending}
@@ -1754,12 +2143,12 @@ export default function HeatCalcPage() {
                 Все поля
               </Button>
               <Button size="small" onClick={() => resetDraftColumns(columnSettingsType)}>
-                По умолчанию
+                Сбросить текущий тип
               </Button>
             </Space>
           </div>
           <div className="column-settings-list">
-            {renderColumnSettingsGroups(columnSettingsType)}
+            {renderColumnSettingsRows(columnSettingsType)}
           </div>
         </div>
       </Modal>

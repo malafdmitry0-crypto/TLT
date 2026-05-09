@@ -3,20 +3,49 @@ import defaultConfig from '@/config/heatcalc-table-columns.default.json';
 export type HeatCalcObjectType = 'pipe' | 'tank';
 export type HeatCalcColumnKey = string;
 
+export interface HeatCalcColumnLabels {
+  short: string;
+  full: string;
+}
+
 export interface HeatCalcColumnMeta {
   key: HeatCalcColumnKey;
+  labels: HeatCalcColumnLabels;
   label: string;
   title: string;
   group: string;
   width: number;
+  defaultWidthPct: number;
+  minWidthPx: number;
   required?: boolean;
   ellipsis?: boolean;
   copyTitle?: string;
+  unit?: string;
+  helpText?: string;
+  valueType?: string;
+  defaultVisible?: boolean;
+  sortable?: boolean;
+  filterable?: boolean;
+  resizable?: boolean;
+}
+
+export interface HeatCalcColumnLayout {
+  widthPct: number;
+}
+
+export interface HeatCalcTableColumnTypeSettings {
+  visibleOrder: HeatCalcColumnKey[];
+  columns: Record<HeatCalcColumnKey, HeatCalcColumnLayout>;
 }
 
 export interface HeatCalcTableColumnSettings {
   version: number;
-  table: Record<HeatCalcObjectType, HeatCalcColumnKey[]>;
+  types: Record<HeatCalcObjectType, HeatCalcTableColumnTypeSettings>;
+}
+
+export interface HeatCalcResolvedColumnMeta extends HeatCalcColumnMeta, HeatCalcColumnLayout {
+  visible: boolean;
+  order?: number;
 }
 
 interface RegisteredTableColumnCache {
@@ -25,118 +54,71 @@ interface RegisteredTableColumnCache {
   cachedAt: string;
 }
 
-export const HEATCALC_TABLE_COLUMNS_VERSION = 1;
+export const HEATCALC_TABLE_COLUMNS_VERSION = 3;
+// The preference key is intentionally unchanged: v3 extends the existing table
+// config instead of creating a parallel source of truth.
 export const HEATCALC_TABLE_COLUMN_PREF_KEY = 'heatcalc.tableColumns.v1';
 export const HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY = 'heatcalc.tableColumns.v1.guest';
 export const HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY = 'heatcalc.tableColumns.v1.registered.cache';
+export const HEATCALC_TABLE_COLUMN_WIDTH_BASE_PX = 1000;
+export const HEATCALC_TABLE_COLUMN_MIN_WIDTH_PCT = 3;
+export const HEATCALC_TABLE_COLUMN_MAX_WIDTH_PCT = 60;
+
+const configuredTableColumnRegistry = (defaultConfig as {
+  registry?: Partial<Record<HeatCalcObjectType, unknown[]>>;
+}).registry ?? {};
+
+function normalizeRegistryColumn(column: unknown): HeatCalcColumnMeta | null {
+  if (!isRecord(column) || typeof column.key !== 'string') return null;
+  const labels = isRecord(column.labels) ? column.labels : {};
+  const shortLabel = typeof labels.short === 'string'
+    ? labels.short
+    : typeof column.title === 'string'
+      ? column.title
+      : column.key;
+  const fullLabel = typeof labels.full === 'string'
+    ? labels.full
+    : typeof column.label === 'string'
+      ? column.label
+      : shortLabel;
+  const widthPct = Number.isFinite(Number(column.defaultWidthPct))
+    ? clampTableColumnWidthPct(column.defaultWidthPct)
+    : tableColumnWidthPxToPct(Number(column.width ?? 80));
+  const width = tableColumnWidthPctToPx(widthPct);
+
+  return {
+    ...column,
+    key: column.key,
+    labels: {
+      short: shortLabel,
+      full: fullLabel,
+    },
+    label: fullLabel,
+    title: shortLabel,
+    group: typeof column.group === 'string' ? column.group : 'Прочее',
+    width,
+    defaultWidthPct: widthPct,
+    minWidthPx: Number.isFinite(Number(column.minWidthPx)) ? Number(column.minWidthPx) : 48,
+    copyTitle: typeof column.copyTitle === 'string' ? column.copyTitle : undefined,
+    unit: typeof column.unit === 'string' ? column.unit : undefined,
+    helpText: typeof column.helpText === 'string' ? column.helpText : undefined,
+    valueType: typeof column.valueType === 'string' ? column.valueType : undefined,
+    required: column.required === true,
+    ellipsis: column.ellipsis === true,
+    defaultVisible: column.defaultVisible === true,
+    sortable: column.sortable !== false,
+    filterable: column.filterable !== false,
+    resizable: column.resizable !== false,
+  };
+}
+
+function normalizeRegistry(columns: unknown[] | undefined) {
+  return (columns ?? []).map(normalizeRegistryColumn).filter((column): column is HeatCalcColumnMeta => column != null);
+}
 
 export const HEATCALC_TABLE_COLUMN_CATALOG: Record<HeatCalcObjectType, HeatCalcColumnMeta[]> = {
-  pipe: [
-    { key: 'index', label: 'Номер строки', title: '№', group: 'Основные', width: 42, copyTitle: '№' },
-    { key: 'type', label: 'Тип объекта', title: 'Тип', group: 'Основные', width: 70 },
-    { key: 'name', label: 'Наименование', title: 'Наименование', group: 'Основные', width: 240, required: true, ellipsis: true },
-    { key: 'pipe_outer_diameter', label: 'Наружный диаметр', title: 'Ø, мм', group: 'Геометрия', width: 76 },
-    { key: 'pipe_dn', label: 'DN', title: 'DN', group: 'Геометрия', width: 58 },
-    { key: 'pipe_length', label: 'Длина трубопровода', title: 'L, м', group: 'Геометрия', width: 74 },
-    { key: 'pipe_wall_thickness', label: 'Толщина стенки', title: 'δ ст., мм', group: 'Геометрия', width: 88 },
-    { key: 'pipe_material', label: 'Материал трубы', title: 'Материал трубы', group: 'Геометрия', width: 150, ellipsis: true },
-    { key: 'pipe_lambda', label: 'λ трубы', title: 'λ тр.', group: 'Геометрия', width: 78 },
-    { key: 'pipe_lambda_mode', label: 'Режим λ трубы', title: 'Режим λ', group: 'Геометрия', width: 94 },
-    { key: 'placement', label: 'Размещение', title: 'Размещение', group: 'Геометрия', width: 116 },
-    { key: 'insulation_layer_count', label: 'Количество слоёв ИЗ', title: 'Слоёв ИЗ', group: 'Теплоизоляция', width: 86 },
-    { key: 'insulation_thickness', label: 'Толщина ИЗ', title: 'δ ИЗ, мм', group: 'Теплоизоляция', width: 92 },
-    { key: 'insulation_material', label: 'Материал ИЗ', title: 'Материал ИЗ', group: 'Теплоизоляция', width: 160, ellipsis: true },
-    { key: 'first_insulation_lambda', label: 'λ 1-го слоя', title: 'λ 1 слоя', group: 'Теплоизоляция', width: 86 },
-    { key: 'second_insulation_thickness', label: 'Толщина 2-го слоя', title: 'δ 2 ИЗ, мм', group: 'Теплоизоляция', width: 98 },
-    { key: 'second_insulation_material', label: 'Материал 2-го слоя', title: 'Материал 2 ИЗ', group: 'Теплоизоляция', width: 160, ellipsis: true },
-    { key: 'second_insulation_lambda', label: 'λ 2-го слоя', title: 'λ 2 слоя', group: 'Теплоизоляция', width: 86 },
-    { key: 'third_insulation_thickness', label: 'Толщина 3-го слоя', title: 'δ 3 ИЗ, мм', group: 'Теплоизоляция', width: 98 },
-    { key: 'third_insulation_material', label: 'Материал 3-го слоя', title: 'Материал 3 ИЗ', group: 'Теплоизоляция', width: 160, ellipsis: true },
-    { key: 'third_insulation_lambda', label: 'λ 3-го слоя', title: 'λ 3 слоя', group: 'Теплоизоляция', width: 86 },
-    { key: 'insulation_cover_material', label: 'Материал покрытия', title: 'Покрытие', group: 'Теплоизоляция', width: 132, ellipsis: true },
-    { key: 'process_temperature', label: 'Температура поддержания', title: 'T подд.', group: 'Температура и среда', width: 86 },
-    { key: 'ambient_temperature', label: 'Температура окружающей среды', title: 'T окр.', group: 'Температура и среда', width: 82 },
-    { key: 'ambient_temperature_source', label: 'Источник T окр.', title: 'T окр. ист.', group: 'Температура и среда', width: 94 },
-    { key: 'max_ambient_temperature', label: 'Макс. T окружающей среды', title: 'Макс. T окр.', group: 'Температура и среда', width: 98 },
-    { key: 'max_process_temperature', label: 'Макс. допуст. T продукта', title: 'Макс. T прод.', group: 'Температура и среда', width: 102 },
-    { key: 'wind_speed', label: 'Скорость ветра', title: 'Ветер', group: 'Температура и среда', width: 78 },
-    { key: 'wind_speed_source', label: 'Источник ветра', title: 'Ветер ист.', group: 'Температура и среда', width: 92 },
-    { key: 'alpha_vnesh', label: 'α внеш', title: 'α внеш', group: 'Температура и среда', width: 82 },
-    { key: 'environment', label: 'Среда', title: 'Среда', group: 'Температура и среда', width: 112 },
-    { key: 'zone_classification', label: 'Классификация зоны', title: 'Зона', group: 'Температура и среда', width: 112 },
-    { key: 'temperature_group', label: 'Температурная группа', title: 'Темп. группа', group: 'Температура и среда', width: 100 },
-    { key: 'climate_city', label: 'Климатический город', title: 'Климат', group: 'Температура и среда', width: 160, ellipsis: true },
-    { key: 'climate_region', label: 'Климатический регион', title: 'Регион', group: 'Температура и среда', width: 150, ellipsis: true },
-    { key: 'climate_key', label: 'Ключ климата', title: 'Ключ клим.', group: 'Температура и среда', width: 110, ellipsis: true },
-    { key: 'climate_temperature_basis', label: 'Обеспеченность климата', title: 'Обесп.', group: 'Температура и среда', width: 82 },
-    { key: 'burial_depth', label: 'Глубина заложения', title: 'Глубина, м', group: 'Грунт', width: 92 },
-    { key: 'ground_type', label: 'Тип грунта', title: 'Грунт', group: 'Грунт', width: 132, ellipsis: true },
-    { key: 'ground_conductivity', label: 'λ грунта', title: 'λ гр.', group: 'Грунт', width: 78 },
-    { key: 'min_switch_temperature', label: 'Мин. T включения', title: 'Мин. T вкл.', group: 'Электропараметры', width: 92 },
-    { key: 'supply_voltage', label: 'Рабочее напряжение', title: 'U, В', group: 'Электропараметры', width: 72 },
-    { key: 'safety_factor', label: 'Коэффициент запаса', title: 'Кзап', group: 'Электропараметры', width: 72 },
-    { key: 'steam_tracing', label: 'Пропарка', title: 'Пропарка', group: 'Электропараметры', width: 86 },
-    { key: 'valve_count', label: 'Задвижки', title: 'Зад.', group: 'Локальные элементы', width: 64 },
-    { key: 'flange_count', label: 'Фланцы', title: 'Флн.', group: 'Локальные элементы', width: 64 },
-    { key: 'support_count', label: 'Опоры', title: 'Опр.', group: 'Локальные элементы', width: 64 },
-    { key: 'local_element_equiv_length', label: 'Эквивалентная длина локальных элементов', title: 'L экв.', group: 'Локальные элементы', width: 82 },
-  ],
-  tank: [
-    { key: 'index', label: 'Номер строки', title: '№', group: 'Основные', width: 42, copyTitle: '№' },
-    { key: 'type', label: 'Тип объекта', title: 'Тип', group: 'Основные', width: 70 },
-    { key: 'name', label: 'Наименование', title: 'Наименование', group: 'Основные', width: 240, required: true, ellipsis: true },
-    { key: 'tank_shape', label: 'Форма резервуара', title: 'Форма', group: 'Форма и геометрия', width: 92 },
-    { key: 'tank_dimensions', label: 'Габариты', title: 'Габариты', group: 'Форма и геометрия', width: 190, ellipsis: true },
-    { key: 'tank_diameter', label: 'Диаметр', title: 'Ø, мм', group: 'Форма и геометрия', width: 76 },
-    { key: 'tank_height', label: 'Высота', title: 'H, мм', group: 'Форма и геометрия', width: 76 },
-    { key: 'tank_length', label: 'Длина', title: 'L, мм', group: 'Форма и геометрия', width: 76 },
-    { key: 'tank_width', label: 'Ширина', title: 'B, мм', group: 'Форма и геометрия', width: 76 },
-    { key: 'tank_wall_thickness', label: 'Толщина стенки', title: 'δ ст., мм', group: 'Форма и геометрия', width: 88 },
-    { key: 'tank_wall_lambda', label: 'λ стенки', title: 'λ ст.', group: 'Форма и геометрия', width: 78 },
-    { key: 'placement', label: 'Размещение', title: 'Размещение', group: 'Форма и геометрия', width: 116 },
-    { key: 'insulation_layer_count', label: 'Количество слоёв ИЗ', title: 'Слоёв ИЗ', group: 'Теплоизоляция', width: 86 },
-    { key: 'insulation_thickness', label: 'Толщина ИЗ', title: 'δ ИЗ, мм', group: 'Теплоизоляция', width: 92 },
-    { key: 'insulation_material', label: 'Материал ИЗ', title: 'Материал ИЗ', group: 'Теплоизоляция', width: 160, ellipsis: true },
-    { key: 'first_insulation_lambda', label: 'λ 1-го слоя', title: 'λ 1 слоя', group: 'Теплоизоляция', width: 86 },
-    { key: 'second_insulation_thickness', label: 'Толщина 2-го слоя', title: 'δ 2 ИЗ, мм', group: 'Теплоизоляция', width: 98 },
-    { key: 'second_insulation_material', label: 'Материал 2-го слоя', title: 'Материал 2 ИЗ', group: 'Теплоизоляция', width: 160, ellipsis: true },
-    { key: 'second_insulation_lambda', label: 'λ 2-го слоя', title: 'λ 2 слоя', group: 'Теплоизоляция', width: 86 },
-    { key: 'third_insulation_thickness', label: 'Толщина 3-го слоя', title: 'δ 3 ИЗ, мм', group: 'Теплоизоляция', width: 98 },
-    { key: 'third_insulation_material', label: 'Материал 3-го слоя', title: 'Материал 3 ИЗ', group: 'Теплоизоляция', width: 160, ellipsis: true },
-    { key: 'third_insulation_lambda', label: 'λ 3-го слоя', title: 'λ 3 слоя', group: 'Теплоизоляция', width: 86 },
-    { key: 'insulation_cover_material', label: 'Материал покрытия', title: 'Покрытие', group: 'Теплоизоляция', width: 132, ellipsis: true },
-    { key: 'process_temperature', label: 'Температура поддержания', title: 'T подд.', group: 'Температура и среда', width: 86 },
-    { key: 'ambient_temperature', label: 'Температура окружающей среды', title: 'T окр.', group: 'Температура и среда', width: 82 },
-    { key: 'ambient_temperature_source', label: 'Источник T окр.', title: 'T окр. ист.', group: 'Температура и среда', width: 94 },
-    { key: 'max_ambient_temperature', label: 'Макс. T окружающей среды', title: 'Макс. T окр.', group: 'Температура и среда', width: 98 },
-    { key: 'max_process_temperature', label: 'Макс. допуст. T продукта', title: 'Макс. T прод.', group: 'Температура и среда', width: 102 },
-    { key: 'wind_speed', label: 'Скорость ветра', title: 'Ветер', group: 'Температура и среда', width: 78 },
-    { key: 'wind_speed_source', label: 'Источник ветра', title: 'Ветер ист.', group: 'Температура и среда', width: 92 },
-    { key: 'alpha_vnesh', label: 'α внеш', title: 'α внеш', group: 'Температура и среда', width: 82 },
-    { key: 'environment', label: 'Среда', title: 'Среда', group: 'Температура и среда', width: 112 },
-    { key: 'zone_classification', label: 'Классификация зоны', title: 'Зона', group: 'Температура и среда', width: 112 },
-    { key: 'temperature_group', label: 'Температурная группа', title: 'Темп. группа', group: 'Температура и среда', width: 100 },
-    { key: 'climate_city', label: 'Климатический город', title: 'Климат', group: 'Температура и среда', width: 160, ellipsis: true },
-    { key: 'climate_region', label: 'Климатический регион', title: 'Регион', group: 'Температура и среда', width: 150, ellipsis: true },
-    { key: 'climate_key', label: 'Ключ климата', title: 'Ключ клим.', group: 'Температура и среда', width: 110, ellipsis: true },
-    { key: 'climate_temperature_basis', label: 'Обеспеченность климата', title: 'Обесп.', group: 'Температура и среда', width: 82 },
-    { key: 'burial_depth', label: 'Глубина заложения', title: 'Глубина, м', group: 'Грунт', width: 92 },
-    { key: 'ground_type', label: 'Тип грунта', title: 'Грунт', group: 'Грунт', width: 132, ellipsis: true },
-    { key: 'ground_conductivity', label: 'λ грунта', title: 'λ гр.', group: 'Грунт', width: 78 },
-    { key: 'min_switch_temperature', label: 'Мин. T включения', title: 'Мин. T вкл.', group: 'Электропараметры', width: 92 },
-    { key: 'supply_voltage', label: 'Рабочее напряжение', title: 'U, В', group: 'Электропараметры', width: 72 },
-    { key: 'safety_factor', label: 'Коэффициент запаса', title: 'Кзап', group: 'Электропараметры', width: 72 },
-    { key: 'q_additional', label: 'Q доп.', title: 'Q доп., Вт', group: 'Электропараметры', width: 94 },
-    { key: 'steam_tracing', label: 'Пропарка', title: 'Пропарка', group: 'Электропараметры', width: 86 },
-  ],
-};
-
-const EMPTY_SETTINGS: HeatCalcTableColumnSettings = {
-  version: HEATCALC_TABLE_COLUMNS_VERSION,
-  table: {
-    pipe: [],
-    tank: [],
-  },
+  pipe: normalizeRegistry(configuredTableColumnRegistry.pipe),
+  tank: normalizeRegistry(configuredTableColumnRegistry.tank),
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -147,45 +129,207 @@ function unique(values: HeatCalcColumnKey[]) {
   return [...new Set(values)];
 }
 
+function roundWidthPct(value: number) {
+  return Math.round(value * 10) / 10;
+}
+
+export function clampTableColumnWidthPct(value: unknown) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return HEATCALC_TABLE_COLUMN_MIN_WIDTH_PCT;
+  return roundWidthPct(
+    Math.min(
+      HEATCALC_TABLE_COLUMN_MAX_WIDTH_PCT,
+      Math.max(HEATCALC_TABLE_COLUMN_MIN_WIDTH_PCT, numericValue),
+    ),
+  );
+}
+
+export function tableColumnWidthPxToPct(widthPx: number) {
+  return clampTableColumnWidthPct((widthPx / HEATCALC_TABLE_COLUMN_WIDTH_BASE_PX) * 100);
+}
+
+export function tableColumnWidthPctToPx(widthPct: number) {
+  return Math.round(
+    (clampTableColumnWidthPct(widthPct) / 100) * HEATCALC_TABLE_COLUMN_WIDTH_BASE_PX,
+  );
+}
+
+function defaultColumnWidthPct(column: HeatCalcColumnMeta) {
+  return column.defaultWidthPct;
+}
+
+function defaultVisibleKeys(type: HeatCalcObjectType) {
+  const config: Record<string, unknown> = isRecord(defaultConfig) ? defaultConfig : {};
+  const rawTable = isRecord(config.table) ? config.table : {};
+  const available = new Set(getAvailableTableColumnKeys(type));
+  const configured = Array.isArray(rawTable[type])
+    ? rawTable[type].filter((key: unknown): key is string => typeof key === 'string' && available.has(key))
+    : [];
+  return configured.length > 0
+    ? configured
+    : HEATCALC_TABLE_COLUMN_CATALOG[type].filter((column) => column.required).map((column) => column.key);
+}
+
+function defaultTypeSettings(type: HeatCalcObjectType): HeatCalcTableColumnTypeSettings {
+  const columns: Record<HeatCalcColumnKey, HeatCalcColumnLayout> = {};
+  HEATCALC_TABLE_COLUMN_CATALOG[type].forEach((column) => {
+    columns[column.key] = {
+      widthPct: defaultColumnWidthPct(column),
+    };
+  });
+  return {
+    visibleOrder: normalizeVisibleOrder(type, defaultVisibleKeys(type)),
+    columns,
+  };
+}
+
+function normalizeVisibleOrder(
+  type: HeatCalcObjectType,
+  keys: unknown,
+  fallback: HeatCalcColumnKey[] = [],
+) {
+  const availableSet = new Set(getAvailableTableColumnKeys(type));
+  const requested = Array.isArray(keys)
+    ? unique(keys.filter((key): key is string => typeof key === 'string' && availableSet.has(key)))
+    : [];
+  const seed = requested.length > 0 ? requested : fallback;
+  const result = unique(seed.filter((key) => availableSet.has(key)));
+  const resultSet = new Set(result);
+  for (const column of HEATCALC_TABLE_COLUMN_CATALOG[type]) {
+    if (column.required && !resultSet.has(column.key)) {
+      result.push(column.key);
+      resultSet.add(column.key);
+    }
+  }
+  return result;
+}
+
+function visibleOrderFromLegacyColumns(
+  type: HeatCalcObjectType,
+  rawColumns: unknown,
+) {
+  const source = isRecord(rawColumns) ? rawColumns : {};
+  const defaultOrder = new Map(
+    HEATCALC_TABLE_COLUMN_CATALOG[type].map((column, index) => [column.key, index + 1]),
+  );
+  const keys = HEATCALC_TABLE_COLUMN_CATALOG[type]
+    .map((column) => {
+      const rawLayout = source[column.key];
+      const layout = isRecord(rawLayout) ? rawLayout : {};
+      const visible = column.required || layout.visible === true;
+      const order = Number.isFinite(Number(layout.order))
+        ? Math.round(Number(layout.order))
+        : defaultOrder.get(column.key) ?? 999;
+      return { key: column.key, visible, order };
+    })
+    .filter((column) => column.visible)
+    .sort((left, right) => {
+      if (left.order !== right.order) return left.order - right.order;
+      return (defaultOrder.get(left.key) ?? 999) - (defaultOrder.get(right.key) ?? 999);
+    })
+    .map((column) => column.key);
+  return normalizeVisibleOrder(type, keys);
+}
+
+function normalizeColumns(
+  type: HeatCalcObjectType,
+  rawColumns: unknown,
+): Record<HeatCalcColumnKey, HeatCalcColumnLayout> {
+  const source = isRecord(rawColumns) ? rawColumns : {};
+  const columns: Record<HeatCalcColumnKey, HeatCalcColumnLayout> = {};
+
+  for (const column of HEATCALC_TABLE_COLUMN_CATALOG[type]) {
+    const rawLayout = source[column.key];
+    const layout = isRecord(rawLayout) ? rawLayout : {};
+    columns[column.key] = {
+      widthPct: Number.isFinite(Number(layout.widthPct))
+        ? clampTableColumnWidthPct(layout.widthPct)
+        : defaultColumnWidthPct(column),
+    };
+  }
+
+  return columns;
+}
+
+function normalizeTypeSettingsFromStructuredValue(
+  type: HeatCalcObjectType,
+  rawType: unknown,
+): HeatCalcTableColumnTypeSettings {
+  const defaults = defaultTypeSettings(type);
+  const source = isRecord(rawType) ? rawType : {};
+  const rawColumns = source.columns;
+  const hasColumns = isRecord(rawColumns) && Object.keys(rawColumns).length > 0;
+  const visibleOrder = Array.isArray(source.visibleOrder)
+    ? normalizeVisibleOrder(type, source.visibleOrder)
+    : hasColumns
+      ? visibleOrderFromLegacyColumns(type, rawColumns)
+      : defaults.visibleOrder;
+
+  return {
+    visibleOrder,
+    columns: normalizeColumns(type, rawColumns),
+  };
+}
+
+function normalizeTypeSettingsFromVisibleKeys(
+  type: HeatCalcObjectType,
+  keys: unknown,
+): HeatCalcTableColumnTypeSettings {
+  const fallback = defaultVisibleKeys(type);
+  return {
+    visibleOrder: normalizeVisibleOrder(type, keys, fallback),
+    columns: normalizeColumns(type, null),
+  };
+}
+
 export function getAvailableTableColumnKeys(type: HeatCalcObjectType) {
   return HEATCALC_TABLE_COLUMN_CATALOG[type].map((column) => column.key);
 }
 
 export function getDefaultTableColumnSettings(): HeatCalcTableColumnSettings {
-  return normalizeTableColumnSettings(defaultConfig);
-}
-
-export function getDefaultVisibleTableColumnKeys(type: HeatCalcObjectType) {
-  return getDefaultTableColumnSettings().table[type];
+  return {
+    version: HEATCALC_TABLE_COLUMNS_VERSION,
+    types: {
+      pipe: defaultTypeSettings('pipe'),
+      tank: defaultTypeSettings('tank'),
+    },
+  };
 }
 
 export function normalizeVisibleTableColumnKeys(
   type: HeatCalcObjectType,
   keys: unknown,
 ): HeatCalcColumnKey[] {
-  const available = getAvailableTableColumnKeys(type);
-  const availableSet = new Set(available);
-  const requested = Array.isArray(keys)
-    ? unique(keys.filter((key): key is string => typeof key === 'string' && availableSet.has(key)))
-    : [];
-  const fallback = Array.isArray(defaultConfig.table[type])
-    ? defaultConfig.table[type].filter((key) => availableSet.has(key))
-    : [];
-  const visibleSet = new Set(requested.length > 0 ? requested : fallback);
-  for (const column of HEATCALC_TABLE_COLUMN_CATALOG[type]) {
-    if (column.required) visibleSet.add(column.key);
-  }
-  return available.filter((key) => visibleSet.has(key));
+  const settings = normalizeTableColumnSettings({
+    table: {
+      [type]: keys,
+    },
+  });
+  return getVisibleTableColumnMetas(type, settings).map((column) => column.key);
 }
 
 export function normalizeTableColumnSettings(value: unknown): HeatCalcTableColumnSettings {
   const source = isRecord(value) ? value : {};
+  const sourceTypes = isRecord(source.types) ? source.types : null;
+
+  if (sourceTypes) {
+    const pipe = isRecord(sourceTypes.pipe) ? sourceTypes.pipe : {};
+    const tank = isRecord(sourceTypes.tank) ? sourceTypes.tank : {};
+    return {
+      version: HEATCALC_TABLE_COLUMNS_VERSION,
+      types: {
+        pipe: normalizeTypeSettingsFromStructuredValue('pipe', pipe),
+        tank: normalizeTypeSettingsFromStructuredValue('tank', tank),
+      },
+    };
+  }
+
   const rawTable = isRecord(source.table) ? source.table : source;
   return {
     version: HEATCALC_TABLE_COLUMNS_VERSION,
-    table: {
-      pipe: normalizeVisibleTableColumnKeys('pipe', rawTable.pipe),
-      tank: normalizeVisibleTableColumnKeys('tank', rawTable.tank),
+    types: {
+      pipe: normalizeTypeSettingsFromVisibleKeys('pipe', rawTable.pipe),
+      tank: normalizeTypeSettingsFromVisibleKeys('tank', rawTable.tank),
     },
   };
 }
@@ -194,12 +338,43 @@ export function getTableColumnMeta(type: HeatCalcObjectType, key: HeatCalcColumn
   return HEATCALC_TABLE_COLUMN_CATALOG[type].find((column) => column.key === key) ?? null;
 }
 
+export function getAllTableColumnMetas(
+  type: HeatCalcObjectType,
+  settings: HeatCalcTableColumnSettings,
+): HeatCalcResolvedColumnMeta[] {
+  const normalized = normalizeTableColumnSettings(settings);
+  const visibleOrder = normalized.types[type].visibleOrder;
+  const visibleSet = new Set(visibleOrder);
+  const orderByKey = new Map(visibleOrder.map((key, index) => [key, index + 1]));
+  const catalogByKey = new Map(HEATCALC_TABLE_COLUMN_CATALOG[type].map((column) => [column.key, column]));
+  const orderedColumns = [
+    ...visibleOrder
+      .map((key) => catalogByKey.get(key))
+      .filter((column): column is HeatCalcColumnMeta => column != null),
+    ...HEATCALC_TABLE_COLUMN_CATALOG[type].filter((column) => !visibleSet.has(column.key)),
+  ];
+  return orderedColumns.map((column) => {
+    const layout = normalized.types[type].columns[column.key];
+    const order = orderByKey.get(column.key);
+    return {
+      ...column,
+      ...layout,
+      visible: order != null,
+      order,
+      width: tableColumnWidthPctToPx(layout.widthPct),
+    };
+  });
+}
+
 export function getVisibleTableColumnMetas(
   type: HeatCalcObjectType,
   settings: HeatCalcTableColumnSettings,
 ) {
-  const visible = new Set(normalizeVisibleTableColumnKeys(type, settings.table[type]));
-  return HEATCALC_TABLE_COLUMN_CATALOG[type].filter((column) => visible.has(column.key));
+  return getAllTableColumnMetas(type, settings).filter((column) => column.visible);
+}
+
+export function getDefaultVisibleTableColumnKeys(type: HeatCalcObjectType) {
+  return getVisibleTableColumnMetas(type, getDefaultTableColumnSettings()).map((column) => column.key);
 }
 
 function readStorageJson(key: string): unknown {
@@ -258,16 +433,134 @@ export function clearRegisteredTableColumnCache(userId?: string | null) {
   }
 }
 
+export function setTableColumnVisibility(
+  settings: HeatCalcTableColumnSettings,
+  type: HeatCalcObjectType,
+  key: HeatCalcColumnKey,
+  visible: boolean,
+) {
+  const normalized = normalizeTableColumnSettings(settings);
+  const column = getTableColumnMeta(type, key);
+  if (!column) return normalized;
+  const currentOrder = normalized.types[type].visibleOrder;
+  const shouldShow = column.required || visible;
+  const nextVisibleOrder = shouldShow
+    ? currentOrder.includes(key)
+      ? currentOrder
+      : [...currentOrder, key]
+    : currentOrder.filter((item) => item !== key);
+  return normalizeTableColumnSettings({
+    ...normalized,
+    types: {
+      ...normalized.types,
+      [type]: {
+        ...normalized.types[type],
+        visibleOrder: nextVisibleOrder,
+      },
+    },
+  });
+}
+
+export function setTableColumnWidthPct(
+  settings: HeatCalcTableColumnSettings,
+  type: HeatCalcObjectType,
+  key: HeatCalcColumnKey,
+  widthPct: number,
+) {
+  const normalized = normalizeTableColumnSettings(settings);
+  if (!normalized.types[type].columns[key]) return normalized;
+  return normalizeTableColumnSettings({
+    ...normalized,
+    types: {
+      ...normalized.types,
+      [type]: {
+        ...normalized.types[type],
+        columns: {
+          ...normalized.types[type].columns,
+          [key]: {
+            ...normalized.types[type].columns[key],
+            widthPct: clampTableColumnWidthPct(widthPct),
+          },
+        },
+      },
+    },
+  });
+}
+
+export function resetTableColumnWidth(
+  settings: HeatCalcTableColumnSettings,
+  type: HeatCalcObjectType,
+  key: HeatCalcColumnKey,
+) {
+  const column = getTableColumnMeta(type, key);
+  return column ? setTableColumnWidthPct(settings, type, key, defaultColumnWidthPct(column)) : settings;
+}
+
+export function moveTableColumnToOrder(
+  settings: HeatCalcTableColumnSettings,
+  type: HeatCalcObjectType,
+  key: HeatCalcColumnKey,
+  nextOrder: number,
+) {
+  const normalized = normalizeTableColumnSettings(settings);
+  const visibleOrder = [...normalized.types[type].visibleOrder];
+  const fromIndex = visibleOrder.indexOf(key);
+  if (fromIndex < 0) return normalized;
+  const boundedOrder = Math.min(visibleOrder.length, Math.max(1, Math.round(nextOrder)));
+  if (fromIndex === boundedOrder - 1) return normalized;
+  const [moved] = visibleOrder.splice(fromIndex, 1);
+  visibleOrder.splice(boundedOrder - 1, 0, moved);
+  return normalizeTableColumnSettings({
+    ...normalized,
+    types: {
+      ...normalized.types,
+      [type]: {
+        ...normalized.types[type],
+        visibleOrder,
+      },
+    },
+  });
+}
+
+export function reorderTableColumn(
+  settings: HeatCalcTableColumnSettings,
+  type: HeatCalcObjectType,
+  activeKey: HeatCalcColumnKey,
+  overKey: HeatCalcColumnKey,
+) {
+  const metas = getVisibleTableColumnMetas(type, settings);
+  const over = metas.find((column) => column.key === overKey);
+  return over?.order ? moveTableColumnToOrder(settings, type, activeKey, over.order) : normalizeTableColumnSettings(settings);
+}
+
+export function resetTableColumnTypeSettings(
+  settings: HeatCalcTableColumnSettings,
+  type: HeatCalcObjectType,
+) {
+  const normalized = normalizeTableColumnSettings(settings);
+  return normalizeTableColumnSettings({
+    ...normalized,
+    types: {
+      ...normalized.types,
+      [type]: defaultTypeSettings(type),
+    },
+  });
+}
+
 export function createTableColumnSettingsPatch(
   settings: HeatCalcTableColumnSettings,
   type: HeatCalcObjectType,
   keys: HeatCalcColumnKey[],
 ) {
+  const normalized = normalizeTableColumnSettings(settings);
   return normalizeTableColumnSettings({
-    ...EMPTY_SETTINGS,
-    table: {
-      ...settings.table,
-      [type]: normalizeVisibleTableColumnKeys(type, keys),
+    ...normalized,
+    types: {
+      ...normalized.types,
+      [type]: {
+        ...normalized.types[type],
+        visibleOrder: normalizeVisibleOrder(type, keys),
+      },
     },
   });
 }

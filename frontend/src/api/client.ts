@@ -10,11 +10,31 @@ const apiClient = axios.create({
 
 type RetryableConfig = NonNullable<AxiosError['config']> & { _guestRetry?: boolean };
 
+let guestRecoveryPromise: Promise<GuestSessionResponse> | null = null;
+
+function hasGuestContext(config?: RetryableConfig): boolean {
+  const role = localStorage.getItem('role');
+  const sessionId = localStorage.getItem('session_id');
+  const requestSessionId = config?.headers?.['X-Session-Id'];
+  return role === 'guest' || !!sessionId || !!requestSessionId;
+}
+
+function isAuthRoute(url: string): boolean {
+  return url.includes('/auth/');
+}
+
 async function recoverGuestSession() {
   const { data } = await axios.post<GuestSessionResponse>(`${apiBaseURL}/auth/guest`);
   useAuthStore.getState().setGuest(data.session_id);
   useProjectStore.getState().setCurrentProject(data.project);
-  return data.session_id;
+  return data;
+}
+
+async function recoverGuestSessionOnce() {
+  guestRecoveryPromise ??= recoverGuestSession().finally(() => {
+    guestRecoveryPromise = null;
+  });
+  return guestRecoveryPromise;
 }
 
 apiClient.interceptors.request.use((config) => {
@@ -44,12 +64,18 @@ apiClient.interceptors.response.use(
 
       const originalConfig = error.config as RetryableConfig | undefined;
       const url = originalConfig?.url ?? '';
-      if (!hasToken && originalConfig && !originalConfig._guestRetry && !url.includes('/auth/guest')) {
+      if (
+        !hasToken &&
+        originalConfig &&
+        !originalConfig._guestRetry &&
+        !isAuthRoute(url) &&
+        hasGuestContext(originalConfig)
+      ) {
         originalConfig._guestRetry = true;
         try {
-          const sessionId = await recoverGuestSession();
+          const guest = await recoverGuestSessionOnce();
           originalConfig.headers = originalConfig.headers ?? {};
-          originalConfig.headers['X-Session-Id'] = sessionId;
+          originalConfig.headers['X-Session-Id'] = guest.session_id;
           return apiClient(originalConfig);
         } catch {
           localStorage.removeItem('session_id');

@@ -414,17 +414,71 @@ describe('HeatCalcPage', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
       await waitFor(() => {
-        expect(screen.queryByRole('columnheader', { name: /^DN$/ })).not.toBeInTheDocument();
+        expect(screen.queryAllByRole('columnheader').map((header) => header.textContent)).not.toContain('DN');
       });
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY) ?? '{}');
-      expect(saved.table.pipe).not.toContain('pipe_dn');
-      expect(saved.table.tank).toContain('tank_dimensions');
+      expect(saved.types.pipe.visibleOrder).not.toContain('pipe_dn');
+      expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
+      expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
+      expect(saved.types.tank.visibleOrder).toContain('tank_dimensions');
 
       await user.click(screen.getByLabelText('Резервуары'));
       await waitFor(() => {
         expect(screen.getByText('Резервуар прямоугольный')).toBeInTheDocument();
       });
       expect(screen.getAllByText('Габариты').length).toBeGreaterThan(0);
+    }, 10_000);
+
+    it('сохраняет порядок и ширину колонок из окна «Поля таблицы»', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await user.click(screen.getByRole('button', { name: 'Настроить поля таблицы' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Поля таблицы' });
+      const visibleColumnKeys = () =>
+        Array.from(dialog.querySelectorAll('.column-layout-row:not(.hidden)'))
+          .map((row) => row.getAttribute('data-column-key'));
+
+      const orderInput = within(dialog).getByRole('spinbutton', { name: 'Порядок: DN' });
+      const widthInput = within(dialog).getByRole('spinbutton', { name: 'Ширина: DN' });
+      fireEvent.change(orderInput, { target: { value: '3' } });
+      expect(visibleColumnKeys().slice(0, 5)).toEqual([
+        'index',
+        'name',
+        'pipe_outer_diameter',
+        'pipe_dn',
+        'pipe_length',
+      ]);
+      fireEvent.blur(orderInput);
+      await waitFor(() => {
+        expect(visibleColumnKeys().slice(0, 5)).toEqual([
+          'index',
+          'name',
+          'pipe_dn',
+          'pipe_outer_diameter',
+          'pipe_length',
+        ]);
+      });
+      fireEvent.change(widthInput, { target: { value: '12.5' } });
+      fireEvent.blur(widthInput);
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY) ?? '{}');
+      expect(saved.types.pipe.visibleOrder.slice(0, 5)).toEqual([
+        'index',
+        'name',
+        'pipe_dn',
+        'pipe_outer_diameter',
+        'pipe_length',
+      ]);
+      expect(saved.types.pipe.columns.pipe_dn).toMatchObject({ widthPct: 12.5 });
+      expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
+      expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
     });
 
     it('для зарегистрированного пользователя без записи очищает кеш и возвращает дефолтный JSON', async () => {
@@ -502,19 +556,21 @@ describe('HeatCalcPage', () => {
       await waitFor(() => {
         expect(updateUserPreference).toHaveBeenCalledWith(
           HEATCALC_TABLE_COLUMN_PREF_KEY,
-          expect.objectContaining({
-            table: expect.objectContaining({
-              pipe: expect.not.arrayContaining(['pipe_dn']),
-            }),
-          }),
+          expect.any(Object),
         );
       });
+      const preferencePayload = (updateUserPreference as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      expect(preferencePayload.types.pipe.visibleOrder).not.toContain('pipe_dn');
+      expect(preferencePayload.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
+      expect(preferencePayload.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
       await waitFor(() => {
-        expect(screen.queryByRole('columnheader', { name: /^DN$/ })).not.toBeInTheDocument();
+        expect(screen.queryAllByRole('columnheader').map((header) => header.textContent)).not.toContain('DN');
       });
       const cached = JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY) ?? '{}');
       expect(cached.userId).toBe('user-test-1');
-      expect(cached.settings.table.pipe).not.toContain('pipe_dn');
+      expect(cached.settings.types.pipe.visibleOrder).not.toContain('pipe_dn');
+      expect(cached.settings.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
+      expect(cached.settings.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
     });
 
     it('фильтр по наименованию скрывает строки только в таблице, не меняя счётчики расчёта', async () => {
@@ -570,6 +626,36 @@ describe('HeatCalcPage', () => {
       expect(await screen.findByText('Труба 60')).toBeInTheDocument();
       expect(screen.getByText('Труба 219')).toBeInTheDocument();
     });
+
+    it('при скрытии колонки убирает невидимый фильтр по этой колонке', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const base = makeObject().params;
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject({ id: 'pipe-60', params: { ...base, name: 'Труба 60', outer_diameter: 0.06 } }),
+        makeObject({ id: 'pipe-219', params: { ...base, name: 'Труба 219', outer_diameter: 0.219 } }),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба 60');
+      await openColumnFilter(user, 'Наружный диаметр');
+      await user.type(await screen.findByLabelText('Минимум: Наружный диаметр'), '100');
+      await user.click(screen.getByRole('button', { name: 'Применить' }));
+      await waitFor(() => {
+        expect(screen.queryByText('Труба 60')).not.toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Настроить поля таблицы' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Поля таблицы' });
+      await user.click(within(dialog).getByRole('checkbox', { name: 'Наружный диаметр' }));
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      expect(await screen.findByText('Труба 60')).toBeInTheDocument();
+      expect(screen.getByText('Труба 219')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Сбросить фильтры таблицы' })).toBeDisabled();
+    }, 10000);
 
     it('сортировка по диаметру меняет только визуальный порядок строк', async () => {
       const { listObjects } = await import('@/api/projects');

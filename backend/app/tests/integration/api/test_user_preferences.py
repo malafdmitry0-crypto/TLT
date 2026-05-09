@@ -1,9 +1,36 @@
 """Integration-тесты пользовательских UI-настроек."""
 
+from typing import Any, cast
+
 import pytest
 from httpx import AsyncClient
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+def heatcalc_table_columns_value(
+    pipe_visible: list[str] | None = None,
+    tank_visible: list[str] | None = None,
+) -> dict[str, object]:
+    return {
+        "version": 3,
+        "types": {
+            "pipe": {
+                "visibleOrder": pipe_visible or ["name", "pipe_dn"],
+                "columns": {
+                    "name": {"widthPct": 24},
+                    "pipe_dn": {"widthPct": 5.8},
+                },
+            },
+            "tank": {
+                "visibleOrder": tank_visible or ["name", "tank_dimensions"],
+                "columns": {
+                    "name": {"widthPct": 24},
+                    "tank_dimensions": {"widthPct": 19},
+                },
+            },
+        },
+    }
 
 
 class TestUserPreferencesApi:
@@ -29,15 +56,7 @@ class TestUserPreferencesApi:
         employee_token: str,
     ):
         headers = {"Authorization": f"Bearer {employee_token}"}
-        payload = {
-            "value": {
-                "version": 1,
-                "table": {
-                    "pipe": ["name", "pipe_dn"],
-                    "tank": ["name", "tank_dimensions"],
-                },
-            }
-        }
+        payload = {"value": heatcalc_table_columns_value()}
 
         first = await client.put(
             "/api/v1/preferences/heatcalc.tableColumns.v1",
@@ -45,19 +64,11 @@ class TestUserPreferencesApi:
             headers=headers,
         )
         assert first.status_code == 200, first.text
-        assert first.json()["value"]["table"]["pipe"] == ["name", "pipe_dn"]
+        assert first.json()["value"]["types"]["pipe"]["visibleOrder"] == ["name", "pipe_dn"]
 
         update = await client.put(
             "/api/v1/preferences/heatcalc.tableColumns.v1",
-            json={
-                "value": {
-                    "version": 1,
-                    "table": {
-                        "pipe": ["name"],
-                        "tank": ["name"],
-                    },
-                }
-            },
+            json={"value": heatcalc_table_columns_value(["name"], ["name"])},
             headers=headers,
         )
         assert update.status_code == 200, update.text
@@ -67,7 +78,7 @@ class TestUserPreferencesApi:
             headers=headers,
         )
         assert read_back.status_code == 200
-        assert read_back.json()["value"]["table"]["pipe"] == ["name"]
+        assert read_back.json()["value"]["types"]["pipe"]["visibleOrder"] == ["name"]
 
     async def test_guest_cannot_use_registered_preferences(
         self,
@@ -89,7 +100,7 @@ class TestUserPreferencesApi:
     ):
         await client.put(
             "/api/v1/preferences/heatcalc.tableColumns.v1",
-            json={"value": {"version": 1, "table": {"pipe": ["name"], "tank": ["name"]}}},
+            json={"value": heatcalc_table_columns_value(["name"], ["name"])},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
 
@@ -100,3 +111,35 @@ class TestUserPreferencesApi:
 
         assert resp.status_code == 200
         assert resp.json()["value"] is None
+
+    async def test_heatcalc_table_columns_rejects_metadata_payload(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        value = heatcalc_table_columns_value()
+        typed_value = cast(dict[str, Any], value)
+        typed_value["types"]["pipe"]["columns"]["name"]["label"] = "Плохое поле"
+
+        resp = await client.put(
+            "/api/v1/preferences/heatcalc.tableColumns.v1",
+            json={"value": value},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 422
+
+    async def test_heatcalc_table_columns_rejects_unknown_column_key(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        value = heatcalc_table_columns_value(["name", "unknown_key"], ["name"])
+
+        resp = await client.put(
+            "/api/v1/preferences/heatcalc.tableColumns.v1",
+            json={"value": value},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 422
