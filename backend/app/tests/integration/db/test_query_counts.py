@@ -260,6 +260,31 @@ async def test_objects_summary_is_constant_query_count_with_many_calculations(
     _assert_query_count(statements, 3)
 
 
+async def test_electrical_project_page_is_constant_query_count_with_many_objects(
+    db_session: AsyncSession,
+    employee_user: User,
+    test_engine: AsyncEngine,
+):
+    project, _objects = await _seed_project(
+        db_session,
+        employee_user,
+        per_type=200,
+        with_electrical=True,
+    )
+
+    with count_sql(test_engine) as statements:
+        objects, calculations, summary, page_info = await CalculationService(
+            db_session
+        ).electrical_project_page(project.id, page=1, page_size=50)
+
+    assert len(objects) == 50
+    assert len(calculations) == 50
+    assert summary["total_objects"] == 400
+    assert summary["electrical_calculations_total"] == 400
+    assert page_info.total_pages == 8
+    _assert_query_count(statements, 4)
+
+
 async def test_list_projects_uses_eager_loaded_object_types(
     db_session: AsyncSession,
     employee_user: User,

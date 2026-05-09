@@ -14,12 +14,15 @@ from app.schemas.calculation import (
     BatchCalcResponse,
     BatchElectricalResponse,
     ElectricalCalcSummary,
+    ElectricalPageResponse,
+    ElectricalPageSummary,
     ElectricalRequest,
     ElectricalResponse,
     HeatLossRequest,
     HeatLossResponse,
 )
 from app.services.calculation_service import CalculationError, CalculationService
+from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 
 router = APIRouter()
 
@@ -112,6 +115,52 @@ async def list_electrical(
         )
         for c in calcs
     ]
+
+
+@router.get(
+    "/electrical/page",
+    response_model=ElectricalPageResponse,
+    summary="Постраничные данные страницы электрорасчёта",
+)
+async def electrical_page(
+    project_id: UUID,
+    variant_number: int = 1,
+    page: int = 1,
+    page_size: int = 50,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await ProjectService(db).get_project_basic(project_id, principal)
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ProjectAccessError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    objects, calculations, summary, page_info = await CalculationService(
+        db
+    ).electrical_project_page(
+        project_id,
+        variant_number=variant_number,
+        page=page,
+        page_size=page_size,
+    )
+    return ElectricalPageResponse(
+        items=objects,
+        calculations=[
+            ElectricalCalcSummary(
+                id=c.id,
+                object_id=c.object_id,
+                cable_type=c.cable_type,
+                cable_mark=c.cable_mark,
+                variant_number=c.variant_number,
+                results=c.results,
+            )
+            for c in calculations
+        ],
+        summary=ElectricalPageSummary(**summary),
+        page_info=page_info,
+    )
 
 
 @router.post(

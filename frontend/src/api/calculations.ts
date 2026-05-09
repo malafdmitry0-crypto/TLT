@@ -1,6 +1,7 @@
 import apiClient from './client';
 import type {
   ElectricalCalcSummary,
+  ElectricalPageResponse,
   ElectricalRequest,
   ElectricalResponse,
   HeatLossRequest,
@@ -38,6 +39,23 @@ export async function listElectricalCalcs(
 ): Promise<ElectricalCalcSummary[]> {
   const { data } = await apiClient.get<ElectricalCalcSummary[]>('/calc/electrical', {
     params: { project_id: projectId, variant_number: variantNumber },
+  });
+  return data;
+}
+
+export async function getElectricalPage(
+  projectId: string,
+  variantNumber: number = 1,
+  page: number = 1,
+  pageSize: number = 50,
+): Promise<ElectricalPageResponse> {
+  const { data } = await apiClient.get<ElectricalPageResponse>('/calc/electrical/page', {
+    params: {
+      project_id: projectId,
+      variant_number: variantNumber,
+      page,
+      page_size: pageSize,
+    },
   });
   return data;
 }

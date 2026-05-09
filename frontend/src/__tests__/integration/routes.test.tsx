@@ -106,50 +106,53 @@ describe('AppRoutes', () => {
     useProjectStore.getState().setCurrentProject(null);
   });
 
-  it('/ показывает HomePage', () => {
+  it('/ показывает HomePage', async () => {
     renderAt('/');
-    expect(screen.getAllByText(/без регистрации/i)[0]).toBeInTheDocument();
+    expect((await screen.findAllByText(/без регистрации/i))[0]).toBeInTheDocument();
   });
 
-  it('/login показывает форму авторизации', () => {
+  it('/login показывает форму авторизации', async () => {
     renderAt('/login');
-    expect(screen.getAllByText(/Войти/i)[0]).toBeInTheDocument();
+    expect((await screen.findAllByText(/Войти/i))[0]).toBeInTheDocument();
   });
 
-  it('/help/guest рендерит GuestHelpPage', () => {
+  it('/help/guest рендерит GuestHelpPage', async () => {
     renderAt('/help/guest');
     // Help-страницы — статичный текст
+    await screen.findByText(/Гостевой режим/i);
     expect(document.body.textContent?.length).toBeGreaterThan(100);
   });
 
-  it('/help/employee рендерит EmployeeHelpPage', () => {
+  it('/help/employee рендерит EmployeeHelpPage', async () => {
     renderAt('/help/employee');
+    await screen.findByRole('heading', { name: /Инструкция для сотрудника/i });
     expect(document.body.textContent?.length).toBeGreaterThan(100);
   });
 
-  it('/help/admin рендерит AdminHelpPage', () => {
+  it('/help/admin рендерит AdminHelpPage', async () => {
     renderAt('/help/admin');
+    await screen.findByRole('heading', { name: /Инструкция для администратора/i });
     expect(document.body.textContent?.length).toBeGreaterThan(100);
   });
 
-  it('/admin без role редиректит на /', () => {
+  it('/admin без role редиректит на /', async () => {
     renderAt('/admin/users');
     // ProtectedRoute → Navigate("/") → HomePage
-    expect(screen.getAllByText(/без регистрации/i)[0]).toBeInTheDocument();
+    expect((await screen.findAllByText(/без регистрации/i))[0]).toBeInTheDocument();
   });
 
-  it('/projects для guest редиректит на /', () => {
+  it('/projects для guest редиректит на /', async () => {
     useAuthStore.getState().setGuest('sid-1');
     renderAt('/projects');
-    expect(screen.getAllByText(/без регистрации/i)[0]).toBeInTheDocument();
+    expect((await screen.findAllByText(/без регистрации/i))[0]).toBeInTheDocument();
   });
 
-  it('/workspace для admin редиректит на / (admin не работает с проектами)', () => {
+  it('/workspace для admin редиректит на / (admin не работает с проектами)', async () => {
     useAuthStore.getState().setEmployee(
       { id: 'a', email: 'a@x', full_name: null, role: 'admin', is_active: true },
       { access: 'a', refresh: 'r' }
     );
     renderAt('/workspace');
-    expect(screen.getAllByText(/без регистрации/i)[0]).toBeInTheDocument();
+    expect((await screen.findAllByText(/без регистрации/i))[0]).toBeInTheDocument();
   });
 });

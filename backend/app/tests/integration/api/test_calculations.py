@@ -341,6 +341,44 @@ class TestElectricalCalculation:
         ).json()
         assert len(listing) == 1
 
+    async def test_electrical_page_returns_paginated_objects_and_project_summary(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        first = await _create_pipe_object(client, project["id"], guest_session)
+        second = await _create_pipe_object(client, project["id"], guest_session)
+
+        batch = await client.post(
+            "/api/v1/calc/electrical/batch",
+            params={"project_id": project["id"], "include_results": False},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert batch.status_code == 200, batch.text
+
+        resp = await client.get(
+            "/api/v1/calc/electrical/page",
+            params={"project_id": project["id"], "page": 1, "page_size": 1},
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert len(body["items"]) == 1
+        page_object_id = body["items"][0]["id"]
+        assert page_object_id in {first["id"], second["id"]}
+        assert [calc["object_id"] for calc in body["calculations"]] == [page_object_id]
+        assert body["summary"]["total_objects"] == 2
+        assert body["summary"]["valid_objects"] == 2
+        assert body["summary"]["calculated_count"] == 2
+        assert body["page_info"] == {
+            "page": 1,
+            "page_size": 1,
+            "offset": 0,
+            "total_pages": 2,
+            "has_next_page": True,
+            "has_previous_page": False,
+        }
+
     async def test_batch_can_skip_error_payload(self, client: AsyncClient, guest_session: str):
         project = await _create_project(client, guest_session)
         await _create_pipe_object(client, project["id"], guest_session)

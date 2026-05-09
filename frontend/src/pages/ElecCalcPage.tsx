@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Button,
@@ -25,13 +25,12 @@ import { useNavigate } from 'react-router-dom';
 
 import {
   batchCalcElectrical,
+  getElectricalPage,
   listCables,
-  listElectricalCalcs,
   selectCableManual,
   type CableSource,
 } from '@/api/calculations';
 import { getCablesTt, getResistiveCables } from '@/api/references';
-import { listObjects } from '@/api/projects';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useElectricalStats } from '@/hooks/useElectricalStats';
@@ -98,22 +97,25 @@ export default function ElecCalcPage() {
   const [vaporTemperature, setVaporTemperature] = useState<number | null>(null);
   const [aggressiveProduct, setAggressiveProduct] = useState(false);
   const [layoutDrafts, setLayoutDrafts] = useState<Record<string, CableLayoutDraft>>({});
+  const [tablePage, setTablePage] = useState(1);
+  const [tablePageSize, setTablePageSize] = useState(ELECTRICAL_TABLE_PAGE_SIZE);
 
   const qc = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: objects = [] } = useQuery({
-    queryKey: ['project', project?.id, 'objects'],
-    queryFn: () => listObjects(project!.id),
-    enabled: !!project,
-  });
+  useEffect(() => {
+    setTablePage(1);
+  }, [project?.id, variant]);
 
-  const { data: elecCalcs = [] } = useQuery({
-    queryKey: ['project', project?.id, 'electrical-calcs', variant],
-    queryFn: () => listElectricalCalcs(project!.id, variant),
+  const { data: electricalPage, isFetching: isElectricalPageFetching } = useQuery({
+    queryKey: ['project', project?.id, 'electrical-page', variant, tablePage, tablePageSize],
+    queryFn: () => getElectricalPage(project!.id, variant, tablePage, tablePageSize),
     enabled: !!project,
-    select: (rows) => rows.filter((c) => c.variant_number === variant),
   });
+  const objects = electricalPage?.items ?? [];
+  const elecCalcs = electricalPage?.calculations ?? [];
+  const pageSummary = electricalPage?.summary;
+  const pageInfo = electricalPage?.page_info;
 
   const effectiveSource: CableSource = isEmployee ? cableSource : 'builtin';
   const { data: cables = [] } = useQuery({
@@ -146,7 +148,7 @@ export default function ElecCalcPage() {
         aggressiveProduct,
     }),
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-page'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
       if (res.skipped > 0) {
         message.warning(
@@ -205,7 +207,7 @@ export default function ElecCalcPage() {
         aggressiveProduct,
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-page'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
       message.success('Кабель выбран, расчёт обновлён');
     },
@@ -241,7 +243,7 @@ export default function ElecCalcPage() {
         delete next[vars.objectId];
         return next;
       });
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-calcs'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-page'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
       message.success('Параметры укладки применены');
     },
@@ -285,13 +287,20 @@ export default function ElecCalcPage() {
     disabled: !ENABLED_CABLE_TYPES.has(k),
   }));
 
-  const showInKW = stats.totalPower >= 1000;
-  const powerDisplay = showInKW
-    ? `${(stats.totalPower / 1000).toFixed(2)} кВт`
-    : `${stats.totalPower.toFixed(0)} Вт`;
+  const totalObjects = pageSummary?.total_objects ?? objects.length;
+  const validObjectsCount = pageSummary?.valid_objects ?? stats.validObjects.length;
+  const calculatedCount = pageSummary?.calculated_count ?? stats.calcedCount;
+  const failedCount = pageSummary?.failed_count ?? stats.failedCount;
+  const totalCableLength = pageSummary?.total_cable_length ?? stats.totalCableLength;
+  const totalPower = pageSummary?.total_power ?? stats.totalPower;
+  const totalCurrent = pageSummary?.total_current ?? stats.totalCurrent;
+  const showSummaryInKW = totalPower >= 1000;
+  const summaryPowerDisplay = showSummaryInKW
+    ? `${(totalPower / 1000).toFixed(2)} кВт`
+    : `${totalPower.toFixed(0)} Вт`;
 
-  const bannerStats = stats.calcedCount > 0
-    ? `${stats.totalCableLength.toFixed(1)} м · ${powerDisplay} · ${stats.totalCurrent.toFixed(2)} А · рассчитано: ${stats.calcedCount}/${objects.length}`
+  const bannerStats = calculatedCount > 0
+    ? `${totalCableLength.toFixed(1)} м · ${summaryPowerDisplay} · ${totalCurrent.toFixed(2)} А · рассчитано: ${calculatedCount}/${totalObjects}`
     : 'расчёт не выполнен';
 
   function renderElectricalTypeControls() {
@@ -351,9 +360,9 @@ export default function ElecCalcPage() {
             <span className="label">СО{variant} · {CABLE_TYPE_LABEL[cableType]} · </span>
             {bannerStats}
           </span>
-          {stats.failedCount > 0 && (
+          {failedCount > 0 && (
             <Tag color="error" icon={<CloseCircleFilled />}>
-              Ошибок: {stats.failedCount}
+              Ошибок: {failedCount}
             </Tag>
           )}
         </div>
@@ -369,7 +378,10 @@ export default function ElecCalcPage() {
               key={n}
               size="small"
               type={variant === n ? 'primary' : 'default'}
-              onClick={() => setVariant(n)}
+              onClick={() => {
+                setTablePage(1);
+                setVariant(n);
+              }}
             >
               СО{n}
             </Button>
@@ -409,7 +421,7 @@ export default function ElecCalcPage() {
             type="primary"
             icon={<ReloadOutlined />}
             loading={batchMut.isPending}
-            disabled={stats.validObjects.length === 0}
+            disabled={validObjectsCount === 0}
             onClick={() => batchMut.mutate()}
           >
             Выполнить электрорасчёт СО{variant}
@@ -423,7 +435,7 @@ export default function ElecCalcPage() {
 
         {/* Table */}
         <Card size="small" className="workspace-table-card srs-table-wrap">
-          {objects.length === 0 ? (
+          {electricalPage && totalObjects === 0 ? (
             <Alert
               type="warning"
               showIcon
@@ -436,13 +448,20 @@ export default function ElecCalcPage() {
               className="calc-spreadsheet electrical-spreadsheet"
               rowKey="id"
               size="small"
+              loading={isElectricalPageFetching}
               pagination={{
-                defaultPageSize: ELECTRICAL_TABLE_PAGE_SIZE,
+                current: tablePage,
+                pageSize: tablePageSize,
+                total: totalObjects,
                 pageSizeOptions: ['25', '50', '100'],
                 showSizeChanger: true,
-                hideOnSinglePage: objects.length <= ELECTRICAL_TABLE_PAGE_SIZE,
+                hideOnSinglePage: totalObjects <= tablePageSize,
                 showTotal: (total, range) => `${range[0]}-${range[1]} из ${total}`,
                 size: 'small',
+                onChange: (nextPage, nextPageSize) => {
+                  setTablePage(nextPage);
+                  setTablePageSize(nextPageSize);
+                },
               }}
               dataSource={objects}
               scroll={{ x: 1200, y: 'calc(100vh - 430px)' }}
@@ -453,7 +472,8 @@ export default function ElecCalcPage() {
                 {
                   title: '#',
                   width: 40,
-                  render: (_: unknown, __: ProjectObject, idx: number) => idx + 1,
+                  render: (_: unknown, __: ProjectObject, idx: number) =>
+                    (pageInfo?.offset ?? 0) + idx + 1,
                 },
                 {
                   title: 'Объект',
@@ -597,16 +617,16 @@ export default function ElecCalcPage() {
             <span>
               ⓘ Красная строка = ошибка подбора кабеля. Нажмите «Выполнить электрорасчёт» чтобы рассчитать все объекты.
             </span>
-            {stats.calcedCount > 0 && (
+            {calculatedCount > 0 && (
               <Space size={16}>
                 <Text style={{ fontSize: 12 }}>
-                  Кабель: <strong>{stats.totalCableLength.toFixed(1)} м</strong>
+                  Кабель: <strong>{totalCableLength.toFixed(1)} м</strong>
                 </Text>
                 <Text style={{ fontSize: 12 }}>
-                  Мощность: <strong>{powerDisplay}</strong>
+                  Мощность: <strong>{summaryPowerDisplay}</strong>
                 </Text>
                 <Text style={{ fontSize: 12 }}>
-                  Ток: <strong>{stats.totalCurrent.toFixed(2)} А</strong>
+                  Ток: <strong>{totalCurrent.toFixed(2)} А</strong>
                 </Text>
                 <Button
                   size="small"

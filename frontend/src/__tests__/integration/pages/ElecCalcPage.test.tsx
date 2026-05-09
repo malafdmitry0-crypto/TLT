@@ -4,17 +4,17 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ElecCalcPage from '@/pages/ElecCalcPage';
 import { useProjectStore } from '@/store/projectStore';
+import type { ElectricalCalcSummary, ElectricalPageResponse } from '@/types/calculation';
 import type { Project, ProjectObject } from '@/types/project';
 
 vi.mock('@/api/projects', () => ({
-  listObjects: vi.fn(),
   deleteObject: vi.fn(),
 }));
 
 vi.mock('@/api/calculations', () => ({
   batchCalcElectrical: vi.fn(),
+  getElectricalPage: vi.fn(),
   listCables: vi.fn().mockResolvedValue([]),
-  listElectricalCalcs: vi.fn(),
   selectCableManual: vi.fn(),
 }));
 
@@ -64,6 +64,59 @@ function makeObject(over: Partial<ProjectObject> = {}): ProjectObject {
   };
 }
 
+function makeElectricalPage(
+  objects: ProjectObject[],
+  calculations: ElectricalCalcSummary[] = [],
+  summaryOverrides: Partial<ElectricalPageResponse['summary']> = {},
+  pageInfoOverrides: Partial<ElectricalPageResponse['page_info']> = {},
+): ElectricalPageResponse {
+  const totalObjects = summaryOverrides.total_objects ?? objects.length;
+  const calculated = calculations.filter(
+    (calc) =>
+      calc.results &&
+      !calc.results.error &&
+      (calc.cable_mark || calc.results.selected_cable),
+  );
+  const pageSize = pageInfoOverrides.page_size ?? 50;
+
+  return {
+    items: objects,
+    calculations,
+    summary: {
+      total_objects: totalObjects,
+      valid_objects:
+        summaryOverrides.valid_objects ?? objects.filter((obj) => obj.is_valid).length,
+      invalid_objects:
+        summaryOverrides.invalid_objects ?? totalObjects - objects.filter((obj) => obj.is_valid).length,
+      electrical_calculations_total:
+        summaryOverrides.electrical_calculations_total ?? calculations.length,
+      calculated_count: summaryOverrides.calculated_count ?? calculated.length,
+      failed_count:
+        summaryOverrides.failed_count ??
+        calculations.filter((calc) => typeof calc.results?.error === 'string').length,
+      total_cable_length:
+        summaryOverrides.total_cable_length ??
+        calculated.reduce((sum, calc) => sum + Number(calc.results?.cable_length ?? 0), 0),
+      total_power:
+        summaryOverrides.total_power ??
+        calculated.reduce((sum, calc) => sum + Number(calc.results?.total_power ?? 0), 0),
+      total_current:
+        summaryOverrides.total_current ??
+        calculated.reduce((sum, calc) => sum + Number(calc.results?.current ?? 0), 0),
+      ...summaryOverrides,
+    },
+    page_info: {
+      page: 1,
+      page_size: pageSize,
+      offset: 0,
+      total_pages: totalObjects > 0 ? Math.ceil(totalObjects / pageSize) : 0,
+      has_next_page: totalObjects > pageSize,
+      has_previous_page: false,
+      ...pageInfoOverrides,
+    },
+  };
+}
+
 function renderPage() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -87,10 +140,8 @@ describe('ElecCalcPage (integration)', () => {
   });
 
   it('пустой проект — показывает alert «Нет объектов»', async () => {
-    const { listObjects } = await import('@/api/projects');
-    const { listElectricalCalcs } = await import('@/api/calculations');
-    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    const { getElectricalPage } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([]));
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
     await waitFor(() => {
@@ -99,10 +150,8 @@ describe('ElecCalcPage (integration)', () => {
   });
 
   it('переключатель вариантов СО1..СО4 присутствует', async () => {
-    const { listObjects } = await import('@/api/projects');
-    const { listElectricalCalcs } = await import('@/api/calculations');
-    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    const { getElectricalPage } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([]));
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
     await waitFor(() => {
@@ -113,30 +162,26 @@ describe('ElecCalcPage (integration)', () => {
   });
 
   it('запрашивает электрорасчёты только для выбранного варианта СО', async () => {
-    const { listObjects } = await import('@/api/projects');
-    const { listElectricalCalcs } = await import('@/api/calculations');
-    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    const { getElectricalPage } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([]));
     useProjectStore.getState().setCurrentProject(mockProject);
     const user = (await import('@testing-library/user-event')).default.setup();
     renderPage();
 
     await waitFor(() => {
-      expect(listElectricalCalcs).toHaveBeenCalledWith('p-1', 1);
+      expect(getElectricalPage).toHaveBeenCalledWith('p-1', 1, 1, 50);
     });
 
     await user.click(screen.getByRole('button', { name: 'СО2' }));
 
     await waitFor(() => {
-      expect(listElectricalCalcs).toHaveBeenCalledWith('p-1', 2);
+      expect(getElectricalPage).toHaveBeenCalledWith('p-1', 2, 1, 50);
     });
   });
 
   it('при наличии валидного объекта показывает кнопку «Выполнить электрорасчёт»', async () => {
-    const { listObjects } = await import('@/api/projects');
-    const { listElectricalCalcs } = await import('@/api/calculations');
-    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
-    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    const { getElectricalPage } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
     await waitFor(() => {
@@ -147,8 +192,7 @@ describe('ElecCalcPage (integration)', () => {
   });
 
   it('пагинирует таблицу электрики, чтобы не рендерить все строки сразу', async () => {
-    const { listObjects } = await import('@/api/projects');
-    const { listElectricalCalcs } = await import('@/api/calculations');
+    const { getElectricalPage } = await import('@/api/calculations');
     const objects = Array.from({ length: 80 }, (_, index) =>
       makeObject({
         id: `o-${index + 1}`,
@@ -156,8 +200,14 @@ describe('ElecCalcPage (integration)', () => {
         params: { name: `Труба-${index + 1}` },
       })
     );
-    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue(objects);
-    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage(
+        objects.slice(0, 50),
+        [],
+        { total_objects: 80, valid_objects: 80, invalid_objects: 0 },
+        { total_pages: 2, has_next_page: true },
+      ),
+    );
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
@@ -171,10 +221,8 @@ describe('ElecCalcPage (integration)', () => {
   });
 
   it('запускает batch ТЛТ с electrical params, а не пустым набором', async () => {
-    const { listObjects } = await import('@/api/projects');
-    const { batchCalcElectrical, listElectricalCalcs } = await import('@/api/calculations');
-    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
-    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    const { batchCalcElectrical, getElectricalPage } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
     (batchCalcElectrical as ReturnType<typeof vi.fn>).mockResolvedValue({
       calculated: 1,
       skipped: 0,
@@ -207,10 +255,8 @@ describe('ElecCalcPage (integration)', () => {
   });
 
   it('селектор типа кабеля содержит ТТН/ТТВ/ТТХ, single_core, three_core как доступные', async () => {
-    const { listObjects } = await import('@/api/projects');
-    const { listElectricalCalcs } = await import('@/api/calculations');
-    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    const { getElectricalPage } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([]));
     useProjectStore.getState().setCurrentProject(mockProject);
     const user = (await import('@testing-library/user-event')).default.setup();
     renderPage();
@@ -235,11 +281,10 @@ describe('ElecCalcPage (integration)', () => {
   });
 
   it('при успешном расчёте отображает подобранный кабель в карточке объекта', async () => {
-    const { listObjects } = await import('@/api/projects');
-    const { listElectricalCalcs } = await import('@/api/calculations');
-    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
-    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([
-      {
+    const { getElectricalPage } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject()], [
+        {
         id: 'c-1',
         object_id: 'o-1',
         cable_type: 'self_regulating',
@@ -253,7 +298,8 @@ describe('ElecCalcPage (integration)', () => {
           voltage: 220,
         },
       },
-    ]);
+      ]),
+    );
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
     await waitFor(() => {
@@ -262,11 +308,10 @@ describe('ElecCalcPage (integration)', () => {
   });
 
   it('изменение шага навива пересчитывает текущий объект с выбранной маркой', async () => {
-    const { listObjects } = await import('@/api/projects');
-    const { listElectricalCalcs, selectCableManual } = await import('@/api/calculations');
-    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
-    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([
-      {
+    const { getElectricalPage, selectCableManual } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject()], [
+        {
         id: 'c-1',
         object_id: 'o-1',
         cable_type: 'self_regulating',
@@ -282,7 +327,8 @@ describe('ElecCalcPage (integration)', () => {
           voltage: 220,
         },
       },
-    ]);
+      ]),
+    );
     (selectCableManual as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 'c-1',
       object_id: 'o-1',
@@ -315,10 +361,8 @@ describe('ElecCalcPage (integration)', () => {
   });
 
   it('запускает batch с выбранным типом ТТН/ТТВ/ТТХ и его параметрами', async () => {
-    const { listObjects } = await import('@/api/projects');
-    const { batchCalcElectrical, listElectricalCalcs } = await import('@/api/calculations');
-    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
-    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    const { batchCalcElectrical, getElectricalPage } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
     (batchCalcElectrical as ReturnType<typeof vi.fn>).mockResolvedValue({
       calculated: 1,
       skipped: 0,

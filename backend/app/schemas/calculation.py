@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.project import ProjectObjectResponse, ProjectObjectsPageInfo
+
 # ---------- Heat loss ----------
 
 
@@ -573,6 +575,29 @@ class ElectricalCalcSummary(BaseModel):
     cable_mark: str | None
     variant_number: int
     results: dict[str, Any] | None
+
+
+class ElectricalPageSummary(BaseModel):
+    """Агрегаты страницы электрорасчёта без передачи всех строк в браузер."""
+
+    total_objects: int = 0
+    valid_objects: int = 0
+    invalid_objects: int = 0
+    electrical_calculations_total: int = 0
+    calculated_count: int = 0
+    failed_count: int = 0
+    total_cable_length: float = 0.0
+    total_power: float = 0.0
+    total_current: float = 0.0
+
+
+class ElectricalPageResponse(BaseModel):
+    """Постраничные данные для страницы электрорасчёта."""
+
+    items: list[ProjectObjectResponse]
+    calculations: list[ElectricalCalcSummary]
+    summary: ElectricalPageSummary
+    page_info: ProjectObjectsPageInfo
 
 
 class BatchElectricalResponse(BaseModel):

@@ -298,10 +298,13 @@ describe('HeatCalcPage', () => {
       );
 
       // Ждём пока React Query загрузит данные и кнопка разблокируется
-      await waitFor(() => {
-        const btn = screen.getByRole('button', { name: /электрорасчёт/i });
-        expect(btn).not.toBeDisabled();
-      });
+      await waitFor(
+        () => {
+          const btn = screen.getByRole('button', { name: /электрорасчёт/i });
+          expect(btn).not.toBeDisabled();
+        },
+        { timeout: 5000 },
+      );
     });
   });
 

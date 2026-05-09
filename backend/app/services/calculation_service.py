@@ -5,7 +5,8 @@ import uuid
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import Float, and_, func, or_, select
+from sqlalchemy import cast as sa_cast
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,6 +35,7 @@ from app.schemas.json_shapes import (
     PipeHeatLossResultDict,
     TankHeatLossResultDict,
 )
+from app.schemas.project import ProjectObjectsPageInfo
 
 # Источник каталога кабелей. Значения заданы для совместимости с текущим API;
 # внутри функций валидируется через проверку, не enum (чтобы случайная строка
@@ -48,6 +50,111 @@ class CalculationError(Exception):
 class CalculationService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+
+    async def electrical_project_page(
+        self,
+        project_id: UUID,
+        *,
+        variant_number: int = 1,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[
+        list[ProjectObject], list[ElectricalCalculation], dict[str, Any], ProjectObjectsPageInfo
+    ]:
+        page = max(page, 1)
+        page_size = min(max(page_size, 1), 200)
+
+        object_counts_result = await self.db.execute(
+            select(ProjectObject.is_valid, func.count())
+            .where(ProjectObject.project_id == project_id)
+            .group_by(ProjectObject.is_valid)
+        )
+        object_counts = {
+            bool(is_valid): int(count) for is_valid, count in object_counts_result.all()
+        }
+        valid_objects = object_counts.get(True, 0)
+        total_objects = sum(object_counts.values())
+        offset = (page - 1) * page_size
+
+        objects_result = await self.db.execute(
+            select(ProjectObject)
+            .where(ProjectObject.project_id == project_id)
+            .order_by(ProjectObject.sort_order, ProjectObject.id)
+            .offset(offset)
+            .limit(page_size)
+        )
+        objects = list(objects_result.scalars().all())
+        object_ids = [obj.id for obj in objects]
+
+        if object_ids:
+            calculations_result = await self.db.execute(
+                select(ElectricalCalculation).where(
+                    ElectricalCalculation.project_id == project_id,
+                    ElectricalCalculation.variant_number == variant_number,
+                    ElectricalCalculation.object_id.in_(object_ids),
+                )
+            )
+            calculations = list(calculations_result.scalars().all())
+        else:
+            calculations = []
+
+        error_text = ElectricalCalculation.results["error"].astext
+        selected_cable_text = ElectricalCalculation.results["selected_cable"].astext
+        successful_calc = and_(
+            ElectricalCalculation.results.is_not(None),
+            error_text.is_(None),
+            or_(
+                ElectricalCalculation.cable_mark.is_not(None),
+                selected_cable_text.is_not(None),
+            ),
+        )
+        failed_calc = error_text.is_not(None)
+        cable_length = sa_cast(ElectricalCalculation.results["cable_length"].astext, Float)
+        total_power = sa_cast(ElectricalCalculation.results["total_power"].astext, Float)
+        current = sa_cast(ElectricalCalculation.results["current"].astext, Float)
+        summary_result = await self.db.execute(
+            select(
+                func.count(ElectricalCalculation.id),
+                func.count(ElectricalCalculation.id).filter(successful_calc),
+                func.count(ElectricalCalculation.id).filter(failed_calc),
+                func.coalesce(func.sum(cable_length).filter(successful_calc), 0.0),
+                func.coalesce(func.sum(total_power).filter(successful_calc), 0.0),
+                func.coalesce(func.sum(current).filter(successful_calc), 0.0),
+            ).where(
+                ElectricalCalculation.project_id == project_id,
+                ElectricalCalculation.variant_number == variant_number,
+            )
+        )
+        (
+            electrical_total,
+            calculated_count,
+            failed_count,
+            total_cable_length,
+            summary_total_power,
+            total_current,
+        ) = summary_result.one()
+
+        total_pages = math.ceil(total_objects / page_size) if total_objects else 0
+        summary = {
+            "total_objects": total_objects,
+            "valid_objects": valid_objects,
+            "invalid_objects": total_objects - valid_objects,
+            "electrical_calculations_total": int(electrical_total or 0),
+            "calculated_count": int(calculated_count or 0),
+            "failed_count": int(failed_count or 0),
+            "total_cable_length": float(total_cable_length or 0.0),
+            "total_power": float(summary_total_power or 0.0),
+            "total_current": float(total_current or 0.0),
+        }
+        page_info = ProjectObjectsPageInfo(
+            page=page,
+            page_size=page_size,
+            offset=offset,
+            total_pages=total_pages,
+            has_next_page=page * page_size < total_objects,
+            has_previous_page=page > 1,
+        )
+        return objects, calculations, summary, page_info
 
     async def get_coefficients(self) -> dict[str, float]:
         # Кэш в Redis: коэффициенты меняются редко (через админ-CRUD),

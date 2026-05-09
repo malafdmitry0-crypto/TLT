@@ -1,3 +1,5 @@
+import type { ProjectObject, ProjectObjectsPageInfo } from './project';
+
 export interface PipeParams {
   outer_diameter: number;
   wall_thickness?: number | null;
@@ -140,4 +142,23 @@ export interface ElectricalCalcSummary {
   results: Record<string, unknown> | null;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface ElectricalPageSummary {
+  total_objects: number;
+  valid_objects: number;
+  invalid_objects: number;
+  electrical_calculations_total: number;
+  calculated_count: number;
+  failed_count: number;
+  total_cable_length: number;
+  total_power: number;
+  total_current: number;
+}
+
+export interface ElectricalPageResponse {
+  items: ProjectObject[];
+  calculations: ElectricalCalcSummary[];
+  summary: ElectricalPageSummary;
+  page_info: ProjectObjectsPageInfo;
 }
