@@ -68,6 +68,7 @@ const ENABLED_CABLE_TYPES: ReadonlySet<CableTypeKey> = new Set([
   'single_core',
   'three_core',
 ]);
+const ELECTRICAL_TABLE_PAGE_SIZE = 50;
 
 type CableLayoutDraft = {
   windingPitchMm?: number | null;
@@ -435,7 +436,14 @@ export default function ElecCalcPage() {
               className="calc-spreadsheet electrical-spreadsheet"
               rowKey="id"
               size="small"
-              pagination={false}
+              pagination={{
+                defaultPageSize: ELECTRICAL_TABLE_PAGE_SIZE,
+                pageSizeOptions: ['25', '50', '100'],
+                showSizeChanger: true,
+                hideOnSinglePage: objects.length <= ELECTRICAL_TABLE_PAGE_SIZE,
+                showTotal: (total, range) => `${range[0]}-${range[1]} из ${total}`,
+                size: 'small',
+              }}
               dataSource={objects}
               scroll={{ x: 1200, y: 'calc(100vh - 430px)' }}
               rowClassName={(obj) =>

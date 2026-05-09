@@ -146,6 +146,30 @@ describe('ElecCalcPage (integration)', () => {
     });
   });
 
+  it('пагинирует таблицу электрики, чтобы не рендерить все строки сразу', async () => {
+    const { listObjects } = await import('@/api/projects');
+    const { listElectricalCalcs } = await import('@/api/calculations');
+    const objects = Array.from({ length: 80 }, (_, index) =>
+      makeObject({
+        id: `o-${index + 1}`,
+        sort_order: index,
+        params: { name: `Труба-${index + 1}` },
+      })
+    );
+    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue(objects);
+    (listElectricalCalcs as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('1-50 из 80')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Труба-1')).toBeInTheDocument();
+    expect(screen.getByText('Труба-50')).toBeInTheDocument();
+    expect(screen.queryByText('Труба-51')).not.toBeInTheDocument();
+    expect(document.querySelector('.ant-pagination')).toBeTruthy();
+  });
+
   it('запускает batch ТЛТ с electrical params, а не пустым набором', async () => {
     const { listObjects } = await import('@/api/projects');
     const { batchCalcElectrical, listElectricalCalcs } = await import('@/api/calculations');
