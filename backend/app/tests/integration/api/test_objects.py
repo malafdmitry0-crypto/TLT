@@ -37,7 +37,48 @@ class TestObjectsLifecycle:
         assert resp.status_code == 201, resp.text
         body = resp.json()
         assert body["is_valid"] is True
+        assert body["params"]["wall_thickness"] == pytest.approx(0.004)
+        assert body["params"]["pipe_material"] == "carbon_steel"
+        assert body["params"]["placement"] == "outdoor"
+        assert body["params"]["supply_voltage"] == 220
+        assert body["params"]["safety_factor"] == pytest.approx(1.1)
+        assert body["params"]["valve_count"] == 2
+        assert body["params"]["flange_count"] == 2
+        assert body["params"]["support_count"] == 2
+        assert body["params"]["num_local_elements"] == 6
+        assert body["params"]["insulation_layers"] == [
+            {"thickness": 0.05, "material": "mineral_wool"}
+        ]
+        assert body["results"]["safety_factor"] == pytest.approx(1.1)
         assert body["results"]["heat_loss_per_meter"] > 0
+
+    async def test_blank_required_pipe_fields_mark_object_invalid(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.1,
+                    "wall_thickness": None,
+                    "pipe_material": None,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": "mineral_wool",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 10,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["is_valid"] is False
+        assert body["results"] is None
+        assert "Толщина стенки" in body["validation_errors"]["error"]
+        assert "Материал трубы или λ трубы" in body["validation_errors"]["error"]
 
     @pytest.mark.parametrize(
         ("shape", "geometry"),

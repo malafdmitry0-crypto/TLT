@@ -73,24 +73,46 @@ async function assertOk(response, label) {
 }
 
 function pipePayload(index, sortOrder) {
+  const insulationMaterial = index % 2 === 0 ? 'mineral_wool' : 'foam_glass';
+  const placement = index % 3 === 0 ? 'outdoor' : 'indoor';
   return {
     object_type: 'pipe',
     sort_order: sortOrder,
     params: {
       name: `Load Pipe ${index}`,
-      placement: index % 3 === 0 ? 'outdoor' : 'indoor',
+      placement,
+      location: placement === 'indoor' ? 'indoor' : 'outdoor',
       outer_diameter: 0.108,
+      wall_thickness: 0.004,
+      pipe_material: 'carbon_steel',
       pipe_length: 50 + (index % 20),
       insulation_thickness: 0.05,
-      insulation_material: index % 2 === 0 ? 'mineral_wool' : 'foam_glass',
+      insulation_material: insulationMaterial,
+      insulation_layer_count: '1',
+      insulation_layers: [{ thickness: 0.05, material: insulationMaterial }],
       process_temperature: 80,
       ambient_temperature: -20,
+      max_ambient_temperature: 30,
+      max_process_temperature: 90,
+      environment: 'normal',
+      zone_classification: 'safe',
+      temperature_group: 'T1',
       wind_speed: 3,
+      min_switch_temperature: -20,
+      supply_voltage: 220,
+      safety_factor: 1.1,
+      steam_tracing: 'no',
+      valve_count: 2,
+      flange_count: 2,
+      support_count: 2,
+      num_local_elements: 6,
+      local_element_equiv_length: 1.5,
     },
   };
 }
 
 function tankPayload(index, sortOrder) {
+  const insulationMaterial = index % 2 === 0 ? 'mineral_wool' : 'foam_glass';
   return {
     object_type: 'tank',
     sort_order: sortOrder,
@@ -99,13 +121,29 @@ function tankPayload(index, sortOrder) {
       shape: 'cylindrical',
       diameter: 2 + (index % 4) * 0.25,
       height: 3,
+      wall_thickness: 0.006,
+      wall_lambda: 45,
+      placement: 'outdoor',
+      location: 'outdoor',
       heating_height: 3,
       laying_step: 0.2,
       insulation_thickness: 0.08,
-      insulation_material: index % 2 === 0 ? 'mineral_wool' : 'foam_glass',
+      insulation_material: insulationMaterial,
+      insulation_layer_count: '1',
+      insulation_layers: [{ thickness: 0.08, material: insulationMaterial }],
       process_temperature: 70,
       ambient_temperature: -20,
+      max_ambient_temperature: 30,
+      max_process_temperature: 90,
+      environment: 'normal',
+      zone_classification: 'safe',
+      temperature_group: 'T1',
       wind_speed: 3,
+      min_switch_temperature: -20,
+      supply_voltage: 220,
+      safety_factor: 1.1,
+      steam_tracing: 'no',
+      q_additional: 0,
     },
   };
 }

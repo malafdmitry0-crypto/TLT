@@ -41,6 +41,7 @@ from app.schemas.json_shapes import (
     TankHeatLossResultDict,
 )
 from app.schemas.project import ProjectObjectsPageInfo
+from app.services.project_object_params import prepare_project_object_params
 
 # Источник каталога кабелей. Значения заданы для совместимости с текущим API;
 # внутри функций валидируется через проверку, не enum (чтобы случайная строка
@@ -338,6 +339,7 @@ class CalculationService:
             >>> # obj.is_valid / obj.validation_errors всё равно обновлены
         """
         try:
+            obj.params = prepare_project_object_params(obj.object_type, obj.params)
             result = await self.calc_heat_loss(obj.object_type, obj.params)
             obj.results = cast(dict[str, Any], result)
             obj.is_valid = True

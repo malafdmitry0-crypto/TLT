@@ -19,6 +19,7 @@ from app.schemas.project import (
     ProjectObjectUpdate,
     ProjectUpdate,
 )
+from app.services.project_object_params import normalize_project_object_params
 
 
 class ProjectNotFoundError(Exception):
@@ -254,7 +255,7 @@ class ProjectService:
             project_id=project_id,
             object_type=data.object_type,
             sort_order=data.sort_order,
-            params=data.params,
+            params=normalize_project_object_params(data.object_type, data.params),
         )
         self.db.add(obj)
         await self.db.commit()
@@ -272,6 +273,10 @@ class ProjectService:
         self._check_owner(project, principal)
         obj = await self._get_object(project_id, object_id)
         update_data = data.model_dump(exclude_unset=True)
+        if "params" in update_data:
+            update_data["params"] = normalize_project_object_params(
+                obj.object_type, update_data["params"]
+            )
         for key, value in update_data.items():
             setattr(obj, key, value)
         await self.db.commit()

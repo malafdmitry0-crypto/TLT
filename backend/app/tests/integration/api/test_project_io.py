@@ -281,11 +281,14 @@ class TestBulkExportImport:
             "process_temperature": 95.0,
             "pipe_length": 42.3,
         }
-        await client.post(
+        created = await client.post(
             f"/api/v1/projects/{src['id']}/objects",
             json={"object_type": "pipe", "sort_order": 0, "params": src_params},
             headers=headers,
         )
+        assert created.status_code == 201, created.text
+        stored_params = created.json()["params"]
+        assert stored_params["name"] == src_params["name"]
         exp = await client.get(
             f"/api/v1/projects/{src['id']}/export-csv",
             headers=headers,
@@ -302,7 +305,7 @@ class TestBulkExportImport:
                 headers=headers,
             )
         ).json()
-        assert restored[0]["params"] == src_params
+        assert restored[0]["params"] == stored_params
 
     async def test_bulk_export_with_multiple_projects(
         self, client: AsyncClient, employee_token: str
