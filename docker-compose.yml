@@ -11,6 +11,14 @@ services:
       - pg_stat_statements.track=all
       - -c
       - log_min_duration_statement=${POSTGRES_LOG_MIN_DURATION_STATEMENT:-100ms}
+      - -c
+      - shared_buffers=${POSTGRES_SHARED_BUFFERS:-256MB}
+      - -c
+      - effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_SIZE:-1GB}
+      - -c
+      - work_mem=${POSTGRES_WORK_MEM:-8MB}
+      - -c
+      - random_page_cost=${POSTGRES_RANDOM_PAGE_COST:-1.1}
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-heatcalc}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-heatcalc_pass}
