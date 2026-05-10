@@ -4,7 +4,7 @@
 
 **Контекст замеров:** batch электрорасчёта на 400 объектов: HTTP 200 за 0.094s; SQL по `pg_stat_statements` — миллисекунды; нагрузочный сценарий по объектам: p95=109ms, max=156ms.
 
-**Уже применено в коде, поэтому не входит в список ниже:**
+**Уже применено в коде:**
 
 - backend endpoint `GET /calc/electrical/page`;
 - `CalculationService.electrical_project_page(...)` с константным числом SQL-запросов;
@@ -14,6 +14,8 @@
 - контрольная production-сборка: основной frontend chunk уменьшился с ~1.57 MB minified до 29.12 KB minified. Отдельный `antd-vendor` остаётся крупным vendor chunk (~974.86 KB), но он больше не смешан с кодом всех страниц.
 - таблица электрорасчёта монтирует `Select`/`InputNumber` только для активной строки; остальные строки показывают read-only значения;
 - `columns` таблицы электрорасчёта вынесены в `useMemo`.
+- production `nginx.conf` кэширует content-hashed `/assets/` как immutable статику и больше не сбрасывает cache storage через `Clear-Site-Data`.
+- неиспользуемые `react-hook-form`/`@hookform/resolvers` удалены, `@testing-library/dom` перенесён в `devDependencies`.
 
 ## 5. CPU-bound часть batch-расчётов
 
@@ -40,23 +42,15 @@
 
 ---
 
-## 6. NGINX — Production-кэширование статики
+## 6. NGINX — Production-кэширование статики ✅ применено
 
-**Слой:** Инфраструктура · **Время:** 15 минут · **Приоритет:** P0
+**Слой:** Инфраструктура · **Время:** 15 минут · **Приоритет:** P0 · **Статус:** применено
 
-Текущий `frontend/nginx.conf` отдаёт `/assets/` с `Cache-Control: no-store, no-cache` — это dev-конфиг в production. Браузер никогда не кэширует бандлы, хотя Vite генерирует файлы с content hash (`index-abc123.js`).
+`frontend/nginx.conf` теперь отдаёт `/assets/` как immutable статику на 1 год. Vite генерирует файлы с content hash (`index-abc123.js`), поэтому повторный визит не должен переспрашивать бандлы.
 
 **Файл:** `frontend/nginx.conf`
 
-**Сейчас:**
-```nginx
-location /assets/ {
-    add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate";
-    try_files $uri =404;
-}
-```
-
-**Должно быть:**
+**Сделано:**
 ```nginx
 location /assets/ {
     expires 1y;
@@ -67,27 +61,22 @@ location /assets/ {
 
 `immutable` говорит браузеру «никогда не переспрашивай — если файл изменится, у него будет другой URL». Повторный визит: 0 сетевых запросов за статикой.
 
-Также убрать `add_header Clear-Site-Data '"cache"';` из `/` и `/index.html` — это директива для сброса кэша, убивающая весь смысл кэширования на повторных визитах.
+Также убран `add_header Clear-Site-Data '"cache"';` из `/` и `/index.html`; для HTML оставлен `Cache-Control: no-cache, must-revalidate`, чтобы браузер быстро проверял актуальный `index.html`, но не сбрасывал весь cache storage.
 
 **Эффект:** Повторный визит: 0.4–2 сек → < 100 мс.
 
 ---
 
-## 7. Dead dependencies в package.json
+## 7. Dead dependencies в package.json ✅ применено
 
-**Слой:** Фронтенд · **Время:** 15 минут · **Приоритет:** P1
+**Слой:** Фронтенд · **Время:** 15 минут · **Приоритет:** P1 · **Статус:** применено
 
-Аудит импортов (`grep -rn "import.*from" frontend/src/`) выявил:
+Аудит импортов (`rg "react-hook-form|@hookform/resolvers|@testing-library/dom" frontend/src`) выявил:
 
 | Пакет | Статус |
 |---|---|
-| `react-hook-form` + `@hookform/resolvers` | **Не используется** — 0 импортов во всех `.tsx/.ts` файлах |
-| `@testing-library/dom` | В `dependencies` вместо `devDependencies` — попадает в production-бандл |
-
-```bash
-npm uninstall react-hook-form @hookform/resolvers
-# @testing-library/dom перенесётся в devDependencies после npm install
-```
+| `react-hook-form` + `@hookform/resolvers` | Удалены из `frontend/package.json` и `package-lock.json` |
+| `@testing-library/dom` | Перенесён из `dependencies` в `devDependencies` |
 
 Также `zod` используется только в 1 файле (`validators.ts`). Можно заменить на hand-written валидацию (~30 строк), сэкономив 10 KB gzipped. Но не критично — оставить.
 
@@ -125,15 +114,15 @@ GET /projects/{id} → GET /objects/query → GET /calculations
 
 | # | Что | Время | Эффект |
 |---|---|---|---|
-| 1 | NGINX — кэширование статики | 15 мин | Повторный визит < 100 мс |
-| 2 | Dead dependencies | 15 мин | −20 KB из бандла |
+| 1 | NGINX — кэширование статики | применено | Повторный визит < 100 мс |
+| 2 | Dead dependencies | применено | −20 KB из бандла |
 | 3 | API — параллельные запросы | 1 час | Загрузка страницы −50% |
 | 4 | PG-01 — PostgreSQL config | 10 мин | +20–40% throughput |
 | 5 | CPU-bound batch: нагрузочный тест | 2–4 часа | Диагностика — нужен ли O-01 |
 | 6 | Zustand debounce (если ещё нет) | 2 часа | Ввод без зависаний |
 | 7 | Batch UPDATE (если ещё нет) | 2–4 часа | −200 мс на batch |
 
-**Первые 3 — сегодня за час.** Остальное — по результатам нагрузочного теста.
+**Следующий практичный шаг:** API — параллельные запросы. Его можно делать отдельно, без риска для уже закрытых пунктов 6-7.
 
 ---
 
@@ -165,10 +154,72 @@ GET /projects/{id} → GET /objects/query → GET /calculations
 Возвращает все 1600 строк. Проверить, используется ли фронтендом.
 Если нет — deprecate.
 
-**B3. `selectinload(Project.objects)` для списка проектов**
+**B3. `selectinload(Project.objects)` — полные JSONB для списка проектов**
 
-Грузит полные JSONB для всех объектов. Для проводника нужен только `id`, `object_type`.
-Приоритет: P2.
+**Где:** `project_service.py` — `list_projects()` (строка 39) и `get_project()` (строка 83).
+
+**Что происходит при `GET /projects` (проводник проектов):**
+
+```python
+# project_service.py:39-56 — list_projects()
+stmt = select(Project, User.email)
+    .outerjoin(User, ...)
+    .options(selectinload(Project.objects))  # ← второй SQL:
+    # SELECT * FROM project_objects WHERE project_id IN (...)
+    # загружает params (2-5 KB) + results (1-3 KB) для КАЖДОГО объекта
+
+for project, owner_email in rows.all():
+    project.object_types = sorted({o.object_type for o in project.objects})
+    # ↑ используется ТОЛЬКО object_type (10 байт)
+    # ↓ остальные 3-8 KB на объект — выброшены при JSON-сериализации
+```
+
+**Размер данных:** 20 проектов × 50 объектов = 1000 строк × 3-8 KB JSONB = **3-8 MB**
+передаётся между БД и бэкендом. 99% выбрасывается — `ProjectResponse` не включает
+`objects`, только `object_types: list[str]`.
+
+**Та же проблема в `get_project()` — 5 access-check вызовов загружают JSONB зря:**
+
+| API | Файл:строка | Нужны ли объекты? |
+|---|---|---|
+| `GET /projects/{id}` | projects.py:157 | Нет — ответ без объектов |
+| `GET /objects/import-template` | objects.py:187 | Нет — только access check |
+| `POST /specifications/generate` | specifications.py:38 | Нет |
+| `POST /specifications/extended` | specifications.py:61 | Нет |
+| `GET /specifications/extended` | specifications.py:84 | Нет |
+
+**Решение — шаг 1: `list_projects()` без `selectinload` (10 минут):**
+
+```python
+async def list_projects(self, principal):
+    # ... основной запрос проектов БЕЗ selectinload ...
+    projects = [...]
+    
+    # Один лёгкий запрос вместо загрузки всех JSONB:
+    if projects:
+        type_rows = await self.db.execute(
+            select(ProjectObject.project_id, ProjectObject.object_type)
+            .where(ProjectObject.project_id.in_([p.id for p in projects]))
+        )
+        types_by_project = {}
+        for pid, otype in type_rows.all():
+            types_by_project.setdefault(pid, set()).add(otype)
+        for p in projects:
+            p.object_types = sorted(types_by_project.get(p.id, set()))
+    return projects
+```
+
+**Решение — шаг 2: заменить `get_project` → `get_project_basic` в 5 местах (10 минут):**
+
+```python
+# specifications.py:38, 61, 84 + objects.py:187 — было:
+await ProjectService(db).get_project(project_id, principal)
+# стало:
+await ProjectService(db).get_project_basic(project_id, principal)
+```
+
+**Эффект:** `list_projects` + 5 вызовов перестают загружать **5-25 MB** JSONB.
+Latency списка проектов: ~350 мс → ~50 мс. Приоритет: P1.
 
 **B4. `pg_stat_statements` не прочитан**
 
