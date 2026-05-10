@@ -184,7 +184,7 @@ async def import_template(
     from app.services.excel_import_service import build_template_csv, build_template_xlsx
 
     try:
-        await ProjectService(db).get_project(project_id, principal)
+        await ProjectService(db).get_project_basic(project_id, principal)
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:

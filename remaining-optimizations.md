@@ -16,6 +16,7 @@
 - `columns` таблицы электрорасчёта вынесены в `useMemo`.
 - production `nginx.conf` кэширует content-hashed `/assets/` как immutable статику и больше не сбрасывает cache storage через `Clear-Site-Data`.
 - неиспользуемые `react-hook-form`/`@hookform/resolvers` удалены, `@testing-library/dom` перенесён в `devDependencies`.
+- B3: список проектов и лёгкие access-check больше не загружают `params/results` объектов через `selectinload(Project.objects)`.
 
 ## 5. CPU-bound часть batch-расчётов
 
@@ -154,11 +155,13 @@ GET /projects/{id} → GET /objects/query → GET /calculations
 Возвращает все 1600 строк. Проверить, используется ли фронтендом.
 Если нет — deprecate.
 
-**B3. `selectinload(Project.objects)` — полные JSONB для списка проектов**
+**B3. `selectinload(Project.objects)` — полные JSONB для списка проектов ✅ применено**
 
-**Где:** `project_service.py` — `list_projects()` (строка 39) и `get_project()` (строка 83).
+Приоритет: P1. Статус: применено.
 
-**Что происходит при `GET /projects` (проводник проектов):**
+**Где было:** `project_service.py` — `list_projects()` и тяжёлые вызовы `get_project()` для access-check.
+
+**Что происходило до фикса при `GET /projects` (проводник проектов):**
 
 ```python
 # project_service.py:39-56 — list_projects()
@@ -178,17 +181,18 @@ for project, owner_email in rows.all():
 передаётся между БД и бэкендом. 99% выбрасывается — `ProjectResponse` не включает
 `objects`, только `object_types: list[str]`.
 
-**Та же проблема в `get_project()` — 5 access-check вызовов загружают JSONB зря:**
+**Та же проблема была в лёгких `get_project()` access-check вызовах:**
 
 | API | Файл:строка | Нужны ли объекты? |
 |---|---|---|
 | `GET /projects/{id}` | projects.py:157 | Нет — ответ без объектов |
 | `GET /objects/import-template` | objects.py:187 | Нет — только access check |
-| `POST /specifications/generate` | specifications.py:38 | Нет |
-| `POST /specifications/extended` | specifications.py:61 | Нет |
-| `GET /specifications/extended` | specifications.py:84 | Нет |
+| CSV import/export проектов и объектов | project_io_service.py / excel_import_service.py | Нет — объекты читаются отдельными целевыми запросами |
+| `GET /specifications/{project_id}` | specifications.py:38 | Нет |
+| `POST /specifications/{project_id}/generate` | specifications.py:61 | Нет |
+| `PUT /specifications/{project_id}/items` | specifications.py:84 | Нет |
 
-**Решение — шаг 1: `list_projects()` без `selectinload` (10 минут):**
+**Сделано — шаг 1: `list_projects()` без `selectinload`:**
 
 ```python
 async def list_projects(self, principal):
@@ -200,6 +204,7 @@ async def list_projects(self, principal):
         type_rows = await self.db.execute(
             select(ProjectObject.project_id, ProjectObject.object_type)
             .where(ProjectObject.project_id.in_([p.id for p in projects]))
+            .distinct()
         )
         types_by_project = {}
         for pid, otype in type_rows.all():
@@ -209,7 +214,7 @@ async def list_projects(self, principal):
     return projects
 ```
 
-**Решение — шаг 2: заменить `get_project` → `get_project_basic` в 5 местах (10 минут):**
+**Сделано — шаг 2: заменить `get_project` → `get_project_basic` / `get_project_summary`:**
 
 ```python
 # specifications.py:38, 61, 84 + objects.py:187 — было:
@@ -218,8 +223,13 @@ await ProjectService(db).get_project(project_id, principal)
 await ProjectService(db).get_project_basic(project_id, principal)
 ```
 
-**Эффект:** `list_projects` + 5 вызовов перестают загружать **5-25 MB** JSONB.
-Latency списка проектов: ~350 мс → ~50 мс. Приоритет: P1.
+Дополнительно `GET /projects/{id}` использует `get_project_summary()` — проект без `objects`,
+но с лёгкой аннотацией `object_types` через `SELECT DISTINCT project_id, object_type`.
+CSV export/import access-check тоже переведены на `get_project_basic()`; полный `get_project()`
+оставлен для реальных операций с объектами, например дублирования проекта и XLSX export объектов.
+
+**Эффект:** `list_projects` и лёгкие access-check пути перестают загружать **5-25 MB** JSONB.
+Ожидаемая latency списка проектов: ~350 мс → ~50 мс. Приоритет: P1.
 
 **B4. `pg_stat_statements` не прочитан**
 

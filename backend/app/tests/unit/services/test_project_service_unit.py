@@ -406,32 +406,35 @@ class TestListProjects:
     async def test_guest_filtered_by_session(self):
         sid = "sess-list"
         db = AsyncMock()
-        proj = SimpleNamespace(id=uuid.uuid4(), session_id=sid, name="X", objects=[])
-        result = MagicMock()
-        result.all = lambda: [(proj, None)]
-        db.execute = AsyncMock(return_value=result)
+        proj = SimpleNamespace(id=uuid.uuid4(), session_id=sid, name="X")
+        project_result = MagicMock()
+        project_result.all = lambda: [(proj, None)]
+        type_result = MagicMock()
+        type_result.all = lambda: []
+        db.execute = AsyncMock(side_effect=[project_result, type_result])
         out = await ProjectService(db).list_projects(_principal(role="guest", session_id=sid))
         assert len(out) == 1
         assert out[0].owner_email is None
+        assert out[0].object_types == []
 
     async def test_employee_sees_all_with_owner_emails(self):
         db = AsyncMock()
-        proj1 = SimpleNamespace(
-            id=uuid.uuid4(),
-            name="A",
-            objects=[
-                SimpleNamespace(object_type="pipe"),
-                SimpleNamespace(object_type="tank"),
-            ],
-        )
-        proj2 = SimpleNamespace(id=uuid.uuid4(), name="B", objects=[])
-        result = MagicMock()
-        result.all = lambda: [(proj1, "a@b"), (proj2, None)]
-        db.execute = AsyncMock(return_value=result)
+        proj1 = SimpleNamespace(id=uuid.uuid4(), name="A")
+        proj2 = SimpleNamespace(id=uuid.uuid4(), name="B")
+        project_result = MagicMock()
+        project_result.all = lambda: [(proj1, "a@b"), (proj2, None)]
+        type_result = MagicMock()
+        type_result.all = lambda: [
+            (proj1.id, "tank"),
+            (proj1.id, "pipe"),
+            (proj1.id, "pipe"),
+        ]
+        db.execute = AsyncMock(side_effect=[project_result, type_result])
         out = await ProjectService(db).list_projects(_principal(role="employee"))
         assert len(out) == 2
         assert out[0].owner_email == "a@b"
         assert sorted(out[0].object_types) == ["pipe", "tank"]
+        assert out[1].object_types == []
 
 
 class TestDuplicateProjectFlow:

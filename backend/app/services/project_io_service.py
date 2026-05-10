@@ -134,7 +134,7 @@ async def export_project(
 ) -> tuple[str, bytes]:
     """Экспортирует проект в CSV. Возвращает (suggested_filename, csv_bytes)."""
     service = ProjectService(db)
-    project = await service.get_project(project_id, principal)
+    project = await service.get_project_basic(project_id, principal)
 
     objects = list(
         (
@@ -178,7 +178,7 @@ async def export_projects_bulk(
     # Секция projects — общая
     projects: list[tuple[str, Project]] = []
     for idx, pid in enumerate(project_ids, start=1):
-        project = await service.get_project(pid, principal)
+        project = await service.get_project_basic(pid, principal)
         projects.append((f"p{idx}", project))
 
     w.writerow(["[SECTION]", "meta"])

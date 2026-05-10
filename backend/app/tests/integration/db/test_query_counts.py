@@ -285,7 +285,7 @@ async def test_electrical_project_page_is_constant_query_count_with_many_objects
     _assert_query_count(statements, 4)
 
 
-async def test_list_projects_uses_eager_loaded_object_types(
+async def test_list_projects_uses_lightweight_object_type_lookup(
     db_session: AsyncSession,
     employee_user: User,
     test_engine: AsyncEngine,
@@ -311,6 +311,16 @@ async def test_list_projects_uses_eager_loaded_object_types(
     assert len(projects) == 10
     assert all(set(project.object_types) == {"pipe", "tank"} for project in projects)
     _assert_query_count(statements, 2)
+    object_type_statements = [
+        statement.lower() for statement in statements if "from project_objects" in statement.lower()
+    ]
+    assert len(object_type_statements) == 1, "\n\n".join(statements)
+    object_type_sql = object_type_statements[0]
+    assert "project_objects.project_id" in object_type_sql
+    assert "project_objects.object_type" in object_type_sql
+    assert "project_objects.params" not in object_type_sql
+    assert "project_objects.results" not in object_type_sql
+    assert "project_objects.validation_errors" not in object_type_sql
 
 
 async def test_reorder_objects_uses_single_object_lookup(

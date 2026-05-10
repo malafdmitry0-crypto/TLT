@@ -38,10 +38,8 @@ class ProjectService:
         self.db = db
 
     async def list_projects(self, principal: CurrentPrincipal) -> list[Project]:
-        stmt = (
-            select(Project, User.email.label("owner_email"))
-            .outerjoin(User, Project.user_id == User.id)
-            .options(selectinload(Project.objects))
+        stmt = select(Project, User.email.label("owner_email")).outerjoin(
+            User, Project.user_id == User.id
         )
         if principal.role == "guest":
             stmt = stmt.where(Project.session_id == principal.session_id)
@@ -53,8 +51,8 @@ class ProjectService:
         projects = []
         for project, owner_email in rows.all():
             project.owner_email = owner_email  # annotate for response schema
-            project.object_types = sorted({o.object_type for o in project.objects})
             projects.append(project)
+        await self._annotate_object_types(projects)
         return projects
 
     async def create_project(self, data: ProjectCreate, principal: CurrentPrincipal) -> Project:
@@ -99,6 +97,11 @@ class ProjectService:
         if project is None:
             raise ProjectNotFoundError(f"Проект {project_id} не найден")
         self._check_access(project, principal)
+        return project
+
+    async def get_project_summary(self, project_id: UUID, principal: CurrentPrincipal) -> Project:
+        project = await self.get_project_basic(project_id, principal)
+        await self._annotate_object_types([project])
         return project
 
     async def update_project(
@@ -328,6 +331,22 @@ class ProjectService:
         if obj is None:
             raise ProjectNotFoundError(f"Объект {object_id} не найден")
         return obj
+
+    async def _annotate_object_types(self, projects: list[Project]) -> None:
+        if not projects:
+            return
+        project_ids = [project.id for project in projects]
+        result = await self.db.execute(
+            select(ProjectObject.project_id, ProjectObject.object_type)
+            .where(ProjectObject.project_id.in_(project_ids))
+            .distinct()
+        )
+        types_by_project: dict[UUID, set[str]] = {project_id: set() for project_id in project_ids}
+        for project_id, object_type in result.all():
+            value = getattr(object_type, "value", object_type)
+            types_by_project.setdefault(project_id, set()).add(str(value))
+        for project in projects:
+            project.object_types = sorted(types_by_project.get(project.id, set()))
 
     def _check_access(self, project: Project, principal: CurrentPrincipal) -> None:
         if principal.role == "employee":

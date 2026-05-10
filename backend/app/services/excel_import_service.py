@@ -692,7 +692,7 @@ async def import_objects_from_csv(
 ) -> dict[str, Any]:
     """Импортирует объекты из CSV-файла. Требуется колонка «Тип»."""
     project_service = ProjectService(db)
-    await project_service.get_project(project_id, principal)
+    await project_service.get_project_basic(project_id, principal)
 
     current_objects = await project_service.list_objects(project_id, principal)
     next_sort = (max((o.sort_order for o in current_objects), default=-1)) + 1
@@ -736,7 +736,7 @@ async def import_objects_from_excel(
 
     # Проверяем доступ к проекту
     try:
-        await project_service.get_project(project_id, principal)
+        await project_service.get_project_basic(project_id, principal)
     except (ProjectNotFoundError, ProjectAccessError):
         raise
 

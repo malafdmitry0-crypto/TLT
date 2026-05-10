@@ -154,7 +154,7 @@ async def get_project(
 ):
     service = ProjectService(db)
     try:
-        return await service.get_project(project_id, principal)
+        return await service.get_project_summary(project_id, principal)
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ProjectAccessError as exc:
@@ -205,7 +205,7 @@ async def duplicate_project(
     calc_service = CalculationService(db)
     await calc_service.batch_recalculate(new_project.id)
     await calc_service.batch_calc_electrical(new_project.id)
-    return await service.get_project(new_project.id, principal)
+    return await service.get_project_summary(new_project.id, principal)
 
 
 @router.get(
