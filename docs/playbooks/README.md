@@ -25,6 +25,7 @@
 | [heatcalc-table-font-size-preference-prompt.md](heatcalc-table-font-size-preference-prompt.md) | Добавить в `Настройки таблицы` пользовательский размер шрифта таблицы HeatCalc |
 | [heatcalc-table-findability-prompt.md](heatcalc-table-findability-prompt.md) | Добавить поиск, фильтры и сортировку по полям таблицы HeatCalc без влияния на расчёты |
 | [heatcalc-backend-table-query-prompt.md](heatcalc-backend-table-query-prompt.md) | Перенести поиск, фильтры, сортировку и обычную пагинацию таблицы HeatCalc на backend |
+| [cpu-bound-worker-system-prompt.md](cpu-bound-worker-system-prompt.md) | Внедрить Redis-backed worker-систему для фоновых batch-расчётов |
 
 Для крошечных стандартных операций (версия, сиды, smoke) используйте
 соответствующие `.claude/commands/*.md` — Клод подхватит их как slash-команды.

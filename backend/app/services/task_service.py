@@ -1,0 +1,479 @@
+"""Durable task service for asynchronous calculations."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import logging
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.core.dependencies import CurrentPrincipal
+from app.models.background_task import BackgroundTask
+from app.schemas.calculation import (
+    BatchElectricalResponse,
+    CalculationTaskLinks,
+    CalculationTaskProgress,
+    CalculationTaskResponse,
+    ElectricalBatchJobRequest,
+    ElectricalCalcSummary,
+)
+from app.services.calculation_service import BatchCancelledError, BatchProgress, CalculationService
+from app.services.project_service import ProjectService
+from app.services.task_queue import TaskQueue
+
+logger = logging.getLogger("heatcalc.worker")
+
+TASK_ELECTRICAL_BATCH = "electrical_batch"
+ACTIVE_STATUSES = ("queued", "enqueued", "running")
+TERMINAL_STATUSES = ("succeeded", "failed", "cancelled")
+
+
+class TaskNotFoundError(Exception):
+    pass
+
+
+class TaskAccessError(Exception):
+    pass
+
+
+class TaskService:
+    def __init__(
+        self,
+        db: AsyncSession,
+        *,
+        session_factory: async_sessionmaker[AsyncSession] = AsyncSessionLocal,
+    ) -> None:
+        self.db = db
+        self.session_factory = session_factory
+
+    async def create_electrical_batch_task(
+        self,
+        request: ElectricalBatchJobRequest,
+        principal: CurrentPrincipal,
+        *,
+        queue: TaskQueue | None = None,
+        idempotency_key: str | None = None,
+    ) -> BackgroundTask:
+        await ProjectService(self.db).get_project_basic(request.project_id, principal)
+        if request.cable_source != "builtin" and principal.role not in ("employee", "admin"):
+            raise TaskAccessError("Расширенный каталог доступен только сотрудникам")
+
+        payload = self._electrical_payload(request)
+        dedupe_key = self._dedupe_key(
+            task_type=TASK_ELECTRICAL_BATCH,
+            project_id=request.project_id,
+            principal=principal,
+            payload=payload,
+            idempotency_key=idempotency_key,
+        )
+        existing = await self._find_active_by_dedupe(dedupe_key)
+        if existing is not None:
+            return existing
+
+        task = BackgroundTask(
+            type=TASK_ELECTRICAL_BATCH,
+            status="queued",
+            project_id=request.project_id,
+            user_id=principal.user_id,
+            session_id=principal.session_id,
+            request_payload=payload,
+            progress_current=0,
+            progress_total=None,
+            progress_phase="queued",
+            idempotency_key=dedupe_key,
+            cancel_requested=False,
+            attempts=0,
+            enqueue_attempts=0,
+        )
+        self.db.add(task)
+        try:
+            await self.db.commit()
+        except IntegrityError:
+            await self.db.rollback()
+            existing = await self._find_active_by_dedupe(dedupe_key)
+            if existing is None:
+                raise
+            return existing
+        await self.db.refresh(task)
+
+        queue = queue or TaskQueue()
+        await self.enqueue_existing_task(task, queue=queue)
+        return task
+
+    async def get_task_for_principal(
+        self,
+        task_id: UUID,
+        principal: CurrentPrincipal,
+    ) -> BackgroundTask:
+        task = await self.db.get(BackgroundTask, task_id)
+        if task is None:
+            raise TaskNotFoundError("Задача не найдена")
+        if task.project_id is not None:
+            try:
+                await ProjectService(self.db).get_project_basic(task.project_id, principal)
+            except Exception as exc:
+                raise TaskAccessError("Нет доступа к задаче") from exc
+        elif principal.role == "guest":
+            if task.session_id != principal.session_id:
+                raise TaskAccessError("Нет доступа к задаче")
+        elif principal.role == "employee":
+            if task.user_id != principal.user_id:
+                raise TaskAccessError("Нет доступа к задаче")
+        else:
+            raise TaskAccessError("Нет доступа к задаче")
+        return task
+
+    async def cancel_task(
+        self,
+        task_id: UUID,
+        principal: CurrentPrincipal,
+    ) -> BackgroundTask:
+        task = await self.get_task_for_principal(task_id, principal)
+        if task.status in TERMINAL_STATUSES:
+            return task
+        now = datetime.now(UTC)
+        task.cancel_requested = True
+        if task.status in ("queued", "enqueued"):
+            task.status = "cancelled"
+            task.progress_phase = "cancelled"
+            task.finished_at = now
+        task.heartbeat_at = now
+        await self.db.commit()
+        await self.db.refresh(task)
+        return task
+
+    async def enqueue_existing_task(self, task: BackgroundTask, *, queue: TaskQueue) -> None:
+        now = datetime.now(UTC)
+        task.enqueue_attempts = (task.enqueue_attempts or 0) + 1
+        try:
+            stream_id = await queue.enqueue(task.id, task.type)
+        except Exception as exc:
+            task.status = "queued"
+            task.last_enqueue_error = f"{type(exc).__name__}: {exc}"
+            task.next_retry_at = now + timedelta(seconds=15 * min(task.enqueue_attempts, 4))
+            logger.warning("Task enqueue failed for %s: %s", task.id, task.last_enqueue_error)
+        else:
+            task.status = "enqueued"
+            task.arq_job_id = stream_id
+            task.last_enqueue_error = None
+            task.next_retry_at = None
+            task.progress_phase = "enqueued"
+        await self.db.commit()
+        await self.db.refresh(task)
+
+    async def run_task(self, task_id: UUID, *, worker_id: str) -> None:
+        task = await self.db.get(BackgroundTask, task_id)
+        if task is None or task.status in TERMINAL_STATUSES:
+            return
+        if task.cancel_requested:
+            await self._mark_cancelled(task_id)
+            return
+        if task.type != TASK_ELECTRICAL_BATCH:
+            await self._mark_failed(task_id, f"Неизвестный тип задачи: {task.type}")
+            return
+
+        now = datetime.now(UTC)
+        task.status = "running"
+        task.attempts += 1
+        task.locked_by = worker_id
+        task.lock_expires_at = now + timedelta(seconds=settings.WORKER_TASK_STALE_SECONDS)
+        task.started_at = task.started_at or now
+        task.heartbeat_at = now
+        task.progress_phase = "running"
+        await self.db.commit()
+
+        await self._run_electrical_batch(task_id)
+
+    async def recover_stuck_tasks(
+        self,
+        *,
+        queue: TaskQueue,
+        limit: int = 100,
+    ) -> int:
+        now = datetime.now(UTC)
+        recovered = 0
+        queued_result = await self.db.execute(
+            select(BackgroundTask)
+            .where(
+                BackgroundTask.status == "queued",
+                or_(
+                    BackgroundTask.next_retry_at.is_(None),
+                    BackgroundTask.next_retry_at <= now,
+                ),
+            )
+            .order_by(BackgroundTask.created_at)
+            .limit(limit)
+        )
+        for task in queued_result.scalars().all():
+            if task.cancel_requested:
+                await self._mark_cancelled(task.id)
+                recovered += 1
+                continue
+            await self.enqueue_existing_task(task, queue=queue)
+            recovered += 1
+
+        if recovered >= limit:
+            return recovered
+
+        stale_before = now - timedelta(seconds=settings.WORKER_TASK_STALE_SECONDS)
+        stale_result = await self.db.execute(
+            select(BackgroundTask)
+            .where(
+                BackgroundTask.status.in_(("enqueued", "running")),
+                or_(
+                    BackgroundTask.heartbeat_at.is_(None),
+                    BackgroundTask.heartbeat_at < stale_before,
+                ),
+            )
+            .order_by(BackgroundTask.created_at)
+            .limit(limit - recovered)
+        )
+        for task in stale_result.scalars().all():
+            if task.cancel_requested:
+                await self._mark_cancelled(task.id)
+                recovered += 1
+                continue
+            if task.attempts >= settings.WORKER_MAX_ATTEMPTS:
+                await self._mark_failed(task.id, "Задача зависла и исчерпала лимит повторов")
+                recovered += 1
+                continue
+            task.status = "queued"
+            task.locked_by = None
+            task.lock_expires_at = None
+            task.progress_phase = "requeued"
+            task.next_retry_at = None
+            await self.enqueue_existing_task(task, queue=queue)
+            recovered += 1
+        return recovered
+
+    async def _run_electrical_batch(self, task_id: UUID) -> None:
+        task = await self.db.get(BackgroundTask, task_id)
+        if task is None:
+            return
+        payload = dict(task.request_payload or {})
+        try:
+            async with self.session_factory() as calc_db:
+                service = CalculationService(calc_db)
+                (
+                    calculated,
+                    skipped,
+                    heat_loss_failed,
+                    errors,
+                    calcs,
+                ) = await service.batch_calc_electrical(
+                    UUID(payload["project_id"]),
+                    payload.get("cable_source", "builtin"),
+                    int(payload.get("variant_number", 1)),
+                    payload.get("cable_type", "self_regulating"),
+                    payload.get("electrical_params") or {},
+                    skip_manual=bool(payload.get("skip_manual", False)),
+                    return_calcs=bool(payload.get("include_results", False)),
+                    progress_callback=lambda progress: self._update_progress(task_id, progress),
+                    should_cancel=lambda: self._should_cancel(task_id),
+                )
+        except BatchCancelledError:
+            await self._mark_cancelled(task_id)
+            return
+        except Exception as exc:
+            await self._mark_failed(task_id, f"{type(exc).__name__}: {exc}")
+            return
+
+        include_errors = bool(payload.get("include_errors", True))
+        include_results = bool(payload.get("include_results", False))
+        result_payload = {
+            "calculated": calculated,
+            "skipped": skipped,
+            "heat_loss_failed": heat_loss_failed,
+            "errors": errors if include_errors else [],
+            "results": [
+                {
+                    "id": str(calc.id),
+                    "object_id": str(calc.object_id),
+                    "cable_type": calc.cable_type,
+                    "cable_mark": calc.cable_mark,
+                    "variant_number": calc.variant_number,
+                    "results": calc.results,
+                }
+                for calc in calcs
+            ]
+            if include_results
+            else [],
+        }
+        await self._mark_succeeded(task_id, result_payload)
+
+    async def _update_progress(self, task_id: UUID, progress: BatchProgress) -> None:
+        async with self.session_factory() as db:
+            task = await db.get(BackgroundTask, task_id)
+            if task is None or task.status in TERMINAL_STATUSES:
+                return
+            now = datetime.now(UTC)
+            task.progress_current = progress.current
+            task.progress_total = progress.total
+            task.progress_phase = progress.phase
+            task.heartbeat_at = now
+            task.lock_expires_at = now + timedelta(seconds=settings.WORKER_TASK_STALE_SECONDS)
+            await db.commit()
+
+    async def _should_cancel(self, task_id: UUID) -> bool:
+        async with self.session_factory() as db:
+            row = (
+                await db.execute(
+                    select(BackgroundTask.cancel_requested, BackgroundTask.status).where(
+                        BackgroundTask.id == task_id
+                    )
+                )
+            ).one_or_none()
+            if row is None:
+                return True
+            return bool(row[0]) or row[1] == "cancelled"
+
+    async def _mark_succeeded(self, task_id: UUID, result_payload: dict[str, Any]) -> None:
+        task = await self.db.get(BackgroundTask, task_id)
+        if task is None:
+            return
+        await self.db.refresh(task)
+        now = datetime.now(UTC)
+        task.status = "succeeded"
+        task.result_payload = result_payload
+        task.error_message = None
+        task.progress_phase = "done"
+        task.progress_current = task.progress_total or task.progress_current
+        task.cancel_requested = False
+        task.locked_by = None
+        task.lock_expires_at = None
+        task.heartbeat_at = now
+        task.finished_at = now
+        await self.db.commit()
+
+    async def _mark_failed(self, task_id: UUID, error_message: str) -> None:
+        task = await self.db.get(BackgroundTask, task_id)
+        if task is None:
+            return
+        await self.db.refresh(task)
+        now = datetime.now(UTC)
+        task.status = "failed"
+        task.error_message = error_message
+        task.progress_phase = "failed"
+        task.locked_by = None
+        task.lock_expires_at = None
+        task.heartbeat_at = now
+        task.finished_at = now
+        await self.db.commit()
+
+    async def _mark_cancelled(self, task_id: UUID) -> None:
+        task = await self.db.get(BackgroundTask, task_id)
+        if task is None:
+            return
+        await self.db.refresh(task)
+        now = datetime.now(UTC)
+        task.status = "cancelled"
+        task.cancel_requested = True
+        task.progress_phase = "cancelled"
+        task.locked_by = None
+        task.lock_expires_at = None
+        task.heartbeat_at = now
+        task.finished_at = now
+        await self.db.commit()
+
+    async def _find_active_by_dedupe(self, dedupe_key: str) -> BackgroundTask | None:
+        result = await self.db.execute(
+            select(BackgroundTask)
+            .where(
+                BackgroundTask.idempotency_key == dedupe_key,
+                BackgroundTask.status.in_(ACTIVE_STATUSES),
+            )
+            .order_by(BackgroundTask.created_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    def _electrical_payload(request: ElectricalBatchJobRequest) -> dict[str, Any]:
+        return {
+            "project_id": str(request.project_id),
+            "cable_source": request.cable_source,
+            "variant_number": request.variant_number,
+            "cable_type": request.cable_type,
+            "electrical_params": request.electrical_params(),
+            "skip_manual": request.skip_manual,
+            "include_results": request.include_results,
+            "include_errors": request.include_errors,
+        }
+
+    @staticmethod
+    def _dedupe_key(
+        *,
+        task_type: str,
+        project_id: UUID,
+        principal: CurrentPrincipal,
+        payload: dict[str, Any],
+        idempotency_key: str | None,
+    ) -> str:
+        owner = (
+            f"session:{principal.session_id}"
+            if principal.role == "guest"
+            else f"user:{principal.user_id}"
+        )
+        stable_payload = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
+        raw = "|".join(
+            [
+                task_type,
+                str(project_id),
+                owner,
+                idempotency_key or stable_payload,
+            ]
+        )
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def to_response(task: BackgroundTask) -> CalculationTaskResponse:
+        total = task.progress_total
+        percent = None
+        if total and total > 0:
+            percent = min(100.0, round((task.progress_current / total) * 100, 1))
+        elif task.status in TERMINAL_STATUSES:
+            percent = 100.0
+        result = None
+        if task.result_payload is not None:
+            result = BatchElectricalResponse(
+                calculated=int(task.result_payload.get("calculated", 0)),
+                skipped=int(task.result_payload.get("skipped", 0)),
+                heat_loss_failed=int(task.result_payload.get("heat_loss_failed", 0)),
+                errors=list(task.result_payload.get("errors") or []),
+                results=[
+                    ElectricalCalcSummary(**item)
+                    for item in list(task.result_payload.get("results") or [])
+                ],
+            )
+        base = f"{settings.API_V1_PREFIX}/calc/jobs/{task.id}"
+        return CalculationTaskResponse(
+            id=task.id,
+            type=task.type,
+            status=task.status,
+            project_id=task.project_id,
+            progress=CalculationTaskProgress(
+                current=task.progress_current,
+                total=total,
+                phase=task.progress_phase,
+                percent=percent,
+            ),
+            result=result,
+            error_message=task.error_message,
+            cancel_requested=bool(task.cancel_requested),
+            created_at=task.created_at,
+            started_at=task.started_at,
+            finished_at=task.finished_at,
+            links=CalculationTaskLinks(
+                status=base,
+                result=f"{base}/result",
+                cancel=f"{base}/cancel",
+            ),
+        )

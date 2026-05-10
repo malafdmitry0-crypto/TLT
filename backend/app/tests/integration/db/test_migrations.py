@@ -14,6 +14,7 @@ async def test_all_tables_created(test_engine):
         "projects",
         "project_objects",
         "electrical_calculations",
+        "background_tasks",
         "specifications",
         "correction_coefficients",
         "cables_extended",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Button,
@@ -18,14 +18,18 @@ import {
   CheckCircleFilled,
   CloseCircleFilled,
   ReloadOutlined,
+  StopOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import type { ColumnsType } from 'antd/es/table';
 
 import {
-  batchCalcElectrical,
+  cancelCalcTask,
+  enqueueElectricalBatchJob,
   getElectricalPage,
+  getCalcTask,
   listCables,
   selectCableManual,
   type CableSource,
@@ -68,11 +72,22 @@ const ENABLED_CABLE_TYPES: ReadonlySet<CableTypeKey> = new Set([
   'three_core',
 ]);
 const ELECTRICAL_TABLE_PAGE_SIZE = 50;
+const ACTIVE_JOB_STATUSES = new Set(['queued', 'enqueued', 'running']);
+const THREAD_OPTIONS = [
+  { value: 1, label: '1' },
+  { value: 2, label: '2' },
+  { value: 3, label: '3' },
+];
 
 type CableLayoutDraft = {
   windingPitchMm?: number | null;
   numberOfThreads?: number | null;
 };
+
+function getCableMark(calc: ElectricalCalcSummary | undefined) {
+  const selectedCable = calc?.results?.selected_cable;
+  return calc?.cable_mark ?? (typeof selectedCable === 'string' ? selectedCable : undefined);
+}
 
 function calcLayoutValues(calc: ElectricalCalcSummary | undefined, draft?: CableLayoutDraft) {
   return {
@@ -99,12 +114,22 @@ export default function ElecCalcPage() {
   const [layoutDrafts, setLayoutDrafts] = useState<Record<string, CableLayoutDraft>>({});
   const [tablePage, setTablePage] = useState(1);
   const [tablePageSize, setTablePageSize] = useState(ELECTRICAL_TABLE_PAGE_SIZE);
+  const [activeRowId, setActiveRowId] = useState<string | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
   const qc = useQueryClient();
   const navigate = useNavigate();
 
   useEffect(() => {
     setTablePage(1);
+  }, [project?.id, variant]);
+
+  useEffect(() => {
+    setActiveRowId(null);
+  }, [project?.id, variant, tablePage, tablePageSize]);
+
+  useEffect(() => {
+    setActiveJobId(null);
   }, [project?.id, variant]);
 
   const { data: electricalPage, isFetching: isElectricalPageFetching } = useQuery({
@@ -116,6 +141,16 @@ export default function ElecCalcPage() {
   const elecCalcs = electricalPage?.calculations ?? [];
   const pageSummary = electricalPage?.summary;
   const pageInfo = electricalPage?.page_info;
+
+  const { data: activeJob } = useQuery({
+    queryKey: ['calc-job', activeJobId],
+    queryFn: () => getCalcTask(activeJobId!),
+    enabled: !!activeJobId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && ACTIVE_JOB_STATUSES.has(status) ? 1000 : false;
+    },
+  });
 
   const effectiveSource: CableSource = isEmployee ? cableSource : 'builtin';
   const { data: cables = [] } = useQuery({
@@ -138,7 +173,7 @@ export default function ElecCalcPage() {
 
   const batchMut = useMutation({
     mutationFn: () =>
-      batchCalcElectrical(project!.id, effectiveSource, variant, cableType, {
+      enqueueElectricalBatchJob(project!.id, effectiveSource, variant, cableType, {
         supplyVoltage,
         connectionType,
         windingCoefficient,
@@ -147,23 +182,51 @@ export default function ElecCalcPage() {
         vaporTemperature,
         aggressiveProduct,
     }),
-    onSuccess: (res) => {
+    onSuccess: (task) => {
+      setActiveJobId(task.id);
+      message.info(`СО${variant} · электрорасчёт поставлен в очередь`);
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+
+  const cancelJobMut = useMutation({
+    mutationFn: () => cancelCalcTask(activeJobId!),
+    onSuccess: (task) => {
+      setActiveJobId(task.id);
+      message.warning('Электрорасчёт остановлен');
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+
+  useEffect(() => {
+    if (!activeJob) return;
+    if (activeJob.status === 'succeeded') {
+      const res = activeJob.result;
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-page'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
-      if (res.skipped > 0) {
+      if (res && res.skipped > 0) {
         message.warning(
           `СО${variant} · рассчитано: ${res.calculated}, пропущено: ${res.skipped}` +
           `${res.heat_loss_failed > 0 ? `, ошибок теплопотерь: ${res.heat_loss_failed}` : ''}.`,
         );
-      } else {
+      } else if (res) {
         message.success(
           `СО${variant} — расчёт выполнен для ${res.calculated} объектов` +
           `${res.heat_loss_failed > 0 ? ` (ещё ${res.heat_loss_failed} с ошибками теплопотерь)` : ''}`,
         );
+      } else {
+        message.success(`СО${variant} — расчёт выполнен`);
       }
-    },
-    onError: (e: Error) => message.error(e.message),
-  });
+      setActiveJobId(null);
+    }
+    if (activeJob.status === 'failed') {
+      message.error(activeJob.error_message || 'Электрорасчёт завершился ошибкой');
+      setActiveJobId(null);
+    }
+    if (activeJob.status === 'cancelled') {
+      setActiveJobId(null);
+    }
+  }, [activeJob, project?.id, qc, variant]);
 
   const stats = useElectricalStats(objects, elecCalcs);
 
@@ -249,25 +312,210 @@ export default function ElecCalcPage() {
     },
     onError: (e: Error) => message.error(e.message),
   });
+  const manualCableMutate = manualCableMut.mutate;
+  const isManualCablePending = manualCableMut.isPending;
+  const layoutMutate = layoutMut.mutate;
+  const isLayoutPending = layoutMut.isPending;
 
-  function updateLayoutDraft(objectId: string, patch: CableLayoutDraft) {
+  const updateLayoutDraft = useCallback((objectId: string, patch: CableLayoutDraft) => {
     setLayoutDrafts((prev) => ({ ...prev, [objectId]: { ...prev[objectId], ...patch } }));
-  }
+  }, []);
 
-  function commitLayout(obj: ProjectObject) {
+  const commitLayout = useCallback((obj: ProjectObject) => {
     const calc = stats.calcByObjectId[obj.id];
-    if (!calc?.cable_mark) {
+    const mark = getCableMark(calc);
+    if (!mark) {
       message.warning('Сначала выполните электрорасчёт или выберите марку кабеля');
       return;
     }
     const values = calcLayoutValues(calc, layoutDrafts[obj.id]);
-    layoutMut.mutate({
+    layoutMutate({
       objectId: obj.id,
-      mark: calc.cable_mark,
+      mark,
       windingPitchMm: values.windingPitchMm,
       numberOfThreads: values.numberOfThreads,
     });
-  }
+  }, [layoutDrafts, layoutMutate, stats.calcByObjectId]);
+
+  const electricalColumns = useMemo<ColumnsType<ProjectObject>>(() => [
+    {
+      title: '#',
+      width: 40,
+      render: (_: unknown, __: ProjectObject, idx: number) =>
+        (pageInfo?.offset ?? 0) + idx + 1,
+    },
+    {
+      title: 'Объект',
+      dataIndex: ['params', 'name'],
+      width: 220,
+      ellipsis: true,
+      render: (v: unknown, obj) => (
+        <Text style={{ fontSize: 12 }}>
+          {String(v ?? `${obj.object_type} ${obj.id}`)}
+        </Text>
+      ),
+    },
+    {
+      title: 'Статус',
+      width: 130,
+      render: (_: unknown, obj) => {
+        const calc = stats.calcByObjectId[obj.id];
+        const err = electricalCalcError(calc);
+        if (isElectricalCalcSuccess(calc))
+          return <Tag color="success" icon={<CheckCircleFilled />}>рассчитан</Tag>;
+        if (err)
+          return <Tag color="error" icon={<CloseCircleFilled />}>ошибка</Tag>;
+        return <Tag>не рассчитан</Tag>;
+      },
+    },
+    {
+      title: 'Марка',
+      width: 180,
+      render: (_: unknown, obj) => {
+        const calc = stats.calcByObjectId[obj.id];
+        const mark = getCableMark(calc);
+        const isActive = activeRowId === obj.id;
+
+        if (!isActive) {
+          return (
+            <Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>
+              {mark ?? 'Авто'}
+            </Text>
+          );
+        }
+
+        return (
+          <Select
+            size="small"
+            showSearch
+            allowClear
+            placeholder="Авто"
+            value={mark}
+            options={manualCableOptions}
+            disabled={!obj.is_valid || manualCableOptions.length === 0}
+            loading={isManualCablePending}
+            style={{ width: '100%' }}
+            onChange={(nextMark) => {
+              if (nextMark) manualCableMutate({ objectId: obj.id, mark: nextMark });
+            }}
+          />
+        );
+      },
+    },
+    {
+      title: 'Шаг навива, мм',
+      width: 120,
+      align: 'right',
+      render: (_: unknown, obj) => {
+        const calc = stats.calcByObjectId[obj.id];
+        const mark = getCableMark(calc);
+        const values = calcLayoutValues(calc, layoutDrafts[obj.id]);
+        const isActive = activeRowId === obj.id;
+
+        if (!isActive || !obj.is_valid || !mark) {
+          return (
+            <Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>
+              {mark ? formatNumber(values.windingPitchMm, 0) : '—'}
+            </Text>
+          );
+        }
+
+        return (
+          <InputNumber
+            size="small"
+            min={0}
+            max={500}
+            value={values.windingPitchMm}
+            disabled={isLayoutPending}
+            style={{ width: '100%' }}
+            onChange={(v) => updateLayoutDraft(obj.id, { windingPitchMm: Number(v ?? 0) })}
+            onBlur={() => commitLayout(obj)}
+            onPressEnter={() => commitLayout(obj)}
+          />
+        );
+      },
+    },
+    {
+      title: 'Ниток',
+      width: 74,
+      align: 'right',
+      render: (_: unknown, obj) => {
+        const calc = stats.calcByObjectId[obj.id];
+        const mark = getCableMark(calc);
+        const values = calcLayoutValues(calc, layoutDrafts[obj.id]);
+        const isActive = activeRowId === obj.id;
+
+        if (!isActive || !obj.is_valid || !mark) {
+          return (
+            <Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>
+              {mark ? values.numberOfThreads : '—'}
+            </Text>
+          );
+        }
+
+        return (
+          <Select
+            size="small"
+            value={values.numberOfThreads}
+            disabled={isLayoutPending}
+            options={THREAD_OPTIONS}
+            style={{ width: '100%' }}
+            onChange={(v) => {
+              updateLayoutDraft(obj.id, { numberOfThreads: v });
+              layoutMutate({
+                objectId: obj.id,
+                mark,
+                windingPitchMm: values.windingPitchMm,
+                numberOfThreads: v,
+              });
+            }}
+          />
+        );
+      },
+    },
+    {
+      title: 'Длина, м',
+      width: 90,
+      align: 'right',
+      render: (_: unknown, obj) =>
+        formatNumber(Number(stats.calcByObjectId[obj.id]?.results?.cable_length), 1),
+    },
+    {
+      title: 'Мощность, Вт',
+      width: 110,
+      align: 'right',
+      render: (_: unknown, obj) =>
+        formatPower(Number(stats.calcByObjectId[obj.id]?.results?.total_power)),
+    },
+    {
+      title: 'Ток, А',
+      width: 80,
+      align: 'right',
+      render: (_: unknown, obj) =>
+        formatNumber(Number(stats.calcByObjectId[obj.id]?.results?.current), 2),
+    },
+    {
+      title: 'Сообщение',
+      ellipsis: true,
+      render: (_: unknown, obj) => (
+        <Text type="secondary" style={{ fontSize: 11 }}>
+          {electricalCalcError(stats.calcByObjectId[obj.id]) ?? '—'}
+        </Text>
+      ),
+    },
+  ], [
+    activeRowId,
+    commitLayout,
+    isLayoutPending,
+    isManualCablePending,
+    layoutDrafts,
+    layoutMutate,
+    manualCableMutate,
+    manualCableOptions,
+    pageInfo?.offset,
+    stats.calcByObjectId,
+    updateLayoutDraft,
+  ]);
 
   if (!project) {
     return (
@@ -302,6 +550,12 @@ export default function ElecCalcPage() {
   const bannerStats = calculatedCount > 0
     ? `${totalCableLength.toFixed(1)} м · ${summaryPowerDisplay} · ${totalCurrent.toFixed(2)} А · рассчитано: ${calculatedCount}/${totalObjects}`
     : 'расчёт не выполнен';
+  const activeJobStatus = activeJob?.status ?? null;
+  const isJobActive = !!activeJobStatus && ACTIVE_JOB_STATUSES.has(activeJobStatus);
+  const jobProgress = activeJob?.progress;
+  const jobProgressLabel = jobProgress?.total
+    ? `${jobProgress.current}/${jobProgress.total}`
+    : activeJobStatus ?? '';
 
   function renderElectricalTypeControls() {
     if (cableType === 'self_regulating') return null;
@@ -420,18 +674,37 @@ export default function ElecCalcPage() {
             size="small"
             type="primary"
             icon={<ReloadOutlined />}
-            loading={batchMut.isPending}
-            disabled={validObjectsCount === 0}
+            loading={batchMut.isPending || isJobActive}
+            disabled={validObjectsCount === 0 || isJobActive}
             onClick={() => batchMut.mutate()}
           >
             Выполнить электрорасчёт СО{variant}
           </Button>
+          {isJobActive && activeJobId && (
+            <Button
+              size="small"
+              danger
+              icon={<StopOutlined />}
+              loading={cancelJobMut.isPending}
+              onClick={() => cancelJobMut.mutate()}
+            >
+              Отменить
+            </Button>
+          )}
           <div style={{ marginLeft: 'auto' }}>
             <Button size="small" onClick={() => navigate(ROUTES.specification)}>
               Спецификация →
             </Button>
           </div>
         </div>
+
+        {isJobActive && (
+          <Alert
+            type="info"
+            showIcon
+            message={`Электрорасчёт выполняется · ${jobProgressLabel}`}
+          />
+        )}
 
         {/* Table */}
         <Card size="small" className="workspace-table-card srs-table-wrap">
@@ -466,149 +739,15 @@ export default function ElecCalcPage() {
               dataSource={objects}
               scroll={{ x: 1200, y: 'calc(100vh - 430px)' }}
               rowClassName={(obj) =>
-                electricalCalcError(stats.calcByObjectId[obj.id]) ? 'row-invalid' : ''
+                [
+                  electricalCalcError(stats.calcByObjectId[obj.id]) ? 'row-invalid' : '',
+                  activeRowId === obj.id ? 'electrical-row-active' : '',
+                ].filter(Boolean).join(' ')
               }
-              columns={[
-                {
-                  title: '#',
-                  width: 40,
-                  render: (_: unknown, __: ProjectObject, idx: number) =>
-                    (pageInfo?.offset ?? 0) + idx + 1,
-                },
-                {
-                  title: 'Объект',
-                  dataIndex: ['params', 'name'],
-                  width: 220,
-                  ellipsis: true,
-                  render: (v: unknown, obj) => (
-                    <Text style={{ fontSize: 12 }}>
-                      {String(v ?? `${obj.object_type} ${obj.id}`)}
-                    </Text>
-                  ),
-                },
-                {
-                  title: 'Статус',
-                  width: 130,
-                  render: (_: unknown, obj) => {
-                    const calc = stats.calcByObjectId[obj.id];
-                    const err = electricalCalcError(calc);
-                    if (isElectricalCalcSuccess(calc))
-                      return <Tag color="success" icon={<CheckCircleFilled />}>рассчитан</Tag>;
-                    if (err)
-                      return <Tag color="error" icon={<CloseCircleFilled />}>ошибка</Tag>;
-                    return <Tag>не рассчитан</Tag>;
-                  },
-                },
-                {
-                  title: 'Марка',
-                  width: 180,
-                  render: (_: unknown, obj) => {
-                    const calc = stats.calcByObjectId[obj.id];
-                    return (
-                      <Select
-                        size="small"
-                        showSearch
-                        allowClear
-                        placeholder="Авто"
-                        value={calc?.cable_mark ?? undefined}
-                        options={manualCableOptions}
-                        disabled={!obj.is_valid || manualCableOptions.length === 0}
-                        loading={manualCableMut.isPending}
-                        style={{ width: '100%' }}
-                        onChange={(mark) => {
-                          if (mark) manualCableMut.mutate({ objectId: obj.id, mark });
-                        }}
-                      />
-                    );
-                  },
-                },
-                {
-                  title: 'Шаг навива, мм',
-                  width: 120,
-                  align: 'right',
-                  render: (_: unknown, obj) => {
-                    const calc = stats.calcByObjectId[obj.id];
-                    const values = calcLayoutValues(calc, layoutDrafts[obj.id]);
-                    return (
-                      <Tooltip title={calc?.cable_mark ? 'Применяется после выхода из поля' : 'Сначала выполните электрорасчёт или выберите марку'}>
-                        <InputNumber
-                          size="small"
-                          min={0}
-                          max={500}
-                          value={values.windingPitchMm}
-                          disabled={!obj.is_valid || !calc?.cable_mark || layoutMut.isPending}
-                          style={{ width: '100%' }}
-                          onChange={(v) => updateLayoutDraft(obj.id, { windingPitchMm: Number(v ?? 0) })}
-                          onBlur={() => commitLayout(obj)}
-                          onPressEnter={() => commitLayout(obj)}
-                        />
-                      </Tooltip>
-                    );
-                  },
-                },
-                {
-                  title: 'Ниток',
-                  width: 74,
-                  align: 'right',
-                  render: (_: unknown, obj) => {
-                    const calc = stats.calcByObjectId[obj.id];
-                    const values = calcLayoutValues(calc, layoutDrafts[obj.id]);
-                    return (
-                      <Select
-                        size="small"
-                        value={values.numberOfThreads}
-                        disabled={!obj.is_valid || !calc?.cable_mark || layoutMut.isPending}
-                        options={[
-                          { value: 1, label: '1' },
-                          { value: 2, label: '2' },
-                          { value: 3, label: '3' },
-                        ]}
-                        style={{ width: '100%' }}
-                        onChange={(v) => {
-                          updateLayoutDraft(obj.id, { numberOfThreads: v });
-                          const current = calcLayoutValues(calc, layoutDrafts[obj.id]);
-                          layoutMut.mutate({
-                            objectId: obj.id,
-                            mark: calc!.cable_mark!,
-                            windingPitchMm: current.windingPitchMm,
-                            numberOfThreads: v,
-                          });
-                        }}
-                      />
-                    );
-                  },
-                },
-                {
-                  title: 'Длина, м',
-                  width: 90,
-                  align: 'right',
-                  render: (_: unknown, obj) =>
-                    formatNumber(Number(stats.calcByObjectId[obj.id]?.results?.cable_length), 1),
-                },
-                {
-                  title: 'Мощность, Вт',
-                  width: 110,
-                  align: 'right',
-                  render: (_: unknown, obj) =>
-                    formatPower(Number(stats.calcByObjectId[obj.id]?.results?.total_power)),
-                },
-                {
-                  title: 'Ток, А',
-                  width: 80,
-                  align: 'right',
-                  render: (_: unknown, obj) =>
-                    formatNumber(Number(stats.calcByObjectId[obj.id]?.results?.current), 2),
-                },
-                {
-                  title: 'Сообщение',
-                  ellipsis: true,
-                  render: (_: unknown, obj) => (
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      {electricalCalcError(stats.calcByObjectId[obj.id]) ?? '—'}
-                    </Text>
-                  ),
-                },
-              ]}
+              onRow={(obj) => ({
+                onClick: () => setActiveRowId(obj.id),
+              })}
+              columns={electricalColumns}
             />
           )}
 

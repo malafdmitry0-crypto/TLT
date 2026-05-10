@@ -2,6 +2,9 @@
 
 import math
 import uuid
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from inspect import isawaitable
 from typing import Any, cast
 from uuid import UUID
 
@@ -45,6 +48,31 @@ CableSource = str  # "builtin" | "extended" | "all"
 
 class CalculationError(Exception):
     pass
+
+
+class BatchCancelledError(CalculationError):
+    pass
+
+
+@dataclass(frozen=True)
+class BatchProgress:
+    current: int
+    total: int
+    phase: str
+    calculated: int = 0
+    skipped: int = 0
+    heat_loss_failed: int = 0
+    object_id: UUID | None = None
+
+
+ProgressCallback = Callable[[BatchProgress], Awaitable[None] | None]
+CancelChecker = Callable[[], Awaitable[bool] | bool]
+
+
+async def _maybe_await(value: Awaitable[Any] | Any) -> Any:
+    if isawaitable(value):
+        return await value
+    return value
 
 
 class CalculationService:
@@ -803,8 +831,19 @@ class CalculationService:
         electrical_params: dict[str, Any] | None = None,
         skip_manual: bool = False,
         return_calcs: bool = True,
+        progress_callback: ProgressCallback | None = None,
+        should_cancel: CancelChecker | None = None,
     ) -> tuple[int, int, int, list[dict[str, Any]], list[ElectricalCalculation]]:
         """Автоподбор кабеля для всех валидных объектов проекта (cable_mark=None)."""
+
+        async def emit_progress(progress: BatchProgress) -> None:
+            if progress_callback is not None:
+                await _maybe_await(progress_callback(progress))
+
+        async def check_cancelled() -> None:
+            if should_cancel is not None and bool(await _maybe_await(should_cancel())):
+                raise BatchCancelledError("Пакетный электрорасчёт отменён")
+
         # Считаем общее количество объектов в проекте — чтобы сообщить фронту,
         # сколько объектов исключено из-за ошибок теплопотерь.
         total_count: int = (
@@ -844,8 +883,20 @@ class CalculationService:
             if getattr(c, "object_id", None) is not None
         }
         base_overrides = electrical_params or {}
+        processed = 0
+        total_valid = len(objects)
+
+        await emit_progress(
+            BatchProgress(
+                current=0,
+                total=total_valid,
+                phase="prepare",
+                heat_loss_failed=heat_loss_failed,
+            )
+        )
 
         for obj in objects:
+            await check_cancelled()
             try:
                 existing_calc = existing_by_object_id.get(obj.id)
                 if (
@@ -886,6 +937,8 @@ class CalculationService:
                     }
                 )
                 calculated += 1
+            except BatchCancelledError:
+                raise
             except Exception as exc:
                 skipped += 1
                 err_msg = f"{type(exc).__name__}: {exc}"
@@ -897,13 +950,47 @@ class CalculationService:
                     cable_type,
                     existing_calc=existing_by_object_id.get(obj.id),
                 )
+            finally:
+                processed += 1
+                await emit_progress(
+                    BatchProgress(
+                        current=processed,
+                        total=total_valid,
+                        phase="calculate",
+                        calculated=calculated,
+                        skipped=skipped,
+                        heat_loss_failed=heat_loss_failed,
+                        object_id=obj.id,
+                    )
+                )
 
+        await check_cancelled()
+        await emit_progress(
+            BatchProgress(
+                current=processed,
+                total=total_valid,
+                phase="commit",
+                calculated=calculated,
+                skipped=skipped,
+                heat_loss_failed=heat_loss_failed,
+            )
+        )
         calcs = await self._bulk_upsert_electrical_calculations(
             successful_rows,
             return_calcs=return_calcs,
         )
         await self.db.flush()
         await self.db.commit()
+        await emit_progress(
+            BatchProgress(
+                current=total_valid,
+                total=total_valid,
+                phase="done",
+                calculated=calculated,
+                skipped=skipped,
+                heat_loss_failed=heat_loss_failed,
+            )
+        )
 
         return calculated, skipped, heat_loss_failed, errors, calcs
 

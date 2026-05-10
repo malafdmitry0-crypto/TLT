@@ -1451,6 +1451,18 @@ html, body, #root {
   border-radius: 0;
 }
 
+.electrical-spreadsheet .electrical-row-active > td {
+  background: #f0f8ff;
+}
+
+.electrical-spreadsheet .electrical-row-active:hover > td {
+  background: #e6f4ff;
+}
+
+.electrical-spreadsheet .electrical-row-active.row-invalid > td {
+  background: #fff1f0 !important;
+}
+
 @media (max-width: 900px) {
   .heat-flat-form-preview {
     grid-template-columns: repeat(2, minmax(120px, 1fr));

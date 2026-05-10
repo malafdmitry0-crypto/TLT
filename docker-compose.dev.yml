@@ -13,6 +13,21 @@ services:
       GUEST_SESSION_HOURLY_LIMIT: "500"
       GUEST_MAX_OBJECTS_PER_PROJECT: "500"
 
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    image: heatcalc-backend-dev:${IMAGE_TAG:-latest}
+    volumes:
+      - ./backend:/app
+    command: sh -c "alembic upgrade head && python -m app.worker"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db
+      REDIS_URL: redis://redis:6379/0
+      WORKER_QUEUE_CONSUMER: worker-dev
+      GUEST_SESSION_HOURLY_LIMIT: "500"
+      GUEST_MAX_OBJECTS_PER_PROJECT: "500"
+
   frontend:
     build:
       context: ./frontend

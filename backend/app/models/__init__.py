@@ -1,6 +1,7 @@
 """ORM-модели HeatCalc."""
 
 from app.models.accessory import AccessoryExtended
+from app.models.background_task import BackgroundTask
 from app.models.base import Base
 from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
@@ -14,6 +15,7 @@ from app.models.user_preference import UserPreference
 
 __all__ = [
     "Base",
+    "BackgroundTask",
     "User",
     "UserRole",
     "UserPreference",

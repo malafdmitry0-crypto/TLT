@@ -20,7 +20,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services.calculation_service import CalculationError, CalculationService
+from app.services.calculation_service import (
+    BatchCancelledError,
+    CalculationError,
+    CalculationService,
+)
 
 
 def _mock_db_empty() -> AsyncMock:
@@ -434,6 +438,98 @@ class TestBatchRecalculate:
         assert failed == 1
         assert len(errors) == 1
         assert errors[0]["object_id"] == str(objects[1].id)
+
+
+class TestBatchElectricalCallbacks:
+    async def test_batch_electrical_reports_progress(self):
+        project_id = uuid.uuid4()
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=project_id,
+            object_type="pipe",
+            params={
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 10,
+            },
+            results={"heat_loss_per_meter": 30, "total_heat_loss": 300},
+            is_valid=True,
+        )
+        db = AsyncMock()
+        objects_result = MagicMock()
+        objects_result.scalars = lambda: MagicMock(all=lambda: [obj])
+        existing_result = MagicMock()
+        existing_result.scalars = lambda: MagicMock(all=lambda: [])
+        db.scalar = AsyncMock(return_value=1)
+        db.execute = AsyncMock(side_effect=[objects_result, existing_result])
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service._calculate_electrical_result = MagicMock(  # type: ignore[method-assign]
+            return_value=("ТЛТ-30", {"selected_cable": "ТЛТ-30"})
+        )
+        service._bulk_upsert_electrical_calculations = AsyncMock(  # type: ignore[method-assign]
+            return_value=[]
+        )
+        progress = []
+
+        calculated, skipped, heat_loss_failed, errors, _ = await service.batch_calc_electrical(
+            project_id,
+            progress_callback=lambda item: progress.append(item),
+        )
+
+        assert calculated == 1
+        assert skipped == 0
+        assert heat_loss_failed == 0
+        assert errors == []
+        assert [item.phase for item in progress] == ["prepare", "calculate", "commit", "done"]
+        assert progress[1].current == 1
+        assert progress[1].total == 1
+
+    async def test_batch_electrical_cancel_stops_before_commit(self):
+        project_id = uuid.uuid4()
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=project_id,
+            object_type="pipe",
+            params={
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 10,
+            },
+            results={"heat_loss_per_meter": 30, "total_heat_loss": 300},
+            is_valid=True,
+        )
+        db = AsyncMock()
+        objects_result = MagicMock()
+        objects_result.scalars = lambda: MagicMock(all=lambda: [obj])
+        existing_result = MagicMock()
+        existing_result.scalars = lambda: MagicMock(all=lambda: [])
+        db.scalar = AsyncMock(return_value=1)
+        db.execute = AsyncMock(side_effect=[objects_result, existing_result])
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service._calculate_electrical_result = MagicMock(  # type: ignore[method-assign]
+            return_value=("ТЛТ-30", {"selected_cable": "ТЛТ-30"})
+        )
+        service._bulk_upsert_electrical_calculations = AsyncMock(  # type: ignore[method-assign]
+            return_value=[]
+        )
+        checks = 0
+
+        def should_cancel() -> bool:
+            nonlocal checks
+            checks += 1
+            return checks >= 2
+
+        with pytest.raises(BatchCancelledError):
+            await service.batch_calc_electrical(project_id, should_cancel=should_cancel)
+
+        service._bulk_upsert_electrical_calculations.assert_not_awaited()
+        db.commit.assert_not_awaited()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

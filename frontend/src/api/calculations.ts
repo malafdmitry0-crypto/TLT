@@ -1,5 +1,7 @@
 import apiClient from './client';
 import type {
+  BatchElectricalResponse,
+  CalculationTaskResponse,
   ElectricalCalcSummary,
   ElectricalPageResponse,
   ElectricalRequest,
@@ -60,14 +62,6 @@ export async function getElectricalPage(
   return data;
 }
 
-export interface BatchElectricalResponse {
-  calculated: number;
-  skipped: number;
-  heat_loss_failed: number;
-  errors: Array<{ object_id: string; error: string }>;
-  results: ElectricalCalcSummary[];
-}
-
 export type CableSource = 'builtin' | 'extended' | 'all';
 export type CableType =
   | 'self_regulating'
@@ -126,6 +120,42 @@ export async function batchCalcElectrical(
       ...electricalParams(cableType, options),
     },
   });
+  return data;
+}
+
+export async function enqueueElectricalBatchJob(
+  projectId: string,
+  cableSource: CableSource = 'builtin',
+  variantNumber: number = 1,
+  cableType: CableType = 'self_regulating',
+  options: ElectricalBatchOptions = {},
+): Promise<CalculationTaskResponse> {
+  const { data } = await apiClient.post<CalculationTaskResponse>(
+    '/calc/electrical/batch/jobs',
+    {
+      project_id: projectId,
+      cable_source: cableSource,
+      variant_number: variantNumber,
+      include_results: false,
+      include_errors: true,
+      ...electricalParams(cableType, options),
+    },
+  );
+  return data;
+}
+
+export async function getCalcTask(taskId: string): Promise<CalculationTaskResponse> {
+  const { data } = await apiClient.get<CalculationTaskResponse>(`/calc/jobs/${taskId}`);
+  return data;
+}
+
+export async function getCalcTaskResult(taskId: string): Promise<BatchElectricalResponse> {
+  const { data } = await apiClient.get<BatchElectricalResponse>(`/calc/jobs/${taskId}/result`);
+  return data;
+}
+
+export async function cancelCalcTask(taskId: string): Promise<CalculationTaskResponse> {
+  const { data } = await apiClient.post<CalculationTaskResponse>(`/calc/jobs/${taskId}/cancel`);
   return data;
 }
 

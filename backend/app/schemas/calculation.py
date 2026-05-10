@@ -1,5 +1,6 @@
 """Схемы расчётов: вход/выход формул и API."""
 
+from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -611,3 +612,77 @@ class BatchElectricalResponse(BaseModel):
     )
     errors: list[dict[str, Any]] = Field(default_factory=list)
     results: list[ElectricalCalcSummary] = Field(default_factory=list)
+
+
+TaskStatus = Literal["queued", "enqueued", "running", "succeeded", "failed", "cancelled"]
+
+
+class ElectricalBatchJobRequest(BaseModel):
+    """Запрос асинхронного пакетного электрорасчёта."""
+
+    project_id: UUID
+    cable_source: str = "builtin"
+    variant_number: int = Field(default=1, ge=1, le=4)
+    cable_type: Literal[
+        "self_regulating",
+        "self_regulating_tt",
+        "single_core",
+        "three_core",
+        "mineral",
+        "skin",
+    ] = "self_regulating"
+    supply_voltage: float | None = None
+    connection_type: str | None = None
+    winding_coefficient: float | None = None
+    winding_pitch: float | None = None
+    number_of_threads: int | None = None
+    heating_height: float | None = None
+    laying_step: float | None = None
+    vapor_temperature: float | None = None
+    aggressive_product: bool = False
+    skip_manual: bool = False
+    include_results: bool = False
+    include_errors: bool = True
+
+    def electrical_params(self) -> dict[str, Any]:
+        return {
+            "supply_voltage": self.supply_voltage,
+            "connection_type": self.connection_type,
+            "winding_coefficient": self.winding_coefficient,
+            "winding_pitch": self.winding_pitch,
+            "number_of_threads": self.number_of_threads,
+            "heating_height": self.heating_height,
+            "laying_step": self.laying_step,
+            "vapor_temperature": self.vapor_temperature,
+            "aggressive_product": self.aggressive_product,
+        }
+
+
+class CalculationTaskProgress(BaseModel):
+    current: int = 0
+    total: int | None = None
+    phase: str | None = None
+    percent: float | None = None
+
+
+class CalculationTaskLinks(BaseModel):
+    status: str
+    result: str
+    cancel: str
+
+
+class CalculationTaskResponse(BaseModel):
+    """Состояние background task для UI/polling."""
+
+    id: UUID
+    type: str
+    status: TaskStatus
+    project_id: UUID | None = None
+    progress: CalculationTaskProgress
+    result: BatchElectricalResponse | None = None
+    error_message: str | None = None
+    cancel_requested: bool = False
+    created_at: datetime
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    links: CalculationTaskLinks

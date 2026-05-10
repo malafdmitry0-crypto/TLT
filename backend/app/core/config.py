@@ -66,6 +66,16 @@ class Settings(BaseSettings):
     # Redis для distributed rate limiter. Если пусто — fallback на in-memory.
     REDIS_URL: str | None = None
 
+    # Worker queue для тяжёлых расчётов. Postgres хранит состояние задач,
+    # Redis используется только как транспорт доставки worker'ам.
+    WORKER_QUEUE_STREAM: str = "heatcalc:tasks:cpu"
+    WORKER_QUEUE_GROUP: str = "heatcalc-workers"
+    WORKER_QUEUE_CONSUMER: str = "worker-1"
+    WORKER_POLL_TIMEOUT_MS: int = 5_000
+    WORKER_RECOVERY_INTERVAL_SECONDS: int = 30
+    WORKER_TASK_STALE_SECONDS: int = 120
+    WORKER_MAX_ATTEMPTS: int = 3
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -12,7 +12,26 @@ vi.mock('@/api/projects', () => ({
 }));
 
 vi.mock('@/api/calculations', () => ({
-  batchCalcElectrical: vi.fn(),
+  cancelCalcTask: vi.fn(),
+  enqueueElectricalBatchJob: vi.fn(),
+  getCalcTask: vi.fn().mockResolvedValue({
+    id: 'task-1',
+    type: 'electrical_batch',
+    status: 'running',
+    project_id: 'p-1',
+    progress: { current: 0, total: 1, phase: 'running', percent: 0 },
+    result: null,
+    error_message: null,
+    cancel_requested: false,
+    created_at: '2026-01-01T00:00:00Z',
+    started_at: null,
+    finished_at: null,
+    links: {
+      status: '/api/v1/calc/jobs/task-1',
+      result: '/api/v1/calc/jobs/task-1/result',
+      cancel: '/api/v1/calc/jobs/task-1/cancel',
+    },
+  }),
   getElectricalPage: vi.fn(),
   listCables: vi.fn().mockResolvedValue([]),
   selectCableManual: vi.fn(),
@@ -220,15 +239,22 @@ describe('ElecCalcPage (integration)', () => {
     expect(document.querySelector('.ant-pagination')).toBeTruthy();
   });
 
-  it('запускает batch ТЛТ с electrical params, а не пустым набором', async () => {
-    const { batchCalcElectrical, getElectricalPage } = await import('@/api/calculations');
+  it('ставит batch ТЛТ в очередь с electrical params, а не пустым набором', async () => {
+    const { enqueueElectricalBatchJob, getElectricalPage } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
-    (batchCalcElectrical as ReturnType<typeof vi.fn>).mockResolvedValue({
-      calculated: 1,
-      skipped: 0,
-      heat_loss_failed: 0,
-      errors: [],
-      results: [],
+    (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'task-1',
+      type: 'electrical_batch',
+      status: 'enqueued',
+      project_id: 'p-1',
+      progress: { current: 0, total: null, phase: 'enqueued', percent: null },
+      result: null,
+      error_message: null,
+      cancel_requested: false,
+      created_at: '2026-01-01T00:00:00Z',
+      started_at: null,
+      finished_at: null,
+      links: { status: '', result: '', cancel: '' },
     });
     useProjectStore.getState().setCurrentProject(mockProject);
     const user = (await import('@testing-library/user-event')).default.setup();
@@ -240,7 +266,7 @@ describe('ElecCalcPage (integration)', () => {
     await user.click(screen.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }));
 
     await waitFor(() => {
-      expect(batchCalcElectrical).toHaveBeenCalledWith(
+      expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
         'p-1',
         'builtin',
         1,
@@ -307,6 +333,70 @@ describe('ElecCalcPage (integration)', () => {
     });
   });
 
+  it('монтирует Select/InputNumber только для активной строки таблицы', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    const objects = [
+      makeObject({ id: 'o-1', params: { name: 'Труба-1' } }),
+      makeObject({ id: 'o-2', sort_order: 1, params: { name: 'Труба-2' } }),
+    ];
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage(objects, [
+        {
+          id: 'c-1',
+          object_id: 'o-1',
+          cable_type: 'self_regulating',
+          cable_mark: 'ТЛТ-30',
+          variant_number: 1,
+          results: {
+            selected_cable: 'ТЛТ-30',
+            winding_pitch: 0,
+            num_circuits: 1,
+            cable_length: 11,
+            total_power: 600,
+            current: 2.7,
+            voltage: 220,
+          },
+        },
+        {
+          id: 'c-2',
+          object_id: 'o-2',
+          cable_type: 'self_regulating',
+          cable_mark: 'ТЛТ-40',
+          variant_number: 1,
+          results: {
+            selected_cable: 'ТЛТ-40',
+            winding_pitch: 120,
+            num_circuits: 2,
+            cable_length: 12,
+            total_power: 700,
+            current: 3.2,
+            voltage: 220,
+          },
+        },
+      ]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Труба-1')).toBeInTheDocument();
+    });
+    expect(document.querySelectorAll('.electrical-spreadsheet .ant-select-selector')).toHaveLength(0);
+    expect(document.querySelectorAll('.electrical-spreadsheet input[role="spinbutton"]')).toHaveLength(0);
+
+    fireEvent.click(screen.getByText('Труба-1').closest('tr') as HTMLTableRowElement);
+    await waitFor(() => {
+      expect(document.querySelectorAll('.electrical-spreadsheet .ant-select-selector')).toHaveLength(2);
+    });
+    expect(document.querySelectorAll('.electrical-spreadsheet input[role="spinbutton"]')).toHaveLength(1);
+
+    fireEvent.click(screen.getByText('Труба-2').closest('tr') as HTMLTableRowElement);
+    await waitFor(() => {
+      expect(document.querySelectorAll('.electrical-spreadsheet .ant-select-selector')).toHaveLength(2);
+    });
+    expect(document.querySelectorAll('.electrical-spreadsheet input[role="spinbutton"]')).toHaveLength(1);
+  });
+
   it('изменение шага навива пересчитывает текущий объект с выбранной маркой', async () => {
     const { getElectricalPage, selectCableManual } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
@@ -343,6 +433,10 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(screen.getAllByText('ТЛТ-30').length).toBeGreaterThan(0);
     });
+    fireEvent.click(screen.getByText('Труба-1').closest('tr') as HTMLTableRowElement);
+    await waitFor(() => {
+      expect(document.querySelector('input[role="spinbutton"][value="0"]')).toBeTruthy();
+    });
     const pitchInput = document.querySelector('input[role="spinbutton"][value="0"]');
     expect(pitchInput).toBeTruthy();
     fireEvent.change(pitchInput as HTMLInputElement, { target: { value: '80' } });
@@ -360,15 +454,22 @@ describe('ElecCalcPage (integration)', () => {
     });
   });
 
-  it('запускает batch с выбранным типом ТТН/ТТВ/ТТХ и его параметрами', async () => {
-    const { batchCalcElectrical, getElectricalPage } = await import('@/api/calculations');
+  it('ставит batch в очередь с выбранным типом ТТН/ТТВ/ТТХ и его параметрами', async () => {
+    const { enqueueElectricalBatchJob, getElectricalPage } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
-    (batchCalcElectrical as ReturnType<typeof vi.fn>).mockResolvedValue({
-      calculated: 1,
-      skipped: 0,
-      heat_loss_failed: 0,
-      errors: [],
-      results: [],
+    (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'task-1',
+      type: 'electrical_batch',
+      status: 'enqueued',
+      project_id: 'p-1',
+      progress: { current: 0, total: null, phase: 'enqueued', percent: null },
+      result: null,
+      error_message: null,
+      cancel_requested: false,
+      created_at: '2026-01-01T00:00:00Z',
+      started_at: null,
+      finished_at: null,
+      links: { status: '', result: '', cancel: '' },
     });
     useProjectStore.getState().setCurrentProject(mockProject);
     const user = (await import('@testing-library/user-event')).default.setup();
@@ -387,7 +488,7 @@ describe('ElecCalcPage (integration)', () => {
     await user.click(screen.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }));
 
     await waitFor(() => {
-      expect(batchCalcElectrical).toHaveBeenCalledWith(
+      expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
         'p-1',
         'builtin',
         1,

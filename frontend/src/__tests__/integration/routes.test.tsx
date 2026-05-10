@@ -58,7 +58,34 @@ vi.mock('@/api/projects', () => ({
 vi.mock('@/api/calculations', () => ({
   listElectricalCalcs: vi.fn().mockResolvedValue([]),
   batchCalcElectrical: vi.fn(),
+  enqueueElectricalBatchJob: vi.fn(),
+  getCalcTask: vi.fn(),
+  cancelCalcTask: vi.fn(),
+  getElectricalPage: vi.fn().mockResolvedValue({
+    items: [],
+    calculations: [],
+    summary: {
+      total_objects: 0,
+      valid_objects: 0,
+      invalid_objects: 0,
+      electrical_calculations_total: 0,
+      calculated_count: 0,
+      failed_count: 0,
+      total_cable_length: 0,
+      total_power: 0,
+      total_current: 0,
+    },
+    page_info: {
+      page: 1,
+      page_size: 50,
+      offset: 0,
+      total_pages: 0,
+      has_next_page: false,
+      has_previous_page: false,
+    },
+  }),
   selectCableManual: vi.fn(),
+  listCables: vi.fn().mockResolvedValue([]),
   listCableOptions: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('@/api/specifications', () => ({

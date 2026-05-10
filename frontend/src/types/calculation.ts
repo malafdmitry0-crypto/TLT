@@ -162,3 +162,47 @@ export interface ElectricalPageResponse {
   summary: ElectricalPageSummary;
   page_info: ProjectObjectsPageInfo;
 }
+
+export type CalculationTaskStatus =
+  | 'queued'
+  | 'enqueued'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled';
+
+export interface CalculationTaskProgress {
+  current: number;
+  total: number | null;
+  phase: string | null;
+  percent: number | null;
+}
+
+export interface CalculationTaskLinks {
+  status: string;
+  result: string;
+  cancel: string;
+}
+
+export interface BatchElectricalResponse {
+  calculated: number;
+  skipped: number;
+  heat_loss_failed: number;
+  errors: Array<{ object_id: string; error: string }>;
+  results: ElectricalCalcSummary[];
+}
+
+export interface CalculationTaskResponse {
+  id: string;
+  type: string;
+  status: CalculationTaskStatus;
+  project_id: string | null;
+  progress: CalculationTaskProgress;
+  result: BatchElectricalResponse | null;
+  error_message: string | null;
+  cancel_requested: boolean;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  links: CalculationTaskLinks;
+}
