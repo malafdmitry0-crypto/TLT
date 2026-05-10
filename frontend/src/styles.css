@@ -56,56 +56,132 @@ html, body, #root {
 }
 
 .heatcalc-header {
-  background: var(--color-primary);
-  color: white;
-  height: 24px;
-  line-height: 24px;
-  padding: 0 6px;
+  background: #fff;
+  color: #213244;
+  height: auto;
+  line-height: 1;
+  padding: 0 12px;
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  gap: 0;
+  border-bottom: 1px solid #dfe7f1;
+  box-shadow: 0 1px 5px rgb(20 42 68 / 7%);
   min-width: 0;
 }
 
-.heatcalc-title {
-  color: white;
-  font-size: 11.2px;
-  line-height: 1;
-  margin: 0 7px 0 0;
+.heatcalc-primary-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+}
+
+.heatcalc-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   flex: 0 0 auto;
+  min-width: 0;
+}
+
+.heatcalc-brand-icon {
+  color: #2457d6;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.heatcalc-title {
+  color: #162234;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.heatcalc-primary-nav {
+  flex: 1 1 auto;
+  min-width: 320px;
+}
+
+.heatcalc-primary-nav .ant-menu-horizontal {
+  line-height: 32px;
+  min-width: 0;
+}
+
+.heatcalc-primary-nav .ant-menu-horizontal::before,
+.heatcalc-primary-nav .ant-menu-horizontal::after {
+  display: none;
+}
+
+.heatcalc-primary-nav .ant-menu-item,
+.heatcalc-primary-nav .ant-menu-submenu-title {
+  height: 32px;
+  line-height: 32px;
+  margin: 0 2px;
+  padding-inline: 11px;
+  border-radius: 8px;
+  color: #26364a;
+}
+
+.heatcalc-primary-nav .ant-menu-item::after,
+.heatcalc-primary-nav .ant-menu-submenu::after {
+  display: none;
+}
+
+.heatcalc-primary-nav .ant-menu-item-selected {
+  background: #eef4ff;
+  color: #2457d6;
+  box-shadow: inset 0 0 0 1px #c9d9ff;
+}
+
+.heatcalc-primary-nav .ant-menu-item .anticon {
+  font-size: 14px;
+}
+
+.heatcalc-primary-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .project-menu {
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
 }
 
 .project-menu-current {
-  margin-right: 3px;
+  margin-right: 4px;
   min-width: 0;
 }
 
 .project-menu-current-icon {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 8.4px;
+  color: #6a7a8e;
+  font-size: 11px;
 }
 
 .project-menu-current-name {
-  color: white;
-  max-width: 126px;
-  font-size: 8.4px;
-  line-height: 16.8px;
+  color: #26364a;
+  max-width: 140px;
+  font-size: 11px;
+  line-height: 24px;
 }
 
 .project-menu .ant-btn {
-  height: 16.8px;
-  padding-inline: 4.2px;
-  font-size: 8.4px;
+  height: 26px;
+  padding-inline: 8px;
+  font-size: 11px;
   line-height: 1;
+  border-radius: 6px;
 }
 
 .project-menu .ant-btn .anticon {
-  font-size: 8.4px;
+  font-size: 12px;
   line-height: 1;
 }
 
@@ -115,14 +191,15 @@ html, body, #root {
 }
 
 .header-actions .ant-btn {
-  height: 16.8px;
-  padding-inline: 5px;
-  font-size: 8.4px;
+  height: 26px;
+  padding-inline: 8px;
+  font-size: 11px;
   line-height: 1;
+  border-radius: 6px;
 }
 
 .header-actions .ant-btn .anticon {
-  font-size: 8.4px;
+  font-size: 12px;
   line-height: 1;
 }
 
@@ -142,44 +219,31 @@ html, body, #root {
   min-width: 0;
 }
 
-.heatcalc-topnav {
+.heatcalc-context-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: #ebf5fb;
-  border-bottom: 1px solid #d9e1e6;
-  padding: 0 8px;
-  min-height: 34px;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 0 4px;
   min-width: 0;
-}
-
-.heatcalc-topnav .ant-menu-horizontal {
-  flex: 1 1 auto;
-  line-height: 34px;
-  min-width: 0;
-}
-
-.heatcalc-topnav .ant-menu-item,
-.heatcalc-topnav .ant-menu-submenu-title {
-  padding-inline: 9px;
-  margin-inline: 0;
 }
 
 .heatcalc-content {
-  padding: 5px 8px 8px;
+  padding: 6px 8px 8px;
 }
 
 .workspace-header-context {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  flex: 0 1 42%;
+  gap: 7px;
+  flex: 1 1 auto;
   min-width: 240px;
-  max-width: 760px;
+  max-width: none;
   height: 24px;
-  padding: 0 2px 0 8px;
-  border-left: 1px solid #c4d2db;
-  color: #2f4f66;
+  padding: 0 2px;
+  color: #3b4a5d;
   font-size: 11px;
   line-height: 1;
   white-space: nowrap;
@@ -188,8 +252,8 @@ html, body, #root {
 
 .workspace-header-context-icon {
   flex: 0 0 auto;
-  color: var(--color-primary);
-  font-size: 11px;
+  color: #2457d6;
+  font-size: 13px;
 }
 
 .workspace-header-context-title {
@@ -369,10 +433,10 @@ html, body, #root {
 
 .inline-form-srs {
   background: #fff;
-  border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  padding: 5px 8px;
-  border-top: 2px solid var(--color-primary);
+  border: 1px solid #dbe6f2;
+  border-radius: 7px;
+  box-shadow: 0 1px 4px rgb(20 42 68 / 5%);
+  padding: 5px;
 }
 
 .inline-form-shell {
@@ -434,6 +498,7 @@ html, body, #root {
   align-items: stretch;
   width: 100%;
   overflow: hidden;
+  gap: 4px;
 }
 
 .form-grid-srs .form-col-srs {
@@ -450,30 +515,50 @@ html, body, #root {
   gap: 2px 4px;
   min-width: var(--field-pair-min-width);
   overflow: hidden;
-  border: 1px solid #d9e1e6;
-  background: #fcfdfd;
-  padding: 2px 2px 1px;
+  border: 1px solid #dbe6f2;
+  border-radius: 7px;
+  background: #fff;
+  padding: 3px 3px 2px;
   flex: none;
 }
 
 .form-col-resize-handle {
-  width: 1px;
+  width: 0;
   flex-shrink: 0;
-  background: #e7edf2;
+  background: transparent;
 }
 
 .form-col-srs h4 {
   display: flex;
   align-items: center;
+  gap: 6px;
   grid-column: 1 / -1;
-  margin: -2px -2px 3px;
+  min-height: 25px;
+  margin: -3px -3px 4px;
   font-size: 10px;
-  color: #607080;
+  color: #2f3d4f;
   text-transform: uppercase;
-  letter-spacing: 0.2px;
-  padding: 2px 5px;
-  background: #eef3f6;
-  border-bottom: 1px solid #d9e1e6;
+  letter-spacing: 0;
+  padding: 3px 7px;
+  background: #f8fbff;
+  border-bottom: 1px solid #dbe6f2;
+}
+
+.form-col-srs h4::before {
+  content: attr(data-step);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #2457d6;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 3px 8px rgb(36 87 214 / 16%);
 }
 
 .form-col-srs h4 span {

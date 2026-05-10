@@ -30,7 +30,8 @@ interface Props {
   initialParams?: Record<string, unknown>;
 }
 
-const SECTION_RESIZE_HANDLE_WIDTH = 1;
+const SECTION_RESIZE_HANDLE_WIDTH = 0;
+const SECTION_GRID_GAP_WIDTH = 4;
 const SECTION_WIDTH_WEIGHTS = [1.095, 1.095, 1.45, 0.56];
 const SECTION_FIELD_PAIR_MIN_WIDTHS = [206, 206, 220, 180];
 const SECTION_FIELD_GRID =
@@ -271,7 +272,7 @@ export default function ObjectWizard({
       (total, weight) => total + weight,
       0,
     );
-    const availableWidth = `100% - ${SECTION_RESIZE_HANDLE_WIDTH * 3}px`;
+    const availableWidth = `100% - ${SECTION_RESIZE_HANDLE_WIDTH * 3 + SECTION_GRID_GAP_WIDTH * 6}px`;
     const share = expandedWeight > 0 ? SECTION_WIDTH_WEIGHTS[idx] / expandedWeight : 1;
 
     const style = {
@@ -286,8 +287,8 @@ export default function ObjectWizard({
     return style;
   }
 
-  function renderSectionTitle(title: string) {
-    return <h4><span>{title}</span></h4>;
+  function renderSectionTitle(title: string, step: number) {
+    return <h4 data-step={step}><span>{title}</span></h4>;
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -319,7 +320,7 @@ export default function ObjectWizard({
           className="form-col-srs"
           style={sectionStyle(0)}
         >
-          {renderSectionTitle(objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара')}
+          {renderSectionTitle(objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара', 1)}
           <Form.Item
             className="name-form-item helped-form-item"
             label={fieldLabel('Наименование')}
@@ -491,7 +492,7 @@ export default function ObjectWizard({
           className="form-col-srs"
           style={sectionStyle(1)}
         >
-          {renderSectionTitle('Теплоизоляция')}
+          {renderSectionTitle('Теплоизоляция', 2)}
           <ThermalStep />
           <Form.Item
             className="fixed-select-form-item reduced-select-form-item helped-form-item"
@@ -635,7 +636,7 @@ export default function ObjectWizard({
           className="form-col-srs"
           style={sectionStyle(2)}
         >
-          {renderSectionTitle('Температура и среда')}
+          {renderSectionTitle('Температура и среда', 3)}
           <Form.Item
             className="fixed-select-form-item reduced-select-form-item helped-form-item"
             label={fieldLabel('Климат')}
@@ -833,7 +834,7 @@ export default function ObjectWizard({
           className="form-col-srs"
           style={sectionStyle(3)}
         >
-          {renderSectionTitle('Электропараметры и арматура')}
+          {renderSectionTitle('Электропараметры и арматура', 4)}
           <Form.Item
             className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('Мин. T° включения')}
