@@ -60,7 +60,7 @@ export function useHeatCalcMutations(
   const navigate = useNavigate();
 
   const invalidateObjects = () => {
-    qc.invalidateQueries({ queryKey: ['project', projectId, 'objects'] });
+    qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'query'] });
     qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
   };
 

@@ -1,6 +1,7 @@
 import { Form, InputNumber, Select } from 'antd';
 import type { ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
 import HelpedControl from '../HelpedControl';
 import FieldLabel from '../FieldLabel';
@@ -17,8 +18,9 @@ export default function ThermalStep() {
   const form = Form.useFormInstance();
   const insulationMaterial = Form.useWatch('insulation_material', form);
   const { data: materials = [], isError, isFetching } = useQuery({
-    queryKey: ['insulation'],
+    queryKey: referenceQueryKeys.insulation,
     queryFn: getInsulation,
+    ...referenceQueryOptions,
   });
   const materialOptions = [
     ...materials.map((m) => ({ value: m.material, label: m.name })),

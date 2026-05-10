@@ -13,7 +13,8 @@ export function useUpdateObjectParams(projectId: string) {
       params: Record<string, unknown>;
     }): Promise<ProjectObject> => updateObject(projectId, objectId, { params }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['project', projectId, 'objects'] });
+      qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'query'] });
+      qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
     },
   });
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, Input, Table, Tabs, Tag, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
+import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import {
   getAccessories,
   getCablesTt,
@@ -19,36 +20,44 @@ export default function ReferencesPage() {
   const [climateSearch, setClimateSearch] = useState('');
 
   const { data: climate = [], isFetching: climateLoading } = useQuery({
-    queryKey: ['references', 'climate'],
+    queryKey: referenceQueryKeys.climate,
     queryFn: getClimate,
+    ...referenceQueryOptions,
   });
   const { data: insulation = [], isFetching: insulLoading } = useQuery({
-    queryKey: ['references', 'insulation'],
+    queryKey: referenceQueryKeys.insulation,
     queryFn: getInsulation,
+    ...referenceQueryOptions,
   });
   const { data: pipeMaterials = [], isFetching: pipeMatLoading } = useQuery({
-    queryKey: ['references', 'pipe-materials'],
+    queryKey: referenceQueryKeys.pipeMaterials,
     queryFn: getPipeMaterials,
+    ...referenceQueryOptions,
   });
   const { data: cables = [], isFetching: cablesLoading } = useQuery({
-    queryKey: ['references', 'cables-tlt'],
+    queryKey: referenceQueryKeys.cablesTlt,
     queryFn: getCablesTlt,
+    ...referenceQueryOptions,
   });
   const { data: ttCables = [], isFetching: ttCablesLoading } = useQuery({
-    queryKey: ['references', 'cables-tt'],
+    queryKey: referenceQueryKeys.ttCables,
     queryFn: getCablesTt,
+    ...referenceQueryOptions,
   });
   const { data: resistive, isFetching: resistiveLoading } = useQuery({
-    queryKey: ['references', 'resistive-cables'],
+    queryKey: referenceQueryKeys.resistiveCables,
     queryFn: getResistiveCables,
+    ...referenceQueryOptions,
   });
   const { data: soil = [], isFetching: soilLoading } = useQuery({
-    queryKey: ['references', 'soil'],
+    queryKey: referenceQueryKeys.soilConductivity,
     queryFn: getSoilConductivity,
+    ...referenceQueryOptions,
   });
   const { data: accessories = [], isFetching: accLoading } = useQuery({
-    queryKey: ['references', 'accessories'],
+    queryKey: referenceQueryKeys.accessories,
     queryFn: getAccessories,
+    ...referenceQueryOptions,
   });
 
   const filteredClimate = climate.filter(

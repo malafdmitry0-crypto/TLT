@@ -16,6 +16,7 @@ import {
 } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { checkFormula } from '@/api/admin';
+import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
 
 const { Text } = Typography;
@@ -711,7 +712,11 @@ function assignIfPresent(target: Record<string, unknown>, key: string, value: un
 function PipeTab() {
   const [form] = Form.useForm();
   const { result, error, loading, run } = useCalc('pipe');
-  const { data: insulation = [] } = useQuery({ queryKey: ['references', 'insulation'], queryFn: getInsulation });
+  const { data: insulation = [] } = useQuery({
+    queryKey: referenceQueryKeys.insulation,
+    queryFn: getInsulation,
+    ...referenceQueryOptions,
+  });
 
   const onCalc = async () => {
     const v = await form.validateFields();
@@ -876,7 +881,11 @@ function PipeTab() {
 function TankTab() {
   const [form] = Form.useForm();
   const { result, error, loading, run } = useCalc('tank');
-  const { data: insulation = [] } = useQuery({ queryKey: ['references', 'insulation'], queryFn: getInsulation });
+  const { data: insulation = [] } = useQuery({
+    queryKey: referenceQueryKeys.insulation,
+    queryFn: getInsulation,
+    ...referenceQueryOptions,
+  });
   const shape = Form.useWatch('shape', form) ?? 'cylindrical';
 
   const onCalc = async () => {

@@ -29,6 +29,7 @@ import {
   saveSpecificationItems,
   type AccessoryExtendedInfo,
 } from '@/api/specifications';
+import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import SpecTable from '@/components/specification/SpecTable';
@@ -60,10 +61,10 @@ export default function SpecificationPage() {
   });
 
   const { data: accessories = [] } = useQuery({
-    queryKey: ['references', 'accessories-extended'],
+    queryKey: referenceQueryKeys.accessoriesExtended,
     queryFn: listAccessoriesExtended,
     enabled: isEmployee,
-    staleTime: 5 * 60_000,
+    ...referenceQueryOptions,
   });
 
   const mut = useMutation({

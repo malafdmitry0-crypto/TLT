@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, type ReactElement } from 'react';
 import { Button, Form, Input, InputNumber, Select, Tag, type FormInstance } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import type { ObjectType } from '@/constants/objectTypes';
+import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import PipeGeometryStep from './steps/PipeGeometryStep';
 import TankGeometryStep from './steps/TankGeometryStep';
 import ThermalStep from './steps/ThermalStep';
@@ -136,20 +137,24 @@ export default function ObjectWizard({
   const showWindField = placement === 'outdoor' || (objectType === 'tank' && isUnderground);
   const showAlphaField = !isUnderground || objectType === 'tank';
   const { data: insulationMaterials = [], isError: insulationMaterialsError, isFetching: isInsulationMaterialsFetching } = useQuery({
-    queryKey: ['insulation'],
+    queryKey: referenceQueryKeys.insulation,
     queryFn: getInsulation,
+    ...referenceQueryOptions,
   });
   const { data: pipeMaterials = [] } = useQuery({
-    queryKey: ['pipe-materials'],
+    queryKey: referenceQueryKeys.pipeMaterials,
     queryFn: getPipeMaterials,
+    ...referenceQueryOptions,
   });
   const { data: climateEntries = [], isFetching: isClimateFetching } = useQuery({
-    queryKey: ['climate'],
+    queryKey: referenceQueryKeys.climate,
     queryFn: getClimate,
+    ...referenceQueryOptions,
   });
   const { data: soilEntries = [], isFetching: isSoilFetching } = useQuery({
-    queryKey: ['soil-conductivity'],
+    queryKey: referenceQueryKeys.soilConductivity,
     queryFn: getSoilConductivity,
+    ...referenceQueryOptions,
   });
   const insulationMaterialOptions = [
     ...insulationMaterials.map((m) => ({

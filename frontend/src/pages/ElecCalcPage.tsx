@@ -34,6 +34,7 @@ import {
   selectCableManual,
   type CableSource,
 } from '@/api/calculations';
+import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getCablesTt, getResistiveCables } from '@/api/references';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
@@ -181,21 +182,21 @@ export default function ElecCalcPage() {
 
   const effectiveSource: CableSource = isEmployee ? cableSource : 'builtin';
   const { data: cables = [] } = useQuery({
-    queryKey: ['references', 'cables', effectiveSource],
+    queryKey: referenceQueryKeys.cables(effectiveSource),
     queryFn: () => listCables(effectiveSource),
-    staleTime: 5 * 60_000,
+    ...referenceQueryOptions,
   });
   const { data: ttCables = [] } = useQuery({
-    queryKey: ['references', 'tt-cables'],
+    queryKey: referenceQueryKeys.ttCables,
     queryFn: getCablesTt,
     enabled: !!project && cableType === 'self_regulating_tt',
-    staleTime: 5 * 60_000,
+    ...referenceQueryOptions,
   });
   const { data: resistiveCables } = useQuery({
-    queryKey: ['references', 'resistive-cables'],
+    queryKey: referenceQueryKeys.resistiveCables,
     queryFn: getResistiveCables,
     enabled: !!project && (cableType === 'single_core' || cableType === 'three_core'),
-    staleTime: 5 * 60_000,
+    ...referenceQueryOptions,
   });
 
   const batchMut = useMutation({

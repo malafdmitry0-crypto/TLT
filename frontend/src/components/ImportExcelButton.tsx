@@ -23,7 +23,7 @@ export default function ImportExcelButton({ projectId }: Props) {
     mutationFn: (file: File) => importObjectsExcel(projectId, file),
     onSuccess: (res) => {
       setResult(res);
-      qc.invalidateQueries({ queryKey: ['project', projectId, 'objects'] });
+      qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'query'] });
       qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
       if (res.errors.length === 0) {
         message.success(`Импортировано объектов: ${res.created}`);
