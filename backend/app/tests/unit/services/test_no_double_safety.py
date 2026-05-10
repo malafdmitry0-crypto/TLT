@@ -31,18 +31,22 @@ def _make_mock_db(pipe_object: SimpleNamespace, cable_catalog_rows: list | None 
     и пустой `cables_extended`."""
     cable_catalog_rows = cable_catalog_rows or []
 
-    def _execute_side_effect(*_args, **_kwargs):
-        # Первый вызов (ProjectObject.where(is_valid=True)) → список объектов
-        # Последующие (CableExtended / ProjectObject lookup / ElectricalCalculation lookup)
-        #   возвращают пустые. Это нормально для единичного pipe-объекта.
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [pipe_object]
-        mock_result.scalar_one_or_none.return_value = pipe_object
-        mock_result.scalars.return_value.first.return_value = None
-        return mock_result
+    count_result = MagicMock()
+    count_result.one.return_value = (1, 1)
+    objects_result = MagicMock()
+    objects_result.scalars.return_value.all.return_value = [pipe_object]
+    existing_result = MagicMock()
+    existing_result.scalars.return_value.all.return_value = []
+    upsert_result = MagicMock()
+    upsert_result.scalars.return_value.all.return_value = [
+        SimpleNamespace(object_id=pipe_object.id)
+    ]
 
     db = AsyncMock()
-    db.execute = AsyncMock(side_effect=_execute_side_effect)
+    db.execute = AsyncMock(
+        side_effect=[count_result, objects_result, existing_result, upsert_result]
+    )
+    db.flush = AsyncMock()
     db.commit = AsyncMock()
     db.refresh = AsyncMock()
     db.add = MagicMock()
@@ -57,6 +61,7 @@ def _fake_pipe_object(heat_loss_per_meter: float, pipe_length: float = 50.0):
         id=oid,
         project_id=pid,
         object_type="pipe",
+        sort_order=0,
         is_valid=True,
         params={
             "outer_diameter": 0.108,

@@ -30,15 +30,13 @@ class TestLoadContext:
             name="P",
             description="D",
             status="draft",
-            objects=[
-                SimpleNamespace(
-                    id=oid,
-                    object_type="pipe",
-                    params={"name": "Т1"},
-                    results={"heat_loss_per_meter": 50},
-                    is_valid=True,
-                )
-            ],
+        )
+        obj = SimpleNamespace(
+            id=oid,
+            object_type="pipe",
+            params={"name": "Т1"},
+            results={"heat_loss_per_meter": 50},
+            is_valid=True,
         )
         spec = SimpleNamespace(items=[{"name": "Кабель"}])
         elec = SimpleNamespace(
@@ -49,6 +47,7 @@ class TestLoadContext:
         )
         results_stack = [
             _r(scalar_one_or_none=project),  # Project
+            _r(all_=[obj]),  # ProjectObject list
             _r(first=spec),  # Specification
             _r(all_=[elec]),  # ElectricalCalculation list
         ]
@@ -63,11 +62,12 @@ class TestLoadContext:
 
     async def test_no_specification_returns_empty_list(self):
         pid = uuid.uuid4()
-        project = SimpleNamespace(id=pid, name="P", description=None, status="draft", objects=[])
+        project = SimpleNamespace(id=pid, name="P", description=None, status="draft")
         db = AsyncMock()
         db.execute = AsyncMock(
             side_effect=[
                 _r(scalar_one_or_none=project),
+                _r(all_=[]),
                 _r(first=None),  # no spec
                 _r(all_=[]),
             ]
@@ -84,15 +84,13 @@ class TestLoadContext:
             name="P",
             description="",
             status="draft",
-            objects=[
-                SimpleNamespace(
-                    id=oid,
-                    object_type="pipe",
-                    params={},
-                    results={},
-                    is_valid=True,
-                )
-            ],
+        )
+        obj = SimpleNamespace(
+            id=oid,
+            object_type="pipe",
+            params={},
+            results={},
+            is_valid=True,
         )
         old = SimpleNamespace(
             object_id=oid,
@@ -110,6 +108,7 @@ class TestLoadContext:
         db.execute = AsyncMock(
             side_effect=[
                 _r(scalar_one_or_none=project),
+                _r(all_=[obj]),
                 _r(first=None),
                 _r(all_=[old, new]),
             ]
@@ -117,21 +116,46 @@ class TestLoadContext:
         ctx = await ReportService(db)._load_context(pid)
         assert ctx["objects"][0]["electrical"]["cable_mark"] == "ТЛТ-50"
 
-
-class TestExport:
-    async def test_unknown_format_raises(self):
+    async def test_specification_only_skips_objects_and_electrical(self):
         pid = uuid.uuid4()
-        project = SimpleNamespace(id=pid, name="P", description="", status="draft", objects=[])
+        project = SimpleNamespace(id=pid, name="P", description="", status="draft")
+        spec = SimpleNamespace(items=[{"name": "Кабель"}])
         db = AsyncMock()
         db.execute = AsyncMock(
             side_effect=[
                 _r(scalar_one_or_none=project),
-                _r(first=None),
+                _r(first=spec),
+            ]
+        )
+        ctx = await ReportService(db)._load_context(pid, ["specification"])
+        assert ctx["sections"] == ["specification"]
+        assert ctx["objects"] == []
+        assert ctx["specification"]["items"] == [{"name": "Кабель"}]
+        assert db.execute.call_count == 2
+
+    async def test_preview_response_omits_context_data(self):
+        pid = uuid.uuid4()
+        project = SimpleNamespace(id=pid, name="P", description="", status="draft")
+        db = AsyncMock()
+        db.execute = AsyncMock(
+            side_effect=[
+                _r(scalar_one_or_none=project),
                 _r(all_=[]),
             ]
         )
+        response = await ReportService(db).preview(pid, ["pipes"])
+        assert response["sections"] == ["pipes"]
+        assert "data" not in response
+
+
+class TestExport:
+    async def test_unknown_format_raises(self):
+        pid = uuid.uuid4()
+        db = AsyncMock()
+        db.execute = AsyncMock()
         with pytest.raises(ReportError, match="Неизвестный формат"):
             await ReportService(db).export(pid, "txt")
+        db.execute.assert_not_called()
 
 
 class TestReportRendering:

@@ -17,6 +17,10 @@
 - production `nginx.conf` кэширует content-hashed `/assets/` как immutable статику и больше не сбрасывает cache storage через `Clear-Site-Data`.
 - неиспользуемые `react-hook-form`/`@hookform/resolvers` удалены, `@testing-library/dom` перенесён в `devDependencies`.
 - B3: список проектов и лёгкие access-check больше не загружают `params/results` объектов через `selectinload(Project.objects)`.
+- report preview больше не возвращает внутренний `data` payload и грузит только данные выбранных секций.
+- HeatCalcPage больше не вызывает синхронный electrical batch: задача ставится в worker queue, а ElecCalcPage открывается с активным `task_id`.
+- legacy `GET /calc/electrical` помечен deprecated и ограничен постраничной выдачей `page/page_size` с максимумом 200 строк.
+- fallback-путь `ObjectQueryService.query()` для search/filter/sort грузит только выбранный `object_type`, а capabilities ограничены sample-лимитом.
 
 ## 5. CPU-bound часть batch-расчётов
 
@@ -150,10 +154,12 @@ GET /projects/{id} → GET /objects/query → GET /calculations
 Электрический batch уже bulk. Тепловой — всё ещё N отдельных UPDATE.
 Приоритет: P2. ~100 мс оверхеда. Унифицировать.
 
-**B2. Старый `GET /electrical` без пагинации**
+**B2. Старый `GET /electrical` без пагинации ✅ применено**
 
-Возвращает все 1600 строк. Проверить, используется ли фронтендом.
-Если нет — deprecate.
+Раньше возвращал весь список расчётов проекта. Сейчас endpoint сохранён для совместимости,
+но помечен `deprecated=True` и принимает `page/page_size`; дефолт `page_size=200`,
+верхний предел тоже 200. Основная страница электрорасчёта уже использует
+`GET /calc/electrical/page`, поэтому legacy path больше не может случайно отдать тысячи строк.
 
 **B3. `selectinload(Project.objects)` — полные JSONB для списка проектов ✅ применено**
 

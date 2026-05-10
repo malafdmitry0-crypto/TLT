@@ -173,6 +173,35 @@ async def test_default_object_query_is_constant_query_count(
     _assert_query_count(statements, 3)
 
 
+async def test_object_query_fallback_loads_only_requested_type(
+    db_session: AsyncSession,
+    employee_user: User,
+    test_engine: AsyncEngine,
+):
+    project, _objects = await _seed_project(db_session, employee_user, per_type=200)
+
+    with count_sql(test_engine) as statements:
+        response = await ObjectQueryService(db_session).query(
+            project.id,
+            ProjectObjectsQueryRequest(
+                object_type="pipe",
+                search={"text": "Pipe-1", "columns": ["name"]},
+            ),
+            _principal(employee_user),
+        )
+
+    assert response.counts.total == 400
+    assert response.counts.filtered > 0
+    _assert_query_count(statements, 3)
+    object_page_selects = [
+        statement
+        for statement in statements
+        if "FROM project_objects" in statement and "ORDER BY" in statement
+    ]
+    assert len(object_page_selects) == 1
+    assert "project_objects.object_type" in object_page_selects[0]
+
+
 async def test_batch_electrical_uses_constant_select_count(
     db_session: AsyncSession,
     employee_user: User,

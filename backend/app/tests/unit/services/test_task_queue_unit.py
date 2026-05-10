@@ -22,8 +22,8 @@ class FakeRedis:
         if self.fail_group:
             raise ResponseError("NOAUTH Authentication required")
 
-    async def xadd(self, stream, fields):
-        self.calls.append(("xadd", (stream, fields)))
+    async def xadd(self, stream, fields, maxlen=None, approximate=True):
+        self.calls.append(("xadd", (stream, fields, maxlen, approximate)))
         return "1-0"
 
     async def xreadgroup(self, group, consumer, *, streams, count, block):
@@ -71,6 +71,7 @@ async def test_task_queue_enqueue_read_ack_and_close(monkeypatch: pytest.MonkeyP
         "xreadgroup",
         "xack",
     ]
+    assert fake.calls[1][1][2:] == (10_000, True)
 
 
 async def test_task_queue_ignores_existing_consumer_group(monkeypatch: pytest.MonkeyPatch):

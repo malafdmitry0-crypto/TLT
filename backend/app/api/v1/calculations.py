@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import ValidationError
 from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -91,17 +91,29 @@ async def calc_electrical(
 @router.get(
     "/electrical",
     response_model=list[ElectricalCalcSummary],
-    summary="Список электрорасчётов по проекту",
+    summary="Список электрорасчётов по проекту (legacy, paginated)",
+    deprecated=True,
 )
 async def list_electrical(
     project_id: UUID,
     variant_number: int | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(200, ge=1, le=200),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = sa_select(ElectricalCalculation).where(ElectricalCalculation.project_id == project_id)
     if variant_number is not None:
         stmt = stmt.where(ElectricalCalculation.variant_number == variant_number)
+    stmt = (
+        stmt.order_by(
+            ElectricalCalculation.variant_number,
+            ElectricalCalculation.object_id,
+            ElectricalCalculation.id,
+        )
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
     result = await db.execute(stmt)
     calcs = result.scalars().all()
     return [

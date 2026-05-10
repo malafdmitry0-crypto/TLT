@@ -52,6 +52,8 @@ class TaskQueue:
         stream_id = await self.redis.xadd(
             self.stream,
             {"task_id": str(task_id), "type": task_type},
+            maxlen=settings.WORKER_QUEUE_MAXLEN,
+            approximate=True,
         )
         return str(stream_id)
 

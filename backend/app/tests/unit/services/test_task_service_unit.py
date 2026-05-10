@@ -12,8 +12,16 @@ import pytest
 from app.core.dependencies import CurrentPrincipal
 from app.models.background_task import BackgroundTask
 from app.schemas.calculation import ElectricalBatchJobRequest
+from app.services.calculation_service import BatchProgress
 from app.services.project_service import ProjectService
-from app.services.task_service import TASK_ELECTRICAL_BATCH, TaskAccessError, TaskService
+from app.services.task_service import (
+    MAX_TASK_ERROR_MESSAGE_LENGTH,
+    TASK_ELECTRICAL_BATCH,
+    ProgressThrottler,
+    ProgressWritePolicy,
+    TaskAccessError,
+    TaskService,
+)
 
 
 class ResultRows:
@@ -38,6 +46,17 @@ class QueueOk:
 class QueueFail:
     async def enqueue(self, task_id, task_type: str) -> str:
         raise RuntimeError("redis down")
+
+
+class ManualClock:
+    def __init__(self) -> None:
+        self.value = 0.0
+
+    def __call__(self) -> float:
+        return self.value
+
+    def advance_ms(self, value: int) -> None:
+        self.value += value / 1000
 
 
 @pytest.fixture
@@ -66,6 +85,74 @@ def mock_db():
 
 async def _allow_project_access(self, project_id, principal):
     return SimpleNamespace(id=project_id)
+
+
+class TestProgressThrottler:
+    async def test_persists_first_phase_changes_and_final_flush(self):
+        clock = ManualClock()
+        persisted: list[BatchProgress] = []
+
+        async def persist(progress: BatchProgress) -> None:
+            persisted.append(progress)
+
+        throttler = ProgressThrottler(
+            persist,
+            policy=ProgressWritePolicy(min_interval_ms=500, min_percent_delta=1.0),
+            now_func=clock,
+        )
+
+        await throttler.offer(BatchProgress(current=0, total=100, phase="prepare"))
+        await throttler.offer(BatchProgress(current=1, total=100, phase="calculate"))
+        await throttler.offer(BatchProgress(current=2, total=100, phase="calculate"))
+        await throttler.flush()
+
+        assert [(item.phase, item.current) for item in persisted] == [
+            ("prepare", 0),
+            ("calculate", 1),
+            ("calculate", 2),
+        ]
+
+    async def test_short_burst_does_not_write_every_progress_event(self):
+        clock = ManualClock()
+        persisted: list[BatchProgress] = []
+
+        async def persist(progress: BatchProgress) -> None:
+            persisted.append(progress)
+
+        throttler = ProgressThrottler(
+            persist,
+            policy=ProgressWritePolicy(min_interval_ms=500, min_percent_delta=1.0),
+            now_func=clock,
+        )
+
+        for current in range(1, 401):
+            await throttler.offer(BatchProgress(current=current, total=400, phase="calculate"))
+        await throttler.flush()
+
+        assert len(persisted) == 2
+        assert persisted[0].current == 1
+        assert persisted[-1].current == 400
+
+    async def test_skips_small_percent_delta_even_after_interval(self):
+        clock = ManualClock()
+        persisted: list[BatchProgress] = []
+
+        async def persist(progress: BatchProgress) -> None:
+            persisted.append(progress)
+
+        throttler = ProgressThrottler(
+            persist,
+            policy=ProgressWritePolicy(min_interval_ms=500, min_percent_delta=1.0),
+            now_func=clock,
+        )
+
+        await throttler.offer(BatchProgress(current=0, total=400, phase="calculate"))
+        clock.advance_ms(600)
+        await throttler.offer(BatchProgress(current=3, total=400, phase="calculate"))
+        clock.advance_ms(600)
+        await throttler.offer(BatchProgress(current=4, total=400, phase="calculate"))
+
+        assert [item.current for item in persisted] == [0, 4]
 
 
 class TestTaskCreation:
@@ -182,6 +269,26 @@ class TestTaskStateTransitions:
 
         service._mark_failed.assert_awaited_once()
         mock_db.commit.assert_not_awaited()
+
+    async def test_mark_failed_compacts_large_error_message(self, mock_db):
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_ELECTRICAL_BATCH,
+            status="running",
+            session_id="sid",
+            request_payload={},
+            progress_current=10,
+        )
+        mock_db.get = AsyncMock(return_value=task)
+        large_error = "InterfaceError: " + ("x" * 10_000)
+
+        await TaskService(mock_db)._mark_failed(task.id, large_error)
+
+        assert task.status == "failed"
+        assert task.error_message is not None
+        assert len(task.error_message) == MAX_TASK_ERROR_MESSAGE_LENGTH
+        assert "truncated" in task.error_message
+        mock_db.commit.assert_awaited_once()
 
     async def test_enqueue_failure_keeps_task_queued_for_recovery(self, mock_db):
         task = BackgroundTask(

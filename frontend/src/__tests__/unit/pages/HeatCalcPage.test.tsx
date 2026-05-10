@@ -128,7 +128,7 @@ vi.mock('@/api/projects', () => {
 });
 
 vi.mock('@/api/calculations', () => ({
-  batchCalcElectrical: vi.fn().mockResolvedValue({ calculated: 0, skipped: 0, heat_loss_failed: 0, errors: [], results: [] }),
+  enqueueElectricalBatchJob: vi.fn().mockResolvedValue({ id: 'task-1', status: 'queued' }),
 }));
 
 vi.mock('@/api/references', () => ({
@@ -305,7 +305,7 @@ describe('HeatCalcPage', () => {
         },
         { timeout: 5000 },
       );
-    });
+    }, 10_000);
   });
 
   describe('Навигация таблицы', () => {

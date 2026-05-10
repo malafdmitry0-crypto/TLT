@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Button,
@@ -22,7 +22,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 
 import {
@@ -39,6 +39,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useElectricalStats } from '@/hooks/useElectricalStats';
 import { isElectricalCalcSuccess, electricalCalcError } from '@/utils/calcStatus';
+import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
 import { formatNumber, formatPower } from '@/utils/formatters';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
@@ -72,7 +73,6 @@ const ENABLED_CABLE_TYPES: ReadonlySet<CableTypeKey> = new Set([
   'three_core',
 ]);
 const ELECTRICAL_TABLE_PAGE_SIZE = 50;
-const ACTIVE_JOB_STATUSES = new Set(['queued', 'enqueued', 'running']);
 const THREAD_OPTIONS = [
   { value: 1, label: '1' },
   { value: 2, label: '2' },
@@ -83,6 +83,10 @@ type CableLayoutDraft = {
   windingPitchMm?: number | null;
   numberOfThreads?: number | null;
 };
+
+type ElectricalNavigationState = {
+  activeJobId?: string;
+} | null;
 
 function getCableMark(calc: ElectricalCalcSummary | undefined) {
   const selectedCable = calc?.results?.selected_cable;
@@ -100,6 +104,9 @@ export default function ElecCalcPage() {
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
   const isEmployee = role === 'employee' || role === 'admin';
+  const location = useLocation();
+  const navigationActiveJobId =
+    (location.state as ElectricalNavigationState)?.activeJobId ?? null;
 
   const [variant, setVariant] = useState<number>(1);
   const [cableSource, setCableSource] = useState<CableSource>('builtin');
@@ -115,7 +122,10 @@ export default function ElecCalcPage() {
   const [tablePage, setTablePage] = useState(1);
   const [tablePageSize, setTablePageSize] = useState(ELECTRICAL_TABLE_PAGE_SIZE);
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(
+    () => navigationActiveJobId,
+  );
+  const activeJobScopeRef = useRef<{ projectId?: string; variant: number } | null>(null);
 
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -129,7 +139,23 @@ export default function ElecCalcPage() {
   }, [project?.id, variant, tablePage, tablePageSize]);
 
   useEffect(() => {
-    setActiveJobId(null);
+    if (navigationActiveJobId) {
+      setActiveJobId(navigationActiveJobId);
+    }
+  }, [navigationActiveJobId]);
+
+  useEffect(() => {
+    const currentScope = { projectId: project?.id, variant };
+    const previousScope = activeJobScopeRef.current;
+    activeJobScopeRef.current = currentScope;
+    if (!previousScope) return;
+    if (!previousScope.projectId && currentScope.projectId) return;
+    if (
+      previousScope.projectId !== currentScope.projectId ||
+      previousScope.variant !== currentScope.variant
+    ) {
+      setActiveJobId(null);
+    }
   }, [project?.id, variant]);
 
   const { data: electricalPage, isFetching: isElectricalPageFetching } = useQuery({
@@ -148,8 +174,9 @@ export default function ElecCalcPage() {
     enabled: !!activeJobId,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      return status && ACTIVE_JOB_STATUSES.has(status) ? 1000 : false;
+      return getCalcJobRefetchInterval(status);
     },
+    refetchIntervalInBackground: true,
   });
 
   const effectiveSource: CableSource = isEmployee ? cableSource : 'builtin';
@@ -551,7 +578,7 @@ export default function ElecCalcPage() {
     ? `${totalCableLength.toFixed(1)} м · ${summaryPowerDisplay} · ${totalCurrent.toFixed(2)} А · рассчитано: ${calculatedCount}/${totalObjects}`
     : 'расчёт не выполнен';
   const activeJobStatus = activeJob?.status ?? null;
-  const isJobActive = !!activeJobStatus && ACTIVE_JOB_STATUSES.has(activeJobStatus);
+  const isJobActive = isActiveCalcJobStatus(activeJobStatus);
   const jobProgress = activeJob?.progress;
   const jobProgressLabel = jobProgress?.total
     ? `${jobProgress.current}/${jobProgress.total}`

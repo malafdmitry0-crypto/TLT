@@ -38,9 +38,16 @@ export async function getCableOptions(objectId: string): Promise<unknown[]> {
 export async function listElectricalCalcs(
   projectId: string,
   variantNumber?: number,
+  page: number = 1,
+  pageSize: number = 200,
 ): Promise<ElectricalCalcSummary[]> {
   const { data } = await apiClient.get<ElectricalCalcSummary[]>('/calc/electrical', {
-    params: { project_id: projectId, variant_number: variantNumber },
+    params: {
+      project_id: projectId,
+      variant_number: variantNumber,
+      page,
+      page_size: pageSize,
+    },
   });
   return data;
 }

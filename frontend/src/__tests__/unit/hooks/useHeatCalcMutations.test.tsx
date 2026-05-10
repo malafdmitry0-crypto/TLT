@@ -11,7 +11,7 @@ vi.mock('@/api/projects', () => ({
   reorderObjects: vi.fn(),
 }));
 vi.mock('@/api/calculations', () => ({
-  batchCalcElectrical: vi.fn(),
+  enqueueElectricalBatchJob: vi.fn(),
 }));
 
 const navigateMock = vi.fn();
@@ -93,29 +93,40 @@ describe('useHeatCalcMutations', () => {
     expect(reorderObjects).toHaveBeenCalledWith('p1', ['o1', 'o2']);
   });
 
-  it('batchCalc: успех — навигация на elecCalc', async () => {
-    const { batchCalcElectrical } = await import('@/api/calculations');
-    (batchCalcElectrical as ReturnType<typeof vi.fn>).mockResolvedValue({
-      calculated: 3, skipped: 0, errors: [], calcs: [],
+  it('batchCalc: ставит задачу в очередь и навигирует на elecCalc', async () => {
+    const { enqueueElectricalBatchJob } = await import('@/api/calculations');
+    (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'task-1',
+      status: 'queued',
     });
     const { result } = renderHook(
       () => useHeatCalcMutations('p1'),
       { wrapper }
     );
     await result.current.batchCalc.mutateAsync();
-    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/workspace/elec-calc'));
+    expect(enqueueElectricalBatchJob).toHaveBeenCalledWith('p1');
+    await waitFor(() =>
+      expect(navigateMock).toHaveBeenCalledWith('/workspace/elec-calc', {
+        state: { activeJobId: 'task-1' },
+      }),
+    );
   });
 
-  it('batchCalc: при ошибках показывает warning, но всё равно навигирует', async () => {
-    const { batchCalcElectrical } = await import('@/api/calculations');
-    (batchCalcElectrical as ReturnType<typeof vi.fn>).mockResolvedValue({
-      calculated: 1, skipped: 1, errors: [{ object_id: 'x', error: 'fail' }], calcs: [],
+  it('batchCalc: навигирует с id активной задачи', async () => {
+    const { enqueueElectricalBatchJob } = await import('@/api/calculations');
+    (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'task-2',
+      status: 'enqueued',
     });
     const { result } = renderHook(
       () => useHeatCalcMutations('p1'),
       { wrapper }
     );
     await result.current.batchCalc.mutateAsync();
-    await waitFor(() => expect(navigateMock).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(navigateMock).toHaveBeenCalledWith('/workspace/elec-calc', {
+        state: { activeJobId: 'task-2' },
+      }),
+    );
   });
 });

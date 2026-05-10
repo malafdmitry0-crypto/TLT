@@ -99,6 +99,8 @@ function tankPayload(index, sortOrder) {
       shape: 'cylindrical',
       diameter: 2 + (index % 4) * 0.25,
       height: 3,
+      heating_height: 3,
+      laying_step: 0.2,
       insulation_thickness: 0.08,
       insulation_material: index % 2 === 0 ? 'mineral_wool' : 'foam_glass',
       process_temperature: 70,

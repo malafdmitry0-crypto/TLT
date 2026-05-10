@@ -82,7 +82,6 @@ describe('ReportPage (integration)', () => {
       project_id: 'p-1',
       html: '<div class="tlt-report"><h1>Отчёт</h1></div>',
       sections: ['Проект'],
-      data: {},
     });
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
@@ -97,7 +96,7 @@ describe('ReportPage (integration)', () => {
     const userEvent = (await import('@testing-library/user-event')).default;
     const { getReportPreview, exportReport } = await import('@/api/reports');
     (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
-      project_id: 'p-1', html: '<div></div>', sections: [], data: {},
+      project_id: 'p-1', html: '<div></div>', sections: [],
     });
     (exportReport as ReturnType<typeof vi.fn>).mockResolvedValue(
       new Blob(['fake'], { type: 'application/pdf' })
@@ -120,7 +119,7 @@ describe('ReportPage (integration)', () => {
     const userEvent = (await import('@testing-library/user-event')).default;
     const { getReportPreview } = await import('@/api/reports');
     (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
-      project_id: 'p-1', html: '<div></div>', sections: [], data: {},
+      project_id: 'p-1', html: '<div></div>', sections: [],
     });
     useAuthStore.setState({
       role: 'employee',
@@ -147,7 +146,6 @@ describe('ReportPage (integration)', () => {
       project_id: 'p-1',
       html: '<div></div>',
       sections: [],
-      data: {},
     });
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();

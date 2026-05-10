@@ -71,10 +71,13 @@ class Settings(BaseSettings):
     WORKER_QUEUE_STREAM: str = "heatcalc:tasks:cpu"
     WORKER_QUEUE_GROUP: str = "heatcalc-workers"
     WORKER_QUEUE_CONSUMER: str = "worker-1"
+    WORKER_QUEUE_MAXLEN: int = 10_000
     WORKER_POLL_TIMEOUT_MS: int = 5_000
     WORKER_RECOVERY_INTERVAL_SECONDS: int = 30
     WORKER_TASK_STALE_SECONDS: int = 120
     WORKER_MAX_ATTEMPTS: int = 3
+    WORKER_PROGRESS_MIN_INTERVAL_MS: int = 500
+    WORKER_PROGRESS_MIN_PERCENT_DELTA: float = 1.0
 
 
 @lru_cache

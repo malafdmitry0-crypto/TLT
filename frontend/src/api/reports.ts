@@ -22,7 +22,6 @@ export interface ReportPreview {
   project_id: string;
   html: string;
   sections: string[];
-  data: Record<string, unknown>;
 }
 
 export async function getReportPreview(

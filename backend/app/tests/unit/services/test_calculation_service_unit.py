@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.services.calculation_service import (
+    BatchCancelChecker,
     BatchCancelledError,
     CalculationError,
     CalculationService,
@@ -38,6 +39,38 @@ def _mock_db_empty() -> AsyncMock:
     db.refresh = AsyncMock()
     db.add = MagicMock()
     return db
+
+
+def _electrical_upsert_row(project_id: uuid.UUID, object_id: uuid.UUID) -> dict[str, object]:
+    return {
+        "id": uuid.uuid4(),
+        "project_id": project_id,
+        "object_id": object_id,
+        "variant_number": 1,
+        "cable_type": "self_regulating",
+        "cable_mark": "TLT-30",
+        "params": {},
+        "results": {"selected_cable": "TLT-30"},
+    }
+
+
+def _bulk_upsert_result(rows: list[dict[str, object]]) -> MagicMock:
+    result = MagicMock()
+    result.scalars = lambda: MagicMock(
+        all=lambda: [SimpleNamespace(object_id=row["object_id"]) for row in rows]
+    )
+    return result
+
+
+class ManualClock:
+    def __init__(self) -> None:
+        self.value = 0.0
+
+    def __call__(self) -> float:
+        return self.value
+
+    def advance_ms(self, value: int) -> None:
+        self.value += value / 1000
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -440,13 +473,170 @@ class TestBatchRecalculate:
         assert errors[0]["object_id"] == str(objects[1].id)
 
 
+class TestBulkElectricalUpsert:
+    async def test_bulk_upsert_chunks_rows_below_bind_limit(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            "app.services.calculation_service.ELECTRICAL_BULK_UPSERT_TARGET_CHUNK_SIZE",
+            2,
+        )
+        db = AsyncMock()
+        project_id = uuid.uuid4()
+        object_ids = [uuid.uuid4() for _ in range(5)]
+        rows = [_electrical_upsert_row(project_id, object_id) for object_id in object_ids]
+        db.execute = AsyncMock(
+            side_effect=[
+                _bulk_upsert_result(rows[:2]),
+                _bulk_upsert_result(rows[2:4]),
+                _bulk_upsert_result(rows[4:]),
+            ]
+        )
+
+        calcs = await CalculationService(db)._bulk_upsert_electrical_calculations(rows)
+
+        assert db.execute.await_count == 3
+        assert [calc.object_id for calc in calcs] == object_ids
+
+    async def test_bulk_upsert_chunks_when_results_are_not_requested(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            "app.services.calculation_service.ELECTRICAL_BULK_UPSERT_TARGET_CHUNK_SIZE",
+            2,
+        )
+        db = AsyncMock()
+        project_id = uuid.uuid4()
+        rows = [
+            _electrical_upsert_row(project_id, object_id)
+            for object_id in [uuid.uuid4() for _ in range(5)]
+        ]
+        db.execute = AsyncMock()
+
+        calcs = await CalculationService(db)._bulk_upsert_electrical_calculations(
+            rows,
+            return_calcs=False,
+        )
+
+        assert calcs == []
+        assert db.execute.await_count == 3
+
+
+class TestBatchCancelChecker:
+    async def test_throttles_cancel_checks_by_object_count_and_time(self):
+        checks = 0
+
+        def should_cancel() -> bool:
+            nonlocal checks
+            checks += 1
+            return False
+
+        clock = ManualClock()
+        checker = BatchCancelChecker(
+            should_cancel,
+            min_objects=500,
+            min_interval_seconds=0.5,
+            now_func=clock,
+        )
+
+        await checker.check(0, force=True)
+        await checker.check(100)
+        await checker.check(499)
+        await checker.check(500)
+        clock.advance_ms(600)
+        await checker.check(501)
+
+        assert checks == 3
+
+    async def test_force_check_can_cancel_before_chunk_write(self):
+        checker = BatchCancelChecker(lambda: True)
+
+        with pytest.raises(BatchCancelledError):
+            await checker.check(2000, force=True)
+
+
 class TestBatchElectricalCallbacks:
+    async def test_batch_electrical_processes_objects_in_chunks(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.calculation_service.BATCH_ELECTRICAL_CHUNK_SIZE", 2)
+        project_id = uuid.uuid4()
+        objects = [
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                project_id=project_id,
+                object_type="pipe",
+                sort_order=index,
+                params={
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 10,
+                },
+                results={"heat_loss_per_meter": 30, "total_heat_loss": 300},
+                is_valid=True,
+            )
+            for index in range(5)
+        ]
+        count_result = MagicMock()
+        count_result.one = lambda: (5, 5)
+
+        def objects_result(chunk):
+            result = MagicMock()
+            result.scalars = lambda: MagicMock(all=lambda: chunk)
+            return result
+
+        existing_result = MagicMock()
+        existing_result.scalars = lambda: MagicMock(all=lambda: [])
+        db = AsyncMock()
+        db.execute = AsyncMock(
+            side_effect=[
+                count_result,
+                objects_result(objects[:2]),
+                existing_result,
+                objects_result(objects[2:4]),
+                existing_result,
+                objects_result(objects[4:]),
+                existing_result,
+            ]
+        )
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service._calculate_electrical_result = MagicMock(  # type: ignore[method-assign]
+            return_value=("ТЛТ-30", {"selected_cable": "ТЛТ-30"})
+        )
+        service._bulk_upsert_electrical_calculations = AsyncMock(  # type: ignore[method-assign]
+            return_value=[]
+        )
+
+        calculated, skipped, heat_loss_failed, errors, calcs = await service.batch_calc_electrical(
+            project_id,
+            return_calcs=False,
+        )
+
+        assert calculated == 5
+        assert skipped == 0
+        assert heat_loss_failed == 0
+        assert errors == []
+        assert calcs == []
+        assert service._bulk_upsert_electrical_calculations.await_count == 3
+        chunk_lengths = [
+            len(call.args[0])
+            for call in service._bulk_upsert_electrical_calculations.await_args_list
+        ]
+        assert chunk_lengths == [2, 2, 1]
+
     async def test_batch_electrical_reports_progress(self):
         project_id = uuid.uuid4()
         obj = SimpleNamespace(
             id=uuid.uuid4(),
             project_id=project_id,
             object_type="pipe",
+            sort_order=0,
             params={
                 "ambient_temperature": -20,
                 "process_temperature": 80,
@@ -456,12 +646,13 @@ class TestBatchElectricalCallbacks:
             is_valid=True,
         )
         db = AsyncMock()
+        count_result = MagicMock()
+        count_result.one = lambda: (1, 1)
         objects_result = MagicMock()
         objects_result.scalars = lambda: MagicMock(all=lambda: [obj])
         existing_result = MagicMock()
         existing_result.scalars = lambda: MagicMock(all=lambda: [])
-        db.scalar = AsyncMock(return_value=1)
-        db.execute = AsyncMock(side_effect=[objects_result, existing_result])
+        db.execute = AsyncMock(side_effect=[count_result, objects_result, existing_result])
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
@@ -493,6 +684,7 @@ class TestBatchElectricalCallbacks:
             id=uuid.uuid4(),
             project_id=project_id,
             object_type="pipe",
+            sort_order=0,
             params={
                 "ambient_temperature": -20,
                 "process_temperature": 80,
@@ -502,12 +694,13 @@ class TestBatchElectricalCallbacks:
             is_valid=True,
         )
         db = AsyncMock()
+        count_result = MagicMock()
+        count_result.one = lambda: (1, 1)
         objects_result = MagicMock()
         objects_result.scalars = lambda: MagicMock(all=lambda: [obj])
         existing_result = MagicMock()
         existing_result.scalars = lambda: MagicMock(all=lambda: [])
-        db.scalar = AsyncMock(return_value=1)
-        db.execute = AsyncMock(side_effect=[objects_result, existing_result])
+        db.execute = AsyncMock(side_effect=[count_result, objects_result, existing_result])
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)

@@ -184,6 +184,43 @@ class TestElectricalCalculation:
         assert resp.status_code == 200, resp.text
         assert resp.json() == []
 
+    async def test_list_electrical_legacy_endpoint_is_paginated(
+        self, client: AsyncClient, guest_session: str
+    ):
+        """Legacy GET /calc/electrical не должен отдавать неограниченный список."""
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+
+        for variant_number in range(1, 5):
+            resp = await client.post(
+                "/api/v1/calc/electrical",
+                json={
+                    "object_id": obj["id"],
+                    "cable_type": "self_regulating",
+                    "variant_number": variant_number,
+                    "data": {
+                        "required_power_per_meter": 20,
+                        "cable_mark": "ТЛТ-25",
+                        "supply_voltage": 220,
+                        "ambient_temperature": -30,
+                        "pipe_length": 50,
+                        "safety_factor": 1.1,
+                    },
+                },
+                headers={"X-Session-Id": guest_session},
+            )
+            assert resp.status_code == 200, resp.text
+
+        resp = await client.get(
+            "/api/v1/calc/electrical",
+            params={"project_id": project["id"], "page": 2, "page_size": 2},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200, resp.text
+        calcs = resp.json()
+        assert len(calcs) == 2
+        assert [calc["variant_number"] for calc in calcs] == [3, 4]
+
     async def test_unsupported_cable_type_returns_400(
         self, client: AsyncClient, guest_session: str
     ):

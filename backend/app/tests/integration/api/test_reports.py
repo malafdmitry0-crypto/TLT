@@ -41,7 +41,14 @@ class TestReports:
         assert resp.status_code == 200
         body = resp.json()
         assert "<html" in body["html"]
-        assert len(body["data"]["objects"]) == 1
+        assert "data" not in body
+        assert body["sections"] == [
+            "summary",
+            "pipes",
+            "tanks",
+            "electrical",
+            "specification",
+        ]
 
     async def test_guest_cannot_export(self, client: AsyncClient, guest_session: str):
         pid = await _project_with_object(client, guest_session)
@@ -75,10 +82,6 @@ class TestReports:
         )
         assert resp.status_code == 200
         body = resp.json()
-        # HTML отчёт формируется
         assert "<html" in body["html"]
-        # Объекты с теплопотерями присутствуют
-        assert len(body["data"]["objects"]) == 1
-        # Спецификация отсутствует (не была сформирована) — null или пустой список
-        spec = body["data"].get("specification")
-        assert spec is None or spec == [] or (isinstance(spec, dict) and not spec.get("items"))
+        assert "data" not in body
+        assert "Трубопроводы" in body["html"]

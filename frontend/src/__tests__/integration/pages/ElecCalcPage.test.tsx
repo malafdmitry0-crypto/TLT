@@ -6,6 +6,7 @@ import ElecCalcPage from '@/pages/ElecCalcPage';
 import { useProjectStore } from '@/store/projectStore';
 import type { ElectricalCalcSummary, ElectricalPageResponse } from '@/types/calculation';
 import type { Project, ProjectObject } from '@/types/project';
+import { getCalcJobRefetchInterval } from '@/utils/calcJobPolling';
 
 vi.mock('@/api/projects', () => ({
   deleteObject: vi.fn(),
@@ -136,11 +137,11 @@ function makeElectricalPage(
   };
 }
 
-function renderPage() {
+function renderPage(state?: { activeJobId?: string }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[{ pathname: '/workspace/elec-calc', state }]}>
         <ElecCalcPage />
       </MemoryRouter>
     </QueryClientProvider>
@@ -166,6 +167,24 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(screen.getByText(/Нет объектов/i)).toBeInTheDocument();
     });
+  });
+
+  it('подхватывает activeJobId из навигации и начинает polling задачи', async () => {
+    const { getCalcTask, getElectricalPage } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([]));
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage({ activeJobId: 'task-nav' });
+    await waitFor(() => {
+      expect(getCalcTask).toHaveBeenCalledWith('task-nav');
+    });
+  });
+
+  it('использует редкий polling для очереди и фоновой вкладки', () => {
+    expect(getCalcJobRefetchInterval('queued', false)).toBe(2000);
+    expect(getCalcJobRefetchInterval('enqueued', false)).toBe(2000);
+    expect(getCalcJobRefetchInterval('running', false)).toBe(1000);
+    expect(getCalcJobRefetchInterval('running', true)).toBe(5000);
+    expect(getCalcJobRefetchInterval('succeeded', false)).toBe(false);
   });
 
   it('переключатель вариантов СО1..СО4 присутствует', async () => {

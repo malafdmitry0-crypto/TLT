@@ -5,6 +5,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from inspect import isawaitable
+from time import monotonic
 from typing import Any, cast
 from uuid import UUID
 
@@ -12,6 +13,7 @@ from sqlalchemy import Float, and_, func, or_, select
 from sqlalchemy import cast as sa_cast
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
 
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.resistive import calc_resistive_single_core, calc_resistive_three_core
@@ -68,11 +70,56 @@ class BatchProgress:
 ProgressCallback = Callable[[BatchProgress], Awaitable[None] | None]
 CancelChecker = Callable[[], Awaitable[bool] | bool]
 
+POSTGRES_BIND_PARAMETER_LIMIT = 32_767
+ELECTRICAL_BULK_UPSERT_TARGET_CHUNK_SIZE = 2_000
+BATCH_ELECTRICAL_CHUNK_SIZE = 2_000
+BATCH_CANCEL_CHECK_MIN_OBJECTS = 500
+BATCH_CANCEL_CHECK_MIN_INTERVAL_SECONDS = 0.5
+
 
 async def _maybe_await(value: Awaitable[Any] | Any) -> Any:
     if isawaitable(value):
         return await value
     return value
+
+
+def _chunked_rows(
+    rows: list[dict[str, Any]],
+    chunk_size: int,
+) -> list[list[dict[str, Any]]]:
+    return [rows[index : index + chunk_size] for index in range(0, len(rows), chunk_size)]
+
+
+class BatchCancelChecker:
+    def __init__(
+        self,
+        should_cancel: CancelChecker | None,
+        *,
+        min_objects: int = BATCH_CANCEL_CHECK_MIN_OBJECTS,
+        min_interval_seconds: float = BATCH_CANCEL_CHECK_MIN_INTERVAL_SECONDS,
+        now_func: Callable[[], float] = monotonic,
+    ) -> None:
+        self._should_cancel = should_cancel
+        self._min_objects = min_objects
+        self._min_interval_seconds = min_interval_seconds
+        self._now = now_func
+        self._last_checked_processed: int | None = None
+        self._last_checked_at: float | None = None
+
+    async def check(self, processed: int, *, force: bool = False) -> None:
+        if self._should_cancel is None:
+            return
+        now = self._now()
+        if not force and self._last_checked_processed is not None:
+            processed_delta = processed - self._last_checked_processed
+            last_checked_at = self._last_checked_at if self._last_checked_at is not None else now
+            elapsed = now - last_checked_at
+            if processed_delta < self._min_objects and elapsed < self._min_interval_seconds:
+                return
+        self._last_checked_processed = processed
+        self._last_checked_at = now
+        if bool(await _maybe_await(self._should_cancel())):
+            raise BatchCancelledError("Пакетный электрорасчёт отменён")
 
 
 class CalculationService:
@@ -419,6 +466,29 @@ class CalculationService:
         if not rows:
             return []
 
+        chunk_size = self._electrical_bulk_upsert_chunk_size(rows[0])
+        calcs: list[ElectricalCalculation] = []
+        for chunk in _chunked_rows(rows, chunk_size):
+            calcs.extend(
+                await self._bulk_upsert_electrical_calculation_chunk(
+                    chunk,
+                    return_calcs=return_calcs,
+                )
+            )
+        return calcs
+
+    @staticmethod
+    def _electrical_bulk_upsert_chunk_size(row: dict[str, Any]) -> int:
+        params_per_row = max(len(row), 1)
+        max_rows_by_bind_limit = max(1, POSTGRES_BIND_PARAMETER_LIMIT // params_per_row)
+        return min(ELECTRICAL_BULK_UPSERT_TARGET_CHUNK_SIZE, max_rows_by_bind_limit)
+
+    async def _bulk_upsert_electrical_calculation_chunk(
+        self,
+        rows: list[dict[str, Any]],
+        *,
+        return_calcs: bool,
+    ) -> list[ElectricalCalculation]:
         insert_stmt = pg_insert(ElectricalCalculation).values(rows)
         upsert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=["object_id", "variant_number"],
@@ -822,6 +892,91 @@ class CalculationService:
         )
         return await self.calc_electrical(request)
 
+    async def _electrical_batch_counts(self, project_id: UUID) -> tuple[int, int]:
+        row = (
+            await self.db.execute(
+                select(
+                    func.count(ProjectObject.id),
+                    func.count(ProjectObject.id).filter(
+                        ProjectObject.is_valid == True,  # noqa: E712
+                    ),
+                ).where(ProjectObject.project_id == project_id)
+            )
+        ).one()
+        return int(row[0] or 0), int(row[1] or 0)
+
+    async def _load_valid_project_object_chunk(
+        self,
+        project_id: UUID,
+        *,
+        limit: int,
+        after_sort_order: int | None,
+        after_id: UUID | None,
+    ) -> list[ProjectObject]:
+        filters = [
+            ProjectObject.project_id == project_id,
+            ProjectObject.is_valid == True,  # noqa: E712
+        ]
+        if after_sort_order is not None and after_id is not None:
+            filters.append(
+                or_(
+                    ProjectObject.sort_order > after_sort_order,
+                    and_(
+                        ProjectObject.sort_order == after_sort_order,
+                        ProjectObject.id > after_id,
+                    ),
+                )
+            )
+        result = await self.db.execute(
+            select(ProjectObject)
+            .options(
+                load_only(
+                    ProjectObject.id,
+                    ProjectObject.project_id,
+                    ProjectObject.object_type,
+                    ProjectObject.sort_order,
+                    ProjectObject.params,
+                    ProjectObject.results,
+                    ProjectObject.is_valid,
+                )
+            )
+            .where(*filters)
+            .order_by(ProjectObject.sort_order, ProjectObject.id)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def _load_existing_electrical_by_object_id(
+        self,
+        project_id: UUID,
+        *,
+        variant_number: int,
+        object_ids: list[UUID],
+    ) -> dict[UUID, ElectricalCalculation]:
+        if not object_ids:
+            return {}
+        result = await self.db.execute(
+            select(ElectricalCalculation)
+            .options(
+                load_only(
+                    ElectricalCalculation.id,
+                    ElectricalCalculation.object_id,
+                    ElectricalCalculation.params,
+                    ElectricalCalculation.results,
+                )
+            )
+            .where(
+                ElectricalCalculation.project_id == project_id,
+                ElectricalCalculation.variant_number == variant_number,
+                ElectricalCalculation.object_id.in_(object_ids),
+            )
+        )
+        return {
+            calc.object_id: calc
+            for calc in result.scalars().all()
+            if getattr(calc, "object_id", None) is not None
+        }
+
     async def batch_calc_electrical(
         self,
         project_id: UUID,
@@ -840,51 +995,21 @@ class CalculationService:
             if progress_callback is not None:
                 await _maybe_await(progress_callback(progress))
 
-        async def check_cancelled() -> None:
-            if should_cancel is not None and bool(await _maybe_await(should_cancel())):
-                raise BatchCancelledError("Пакетный электрорасчёт отменён")
+        cancel_checker = BatchCancelChecker(should_cancel)
 
         # Считаем общее количество объектов в проекте — чтобы сообщить фронту,
         # сколько объектов исключено из-за ошибок теплопотерь.
-        total_count: int = (
-            await self.db.scalar(
-                select(func.count())
-                .select_from(ProjectObject)
-                .where(
-                    ProjectObject.project_id == project_id,
-                )
-            )
-            or 0
-        )
-
-        result = await self.db.execute(
-            select(ProjectObject).where(
-                ProjectObject.project_id == project_id,
-                ProjectObject.is_valid == True,  # noqa: E712
-            )
-        )
-        objects = list(result.scalars().all())
-        heat_loss_failed = total_count - len(objects)
+        total_count, total_valid = await self._electrical_batch_counts(project_id)
+        heat_loss_failed = total_count - total_valid
         calculated = 0
         skipped = 0
         errors: list[dict[str, Any]] = []
         calcs: list[ElectricalCalculation] = []
-        successful_rows: list[dict[str, Any]] = []
         catalog = await self.load_cable_catalog(cable_source)
-        existing_result = await self.db.execute(
-            select(ElectricalCalculation).where(
-                ElectricalCalculation.project_id == project_id,
-                ElectricalCalculation.variant_number == variant_number,
-            )
-        )
-        existing_by_object_id = {
-            c.object_id: c
-            for c in existing_result.scalars().all()
-            if getattr(c, "object_id", None) is not None
-        }
         base_overrides = electrical_params or {}
         processed = 0
-        total_valid = len(objects)
+        last_sort_order: int | None = None
+        last_id: UUID | None = None
 
         await emit_progress(
             BatchProgress(
@@ -894,77 +1019,105 @@ class CalculationService:
                 heat_loss_failed=heat_loss_failed,
             )
         )
+        await cancel_checker.check(processed, force=True)
 
-        for obj in objects:
-            await check_cancelled()
-            try:
-                existing_calc = existing_by_object_id.get(obj.id)
-                if (
-                    skip_manual
-                    and existing_calc is not None
-                    and isinstance(existing_calc.params, dict)
-                    and existing_calc.params.get("cable_mark") is not None
-                ):
-                    skipped += 1
-                    continue
-                overrides = self._merge_electrical_overrides(
-                    base_overrides,
-                    self._layout_overrides_from_existing(existing_calc),
-                )
-                request = ElectricalRequest(
-                    object_id=obj.id,
-                    cable_type=cast(Any, cable_type),
-                    variant_number=variant_number,
-                    data=self._build_electrical_data(
-                        obj=obj,
-                        cable_type=cable_type,
-                        cable_mark=None,
-                        tlt_catalog=catalog,
-                        overrides=overrides,
-                    ),
-                )
-                cable_mark, result_dict = self._calculate_electrical_result(request)
-                successful_rows.append(
-                    {
-                        "id": existing_calc.id if existing_calc is not None else uuid.uuid4(),
-                        "project_id": obj.project_id,
-                        "object_id": obj.id,
-                        "variant_number": request.variant_number,
-                        "cable_type": request.cable_type,
-                        "cable_mark": cable_mark,
-                        "params": request.data,
-                        "results": result_dict,
-                    }
-                )
-                calculated += 1
-            except BatchCancelledError:
-                raise
-            except Exception as exc:
-                skipped += 1
-                err_msg = f"{type(exc).__name__}: {exc}"
-                errors.append({"object_id": str(obj.id), "error": err_msg})
-                self._upsert_failed_electrical(
-                    obj,
-                    err_msg,
-                    variant_number,
-                    cable_type,
-                    existing_calc=existing_by_object_id.get(obj.id),
-                )
-            finally:
-                processed += 1
-                await emit_progress(
-                    BatchProgress(
-                        current=processed,
-                        total=total_valid,
-                        phase="calculate",
-                        calculated=calculated,
-                        skipped=skipped,
-                        heat_loss_failed=heat_loss_failed,
-                        object_id=obj.id,
+        while processed < total_valid:
+            objects = await self._load_valid_project_object_chunk(
+                project_id,
+                limit=BATCH_ELECTRICAL_CHUNK_SIZE,
+                after_sort_order=last_sort_order,
+                after_id=last_id,
+            )
+            if not objects:
+                break
+            last_sort_order = objects[-1].sort_order
+            last_id = objects[-1].id
+            existing_by_object_id = await self._load_existing_electrical_by_object_id(
+                project_id,
+                variant_number=variant_number,
+                object_ids=[obj.id for obj in objects],
+            )
+            successful_rows: list[dict[str, Any]] = []
+
+            for obj in objects:
+                await cancel_checker.check(processed)
+                try:
+                    existing_calc = existing_by_object_id.get(obj.id)
+                    if (
+                        skip_manual
+                        and existing_calc is not None
+                        and isinstance(existing_calc.params, dict)
+                        and existing_calc.params.get("cable_mark") is not None
+                    ):
+                        skipped += 1
+                        continue
+                    overrides = self._merge_electrical_overrides(
+                        base_overrides,
+                        self._layout_overrides_from_existing(existing_calc),
                     )
-                )
+                    request = ElectricalRequest(
+                        object_id=obj.id,
+                        cable_type=cast(Any, cable_type),
+                        variant_number=variant_number,
+                        data=self._build_electrical_data(
+                            obj=obj,
+                            cable_type=cable_type,
+                            cable_mark=None,
+                            tlt_catalog=catalog,
+                            overrides=overrides,
+                        ),
+                    )
+                    cable_mark, result_dict = self._calculate_electrical_result(request)
+                    successful_rows.append(
+                        {
+                            "id": existing_calc.id if existing_calc is not None else uuid.uuid4(),
+                            "project_id": obj.project_id,
+                            "object_id": obj.id,
+                            "variant_number": request.variant_number,
+                            "cable_type": request.cable_type,
+                            "cable_mark": cable_mark,
+                            "params": request.data,
+                            "results": result_dict,
+                        }
+                    )
+                    calculated += 1
+                except BatchCancelledError:
+                    raise
+                except Exception as exc:
+                    skipped += 1
+                    err_msg = f"{type(exc).__name__}: {exc}"
+                    errors.append({"object_id": str(obj.id), "error": err_msg})
+                    self._upsert_failed_electrical(
+                        obj,
+                        err_msg,
+                        variant_number,
+                        cable_type,
+                        existing_calc=existing_by_object_id.get(obj.id),
+                    )
+                finally:
+                    processed += 1
+                    await emit_progress(
+                        BatchProgress(
+                            current=processed,
+                            total=total_valid,
+                            phase="calculate",
+                            calculated=calculated,
+                            skipped=skipped,
+                            heat_loss_failed=heat_loss_failed,
+                            object_id=obj.id,
+                        )
+                    )
 
-        await check_cancelled()
+            await cancel_checker.check(processed, force=True)
+            calcs.extend(
+                await self._bulk_upsert_electrical_calculations(
+                    successful_rows,
+                    return_calcs=return_calcs,
+                )
+            )
+            await self.db.flush()
+
+        await cancel_checker.check(processed, force=True)
         await emit_progress(
             BatchProgress(
                 current=processed,
@@ -975,11 +1128,6 @@ class CalculationService:
                 heat_loss_failed=heat_loss_failed,
             )
         )
-        calcs = await self._bulk_upsert_electrical_calculations(
-            successful_rows,
-            return_calcs=return_calcs,
-        )
-        await self.db.flush()
         await self.db.commit()
         await emit_progress(
             BatchProgress(

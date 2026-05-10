@@ -116,6 +116,7 @@ ENVIRONMENT_OPTIONS = (("normal", "Нормальная"), ("aggressive", "Аг�
 ZONE_OPTIONS = (("safe", "Безопасная"), ("hazardous", "Взрывоопасная"))
 LAMBDA_MODE_OPTIONS = (("reference", "Справ."), ("manual", "Ручн."))
 STEAM_OPTIONS = (("yes", "Да"), ("no", "Нет"), (True, "Да"), (False, "Нет"))
+CAPABILITIES_SAMPLE_LIMIT = 1000
 
 
 def _param(key: str) -> Callable[[ProjectObject], Any]:
@@ -1013,6 +1014,7 @@ class ObjectQueryService:
                 ProjectObject.object_type == object_type,
             )
             .order_by(ProjectObject.sort_order, ProjectObject.id)
+            .limit(CAPABILITIES_SAMPLE_LIMIT)
         )
         objects = list(objects_result.scalars().all())
         return ObjectQueryCapabilitiesResponse(
@@ -1044,14 +1046,13 @@ class ObjectQueryService:
 
         objects_result = await self.db.execute(
             select(ProjectObject)
-            .where(ProjectObject.project_id == project_id)
+            .where(
+                ProjectObject.project_id == project_id,
+                ProjectObject.object_type == data.object_type,
+            )
             .order_by(ProjectObject.sort_order, ProjectObject.id)
         )
-        all_objects = list(objects_result.scalars().all())
-        by_type = Counter(
-            obj.object_type for obj in all_objects if obj.object_type in FIELDS_BY_TYPE
-        )
-        type_objects = [obj for obj in all_objects if obj.object_type == data.object_type]
+        type_objects = list(objects_result.scalars().all())
 
         filtered = self._apply_search(type_objects, data)
         filtered = self._apply_filters(filtered, data)

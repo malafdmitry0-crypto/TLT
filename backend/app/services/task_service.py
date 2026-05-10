@@ -5,7 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from time import monotonic
 from typing import Any
 from uuid import UUID
 
@@ -34,6 +37,86 @@ logger = logging.getLogger("heatcalc.worker")
 TASK_ELECTRICAL_BATCH = "electrical_batch"
 ACTIVE_STATUSES = ("queued", "enqueued", "running")
 TERMINAL_STATUSES = ("succeeded", "failed", "cancelled")
+MAX_TASK_ERROR_MESSAGE_LENGTH = 4_000
+
+
+@dataclass(frozen=True)
+class ProgressWritePolicy:
+    min_interval_ms: int = settings.WORKER_PROGRESS_MIN_INTERVAL_MS
+    min_percent_delta: float = settings.WORKER_PROGRESS_MIN_PERCENT_DELTA
+
+
+class ProgressThrottler:
+    """Persist frequent worker progress events only at useful UI checkpoints."""
+
+    def __init__(
+        self,
+        persist: Callable[[BatchProgress], Awaitable[None]],
+        *,
+        policy: ProgressWritePolicy | None = None,
+        now_func: Callable[[], float] = monotonic,
+    ) -> None:
+        self._persist = persist
+        self._policy = policy or ProgressWritePolicy()
+        self._now = now_func
+        self._last_persisted: BatchProgress | None = None
+        self._last_persisted_at: float | None = None
+        self._buffered: BatchProgress | None = None
+
+    async def offer(self, progress: BatchProgress) -> None:
+        now = self._now()
+        if self._should_persist(progress, now):
+            await self._write(progress, now)
+            return
+        self._buffered = progress
+
+    async def flush(self) -> None:
+        if self._buffered is None or self._buffered == self._last_persisted:
+            return
+        await self._write(self._buffered, self._now())
+
+    async def _write(self, progress: BatchProgress, now: float) -> None:
+        await self._persist(progress)
+        self._last_persisted = progress
+        self._last_persisted_at = now
+        self._buffered = None
+
+    def _should_persist(self, progress: BatchProgress, now: float) -> bool:
+        if self._last_persisted is None or self._last_persisted_at is None:
+            return True
+        if progress == self._last_persisted:
+            return False
+        if progress.phase != self._last_persisted.phase:
+            return True
+        if progress.phase != "calculate":
+            return True
+
+        elapsed_ms = (now - self._last_persisted_at) * 1000
+        if elapsed_ms < self._policy.min_interval_ms:
+            return False
+
+        current_percent = self._percent(progress)
+        previous_percent = self._percent(self._last_persisted)
+        if current_percent is None or previous_percent is None:
+            return progress.current != self._last_persisted.current
+        return (current_percent - previous_percent) >= self._policy.min_percent_delta
+
+    @staticmethod
+    def _percent(progress: BatchProgress) -> float | None:
+        if progress.total is None or progress.total <= 0:
+            return None
+        return min(100.0, (progress.current / progress.total) * 100)
+
+
+def compact_task_error_message(
+    error_message: str,
+    *,
+    max_length: int = MAX_TASK_ERROR_MESSAGE_LENGTH,
+) -> str:
+    if len(error_message) <= max_length:
+        return error_message
+    suffix = f"... [truncated, original length: {len(error_message)} chars]"
+    return f"{error_message[: max_length - len(suffix)]}{suffix}"
 
 
 class TaskNotFoundError(Exception):
@@ -259,6 +342,9 @@ class TaskService:
         if task is None:
             return
         payload = dict(task.request_payload or {})
+        progress_throttler = ProgressThrottler(
+            persist=lambda progress: self._update_progress(task_id, progress)
+        )
         try:
             async with self.session_factory() as calc_db:
                 service = CalculationService(calc_db)
@@ -276,16 +362,19 @@ class TaskService:
                     payload.get("electrical_params") or {},
                     skip_manual=bool(payload.get("skip_manual", False)),
                     return_calcs=bool(payload.get("include_results", False)),
-                    progress_callback=lambda progress: self._update_progress(task_id, progress),
+                    progress_callback=progress_throttler.offer,
                     should_cancel=lambda: self._should_cancel(task_id),
                 )
         except BatchCancelledError:
+            await progress_throttler.flush()
             await self._mark_cancelled(task_id)
             return
         except Exception as exc:
+            await progress_throttler.flush()
             await self._mark_failed(task_id, f"{type(exc).__name__}: {exc}")
             return
 
+        await progress_throttler.flush()
         include_errors = bool(payload.get("include_errors", True))
         include_results = bool(payload.get("include_results", False))
         result_payload = {
@@ -360,7 +449,7 @@ class TaskService:
         await self.db.refresh(task)
         now = datetime.now(UTC)
         task.status = "failed"
-        task.error_message = error_message
+        task.error_message = compact_task_error_message(error_message)
         task.progress_phase = "failed"
         task.locked_by = None
         task.lock_expires_at = None

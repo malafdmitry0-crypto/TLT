@@ -7,7 +7,7 @@ import {
   reorderObjects,
   updateObject,
 } from '@/api/projects';
-import { batchCalcElectrical } from '@/api/calculations';
+import { enqueueElectricalBatchJob } from '@/api/calculations';
 import { ROUTES } from '@/routes/routes';
 import type { CreateObjectRequest, ProjectObject } from '@/types/project';
 
@@ -45,7 +45,7 @@ function notifyObjectResult(obj: ProjectObject, action: 'added' | 'updated') {
  *   - edit:      обновить параметры объекта
  *   - remove:    удалить объект
  *   - reorder:   сменить порядок объектов (drag-and-drop)
- *   - batchCalc: пакетно выполнить электрорасчёт и перейти на шаг 2
+ *   - batchCalc: поставить пакетный электрорасчёт в очередь и перейти на шаг 2
  *
  * Все мутации инвалидируют кэш объектов проекта. add/edit показывают
  * осмысленное сообщение (success либо warning с причиной ошибки валидации).
@@ -107,24 +107,11 @@ export function useHeatCalcMutations(
   });
 
   const batchCalc = useMutation({
-    mutationFn: () => batchCalcElectrical(projectId!),
-    onSuccess: (res) => {
-      qc.invalidateQueries({
-        queryKey: ['project', projectId, 'electrical-calcs'],
-      });
-      qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
-      if (res.errors.length > 0) {
-        message.warning(
-          `Рассчитано: ${res.calculated}. Пропущено: ${res.skipped}` +
-          `${res.heat_loss_failed > 0 ? `. Ошибок теплопотерь: ${res.heat_loss_failed}` : ''}. Проверьте параметры объектов.`,
-        );
-      } else {
-        message.success(
-          `Электрорасчёт выполнен для ${res.calculated} объектов` +
-          `${res.heat_loss_failed > 0 ? ` (ещё ${res.heat_loss_failed} с ошибками теплопотерь)` : ''}`,
-        );
-      }
-      navigate(ROUTES.elecCalc);
+    mutationFn: () => enqueueElectricalBatchJob(projectId!),
+    onSuccess: (task) => {
+      qc.invalidateQueries({ queryKey: ['calc-job', task.id] });
+      message.info('Электрорасчёт поставлен в очередь');
+      navigate(ROUTES.elecCalc, { state: { activeJobId: task.id } });
     },
     onError: (e: Error) => message.error(e.message),
   });
