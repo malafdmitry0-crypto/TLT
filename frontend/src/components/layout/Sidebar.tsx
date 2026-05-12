@@ -25,11 +25,11 @@ function StepLabel({
   color?: string;
   done?: boolean;
 }) {
-  if (!count && !done) return <>{text}</>;
+  if (!count && !done) return <span className="heatcalc-step-label">{text}</span>;
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+    <span className="heatcalc-step-label">
       {text}
-      {done && <CheckCircleFilled style={{ color: '#52c41a', fontSize: 12 }} />}
+      {done && <CheckCircleFilled className="heatcalc-step-done" />}
       {count ? <Badge count={count} color={color ?? '#52c41a'} size="small" /> : null}
     </span>
   );

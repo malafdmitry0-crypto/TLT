@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import {
@@ -14,8 +15,8 @@ import {
   Checkbox,
   Input,
   InputNumber,
+  Modal,
   Popconfirm,
-  Segmented,
   Select,
   Space,
   Table,
@@ -39,18 +40,19 @@ import {
   TableOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnsType, ColumnType } from 'antd/es/table';
 
 import ImportExcelButton from '@/components/ImportExcelButton';
 import ExportObjectsButton from '@/components/ExportObjectsButton';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
+import EditableTableCell from '@/components/heatcalc/EditableTableCell';
 import { OBJECT_TYPE_LABELS } from '@/constants/objectTypes';
 import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
-import { getObjectQueryCapabilities, getObjectsSummary, queryObjects } from '@/api/projects';
+import { getObjectQueryCapabilities, getObjectsSummary, queryObjects, updateObject } from '@/api/projects';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
@@ -60,6 +62,7 @@ import type {
   ObjectQueryFieldCapability,
   ObjectQueryFilter as BackendObjectQueryFilter,
   ProjectObject,
+  ProjectObjectsQueryResponse,
   ProjectObjectsQueryRequest,
 } from '@/types/project';
 import { formatNumber } from '@/utils/formatters';
@@ -114,6 +117,17 @@ import {
   type HeatCalcTableFontSize,
   type HeatCalcTableViewSettings,
 } from '@/utils/heatCalcTableViewSettings';
+import {
+  applyInlineCellDraft,
+  buildDraftDisplayRecord,
+  buildDraftRowParams,
+  getInlineEditFieldConfig,
+  getInlineCellFormValue,
+  isDraftRowDirty,
+  isDraftRowEmpty,
+  type DraftRowState,
+  type DraftRowsById,
+} from '@/utils/heatCalcInlineEdit';
 
 const loadObjectWizard = () => import('@/components/wizard/ObjectWizard');
 const ObjectWizard = lazy(loadObjectWizard);
@@ -138,6 +152,14 @@ type TableColumnPreferenceMutation = {
 type TableSettingsPreferenceMutation = {
   columnSettings: HeatCalcTableColumnSettings;
   viewSettings?: HeatCalcTableViewSettings;
+};
+type ActiveInlineCell = {
+  objectId: string;
+  columnKey: string;
+} | null;
+type PendingInlineDisableSettings = {
+  columnSettings: HeatCalcTableColumnSettings;
+  viewSettings: HeatCalcTableViewSettings;
 };
 
 const NUMBER_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
@@ -653,13 +675,15 @@ function ObjectCountBadge({
 }
 
 export default function HeatCalcPage() {
+  const queryClient = useQueryClient();
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
   const registeredUserId = useAuthStore((s) => s.user?.id ?? null);
   const isRegisteredUser = role === 'employee' || role === 'admin';
-  const [wizardState, setWizardState] = useState<WizardState | null>(null);
+  const [wizardState, setWizardState] = useState<WizardState | null>({ type: 'pipe' });
   const [newWizardRevision, setNewWizardRevision] = useState(0);
   const [activeObjectType, setActiveObjectType] = useState<WizardObjectType>('pipe');
+  const [formBlockVisible, setFormBlockVisible] = useState(true);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [tableViewStateByType, setTableViewStateByType] = useState<
     Record<HeatCalcObjectType, HeatCalcTableViewState>
@@ -697,11 +721,20 @@ export default function HeatCalcPage() {
   const [draftTableViewSettings, setDraftTableViewSettings] = useState<HeatCalcTableViewSettings>(
     () => tableViewSettings,
   );
+  const [activeInlineCell, setActiveInlineCell] = useState<ActiveInlineCell>(null);
+  const [draftRowsById, setDraftRowsById] = useState<DraftRowsById>({});
+  const [pendingInlineDisableSettings, setPendingInlineDisableSettings] =
+    useState<PendingInlineDisableSettings | null>(null);
+  const [pendingWizardObject, setPendingWizardObject] = useState<ProjectObject | null>(null);
   const setWorkspaceHeaderContext = useWorkspaceHeaderStore((s) => s.setContext);
 
   useEffect(() => {
     tableColumnSettingsRef.current = tableColumnSettings;
   }, [tableColumnSettings]);
+
+  useEffect(() => {
+    setWorkspaceHeaderContext(null);
+  }, [setWorkspaceHeaderContext]);
 
   useEffect(() => {
     if (!project) return undefined;
@@ -821,8 +854,12 @@ export default function HeatCalcPage() {
     ),
     [activeObjectType, activeTablePage, activeTableViewState, objectQueryCapabilities],
   );
+  const objectQueryKey = useMemo(
+    () => ['project', project?.id, 'objects', 'query', objectQueryRequest] as const,
+    [objectQueryRequest, project?.id],
+  );
   const { data: objectQueryResult } = useQuery({
-    queryKey: ['project', project?.id, 'objects', 'query', objectQueryRequest],
+    queryKey: objectQueryKey,
     queryFn: () => queryObjects(project!.id, objectQueryRequest),
     enabled: !!project && !!objectQueryCapabilities,
     placeholderData: (previous) => previous,
@@ -902,15 +939,32 @@ export default function HeatCalcPage() {
     });
   }, [activeObjectType]);
 
-  const closeWizard = () => setWizardState(null);
+  const resetNewWizard = (type: WizardObjectType) => {
+    setNewWizardRevision((revision) => revision + 1);
+    setWizardState({ type });
+  };
+  const clearWizard = () => {
+    setNewWizardRevision((revision) => revision + 1);
+    setWizardState(null);
+  };
+  const closeWizard = () => {
+    if (formBlockVisible) {
+      resetNewWizard(activeObjectType);
+      return;
+    }
+    clearWizard();
+  };
   const openNewObjectMode = (obj?: ProjectObject) => {
     const type =
       obj?.object_type === 'pipe' || obj?.object_type === 'tank'
         ? obj.object_type
         : wizardState?.type ?? activeObjectType;
     if (type !== 'pipe' && type !== 'tank') return;
-    setNewWizardRevision((revision) => revision + 1);
-    setWizardState({ type });
+    if (formBlockVisible) {
+      resetNewWizard(type);
+      return;
+    }
+    clearWizard();
   };
   const { add, edit, remove, batchCalc } = useHeatCalcMutations(
     project?.id,
@@ -924,61 +978,48 @@ export default function HeatCalcPage() {
   const totalCount = objectsSummary?.by_type[activeObjectType] ?? 0;
   const validCount = objectsSummary?.valid_by_type[activeObjectType] ?? 0;
   const projectObjectCount = objectsSummary?.total ?? totalCount;
-  const activeObjectTypeLabel = activeObjectType === 'pipe' ? 'Труба' : 'Резервуар';
-  const formCaptionTitle = wizardState
-    ? wizardState.editingObject
-      ? `Параметры объекта «${String(
-          wizardState.editingObject.params?.name ?? OBJECT_TYPE_LABELS[wizardState.type],
-        )}»`
-      : `Параметры: ${OBJECT_TYPE_LABELS[wizardState.type]}`
-    : 'Параметры объекта';
   const formCaptionMode = wizardState?.editingObject ? 'edit' : wizardState ? 'new' : 'idle';
   const formCaptionModeLabel =
     formCaptionMode === 'edit'
-      ? 'Режим: редактирование'
+      ? 'Режим: изменение'
       : formCaptionMode === 'new'
-        ? 'новая запись'
-        : 'выберите строку или нажмите «+»';
+        ? 'Режим: добавление'
+        : 'Режим: ожидание';
   const hasWizard = !!wizardState;
   const hasEditingObject = !!wizardState?.editingObject;
   const submittingObject = add.isPending || edit.isPending;
 
-  useEffect(() => {
-    if (!project) {
-      setWorkspaceHeaderContext(null);
-      return undefined;
-    }
-
-    setWorkspaceHeaderContext({
-      title: formCaptionTitle,
-      mode: formCaptionMode,
-      modeLabel: formCaptionModeLabel,
-    });
-
-    return () => setWorkspaceHeaderContext(null);
-  }, [
-    formCaptionMode,
-    formCaptionModeLabel,
-    formCaptionTitle,
-    project,
-    setWorkspaceHeaderContext,
-  ]);
-
   function openAddWizard(type: WizardObjectType = activeObjectType) {
-    setNewWizardRevision((revision) => revision + 1);
-    setWizardState({ type });
+    resetNewWizard(type);
   }
 
   function handleObjectTypeChange(type: WizardObjectType) {
     setActiveObjectType(type);
     setSelectedRowKeys([]);
-    setWizardState(null);
+    if (formBlockVisible) {
+      resetNewWizard(type);
+      return;
+    }
+    clearWizard();
+  }
+
+  function handleFormBlockVisibilityChange(checked: boolean) {
+    setFormBlockVisible(checked);
+    if (checked) {
+      resetNewWizard(activeObjectType);
+      return;
+    }
+    clearWizard();
   }
 
   function openEditWizard(obj: ProjectObject) {
     // Редактировать можно только те типы, которые умеем — MVP: трубы и резервуары.
     // Другие типы (pump/platform/other) пока не имеют форм мастера.
     if (obj.object_type !== 'pipe' && obj.object_type !== 'tank') return;
+    if (inlineEditingEnabled && isDraftRowDirty(draftRowsById[obj.id])) {
+      setPendingWizardObject(obj);
+      return;
+    }
     setWizardState({ type: obj.object_type, editingObject: obj });
   }
 
@@ -1367,6 +1408,156 @@ export default function HeatCalcPage() {
     }
     return result;
   }, [fieldCapabilityByKey, sourceColumnMetas]);
+  const inlineEditingEnabled = normalizeTableViewSettings(tableViewSettings).inlineEditingEnabled;
+  const dirtyDraftRows = useMemo(
+    () => Object.values(draftRowsById).filter(isDraftRowDirty),
+    [draftRowsById],
+  );
+  const dirtyDraftRowCount = dirtyDraftRows.length;
+  const selectedDirtyRowIds = useMemo(
+    () => selectedRowKeys.filter((key) => isDraftRowDirty(draftRowsById[key])),
+    [draftRowsById, selectedRowKeys],
+  );
+  const saveTargetIds = selectedDirtyRowIds.length > 0
+    ? selectedDirtyRowIds
+    : dirtyDraftRows.map((row) => row.objectId);
+  const saveTargetCount = saveTargetIds.length;
+  const selectedDirtyTarget = selectedDirtyRowIds.length > 0;
+  const draftControlsVisible = inlineEditingEnabled || dirtyDraftRowCount > 0;
+  const draftDiscardLabel = selectedDirtyTarget
+    ? `Сбросить выбранные (${saveTargetCount})`
+    : `Сбросить все (${saveTargetCount})`;
+  const inlineDraftSaving = dirtyDraftRows.some((row) => row.saving);
+  const toolbarSaveDisabled = saveTargetCount === 0 && !hasWizard;
+  const toolbarSaveLoading = inlineDraftSaving || submittingObject;
+  const toolbarSaveTooltip = saveTargetCount > 0
+    ? selectedDirtyTarget
+      ? `Сохранить выбранные строки (${saveTargetCount})`
+      : `Сохранить несохранённые строки (${saveTargetCount})`
+    : hasWizard
+      ? 'Сохранить объект'
+      : 'Нет изменений для сохранения';
+
+  const updateObjectInCurrentQuery = useCallback((savedObject: ProjectObject) => {
+    queryClient.setQueryData<ProjectObjectsQueryResponse | undefined>(objectQueryKey, (current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        items: current.items.map((item) => (item.id === savedObject.id ? savedObject : item)),
+      };
+    });
+  }, [objectQueryKey, queryClient]);
+
+  const discardDraftRows = useCallback((rowIds?: string[]) => {
+    setActiveInlineCell(null);
+    setDraftRowsById((current) => {
+      const ids = rowIds ?? Object.keys(current);
+      const next = { ...current };
+      ids.forEach((id) => {
+        delete next[id];
+      });
+      return next;
+    });
+  }, []);
+
+  const saveDraftRows = useCallback(async (rowIds?: string[]) => {
+    if (!project) return { ok: false, saved: [] as ProjectObject[] };
+    const targetRows = (rowIds ?? Object.keys(draftRowsById))
+      .map((id) => draftRowsById[id])
+      .filter((row): row is DraftRowState => isDraftRowDirty(row));
+
+    if (targetRows.length === 0) return { ok: true, saved: [] as ProjectObject[] };
+    const invalidRows = targetRows.filter((row) => Object.keys(row.errors).length > 0);
+    const validRows = targetRows.filter((row) => Object.keys(row.errors).length === 0);
+    if (validRows.length === 0) {
+      antdMessage.error('Исправьте ошибки в строках перед сохранением');
+      return { ok: false, saved: [] as ProjectObject[] };
+    }
+
+    const targetIds = new Set(validRows.map((row) => row.objectId));
+    setDraftRowsById((current) => {
+      const next = { ...current };
+      targetIds.forEach((id) => {
+        if (next[id]) next[id] = { ...next[id], saving: true };
+      });
+      return next;
+    });
+
+    const saved: ProjectObject[] = [];
+    const failed: Record<string, string> = {};
+
+    await Promise.all(validRows.map(async (row) => {
+      try {
+        const params = buildDraftRowParams(row);
+        const savedObject = await updateObject(project.id, row.objectId, { params });
+        saved.push(savedObject);
+        updateObjectInCurrentQuery(savedObject);
+      } catch (error) {
+        failed[row.objectId] = error instanceof Error ? error.message : 'Не удалось сохранить строку';
+      }
+    }));
+
+    setDraftRowsById((current) => {
+      const next = { ...current };
+      saved.forEach((item) => {
+        delete next[item.id];
+      });
+      Object.entries(failed).forEach(([id, message]) => {
+        if (next[id]) {
+          next[id] = {
+            ...next[id],
+            saving: false,
+            errors: {
+              ...next[id].errors,
+              _row: message,
+            },
+          };
+        }
+      });
+      return next;
+    });
+
+    queryClient.invalidateQueries({ queryKey: ['project', project.id, 'objects', 'query'] });
+    queryClient.invalidateQueries({ queryKey: ['project', project.id, 'objects', 'summary'] });
+
+    if (Object.keys(failed).length > 0 || invalidRows.length > 0) {
+      antdMessage.error('Часть строк не сохранена');
+      return { ok: false, saved };
+    }
+    antdMessage.success(`Сохранено строк: ${saved.length}`);
+    return { ok: true, saved };
+  }, [draftRowsById, project, queryClient, updateObjectInCurrentQuery]);
+
+  const commitInlineCell = useCallback((
+    record: ProjectObject,
+    columnKey: string,
+    value: unknown,
+  ) => {
+    const config = record.object_type === 'pipe' || record.object_type === 'tank'
+      ? getInlineEditFieldConfig(record.object_type, columnKey)
+      : null;
+    if (!config) return 'Поле недоступно для редактирования';
+    let commitError: string | null = null;
+    setDraftRowsById((current) => {
+      const nextRow = applyInlineCellDraft(current[record.id] ?? null, record, columnKey, value);
+      if (!nextRow) return current;
+      commitError = nextRow.errors[config.fieldId] ?? null;
+      const next = { ...current };
+      if (isDraftRowEmpty(nextRow)) {
+        delete next[record.id];
+      } else {
+        next[record.id] = nextRow;
+      }
+      return next;
+    });
+    if (!commitError) setActiveInlineCell(null);
+    return commitError;
+  }, []);
+
+  const startInlineCellEdit = useCallback((record: ProjectObject, columnKey: string) => {
+    if (!inlineEditingEnabled) return;
+    setActiveInlineCell({ objectId: record.id, columnKey });
+  }, [inlineEditingEnabled]);
 
   useEffect(() => {
     setTableViewStateByType((current) => {
@@ -1390,6 +1581,21 @@ export default function HeatCalcPage() {
         : nextKeys;
     });
   }, [visibleTableObjects]);
+
+  useEffect(() => {
+    if (inlineEditingEnabled || dirtyDraftRowCount > 0) return;
+    setActiveInlineCell(null);
+  }, [dirtyDraftRowCount, inlineEditingEnabled]);
+
+  useEffect(() => {
+    if (dirtyDraftRowCount === 0) return undefined;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [dirtyDraftRowCount]);
 
   useEffect(() => {
     if (!lastSavedObject) return;
@@ -1483,9 +1689,12 @@ export default function HeatCalcPage() {
   ) => {
     const normalizedColumns = normalizeTableColumnSettings(columnSettings);
     const normalizedView = normalizeTableViewSettings(viewSettings);
-    const viewChanged = normalizedView.fontSize !== normalizeTableViewSettings(tableViewSettings).fontSize;
+    const currentView = normalizeTableViewSettings(tableViewSettings);
+    const viewChanged = normalizedView.fontSize !== currentView.fontSize
+      || normalizedView.inlineEditingEnabled !== currentView.inlineEditingEnabled;
     setTableColumnSettings(normalizedColumns);
     setTableViewSettings(normalizedView);
+    if (!normalizedView.inlineEditingEnabled) setActiveInlineCell(null);
     if (isRegisteredUser) {
       clearRegisteredTableColumnCache(registeredUserId);
       if (viewChanged) clearRegisteredTableViewCache(registeredUserId);
@@ -1581,7 +1790,29 @@ export default function HeatCalcPage() {
         width: meta.width,
         ellipsis: meta.ellipsis ?? renderer.ellipsis,
         align: renderer.align,
-        render: renderer.render,
+        render: (value: unknown, record: ProjectObject, index: number) => {
+          const draftRow = draftRowsById[record.id];
+          const displayRecord = buildDraftDisplayRecord(draftRow, record);
+          const content = renderer.render?.(value, displayRecord, index) as ReactNode;
+          const config = inlineEditingEnabled && (record.object_type === 'pipe' || record.object_type === 'tank')
+            ? getInlineEditFieldConfig(record.object_type, meta.key)
+            : null;
+          if (!config) return content;
+          return (
+            <EditableTableCell
+              active={activeInlineCell?.objectId === record.id && activeInlineCell.columnKey === meta.key}
+              dirty={isDraftRowDirty(draftRow) && Object.prototype.hasOwnProperty.call(draftRow.dirtyFields, config.fieldId)}
+              error={draftRow?.errors[config.fieldId]}
+              field={config.field}
+              value={getInlineCellFormValue(record, meta.key, draftRow)}
+              onStartEdit={() => startInlineCellEdit(record, meta.key)}
+              onCommit={(nextValue) => commitInlineCell(record, meta.key, nextValue)}
+              onCancel={() => setActiveInlineCell(null)}
+            >
+              {content}
+            </EditableTableCell>
+          );
+        },
         sorter: sortEnabled,
         sortOrder: sortEnabled && activeTableViewState.sort?.columnKey === meta.key
           ? activeTableViewState.sort.direction === 'asc'
@@ -1608,17 +1839,25 @@ export default function HeatCalcPage() {
             onClose={close}
           />
         ) : undefined,
+        onCell: inlineEditingEnabled && getInlineEditFieldConfig(activeObjectType, meta.key)
+          ? () => ({ className: 'editable-cell-host editable-cell-enabled' })
+          : undefined,
       };
     }),
     [
+      activeInlineCell,
       activeTableViewState,
+      activeObjectType,
       columnRenderers,
+      commitInlineCell,
+      draftRowsById,
       enumOptionsByColumn,
       fieldCapabilityByKey,
+      inlineEditingEnabled,
       resetColumnFilter,
       setColumnFilter,
       sourceColumnMetas,
-      activeObjectType,
+      startInlineCellEdit,
       startColumnResize,
     ],
   );
@@ -1674,8 +1913,23 @@ export default function HeatCalcPage() {
     setDraftTableViewSettings((settings) => normalizeTableViewSettings({ ...settings, fontSize }));
   }
 
+  function updateDraftInlineEditingEnabled(inlineEditingEnabled: boolean) {
+    setDraftTableViewSettings((settings) => normalizeTableViewSettings({
+      ...settings,
+      inlineEditingEnabled,
+    }));
+  }
+
   function resetDraftColumnWidth(type: HeatCalcObjectType, key: HeatCalcColumnKey) {
     setDraftTableColumnSettings((settings) => resetTableColumnWidth(settings, type, key));
+  }
+
+  function handleToolbarSave() {
+    if (saveTargetCount > 0) {
+      void saveDraftRows(saveTargetIds);
+      return;
+    }
+    document.getElementById('inline-object-save')?.click();
   }
 
   function reorderDraftColumn(type: HeatCalcObjectType, activeKey: HeatCalcColumnKey, overKey: HeatCalcColumnKey) {
@@ -1696,6 +1950,14 @@ export default function HeatCalcPage() {
   function applyColumnSettings() {
     const normalized = normalizeTableColumnSettings(draftTableColumnSettings);
     const normalizedView = normalizeTableViewSettings(draftTableViewSettings);
+    if (
+      normalizeTableViewSettings(tableViewSettings).inlineEditingEnabled
+      && !normalizedView.inlineEditingEnabled
+      && dirtyDraftRowCount > 0
+    ) {
+      setPendingInlineDisableSettings({ columnSettings: normalized, viewSettings: normalizedView });
+      return;
+    }
     setTableViewStateByType((current) => {
       let changed = false;
       const next = { ...current };
@@ -1727,7 +1989,49 @@ export default function HeatCalcPage() {
   return (
     <>
       <Space direction="vertical" size={5} style={{ width: '100%' }}>
-        <div className="inline-form-shell">
+        <div className="actionbar-srs actionbar-type-row" role="toolbar" aria-label="Тип объекта и блок параметров">
+          <div className="actionbar-group actionbar-type-group" aria-label="Тип объекта">
+            <Button
+              className="action-type-button"
+              type={activeObjectType === 'pipe' ? 'primary' : 'default'}
+              icon={<PipeTypeIcon />}
+              aria-pressed={activeObjectType === 'pipe'}
+              onClick={() => handleObjectTypeChange('pipe')}
+            >
+              Трубопровод
+            </Button>
+            <Button
+              className="action-type-button"
+              type={activeObjectType === 'tank' ? 'primary' : 'default'}
+              icon={<TankTypeIcon />}
+              aria-pressed={activeObjectType === 'tank'}
+              onClick={() => handleObjectTypeChange('tank')}
+            >
+              Резервуар
+            </Button>
+          </div>
+
+          <div className="actionbar-group actionbar-form-state-group">
+            {formBlockVisible && (
+              <Tag className={`actionbar-mode-tag ${formCaptionMode}`}>
+                {formCaptionModeLabel}
+              </Tag>
+            )}
+            <Checkbox
+              className="actionbar-form-toggle"
+              checked={formBlockVisible}
+              onChange={(event) => handleFormBlockVisibilityChange(event.target.checked)}
+            >
+              Показать блок заполнения параметров
+            </Checkbox>
+          </div>
+        </div>
+
+        <div
+          className="inline-form-shell"
+          aria-label="Блок заполнения параметров"
+          hidden={!formBlockVisible}
+        >
           <div className="inline-form-srs">
             {wizardState ? (
               <Suspense fallback={<div className="inline-object-form-placeholder" />}>
@@ -1744,37 +2048,7 @@ export default function HeatCalcPage() {
           </div>
         </div>
 
-        <div className="actionbar-srs" aria-label="Действия с объектами">
-          <div className="actionbar-group actionbar-context-group">
-            <span className="actionbar-context-label">{activeObjectTypeLabel}</span>
-            <Segmented<WizardObjectType>
-              value={activeObjectType}
-              onChange={handleObjectTypeChange}
-              options={[
-                {
-                  label: (
-                    <Tooltip title="Трубопровод">
-                      <span className="object-type-option" aria-label="Трубопровод">
-                        <PipeTypeIcon />
-                      </span>
-                    </Tooltip>
-                  ),
-                  value: 'pipe',
-                },
-                {
-                  label: (
-                    <Tooltip title="Резервуары">
-                      <span className="object-type-option" aria-label="Резервуары">
-                        <TankTypeIcon />
-                      </span>
-                    </Tooltip>
-                  ),
-                  value: 'tank',
-                },
-              ]}
-            />
-          </div>
-
+        <div className="actionbar-srs actionbar-actions-row" role="toolbar" aria-label="Действия с объектами">
           <div className="actionbar-group actionbar-edit-group">
             <Tooltip title="Настройки таблицы">
               <Button
@@ -1804,6 +2078,20 @@ export default function HeatCalcPage() {
                 />
               </span>
             </Tooltip>
+            {draftControlsVisible && (
+              <>
+                <Tag color={dirtyDraftRowCount > 0 ? 'gold' : 'default'} className="inline-draft-status-tag">
+                  Несохранено: {dirtyDraftRowCount}
+                </Tag>
+                <Button
+                  size="small"
+                  disabled={saveTargetCount === 0 || inlineDraftSaving}
+                  onClick={() => discardDraftRows(saveTargetIds)}
+                >
+                  {draftDiscardLabel}
+                </Button>
+              </>
+            )}
             <Tooltip title="Добавить">
               <Button
                 className="action-icon-button add"
@@ -1869,16 +2157,18 @@ export default function HeatCalcPage() {
           </div>
 
           <div className="actionbar-group actionbar-save-group">
-            <Tooltip title={hasWizard ? 'Сохранить изменения' : 'Откройте или создайте объект'}>
+            <Tooltip title={toolbarSaveTooltip}>
               <span className="action-tooltip-wrap">
                 <Button
-                  className="action-icon-button save"
+                  className="action-save-button save"
                   icon={<SaveOutlined />}
-                  aria-label="Сохранить изменения"
-                  disabled={!hasWizard}
-                  loading={submittingObject}
-                  onClick={() => document.getElementById('inline-object-save')?.click()}
-                />
+                  aria-label="Сохранить"
+                  disabled={toolbarSaveDisabled}
+                  loading={toolbarSaveLoading}
+                  onClick={handleToolbarSave}
+                >
+                  Сохранить
+                </Button>
               </span>
             </Tooltip>
             <Tooltip title={hasWizard ? 'Отменить' : 'Нет открытой формы'}>
@@ -1952,6 +2242,7 @@ export default function HeatCalcPage() {
               const classes = [];
               if (!r.is_valid) classes.push('row-invalid');
               if (r.id === selectedRowId) classes.push('row-selected');
+              if (isDraftRowDirty(draftRowsById[r.id])) classes.push('row-dirty');
               return classes.join(' ');
             }}
             onRow={(record) => ({
@@ -2016,10 +2307,111 @@ export default function HeatCalcPage() {
             onResetWidth={resetDraftColumnWidth}
             onColumnReorder={reorderDraftColumn}
             onFontSizeChange={updateDraftTableFontSize}
+            onInlineEditingEnabledChange={updateDraftInlineEditingEnabled}
             onResetFontSize={() => setDraftTableViewSettings(getDefaultTableViewSettings())}
           />
         </Suspense>
       )}
+      <Modal
+        open={pendingInlineDisableSettings != null}
+        title="Отключить редактирование ячеек?"
+        onCancel={() => {
+          setPendingInlineDisableSettings(null);
+          setDraftTableViewSettings(tableViewSettings);
+        }}
+        footer={[
+          <Button
+            key="cancel"
+            onClick={() => {
+              setPendingInlineDisableSettings(null);
+              setDraftTableViewSettings(tableViewSettings);
+            }}
+          >
+            Cancel
+          </Button>,
+          <Button
+            key="discard"
+            disabled={inlineDraftSaving}
+            onClick={() => {
+              const pending = pendingInlineDisableSettings;
+              if (!pending) return;
+              discardDraftRows();
+              persistTableSettings(pending.columnSettings, pending.viewSettings);
+              setPendingInlineDisableSettings(null);
+            }}
+          >
+            Discard
+          </Button>,
+          <Button
+            key="save"
+            type="primary"
+            loading={inlineDraftSaving}
+            onClick={() => {
+              const pending = pendingInlineDisableSettings;
+              if (!pending) return;
+              void saveDraftRows().then((result) => {
+                if (!result.ok) return;
+                persistTableSettings(pending.columnSettings, pending.viewSettings);
+                setPendingInlineDisableSettings(null);
+              });
+            }}
+          >
+            Save
+          </Button>,
+        ]}
+      >
+        <Text>
+          Есть несохранённые изменения в строках. Сохраните или сбросьте их перед отключением режима.
+        </Text>
+      </Modal>
+      <Modal
+        open={pendingWizardObject != null}
+        title="Открыть форму объекта?"
+        onCancel={() => setPendingWizardObject(null)}
+        footer={[
+          <Button key="cancel" onClick={() => setPendingWizardObject(null)}>
+            Cancel
+          </Button>,
+          <Button
+            key="discard"
+            disabled={inlineDraftSaving}
+            onClick={() => {
+              const target = pendingWizardObject;
+              if (!target) return;
+              const objectType = target.object_type;
+              if (objectType !== 'pipe' && objectType !== 'tank') return;
+              discardDraftRows([target.id]);
+              setPendingWizardObject(null);
+              setWizardState({ type: objectType, editingObject: target });
+            }}
+          >
+            Discard
+          </Button>,
+          <Button
+            key="save"
+            type="primary"
+            loading={inlineDraftSaving}
+            onClick={() => {
+              const target = pendingWizardObject;
+              if (!target) return;
+              const objectType = target.object_type;
+              if (objectType !== 'pipe' && objectType !== 'tank') return;
+              void saveDraftRows([target.id]).then((result) => {
+                if (!result.ok) return;
+                const savedObject = result.saved.find((item) => item.id === target.id) ?? target;
+                setPendingWizardObject(null);
+                setWizardState({ type: objectType, editingObject: savedObject });
+              });
+            }}
+          >
+            Save
+          </Button>,
+        ]}
+      >
+        <Text>
+          В строке есть несохранённые изменения. Сохраните их, сбросьте или отмените открытие формы.
+        </Text>
+      </Modal>
     </>
   );
 }

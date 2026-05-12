@@ -98,6 +98,33 @@ describe('ObjectWizard dependencies', () => {
     await mockReferences();
   });
 
+  it('не подставляет инженерные значения в новую трубу', async () => {
+    renderWizard();
+
+    expect(await screen.findByTestId('wall-thickness-input')).toHaveValue('');
+    expect(screen.getByTestId('min-switch-temperature-input')).toHaveValue('');
+    expect(screen.getByTestId('safety-factor-input')).toHaveValue('');
+    expect(screen.getByTestId('valve-count-input')).toHaveValue('');
+    expect(screen.getByTestId('flange-count-input')).toHaveValue('');
+    expect(screen.getByTestId('support-count-input')).toHaveValue('');
+    expect(screen.getByTestId('local-element-equiv-length-input')).toHaveValue('');
+    expect(screen.queryByTestId('pipe-material-select')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('pipe-lambda-input')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('wind-speed-input')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
+  });
+
+  it('не подставляет форму и размеры в новый резервуар', async () => {
+    renderWizard({ objectType: 'tank' });
+
+    expect(await screen.findByTestId('tank-shape-select')).toBeVisible();
+    expect(screen.getByTestId('max-ambient-temperature-input')).toHaveValue('');
+    expect(screen.getByTestId('max-process-temperature-input')).toHaveValue('');
+    expect(screen.queryByTestId('tank-diameter-input')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('tank-height-input')).not.toBeInTheDocument();
+    expect(screen.getByTestId('q-additional-input')).toHaveValue('');
+  });
+
   it('показывает климатическую обеспеченность и источники, когда выбран климат', async () => {
     renderWizard({
       initialParams: {

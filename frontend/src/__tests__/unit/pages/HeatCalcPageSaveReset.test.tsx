@@ -199,7 +199,7 @@ describe('HeatCalcPage save reset', () => {
     await user.type(draftNameInput, 'ee');
     expect(draftNameInput).toHaveValue('ee');
 
-    await user.click(screen.getByRole('button', { name: 'Сохранить изменения' }));
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() => {
       expect(createObject).toHaveBeenCalledWith(
@@ -214,10 +214,8 @@ describe('HeatCalcPage save reset', () => {
       expect(screen.getByTestId('fake-draft-name')).toHaveValue('');
     });
     await waitFor(() => {
-      expect(useWorkspaceHeaderStore.getState().context).toMatchObject({
-        title: 'Параметры: Трубы',
-        modeLabel: 'новая запись',
-      });
+      expect(screen.getByText('Режим: добавление')).toBeInTheDocument();
     });
+    expect(useWorkspaceHeaderStore.getState().context).toBeNull();
   }, 10_000);
 });

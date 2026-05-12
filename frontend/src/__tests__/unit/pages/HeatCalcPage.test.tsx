@@ -337,7 +337,7 @@ describe('HeatCalcPage', () => {
       expect(screen.getAllByText('L, м').length).toBeGreaterThan(0);
     });
 
-    it('при переключении на резервуары показывает только резервуары и не открывает форму автоматически', async () => {
+    it('при переключении на резервуар показывает только резервуары и форму добавления резервуара', async () => {
       const { listObjects } = await import('@/api/projects');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
         makeObject(),
@@ -348,18 +348,19 @@ describe('HeatCalcPage', () => {
       const user = (await import('@testing-library/user-event')).default.setup();
       renderPage();
 
-      await user.click(await screen.findByLabelText('Резервуары'));
-      expect(screen.getByText('Резервуар')).toBeInTheDocument();
+      const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+      expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
+      await user.click(await within(typeToolbar).findByRole('button', { name: 'Резервуар' }));
+      expect(within(typeToolbar).getByRole('button', { name: 'Резервуар' })).toHaveAttribute('aria-pressed', 'true');
 
       await waitFor(() => {
         expect(screen.getByText('Резервуар прямоугольный')).toBeInTheDocument();
       });
       await waitFor(() => {
-        expect(useWorkspaceHeaderStore.getState().context).toMatchObject({
-          title: 'Параметры объекта',
-          modeLabel: 'выберите строку или нажмите «+»',
-        });
+        expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       });
+      expect(useWorkspaceHeaderStore.getState().context).toBeNull();
       expect(screen.queryByText('Труба DN100')).not.toBeInTheDocument();
       expect(screen.getAllByText('Форма').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Габариты').length).toBeGreaterThan(0);
@@ -368,70 +369,111 @@ describe('HeatCalcPage', () => {
       expect(screen.queryByText('L, м')).not.toBeInTheDocument();
       expect(screen.queryByText('Зад.')).not.toBeInTheDocument();
       expect(document.body.textContent).toMatch(/3\s*000.*2\s*000.*1\s*500 мм/);
-      expect(screen.queryByText('Форма и геометрия резервуара')).not.toBeInTheDocument();
+      expect(screen.getByText('Форма и геометрия резервуара')).toBeInTheDocument();
 
       await user.click(screen.getByText('Резервуар прямоугольный'));
       await waitFor(() => {
-        expect(useWorkspaceHeaderStore.getState().context?.title).toMatch(
-          /Параметры объекта «Резервуар прямоугольный»/,
-        );
+        expect(within(typeToolbar).getByText('Режим: изменение')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByLabelText('Трубопровод'));
-      expect(screen.getByText('Труба')).toBeInTheDocument();
+      await user.click(within(typeToolbar).getByRole('button', { name: 'Трубопровод' }));
+      expect(within(typeToolbar).getByRole('button', { name: 'Трубопровод' })).toHaveAttribute('aria-pressed', 'true');
       await waitFor(() => {
-        expect(useWorkspaceHeaderStore.getState().context).toMatchObject({
-          title: 'Параметры объекта',
-          modeLabel: 'выберите строку или нажмите «+»',
-        });
+        expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       });
+      expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
     });
 
-    it('кнопка «Добавить» открывает форму активного типа без dropdown', async () => {
+    it('кнопка «Добавить» сбрасывает форму активного типа без dropdown', async () => {
       useProjectStore.getState().setCurrentProject(mockProject);
       const user = (await import('@testing-library/user-event')).default.setup();
       renderPage();
 
-      await user.click(screen.getByRole('button', { name: /Добавить/i }));
+      const actionsToolbar = screen.getByRole('toolbar', { name: 'Действия с объектами' });
+      const addButton = within(actionsToolbar).getByRole('button', { name: 'Добавить' });
       expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      await user.type(screen.getByTestId('object-name-input'), 'Черновик трубы');
+      await user.click(addButton);
+      await waitFor(() => {
+        expect(screen.getByTestId('object-name-input')).toHaveValue('');
+      });
 
       await user.click(screen.getByRole('button', { name: 'Отменить' }));
-      await user.click(screen.getByLabelText('Резервуары'));
-      await user.click(screen.getByRole('button', { name: /Добавить/i }));
+      await user.click(screen.getByRole('button', { name: 'Резервуар' }));
+      await user.click(addButton);
 
       expect(await screen.findByText('Форма и геометрия резервуара')).toBeInTheDocument();
     }, 10_000);
 
     it('основные действия toolbar доступны по имени при icon-only отображении', async () => {
       useProjectStore.getState().setCurrentProject(mockProject);
-      const user = (await import('@testing-library/user-event')).default.setup();
       renderPage();
 
       const addButton = screen.getByRole('button', { name: 'Добавить' });
       const tableFieldsButton = screen.getByRole('button', { name: 'Настройки таблицы' });
-      const saveButton = screen.getByRole('button', { name: 'Сохранить изменения' });
+      const saveButton = screen.getByRole('button', { name: 'Сохранить' });
       const importButton = screen.getByRole('button', { name: 'Импорт XLSX/CSV' });
 
-      expect(screen.getByText('Труба')).toBeInTheDocument();
-      expect(screen.getByLabelText('Трубопровод')).toBeInTheDocument();
-      expect(screen.getByLabelText('Резервуары')).toBeInTheDocument();
-      expect(screen.queryByText('Трубопровод')).not.toBeInTheDocument();
-      expect(screen.queryByText('Резервуары')).not.toBeInTheDocument();
+      const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+      const actionsToolbar = screen.getByRole('toolbar', { name: 'Действия с объектами' });
+      const paramsBlock = screen.getByLabelText('Блок заполнения параметров');
+      expect(typeToolbar.compareDocumentPosition(paramsBlock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(paramsBlock.compareDocumentPosition(actionsToolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(within(typeToolbar).getByRole('button', { name: 'Трубопровод' })).toHaveAttribute('aria-pressed', 'true');
+      expect(within(typeToolbar).getByRole('button', { name: 'Резервуар' })).toHaveAttribute('aria-pressed', 'false');
+      expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
+      expect(within(typeToolbar).getByRole('checkbox', { name: 'Показать блок заполнения параметров' })).toBeChecked();
+      expect(within(actionsToolbar).queryByRole('button', { name: 'Трубопровод' })).not.toBeInTheDocument();
+      expect(within(actionsToolbar).queryByRole('button', { name: 'Резервуар' })).not.toBeInTheDocument();
+      expect(within(actionsToolbar).queryByText(/Режим:/)).not.toBeInTheDocument();
+      expect(within(actionsToolbar).queryByRole('checkbox', { name: 'Показать блок заполнения параметров' })).not.toBeInTheDocument();
+      expect(useWorkspaceHeaderStore.getState().context).toBeNull();
       expect(tableFieldsButton).toHaveClass('action-icon-button');
       expect(addButton).toHaveClass('action-icon-button');
       expect(addButton.textContent?.trim()).toBe('');
-      expect(saveButton).toHaveClass('action-icon-button');
-      expect(saveButton).toBeDisabled();
+      expect(saveButton).toHaveClass('action-save-button');
+      expect(saveButton).not.toBeDisabled();
       expect(importButton).toHaveClass('action-icon-button');
       expect(importButton.textContent?.trim()).toBe('');
       expect(screen.queryByText('Импорт XLSX/CSV')).not.toBeInTheDocument();
-
-      await user.click(addButton);
-
-      expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Сохранить изменения' })).not.toBeDisabled();
+      expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Отменить' })).not.toBeDisabled();
     });
+
+    it('скрывает блок вручную, убирает режим и сбрасывает заполненные параметры', async () => {
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+      const paramsBlock = () =>
+        document.querySelector<HTMLElement>('[aria-label="Блок заполнения параметров"]');
+
+      const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+      const visibilityToggle = within(typeToolbar).getByRole('checkbox', {
+        name: 'Показать блок заполнения параметров',
+      });
+      expect(visibilityToggle).toBeChecked();
+      expect(paramsBlock()).toBeVisible();
+      expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      await user.type(screen.getByTestId('object-name-input'), 'Черновик трубы');
+      expect(screen.getByTestId('object-name-input')).toHaveValue('Черновик трубы');
+
+      await user.click(visibilityToggle);
+      expect(visibilityToggle).not.toBeChecked();
+      expect(paramsBlock()).not.toBeVisible();
+      expect(within(typeToolbar).queryByText(/Режим:/)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('object-name-input')).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /Добавить/i }));
+      expect(within(typeToolbar).queryByText(/Режим:/)).not.toBeInTheDocument();
+      expect(paramsBlock()).not.toBeVisible();
+
+      await user.click(visibilityToggle);
+      expect(visibilityToggle).toBeChecked();
+      expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
+      expect(screen.getByTestId('object-name-input')).toHaveValue('');
+      expect(paramsBlock()).toBeVisible();
+    }, 10_000);
 
     it('берёт дефолтные колонки из JSON и не пишет гостевой localStorage до изменения', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -471,7 +513,7 @@ describe('HeatCalcPage', () => {
       expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
       expect(saved.types.tank.visibleOrder).toContain('tank_dimensions');
 
-      await user.click(screen.getByLabelText('Резервуары'));
+      await user.click(screen.getByRole('button', { name: 'Резервуар' }));
       await waitFor(() => {
         expect(screen.getByText('Резервуар прямоугольный')).toBeInTheDocument();
       });
@@ -549,9 +591,207 @@ describe('HeatCalcPage', () => {
         expect(document.querySelector('.calc-spreadsheet--large')).toBeInTheDocument();
       });
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
-      expect(saved).toEqual({ version: 1, fontSize: 'large' });
+      expect(saved).toEqual({ version: 1, fontSize: 'large', inlineEditingEnabled: false });
       expect(saved).not.toHaveProperty('fontSizePx');
     }, 10_000);
+
+    it('включает inline-редактирование через настройки таблицы и сохраняет draft только по кнопке', async () => {
+      const { listObjects, updateObject } = await import('@/api/projects');
+      const source = makeObject();
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
+      (updateObject as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeObject({ params: { ...source.params, name: 'Труба inline' } }),
+      );
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      const inlineToggle = within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' });
+      expect(inlineToggle).not.toBeChecked();
+      await user.click(inlineToggle);
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      await user.click(await screen.findByText('Труба DN100'));
+      const editor = await screen.findByDisplayValue('Труба DN100');
+      await user.clear(editor);
+      await user.type(editor, 'Труба inline');
+      await user.keyboard('{Enter}');
+
+      expect(updateObject).not.toHaveBeenCalled();
+      expect(await screen.findByText('Несохранено: 1')).toBeInTheDocument();
+      expect(screen.getByText('Труба inline')).toBeInTheDocument();
+      const dirtyCell = screen.getByRole('button', { name: 'Труба inline' });
+      expect(dirtyCell).toHaveClass('dirty');
+      expect(dirtyCell.closest('tr')).toHaveClass('row-dirty');
+      expect(dirtyCell.closest('td')).toHaveClass('editable-cell-enabled');
+
+      expect(screen.queryByText('Сохранить все (1)')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+      await waitFor(() => {
+        expect(updateObject).toHaveBeenCalledWith(
+          'proj-test-1',
+          source.id,
+          expect.objectContaining({
+            params: expect.objectContaining({ name: 'Труба inline' }),
+          }),
+        );
+      });
+      await waitFor(() => {
+        expect(screen.queryByText('Несохранено: 1')).not.toBeInTheDocument();
+      });
+      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
+      expect(saved.inlineEditingEnabled).toBe(true);
+    }, 30_000);
+
+    it('подсвечивает только inline-редактируемые ячейки при включенном режиме', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      const table = document.querySelector<HTMLElement>('.calc-spreadsheet');
+      expect(table).not.toBeNull();
+      const tableElement = table!;
+      await waitFor(() => {
+        expect(within(tableElement).getByText('Труба DN100')).toBeInTheDocument();
+      });
+      const initialNameCell = within(tableElement).getByText('Труба DN100').closest('td');
+      expect(initialNameCell).not.toHaveClass('editable-cell-enabled');
+      expect(within(tableElement).queryByRole('button', { name: 'Труба DN100' })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      await user.click(within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      const editableName = await within(tableElement).findByRole('button', { name: 'Труба DN100' });
+      expect(editableName).toHaveClass('editable-cell-display');
+      expect(editableName.closest('td')).toHaveClass('editable-cell-host');
+      expect(editableName.closest('td')).toHaveClass('editable-cell-enabled');
+
+      const bodyRow = editableName.closest('tr');
+      expect(bodyRow).not.toBeNull();
+      const rowNumberCell = bodyRow!.querySelectorAll('td')[1];
+      expect(rowNumberCell).toBeInstanceOf(HTMLElement);
+      expect(rowNumberCell).not.toHaveClass('editable-cell-enabled');
+    }, 10_000);
+
+    it('подсвечивает невалидную inline-ячейку до сохранения и не отправляет её', async () => {
+      const { listObjects, updateObject } = await import('@/api/projects');
+      const source = makeObject();
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
+      (updateObject as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeObject({ params: { ...source.params, name: 'Труба valid' } }),
+      );
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      await user.click(within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      await user.click(await screen.findByText('Труба DN100'));
+      const editor = await screen.findByDisplayValue('Труба DN100');
+      await user.clear(editor);
+      await user.keyboard('{Enter}');
+
+      expect(await screen.findByText('Укажите значение')).toBeInTheDocument();
+      expect(editor).toHaveClass('error');
+      expect(await screen.findByText('Несохранено: 1')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+      expect(updateObject).not.toHaveBeenCalled();
+
+      await user.type(editor, 'Труба valid');
+      await user.keyboard('{Enter}');
+
+      await waitFor(() => {
+        expect(screen.queryByText('Укажите значение')).not.toBeInTheDocument();
+      });
+      const fixedCell = await screen.findByRole('button', { name: 'Труба valid' });
+      expect(fixedCell).not.toHaveClass('error');
+
+      await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+      await waitFor(() => {
+        expect(updateObject).toHaveBeenCalledWith(
+          'proj-test-1',
+          source.id,
+          expect.objectContaining({
+            params: expect.objectContaining({ name: 'Труба valid' }),
+          }),
+        );
+      });
+    }, 30_000);
+
+    it('сохраняет валидные dirty-строки и оставляет невалидные dirty-строки', async () => {
+      const { listObjects, updateObject } = await import('@/api/projects');
+      const baseParams = makeObject().params;
+      const invalidSource = makeObject({
+        id: 'pipe-invalid',
+        params: { ...baseParams, name: 'Труба invalid' },
+      });
+      const validSource = makeObject({
+        id: 'pipe-valid',
+        sort_order: 1,
+        params: { ...baseParams, name: 'Труба valid' },
+      });
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([invalidSource, validSource]);
+      (updateObject as ReturnType<typeof vi.fn>).mockImplementation(
+        async (_projectId: string, objectId: string, payload: { params: Record<string, unknown> }) =>
+          makeObject({ id: objectId, params: payload.params }),
+      );
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба invalid');
+      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      await user.click(within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      await user.click(await screen.findByRole('button', { name: 'Труба invalid' }));
+      const invalidEditor = await screen.findByDisplayValue('Труба invalid');
+      await user.clear(invalidEditor);
+      await user.keyboard('{Enter}');
+      expect(await screen.findByText('Укажите значение')).toBeInTheDocument();
+
+      await user.click(await screen.findByRole('button', { name: 'Труба valid' }));
+      const validEditor = await screen.findByDisplayValue('Труба valid');
+      await user.clear(validEditor);
+      await user.type(validEditor, 'Труба valid saved');
+      await user.keyboard('{Enter}');
+      expect(await screen.findByText('Несохранено: 2')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+      await waitFor(() => {
+        expect(updateObject).toHaveBeenCalledTimes(1);
+      });
+      expect(updateObject).toHaveBeenCalledWith(
+        'proj-test-1',
+        'pipe-valid',
+        expect.objectContaining({
+          params: expect.objectContaining({ name: 'Труба valid saved' }),
+        }),
+      );
+      expect(screen.getByTitle('Укажите значение')).toHaveClass('error');
+      await waitFor(() => {
+        expect(screen.getByText('Несохранено: 1')).toBeInTheDocument();
+      });
+    }, 30_000);
 
     it('для зарегистрированного пользователя без записи очищает кеш и возвращает дефолтный JSON', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -574,7 +814,7 @@ describe('HeatCalcPage', () => {
         HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY,
         JSON.stringify({
           userId: 'user-test-1',
-          settings: { version: 1, fontSize: 'large' },
+          settings: { version: 1, fontSize: 'large', inlineEditingEnabled: false },
           cachedAt: '2026-05-08T00:00:00.000Z',
         }),
       );
@@ -663,7 +903,7 @@ describe('HeatCalcPage', () => {
       expect(cached.settings.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
       const viewCached = JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY) ?? '{}');
       expect(viewCached.userId).toBe('user-test-1');
-      expect(viewCached.settings).toEqual({ version: 1, fontSize: 'large' });
+      expect(viewCached.settings).toEqual({ version: 1, fontSize: 'large', inlineEditingEnabled: false });
     }, 10_000);
 
     it('фильтр по наименованию скрывает строки только в таблице, не меняя счётчики расчёта', async () => {
@@ -794,7 +1034,7 @@ describe('HeatCalcPage', () => {
         expect(screen.queryByText('Труба Север')).not.toBeInTheDocument();
       });
 
-      await user.click(screen.getByLabelText('Резервуары'));
+      await user.click(screen.getByRole('button', { name: 'Резервуар' }));
       expect(await screen.findByText('Резервуар основной')).toBeInTheDocument();
       expect(screen.queryByText('1/1')).not.toBeInTheDocument();
     });
@@ -813,9 +1053,11 @@ describe('HeatCalcPage', () => {
 
       await user.click(await screen.findByText('Труба Север'));
       await waitFor(() => {
-        expect(useWorkspaceHeaderStore.getState().context?.title).toMatch(/Труба Север/);
+        expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
       });
-      const rowCheckboxes = screen.getAllByRole('checkbox');
+      const table = document.querySelector<HTMLElement>('.calc-spreadsheet');
+      expect(table).not.toBeNull();
+      const rowCheckboxes = within(table!).getAllByRole('checkbox');
       await user.click(rowCheckboxes[1]);
       expect(await screen.findByText(/Выбрано: 1/)).toBeInTheDocument();
 
@@ -826,7 +1068,7 @@ describe('HeatCalcPage', () => {
       await waitFor(() => {
         expect(screen.queryByText(/Выбрано: 1/)).not.toBeInTheDocument();
       });
-      expect(useWorkspaceHeaderStore.getState().context?.title).toMatch(/Труба Север/);
+      expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
       expect(screen.getByText('Труба Юг')).toBeInTheDocument();
     });
 
@@ -842,11 +1084,13 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      const rowCheckboxes = screen.getAllByRole('checkbox');
+      const table = document.querySelector<HTMLElement>('.calc-spreadsheet');
+      expect(table).not.toBeNull();
+      const rowCheckboxes = within(table!).getAllByRole('checkbox');
       await user.click(rowCheckboxes[1]);
 
       expect(await screen.findByText(/Выбрано: 1/)).toBeInTheDocument();
-      await user.click(screen.getByLabelText('Резервуары'));
+      await user.click(screen.getByRole('button', { name: 'Резервуар' }));
       await waitFor(() => {
         expect(screen.queryByText(/Выбрано: 1/)).not.toBeInTheDocument();
       });
@@ -872,15 +1116,13 @@ describe('HeatCalcPage', () => {
 
       await user.click(await screen.findByText('Труба DN100'));
       await waitFor(() => {
-        expect(useWorkspaceHeaderStore.getState().context).toMatchObject({
-          title: expect.stringMatching(/Параметры объекта «Труба DN100»/),
-          modeLabel: 'Режим: редактирование',
-        });
+        expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
       });
+      expect(useWorkspaceHeaderStore.getState().context).toBeNull();
 
       const toolbarSaveButton = screen
-        .getAllByRole('button', { name: 'Сохранить изменения' })
-        .find((button) => button.classList.contains('action-icon-button'));
+        .getAllByRole('button', { name: 'Сохранить' })
+        .find((button) => button.classList.contains('action-save-button'));
       expect(toolbarSaveButton).toBeDefined();
       await user.click(toolbarSaveButton!);
 
@@ -896,10 +1138,7 @@ describe('HeatCalcPage', () => {
         );
       });
       await waitFor(() => {
-        expect(useWorkspaceHeaderStore.getState().context).toMatchObject({
-          title: 'Параметры: Трубы',
-          modeLabel: 'новая запись',
-        });
+        expect(screen.getByText('Режим: добавление')).toBeInTheDocument();
       });
       expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
       expect(screen.queryByText(/Параметры объекта «Труба DN100»/)).not.toBeInTheDocument();

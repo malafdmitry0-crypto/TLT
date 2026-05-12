@@ -8,7 +8,8 @@ import {
 } from './helpers/workspace';
 
 async function openPipeForm(page: Page) {
-  await page.locator('.actionbar-context-group').getByLabel('Трубопровод', { exact: true }).click();
+  const typeToolbar = page.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+  await typeToolbar.getByRole('button', { name: 'Трубопровод' }).click();
   await page.getByRole('button', { name: /Добавить/ }).click();
   await expect(page.locator('.inline-object-form')).toBeVisible();
   await expect(page.locator('.inline-object-form > .ant-form-item:visible')).toHaveCount(0);
@@ -16,7 +17,8 @@ async function openPipeForm(page: Page) {
 }
 
 async function openTankForm(page: Page) {
-  await page.locator('.actionbar-context-group').getByLabel('Резервуары', { exact: true }).click();
+  const typeToolbar = page.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+  await typeToolbar.getByRole('button', { name: 'Резервуар' }).click();
   await page.getByRole('button', { name: /Добавить/ }).click();
   await expect(page.locator('.inline-object-form')).toBeVisible();
   await expect(page.locator('.inline-object-form > .ant-form-item:visible')).toHaveCount(0);

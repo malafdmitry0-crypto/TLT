@@ -15,6 +15,11 @@ async function selectObjectType(page, label) {
     await byLabel.click();
     return;
   }
+  const byButton = page.getByRole('button', { name: label, exact: true });
+  if (await byButton.count()) {
+    await byButton.click();
+    return;
+  }
   const byRole = page.getByRole('radio', { name: label });
   if (await byRole.count()) {
     await byRole.click();
@@ -42,7 +47,7 @@ try {
 
   if ((await page.locator('.inline-object-form').count()) === 0) {
     if (mode === 'tank') {
-      await selectObjectType(page, 'Резервуары');
+      await selectObjectType(page, 'Резервуар');
     } else {
       await selectObjectType(page, 'Трубопровод');
     }
@@ -52,9 +57,6 @@ try {
       throw new Error('Add button not found');
     }
     await addButton.click();
-    if ((await page.locator('.inline-object-form').count()) === 0) {
-      await page.getByText(mode === 'tank' ? 'Резервуар' : 'Трубопровод', { exact: true }).click();
-    }
     await page.waitForSelector('.inline-object-form', { timeout: 5000 });
   }
 

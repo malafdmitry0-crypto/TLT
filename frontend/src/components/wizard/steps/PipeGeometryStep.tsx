@@ -1,6 +1,10 @@
 import { Form, InputNumber, Typography } from 'antd';
 import type { ReactElement } from 'react';
 import { findDN } from '@/utils/objectWizardUtils';
+import {
+  heatCalcFormFieldRules,
+  heatCalcNumberInputProps,
+} from '@/utils/heatCalcWizardFieldRules';
 import HelpedControl from '../HelpedControl';
 import FieldLabel from '../FieldLabel';
 
@@ -15,6 +19,8 @@ function fieldLabel(text: string) {
 }
 
 export default function PipeGeometryStep() {
+  const form = Form.useFormInstance();
+
   return (
     <>
       <Form.Item noStyle shouldUpdate={(prev, cur) => prev.outer_diameter_mm !== cur.outer_diameter_mm}>
@@ -26,11 +32,7 @@ export default function PipeGeometryStep() {
               className="fit-label-form-item short-number-form-item helped-form-item"
               label={fieldLabel('Наружный Ø трубопровода')}
               name="outer_diameter_mm"
-              rules={[
-                { required: true, message: 'Укажите наружный диаметр' },
-                { type: 'number', min: 10.8, message: 'Минимальный диаметр — 10,8 мм' },
-                { type: 'number', max: 3000, message: 'Максимальный диаметр — 3000 мм' },
-              ]}
+              rules={heatCalcFormFieldRules(form, 'pipe', 'outer_diameter_mm')}
               extra={
                 dn != null ? (
                   <Text type="secondary" style={{ fontSize: 9, whiteSpace: 'nowrap' }}>
@@ -46,9 +48,7 @@ export default function PipeGeometryStep() {
               {withHelp(
                 <InputNumber
                   data-testid="outer-diameter-input"
-                  min={10.8}
-                  max={3000}
-                  step={1}
+                  {...heatCalcNumberInputProps('pipe', 'outer_diameter_mm')}
                   addonAfter="мм"
                 />,
                 'Наружный диаметр трубопровода Ø, мм. Диапазон ТНП: 10,8–3000 мм. Стандартные размеры DN10–DN1000.',
@@ -62,14 +62,14 @@ export default function PipeGeometryStep() {
         className="fit-label-form-item long-number-form-item helped-form-item"
         label={fieldLabel('Длина трубопровода')}
         name="pipe_length"
-        rules={[
-          { required: true, message: 'Укажите длину трубопровода' },
-          { type: 'number', min: 0.5, message: 'Минимальная длина — 0,5 м' },
-          { type: 'number', max: 200000, message: 'Максимальная длина — 200 000 м' },
-        ]}
+        rules={heatCalcFormFieldRules(form, 'pipe', 'pipe_length')}
       >
         {withHelp(
-          <InputNumber data-testid="pipe-length-input" min={0.5} max={200000} step={1} addonAfter="м" />,
+          <InputNumber
+            data-testid="pipe-length-input"
+            {...heatCalcNumberInputProps('pipe', 'pipe_length')}
+            addonAfter="м"
+          />,
           'Длина обогреваемого участка. Диапазон ТНП: 0,5–200 000 м.',
         )}
       </Form.Item>

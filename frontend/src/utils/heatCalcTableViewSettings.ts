@@ -5,6 +5,7 @@ export type HeatCalcTableFontSize = 'compact' | 'standard' | 'comfortable' | 'la
 export interface HeatCalcTableViewSettings {
   version: number;
   fontSize: HeatCalcTableFontSize;
+  inlineEditingEnabled: boolean;
 }
 
 export interface HeatCalcResolvedTableFontSize {
@@ -78,6 +79,7 @@ export function getDefaultTableViewSettings(): HeatCalcTableViewSettings {
   return {
     version: HEATCALC_TABLE_VIEW_VERSION,
     fontSize: defaultFontSize(),
+    inlineEditingEnabled: false,
   };
 }
 
@@ -86,11 +88,15 @@ export function normalizeTableViewSettings(value: unknown): HeatCalcTableViewSet
   return {
     version: HEATCALC_TABLE_VIEW_VERSION,
     fontSize: normalizeFontSize(source.fontSize),
+    inlineEditingEnabled: source.inlineEditingEnabled === true,
   };
 }
 
 export function isDefaultTableViewSettings(settings: HeatCalcTableViewSettings) {
-  return normalizeTableViewSettings(settings).fontSize === getDefaultTableViewSettings().fontSize;
+  const normalized = normalizeTableViewSettings(settings);
+  const defaults = getDefaultTableViewSettings();
+  return normalized.fontSize === defaults.fontSize
+    && normalized.inlineEditingEnabled === defaults.inlineEditingEnabled;
 }
 
 export function resolveTableFontSize(

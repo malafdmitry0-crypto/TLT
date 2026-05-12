@@ -20,6 +20,13 @@ import {
   type PipeFormValues,
   type TankFormValues,
 } from '@/utils/objectWizardUtils';
+import {
+  heatCalcFormFieldRules,
+  heatCalcNumberInputProps,
+  heatCalcSelectOptions,
+  heatCalcTextInputProps,
+} from '@/utils/heatCalcWizardFieldRules';
+import type { HeatCalcObjectType } from '@/types/project';
 
 interface Props {
   objectType: ObjectType;
@@ -94,6 +101,7 @@ export default function ObjectWizard({
   initialParams,
 }: Props) {
   const [form] = Form.useForm();
+  const heatCalcObjectType = objectType as HeatCalcObjectType;
   const isEditMode = !!initialParams;
   const initialValues = useMemo(() =>
     initialParams != null
@@ -104,11 +112,7 @@ export default function ObjectWizard({
     [initialParams, objectType],
   );
   const formInitialValues = useMemo(
-    () => ({
-      pipe_lambda_mode: 'reference',
-      insulation_layer_count: '1',
-      ...initialValues,
-    }),
+    () => initialValues ?? {},
     [initialValues],
   );
   const values = Form.useWatch([], form);
@@ -124,19 +128,21 @@ export default function ObjectWizard({
     return value == null ? fallback : String(value);
   };
   const prevSuggestedRef = useRef<string>('');
-  const insulationLayerCount = watchedString('insulation_layer_count', '1');
-  const placement = watchedString('placement', 'outdoor');
-  const pipeLambdaMode = watchedString('pipe_lambda_mode', 'reference');
+  const insulationLayerCount = watchedString('insulation_layer_count');
+  const placement = watchedString('placement');
+  const pipeLambdaMode = watchedString('pipe_lambda_mode');
   const selectedClimateKey = watchedString('climate_key');
   const climateBasis = watchedString('climate_temperature_basis', 't_0_92') as ClimateBasis;
   const selectedGroundType = watchedString('ground_type');
   const secondInsulationMaterial = watchedString('second_insulation_material');
   const thirdInsulationMaterial = watchedString('third_insulation_material');
-  const layerCount = Math.min(Math.max(Number(insulationLayerCount) || 1, 1), 3);
+  const layerCount = Math.min(Math.max(Number(insulationLayerCount || '1') || 1, 1), 3);
   const hasClimate = selectedClimateKey.length > 0;
   const isUnderground = placement === 'underground';
   const showWindField = placement === 'outdoor' || (objectType === 'tank' && isUnderground);
-  const showAlphaField = !isUnderground || objectType === 'tank';
+  const showAlphaField = placement === 'outdoor'
+    || placement === 'indoor'
+    || (objectType === 'tank' && isUnderground);
   const { data: insulationMaterials = [], isError: insulationMaterialsError, isFetching: isInsulationMaterialsFetching } = useQuery({
     queryKey: referenceQueryKeys.insulation,
     queryFn: getInsulation,
@@ -188,6 +194,11 @@ export default function ObjectWizard({
     form.resetFields();
     if (initialValues) form.setFieldsValue(initialValues);
   }, [form, initialValues]);
+
+  useEffect(() => {
+    if (!selectedClimate || form.getFieldValue('climate_temperature_basis')) return;
+    form.setFieldsValue({ climate_temperature_basis: 't_0_92' });
+  }, [form, selectedClimate]);
 
   useEffect(() => {
     if (!selectedClimate) return;
@@ -325,13 +336,13 @@ export default function ObjectWizard({
             className="name-form-item helped-form-item"
             label={fieldLabel('Наименование')}
             name="name"
-            rules={[
-              { required: true, message: 'Укажите наименование объекта' },
-              { max: 200, message: 'Максимальная длина — 200 символов' },
-            ]}
+            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'name')}
           >
             {withHelp(
-              <Input data-testid="object-name-input" maxLength={200} />,
+              <Input
+                data-testid="object-name-input"
+                {...heatCalcTextInputProps(heatCalcObjectType, 'name')}
+              />,
               'Автоматически формируется из параметров объекта. Можно изменить вручную; до 200 символов.',
             )}
           </Form.Item>
@@ -342,15 +353,14 @@ export default function ObjectWizard({
                 className="fit-label-form-item short-number-form-item helped-form-item"
                 label={fieldLabel('Толщина стенки')}
                 name="wall_thickness_mm"
-                initialValue={4}
-                rules={[
-                  { required: true, message: 'Укажите толщину стенки' },
-                  { type: 'number', min: 0.1, message: 'Минимальная толщина — 0,1 мм' },
-                  { type: 'number', max: 40, message: 'Максимальная толщина — 40 мм' },
-                ]}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'wall_thickness_mm')}
               >
                 {withHelp(
-                  <InputNumber data-testid="wall-thickness-input" min={0.1} max={40} step={0.1} addonAfter="мм" />,
+                  <InputNumber
+                    data-testid="wall-thickness-input"
+                    {...heatCalcNumberInputProps(heatCalcObjectType, 'wall_thickness_mm')}
+                    addonAfter="мм"
+                  />,
                   'Толщина стенки трубы. Диапазон ТНП: 0,1…40 мм. Используется в расчёте сопротивления стенки.',
                 )}
               </Form.Item>
@@ -358,10 +368,12 @@ export default function ObjectWizard({
                 className="compact-select-form-item helped-form-item"
                 label={fieldLabel('Режим λ трубы')}
                 name="pipe_lambda_mode"
+                rules={[{ required: true, message: 'Выберите режим λ трубы' }]}
               >
                 {withHelp(
                   <Select
                     data-testid="pipe-lambda-mode-select"
+                    placeholder="Выберите режим"
                     options={[
                       { value: 'reference', label: 'Справ.' },
                       { value: 'manual', label: 'Вручн.' },
@@ -387,33 +399,36 @@ export default function ObjectWizard({
                     'Ручная теплопроводность трубы, Вт/(м·К). Используется вместо справочника материала.',
                   )}
                 </Form.Item>
-              ) : (
+              ) : pipeLambdaMode === 'reference' ? (
                 <Form.Item
                   className="pipe-material-form-item reduced-select-form-item helped-form-item"
                   label={fieldLabel('Материал трубы')}
                   name="pipe_material"
-                  initialValue="carbon_steel"
                   preserve={false}
                   rules={[{ required: true, message: 'Выберите материал трубы' }]}
                 >
                   {withHelp(
-                    <Select data-testid="pipe-material-select" options={pipeMaterialOptions} />,
+                    <Select
+                      data-testid="pipe-material-select"
+                      options={pipeMaterialOptions}
+                      placeholder="Выберите материал"
+                    />,
                     'Материал стенки трубопровода. Backend берёт λ из справочника материала трубы.',
                   )}
                 </Form.Item>
-              )}
+              ) : null}
             </>
           )}
           <Form.Item
             className="fixed-select-form-item reduced-select-form-item helped-form-item"
             label={fieldLabel(objectType === 'pipe' ? 'Размещение трубопровода' : 'Размещение резервуара')}
             name="placement"
-            initialValue="outdoor"
             rules={[{ required: true, message: 'Выберите размещение объекта' }]}
           >
             {withHelp(
               <Select
                 data-testid="placement-select"
+                placeholder="Выберите размещение"
                 options={[
                   { value: 'outdoor', label: 'На открытом воздухе' },
                   { value: 'indoor', label: 'В помещении' },
@@ -447,7 +462,6 @@ export default function ObjectWizard({
                 className="fixed-select-form-item helped-form-item"
                 label={fieldLabel('Грунт')}
                 name="ground_type"
-                initialValue="dry_sand"
                 preserve={false}
                 rules={[{ required: true, message: 'Выберите грунт' }]}
               >
@@ -456,6 +470,7 @@ export default function ObjectWizard({
                     data-testid="ground-type-select"
                     showSearch
                     loading={isSoilFetching}
+                    placeholder="Выберите грунт"
                     options={[...soilOptions.map(({ value, label }) => ({ value, label })), { value: 'custom', label: 'Другое' }]}
                     filterOption={(input, option) =>
                       String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
@@ -468,7 +483,6 @@ export default function ObjectWizard({
                 className="numeric-form-item coefficient-form-item helped-form-item"
                 label={fieldLabel('λ грунта')}
                 name="ground_conductivity"
-                initialValue={1.5}
                 preserve={false}
                 rules={[
                   { required: true, message: 'Укажите λ грунта' },
@@ -493,15 +507,14 @@ export default function ObjectWizard({
           style={sectionStyle(1)}
         >
           {renderSectionTitle('Теплоизоляция', 2)}
-          <ThermalStep />
+          <ThermalStep objectType={heatCalcObjectType} />
           <Form.Item
             className="fixed-select-form-item reduced-select-form-item helped-form-item"
             label={fieldLabel('Материал покрытия')}
             name="insulation_cover_material"
-            initialValue="none"
           >
             {withHelp(
-              <Select options={[{ value: 'none', label: 'Не указано' }]} />,
+              <Select options={[{ value: 'none', label: 'Не указано' }]} placeholder="Не указано" />,
               'Защитное покрытие теплоизоляции. Сохраняется в параметрах объекта для спецификации и отчёта.',
             )}
           </Form.Item>
@@ -509,13 +522,18 @@ export default function ObjectWizard({
             className="layer-count-form-item helped-form-item"
             label={fieldLabel('Кол-во слоёв ИЗ')}
             name="insulation_layer_count"
+            rules={[{ required: true, message: 'Выберите количество слоёв изоляции' }]}
           >
             {withHelp(
-              <Select data-testid="insulation-layer-count-select" options={[{ value: '1', label: '1 слой' }, { value: '2', label: '2 слоя' }, { value: '3', label: '3 слоя' }]} />,
+              <Select
+                data-testid="insulation-layer-count-select"
+                options={[{ value: '1', label: '1 слой' }, { value: '2', label: '2 слоя' }, { value: '3', label: '3 слоя' }]}
+                placeholder="Выберите"
+              />,
               'Количество слоёв изоляции. При 2 или 3 слоях форма добавляет отдельные материал и толщину для каждого дополнительного слоя.',
             )}
           </Form.Item>
-          {insulationLayerCount !== '1' && (
+          {layerCount >= 2 && (
             <>
               <Form.Item
                 className="medium-select-form-item layer-material-form-item second-layer-material-form-item helped-form-item"
@@ -662,7 +680,6 @@ export default function ObjectWizard({
               className="compact-select-form-item helped-form-item"
               label={fieldLabel('Обеспеченность климата')}
               name="climate_temperature_basis"
-              initialValue="t_0_92"
               preserve={false}
             >
               {withHelp(
@@ -682,14 +699,14 @@ export default function ObjectWizard({
                 fallback={watchedValue('ambient_temperature_source')}
               />
             }
-            rules={[
-              { required: true, message: 'Укажите температуру окружающей среды' },
-              { type: 'number', min: -70, message: 'Минимальная температура среды: −70°C' },
-              { type: 'number', max: 70, message: 'Максимальная температура среды: +70°C' },
-            ]}
+            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'ambient_temperature')}
           >
             {withHelp(
-              <InputNumber data-testid="ambient-temperature-input" min={-70} max={70} addonAfter="°C" />,
+              <InputNumber
+                data-testid="ambient-temperature-input"
+                {...heatCalcNumberInputProps(heatCalcObjectType, 'ambient_temperature', { includeStep: false })}
+                addonAfter="°C"
+              />,
               'Расчётная температура окружающей среды. Диапазон ТНП: −70°C … +70°C. Может заполняться из климатического справочника.',
             )}
           </Form.Item>
@@ -698,26 +715,14 @@ export default function ObjectWizard({
             label={fieldLabel('Требуемая T° объекта')}
             name="process_temperature"
             dependencies={['ambient_temperature']}
-            rules={[
-              { required: true, message: 'Укажите требуемую температуру объекта' },
-              { type: 'number', min: -90, message: 'Минимальная требуемая температура: −90°C' },
-              { type: 'number', max: 600, message: 'Максимальная требуемая температура: +600°C' },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  const ambient = getFieldValue('ambient_temperature');
-                  if (value == null || ambient == null) return Promise.resolve();
-                  if (value <= ambient) {
-                    return Promise.reject(
-                      new Error('Требуемая температура объекта должна быть выше температуры среды'),
-                    );
-                  }
-                  return Promise.resolve();
-                },
-              }),
-            ]}
+            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'process_temperature')}
           >
             {withHelp(
-              <InputNumber data-testid="process-temperature-input" min={-90} max={600} step={0.1} addonAfter="°C" />,
+              <InputNumber
+                data-testid="process-temperature-input"
+                {...heatCalcNumberInputProps(heatCalcObjectType, 'process_temperature')}
+                addonAfter="°C"
+              />,
               'Требуемая температура поддержания объекта, °C. Диапазон ТНП: −90…+600 °C. Используется в расчёте теплопотерь и проверке температурного диапазона кабеля.',
             )}
           </Form.Item>
@@ -766,7 +771,6 @@ export default function ObjectWizard({
             className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('Макс. T° окр. среды')}
             name="max_ambient_temperature"
-            initialValue={30}
             rules={[
               { type: 'number', min: -70, message: 'Минимальная температура среды: −70°C' },
               { type: 'number', max: 70, message: 'Максимальная температура среды: +70°C' },
@@ -781,7 +785,6 @@ export default function ObjectWizard({
             className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('Макс. допуст. T° продукта')}
             name="max_process_temperature"
-            initialValue={90}
             rules={[
               { type: 'number', min: -90, message: 'Минимальная температура продукта: −90°C' },
               { type: 'number', max: 600, message: 'Максимальная температура продукта: +600°C' },
@@ -796,10 +799,13 @@ export default function ObjectWizard({
             className="medium-select-form-item helped-form-item"
             label={fieldLabel('Среда')}
             name="environment"
-            initialValue="normal"
           >
             {withHelp(
-              <Select data-testid="environment-select" options={[{ value: 'normal', label: 'Нормальная' }, { value: 'aggressive', label: 'Агрессивная' }]} />,
+              <Select
+                data-testid="environment-select"
+                options={[{ value: 'normal', label: 'Нормальная' }, { value: 'aggressive', label: 'Агрессивная' }]}
+                placeholder="Выберите среду"
+              />,
               'Условия эксплуатации: нормальная или агрессивная среда. Сохраняется в параметрах объекта для спецификации и отчёта.',
             )}
           </Form.Item>
@@ -807,10 +813,13 @@ export default function ObjectWizard({
             className="medium-select-form-item helped-form-item"
             label={fieldLabel('Классификация зоны')}
             name="zone_classification"
-            initialValue="safe"
           >
             {withHelp(
-              <Select data-testid="zone-classification-select" options={[{ value: 'safe', label: 'Безопасная' }, { value: 'explosive', label: 'Взрывоопасная' }]} />,
+              <Select
+                data-testid="zone-classification-select"
+                options={[{ value: 'safe', label: 'Безопасная' }, { value: 'explosive', label: 'Взрывоопасная' }]}
+                placeholder="Выберите зону"
+              />,
               'Безопасная или взрывоопасная зона. Сохраняется в параметрах объекта для подбора исполнения и отчёта.',
             )}
           </Form.Item>
@@ -818,10 +827,13 @@ export default function ObjectWizard({
             className="temperature-group-form-item helped-form-item"
             label={fieldLabel('Температурная группа')}
             name="temperature_group"
-            initialValue="T1"
           >
             {withHelp(
-              <Select data-testid="temperature-group-select" options={['T1', 'T2', 'T3', 'T4', 'T5', 'T6'].map((v) => ({ value: v, label: v }))} />,
+              <Select
+                data-testid="temperature-group-select"
+                options={['T1', 'T2', 'T3', 'T4', 'T5', 'T6'].map((v) => ({ value: v, label: v }))}
+                placeholder="Выберите"
+              />,
               'Температурная группа T1…T6 для классификации зоны. Сохраняется в параметрах объекта для подбора исполнения и отчёта.',
             )}
           </Form.Item>
@@ -839,14 +851,21 @@ export default function ObjectWizard({
             className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('Мин. T° включения')}
             name="min_switch_temperature"
-            initialValue={-20}
-            rules={[
-              { type: 'number', min: -70, message: 'Минимальная температура включения: −70°C' },
-              { type: 'number', max: 70, message: 'Максимальная температура включения: +70°C' },
-            ]}
+            rules={objectType === 'pipe'
+              ? heatCalcFormFieldRules(form, heatCalcObjectType, 'min_switch_temperature')
+              : [
+                  { type: 'number', min: -70, message: 'Минимальная температура включения: −70°C' },
+                  { type: 'number', max: 70, message: 'Максимальная температура включения: +70°C' },
+                ]}
           >
             {withHelp(
-              <InputNumber data-testid="min-switch-temperature-input" min={-70} max={70} step={0.1} addonAfter="°C" />,
+              <InputNumber
+                data-testid="min-switch-temperature-input"
+                {...(objectType === 'pipe'
+                  ? heatCalcNumberInputProps(heatCalcObjectType, 'min_switch_temperature')
+                  : { min: -70, max: 70, step: 0.1 })}
+                addonAfter="°C"
+              />,
               'Температура включения электрообогрева, °C. Сохраняется в параметрах объекта для электрораздела.',
             )}
           </Form.Item>
@@ -854,10 +873,15 @@ export default function ObjectWizard({
             className="compact-select-form-item helped-form-item"
             label={fieldLabel('Рабочее напряжение')}
             name="supply_voltage"
-            initialValue={220}
           >
             {withHelp(
-              <Select data-testid="supply-voltage-select" options={[{ value: 220, label: '220 В' }, { value: 380, label: '380 В' }]} />,
+              <Select
+                data-testid="supply-voltage-select"
+                options={objectType === 'pipe'
+                  ? heatCalcSelectOptions(heatCalcObjectType, 'supply_voltage')
+                  : [{ value: 220, label: '220 В' }, { value: 380, label: '380 В' }]}
+                placeholder="Выберите"
+              />,
               'Рабочее напряжение питания. Используется при расчёте тока в электротехническом расчёте.',
             )}
           </Form.Item>
@@ -865,14 +889,20 @@ export default function ObjectWizard({
             className="numeric-form-item coefficient-form-item helped-form-item"
             label={fieldLabel('Kзап')}
             name="safety_factor"
-            initialValue={1.2}
-            rules={[
-              { type: 'number', min: 1.05, message: 'Минимальный коэффициент запаса — 1,05' },
-              { type: 'number', max: 1.7, message: 'Максимальный коэффициент запаса — 1,70' },
-            ]}
+            rules={objectType === 'pipe'
+              ? heatCalcFormFieldRules(form, heatCalcObjectType, 'safety_factor')
+              : [
+                  { type: 'number', min: 1.05, message: 'Минимальный коэффициент запаса — 1,05' },
+                  { type: 'number', max: 1.7, message: 'Максимальный коэффициент запаса — 1,70' },
+                ]}
           >
             {withHelp(
-              <InputNumber data-testid="safety-factor-input" min={1.05} max={1.7} step={0.01} />,
+              <InputNumber
+                data-testid="safety-factor-input"
+                {...(objectType === 'pipe'
+                  ? heatCalcNumberInputProps(heatCalcObjectType, 'safety_factor')
+                  : { min: 1.05, max: 1.7, step: 0.01 })}
+              />,
               'Коэффициент запаса Kзап. Диапазон ТНП: 1,05…1,70. Используется в суммарных теплопотерях и при подборе кабеля.',
             )}
           </Form.Item>
@@ -881,17 +911,13 @@ export default function ObjectWizard({
               className="numeric-form-item coefficient-form-item helped-form-item"
               label={fieldLabel('Q_доп')}
               name="q_additional"
-              initialValue={0}
               preserve={false}
-              rules={[
-                { type: 'number', min: 0, message: 'Q_доп не может быть отрицательным' },
-              ]}
+              rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'q_additional')}
             >
               {withHelp(
                 <InputNumber
                   data-testid="q-additional-input"
-                  min={0}
-                  step={10}
+                  {...heatCalcNumberInputProps(heatCalcObjectType, 'q_additional')}
                   addonAfter="Вт"
                 />,
                 'Дополнительные теплопотери (днище, штуцера и пр.). Прибавляется к суммарным теплопотерям, не влияет на удельные.',
@@ -902,10 +928,13 @@ export default function ObjectWizard({
             className="compact-select-form-item helped-form-item"
             label={fieldLabel('Пропарка')}
             name="steam_tracing"
-            initialValue="no"
           >
             {withHelp(
-              <Select data-testid="steam-tracing-select" options={[{ value: 'yes', label: 'Да' }, { value: 'no', label: 'Нет' }]} />,
+              <Select
+                data-testid="steam-tracing-select"
+                options={[{ value: 'yes', label: 'Да' }, { value: 'no', label: 'Нет' }]}
+                placeholder="Выберите"
+              />,
               'Признак пропарки. Сохраняется в параметрах объекта для проверки эксплуатационных ограничений.',
             )}
           </Form.Item>
@@ -915,7 +944,6 @@ export default function ObjectWizard({
                 className="numeric-form-item fitting-count-form-item helped-form-item"
                 label={fieldLabel('Задвижки')}
                 name="valve_count"
-                initialValue={2}
                 rules={[
                   { type: 'number', min: 0, message: 'Минимум — 0 шт' },
                   { type: 'number', max: 100, message: 'Максимум — 100 шт' },
@@ -930,7 +958,6 @@ export default function ObjectWizard({
                 className="numeric-form-item fitting-count-form-item helped-form-item"
                 label={fieldLabel('Фланцы')}
                 name="flange_count"
-                initialValue={2}
                 rules={[
                   { type: 'number', min: 0, message: 'Минимум — 0 шт' },
                   { type: 'number', max: 100, message: 'Максимум — 100 шт' },
@@ -945,7 +972,6 @@ export default function ObjectWizard({
                 className="numeric-form-item fitting-count-form-item helped-form-item"
                 label={fieldLabel('Опоры')}
                 name="support_count"
-                initialValue={2}
                 rules={[
                   { type: 'number', min: 0, message: 'Минимум — 0 шт' },
                   { type: 'number', max: 100, message: 'Максимум — 100 шт' },
@@ -960,7 +986,6 @@ export default function ObjectWizard({
                 className="numeric-form-item coefficient-form-item helped-form-item"
                 label={fieldLabel('Lэкв')}
                 name="local_element_equiv_length"
-                initialValue={1.5}
                 rules={[
                   { type: 'number', min: 0.1, message: 'Минимальная эквивалентная длина — 0,1 м' },
                   { type: 'number', max: 6.9, message: 'Максимальная эквивалентная длина — 6,9 м' },

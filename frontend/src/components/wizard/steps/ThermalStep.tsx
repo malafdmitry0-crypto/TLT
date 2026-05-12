@@ -3,6 +3,11 @@ import type { ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
+import {
+  heatCalcFormFieldRules,
+  heatCalcNumberInputProps,
+} from '@/utils/heatCalcWizardFieldRules';
+import type { HeatCalcObjectType } from '@/types/project';
 import HelpedControl from '../HelpedControl';
 import FieldLabel from '../FieldLabel';
 
@@ -14,7 +19,11 @@ function fieldLabel(text: string) {
   return <FieldLabel text={text} />;
 }
 
-export default function ThermalStep() {
+interface Props {
+  objectType: HeatCalcObjectType;
+}
+
+export default function ThermalStep({ objectType }: Props) {
   const form = Form.useFormInstance();
   const insulationMaterial = Form.useWatch('insulation_material', form);
   const { data: materials = [], isError, isFetching } = useQuery({
@@ -35,14 +44,14 @@ export default function ThermalStep() {
         className="numeric-form-item short-number-form-item helped-form-item"
         label={fieldLabel('Толщина изоляции')}
         name="insulation_thickness_mm"
-        rules={[
-          { required: true, message: 'Укажите толщину изоляции' },
-          { type: 'number', min: 1, message: 'Минимальная толщина — 1 мм' },
-          { type: 'number', max: 500, message: 'Максимальная толщина — 500 мм' },
-        ]}
+        rules={heatCalcFormFieldRules(form, objectType, 'insulation_thickness_mm')}
       >
         {withHelp(
-          <InputNumber data-testid="insulation-thickness-input" min={1} max={500} step={5} addonAfter="мм" />,
+          <InputNumber
+            data-testid="insulation-thickness-input"
+            {...heatCalcNumberInputProps(objectType, 'insulation_thickness_mm')}
+            addonAfter="мм"
+          />,
           'Толщина слоя тепловой изоляции. Диапазон: 1–500 мм.',
         )}
       </Form.Item>

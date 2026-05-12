@@ -257,6 +257,7 @@ interface ColumnSettingsModalProps {
   onResetWidth: (type: HeatCalcObjectType, key: HeatCalcColumnKey) => void;
   onColumnReorder: (type: HeatCalcObjectType, activeKey: HeatCalcColumnKey, overKey: HeatCalcColumnKey) => void;
   onFontSizeChange: (fontSize: HeatCalcTableFontSize) => void;
+  onInlineEditingEnabledChange: (enabled: boolean) => void;
   onResetFontSize: () => void;
 }
 
@@ -277,6 +278,7 @@ export default function ColumnSettingsModal({
   onResetWidth,
   onColumnReorder,
   onFontSizeChange,
+  onInlineEditingEnabledChange,
   onResetFontSize,
 }: ColumnSettingsModalProps) {
   const sensors = useSensors(
@@ -336,6 +338,14 @@ export default function ColumnSettingsModal({
           <Button size="small" onClick={onResetFontSize}>
             Сбросить размер
           </Button>
+        </div>
+        <div className="table-view-settings-panel">
+          <Checkbox
+            checked={draftViewSettings.inlineEditingEnabled}
+            onChange={(event) => onInlineEditingEnabledChange(event.target.checked)}
+          >
+            Редактировать ячейки в таблице
+          </Checkbox>
         </div>
         <div className="column-settings-list">
           <DndContext
