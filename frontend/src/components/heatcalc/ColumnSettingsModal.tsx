@@ -20,9 +20,9 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   getAllTableColumnMetas,
   type HeatCalcColumnKey,
-  type HeatCalcObjectType,
   type HeatCalcResolvedColumnMeta,
   type HeatCalcTableColumnSettings,
+  type HeatCalcTableColumnScope,
 } from '@/utils/heatCalcTableColumns';
 import {
   HEATCALC_TABLE_FONT_SIZE_OPTIONS,
@@ -32,9 +32,10 @@ import {
 
 const { Text } = Typography;
 
-const TABLE_SETTINGS_TYPE_LABELS: Record<HeatCalcObjectType, string> = {
+const TABLE_SETTINGS_TYPE_LABELS: Record<HeatCalcTableColumnScope, string> = {
   pipe: 'Труба',
   tank: 'Резервуар',
+  all: 'Все',
 };
 
 function ColumnSettingsRowContent({
@@ -242,20 +243,20 @@ function SortableColumnSettingsRow({
 
 interface ColumnSettingsModalProps {
   open: boolean;
-  activeType: HeatCalcObjectType;
+  activeType: HeatCalcTableColumnScope;
   draftColumnSettings: HeatCalcTableColumnSettings;
   draftViewSettings: HeatCalcTableViewSettings;
   confirmLoading?: boolean;
-  onTypeChange: (type: HeatCalcObjectType) => void;
+  onTypeChange: (type: HeatCalcTableColumnScope) => void;
   onOk: () => void;
   onCancel: () => void;
-  onSelectAllColumns: (type: HeatCalcObjectType) => void;
-  onResetColumns: (type: HeatCalcObjectType) => void;
-  onVisibleChange: (type: HeatCalcObjectType, key: HeatCalcColumnKey, visible: boolean) => void;
-  onOrderChange: (type: HeatCalcObjectType, key: HeatCalcColumnKey, order: number) => void;
-  onWidthChange: (type: HeatCalcObjectType, key: HeatCalcColumnKey, widthPct: number) => void;
-  onResetWidth: (type: HeatCalcObjectType, key: HeatCalcColumnKey) => void;
-  onColumnReorder: (type: HeatCalcObjectType, activeKey: HeatCalcColumnKey, overKey: HeatCalcColumnKey) => void;
+  onSelectAllColumns: (type: HeatCalcTableColumnScope) => void;
+  onResetColumns: (type: HeatCalcTableColumnScope) => void;
+  onVisibleChange: (type: HeatCalcTableColumnScope, key: HeatCalcColumnKey, visible: boolean) => void;
+  onOrderChange: (type: HeatCalcTableColumnScope, key: HeatCalcColumnKey, order: number) => void;
+  onWidthChange: (type: HeatCalcTableColumnScope, key: HeatCalcColumnKey, widthPct: number) => void;
+  onResetWidth: (type: HeatCalcTableColumnScope, key: HeatCalcColumnKey) => void;
+  onColumnReorder: (type: HeatCalcTableColumnScope, activeKey: HeatCalcColumnKey, overKey: HeatCalcColumnKey) => void;
   onFontSizeChange: (fontSize: HeatCalcTableFontSize) => void;
   onInlineEditingEnabledChange: (enabled: boolean) => void;
   onResetFontSize: () => void;
@@ -303,12 +304,13 @@ export default function ColumnSettingsModal({
     >
       <div className="column-settings-modal">
         <div className="column-settings-toolbar">
-          <Segmented<HeatCalcObjectType>
+          <Segmented<HeatCalcTableColumnScope>
             value={activeType}
             onChange={onTypeChange}
             options={[
               { label: TABLE_SETTINGS_TYPE_LABELS.pipe, value: 'pipe' },
               { label: TABLE_SETTINGS_TYPE_LABELS.tank, value: 'tank' },
+              { label: TABLE_SETTINGS_TYPE_LABELS.all, value: 'all' },
             ]}
           />
           <Space size={6}>

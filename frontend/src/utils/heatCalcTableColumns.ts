@@ -1,6 +1,7 @@
 import defaultConfig from '@/config/heatcalc-table-columns.default.json';
 
 export type HeatCalcObjectType = 'pipe' | 'tank';
+export type HeatCalcTableColumnScope = HeatCalcObjectType | 'all';
 export type HeatCalcColumnKey = string;
 
 export interface HeatCalcColumnLabels {
@@ -40,7 +41,7 @@ export interface HeatCalcTableColumnTypeSettings {
 
 export interface HeatCalcTableColumnSettings {
   version: number;
-  types: Record<HeatCalcObjectType, HeatCalcTableColumnTypeSettings>;
+  types: Record<HeatCalcTableColumnScope, HeatCalcTableColumnTypeSettings>;
 }
 
 export interface HeatCalcResolvedColumnMeta extends HeatCalcColumnMeta, HeatCalcColumnLayout {
@@ -63,6 +64,18 @@ export const HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY = 'heatcalc.tableColumns
 export const HEATCALC_TABLE_COLUMN_WIDTH_BASE_PX = 1000;
 export const HEATCALC_TABLE_COLUMN_MIN_WIDTH_PCT = 3;
 export const HEATCALC_TABLE_COLUMN_MAX_WIDTH_PCT = 60;
+
+export const HEATCALC_ALL_OBJECT_COLUMN_KEYS: HeatCalcColumnKey[] = [
+  'index',
+  'type',
+  'name',
+  'placement',
+  'insulation_layer_count',
+  'insulation_thickness',
+  'insulation_material',
+  'process_temperature',
+  'ambient_temperature',
+];
 
 const configuredTableColumnRegistry = (defaultConfig as {
   registry?: Partial<Record<HeatCalcObjectType, unknown[]>>;
@@ -116,9 +129,30 @@ function normalizeRegistry(columns: unknown[] | undefined) {
   return (columns ?? []).map(normalizeRegistryColumn).filter((column): column is HeatCalcColumnMeta => column != null);
 }
 
-export const HEATCALC_TABLE_COLUMN_CATALOG: Record<HeatCalcObjectType, HeatCalcColumnMeta[]> = {
-  pipe: normalizeRegistry(configuredTableColumnRegistry.pipe),
-  tank: normalizeRegistry(configuredTableColumnRegistry.tank),
+const pipeColumnCatalog = normalizeRegistry(configuredTableColumnRegistry.pipe);
+const tankColumnCatalog = normalizeRegistry(configuredTableColumnRegistry.tank);
+
+function buildAllObjectColumnCatalog() {
+  const byKey = new Map<HeatCalcColumnKey, HeatCalcColumnMeta>();
+  const addColumn = (column: HeatCalcColumnMeta | undefined) => {
+    if (!column || byKey.has(column.key)) return;
+    byKey.set(column.key, column);
+  };
+
+  HEATCALC_ALL_OBJECT_COLUMN_KEYS.forEach((key) => {
+    addColumn(pipeColumnCatalog.find((column) => column.key === key));
+    addColumn(tankColumnCatalog.find((column) => column.key === key));
+  });
+  pipeColumnCatalog.forEach(addColumn);
+  tankColumnCatalog.forEach(addColumn);
+
+  return [...byKey.values()];
+}
+
+export const HEATCALC_TABLE_COLUMN_CATALOG: Record<HeatCalcTableColumnScope, HeatCalcColumnMeta[]> = {
+  pipe: pipeColumnCatalog,
+  tank: tankColumnCatalog,
+  all: buildAllObjectColumnCatalog(),
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -158,7 +192,11 @@ function defaultColumnWidthPct(column: HeatCalcColumnMeta) {
   return column.defaultWidthPct;
 }
 
-function defaultVisibleKeys(type: HeatCalcObjectType) {
+function defaultVisibleKeys(type: HeatCalcTableColumnScope) {
+  if (type === 'all') {
+    const available = new Set(getAvailableTableColumnKeys('all'));
+    return HEATCALC_ALL_OBJECT_COLUMN_KEYS.filter((key) => available.has(key));
+  }
   const config: Record<string, unknown> = isRecord(defaultConfig) ? defaultConfig : {};
   const rawTable = isRecord(config.table) ? config.table : {};
   const available = new Set(getAvailableTableColumnKeys(type));
@@ -170,7 +208,7 @@ function defaultVisibleKeys(type: HeatCalcObjectType) {
     : HEATCALC_TABLE_COLUMN_CATALOG[type].filter((column) => column.required).map((column) => column.key);
 }
 
-function defaultTypeSettings(type: HeatCalcObjectType): HeatCalcTableColumnTypeSettings {
+function defaultTypeSettings(type: HeatCalcTableColumnScope): HeatCalcTableColumnTypeSettings {
   const columns: Record<HeatCalcColumnKey, HeatCalcColumnLayout> = {};
   HEATCALC_TABLE_COLUMN_CATALOG[type].forEach((column) => {
     columns[column.key] = {
@@ -184,7 +222,7 @@ function defaultTypeSettings(type: HeatCalcObjectType): HeatCalcTableColumnTypeS
 }
 
 function normalizeVisibleOrder(
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   keys: unknown,
   fallback: HeatCalcColumnKey[] = [],
 ) {
@@ -205,7 +243,7 @@ function normalizeVisibleOrder(
 }
 
 function visibleOrderFromLegacyColumns(
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   rawColumns: unknown,
 ) {
   const source = isRecord(rawColumns) ? rawColumns : {};
@@ -232,7 +270,7 @@ function visibleOrderFromLegacyColumns(
 }
 
 function normalizeColumns(
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   rawColumns: unknown,
 ): Record<HeatCalcColumnKey, HeatCalcColumnLayout> {
   const source = isRecord(rawColumns) ? rawColumns : {};
@@ -252,7 +290,7 @@ function normalizeColumns(
 }
 
 function normalizeTypeSettingsFromStructuredValue(
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   rawType: unknown,
 ): HeatCalcTableColumnTypeSettings {
   const defaults = defaultTypeSettings(type);
@@ -272,7 +310,7 @@ function normalizeTypeSettingsFromStructuredValue(
 }
 
 function normalizeTypeSettingsFromVisibleKeys(
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   keys: unknown,
 ): HeatCalcTableColumnTypeSettings {
   const fallback = defaultVisibleKeys(type);
@@ -282,7 +320,7 @@ function normalizeTypeSettingsFromVisibleKeys(
   };
 }
 
-export function getAvailableTableColumnKeys(type: HeatCalcObjectType) {
+export function getAvailableTableColumnKeys(type: HeatCalcTableColumnScope) {
   return HEATCALC_TABLE_COLUMN_CATALOG[type].map((column) => column.key);
 }
 
@@ -292,12 +330,13 @@ export function getDefaultTableColumnSettings(): HeatCalcTableColumnSettings {
     types: {
       pipe: defaultTypeSettings('pipe'),
       tank: defaultTypeSettings('tank'),
+      all: defaultTypeSettings('all'),
     },
   };
 }
 
 export function normalizeVisibleTableColumnKeys(
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   keys: unknown,
 ): HeatCalcColumnKey[] {
   const settings = normalizeTableColumnSettings({
@@ -315,11 +354,13 @@ export function normalizeTableColumnSettings(value: unknown): HeatCalcTableColum
   if (sourceTypes) {
     const pipe = isRecord(sourceTypes.pipe) ? sourceTypes.pipe : {};
     const tank = isRecord(sourceTypes.tank) ? sourceTypes.tank : {};
+    const all = isRecord(sourceTypes.all) ? sourceTypes.all : {};
     return {
       version: HEATCALC_TABLE_COLUMNS_VERSION,
       types: {
         pipe: normalizeTypeSettingsFromStructuredValue('pipe', pipe),
         tank: normalizeTypeSettingsFromStructuredValue('tank', tank),
+        all: normalizeTypeSettingsFromStructuredValue('all', all),
       },
     };
   }
@@ -330,16 +371,17 @@ export function normalizeTableColumnSettings(value: unknown): HeatCalcTableColum
     types: {
       pipe: normalizeTypeSettingsFromVisibleKeys('pipe', rawTable.pipe),
       tank: normalizeTypeSettingsFromVisibleKeys('tank', rawTable.tank),
+      all: normalizeTypeSettingsFromVisibleKeys('all', rawTable.all),
     },
   };
 }
 
-export function getTableColumnMeta(type: HeatCalcObjectType, key: HeatCalcColumnKey) {
+export function getTableColumnMeta(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey) {
   return HEATCALC_TABLE_COLUMN_CATALOG[type].find((column) => column.key === key) ?? null;
 }
 
 export function getAllTableColumnMetas(
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   settings: HeatCalcTableColumnSettings,
 ): HeatCalcResolvedColumnMeta[] {
   const normalized = normalizeTableColumnSettings(settings);
@@ -367,13 +409,13 @@ export function getAllTableColumnMetas(
 }
 
 export function getVisibleTableColumnMetas(
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   settings: HeatCalcTableColumnSettings,
 ) {
   return getAllTableColumnMetas(type, settings).filter((column) => column.visible);
 }
 
-export function getDefaultVisibleTableColumnKeys(type: HeatCalcObjectType) {
+export function getDefaultVisibleTableColumnKeys(type: HeatCalcTableColumnScope) {
   return getVisibleTableColumnMetas(type, getDefaultTableColumnSettings()).map((column) => column.key);
 }
 
@@ -435,7 +477,7 @@ export function clearRegisteredTableColumnCache(userId?: string | null) {
 
 export function setTableColumnVisibility(
   settings: HeatCalcTableColumnSettings,
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   key: HeatCalcColumnKey,
   visible: boolean,
 ) {
@@ -463,7 +505,7 @@ export function setTableColumnVisibility(
 
 export function setTableColumnWidthPct(
   settings: HeatCalcTableColumnSettings,
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   key: HeatCalcColumnKey,
   widthPct: number,
 ) {
@@ -489,7 +531,7 @@ export function setTableColumnWidthPct(
 
 export function resetTableColumnWidth(
   settings: HeatCalcTableColumnSettings,
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   key: HeatCalcColumnKey,
 ) {
   const column = getTableColumnMeta(type, key);
@@ -498,7 +540,7 @@ export function resetTableColumnWidth(
 
 export function moveTableColumnToOrder(
   settings: HeatCalcTableColumnSettings,
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   key: HeatCalcColumnKey,
   nextOrder: number,
 ) {
@@ -524,7 +566,7 @@ export function moveTableColumnToOrder(
 
 export function reorderTableColumn(
   settings: HeatCalcTableColumnSettings,
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   activeKey: HeatCalcColumnKey,
   overKey: HeatCalcColumnKey,
 ) {
@@ -535,7 +577,7 @@ export function reorderTableColumn(
 
 export function resetTableColumnTypeSettings(
   settings: HeatCalcTableColumnSettings,
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
 ) {
   const normalized = normalizeTableColumnSettings(settings);
   return normalizeTableColumnSettings({
@@ -549,7 +591,7 @@ export function resetTableColumnTypeSettings(
 
 export function createTableColumnSettingsPatch(
   settings: HeatCalcTableColumnSettings,
-  type: HeatCalcObjectType,
+  type: HeatCalcTableColumnScope,
   keys: HeatCalcColumnKey[],
 ) {
   const normalized = normalizeTableColumnSettings(settings);

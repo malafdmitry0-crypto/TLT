@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  HEATCALC_ALL_OBJECT_COLUMN_KEYS,
   HEATCALC_TABLE_COLUMNS_VERSION,
   HEATCALC_TABLE_COLUMN_CATALOG,
   getAllTableColumnMetas,
@@ -83,6 +84,25 @@ describe('heatCalcTableColumns', () => {
 
     expect(visible).not.toContain('type');
     expect(all).toContain('type');
+  });
+
+  it('создаёт отдельный общий набор колонок для режима «Все»', () => {
+    const settings = getDefaultTableColumnSettings();
+    const visible = getVisibleTableColumnMetas('all', settings).map((column) => column.key);
+    const all = getAllTableColumnMetas('all', settings).map((column) => column.key);
+
+    expect(visible).toEqual(HEATCALC_ALL_OBJECT_COLUMN_KEYS);
+    expect(all.slice(0, HEATCALC_ALL_OBJECT_COLUMN_KEYS.length)).toEqual(HEATCALC_ALL_OBJECT_COLUMN_KEYS);
+    expect(new Set(all).size).toBe(all.length);
+    expect(all).toEqual(expect.arrayContaining([
+      'pipe_dn',
+      'pipe_length',
+      'tank_shape',
+      'tank_dimensions',
+    ]));
+    expect(visible).toContain('type');
+    expect(visible).not.toContain('pipe_dn');
+    expect(visible).not.toContain('tank_shape');
   });
 
   it('хранит ширину в процентах и умеет сбрасывать её к дефолту', () => {

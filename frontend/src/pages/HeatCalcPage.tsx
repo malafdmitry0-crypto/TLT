@@ -68,8 +68,8 @@ import { formatNumber } from '@/utils/formatters';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 import { findDN } from '@/utils/objectWizardUtils';
 import {
-  HEATCALC_TABLE_COLUMN_CATALOG,
   HEATCALC_TABLE_COLUMN_PREF_KEY,
+  HEATCALC_TABLE_COLUMN_CATALOG,
   clampTableColumnWidthPct,
   clearRegisteredTableColumnCache,
   createTableColumnSettingsPatch,
@@ -86,13 +86,13 @@ import {
   setTableColumnVisibility,
   setTableColumnWidthPct,
   tableColumnWidthPxToPct,
-  tableColumnWidthPctToPx,
   writeGuestTableColumnSettings,
   writeRegisteredTableColumnCache,
   type HeatCalcColumnKey,
   type HeatCalcObjectType,
   type HeatCalcResolvedColumnMeta,
   type HeatCalcTableColumnSettings,
+  type HeatCalcTableColumnScope,
 } from '@/utils/heatCalcTableColumns';
 import {
   activeTableFilterCount,
@@ -146,34 +146,14 @@ type TableColumnRenderSpec = Pick<ColumnType<ProjectObject>, 'render' | 'ellipsi
 
 type HeatCalcFilterKind = 'text' | 'numberRange' | 'enum';
 const DEFAULT_OBJECT_QUERY_PAGE_SIZE = 50;
-const ALL_OBJECT_COLUMN_KEYS: HeatCalcColumnKey[] = [
-  'index',
-  'type',
-  'name',
-  'placement',
-  'insulation_layer_count',
-  'insulation_thickness',
-  'insulation_material',
-  'process_temperature',
-  'ambient_temperature',
-];
+const INAPPLICABLE_TABLE_VALUE = '—';
 
-function getAllObjectColumnMetas(settings: HeatCalcTableColumnSettings): HeatCalcResolvedColumnMeta[] {
-  const pipeSettings = settings.types.pipe;
-  return ALL_OBJECT_COLUMN_KEYS.reduce<HeatCalcResolvedColumnMeta[]>((columns, key, index) => {
-    const column = HEATCALC_TABLE_COLUMN_CATALOG.pipe.find((item) => item.key === key);
-    if (!column) return columns;
-    const widthPct = pipeSettings.columns[key]?.widthPct ?? column.defaultWidthPct;
-    columns.push({
-      ...column,
-      widthPct,
-      width: tableColumnWidthPctToPx(widthPct),
-      visible: true,
-      order: index + 1,
-    });
-    return columns;
-  }, []);
-}
+const PIPE_TABLE_COLUMN_KEYS = new Set<HeatCalcColumnKey>(
+  HEATCALC_TABLE_COLUMN_CATALOG.pipe.map((column) => column.key),
+);
+const TANK_TABLE_COLUMN_KEYS = new Set<HeatCalcColumnKey>(
+  HEATCALC_TABLE_COLUMN_CATALOG.tank.map((column) => column.key),
+);
 
 type TableColumnPreferenceMutation = {
   settings: HeatCalcTableColumnSettings;
@@ -266,6 +246,15 @@ function filterKindForColumn(
   if (NUMBER_FILTER_COLUMNS.has(key)) return 'numberRange';
   if (ENUM_FILTER_COLUMNS.has(key)) return 'enum';
   return 'text';
+}
+
+function isColumnApplicableToObjectType(
+  key: HeatCalcColumnKey,
+  objectType: ProjectObject['object_type'],
+) {
+  if (objectType === 'pipe') return PIPE_TABLE_COLUMN_KEYS.has(key);
+  if (objectType === 'tank') return TANK_TABLE_COLUMN_KEYS.has(key);
+  return false;
 }
 
 function backendFilterFromColumnFilter(
@@ -709,7 +698,7 @@ export default function HeatCalcPage() {
     return readGuestTableViewSettings();
   });
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
-  const [columnSettingsType, setColumnSettingsType] = useState<HeatCalcObjectType>('pipe');
+  const [columnSettingsType, setColumnSettingsType] = useState<HeatCalcTableColumnScope>('pipe');
   const [draftTableColumnSettings, setDraftTableColumnSettings] = useState<HeatCalcTableColumnSettings>(
     () => tableColumnSettings,
   );
@@ -755,6 +744,7 @@ export default function HeatCalcPage() {
   });
   const isAllObjectScope = activeObjectScope === 'all';
   const activeTableObjectType: HeatCalcObjectType = activeObjectScope === 'tank' ? 'tank' : 'pipe';
+  const activeTableColumnScope: HeatCalcTableColumnScope = isAllObjectScope ? 'all' : activeTableObjectType;
   const activeTableViewState = tableViewStateByType[activeTableObjectType];
   const activeTablePage = tablePageByScope[activeObjectScope];
 
@@ -1355,10 +1345,8 @@ export default function HeatCalcPage() {
   }), [dnValue, insulationLabel, outerDiameterMm]);
 
   const sourceColumnMetas = useMemo(
-    () => (isAllObjectScope
-      ? getAllObjectColumnMetas(tableColumnSettings)
-      : getVisibleTableColumnMetas(activeTableObjectType, tableColumnSettings)),
-    [activeTableObjectType, isAllObjectScope, tableColumnSettings],
+    () => getVisibleTableColumnMetas(activeTableColumnScope, tableColumnSettings),
+    [activeTableColumnScope, tableColumnSettings],
   );
   const resolvedTableFontSize = useMemo(
     () => resolveTableFontSize(tableViewSettings),
@@ -1756,7 +1744,7 @@ export default function HeatCalcPage() {
   }, [isRegisteredUser, registeredUserId, tableViewSettings, updateTableSettingsPreference]);
 
   const applyColumnWidth = useCallback((
-    type: HeatCalcObjectType,
+    type: HeatCalcTableColumnScope,
     key: HeatCalcColumnKey,
     widthPct: number,
   ) => {
@@ -1770,7 +1758,7 @@ export default function HeatCalcPage() {
   }, [persistTableColumnSettings]);
 
   const startColumnResize = useCallback((
-    type: HeatCalcObjectType,
+    type: HeatCalcTableColumnScope,
     meta: HeatCalcResolvedColumnMeta,
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => {
@@ -1822,7 +1810,7 @@ export default function HeatCalcPage() {
           <ResizableColumnTitle
             title={meta.title}
             label={meta.label}
-            onResizeStart={(event) => startColumnResize(activeTableObjectType, meta, event)}
+            onResizeStart={(event) => startColumnResize(activeTableColumnScope, meta, event)}
           />
         ),
         columnKey: meta.key,
@@ -1830,6 +1818,9 @@ export default function HeatCalcPage() {
         ellipsis: meta.ellipsis ?? renderer.ellipsis,
         align: renderer.align,
         render: (value: unknown, record: ProjectObject, index: number) => {
+          if (isAllObjectScope && !isColumnApplicableToObjectType(meta.key, record.object_type)) {
+            return <Text type="secondary">{INAPPLICABLE_TABLE_VALUE}</Text>;
+          }
           const draftRow = draftRowsById[record.id];
           const displayRecord = buildDraftDisplayRecord(draftRow, record);
           const content = renderer.render?.(value, displayRecord, index) as ReactNode;
@@ -1885,6 +1876,7 @@ export default function HeatCalcPage() {
     }),
     [
       activeInlineCell,
+      activeTableColumnScope,
       activeTableViewState,
       activeTableObjectType,
       columnRenderers,
@@ -1918,7 +1910,11 @@ export default function HeatCalcPage() {
         .filter(({ object }) => selectedRowKeys.includes(object.id));
       const header = sourceColumnMetas.map((meta) => meta.copyTitle ?? meta.title);
       const rows = selected.map(({ object, index }) =>
-        sourceColumnMetas.map((meta) => columnRenderers[meta.key].copyValue(object, index)),
+        sourceColumnMetas.map((meta) => (
+          isAllObjectScope && !isColumnApplicableToObjectType(meta.key, object.object_type)
+            ? INAPPLICABLE_TABLE_VALUE
+            : columnRenderers[meta.key].copyValue(object, index)
+        )),
       );
 
       copyToClipboard(buildTsv([header, ...rows])).then(() => {
@@ -1928,24 +1924,24 @@ export default function HeatCalcPage() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [columnRenderers, selectedRowKeys, sourceColumnMetas, visibleTableRows]);
+  }, [columnRenderers, isAllObjectScope, selectedRowKeys, sourceColumnMetas, visibleTableRows]);
 
   function openColumnSettings() {
-    setColumnSettingsType(activeTableObjectType);
+    setColumnSettingsType(activeTableColumnScope);
     setDraftTableColumnSettings(normalizeTableColumnSettings(tableColumnSettings));
     setDraftTableViewSettings(normalizeTableViewSettings(tableViewSettings));
     setColumnSettingsOpen(true);
   }
 
-  function updateDraftColumn(type: HeatCalcObjectType, key: HeatCalcColumnKey, checked: boolean) {
+  function updateDraftColumn(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey, checked: boolean) {
     setDraftTableColumnSettings((settings) => setTableColumnVisibility(settings, type, key, checked));
   }
 
-  function updateDraftColumnOrder(type: HeatCalcObjectType, key: HeatCalcColumnKey, order: number) {
+  function updateDraftColumnOrder(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey, order: number) {
     setDraftTableColumnSettings((settings) => moveTableColumnToOrder(settings, type, key, order));
   }
 
-  function updateDraftColumnWidth(type: HeatCalcObjectType, key: HeatCalcColumnKey, widthPct: number) {
+  function updateDraftColumnWidth(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey, widthPct: number) {
     setDraftTableColumnSettings((settings) => setTableColumnWidthPct(settings, type, key, widthPct));
   }
 
@@ -1960,7 +1956,7 @@ export default function HeatCalcPage() {
     }));
   }
 
-  function resetDraftColumnWidth(type: HeatCalcObjectType, key: HeatCalcColumnKey) {
+  function resetDraftColumnWidth(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey) {
     setDraftTableColumnSettings((settings) => resetTableColumnWidth(settings, type, key));
   }
 
@@ -1972,16 +1968,16 @@ export default function HeatCalcPage() {
     document.getElementById('inline-object-save')?.click();
   }
 
-  function reorderDraftColumn(type: HeatCalcObjectType, activeKey: HeatCalcColumnKey, overKey: HeatCalcColumnKey) {
+  function reorderDraftColumn(type: HeatCalcTableColumnScope, activeKey: HeatCalcColumnKey, overKey: HeatCalcColumnKey) {
     if (activeKey === overKey) return;
     setDraftTableColumnSettings((settings) => reorderTableColumn(settings, type, activeKey, overKey));
   }
 
-  function resetDraftColumns(type: HeatCalcObjectType) {
+  function resetDraftColumns(type: HeatCalcTableColumnScope) {
     setDraftTableColumnSettings((settings) => resetTableColumnTypeSettings(settings, type));
   }
 
-  function selectAllDraftColumns(type: HeatCalcObjectType) {
+  function selectAllDraftColumns(type: HeatCalcTableColumnScope) {
     setDraftTableColumnSettings((settings) =>
       createTableColumnSettingsPatch(settings, type, getAvailableTableColumnKeys(type)),
     );
