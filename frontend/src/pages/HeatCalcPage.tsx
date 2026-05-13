@@ -6,7 +6,9 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import {
@@ -787,6 +789,12 @@ export default function HeatCalcPage() {
     }
     return readGuestTableViewSettings();
   });
+  const tableViewSettingsRef = useRef(tableViewSettings);
+  const sideWorkspaceRef = useRef<HTMLDivElement | null>(null);
+  const sideResizeStateRef = useRef<{
+    placement: Extract<HeatCalcFormPlacement, 'left' | 'right'>;
+    rect: DOMRect;
+  } | null>(null);
   const [calculationDetailsSettings, setCalculationDetailsSettings] =
     useState<HeatCalcCalculationDetailsSettings>(() => {
       const auth = useAuthStore.getState();
@@ -828,6 +836,10 @@ export default function HeatCalcPage() {
   useEffect(() => {
     tableColumnSettingsRef.current = tableColumnSettings;
   }, [tableColumnSettings]);
+
+  useEffect(() => {
+    tableViewSettingsRef.current = tableViewSettings;
+  }, [tableViewSettings]);
 
   useEffect(() => {
     setWorkspaceHeaderContext(null);
@@ -972,6 +984,7 @@ export default function HeatCalcPage() {
       }
       if (viewPreference) {
         const normalizedView = normalizeTableViewSettings(viewPreference.value);
+        tableViewSettingsRef.current = normalizedView;
         setTableViewSettings(normalizedView);
         if (viewPreference.user_id) {
           writeRegisteredTableViewCache(viewPreference.user_id, normalizedView);
@@ -996,6 +1009,25 @@ export default function HeatCalcPage() {
     },
     onError: (error) => {
       antdMessage.error(error instanceof Error ? error.message : 'Не удалось сохранить настройки таблицы');
+    },
+  });
+
+  const updateTableViewPreference = useMutation({
+    mutationFn: (settings: HeatCalcTableViewSettings) =>
+      updateUserPreference<HeatCalcTableViewSettings>(
+        HEATCALC_TABLE_VIEW_PREF_KEY,
+        normalizeTableViewSettings(settings),
+      ),
+    onSuccess: (preference) => {
+      const normalizedView = normalizeTableViewSettings(preference.value);
+      tableViewSettingsRef.current = normalizedView;
+      setTableViewSettings(normalizedView);
+      if (preference.user_id) {
+        writeRegisteredTableViewCache(preference.user_id, normalizedView);
+      }
+    },
+    onError: (error) => {
+      antdMessage.error(error instanceof Error ? error.message : 'Не удалось сохранить настройки отображения');
     },
   });
 
@@ -1038,12 +1070,13 @@ export default function HeatCalcPage() {
 
   useEffect(() => {
     if (isRegisteredUser) {
+      const registeredTableViewSettings =
+        readRegisteredTableViewCache(registeredUserId) ?? getDefaultTableViewSettings();
       setTableColumnSettings(
         readRegisteredTableColumnCache(registeredUserId) ?? getDefaultTableColumnSettings(),
       );
-      setTableViewSettings(
-        readRegisteredTableViewCache(registeredUserId) ?? getDefaultTableViewSettings(),
-      );
+      tableViewSettingsRef.current = registeredTableViewSettings;
+      setTableViewSettings(registeredTableViewSettings);
       setCalculationDetailsSettings(
         readRegisteredCalculationDetailsCache(registeredUserId) ?? getDefaultCalculationDetailsSettings(),
       );
@@ -1052,8 +1085,10 @@ export default function HeatCalcPage() {
       );
       return;
     }
+    const guestTableViewSettings = readGuestTableViewSettings();
     setTableColumnSettings(readGuestTableColumnSettings());
-    setTableViewSettings(readGuestTableViewSettings());
+    tableViewSettingsRef.current = guestTableViewSettings;
+    setTableViewSettings(guestTableViewSettings);
     setCalculationDetailsSettings(readGuestCalculationDetailsSettings());
     setFieldInputSettings(readGuestFieldInputSettings());
   }, [isRegisteredUser, registeredUserId]);
@@ -1076,6 +1111,7 @@ export default function HeatCalcPage() {
     if (!isRegisteredUser || !persistedTableViewPreference) return;
     if (persistedTableViewPreference.value) {
       const normalized = normalizeTableViewSettings(persistedTableViewPreference.value);
+      tableViewSettingsRef.current = normalized;
       setTableViewSettings(normalized);
       if (persistedTableViewPreference.user_id) {
         writeRegisteredTableViewCache(persistedTableViewPreference.user_id, normalized);
@@ -1083,7 +1119,9 @@ export default function HeatCalcPage() {
       return;
     }
     clearRegisteredTableViewCache(registeredUserId ?? persistedTableViewPreference.user_id);
-    setTableViewSettings(getDefaultTableViewSettings());
+    const defaults = getDefaultTableViewSettings();
+    tableViewSettingsRef.current = defaults;
+    setTableViewSettings(defaults);
   }, [isRegisteredUser, persistedTableViewPreference, registeredUserId]);
 
   useEffect(() => {
@@ -1166,8 +1204,8 @@ export default function HeatCalcPage() {
   };
   const { add, edit, remove } = useHeatCalcMutations(
     project?.id,
-    handleObjectSaved,
-    handleObjectSaved,
+    handleObjectAdded,
+    handleObjectEdited,
     closeWizard,
   );
 
@@ -1242,9 +1280,15 @@ export default function HeatCalcPage() {
     }
   }
 
-  function handleObjectSaved(obj: ProjectObject) {
+  function handleObjectAdded(obj: ProjectObject) {
     setLastSavedObject(obj);
     openNewObjectMode(obj);
+  }
+
+  function handleObjectEdited(obj: ProjectObject) {
+    setLastSavedObject(obj);
+    if (obj.object_type !== 'pipe' && obj.object_type !== 'tank') return;
+    setWizardState({ type: obj.object_type, editingObject: obj });
   }
 
   const selectedRowId = wizardState?.editingObject?.id;
@@ -1651,6 +1695,7 @@ export default function HeatCalcPage() {
     [normalizedTableView],
   );
   const formPlacement = normalizedTableView.formPlacement;
+  const sideFormWidthPct = normalizedTableView.sideFormWidthPct;
   const fieldCapabilityByKey = useMemo(
     () => new Map(objectQueryCapabilities?.fields.map((field) => [field.key, field]) ?? []),
     [objectQueryCapabilities],
@@ -2088,12 +2133,14 @@ export default function HeatCalcPage() {
     const currentFieldInputs = normalizeFieldInputSettings(fieldInputSettings);
     const viewChanged = normalizedView.fontSize !== currentView.fontSize
       || normalizedView.inlineEditingEnabled !== currentView.inlineEditingEnabled
-      || normalizedView.formPlacement !== currentView.formPlacement;
+      || normalizedView.formPlacement !== currentView.formPlacement
+      || normalizedView.sideFormWidthPct !== currentView.sideFormWidthPct;
     const detailsChanged = normalizedDetails.preset !== currentDetails.preset
       || normalizedDetails.visibleMetrics.length !== currentDetails.visibleMetrics.length
       || normalizedDetails.visibleMetrics.some((metric) => !currentDetails.visibleMetrics.includes(metric));
     const fieldInputsChanged = !areFieldInputSettingsEqual(normalizedFieldInputs, currentFieldInputs);
     setTableColumnSettings(normalizedColumns);
+    tableViewSettingsRef.current = normalizedView;
     setTableViewSettings(normalizedView);
     setCalculationDetailsSettings(normalizedDetails);
     setFieldInputSettings(normalizedFieldInputs);
@@ -2142,6 +2189,107 @@ export default function HeatCalcPage() {
     registeredUserId,
     tableViewSettings,
     updateTableSettingsPreference,
+  ]);
+
+  const persistTableViewOnly = useCallback((viewSettings: HeatCalcTableViewSettings) => {
+    const normalizedView = normalizeTableViewSettings(viewSettings);
+    tableViewSettingsRef.current = normalizedView;
+    setTableViewSettings(normalizedView);
+    if (isRegisteredUser) {
+      clearRegisteredTableViewCache(registeredUserId);
+      updateTableViewPreference.mutate(normalizedView);
+      return;
+    }
+    if (isDefaultTableViewSettings(normalizedView)) {
+      clearGuestTableViewSettings();
+    } else {
+      writeGuestTableViewSettings(normalizedView);
+    }
+  }, [isRegisteredUser, registeredUserId, updateTableViewPreference]);
+
+  const applySideFormWidthPct = useCallback((widthPct: number) => {
+    const normalizedView = normalizeTableViewSettings({
+      ...tableViewSettingsRef.current,
+      sideFormWidthPct: widthPct,
+    });
+    tableViewSettingsRef.current = normalizedView;
+    setTableViewSettings(normalizedView);
+    return normalizedView;
+  }, []);
+
+  const sideFormWidthPctFromClientX = useCallback((clientX: number) => {
+    const state = sideResizeStateRef.current;
+    if (!state || state.rect.width <= 0) return null;
+    const rawWidthPct = state.placement === 'left'
+      ? ((clientX - state.rect.left) / state.rect.width) * 100
+      : ((state.rect.right - clientX) / state.rect.width) * 100;
+    return normalizeTableViewSettings({
+      ...tableViewSettingsRef.current,
+      sideFormWidthPct: rawWidthPct,
+    }).sideFormWidthPct;
+  }, []);
+
+  const startSideFormResizeDrag = useCallback((
+    moveEventName: 'pointermove' | 'mousemove',
+    upEventName: 'pointerup' | 'mouseup',
+    cancelEventName?: 'pointercancel',
+  ) => {
+    if (formPlacement !== 'left' && formPlacement !== 'right') return;
+    const rect = sideWorkspaceRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return;
+    sideResizeStateRef.current = { placement: formPlacement, rect };
+    document.body.classList.add('heatcalc-side-resizing');
+
+    const finishResize = (resizeEvent?: PointerEvent | MouseEvent) => {
+      window.removeEventListener(moveEventName, handlePointerMove as EventListener);
+      window.removeEventListener(upEventName, handlePointerUp as EventListener);
+      if (cancelEventName) window.removeEventListener(cancelEventName, handlePointerCancel as EventListener);
+      document.body.classList.remove('heatcalc-side-resizing');
+      const finalWidthPct = resizeEvent
+        ? sideFormWidthPctFromClientX(resizeEvent.clientX)
+        : tableViewSettingsRef.current.sideFormWidthPct;
+      sideResizeStateRef.current = null;
+      const normalizedView = applySideFormWidthPct(finalWidthPct ?? tableViewSettingsRef.current.sideFormWidthPct);
+      persistTableViewOnly(normalizedView);
+    };
+
+    function handlePointerMove(resizeEvent: PointerEvent | MouseEvent) {
+      const nextWidthPct = sideFormWidthPctFromClientX(resizeEvent.clientX);
+      if (nextWidthPct == null) return;
+      applySideFormWidthPct(nextWidthPct);
+    }
+
+    function handlePointerUp(resizeEvent: PointerEvent | MouseEvent) {
+      finishResize(resizeEvent);
+    }
+
+    function handlePointerCancel() {
+      finishResize();
+    }
+
+    window.addEventListener(moveEventName, handlePointerMove as EventListener);
+    window.addEventListener(upEventName, handlePointerUp as EventListener);
+    if (cancelEventName) window.addEventListener(cancelEventName, handlePointerCancel as EventListener);
+  }, [
+    applySideFormWidthPct,
+    formPlacement,
+    persistTableViewOnly,
+    sideFormWidthPctFromClientX,
+  ]);
+
+  const startSideFormResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    startSideFormResizeDrag('pointermove', 'pointerup', 'pointercancel');
+  }, [startSideFormResizeDrag]);
+
+  const startSideFormMouseResize = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    startSideFormResizeDrag('mousemove', 'mouseup');
+  }, [
+    startSideFormResizeDrag,
   ]);
 
   const applyColumnWidth = useCallback((
@@ -2301,7 +2449,7 @@ export default function HeatCalcPage() {
     [sourceColumnMetas],
   );
   const tableScrollY = formPlacement === 'left' || formPlacement === 'right'
-    ? 'max(320px, calc(100vh - 255px))'
+    ? 'max(320px, calc(100vh - 190px))'
     : 'max(320px, calc(100vh - 430px))';
 
   useEffect(() => {
@@ -2481,6 +2629,214 @@ export default function HeatCalcPage() {
     );
   }
 
+  function renderTypeBar() {
+    return (
+      <div className="actionbar-srs actionbar-type-row" role="toolbar" aria-label="Тип объекта и блок параметров">
+        <div className="actionbar-group actionbar-type-group" aria-label="Тип объекта">
+          <Button
+            className="action-type-button"
+            type={activeObjectScope === 'pipe' ? 'primary' : 'default'}
+            icon={<PipeTypeIcon />}
+            aria-label={`Трубопровод: ${pipeButtonCountText}`}
+            aria-pressed={activeObjectScope === 'pipe'}
+            onClick={() => handleObjectScopeChange('pipe')}
+          >
+            Трубопровод: <strong className="action-type-count">{pipeButtonCountText}</strong>
+          </Button>
+          <Button
+            className="action-type-button"
+            type={activeObjectScope === 'tank' ? 'primary' : 'default'}
+            icon={<TankTypeIcon />}
+            aria-label={`Резервуар: ${tankButtonCountText}`}
+            aria-pressed={activeObjectScope === 'tank'}
+            onClick={() => handleObjectScopeChange('tank')}
+          >
+            Резервуар: <strong className="action-type-count">{tankButtonCountText}</strong>
+          </Button>
+          <Button
+            className="action-type-button"
+            type={activeObjectScope === 'all' ? 'primary' : 'default'}
+            icon={<AppstoreOutlined />}
+            aria-label={`Все: ${allButtonCountText}`}
+            aria-pressed={activeObjectScope === 'all'}
+            onClick={() => handleObjectScopeChange('all')}
+          >
+            Все: <strong className="action-type-count">{allButtonCountText}</strong>
+          </Button>
+        </div>
+
+        <div className="actionbar-group actionbar-form-state-group">
+          {formBlockVisible && (
+            <Tag className={`actionbar-mode-tag ${formCaptionMode}`}>
+              {formCaptionModeLabel}
+            </Tag>
+          )}
+          <Checkbox
+            className="actionbar-form-toggle"
+            checked={formBlockVisible}
+            onChange={(event) => handleFormBlockVisibilityChange(event.target.checked)}
+          >
+            Показать блок заполнения параметров
+          </Checkbox>
+        </div>
+      </div>
+    );
+  }
+
+  function renderActionsBar() {
+    return (
+      <div className="actionbar-srs actionbar-actions-row">
+        {formBlockVisible && (
+          <div className="actionbar-form-actions-row" role="toolbar" aria-label="Действия блока заполнения">
+            <div className="actionbar-group actionbar-form-actions-group">
+              <Button
+                type="primary"
+                className="action-add-button"
+                icon={<PlusOutlined />}
+                aria-label="Добавить"
+                onClick={() => openAddWizard()}
+              >
+                Добавить
+              </Button>
+
+              <Tooltip title={toolbarSaveTooltip}>
+                <span className="action-tooltip-wrap">
+                  <Button
+                    className="action-save-button save"
+                    icon={<SaveOutlined />}
+                    aria-label="Сохранить"
+                    disabled={toolbarSaveDisabled}
+                    loading={toolbarSaveLoading}
+                    onClick={handleToolbarSave}
+                  >
+                    Сохранить
+                  </Button>
+                </span>
+              </Tooltip>
+              <Popconfirm
+                title={selectedObjectCount > 1 ? 'Удалить выбранные объекты?' : 'Удалить выбранный объект?'}
+                okText="Удалить"
+                cancelText="Отмена"
+                disabled={selectedObjectCount === 0}
+                onConfirm={removeSelectedObjects}
+              >
+                <Button
+                  danger
+                  className="action-secondary-button"
+                  icon={<DeleteOutlined />}
+                  aria-label="Удалить выбранные"
+                  loading={remove.isPending}
+                  disabled={selectedObjectCount === 0}
+                >
+                  Удалить
+                </Button>
+              </Popconfirm>
+            </div>
+          </div>
+        )}
+
+        <div className="actionbar-table-actions-row" role="toolbar" aria-label="Действия таблицы объектов">
+          <div className="actionbar-group actionbar-table-actions-group">
+            <Button
+              className="action-secondary-button"
+              icon={<TableOutlined />}
+              aria-label="Настройки отображения"
+              onClick={openColumnSettings}
+            >
+              Настройки отображения
+            </Button>
+            {currentTableViewActive && (
+              <Tooltip
+                title={`Показано ${filteredTableCount} из ${activeTypeTotalCount}. Активных фильтров: ${currentActiveFilterCount}`}
+              >
+                <Tag color="blue" className="table-filter-status-tag">
+                  {filteredTableCount}/{activeTypeTotalCount}
+                </Tag>
+              </Tooltip>
+            )}
+            <Tooltip title={currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
+              <span className="action-tooltip-wrap">
+                <Button
+                  className="action-secondary-button"
+                  icon={<CloseCircleOutlined />}
+                  aria-label="Сбросить фильтры таблицы"
+                  disabled={!currentTableViewActive}
+                  onClick={resetCurrentTableViewState}
+                >
+                  Сбросить фильтры
+                </Button>
+              </span>
+            </Tooltip>
+            {draftControlsVisible && (
+              <>
+                <Tag color={dirtyDraftRowCount > 0 ? 'gold' : 'default'} className="inline-draft-status-tag">
+                  Несохранено: {dirtyDraftRowCount}
+                </Tag>
+                <Button
+                  size="small"
+                  disabled={saveTargetCount === 0 || inlineDraftSaving}
+                  onClick={() => discardDraftRows(saveTargetIds)}
+                >
+                  {draftDiscardLabel}
+                </Button>
+              </>
+            )}
+            <Tooltip
+              title={
+                selectedObjectCount > 0
+                  ? `Добавить копии выбранных объектов: ${selectedObjectCount}`
+                  : 'Выберите галочками один или несколько объектов для копирования'
+              }
+            >
+              <span className="action-tooltip-wrap">
+                <Button
+                  className="action-secondary-button"
+                  icon={<CopyOutlined />}
+                  aria-label="Добавить копии выбранных"
+                  disabled={selectedObjectCount === 0 || add.isPending}
+                  loading={add.isPending}
+                  onClick={duplicateSelectedObjects}
+                >
+                  Добавить копии выбранных
+                </Button>
+              </span>
+            </Tooltip>
+            <ImportExcelButton projectId={project!.id} />
+            {role === 'employee' && (
+              <ExportObjectsButton
+                projectId={project!.id}
+                projectName={project!.name}
+                disabled={projectObjectCount === 0}
+              />
+            )}
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
+  const isSideFormPlacement = formPlacement === 'left' || formPlacement === 'right';
+  const sideResizeVisible = isSideFormPlacement && formBlockVisible;
+  const workspaceLayoutStyle = isSideFormPlacement
+    ? ({ '--heatcalc-side-form-width': `${sideFormWidthPct}%` } as CSSProperties)
+    : undefined;
+
+  function renderSideResizeHandle() {
+    if (!sideResizeVisible) return null;
+    return (
+      <div
+        className="heatcalc-side-resize-handle"
+        role="separator"
+        aria-label="Изменить ширину областей"
+        aria-orientation="vertical"
+        tabIndex={0}
+        onPointerDown={startSideFormResize}
+        onMouseDown={startSideFormMouseResize}
+      />
+    );
+  }
+
   const formPanel = renderFormPanel();
 
   if (!project) {
@@ -2496,190 +2852,22 @@ export default function HeatCalcPage() {
   return (
     <>
       <Space direction="vertical" size={5} style={{ width: '100%' }}>
-        <div className="actionbar-srs actionbar-type-row" role="toolbar" aria-label="Тип объекта и блок параметров">
-          <div className="actionbar-group actionbar-type-group" aria-label="Тип объекта">
-            <Button
-              className="action-type-button"
-              type={activeObjectScope === 'pipe' ? 'primary' : 'default'}
-              icon={<PipeTypeIcon />}
-              aria-label={`Трубопровод: ${pipeButtonCountText}`}
-              aria-pressed={activeObjectScope === 'pipe'}
-              onClick={() => handleObjectScopeChange('pipe')}
-            >
-              Трубопровод: <strong className="action-type-count">{pipeButtonCountText}</strong>
-            </Button>
-            <Button
-              className="action-type-button"
-              type={activeObjectScope === 'tank' ? 'primary' : 'default'}
-              icon={<TankTypeIcon />}
-              aria-label={`Резервуар: ${tankButtonCountText}`}
-              aria-pressed={activeObjectScope === 'tank'}
-              onClick={() => handleObjectScopeChange('tank')}
-            >
-              Резервуар: <strong className="action-type-count">{tankButtonCountText}</strong>
-            </Button>
-            <Button
-              className="action-type-button"
-              type={activeObjectScope === 'all' ? 'primary' : 'default'}
-              icon={<AppstoreOutlined />}
-              aria-label={`Все: ${allButtonCountText}`}
-              aria-pressed={activeObjectScope === 'all'}
-              onClick={() => handleObjectScopeChange('all')}
-            >
-              Все: <strong className="action-type-count">{allButtonCountText}</strong>
-            </Button>
-          </div>
-
-          <div className="actionbar-group actionbar-form-state-group">
-            {formBlockVisible && (
-              <Tag className={`actionbar-mode-tag ${formCaptionMode}`}>
-                {formCaptionModeLabel}
-              </Tag>
-            )}
-            <Checkbox
-              className="actionbar-form-toggle"
-              checked={formBlockVisible}
-              onChange={(event) => handleFormBlockVisibilityChange(event.target.checked)}
-            >
-              Показать блок заполнения параметров
-            </Checkbox>
-          </div>
-        </div>
+        {!isSideFormPlacement && renderTypeBar()}
 
         {formPlacement === 'top' && formPanel}
 
-        <div className="actionbar-srs actionbar-actions-row">
-          {formBlockVisible && (
-            <div className="actionbar-form-actions-row" role="toolbar" aria-label="Действия блока заполнения">
-              <div className="actionbar-group actionbar-form-actions-group">
-                <Button
-                  type="primary"
-                  className="action-add-button"
-                  icon={<PlusOutlined />}
-                  aria-label="Добавить"
-                  onClick={() => openAddWizard()}
-                >
-                  Добавить
-                </Button>
+        {!isSideFormPlacement && renderActionsBar()}
 
-                <Tooltip title={toolbarSaveTooltip}>
-                  <span className="action-tooltip-wrap">
-                    <Button
-                      className="action-save-button save"
-                      icon={<SaveOutlined />}
-                      aria-label="Сохранить"
-                      disabled={toolbarSaveDisabled}
-                      loading={toolbarSaveLoading}
-                      onClick={handleToolbarSave}
-                    >
-                      Сохранить
-                    </Button>
-                  </span>
-                </Tooltip>
-                <Popconfirm
-                  title={selectedObjectCount > 1 ? 'Удалить выбранные объекты?' : 'Удалить выбранный объект?'}
-                  okText="Удалить"
-                  cancelText="Отмена"
-                  disabled={selectedObjectCount === 0}
-                  onConfirm={removeSelectedObjects}
-                >
-                  <Button
-                    danger
-                    className="action-secondary-button"
-                    icon={<DeleteOutlined />}
-                    aria-label="Удалить выбранные"
-                    loading={remove.isPending}
-                    disabled={selectedObjectCount === 0}
-                  >
-                    Удалить
-                  </Button>
-                </Popconfirm>
-              </div>
-            </div>
-          )}
-
-          <div className="actionbar-table-actions-row" role="toolbar" aria-label="Действия таблицы объектов">
-            <div className="actionbar-group actionbar-table-actions-group">
-              <Button
-                className="action-secondary-button"
-                icon={<TableOutlined />}
-                aria-label="Настройки отображения"
-                onClick={openColumnSettings}
-              >
-                Настройки отображения
-              </Button>
-              {currentTableViewActive && (
-                <Tooltip
-                  title={`Показано ${filteredTableCount} из ${activeTypeTotalCount}. Активных фильтров: ${currentActiveFilterCount}`}
-                >
-                  <Tag color="blue" className="table-filter-status-tag">
-                    {filteredTableCount}/{activeTypeTotalCount}
-                  </Tag>
-                </Tooltip>
-              )}
-              <Tooltip title={currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
-                <span className="action-tooltip-wrap">
-                  <Button
-                    className="action-secondary-button"
-                    icon={<CloseCircleOutlined />}
-                    aria-label="Сбросить фильтры таблицы"
-                    disabled={!currentTableViewActive}
-                    onClick={resetCurrentTableViewState}
-                  >
-                    Сбросить фильтры
-                  </Button>
-                </span>
-              </Tooltip>
-              {draftControlsVisible && (
-                <>
-                  <Tag color={dirtyDraftRowCount > 0 ? 'gold' : 'default'} className="inline-draft-status-tag">
-                    Несохранено: {dirtyDraftRowCount}
-                  </Tag>
-                  <Button
-                    size="small"
-                    disabled={saveTargetCount === 0 || inlineDraftSaving}
-                    onClick={() => discardDraftRows(saveTargetIds)}
-                  >
-                    {draftDiscardLabel}
-                  </Button>
-                </>
-              )}
-              <Tooltip
-                title={
-                  selectedObjectCount > 0
-                    ? `Добавить копии выбранных объектов: ${selectedObjectCount}`
-                    : 'Выберите галочками один или несколько объектов для копирования'
-                }
-              >
-                <span className="action-tooltip-wrap">
-                  <Button
-                    className="action-secondary-button"
-                    icon={<CopyOutlined />}
-                    aria-label="Добавить копии выбранных"
-                    disabled={selectedObjectCount === 0 || add.isPending}
-                    loading={add.isPending}
-                    onClick={duplicateSelectedObjects}
-                  >
-                    Добавить копии выбранных
-                  </Button>
-                </span>
-              </Tooltip>
-              <ImportExcelButton projectId={project.id} />
-              {role === 'employee' && (
-                <ExportObjectsButton
-                  projectId={project.id}
-                  projectName={project.name}
-                  disabled={projectObjectCount === 0}
-                />
-              )}
-            </div>
-
-          </div>
-        </div>
-
-        <div className={`heatcalc-workspace-layout heatcalc-workspace-layout--${formPlacement}`}>
+        <div
+          ref={sideWorkspaceRef}
+          className={`heatcalc-workspace-layout heatcalc-workspace-layout--${formPlacement}`}
+          style={workspaceLayoutStyle}
+        >
           {formPlacement === 'left' && formPanel}
+          {formPlacement === 'left' && renderSideResizeHandle()}
           <div className="heatcalc-table-pane">
+            {isSideFormPlacement && renderTypeBar()}
+            {isSideFormPlacement && renderActionsBar()}
             {renderAssumptionsPanel()}
 
             <Card size="small" className="workspace-table-card srs-table-wrap">
@@ -2745,6 +2933,7 @@ export default function HeatCalcPage() {
             />
           </Card>
         </div>
+        {formPlacement === 'right' && renderSideResizeHandle()}
         {formPlacement === 'right' && formPanel}
       </div>
       {formPlacement === 'bottom' && formPanel}
@@ -2759,7 +2948,11 @@ export default function HeatCalcPage() {
             draftViewSettings={draftTableViewSettings}
             draftCalculationDetailsSettings={draftCalculationDetailsSettings}
             draftFieldInputSettings={draftFieldInputSettings}
-            confirmLoading={updateTableColumnPreference.isPending || updateTableSettingsPreference.isPending}
+            confirmLoading={
+              updateTableColumnPreference.isPending
+              || updateTableSettingsPreference.isPending
+              || updateTableViewPreference.isPending
+            }
             onTypeChange={setColumnSettingsType}
             onOk={applyColumnSettings}
             onCancel={() => setColumnSettingsOpen(false)}

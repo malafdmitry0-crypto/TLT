@@ -22,6 +22,7 @@ describe('heatCalcTableViewSettings', () => {
       fontSize: 'standard',
       inlineEditingEnabled: false,
       formPlacement: 'top',
+      sideFormWidthPct: 34,
     });
     expect(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY)).toBeNull();
   });
@@ -34,10 +35,21 @@ describe('heatCalcTableViewSettings', () => {
       lineHeight: 3,
       inlineEditingEnabled: true,
       formPlacement: 'left',
-    })).toEqual({ version: 1, fontSize: 'large', inlineEditingEnabled: true, formPlacement: 'left' });
+      sideFormWidthPct: 42.25,
+    })).toEqual({
+      version: 1,
+      fontSize: 'large',
+      inlineEditingEnabled: true,
+      formPlacement: 'left',
+      sideFormWidthPct: 42.3,
+    });
     expect(normalizeTableViewSettings({ version: 1, fontSize: 'huge' })).toEqual(
       getDefaultTableViewSettings(),
     );
+    expect(normalizeTableViewSettings({
+      version: 1,
+      sideFormWidthPct: 80,
+    })).toMatchObject({ sideFormWidthPct: 62 });
   });
 
   it('writes guest settings only after explicit user change', () => {
@@ -46,6 +58,7 @@ describe('heatCalcTableViewSettings', () => {
       fontSize: 'compact',
       inlineEditingEnabled: false,
       formPlacement: 'bottom',
+      sideFormWidthPct: 44,
     });
 
     expect(JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}')).toEqual({
@@ -53,6 +66,7 @@ describe('heatCalcTableViewSettings', () => {
       fontSize: 'compact',
       inlineEditingEnabled: false,
       formPlacement: 'bottom',
+      sideFormWidthPct: 44,
     });
   });
 
@@ -62,6 +76,7 @@ describe('heatCalcTableViewSettings', () => {
       fontSize: 'comfortable',
       inlineEditingEnabled: false,
       formPlacement: 'right',
+      sideFormWidthPct: 52,
     });
 
     expect(readRegisteredTableViewCache('user-1')).toEqual({
@@ -69,6 +84,7 @@ describe('heatCalcTableViewSettings', () => {
       fontSize: 'comfortable',
       inlineEditingEnabled: false,
       formPlacement: 'right',
+      sideFormWidthPct: 52,
     });
     expect(readRegisteredTableViewCache('user-2')).toBeNull();
     expect(JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY) ?? '{}')).toHaveProperty(
@@ -82,6 +98,7 @@ describe('heatCalcTableViewSettings', () => {
       fontSize: 'large',
       inlineEditingEnabled: false,
       formPlacement: 'top',
+      sideFormWidthPct: 34,
     })).toMatchObject({
       key: 'large',
       label: 'Крупный',

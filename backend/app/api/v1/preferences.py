@@ -20,9 +20,17 @@ HEATCALC_TABLE_COLUMN_WIDTH_MAX = 60
 HEATCALC_TABLE_COLUMN_LAYOUT_KEYS = {"widthPct"}
 HEATCALC_TABLE_VIEW_PREF_KEY = "heatcalc.tableView.v1"
 HEATCALC_TABLE_VIEW_VERSION = 1
-HEATCALC_TABLE_VIEW_KEYS = {"version", "fontSize", "inlineEditingEnabled", "formPlacement"}
+HEATCALC_TABLE_VIEW_KEYS = {
+    "version",
+    "fontSize",
+    "inlineEditingEnabled",
+    "formPlacement",
+    "sideFormWidthPct",
+}
 HEATCALC_TABLE_VIEW_FONT_SIZES = {"compact", "standard", "comfortable", "large"}
 HEATCALC_TABLE_VIEW_FORM_PLACEMENTS = {"top", "bottom", "left", "right"}
+HEATCALC_TABLE_VIEW_SIDE_FORM_WIDTH_MIN = 22
+HEATCALC_TABLE_VIEW_SIDE_FORM_WIDTH_MAX = 62
 HEATCALC_FIELD_INPUT_PREF_KEY = "heatcalc.fieldInputs.v1"
 HEATCALC_FIELD_INPUT_VERSION = 1
 HEATCALC_FIELD_INPUT_MAX_STEP = 1_000_000
@@ -247,7 +255,7 @@ def _validate_heatcalc_table_columns(value: dict[str, object]) -> None:
 def _validate_heatcalc_table_view(value: dict[str, object]) -> None:
     if set(value) - HEATCALC_TABLE_VIEW_KEYS:
         _preference_validation_error(
-            "HeatCalc table view payload can contain only version, fontSize, inlineEditingEnabled and formPlacement"
+            "HeatCalc table view payload can contain only version, fontSize, inlineEditingEnabled, formPlacement and sideFormWidthPct"
         )
     if value.get("version") != HEATCALC_TABLE_VIEW_VERSION:
         _preference_validation_error("Unsupported heatcalc table view settings version")
@@ -257,6 +265,16 @@ def _validate_heatcalc_table_view(value: dict[str, object]) -> None:
         _preference_validation_error("HeatCalc table view inlineEditingEnabled must be boolean")
     if value.get("formPlacement") not in HEATCALC_TABLE_VIEW_FORM_PLACEMENTS:
         _preference_validation_error("HeatCalc table view formPlacement is unsupported")
+    if "sideFormWidthPct" in value:
+        side_form_width = value["sideFormWidthPct"]
+        if isinstance(side_form_width, bool) or not isinstance(side_form_width, int | float):
+            _preference_validation_error("HeatCalc table view sideFormWidthPct must be numeric")
+        if not (
+            HEATCALC_TABLE_VIEW_SIDE_FORM_WIDTH_MIN
+            <= side_form_width
+            <= HEATCALC_TABLE_VIEW_SIDE_FORM_WIDTH_MAX
+        ):
+            _preference_validation_error("HeatCalc table view sideFormWidthPct is out of range")
 
 
 def _validate_heatcalc_field_inputs(value: dict[str, object]) -> None:

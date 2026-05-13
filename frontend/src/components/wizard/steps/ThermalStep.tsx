@@ -45,6 +45,24 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
   return (
     <>
       <Form.Item
+        className="fixed-select-form-item reduced-select-form-item helped-form-item"
+        label={fieldLabel('Материал изоляции')}
+        name="insulation_material"
+        rules={[{ required: true, message: 'Выберите материал изоляции' }]}
+      >
+        {withHelp(
+          <Select
+            data-testid="insulation-material-select"
+            options={materialOptions}
+            placeholder="Выберите материал"
+            loading={isFetching}
+            notFoundContent={isError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
+          />,
+          'Материал основного слоя изоляции. Значение используется для выбора теплопроводности и расчёта теплопотерь.',
+        )}
+      </Form.Item>
+
+      <Form.Item
         className="numeric-form-item short-number-form-item helped-form-item"
         label={fieldLabel('Толщина изоляции')}
         name="insulation_thickness_mm"
@@ -82,24 +100,6 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
             addonAfter="Вт/мК"
           />,
           'Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Для материала «Другое» вводится вручную: 0,001…400.',
-        )}
-      </Form.Item>
-
-      <Form.Item
-        className="fixed-select-form-item reduced-select-form-item helped-form-item"
-        label={fieldLabel('Материал изоляции')}
-        name="insulation_material"
-        rules={[{ required: true, message: 'Выберите материал изоляции' }]}
-      >
-        {withHelp(
-          <Select
-            data-testid="insulation-material-select"
-            options={materialOptions}
-            placeholder="Выберите материал"
-            loading={isFetching}
-            notFoundContent={isError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
-          />,
-          'Материал основного слоя изоляции. Значение используется для выбора теплопроводности и расчёта теплопотерь.',
         )}
       </Form.Item>
     </>

@@ -519,19 +519,8 @@ export default function ObjectWizard({
           style={sectionStyle(1)}
         >
           {renderSectionTitle('Теплоизоляция', 2)}
-          <ThermalStep objectType={heatCalcObjectType} fieldInputSettings={fieldInputSettings} />
           <Form.Item
-            className="fixed-select-form-item reduced-select-form-item helped-form-item"
-            label={fieldLabel('Материал покрытия')}
-            name="insulation_cover_material"
-          >
-            {withHelp(
-              <Select options={[{ value: 'none', label: 'Не указано' }]} placeholder="Не указано" />,
-              'Защитное покрытие теплоизоляции. Сохраняется в параметрах объекта для спецификации и отчёта.',
-            )}
-          </Form.Item>
-          <Form.Item
-            className="layer-count-form-item helped-form-item"
+            className="layer-count-form-item insulation-layer-count-form-item helped-form-item"
             label={fieldLabel('Кол-во слоёв ИЗ')}
             name="insulation_layer_count"
             rules={[{ required: true, message: 'Выберите количество слоёв изоляции' }]}
@@ -545,8 +534,11 @@ export default function ObjectWizard({
               'Количество слоёв изоляции. При 2 или 3 слоях форма добавляет отдельные материал и толщину для каждого дополнительного слоя.',
             )}
           </Form.Item>
+          <div className="insulation-layer-group">
+            <ThermalStep objectType={heatCalcObjectType} fieldInputSettings={fieldInputSettings} />
+          </div>
           {layerCount >= 2 && (
-            <>
+            <div className="insulation-layer-group">
               <Form.Item
                 className="medium-select-form-item layer-material-form-item second-layer-material-form-item helped-form-item"
                 label={fieldLabel('Материал 2-го слоя')}
@@ -599,10 +591,10 @@ export default function ObjectWizard({
                   )}
                 </Form.Item>
               )}
-            </>
+            </div>
           )}
           {layerCount >= 3 && (
-            <>
+            <div className="insulation-layer-group">
               <Form.Item
                 className="medium-select-form-item layer-material-form-item third-layer-material-form-item helped-form-item"
                 label={fieldLabel('Материал 3-го слоя')}
@@ -655,8 +647,18 @@ export default function ObjectWizard({
                   )}
                 </Form.Item>
               )}
-            </>
+            </div>
           )}
+          <Form.Item
+            className="fixed-select-form-item reduced-select-form-item insulation-cover-form-item helped-form-item"
+            label={fieldLabel('Материал покрытия')}
+            name="insulation_cover_material"
+          >
+            {withHelp(
+              <Select options={[{ value: 'none', label: 'Не указано' }]} placeholder="Не указано" />,
+              'Защитное покрытие теплоизоляции. Сохраняется в параметрах объекта для спецификации и отчёта.',
+            )}
+          </Form.Item>
         </div>
 
         <div className="form-col-resize-handle" />

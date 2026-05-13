@@ -405,6 +405,9 @@ html, body, #root {
   --heatcalc-table-line-height: 1.22;
   --heatcalc-table-cell-padding-y: 2px;
   --heatcalc-table-header-padding-y: 3px;
+  --heatcalc-table-header-actions-height: 16px;
+  --heatcalc-table-header-min-height: 38px;
+  --heatcalc-table-header-content-min-height: 32px;
 }
 
 .calc-spreadsheet--compact {
@@ -412,6 +415,8 @@ html, body, #root {
   --heatcalc-table-line-height: 1.18;
   --heatcalc-table-cell-padding-y: 1px;
   --heatcalc-table-header-padding-y: 2px;
+  --heatcalc-table-header-min-height: 36px;
+  --heatcalc-table-header-content-min-height: 32px;
 }
 
 .calc-spreadsheet--comfortable {
@@ -419,6 +424,8 @@ html, body, #root {
   --heatcalc-table-line-height: 1.28;
   --heatcalc-table-cell-padding-y: 3px;
   --heatcalc-table-header-padding-y: 4px;
+  --heatcalc-table-header-min-height: 41px;
+  --heatcalc-table-header-content-min-height: 33px;
 }
 
 .calc-spreadsheet--large {
@@ -426,6 +433,8 @@ html, body, #root {
   --heatcalc-table-line-height: 1.32;
   --heatcalc-table-cell-padding-y: 4px;
   --heatcalc-table-header-padding-y: 5px;
+  --heatcalc-table-header-min-height: 44px;
+  --heatcalc-table-header-content-min-height: 34px;
 }
 
 .calc-spreadsheet .ant-table {
@@ -442,7 +451,9 @@ html, body, #root {
   font-weight: 600;
   font-size: var(--heatcalc-table-font-size);
   line-height: var(--heatcalc-table-line-height);
+  height: var(--heatcalc-table-header-min-height);
   padding: var(--heatcalc-table-header-padding-y) 6px !important;
+  vertical-align: top;
 }
 
 .calc-spreadsheet .ant-table-tbody > tr > td {
@@ -596,9 +607,10 @@ html, body, #root {
 }
 
 .heatcalc-workspace-layout {
+  --heatcalc-side-form-width: 34%;
   display: flex;
   align-items: stretch;
-  gap: 5px;
+  gap: 0;
   min-width: 0;
 }
 
@@ -614,14 +626,104 @@ html, body, #root {
 
 .heatcalc-workspace-layout--left .heatcalc-form-pane,
 .heatcalc-workspace-layout--right .heatcalc-form-pane {
-  flex: 0 0 clamp(360px, 30vw, 520px);
-  max-height: calc(100vh - 135px);
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 clamp(320px, var(--heatcalc-side-form-width), 62%);
+  min-height: 0;
+  max-height: calc(100vh - 36px);
   overflow: auto;
+}
+
+.heatcalc-workspace-layout--left .heatcalc-form-pane {
+  margin-right: 5px;
+}
+
+.heatcalc-workspace-layout--right .heatcalc-form-pane {
+  margin-left: 5px;
 }
 
 .heatcalc-workspace-layout--left .heatcalc-table-pane,
 .heatcalc-workspace-layout--right .heatcalc-table-pane {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 0;
+  min-height: 0;
+}
+
+.heatcalc-workspace-layout--left .inline-form-srs,
+.heatcalc-workspace-layout--right .inline-form-srs {
+  flex: 1 1 auto;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.heatcalc-workspace-layout--left .workspace-table-card,
+.heatcalc-workspace-layout--right .workspace-table-card {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.heatcalc-workspace-layout--left .workspace-table-card .ant-card-body,
+.heatcalc-workspace-layout--right .workspace-table-card .ant-card-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.heatcalc-workspace-layout--left .workspace-table-card .ant-table-wrapper,
+.heatcalc-workspace-layout--right .workspace-table-card .ant-table-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.heatcalc-workspace-layout--left .workspace-table-card .ant-table-body,
+.heatcalc-workspace-layout--right .workspace-table-card .ant-table-body {
+  min-height: max(320px, calc(100vh - 190px));
+}
+
+.heatcalc-side-resize-handle {
+  flex: 0 0 12px;
+  align-self: stretch;
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.heatcalc-side-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 5px;
+  width: 2px;
+  border-radius: 999px;
+  background: #d8e6f3;
+}
+
+.heatcalc-side-resize-handle:hover::before,
+.heatcalc-side-resize-handle:focus-visible::before,
+.heatcalc-side-resizing .heatcalc-side-resize-handle::before {
+  background: var(--color-primary);
+}
+
+.heatcalc-side-resizing,
+.heatcalc-side-resizing * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
+.heatcalc-workspace-layout--left .actionbar-type-row,
+.heatcalc-workspace-layout--right .actionbar-type-row {
+  margin-bottom: 5px;
+}
+
+.heatcalc-workspace-layout--left .actionbar-type-row .actionbar-form-state-group,
+.heatcalc-workspace-layout--right .actionbar-type-row .actionbar-form-state-group {
+  margin-left: auto;
 }
 
 .heatcalc-workspace-layout--left .form-grid-srs,
@@ -668,6 +770,15 @@ html, body, #root {
   .heatcalc-workspace-layout--left,
   .heatcalc-workspace-layout--right {
     display: block;
+  }
+
+  .heatcalc-workspace-layout--left .heatcalc-form-pane,
+  .heatcalc-workspace-layout--right .heatcalc-form-pane {
+    margin: 0;
+  }
+
+  .heatcalc-side-resize-handle {
+    display: none;
   }
 
   .heatcalc-workspace-layout--left .heatcalc-form-pane,
@@ -1012,6 +1123,37 @@ html, body, #root {
   line-height: calc(var(--inline-control-height) - 2px) !important;
 }
 
+.inline-object-form .ant-select-single.ant-select-show-arrow .ant-select-selection-item,
+.inline-object-form .ant-select-single.ant-select-show-arrow .ant-select-selection-placeholder {
+  padding-inline-end: 14px !important;
+}
+
+.inline-object-form .ant-select .ant-select-arrow {
+  inset-inline-end: 5px;
+  width: 14px;
+  height: 14px;
+  color: #b5c0ca;
+  font-size: 12px;
+  transition: color 0.15s ease;
+}
+
+.inline-object-form .ant-select .ant-select-arrow .anticon,
+.inline-object-form .ant-select .ant-select-arrow svg {
+  width: 12px;
+  height: 12px;
+  font-size: 12px;
+}
+
+.inline-object-form .ant-select:hover .ant-select-arrow,
+.inline-object-form .ant-select-focused .ant-select-arrow,
+.inline-object-form .ant-select-open .ant-select-arrow {
+  color: #6c7e8f;
+}
+
+.inline-object-form .ant-select-disabled .ant-select-arrow {
+  color: #c7cfd6;
+}
+
 .inline-object-form .ant-select-single .ant-select-selector .ant-select-selection-search-input {
   height: calc(var(--inline-control-height) - 2px) !important;
 }
@@ -1227,6 +1369,78 @@ html, body, #root {
 
 .inline-object-form .reduced-select-form-item .ant-form-item-row {
   grid-template-columns: var(--field-label-width, 104px) minmax(var(--field-input-min-width, 160px), 52%);
+}
+
+.inline-object-form .insulation-layer-count-form-item {
+  grid-column: 1 / -1;
+}
+
+.insulation-layer-group {
+  --field-label-width: 76px;
+  --compact-field-label-width: 76px;
+  --field-input-min-width: 112px;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1.45fr) minmax(124px, 0.85fr);
+  gap: 2px 5px;
+  align-items: start;
+  min-width: 0;
+  padding: 4px 5px 5px;
+  border: 1px solid #dbe6f2;
+  border-radius: 5px;
+  background: #fbfdff;
+}
+
+.inline-object-form .insulation-layer-group .ant-form-item {
+  grid-column: auto;
+  min-height: 22px;
+  padding: 0;
+}
+
+.inline-object-form .insulation-layer-group .fixed-select-form-item,
+.inline-object-form .insulation-layer-group .medium-select-form-item,
+.inline-object-form .insulation-layer-group .layer-material-form-item {
+  grid-column: 1;
+}
+
+.inline-object-form .insulation-layer-group .short-number-form-item,
+.inline-object-form .insulation-layer-group .coefficient-form-item,
+.inline-object-form .insulation-layer-group .second-layer-thickness-form-item,
+.inline-object-form .insulation-layer-group .third-layer-thickness-form-item {
+  grid-column: 2;
+}
+
+.inline-object-form .insulation-layer-group .ant-form-item-row,
+.inline-object-form .insulation-layer-group .fixed-select-form-item .ant-form-item-row,
+.inline-object-form .insulation-layer-group .medium-select-form-item .ant-form-item-row,
+.inline-object-form .insulation-layer-group .layer-material-form-item .ant-form-item-row,
+.inline-object-form .insulation-layer-group .numeric-form-item .ant-form-item-row {
+  grid-template-columns: var(--compact-field-label-width, 76px) minmax(0, 1fr);
+}
+
+.inline-object-form .insulation-layer-group .ant-form-item-label,
+.inline-object-form .insulation-layer-group .fixed-select-form-item .ant-form-item-label,
+.inline-object-form .insulation-layer-group .medium-select-form-item .ant-form-item-label,
+.inline-object-form .insulation-layer-group .layer-material-form-item .ant-form-item-label,
+.inline-object-form .insulation-layer-group .numeric-form-item .ant-form-item-label {
+  width: var(--compact-field-label-width, 76px);
+}
+
+.inline-object-form .insulation-layer-group .ant-select,
+.inline-object-form .insulation-layer-group .fixed-select-form-item .ant-select,
+.inline-object-form .insulation-layer-group .medium-select-form-item .ant-select,
+.inline-object-form .insulation-layer-group .layer-material-form-item .ant-select {
+  width: 100%;
+  min-width: var(--field-input-min-width, 112px);
+}
+
+.inline-object-form .insulation-layer-group .ant-form-item-explain,
+.inline-object-form .insulation-layer-group .ant-form-item-extra {
+  grid-column: 2;
+}
+
+.inline-object-form .insulation-cover-form-item {
+  grid-column: 1 / -1;
 }
 
 .inline-object-form .temperature-group-form-item {
@@ -1878,11 +2092,99 @@ html, body, #root {
 }
 
 .calc-spreadsheet .ant-table-column-sorters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, auto) var(--heatcalc-table-header-actions-height);
+  align-items: start;
+  row-gap: 1px;
+  min-height: var(--heatcalc-table-header-content-min-height);
+  overflow: visible;
   padding: 0;
 }
 
 .calc-spreadsheet .ant-table-filter-column {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px;
+  grid-template-rows: minmax(0, auto) var(--heatcalc-table-header-actions-height);
+  align-items: start;
   column-gap: 2px;
+  row-gap: 1px;
+  min-height: var(--heatcalc-table-header-content-min-height);
+  overflow: visible;
+}
+
+.calc-spreadsheet .ant-table-column-title {
+  min-width: 0;
+}
+
+.calc-spreadsheet .ant-table-column-sorters .ant-table-column-title {
+  grid-row: 1;
+}
+
+.calc-spreadsheet .ant-table-column-sorter {
+  grid-row: 2;
+  justify-self: end;
+  align-self: center;
+  width: 14px;
+  height: 14px;
+  margin-inline-start: 0;
+  line-height: 1;
+  overflow: visible;
+}
+
+.calc-spreadsheet .ant-table-column-sorter-inner {
+  height: 14px;
+  line-height: 1;
+  overflow: visible;
+}
+
+.calc-spreadsheet .ant-table-filter-column .ant-table-column-sorters {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) 16px;
+  grid-template-rows: minmax(0, auto) var(--heatcalc-table-header-actions-height);
+  min-height: 0;
+  padding: 0;
+}
+
+.calc-spreadsheet .ant-table-filter-column .ant-table-column-title {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+.calc-spreadsheet .ant-table-filter-column .ant-table-column-sorter {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
+}
+
+.calc-spreadsheet .ant-table-filter-column .ant-table-filter-trigger {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  z-index: 1;
+}
+
+.calc-spreadsheet .ant-table-column-sorter-inner .anticon {
+  display: block;
+  font-size: 9px;
+  line-height: 7px;
+}
+
+.calc-spreadsheet .table-filter-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .table-filter-icon {

@@ -42,13 +42,14 @@ def heatcalc_table_columns_value(
 
 
 def heatcalc_table_view_value(
-    font_size: str = "standard", form_placement: str = "top"
+    font_size: str = "standard", form_placement: str = "top", side_form_width_pct: float = 34
 ) -> dict[str, object]:
     return {
         "version": 1,
         "fontSize": font_size,
         "inlineEditingEnabled": False,
         "formPlacement": form_placement,
+        "sideFormWidthPct": side_form_width_pct,
     }
 
 
@@ -205,6 +206,19 @@ class TestUserPreferencesApi:
         resp = await client.put(
             "/api/v1/preferences/heatcalc.tableView.v1",
             json={"value": value},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 422
+
+    async def test_heatcalc_table_view_rejects_invalid_side_form_width(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        resp = await client.put(
+            "/api/v1/preferences/heatcalc.tableView.v1",
+            json={"value": heatcalc_table_view_value(side_form_width_pct=80)},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
 

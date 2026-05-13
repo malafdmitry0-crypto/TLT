@@ -720,6 +720,7 @@ describe('HeatCalcPage', () => {
         fontSize: 'large',
         inlineEditingEnabled: false,
         formPlacement: 'top',
+        sideFormWidthPct: 34,
       });
       expect(saved).not.toHaveProperty('fontSizePx');
     }, 10_000);
@@ -748,6 +749,51 @@ describe('HeatCalcPage', () => {
         fontSize: 'standard',
         inlineEditingEnabled: false,
         formPlacement: 'left',
+        sideFormWidthPct: 34,
+      });
+    }, 10_000);
+
+    it('запоминает ширину боковых областей после перетаскивания разделителя', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      await openTableSettingsOtherTab(user, dialog);
+      await user.click(within(dialog).getByText('Слева'));
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(document.querySelector('.heatcalc-workspace-layout--left')).toBeInTheDocument();
+      });
+      const layout = document.querySelector('.heatcalc-workspace-layout--left') as HTMLElement;
+      expect(layout).toBeInTheDocument();
+      vi.spyOn(layout, 'getBoundingClientRect').mockReturnValue({
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        right: 1000,
+        bottom: 600,
+        width: 1000,
+        height: 600,
+        toJSON: () => ({}),
+      } as DOMRect);
+
+      const handle = screen.getByRole('separator', { name: 'Изменить ширину областей' });
+      fireEvent.mouseDown(handle, { clientX: 340 });
+      fireEvent.mouseMove(window, { clientX: 480 });
+      fireEvent.mouseUp(window, { clientX: 480 });
+
+      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
+      expect(saved).toMatchObject({
+        formPlacement: 'left',
+        sideFormWidthPct: 48,
       });
     }, 10_000);
 
@@ -1056,7 +1102,13 @@ describe('HeatCalcPage', () => {
         HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY,
         JSON.stringify({
           userId: 'user-test-1',
-          settings: { version: 1, fontSize: 'large', inlineEditingEnabled: false, formPlacement: 'top' },
+          settings: {
+            version: 1,
+            fontSize: 'large',
+            inlineEditingEnabled: false,
+            formPlacement: 'top',
+            sideFormWidthPct: 34,
+          },
           cachedAt: '2026-05-08T00:00:00.000Z',
         }),
       );
@@ -1160,6 +1212,7 @@ describe('HeatCalcPage', () => {
         fontSize: 'large',
         inlineEditingEnabled: false,
         formPlacement: 'top',
+        sideFormWidthPct: 34,
       });
       const fieldInputPayload = (updateUserPreference as ReturnType<typeof vi.fn>).mock.calls.find(
         ([key]) => key === HEATCALC_FIELD_INPUT_PREF_KEY,
@@ -1366,7 +1419,7 @@ describe('HeatCalcPage', () => {
   });
 
   describe('Панель действий объекта', () => {
-    it('после сохранения редактируемого объекта оставляет форму открытой в режиме новой записи', async () => {
+    it('после сохранения редактируемого объекта остаётся на той же записи', async () => {
       const { listObjects, updateObject } = await import('@/api/projects');
       const source = makeObject();
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
@@ -1391,6 +1444,7 @@ describe('HeatCalcPage', () => {
         .getAllByRole('button', { name: 'Сохранить' })
         .find((button) => button.classList.contains('action-save-button'));
       expect(toolbarSaveButton).toBeDefined();
+      await screen.findByTestId('object-name-input');
       await user.click(toolbarSaveButton!);
 
       await waitFor(() => {
@@ -1405,10 +1459,10 @@ describe('HeatCalcPage', () => {
         );
       });
       await waitFor(() => {
-        expect(screen.getByText('Режим: добавление')).toBeInTheDocument();
+        expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
       });
       expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
-      expect(screen.queryByText(/Параметры объекта «Труба DN100»/)).not.toBeInTheDocument();
+      expect(screen.getByDisplayValue('Труба DN100')).toBeInTheDocument();
     });
 
     it('создаёт копии объектов, выбранных галочками', async () => {
