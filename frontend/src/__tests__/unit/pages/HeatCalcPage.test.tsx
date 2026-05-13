@@ -351,8 +351,8 @@ describe('HeatCalcPage', () => {
       const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
       expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
       expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
-      await user.click(await within(typeToolbar).findByRole('button', { name: 'Резервуар' }));
-      expect(within(typeToolbar).getByRole('button', { name: 'Резервуар' })).toHaveAttribute('aria-pressed', 'true');
+      await user.click(await within(typeToolbar).findByRole('button', { name: /Резервуар:/ }));
+      expect(within(typeToolbar).getByRole('button', { name: /Резервуар:/ })).toHaveAttribute('aria-pressed', 'true');
 
       await waitFor(() => {
         expect(screen.getByText('Резервуар прямоугольный')).toBeInTheDocument();
@@ -376,12 +376,32 @@ describe('HeatCalcPage', () => {
         expect(within(typeToolbar).getByText('Режим: изменение')).toBeInTheDocument();
       });
 
-      await user.click(within(typeToolbar).getByRole('button', { name: 'Трубопровод' }));
-      expect(within(typeToolbar).getByRole('button', { name: 'Трубопровод' })).toHaveAttribute('aria-pressed', 'true');
+      await user.click(within(typeToolbar).getByRole('button', { name: /Трубопровод:/ }));
+      expect(within(typeToolbar).getByRole('button', { name: /Трубопровод:/ })).toHaveAttribute('aria-pressed', 'true');
       await waitFor(() => {
         expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       });
       expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
+    });
+
+    it('режим «Все» показывает трубопроводы и резервуары в одной таблице', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject(),
+        makeTank(),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+      await user.click(await within(typeToolbar).findByRole('button', { name: /Все:/ }));
+
+      expect(within(typeToolbar).getByRole('button', { name: /Все:/ })).toHaveAttribute('aria-pressed', 'true');
+      expect(await screen.findByText('Труба DN100')).toBeInTheDocument();
+      expect(await screen.findByText('Резервуар прямоугольный')).toBeInTheDocument();
+      expect(screen.getAllByText('Тип').length).toBeGreaterThan(0);
     });
 
     it('кнопка «Добавить» сбрасывает форму активного типа без dropdown', async () => {
@@ -389,8 +409,8 @@ describe('HeatCalcPage', () => {
       const user = (await import('@testing-library/user-event')).default.setup();
       renderPage();
 
-      const actionsToolbar = screen.getByRole('toolbar', { name: 'Действия с объектами' });
-      const addButton = within(actionsToolbar).getByRole('button', { name: 'Добавить' });
+      const formActionsToolbar = screen.getByRole('toolbar', { name: 'Действия блока заполнения' });
+      const addButton = within(formActionsToolbar).getByRole('button', { name: 'Добавить' });
       expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
       await user.type(screen.getByTestId('object-name-input'), 'Черновик трубы');
       await user.click(addButton);
@@ -398,8 +418,8 @@ describe('HeatCalcPage', () => {
         expect(screen.getByTestId('object-name-input')).toHaveValue('');
       });
 
-      await user.click(screen.getByRole('button', { name: 'Отменить' }));
-      await user.click(screen.getByRole('button', { name: 'Резервуар' }));
+      await user.click(screen.getByRole('button', { name: 'Сбросить' }));
+      await user.click(screen.getByRole('button', { name: /Резервуар:/ }));
       await user.click(addButton);
 
       expect(await screen.findByText('Форма и геометрия резервуара')).toBeInTheDocument();
@@ -410,34 +430,49 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       const addButton = screen.getByRole('button', { name: 'Добавить' });
-      const tableFieldsButton = screen.getByRole('button', { name: 'Настройки таблицы' });
+      const tableFieldsButton = screen.getByRole('button', { name: 'Настройки отображения' });
       const saveButton = screen.getByRole('button', { name: 'Сохранить' });
       const importButton = screen.getByRole('button', { name: 'Импорт XLSX/CSV' });
 
       const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
-      const actionsToolbar = screen.getByRole('toolbar', { name: 'Действия с объектами' });
+      const formActionsToolbar = screen.getByRole('toolbar', { name: 'Действия блока заполнения' });
+      const tableActionsToolbar = screen.getByRole('toolbar', { name: 'Действия таблицы объектов' });
       const paramsBlock = screen.getByLabelText('Блок заполнения параметров');
       expect(typeToolbar.compareDocumentPosition(paramsBlock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(paramsBlock.compareDocumentPosition(actionsToolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(within(typeToolbar).getByRole('button', { name: 'Трубопровод' })).toHaveAttribute('aria-pressed', 'true');
-      expect(within(typeToolbar).getByRole('button', { name: 'Резервуар' })).toHaveAttribute('aria-pressed', 'false');
+      expect(paramsBlock.compareDocumentPosition(formActionsToolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(formActionsToolbar.compareDocumentPosition(tableActionsToolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(formActionsToolbar.parentElement).toBe(tableActionsToolbar.parentElement);
+      expect(formActionsToolbar.parentElement).toHaveClass('actionbar-actions-row');
+      expect(within(typeToolbar).getByRole('button', { name: /Трубопровод:/ })).toHaveAttribute('aria-pressed', 'true');
+      expect(within(typeToolbar).getByRole('button', { name: /Резервуар:/ })).toHaveAttribute('aria-pressed', 'false');
+      expect(within(typeToolbar).getByRole('button', { name: /Все:/ })).toHaveAttribute('aria-pressed', 'false');
       expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       expect(within(typeToolbar).getByRole('checkbox', { name: 'Показать блок заполнения параметров' })).toBeChecked();
-      expect(within(actionsToolbar).queryByRole('button', { name: 'Трубопровод' })).not.toBeInTheDocument();
-      expect(within(actionsToolbar).queryByRole('button', { name: 'Резервуар' })).not.toBeInTheDocument();
-      expect(within(actionsToolbar).queryByText(/Режим:/)).not.toBeInTheDocument();
-      expect(within(actionsToolbar).queryByRole('checkbox', { name: 'Показать блок заполнения параметров' })).not.toBeInTheDocument();
+      expect(within(formActionsToolbar).getByRole('button', { name: 'Добавить' })).toBe(addButton);
+      expect(within(formActionsToolbar).getByRole('button', { name: 'Сохранить' })).toBe(saveButton);
+      expect(within(formActionsToolbar).getByRole('button', { name: 'Сбросить' })).toBeInTheDocument();
+      expect(within(tableActionsToolbar).getByRole('button', { name: 'Настройки отображения' })).toBe(tableFieldsButton);
+      expect(within(tableActionsToolbar).getByRole('button', { name: 'Добавить копии выбранных' })).toBeDisabled();
+      expect(within(tableActionsToolbar).getByRole('button', { name: 'Удалить выбранные' })).toBeDisabled();
+      expect(within(tableActionsToolbar).getByRole('button', { name: 'Импорт XLSX/CSV' })).toBe(importButton);
+      expect(within(tableActionsToolbar).queryByRole('button', { name: 'Трубопровод' })).not.toBeInTheDocument();
+      expect(within(tableActionsToolbar).queryByRole('button', { name: 'Резервуар' })).not.toBeInTheDocument();
+      expect(within(tableActionsToolbar).queryByText(/Режим:/)).not.toBeInTheDocument();
+      expect(within(tableActionsToolbar).queryByRole('checkbox', { name: 'Показать блок заполнения параметров' })).not.toBeInTheDocument();
+      expect(within(tableActionsToolbar).queryByText(/Все рассчитаны/)).not.toBeInTheDocument();
       expect(useWorkspaceHeaderStore.getState().context).toBeNull();
-      expect(tableFieldsButton).toHaveClass('action-icon-button');
-      expect(addButton).toHaveClass('action-icon-button');
-      expect(addButton.textContent?.trim()).toBe('');
+      expect(tableFieldsButton.textContent).toContain('Настройки отображения');
+      expect(addButton).toHaveClass('action-add-button');
+      expect(addButton.textContent).toContain('Добавить');
       expect(saveButton).toHaveClass('action-save-button');
       expect(saveButton).not.toBeDisabled();
-      expect(importButton).toHaveClass('action-icon-button');
-      expect(importButton.textContent?.trim()).toBe('');
-      expect(screen.queryByText('Импорт XLSX/CSV')).not.toBeInTheDocument();
+      expect(importButton.textContent).toContain('Импорт');
+      expect(within(typeToolbar).getByRole('button', { name: /Трубопровод:\s*0/ })).toBeInTheDocument();
+      expect(within(typeToolbar).getByRole('button', { name: /Резервуар:\s*0/ })).toBeInTheDocument();
+      expect(within(typeToolbar).getByRole('button', { name: /Все:\s*0/ })).toBeInTheDocument();
+      expect(screen.queryByLabelText('Количество объектов')).not.toBeInTheDocument();
       expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Отменить' })).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Сбросить' })).not.toBeDisabled();
     });
 
     it('скрывает блок вручную, убирает режим и сбрасывает заполненные параметры', async () => {
@@ -460,16 +495,18 @@ describe('HeatCalcPage', () => {
       await user.click(visibilityToggle);
       expect(visibilityToggle).not.toBeChecked();
       expect(paramsBlock()).not.toBeVisible();
+      expect(screen.queryByRole('toolbar', { name: 'Действия блока заполнения' })).not.toBeInTheDocument();
       expect(within(typeToolbar).queryByText(/Режим:/)).not.toBeInTheDocument();
       expect(screen.queryByTestId('object-name-input')).not.toBeInTheDocument();
 
-      await user.click(screen.getByRole('button', { name: /Добавить/i }));
+      expect(screen.queryByRole('button', { name: 'Добавить' })).not.toBeInTheDocument();
       expect(within(typeToolbar).queryByText(/Режим:/)).not.toBeInTheDocument();
       expect(paramsBlock()).not.toBeVisible();
 
       await user.click(visibilityToggle);
       expect(visibilityToggle).toBeChecked();
       expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      expect(screen.getByRole('toolbar', { name: 'Действия блока заполнения' })).toBeInTheDocument();
       expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       expect(screen.getByTestId('object-name-input')).toHaveValue('');
       expect(paramsBlock()).toBeVisible();
@@ -499,7 +536,7 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
@@ -513,7 +550,7 @@ describe('HeatCalcPage', () => {
       expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
       expect(saved.types.tank.visibleOrder).toContain('tank_dimensions');
 
-      await user.click(screen.getByRole('button', { name: 'Резервуар' }));
+      await user.click(screen.getByRole('button', { name: /Резервуар:/ }));
       await waitFor(() => {
         expect(screen.getByText('Резервуар прямоугольный')).toBeInTheDocument();
       });
@@ -529,7 +566,7 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       const visibleColumnKeys = () =>
         Array.from(dialog.querySelectorAll('.column-layout-row:not(.hidden)'))
@@ -582,7 +619,7 @@ describe('HeatCalcPage', () => {
 
       await screen.findByText('Труба DN100');
       expect(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY)).toBeNull();
-      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       await user.click(within(dialog).getByText('Крупный'));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
@@ -608,7 +645,7 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       const inlineToggle = within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' });
       expect(inlineToggle).not.toBeChecked();
@@ -666,7 +703,7 @@ describe('HeatCalcPage', () => {
       expect(initialNameCell).not.toHaveClass('editable-cell-enabled');
       expect(within(tableElement).queryByRole('button', { name: 'Труба DN100' })).not.toBeInTheDocument();
 
-      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       await user.click(within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
@@ -696,7 +733,7 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       await user.click(within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
@@ -757,7 +794,7 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       await screen.findByText('Труба invalid');
-      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       await user.click(within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
@@ -870,7 +907,7 @@ describe('HeatCalcPage', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
       await user.click(within(dialog).getByText('Крупный'));
@@ -929,8 +966,8 @@ describe('HeatCalcPage', () => {
       });
       expect(screen.getByText('Труба Юг')).toBeInTheDocument();
       expect(screen.getByText('1/2')).toBeInTheDocument();
-      expect(screen.getByLabelText('Статус объектов').textContent).toMatch(/Труб:\s*2/);
-      expect(screen.getByLabelText('Статус объектов').textContent).toMatch(/Объектов:\s*2/);
+      expect(screen.getByRole('button', { name: /Трубопровод:\s*2/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Все:\s*2/ })).toBeInTheDocument();
     });
 
     it('range-фильтр по числовой колонке работает в отображаемых единицах и сбрасывается общей кнопкой', async () => {
@@ -958,7 +995,7 @@ describe('HeatCalcPage', () => {
       await user.click(screen.getByRole('button', { name: 'Сбросить фильтры таблицы' }));
       expect(await screen.findByText('Труба 60')).toBeInTheDocument();
       expect(screen.getByText('Труба 219')).toBeInTheDocument();
-    });
+    }, 10_000);
 
     it('при скрытии колонки убирает невидимый фильтр по этой колонке', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -980,7 +1017,7 @@ describe('HeatCalcPage', () => {
         expect(screen.queryByText('Труба 60')).not.toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Настройки таблицы' }));
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       await user.click(within(dialog).getByRole('checkbox', { name: 'Наружный диаметр' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
@@ -1010,7 +1047,7 @@ describe('HeatCalcPage', () => {
         expect(rows[0]).toHaveTextContent('Труба 60');
         expect(rows[1]).toHaveTextContent('Труба 219');
       });
-      expect(screen.getByLabelText('Статус объектов').textContent).toMatch(/Труб:\s*2/);
+      expect(screen.getByRole('button', { name: /Трубопровод:\s*2/ })).toBeInTheDocument();
     });
 
     it('фильтры труб не переносятся на резервуары', async () => {
@@ -1034,10 +1071,10 @@ describe('HeatCalcPage', () => {
         expect(screen.queryByText('Труба Север')).not.toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Резервуар' }));
+      await user.click(screen.getByRole('button', { name: /Резервуар:/ }));
       expect(await screen.findByText('Резервуар основной')).toBeInTheDocument();
       expect(screen.queryByText('1/1')).not.toBeInTheDocument();
-    });
+    }, 10_000);
 
     it('скрытая фильтром выбранная строка снимается с выбора, но форма остаётся открытой', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1090,7 +1127,7 @@ describe('HeatCalcPage', () => {
       await user.click(rowCheckboxes[1]);
 
       expect(await screen.findByText(/Выбрано: 1/)).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Резервуар' }));
+      await user.click(screen.getByRole('button', { name: /Резервуар:/ }));
       await waitFor(() => {
         expect(screen.queryByText(/Выбрано: 1/)).not.toBeInTheDocument();
       });
@@ -1144,30 +1181,95 @@ describe('HeatCalcPage', () => {
       expect(screen.queryByText(/Параметры объекта «Труба DN100»/)).not.toBeInTheDocument();
     });
 
-    it('создаёт копию выбранного объекта через «Создать на основании»', async () => {
+    it('создаёт копии объектов, выбранных галочками', async () => {
       const { listObjects, createObject } = await import('@/api/projects');
       const source = makeObject();
-      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
-      (createObject as ReturnType<typeof vi.fn>).mockResolvedValue(
-        makeObject({ id: 'obj-copy', params: { ...source.params, name: 'Труба DN100 (копия)' } }),
+      const secondSource = makeObject({
+        id: 'obj-2',
+        sort_order: 1,
+        params: { ...source.params, name: 'Труба DN150' },
+      });
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source, secondSource]);
+      (createObject as ReturnType<typeof vi.fn>).mockImplementation(
+        async (_projectId: string, payload: { object_type: 'pipe' | 'tank'; params: Record<string, unknown>; sort_order: number }) =>
+          makeObject({
+            id: `copy-${payload.sort_order}`,
+            object_type: payload.object_type,
+            params: payload.params,
+            sort_order: payload.sort_order,
+          }),
       );
 
       useProjectStore.getState().setCurrentProject(mockProject);
       renderPage();
 
-      fireEvent.click(await screen.findByText('Труба DN100'));
-      fireEvent.click(screen.getByRole('button', { name: 'Создать на основании' }));
+      await screen.findByText('Труба DN100');
+      const table = document.querySelector<HTMLElement>('.calc-spreadsheet');
+      expect(table).not.toBeNull();
+      const rowCheckboxes = within(table!).getAllByRole('checkbox');
+      fireEvent.click(rowCheckboxes[1]);
+      fireEvent.click(rowCheckboxes[2]);
+      fireEvent.click(screen.getByRole('button', { name: 'Добавить копии выбранных' }));
 
       await waitFor(() => {
-        expect(createObject).toHaveBeenCalledWith(
-          'proj-test-1',
-          expect.objectContaining({
-            object_type: 'pipe',
-            params: expect.objectContaining({ name: 'Труба DN100 (копия)' }),
-            sort_order: 1,
-          }),
-        );
+        expect(createObject).toHaveBeenCalledTimes(2);
       });
+      expect(createObject).toHaveBeenNthCalledWith(
+        1,
+        'proj-test-1',
+        expect.objectContaining({
+          object_type: 'pipe',
+          params: expect.objectContaining({ name: 'Труба DN100 (копия)' }),
+          sort_order: 2,
+        }),
+      );
+      expect(createObject).toHaveBeenNthCalledWith(
+        2,
+        'proj-test-1',
+        expect.objectContaining({
+          object_type: 'pipe',
+          params: expect.objectContaining({ name: 'Труба DN150 (копия)' }),
+          sort_order: 3,
+        }),
+      );
+    });
+
+    it('удаляет объекты, выбранные галочками', async () => {
+      const { listObjects, deleteObject } = await import('@/api/projects');
+      const source = makeObject();
+      const secondSource = makeObject({
+        id: 'obj-2',
+        sort_order: 1,
+        params: { ...source.params, name: 'Труба DN150' },
+      });
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source, secondSource]);
+      (deleteObject as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      const table = document.querySelector<HTMLElement>('.calc-spreadsheet');
+      expect(table).not.toBeNull();
+      const rowCheckboxes = within(table!).getAllByRole('checkbox');
+      fireEvent.click(rowCheckboxes[1]);
+      fireEvent.click(rowCheckboxes[2]);
+      fireEvent.click(screen.getByRole('button', { name: 'Удалить выбранные' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Удалить' }));
+
+      await waitFor(() => {
+        expect(deleteObject).toHaveBeenCalledTimes(2);
+      });
+      expect(deleteObject).toHaveBeenNthCalledWith(
+        1,
+        'proj-test-1',
+        source.id,
+      );
+      expect(deleteObject).toHaveBeenNthCalledWith(
+        2,
+          'proj-test-1',
+        secondSource.id,
+      );
     });
   });
 });

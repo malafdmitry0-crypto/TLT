@@ -1264,28 +1264,43 @@ html, body, #root {
   stroke-linejoin: round;
 }
 
-.actionbar-edit-group,
-.actionbar-save-group,
+.actionbar-form-actions-group,
+.actionbar-table-actions-group,
 .actionbar-io-group {
   flex: 0 0 auto;
 }
 
-.actionbar-status {
+.actionbar-actions-row > [role='toolbar'] {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   min-width: 0;
-  margin-left: 0;
+}
+
+.actionbar-form-actions-row {
+  flex: 0 0 auto;
+}
+
+.actionbar-table-actions-row {
+  flex: 1 1 auto;
+}
+
+.actionbar-form-actions-group,
+.actionbar-table-actions-group {
+  border-right: 0;
+}
+
+.actionbar-actions-row .actionbar-form-actions-group {
+  border-right: 1px solid #c4d2db;
+}
+
+.actionbar-table-actions-group {
+  flex: 1 1 auto;
 }
 
 .actionbar-form-state-group {
   flex: 0 0 auto;
   margin-left: auto;
   gap: 8px;
-}
-
-.actionbar-actions-row .actionbar-status {
-  margin-left: auto;
 }
 
 .actionbar-srs .ant-btn {
@@ -1331,7 +1346,7 @@ html, body, #root {
 }
 
 .actionbar-srs .action-type-button {
-  min-width: 104px;
+  min-width: 112px;
   padding-inline: 8px;
   font-weight: 600;
 }
@@ -1341,18 +1356,50 @@ html, body, #root {
   align-items: center;
 }
 
+.actionbar-srs .action-type-count {
+  font-weight: 700;
+}
+
 .actionbar-srs .action-save-button {
   min-width: 86px;
   padding-inline: 8px;
   font-weight: 600;
 }
 
-.actionbar-srs .action-save-button .ant-btn-icon {
+.actionbar-srs .action-add-button,
+.actionbar-srs .action-reset-button,
+.actionbar-srs .action-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: auto;
+  padding-inline: 8px;
+  font-weight: 500;
+}
+
+.actionbar-srs .action-add-button {
+  min-width: 86px;
+  font-weight: 600;
+}
+
+.actionbar-srs .action-reset-button {
+  min-width: 82px;
+}
+
+.actionbar-srs .action-secondary-button {
+  background: #fff;
+}
+
+.actionbar-srs .action-save-button .ant-btn-icon,
+.actionbar-srs .action-add-button .ant-btn-icon,
+.actionbar-srs .action-reset-button .ant-btn-icon,
+.actionbar-srs .action-secondary-button .ant-btn-icon {
   display: inline-flex;
   align-items: center;
 }
 
 .actionbar-srs .action-icon-button.add:not(:disabled),
+.actionbar-srs .action-add-button:not(:disabled),
 .actionbar-srs .action-icon-button.save:not(:disabled),
 .actionbar-srs .action-save-button.save:not(:disabled) {
   background: var(--color-primary);
@@ -1367,12 +1414,16 @@ html, body, #root {
 }
 
 .actionbar-srs .action-icon-button.add:not(:disabled):hover,
+.actionbar-srs .action-add-button:not(:disabled):hover,
 .actionbar-srs .action-icon-button.save:not(:disabled):hover,
 .actionbar-srs .action-save-button.save:not(:disabled):hover {
   filter: brightness(1.08);
 }
 
-.actionbar-srs .action-icon-button:focus-visible {
+.actionbar-srs .action-icon-button:focus-visible,
+.actionbar-srs .action-add-button:focus-visible,
+.actionbar-srs .action-reset-button:focus-visible,
+.actionbar-srs .action-secondary-button:focus-visible {
   outline: 2px solid #2e86c1;
   outline-offset: 1px;
 }

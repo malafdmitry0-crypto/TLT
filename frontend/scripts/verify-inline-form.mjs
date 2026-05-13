@@ -15,7 +15,7 @@ async function selectObjectType(page, label) {
     await byLabel.click();
     return;
   }
-  const byButton = page.getByRole('button', { name: label, exact: true });
+  const byButton = page.getByRole('button', { name: new RegExp(`^${label}`) });
   if (await byButton.count()) {
     await byButton.click();
     return;
@@ -51,7 +51,7 @@ try {
     } else {
       await selectObjectType(page, 'Трубопровод');
     }
-    const addButton = page.getByRole('button', { name: /Добавить/ });
+    const addButton = page.getByRole('toolbar', { name: 'Действия блока заполнения' }).getByRole('button', { name: 'Добавить' });
     if ((await addButton.count()) === 0) {
       console.error(await page.locator('body').innerText({ timeout: 5000 }));
       throw new Error('Add button not found');

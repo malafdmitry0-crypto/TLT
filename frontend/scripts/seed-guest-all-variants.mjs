@@ -1187,21 +1187,44 @@ async function tableRowCount(page) {
 }
 
 async function selectObjectType(page, label) {
-  const option = page.getByRole('radio', { name: label });
-  if (await option.count()) {
-    try {
-      await option.click({ timeout: 2_000 });
-      return;
-    } catch {
-      // Some AntD versions expose the radio input but only the segmented item is clickable.
+  const labels = label === 'Резервуары' ? [label, 'Резервуар'] : [label];
+  for (const optionLabel of labels) {
+    const option = page.getByRole('radio', { name: optionLabel });
+    if (await option.count()) {
+      try {
+        await option.click({ timeout: 2_000 });
+        return;
+      } catch {
+        // Some AntD versions expose the radio input but only the segmented item is clickable.
+      }
     }
   }
-  const iconOption = page.getByLabel(label, { exact: true });
-  if (await iconOption.count()) {
-    await iconOption.click({ timeout: 2_000 });
-    return;
+
+  for (const optionLabel of labels) {
+    const button = page.getByRole('button', { name: new RegExp(`^${optionLabel}`) });
+    if (await button.count()) {
+      await button.click({ timeout: 2_000 });
+      return;
+    }
   }
-  await page.locator('.ant-segmented-item', { hasText: label }).click();
+
+  for (const optionLabel of labels) {
+    const iconOption = page.getByLabel(optionLabel, { exact: true });
+    if (await iconOption.count()) {
+      await iconOption.click({ timeout: 2_000 });
+      return;
+    }
+  }
+
+  for (const optionLabel of labels) {
+    const segmentedOption = page.locator('.ant-segmented-item', { hasText: optionLabel });
+    if (await segmentedOption.count()) {
+      await segmentedOption.click({ timeout: 2_000 });
+      return;
+    }
+  }
+
+  throw new Error(`Object type control not found for "${label}"`);
 }
 
 async function main() {
@@ -1293,21 +1316,21 @@ async function main() {
         `Unexpected UI rows after type switch: pipe=${uiPipeRows}/${expectedVisibleUiRows.pipe}, tank=${uiTankRows}/${expectedVisibleUiRows.tank}`,
       );
     }
-    const addButton = page.getByRole('button', { name: 'Добавить' });
+    const addButton = page.getByRole('button', { name: 'Добавить', exact: true });
     await addButton.hover();
     await page.getByText('Добавить', { exact: true }).waitFor({ state: 'visible', timeout: 5_000 });
     await addButton.click();
     await page.getByText('Форма и геометрия резервуара').waitFor({ state: 'visible', timeout: 10_000 });
-    await page.getByRole('button', { name: 'Отменить' }).click();
+    await page.locator('.action-reset-button').click();
+    await page.getByText('Режим: добавление', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
     await selectObjectType(page, 'Трубопровод');
     await page.locator('td.ant-table-cell', { hasText: 'P01 · труба' }).first().click();
-    await page.getByText('Параметры объекта «P01', { exact: false }).waitFor({ state: 'visible', timeout: 10_000 });
+    await page.getByText('Режим: изменение', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
     await selectObjectType(page, 'Резервуары');
     await page.locator('td.ant-table-cell', { hasText: 'T01 · резервуар' }).first().click();
-    await page.getByText('Параметры объекта «T01', { exact: false }).waitFor({ state: 'visible', timeout: 10_000 });
-    await page.getByRole('button', { name: 'Сохранить изменения' }).click();
-    await page.getByText('Параметры: Резервуары', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
-    await page.getByText('новая запись', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
+    await page.getByText('Режим: изменение', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
+    await page.locator('.action-save-button.save').click();
+    await page.getByText('Режим: добавление', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
     if (await page.getByRole('button', { name: 'Результаты расчёта' }).count() > 0) {
       throw new Error('Unexpected inner results tab is visible on heat-calc page');
     }

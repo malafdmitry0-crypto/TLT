@@ -27,8 +27,7 @@ import {
   type TableProps,
 } from 'antd';
 import {
-  CheckOutlined,
-  CheckSquareOutlined,
+  AppstoreOutlined,
   CloseCircleOutlined,
   CloseOutlined,
   CopyOutlined,
@@ -52,7 +51,7 @@ import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
-import { getObjectQueryCapabilities, getObjectsSummary, queryObjects, updateObject } from '@/api/projects';
+import { getObjectQueryCapabilities, getObjectsSummary, listObjects, queryObjects, updateObject } from '@/api/projects';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
@@ -69,6 +68,7 @@ import { formatNumber } from '@/utils/formatters';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 import { findDN } from '@/utils/objectWizardUtils';
 import {
+  HEATCALC_TABLE_COLUMN_CATALOG,
   HEATCALC_TABLE_COLUMN_PREF_KEY,
   clampTableColumnWidthPct,
   clearRegisteredTableColumnCache,
@@ -86,6 +86,7 @@ import {
   setTableColumnVisibility,
   setTableColumnWidthPct,
   tableColumnWidthPxToPct,
+  tableColumnWidthPctToPx,
   writeGuestTableColumnSettings,
   writeRegisteredTableColumnCache,
   type HeatCalcColumnKey,
@@ -137,6 +138,7 @@ const { Text } = Typography;
 
 /** В MVP мастер знает только две формы — трубу и резервуар. */
 type WizardObjectType = HeatCalcObjectType;
+type ActiveObjectScope = HeatCalcObjectType | 'all';
 
 type TableColumnRenderSpec = Pick<ColumnType<ProjectObject>, 'render' | 'ellipsis' | 'align'> & {
   copyValue: (record: ProjectObject, index: number) => string;
@@ -144,6 +146,35 @@ type TableColumnRenderSpec = Pick<ColumnType<ProjectObject>, 'render' | 'ellipsi
 
 type HeatCalcFilterKind = 'text' | 'numberRange' | 'enum';
 const DEFAULT_OBJECT_QUERY_PAGE_SIZE = 50;
+const ALL_OBJECT_COLUMN_KEYS: HeatCalcColumnKey[] = [
+  'index',
+  'type',
+  'name',
+  'placement',
+  'insulation_layer_count',
+  'insulation_thickness',
+  'insulation_material',
+  'process_temperature',
+  'ambient_temperature',
+];
+
+function getAllObjectColumnMetas(settings: HeatCalcTableColumnSettings): HeatCalcResolvedColumnMeta[] {
+  const pipeSettings = settings.types.pipe;
+  return ALL_OBJECT_COLUMN_KEYS.reduce<HeatCalcResolvedColumnMeta[]>((columns, key, index) => {
+    const column = HEATCALC_TABLE_COLUMN_CATALOG.pipe.find((item) => item.key === key);
+    if (!column) return columns;
+    const widthPct = pipeSettings.columns[key]?.widthPct ?? column.defaultWidthPct;
+    columns.push({
+      ...column,
+      widthPct,
+      width: tableColumnWidthPctToPx(widthPct),
+      visible: true,
+      order: index + 1,
+    });
+    return columns;
+  }, []);
+}
+
 type TableColumnPreferenceMutation = {
   settings: HeatCalcTableColumnSettings;
   closeModal?: boolean;
@@ -637,43 +668,6 @@ interface WizardState {
   editingObject?: ProjectObject;
 }
 
-/** Статус-бейдж в левой панели: «N объектов, все рассчитаны» или «не рассчитано M». */
-function ObjectCountBadge({
-  total,
-  valid,
-  pipeTotal,
-  tankTotal,
-}: {
-  total: number;
-  valid: number;
-  pipeTotal: number;
-  tankTotal: number;
-}) {
-  if (pipeTotal + tankTotal === 0) return null;
-  return (
-    <div className="object-count-badge" aria-label="Статус объектов">
-      <span className="object-count-segment">
-        Труб: <strong>{pipeTotal}</strong>
-      </span>
-      <span className="object-count-segment">
-        Рез.: <strong>{tankTotal}</strong>
-      </span>
-      <span className="object-count-segment">
-        Объектов: <strong>{total}</strong>
-      </span>
-      {total === 0 ? (
-        <span className="object-count-segment warning">Нет выбранного типа</span>
-      ) : valid < total ? (
-        <span className="object-count-segment warning">
-          Не рассчитано: <strong>{total - valid}</strong>
-        </span>
-      ) : (
-        <span className="object-count-segment success">Все рассчитаны ✓</span>
-      )}
-    </div>
-  );
-}
-
 export default function HeatCalcPage() {
   const queryClient = useQueryClient();
   const project = useProjectStore((s) => s.currentProject);
@@ -682,7 +676,7 @@ export default function HeatCalcPage() {
   const isRegisteredUser = role === 'employee' || role === 'admin';
   const [wizardState, setWizardState] = useState<WizardState | null>({ type: 'pipe' });
   const [newWizardRevision, setNewWizardRevision] = useState(0);
-  const [activeObjectType, setActiveObjectType] = useState<WizardObjectType>('pipe');
+  const [activeObjectScope, setActiveObjectScope] = useState<ActiveObjectScope>('pipe');
   const [formBlockVisible, setFormBlockVisible] = useState(true);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [tableViewStateByType, setTableViewStateByType] = useState<
@@ -691,9 +685,10 @@ export default function HeatCalcPage() {
     pipe: createEmptyTableViewState(),
     tank: createEmptyTableViewState(),
   }));
-  const [tablePageByType, setTablePageByType] = useState<Record<HeatCalcObjectType, number>>({
+  const [tablePageByScope, setTablePageByScope] = useState<Record<ActiveObjectScope, number>>({
     pipe: 1,
     tank: 1,
+    all: 1,
   });
   const [lastSavedObject, setLastSavedObject] = useState<ProjectObject | null>(null);
   const [tableColumnSettings, setTableColumnSettings] = useState<HeatCalcTableColumnSettings>(() => {
@@ -758,13 +753,15 @@ export default function HeatCalcPage() {
     queryFn: () => getObjectsSummary(project!.id),
     enabled: !!project,
   });
-  const activeTableViewState = tableViewStateByType[activeObjectType];
-  const activeTablePage = tablePageByType[activeObjectType];
+  const isAllObjectScope = activeObjectScope === 'all';
+  const activeTableObjectType: HeatCalcObjectType = activeObjectScope === 'tank' ? 'tank' : 'pipe';
+  const activeTableViewState = tableViewStateByType[activeTableObjectType];
+  const activeTablePage = tablePageByScope[activeObjectScope];
 
   const { data: objectQueryCapabilities } = useQuery({
-    queryKey: ['project', project?.id, 'objects', 'query-capabilities', activeObjectType],
-    queryFn: () => getObjectQueryCapabilities(project!.id, activeObjectType),
-    enabled: !!project,
+    queryKey: ['project', project?.id, 'objects', 'query-capabilities', activeTableObjectType],
+    queryFn: () => getObjectQueryCapabilities(project!.id, activeTableObjectType),
+    enabled: !!project && !isAllObjectScope,
     staleTime: 5 * 60_000,
   });
 
@@ -845,14 +842,16 @@ export default function HeatCalcPage() {
   });
 
   const objectQueryRequest = useMemo(
-    () => buildObjectQueryRequest(
-      activeObjectType,
-      activeTableViewState,
-      activeTablePage,
-      objectQueryCapabilities?.default_page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE,
-      objectQueryCapabilities,
-    ),
-    [activeObjectType, activeTablePage, activeTableViewState, objectQueryCapabilities],
+    () => (isAllObjectScope
+      ? null
+      : buildObjectQueryRequest(
+        activeTableObjectType,
+        activeTableViewState,
+        activeTablePage,
+        objectQueryCapabilities?.default_page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE,
+        objectQueryCapabilities,
+      )),
+    [activeTableObjectType, activeTablePage, activeTableViewState, isAllObjectScope, objectQueryCapabilities],
   );
   const objectQueryKey = useMemo(
     () => ['project', project?.id, 'objects', 'query', objectQueryRequest] as const,
@@ -860,9 +859,14 @@ export default function HeatCalcPage() {
   );
   const { data: objectQueryResult } = useQuery({
     queryKey: objectQueryKey,
-    queryFn: () => queryObjects(project!.id, objectQueryRequest),
-    enabled: !!project && !!objectQueryCapabilities,
+    queryFn: () => queryObjects(project!.id, objectQueryRequest!),
+    enabled: !!project && objectQueryRequest != null && !!objectQueryCapabilities,
     placeholderData: (previous) => previous,
+  });
+  const { data: allProjectObjects = [] } = useQuery({
+    queryKey: ['project', project?.id, 'objects', 'query', 'all'],
+    queryFn: () => listObjects(project!.id),
+    enabled: !!project && isAllObjectScope,
   });
   const insulationLabelByCode = useMemo(
     () => new Map(insulationMaterials.map((m) => [m.material, insulationEntryLabel(m)])),
@@ -934,10 +938,10 @@ export default function HeatCalcPage() {
   useEffect(() => {
     setSelectedRowKeys([]);
     setWizardState((current) => {
-      if (!current || current.type === activeObjectType) return current;
+      if (activeObjectScope === 'all' || !current || current.type === activeObjectScope) return current;
       return null;
     });
-  }, [activeObjectType]);
+  }, [activeObjectScope]);
 
   const resetNewWizard = (type: WizardObjectType) => {
     setNewWizardRevision((revision) => revision + 1);
@@ -949,7 +953,7 @@ export default function HeatCalcPage() {
   };
   const closeWizard = () => {
     if (formBlockVisible) {
-      resetNewWizard(activeObjectType);
+      resetNewWizard(wizardState?.type ?? activeTableObjectType);
       return;
     }
     clearWizard();
@@ -958,7 +962,7 @@ export default function HeatCalcPage() {
     const type =
       obj?.object_type === 'pipe' || obj?.object_type === 'tank'
         ? obj.object_type
-        : wizardState?.type ?? activeObjectType;
+        : wizardState?.type ?? activeTableObjectType;
     if (type !== 'pipe' && type !== 'tank') return;
     if (formBlockVisible) {
       resetNewWizard(type);
@@ -975,9 +979,13 @@ export default function HeatCalcPage() {
 
   const pipeCount = objectsSummary?.by_type.pipe ?? 0;
   const tankCount = objectsSummary?.by_type.tank ?? 0;
-  const totalCount = objectsSummary?.by_type[activeObjectType] ?? 0;
-  const validCount = objectsSummary?.valid_by_type[activeObjectType] ?? 0;
-  const projectObjectCount = objectsSummary?.total ?? totalCount;
+  const projectObjectCount = objectsSummary?.total ?? pipeCount + tankCount;
+  const totalCount = activeObjectScope === 'all'
+    ? projectObjectCount
+    : objectsSummary?.by_type[activeObjectScope] ?? 0;
+  const validCount = activeObjectScope === 'all'
+    ? objectsSummary?.valid ?? 0
+    : objectsSummary?.valid_by_type[activeObjectScope] ?? 0;
   const formCaptionMode = wizardState?.editingObject ? 'edit' : wizardState ? 'new' : 'idle';
   const formCaptionModeLabel =
     formCaptionMode === 'edit'
@@ -986,18 +994,19 @@ export default function HeatCalcPage() {
         ? 'Режим: добавление'
         : 'Режим: ожидание';
   const hasWizard = !!wizardState;
-  const hasEditingObject = !!wizardState?.editingObject;
   const submittingObject = add.isPending || edit.isPending;
 
-  function openAddWizard(type: WizardObjectType = activeObjectType) {
+  function openAddWizard(type: WizardObjectType = wizardState?.type ?? activeTableObjectType) {
     resetNewWizard(type);
   }
 
-  function handleObjectTypeChange(type: WizardObjectType) {
-    setActiveObjectType(type);
+  function handleObjectScopeChange(scope: ActiveObjectScope) {
+    setActiveObjectScope(scope);
     setSelectedRowKeys([]);
+    setTablePageByScope((current) => ({ ...current, [scope]: 1 }));
+    if (scope === 'all') return;
     if (formBlockVisible) {
-      resetNewWizard(type);
+      resetNewWizard(scope);
       return;
     }
     clearWizard();
@@ -1006,7 +1015,7 @@ export default function HeatCalcPage() {
   function handleFormBlockVisibilityChange(checked: boolean) {
     setFormBlockVisible(checked);
     if (checked) {
-      resetNewWizard(activeObjectType);
+      resetNewWizard(wizardState?.type ?? activeTableObjectType);
       return;
     }
     clearWizard();
@@ -1040,26 +1049,6 @@ export default function HeatCalcPage() {
         sort_order: projectObjectCount,
       });
     }
-  }
-
-  function duplicateCurrentObject() {
-    const source = wizardState?.editingObject;
-    if (!source || (source.object_type !== 'pipe' && source.object_type !== 'tank')) return;
-    const sourceName = String(source.params?.name ?? OBJECT_TYPE_LABELS[source.object_type]);
-    add.mutate({
-      object_type: source.object_type,
-      params: {
-        ...source.params,
-        name: `${sourceName} (копия)`,
-      },
-      sort_order: projectObjectCount,
-    });
-  }
-
-  function removeCurrentObject() {
-    const source = wizardState?.editingObject;
-    if (!source) return;
-    remove.mutate(source.id);
   }
 
   function handleObjectSaved(obj: ProjectObject) {
@@ -1366,8 +1355,10 @@ export default function HeatCalcPage() {
   }), [dnValue, insulationLabel, outerDiameterMm]);
 
   const sourceColumnMetas = useMemo(
-    () => getVisibleTableColumnMetas(activeObjectType, tableColumnSettings),
-    [activeObjectType, tableColumnSettings],
+    () => (isAllObjectScope
+      ? getAllObjectColumnMetas(tableColumnSettings)
+      : getVisibleTableColumnMetas(activeTableObjectType, tableColumnSettings)),
+    [activeTableObjectType, isAllObjectScope, tableColumnSettings],
   );
   const resolvedTableFontSize = useMemo(
     () => resolveTableFontSize(tableViewSettings),
@@ -1381,21 +1372,43 @@ export default function HeatCalcPage() {
     () => sourceColumnMetas.map((meta) => meta.key),
     [sourceColumnMetas],
   );
+  const allObjectsForTable = useMemo(
+    () => allProjectObjects
+      .filter((object) => object.object_type === 'pipe' || object.object_type === 'tank')
+      .sort((left, right) => {
+        const bySortOrder = left.sort_order - right.sort_order;
+        if (bySortOrder !== 0) return bySortOrder;
+        return left.created_at.localeCompare(right.created_at);
+      }),
+    [allProjectObjects],
+  );
+  const allTableOffset = isAllObjectScope ? (activeTablePage - 1) * DEFAULT_OBJECT_QUERY_PAGE_SIZE : 0;
   const visibleTableObjects = useMemo(
-    () => objectQueryResult?.items ?? [],
-    [objectQueryResult],
+    () => (isAllObjectScope
+      ? allObjectsForTable.slice(allTableOffset, allTableOffset + DEFAULT_OBJECT_QUERY_PAGE_SIZE)
+      : objectQueryResult?.items ?? []),
+    [allObjectsForTable, allTableOffset, isAllObjectScope, objectQueryResult],
   );
   const visibleTableRows = useMemo(
     () => visibleTableObjects.map((record, index) => ({
       record,
-      sourceIndex: (objectQueryResult?.page_info.offset ?? 0) + index,
+      sourceIndex: (isAllObjectScope ? allTableOffset : objectQueryResult?.page_info.offset ?? 0) + index,
     })),
-    [objectQueryResult, visibleTableObjects],
+    [allTableOffset, isAllObjectScope, objectQueryResult, visibleTableObjects],
   );
-  const currentActiveFilterCount = activeTableFilterCount(activeTableViewState);
-  const currentTableViewActive = hasActiveTableViewState(activeTableViewState);
-  const activeTypeTotalCount = objectQueryResult?.counts.by_type[activeObjectType] ?? totalCount;
-  const filteredTableCount = objectQueryResult?.counts.filtered ?? visibleTableObjects.length;
+  const selectedVisibleRows = useMemo(
+    () => visibleTableRows.filter(({ record }) => selectedRowKeys.includes(record.id)),
+    [selectedRowKeys, visibleTableRows],
+  );
+  const selectedObjectCount = selectedVisibleRows.length;
+  const currentActiveFilterCount = isAllObjectScope ? 0 : activeTableFilterCount(activeTableViewState);
+  const currentTableViewActive = !isAllObjectScope && hasActiveTableViewState(activeTableViewState);
+  const activeTypeTotalCount = isAllObjectScope
+    ? projectObjectCount
+    : objectQueryResult?.counts.by_type[activeTableObjectType] ?? totalCount;
+  const filteredTableCount = isAllObjectScope
+    ? allObjectsForTable.length
+    : objectQueryResult?.counts.filtered ?? visibleTableObjects.length;
   const enumOptionsByColumn = useMemo(() => {
     const result: Record<HeatCalcColumnKey, { label: string; value: string }[]> = {};
     for (const meta of sourceColumnMetas) {
@@ -1437,6 +1450,28 @@ export default function HeatCalcPage() {
     : hasWizard
       ? 'Сохранить объект'
       : 'Нет изменений для сохранения';
+
+  const duplicateSelectedObjects = useCallback(() => {
+    selectedVisibleRows.forEach(({ record }, index) => {
+      if (record.object_type !== 'pipe' && record.object_type !== 'tank') return;
+      const sourceName = String(record.params?.name ?? OBJECT_TYPE_LABELS[record.object_type]);
+      add.mutate({
+        object_type: record.object_type,
+        params: {
+          ...record.params,
+          name: `${sourceName} (копия)`,
+        },
+        sort_order: projectObjectCount + index,
+      });
+    });
+  }, [add, projectObjectCount, selectedVisibleRows]);
+
+  const removeSelectedObjects = useCallback(() => {
+    selectedVisibleRows.forEach(({ record }) => {
+      remove.mutate(record.id);
+    });
+    setSelectedRowKeys([]);
+  }, [remove, selectedVisibleRows]);
 
   const updateObjectInCurrentQuery = useCallback((savedObject: ProjectObject) => {
     queryClient.setQueryData<ProjectObjectsQueryResponse | undefined>(objectQueryKey, (current) => {
@@ -1560,17 +1595,18 @@ export default function HeatCalcPage() {
   }, [inlineEditingEnabled]);
 
   useEffect(() => {
+    if (isAllObjectScope) return;
     setTableViewStateByType((current) => {
-      const cleaned = removeHiddenTableViewState(current[activeObjectType], visibleTableColumnKeys);
+      const cleaned = removeHiddenTableViewState(current[activeTableObjectType], visibleTableColumnKeys);
       if (
-        cleaned.sort === current[activeObjectType].sort
-        && Object.keys(cleaned.filters).length === Object.keys(current[activeObjectType].filters).length
+        cleaned.sort === current[activeTableObjectType].sort
+        && Object.keys(cleaned.filters).length === Object.keys(current[activeTableObjectType].filters).length
       ) {
         return current;
       }
-      return { ...current, [activeObjectType]: cleaned };
+      return { ...current, [activeTableObjectType]: cleaned };
     });
-  }, [activeObjectType, visibleTableColumnKeys]);
+  }, [activeTableObjectType, isAllObjectScope, visibleTableColumnKeys]);
 
   useEffect(() => {
     const visibleIds = new Set(visibleTableObjects.map((object) => object.id));
@@ -1599,7 +1635,7 @@ export default function HeatCalcPage() {
 
   useEffect(() => {
     if (!lastSavedObject) return;
-    if (lastSavedObject.object_type !== activeObjectType) {
+    if (!isAllObjectScope && lastSavedObject.object_type !== activeTableObjectType) {
       setLastSavedObject(null);
       return;
     }
@@ -1611,12 +1647,13 @@ export default function HeatCalcPage() {
       antdMessage.info('Объект сохранён, но скрыт текущими фильтрами');
     }
     setLastSavedObject(null);
-  }, [activeObjectType, currentTableViewActive, lastSavedObject, visibleTableObjects]);
+  }, [activeTableObjectType, currentTableViewActive, isAllObjectScope, lastSavedObject, visibleTableObjects]);
 
   const setColumnFilter = useCallback((columnKey: HeatCalcColumnKey, filter?: HeatCalcColumnFilter) => {
-    setTablePageByType((current) => ({ ...current, [activeObjectType]: 1 }));
+    if (isAllObjectScope) return;
+    setTablePageByScope((current) => ({ ...current, [activeObjectScope]: 1 }));
     setTableViewStateByType((current) => {
-      const nextFilters = { ...current[activeObjectType].filters };
+      const nextFilters = { ...current[activeTableObjectType].filters };
       if (filter && isColumnFilterActive(filter)) {
         nextFilters[columnKey] = filter;
       } else {
@@ -1624,44 +1661,46 @@ export default function HeatCalcPage() {
       }
       return {
         ...current,
-        [activeObjectType]: {
-          ...current[activeObjectType],
+        [activeTableObjectType]: {
+          ...current[activeTableObjectType],
           filters: nextFilters,
         },
       };
     });
-  }, [activeObjectType]);
+  }, [activeObjectScope, activeTableObjectType, isAllObjectScope]);
 
   const resetColumnFilter = useCallback((columnKey: HeatCalcColumnKey) => {
     setColumnFilter(columnKey, undefined);
   }, [setColumnFilter]);
 
   const resetCurrentTableViewState = useCallback(() => {
-    setTablePageByType((current) => ({ ...current, [activeObjectType]: 1 }));
+    if (isAllObjectScope) return;
+    setTablePageByScope((current) => ({ ...current, [activeObjectScope]: 1 }));
     setTableViewStateByType((current) => ({
       ...current,
-      [activeObjectType]: createEmptyTableViewState(),
+      [activeTableObjectType]: createEmptyTableViewState(),
     }));
-  }, [activeObjectType]);
+  }, [activeObjectScope, activeTableObjectType, isAllObjectScope]);
 
   const handleSourceTableChange = useCallback<NonNullable<TableProps<ProjectObject>['onChange']>>((pagination, _filters, sorter, extra) => {
     const nextPage = extra.action === 'sort' ? 1 : pagination.current ?? 1;
+    setTablePageByScope((current) => ({ ...current, [activeObjectScope]: nextPage }));
+    if (isAllObjectScope) return;
     const nextSorter = Array.isArray(sorter)
       ? sorter.find((item) => item.order)
       : sorter;
     const columnKey = typeof nextSorter?.columnKey === 'string' ? nextSorter.columnKey : null;
     const order = nextSorter?.order;
-    setTablePageByType((current) => ({ ...current, [activeObjectType]: nextPage }));
     setTableViewStateByType((current) => ({
       ...current,
-      [activeObjectType]: {
-        ...current[activeObjectType],
+      [activeTableObjectType]: {
+        ...current[activeTableObjectType],
         sort: columnKey && order
           ? { columnKey, direction: order === 'ascend' ? 'asc' : 'desc' }
           : undefined,
       },
     }));
-  }, [activeObjectType]);
+  }, [activeObjectScope, activeTableObjectType, isAllObjectScope]);
 
   const persistTableColumnSettings = useCallback((
     settings: HeatCalcTableColumnSettings,
@@ -1773,8 +1812,8 @@ export default function HeatCalcPage() {
     () => sourceColumnMetas.map((meta) => {
       const renderer = columnRenderers[meta.key];
       const capability = fieldCapabilityByKey.get(meta.key);
-      const filterEnabled = capability?.filter.enabled ?? true;
-      const sortEnabled = capability?.sort.enabled ?? true;
+      const filterEnabled = !isAllObjectScope && (capability?.filter.enabled ?? true);
+      const sortEnabled = !isAllObjectScope && (capability?.sort.enabled ?? true);
       const filterKind = filterKindForColumn(meta.key, capability);
       const activeFilter = activeTableViewState.filters[meta.key];
       return {
@@ -1783,7 +1822,7 @@ export default function HeatCalcPage() {
           <ResizableColumnTitle
             title={meta.title}
             label={meta.label}
-            onResizeStart={(event) => startColumnResize(activeObjectType, meta, event)}
+            onResizeStart={(event) => startColumnResize(activeTableObjectType, meta, event)}
           />
         ),
         columnKey: meta.key,
@@ -1794,7 +1833,7 @@ export default function HeatCalcPage() {
           const draftRow = draftRowsById[record.id];
           const displayRecord = buildDraftDisplayRecord(draftRow, record);
           const content = renderer.render?.(value, displayRecord, index) as ReactNode;
-          const config = inlineEditingEnabled && (record.object_type === 'pipe' || record.object_type === 'tank')
+          const config = !isAllObjectScope && inlineEditingEnabled && (record.object_type === 'pipe' || record.object_type === 'tank')
             ? getInlineEditFieldConfig(record.object_type, meta.key)
             : null;
           if (!config) return content;
@@ -1839,7 +1878,7 @@ export default function HeatCalcPage() {
             onClose={close}
           />
         ) : undefined,
-        onCell: inlineEditingEnabled && getInlineEditFieldConfig(activeObjectType, meta.key)
+        onCell: !isAllObjectScope && inlineEditingEnabled && getInlineEditFieldConfig(activeTableObjectType, meta.key)
           ? () => ({ className: 'editable-cell-host editable-cell-enabled' })
           : undefined,
       };
@@ -1847,13 +1886,14 @@ export default function HeatCalcPage() {
     [
       activeInlineCell,
       activeTableViewState,
-      activeObjectType,
+      activeTableObjectType,
       columnRenderers,
       commitInlineCell,
       draftRowsById,
       enumOptionsByColumn,
       fieldCapabilityByKey,
       inlineEditingEnabled,
+      isAllObjectScope,
       resetColumnFilter,
       setColumnFilter,
       sourceColumnMetas,
@@ -1891,7 +1931,7 @@ export default function HeatCalcPage() {
   }, [columnRenderers, selectedRowKeys, sourceColumnMetas, visibleTableRows]);
 
   function openColumnSettings() {
-    setColumnSettingsType(activeObjectType);
+    setColumnSettingsType(activeTableObjectType);
     setDraftTableColumnSettings(normalizeTableColumnSettings(tableColumnSettings));
     setDraftTableViewSettings(normalizeTableViewSettings(tableViewSettings));
     setColumnSettingsOpen(true);
@@ -1993,21 +2033,33 @@ export default function HeatCalcPage() {
           <div className="actionbar-group actionbar-type-group" aria-label="Тип объекта">
             <Button
               className="action-type-button"
-              type={activeObjectType === 'pipe' ? 'primary' : 'default'}
+              type={activeObjectScope === 'pipe' ? 'primary' : 'default'}
               icon={<PipeTypeIcon />}
-              aria-pressed={activeObjectType === 'pipe'}
-              onClick={() => handleObjectTypeChange('pipe')}
+              aria-label={`Трубопровод: ${pipeCount}`}
+              aria-pressed={activeObjectScope === 'pipe'}
+              onClick={() => handleObjectScopeChange('pipe')}
             >
-              Трубопровод
+              Трубопровод: <strong className="action-type-count">{pipeCount}</strong>
             </Button>
             <Button
               className="action-type-button"
-              type={activeObjectType === 'tank' ? 'primary' : 'default'}
+              type={activeObjectScope === 'tank' ? 'primary' : 'default'}
               icon={<TankTypeIcon />}
-              aria-pressed={activeObjectType === 'tank'}
-              onClick={() => handleObjectTypeChange('tank')}
+              aria-label={`Резервуар: ${tankCount}`}
+              aria-pressed={activeObjectScope === 'tank'}
+              onClick={() => handleObjectScopeChange('tank')}
             >
-              Резервуар
+              Резервуар: <strong className="action-type-count">{tankCount}</strong>
+            </Button>
+            <Button
+              className="action-type-button"
+              type={activeObjectScope === 'all' ? 'primary' : 'default'}
+              icon={<AppstoreOutlined />}
+              aria-label={`Все: ${projectObjectCount}`}
+              aria-pressed={activeObjectScope === 'all'}
+              onClick={() => handleObjectScopeChange('all')}
+            >
+              Все: <strong className="action-type-count">{projectObjectCount}</strong>
             </Button>
           </div>
 
@@ -2048,165 +2100,150 @@ export default function HeatCalcPage() {
           </div>
         </div>
 
-        <div className="actionbar-srs actionbar-actions-row" role="toolbar" aria-label="Действия с объектами">
-          <div className="actionbar-group actionbar-edit-group">
-            <Tooltip title="Настройки таблицы">
+        <div className="actionbar-srs actionbar-actions-row">
+          {formBlockVisible && (
+            <div className="actionbar-form-actions-row" role="toolbar" aria-label="Действия блока заполнения">
+              <div className="actionbar-group actionbar-form-actions-group">
+                <Button
+                  type="primary"
+                  className="action-add-button"
+                  icon={<PlusOutlined />}
+                  aria-label="Добавить"
+                  onClick={() => openAddWizard()}
+                >
+                  Добавить
+                </Button>
+
+                <Tooltip title={toolbarSaveTooltip}>
+                  <span className="action-tooltip-wrap">
+                    <Button
+                      className="action-save-button save"
+                      icon={<SaveOutlined />}
+                      aria-label="Сохранить"
+                      disabled={toolbarSaveDisabled}
+                      loading={toolbarSaveLoading}
+                      onClick={handleToolbarSave}
+                    >
+                      Сохранить
+                    </Button>
+                  </span>
+                </Tooltip>
+                <Tooltip title={hasWizard ? 'Сбросить форму' : 'Нет открытой формы'}>
+                  <span className="action-tooltip-wrap">
+                    <Button
+                      className="action-reset-button"
+                      icon={<CloseOutlined />}
+                      aria-label="Сбросить"
+                      disabled={!hasWizard}
+                      onClick={closeWizard}
+                    >
+                      Сбросить
+                    </Button>
+                  </span>
+                </Tooltip>
+              </div>
+            </div>
+          )}
+
+          <div className="actionbar-table-actions-row" role="toolbar" aria-label="Действия таблицы объектов">
+            <div className="actionbar-group actionbar-table-actions-group">
               <Button
-                className="action-icon-button"
+                className="action-secondary-button"
                 icon={<TableOutlined />}
-                aria-label="Настройки таблицы"
+                aria-label="Настройки отображения"
                 onClick={openColumnSettings}
-              />
-            </Tooltip>
-            {currentTableViewActive && (
-              <Tooltip
-                title={`Показано ${filteredTableCount} из ${activeTypeTotalCount}. Активных фильтров: ${currentActiveFilterCount}`}
               >
-                <Tag color="blue" className="table-filter-status-tag">
-                  {filteredTableCount}/{activeTypeTotalCount}
-                </Tag>
-              </Tooltip>
-            )}
-            <Tooltip title={currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
-              <span className="action-tooltip-wrap">
-                <Button
-                  className="action-icon-button"
-                  icon={<CloseCircleOutlined />}
-                  aria-label="Сбросить фильтры таблицы"
-                  disabled={!currentTableViewActive}
-                  onClick={resetCurrentTableViewState}
-                />
-              </span>
-            </Tooltip>
-            {draftControlsVisible && (
-              <>
-                <Tag color={dirtyDraftRowCount > 0 ? 'gold' : 'default'} className="inline-draft-status-tag">
-                  Несохранено: {dirtyDraftRowCount}
-                </Tag>
-                <Button
-                  size="small"
-                  disabled={saveTargetCount === 0 || inlineDraftSaving}
-                  onClick={() => discardDraftRows(saveTargetIds)}
+                Настройки отображения
+              </Button>
+              {currentTableViewActive && (
+                <Tooltip
+                  title={`Показано ${filteredTableCount} из ${activeTypeTotalCount}. Активных фильтров: ${currentActiveFilterCount}`}
                 >
-                  {draftDiscardLabel}
-                </Button>
-              </>
-            )}
-            <Tooltip title="Добавить">
-              <Button
-                className="action-icon-button add"
-                icon={<PlusOutlined />}
-                aria-label="Добавить"
-                onClick={() => openAddWizard()}
-              />
-            </Tooltip>
-            <Tooltip title={hasEditingObject ? 'Создать на основании' : 'Выберите строку для копирования'}>
-              <span className="action-tooltip-wrap">
-                <Button
-                  className="action-icon-button"
-                  icon={<CopyOutlined />}
-                  aria-label="Создать на основании"
-                  disabled={!hasEditingObject}
-                  loading={add.isPending}
-                  onClick={duplicateCurrentObject}
-                />
-              </span>
-            </Tooltip>
-            <Tooltip title={hasWizard ? 'Применить к одному' : 'Откройте или создайте объект'}>
-              <span className="action-tooltip-wrap">
-                <Button
-                  className="action-icon-button"
-                  icon={<CheckOutlined />}
-                  aria-label="Применить к одному"
-                  disabled={!hasWizard}
-                  loading={submittingObject}
-                  onClick={() => document.getElementById('inline-object-save')?.click()}
-                />
-              </span>
-            </Tooltip>
-            <Tooltip title="Массовое применение будет доступно после согласования правил переноса параметров">
-              <span className="action-tooltip-wrap">
-                <Button
-                  className="action-icon-button"
-                  icon={<CheckSquareOutlined />}
-                  aria-label="Применить ко всем"
-                  disabled
-                />
-              </span>
-            </Tooltip>
-            <Tooltip title={hasEditingObject ? 'Удалить' : 'Выберите строку для удаления'}>
-              <span className="action-tooltip-wrap">
-                <Popconfirm
-                  title="Удалить объект?"
-                  okText="Удалить"
-                  cancelText="Отмена"
-                  disabled={!hasEditingObject}
-                  onConfirm={removeCurrentObject}
-                >
+                  <Tag color="blue" className="table-filter-status-tag">
+                    {filteredTableCount}/{activeTypeTotalCount}
+                  </Tag>
+                </Tooltip>
+              )}
+              <Tooltip title={currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
+                <span className="action-tooltip-wrap">
                   <Button
-                    danger
-                    className="action-icon-button"
-                    icon={<DeleteOutlined />}
-                    aria-label="Удалить"
-                    loading={remove.isPending}
-                    disabled={!hasEditingObject}
-                  />
-                </Popconfirm>
-              </span>
-            </Tooltip>
-          </div>
-
-          <div className="actionbar-group actionbar-save-group">
-            <Tooltip title={toolbarSaveTooltip}>
-              <span className="action-tooltip-wrap">
+                    className="action-secondary-button"
+                    icon={<CloseCircleOutlined />}
+                    aria-label="Сбросить фильтры таблицы"
+                    disabled={!currentTableViewActive}
+                    onClick={resetCurrentTableViewState}
+                  >
+                    Сбросить фильтры
+                  </Button>
+                </span>
+              </Tooltip>
+              {draftControlsVisible && (
+                <>
+                  <Tag color={dirtyDraftRowCount > 0 ? 'gold' : 'default'} className="inline-draft-status-tag">
+                    Несохранено: {dirtyDraftRowCount}
+                  </Tag>
+                  <Button
+                    size="small"
+                    disabled={saveTargetCount === 0 || inlineDraftSaving}
+                    onClick={() => discardDraftRows(saveTargetIds)}
+                  >
+                    {draftDiscardLabel}
+                  </Button>
+                </>
+              )}
+              {selectedObjectCount > 0 && (
+                <Tag color="blue" className="selection-status-tag">
+                  Выбрано: {selectedObjectCount}
+                </Tag>
+              )}
+              <Tooltip
+                title={
+                  selectedObjectCount > 0
+                    ? `Добавить копии выбранных объектов: ${selectedObjectCount}`
+                    : 'Выберите галочками один или несколько объектов для копирования'
+                }
+              >
+                <span className="action-tooltip-wrap">
+                  <Button
+                    className="action-secondary-button"
+                    icon={<CopyOutlined />}
+                    aria-label="Добавить копии выбранных"
+                    disabled={selectedObjectCount === 0}
+                    loading={add.isPending}
+                    onClick={duplicateSelectedObjects}
+                  >
+                    Добавить копии выбранных
+                  </Button>
+                </span>
+              </Tooltip>
+              <Popconfirm
+                title={selectedObjectCount > 1 ? 'Удалить выбранные объекты?' : 'Удалить выбранный объект?'}
+                okText="Удалить"
+                cancelText="Отмена"
+                disabled={selectedObjectCount === 0}
+                onConfirm={removeSelectedObjects}
+              >
                 <Button
-                  className="action-save-button save"
-                  icon={<SaveOutlined />}
-                  aria-label="Сохранить"
-                  disabled={toolbarSaveDisabled}
-                  loading={toolbarSaveLoading}
-                  onClick={handleToolbarSave}
+                  danger
+                  className="action-secondary-button"
+                  icon={<DeleteOutlined />}
+                  aria-label="Удалить выбранные"
+                  loading={remove.isPending}
+                  disabled={selectedObjectCount === 0}
                 >
-                  Сохранить
+                  Удалить выбранные
                 </Button>
-              </span>
-            </Tooltip>
-            <Tooltip title={hasWizard ? 'Отменить' : 'Нет открытой формы'}>
-              <span className="action-tooltip-wrap">
-                <Button
-                  className="action-icon-button"
-                  icon={<CloseOutlined />}
-                  aria-label="Отменить"
-                  disabled={!hasWizard}
-                  onClick={closeWizard}
+              </Popconfirm>
+              <ImportExcelButton projectId={project.id} />
+              {role === 'employee' && (
+                <ExportObjectsButton
+                  projectId={project.id}
+                  projectName={project.name}
+                  disabled={projectObjectCount === 0}
                 />
-              </span>
-            </Tooltip>
-          </div>
+              )}
+            </div>
 
-          <div className="actionbar-group actionbar-io-group">
-            <ImportExcelButton projectId={project.id} />
-            {role === 'employee' && (
-              <ExportObjectsButton
-                projectId={project.id}
-                projectName={project.name}
-                disabled={projectObjectCount === 0}
-              />
-            )}
-          </div>
-
-          <div className="actionbar-status">
-            {selectedRowKeys.length > 0 && (
-              <Tag color="blue" className="selection-status-tag">
-                Выбрано: {selectedRowKeys.length} · Ctrl+C
-              </Tag>
-            )}
-            <ObjectCountBadge
-              total={totalCount}
-              valid={validCount}
-              pipeTotal={pipeCount}
-              tankTotal={tankCount}
-            />
           </div>
         </div>
 
@@ -2218,8 +2255,8 @@ export default function HeatCalcPage() {
             rowKey="id"
             size="small"
             pagination={{
-              current: objectQueryResult?.page_info.page ?? activeTablePage,
-              pageSize: objectQueryResult?.page_info.page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE,
+              current: isAllObjectScope ? activeTablePage : objectQueryResult?.page_info.page ?? activeTablePage,
+              pageSize: isAllObjectScope ? DEFAULT_OBJECT_QUERY_PAGE_SIZE : objectQueryResult?.page_info.page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE,
               total: filteredTableCount,
               showSizeChanger: false,
               hideOnSinglePage: true,
@@ -2263,9 +2300,11 @@ export default function HeatCalcPage() {
                   </div>
                 ) : (
                   <Text type="secondary">
-                    {activeObjectType === 'pipe'
-                      ? 'Трубопроводы не добавлены. Нажмите «+» или импортируйте XLSX/CSV.'
-                      : 'Резервуары не добавлены. Нажмите «+» или импортируйте XLSX/CSV.'}
+                    {activeObjectScope === 'all'
+                      ? 'Объекты не добавлены. Нажмите «+» или импортируйте XLSX/CSV.'
+                      : activeObjectScope === 'pipe'
+                        ? 'Трубопроводы не добавлены. Нажмите «+» или импортируйте XLSX/CSV.'
+                        : 'Резервуары не добавлены. Нажмите «+» или импортируйте XLSX/CSV.'}
                   </Text>
                 )
               ),

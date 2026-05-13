@@ -9,8 +9,8 @@ import {
 
 async function openPipeForm(page: Page) {
   const typeToolbar = page.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
-  await typeToolbar.getByRole('button', { name: 'Трубопровод' }).click();
-  await page.getByRole('button', { name: /Добавить/ }).click();
+  await typeToolbar.getByRole('button', { name: /Трубопровод:/ }).click();
+  await page.getByRole('toolbar', { name: 'Действия блока заполнения' }).getByRole('button', { name: 'Добавить' }).click();
   await expect(page.locator('.inline-object-form')).toBeVisible();
   await expect(page.locator('.inline-object-form > .ant-form-item:visible')).toHaveCount(0);
   await expect(page.locator('.inline-object-form > input:visible')).toHaveCount(0);
@@ -18,8 +18,8 @@ async function openPipeForm(page: Page) {
 
 async function openTankForm(page: Page) {
   const typeToolbar = page.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
-  await typeToolbar.getByRole('button', { name: 'Резервуар' }).click();
-  await page.getByRole('button', { name: /Добавить/ }).click();
+  await typeToolbar.getByRole('button', { name: /Резервуар:/ }).click();
+  await page.getByRole('toolbar', { name: 'Действия блока заполнения' }).getByRole('button', { name: 'Добавить' }).click();
   await expect(page.locator('.inline-object-form')).toBeVisible();
   await expect(page.locator('.inline-object-form > .ant-form-item:visible')).toHaveCount(0);
   await expect(page.locator('.inline-object-form > input:visible')).toHaveCount(0);
