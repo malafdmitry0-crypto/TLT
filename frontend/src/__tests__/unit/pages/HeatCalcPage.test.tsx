@@ -18,6 +18,15 @@ import {
   HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY,
   HEATCALC_TABLE_VIEW_PREF_KEY,
 } from '@/utils/heatCalcTableViewSettings';
+import {
+  HEATCALC_GUEST_CALCULATION_DETAILS_STORAGE_KEY,
+  HEATCALC_CALCULATION_DETAILS_PREF_KEY,
+} from '@/utils/heatCalcCalculationDetailsSettings';
+import {
+  HEATCALC_FIELD_INPUT_PREF_KEY,
+  HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY,
+  HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY,
+} from '@/utils/heatCalcFieldInputSettings';
 
 // ── Моки API ─────────────────────────────────────────────────────────────────
 
@@ -243,6 +252,14 @@ async function openColumnFilter(user: { click: (element: Element) => Promise<unk
   await user.click(screen.getAllByLabelText(`Фильтр ${label}`)[0]);
 }
 
+async function openTableSettingsOtherTab(
+  user: { click: (element: Element) => Promise<unknown> },
+  dialog: HTMLElement,
+) {
+  await user.click(within(dialog).getByRole('tab', { name: 'Остальное' }));
+  expect(within(dialog).getByText('Размер текста таблицы')).toBeInTheDocument();
+}
+
 // ── Тесты ────────────────────────────────────────────────────────────────────
 
 describe('HeatCalcPage', () => {
@@ -274,38 +291,11 @@ describe('HeatCalcPage', () => {
   });
 
   describe('Кнопка «Электрорасчёт»', () => {
-    it('задизейблена когда нет объектов (validCount=0)', () => {
+    it('отсутствует на странице расчёта теплопотерь', () => {
       useProjectStore.getState().setCurrentProject(mockProject);
       renderPage();
-      const btn = screen.getByRole('button', { name: /электрорасчёт/i });
-      expect(btn).toBeDisabled();
+      expect(screen.queryByRole('button', { name: /электрорасчёт/i })).not.toBeInTheDocument();
     });
-
-    it('активна при наличии хотя бы одного валидного объекта', async () => {
-      const { listObjects } = await import('@/api/projects');
-      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
-
-      useProjectStore.getState().setCurrentProject(mockProject);
-      const qc = new QueryClient({
-        defaultOptions: { queries: { retry: false } },
-      });
-      render(
-        <QueryClientProvider client={qc}>
-          <MemoryRouter>
-            <HeatCalcPage />
-          </MemoryRouter>
-        </QueryClientProvider>
-      );
-
-      // Ждём пока React Query загрузит данные и кнопка разблокируется
-      await waitFor(
-        () => {
-          const btn = screen.getByRole('button', { name: /электрорасчёт/i });
-          expect(btn).not.toBeDisabled();
-        },
-        { timeout: 5000 },
-      );
-    }, 10_000);
   });
 
   describe('Навигация таблицы', () => {
@@ -510,7 +500,6 @@ describe('HeatCalcPage', () => {
         expect(screen.getByTestId('object-name-input')).toHaveValue('');
       });
 
-      await user.click(screen.getByRole('button', { name: 'Сбросить' }));
       await user.click(screen.getByRole('button', { name: /Резервуар:/ }));
       await user.click(addButton);
 
@@ -524,6 +513,7 @@ describe('HeatCalcPage', () => {
       const addButton = screen.getByRole('button', { name: 'Добавить' });
       const tableFieldsButton = screen.getByRole('button', { name: 'Настройки отображения' });
       const saveButton = screen.getByRole('button', { name: 'Сохранить' });
+      const deleteButton = screen.getByRole('button', { name: 'Удалить выбранные' });
       const importButton = screen.getByRole('button', { name: 'Импорт XLSX/CSV' });
 
       const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
@@ -542,10 +532,14 @@ describe('HeatCalcPage', () => {
       expect(within(typeToolbar).getByRole('checkbox', { name: 'Показать блок заполнения параметров' })).toBeChecked();
       expect(within(formActionsToolbar).getByRole('button', { name: 'Добавить' })).toBe(addButton);
       expect(within(formActionsToolbar).getByRole('button', { name: 'Сохранить' })).toBe(saveButton);
-      expect(within(formActionsToolbar).getByRole('button', { name: 'Сбросить' })).toBeInTheDocument();
+      expect(within(formActionsToolbar).getByRole('button', { name: 'Удалить выбранные' })).toBe(deleteButton);
+      expect(deleteButton).toBeDisabled();
+      expect(deleteButton.textContent).toContain('Удалить');
+      expect(saveButton.compareDocumentPosition(deleteButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(within(formActionsToolbar).queryByRole('button', { name: 'Сбросить' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).getByRole('button', { name: 'Настройки отображения' })).toBe(tableFieldsButton);
       expect(within(tableActionsToolbar).getByRole('button', { name: 'Добавить копии выбранных' })).toBeDisabled();
-      expect(within(tableActionsToolbar).getByRole('button', { name: 'Удалить выбранные' })).toBeDisabled();
+      expect(within(tableActionsToolbar).queryByRole('button', { name: 'Удалить выбранные' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).getByRole('button', { name: 'Импорт XLSX/CSV' })).toBe(importButton);
       expect(within(tableActionsToolbar).queryByRole('button', { name: 'Трубопровод' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).queryByRole('button', { name: 'Резервуар' })).not.toBeInTheDocument();
@@ -563,8 +557,8 @@ describe('HeatCalcPage', () => {
       expect(within(typeToolbar).getByRole('button', { name: /Резервуар:\s*0/ })).toBeInTheDocument();
       expect(within(typeToolbar).getByRole('button', { name: /Все:\s*0/ })).toBeInTheDocument();
       expect(screen.queryByLabelText('Количество объектов')).not.toBeInTheDocument();
-      expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Сбросить' })).not.toBeDisabled();
+      expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Сбросить' })).not.toBeInTheDocument();
     });
 
     it('скрывает блок вручную, убирает режим и сбрасывает заполненные параметры', async () => {
@@ -713,6 +707,7 @@ describe('HeatCalcPage', () => {
       expect(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY)).toBeNull();
       await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      await openTableSettingsOtherTab(user, dialog);
       await user.click(within(dialog).getByText('Крупный'));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
@@ -720,8 +715,122 @@ describe('HeatCalcPage', () => {
         expect(document.querySelector('.calc-spreadsheet--large')).toBeInTheDocument();
       });
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
-      expect(saved).toEqual({ version: 1, fontSize: 'large', inlineEditingEnabled: false });
+      expect(saved).toEqual({
+        version: 1,
+        fontSize: 'large',
+        inlineEditingEnabled: false,
+        formPlacement: 'top',
+      });
       expect(saved).not.toHaveProperty('fontSizePx');
+    }, 10_000);
+
+    it('сохраняет положение блока параметров в настройках отображения', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      await openTableSettingsOtherTab(user, dialog);
+      await user.click(within(dialog).getByText('Слева'));
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(document.querySelector('.heatcalc-workspace-layout--left')).toBeInTheDocument();
+      });
+      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
+      expect(saved).toMatchObject({
+        version: 1,
+        fontSize: 'standard',
+        inlineEditingEnabled: false,
+        formPlacement: 'left',
+      });
+    }, 10_000);
+
+    it('показывает расшифровку расчёта без ошибочного Tср', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject({
+          params: {
+            ...makeObject().params,
+            process_temperature: 60,
+            ambient_temperature: -20,
+            ambient_temperature_source: 'climate',
+          },
+          results: {
+            heat_loss_per_meter: 50,
+            total_heat_loss: 5000,
+            alpha_vnesh: 24.1,
+            safety_factor: 1.2,
+            insulation_resistance: 1.5447,
+            external_resistance: 0.0389,
+            effective_length: 64,
+          },
+        }),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await user.click(await screen.findByText('Труба DN100'));
+
+      expect(await screen.findByText('Расшифровка расчёта:')).toBeInTheDocument();
+      expect(screen.getByText('ΔT: 80°C')).toBeInTheDocument();
+      expect(screen.getByText('α примен.: 24,1 Вт/м²К')).toBeInTheDocument();
+      expect(screen.getByText('Lэфф: 64,0 м')).toBeInTheDocument();
+      expect(screen.queryByText(/Tср/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/\(—\)/)).not.toBeInTheDocument();
+    }, 10_000);
+
+    it('сохраняет настройки расшифровки расчёта отдельно от настроек таблицы', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      expect(localStorage.getItem(HEATCALC_GUEST_CALCULATION_DETAILS_STORAGE_KEY)).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      await openTableSettingsOtherTab(user, dialog);
+      await user.click(within(dialog).getByText('Подробно'));
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_CALCULATION_DETAILS_STORAGE_KEY) ?? '{}');
+      expect(saved).toMatchObject({ version: 1, preset: 'detailed' });
+      expect(saved.visibleMetrics).toContain('thermal_resistance');
+      expect(saved.visibleMetrics).toContain('temperature_source');
+    }, 10_000);
+
+    it('сохраняет гостевой шаг числового поля и применяет его в форме', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await screen.findByText('Геометрия трубы');
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      const stepInput = within(dialog).getByRole('spinbutton', { name: 'Шаг: Наружный диаметр' });
+      fireEvent.change(stepInput, { target: { value: '10' } });
+      fireEvent.blur(stepInput);
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY) ?? '{}');
+      expect(saved.fields.pipe.outer_diameter_mm).toEqual({ step: 10 });
+      await waitFor(() => {
+        expect(screen.getByTestId('outer-diameter-input')).toHaveAttribute('step', '10');
+      });
     }, 10_000);
 
     it('включает inline-редактирование через настройки таблицы и сохраняет draft только по кнопке', async () => {
@@ -739,6 +848,7 @@ describe('HeatCalcPage', () => {
       await screen.findByText('Труба DN100');
       await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      await openTableSettingsOtherTab(user, dialog);
       const inlineToggle = within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' });
       expect(inlineToggle).not.toBeChecked();
       await user.click(inlineToggle);
@@ -797,6 +907,7 @@ describe('HeatCalcPage', () => {
 
       await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      await openTableSettingsOtherTab(user, dialog);
       await user.click(within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
@@ -827,6 +938,7 @@ describe('HeatCalcPage', () => {
       await screen.findByText('Труба DN100');
       await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      await openTableSettingsOtherTab(user, dialog);
       await user.click(within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
@@ -888,6 +1000,7 @@ describe('HeatCalcPage', () => {
       await screen.findByText('Труба invalid');
       await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      await openTableSettingsOtherTab(user, dialog);
       await user.click(within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
@@ -943,7 +1056,7 @@ describe('HeatCalcPage', () => {
         HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY,
         JSON.stringify({
           userId: 'user-test-1',
-          settings: { version: 1, fontSize: 'large', inlineEditingEnabled: false },
+          settings: { version: 1, fontSize: 'large', inlineEditingEnabled: false, formPlacement: 'top' },
           cachedAt: '2026-05-08T00:00:00.000Z',
         }),
       );
@@ -964,6 +1077,8 @@ describe('HeatCalcPage', () => {
       await waitFor(() => {
         expect(getUserPreference).toHaveBeenCalledWith(HEATCALC_TABLE_COLUMN_PREF_KEY);
         expect(getUserPreference).toHaveBeenCalledWith(HEATCALC_TABLE_VIEW_PREF_KEY);
+        expect(getUserPreference).toHaveBeenCalledWith(HEATCALC_CALCULATION_DETAILS_PREF_KEY);
+        expect(getUserPreference).toHaveBeenCalledWith(HEATCALC_FIELD_INPUT_PREF_KEY);
       });
       await waitFor(() => {
         expect(localStorage.getItem(HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY)).toBeNull();
@@ -1002,6 +1117,10 @@ describe('HeatCalcPage', () => {
       await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
+      const stepInput = within(dialog).getByRole('spinbutton', { name: 'Шаг: Наружный диаметр' });
+      fireEvent.change(stepInput, { target: { value: '2.5' } });
+      fireEvent.blur(stepInput);
+      await openTableSettingsOtherTab(user, dialog);
       await user.click(within(dialog).getByText('Крупный'));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
@@ -1012,6 +1131,10 @@ describe('HeatCalcPage', () => {
         );
         expect(updateUserPreference).toHaveBeenCalledWith(
           HEATCALC_TABLE_VIEW_PREF_KEY,
+          expect.any(Object),
+        );
+        expect(updateUserPreference).toHaveBeenCalledWith(
+          HEATCALC_FIELD_INPUT_PREF_KEY,
           expect.any(Object),
         );
       });
@@ -1032,7 +1155,19 @@ describe('HeatCalcPage', () => {
       expect(cached.settings.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
       const viewCached = JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY) ?? '{}');
       expect(viewCached.userId).toBe('user-test-1');
-      expect(viewCached.settings).toEqual({ version: 1, fontSize: 'large', inlineEditingEnabled: false });
+      expect(viewCached.settings).toEqual({
+        version: 1,
+        fontSize: 'large',
+        inlineEditingEnabled: false,
+        formPlacement: 'top',
+      });
+      const fieldInputPayload = (updateUserPreference as ReturnType<typeof vi.fn>).mock.calls.find(
+        ([key]) => key === HEATCALC_FIELD_INPUT_PREF_KEY,
+      )?.[1];
+      expect(fieldInputPayload.fields.pipe.outer_diameter_mm).toEqual({ step: 2.5 });
+      const fieldInputCached = JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY) ?? '{}');
+      expect(fieldInputCached.userId).toBe('user-test-1');
+      expect(fieldInputCached.settings.fields.pipe.outer_diameter_mm).toEqual({ step: 2.5 });
     }, 10_000);
 
     it('фильтр по наименованию скрывает строки только в таблице, не меняя счётчики расчёта', async () => {
@@ -1188,18 +1323,19 @@ describe('HeatCalcPage', () => {
       expect(table).not.toBeNull();
       const rowCheckboxes = within(table!).getAllByRole('checkbox');
       await user.click(rowCheckboxes[1]);
-      expect(await screen.findByText(/Выбрано: 1/)).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: /Трубопровод:\s*1 из 2/ })).toBeInTheDocument();
+      expect(screen.queryByText(/Выбрано:/)).not.toBeInTheDocument();
 
       await openColumnFilter(user, 'Наименование');
       await user.type(await screen.findByLabelText('Поиск: Наименование'), 'юг');
       await user.click(screen.getByRole('button', { name: 'Применить' }));
 
       await waitFor(() => {
-        expect(screen.queryByText(/Выбрано: 1/)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Трубопровод:\s*2/ })).toBeInTheDocument();
       });
       expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
       expect(screen.getByText('Труба Юг')).toBeInTheDocument();
-    });
+    }, 10_000);
 
     it('при переключении типа очищает выбранные строки', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1218,11 +1354,13 @@ describe('HeatCalcPage', () => {
       const rowCheckboxes = within(table!).getAllByRole('checkbox');
       await user.click(rowCheckboxes[1]);
 
-      expect(await screen.findByText(/Выбрано: 1/)).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: /Трубопровод:\s*1 из 1/ })).toBeInTheDocument();
+      expect(screen.queryByText(/Выбрано:/)).not.toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: /Резервуар:/ }));
       await waitFor(() => {
-        expect(screen.queryByText(/Выбрано: 1/)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Резервуар:\s*1/ })).toHaveAttribute('aria-pressed', 'true');
       });
+      expect(screen.queryByText(/Выбрано:/)).not.toBeInTheDocument();
     });
 
   });
@@ -1281,15 +1419,19 @@ describe('HeatCalcPage', () => {
         sort_order: 1,
         params: { ...source.params, name: 'Труба DN150' },
       });
-      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source, secondSource]);
+      const objects = [source, secondSource];
+      (listObjects as ReturnType<typeof vi.fn>).mockImplementation(async () => objects);
       (createObject as ReturnType<typeof vi.fn>).mockImplementation(
-        async (_projectId: string, payload: { object_type: 'pipe' | 'tank'; params: Record<string, unknown>; sort_order: number }) =>
-          makeObject({
+        async (_projectId: string, payload: { object_type: 'pipe' | 'tank'; params: Record<string, unknown>; sort_order: number }) => {
+          const created = makeObject({
             id: `copy-${payload.sort_order}`,
             object_type: payload.object_type,
             params: payload.params,
             sort_order: payload.sort_order,
-          }),
+          });
+          objects.push(created);
+          return created;
+        },
       );
 
       useProjectStore.getState().setCurrentProject(mockProject);
@@ -1324,6 +1466,16 @@ describe('HeatCalcPage', () => {
           sort_order: 3,
         }),
       );
+      await waitFor(() => {
+        expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
+        expect(screen.getByTestId('object-name-input')).toHaveValue('Труба DN150 (копия)');
+      });
+      await waitFor(() => {
+        const rows = [...document.querySelectorAll('.calc-spreadsheet .ant-table-tbody > tr[data-row-key]')];
+        const focusedRow = rows.find((row) => row.textContent?.includes('Труба DN150 (копия)'));
+        expect(focusedRow).toHaveClass('row-selected');
+        expect(within(focusedRow as HTMLElement).getByRole('checkbox')).not.toBeChecked();
+      });
     });
 
     it('удаляет объекты, выбранные галочками', async () => {

@@ -595,6 +595,88 @@ html, body, #root {
   position: relative;
 }
 
+.heatcalc-workspace-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+  min-width: 0;
+}
+
+.heatcalc-workspace-layout--top,
+.heatcalc-workspace-layout--bottom {
+  display: block;
+}
+
+.heatcalc-table-pane {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.heatcalc-workspace-layout--left .heatcalc-form-pane,
+.heatcalc-workspace-layout--right .heatcalc-form-pane {
+  flex: 0 0 clamp(360px, 30vw, 520px);
+  max-height: calc(100vh - 135px);
+  overflow: auto;
+}
+
+.heatcalc-workspace-layout--left .heatcalc-table-pane,
+.heatcalc-workspace-layout--right .heatcalc-table-pane {
+  flex: 1 1 0;
+}
+
+.heatcalc-workspace-layout--left .form-grid-srs,
+.heatcalc-workspace-layout--right .form-grid-srs {
+  flex-direction: column;
+  align-items: stretch;
+  overflow: visible;
+}
+
+.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs,
+.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs {
+  width: 100% !important;
+  min-width: 0;
+  --field-pair-min-width: 204px;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs > .name-form-item,
+.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs > .fixed-select-form-item,
+.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs > .pipe-material-form-item,
+.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs > .wide-select-form-item,
+.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs > .layer-material-form-item,
+.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs > .name-form-item,
+.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs > .fixed-select-form-item,
+.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs > .pipe-material-form-item,
+.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs > .wide-select-form-item,
+.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs > .layer-material-form-item {
+  grid-column: 1 / -1;
+}
+
+.heatcalc-workspace-layout--left .form-col-resize-handle,
+.heatcalc-workspace-layout--right .form-col-resize-handle {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .heatcalc-workspace-layout--left .form-grid-srs .form-col-srs,
+  .heatcalc-workspace-layout--right .form-grid-srs .form-col-srs {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  .heatcalc-workspace-layout--left,
+  .heatcalc-workspace-layout--right {
+    display: block;
+  }
+
+  .heatcalc-workspace-layout--left .heatcalc-form-pane,
+  .heatcalc-workspace-layout--right .heatcalc-form-pane {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
 .inline-form-caption {
   display: flex;
   align-items: center;
@@ -682,15 +764,15 @@ html, body, #root {
 .form-col-srs h4 {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   grid-column: 1 / -1;
-  min-height: 25px;
-  margin: -3px -3px 4px;
-  font-size: 10px;
+  min-height: 18px;
+  margin: -3px -3px 3px;
+  font-size: 8px;
   color: #2f3d4f;
   text-transform: uppercase;
   letter-spacing: 0;
-  padding: 3px 7px;
+  padding: 2px 6px;
   background: #f8fbff;
   border-bottom: 1px solid #dbe6f2;
 }
@@ -701,12 +783,12 @@ html, body, #root {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 999px;
   background: #2457d6;
   color: #fff;
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 700;
   line-height: 1;
   box-shadow: 0 3px 8px rgb(36 87 214 / 16%);
@@ -793,6 +875,42 @@ html, body, #root {
   white-space: normal;
 }
 
+.inline-object-form .ant-form-item-label > label[data-field-help] {
+  position: relative;
+  overflow: visible;
+}
+
+.inline-object-form .ant-form-item-label > label[data-field-help]::after {
+  content: attr(data-field-help);
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  bottom: calc(100% + 6px);
+  width: max-content;
+  max-width: min(320px, 70vw);
+  padding: 5px 7px;
+  border-radius: 2px;
+  background: rgba(45, 45, 45, 0.94);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  white-space: normal;
+  transition:
+    opacity 0.12s ease 0.35s,
+    visibility 0s linear 0.47s;
+}
+
+.inline-object-form .ant-form-item-label > label[data-field-help]:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0.35s, 0s;
+}
+
 .inline-object-form .field-label-two-line {
   display: inline-flex !important;
   flex-direction: column;
@@ -843,33 +961,6 @@ html, body, #root {
 
 .inline-object-form .field-control-with-help > :not(.anticon) {
   max-width: 100%;
-}
-
-.inline-object-form .field-control-with-help > .anticon {
-  position: absolute;
-  z-index: 2;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 9px;
-  line-height: 1.15;
-  pointer-events: auto;
-}
-
-.inline-object-form .field-control-with-help .ant-input {
-  padding-right: 16px;
-}
-
-.inline-object-form .field-control-with-help .ant-select-single .ant-select-selector {
-  padding-right: 24px !important;
-}
-
-.inline-object-form .field-control-with-help .ant-select-arrow {
-  right: 16px;
-}
-
-.inline-object-form .field-control-with-help .ant-input-number-group-addon {
-  padding-right: 16px;
 }
 
 .inline-object-form .name-form-item .field-control-with-help {
@@ -1367,7 +1458,6 @@ html, body, #root {
 }
 
 .actionbar-srs .action-add-button,
-.actionbar-srs .action-reset-button,
 .actionbar-srs .action-secondary-button {
   display: inline-flex;
   align-items: center;
@@ -1382,17 +1472,12 @@ html, body, #root {
   font-weight: 600;
 }
 
-.actionbar-srs .action-reset-button {
-  min-width: 82px;
-}
-
 .actionbar-srs .action-secondary-button {
   background: #fff;
 }
 
 .actionbar-srs .action-save-button .ant-btn-icon,
 .actionbar-srs .action-add-button .ant-btn-icon,
-.actionbar-srs .action-reset-button .ant-btn-icon,
 .actionbar-srs .action-secondary-button .ant-btn-icon {
   display: inline-flex;
   align-items: center;
@@ -1422,7 +1507,6 @@ html, body, #root {
 
 .actionbar-srs .action-icon-button:focus-visible,
 .actionbar-srs .action-add-button:focus-visible,
-.actionbar-srs .action-reset-button:focus-visible,
 .actionbar-srs .action-secondary-button:focus-visible {
   outline: 2px solid #2e86c1;
   outline-offset: 1px;
@@ -1433,13 +1517,6 @@ html, body, #root {
   height: 18px;
   background: #c4d2db;
   margin: 0 3px;
-}
-
-.selection-status-tag {
-  margin: 0;
-  font-size: 11px;
-  line-height: 20px;
-  font-variant-numeric: tabular-nums;
 }
 
 .table-filter-status-tag {
@@ -1542,6 +1619,22 @@ html, body, #root {
   gap: 10px;
 }
 
+.column-settings-tabs .ant-tabs-nav {
+  margin-bottom: 10px;
+}
+
+.column-settings-tabs .ant-tabs-tab {
+  padding: 6px 0;
+}
+
+.column-settings-tabs .ant-tabs-content-holder {
+  min-width: 0;
+}
+
+.column-settings-modal--other {
+  max-width: 760px;
+}
+
 .column-settings-toolbar {
   display: flex;
   align-items: center;
@@ -1558,6 +1651,24 @@ html, body, #root {
   border: 1px solid #dce5ec;
   border-radius: 4px;
   background: #f8fafc;
+}
+
+.calculation-details-settings-panel {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.calculation-details-settings-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.calculation-details-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 6px 10px;
 }
 
 .inline-draft-status-tag {
@@ -1580,13 +1691,13 @@ html, body, #root {
 .column-layout-list {
   display: grid;
   gap: 3px;
-  min-width: 680px;
+  min-width: 920px;
 }
 
 .column-layout-header,
 .column-layout-row {
   display: grid;
-  grid-template-columns: 28px 42px 58px minmax(180px, 1fr) 78px 34px;
+  grid-template-columns: 28px 42px 58px minmax(180px, 1fr) 78px 46px 34px 78px 20px 34px;
   align-items: center;
   gap: 6px;
 }
@@ -1681,6 +1792,12 @@ html, body, #root {
 .column-layout-meta {
   color: #7a8794;
   font-size: 11px;
+}
+
+.column-layout-empty {
+  color: #9aa8b5;
+  font-size: 12px;
+  text-align: center;
 }
 
 .column-layout-row .ant-input-number {

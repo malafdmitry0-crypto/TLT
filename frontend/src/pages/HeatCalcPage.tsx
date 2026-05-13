@@ -29,7 +29,6 @@ import {
 import {
   AppstoreOutlined,
   CloseCircleOutlined,
-  CloseOutlined,
   CopyOutlined,
   DeleteOutlined,
   FilterFilled,
@@ -37,7 +36,6 @@ import {
   PlusOutlined,
   SaveOutlined,
   TableOutlined,
-  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnsType, ColumnType } from 'antd/es/table';
@@ -115,9 +113,44 @@ import {
   resolveTableFontSize,
   writeGuestTableViewSettings,
   writeRegisteredTableViewCache,
+  type HeatCalcFormPlacement,
   type HeatCalcTableFontSize,
   type HeatCalcTableViewSettings,
 } from '@/utils/heatCalcTableViewSettings';
+import {
+  HEATCALC_CALCULATION_DETAILS_PREF_KEY,
+  clearGuestCalculationDetailsSettings,
+  clearRegisteredCalculationDetailsCache,
+  getDefaultCalculationDetailsSettings,
+  isDefaultCalculationDetailsSettings,
+  normalizeCalculationDetailsSettings,
+  readGuestCalculationDetailsSettings,
+  readRegisteredCalculationDetailsCache,
+  setCalculationDetailsMetrics,
+  setCalculationDetailsPreset,
+  writeGuestCalculationDetailsSettings,
+  writeRegisteredCalculationDetailsCache,
+  type HeatCalcCalculationDetailMetric,
+  type HeatCalcCalculationDetailPreset,
+  type HeatCalcCalculationDetailsSettings,
+} from '@/utils/heatCalcCalculationDetailsSettings';
+import {
+  HEATCALC_FIELD_INPUT_PREF_KEY,
+  areFieldInputSettingsEqual,
+  clearGuestFieldInputSettings,
+  clearRegisteredFieldInputCache,
+  getDefaultFieldInputSettings,
+  isDefaultFieldInputSettings,
+  normalizeFieldInputSettings,
+  readGuestFieldInputSettings,
+  readRegisteredFieldInputCache,
+  resetHeatCalcFieldStep,
+  resolveHeatCalcFieldStep,
+  setHeatCalcFieldStep,
+  writeGuestFieldInputSettings,
+  writeRegisteredFieldInputCache,
+  type HeatCalcFieldInputSettings,
+} from '@/utils/heatCalcFieldInputSettings';
 import {
   applyInlineCellDraft,
   buildDraftDisplayRecord,
@@ -155,6 +188,42 @@ const TANK_TABLE_COLUMN_KEYS = new Set<HeatCalcColumnKey>(
   HEATCALC_TABLE_COLUMN_CATALOG.tank.map((column) => column.key),
 );
 
+function escapeTableRowKey(value: string) {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(value);
+  }
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function scrollTableRowIntoView(objectId: string) {
+  const run = () => {
+    const row = document.querySelector<HTMLElement>(
+      `.srs-table-wrap .ant-table-row[data-row-key="${escapeTableRowKey(objectId)}"]`,
+    );
+    const tableBody = row?.closest<HTMLElement>('.ant-table-body');
+    if (!row || !tableBody) return;
+
+    const rowRect = row.getBoundingClientRect();
+    const bodyRect = tableBody.getBoundingClientRect();
+    const targetTop = Math.max(
+      0,
+      tableBody.scrollTop + rowRect.top - bodyRect.top - (tableBody.clientHeight - rowRect.height) / 2,
+    );
+
+    if (typeof tableBody.scrollTo === 'function') {
+      tableBody.scrollTo({ top: targetTop, behavior: 'smooth' });
+      return;
+    }
+    tableBody.scrollTop = targetTop;
+  };
+
+  if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+    run();
+    return;
+  }
+  window.requestAnimationFrame(() => window.requestAnimationFrame(run));
+}
+
 type TableColumnPreferenceMutation = {
   settings: HeatCalcTableColumnSettings;
   closeModal?: boolean;
@@ -163,6 +232,8 @@ type TableColumnPreferenceMutation = {
 type TableSettingsPreferenceMutation = {
   columnSettings: HeatCalcTableColumnSettings;
   viewSettings?: HeatCalcTableViewSettings;
+  calculationDetailsSettings?: HeatCalcCalculationDetailsSettings;
+  fieldInputSettings?: HeatCalcFieldInputSettings;
 };
 type ActiveInlineCell = {
   objectId: string;
@@ -171,6 +242,8 @@ type ActiveInlineCell = {
 type PendingInlineDisableSettings = {
   columnSettings: HeatCalcTableColumnSettings;
   viewSettings: HeatCalcTableViewSettings;
+  calculationDetailsSettings: HeatCalcCalculationDetailsSettings;
+  fieldInputSettings: HeatCalcFieldInputSettings;
 };
 
 const NUMBER_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
@@ -632,6 +705,23 @@ function sourceText(source: unknown) {
   return '—';
 }
 
+function sourceSuffix(source: unknown) {
+  const text = sourceText(source);
+  return text === '—' ? '' : ` ${text}`;
+}
+
+function formatResultNumber(record: ProjectObject, key: string, digits = 0) {
+  return formatNumericValue(record.results?.[key], digits);
+}
+
+function formatDeltaTemperature(record: ProjectObject, digits = 0) {
+  const processTemperature = Number(record.params?.process_temperature);
+  const ambientTemperature = Number(record.params?.ambient_temperature);
+  return Number.isFinite(processTemperature) && Number.isFinite(ambientTemperature)
+    ? formatNumber(processTemperature - ambientTemperature, digits)
+    : '—';
+}
+
 function countParamValue(record: ProjectObject, key: string) {
   if (record.object_type !== 'pipe') return '—';
   const value = Number(record.params?.[key]);
@@ -697,6 +787,24 @@ export default function HeatCalcPage() {
     }
     return readGuestTableViewSettings();
   });
+  const [calculationDetailsSettings, setCalculationDetailsSettings] =
+    useState<HeatCalcCalculationDetailsSettings>(() => {
+      const auth = useAuthStore.getState();
+      const cached = readRegisteredCalculationDetailsCache(auth.user?.id ?? null);
+      if (auth.role === 'employee' || auth.role === 'admin') {
+        return cached ?? getDefaultCalculationDetailsSettings();
+      }
+      return readGuestCalculationDetailsSettings();
+    });
+  const [fieldInputSettings, setFieldInputSettings] =
+    useState<HeatCalcFieldInputSettings>(() => {
+      const auth = useAuthStore.getState();
+      const cached = readRegisteredFieldInputCache(auth.user?.id ?? null);
+      if (auth.role === 'employee' || auth.role === 'admin') {
+        return cached ?? getDefaultFieldInputSettings();
+      }
+      return readGuestFieldInputSettings();
+    });
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [columnSettingsType, setColumnSettingsType] = useState<HeatCalcTableColumnScope>('pipe');
   const [draftTableColumnSettings, setDraftTableColumnSettings] = useState<HeatCalcTableColumnSettings>(
@@ -705,11 +813,16 @@ export default function HeatCalcPage() {
   const [draftTableViewSettings, setDraftTableViewSettings] = useState<HeatCalcTableViewSettings>(
     () => tableViewSettings,
   );
+  const [draftCalculationDetailsSettings, setDraftCalculationDetailsSettings] =
+    useState<HeatCalcCalculationDetailsSettings>(() => calculationDetailsSettings);
+  const [draftFieldInputSettings, setDraftFieldInputSettings] =
+    useState<HeatCalcFieldInputSettings>(() => fieldInputSettings);
   const [activeInlineCell, setActiveInlineCell] = useState<ActiveInlineCell>(null);
   const [draftRowsById, setDraftRowsById] = useState<DraftRowsById>({});
   const [pendingInlineDisableSettings, setPendingInlineDisableSettings] =
     useState<PendingInlineDisableSettings | null>(null);
   const [pendingWizardObject, setPendingWizardObject] = useState<ProjectObject | null>(null);
+  const [pendingTableFocusObject, setPendingTableFocusObject] = useState<ProjectObject | null>(null);
   const setWorkspaceHeaderContext = useWorkspaceHeaderStore((s) => s.setContext);
 
   useEffect(() => {
@@ -776,6 +889,20 @@ export default function HeatCalcPage() {
     staleTime: 30_000,
   });
 
+  const { data: persistedCalculationDetailsPreference } = useQuery({
+    queryKey: ['preference', HEATCALC_CALCULATION_DETAILS_PREF_KEY],
+    queryFn: () => getUserPreference<HeatCalcCalculationDetailsSettings>(HEATCALC_CALCULATION_DETAILS_PREF_KEY),
+    enabled: isRegisteredUser,
+    staleTime: 30_000,
+  });
+
+  const { data: persistedFieldInputPreference } = useQuery({
+    queryKey: ['preference', HEATCALC_FIELD_INPUT_PREF_KEY],
+    queryFn: () => getUserPreference<HeatCalcFieldInputSettings>(HEATCALC_FIELD_INPUT_PREF_KEY),
+    enabled: isRegisteredUser,
+    staleTime: 30_000,
+  });
+
   const updateTableColumnPreference = useMutation({
     mutationFn: ({ settings }: TableColumnPreferenceMutation) =>
       updateUserPreference<HeatCalcTableColumnSettings>(
@@ -797,7 +924,12 @@ export default function HeatCalcPage() {
   });
 
   const updateTableSettingsPreference = useMutation({
-    mutationFn: async ({ columnSettings, viewSettings }: TableSettingsPreferenceMutation) => {
+    mutationFn: async ({
+      columnSettings,
+      viewSettings,
+      calculationDetailsSettings,
+      fieldInputSettings: fieldInputPreferenceSettings,
+    }: TableSettingsPreferenceMutation) => {
       const columnPreference = await updateUserPreference<HeatCalcTableColumnSettings>(
         HEATCALC_TABLE_COLUMN_PREF_KEY,
         normalizeTableColumnSettings(columnSettings),
@@ -808,9 +940,31 @@ export default function HeatCalcPage() {
           normalizeTableViewSettings(viewSettings),
         )
         : null;
-      return { columnPreference, viewPreference };
+      const calculationDetailsPreference = calculationDetailsSettings
+        ? await updateUserPreference<HeatCalcCalculationDetailsSettings>(
+          HEATCALC_CALCULATION_DETAILS_PREF_KEY,
+          normalizeCalculationDetailsSettings(calculationDetailsSettings),
+        )
+        : null;
+      const fieldInputPreference = fieldInputPreferenceSettings
+        ? await updateUserPreference<HeatCalcFieldInputSettings>(
+          HEATCALC_FIELD_INPUT_PREF_KEY,
+          normalizeFieldInputSettings(fieldInputPreferenceSettings),
+        )
+        : null;
+      return {
+        columnPreference,
+        viewPreference,
+        calculationDetailsPreference,
+        fieldInputPreference,
+      };
     },
-    onSuccess: ({ columnPreference, viewPreference }) => {
+    onSuccess: ({
+      columnPreference,
+      viewPreference,
+      calculationDetailsPreference,
+      fieldInputPreference,
+    }) => {
       const normalizedColumns = normalizeTableColumnSettings(columnPreference.value);
       setTableColumnSettings(normalizedColumns);
       if (columnPreference.user_id) {
@@ -821,6 +975,20 @@ export default function HeatCalcPage() {
         setTableViewSettings(normalizedView);
         if (viewPreference.user_id) {
           writeRegisteredTableViewCache(viewPreference.user_id, normalizedView);
+        }
+      }
+      if (calculationDetailsPreference) {
+        const normalizedDetails = normalizeCalculationDetailsSettings(calculationDetailsPreference.value);
+        setCalculationDetailsSettings(normalizedDetails);
+        if (calculationDetailsPreference.user_id) {
+          writeRegisteredCalculationDetailsCache(calculationDetailsPreference.user_id, normalizedDetails);
+        }
+      }
+      if (fieldInputPreference) {
+        const normalizedFieldInputs = normalizeFieldInputSettings(fieldInputPreference.value);
+        setFieldInputSettings(normalizedFieldInputs);
+        if (fieldInputPreference.user_id) {
+          writeRegisteredFieldInputCache(fieldInputPreference.user_id, normalizedFieldInputs);
         }
       }
       setColumnSettingsOpen(false);
@@ -876,10 +1044,18 @@ export default function HeatCalcPage() {
       setTableViewSettings(
         readRegisteredTableViewCache(registeredUserId) ?? getDefaultTableViewSettings(),
       );
+      setCalculationDetailsSettings(
+        readRegisteredCalculationDetailsCache(registeredUserId) ?? getDefaultCalculationDetailsSettings(),
+      );
+      setFieldInputSettings(
+        readRegisteredFieldInputCache(registeredUserId) ?? getDefaultFieldInputSettings(),
+      );
       return;
     }
     setTableColumnSettings(readGuestTableColumnSettings());
     setTableViewSettings(readGuestTableViewSettings());
+    setCalculationDetailsSettings(readGuestCalculationDetailsSettings());
+    setFieldInputSettings(readGuestFieldInputSettings());
   }, [isRegisteredUser, registeredUserId]);
 
   useEffect(() => {
@@ -909,6 +1085,34 @@ export default function HeatCalcPage() {
     clearRegisteredTableViewCache(registeredUserId ?? persistedTableViewPreference.user_id);
     setTableViewSettings(getDefaultTableViewSettings());
   }, [isRegisteredUser, persistedTableViewPreference, registeredUserId]);
+
+  useEffect(() => {
+    if (!isRegisteredUser || !persistedCalculationDetailsPreference) return;
+    if (persistedCalculationDetailsPreference.value) {
+      const normalized = normalizeCalculationDetailsSettings(persistedCalculationDetailsPreference.value);
+      setCalculationDetailsSettings(normalized);
+      if (persistedCalculationDetailsPreference.user_id) {
+        writeRegisteredCalculationDetailsCache(persistedCalculationDetailsPreference.user_id, normalized);
+      }
+      return;
+    }
+    clearRegisteredCalculationDetailsCache(registeredUserId ?? persistedCalculationDetailsPreference.user_id);
+    setCalculationDetailsSettings(getDefaultCalculationDetailsSettings());
+  }, [isRegisteredUser, persistedCalculationDetailsPreference, registeredUserId]);
+
+  useEffect(() => {
+    if (!isRegisteredUser || !persistedFieldInputPreference) return;
+    if (persistedFieldInputPreference.value) {
+      const normalized = normalizeFieldInputSettings(persistedFieldInputPreference.value);
+      setFieldInputSettings(normalized);
+      if (persistedFieldInputPreference.user_id) {
+        writeRegisteredFieldInputCache(persistedFieldInputPreference.user_id, normalized);
+      }
+      return;
+    }
+    clearRegisteredFieldInputCache(registeredUserId ?? persistedFieldInputPreference.user_id);
+    setFieldInputSettings(getDefaultFieldInputSettings());
+  }, [isRegisteredUser, persistedFieldInputPreference, registeredUserId]);
 
   const outerDiameterMm = useCallback((record: ProjectObject) => {
     const value = record.object_type === 'pipe'
@@ -960,7 +1164,7 @@ export default function HeatCalcPage() {
     }
     clearWizard();
   };
-  const { add, edit, remove, batchCalc } = useHeatCalcMutations(
+  const { add, edit, remove } = useHeatCalcMutations(
     project?.id,
     handleObjectSaved,
     handleObjectSaved,
@@ -973,9 +1177,6 @@ export default function HeatCalcPage() {
   const totalCount = activeObjectScope === 'all'
     ? projectObjectCount
     : objectsSummary?.by_type[activeObjectScope] ?? 0;
-  const validCount = activeObjectScope === 'all'
-    ? objectsSummary?.valid ?? 0
-    : objectsSummary?.valid_by_type[activeObjectScope] ?? 0;
   const formCaptionMode = wizardState?.editingObject ? 'edit' : wizardState ? 'new' : 'idle';
   const formCaptionModeLabel =
     formCaptionMode === 'edit'
@@ -1066,31 +1267,76 @@ export default function HeatCalcPage() {
     const isPipe = selectedObject.object_type === 'pipe';
     const isUnderground = selectedParams?.placement === 'underground'
       || selectedParams?.burial_depth != null;
+    const enabledMetrics = new Set(normalizeCalculationDetailsSettings(calculationDetailsSettings).visibleMetrics);
+    const details: Array<{ key: string; label: string; value: string }> = [];
+
+    function addDetail(metric: HeatCalcCalculationDetailMetric, label: string, value: string) {
+      if (!enabledMetrics.has(metric) || value === '—') return;
+      details.push({ key: metric, label, value });
+    }
+
+    function resultDetailValue(key: string, digits: number, unit = '') {
+      const value = resultValue(key, digits);
+      return value === '—' ? '—' : `${value}${unit}`;
+    }
+
+    const processTemperature = Number(selectedParams?.process_temperature);
+    const ambientTemperature = Number(selectedParams?.ambient_temperature);
+    if (Number.isFinite(processTemperature) && Number.isFinite(ambientTemperature)) {
+      addDetail('delta_t', 'ΔT', `${formatNumber(processTemperature - ambientTemperature, 0)}°C`);
+    }
+
+    addDetail('applied_alpha_vnesh', 'α примен.', resultDetailValue('alpha_vnesh', 1, ' Вт/м²К'));
+    addDetail('applied_safety_factor', 'Kзап примен.', resultValue('safety_factor', 2));
+    addDetail('insulation_resistance', 'Rиз', resultValue('insulation_resistance', 4));
+
+    if (isPipe) {
+      addDetail('external_resistance', isUnderground ? 'Rгр' : 'Rвнеш', resultValue('external_resistance', 4));
+      addDetail('effective_length', 'Lэфф', resultDetailValue('effective_length', 1, ' м'));
+      addDetail('wall_resistance', 'Rст', resultValue('wall_resistance', 4));
+      addDetail('thermal_resistance', 'RΣ', resultValue('thermal_resistance', 4));
+    } else {
+      addDetail('external_resistance', 'Rвнеш', resultValue('external_resistance', 4));
+      if (isUnderground) {
+        addDetail('ground_resistance', 'Rгр', resultValue('ground_resistance', 4));
+      }
+      addDetail('surface_area', 'Sпов.', resultDetailValue('surface_area', 1, ' м²'));
+      addDetail('wall_resistance', 'Rст', resultValue('wall_resistance', 4));
+      if (isUnderground) {
+        addDetail('air_surface_area', 'Sвозд', resultDetailValue('air_surface_area', 1, ' м²'));
+        addDetail('ground_surface_area', 'Sгр', resultDetailValue('ground_surface_area', 1, ' м²'));
+      }
+    }
+
+    const windSpeed = Number(selectedResults.wind_speed ?? selectedParams?.wind_speed);
+    if (Number.isFinite(windSpeed)) {
+      addDetail('wind_speed', 'ветер', `${formatNumber(windSpeed, 1)} м/с`);
+    }
+    if (sourceSuffix(selectedParams?.ambient_temperature_source)) {
+      const ambientValue = paramValue('ambient_temperature', 0);
+      if (ambientValue !== '—') {
+        addDetail(
+          'temperature_source',
+          'T окр.',
+          `${ambientValue}°C${sourceSuffix(selectedParams?.ambient_temperature_source)}`,
+        );
+      }
+    }
+    if (sourceSuffix(selectedParams?.wind_speed_source)) {
+      addDetail('wind_speed_source', 'ветер ист.', sourceText(selectedParams?.wind_speed_source));
+    }
+    if (isUnderground) {
+      addDetail('ground_conductivity', 'λгр', resultDetailValue('ground_conductivity', 2, ' Вт/мК'));
+    }
+
+    if (details.length === 0) return null;
+
     return (
       <div className="calc-assumptions-panel">
-        <strong>Расчётные допущения:</strong>
-        <span>Tср: {paramValue('ambient_temperature', 0)}°C ({sourceText(selectedParams?.ambient_temperature_source)})</span>
-        <span>ветер: {paramValue('wind_speed', 1)} м/с ({sourceText(selectedParams?.wind_speed_source)})</span>
-        <span>α: {resultValue('alpha_vnesh', 1)} Вт/м²К</span>
-        <span>K: {resultValue('safety_factor', 2)}</span>
-        {isPipe ? (
-          <>
-            <span>Rст: {resultValue('wall_resistance', 4)}</span>
-            <span>Rиз: {resultValue('insulation_resistance', 4)}</span>
-            <span>{isUnderground ? 'Rгр' : 'Rвнеш'}: {resultValue('external_resistance', 4)}</span>
-            <span>Lэфф: {resultValue('effective_length', 1)} м</span>
-          </>
-        ) : (
-          <>
-            <span>Rст: {resultValue('wall_resistance', 4)}</span>
-            <span>Rиз: {resultValue('insulation_resistance', 4)}</span>
-            <span>Rвнеш: {resultValue('external_resistance', 4)}</span>
-            {isUnderground && <span>Rгр: {resultValue('ground_resistance', 4)}</span>}
-            {isUnderground && <span>Sвозд: {resultValue('air_surface_area', 1)} м²</span>}
-            {isUnderground && <span>Sгр: {resultValue('ground_surface_area', 1)} м²</span>}
-          </>
-        )}
-        {isUnderground && <span>λгр: {resultValue('ground_conductivity', 2)} Вт/мК</span>}
+        <strong>Расшифровка расчёта:</strong>
+        {details.map((detail) => (
+          <span key={`${detail.key}:${detail.label}`}>{detail.label}: {detail.value}</span>
+        ))}
       </div>
     );
   }
@@ -1342,16 +1588,69 @@ export default function HeatCalcPage() {
       render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'q_additional', 0),
       copyValue: (r) => formatParamNumber(r, 'q_additional', 0),
     },
+    delta_t: {
+      render: (_: unknown, r: ProjectObject) => formatDeltaTemperature(r, 0),
+      copyValue: (r) => formatDeltaTemperature(r, 0),
+    },
+    applied_alpha_vnesh: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'alpha_vnesh', 1),
+      copyValue: (r) => formatResultNumber(r, 'alpha_vnesh', 1),
+    },
+    applied_safety_factor: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'safety_factor', 2),
+      copyValue: (r) => formatResultNumber(r, 'safety_factor', 2),
+    },
+    thermal_resistance: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'thermal_resistance', 4),
+      copyValue: (r) => formatResultNumber(r, 'thermal_resistance', 4),
+    },
+    wall_resistance: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'wall_resistance', 4),
+      copyValue: (r) => formatResultNumber(r, 'wall_resistance', 4),
+    },
+    insulation_resistance: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'insulation_resistance', 4),
+      copyValue: (r) => formatResultNumber(r, 'insulation_resistance', 4),
+    },
+    external_resistance: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'external_resistance', 4),
+      copyValue: (r) => formatResultNumber(r, 'external_resistance', 4),
+    },
+    ground_resistance: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'ground_resistance', 4),
+      copyValue: (r) => formatResultNumber(r, 'ground_resistance', 4),
+    },
+    effective_length: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'effective_length', 1),
+      copyValue: (r) => formatResultNumber(r, 'effective_length', 1),
+    },
+    surface_area: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'surface_area', 1),
+      copyValue: (r) => formatResultNumber(r, 'surface_area', 1),
+    },
+    air_surface_area: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'air_surface_area', 1),
+      copyValue: (r) => formatResultNumber(r, 'air_surface_area', 1),
+    },
+    ground_surface_area: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'ground_surface_area', 1),
+      copyValue: (r) => formatResultNumber(r, 'ground_surface_area', 1),
+    },
   }), [dnValue, insulationLabel, outerDiameterMm]);
 
   const sourceColumnMetas = useMemo(
     () => getVisibleTableColumnMetas(activeTableColumnScope, tableColumnSettings),
     [activeTableColumnScope, tableColumnSettings],
   );
-  const resolvedTableFontSize = useMemo(
-    () => resolveTableFontSize(tableViewSettings),
+  const normalizedTableView = useMemo(
+    () => normalizeTableViewSettings(tableViewSettings),
     [tableViewSettings],
   );
+  const resolvedTableFontSize = useMemo(
+    () => resolveTableFontSize(normalizedTableView),
+    [normalizedTableView],
+  );
+  const formPlacement = normalizedTableView.formPlacement;
   const fieldCapabilityByKey = useMemo(
     () => new Map(objectQueryCapabilities?.fields.map((field) => [field.key, field]) ?? []),
     [objectQueryCapabilities],
@@ -1389,6 +1688,17 @@ export default function HeatCalcPage() {
     [selectedRowKeys, visibleTableRows],
   );
   const selectedObjectCount = selectedVisibleRows.length;
+  const typeButtonCountText = useCallback((
+    scope: ActiveObjectScope,
+    total: number,
+  ) => (
+    activeObjectScope === scope && selectedObjectCount > 0
+      ? `${selectedObjectCount} из ${total}`
+      : String(total)
+  ), [activeObjectScope, selectedObjectCount]);
+  const pipeButtonCountText = typeButtonCountText('pipe', pipeCount);
+  const tankButtonCountText = typeButtonCountText('tank', tankCount);
+  const allButtonCountText = typeButtonCountText('all', projectObjectCount);
   const currentActiveFilterCount = isAllObjectScope ? 0 : activeTableFilterCount(activeTableViewState);
   const currentTableViewActive = !isAllObjectScope && hasActiveTableViewState(activeTableViewState);
   const activeTypeTotalCount = isAllObjectScope
@@ -1409,7 +1719,7 @@ export default function HeatCalcPage() {
     }
     return result;
   }, [fieldCapabilityByKey, sourceColumnMetas]);
-  const inlineEditingEnabled = normalizeTableViewSettings(tableViewSettings).inlineEditingEnabled;
+  const inlineEditingEnabled = normalizedTableView.inlineEditingEnabled;
   const dirtyDraftRows = useMemo(
     () => Object.values(draftRowsById).filter(isDraftRowDirty),
     [draftRowsById],
@@ -1439,20 +1749,61 @@ export default function HeatCalcPage() {
       ? 'Сохранить объект'
       : 'Нет изменений для сохранения';
 
-  const duplicateSelectedObjects = useCallback(() => {
-    selectedVisibleRows.forEach(({ record }, index) => {
-      if (record.object_type !== 'pipe' && record.object_type !== 'tank') return;
-      const sourceName = String(record.params?.name ?? OBJECT_TYPE_LABELS[record.object_type]);
-      add.mutate({
-        object_type: record.object_type,
-        params: {
-          ...record.params,
-          name: `${sourceName} (копия)`,
-        },
-        sort_order: projectObjectCount + index,
+  const duplicateSelectedObjects = useCallback(async () => {
+    const duplicatePayloads = selectedVisibleRows
+      .filter(({ record }) => record.object_type === 'pipe' || record.object_type === 'tank')
+      .map(({ record }, index) => {
+        const sourceName = String(record.params?.name ?? OBJECT_TYPE_LABELS[record.object_type]);
+        return {
+          object_type: record.object_type,
+          params: {
+            ...record.params,
+            name: `${sourceName} (копия)`,
+          },
+          sort_order: projectObjectCount + index,
+        };
       });
-    });
-  }, [add, projectObjectCount, selectedVisibleRows]);
+    if (duplicatePayloads.length === 0) return;
+
+    const createdObjects: ProjectObject[] = [];
+    for (const payload of duplicatePayloads) {
+      try {
+        createdObjects.push(await add.mutateAsync(payload));
+      } catch {
+        break;
+      }
+    }
+
+    const lastCreatedObject = createdObjects[createdObjects.length - 1];
+    if (!lastCreatedObject) return;
+
+    const lastCreatedObjectType: HeatCalcObjectType = lastCreatedObject.object_type === 'tank' ? 'tank' : 'pipe';
+    const targetScope: ActiveObjectScope = activeObjectScope === 'all' ? 'all' : lastCreatedObjectType;
+    const createdInTargetScope = activeObjectScope === 'all'
+      ? createdObjects.length
+      : createdObjects.filter((object) => object.object_type === lastCreatedObjectType).length;
+    const pageSize = activeObjectScope === 'all'
+      ? DEFAULT_OBJECT_QUERY_PAGE_SIZE
+      : objectQueryResult?.page_info.page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE;
+    const currentTargetCount = activeObjectScope === 'all'
+      ? allObjectsForTable.length
+      : objectQueryResult?.counts.filtered ?? activeTypeTotalCount;
+    const targetPage = Math.max(1, Math.ceil((currentTargetCount + createdInTargetScope) / pageSize));
+
+    setSelectedRowKeys([]);
+    setTablePageByScope((current) => ({ ...current, [targetScope]: targetPage }));
+    setPendingTableFocusObject(lastCreatedObject);
+    openEditWizard(lastCreatedObject);
+  }, [
+    activeObjectScope,
+    activeTypeTotalCount,
+    add,
+    allObjectsForTable.length,
+    objectQueryResult?.counts.filtered,
+    objectQueryResult?.page_info.page_size,
+    projectObjectCount,
+    selectedVisibleRows,
+  ]);
 
   const removeSelectedObjects = useCallback(() => {
     selectedVisibleRows.forEach(({ record }) => {
@@ -1607,6 +1958,18 @@ export default function HeatCalcPage() {
   }, [visibleTableObjects]);
 
   useEffect(() => {
+    if (!pendingTableFocusObject) return;
+    const pendingObjectType: HeatCalcObjectType = pendingTableFocusObject.object_type === 'tank' ? 'tank' : 'pipe';
+    if (activeObjectScope !== 'all' && pendingObjectType !== activeTableObjectType) {
+      setActiveObjectScope(pendingObjectType);
+      return;
+    }
+    if (!visibleTableObjects.some((object) => object.id === pendingTableFocusObject.id)) return;
+    scrollTableRowIntoView(pendingTableFocusObject.id);
+    setPendingTableFocusObject(null);
+  }, [activeObjectScope, activeTableObjectType, pendingTableFocusObject, visibleTableObjects]);
+
+  useEffect(() => {
     if (inlineEditingEnabled || dirtyDraftRowCount > 0) return;
     setActiveInlineCell(null);
   }, [dirtyDraftRowCount, inlineEditingEnabled]);
@@ -1713,21 +2076,38 @@ export default function HeatCalcPage() {
   const persistTableSettings = useCallback((
     columnSettings: HeatCalcTableColumnSettings,
     viewSettings: HeatCalcTableViewSettings,
+    calculationDetails: HeatCalcCalculationDetailsSettings,
+    fieldInputs: HeatCalcFieldInputSettings,
   ) => {
     const normalizedColumns = normalizeTableColumnSettings(columnSettings);
     const normalizedView = normalizeTableViewSettings(viewSettings);
+    const normalizedDetails = normalizeCalculationDetailsSettings(calculationDetails);
+    const normalizedFieldInputs = normalizeFieldInputSettings(fieldInputs);
     const currentView = normalizeTableViewSettings(tableViewSettings);
+    const currentDetails = normalizeCalculationDetailsSettings(calculationDetailsSettings);
+    const currentFieldInputs = normalizeFieldInputSettings(fieldInputSettings);
     const viewChanged = normalizedView.fontSize !== currentView.fontSize
-      || normalizedView.inlineEditingEnabled !== currentView.inlineEditingEnabled;
+      || normalizedView.inlineEditingEnabled !== currentView.inlineEditingEnabled
+      || normalizedView.formPlacement !== currentView.formPlacement;
+    const detailsChanged = normalizedDetails.preset !== currentDetails.preset
+      || normalizedDetails.visibleMetrics.length !== currentDetails.visibleMetrics.length
+      || normalizedDetails.visibleMetrics.some((metric) => !currentDetails.visibleMetrics.includes(metric));
+    const fieldInputsChanged = !areFieldInputSettingsEqual(normalizedFieldInputs, currentFieldInputs);
     setTableColumnSettings(normalizedColumns);
     setTableViewSettings(normalizedView);
+    setCalculationDetailsSettings(normalizedDetails);
+    setFieldInputSettings(normalizedFieldInputs);
     if (!normalizedView.inlineEditingEnabled) setActiveInlineCell(null);
     if (isRegisteredUser) {
       clearRegisteredTableColumnCache(registeredUserId);
       if (viewChanged) clearRegisteredTableViewCache(registeredUserId);
+      if (detailsChanged) clearRegisteredCalculationDetailsCache(registeredUserId);
+      if (fieldInputsChanged) clearRegisteredFieldInputCache(registeredUserId);
       updateTableSettingsPreference.mutate({
         columnSettings: normalizedColumns,
         viewSettings: viewChanged ? normalizedView : undefined,
+        calculationDetailsSettings: detailsChanged ? normalizedDetails : undefined,
+        fieldInputSettings: fieldInputsChanged ? normalizedFieldInputs : undefined,
       });
       return;
     }
@@ -1739,9 +2119,30 @@ export default function HeatCalcPage() {
         writeGuestTableViewSettings(normalizedView);
       }
     }
+    if (detailsChanged) {
+      if (isDefaultCalculationDetailsSettings(normalizedDetails)) {
+        clearGuestCalculationDetailsSettings();
+      } else {
+        writeGuestCalculationDetailsSettings(normalizedDetails);
+      }
+    }
+    if (fieldInputsChanged) {
+      if (isDefaultFieldInputSettings(normalizedFieldInputs)) {
+        clearGuestFieldInputSettings();
+      } else {
+        writeGuestFieldInputSettings(normalizedFieldInputs);
+      }
+    }
     setColumnSettingsOpen(false);
     antdMessage.success('Настройки таблицы сохранены');
-  }, [isRegisteredUser, registeredUserId, tableViewSettings, updateTableSettingsPreference]);
+  }, [
+    calculationDetailsSettings,
+    fieldInputSettings,
+    isRegisteredUser,
+    registeredUserId,
+    tableViewSettings,
+    updateTableSettingsPreference,
+  ]);
 
   const applyColumnWidth = useCallback((
     type: HeatCalcTableColumnScope,
@@ -1800,8 +2201,8 @@ export default function HeatCalcPage() {
     () => sourceColumnMetas.map((meta) => {
       const renderer = columnRenderers[meta.key];
       const capability = fieldCapabilityByKey.get(meta.key);
-      const filterEnabled = !isAllObjectScope && (capability?.filter.enabled ?? true);
-      const sortEnabled = !isAllObjectScope && (capability?.sort.enabled ?? true);
+      const filterEnabled = !isAllObjectScope && meta.filterable !== false && (capability?.filter.enabled ?? true);
+      const sortEnabled = !isAllObjectScope && meta.sortable !== false && (capability?.sort.enabled ?? true);
       const filterKind = filterKindForColumn(meta.key, capability);
       const activeFilter = activeTableViewState.filters[meta.key];
       return {
@@ -1834,6 +2235,7 @@ export default function HeatCalcPage() {
               dirty={isDraftRowDirty(draftRow) && Object.prototype.hasOwnProperty.call(draftRow.dirtyFields, config.fieldId)}
               error={draftRow?.errors[config.fieldId]}
               field={config.field}
+              step={resolveHeatCalcFieldStep(config.objectType, config.fieldId, fieldInputSettings)}
               value={getInlineCellFormValue(record, meta.key, draftRow)}
               onStartEdit={() => startInlineCellEdit(record, meta.key)}
               onCommit={(nextValue) => commitInlineCell(record, meta.key, nextValue)}
@@ -1884,6 +2286,7 @@ export default function HeatCalcPage() {
       draftRowsById,
       enumOptionsByColumn,
       fieldCapabilityByKey,
+      fieldInputSettings,
       inlineEditingEnabled,
       isAllObjectScope,
       resetColumnFilter,
@@ -1897,6 +2300,9 @@ export default function HeatCalcPage() {
     () => Math.max(640, sourceColumnMetas.reduce((sum, column) => sum + column.width, 36)),
     [sourceColumnMetas],
   );
+  const tableScrollY = formPlacement === 'left' || formPlacement === 'right'
+    ? 'max(320px, calc(100vh - 255px))'
+    : 'max(320px, calc(100vh - 430px))';
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -1930,6 +2336,8 @@ export default function HeatCalcPage() {
     setColumnSettingsType(activeTableColumnScope);
     setDraftTableColumnSettings(normalizeTableColumnSettings(tableColumnSettings));
     setDraftTableViewSettings(normalizeTableViewSettings(tableViewSettings));
+    setDraftCalculationDetailsSettings(normalizeCalculationDetailsSettings(calculationDetailsSettings));
+    setDraftFieldInputSettings(normalizeFieldInputSettings(fieldInputSettings));
     setColumnSettingsOpen(true);
   }
 
@@ -1949,11 +2357,39 @@ export default function HeatCalcPage() {
     setDraftTableViewSettings((settings) => normalizeTableViewSettings({ ...settings, fontSize }));
   }
 
+  function resetDraftTableFontSize() {
+    const defaultView = getDefaultTableViewSettings();
+    setDraftTableViewSettings((settings) => normalizeTableViewSettings({
+      ...settings,
+      fontSize: defaultView.fontSize,
+    }));
+  }
+
+  function updateDraftFormPlacement(formPlacement: HeatCalcFormPlacement) {
+    setDraftTableViewSettings((settings) => normalizeTableViewSettings({ ...settings, formPlacement }));
+  }
+
   function updateDraftInlineEditingEnabled(inlineEditingEnabled: boolean) {
     setDraftTableViewSettings((settings) => normalizeTableViewSettings({
       ...settings,
       inlineEditingEnabled,
     }));
+  }
+
+  function updateDraftCalculationDetailsPreset(preset: HeatCalcCalculationDetailPreset) {
+    setDraftCalculationDetailsSettings((settings) => setCalculationDetailsPreset(settings, preset));
+  }
+
+  function updateDraftCalculationDetailMetrics(metrics: HeatCalcCalculationDetailMetric[]) {
+    setDraftCalculationDetailsSettings((settings) => setCalculationDetailsMetrics(settings, metrics));
+  }
+
+  function updateDraftFieldStep(type: HeatCalcObjectType, fieldId: string, step: number | null) {
+    setDraftFieldInputSettings((settings) => setHeatCalcFieldStep(settings, type, fieldId, step));
+  }
+
+  function resetDraftFieldStep(type: HeatCalcObjectType, fieldId: string) {
+    setDraftFieldInputSettings((settings) => resetHeatCalcFieldStep(settings, type, fieldId));
   }
 
   function resetDraftColumnWidth(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey) {
@@ -1986,12 +2422,19 @@ export default function HeatCalcPage() {
   function applyColumnSettings() {
     const normalized = normalizeTableColumnSettings(draftTableColumnSettings);
     const normalizedView = normalizeTableViewSettings(draftTableViewSettings);
+    const normalizedDetails = normalizeCalculationDetailsSettings(draftCalculationDetailsSettings);
+    const normalizedFieldInputs = normalizeFieldInputSettings(draftFieldInputSettings);
     if (
       normalizeTableViewSettings(tableViewSettings).inlineEditingEnabled
       && !normalizedView.inlineEditingEnabled
       && dirtyDraftRowCount > 0
     ) {
-      setPendingInlineDisableSettings({ columnSettings: normalized, viewSettings: normalizedView });
+      setPendingInlineDisableSettings({
+        columnSettings: normalized,
+        viewSettings: normalizedView,
+        calculationDetailsSettings: normalizedDetails,
+        fieldInputSettings: normalizedFieldInputs,
+      });
       return;
     }
     setTableViewStateByType((current) => {
@@ -2009,8 +2452,36 @@ export default function HeatCalcPage() {
       });
       return changed ? next : current;
     });
-    persistTableSettings(normalized, normalizedView);
+    persistTableSettings(normalized, normalizedView, normalizedDetails, normalizedFieldInputs);
   }
+
+  function renderFormPanel() {
+    return (
+      <div
+        className="inline-form-shell heatcalc-form-pane"
+        aria-label="Блок заполнения параметров"
+        hidden={!formBlockVisible}
+      >
+        <div className="inline-form-srs">
+          {wizardState ? (
+            <Suspense fallback={<div className="inline-object-form-placeholder" />}>
+              <ObjectWizard
+                key={wizardState.editingObject?.id ?? `${wizardState.type}-new-${newWizardRevision}`}
+                objectType={wizardState.type}
+                onClose={closeWizard}
+                onSubmit={handleWizardSubmit}
+                submitting={add.isPending || edit.isPending}
+                initialParams={wizardState.editingObject?.params}
+                fieldInputSettings={fieldInputSettings}
+              />
+            </Suspense>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  const formPanel = renderFormPanel();
 
   if (!project) {
     return (
@@ -2031,31 +2502,31 @@ export default function HeatCalcPage() {
               className="action-type-button"
               type={activeObjectScope === 'pipe' ? 'primary' : 'default'}
               icon={<PipeTypeIcon />}
-              aria-label={`Трубопровод: ${pipeCount}`}
+              aria-label={`Трубопровод: ${pipeButtonCountText}`}
               aria-pressed={activeObjectScope === 'pipe'}
               onClick={() => handleObjectScopeChange('pipe')}
             >
-              Трубопровод: <strong className="action-type-count">{pipeCount}</strong>
+              Трубопровод: <strong className="action-type-count">{pipeButtonCountText}</strong>
             </Button>
             <Button
               className="action-type-button"
               type={activeObjectScope === 'tank' ? 'primary' : 'default'}
               icon={<TankTypeIcon />}
-              aria-label={`Резервуар: ${tankCount}`}
+              aria-label={`Резервуар: ${tankButtonCountText}`}
               aria-pressed={activeObjectScope === 'tank'}
               onClick={() => handleObjectScopeChange('tank')}
             >
-              Резервуар: <strong className="action-type-count">{tankCount}</strong>
+              Резервуар: <strong className="action-type-count">{tankButtonCountText}</strong>
             </Button>
             <Button
               className="action-type-button"
               type={activeObjectScope === 'all' ? 'primary' : 'default'}
               icon={<AppstoreOutlined />}
-              aria-label={`Все: ${projectObjectCount}`}
+              aria-label={`Все: ${allButtonCountText}`}
               aria-pressed={activeObjectScope === 'all'}
               onClick={() => handleObjectScopeChange('all')}
             >
-              Все: <strong className="action-type-count">{projectObjectCount}</strong>
+              Все: <strong className="action-type-count">{allButtonCountText}</strong>
             </Button>
           </div>
 
@@ -2075,26 +2546,7 @@ export default function HeatCalcPage() {
           </div>
         </div>
 
-        <div
-          className="inline-form-shell"
-          aria-label="Блок заполнения параметров"
-          hidden={!formBlockVisible}
-        >
-          <div className="inline-form-srs">
-            {wizardState ? (
-              <Suspense fallback={<div className="inline-object-form-placeholder" />}>
-                <ObjectWizard
-                  key={wizardState.editingObject?.id ?? `${wizardState.type}-new-${newWizardRevision}`}
-                  objectType={wizardState.type}
-                  onClose={closeWizard}
-                  onSubmit={handleWizardSubmit}
-                  submitting={add.isPending || edit.isPending}
-                  initialParams={wizardState.editingObject?.params}
-                />
-              </Suspense>
-            ) : null}
-          </div>
-        </div>
+        {formPlacement === 'top' && formPanel}
 
         <div className="actionbar-srs actionbar-actions-row">
           {formBlockVisible && (
@@ -2124,19 +2576,24 @@ export default function HeatCalcPage() {
                     </Button>
                   </span>
                 </Tooltip>
-                <Tooltip title={hasWizard ? 'Сбросить форму' : 'Нет открытой формы'}>
-                  <span className="action-tooltip-wrap">
-                    <Button
-                      className="action-reset-button"
-                      icon={<CloseOutlined />}
-                      aria-label="Сбросить"
-                      disabled={!hasWizard}
-                      onClick={closeWizard}
-                    >
-                      Сбросить
-                    </Button>
-                  </span>
-                </Tooltip>
+                <Popconfirm
+                  title={selectedObjectCount > 1 ? 'Удалить выбранные объекты?' : 'Удалить выбранный объект?'}
+                  okText="Удалить"
+                  cancelText="Отмена"
+                  disabled={selectedObjectCount === 0}
+                  onConfirm={removeSelectedObjects}
+                >
+                  <Button
+                    danger
+                    className="action-secondary-button"
+                    icon={<DeleteOutlined />}
+                    aria-label="Удалить выбранные"
+                    loading={remove.isPending}
+                    disabled={selectedObjectCount === 0}
+                  >
+                    Удалить
+                  </Button>
+                </Popconfirm>
               </div>
             </div>
           )}
@@ -2187,11 +2644,6 @@ export default function HeatCalcPage() {
                   </Button>
                 </>
               )}
-              {selectedObjectCount > 0 && (
-                <Tag color="blue" className="selection-status-tag">
-                  Выбрано: {selectedObjectCount}
-                </Tag>
-              )}
               <Tooltip
                 title={
                   selectedObjectCount > 0
@@ -2204,7 +2656,7 @@ export default function HeatCalcPage() {
                     className="action-secondary-button"
                     icon={<CopyOutlined />}
                     aria-label="Добавить копии выбранных"
-                    disabled={selectedObjectCount === 0}
+                    disabled={selectedObjectCount === 0 || add.isPending}
                     loading={add.isPending}
                     onClick={duplicateSelectedObjects}
                   >
@@ -2212,24 +2664,6 @@ export default function HeatCalcPage() {
                   </Button>
                 </span>
               </Tooltip>
-              <Popconfirm
-                title={selectedObjectCount > 1 ? 'Удалить выбранные объекты?' : 'Удалить выбранный объект?'}
-                okText="Удалить"
-                cancelText="Отмена"
-                disabled={selectedObjectCount === 0}
-                onConfirm={removeSelectedObjects}
-              >
-                <Button
-                  danger
-                  className="action-secondary-button"
-                  icon={<DeleteOutlined />}
-                  aria-label="Удалить выбранные"
-                  loading={remove.isPending}
-                  disabled={selectedObjectCount === 0}
-                >
-                  Удалить выбранные
-                </Button>
-              </Popconfirm>
               <ImportExcelButton projectId={project.id} />
               {role === 'employee' && (
                 <ExportObjectsButton
@@ -2243,9 +2677,12 @@ export default function HeatCalcPage() {
           </div>
         </div>
 
-        {renderAssumptionsPanel()}
+        <div className={`heatcalc-workspace-layout heatcalc-workspace-layout--${formPlacement}`}>
+          {formPlacement === 'left' && formPanel}
+          <div className="heatcalc-table-pane">
+            {renderAssumptionsPanel()}
 
-        <Card size="small" className="workspace-table-card srs-table-wrap">
+            <Card size="small" className="workspace-table-card srs-table-wrap">
           <Table<ProjectObject>
             className={`calc-spreadsheet calc-spreadsheet--${resolvedTableFontSize.key}`}
             rowKey="id"
@@ -2263,7 +2700,7 @@ export default function HeatCalcPage() {
             onChange={handleSourceTableChange}
             scroll={{
               x: tableScrollX,
-              y: 'calc(100vh - 500px)',
+              y: tableScrollY,
             }}
             rowSelection={{
               type: 'checkbox',
@@ -2305,22 +2742,12 @@ export default function HeatCalcPage() {
                 )
               ),
             }}
-          />
-          <div className="legend-row-srs">
-            <span>
-              ⓘ Клик по строке → форма выше показывает параметры. Красная строка = объект не рассчитан.
-            </span>
-            <Button
-              type="primary"
-              icon={<ThunderboltOutlined />}
-              loading={batchCalc.isPending}
-              disabled={validCount === 0}
-              onClick={() => batchCalc.mutate()}
-            >
-              Электрорасчёт →
-            </Button>
-          </div>
-        </Card>
+            />
+          </Card>
+        </div>
+        {formPlacement === 'right' && formPanel}
+      </div>
+      {formPlacement === 'bottom' && formPanel}
       </Space>
 
       {columnSettingsOpen && (
@@ -2330,6 +2757,8 @@ export default function HeatCalcPage() {
             activeType={columnSettingsType}
             draftColumnSettings={draftTableColumnSettings}
             draftViewSettings={draftTableViewSettings}
+            draftCalculationDetailsSettings={draftCalculationDetailsSettings}
+            draftFieldInputSettings={draftFieldInputSettings}
             confirmLoading={updateTableColumnPreference.isPending || updateTableSettingsPreference.isPending}
             onTypeChange={setColumnSettingsType}
             onOk={applyColumnSettings}
@@ -2342,8 +2771,15 @@ export default function HeatCalcPage() {
             onResetWidth={resetDraftColumnWidth}
             onColumnReorder={reorderDraftColumn}
             onFontSizeChange={updateDraftTableFontSize}
+            onFormPlacementChange={updateDraftFormPlacement}
             onInlineEditingEnabledChange={updateDraftInlineEditingEnabled}
-            onResetFontSize={() => setDraftTableViewSettings(getDefaultTableViewSettings())}
+            onResetFontSize={resetDraftTableFontSize}
+            onCalculationDetailsPresetChange={updateDraftCalculationDetailsPreset}
+            onCalculationDetailMetricsChange={updateDraftCalculationDetailMetrics}
+            onResetCalculationDetails={() =>
+              setDraftCalculationDetailsSettings(getDefaultCalculationDetailsSettings())}
+            onFieldStepChange={updateDraftFieldStep}
+            onResetFieldStep={resetDraftFieldStep}
           />
         </Suspense>
       )}
@@ -2353,6 +2789,8 @@ export default function HeatCalcPage() {
         onCancel={() => {
           setPendingInlineDisableSettings(null);
           setDraftTableViewSettings(tableViewSettings);
+          setDraftCalculationDetailsSettings(calculationDetailsSettings);
+          setDraftFieldInputSettings(fieldInputSettings);
         }}
         footer={[
           <Button
@@ -2360,6 +2798,8 @@ export default function HeatCalcPage() {
             onClick={() => {
               setPendingInlineDisableSettings(null);
               setDraftTableViewSettings(tableViewSettings);
+              setDraftCalculationDetailsSettings(calculationDetailsSettings);
+              setDraftFieldInputSettings(fieldInputSettings);
             }}
           >
             Cancel
@@ -2371,7 +2811,12 @@ export default function HeatCalcPage() {
               const pending = pendingInlineDisableSettings;
               if (!pending) return;
               discardDraftRows();
-              persistTableSettings(pending.columnSettings, pending.viewSettings);
+              persistTableSettings(
+                pending.columnSettings,
+                pending.viewSettings,
+                pending.calculationDetailsSettings,
+                pending.fieldInputSettings,
+              );
               setPendingInlineDisableSettings(null);
             }}
           >
@@ -2386,7 +2831,12 @@ export default function HeatCalcPage() {
               if (!pending) return;
               void saveDraftRows().then((result) => {
                 if (!result.ok) return;
-                persistTableSettings(pending.columnSettings, pending.viewSettings);
+                persistTableSettings(
+                  pending.columnSettings,
+                  pending.viewSettings,
+                  pending.calculationDetailsSettings,
+                  pending.fieldInputSettings,
+                );
                 setPendingInlineDisableSettings(null);
               });
             }}

@@ -7,6 +7,7 @@ import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
 } from '@/utils/heatCalcWizardFieldRules';
+import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
 import HelpedControl from '../HelpedControl';
 import FieldLabel from '../FieldLabel';
@@ -21,10 +22,13 @@ function fieldLabel(text: string) {
 
 interface Props {
   objectType: HeatCalcObjectType;
+  fieldInputSettings?: HeatCalcFieldInputSettings;
 }
 
-export default function ThermalStep({ objectType }: Props) {
+export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
   const form = Form.useFormInstance();
+  const numberInputProps = (fieldId: string) =>
+    heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings });
   const insulationMaterial = Form.useWatch('insulation_material', form);
   const { data: materials = [], isError, isFetching } = useQuery({
     queryKey: referenceQueryKeys.insulation,
@@ -49,7 +53,7 @@ export default function ThermalStep({ objectType }: Props) {
         {withHelp(
           <InputNumber
             data-testid="insulation-thickness-input"
-            {...heatCalcNumberInputProps(objectType, 'insulation_thickness_mm')}
+            {...numberInputProps('insulation_thickness_mm')}
             addonAfter="мм"
           />,
           'Толщина слоя тепловой изоляции. Диапазон: 1–500 мм.',

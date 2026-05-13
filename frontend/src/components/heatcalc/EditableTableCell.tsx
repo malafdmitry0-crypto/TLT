@@ -7,6 +7,7 @@ export interface EditableTableCellProps {
   dirty?: boolean;
   error?: string;
   field: HeatCalcFieldDefinition;
+  step?: number;
   value: unknown;
   children: ReactNode;
   onStartEdit: () => void;
@@ -28,6 +29,7 @@ export default function EditableTableCell({
   dirty = false,
   error,
   field,
+  step,
   value,
   children,
   onStartEdit,
@@ -126,6 +128,7 @@ export default function EditableTableCell({
           keyboard={false}
           min={field.min}
           max={field.max}
+          step={step ?? field.step}
           value={normalizeNumberValue(draftValue)}
           onChange={(nextValue) => {
             setDraftValue(nextValue);

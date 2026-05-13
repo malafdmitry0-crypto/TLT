@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "registry": {
     "pipe": [
       {
@@ -733,6 +733,126 @@
         "sortable": true,
         "filterable": true,
         "resizable": true
+      },
+      {
+        "key": "delta_t",
+        "labels": {
+          "short": "ΔT",
+          "full": "Разница температур"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 7,
+        "minWidthPx": 48,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "applied_alpha_vnesh",
+        "labels": {
+          "short": "α примен.",
+          "full": "α применённая"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 8.8,
+        "minWidthPx": 64,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "applied_safety_factor",
+        "labels": {
+          "short": "Kзап примен.",
+          "full": "Kзап применённый"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 9.8,
+        "minWidthPx": 72,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "thermal_resistance",
+        "labels": {
+          "short": "RΣ",
+          "full": "Суммарное сопротивление"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 7.2,
+        "minWidthPx": 48,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "wall_resistance",
+        "labels": {
+          "short": "Rст",
+          "full": "Сопротивление стенки"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 7.2,
+        "minWidthPx": 48,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "insulation_resistance",
+        "labels": {
+          "short": "Rиз",
+          "full": "Сопротивление изоляции"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 7.2,
+        "minWidthPx": 48,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "external_resistance",
+        "labels": {
+          "short": "Rвнеш/гр",
+          "full": "Внешнее/грунтовое сопротивление"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 8.2,
+        "minWidthPx": 64,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "effective_length",
+        "labels": {
+          "short": "Lэфф",
+          "full": "Расчётная длина"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 8,
+        "minWidthPx": 64,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
       }
     ],
     "tank": [
@@ -1436,6 +1556,156 @@
         "defaultVisible": false,
         "sortable": true,
         "filterable": true,
+        "resizable": true
+      },
+      {
+        "key": "delta_t",
+        "labels": {
+          "short": "ΔT",
+          "full": "Разница температур"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 7,
+        "minWidthPx": 48,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "applied_alpha_vnesh",
+        "labels": {
+          "short": "α примен.",
+          "full": "α применённая"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 8.8,
+        "minWidthPx": 64,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "applied_safety_factor",
+        "labels": {
+          "short": "Kзап примен.",
+          "full": "Kзап применённый"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 9.8,
+        "minWidthPx": 72,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "wall_resistance",
+        "labels": {
+          "short": "Rст",
+          "full": "Сопротивление стенки"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 7.2,
+        "minWidthPx": 48,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "insulation_resistance",
+        "labels": {
+          "short": "Rиз",
+          "full": "Сопротивление изоляции"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 7.2,
+        "minWidthPx": 48,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "external_resistance",
+        "labels": {
+          "short": "Rвнеш",
+          "full": "Внешнее сопротивление"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 8,
+        "minWidthPx": 64,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "ground_resistance",
+        "labels": {
+          "short": "Rгр",
+          "full": "Сопротивление грунта"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 7.2,
+        "minWidthPx": 48,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "surface_area",
+        "labels": {
+          "short": "Sпов.",
+          "full": "Площадь поверхности"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 8,
+        "minWidthPx": 64,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "air_surface_area",
+        "labels": {
+          "short": "Sвозд",
+          "full": "Площадь над грунтом"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 8,
+        "minWidthPx": 64,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
+        "resizable": true
+      },
+      {
+        "key": "ground_surface_area",
+        "labels": {
+          "short": "Sгр",
+          "full": "Площадь в грунте"
+        },
+        "group": "Расчётные детали",
+        "defaultWidthPct": 8,
+        "minWidthPx": 64,
+        "valueType": "number",
+        "defaultVisible": false,
+        "sortable": false,
+        "filterable": false,
         "resizable": true
       }
     ]

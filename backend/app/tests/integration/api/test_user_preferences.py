@@ -13,7 +13,7 @@ def heatcalc_table_columns_value(
     tank_visible: list[str] | None = None,
 ) -> dict[str, object]:
     return {
-        "version": 3,
+        "version": 4,
         "types": {
             "pipe": {
                 "visibleOrder": pipe_visible or ["name", "pipe_dn"],
@@ -29,14 +29,37 @@ def heatcalc_table_columns_value(
                     "tank_dimensions": {"widthPct": 19},
                 },
             },
+            "all": {
+                "visibleOrder": ["index", "type", "name"],
+                "columns": {
+                    "index": {"widthPct": 4.2},
+                    "type": {"widthPct": 7},
+                    "name": {"widthPct": 24},
+                },
+            },
         },
     }
 
 
-def heatcalc_table_view_value(font_size: str = "standard") -> dict[str, object]:
+def heatcalc_table_view_value(
+    font_size: str = "standard", form_placement: str = "top"
+) -> dict[str, object]:
     return {
         "version": 1,
         "fontSize": font_size,
+        "inlineEditingEnabled": False,
+        "formPlacement": form_placement,
+    }
+
+
+def heatcalc_field_inputs_value(step: float = 2.5) -> dict[str, object]:
+    return {
+        "version": 1,
+        "fields": {
+            "pipe": {
+                "outer_diameter_mm": {"step": step},
+            },
+        },
     }
 
 
@@ -182,6 +205,51 @@ class TestUserPreferencesApi:
         resp = await client.put(
             "/api/v1/preferences/heatcalc.tableView.v1",
             json={"value": value},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 422
+
+    async def test_employee_can_upsert_heatcalc_field_input_preference(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        headers = {"Authorization": f"Bearer {employee_token}"}
+
+        resp = await client.put(
+            "/api/v1/preferences/heatcalc.fieldInputs.v1",
+            json={"value": heatcalc_field_inputs_value(10)},
+            headers=headers,
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["value"]["fields"]["pipe"]["outer_diameter_mm"] == {"step": 10}
+
+    async def test_heatcalc_field_input_rejects_unknown_field_key(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        value = heatcalc_field_inputs_value()
+        value["fields"]["pipe"]["name"] = {"step": 1}
+
+        resp = await client.put(
+            "/api/v1/preferences/heatcalc.fieldInputs.v1",
+            json={"value": value},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 422
+
+    async def test_heatcalc_field_input_rejects_invalid_step(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        resp = await client.put(
+            "/api/v1/preferences/heatcalc.fieldInputs.v1",
+            json={"value": heatcalc_field_inputs_value(0)},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
 

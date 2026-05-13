@@ -1,11 +1,13 @@
 import defaultConfig from '@/config/heatcalc-table-view.default.json';
 
 export type HeatCalcTableFontSize = 'compact' | 'standard' | 'comfortable' | 'large';
+export type HeatCalcFormPlacement = 'top' | 'bottom' | 'left' | 'right';
 
 export interface HeatCalcTableViewSettings {
   version: number;
   fontSize: HeatCalcTableFontSize;
   inlineEditingEnabled: boolean;
+  formPlacement: HeatCalcFormPlacement;
 }
 
 export interface HeatCalcResolvedTableFontSize {
@@ -26,6 +28,12 @@ export const HEATCALC_TABLE_VIEW_VERSION = 1;
 export const HEATCALC_TABLE_VIEW_PREF_KEY = 'heatcalc.tableView.v1';
 export const HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY = 'heatcalc.tableView.v1.guest';
 export const HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY = 'heatcalc.tableView.v1.registered.cache';
+export const HEATCALC_FORM_PLACEMENT_OPTIONS: Array<{ key: HeatCalcFormPlacement; label: string }> = [
+  { key: 'top', label: 'Вверху' },
+  { key: 'bottom', label: 'Внизу' },
+  { key: 'left', label: 'Слева' },
+  { key: 'right', label: 'Справа' },
+];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -75,11 +83,18 @@ function normalizeFontSize(value: unknown): HeatCalcTableFontSize {
     : defaultFontSize();
 }
 
+function normalizeFormPlacement(value: unknown): HeatCalcFormPlacement {
+  return value === 'bottom' || value === 'left' || value === 'right' || value === 'top'
+    ? value
+    : 'top';
+}
+
 export function getDefaultTableViewSettings(): HeatCalcTableViewSettings {
   return {
     version: HEATCALC_TABLE_VIEW_VERSION,
     fontSize: defaultFontSize(),
     inlineEditingEnabled: false,
+    formPlacement: 'top',
   };
 }
 
@@ -89,6 +104,7 @@ export function normalizeTableViewSettings(value: unknown): HeatCalcTableViewSet
     version: HEATCALC_TABLE_VIEW_VERSION,
     fontSize: normalizeFontSize(source.fontSize),
     inlineEditingEnabled: source.inlineEditingEnabled === true,
+    formPlacement: normalizeFormPlacement(source.formPlacement),
   };
 }
 
@@ -96,7 +112,8 @@ export function isDefaultTableViewSettings(settings: HeatCalcTableViewSettings) 
   const normalized = normalizeTableViewSettings(settings);
   const defaults = getDefaultTableViewSettings();
   return normalized.fontSize === defaults.fontSize
-    && normalized.inlineEditingEnabled === defaults.inlineEditingEnabled;
+    && normalized.inlineEditingEnabled === defaults.inlineEditingEnabled
+    && normalized.formPlacement === defaults.formPlacement;
 }
 
 export function resolveTableFontSize(

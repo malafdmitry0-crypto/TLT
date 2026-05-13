@@ -21,6 +21,7 @@ describe('heatCalcTableViewSettings', () => {
       version: 1,
       fontSize: 'standard',
       inlineEditingEnabled: false,
+      formPlacement: 'top',
     });
     expect(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY)).toBeNull();
   });
@@ -32,19 +33,26 @@ describe('heatCalcTableViewSettings', () => {
       fontSizePx: 22,
       lineHeight: 3,
       inlineEditingEnabled: true,
-    })).toEqual({ version: 1, fontSize: 'large', inlineEditingEnabled: true });
+      formPlacement: 'left',
+    })).toEqual({ version: 1, fontSize: 'large', inlineEditingEnabled: true, formPlacement: 'left' });
     expect(normalizeTableViewSettings({ version: 1, fontSize: 'huge' })).toEqual(
       getDefaultTableViewSettings(),
     );
   });
 
   it('writes guest settings only after explicit user change', () => {
-    writeGuestTableViewSettings({ version: 1, fontSize: 'compact', inlineEditingEnabled: false });
+    writeGuestTableViewSettings({
+      version: 1,
+      fontSize: 'compact',
+      inlineEditingEnabled: false,
+      formPlacement: 'bottom',
+    });
 
     expect(JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}')).toEqual({
       version: 1,
       fontSize: 'compact',
       inlineEditingEnabled: false,
+      formPlacement: 'bottom',
     });
   });
 
@@ -53,12 +61,14 @@ describe('heatCalcTableViewSettings', () => {
       version: 1,
       fontSize: 'comfortable',
       inlineEditingEnabled: false,
+      formPlacement: 'right',
     });
 
     expect(readRegisteredTableViewCache('user-1')).toEqual({
       version: 1,
       fontSize: 'comfortable',
       inlineEditingEnabled: false,
+      formPlacement: 'right',
     });
     expect(readRegisteredTableViewCache('user-2')).toBeNull();
     expect(JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY) ?? '{}')).toHaveProperty(
@@ -67,7 +77,12 @@ describe('heatCalcTableViewSettings', () => {
   });
 
   it('resolves visual tokens from default JSON', () => {
-    expect(resolveTableFontSize({ version: 1, fontSize: 'large', inlineEditingEnabled: false })).toMatchObject({
+    expect(resolveTableFontSize({
+      version: 1,
+      fontSize: 'large',
+      inlineEditingEnabled: false,
+      formPlacement: 'top',
+    })).toMatchObject({
       key: 'large',
       label: 'Крупный',
       fontSizePx: 14,

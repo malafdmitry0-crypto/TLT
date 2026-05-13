@@ -4,6 +4,7 @@ import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
 } from '@/utils/heatCalcWizardFieldRules';
+import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import HelpedControl from '../HelpedControl';
 import FieldLabel from '../FieldLabel';
 
@@ -21,8 +22,14 @@ function fieldLabel(text: string) {
   return <FieldLabel text={text} />;
 }
 
-export default function TankGeometryStep() {
+interface Props {
+  fieldInputSettings?: HeatCalcFieldInputSettings;
+}
+
+export default function TankGeometryStep({ fieldInputSettings }: Props) {
   const form = Form.useFormInstance();
+  const numberInputProps = (fieldId: string) =>
+    heatCalcNumberInputProps('tank', fieldId, { fieldInputSettings });
 
   return (
     <>
@@ -61,7 +68,7 @@ export default function TankGeometryStep() {
                   {withHelp(
                     <InputNumber
                       data-testid="tank-diameter-input"
-                      {...heatCalcNumberInputProps('tank', 'diameter_mm')}
+                      {...numberInputProps('diameter_mm')}
                       addonAfter="мм"
                     />,
                     'Внешний диаметр резервуара Ø, мм. Обязателен для цилиндрической и сферической форм. Диапазон ТНП: 10,8–3000 мм.',
@@ -79,7 +86,7 @@ export default function TankGeometryStep() {
                   {withHelp(
                     <InputNumber
                       data-testid="tank-height-input"
-                      {...heatCalcNumberInputProps('tank', 'height_mm')}
+                      {...numberInputProps('height_mm')}
                       addonAfter="мм"
                     />,
                     'Высота резервуара. Обязательна для цилиндрической и прямоугольной форм. Диапазон ТНП: 500–200 000 мм.',
@@ -97,7 +104,7 @@ export default function TankGeometryStep() {
                   {withHelp(
                     <InputNumber
                       data-testid="tank-length-input"
-                      {...heatCalcNumberInputProps('tank', 'length_mm')}
+                      {...numberInputProps('length_mm')}
                       addonAfter="мм"
                     />,
                     'Длина прямоугольного резервуара L, мм. В новых переменных ТНП отдельный диапазон для L не задан.',
@@ -115,7 +122,7 @@ export default function TankGeometryStep() {
                   {withHelp(
                     <InputNumber
                       data-testid="tank-width-input"
-                      {...heatCalcNumberInputProps('tank', 'width_mm')}
+                      {...numberInputProps('width_mm')}
                       addonAfter="мм"
                     />,
                     'Ширина прямоугольного резервуара B, мм. В новых переменных ТНП отдельный диапазон для B не задан.',
@@ -136,7 +143,7 @@ export default function TankGeometryStep() {
         {withHelp(
           <InputNumber
             data-testid="tank-wall-thickness-input"
-            {...heatCalcNumberInputProps('tank', 'wall_thickness_mm')}
+            {...numberInputProps('wall_thickness_mm')}
             addonAfter="мм"
           />,
           'Толщина стенки резервуара. Если задана вместе с λ стенки, учитывается как δ/λ в теплопотерях.',
@@ -152,7 +159,7 @@ export default function TankGeometryStep() {
         {withHelp(
           <InputNumber
             data-testid="tank-wall-lambda-input"
-            {...heatCalcNumberInputProps('tank', 'wall_lambda')}
+            {...numberInputProps('wall_lambda')}
             addonAfter="Вт/мК"
           />,
           'Теплопроводность стенки резервуара. Работает в паре с толщиной стенки.',

@@ -86,6 +86,34 @@ describe('heatCalcTableColumns', () => {
     expect(all).toContain('type');
   });
 
+  it('оставляет расчетные детали скрытыми по умолчанию, но доступными в каталоге', () => {
+    const settings = getDefaultTableColumnSettings();
+    const visiblePipe = getVisibleTableColumnMetas('pipe', settings).map((column) => column.key);
+    const allPipe = getAllTableColumnMetas('pipe', settings).map((column) => column.key);
+    const visibleTank = getVisibleTableColumnMetas('tank', settings).map((column) => column.key);
+    const allTank = getAllTableColumnMetas('tank', settings).map((column) => column.key);
+
+    expect(visiblePipe).not.toContain('delta_t');
+    expect(visiblePipe).not.toContain('applied_alpha_vnesh');
+    expect(visiblePipe).not.toContain('effective_length');
+    expect(visibleTank).not.toContain('surface_area');
+    expect(visibleTank).not.toContain('ground_resistance');
+    expect(allPipe).toEqual(expect.arrayContaining([
+      'delta_t',
+      'applied_alpha_vnesh',
+      'applied_safety_factor',
+      'thermal_resistance',
+      'effective_length',
+    ]));
+    expect(allTank).toEqual(expect.arrayContaining([
+      'delta_t',
+      'applied_alpha_vnesh',
+      'applied_safety_factor',
+      'surface_area',
+      'ground_resistance',
+    ]));
+  });
+
   it('создаёт отдельный общий набор колонок для режима «Все»', () => {
     const settings = getDefaultTableColumnSettings();
     const visible = getVisibleTableColumnMetas('all', settings).map((column) => column.key);
@@ -99,10 +127,14 @@ describe('heatCalcTableColumns', () => {
       'pipe_length',
       'tank_shape',
       'tank_dimensions',
+      'delta_t',
+      'effective_length',
+      'surface_area',
     ]));
     expect(visible).toContain('type');
     expect(visible).not.toContain('pipe_dn');
     expect(visible).not.toContain('tank_shape');
+    expect(visible).not.toContain('delta_t');
   });
 
   it('хранит ширину в процентах и умеет сбрасывать её к дефолту', () => {

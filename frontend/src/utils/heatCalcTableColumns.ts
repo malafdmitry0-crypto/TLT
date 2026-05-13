@@ -55,8 +55,8 @@ interface RegisteredTableColumnCache {
   cachedAt: string;
 }
 
-export const HEATCALC_TABLE_COLUMNS_VERSION = 3;
-// The preference key is intentionally unchanged: v3 extends the existing table
+export const HEATCALC_TABLE_COLUMNS_VERSION = 4;
+// The preference key is intentionally unchanged: v4 extends the existing table
 // config instead of creating a parallel source of truth.
 export const HEATCALC_TABLE_COLUMN_PREF_KEY = 'heatcalc.tableColumns.v1';
 export const HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY = 'heatcalc.tableColumns.v1.guest';

@@ -5,6 +5,10 @@ import {
   validateHeatCalcField,
 } from '@/domain/heatCalcFieldRules';
 import type { HeatCalcObjectType } from '@/types/project';
+import {
+  resolveHeatCalcFieldStep,
+  type HeatCalcFieldInputSettings,
+} from '@/utils/heatCalcFieldInputSettings';
 
 export function heatCalcFormFieldRules(
   form: FormInstance,
@@ -36,13 +40,15 @@ export function heatCalcFormFieldRules(
 export function heatCalcNumberInputProps(
   objectType: HeatCalcObjectType,
   fieldId: string,
-  options: { includeStep?: boolean } = {},
+  options: { includeStep?: boolean; fieldInputSettings?: HeatCalcFieldInputSettings } = {},
 ) {
   const field = getHeatCalcFieldDefinition(fieldId, objectType);
   return {
     min: field?.min,
     max: field?.max,
-    step: options.includeStep === false ? undefined : field?.step,
+    step: options.includeStep === false
+      ? undefined
+      : resolveHeatCalcFieldStep(objectType, fieldId, options.fieldInputSettings),
   };
 }
 

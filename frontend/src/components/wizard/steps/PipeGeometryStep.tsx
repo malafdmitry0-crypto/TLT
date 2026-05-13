@@ -5,6 +5,7 @@ import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
 } from '@/utils/heatCalcWizardFieldRules';
+import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import HelpedControl from '../HelpedControl';
 import FieldLabel from '../FieldLabel';
 
@@ -18,8 +19,14 @@ function fieldLabel(text: string) {
   return <FieldLabel text={text} />;
 }
 
-export default function PipeGeometryStep() {
+interface Props {
+  fieldInputSettings?: HeatCalcFieldInputSettings;
+}
+
+export default function PipeGeometryStep({ fieldInputSettings }: Props) {
   const form = Form.useFormInstance();
+  const numberInputProps = (fieldId: string) =>
+    heatCalcNumberInputProps('pipe', fieldId, { fieldInputSettings });
 
   return (
     <>
@@ -48,7 +55,7 @@ export default function PipeGeometryStep() {
               {withHelp(
                 <InputNumber
                   data-testid="outer-diameter-input"
-                  {...heatCalcNumberInputProps('pipe', 'outer_diameter_mm')}
+                  {...numberInputProps('outer_diameter_mm')}
                   addonAfter="мм"
                 />,
                 'Наружный диаметр трубопровода Ø, мм. Диапазон ТНП: 10,8–3000 мм. Стандартные размеры DN10–DN1000.',
@@ -67,7 +74,7 @@ export default function PipeGeometryStep() {
         {withHelp(
           <InputNumber
             data-testid="pipe-length-input"
-            {...heatCalcNumberInputProps('pipe', 'pipe_length')}
+            {...numberInputProps('pipe_length')}
             addonAfter="м"
           />,
           'Длина обогреваемого участка. Диапазон ТНП: 0,5–200 000 м.',

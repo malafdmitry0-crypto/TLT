@@ -14,14 +14,20 @@ from app.schemas.user_preference import UserPreferenceResponse, UserPreferenceUp
 router = APIRouter()
 
 HEATCALC_TABLE_COLUMNS_PREF_KEY = "heatcalc.tableColumns.v1"
-HEATCALC_TABLE_COLUMNS_VERSION = 3
+HEATCALC_TABLE_COLUMNS_VERSION = 4
 HEATCALC_TABLE_COLUMN_WIDTH_MIN = 3
 HEATCALC_TABLE_COLUMN_WIDTH_MAX = 60
 HEATCALC_TABLE_COLUMN_LAYOUT_KEYS = {"widthPct"}
 HEATCALC_TABLE_VIEW_PREF_KEY = "heatcalc.tableView.v1"
 HEATCALC_TABLE_VIEW_VERSION = 1
-HEATCALC_TABLE_VIEW_KEYS = {"version", "fontSize"}
+HEATCALC_TABLE_VIEW_KEYS = {"version", "fontSize", "inlineEditingEnabled", "formPlacement"}
 HEATCALC_TABLE_VIEW_FONT_SIZES = {"compact", "standard", "comfortable", "large"}
+HEATCALC_TABLE_VIEW_FORM_PLACEMENTS = {"top", "bottom", "left", "right"}
+HEATCALC_FIELD_INPUT_PREF_KEY = "heatcalc.fieldInputs.v1"
+HEATCALC_FIELD_INPUT_VERSION = 1
+HEATCALC_FIELD_INPUT_MAX_STEP = 1_000_000
+HEATCALC_FIELD_INPUT_KEYS = {"version", "fields"}
+HEATCALC_FIELD_INPUT_LAYOUT_KEYS = {"step"}
 
 HEATCALC_TABLE_COLUMN_KEYS: dict[str, set[str]] = {
     "pipe": {
@@ -73,6 +79,14 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, set[str]] = {
         "flange_count",
         "support_count",
         "local_element_equiv_length",
+        "delta_t",
+        "applied_alpha_vnesh",
+        "applied_safety_factor",
+        "thermal_resistance",
+        "wall_resistance",
+        "insulation_resistance",
+        "external_resistance",
+        "effective_length",
     },
     "tank": {
         "index",
@@ -121,6 +135,44 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, set[str]] = {
         "safety_factor",
         "q_additional",
         "steam_tracing",
+        "delta_t",
+        "applied_alpha_vnesh",
+        "applied_safety_factor",
+        "wall_resistance",
+        "insulation_resistance",
+        "external_resistance",
+        "ground_resistance",
+        "surface_area",
+        "air_surface_area",
+        "ground_surface_area",
+    },
+}
+HEATCALC_TABLE_COLUMN_KEYS["all"] = (
+    HEATCALC_TABLE_COLUMN_KEYS["pipe"] | HEATCALC_TABLE_COLUMN_KEYS["tank"]
+)
+
+HEATCALC_FIELD_INPUT_FIELD_KEYS: dict[str, set[str]] = {
+    "pipe": {
+        "outer_diameter_mm",
+        "pipe_length",
+        "wall_thickness_mm",
+        "insulation_thickness_mm",
+        "ambient_temperature",
+        "process_temperature",
+        "min_switch_temperature",
+        "safety_factor",
+    },
+    "tank": {
+        "diameter_mm",
+        "height_mm",
+        "length_mm",
+        "width_mm",
+        "wall_thickness_mm",
+        "wall_lambda",
+        "insulation_thickness_mm",
+        "ambient_temperature",
+        "process_temperature",
+        "q_additional",
     },
 }
 
@@ -150,7 +202,7 @@ def _validate_heatcalc_table_columns(value: dict[str, object]) -> None:
         type_payload = types.get(object_type)
         if not isinstance(type_payload, dict):
             _preference_validation_error(
-                "HeatCalc table columns payload requires pipe and tank settings"
+                "HeatCalc table columns payload requires pipe, tank and all settings"
             )
 
         visible_order = type_payload.get("visibleOrder")
@@ -195,12 +247,50 @@ def _validate_heatcalc_table_columns(value: dict[str, object]) -> None:
 def _validate_heatcalc_table_view(value: dict[str, object]) -> None:
     if set(value) - HEATCALC_TABLE_VIEW_KEYS:
         _preference_validation_error(
-            "HeatCalc table view payload can contain only version and fontSize"
+            "HeatCalc table view payload can contain only version, fontSize, inlineEditingEnabled and formPlacement"
         )
     if value.get("version") != HEATCALC_TABLE_VIEW_VERSION:
         _preference_validation_error("Unsupported heatcalc table view settings version")
     if value.get("fontSize") not in HEATCALC_TABLE_VIEW_FONT_SIZES:
         _preference_validation_error("HeatCalc table view fontSize is unsupported")
+    if "inlineEditingEnabled" in value and not isinstance(value["inlineEditingEnabled"], bool):
+        _preference_validation_error("HeatCalc table view inlineEditingEnabled must be boolean")
+    if value.get("formPlacement") not in HEATCALC_TABLE_VIEW_FORM_PLACEMENTS:
+        _preference_validation_error("HeatCalc table view formPlacement is unsupported")
+
+
+def _validate_heatcalc_field_inputs(value: dict[str, object]) -> None:
+    if set(value) - HEATCALC_FIELD_INPUT_KEYS:
+        _preference_validation_error(
+            "HeatCalc field input payload can contain only version and fields"
+        )
+    if value.get("version") != HEATCALC_FIELD_INPUT_VERSION:
+        _preference_validation_error("Unsupported heatcalc field input settings version")
+
+    fields = value.get("fields")
+    if not isinstance(fields, dict):
+        _preference_validation_error("HeatCalc field input payload requires fields")
+
+    unknown_types = set(fields) - set(HEATCALC_FIELD_INPUT_FIELD_KEYS)
+    if unknown_types:
+        _preference_validation_error("HeatCalc field input payload contains unknown object type")
+
+    for object_type, object_fields in fields.items():
+        if not isinstance(object_fields, dict):
+            _preference_validation_error("HeatCalc field input object fields must be an object")
+        known_fields = HEATCALC_FIELD_INPUT_FIELD_KEYS[object_type]
+        if any(not isinstance(key, str) or key not in known_fields for key in object_fields):
+            _preference_validation_error("HeatCalc field input payload contains unknown field key")
+        for layout in object_fields.values():
+            if not isinstance(layout, dict):
+                _preference_validation_error("HeatCalc field input layout must be an object")
+            if set(layout) - HEATCALC_FIELD_INPUT_LAYOUT_KEYS:
+                _preference_validation_error("HeatCalc field input layout can contain only step")
+            step = layout.get("step")
+            if isinstance(step, bool) or not isinstance(step, int | float):
+                _preference_validation_error("HeatCalc field input step must be numeric")
+            if not 0 < step <= HEATCALC_FIELD_INPUT_MAX_STEP:
+                _preference_validation_error("HeatCalc field input step is out of range")
 
 
 def _validate_preference_value(key: str, value: dict[str, object]) -> None:
@@ -208,6 +298,8 @@ def _validate_preference_value(key: str, value: dict[str, object]) -> None:
         _validate_heatcalc_table_columns(value)
     if key == HEATCALC_TABLE_VIEW_PREF_KEY:
         _validate_heatcalc_table_view(value)
+    if key == HEATCALC_FIELD_INPUT_PREF_KEY:
+        _validate_heatcalc_field_inputs(value)
 
 
 @router.get(

@@ -26,6 +26,7 @@ import {
   heatCalcSelectOptions,
   heatCalcTextInputProps,
 } from '@/utils/heatCalcWizardFieldRules';
+import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
 
 interface Props {
@@ -35,6 +36,7 @@ interface Props {
   submitting?: boolean;
   /** Pass existing params to enable edit mode */
   initialParams?: Record<string, unknown>;
+  fieldInputSettings?: HeatCalcFieldInputSettings;
 }
 
 const SECTION_RESIZE_HANDLE_WIDTH = 0;
@@ -99,9 +101,17 @@ export default function ObjectWizard({
   onSubmit,
   submitting = false,
   initialParams,
+  fieldInputSettings,
 }: Props) {
   const [form] = Form.useForm();
   const heatCalcObjectType = objectType as HeatCalcObjectType;
+  const numberInputProps = (
+    fieldId: string,
+    options: { includeStep?: boolean } = {},
+  ) => heatCalcNumberInputProps(heatCalcObjectType, fieldId, {
+    ...options,
+    fieldInputSettings,
+  });
   const isEditMode = !!initialParams;
   const initialValues = useMemo(() =>
     initialParams != null
@@ -346,7 +356,9 @@ export default function ObjectWizard({
               'Автоматически формируется из параметров объекта. Можно изменить вручную; до 200 символов.',
             )}
           </Form.Item>
-          {objectType === 'pipe' ? <PipeGeometryStep /> : <TankGeometryStep />}
+          {objectType === 'pipe'
+            ? <PipeGeometryStep fieldInputSettings={fieldInputSettings} />
+            : <TankGeometryStep fieldInputSettings={fieldInputSettings} />}
           {objectType === 'pipe' && (
             <>
               <Form.Item
@@ -358,7 +370,7 @@ export default function ObjectWizard({
                 {withHelp(
                   <InputNumber
                     data-testid="wall-thickness-input"
-                    {...heatCalcNumberInputProps(heatCalcObjectType, 'wall_thickness_mm')}
+                    {...numberInputProps('wall_thickness_mm')}
                     addonAfter="мм"
                   />,
                   'Толщина стенки трубы. Диапазон ТНП: 0,1…40 мм. Используется в расчёте сопротивления стенки.',
@@ -507,7 +519,7 @@ export default function ObjectWizard({
           style={sectionStyle(1)}
         >
           {renderSectionTitle('Теплоизоляция', 2)}
-          <ThermalStep objectType={heatCalcObjectType} />
+          <ThermalStep objectType={heatCalcObjectType} fieldInputSettings={fieldInputSettings} />
           <Form.Item
             className="fixed-select-form-item reduced-select-form-item helped-form-item"
             label={fieldLabel('Материал покрытия')}
@@ -704,7 +716,7 @@ export default function ObjectWizard({
             {withHelp(
               <InputNumber
                 data-testid="ambient-temperature-input"
-                {...heatCalcNumberInputProps(heatCalcObjectType, 'ambient_temperature', { includeStep: false })}
+                {...numberInputProps('ambient_temperature')}
                 addonAfter="°C"
               />,
               'Расчётная температура окружающей среды. Диапазон ТНП: −70°C … +70°C. Может заполняться из климатического справочника.',
@@ -720,7 +732,7 @@ export default function ObjectWizard({
             {withHelp(
               <InputNumber
                 data-testid="process-temperature-input"
-                {...heatCalcNumberInputProps(heatCalcObjectType, 'process_temperature')}
+                {...numberInputProps('process_temperature')}
                 addonAfter="°C"
               />,
               'Требуемая температура поддержания объекта, °C. Диапазон ТНП: −90…+600 °C. Используется в расчёте теплопотерь и проверке температурного диапазона кабеля.',
@@ -862,7 +874,7 @@ export default function ObjectWizard({
               <InputNumber
                 data-testid="min-switch-temperature-input"
                 {...(objectType === 'pipe'
-                  ? heatCalcNumberInputProps(heatCalcObjectType, 'min_switch_temperature')
+                  ? numberInputProps('min_switch_temperature')
                   : { min: -70, max: 70, step: 0.1 })}
                 addonAfter="°C"
               />,
@@ -900,7 +912,7 @@ export default function ObjectWizard({
               <InputNumber
                 data-testid="safety-factor-input"
                 {...(objectType === 'pipe'
-                  ? heatCalcNumberInputProps(heatCalcObjectType, 'safety_factor')
+                  ? numberInputProps('safety_factor')
                   : { min: 1.05, max: 1.7, step: 0.01 })}
               />,
               'Коэффициент запаса Kзап. Диапазон ТНП: 1,05…1,70. Используется в суммарных теплопотерях и при подборе кабеля.',
@@ -917,7 +929,7 @@ export default function ObjectWizard({
               {withHelp(
                 <InputNumber
                   data-testid="q-additional-input"
-                  {...heatCalcNumberInputProps(heatCalcObjectType, 'q_additional')}
+                  {...numberInputProps('q_additional')}
                   addonAfter="Вт"
                 />,
                 'Дополнительные теплопотери (днище, штуцера и пр.). Прибавляется к суммарным теплопотерям, не влияет на удельные.',

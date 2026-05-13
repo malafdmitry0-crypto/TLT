@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { Button, Checkbox, InputNumber, Modal, Segmented, Space, Tooltip, Typography } from 'antd';
+import { Button, Checkbox, InputNumber, Modal, Segmented, Space, Tabs, Tooltip, Typography } from 'antd';
 import { HolderOutlined, ReloadOutlined } from '@ant-design/icons';
 import {
   closestCenter,
@@ -25,10 +25,25 @@ import {
   type HeatCalcTableColumnScope,
 } from '@/utils/heatCalcTableColumns';
 import {
+  HEATCALC_FORM_PLACEMENT_OPTIONS,
   HEATCALC_TABLE_FONT_SIZE_OPTIONS,
+  type HeatCalcFormPlacement,
   type HeatCalcTableFontSize,
   type HeatCalcTableViewSettings,
 } from '@/utils/heatCalcTableViewSettings';
+import {
+  HEATCALC_CALCULATION_DETAIL_METRIC_OPTIONS,
+  HEATCALC_CALCULATION_DETAIL_PRESETS,
+  type HeatCalcCalculationDetailMetric,
+  type HeatCalcCalculationDetailPreset,
+  type HeatCalcCalculationDetailsSettings,
+} from '@/utils/heatCalcCalculationDetailsSettings';
+import {
+  resolveHeatCalcFieldStep,
+  type HeatCalcFieldInputSettings,
+} from '@/utils/heatCalcFieldInputSettings';
+import type { HeatCalcObjectType } from '@/types/project';
+import { getHeatCalcFieldByColumn, type HeatCalcFieldDefinition } from '@/domain/heatCalcFields';
 
 const { Text } = Typography;
 
@@ -38,21 +53,91 @@ const TABLE_SETTINGS_TYPE_LABELS: Record<HeatCalcTableColumnScope, string> = {
   all: 'Все',
 };
 
+interface ColumnStepTarget {
+  objectType: HeatCalcObjectType;
+  fieldId: string;
+}
+
+interface ColumnStepSettings {
+  targets: ColumnStepTarget[];
+  step: number;
+  defaultStep: number;
+  unit?: string;
+  overridden: boolean;
+}
+
+function isNumberFieldWithStep(field: HeatCalcFieldDefinition | null): field is HeatCalcFieldDefinition & { step: number } {
+  return !!field && field.editor === 'number' && Number.isFinite(Number(field.step)) && Number(field.step) > 0;
+}
+
+function sameNumber(left: number, right: number) {
+  return Math.abs(left - right) < 1e-9;
+}
+
+function getColumnStepSettings(
+  type: HeatCalcTableColumnScope,
+  columnKey: HeatCalcColumnKey,
+  settings: HeatCalcFieldInputSettings,
+): ColumnStepSettings | null {
+  const objectTypes: HeatCalcObjectType[] = type === 'all' ? ['pipe', 'tank'] : [type];
+  const items = objectTypes
+    .map((objectType) => {
+      const field = getHeatCalcFieldByColumn(objectType, columnKey);
+      if (!isNumberFieldWithStep(field)) return null;
+      const step = resolveHeatCalcFieldStep(objectType, field.id, settings) ?? field.step;
+      return {
+        objectType,
+        fieldId: field.id,
+        field,
+        step,
+      };
+    })
+    .filter((item): item is {
+      objectType: HeatCalcObjectType;
+      fieldId: string;
+      field: HeatCalcFieldDefinition & { step: number };
+      step: number;
+    } => item != null);
+  if (items.length === 0) return null;
+
+  const first = items[0];
+  const unit = items.every((item) => item.field.unit === first.field.unit) ? first.field.unit : undefined;
+  const defaultStep = first.field.step;
+  const step = first.step;
+  const overridden = items.some((item) => !sameNumber(item.step, item.field.step));
+  return {
+    targets: items.map((item) => ({
+      objectType: item.objectType,
+      fieldId: item.fieldId,
+    })),
+    step,
+    defaultStep,
+    unit,
+    overridden,
+  };
+}
+
 function ColumnSettingsRowContent({
   column,
+  stepSettings,
   rowCount,
   dragHandle,
   onVisibleChange,
   onOrderChange,
   onWidthChange,
+  onStepChange,
+  onResetStep,
   onResetWidth,
 }: {
   column: HeatCalcResolvedColumnMeta;
+  stepSettings: ColumnStepSettings | null;
   rowCount: number;
   dragHandle: ReactNode;
   onVisibleChange: (key: HeatCalcColumnKey, visible: boolean) => void;
   onOrderChange: (key: HeatCalcColumnKey, order: number) => void;
   onWidthChange: (key: HeatCalcColumnKey, widthPct: number) => void;
+  onStepChange: (targets: ColumnStepTarget[], step: number | null) => void;
+  onResetStep: (targets: ColumnStepTarget[]) => void;
   onResetWidth: (key: HeatCalcColumnKey) => void;
 }) {
   const orderValue = column.visible && column.order != null ? column.order : null;
@@ -119,6 +204,34 @@ function ColumnSettingsRowContent({
         <span className="column-layout-title">{column.label}</span>
         <span className="column-layout-meta">{column.title} · {column.group}</span>
       </div>
+      {stepSettings ? (
+        <InputNumber
+          size="small"
+          min={0.000001}
+          max={1000000}
+          step={stepSettings.defaultStep}
+          value={stepSettings.step}
+          aria-label={`Шаг: ${column.label}`}
+          onChange={(value) => {
+            const nextStep = Number(value);
+            onStepChange(stepSettings.targets, Number.isFinite(nextStep) ? nextStep : null);
+          }}
+        />
+      ) : (
+        <span className="column-layout-empty">—</span>
+      )}
+      <span className="column-layout-unit">{stepSettings?.unit ?? ''}</span>
+      <Tooltip title={stepSettings ? 'Сбросить шаг поля' : 'У поля нет настройки шага'}>
+        <Button
+          size="small"
+          icon={<ReloadOutlined />}
+          disabled={!stepSettings || !stepSettings.overridden}
+          aria-label={`Сбросить шаг: ${column.label}`}
+          onClick={() => {
+            if (stepSettings) onResetStep(stepSettings.targets);
+          }}
+        />
+      </Tooltip>
       <InputNumber
         size="small"
         min={3}
@@ -146,23 +259,30 @@ function ColumnSettingsRowContent({
 
 function ColumnSettingsRow({
   column,
+  stepSettings,
   rowCount,
   onVisibleChange,
   onOrderChange,
   onWidthChange,
+  onStepChange,
+  onResetStep,
   onResetWidth,
 }: {
   column: HeatCalcResolvedColumnMeta;
+  stepSettings: ColumnStepSettings | null;
   rowCount: number;
   onVisibleChange: (key: HeatCalcColumnKey, visible: boolean) => void;
   onOrderChange: (key: HeatCalcColumnKey, order: number) => void;
   onWidthChange: (key: HeatCalcColumnKey, widthPct: number) => void;
+  onStepChange: (targets: ColumnStepTarget[], step: number | null) => void;
+  onResetStep: (targets: ColumnStepTarget[]) => void;
   onResetWidth: (key: HeatCalcColumnKey) => void;
 }) {
   return (
     <div className="column-layout-row hidden" data-column-key={column.key}>
       <ColumnSettingsRowContent
         column={column}
+        stepSettings={stepSettings}
         rowCount={rowCount}
         dragHandle={(
           <button
@@ -177,6 +297,8 @@ function ColumnSettingsRow({
         onVisibleChange={onVisibleChange}
         onOrderChange={onOrderChange}
         onWidthChange={onWidthChange}
+        onStepChange={onStepChange}
+        onResetStep={onResetStep}
         onResetWidth={onResetWidth}
       />
     </div>
@@ -185,17 +307,23 @@ function ColumnSettingsRow({
 
 function SortableColumnSettingsRow({
   column,
+  stepSettings,
   rowCount,
   onVisibleChange,
   onOrderChange,
   onWidthChange,
+  onStepChange,
+  onResetStep,
   onResetWidth,
 }: {
   column: HeatCalcResolvedColumnMeta;
+  stepSettings: ColumnStepSettings | null;
   rowCount: number;
   onVisibleChange: (key: HeatCalcColumnKey, visible: boolean) => void;
   onOrderChange: (key: HeatCalcColumnKey, order: number) => void;
   onWidthChange: (key: HeatCalcColumnKey, widthPct: number) => void;
+  onStepChange: (targets: ColumnStepTarget[], step: number | null) => void;
+  onResetStep: (targets: ColumnStepTarget[]) => void;
   onResetWidth: (key: HeatCalcColumnKey) => void;
 }) {
   const {
@@ -220,6 +348,7 @@ function SortableColumnSettingsRow({
     >
       <ColumnSettingsRowContent
         column={column}
+        stepSettings={stepSettings}
         rowCount={rowCount}
         dragHandle={(
           <button
@@ -235,6 +364,8 @@ function SortableColumnSettingsRow({
         onVisibleChange={onVisibleChange}
         onOrderChange={onOrderChange}
         onWidthChange={onWidthChange}
+        onStepChange={onStepChange}
+        onResetStep={onResetStep}
         onResetWidth={onResetWidth}
       />
     </div>
@@ -246,6 +377,8 @@ interface ColumnSettingsModalProps {
   activeType: HeatCalcTableColumnScope;
   draftColumnSettings: HeatCalcTableColumnSettings;
   draftViewSettings: HeatCalcTableViewSettings;
+  draftCalculationDetailsSettings: HeatCalcCalculationDetailsSettings;
+  draftFieldInputSettings: HeatCalcFieldInputSettings;
   confirmLoading?: boolean;
   onTypeChange: (type: HeatCalcTableColumnScope) => void;
   onOk: () => void;
@@ -258,8 +391,14 @@ interface ColumnSettingsModalProps {
   onResetWidth: (type: HeatCalcTableColumnScope, key: HeatCalcColumnKey) => void;
   onColumnReorder: (type: HeatCalcTableColumnScope, activeKey: HeatCalcColumnKey, overKey: HeatCalcColumnKey) => void;
   onFontSizeChange: (fontSize: HeatCalcTableFontSize) => void;
+  onFormPlacementChange: (placement: HeatCalcFormPlacement) => void;
   onInlineEditingEnabledChange: (enabled: boolean) => void;
   onResetFontSize: () => void;
+  onCalculationDetailsPresetChange: (preset: HeatCalcCalculationDetailPreset) => void;
+  onCalculationDetailMetricsChange: (metrics: HeatCalcCalculationDetailMetric[]) => void;
+  onResetCalculationDetails: () => void;
+  onFieldStepChange: (type: HeatCalcObjectType, fieldId: string, step: number | null) => void;
+  onResetFieldStep: (type: HeatCalcObjectType, fieldId: string) => void;
 }
 
 export default function ColumnSettingsModal({
@@ -267,6 +406,8 @@ export default function ColumnSettingsModal({
   activeType,
   draftColumnSettings,
   draftViewSettings,
+  draftCalculationDetailsSettings,
+  draftFieldInputSettings,
   confirmLoading,
   onTypeChange,
   onOk,
@@ -279,8 +420,14 @@ export default function ColumnSettingsModal({
   onResetWidth,
   onColumnReorder,
   onFontSizeChange,
+  onFormPlacementChange,
   onInlineEditingEnabledChange,
   onResetFontSize,
+  onCalculationDetailsPresetChange,
+  onCalculationDetailMetricsChange,
+  onResetCalculationDetails,
+  onFieldStepChange,
+  onResetFieldStep,
 }: ColumnSettingsModalProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -295,113 +442,192 @@ export default function ColumnSettingsModal({
     <Modal
       title="Настройки таблицы"
       open={open}
-      width={860}
+      width={980}
       okText="Применить"
       cancelText="Отмена"
       confirmLoading={confirmLoading}
       onOk={onOk}
       onCancel={onCancel}
     >
-      <div className="column-settings-modal">
-        <div className="column-settings-toolbar">
-          <Segmented<HeatCalcTableColumnScope>
-            value={activeType}
-            onChange={onTypeChange}
-            options={[
-              { label: TABLE_SETTINGS_TYPE_LABELS.pipe, value: 'pipe' },
-              { label: TABLE_SETTINGS_TYPE_LABELS.tank, value: 'tank' },
-              { label: TABLE_SETTINGS_TYPE_LABELS.all, value: 'all' },
-            ]}
-          />
-          <Space size={6}>
-            <Button size="small" onClick={() => onSelectAllColumns(activeType)}>
-              Все поля
-            </Button>
-            <Button size="small" onClick={() => onResetColumns(activeType)}>
-              Сбросить текущий тип
-            </Button>
-          </Space>
-        </div>
-        <div className="table-view-settings-panel">
-          <Text className="table-view-settings-label">Размер текста таблицы</Text>
-          <Segmented<HeatCalcTableFontSize>
-            aria-label="Размер текста таблицы"
-            value={draftViewSettings.fontSize}
-            onChange={onFontSizeChange}
-            options={HEATCALC_TABLE_FONT_SIZE_OPTIONS.map((option) => ({
-              value: option.key,
-              label: (
-                <Tooltip title={`${option.fontSizePx}px`}>
-                  <span>{option.label}</span>
-                </Tooltip>
-              ),
-            }))}
-          />
-          <Button size="small" onClick={onResetFontSize}>
-            Сбросить размер
-          </Button>
-        </div>
-        <div className="table-view-settings-panel">
-          <Checkbox
-            checked={draftViewSettings.inlineEditingEnabled}
-            onChange={(event) => onInlineEditingEnabledChange(event.target.checked)}
-          >
-            Редактировать ячейки в таблице
-          </Checkbox>
-        </div>
-        <div className="column-settings-list">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={(event) => {
-              const activeKey = String(event.active.id);
-              const overKey = event.over?.id == null ? null : String(event.over.id);
-              if (!overKey || activeKey === overKey) return;
-              onColumnReorder(activeType, activeKey, overKey);
-            }}
-          >
-            <div className="column-layout-list" role="list" aria-label={`Настройки таблицы: ${TABLE_SETTINGS_TYPE_LABELS[activeType]}`}>
-              <div className="column-layout-header" aria-hidden="true">
-                <span />
-                <span>Вид</span>
-                <span>№</span>
-                <span>Поле</span>
-                <span>Ширина</span>
-                <span />
-              </div>
-              <SortableContext items={visibleColumns.map((column) => column.key)} strategy={verticalListSortingStrategy}>
-                {visibleColumns.map((column) => (
-                  <SortableColumnSettingsRow
-                    key={column.key}
-                    column={column}
-                    rowCount={visibleRowCount}
-                    onVisibleChange={(key, visible) => onVisibleChange(activeType, key, visible)}
-                    onOrderChange={(key, order) => onOrderChange(activeType, key, order)}
-                    onWidthChange={(key, widthPct) => onWidthChange(activeType, key, widthPct)}
-                    onResetWidth={(key) => onResetWidth(activeType, key)}
+      <Tabs
+        className="column-settings-tabs"
+        defaultActiveKey="columns"
+        items={[
+          {
+            key: 'columns',
+            label: 'Настройки колонок',
+            children: (
+              <div className="column-settings-modal">
+                <div className="column-settings-toolbar">
+                  <Segmented<HeatCalcTableColumnScope>
+                    value={activeType}
+                    onChange={onTypeChange}
+                    options={[
+                      { label: TABLE_SETTINGS_TYPE_LABELS.pipe, value: 'pipe' },
+                      { label: TABLE_SETTINGS_TYPE_LABELS.tank, value: 'tank' },
+                      { label: TABLE_SETTINGS_TYPE_LABELS.all, value: 'all' },
+                    ]}
                   />
-                ))}
-              </SortableContext>
-              {hiddenColumns.length > 0 && (
-                <div className="column-layout-section" aria-hidden="true">
-                  Скрытые поля
+                  <Space size={6}>
+                    <Button size="small" onClick={() => onSelectAllColumns(activeType)}>
+                      Все поля
+                    </Button>
+                    <Button size="small" onClick={() => onResetColumns(activeType)}>
+                      Сбросить текущий тип
+                    </Button>
+                  </Space>
                 </div>
-              )}
-              {hiddenColumns.map((column) => (
-                <ColumnSettingsRow
-                  key={column.key}
-                  column={column}
-                  rowCount={visibleRowCount}
-                  onVisibleChange={(key, visible) => onVisibleChange(activeType, key, visible)}
-                  onOrderChange={(key, order) => onOrderChange(activeType, key, order)}
-                  onWidthChange={(key, widthPct) => onWidthChange(activeType, key, widthPct)}
-                  onResetWidth={(key) => onResetWidth(activeType, key)}
-                />
-              ))}
-            </div>
-          </DndContext>
-        </div>
-      </div>
+                <div className="column-settings-list">
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={(event) => {
+                      const activeKey = String(event.active.id);
+                      const overKey = event.over?.id == null ? null : String(event.over.id);
+                      if (!overKey || activeKey === overKey) return;
+                      onColumnReorder(activeType, activeKey, overKey);
+                    }}
+                  >
+                    <div className="column-layout-list" role="list" aria-label={`Настройки таблицы: ${TABLE_SETTINGS_TYPE_LABELS[activeType]}`}>
+                      <div className="column-layout-header" aria-hidden="true">
+                        <span />
+                        <span>Вид</span>
+                        <span>№</span>
+                        <span>Поле</span>
+                        <span>Шаг</span>
+                        <span />
+                        <span />
+                        <span>Ширина</span>
+                        <span />
+                        <span />
+                      </div>
+                      <SortableContext items={visibleColumns.map((column) => column.key)} strategy={verticalListSortingStrategy}>
+                        {visibleColumns.map((column) => (
+                          <SortableColumnSettingsRow
+                            key={column.key}
+                            column={column}
+                            stepSettings={getColumnStepSettings(activeType, column.key, draftFieldInputSettings)}
+                            rowCount={visibleRowCount}
+                            onVisibleChange={(key, visible) => onVisibleChange(activeType, key, visible)}
+                            onOrderChange={(key, order) => onOrderChange(activeType, key, order)}
+                            onWidthChange={(key, widthPct) => onWidthChange(activeType, key, widthPct)}
+                            onStepChange={(targets, step) => {
+                              targets.forEach((target) => onFieldStepChange(target.objectType, target.fieldId, step));
+                            }}
+                            onResetStep={(targets) => {
+                              targets.forEach((target) => onResetFieldStep(target.objectType, target.fieldId));
+                            }}
+                            onResetWidth={(key) => onResetWidth(activeType, key)}
+                          />
+                        ))}
+                      </SortableContext>
+                      {hiddenColumns.length > 0 && (
+                        <div className="column-layout-section" aria-hidden="true">
+                          Скрытые поля
+                        </div>
+                      )}
+                      {hiddenColumns.map((column) => (
+                        <ColumnSettingsRow
+                          key={column.key}
+                          column={column}
+                          stepSettings={getColumnStepSettings(activeType, column.key, draftFieldInputSettings)}
+                          rowCount={visibleRowCount}
+                          onVisibleChange={(key, visible) => onVisibleChange(activeType, key, visible)}
+                          onOrderChange={(key, order) => onOrderChange(activeType, key, order)}
+                          onWidthChange={(key, widthPct) => onWidthChange(activeType, key, widthPct)}
+                          onStepChange={(targets, step) => {
+                            targets.forEach((target) => onFieldStepChange(target.objectType, target.fieldId, step));
+                          }}
+                          onResetStep={(targets) => {
+                            targets.forEach((target) => onResetFieldStep(target.objectType, target.fieldId));
+                          }}
+                          onResetWidth={(key) => onResetWidth(activeType, key)}
+                        />
+                      ))}
+                    </div>
+                  </DndContext>
+                </div>
+              </div>
+            ),
+          },
+          {
+            key: 'other',
+            label: 'Остальное',
+            children: (
+              <div className="column-settings-modal column-settings-modal--other">
+                <div className="table-view-settings-panel">
+                  <Text className="table-view-settings-label">Размер текста таблицы</Text>
+                  <Segmented<HeatCalcTableFontSize>
+                    aria-label="Размер текста таблицы"
+                    value={draftViewSettings.fontSize}
+                    onChange={onFontSizeChange}
+                    options={HEATCALC_TABLE_FONT_SIZE_OPTIONS.map((option) => ({
+                      value: option.key,
+                      label: (
+                        <Tooltip title={`${option.fontSizePx}px`}>
+                          <span>{option.label}</span>
+                        </Tooltip>
+                      ),
+                    }))}
+                  />
+                  <Button size="small" onClick={onResetFontSize}>
+                    Сбросить размер
+                  </Button>
+                </div>
+                <div className="table-view-settings-panel">
+                  <Text className="table-view-settings-label">Положение блока параметров</Text>
+                  <Segmented<HeatCalcFormPlacement>
+                    aria-label="Положение блока параметров"
+                    value={draftViewSettings.formPlacement}
+                    onChange={onFormPlacementChange}
+                    options={HEATCALC_FORM_PLACEMENT_OPTIONS.map((option) => ({
+                      value: option.key,
+                      label: option.label,
+                    }))}
+                  />
+                </div>
+                <div className="table-view-settings-panel">
+                  <Checkbox
+                    checked={draftViewSettings.inlineEditingEnabled}
+                    onChange={(event) => onInlineEditingEnabledChange(event.target.checked)}
+                  >
+                    Редактировать ячейки в таблице
+                  </Checkbox>
+                </div>
+                <div className="table-view-settings-panel calculation-details-settings-panel">
+                  <div className="calculation-details-settings-header">
+                    <Text className="table-view-settings-label">Расшифровка расчёта</Text>
+                    <Segmented<HeatCalcCalculationDetailPreset>
+                      aria-label="Пресет расшифровки расчёта"
+                      value={draftCalculationDetailsSettings.preset}
+                      onChange={onCalculationDetailsPresetChange}
+                      options={HEATCALC_CALCULATION_DETAIL_PRESETS.map((preset) => ({
+                        value: preset.key,
+                        label: preset.label,
+                      }))}
+                    />
+                    <Button size="small" onClick={onResetCalculationDetails}>
+                      Сбросить расшифровку
+                    </Button>
+                  </div>
+                  <Checkbox.Group
+                    className="calculation-details-metrics"
+                    value={draftCalculationDetailsSettings.visibleMetrics}
+                    onChange={(values) =>
+                      onCalculationDetailMetricsChange(values as HeatCalcCalculationDetailMetric[])}
+                  >
+                    {HEATCALC_CALCULATION_DETAIL_METRIC_OPTIONS.map((option) => (
+                      <Checkbox key={option.key} value={option.key}>
+                        {option.label}
+                      </Checkbox>
+                    ))}
+                  </Checkbox.Group>
+                </div>
+              </div>
+            ),
+          },
+        ]}
+      />
     </Modal>
   );
 }
