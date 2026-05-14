@@ -112,7 +112,10 @@ vi.mock('@/api/projects', () => {
 });
 
 vi.mock('@/api/calculations', () => ({
+  cancelCalcTask: vi.fn(),
   enqueueElectricalBatchJob: vi.fn().mockResolvedValue({ id: 'task-1', status: 'queued' }),
+  enqueueHeatLossBatchJob: vi.fn(),
+  getCalcTask: vi.fn(),
 }));
 
 vi.mock('@/api/references', () => ({

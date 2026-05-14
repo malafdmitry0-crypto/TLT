@@ -12,6 +12,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import {
+  Alert,
   Button,
   Card,
   Checkbox,
@@ -36,7 +37,9 @@ import {
   FilterFilled,
   FireOutlined,
   PlusOutlined,
+  ReloadOutlined,
   SaveOutlined,
+  StopOutlined,
   TableOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -52,6 +55,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import { getObjectQueryCapabilities, getObjectsSummary, listObjects, queryObjects, updateObject } from '@/api/projects';
+import { cancelCalcTask, enqueueHeatLossBatchJob, getCalcTask } from '@/api/calculations';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
@@ -171,6 +175,8 @@ import {
   type DraftRowState,
   type DraftRowsById,
 } from '@/utils/heatCalcInlineEdit';
+import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
+import type { BatchHeatLossResponse } from '@/types/calculation';
 
 const loadObjectWizard = () => import('@/components/wizard/ObjectWizard');
 const ObjectWizard = lazy(loadObjectWizard);
@@ -189,6 +195,10 @@ type TableColumnRenderSpec = Pick<ColumnType<ProjectObject>, 'render' | 'ellipsi
 type HeatCalcFilterKind = 'text' | 'numberRange' | 'enum';
 const DEFAULT_OBJECT_QUERY_PAGE_SIZE = 50;
 const INAPPLICABLE_TABLE_VALUE = '—';
+
+function isBatchHeatLossResponse(result: unknown): result is BatchHeatLossResponse {
+  return typeof result === 'object' && result !== null && 'updated' in result && 'failed' in result;
+}
 
 const PIPE_TABLE_COLUMN_KEYS = new Set<HeatCalcColumnKey>(
   HEATCALC_TABLE_COLUMN_CATALOG.pipe.map((column) => column.key),
@@ -841,6 +851,7 @@ export default function HeatCalcPage() {
     useState<PendingInlineDisableSettings | null>(null);
   const [pendingWizardObject, setPendingWizardObject] = useState<ProjectObject | null>(null);
   const [pendingTableFocusObject, setPendingTableFocusObject] = useState<ProjectObject | null>(null);
+  const [activeHeatLossJobId, setActiveHeatLossJobId] = useState<string | null>(null);
   const setWorkspaceHeaderContext = useWorkspaceHeaderStore((s) => s.setContext);
 
   useEffect(() => {
@@ -854,6 +865,16 @@ export default function HeatCalcPage() {
   useEffect(() => {
     setWorkspaceHeaderContext(null);
   }, [setWorkspaceHeaderContext]);
+
+  useEffect(() => {
+    setActiveHeatLossJobId(null);
+  }, [project?.id]);
+
+  const invalidateHeatLossProjectData = useCallback(() => {
+    if (!project?.id) return;
+    queryClient.invalidateQueries({ queryKey: ['project', project.id, 'objects'] });
+    queryClient.invalidateQueries({ queryKey: ['project', project.id, 'electrical-page'] });
+  }, [project?.id, queryClient]);
 
   useEffect(() => {
     if (!project) return undefined;
@@ -876,6 +897,14 @@ export default function HeatCalcPage() {
     queryKey: ['project', project?.id, 'objects', 'summary'],
     queryFn: () => getObjectsSummary(project!.id),
     enabled: !!project,
+  });
+
+  const { data: activeHeatLossJob } = useQuery({
+    queryKey: ['calc-job', activeHeatLossJobId],
+    queryFn: () => getCalcTask(activeHeatLossJobId!),
+    enabled: !!activeHeatLossJobId,
+    refetchInterval: (query) => getCalcJobRefetchInterval(query.state.data?.status),
+    refetchIntervalInBackground: true,
   });
   const isAllObjectScope = activeObjectScope === 'all';
   const activeTableObjectType: HeatCalcObjectType = activeObjectScope === 'tank' ? 'tank' : 'pipe';
@@ -1218,6 +1247,55 @@ export default function HeatCalcPage() {
     handleObjectEdited,
     closeWizard,
   );
+
+  const heatLossBatchMut = useMutation({
+    mutationFn: () => enqueueHeatLossBatchJob(project!.id, true),
+    onSuccess: (task) => {
+      setActiveHeatLossJobId(task.id);
+      queryClient.invalidateQueries({ queryKey: ['calc-job', task.id] });
+      antdMessage.info('Пересчёт теплопотерь поставлен в очередь');
+    },
+    onError: (error) => {
+      antdMessage.error(error instanceof Error ? error.message : 'Не удалось запустить пересчёт теплопотерь');
+    },
+  });
+
+  const cancelHeatLossJobMut = useMutation({
+    mutationFn: () => cancelCalcTask(activeHeatLossJobId!),
+    onSuccess: (task) => {
+      setActiveHeatLossJobId(task.id);
+      antdMessage.warning('Пересчёт теплопотерь остановлен');
+    },
+    onError: (error) => {
+      antdMessage.error(error instanceof Error ? error.message : 'Не удалось остановить пересчёт теплопотерь');
+    },
+  });
+
+  useEffect(() => {
+    if (!activeHeatLossJob) return;
+    if (activeHeatLossJob.status === 'succeeded') {
+      invalidateHeatLossProjectData();
+      const result = isBatchHeatLossResponse(activeHeatLossJob.result) ? activeHeatLossJob.result : null;
+      if (result && result.failed > 0) {
+        antdMessage.warning(
+          `Пересчёт теплопотерь завершён: пересчитано ${result.updated}, ошибок ${result.failed}`,
+          10,
+        );
+      } else if (result) {
+        antdMessage.success(`Пересчёт теплопотерь завершён: пересчитано ${result.updated}`);
+      } else {
+        antdMessage.success('Пересчёт теплопотерь завершён');
+      }
+      setActiveHeatLossJobId(null);
+    }
+    if (activeHeatLossJob.status === 'failed') {
+      antdMessage.error(activeHeatLossJob.error_message || 'Пересчёт теплопотерь завершился ошибкой');
+      setActiveHeatLossJobId(null);
+    }
+    if (activeHeatLossJob.status === 'cancelled') {
+      setActiveHeatLossJobId(null);
+    }
+  }, [activeHeatLossJob, invalidateHeatLossProjectData]);
 
   const pipeCount = objectsSummary?.by_type.pipe ?? 0;
   const tankCount = objectsSummary?.by_type.tank ?? 0;
@@ -1848,6 +1926,25 @@ export default function HeatCalcPage() {
     : hasWizard
       ? 'Сохранить объект'
       : 'Нет изменений для сохранения';
+  const activeHeatLossJobStatus = activeHeatLossJob?.status ?? null;
+  const isHeatLossJobActive = isActiveCalcJobStatus(activeHeatLossJobStatus);
+  const heatLossJobProgress = activeHeatLossJob?.progress;
+  const heatLossJobProgressLabel = heatLossJobProgress?.total
+    ? `${heatLossJobProgress.current}/${heatLossJobProgress.total}` +
+      `${heatLossJobProgress.percent != null ? ` (${heatLossJobProgress.percent}%)` : ''}`
+    : activeHeatLossJobStatus ?? '';
+  const heatLossRecalcDisabled =
+    projectObjectCount === 0 ||
+    dirtyDraftRowCount > 0 ||
+    submittingObject ||
+    isHeatLossJobActive;
+  const heatLossRecalcTooltip = dirtyDraftRowCount > 0
+    ? 'Сохраните или сбросьте изменения в таблице перед пересчётом'
+    : projectObjectCount === 0
+      ? 'Добавьте объекты для пересчёта'
+      : isHeatLossJobActive
+        ? 'Пересчёт теплопотерь уже выполняется'
+        : 'Пересчитать теплопотери всех объектов проекта';
 
   const duplicateSelectedObjects = useCallback(async () => {
     const duplicatePayloads = selectedVisibleRows
@@ -2881,6 +2978,32 @@ export default function HeatCalcPage() {
 
         <div className="actionbar-table-actions-row" role="toolbar" aria-label="Действия таблицы объектов">
           <div className="actionbar-group actionbar-table-actions-group">
+            <Tooltip title={heatLossRecalcTooltip}>
+              <span className="action-tooltip-wrap">
+                <Button
+                  className="action-secondary-button"
+                  icon={<ReloadOutlined />}
+                  aria-label="Пересчитать теплопотери"
+                  loading={heatLossBatchMut.isPending || isHeatLossJobActive}
+                  disabled={heatLossRecalcDisabled || heatLossBatchMut.isPending}
+                  onClick={() => heatLossBatchMut.mutate()}
+                >
+                  Пересчитать теплопотери
+                </Button>
+              </span>
+            </Tooltip>
+            {isHeatLossJobActive && activeHeatLossJobId && (
+              <Button
+                danger
+                className="action-secondary-button"
+                icon={<StopOutlined />}
+                aria-label="Отменить пересчёт теплопотерь"
+                loading={cancelHeatLossJobMut.isPending}
+                onClick={() => cancelHeatLossJobMut.mutate()}
+              >
+                Отменить
+              </Button>
+            )}
             <Button
               className="action-secondary-button"
               icon={<TableOutlined />}
@@ -2951,6 +3074,18 @@ export default function HeatCalcPage() {
     );
   }
 
+  function renderHeatLossJobAlert() {
+    if (!isHeatLossJobActive) return null;
+    return (
+      <Alert
+        type="info"
+        showIcon
+        className="heatcalc-job-alert"
+        message={`Пересчёт теплопотерь выполняется · ${heatLossJobProgressLabel}`}
+      />
+    );
+  }
+
   const isSideFormPlacement = formPlacement === 'left' || formPlacement === 'right';
   const sideResizeVisible = isSideFormPlacement && formBlockVisible;
   const workspaceLayoutStyle = isSideFormPlacement
@@ -2992,6 +3127,7 @@ export default function HeatCalcPage() {
         {formPlacement === 'top' && formPanel}
 
         {!isSideFormPlacement && renderActionsBar()}
+        {!isSideFormPlacement && renderHeatLossJobAlert()}
 
         <div
           ref={sideWorkspaceRef}
@@ -3003,6 +3139,7 @@ export default function HeatCalcPage() {
           <div className="heatcalc-table-pane">
             {isSideFormPlacement && renderTypeBar()}
             {isSideFormPlacement && renderActionsBar()}
+            {isSideFormPlacement && renderHeatLossJobAlert()}
             {renderAssumptionsPanel()}
 
             <Card size="small" className="workspace-table-card srs-table-wrap">

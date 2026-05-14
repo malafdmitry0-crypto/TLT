@@ -11,12 +11,13 @@ import pytest
 
 from app.core.dependencies import CurrentPrincipal
 from app.models.background_task import BackgroundTask
-from app.schemas.calculation import ElectricalBatchJobRequest
+from app.schemas.calculation import ElectricalBatchJobRequest, HeatLossBatchJobRequest
 from app.services.calculation_service import BatchProgress
 from app.services.project_service import ProjectService
 from app.services.task_service import (
     MAX_TASK_ERROR_MESSAGE_LENGTH,
     TASK_ELECTRICAL_BATCH,
+    TASK_HEAT_LOSS_BATCH,
     ProgressThrottler,
     ProgressWritePolicy,
     TaskAccessError,
@@ -57,6 +58,20 @@ class ManualClock:
 
     def advance_ms(self, value: int) -> None:
         self.value += value / 1000
+
+
+class StaticSessionFactory:
+    def __init__(self, db) -> None:
+        self.db = db
+
+    def __call__(self):
+        return self
+
+    async def __aenter__(self):
+        return self.db
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return None
 
 
 @pytest.fixture
@@ -215,6 +230,34 @@ class TestTaskCreation:
         assert task is existing
         mock_db.add.assert_not_called()
 
+    async def test_create_heat_loss_batch_task_enqueues_and_persists_payload(
+        self,
+        mock_db,
+        guest_principal: CurrentPrincipal,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        service = TaskService(mock_db)
+        service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
+        project_id = uuid.uuid4()
+
+        task = await service.create_heat_loss_batch_task(
+            HeatLossBatchJobRequest(project_id=project_id, include_errors=False),
+            guest_principal,
+            queue=QueueOk(),
+            idempotency_key="heat-click-1",
+        )
+
+        assert task.status == "enqueued"
+        assert task.type == TASK_HEAT_LOSS_BATCH
+        assert task.session_id == "sid"
+        assert task.request_payload == {
+            "project_id": str(project_id),
+            "include_errors": False,
+        }
+        assert task.arq_job_id is not None
+        mock_db.add.assert_called_once()
+
     async def test_guest_cannot_enqueue_extended_catalog(
         self,
         mock_db,
@@ -269,6 +312,179 @@ class TestTaskStateTransitions:
 
         service._mark_failed.assert_awaited_once()
         mock_db.commit.assert_not_awaited()
+
+    async def test_run_task_dispatches_heat_loss_batch(self, mock_db):
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_HEAT_LOSS_BATCH,
+            status="enqueued",
+            session_id="sid",
+            request_payload={"project_id": str(uuid.uuid4())},
+            progress_current=0,
+            cancel_requested=False,
+            attempts=0,
+        )
+        mock_db.get = AsyncMock(return_value=task)
+        service = TaskService(mock_db)
+        service._run_heat_loss_batch = AsyncMock()  # type: ignore[method-assign]
+
+        await service.run_task(task.id, worker_id="worker")
+
+        assert task.status == "running"
+        assert task.locked_by == "worker"
+        service._run_heat_loss_batch.assert_awaited_once_with(task.id)
+        mock_db.commit.assert_awaited_once()
+
+    async def test_run_heat_loss_batch_marks_succeeded(
+        self,
+        mock_db,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        project_id = uuid.uuid4()
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_HEAT_LOSS_BATCH,
+            status="running",
+            project_id=project_id,
+            session_id="sid",
+            request_payload={"project_id": str(project_id), "include_errors": True},
+            progress_current=0,
+            progress_total=None,
+        )
+        mock_db.get = AsyncMock(return_value=task)
+
+        class FakeCalculationService:
+            def __init__(self, db) -> None:
+                self.db = db
+
+            async def batch_recalculate(
+                self,
+                project_id_arg,
+                *,
+                progress_callback=None,
+                should_cancel=None,
+            ):
+                assert project_id_arg == project_id
+                assert should_cancel is not None
+                if progress_callback is not None:
+                    await progress_callback(BatchProgress(current=1, total=2, phase="calculate"))
+                return 1, 1, [{"object_id": "bad", "error": {"error": "missing"}}]
+
+        monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
+
+        await TaskService(
+            mock_db, session_factory=StaticSessionFactory(mock_db)
+        )._run_heat_loss_batch(task.id)
+
+        assert task.status == "succeeded"
+        assert task.result_payload == {
+            "updated": 1,
+            "failed": 1,
+            "errors": [{"object_id": "bad", "error": {"error": "missing"}}],
+        }
+        assert task.progress_phase == "done"
+        assert mock_db.commit.await_count >= 2
+
+    async def test_run_heat_loss_batch_honors_include_errors_false(
+        self,
+        mock_db,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        project_id = uuid.uuid4()
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_HEAT_LOSS_BATCH,
+            status="running",
+            project_id=project_id,
+            session_id="sid",
+            request_payload={"project_id": str(project_id), "include_errors": False},
+            progress_current=0,
+        )
+        mock_db.get = AsyncMock(return_value=task)
+
+        class FakeCalculationService:
+            def __init__(self, db) -> None:
+                self.db = db
+
+            async def batch_recalculate(self, *args, **kwargs):
+                return 0, 1, [{"object_id": "bad", "error": {"error": "hidden"}}]
+
+        monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
+
+        await TaskService(
+            mock_db, session_factory=StaticSessionFactory(mock_db)
+        )._run_heat_loss_batch(task.id)
+
+        assert task.status == "succeeded"
+        assert task.result_payload == {"updated": 0, "failed": 1, "errors": []}
+
+    async def test_run_heat_loss_batch_cancel_marks_cancelled(
+        self,
+        mock_db,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        project_id = uuid.uuid4()
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_HEAT_LOSS_BATCH,
+            status="running",
+            project_id=project_id,
+            session_id="sid",
+            request_payload={"project_id": str(project_id)},
+            progress_current=0,
+        )
+        mock_db.get = AsyncMock(return_value=task)
+
+        class FakeCalculationService:
+            def __init__(self, db) -> None:
+                self.db = db
+
+            async def batch_recalculate(self, *args, **kwargs):
+                from app.services.calculation_service import BatchCancelledError
+
+                raise BatchCancelledError("cancelled")
+
+        monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
+
+        await TaskService(
+            mock_db, session_factory=StaticSessionFactory(mock_db)
+        )._run_heat_loss_batch(task.id)
+
+        assert task.status == "cancelled"
+        assert task.cancel_requested is True
+
+    async def test_run_heat_loss_batch_failure_marks_failed(
+        self,
+        mock_db,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        project_id = uuid.uuid4()
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_HEAT_LOSS_BATCH,
+            status="running",
+            project_id=project_id,
+            session_id="sid",
+            request_payload={"project_id": str(project_id)},
+            progress_current=0,
+        )
+        mock_db.get = AsyncMock(return_value=task)
+
+        class FakeCalculationService:
+            def __init__(self, db) -> None:
+                self.db = db
+
+            async def batch_recalculate(self, *args, **kwargs):
+                raise RuntimeError("boom")
+
+        monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
+
+        await TaskService(
+            mock_db, session_factory=StaticSessionFactory(mock_db)
+        )._run_heat_loss_batch(task.id)
+
+        assert task.status == "failed"
+        assert task.error_message == "RuntimeError: boom"
 
     async def test_mark_failed_compacts_large_error_message(self, mock_db):
         task = BackgroundTask(
@@ -399,3 +615,30 @@ class TestTaskResponse:
         assert response.result.calculated == 1
         assert response.result.results[0].object_id == object_id
         assert response.links.status.endswith(f"/calc/jobs/{task_id}")
+
+    def test_to_response_supports_heat_loss_result(self):
+        task_id = uuid.uuid4()
+        task = BackgroundTask(
+            id=task_id,
+            type=TASK_HEAT_LOSS_BATCH,
+            status="succeeded",
+            project_id=uuid.uuid4(),
+            session_id="sid",
+            request_payload={},
+            result_payload={
+                "updated": 2,
+                "failed": 1,
+                "errors": [{"object_id": str(uuid.uuid4()), "error": {"error": "bad"}}],
+            },
+            progress_current=3,
+            progress_total=3,
+            progress_phase="done",
+            created_at=datetime.now(UTC),
+        )
+
+        response = TaskService.to_response(task)
+
+        assert response.progress.percent == 100
+        assert response.result is not None
+        assert response.result.updated == 2
+        assert response.result.failed == 1

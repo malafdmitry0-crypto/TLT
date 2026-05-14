@@ -1,6 +1,7 @@
 import apiClient from './client';
 import type {
   BatchElectricalResponse,
+  BatchHeatLossResponse,
   CalculationTaskResponse,
   ElectricalCalcSummary,
   ElectricalPageResponse,
@@ -151,13 +152,31 @@ export async function enqueueElectricalBatchJob(
   return data;
 }
 
+export async function enqueueHeatLossBatchJob(
+  projectId: string,
+  includeErrors: boolean = true,
+): Promise<CalculationTaskResponse> {
+  const { data } = await apiClient.post<CalculationTaskResponse>(
+    '/calc/heat-loss/batch/jobs',
+    {
+      project_id: projectId,
+      include_errors: includeErrors,
+    },
+  );
+  return data;
+}
+
 export async function getCalcTask(taskId: string): Promise<CalculationTaskResponse> {
   const { data } = await apiClient.get<CalculationTaskResponse>(`/calc/jobs/${taskId}`);
   return data;
 }
 
-export async function getCalcTaskResult(taskId: string): Promise<BatchElectricalResponse> {
-  const { data } = await apiClient.get<BatchElectricalResponse>(`/calc/jobs/${taskId}/result`);
+export async function getCalcTaskResult(
+  taskId: string,
+): Promise<BatchElectricalResponse | BatchHeatLossResponse> {
+  const { data } = await apiClient.get<BatchElectricalResponse | BatchHeatLossResponse>(
+    `/calc/jobs/${taskId}/result`,
+  );
   return data;
 }
 

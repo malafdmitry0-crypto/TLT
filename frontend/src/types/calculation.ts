@@ -199,13 +199,19 @@ export interface BatchElectricalResponse {
   results: ElectricalCalcSummary[];
 }
 
+export interface BatchHeatLossResponse {
+  updated: number;
+  failed: number;
+  errors: Array<{ object_id: string; error: unknown }>;
+}
+
 export interface CalculationTaskResponse {
   id: string;
   type: string;
   status: CalculationTaskStatus;
   project_id: string | null;
   progress: CalculationTaskProgress;
-  result: BatchElectricalResponse | null;
+  result: BatchElectricalResponse | BatchHeatLossResponse | null;
   error_message: string | null;
   cancel_requested: boolean;
   created_at: string;

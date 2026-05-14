@@ -1,5 +1,6 @@
 """Сервис расчётов: теплопотери + электротехнический расчёт."""
 
+import asyncio
 import math
 import uuid
 from collections.abc import Awaitable, Callable
@@ -73,6 +74,8 @@ CancelChecker = Callable[[], Awaitable[bool] | bool]
 
 POSTGRES_BIND_PARAMETER_LIMIT = 32_767
 ELECTRICAL_BULK_UPSERT_TARGET_CHUNK_SIZE = 2_000
+BATCH_HEAT_RECALCULATE_CHUNK_SIZE = 2_000
+BATCH_HEAT_RECALCULATE_YIELD_EVERY_OBJECTS = 25
 BATCH_ELECTRICAL_CHUNK_SIZE = 2_000
 BATCH_CANCEL_CHECK_MIN_OBJECTS = 500
 BATCH_CANCEL_CHECK_MIN_INTERVAL_SECONDS = 0.5
@@ -99,11 +102,13 @@ class BatchCancelChecker:
         min_objects: int = BATCH_CANCEL_CHECK_MIN_OBJECTS,
         min_interval_seconds: float = BATCH_CANCEL_CHECK_MIN_INTERVAL_SECONDS,
         now_func: Callable[[], float] = monotonic,
+        cancel_message: str = "Пакетный электрорасчёт отменён",
     ) -> None:
         self._should_cancel = should_cancel
         self._min_objects = min_objects
         self._min_interval_seconds = min_interval_seconds
         self._now = now_func
+        self._cancel_message = cancel_message
         self._last_checked_processed: int | None = None
         self._last_checked_at: float | None = None
 
@@ -120,7 +125,7 @@ class BatchCancelChecker:
         self._last_checked_processed = processed
         self._last_checked_at = now
         if bool(await _maybe_await(self._should_cancel())):
-            raise BatchCancelledError("Пакетный электрорасчёт отменён")
+            raise BatchCancelledError(self._cancel_message)
 
 
 class CalculationService:
@@ -288,6 +293,14 @@ class CalculationService:
         Этот же dict кладётся в `ProjectObject.results`.
         """
         coefficients = await self.get_coefficients()
+        return self._calc_heat_loss_with_coefficients(object_type, data, coefficients)
+
+    def _calc_heat_loss_with_coefficients(
+        self,
+        object_type: str,
+        data: dict[str, Any],
+        coefficients: dict[str, float],
+    ) -> HeatLossResultDict:
         if object_type == "pipe":
             params = PipeHeatLossParams(**data)
             pipe_result = calc_pipe_heat_loss(params, coefficients=coefficients)
@@ -322,7 +335,12 @@ class CalculationService:
         # (обновляет results/is_valid/validation_errors). Возвращаем тот же obj.
         return obj
 
-    async def try_recalculate(self, obj: ProjectObject) -> Result[ProjectObject, str]:
+    async def try_recalculate(
+        self,
+        obj: ProjectObject,
+        *,
+        coefficients: dict[str, float] | None = None,
+    ) -> Result[ProjectObject, str]:
         """Пересчёт объекта с явным Result-типом.
 
         Args:
@@ -340,7 +358,11 @@ class CalculationService:
         """
         try:
             obj.params = prepare_project_object_params(obj.object_type, obj.params)
-            result = await self.calc_heat_loss(obj.object_type, obj.params)
+            result = (
+                self._calc_heat_loss_with_coefficients(obj.object_type, obj.params, coefficients)
+                if coefficients is not None
+                else await self.calc_heat_loss(obj.object_type, obj.params)
+            )
             obj.results = cast(dict[str, Any], result)
             obj.is_valid = True
             obj.validation_errors = None
@@ -352,22 +374,139 @@ class CalculationService:
             obj.validation_errors = {"error": message}
             return Err(message)
 
-    async def batch_recalculate(self, project_id: UUID) -> tuple[int, int, list[dict[str, Any]]]:
+    async def _heat_batch_count(self, project_id: UUID) -> int:
         result = await self.db.execute(
-            select(ProjectObject).where(ProjectObject.project_id == project_id)
+            select(func.count(ProjectObject.id)).where(ProjectObject.project_id == project_id)
         )
-        objects = list(result.scalars().all())
+        return int(result.scalar() or 0)
+
+    async def _load_project_object_chunk(
+        self,
+        project_id: UUID,
+        *,
+        limit: int,
+        after_sort_order: int | None = None,
+        after_id: UUID | None = None,
+    ) -> list[ProjectObject]:
+        filters = [ProjectObject.project_id == project_id]
+        if after_sort_order is not None and after_id is not None:
+            filters.append(
+                or_(
+                    ProjectObject.sort_order > after_sort_order,
+                    and_(
+                        ProjectObject.sort_order == after_sort_order,
+                        ProjectObject.id > after_id,
+                    ),
+                )
+            )
+        result = await self.db.execute(
+            select(ProjectObject)
+            .options(
+                load_only(
+                    ProjectObject.id,
+                    ProjectObject.project_id,
+                    ProjectObject.object_type,
+                    ProjectObject.sort_order,
+                    ProjectObject.params,
+                    ProjectObject.results,
+                    ProjectObject.is_valid,
+                    ProjectObject.validation_errors,
+                )
+            )
+            .where(*filters)
+            .order_by(ProjectObject.sort_order, ProjectObject.id)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def batch_recalculate(
+        self,
+        project_id: UUID,
+        progress_callback: ProgressCallback | None = None,
+        should_cancel: CancelChecker | None = None,
+    ) -> tuple[int, int, list[dict[str, Any]]]:
+        async def emit_progress(progress: BatchProgress) -> None:
+            if progress_callback is not None:
+                await _maybe_await(progress_callback(progress))
+
+        cancel_checker = BatchCancelChecker(
+            should_cancel,
+            cancel_message="Пакетный пересчёт теплопотерь отменён",
+        )
+        total_count = await self._heat_batch_count(project_id)
         updated = 0
         failed = 0
         errors: list[dict[str, Any]] = []
-        for obj in objects:
-            await self.recalculate_object(obj)
-            if obj.is_valid:
-                updated += 1
-            else:
-                failed += 1
-                errors.append({"object_id": str(obj.id), "error": obj.validation_errors})
+
+        await emit_progress(BatchProgress(current=0, total=total_count, phase="prepare"))
+        await cancel_checker.check(0, force=True)
+
+        coefficients = await self.get_coefficients() if total_count > 0 else {}
+        processed = 0
+        last_sort_order: int | None = None
+        last_id: UUID | None = None
+
+        while processed < total_count:
+            objects = await self._load_project_object_chunk(
+                project_id,
+                limit=BATCH_HEAT_RECALCULATE_CHUNK_SIZE,
+                after_sort_order=last_sort_order,
+                after_id=last_id,
+            )
+            if not objects:
+                break
+            last_sort_order = getattr(objects[-1], "sort_order", None)
+            last_id = objects[-1].id
+
+            for obj in objects:
+                await cancel_checker.check(processed)
+                await self.try_recalculate(obj, coefficients=coefficients)
+                if obj.is_valid:
+                    updated += 1
+                else:
+                    failed += 1
+                    errors.append({"object_id": str(obj.id), "error": obj.validation_errors})
+                processed += 1
+                await emit_progress(
+                    BatchProgress(
+                        current=processed,
+                        total=total_count,
+                        phase="calculate",
+                        calculated=updated,
+                        skipped=failed,
+                        heat_loss_failed=failed,
+                        object_id=obj.id,
+                    )
+                )
+                if processed % BATCH_HEAT_RECALCULATE_YIELD_EVERY_OBJECTS == 0:
+                    await asyncio.sleep(0)
+
+            await cancel_checker.check(processed, force=True)
+            await self.db.flush()
+            await asyncio.sleep(0)
+
+        await cancel_checker.check(processed, force=True)
+        await emit_progress(
+            BatchProgress(
+                current=processed,
+                total=total_count,
+                phase="commit",
+                calculated=updated,
+                skipped=failed,
+                heat_loss_failed=failed,
+            )
+        )
         await self.db.commit()
+        await emit_progress(
+            BatchProgress(
+                current=processed,
+                total=total_count,
+                phase="done",
+                calculated=updated,
+                skipped=failed,
+                heat_loss_failed=failed,
+            )
+        )
         return updated, failed, errors
 
     async def calc_electrical(self, request: ElectricalRequest) -> ElectricalCalculation:

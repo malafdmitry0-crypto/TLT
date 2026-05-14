@@ -46,7 +46,7 @@ import { formatNumber, formatPower } from '@/utils/formatters';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject } from '@/types/project';
-import type { ElectricalCalcSummary } from '@/types/calculation';
+import type { BatchElectricalResponse, ElectricalCalcSummary } from '@/types/calculation';
 
 const { Text } = Typography;
 
@@ -57,6 +57,10 @@ type CableTypeKey =
   | 'three_core'
   | 'mineral'
   | 'skin';
+
+function isBatchElectricalResponse(result: unknown): result is BatchElectricalResponse {
+  return typeof result === 'object' && result !== null && 'calculated' in result;
+}
 
 const CABLE_TYPE_LABEL: Record<CableTypeKey, string> = {
   self_regulating: 'Саморегулирующийся',
@@ -244,7 +248,7 @@ export default function ElecCalcPage() {
   useEffect(() => {
     if (!activeJob) return;
     if (activeJob.status === 'succeeded') {
-      const res = activeJob.result;
+      const res = isBatchElectricalResponse(activeJob.result) ? activeJob.result : null;
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-page'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
       if (res && res.skipped > 0) {

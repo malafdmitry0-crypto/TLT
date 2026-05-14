@@ -99,6 +99,31 @@ class TestCalcJobs:
         assert cancel_resp.json()["status"] == "cancelled"
         assert cancel_resp.json()["cancel_requested"] is True
 
+    async def test_enqueue_heat_loss_batch_job(
+        self, client: AsyncClient, guest_session: str, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        project = await _guest_project(client, guest_session)
+        payload = {"project_id": project["id"], "include_errors": False}
+        headers = {"X-Session-Id": guest_session, "Idempotency-Key": "same-heat-click"}
+
+        first = await client.post(
+            "/api/v1/calc/heat-loss/batch/jobs",
+            json=payload,
+            headers=headers,
+        )
+        second = await client.post(
+            "/api/v1/calc/heat-loss/batch/jobs",
+            json=payload,
+            headers=headers,
+        )
+
+        assert first.status_code == 202, first.text
+        assert second.status_code == 202, second.text
+        assert first.json()["id"] == second.json()["id"]
+        assert first.json()["type"] == "heat_loss_batch"
+        assert first.json()["status"] == "enqueued"
+
     async def test_worker_executes_enqueued_electrical_batch(
         self,
         client: AsyncClient,
@@ -139,3 +164,45 @@ class TestCalcJobs:
         )
         assert result_resp.status_code == 200, result_resp.text
         assert result_resp.json()["calculated"] == 1
+
+    async def test_worker_executes_enqueued_heat_loss_batch(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        test_engine,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        project = await _guest_project(client, guest_session)
+        await _create_pipe(client, project["id"], guest_session)
+        job_resp = await client.post(
+            "/api/v1/calc/heat-loss/batch/jobs",
+            json={"project_id": project["id"], "include_errors": True},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert job_resp.status_code == 202, job_resp.text
+        task_id = UUID(job_resp.json()["id"])
+
+        session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
+        async with session_factory() as worker_db:
+            await TaskService(worker_db, session_factory=session_factory).run_task(
+                task_id,
+                worker_id="test-worker",
+            )
+
+        status_resp = await client.get(
+            f"/api/v1/calc/jobs/{task_id}",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert status_resp.status_code == 200, status_resp.text
+        body = status_resp.json()
+        assert body["status"] == "succeeded"
+        assert body["result"]["updated"] == 1
+        assert body["result"]["failed"] == 0
+
+        result_resp = await client.get(
+            f"/api/v1/calc/jobs/{task_id}/result",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert result_resp.status_code == 200, result_resp.text
+        assert result_resp.json()["updated"] == 1

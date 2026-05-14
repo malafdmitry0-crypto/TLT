@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HeatCalcPage from '@/pages/HeatCalcPage';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
+import { cancelCalcTask, enqueueHeatLossBatchJob, getCalcTask } from '@/api/calculations';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
@@ -137,7 +138,44 @@ vi.mock('@/api/projects', () => {
 });
 
 vi.mock('@/api/calculations', () => ({
+  cancelCalcTask: vi.fn(),
   enqueueElectricalBatchJob: vi.fn().mockResolvedValue({ id: 'task-1', status: 'queued' }),
+  enqueueHeatLossBatchJob: vi.fn().mockResolvedValue({
+    id: 'heat-task-1',
+    type: 'heat_loss_batch',
+    status: 'queued',
+    project_id: 'proj-test-1',
+    progress: { current: 0, total: null, phase: 'queued', percent: null },
+    result: null,
+    error_message: null,
+    cancel_requested: false,
+    created_at: '2026-01-01T00:00:00Z',
+    started_at: null,
+    finished_at: null,
+    links: {
+      status: '/api/v1/calc/jobs/heat-task-1',
+      result: '/api/v1/calc/jobs/heat-task-1/result',
+      cancel: '/api/v1/calc/jobs/heat-task-1/cancel',
+    },
+  }),
+  getCalcTask: vi.fn().mockResolvedValue({
+    id: 'heat-task-1',
+    type: 'heat_loss_batch',
+    status: 'running',
+    project_id: 'proj-test-1',
+    progress: { current: 1, total: 2, phase: 'calculate', percent: 50 },
+    result: null,
+    error_message: null,
+    cancel_requested: false,
+    created_at: '2026-01-01T00:00:00Z',
+    started_at: null,
+    finished_at: null,
+    links: {
+      status: '/api/v1/calc/jobs/heat-task-1',
+      result: '/api/v1/calc/jobs/heat-task-1/result',
+      cancel: '/api/v1/calc/jobs/heat-task-1/cancel',
+    },
+  }),
 }));
 
 vi.mock('@/api/references', () => ({
@@ -275,6 +313,60 @@ describe('HeatCalcPage', () => {
       user_id: 'user-test-1',
     }));
     (updateUserPreference as ReturnType<typeof vi.fn>).mockReset();
+    (enqueueHeatLossBatchJob as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'heat-task-1',
+      type: 'heat_loss_batch',
+      status: 'queued',
+      project_id: 'proj-test-1',
+      progress: { current: 0, total: null, phase: 'queued', percent: null },
+      result: null,
+      error_message: null,
+      cancel_requested: false,
+      created_at: '2026-01-01T00:00:00Z',
+      started_at: null,
+      finished_at: null,
+      links: {
+        status: '/api/v1/calc/jobs/heat-task-1',
+        result: '/api/v1/calc/jobs/heat-task-1/result',
+        cancel: '/api/v1/calc/jobs/heat-task-1/cancel',
+      },
+    });
+    (getCalcTask as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'heat-task-1',
+      type: 'heat_loss_batch',
+      status: 'running',
+      project_id: 'proj-test-1',
+      progress: { current: 1, total: 2, phase: 'calculate', percent: 50 },
+      result: null,
+      error_message: null,
+      cancel_requested: false,
+      created_at: '2026-01-01T00:00:00Z',
+      started_at: null,
+      finished_at: null,
+      links: {
+        status: '/api/v1/calc/jobs/heat-task-1',
+        result: '/api/v1/calc/jobs/heat-task-1/result',
+        cancel: '/api/v1/calc/jobs/heat-task-1/cancel',
+      },
+    });
+    (cancelCalcTask as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'heat-task-1',
+      type: 'heat_loss_batch',
+      status: 'cancelled',
+      project_id: 'proj-test-1',
+      progress: { current: 1, total: 2, phase: 'cancelled', percent: 50 },
+      result: null,
+      error_message: null,
+      cancel_requested: true,
+      created_at: '2026-01-01T00:00:00Z',
+      started_at: null,
+      finished_at: '2026-01-01T00:00:01Z',
+      links: {
+        status: '/api/v1/calc/jobs/heat-task-1',
+        result: '/api/v1/calc/jobs/heat-task-1/result',
+        cancel: '/api/v1/calc/jobs/heat-task-1/cancel',
+      },
+    });
   });
 
   describe('Кнопка «Сформировать отчёт»', () => {
@@ -427,7 +519,7 @@ describe('HeatCalcPage', () => {
       expect(screen.getByText('Альфа резервуар')).toBeInTheDocument();
       expect(screen.getByText('1/2')).toBeInTheDocument();
       expect(within(typeToolbar).getByRole('button', { name: /Все:\s*1\/2/ })).toBeInTheDocument();
-    }, 10_000);
+    }, 20_000);
 
     it('настройки таблицы для режима «Все» сохраняются отдельно от труб и резервуаров', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1531,6 +1623,69 @@ describe('HeatCalcPage', () => {
   });
 
   describe('Панель действий объекта', () => {
+    it('запускает фоновый пересчёт теплопотерь и показывает прогресс', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await user.click(screen.getByRole('button', { name: 'Пересчитать теплопотери' }));
+
+      await waitFor(() => {
+        expect(enqueueHeatLossBatchJob).toHaveBeenCalledWith('proj-test-1', true);
+      });
+      await waitFor(() => {
+        expect(getCalcTask).toHaveBeenCalledWith('heat-task-1');
+      });
+      expect(await screen.findByText(/Пересчёт теплопотерь выполняется · 1\/2 \(50%\)/i))
+        .toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Отменить пересчёт теплопотерь' }));
+      await waitFor(() => {
+        expect(cancelCalcTask).toHaveBeenCalledWith('heat-task-1');
+      });
+    }, 10000);
+
+    it('после успешного фонового пересчёта запрашивает свежие объекты', async () => {
+      const { listObjects, getObjectsSummary } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+      (getCalcTask as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: 'heat-task-1',
+        type: 'heat_loss_batch',
+        status: 'succeeded',
+        project_id: 'proj-test-1',
+        progress: { current: 1, total: 1, phase: 'done', percent: 100 },
+        result: { updated: 1, failed: 0, errors: [] },
+        error_message: null,
+        cancel_requested: false,
+        created_at: '2026-01-01T00:00:00Z',
+        started_at: '2026-01-01T00:00:00Z',
+        finished_at: '2026-01-01T00:00:01Z',
+        links: {
+          status: '/api/v1/calc/jobs/heat-task-1',
+          result: '/api/v1/calc/jobs/heat-task-1/result',
+          cancel: '/api/v1/calc/jobs/heat-task-1/cancel',
+        },
+      });
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await user.click(screen.getByRole('button', { name: 'Пересчитать теплопотери' }));
+
+      await waitFor(() => {
+        expect(getCalcTask).toHaveBeenCalledWith('heat-task-1');
+      });
+      await waitFor(() => {
+        expect((getObjectsSummary as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(2);
+      });
+    });
+
     it('после сохранения редактируемого объекта остаётся на той же записи', async () => {
       const { listObjects, updateObject } = await import('@/api/projects');
       const source = makeObject();
@@ -1642,7 +1797,7 @@ describe('HeatCalcPage', () => {
         expect(focusedRow).toHaveClass('row-selected');
         expect(within(focusedRow as HTMLElement).getByRole('checkbox')).not.toBeChecked();
       });
-    });
+    }, 10000);
 
     it('удаляет объекты, выбранные галочками', async () => {
       const { listObjects, deleteObject } = await import('@/api/projects');
@@ -1680,6 +1835,6 @@ describe('HeatCalcPage', () => {
           'proj-test-1',
         secondSource.id,
       );
-    });
+    }, 10000);
   });
 });

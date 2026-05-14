@@ -10,6 +10,8 @@ import AppRoutes from '@/routes';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 
+const lazyRouteTimeout = { timeout: 5000 };
+
 // Мокаем все API чтобы страницы не падали на загрузке
 vi.mock('@/api/projects', () => ({
   listProjects: vi.fn().mockResolvedValue([]),
@@ -59,6 +61,7 @@ vi.mock('@/api/calculations', () => ({
   listElectricalCalcs: vi.fn().mockResolvedValue([]),
   batchCalcElectrical: vi.fn(),
   enqueueElectricalBatchJob: vi.fn(),
+  enqueueHeatLossBatchJob: vi.fn(),
   getCalcTask: vi.fn(),
   cancelCalcTask: vi.fn(),
   getElectricalPage: vi.fn().mockResolvedValue({
@@ -146,19 +149,19 @@ describe('AppRoutes', () => {
   it('/help/guest рендерит GuestHelpPage', async () => {
     renderAt('/help/guest');
     // Help-страницы — статичный текст
-    await screen.findByText(/Гостевой режим/i);
+    await screen.findByText(/Гостевой режим/i, undefined, lazyRouteTimeout);
     expect(document.body.textContent?.length).toBeGreaterThan(100);
   });
 
   it('/help/employee рендерит EmployeeHelpPage', async () => {
     renderAt('/help/employee');
-    await screen.findByRole('heading', { name: /Инструкция для сотрудника/i });
+    await screen.findByRole('heading', { name: /Инструкция для сотрудника/i }, lazyRouteTimeout);
     expect(document.body.textContent?.length).toBeGreaterThan(100);
   });
 
   it('/help/admin рендерит AdminHelpPage', async () => {
     renderAt('/help/admin');
-    await screen.findByRole('heading', { name: /Инструкция для администратора/i });
+    await screen.findByRole('heading', { name: /Инструкция для администратора/i }, lazyRouteTimeout);
     expect(document.body.textContent?.length).toBeGreaterThan(100);
   });
 

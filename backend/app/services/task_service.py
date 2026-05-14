@@ -21,12 +21,14 @@ from app.core.database import AsyncSessionLocal
 from app.core.dependencies import CurrentPrincipal
 from app.models.background_task import BackgroundTask
 from app.schemas.calculation import (
+    BatchCalcResponse,
     BatchElectricalResponse,
     CalculationTaskLinks,
     CalculationTaskProgress,
     CalculationTaskResponse,
     ElectricalBatchJobRequest,
     ElectricalCalcSummary,
+    HeatLossBatchJobRequest,
 )
 from app.services.calculation_service import BatchCancelledError, BatchProgress, CalculationService
 from app.services.project_service import ProjectService
@@ -35,6 +37,7 @@ from app.services.task_queue import TaskQueue
 logger = logging.getLogger("heatcalc.worker")
 
 TASK_ELECTRICAL_BATCH = "electrical_batch"
+TASK_HEAT_LOSS_BATCH = "heat_loss_batch"
 ACTIVE_STATUSES = ("queued", "enqueued", "running")
 TERMINAL_STATUSES = ("succeeded", "failed", "cancelled")
 MAX_TASK_ERROR_MESSAGE_LENGTH = 4_000
@@ -191,6 +194,58 @@ class TaskService:
         await self.enqueue_existing_task(task, queue=queue)
         return task
 
+    async def create_heat_loss_batch_task(
+        self,
+        request: HeatLossBatchJobRequest,
+        principal: CurrentPrincipal,
+        *,
+        queue: TaskQueue | None = None,
+        idempotency_key: str | None = None,
+    ) -> BackgroundTask:
+        await ProjectService(self.db).get_project_basic(request.project_id, principal)
+
+        payload = self._heat_loss_payload(request)
+        dedupe_key = self._dedupe_key(
+            task_type=TASK_HEAT_LOSS_BATCH,
+            project_id=request.project_id,
+            principal=principal,
+            payload=payload,
+            idempotency_key=idempotency_key,
+        )
+        existing = await self._find_active_by_dedupe(dedupe_key)
+        if existing is not None:
+            return existing
+
+        task = BackgroundTask(
+            type=TASK_HEAT_LOSS_BATCH,
+            status="queued",
+            project_id=request.project_id,
+            user_id=principal.user_id,
+            session_id=principal.session_id,
+            request_payload=payload,
+            progress_current=0,
+            progress_total=None,
+            progress_phase="queued",
+            idempotency_key=dedupe_key,
+            cancel_requested=False,
+            attempts=0,
+            enqueue_attempts=0,
+        )
+        self.db.add(task)
+        try:
+            await self.db.commit()
+        except IntegrityError:
+            await self.db.rollback()
+            existing = await self._find_active_by_dedupe(dedupe_key)
+            if existing is None:
+                raise
+            return existing
+        await self.db.refresh(task)
+
+        queue = queue or TaskQueue()
+        await self.enqueue_existing_task(task, queue=queue)
+        return task
+
     async def get_task_for_principal(
         self,
         task_id: UUID,
@@ -259,7 +314,7 @@ class TaskService:
         if task.cancel_requested:
             await self._mark_cancelled(task_id)
             return
-        if task.type != TASK_ELECTRICAL_BATCH:
+        if task.type not in (TASK_ELECTRICAL_BATCH, TASK_HEAT_LOSS_BATCH):
             await self._mark_failed(task_id, f"Неизвестный тип задачи: {task.type}")
             return
 
@@ -273,7 +328,10 @@ class TaskService:
         task.progress_phase = "running"
         await self.db.commit()
 
-        await self._run_electrical_batch(task_id)
+        if task.type == TASK_HEAT_LOSS_BATCH:
+            await self._run_heat_loss_batch(task_id)
+        else:
+            await self._run_electrical_batch(task_id)
 
     async def recover_stuck_tasks(
         self,
@@ -398,6 +456,39 @@ class TaskService:
         }
         await self._mark_succeeded(task_id, result_payload)
 
+    async def _run_heat_loss_batch(self, task_id: UUID) -> None:
+        task = await self.db.get(BackgroundTask, task_id)
+        if task is None:
+            return
+        payload = dict(task.request_payload or {})
+        progress_throttler = ProgressThrottler(
+            persist=lambda progress: self._update_progress(task_id, progress)
+        )
+        try:
+            async with self.session_factory() as calc_db:
+                updated, failed, errors = await CalculationService(calc_db).batch_recalculate(
+                    UUID(payload["project_id"]),
+                    progress_callback=progress_throttler.offer,
+                    should_cancel=lambda: self._should_cancel(task_id),
+                )
+        except BatchCancelledError:
+            await progress_throttler.flush()
+            await self._mark_cancelled(task_id)
+            return
+        except Exception as exc:
+            await progress_throttler.flush()
+            await self._mark_failed(task_id, f"{type(exc).__name__}: {exc}")
+            return
+
+        await progress_throttler.flush()
+        include_errors = bool(payload.get("include_errors", True))
+        result_payload = {
+            "updated": updated,
+            "failed": failed,
+            "errors": errors if include_errors else [],
+        }
+        await self._mark_succeeded(task_id, result_payload)
+
     async def _update_progress(self, task_id: UUID, progress: BatchProgress) -> None:
         async with self.session_factory() as db:
             task = await db.get(BackgroundTask, task_id)
@@ -498,6 +589,13 @@ class TaskService:
         }
 
     @staticmethod
+    def _heat_loss_payload(request: HeatLossBatchJobRequest) -> dict[str, Any]:
+        return {
+            "project_id": str(request.project_id),
+            "include_errors": request.include_errors,
+        }
+
+    @staticmethod
     def _dedupe_key(
         *,
         task_type: str,
@@ -532,16 +630,23 @@ class TaskService:
             percent = 100.0
         result = None
         if task.result_payload is not None:
-            result = BatchElectricalResponse(
-                calculated=int(task.result_payload.get("calculated", 0)),
-                skipped=int(task.result_payload.get("skipped", 0)),
-                heat_loss_failed=int(task.result_payload.get("heat_loss_failed", 0)),
-                errors=list(task.result_payload.get("errors") or []),
-                results=[
-                    ElectricalCalcSummary(**item)
-                    for item in list(task.result_payload.get("results") or [])
-                ],
-            )
+            if task.type == TASK_HEAT_LOSS_BATCH:
+                result = BatchCalcResponse(
+                    updated=int(task.result_payload.get("updated", 0)),
+                    failed=int(task.result_payload.get("failed", 0)),
+                    errors=list(task.result_payload.get("errors") or []),
+                )
+            else:
+                result = BatchElectricalResponse(
+                    calculated=int(task.result_payload.get("calculated", 0)),
+                    skipped=int(task.result_payload.get("skipped", 0)),
+                    heat_loss_failed=int(task.result_payload.get("heat_loss_failed", 0)),
+                    errors=list(task.result_payload.get("errors") or []),
+                    results=[
+                        ElectricalCalcSummary(**item)
+                        for item in list(task.result_payload.get("results") or [])
+                    ],
+                )
         base = f"{settings.API_V1_PREFIX}/calc/jobs/{task.id}"
         return CalculationTaskResponse(
             id=task.id,

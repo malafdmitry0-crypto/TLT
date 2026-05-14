@@ -33,12 +33,36 @@ def _mock_db_empty() -> AsyncMock:
     db = AsyncMock()
     result = MagicMock()
     result.scalars = lambda: MagicMock(all=lambda: [], first=lambda: None)
+    result.scalar = lambda: 0
     result.scalar_one_or_none = lambda: None
     db.execute = AsyncMock(return_value=result)
     db.commit = AsyncMock()
     db.refresh = AsyncMock()
     db.add = MagicMock()
     return db
+
+
+def _count_result(value: int) -> MagicMock:
+    result = MagicMock()
+    result.scalar = lambda: value
+    return result
+
+
+def _objects_result(objects: list[object]) -> MagicMock:
+    result = MagicMock()
+    result.scalars = lambda: MagicMock(all=lambda: objects)
+    return result
+
+
+def _minimal_pipe_params() -> dict[str, object]:
+    return {
+        "outer_diameter": 0.1,
+        "insulation_thickness": 0.05,
+        "insulation_material": "mineral_wool",
+        "ambient_temperature": -10,
+        "process_temperature": 60,
+        "pipe_length": 10,
+    }
 
 
 def _electrical_upsert_row(project_id: uuid.UUID, object_id: uuid.UUID) -> dict[str, object]:
@@ -413,19 +437,122 @@ class TestCableLayoutMapping:
 
 class TestBatchRecalculate:
     async def test_no_objects_returns_zeros(self):
-        service = CalculationService(_mock_db_empty())
+        db = _mock_db_empty()
+        service = CalculationService(db)
+        service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
+
         updated, failed, errors = await service.batch_recalculate(uuid.uuid4())
+
         assert updated == 0
         assert failed == 0
         assert errors == []
+        service.get_coefficients.assert_not_awaited()
+        db.commit.assert_awaited_once()
+
+    async def test_processes_objects_in_chunks(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr("app.services.calculation_service.BATCH_HEAT_RECALCULATE_CHUNK_SIZE", 2)
+        project_id = uuid.uuid4()
+        objects = [
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                project_id=project_id,
+                object_type="pipe",
+                sort_order=index,
+                params=_minimal_pipe_params(),
+                results=None,
+                is_valid=True,
+                validation_errors=None,
+            )
+            for index in range(5)
+        ]
+        db = AsyncMock()
+        db.execute = AsyncMock(
+            side_effect=[
+                _count_result(5),
+                _objects_result(objects[:2]),
+                _objects_result(objects[2:4]),
+                _objects_result(objects[4:]),
+            ]
+        )
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
+
+        async def mark_valid(obj, *, coefficients=None):
+            obj.is_valid = True
+            obj.validation_errors = None
+            obj.results = {"ok": True}
+            return obj
+
+        service.try_recalculate = AsyncMock(side_effect=mark_valid)  # type: ignore[method-assign]
+
+        updated, failed, errors = await service.batch_recalculate(project_id)
+
+        assert updated == 5
+        assert failed == 0
+        assert errors == []
+        assert db.execute.await_count == 4
+        assert db.flush.await_count == 3
+        assert service.try_recalculate.await_count == 5
+
+    async def test_yields_event_loop_inside_large_chunk(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr(
+            "app.services.calculation_service.BATCH_HEAT_RECALCULATE_CHUNK_SIZE", 10
+        )
+        monkeypatch.setattr(
+            "app.services.calculation_service.BATCH_HEAT_RECALCULATE_YIELD_EVERY_OBJECTS",
+            2,
+        )
+        sleep = AsyncMock()
+        monkeypatch.setattr("app.services.calculation_service.asyncio.sleep", sleep)
+        project_id = uuid.uuid4()
+        objects = [
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                project_id=project_id,
+                object_type="pipe",
+                sort_order=index,
+                params=_minimal_pipe_params(),
+                results=None,
+                is_valid=True,
+                validation_errors=None,
+            )
+            for index in range(5)
+        ]
+        db = AsyncMock()
+        db.execute = AsyncMock(side_effect=[_count_result(5), _objects_result(objects)])
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
+
+        async def mark_valid(obj, *, coefficients=None):
+            obj.is_valid = True
+            obj.validation_errors = None
+            obj.results = {"ok": True}
+            return obj
+
+        service.try_recalculate = AsyncMock(side_effect=mark_valid)  # type: ignore[method-assign]
+
+        updated, failed, errors = await service.batch_recalculate(project_id)
+
+        assert updated == 5
+        assert failed == 0
+        assert errors == []
+        assert sleep.await_count == 3
+        assert all(item.args == (0,) for item in sleep.await_args_list)
 
     async def test_mixed_success_and_failure(self):
         """Один валидный + один невалидный — счётчики и список ошибок правильные."""
         db = AsyncMock()
+        project_id = uuid.uuid4()
         objects = [
             SimpleNamespace(
                 id=uuid.uuid4(),
+                project_id=project_id,
                 object_type="pipe",
+                sort_order=0,
                 params={
                     "outer_diameter": 0.1,
                     "insulation_thickness": 0.05,
@@ -440,7 +567,9 @@ class TestBatchRecalculate:
             ),
             SimpleNamespace(
                 id=uuid.uuid4(),
+                project_id=project_id,
                 object_type="pipe",
+                sort_order=1,
                 params={
                     "outer_diameter": 0.1,
                     "insulation_thickness": 0.05,
@@ -454,23 +583,115 @@ class TestBatchRecalculate:
                 validation_errors=None,
             ),
         ]
-        # Первый execute() возвращает объекты проекта, второй (внутри recalc)
-        # — coefficients (пустой список).
-        # Упрощаем: execute всегда даёт scalars().all() → objects для обоих
-        # вызовов, потому что coefficients не критичны для теста.
-        result_objects = MagicMock()
-        result_objects.scalars = lambda: MagicMock(all=lambda: objects)
-        result_empty = MagicMock()
-        result_empty.scalars = lambda: MagicMock(all=lambda: [])
-        # Первый — список объектов, дальше — пустые (коэффициенты)
-        db.execute = AsyncMock(side_effect=[result_objects] + [result_empty] * 10)
+        db.execute = AsyncMock(side_effect=[_count_result(2), _objects_result(objects)])
+        db.flush = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
-        updated, failed, errors = await service.batch_recalculate(uuid.uuid4())
+        service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
+        service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
+            side_effect=[
+                {"heat_loss_per_meter": 10},
+                ValueError("process temperature ниже ambient"),
+            ]
+        )
+
+        updated, failed, errors = await service.batch_recalculate(project_id)
+
         assert updated == 1
         assert failed == 1
         assert len(errors) == 1
         assert errors[0]["object_id"] == str(objects[1].id)
+        assert errors[0]["error"] == {"error": "process temperature ниже ambient"}
+        db.commit.assert_awaited_once()
+
+    async def test_loads_coefficients_once_for_batch(self):
+        project_id = uuid.uuid4()
+        objects = [
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                project_id=project_id,
+                object_type="pipe",
+                sort_order=index,
+                params=_minimal_pipe_params(),
+                results=None,
+                is_valid=False,
+                validation_errors=None,
+            )
+            for index in range(3)
+        ]
+        db = AsyncMock()
+        db.execute = AsyncMock(side_effect=[_count_result(3), _objects_result(objects)])
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        coefficients = {"safety_factor": 1.0}
+        service.get_coefficients = AsyncMock(return_value=coefficients)  # type: ignore[method-assign]
+        service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
+            return_value={"heat_loss_per_meter": 10}
+        )
+
+        updated, failed, errors = await service.batch_recalculate(project_id)
+
+        assert updated == 3
+        assert failed == 0
+        assert errors == []
+        service.get_coefficients.assert_awaited_once()
+        assert service._calc_heat_loss_with_coefficients.call_count == 3
+        assert all(
+            call.args[2] is coefficients
+            for call in service._calc_heat_loss_with_coefficients.call_args_list
+        )
+
+    async def test_reports_progress(self):
+        project_id = uuid.uuid4()
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=project_id,
+            object_type="pipe",
+            sort_order=0,
+            params=_minimal_pipe_params(),
+            results=None,
+            is_valid=False,
+            validation_errors=None,
+        )
+        db = AsyncMock()
+        db.execute = AsyncMock(side_effect=[_count_result(1), _objects_result([obj])])
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
+        service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
+            return_value={"heat_loss_per_meter": 10}
+        )
+        progress = []
+
+        updated, failed, errors = await service.batch_recalculate(
+            project_id,
+            progress_callback=lambda item: progress.append(item),
+        )
+
+        assert updated == 1
+        assert failed == 0
+        assert errors == []
+        assert [item.phase for item in progress] == ["prepare", "calculate", "commit", "done"]
+        assert progress[1].current == 1
+        assert progress[1].total == 1
+        assert progress[1].calculated == 1
+
+    async def test_cancel_stops_before_commit(self):
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=_count_result(1))
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
+
+        with pytest.raises(BatchCancelledError, match="теплопотерь"):
+            await service.batch_recalculate(uuid.uuid4(), should_cancel=lambda: True)
+
+        service.get_coefficients.assert_not_awaited()
+        db.flush.assert_not_awaited()
+        db.commit.assert_not_awaited()
 
 
 class TestBulkElectricalUpsert:

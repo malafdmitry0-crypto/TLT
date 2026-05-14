@@ -326,6 +326,8 @@ class HeatLossResponse(BaseModel):
 
 
 class BatchCalcResponse(BaseModel):
+    """Результат пакетного пересчёта теплопотерь всех объектов проекта."""
+
     updated: int
     failed: int
     errors: list[dict[str, Any]] = Field(default_factory=list)
@@ -662,6 +664,13 @@ class ElectricalBatchJobRequest(BaseModel):
         }
 
 
+class HeatLossBatchJobRequest(BaseModel):
+    """Запрос асинхронного пакетного пересчёта теплопотерь."""
+
+    project_id: UUID
+    include_errors: bool = True
+
+
 class CalculationTaskProgress(BaseModel):
     current: int = 0
     total: int | None = None
@@ -683,7 +692,7 @@ class CalculationTaskResponse(BaseModel):
     status: TaskStatus
     project_id: UUID | None = None
     progress: CalculationTaskProgress
-    result: BatchElectricalResponse | None = None
+    result: BatchElectricalResponse | BatchCalcResponse | None = None
     error_message: str | None = None
     cancel_requested: bool = False
     created_at: datetime
