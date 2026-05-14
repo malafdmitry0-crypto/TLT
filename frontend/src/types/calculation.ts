@@ -1,5 +1,12 @@
 import type { ProjectObject, ProjectObjectsPageInfo } from './project';
 
+export interface InsulationLayerParams {
+  thickness: number;
+  material: string;
+  conductivity?: number | null;
+  temperature_range?: [number, number] | null;
+}
+
 export interface PipeParams {
   outer_diameter: number;
   wall_thickness?: number | null;
@@ -8,7 +15,7 @@ export interface PipeParams {
   insulation_thickness: number;
   insulation_material: string;
   insulation_cover_material?: string | null;
-  insulation_layers?: Array<{ thickness: number; material: string; conductivity?: number | null }>;
+  insulation_layers?: InsulationLayerParams[];
   ambient_temperature: number;
   process_temperature: number;
   max_ambient_temperature?: number | null;
@@ -62,7 +69,7 @@ export interface TankParams {
   insulation_thickness: number;
   insulation_material: string;
   insulation_cover_material?: string | null;
-  insulation_layers?: Array<{ thickness: number; material: string; conductivity?: number | null }>;
+  insulation_layers?: InsulationLayerParams[];
   ambient_temperature: number;
   process_temperature: number;
   max_ambient_temperature?: number | null;

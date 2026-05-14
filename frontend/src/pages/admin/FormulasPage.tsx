@@ -1,4 +1,4 @@
-import { Fragment, ReactNode, useState } from 'react';
+import { Fragment, ReactNode, useMemo, useState } from 'react';
 import {
   Alert,
   Button,
@@ -18,6 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { checkFormula } from '@/api/admin';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
+import { buildInsulationReferenceOptions } from '@/utils/referenceOptions';
 
 const { Text } = Typography;
 
@@ -717,6 +718,10 @@ function PipeTab() {
     queryFn: getInsulation,
     ...referenceQueryOptions,
   });
+  const insulationOptions = useMemo(
+    () => buildInsulationReferenceOptions(insulation),
+    [insulation],
+  );
 
   const onCalc = async () => {
     const v = await form.validateFields();
@@ -794,9 +799,12 @@ function PipeTab() {
             </Col>
               <Col span={8}>
                 <Form.Item name={`insulation_material_${i}`} label={`Материал изоляции ${i}`} rules={i === 1 ? [{ required: true }] : undefined}>
-                <Select placeholder="Выберите материал">
-                  {insulation.map((m) => <Select.Option key={m.material} value={m.material}>{m.name}</Select.Option>)}
-                </Select>
+                <Select
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="Выберите материал"
+                  options={insulationOptions}
+                />
               </Form.Item>
             </Col>
               <Col span={8}>
@@ -886,6 +894,10 @@ function TankTab() {
     queryFn: getInsulation,
     ...referenceQueryOptions,
   });
+  const insulationOptions = useMemo(
+    () => buildInsulationReferenceOptions(insulation),
+    [insulation],
+  );
   const shape = Form.useWatch('shape', form) ?? 'cylindrical';
 
   const onCalc = async () => {
@@ -990,9 +1002,12 @@ function TankTab() {
             </Col>
               <Col span={8}>
                 <Form.Item name={`insulation_material_${i}`} label={`Материал изоляции ${i}`} rules={i === 1 ? [{ required: true }] : undefined}>
-                <Select placeholder="Выберите материал">
-                  {insulation.map((m) => <Select.Option key={m.material} value={m.material}>{m.name}</Select.Option>)}
-                </Select>
+                <Select
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="Выберите материал"
+                  options={insulationOptions}
+                />
               </Form.Item>
             </Col>
               <Col span={8}>

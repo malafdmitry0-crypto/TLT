@@ -206,17 +206,21 @@ describe('pipeFormToApiParams', () => {
       insulation_thickness_mm: 40,
       insulation_material: 'other',
       first_insulation_lambda: 0.037,
+      first_insulation_temperature_min: -60,
+      first_insulation_temperature_max: 120,
       insulation_layer_count: '2',
       second_insulation_thickness_mm: 20,
       second_insulation_material: 'other',
       second_insulation_lambda: 0.052,
+      second_insulation_temperature_min: -30,
+      second_insulation_temperature_max: 90,
       ambient_temperature: -20,
       process_temperature: 80,
     });
 
     expect(api.insulation_layers).toEqual([
-      { thickness: 0.04, material: 'other', conductivity: 0.037 },
-      { thickness: 0.02, material: 'other', conductivity: 0.052 },
+      { thickness: 0.04, material: 'other', conductivity: 0.037, temperature_range: [-60, 120] },
+      { thickness: 0.02, material: 'other', conductivity: 0.052, temperature_range: [-30, 90] },
     ]);
   });
 });
@@ -284,8 +288,8 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
       ambient_temperature: -20,
       process_temperature: 80,
       insulation_layers: [
-        { thickness: 0.04, material: 'mineral_wool', conductivity: undefined },
-        { thickness: 0.02, material: 'polyurethane_foam', conductivity: 0.028 },
+        { thickness: 0.04, material: 'mineral_wool', conductivity: undefined, temperature_range: [-60, 120] },
+        { thickness: 0.02, material: 'polyurethane_foam', conductivity: 0.028, temperature_range: [-30, 90] },
         { thickness: 0.01, material: 'foam_glass' },
       ],
       placement: 'underground',
@@ -295,9 +299,13 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
     expect(form.insulation_layer_count).toBe('3');
     expect(form.insulation_thickness_mm).toBe(40);
     expect(form.insulation_material).toBe('mineral_wool');
+    expect(form.first_insulation_temperature_min).toBe(-60);
+    expect(form.first_insulation_temperature_max).toBe(120);
     expect(form.second_insulation_thickness_mm).toBe(20);
     expect(form.second_insulation_material).toBe('polyurethane_foam');
     expect(form.second_insulation_lambda).toBe(0.028);
+    expect(form.second_insulation_temperature_min).toBe(-30);
+    expect(form.second_insulation_temperature_max).toBe(90);
     expect(form.third_insulation_thickness_mm).toBe(10);
     expect(form.third_insulation_material).toBe('foam_glass');
     expect(form.ground_type).toBe('dry_sand');

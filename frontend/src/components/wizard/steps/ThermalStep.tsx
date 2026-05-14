@@ -1,5 +1,5 @@
-import { Form, InputNumber, Select } from 'antd';
-import type { ReactElement } from 'react';
+import { Form, InputNumber } from 'antd';
+import { useMemo, type ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
@@ -9,8 +9,13 @@ import {
 } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
+import {
+  buildInsulationReferenceOptions,
+} from '@/utils/referenceOptions';
 import HelpedControl from '../HelpedControl';
 import FieldLabel from '../FieldLabel';
+import ReferencePicker from '../ReferencePicker';
+import InsulationTemperatureRangeField from '../InsulationTemperatureRangeField';
 
 function withHelp(control: ReactElement, hint: string) {
   return <HelpedControl hint={hint}>{control}</HelpedControl>;
@@ -35,10 +40,13 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
     queryFn: getInsulation,
     ...referenceQueryOptions,
   });
-  const materialOptions = [
-    ...materials.map((m) => ({ value: m.material, label: m.name })),
-    { value: 'other', label: 'Другое' },
-  ];
+  const materialOptions = useMemo(
+    () => [
+      ...buildInsulationReferenceOptions(materials),
+      { value: 'other', label: 'Другое' },
+    ],
+    [materials],
+  );
   const selectedMaterial = materials.find((m) => m.material === insulationMaterial);
   const isOtherMaterial = insulationMaterial === 'other';
 
@@ -51,12 +59,15 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
         rules={[{ required: true, message: 'Выберите материал изоляции' }]}
       >
         {withHelp(
-          <Select
+          <ReferencePicker
             data-testid="insulation-material-select"
             options={materialOptions}
             placeholder="Выберите материал"
+            modalTitle="Материал изоляции"
+            searchPlaceholder="Поиск материала"
             loading={isFetching}
             notFoundContent={isError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
+            required
           />,
           'Материал основного слоя изоляции. Значение используется для выбора теплопроводности и расчёта теплопотерь.',
         )}
@@ -84,10 +95,10 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
         name={isOtherMaterial ? 'first_insulation_lambda' : undefined}
         preserve={false}
         rules={isOtherMaterial ? [
-          { required: true, message: 'Укажите λ 1-го слоя' },
-          { type: 'number', min: 0.001, message: 'Минимальная λ — 0,001 Вт/мК' },
-          { type: 'number', max: 400, message: 'Максимальная λ — 400 Вт/мК' },
-        ] : undefined}
+            { required: true, message: 'Укажите λ 1-го слоя' },
+            { type: 'number', min: 0.001, message: 'Минимальная λ — 0,001 Вт/мК' },
+            { type: 'number', max: 400, message: 'Максимальная λ — 400 Вт/мК' },
+          ] : undefined}
       >
         {withHelp(
           <InputNumber
@@ -99,9 +110,20 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
             step={0.001}
             addonAfter="Вт/мК"
           />,
-          'Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Для материала «Другое» вводится вручную: 0,001…400.',
+          isOtherMaterial
+            ? 'Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Для материала «Другое» вводится вручную: 0,001…400.'
+            : 'Справочное значение λ первого слоя из выбранного материала изоляции.',
         )}
       </Form.Item>
+
+      <InsulationTemperatureRangeField
+        material={typeof insulationMaterial === 'string' ? insulationMaterial : undefined}
+        selectedMaterial={selectedMaterial}
+        minName="first_insulation_temperature_min"
+        maxName="first_insulation_temperature_max"
+        dataTestIdPrefix="first-insulation"
+        hint="Температурный диапазон применения выбранного материала изоляции. Для материала «Другое» задаётся вручную."
+      />
     </>
   );
 }

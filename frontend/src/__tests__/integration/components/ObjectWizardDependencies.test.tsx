@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ComponentProps } from 'react';
@@ -142,9 +142,24 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.getByTestId('wind-speed-input')).toBeVisible();
     expect(screen.getByTestId('alpha-vnesh-input')).toBeVisible();
     expect(screen.getAllByText('из климата').length).toBeGreaterThanOrEqual(1);
-    expect(spinValue('ambient-temperature-input')).toHaveValue('-25');
+    expect(spinValue('ambient-temperature-input')).toHaveDisplayValue(/^-25(?:\.0)?$/);
     expect(spinValue('wind-speed-input')).toHaveValue('4.2');
     expect(screen.queryByText('Грунт')).not.toBeInTheDocument();
+  });
+
+  it('открывает длинный справочник в модальном окне и подставляет выбранный материал', async () => {
+    const user = userEvent.setup();
+    renderWizard({ initialParams: basePipeParams });
+
+    const picker = await screen.findByTestId('insulation-material-select');
+    await user.click(picker);
+    const dialog = await screen.findByRole('dialog', { name: 'Материал изоляции' });
+    await user.type(within(dialog).getByPlaceholderText('Поиск материала'), 'пено');
+    await user.click(within(dialog).getByRole('option', { name: /Пеностекло/ }));
+
+    await waitFor(() => {
+      expect(picker).toHaveTextContent('Пеностекло');
+    });
   });
 
   it('для подземной трубы показывает грунт и скрывает ветер/alpha', async () => {
@@ -296,7 +311,7 @@ describe('ObjectWizard dependencies', () => {
         insulation_layers: [
           { thickness: 0.04, material: 'mineral_wool' },
           { thickness: 0.02, material: 'foam_glass' },
-          { thickness: 0.01, material: 'other', conductivity: 0.061 },
+          { thickness: 0.01, material: 'other', conductivity: 0.061, temperature_range: [-60, 180] },
         ],
       },
     });
@@ -315,7 +330,7 @@ describe('ObjectWizard dependencies', () => {
     expect(payload.insulation_layers).toEqual([
       { thickness: 0.04, material: 'mineral_wool' },
       { thickness: 0.02, material: 'foam_glass' },
-      { thickness: 0.01, material: 'other', conductivity: 0.061 },
+      { thickness: 0.01, material: 'other', conductivity: 0.061, temperature_range: [-60, 180] },
     ]);
   });
 
@@ -419,20 +434,36 @@ describe('ObjectWizard dependencies', () => {
   });
 
   it('фиксирует матрицу видимости слоёв изоляции и ручной λ', async () => {
+    const user = userEvent.setup();
     const layerCases = [
       {
         count: '1',
-        visible: ['insulation-material-select'],
+        visible: [
+          'insulation-material-select',
+          'first-insulation-lambda-input',
+          'first-insulation-temperature-range-input',
+        ],
         hidden: ['second-insulation-material-select', 'third-insulation-material-select'],
       },
       {
         count: '2',
-        visible: ['second-insulation-material-select', 'second-insulation-thickness-input'],
+        visible: [
+          'second-insulation-material-select',
+          'second-insulation-thickness-input',
+          'second-insulation-lambda-input',
+          'second-insulation-temperature-range-input',
+        ],
         hidden: ['third-insulation-material-select', 'third-insulation-thickness-input'],
       },
       {
         count: '3',
-        visible: ['second-insulation-material-select', 'third-insulation-material-select', 'third-insulation-thickness-input'],
+        visible: [
+          'second-insulation-material-select',
+          'third-insulation-material-select',
+          'third-insulation-thickness-input',
+          'third-insulation-lambda-input',
+          'third-insulation-temperature-range-input',
+        ],
         hidden: [],
       },
     ];
@@ -468,5 +499,13 @@ describe('ObjectWizard dependencies', () => {
     });
     expect(await screen.findByTestId('first-insulation-lambda-input')).toBeVisible();
     expect(screen.getByTestId('first-insulation-lambda-input')).not.toBeDisabled();
+    const rangeButton = screen.getByTestId('first-insulation-temperature-range-button');
+    expect(rangeButton).toBeVisible();
+    await user.click(rangeButton);
+    const dialog = await screen.findByRole('dialog', { name: 'Диапазон температуры' });
+    await waitFor(() => {
+      expect(within(dialog).getByTestId('first-insulation-temperature-min-input')).toBeVisible();
+      expect(within(dialog).getByTestId('first-insulation-temperature-max-input')).toBeVisible();
+    });
   });
 });

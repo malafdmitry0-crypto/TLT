@@ -1106,6 +1106,69 @@ html, body, #root {
   flex: 1;
 }
 
+.inline-object-form .reference-picker-control {
+  width: 100%;
+  min-width: var(--field-input-min-width, 160px);
+  height: var(--inline-control-height);
+  min-height: var(--inline-control-height);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  padding: 0 4px;
+  border: 1px solid #d9d9d9;
+  border-radius: 2px;
+  background: #fff;
+  color: #1f1f1f;
+  box-sizing: border-box;
+  cursor: pointer;
+  outline: none;
+}
+
+.inline-object-form .reference-picker-control:hover,
+.inline-object-form .reference-picker-control:focus {
+  border-color: #4096ff;
+}
+
+.inline-object-form .reference-picker-control--required {
+  box-shadow: inset 2px 0 0 #d48806;
+  background-color: #fffdf6;
+}
+
+.inline-object-form .reference-picker-control--disabled {
+  color: rgba(0, 0, 0, 0.25);
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.inline-object-form .reference-picker-value {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  line-height: calc(var(--inline-control-height) - 2px);
+}
+
+.inline-object-form .reference-picker-placeholder {
+  color: #bfbfbf;
+}
+
+.inline-object-form .reference-picker-icon,
+.inline-object-form .reference-picker-clear {
+  flex: 0 0 auto;
+  color: #b5c0ca;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.inline-object-form .reference-picker-control:hover .reference-picker-icon,
+.inline-object-form .reference-picker-control:focus .reference-picker-icon,
+.inline-object-form .reference-picker-clear:hover {
+  color: #6c7e8f;
+}
+
 .inline-object-form .ant-select-single {
   height: var(--inline-control-height);
 }
@@ -1306,10 +1369,14 @@ html, body, #root {
 
 .inline-object-form .fit-label-form-item .ant-input,
 .inline-object-form .fit-label-form-item .ant-select,
+.inline-object-form .fit-label-form-item .reference-picker-control,
 .inline-object-form .numeric-form-item .ant-input,
 .inline-object-form .numeric-form-item .ant-select,
+.inline-object-form .numeric-form-item .reference-picker-control,
 .inline-object-form .compact-select-form-item .ant-select,
+.inline-object-form .compact-select-form-item .reference-picker-control,
 .inline-object-form .medium-select-form-item .ant-select,
+.inline-object-form .medium-select-form-item .reference-picker-control,
 .inline-object-form .layer-count-form-item .ant-select {
   width: max-content;
   min-width: var(--field-input-min-width, 104px);
@@ -1320,12 +1387,27 @@ html, body, #root {
   min-width: 88px;
 }
 
+.inline-object-form .compact-select-form-item .reference-picker-control {
+  width: 88px;
+  min-width: 88px;
+}
+
 .inline-object-form .medium-select-form-item .ant-select {
   width: 128px;
   min-width: 128px;
 }
 
+.inline-object-form .medium-select-form-item .reference-picker-control {
+  width: 128px;
+  min-width: 128px;
+}
+
 .inline-object-form .layer-material-form-item .ant-select {
+  width: 128px;
+  min-width: 128px;
+}
+
+.inline-object-form .layer-material-form-item .reference-picker-control {
   width: 128px;
   min-width: 128px;
 }
@@ -1362,7 +1444,13 @@ html, body, #root {
 }
 
 .inline-object-form .pipe-material-form-item .ant-select,
+.inline-object-form .pipe-material-form-item .reference-picker-control,
 .inline-object-form .fixed-select-form-item .ant-select {
+  width: 100%;
+  min-width: var(--field-input-min-width, 160px);
+}
+
+.inline-object-form .fixed-select-form-item .reference-picker-control {
   width: 100%;
   min-width: var(--field-input-min-width, 160px);
 }
@@ -1381,8 +1469,8 @@ html, body, #root {
   --field-input-min-width: 112px;
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: minmax(0, 1.45fr) minmax(124px, 0.85fr);
-  gap: 2px 5px;
+  grid-template-columns: max-content max-content max-content;
+  gap: 2px 8px;
   align-items: start;
   min-width: 0;
   padding: 4px 5px 5px;
@@ -1400,14 +1488,25 @@ html, body, #root {
 .inline-object-form .insulation-layer-group .fixed-select-form-item,
 .inline-object-form .insulation-layer-group .medium-select-form-item,
 .inline-object-form .insulation-layer-group .layer-material-form-item {
-  grid-column: 1;
+  grid-column: 1 / -1;
 }
 
 .inline-object-form .insulation-layer-group .short-number-form-item,
-.inline-object-form .insulation-layer-group .coefficient-form-item,
 .inline-object-form .insulation-layer-group .second-layer-thickness-form-item,
 .inline-object-form .insulation-layer-group .third-layer-thickness-form-item {
+  grid-column: 1;
+}
+
+.inline-object-form .insulation-layer-group .coefficient-form-item {
   grid-column: 2;
+}
+
+.inline-object-form .insulation-layer-group .insulation-temperature-range-form-item {
+  grid-column: 3;
+}
+
+.inline-object-form .insulation-layer-group .insulation-temperature-range-form-item--editable {
+  grid-column: 1 / -1;
 }
 
 .inline-object-form .insulation-layer-group .ant-form-item-row,
@@ -1426,10 +1525,44 @@ html, body, #root {
   width: var(--compact-field-label-width, 76px);
 }
 
+.inline-object-form .insulation-layer-group .short-number-form-item .ant-form-item-row,
+.inline-object-form .insulation-layer-group .coefficient-form-item .ant-form-item-row,
+.inline-object-form .insulation-layer-group .insulation-temperature-range-form-item .ant-form-item-row {
+  grid-template-columns: max-content max-content;
+}
+
+.inline-object-form .insulation-layer-group .short-number-form-item .ant-form-item-label,
+.inline-object-form .insulation-layer-group .coefficient-form-item .ant-form-item-label,
+.inline-object-form .insulation-layer-group .insulation-temperature-range-form-item .ant-form-item-label {
+  width: auto;
+  white-space: nowrap;
+}
+
+.inline-object-form .insulation-layer-group .short-number-form-item .field-label-two-line,
+.inline-object-form .insulation-layer-group .coefficient-form-item .field-label-two-line,
+.inline-object-form .insulation-layer-group .insulation-temperature-range-form-item .field-label-two-line {
+  display: inline-flex !important;
+  flex-direction: row;
+  gap: 3px;
+}
+
+.inline-object-form .insulation-layer-group .short-number-form-item .field-label-two-line > span,
+.inline-object-form .insulation-layer-group .coefficient-form-item .field-label-two-line > span,
+.inline-object-form .insulation-layer-group .insulation-temperature-range-form-item .field-label-two-line > span {
+  display: inline;
+}
+
 .inline-object-form .insulation-layer-group .ant-select,
 .inline-object-form .insulation-layer-group .fixed-select-form-item .ant-select,
+.inline-object-form .insulation-layer-group .fixed-select-form-item .reference-picker-control,
 .inline-object-form .insulation-layer-group .medium-select-form-item .ant-select,
+.inline-object-form .insulation-layer-group .medium-select-form-item .reference-picker-control,
 .inline-object-form .insulation-layer-group .layer-material-form-item .ant-select {
+  width: 100%;
+  min-width: var(--field-input-min-width, 112px);
+}
+
+.inline-object-form .insulation-layer-group .layer-material-form-item .reference-picker-control {
   width: 100%;
   min-width: var(--field-input-min-width, 112px);
 }
@@ -1479,6 +1612,39 @@ html, body, #root {
 
 .inline-object-form .coefficient-form-item {
   --numeric-value-width: 5ch;
+}
+
+.inline-object-form .insulation-temperature-range-form-item {
+  --field-input-min-width: 96px;
+}
+
+.inline-object-form .insulation-temperature-range-form-item .ant-input {
+  min-width: 96px;
+  width: 96px;
+}
+
+.inline-object-form .temperature-range-picker-control {
+  width: 96px;
+  min-width: 96px;
+  max-width: 96px;
+}
+
+.temperature-range-modal-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.temperature-range-modal-form .ant-form-item {
+  margin-bottom: 0;
+}
+
+.temperature-range-modal-form .ant-input-number-group-wrapper {
+  width: 100%;
+}
+
+.temperature-range-modal-form .ant-input-number {
+  width: 100%;
 }
 
 .inline-object-form .tank-size-form-item {
@@ -2230,6 +2396,69 @@ html, body, #root {
   display: flex;
   justify-content: flex-end;
   gap: 6px;
+}
+
+.reference-picker-modal .ant-modal-body {
+  padding-top: 8px;
+}
+
+.reference-picker-search {
+  margin-bottom: 10px;
+}
+
+.reference-picker-list {
+  display: grid;
+  gap: 4px;
+  max-height: min(55vh, 460px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.reference-picker-option {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid #d9e3ec;
+  border-radius: 4px;
+  background: #fff;
+  color: #1f1f1f;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reference-picker-option:hover,
+.reference-picker-option:focus {
+  border-color: #6aa7d7;
+  background: #f4faff;
+  outline: none;
+}
+
+.reference-picker-option--selected {
+  border-color: var(--color-primary);
+  background: #eef7ff;
+}
+
+.reference-picker-option-title {
+  min-width: 0;
+  overflow: hidden;
+  color: #1f2d3d;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reference-picker-option-description {
+  color: #68798a;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.reference-picker-loading,
+.reference-picker-empty {
+  padding: 28px 0;
 }
 
 .table-filter-empty {

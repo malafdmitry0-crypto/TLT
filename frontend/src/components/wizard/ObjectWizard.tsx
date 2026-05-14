@@ -8,6 +8,8 @@ import TankGeometryStep from './steps/TankGeometryStep';
 import ThermalStep from './steps/ThermalStep';
 import HelpedControl from './HelpedControl';
 import FieldLabel from './FieldLabel';
+import ReferencePicker from './ReferencePicker';
+import InsulationTemperatureRangeField from './InsulationTemperatureRangeField';
 import { getClimate, getInsulation, getPipeMaterials, getSoilConductivity } from '@/api/references';
 import type { ClimateEntry } from '@/types/reference';
 import {
@@ -26,6 +28,11 @@ import {
   heatCalcSelectOptions,
   heatCalcTextInputProps,
 } from '@/utils/heatCalcWizardFieldRules';
+import {
+  buildInsulationReferenceOptions,
+  buildPipeMaterialReferenceOptions,
+  buildSoilReferenceOptions,
+} from '@/utils/referenceOptions';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
 
@@ -173,16 +180,19 @@ export default function ObjectWizard({
     queryFn: getSoilConductivity,
     ...referenceQueryOptions,
   });
-  const insulationMaterialOptions = [
-    ...insulationMaterials.map((m) => ({
-      value: m.material,
-      label: m.name,
-    })),
-    { value: 'other', label: 'Другое' },
-  ];
-  const pipeMaterialOptions = pipeMaterials.length > 0
-    ? pipeMaterials.map((m) => ({ value: m.material, label: m.name }))
-    : [{ value: 'carbon_steel', label: 'Углеродистая сталь' }];
+  const insulationMaterialOptions = useMemo(
+    () => [
+      ...buildInsulationReferenceOptions(insulationMaterials),
+      { value: 'other', label: 'Другое' },
+    ],
+    [insulationMaterials],
+  );
+  const pipeMaterialOptions = useMemo(
+    () => pipeMaterials.length > 0
+      ? buildPipeMaterialReferenceOptions(pipeMaterials)
+      : [{ value: 'carbon_steel', label: 'Углеродистая сталь' }],
+    [pipeMaterials],
+  );
   const climateOptions = useMemo(
     () => climateEntries.map((entry) => ({
       value: climateKey(entry),
@@ -192,13 +202,13 @@ export default function ObjectWizard({
   );
   const selectedClimate = climateEntries.find((entry) => climateKey(entry) === selectedClimateKey);
   const soilOptions = useMemo(
-    () => soilEntries.map((entry) => ({
-      value: `${entry.soil_code}:${entry.density_kg_m3 ?? 'na'}:${entry.moisture_percent}`,
-      label: `${entry.soil}, W=${entry.moisture_percent}% · λ=${entry.conductivity}`,
-      entry,
-    })),
+    () => buildSoilReferenceOptions(soilEntries),
     [soilEntries],
   );
+  const selectedSecondInsulation = insulationMaterials.find((m) => m.material === secondInsulationMaterial);
+  const selectedThirdInsulation = insulationMaterials.find((m) => m.material === thirdInsulationMaterial);
+  const secondInsulationIsOther = secondInsulationMaterial === 'other';
+  const thirdInsulationIsOther = thirdInsulationMaterial === 'other';
 
   useEffect(() => {
     form.resetFields();
@@ -420,10 +430,13 @@ export default function ObjectWizard({
                   rules={[{ required: true, message: 'Выберите материал трубы' }]}
                 >
                   {withHelp(
-                    <Select
+                    <ReferencePicker
                       data-testid="pipe-material-select"
                       options={pipeMaterialOptions}
                       placeholder="Выберите материал"
+                      modalTitle="Материал трубы"
+                      searchPlaceholder="Поиск материала трубы"
+                      required
                     />,
                     'Материал стенки трубопровода. Backend берёт λ из справочника материала трубы.',
                   )}
@@ -478,15 +491,14 @@ export default function ObjectWizard({
                 rules={[{ required: true, message: 'Выберите грунт' }]}
               >
                 {withHelp(
-                  <Select
+                  <ReferencePicker
                     data-testid="ground-type-select"
-                    showSearch
                     loading={isSoilFetching}
                     placeholder="Выберите грунт"
-                    options={[...soilOptions.map(({ value, label }) => ({ value, label })), { value: 'custom', label: 'Другое' }]}
-                    filterOption={(input, option) =>
-                      String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                    }
+                    modalTitle="Грунт"
+                    searchPlaceholder="Поиск грунта"
+                    options={[...soilOptions, { value: 'custom', label: 'Другое' }]}
+                    required
                   />,
                   'Тип грунта из справочника теплопроводности. При выборе справочного грунта λ грунта заполняется автоматически; можно переопределить вручную.',
                 )}
@@ -547,12 +559,15 @@ export default function ObjectWizard({
                 rules={[{ required: true, message: 'Выберите материал 2-го слоя' }]}
               >
                 {withHelp(
-                  <Select
+                  <ReferencePicker
                     data-testid="second-insulation-material-select"
                     options={insulationMaterialOptions}
                     placeholder="Выберите материал"
+                    modalTitle="Материал 2-го слоя"
+                    searchPlaceholder="Поиск материала"
                     loading={isInsulationMaterialsFetching}
                     notFoundContent={insulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
+                    required
                   />,
                   'Материал второго слоя изоляции. Используется в многослойном расчёте при 2 или 3 слоях.',
                 )}
@@ -573,24 +588,40 @@ export default function ObjectWizard({
                   'Толщина второго слоя изоляции. Диапазон ТНП: 0,01…500 мм.',
                 )}
               </Form.Item>
-              {secondInsulationMaterial === 'other' && (
-                <Form.Item
-                  className="numeric-form-item coefficient-form-item helped-form-item"
-                  label={fieldLabel('λ 2-го слоя')}
-                  name="second_insulation_lambda"
-                  preserve={false}
-                  rules={[
+              <Form.Item
+                className="numeric-form-item coefficient-form-item helped-form-item"
+                label={fieldLabel('λ 2-го слоя')}
+                name={secondInsulationIsOther ? 'second_insulation_lambda' : undefined}
+                preserve={false}
+                rules={secondInsulationIsOther ? [
                     { required: true, message: 'Укажите λ 2-го слоя' },
                     { type: 'number', min: 0.001, message: 'Минимальная λ — 0,001 Вт/мК' },
                     { type: 'number', max: 400, message: 'Максимальная λ — 400 Вт/мК' },
-                  ]}
-                >
-                  {withHelp(
-                    <InputNumber data-testid="second-insulation-lambda-input" min={0.001} max={400} step={0.001} addonAfter="Вт/мК" />,
-                    'Ручная теплопроводность второго слоя для материала «Другое». Диапазон ТНП: 0,001…400 Вт/(м·К).',
-                  )}
-                </Form.Item>
-              )}
+                  ] : undefined}
+              >
+                {withHelp(
+                  <InputNumber
+                    data-testid="second-insulation-lambda-input"
+                    disabled={!secondInsulationIsOther}
+                    value={secondInsulationIsOther ? undefined : selectedSecondInsulation?.conductivity}
+                    min={0.001}
+                    max={400}
+                    step={0.001}
+                    addonAfter="Вт/мК"
+                  />,
+                  secondInsulationIsOther
+                    ? 'Ручная теплопроводность второго слоя для материала «Другое». Диапазон ТНП: 0,001…400 Вт/(м·К).'
+                    : 'Справочное значение λ второго слоя из выбранного материала изоляции.',
+                )}
+              </Form.Item>
+              <InsulationTemperatureRangeField
+                material={secondInsulationMaterial}
+                selectedMaterial={selectedSecondInsulation}
+                minName="second_insulation_temperature_min"
+                maxName="second_insulation_temperature_max"
+                dataTestIdPrefix="second-insulation"
+                hint="Температурный диапазон применения материала второго слоя изоляции. Для материала «Другое» задаётся вручную."
+              />
             </div>
           )}
           {layerCount >= 3 && (
@@ -603,12 +634,15 @@ export default function ObjectWizard({
                 rules={[{ required: true, message: 'Выберите материал 3-го слоя' }]}
               >
                 {withHelp(
-                  <Select
+                  <ReferencePicker
                     data-testid="third-insulation-material-select"
                     options={insulationMaterialOptions}
                     placeholder="Выберите материал"
+                    modalTitle="Материал 3-го слоя"
+                    searchPlaceholder="Поиск материала"
                     loading={isInsulationMaterialsFetching}
                     notFoundContent={insulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
+                    required
                   />,
                   'Материал третьего слоя изоляции. Используется в многослойном расчёте при 3 слоях.',
                 )}
@@ -629,24 +663,40 @@ export default function ObjectWizard({
                   'Толщина третьего слоя изоляции. Диапазон ТНП: 0,01…500 мм.',
                 )}
               </Form.Item>
-              {thirdInsulationMaterial === 'other' && (
-                <Form.Item
-                  className="numeric-form-item coefficient-form-item helped-form-item"
-                  label={fieldLabel('λ 3-го слоя')}
-                  name="third_insulation_lambda"
-                  preserve={false}
-                  rules={[
+              <Form.Item
+                className="numeric-form-item coefficient-form-item helped-form-item"
+                label={fieldLabel('λ 3-го слоя')}
+                name={thirdInsulationIsOther ? 'third_insulation_lambda' : undefined}
+                preserve={false}
+                rules={thirdInsulationIsOther ? [
                     { required: true, message: 'Укажите λ 3-го слоя' },
                     { type: 'number', min: 0.001, message: 'Минимальная λ — 0,001 Вт/мК' },
                     { type: 'number', max: 400, message: 'Максимальная λ — 400 Вт/мК' },
-                  ]}
-                >
-                  {withHelp(
-                    <InputNumber data-testid="third-insulation-lambda-input" min={0.001} max={400} step={0.001} addonAfter="Вт/мК" />,
-                    'Ручная теплопроводность третьего слоя для материала «Другое». Диапазон ТНП: 0,001…400 Вт/(м·К).',
-                  )}
-                </Form.Item>
-              )}
+                  ] : undefined}
+              >
+                {withHelp(
+                  <InputNumber
+                    data-testid="third-insulation-lambda-input"
+                    disabled={!thirdInsulationIsOther}
+                    value={thirdInsulationIsOther ? undefined : selectedThirdInsulation?.conductivity}
+                    min={0.001}
+                    max={400}
+                    step={0.001}
+                    addonAfter="Вт/мК"
+                  />,
+                  thirdInsulationIsOther
+                    ? 'Ручная теплопроводность третьего слоя для материала «Другое». Диапазон ТНП: 0,001…400 Вт/(м·К).'
+                    : 'Справочное значение λ третьего слоя из выбранного материала изоляции.',
+                )}
+              </Form.Item>
+              <InsulationTemperatureRangeField
+                material={thirdInsulationMaterial}
+                selectedMaterial={selectedThirdInsulation}
+                minName="third_insulation_temperature_min"
+                maxName="third_insulation_temperature_max"
+                dataTestIdPrefix="third-insulation"
+                hint="Температурный диапазон применения материала третьего слоя изоляции. Для материала «Другое» задаётся вручную."
+              />
             </div>
           )}
           <Form.Item
@@ -675,16 +725,14 @@ export default function ObjectWizard({
             name="climate_key"
           >
             {withHelp(
-              <Select
+              <ReferencePicker
                 data-testid="climate-select"
-                showSearch
                 allowClear
                 options={climateOptions}
                 loading={isClimateFetching}
                 placeholder="Выберите город"
-                filterOption={(input, option) =>
-                  String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                }
+                modalTitle="Климат"
+                searchPlaceholder="Город или регион"
               />,
               'Климатический справочник: выбор города заполняет расчётную температуру среды и скорость ветра.',
             )}
@@ -1030,7 +1078,7 @@ function scrollToFirstError() {
     const el = document.querySelector<HTMLElement>('.inline-object-form .ant-form-item-has-error');
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.querySelector<HTMLElement>('input, select, textarea')?.focus();
+      el.querySelector<HTMLElement>('input, select, textarea, .reference-picker-control')?.focus();
     }
   }, 0);
 }

@@ -22,6 +22,10 @@ class InsulationLayer(BaseModel):
         le=400.0,
         description="λ слоя, Вт/(м·К) — переопределяет справочник если задано",
     )
+    temperature_range: tuple[float, float] | None = Field(
+        default=None,
+        description="Температурный диапазон применения слоя, °C — справочные метаданные",
+    )
 
 
 class PipeHeatLossParams(BaseModel):

@@ -74,6 +74,8 @@ const MATERIAL_SHORT: Record<string, string> = {
   polystyrene: 'ПСТ',
 };
 
+type TemperatureRange = [number, number];
+
 function shortMaterial(code: string): string {
   return MATERIAL_SHORT[code] ?? code;
 }
@@ -103,12 +105,18 @@ export interface PipeFormValues {
   insulation_cover_material?: string;
   insulation_layer_count?: '1' | '2' | '3';
   first_insulation_lambda?: number;
+  first_insulation_temperature_min?: number;
+  first_insulation_temperature_max?: number;
   second_insulation_thickness_mm?: number;
   second_insulation_material?: string;
   second_insulation_lambda?: number;
+  second_insulation_temperature_min?: number;
+  second_insulation_temperature_max?: number;
   third_insulation_thickness_mm?: number;
   third_insulation_material?: string;
   third_insulation_lambda?: number;
+  third_insulation_temperature_min?: number;
+  third_insulation_temperature_max?: number;
   ambient_temperature: number;
   process_temperature: number;
   max_ambient_temperature?: number;
@@ -152,12 +160,18 @@ export interface TankFormValues {
   insulation_cover_material?: string;
   insulation_layer_count?: '1' | '2' | '3';
   first_insulation_lambda?: number;
+  first_insulation_temperature_min?: number;
+  first_insulation_temperature_max?: number;
   second_insulation_thickness_mm?: number;
   second_insulation_material?: string;
   second_insulation_lambda?: number;
+  second_insulation_temperature_min?: number;
+  second_insulation_temperature_max?: number;
   third_insulation_thickness_mm?: number;
   third_insulation_material?: string;
   third_insulation_lambda?: number;
+  third_insulation_temperature_min?: number;
+  third_insulation_temperature_max?: number;
   ambient_temperature: number;
   process_temperature: number;
   max_ambient_temperature?: number;
@@ -283,13 +297,35 @@ type LayeredFormValues = Pick<
   | 'insulation_material'
   | 'insulation_layer_count'
   | 'first_insulation_lambda'
+  | 'first_insulation_temperature_min'
+  | 'first_insulation_temperature_max'
   | 'second_insulation_thickness_mm'
   | 'second_insulation_material'
   | 'second_insulation_lambda'
+  | 'second_insulation_temperature_min'
+  | 'second_insulation_temperature_max'
   | 'third_insulation_thickness_mm'
   | 'third_insulation_material'
   | 'third_insulation_lambda'
+  | 'third_insulation_temperature_min'
+  | 'third_insulation_temperature_max'
 >;
+
+function formTemperatureRange(min?: number, max?: number) {
+  if (min == null || max == null) return {};
+  return { temperature_range: [min, max] as TemperatureRange };
+}
+
+function apiTemperatureRange(layer: Record<string, unknown> | undefined) {
+  const range = layer?.temperature_range;
+  if (!Array.isArray(range) || range.length < 2) return {};
+  const min = Number(range[0]);
+  const max = Number(range[1]);
+  return {
+    temperature_min: Number.isFinite(min) ? min : undefined,
+    temperature_max: Number.isFinite(max) ? max : undefined,
+  };
+}
 
 function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormValues | TankFormValues) {
   const placement = v.placement ?? 'outdoor';
@@ -336,6 +372,9 @@ function applyInsulationLayers(params: Record<string, unknown>, v: LayeredFormVa
       ...(v.insulation_material === 'other' && v.first_insulation_lambda != null
         ? { conductivity: v.first_insulation_lambda }
         : {}),
+      ...(v.insulation_material === 'other'
+        ? formTemperatureRange(v.first_insulation_temperature_min, v.first_insulation_temperature_max)
+        : {}),
     },
   ];
 
@@ -346,6 +385,9 @@ function applyInsulationLayers(params: Record<string, unknown>, v: LayeredFormVa
       ...(v.second_insulation_material === 'other' && v.second_insulation_lambda != null
         ? { conductivity: v.second_insulation_lambda }
         : {}),
+      ...(v.second_insulation_material === 'other'
+        ? formTemperatureRange(v.second_insulation_temperature_min, v.second_insulation_temperature_max)
+        : {}),
     });
   }
   if (count >= 3 && v.third_insulation_thickness_mm != null && v.third_insulation_material) {
@@ -354,6 +396,9 @@ function applyInsulationLayers(params: Record<string, unknown>, v: LayeredFormVa
       material: v.third_insulation_material,
       ...(v.third_insulation_material === 'other' && v.third_insulation_lambda != null
         ? { conductivity: v.third_insulation_lambda }
+        : {}),
+      ...(v.third_insulation_material === 'other'
+        ? formTemperatureRange(v.third_insulation_temperature_min, v.third_insulation_temperature_max)
         : {}),
     });
   }
@@ -369,6 +414,9 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
   const layers = Array.isArray(p.insulation_layers)
     ? (p.insulation_layers as Record<string, unknown>[])
     : [];
+  const firstRange = apiTemperatureRange(layers[0]);
+  const secondRange = apiTemperatureRange(layers[1]);
+  const thirdRange = apiTemperatureRange(layers[2]);
   return {
     outer_diameter_mm: p.outer_diameter != null ? Number(p.outer_diameter) * 1000 : undefined,
     wall_thickness_mm: p.wall_thickness != null ? Number(p.wall_thickness) * 1000 : undefined,
@@ -382,6 +430,8 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     insulation_material:
       (layers[0]?.material as string | undefined) ?? (p.insulation_material as string | undefined),
     first_insulation_lambda: layers[0]?.conductivity as number | undefined,
+    first_insulation_temperature_min: firstRange.temperature_min,
+    first_insulation_temperature_max: firstRange.temperature_max,
     insulation_cover_material: p.insulation_cover_material as string | undefined,
     insulation_layer_count:
       p.insulation_layer_count != null
@@ -391,10 +441,14 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
       layers[1]?.thickness != null ? Number(layers[1].thickness) * 1000 : undefined,
     second_insulation_material: layers[1]?.material as string | undefined,
     second_insulation_lambda: layers[1]?.conductivity as number | undefined,
+    second_insulation_temperature_min: secondRange.temperature_min,
+    second_insulation_temperature_max: secondRange.temperature_max,
     third_insulation_thickness_mm:
       layers[2]?.thickness != null ? Number(layers[2].thickness) * 1000 : undefined,
     third_insulation_material: layers[2]?.material as string | undefined,
     third_insulation_lambda: layers[2]?.conductivity as number | undefined,
+    third_insulation_temperature_min: thirdRange.temperature_min,
+    third_insulation_temperature_max: thirdRange.temperature_max,
     ambient_temperature: p.ambient_temperature as number | undefined,
     process_temperature: p.process_temperature as number | undefined,
     max_ambient_temperature: p.max_ambient_temperature as number | undefined,
@@ -438,6 +492,9 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
   const layers = Array.isArray(p.insulation_layers)
     ? (p.insulation_layers as Record<string, unknown>[])
     : [];
+  const firstRange = apiTemperatureRange(layers[0]);
+  const secondRange = apiTemperatureRange(layers[1]);
+  const thirdRange = apiTemperatureRange(layers[2]);
   return {
     shape: (p.shape as TankFormValues['shape']) ?? 'cylindrical',
     diameter_mm: p.diameter != null ? Number(p.diameter) * 1000 : undefined,
@@ -453,6 +510,8 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     insulation_material:
       (layers[0]?.material as string | undefined) ?? (p.insulation_material as string | undefined),
     first_insulation_lambda: layers[0]?.conductivity as number | undefined,
+    first_insulation_temperature_min: firstRange.temperature_min,
+    first_insulation_temperature_max: firstRange.temperature_max,
     insulation_cover_material: p.insulation_cover_material as string | undefined,
     insulation_layer_count:
       p.insulation_layer_count != null
@@ -462,10 +521,14 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
       layers[1]?.thickness != null ? Number(layers[1].thickness) * 1000 : undefined,
     second_insulation_material: layers[1]?.material as string | undefined,
     second_insulation_lambda: layers[1]?.conductivity as number | undefined,
+    second_insulation_temperature_min: secondRange.temperature_min,
+    second_insulation_temperature_max: secondRange.temperature_max,
     third_insulation_thickness_mm:
       layers[2]?.thickness != null ? Number(layers[2].thickness) * 1000 : undefined,
     third_insulation_material: layers[2]?.material as string | undefined,
     third_insulation_lambda: layers[2]?.conductivity as number | undefined,
+    third_insulation_temperature_min: thirdRange.temperature_min,
+    third_insulation_temperature_max: thirdRange.temperature_max,
     ambient_temperature: p.ambient_temperature as number | undefined,
     process_temperature: p.process_temperature as number | undefined,
     max_ambient_temperature: p.max_ambient_temperature as number | undefined,
