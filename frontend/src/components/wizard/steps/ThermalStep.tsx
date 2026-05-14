@@ -10,6 +10,10 @@ import {
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
 import {
+  getHeatCalcFieldDescription,
+  getHeatCalcFieldLabel,
+} from '@/domain/heatCalcFields';
+import {
   buildInsulationReferenceOptions,
 } from '@/utils/referenceOptions';
 import HelpedControl from '../HelpedControl';
@@ -21,8 +25,12 @@ function withHelp(control: ReactElement, hint: string) {
   return <HelpedControl hint={hint}>{control}</HelpedControl>;
 }
 
-function fieldLabel(text: string) {
-  return <FieldLabel text={text} />;
+function fieldLabel(fieldId: string, objectType: HeatCalcObjectType) {
+  return <FieldLabel text={getHeatCalcFieldLabel(fieldId, { context: 'form', objectType })} />;
+}
+
+function fieldHelp(fieldId: string, objectType: HeatCalcObjectType, mode?: string) {
+  return getHeatCalcFieldDescription(fieldId, { objectType, mode });
 }
 
 interface Props {
@@ -54,7 +62,7 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
     <>
       <Form.Item
         className="fixed-select-form-item reduced-select-form-item layer-material-form-item first-layer-material-form-item helped-form-item"
-        label={fieldLabel('Материал изоляции')}
+        label={fieldLabel('insulation_material', objectType)}
         name="insulation_material"
         rules={[{ required: true, message: 'Выберите материал изоляции' }]}
       >
@@ -69,13 +77,13 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
             notFoundContent={isError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
             required
           />,
-          'Материал основного слоя изоляции. Значение используется для выбора теплопроводности и расчёта теплопотерь.',
+          fieldHelp('insulation_material', objectType),
         )}
       </Form.Item>
 
       <Form.Item
         className="numeric-form-item short-number-form-item helped-form-item"
-        label={fieldLabel('Толщина изоляции')}
+        label={fieldLabel('insulation_thickness_mm', objectType)}
         name="insulation_thickness_mm"
         rules={heatCalcFormFieldRules(form, objectType, 'insulation_thickness_mm')}
       >
@@ -85,13 +93,13 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
             {...numberInputProps('insulation_thickness_mm')}
             addonAfter="мм"
           />,
-          'Толщина слоя тепловой изоляции. Диапазон: 1–500 мм.',
+          fieldHelp('insulation_thickness_mm', objectType),
         )}
       </Form.Item>
 
       <Form.Item
         className="numeric-form-item coefficient-form-item helped-form-item"
-        label={fieldLabel('λ 1-го слоя')}
+        label={fieldLabel('first_insulation_lambda', objectType)}
         name={isOtherMaterial ? 'first_insulation_lambda' : undefined}
         preserve={false}
         rules={isOtherMaterial ? [
@@ -105,14 +113,10 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
             data-testid="first-insulation-lambda-input"
             disabled={!isOtherMaterial}
             value={isOtherMaterial ? undefined : selectedMaterial?.conductivity}
-            min={0.001}
-            max={400}
-            step={0.001}
+            {...numberInputProps('first_insulation_lambda')}
             addonAfter="Вт/мК"
           />,
-          isOtherMaterial
-            ? 'Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Для материала «Другое» вводится вручную: 0,001…400.'
-            : 'Справочное значение λ первого слоя из выбранного материала изоляции.',
+          fieldHelp('first_insulation_lambda', objectType, isOtherMaterial ? 'manual' : 'reference'),
         )}
       </Form.Item>
 
@@ -122,7 +126,8 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
         minName="first_insulation_temperature_min"
         maxName="first_insulation_temperature_max"
         dataTestIdPrefix="first-insulation"
-        hint="Температурный диапазон применения выбранного материала изоляции. Для материала «Другое» задаётся вручную."
+        labelFieldId="first_insulation_temperature_range"
+        hint={fieldHelp('first_insulation_temperature_range', objectType)}
       />
     </>
   );

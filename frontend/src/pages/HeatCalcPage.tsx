@@ -123,6 +123,7 @@ import {
   type HeatCalcFormPlacement,
   type HeatCalcFormSectionWeights,
   type HeatCalcTableFontSize,
+  type HeatCalcTableLabelFormat,
   type HeatCalcTableViewSettings,
 } from '@/utils/heatCalcTableViewSettings';
 import {
@@ -1691,13 +1692,17 @@ export default function HeatCalcPage() {
     },
   }), [dnValue, insulationLabel, outerDiameterMm]);
 
-  const sourceColumnMetas = useMemo(
-    () => getVisibleTableColumnMetas(activeTableColumnScope, tableColumnSettings),
-    [activeTableColumnScope, tableColumnSettings],
-  );
   const normalizedTableView = useMemo(
     () => normalizeTableViewSettings(tableViewSettings),
     [tableViewSettings],
+  );
+  const sourceColumnMetas = useMemo(
+    () => getVisibleTableColumnMetas(
+      activeTableColumnScope,
+      tableColumnSettings,
+      normalizedTableView.tableLabelFormat,
+    ),
+    [activeTableColumnScope, normalizedTableView.tableLabelFormat, tableColumnSettings],
   );
   const resolvedTableFontSize = useMemo(
     () => resolveTableFontSize(normalizedTableView),
@@ -2219,6 +2224,8 @@ export default function HeatCalcPage() {
     const currentDetails = normalizeCalculationDetailsSettings(calculationDetailsSettings);
     const currentFieldInputs = normalizeFieldInputSettings(fieldInputSettings);
     const viewChanged = normalizedView.fontSize !== currentView.fontSize
+      || normalizedView.tableLabelFormat !== currentView.tableLabelFormat
+      || normalizedView.settingsLabelFormat !== currentView.settingsLabelFormat
       || normalizedView.inlineEditingEnabled !== currentView.inlineEditingEnabled
       || normalizedView.formPlacement !== currentView.formPlacement
       || normalizedView.sideFormWidthPct !== currentView.sideFormWidthPct
@@ -2613,6 +2620,29 @@ export default function HeatCalcPage() {
     setDraftTableViewSettings((settings) => normalizeTableViewSettings({
       ...settings,
       fontSize: defaultView.fontSize,
+    }));
+  }
+
+  function updateDraftTableLabelFormat(tableLabelFormat: HeatCalcTableLabelFormat) {
+    setDraftTableViewSettings((settings) => normalizeTableViewSettings({
+      ...settings,
+      tableLabelFormat,
+    }));
+  }
+
+  function updateDraftSettingsLabelFormat(settingsLabelFormat: HeatCalcTableLabelFormat) {
+    setDraftTableViewSettings((settings) => normalizeTableViewSettings({
+      ...settings,
+      settingsLabelFormat,
+    }));
+  }
+
+  function resetDraftLabelFormats() {
+    const defaultView = getDefaultTableViewSettings();
+    setDraftTableViewSettings((settings) => normalizeTableViewSettings({
+      ...settings,
+      tableLabelFormat: defaultView.tableLabelFormat,
+      settingsLabelFormat: defaultView.settingsLabelFormat,
     }));
   }
 
@@ -3069,9 +3099,12 @@ export default function HeatCalcPage() {
             onResetWidth={resetDraftColumnWidth}
             onColumnReorder={reorderDraftColumn}
             onFontSizeChange={updateDraftTableFontSize}
+            onTableLabelFormatChange={updateDraftTableLabelFormat}
+            onSettingsLabelFormatChange={updateDraftSettingsLabelFormat}
             onFormPlacementChange={updateDraftFormPlacement}
             onInlineEditingEnabledChange={updateDraftInlineEditingEnabled}
             onResetFontSize={resetDraftTableFontSize}
+            onResetLabelFormats={resetDraftLabelFormats}
             onCalculationDetailsPresetChange={updateDraftCalculationDetailsPreset}
             onCalculationDetailMetricsChange={updateDraftCalculationDetailMetrics}
             onResetCalculationDetails={() =>

@@ -1,6 +1,10 @@
 import { EditOutlined } from '@ant-design/icons';
 import { Form, Input, InputNumber, Modal } from 'antd';
 import { useState, type KeyboardEvent, type ReactElement } from 'react';
+import {
+  getHeatCalcFieldInputConfig,
+  getHeatCalcFieldLabel,
+} from '@/domain/heatCalcFields';
 import type { InsulationEntry } from '@/types/reference';
 import { formatInsulationTemperatureRange } from '@/utils/referenceOptions';
 import HelpedControl from './HelpedControl';
@@ -10,8 +14,8 @@ function withHelp(control: ReactElement, hint: string) {
   return <HelpedControl hint={hint}>{control}</HelpedControl>;
 }
 
-function fieldLabel(text: string) {
-  return <FieldLabel text={text} />;
+function fieldLabel(fieldId: string) {
+  return <FieldLabel text={getHeatCalcFieldLabel(fieldId, { context: 'form' })} />;
 }
 
 function hasValue(value: unknown) {
@@ -44,6 +48,7 @@ interface Props {
   minName: string;
   maxName: string;
   dataTestIdPrefix: string;
+  labelFieldId?: string;
   hint: string;
 }
 
@@ -53,6 +58,7 @@ export default function InsulationTemperatureRangeField({
   minName,
   maxName,
   dataTestIdPrefix,
+  labelFieldId = 'first_insulation_temperature_range',
   hint,
 }: Props) {
   const form = Form.useFormInstance();
@@ -63,6 +69,13 @@ export default function InsulationTemperatureRangeField({
   const currentMin = numericValue(Form.useWatch(minName, form) ?? form.getFieldValue(minName));
   const currentMax = numericValue(Form.useWatch(maxName, form) ?? form.getFieldValue(maxName));
   const editableRange = formatEditableRange(currentMin, currentMax);
+  const minInputConfig = getHeatCalcFieldInputConfig(minName);
+  const maxInputConfig = getHeatCalcFieldInputConfig(maxName);
+  const modalMinLimit = minInputConfig?.min ?? -273;
+  const modalMaxLimit = maxInputConfig?.max ?? 1000;
+  const minStep = minInputConfig?.default_step ?? 1;
+  const maxStep = maxInputConfig?.default_step ?? minStep;
+  const rangeLimitMessage = `Допустимо ${modalMinLimit}...${modalMaxLimit} °C`;
   const rangeValidator = (pairName: string, isMin: boolean) => ({
     validator(_: unknown, value: unknown) {
       const pairValue = form.getFieldValue(pairName);
@@ -123,7 +136,7 @@ export default function InsulationTemperatureRangeField({
           'insulation-temperature-range-form-item',
           'helped-form-item',
         ].filter(Boolean).join(' ')}
-        label={fieldLabel('Диапазон T')}
+        label={fieldLabel(labelFieldId)}
         name={isOtherMaterial ? minName : undefined}
         preserve={false}
         rules={isOtherMaterial ? [rangeValidator(maxName, true)] : undefined}
@@ -190,15 +203,15 @@ export default function InsulationTemperatureRangeField({
             name="min"
             rules={[
               { required: true, message: 'Укажите нижнюю границу' },
-              { type: 'number', min: -273, max: 1000, message: 'Допустимо -273...1000 °C' },
+              { type: 'number', min: modalMinLimit, max: modalMaxLimit, message: rangeLimitMessage },
               modalRangeValidator(true),
             ]}
           >
             <InputNumber
               data-testid={`${dataTestIdPrefix}-temperature-min-input`}
-              min={-273}
-              max={1000}
-              step={1}
+              min={modalMinLimit}
+              max={modalMaxLimit}
+              step={minStep}
               addonAfter="°C"
             />
           </Form.Item>
@@ -207,15 +220,15 @@ export default function InsulationTemperatureRangeField({
             name="max"
             rules={[
               { required: true, message: 'Укажите верхнюю границу' },
-              { type: 'number', min: -273, max: 1000, message: 'Допустимо -273...1000 °C' },
+              { type: 'number', min: modalMinLimit, max: modalMaxLimit, message: rangeLimitMessage },
               modalRangeValidator(false),
             ]}
           >
             <InputNumber
               data-testid={`${dataTestIdPrefix}-temperature-max-input`}
-              min={-273}
-              max={1000}
-              step={1}
+              min={modalMinLimit}
+              max={modalMaxLimit}
+              step={maxStep}
               addonAfter="°C"
             />
           </Form.Item>

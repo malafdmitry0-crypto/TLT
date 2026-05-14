@@ -1,5 +1,9 @@
 import type { FormInstance } from 'antd';
-import { getHeatCalcFieldDefinition, type HeatCalcFieldOption } from '@/domain/heatCalcFields';
+import {
+  getHeatCalcFieldDefinition,
+  getHeatCalcFieldInputConfig,
+  type HeatCalcFieldOption,
+} from '@/domain/heatCalcFields';
 import {
   normalizeHeatCalcFieldValue,
   validateHeatCalcField,
@@ -43,12 +47,13 @@ export function heatCalcNumberInputProps(
   options: { includeStep?: boolean; fieldInputSettings?: HeatCalcFieldInputSettings } = {},
 ) {
   const field = getHeatCalcFieldDefinition(fieldId, objectType);
+  const input = getHeatCalcFieldInputConfig(fieldId, objectType);
   return {
-    min: field?.min,
-    max: field?.max,
+    min: field?.min ?? input?.min,
+    max: field?.max ?? input?.max,
     step: options.includeStep === false
       ? undefined
-      : resolveHeatCalcFieldStep(objectType, fieldId, options.fieldInputSettings),
+      : resolveHeatCalcFieldStep(objectType, fieldId, options.fieldInputSettings) ?? input?.default_step,
   };
 }
 
@@ -63,5 +68,7 @@ export function heatCalcSelectOptions(
   objectType: HeatCalcObjectType,
   fieldId: string,
 ): HeatCalcFieldOption[] {
-  return getHeatCalcFieldDefinition(fieldId, objectType)?.options ?? [];
+  return getHeatCalcFieldDefinition(fieldId, objectType)?.options
+    ?? getHeatCalcFieldInputConfig(fieldId, objectType)?.options
+    ?? [];
 }

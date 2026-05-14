@@ -3,23 +3,26 @@ import type { ReactElement } from 'react';
 import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
+  heatCalcSelectOptions,
 } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
+import {
+  getHeatCalcFieldDescription,
+  getHeatCalcFieldLabel,
+} from '@/domain/heatCalcFields';
 import HelpedControl from '../HelpedControl';
 import FieldLabel from '../FieldLabel';
-
-const SHAPE_OPTIONS = [
-  { value: 'cylindrical', label: 'Цилиндрическая' },
-  { value: 'rectangular', label: 'Параллелепипед' },
-  { value: 'spherical', label: 'Сферическая' },
-];
 
 function withHelp(control: ReactElement, hint: string) {
   return <HelpedControl hint={hint}>{control}</HelpedControl>;
 }
 
-function fieldLabel(text: string) {
-  return <FieldLabel text={text} />;
+function fieldLabel(fieldId: string) {
+  return <FieldLabel text={getHeatCalcFieldLabel(fieldId, { context: 'form', objectType: 'tank' })} />;
+}
+
+function fieldHelp(fieldId: string) {
+  return getHeatCalcFieldDescription(fieldId, { objectType: 'tank' });
 }
 
 interface Props {
@@ -35,13 +38,17 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
     <>
       <Form.Item
         className="fixed-select-form-item helped-form-item"
-        label={fieldLabel('Форма резервуара')}
+        label={fieldLabel('shape')}
         name="shape"
         rules={[{ required: true, message: 'Выберите форму резервуара' }]}
       >
         {withHelp(
-          <Select data-testid="tank-shape-select" options={SHAPE_OPTIONS} placeholder="Выберите форму" />,
-          'Форма резервуара определяет набор геометрических размеров, необходимых для расчёта площади поверхности.',
+          <Select
+            data-testid="tank-shape-select"
+            options={heatCalcSelectOptions('tank', 'shape')}
+            placeholder="Выберите форму"
+          />,
+          fieldHelp('shape'),
         )}
       </Form.Item>
 
@@ -61,7 +68,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
               {needDiameter && (
                 <Form.Item
                   className="numeric-form-item tank-size-form-item helped-form-item"
-                  label={fieldLabel('Ø')}
+                  label={fieldLabel('diameter_mm')}
                   name="diameter_mm"
                   rules={heatCalcFormFieldRules(form, 'tank', 'diameter_mm')}
                 >
@@ -71,7 +78,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
                       {...numberInputProps('diameter_mm')}
                       addonAfter="мм"
                     />,
-                    'Внешний диаметр резервуара Ø, мм. Обязателен для цилиндрической и сферической форм. Диапазон ТНП: 10,8–3000 мм.',
+                    fieldHelp('diameter_mm'),
                   )}
                 </Form.Item>
               )}
@@ -79,7 +86,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
               {needHeight && (
                 <Form.Item
                   className="numeric-form-item tank-size-form-item helped-form-item"
-                  label={fieldLabel('Высота')}
+                  label={fieldLabel('height_mm')}
                   name="height_mm"
                   rules={heatCalcFormFieldRules(form, 'tank', 'height_mm')}
                 >
@@ -89,7 +96,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
                       {...numberInputProps('height_mm')}
                       addonAfter="мм"
                     />,
-                    'Высота резервуара. Обязательна для цилиндрической и прямоугольной форм. Диапазон ТНП: 500–200 000 мм.',
+                    fieldHelp('height_mm'),
                   )}
                 </Form.Item>
               )}
@@ -97,7 +104,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
               {needLength && (
                 <Form.Item
                   className="numeric-form-item tank-size-form-item helped-form-item"
-                  label={fieldLabel('Длина')}
+                  label={fieldLabel('length_mm')}
                   name="length_mm"
                   rules={heatCalcFormFieldRules(form, 'tank', 'length_mm')}
                 >
@@ -107,7 +114,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
                       {...numberInputProps('length_mm')}
                       addonAfter="мм"
                     />,
-                    'Длина прямоугольного резервуара L, мм. В новых переменных ТНП отдельный диапазон для L не задан.',
+                    fieldHelp('length_mm'),
                   )}
                 </Form.Item>
               )}
@@ -115,7 +122,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
               {needWidth && (
                 <Form.Item
                   className="numeric-form-item tank-size-form-item helped-form-item"
-                  label={fieldLabel('Ширина')}
+                  label={fieldLabel('width_mm')}
                   name="width_mm"
                   rules={heatCalcFormFieldRules(form, 'tank', 'width_mm')}
                 >
@@ -125,7 +132,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
                       {...numberInputProps('width_mm')}
                       addonAfter="мм"
                     />,
-                    'Ширина прямоугольного резервуара B, мм. В новых переменных ТНП отдельный диапазон для B не задан.',
+                    fieldHelp('width_mm'),
                   )}
                 </Form.Item>
               )}
@@ -136,7 +143,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
 
       <Form.Item
         className="numeric-form-item tank-size-form-item helped-form-item"
-        label={fieldLabel('Стенка')}
+        label={fieldLabel('wall_thickness_mm')}
         name="wall_thickness_mm"
         rules={heatCalcFormFieldRules(form, 'tank', 'wall_thickness_mm')}
       >
@@ -146,13 +153,13 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
             {...numberInputProps('wall_thickness_mm')}
             addonAfter="мм"
           />,
-          'Толщина стенки резервуара. Если задана вместе с λ стенки, учитывается как δ/λ в теплопотерях.',
+          fieldHelp('wall_thickness_mm'),
         )}
       </Form.Item>
 
       <Form.Item
         className="numeric-form-item tank-size-form-item helped-form-item"
-        label={fieldLabel('λ стенки')}
+        label={fieldLabel('wall_lambda')}
         name="wall_lambda"
         rules={heatCalcFormFieldRules(form, 'tank', 'wall_lambda')}
       >
@@ -162,7 +169,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
             {...numberInputProps('wall_lambda')}
             addonAfter="Вт/мК"
           />,
-          'Теплопроводность стенки резервуара. Работает в паре с толщиной стенки.',
+          fieldHelp('wall_lambda'),
         )}
       </Form.Item>
     </>

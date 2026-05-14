@@ -1,6 +1,7 @@
 import {
   getHeatCalcFieldDefinition,
   HEATCALC_FIELD_DEFINITIONS,
+  isHeatCalcFieldStepConfigurable,
   type HeatCalcFieldDefinition,
   type HeatCalcFieldId,
 } from '@/domain/heatCalcFields';
@@ -57,8 +58,14 @@ function numberFromUnknown(value: unknown) {
   return Number.NaN;
 }
 
-function isConfigurableNumberField(field: HeatCalcFieldDefinition | null): field is HeatCalcFieldDefinition & { step: number } {
-  return !!field && field.editor === 'number' && isPositiveFinite(field.step);
+function isConfigurableNumberField(
+  objectType: HeatCalcObjectType,
+  field: HeatCalcFieldDefinition | null,
+): field is HeatCalcFieldDefinition & { step: number } {
+  return !!field
+    && field.editor === 'number'
+    && isPositiveFinite(field.step)
+    && isHeatCalcFieldStepConfigurable(objectType, field.id);
 }
 
 function sameStep(left: number | undefined, right: number | undefined) {
@@ -87,7 +94,7 @@ function normalizedStepOverride(
   layout: unknown,
 ) {
   const field = getHeatCalcFieldDefinition(fieldId, objectType);
-  if (!isConfigurableNumberField(field) || !isRecord(layout)) return undefined;
+  if (!isConfigurableNumberField(objectType, field) || !isRecord(layout)) return undefined;
   const step = numberFromUnknown(layout.step);
   if (!isPositiveFinite(step) || sameStep(step, field.step)) return undefined;
   return step;
@@ -148,7 +155,7 @@ export function resolveHeatCalcFieldStep(
   settings?: HeatCalcFieldInputSettings,
 ) {
   const field = getHeatCalcFieldDefinition(fieldId, objectType);
-  if (!isConfigurableNumberField(field)) return undefined;
+  if (!isConfigurableNumberField(objectType, field)) return undefined;
   const normalized = settings ? normalizeFieldInputSettings(settings) : getDefaultFieldInputSettings();
   return normalized.fields[objectType]?.[fieldId]?.step ?? field.step;
 }
@@ -160,7 +167,7 @@ export function setHeatCalcFieldStep(
   step: unknown,
 ) {
   const field = getHeatCalcFieldDefinition(fieldId, objectType);
-  if (!isConfigurableNumberField(field)) return normalizeFieldInputSettings(settings);
+  if (!isConfigurableNumberField(objectType, field)) return normalizeFieldInputSettings(settings);
   const numericStep = numberFromUnknown(step);
   const normalized = cloneFieldSettings(normalizeFieldInputSettings(settings));
   const nextObjectFields = { ...(normalized.fields[objectType] ?? {}) };
@@ -194,7 +201,7 @@ export function getHeatCalcFieldStepSettingItems(
   const normalized = normalizeFieldInputSettings(settings);
   return HEATCALC_FIELD_DEFINITIONS
     .filter((field): field is HeatCalcFieldDefinition & { step: number } =>
-      field.objectTypes.includes(objectType) && isConfigurableNumberField(field))
+      field.objectTypes.includes(objectType) && isConfigurableNumberField(objectType, field))
     .map((field) => {
       const override = normalized.fields[objectType]?.[field.id]?.step;
       return {

@@ -27,8 +27,10 @@ import {
 import {
   HEATCALC_FORM_PLACEMENT_OPTIONS,
   HEATCALC_TABLE_FONT_SIZE_OPTIONS,
+  HEATCALC_TABLE_LABEL_FORMAT_OPTIONS,
   type HeatCalcFormPlacement,
   type HeatCalcTableFontSize,
+  type HeatCalcTableLabelFormat,
   type HeatCalcTableViewSettings,
 } from '@/utils/heatCalcTableViewSettings';
 import {
@@ -43,7 +45,11 @@ import {
   type HeatCalcFieldInputSettings,
 } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
-import { getHeatCalcFieldByColumn, type HeatCalcFieldDefinition } from '@/domain/heatCalcFields';
+import {
+  getHeatCalcFieldByColumn,
+  isHeatCalcFieldStepConfigurable,
+  type HeatCalcFieldDefinition,
+} from '@/domain/heatCalcFields';
 
 const { Text } = Typography;
 
@@ -66,8 +72,15 @@ interface ColumnStepSettings {
   overridden: boolean;
 }
 
-function isNumberFieldWithStep(field: HeatCalcFieldDefinition | null): field is HeatCalcFieldDefinition & { step: number } {
-  return !!field && field.editor === 'number' && Number.isFinite(Number(field.step)) && Number(field.step) > 0;
+function isNumberFieldWithStep(
+  objectType: HeatCalcObjectType,
+  field: HeatCalcFieldDefinition | null,
+): field is HeatCalcFieldDefinition & { step: number } {
+  return !!field
+    && field.editor === 'number'
+    && Number.isFinite(Number(field.step))
+    && Number(field.step) > 0
+    && isHeatCalcFieldStepConfigurable(objectType, field.id);
 }
 
 function sameNumber(left: number, right: number) {
@@ -83,7 +96,7 @@ function getColumnStepSettings(
   const items = objectTypes
     .map((objectType) => {
       const field = getHeatCalcFieldByColumn(objectType, columnKey);
-      if (!isNumberFieldWithStep(field)) return null;
+      if (!isNumberFieldWithStep(objectType, field)) return null;
       const step = resolveHeatCalcFieldStep(objectType, field.id, settings) ?? field.step;
       return {
         objectType,
@@ -143,6 +156,7 @@ function ColumnSettingsRowContent({
   const orderValue = column.visible && column.order != null ? column.order : null;
   const [draftOrder, setDraftOrder] = useState<number | null>(orderValue);
   const [orderEditing, setOrderEditing] = useState(false);
+  const metaLabel = column.title !== column.labels.full ? column.labels.full : column.labels.short;
 
   useEffect(() => {
     if (!orderEditing) setDraftOrder(orderValue);
@@ -201,8 +215,8 @@ function ColumnSettingsRowContent({
         }}
       />
       <div className="column-layout-label">
-        <span className="column-layout-title">{column.label}</span>
-        <span className="column-layout-meta">{column.title} · {column.group}</span>
+        <span className="column-layout-title">{column.title}</span>
+        <span className="column-layout-meta">{metaLabel} · {column.group}</span>
       </div>
       {stepSettings ? (
         <InputNumber
@@ -391,9 +405,12 @@ interface ColumnSettingsModalProps {
   onResetWidth: (type: HeatCalcTableColumnScope, key: HeatCalcColumnKey) => void;
   onColumnReorder: (type: HeatCalcTableColumnScope, activeKey: HeatCalcColumnKey, overKey: HeatCalcColumnKey) => void;
   onFontSizeChange: (fontSize: HeatCalcTableFontSize) => void;
+  onTableLabelFormatChange: (format: HeatCalcTableLabelFormat) => void;
+  onSettingsLabelFormatChange: (format: HeatCalcTableLabelFormat) => void;
   onFormPlacementChange: (placement: HeatCalcFormPlacement) => void;
   onInlineEditingEnabledChange: (enabled: boolean) => void;
   onResetFontSize: () => void;
+  onResetLabelFormats: () => void;
   onCalculationDetailsPresetChange: (preset: HeatCalcCalculationDetailPreset) => void;
   onCalculationDetailMetricsChange: (metrics: HeatCalcCalculationDetailMetric[]) => void;
   onResetCalculationDetails: () => void;
@@ -420,9 +437,12 @@ export default function ColumnSettingsModal({
   onResetWidth,
   onColumnReorder,
   onFontSizeChange,
+  onTableLabelFormatChange,
+  onSettingsLabelFormatChange,
   onFormPlacementChange,
   onInlineEditingEnabledChange,
   onResetFontSize,
+  onResetLabelFormats,
   onCalculationDetailsPresetChange,
   onCalculationDetailMetricsChange,
   onResetCalculationDetails,
@@ -433,7 +453,11 @@ export default function ColumnSettingsModal({
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  const columns = getAllTableColumnMetas(activeType, draftColumnSettings);
+  const columns = getAllTableColumnMetas(
+    activeType,
+    draftColumnSettings,
+    draftViewSettings.settingsLabelFormat,
+  );
   const visibleColumns = columns.filter((column) => column.visible);
   const hiddenColumns = columns.filter((column) => !column.visible);
   const visibleRowCount = visibleColumns.length;
@@ -573,6 +597,34 @@ export default function ColumnSettingsModal({
                   <Button size="small" onClick={onResetFontSize}>
                     Сбросить размер
                   </Button>
+                </div>
+                <div className="table-view-settings-panel table-label-format-settings-panel">
+                  <Text className="table-view-settings-label">Формат названий</Text>
+                  <Space size={8} wrap>
+                    <Text type="secondary">Таблица</Text>
+                    <Segmented<HeatCalcTableLabelFormat>
+                      aria-label="Формат названий в таблице"
+                      value={draftViewSettings.tableLabelFormat}
+                      onChange={onTableLabelFormatChange}
+                      options={HEATCALC_TABLE_LABEL_FORMAT_OPTIONS.map((option) => ({
+                        value: option.key,
+                        label: option.label,
+                      }))}
+                    />
+                    <Text type="secondary">Настройки</Text>
+                    <Segmented<HeatCalcTableLabelFormat>
+                      aria-label="Формат названий в настройках"
+                      value={draftViewSettings.settingsLabelFormat}
+                      onChange={onSettingsLabelFormatChange}
+                      options={HEATCALC_TABLE_LABEL_FORMAT_OPTIONS.map((option) => ({
+                        value: option.key,
+                        label: option.label,
+                      }))}
+                    />
+                    <Button size="small" onClick={onResetLabelFormats}>
+                      Сбросить названия
+                    </Button>
+                  </Space>
                 </div>
                 <div className="table-view-settings-panel">
                   <Text className="table-view-settings-label">Положение блока параметров</Text>

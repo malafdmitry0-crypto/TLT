@@ -2,10 +2,13 @@ import defaultConfig from '@/config/heatcalc-table-view.default.json';
 
 export type HeatCalcTableFontSize = 'compact' | 'standard' | 'comfortable' | 'large';
 export type HeatCalcFormPlacement = 'top' | 'bottom' | 'left' | 'right';
+export type HeatCalcTableLabelFormat = 'full' | 'short' | 'compact';
 
 export interface HeatCalcTableViewSettings {
   version: number;
   fontSize: HeatCalcTableFontSize;
+  tableLabelFormat: HeatCalcTableLabelFormat;
+  settingsLabelFormat: HeatCalcTableLabelFormat;
   inlineEditingEnabled: boolean;
   formPlacement: HeatCalcFormPlacement;
   sideFormWidthPct: number;
@@ -42,6 +45,11 @@ export const HEATCALC_FORM_PLACEMENT_OPTIONS: Array<{ key: HeatCalcFormPlacement
   { key: 'bottom', label: 'Внизу' },
   { key: 'left', label: 'Слева' },
   { key: 'right', label: 'Справа' },
+];
+export const HEATCALC_TABLE_LABEL_FORMAT_OPTIONS: Array<{ key: HeatCalcTableLabelFormat; label: string }> = [
+  { key: 'full', label: 'Полные' },
+  { key: 'short', label: 'Краткие' },
+  { key: 'compact', label: 'Компактные' },
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -98,6 +106,12 @@ function normalizeFormPlacement(value: unknown): HeatCalcFormPlacement {
     : 'top';
 }
 
+function normalizeLabelFormat(value: unknown, fallback: HeatCalcTableLabelFormat): HeatCalcTableLabelFormat {
+  return value === 'full' || value === 'short' || value === 'compact'
+    ? value
+    : fallback;
+}
+
 function normalizeSideFormWidthPct(value: unknown): number {
   if (typeof value === 'boolean') return HEATCALC_SIDE_FORM_WIDTH_DEFAULT;
   const numeric = Number(value);
@@ -139,6 +153,8 @@ export function getDefaultTableViewSettings(): HeatCalcTableViewSettings {
   return {
     version: HEATCALC_TABLE_VIEW_VERSION,
     fontSize: defaultFontSize(),
+    tableLabelFormat: 'short',
+    settingsLabelFormat: 'full',
     inlineEditingEnabled: false,
     formPlacement: 'top',
     sideFormWidthPct: HEATCALC_SIDE_FORM_WIDTH_DEFAULT,
@@ -151,6 +167,8 @@ export function normalizeTableViewSettings(value: unknown): HeatCalcTableViewSet
   return {
     version: HEATCALC_TABLE_VIEW_VERSION,
     fontSize: normalizeFontSize(source.fontSize),
+    tableLabelFormat: normalizeLabelFormat(source.tableLabelFormat, 'short'),
+    settingsLabelFormat: normalizeLabelFormat(source.settingsLabelFormat, 'full'),
     inlineEditingEnabled: source.inlineEditingEnabled === true,
     formPlacement: normalizeFormPlacement(source.formPlacement),
     sideFormWidthPct: normalizeSideFormWidthPct(source.sideFormWidthPct),
@@ -162,6 +180,8 @@ export function isDefaultTableViewSettings(settings: HeatCalcTableViewSettings) 
   const normalized = normalizeTableViewSettings(settings);
   const defaults = getDefaultTableViewSettings();
   return normalized.fontSize === defaults.fontSize
+    && normalized.tableLabelFormat === defaults.tableLabelFormat
+    && normalized.settingsLabelFormat === defaults.settingsLabelFormat
     && normalized.inlineEditingEnabled === defaults.inlineEditingEnabled
     && normalized.formPlacement === defaults.formPlacement
     && normalized.sideFormWidthPct === defaults.sideFormWidthPct

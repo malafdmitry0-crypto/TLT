@@ -1,4 +1,13 @@
-import defaultConfig from '@/config/heatcalc-table-columns.default.json';
+import {
+  getHeatCalcDefaultVisibleTableKeys,
+  getHeatCalcFieldConfig,
+  getHeatCalcFieldDescription,
+  getHeatCalcFieldInputConfig,
+  getHeatCalcFieldLabel,
+  getHeatCalcTableColumnRegistry,
+  type HeatCalcRegistryTableColumn,
+} from '@/domain/heatCalcFields';
+import type { HeatCalcTableLabelFormat } from '@/utils/heatCalcTableViewSettings';
 
 export type HeatCalcObjectType = 'pipe' | 'tank';
 export type HeatCalcTableColumnScope = HeatCalcObjectType | 'all';
@@ -7,10 +16,12 @@ export type HeatCalcColumnKey = string;
 export interface HeatCalcColumnLabels {
   short: string;
   full: string;
+  compact: string;
 }
 
 export interface HeatCalcColumnMeta {
   key: HeatCalcColumnKey;
+  field?: string;
   labels: HeatCalcColumnLabels;
   label: string;
   title: string;
@@ -77,45 +88,57 @@ export const HEATCALC_ALL_OBJECT_COLUMN_KEYS: HeatCalcColumnKey[] = [
   'ambient_temperature',
 ];
 
-const configuredTableColumnRegistry = (defaultConfig as {
-  registry?: Partial<Record<HeatCalcObjectType, unknown[]>>;
-}).registry ?? {};
-
-function normalizeRegistryColumn(column: unknown): HeatCalcColumnMeta | null {
-  if (!isRecord(column) || typeof column.key !== 'string') return null;
-  const labels = isRecord(column.labels) ? column.labels : {};
-  const shortLabel = typeof labels.short === 'string'
-    ? labels.short
-    : typeof column.title === 'string'
-      ? column.title
-      : column.key;
-  const fullLabel = typeof labels.full === 'string'
-    ? labels.full
-    : typeof column.label === 'string'
-      ? column.label
-      : shortLabel;
+function normalizeRegistryColumn(
+  column: HeatCalcRegistryTableColumn,
+  objectType: HeatCalcObjectType,
+): HeatCalcColumnMeta | null {
+  if (typeof column.key !== 'string') return null;
+  const fieldId = column.field ?? column.key;
+  const field = getHeatCalcFieldConfig(fieldId);
+  const input = getHeatCalcFieldInputConfig(fieldId, objectType);
+  const shortLabel = getHeatCalcFieldLabel(fieldId, {
+    context: 'table',
+    objectType,
+    tableKey: column.key,
+    variant: 'short',
+  });
+  const fullLabel = getHeatCalcFieldLabel(fieldId, {
+    context: 'table',
+    objectType,
+    tableKey: column.key,
+    variant: 'full',
+  });
+  const compactLabel = getHeatCalcFieldLabel(fieldId, {
+    context: 'table',
+    objectType,
+    tableKey: column.key,
+    variant: 'compact',
+  });
   const widthPct = Number.isFinite(Number(column.defaultWidthPct))
     ? clampTableColumnWidthPct(column.defaultWidthPct)
-    : tableColumnWidthPxToPct(Number(column.width ?? 80));
+    : tableColumnWidthPxToPct(80);
   const width = tableColumnWidthPctToPx(widthPct);
+  const helpText = getHeatCalcFieldDescription(fieldId, { objectType });
 
   return {
     ...column,
     key: column.key,
+    field: fieldId,
     labels: {
       short: shortLabel,
       full: fullLabel,
+      compact: compactLabel,
     },
     label: fullLabel,
     title: shortLabel,
-    group: typeof column.group === 'string' ? column.group : 'Прочее',
+    group: typeof column.group === 'string' ? column.group : field?.group ?? 'Прочее',
     width,
     defaultWidthPct: widthPct,
     minWidthPx: Number.isFinite(Number(column.minWidthPx)) ? Number(column.minWidthPx) : 48,
     copyTitle: typeof column.copyTitle === 'string' ? column.copyTitle : undefined,
-    unit: typeof column.unit === 'string' ? column.unit : undefined,
-    helpText: typeof column.helpText === 'string' ? column.helpText : undefined,
-    valueType: typeof column.valueType === 'string' ? column.valueType : undefined,
+    unit: input?.unit,
+    helpText: helpText || undefined,
+    valueType: typeof column.valueType === 'string' ? column.valueType : input?.type,
     required: column.required === true,
     ellipsis: column.ellipsis === true,
     defaultVisible: column.defaultVisible === true,
@@ -125,12 +148,14 @@ function normalizeRegistryColumn(column: unknown): HeatCalcColumnMeta | null {
   };
 }
 
-function normalizeRegistry(columns: unknown[] | undefined) {
-  return (columns ?? []).map(normalizeRegistryColumn).filter((column): column is HeatCalcColumnMeta => column != null);
+function normalizeRegistry(columns: HeatCalcRegistryTableColumn[] | undefined, objectType: HeatCalcObjectType) {
+  return (columns ?? [])
+    .map((column) => normalizeRegistryColumn(column, objectType))
+    .filter((column): column is HeatCalcColumnMeta => column != null);
 }
 
-const pipeColumnCatalog = normalizeRegistry(configuredTableColumnRegistry.pipe);
-const tankColumnCatalog = normalizeRegistry(configuredTableColumnRegistry.tank);
+const pipeColumnCatalog = normalizeRegistry(getHeatCalcTableColumnRegistry('pipe'), 'pipe');
+const tankColumnCatalog = normalizeRegistry(getHeatCalcTableColumnRegistry('tank'), 'tank');
 
 function buildAllObjectColumnCatalog() {
   const byKey = new Map<HeatCalcColumnKey, HeatCalcColumnMeta>();
@@ -197,12 +222,9 @@ function defaultVisibleKeys(type: HeatCalcTableColumnScope) {
     const available = new Set(getAvailableTableColumnKeys('all'));
     return HEATCALC_ALL_OBJECT_COLUMN_KEYS.filter((key) => available.has(key));
   }
-  const config: Record<string, unknown> = isRecord(defaultConfig) ? defaultConfig : {};
-  const rawTable = isRecord(config.table) ? config.table : {};
   const available = new Set(getAvailableTableColumnKeys(type));
-  const configured = Array.isArray(rawTable[type])
-    ? rawTable[type].filter((key: unknown): key is string => typeof key === 'string' && available.has(key))
-    : [];
+  const configured = getHeatCalcDefaultVisibleTableKeys(type)
+    .filter((key: HeatCalcColumnKey) => available.has(key));
   return configured.length > 0
     ? configured
     : HEATCALC_TABLE_COLUMN_CATALOG[type].filter((column) => column.required).map((column) => column.key);
@@ -380,9 +402,29 @@ export function getTableColumnMeta(type: HeatCalcTableColumnScope, key: HeatCalc
   return HEATCALC_TABLE_COLUMN_CATALOG[type].find((column) => column.key === key) ?? null;
 }
 
+function getColumnLabelByFormat(
+  labels: HeatCalcColumnLabels,
+  format: HeatCalcTableLabelFormat,
+) {
+  return labels[format] || labels.full || labels.short || labels.compact;
+}
+
+function applyColumnLabelFormat<T extends HeatCalcColumnMeta>(
+  column: T,
+  format?: HeatCalcTableLabelFormat,
+): T {
+  if (!format) return column;
+  const displayLabel = getColumnLabelByFormat(column.labels, format);
+  return {
+    ...column,
+    title: displayLabel,
+  } as T;
+}
+
 export function getAllTableColumnMetas(
   type: HeatCalcTableColumnScope,
   settings: HeatCalcTableColumnSettings,
+  labelFormat?: HeatCalcTableLabelFormat,
 ): HeatCalcResolvedColumnMeta[] {
   const normalized = normalizeTableColumnSettings(settings);
   const visibleOrder = normalized.types[type].visibleOrder;
@@ -398,21 +440,22 @@ export function getAllTableColumnMetas(
   return orderedColumns.map((column) => {
     const layout = normalized.types[type].columns[column.key];
     const order = orderByKey.get(column.key);
-    return {
+    return applyColumnLabelFormat({
       ...column,
       ...layout,
       visible: order != null,
       order,
       width: tableColumnWidthPctToPx(layout.widthPct),
-    };
+    }, labelFormat);
   });
 }
 
 export function getVisibleTableColumnMetas(
   type: HeatCalcTableColumnScope,
   settings: HeatCalcTableColumnSettings,
+  labelFormat?: HeatCalcTableLabelFormat,
 ) {
-  return getAllTableColumnMetas(type, settings).filter((column) => column.visible);
+  return getAllTableColumnMetas(type, settings, labelFormat).filter((column) => column.visible);
 }
 
 export function getDefaultVisibleTableColumnKeys(type: HeatCalcTableColumnScope) {

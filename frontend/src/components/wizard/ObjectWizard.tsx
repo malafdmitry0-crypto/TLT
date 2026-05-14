@@ -36,6 +36,10 @@ import {
   heatCalcTextInputProps,
 } from '@/utils/heatCalcWizardFieldRules';
 import {
+  getHeatCalcFieldDescription,
+  getHeatCalcFieldLabel,
+} from '@/domain/heatCalcFields';
+import {
   buildInsulationReferenceOptions,
   buildPipeMaterialReferenceOptions,
   buildSoilReferenceOptions,
@@ -72,17 +76,15 @@ function withHelp(control: ReactElement, hint: string) {
   return <HelpedControl hint={hint}>{control}</HelpedControl>;
 }
 
-function fieldLabel(text: string) {
-  return <FieldLabel text={text} />;
+function fieldLabel(fieldId: string, objectType?: HeatCalcObjectType) {
+  return <FieldLabel text={getHeatCalcFieldLabel(fieldId, { context: 'form', objectType })} />;
+}
+
+function fieldHelp(fieldId: string, objectType?: HeatCalcObjectType, mode?: string) {
+  return getHeatCalcFieldDescription(fieldId, { objectType, mode });
 }
 
 type ClimateBasis = 't_0_92' | 't_0_98' | 't_abs_min';
-
-const CLIMATE_BASIS_OPTIONS: { value: ClimateBasis; label: string }[] = [
-  { value: 't_0_92', label: '0,92' },
-  { value: 't_0_98', label: '0,98' },
-  { value: 't_abs_min', label: 'Абс. мин.' },
-];
 
 function climateKey(entry: ClimateEntry) {
   return `${entry.region}|||${entry.city ?? entry.region}`;
@@ -488,7 +490,7 @@ export default function ObjectWizard({
           {renderSectionTitle(objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара', 1)}
           <Form.Item
             className="name-form-item helped-form-item"
-            label={fieldLabel('Наименование')}
+            label={fieldLabel('name', heatCalcObjectType)}
             name="name"
             rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'name')}
           >
@@ -497,7 +499,7 @@ export default function ObjectWizard({
                 data-testid="object-name-input"
                 {...heatCalcTextInputProps(heatCalcObjectType, 'name')}
               />,
-              'Автоматически формируется из параметров объекта. Можно изменить вручную; до 200 символов.',
+              fieldHelp('name', heatCalcObjectType),
             )}
           </Form.Item>
           {objectType === 'pipe'
@@ -507,7 +509,7 @@ export default function ObjectWizard({
             <>
               <Form.Item
                 className="fit-label-form-item short-number-form-item helped-form-item"
-                label={fieldLabel('Толщина стенки')}
+                label={fieldLabel('wall_thickness_mm', heatCalcObjectType)}
                 name="wall_thickness_mm"
                 rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'wall_thickness_mm')}
               >
@@ -517,12 +519,12 @@ export default function ObjectWizard({
                     {...numberInputProps('wall_thickness_mm')}
                     addonAfter="мм"
                   />,
-                  'Толщина стенки трубы. Диапазон ТНП: 0,1…40 мм. Используется в расчёте сопротивления стенки.',
+                  fieldHelp('wall_thickness_mm', heatCalcObjectType),
                 )}
               </Form.Item>
               <Form.Item
                 className="compact-select-form-item helped-form-item"
-                label={fieldLabel('Режим λ трубы')}
+                label={fieldLabel('pipe_lambda_mode', heatCalcObjectType)}
                 name="pipe_lambda_mode"
                 rules={[{ required: true, message: 'Выберите режим λ трубы' }]}
               >
@@ -530,18 +532,15 @@ export default function ObjectWizard({
                   <Select
                     data-testid="pipe-lambda-mode-select"
                     placeholder="Выберите режим"
-                    options={[
-                      { value: 'reference', label: 'Справ.' },
-                      { value: 'manual', label: 'Вручн.' },
-                    ]}
+                    options={heatCalcSelectOptions(heatCalcObjectType, 'pipe_lambda_mode')}
                   />,
-                  'Источник теплопроводности стенки трубы: из справочника материала или ручной ввод λ.',
+                  fieldHelp('pipe_lambda_mode', heatCalcObjectType),
                 )}
               </Form.Item>
               {pipeLambdaMode === 'manual' ? (
                 <Form.Item
                   className="fit-label-form-item helped-form-item"
-                  label={fieldLabel('λ трубы')}
+                  label={fieldLabel('pipe_lambda', heatCalcObjectType)}
                   name="pipe_lambda"
                   preserve={false}
                   rules={[
@@ -551,14 +550,18 @@ export default function ObjectWizard({
                   ]}
                 >
                   {withHelp(
-                    <InputNumber data-testid="pipe-lambda-input" min={0.001} max={400} step={0.1} addonAfter="Вт/мК" />,
-                    'Ручная теплопроводность трубы, Вт/(м·К). Используется вместо справочника материала.',
+                    <InputNumber
+                      data-testid="pipe-lambda-input"
+                      {...numberInputProps('pipe_lambda')}
+                      addonAfter="Вт/мК"
+                    />,
+                    fieldHelp('pipe_lambda', heatCalcObjectType),
                   )}
                 </Form.Item>
               ) : pipeLambdaMode === 'reference' ? (
                 <Form.Item
                   className="pipe-material-form-item reduced-select-form-item helped-form-item"
-                  label={fieldLabel('Материал трубы')}
+                  label={fieldLabel('pipe_material', heatCalcObjectType)}
                   name="pipe_material"
                   preserve={false}
                   rules={[{ required: true, message: 'Выберите материал трубы' }]}
@@ -572,7 +575,7 @@ export default function ObjectWizard({
                       searchPlaceholder="Поиск материала трубы"
                       required
                     />,
-                    'Материал стенки трубопровода. Backend берёт λ из справочника материала трубы.',
+                    fieldHelp('pipe_material', heatCalcObjectType),
                   )}
                 </Form.Item>
               ) : null}
@@ -580,7 +583,7 @@ export default function ObjectWizard({
           )}
           <Form.Item
             className="fixed-select-form-item reduced-select-form-item helped-form-item"
-            label={fieldLabel(objectType === 'pipe' ? 'Размещение трубопровода' : 'Размещение резервуара')}
+            label={fieldLabel('placement', heatCalcObjectType)}
             name="placement"
             rules={[{ required: true, message: 'Выберите размещение объекта' }]}
           >
@@ -588,20 +591,16 @@ export default function ObjectWizard({
               <Select
                 data-testid="placement-select"
                 placeholder="Выберите размещение"
-                options={[
-                  { value: 'outdoor', label: 'На открытом воздухе' },
-                  { value: 'indoor', label: 'В помещении' },
-                  { value: 'underground', label: 'Подземно' },
-                ]}
+                options={heatCalcSelectOptions(heatCalcObjectType, 'placement')}
               />,
-              'Размещение объекта. В помещении меняет коэффициент внешней теплоотдачи; для подземной прокладки используется глубина.',
+              fieldHelp('placement', heatCalcObjectType),
             )}
           </Form.Item>
           {isUnderground && (
             <>
               <Form.Item
                 className="fit-label-form-item helped-form-item"
-                label={fieldLabel(objectType === 'pipe' ? 'Глубина прокладки' : 'Высота подземной части')}
+                label={fieldLabel('burial_depth', heatCalcObjectType)}
                 name="burial_depth"
                 preserve={false}
                 rules={[
@@ -611,15 +610,17 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber data-testid="burial-depth-input" min={0} max={200} step={0.1} addonAfter="м" />,
-                  objectType === 'pipe'
-                    ? 'Используется только для подземной прокладки. Диапазон ТНП: 0…200 м.'
-                    : 'Высота подземной части резервуара. Backend делит расчёт на Sвозд и Sгр. Диапазон ТНП: 0…200 м.',
+                  <InputNumber
+                    data-testid="burial-depth-input"
+                    {...numberInputProps('burial_depth')}
+                    addonAfter="м"
+                  />,
+                  fieldHelp('burial_depth', heatCalcObjectType),
                 )}
               </Form.Item>
               <Form.Item
                 className="fixed-select-form-item helped-form-item"
-                label={fieldLabel('Грунт')}
+                label={fieldLabel('ground_type', heatCalcObjectType)}
                 name="ground_type"
                 preserve={false}
                 rules={[{ required: true, message: 'Выберите грунт' }]}
@@ -634,12 +635,12 @@ export default function ObjectWizard({
                     options={[...soilOptions, { value: 'custom', label: 'Другое' }]}
                     required
                   />,
-                  'Тип грунта из справочника теплопроводности. При выборе справочного грунта λ грунта заполняется автоматически; можно переопределить вручную.',
+                  fieldHelp('ground_type', heatCalcObjectType),
                 )}
               </Form.Item>
               <Form.Item
                 className="numeric-form-item coefficient-form-item helped-form-item"
-                label={fieldLabel('λ грунта')}
+                label={fieldLabel('ground_conductivity', heatCalcObjectType)}
                 name="ground_conductivity"
                 preserve={false}
                 rules={[
@@ -649,8 +650,12 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber data-testid="ground-conductivity-input" min={0.8} max={3} step={0.1} addonAfter="Вт/мК" />,
-                  'Теплопроводность грунта для подземной прокладки. Диапазон: 0,8…3,0 Вт/(м·К).',
+                  <InputNumber
+                    data-testid="ground-conductivity-input"
+                    {...numberInputProps('ground_conductivity')}
+                    addonAfter="Вт/мК"
+                  />,
+                  fieldHelp('ground_conductivity', heatCalcObjectType),
                 )}
               </Form.Item>
             </>
@@ -667,17 +672,17 @@ export default function ObjectWizard({
           {renderSectionTitle('Теплоизоляция', 2)}
           <Form.Item
             className="layer-count-form-item insulation-layer-count-form-item helped-form-item"
-            label={fieldLabel('Кол-во слоёв ИЗ')}
+            label={fieldLabel('insulation_layer_count', heatCalcObjectType)}
             name="insulation_layer_count"
             rules={[{ required: true, message: 'Выберите количество слоёв изоляции' }]}
           >
             {withHelp(
               <Select
                 data-testid="insulation-layer-count-select"
-                options={[{ value: '1', label: '1 слой' }, { value: '2', label: '2 слоя' }, { value: '3', label: '3 слоя' }]}
+                options={heatCalcSelectOptions(heatCalcObjectType, 'insulation_layer_count')}
                 placeholder="Выберите"
               />,
-              'Количество слоёв изоляции. При 2 или 3 слоях форма добавляет отдельные материал и толщину для каждого дополнительного слоя.',
+              fieldHelp('insulation_layer_count', heatCalcObjectType),
             )}
           </Form.Item>
           <div className="insulation-layer-group">
@@ -687,7 +692,7 @@ export default function ObjectWizard({
             <div className="insulation-layer-group">
               <Form.Item
                 className="medium-select-form-item layer-material-form-item second-layer-material-form-item helped-form-item"
-                label={fieldLabel('Материал 2-го слоя')}
+                label={fieldLabel('second_insulation_material', heatCalcObjectType)}
                 name="second_insulation_material"
                 preserve={false}
                 rules={[{ required: true, message: 'Выберите материал 2-го слоя' }]}
@@ -703,12 +708,12 @@ export default function ObjectWizard({
                     notFoundContent={insulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
                     required
                   />,
-                  'Материал второго слоя изоляции. Используется в многослойном расчёте при 2 или 3 слоях.',
+                  fieldHelp('second_insulation_material', heatCalcObjectType),
                 )}
               </Form.Item>
               <Form.Item
                 className="numeric-form-item short-number-form-item second-layer-thickness-form-item helped-form-item"
-                label={fieldLabel('Толщина 2-го слоя')}
+                label={fieldLabel('second_insulation_thickness_mm', heatCalcObjectType)}
                 name="second_insulation_thickness_mm"
                 preserve={false}
                 rules={[
@@ -718,13 +723,17 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber data-testid="second-insulation-thickness-input" min={0.01} max={500} addonAfter="мм" />,
-                  'Толщина второго слоя изоляции. Диапазон ТНП: 0,01…500 мм.',
+                  <InputNumber
+                    data-testid="second-insulation-thickness-input"
+                    {...numberInputProps('second_insulation_thickness_mm')}
+                    addonAfter="мм"
+                  />,
+                  fieldHelp('second_insulation_thickness_mm', heatCalcObjectType),
                 )}
               </Form.Item>
               <Form.Item
                 className="numeric-form-item coefficient-form-item helped-form-item"
-                label={fieldLabel('λ 2-го слоя')}
+                label={fieldLabel('second_insulation_lambda', heatCalcObjectType)}
                 name={secondInsulationIsOther ? 'second_insulation_lambda' : undefined}
                 preserve={false}
                 rules={secondInsulationIsOther ? [
@@ -738,14 +747,10 @@ export default function ObjectWizard({
                     data-testid="second-insulation-lambda-input"
                     disabled={!secondInsulationIsOther}
                     value={secondInsulationIsOther ? undefined : selectedSecondInsulation?.conductivity}
-                    min={0.001}
-                    max={400}
-                    step={0.001}
+                    {...numberInputProps('second_insulation_lambda')}
                     addonAfter="Вт/мК"
                   />,
-                  secondInsulationIsOther
-                    ? 'Ручная теплопроводность второго слоя для материала «Другое». Диапазон ТНП: 0,001…400 Вт/(м·К).'
-                    : 'Справочное значение λ второго слоя из выбранного материала изоляции.',
+                  fieldHelp('second_insulation_lambda', heatCalcObjectType, secondInsulationIsOther ? 'manual' : 'reference'),
                 )}
               </Form.Item>
               <InsulationTemperatureRangeField
@@ -754,7 +759,8 @@ export default function ObjectWizard({
                 minName="second_insulation_temperature_min"
                 maxName="second_insulation_temperature_max"
                 dataTestIdPrefix="second-insulation"
-                hint="Температурный диапазон применения материала второго слоя изоляции. Для материала «Другое» задаётся вручную."
+                labelFieldId="second_insulation_temperature_range"
+                hint={fieldHelp('second_insulation_temperature_range', heatCalcObjectType)}
               />
             </div>
           )}
@@ -762,7 +768,7 @@ export default function ObjectWizard({
             <div className="insulation-layer-group">
               <Form.Item
                 className="medium-select-form-item layer-material-form-item third-layer-material-form-item helped-form-item"
-                label={fieldLabel('Материал 3-го слоя')}
+                label={fieldLabel('third_insulation_material', heatCalcObjectType)}
                 name="third_insulation_material"
                 preserve={false}
                 rules={[{ required: true, message: 'Выберите материал 3-го слоя' }]}
@@ -778,12 +784,12 @@ export default function ObjectWizard({
                     notFoundContent={insulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
                     required
                   />,
-                  'Материал третьего слоя изоляции. Используется в многослойном расчёте при 3 слоях.',
+                  fieldHelp('third_insulation_material', heatCalcObjectType),
                 )}
               </Form.Item>
               <Form.Item
                 className="numeric-form-item short-number-form-item third-layer-thickness-form-item helped-form-item"
-                label={fieldLabel('Толщина 3-го слоя')}
+                label={fieldLabel('third_insulation_thickness_mm', heatCalcObjectType)}
                 name="third_insulation_thickness_mm"
                 preserve={false}
                 rules={[
@@ -793,13 +799,17 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber data-testid="third-insulation-thickness-input" min={0.01} max={500} addonAfter="мм" />,
-                  'Толщина третьего слоя изоляции. Диапазон ТНП: 0,01…500 мм.',
+                  <InputNumber
+                    data-testid="third-insulation-thickness-input"
+                    {...numberInputProps('third_insulation_thickness_mm')}
+                    addonAfter="мм"
+                  />,
+                  fieldHelp('third_insulation_thickness_mm', heatCalcObjectType),
                 )}
               </Form.Item>
               <Form.Item
                 className="numeric-form-item coefficient-form-item helped-form-item"
-                label={fieldLabel('λ 3-го слоя')}
+                label={fieldLabel('third_insulation_lambda', heatCalcObjectType)}
                 name={thirdInsulationIsOther ? 'third_insulation_lambda' : undefined}
                 preserve={false}
                 rules={thirdInsulationIsOther ? [
@@ -813,14 +823,10 @@ export default function ObjectWizard({
                     data-testid="third-insulation-lambda-input"
                     disabled={!thirdInsulationIsOther}
                     value={thirdInsulationIsOther ? undefined : selectedThirdInsulation?.conductivity}
-                    min={0.001}
-                    max={400}
-                    step={0.001}
+                    {...numberInputProps('third_insulation_lambda')}
                     addonAfter="Вт/мК"
                   />,
-                  thirdInsulationIsOther
-                    ? 'Ручная теплопроводность третьего слоя для материала «Другое». Диапазон ТНП: 0,001…400 Вт/(м·К).'
-                    : 'Справочное значение λ третьего слоя из выбранного материала изоляции.',
+                  fieldHelp('third_insulation_lambda', heatCalcObjectType, thirdInsulationIsOther ? 'manual' : 'reference'),
                 )}
               </Form.Item>
               <InsulationTemperatureRangeField
@@ -829,18 +835,22 @@ export default function ObjectWizard({
                 minName="third_insulation_temperature_min"
                 maxName="third_insulation_temperature_max"
                 dataTestIdPrefix="third-insulation"
-                hint="Температурный диапазон применения материала третьего слоя изоляции. Для материала «Другое» задаётся вручную."
+                labelFieldId="third_insulation_temperature_range"
+                hint={fieldHelp('third_insulation_temperature_range', heatCalcObjectType)}
               />
             </div>
           )}
           <Form.Item
             className="fixed-select-form-item reduced-select-form-item insulation-cover-form-item helped-form-item"
-            label={fieldLabel('Материал покрытия')}
+            label={fieldLabel('insulation_cover_material', heatCalcObjectType)}
             name="insulation_cover_material"
           >
             {withHelp(
-              <Select options={[{ value: 'none', label: 'Не указано' }]} placeholder="Не указано" />,
-              'Защитное покрытие теплоизоляции. Сохраняется в параметрах объекта для спецификации и отчёта.',
+              <Select
+                options={heatCalcSelectOptions(heatCalcObjectType, 'insulation_cover_material')}
+                placeholder="Не указано"
+              />,
+              fieldHelp('insulation_cover_material', heatCalcObjectType),
             )}
           </Form.Item>
         </div>
@@ -855,7 +865,7 @@ export default function ObjectWizard({
           {renderSectionTitle('Температура и среда', 3)}
           <Form.Item
             className="fixed-select-form-item reduced-select-form-item helped-form-item"
-            label={fieldLabel('Климат')}
+            label={fieldLabel('climate_key', heatCalcObjectType)}
             name="climate_key"
           >
             {withHelp(
@@ -869,25 +879,28 @@ export default function ObjectWizard({
                 searchPlaceholder="Город или регион"
                 groupFilterPlaceholder="Область или край"
               />,
-              'Климатический справочник: выбор города заполняет расчётную температуру среды и скорость ветра.',
+              fieldHelp('climate_key', heatCalcObjectType),
             )}
           </Form.Item>
           {hasClimate && (
             <Form.Item
               className="compact-select-form-item helped-form-item"
-              label={fieldLabel('Обеспеченность климата')}
+              label={fieldLabel('climate_temperature_basis', heatCalcObjectType)}
               name="climate_temperature_basis"
               preserve={false}
             >
               {withHelp(
-                <Select data-testid="climate-basis-select" options={CLIMATE_BASIS_OPTIONS} />,
-                'Какое значение из климатического справочника использовать для T° окр. среды: 0,92, 0,98 или абсолютный минимум.',
+                <Select
+                  data-testid="climate-basis-select"
+                  options={heatCalcSelectOptions(heatCalcObjectType, 'climate_temperature_basis')}
+                />,
+                fieldHelp('climate_temperature_basis', heatCalcObjectType),
               )}
             </Form.Item>
           )}
           <Form.Item
             className="numeric-form-item temperature-number-form-item helped-form-item"
-            label={fieldLabel('T° окр. среды')}
+            label={fieldLabel('ambient_temperature', heatCalcObjectType)}
             name="ambient_temperature"
             extra={
               <FieldSourceTag
@@ -904,12 +917,12 @@ export default function ObjectWizard({
                 {...numberInputProps('ambient_temperature')}
                 addonAfter="°C"
               />,
-              'Расчётная температура окружающей среды. Диапазон ТНП: −70°C … +70°C. Может заполняться из климатического справочника.',
+              fieldHelp('ambient_temperature', heatCalcObjectType),
             )}
           </Form.Item>
           <Form.Item
             className="numeric-form-item temperature-number-form-item helped-form-item"
-            label={fieldLabel('Требуемая T° объекта')}
+            label={fieldLabel('process_temperature', heatCalcObjectType)}
             name="process_temperature"
             dependencies={['ambient_temperature']}
             rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'process_temperature')}
@@ -920,13 +933,13 @@ export default function ObjectWizard({
                 {...numberInputProps('process_temperature')}
                 addonAfter="°C"
               />,
-              'Требуемая температура поддержания объекта, °C. Диапазон ТНП: −90…+600 °C. Используется в расчёте теплопотерь и проверке температурного диапазона кабеля.',
+              fieldHelp('process_temperature', heatCalcObjectType),
             )}
           </Form.Item>
           {showWindField && (
             <Form.Item
               className="numeric-form-item short-number-form-item helped-form-item"
-              label={fieldLabel('Скорость ветра')}
+              label={fieldLabel('wind_speed', heatCalcObjectType)}
               name="wind_speed"
               preserve={false}
               extra={
@@ -942,15 +955,19 @@ export default function ObjectWizard({
               ]}
             >
               {withHelp(
-                <InputNumber data-testid="wind-speed-input" min={0} max={20} step={0.1} addonAfter="м/с" />,
-                'Скорость ветра для расчёта внешней теплоотдачи α. Если выбран климатический город, берётся из справочника; можно переопределить вручную.',
+                <InputNumber
+                  data-testid="wind-speed-input"
+                  {...numberInputProps('wind_speed')}
+                  addonAfter="м/с"
+                />,
+                fieldHelp('wind_speed', heatCalcObjectType),
               )}
             </Form.Item>
           )}
           {showAlphaField && (
             <Form.Item
               className="numeric-form-item coefficient-form-item alpha-vnesh-form-item helped-form-item"
-              label={fieldLabel('α внеш')}
+              label={fieldLabel('alpha_vnesh', heatCalcObjectType)}
               name="alpha_vnesh"
               preserve={false}
               rules={[
@@ -959,14 +976,18 @@ export default function ObjectWizard({
               ]}
             >
               {withHelp(
-                <InputNumber data-testid="alpha-vnesh-input" min={7} max={52} step={0.1} addonAfter="Вт/м²К" />,
-                'Ручное значение коэффициента внешней теплоотдачи. Если пусто, backend рассчитывает α из скорости ветра и размещения.',
+                <InputNumber
+                  data-testid="alpha-vnesh-input"
+                  {...numberInputProps('alpha_vnesh')}
+                  addonAfter="Вт/м²К"
+                />,
+                fieldHelp('alpha_vnesh', heatCalcObjectType),
               )}
             </Form.Item>
           )}
           <Form.Item
             className="numeric-form-item temperature-number-form-item max-ambient-temperature-form-item helped-form-item"
-            label={fieldLabel('Макс. T° окр. среды')}
+            label={fieldLabel('max_ambient_temperature', heatCalcObjectType)}
             name="max_ambient_temperature"
             rules={[
               { type: 'number', min: -70, message: 'Минимальная температура среды: −70°C' },
@@ -974,13 +995,17 @@ export default function ObjectWizard({
             ]}
           >
             {withHelp(
-              <InputNumber data-testid="max-ambient-temperature-input" min={-70} max={70} step={0.1} addonAfter="°C" />,
-              'Максимальная температура окружающей среды, °C. Сохраняется в параметрах объекта для проверки условий эксплуатации.',
+              <InputNumber
+                data-testid="max-ambient-temperature-input"
+                {...numberInputProps('max_ambient_temperature')}
+                addonAfter="°C"
+              />,
+              fieldHelp('max_ambient_temperature', heatCalcObjectType),
             )}
           </Form.Item>
           <Form.Item
             className="numeric-form-item temperature-number-form-item helped-form-item"
-            label={fieldLabel('Макс. допуст. T° продукта')}
+            label={fieldLabel('max_process_temperature', heatCalcObjectType)}
             name="max_process_temperature"
             rules={[
               { type: 'number', min: -90, message: 'Минимальная температура продукта: −90°C' },
@@ -988,50 +1013,54 @@ export default function ObjectWizard({
             ]}
           >
             {withHelp(
-              <InputNumber data-testid="max-process-temperature-input" min={-90} max={600} step={0.1} addonAfter="°C" />,
-              'Максимально допустимая температура продукта, °C. Сохраняется в параметрах объекта и используется как эксплуатационное ограничение.',
+              <InputNumber
+                data-testid="max-process-temperature-input"
+                {...numberInputProps('max_process_temperature')}
+                addonAfter="°C"
+              />,
+              fieldHelp('max_process_temperature', heatCalcObjectType),
             )}
           </Form.Item>
           <Form.Item
             className="medium-select-form-item environment-form-item helped-form-item"
-            label={fieldLabel('Среда')}
+            label={fieldLabel('environment', heatCalcObjectType)}
             name="environment"
           >
             {withHelp(
               <Select
                 data-testid="environment-select"
-                options={[{ value: 'normal', label: 'Нормальная' }, { value: 'aggressive', label: 'Агрессивная' }]}
+                options={heatCalcSelectOptions(heatCalcObjectType, 'environment')}
                 placeholder="Выберите среду"
               />,
-              'Условия эксплуатации: нормальная или агрессивная среда. Сохраняется в параметрах объекта для спецификации и отчёта.',
+              fieldHelp('environment', heatCalcObjectType),
             )}
           </Form.Item>
           <Form.Item
             className="medium-select-form-item zone-classification-form-item helped-form-item"
-            label={fieldLabel('Классификация зоны')}
+            label={fieldLabel('zone_classification', heatCalcObjectType)}
             name="zone_classification"
           >
             {withHelp(
               <Select
                 data-testid="zone-classification-select"
-                options={[{ value: 'safe', label: 'Безопасная' }, { value: 'explosive', label: 'Взрывоопасная' }]}
+                options={heatCalcSelectOptions(heatCalcObjectType, 'zone_classification')}
                 placeholder="Выберите зону"
               />,
-              'Безопасная или взрывоопасная зона. Сохраняется в параметрах объекта для подбора исполнения и отчёта.',
+              fieldHelp('zone_classification', heatCalcObjectType),
             )}
           </Form.Item>
           <Form.Item
             className="temperature-group-form-item helped-form-item"
-            label={fieldLabel('Температурная группа')}
+            label={fieldLabel('temperature_group', heatCalcObjectType)}
             name="temperature_group"
           >
             {withHelp(
               <Select
                 data-testid="temperature-group-select"
-                options={['T1', 'T2', 'T3', 'T4', 'T5', 'T6'].map((v) => ({ value: v, label: v }))}
+                options={heatCalcSelectOptions(heatCalcObjectType, 'temperature_group')}
                 placeholder="Выберите"
               />,
-              'Температурная группа T1…T6 для классификации зоны. Сохраняется в параметрах объекта для подбора исполнения и отчёта.',
+              fieldHelp('temperature_group', heatCalcObjectType),
             )}
           </Form.Item>
         </div>
@@ -1046,7 +1075,7 @@ export default function ObjectWizard({
           {renderSectionTitle('Электропараметры и арматура', 4)}
           <Form.Item
             className="numeric-form-item temperature-number-form-item helped-form-item"
-            label={fieldLabel('Мин. T° включения')}
+            label={fieldLabel('min_switch_temperature', heatCalcObjectType)}
             name="min_switch_temperature"
             rules={objectType === 'pipe'
               ? heatCalcFormFieldRules(form, heatCalcObjectType, 'min_switch_temperature')
@@ -1058,33 +1087,29 @@ export default function ObjectWizard({
             {withHelp(
               <InputNumber
                 data-testid="min-switch-temperature-input"
-                {...(objectType === 'pipe'
-                  ? numberInputProps('min_switch_temperature')
-                  : { min: -70, max: 70, step: 0.1 })}
+                {...numberInputProps('min_switch_temperature')}
                 addonAfter="°C"
               />,
-              'Температура включения электрообогрева, °C. Сохраняется в параметрах объекта для электрораздела.',
+              fieldHelp('min_switch_temperature', heatCalcObjectType),
             )}
           </Form.Item>
           <Form.Item
             className="compact-select-form-item helped-form-item"
-            label={fieldLabel('Рабочее напряжение')}
+            label={fieldLabel('supply_voltage', heatCalcObjectType)}
             name="supply_voltage"
           >
             {withHelp(
               <Select
                 data-testid="supply-voltage-select"
-                options={objectType === 'pipe'
-                  ? heatCalcSelectOptions(heatCalcObjectType, 'supply_voltage')
-                  : [{ value: 220, label: '220 В' }, { value: 380, label: '380 В' }]}
+                options={heatCalcSelectOptions(heatCalcObjectType, 'supply_voltage')}
                 placeholder="Выберите"
               />,
-              'Рабочее напряжение питания. Используется при расчёте тока в электротехническом расчёте.',
+              fieldHelp('supply_voltage', heatCalcObjectType),
             )}
           </Form.Item>
           <Form.Item
             className="numeric-form-item coefficient-form-item helped-form-item"
-            label={fieldLabel('Kзап')}
+            label={fieldLabel('safety_factor', heatCalcObjectType)}
             name="safety_factor"
             rules={objectType === 'pipe'
               ? heatCalcFormFieldRules(form, heatCalcObjectType, 'safety_factor')
@@ -1096,17 +1121,15 @@ export default function ObjectWizard({
             {withHelp(
               <InputNumber
                 data-testid="safety-factor-input"
-                {...(objectType === 'pipe'
-                  ? numberInputProps('safety_factor')
-                  : { min: 1.05, max: 1.7, step: 0.01 })}
+                {...numberInputProps('safety_factor')}
               />,
-              'Коэффициент запаса Kзап. Диапазон ТНП: 1,05…1,70. Используется в суммарных теплопотерях и при подборе кабеля.',
+              fieldHelp('safety_factor', heatCalcObjectType),
             )}
           </Form.Item>
           {objectType === 'tank' && (
             <Form.Item
               className="numeric-form-item coefficient-form-item helped-form-item"
-              label={fieldLabel('Q_доп')}
+              label={fieldLabel('q_additional', heatCalcObjectType)}
               name="q_additional"
               preserve={false}
               rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'q_additional')}
@@ -1117,29 +1140,29 @@ export default function ObjectWizard({
                   {...numberInputProps('q_additional')}
                   addonAfter="Вт"
                 />,
-                'Дополнительные теплопотери (днище, штуцера и пр.). Прибавляется к суммарным теплопотерям, не влияет на удельные.',
+                fieldHelp('q_additional', heatCalcObjectType),
               )}
             </Form.Item>
           )}
           <Form.Item
             className="compact-select-form-item helped-form-item"
-            label={fieldLabel('Пропарка')}
+            label={fieldLabel('steam_tracing', heatCalcObjectType)}
             name="steam_tracing"
           >
             {withHelp(
               <Select
                 data-testid="steam-tracing-select"
-                options={[{ value: 'yes', label: 'Да' }, { value: 'no', label: 'Нет' }]}
+                options={heatCalcSelectOptions(heatCalcObjectType, 'steam_tracing')}
                 placeholder="Выберите"
               />,
-              'Признак пропарки. Сохраняется в параметрах объекта для проверки эксплуатационных ограничений.',
+              fieldHelp('steam_tracing', heatCalcObjectType),
             )}
           </Form.Item>
           {objectType === 'pipe' && (
             <>
               <Form.Item
                 className="numeric-form-item fitting-count-form-item helped-form-item"
-                label={fieldLabel('Задвижки')}
+                label={fieldLabel('valve_count', heatCalcObjectType)}
                 name="valve_count"
                 rules={[
                   { type: 'number', min: 0, message: 'Минимум — 0 шт' },
@@ -1147,13 +1170,17 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber data-testid="valve-count-input" min={0} max={100} addonAfter="шт" />,
-                  'Количество задвижек, шт. Диапазон: 0…100. Сохраняется как локальные элементы объекта.',
+                  <InputNumber
+                    data-testid="valve-count-input"
+                    {...numberInputProps('valve_count')}
+                    addonAfter="шт"
+                  />,
+                  fieldHelp('valve_count', heatCalcObjectType),
                 )}
               </Form.Item>
               <Form.Item
                 className="numeric-form-item fitting-count-form-item helped-form-item"
-                label={fieldLabel('Фланцы')}
+                label={fieldLabel('flange_count', heatCalcObjectType)}
                 name="flange_count"
                 rules={[
                   { type: 'number', min: 0, message: 'Минимум — 0 шт' },
@@ -1161,13 +1188,17 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber data-testid="flange-count-input" min={0} max={100} addonAfter="шт" />,
-                  'Количество фланцев, шт. Диапазон: 0…100. Сохраняется как локальные элементы объекта.',
+                  <InputNumber
+                    data-testid="flange-count-input"
+                    {...numberInputProps('flange_count')}
+                    addonAfter="шт"
+                  />,
+                  fieldHelp('flange_count', heatCalcObjectType),
                 )}
               </Form.Item>
               <Form.Item
                 className="numeric-form-item fitting-count-form-item helped-form-item"
-                label={fieldLabel('Опоры')}
+                label={fieldLabel('support_count', heatCalcObjectType)}
                 name="support_count"
                 rules={[
                   { type: 'number', min: 0, message: 'Минимум — 0 шт' },
@@ -1175,13 +1206,17 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber data-testid="support-count-input" min={0} max={100} addonAfter="шт" />,
-                  'Количество опор, шт. Диапазон: 0…100. Сохраняется как локальные элементы объекта.',
+                  <InputNumber
+                    data-testid="support-count-input"
+                    {...numberInputProps('support_count')}
+                    addonAfter="шт"
+                  />,
+                  fieldHelp('support_count', heatCalcObjectType),
                 )}
               </Form.Item>
               <Form.Item
                 className="numeric-form-item coefficient-form-item helped-form-item"
-                label={fieldLabel('Lэкв')}
+                label={fieldLabel('local_element_equiv_length', heatCalcObjectType)}
                 name="local_element_equiv_length"
                 rules={[
                   { type: 'number', min: 0.1, message: 'Минимальная эквивалентная длина — 0,1 м' },
@@ -1189,8 +1224,12 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber data-testid="local-element-equiv-length-input" min={0.1} max={6.9} step={0.1} addonAfter="м" />,
-                  'Эквивалентная длина одного локального элемента Lэкв. Прибавляется к длине трубы как N × Lэкв.',
+                  <InputNumber
+                    data-testid="local-element-equiv-length-input"
+                    {...numberInputProps('local_element_equiv_length')}
+                    addonAfter="м"
+                  />,
+                  fieldHelp('local_element_equiv_length', heatCalcObjectType),
                 )}
               </Form.Item>
             </>

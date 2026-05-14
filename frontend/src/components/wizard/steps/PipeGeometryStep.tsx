@@ -6,6 +6,10 @@ import {
   heatCalcNumberInputProps,
 } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
+import {
+  getHeatCalcFieldDescription,
+  getHeatCalcFieldLabel,
+} from '@/domain/heatCalcFields';
 import HelpedControl from '../HelpedControl';
 import FieldLabel from '../FieldLabel';
 
@@ -15,8 +19,12 @@ function withHelp(control: ReactElement, hint: string) {
   return <HelpedControl hint={hint}>{control}</HelpedControl>;
 }
 
-function fieldLabel(text: string) {
-  return <FieldLabel text={text} />;
+function fieldLabel(fieldId: string) {
+  return <FieldLabel text={getHeatCalcFieldLabel(fieldId, { context: 'form', objectType: 'pipe' })} />;
+}
+
+function fieldHelp(fieldId: string) {
+  return getHeatCalcFieldDescription(fieldId, { objectType: 'pipe' });
 }
 
 interface Props {
@@ -37,7 +45,7 @@ export default function PipeGeometryStep({ fieldInputSettings }: Props) {
           return (
             <Form.Item
               className="fit-label-form-item short-number-form-item helped-form-item"
-              label={fieldLabel('Наружный Ø трубопровода')}
+              label={fieldLabel('outer_diameter_mm')}
               name="outer_diameter_mm"
               rules={heatCalcFormFieldRules(form, 'pipe', 'outer_diameter_mm')}
               extra={
@@ -58,7 +66,7 @@ export default function PipeGeometryStep({ fieldInputSettings }: Props) {
                   {...numberInputProps('outer_diameter_mm')}
                   addonAfter="мм"
                 />,
-                'Наружный диаметр трубопровода Ø, мм. Диапазон ТНП: 10,8–3000 мм. Стандартные размеры DN10–DN1000.',
+                fieldHelp('outer_diameter_mm'),
               )}
             </Form.Item>
           );
@@ -67,7 +75,7 @@ export default function PipeGeometryStep({ fieldInputSettings }: Props) {
 
       <Form.Item
         className="fit-label-form-item long-number-form-item helped-form-item"
-        label={fieldLabel('Длина трубопровода')}
+        label={fieldLabel('pipe_length')}
         name="pipe_length"
         rules={heatCalcFormFieldRules(form, 'pipe', 'pipe_length')}
       >
@@ -77,7 +85,7 @@ export default function PipeGeometryStep({ fieldInputSettings }: Props) {
             {...numberInputProps('pipe_length')}
             addonAfter="м"
           />,
-          'Длина обогреваемого участка. Диапазон ТНП: 0,5–200 000 м.',
+          fieldHelp('pipe_length'),
         )}
       </Form.Item>
     </>

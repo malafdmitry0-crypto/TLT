@@ -19,12 +19,36 @@ describe('heatCalcTableColumns', () => {
     const pipeDn = HEATCALC_TABLE_COLUMN_CATALOG.pipe.find((column) => column.key === 'pipe_dn');
 
     expect(pipeDn).toMatchObject({
-      labels: { short: 'DN', full: 'DN' },
+      labels: { short: 'DN', full: 'DN', compact: 'DN' },
       title: 'DN',
       label: 'DN',
       defaultWidthPct: 5.8,
     });
     expect(pipeDn?.minWidthPx).toBeGreaterThan(0);
+  });
+
+  it('подставляет выбранный формат названия без изменения настроек колонок', () => {
+    const settings = getDefaultTableColumnSettings();
+    const defaultOuterDiameter = getVisibleTableColumnMetas('pipe', settings)
+      .find((column) => column.key === 'pipe_outer_diameter');
+    const compactOuterDiameter = getVisibleTableColumnMetas('pipe', settings, 'compact')
+      .find((column) => column.key === 'pipe_outer_diameter');
+    const fullOuterDiameter = getVisibleTableColumnMetas('pipe', settings, 'full')
+      .find((column) => column.key === 'pipe_outer_diameter');
+
+    expect(defaultOuterDiameter).toMatchObject({
+      label: 'Наружный диаметр',
+      title: 'Ø, мм',
+    });
+    expect(compactOuterDiameter).toMatchObject({
+      label: 'Наружный диаметр',
+      title: 'Ø',
+    });
+    expect(fullOuterDiameter).toMatchObject({
+      label: 'Наружный диаметр',
+      title: 'Наружный диаметр',
+    });
+    expect(settings.types.pipe.visibleOrder).toContain('pipe_outer_diameter');
   });
 
   it('мигрирует v1 visible keys в layout без потери обязательной колонки', () => {

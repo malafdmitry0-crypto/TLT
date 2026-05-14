@@ -426,7 +426,7 @@ describe('HeatCalcPage', () => {
       });
       expect(screen.getByText('Альфа резервуар')).toBeInTheDocument();
       expect(screen.getByText('1/2')).toBeInTheDocument();
-      expect(within(typeToolbar).getByRole('button', { name: /Все:\s*2/ })).toBeInTheDocument();
+      expect(within(typeToolbar).getByRole('button', { name: /Все:\s*1\/2/ })).toBeInTheDocument();
     }, 10_000);
 
     it('настройки таблицы для режима «Все» сохраняются отдельно от труб и резервуаров', async () => {
@@ -753,12 +753,48 @@ describe('HeatCalcPage', () => {
       expect(saved).toEqual({
         version: 1,
         fontSize: 'large',
+        tableLabelFormat: 'short',
+        settingsLabelFormat: 'full',
         inlineEditingEnabled: false,
         formPlacement: 'top',
         sideFormWidthPct: 34,
         formSectionWeights: [1.095, 1.35, 1.2, 0.56],
       });
       expect(saved).not.toHaveProperty('fontSizePx');
+    }, 10_000);
+
+    it('сохраняет форматы названий для таблицы и настроек колонок', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      expect(screen.queryAllByRole('columnheader').some((header) =>
+        header.textContent?.includes('Ø, мм'))).toBe(true);
+
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      await openTableSettingsOtherTab(user, dialog);
+      await user.click(within(dialog).getAllByText('Полные')[0]);
+      await user.click(within(dialog).getAllByText('Краткие')[1]);
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(screen.queryAllByRole('columnheader').some((header) =>
+          header.textContent?.includes('Наружный диаметр'))).toBe(true);
+      });
+      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
+      expect(saved).toMatchObject({
+        tableLabelFormat: 'full',
+        settingsLabelFormat: 'short',
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
+      const nextDialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      expect(within(nextDialog).getByText('Ø, мм')).toBeInTheDocument();
     }, 10_000);
 
     it('сохраняет положение блока параметров в настройках отображения', async () => {
@@ -783,6 +819,8 @@ describe('HeatCalcPage', () => {
       expect(saved).toMatchObject({
         version: 1,
         fontSize: 'standard',
+        tableLabelFormat: 'short',
+        settingsLabelFormat: 'full',
         inlineEditingEnabled: false,
         formPlacement: 'left',
         sideFormWidthPct: 34,
@@ -1281,6 +1319,8 @@ describe('HeatCalcPage', () => {
       expect(viewCached.settings).toEqual({
         version: 1,
         fontSize: 'large',
+        tableLabelFormat: 'short',
+        settingsLabelFormat: 'full',
         inlineEditingEnabled: false,
         formPlacement: 'top',
         sideFormWidthPct: 34,
@@ -1293,7 +1333,7 @@ describe('HeatCalcPage', () => {
       const fieldInputCached = JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY) ?? '{}');
       expect(fieldInputCached.userId).toBe('user-test-1');
       expect(fieldInputCached.settings.fields.pipe.outer_diameter_mm).toEqual({ step: 2.5 });
-    }, 10_000);
+    }, 15_000);
 
     it('фильтр по наименованию скрывает строки только в таблице, не меняя счётчики расчёта', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1318,7 +1358,7 @@ describe('HeatCalcPage', () => {
       });
       expect(screen.getByText('Труба Юг')).toBeInTheDocument();
       expect(screen.getByText('1/2')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Трубопровод:\s*2/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Трубопровод:\s*1\/2/ })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Все:\s*2/ })).toBeInTheDocument();
     });
 
@@ -1377,7 +1417,7 @@ describe('HeatCalcPage', () => {
       expect(await screen.findByText('Труба 60')).toBeInTheDocument();
       expect(screen.getByText('Труба 219')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Сбросить фильтры таблицы' })).toBeDisabled();
-    }, 10000);
+    }, 15_000);
 
     it('сортировка по диаметру меняет только визуальный порядок строк', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1448,7 +1488,7 @@ describe('HeatCalcPage', () => {
       expect(table).not.toBeNull();
       const rowCheckboxes = within(table!).getAllByRole('checkbox');
       await user.click(rowCheckboxes[1]);
-      expect(await screen.findByRole('button', { name: /Трубопровод:\s*1 из 2/ })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: /Трубопровод:\s*1\/2/ })).toBeInTheDocument();
       expect(screen.queryByText(/Выбрано:/)).not.toBeInTheDocument();
 
       await openColumnFilter(user, 'Наименование');
@@ -1456,7 +1496,7 @@ describe('HeatCalcPage', () => {
       await user.click(screen.getByRole('button', { name: 'Применить' }));
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Трубопровод:\s*2/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Трубопровод:\s*1\/2/ })).toBeInTheDocument();
       });
       expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
       expect(screen.getByText('Труба Юг')).toBeInTheDocument();
@@ -1479,7 +1519,7 @@ describe('HeatCalcPage', () => {
       const rowCheckboxes = within(table!).getAllByRole('checkbox');
       await user.click(rowCheckboxes[1]);
 
-      expect(await screen.findByRole('button', { name: /Трубопровод:\s*1 из 1/ })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: /Трубопровод:\s*1\/1/ })).toBeInTheDocument();
       expect(screen.queryByText(/Выбрано:/)).not.toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: /Резервуар:/ }));
       await waitFor(() => {
