@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 
 function renderWithRouter(ui: React.ReactElement) {
-  return render(<MemoryRouter>{ui}</MemoryRouter>);
+  return render(<TestMemoryRouter>{ui}</TestMemoryRouter>);
 }
 
 describe('EmptyProjectState', () => {

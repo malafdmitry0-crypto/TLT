@@ -1,5 +1,6 @@
-import { Form, InputNumber, Select } from 'antd';
+import { Form, Select } from 'antd';
 import type { ReactElement } from 'react';
+import UnitInputNumber from '@/components/common/UnitInputNumber';
 import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
@@ -73,10 +74,10 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
                   rules={heatCalcFormFieldRules(form, 'tank', 'diameter_mm')}
                 >
                   {withHelp(
-                    <InputNumber
+                    <UnitInputNumber
                       data-testid="tank-diameter-input"
                       {...numberInputProps('diameter_mm')}
-                      addonAfter="мм"
+                    unit="мм"
                     />,
                     fieldHelp('diameter_mm'),
                   )}
@@ -91,10 +92,10 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
                   rules={heatCalcFormFieldRules(form, 'tank', 'height_mm')}
                 >
                   {withHelp(
-                    <InputNumber
+                    <UnitInputNumber
                       data-testid="tank-height-input"
                       {...numberInputProps('height_mm')}
-                      addonAfter="мм"
+                    unit="мм"
                     />,
                     fieldHelp('height_mm'),
                   )}
@@ -109,10 +110,10 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
                   rules={heatCalcFormFieldRules(form, 'tank', 'length_mm')}
                 >
                   {withHelp(
-                    <InputNumber
+                    <UnitInputNumber
                       data-testid="tank-length-input"
                       {...numberInputProps('length_mm')}
-                      addonAfter="мм"
+                    unit="мм"
                     />,
                     fieldHelp('length_mm'),
                   )}
@@ -127,10 +128,10 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
                   rules={heatCalcFormFieldRules(form, 'tank', 'width_mm')}
                 >
                   {withHelp(
-                    <InputNumber
+                    <UnitInputNumber
                       data-testid="tank-width-input"
                       {...numberInputProps('width_mm')}
-                      addonAfter="мм"
+                    unit="мм"
                     />,
                     fieldHelp('width_mm'),
                   )}
@@ -148,10 +149,10 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
         rules={heatCalcFormFieldRules(form, 'tank', 'wall_thickness_mm')}
       >
         {withHelp(
-          <InputNumber
+          <UnitInputNumber
             data-testid="tank-wall-thickness-input"
             {...numberInputProps('wall_thickness_mm')}
-            addonAfter="мм"
+                    unit="мм"
           />,
           fieldHelp('wall_thickness_mm'),
         )}
@@ -164,10 +165,10 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
         rules={heatCalcFormFieldRules(form, 'tank', 'wall_lambda')}
       >
         {withHelp(
-          <InputNumber
+          <UnitInputNumber
             data-testid="tank-wall-lambda-input"
             {...numberInputProps('wall_lambda')}
-            addonAfter="Вт/мК"
+                    unit="Вт/мК"
           />,
           fieldHelp('wall_lambda'),
         )}

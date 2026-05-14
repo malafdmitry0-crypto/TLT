@@ -216,7 +216,7 @@ export default function SpecificationPage() {
           <Card
             size="small"
             title={<Text strong>Окно спецификаций</Text>}
-            bodyStyle={{ paddingTop: 8 }}
+            styles={{ body: { paddingTop: 8 } }}
           >
             {!hasItems && (
               <Alert

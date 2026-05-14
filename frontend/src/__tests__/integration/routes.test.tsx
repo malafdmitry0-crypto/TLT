@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AppRoutes from '@/routes';
 import { useAuthStore } from '@/store/authStore';
@@ -122,9 +122,9 @@ function renderAt(path: string) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[path]}>
+      <TestMemoryRouter initialEntries={[path]}>
         <AppRoutes />
-      </MemoryRouter>
+      </TestMemoryRouter>
     </QueryClientProvider>
   );
 }

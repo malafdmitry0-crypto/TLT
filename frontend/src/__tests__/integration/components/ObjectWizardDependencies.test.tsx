@@ -114,6 +114,15 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
   });
 
+  it('помечает обязательные числовые поля новой трубы как required', async () => {
+    renderWizard();
+
+    expect(await screen.findByTestId('outer-diameter-input')).toHaveAttribute('aria-required', 'true');
+    expect(screen.getByTestId('pipe-length-input')).toHaveAttribute('aria-required', 'true');
+    expect(screen.getByTestId('wall-thickness-input')).toHaveAttribute('aria-required', 'true');
+    expect(screen.getByTestId('valve-count-input')).not.toHaveAttribute('aria-required');
+  });
+
   it('не подставляет форму и размеры в новый резервуар', async () => {
     renderWizard({ objectType: 'tank' });
 

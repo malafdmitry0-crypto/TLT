@@ -61,12 +61,45 @@ describe('heatCalcTableColumns', () => {
     });
 
     expect(settings.version).toBe(HEATCALC_TABLE_COLUMNS_VERSION);
-    expect(settings.types.pipe.visibleOrder).toEqual(['pipe_dn', 'name']);
+    expect(settings.types.pipe.visibleOrder).toEqual(['pipe_dn', 'name', 'placement']);
     expect(settings.types.pipe.columns.pipe_dn).toMatchObject({ widthPct: 5.8 });
     expect(settings.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
     expect(settings.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
     expect(settings.types.pipe.visibleOrder).toContain('name');
     expect(settings.types.pipe.visibleOrder).not.toContain('pipe_outer_diameter');
+  });
+
+  it('добавляет размещение трубопровода в старые сохранённые настройки', () => {
+    const settings = normalizeTableColumnSettings({
+      version: 4,
+      types: {
+        pipe: {
+          visibleOrder: ['index', 'name', 'pipe_outer_diameter'],
+          columns: {},
+        },
+      },
+    });
+
+    expect(settings.types.pipe.visibleOrder.slice(0, 4)).toEqual([
+      'index',
+      'name',
+      'placement',
+      'pipe_outer_diameter',
+    ]);
+  });
+
+  it('не возвращает размещение трубопровода после ручного скрытия в новой версии', () => {
+    const settings = normalizeTableColumnSettings({
+      version: HEATCALC_TABLE_COLUMNS_VERSION,
+      types: {
+        pipe: {
+          visibleOrder: ['index', 'name', 'pipe_outer_diameter'],
+          columns: {},
+        },
+      },
+    });
+
+    expect(settings.types.pipe.visibleOrder).not.toContain('placement');
   });
 
   it('нормализует порядок без дублей и перемещает колонку по номеру', () => {
@@ -78,15 +111,15 @@ describe('heatCalcTableColumns', () => {
       'index',
       'name',
       'pipe_dn',
+      'placement',
       'pipe_outer_diameter',
-      'pipe_length',
     ]);
     expect(moved.types.pipe.visibleOrder.slice(0, 5)).toEqual([
       'index',
       'name',
       'pipe_dn',
+      'placement',
       'pipe_outer_diameter',
-      'pipe_length',
     ]);
     expect(new Set(moved.types.pipe.visibleOrder).size).toBe(moved.types.pipe.visibleOrder.length);
   });
@@ -95,7 +128,8 @@ describe('heatCalcTableColumns', () => {
     const settings = getDefaultTableColumnSettings();
     const moved = reorderTableColumn(settings, 'pipe', 'pipe_dn', 'pipe_outer_diameter');
 
-    expect(moved.types.pipe.visibleOrder.slice(2, 4)).toEqual([
+    expect(moved.types.pipe.visibleOrder.slice(2, 5)).toEqual([
+      'placement',
       'pipe_dn',
       'pipe_outer_diameter',
     ]);
@@ -108,6 +142,13 @@ describe('heatCalcTableColumns', () => {
 
     expect(visible).not.toContain('type');
     expect(all).toContain('type');
+  });
+
+  it('показывает размещение трубопровода в дефолтной таблице', () => {
+    const settings = getDefaultTableColumnSettings();
+    const visiblePipe = getVisibleTableColumnMetas('pipe', settings).map((column) => column.key);
+
+    expect(visiblePipe).toContain('placement');
   });
 
   it('оставляет расчетные детали скрытыми по умолчанию, но доступными в каталоге', () => {

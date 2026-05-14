@@ -5,6 +5,7 @@ import {
   type HeatCalcFieldOption,
 } from '@/domain/heatCalcFields';
 import {
+  isHeatCalcFieldRequired,
   normalizeHeatCalcFieldValue,
   validateHeatCalcField,
 } from '@/domain/heatCalcFieldRules';
@@ -19,7 +20,11 @@ export function heatCalcFormFieldRules(
   objectType: HeatCalcObjectType,
   fieldId: string,
 ) {
+  const values = form.getFieldsValue(true);
+  const required = isHeatCalcFieldRequired(fieldId, { objectType, values });
+  const requiredMessage = getRequiredMessage(objectType, fieldId);
   return [
+    ...(required ? [{ required: true, message: requiredMessage }] : []),
     {
       async validator(_: unknown, value: unknown) {
         const values = {
@@ -39,6 +44,12 @@ export function heatCalcFormFieldRules(
       },
     },
   ];
+}
+
+function getRequiredMessage(objectType: HeatCalcObjectType, fieldId: string) {
+  const field = getHeatCalcFieldDefinition(fieldId, objectType);
+  if (field?.editor === 'select') return 'Выберите значение';
+  return 'Укажите значение';
 }
 
 export function heatCalcNumberInputProps(

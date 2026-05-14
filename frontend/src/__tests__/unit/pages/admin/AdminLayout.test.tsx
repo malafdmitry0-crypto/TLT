@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
+import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import AdminLayout from '@/pages/admin/AdminLayout';
 import { useAuthStore } from '@/store/authStore';
 
@@ -17,13 +18,13 @@ describe('AdminLayout', () => {
 
   it('рендерит шапку Администрирование, меню и кнопку Выход', () => {
     render(
-      <MemoryRouter initialEntries={['/admin/users']}>
+      <TestMemoryRouter initialEntries={['/admin/users']}>
         <Routes>
           <Route path="/admin" element={<AdminLayout />}>
             <Route path="users" element={<div>USERS-CONTENT</div>} />
           </Route>
         </Routes>
-      </MemoryRouter>
+      </TestMemoryRouter>
     );
     expect(screen.getByText(/Администрирование/i)).toBeInTheDocument();
     expect(screen.getByText('USERS-CONTENT')).toBeInTheDocument();

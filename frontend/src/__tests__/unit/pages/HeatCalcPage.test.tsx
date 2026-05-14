@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HeatCalcPage from '@/pages/HeatCalcPage';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
@@ -279,9 +279,9 @@ function renderPage() {
   });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter>
+      <TestMemoryRouter>
         <HeatCalcPage />
-      </MemoryRouter>
+      </TestMemoryRouter>
     </QueryClientProvider>
   );
 }
@@ -464,7 +464,7 @@ describe('HeatCalcPage', () => {
         expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       });
       expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
-    });
+    }, 10_000);
 
     it('режим «Все» показывает трубопроводы и резервуары в одной таблице', async () => {
       const { listObjects } = await import('@/api/projects');

@@ -117,6 +117,10 @@ describe('pipeFormToApiParams', () => {
     expect(api.insulation_thickness).toBeCloseTo(0.05);
     expect(api.pipe_length).toBe(50);
     expect(api.name).toBeUndefined();
+    expect(api.valve_count).toBeUndefined();
+    expect(api.flange_count).toBeUndefined();
+    expect(api.support_count).toBeUndefined();
+    expect(api.num_local_elements).toBeUndefined();
   });
 
   it('сохраняет name если задан', () => {
@@ -174,6 +178,41 @@ describe('pipeFormToApiParams', () => {
     expect(api.max_process_temperature).toBe(90);
     expect(api.num_local_elements).toBe(6);
     expect(api.local_element_equiv_length).toBe(1.5);
+  });
+
+  it('не затирает backend-дефолты локальных элементов пустыми нулями', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+    });
+
+    expect(api).not.toHaveProperty('valve_count');
+    expect(api).not.toHaveProperty('flange_count');
+    expect(api).not.toHaveProperty('support_count');
+    expect(api).not.toHaveProperty('num_local_elements');
+  });
+
+  it('сохраняет явно заданные нули локальных элементов', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      valve_count: 0,
+      flange_count: 0,
+      support_count: 0,
+    });
+
+    expect(api.valve_count).toBe(0);
+    expect(api.flange_count).toBe(0);
+    expect(api.support_count).toBe(0);
+    expect(api.num_local_elements).toBeUndefined();
   });
 
   it('формирует insulation_layers для трёх слоёв', () => {

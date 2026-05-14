@@ -1,6 +1,7 @@
 import { EditOutlined } from '@ant-design/icons';
-import { Form, Input, InputNumber, Modal } from 'antd';
+import { Form, Input, Modal } from 'antd';
 import { useState, type KeyboardEvent, type ReactElement } from 'react';
+import UnitInputNumber from '@/components/common/UnitInputNumber';
 import {
   getHeatCalcFieldInputConfig,
   getHeatCalcFieldLabel,
@@ -207,12 +208,12 @@ export default function InsulationTemperatureRangeField({
               modalRangeValidator(true),
             ]}
           >
-            <InputNumber
+            <UnitInputNumber
               data-testid={`${dataTestIdPrefix}-temperature-min-input`}
               min={modalMinLimit}
               max={modalMaxLimit}
               step={minStep}
-              addonAfter="°C"
+                    unit="°C"
             />
           </Form.Item>
           <Form.Item
@@ -224,12 +225,12 @@ export default function InsulationTemperatureRangeField({
               modalRangeValidator(false),
             ]}
           >
-            <InputNumber
+            <UnitInputNumber
               data-testid={`${dataTestIdPrefix}-temperature-max-input`}
               min={modalMinLimit}
               max={modalMaxLimit}
               step={maxStep}
-              addonAfter="°C"
+                    unit="°C"
             />
           </Form.Item>
         </Form>

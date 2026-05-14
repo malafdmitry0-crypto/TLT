@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import HomePage from '@/pages/HomePage';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
@@ -27,9 +27,9 @@ describe('HomePage', () => {
 
   it('shows role selection options', () => {
     render(
-      <MemoryRouter>
+      <TestMemoryRouter>
         <HomePage />
-      </MemoryRouter>
+      </TestMemoryRouter>
     );
     expect(screen.getAllByText(/без регистрации/i)[0]).toBeInTheDocument();
     expect(screen.getAllByText(/как сотрудник/i)[0]).toBeInTheDocument();
@@ -38,9 +38,9 @@ describe('HomePage', () => {
 
   it('разводит вход сотрудника и администратора по разным режимам логина', async () => {
     render(
-      <MemoryRouter>
+      <TestMemoryRouter>
         <HomePage />
-      </MemoryRouter>
+      </TestMemoryRouter>
     );
 
     await userEvent.click(screen.getByRole('button', { name: /Войти с паролем/i }));
@@ -71,9 +71,9 @@ describe('HomePage', () => {
     });
 
     render(
-      <MemoryRouter>
+      <TestMemoryRouter>
         <HomePage />
-      </MemoryRouter>
+      </TestMemoryRouter>
     );
     await userEvent.click(screen.getByRole('button', { name: /Начать без регистрации/i }));
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ElecCalcPage from '@/pages/ElecCalcPage';
 import { useProjectStore } from '@/store/projectStore';
@@ -141,9 +141,9 @@ function renderPage(state?: { activeJobId?: string }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[{ pathname: '/workspace/elec-calc', state }]}>
+      <TestMemoryRouter initialEntries={[{ pathname: '/workspace/elec-calc', state }]}>
         <ElecCalcPage />
-      </MemoryRouter>
+      </TestMemoryRouter>
     </QueryClientProvider>
   );
 }

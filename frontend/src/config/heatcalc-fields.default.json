@@ -3152,7 +3152,7 @@
           "defaultWidthPct": 11.6,
           "minWidthPx": 80,
           "valueType": "enum",
-          "defaultVisible": false,
+          "defaultVisible": true,
           "sortable": true,
           "filterable": true,
           "resizable": true,
@@ -4398,6 +4398,7 @@
       "pipe": [
         "index",
         "name",
+        "placement",
         "pipe_outer_diameter",
         "pipe_dn",
         "pipe_length",

@@ -8,6 +8,8 @@ const screenshotPath = process.argv.find((arg) => arg.startsWith('--screenshot='
 const viewportWidth = Number(process.argv.find((arg) => arg.startsWith('--width='))?.split('=')[1] ?? 2048);
 const layerCount = Number(process.argv.find((arg) => arg.startsWith('--layers='))?.split('=')[1] ?? 2);
 const normalizedLayerCount = Math.min(Math.max(layerCount || 2, 1), 3);
+const placementArg = process.argv.find((arg) => arg.startsWith('--placement='))?.split('=')[1];
+const placement = ['top', 'bottom', 'left', 'right'].includes(placementArg) ? placementArg : null;
 
 async function selectObjectType(page, label) {
   const byLabel = page.getByLabel(label, { exact: true });
@@ -33,6 +35,21 @@ const page = await browser.newPage({
   viewport: { width: viewportWidth, height: 900 },
   deviceScaleFactor: 1,
 });
+
+if (placement) {
+  await page.addInitScript((formPlacement) => {
+    window.localStorage.setItem('heatcalc.tableView.v1.guest', JSON.stringify({
+      version: 1,
+      fontSize: 'standard',
+      tableLabelFormat: 'short',
+      settingsLabelFormat: 'full',
+      inlineEditingEnabled: false,
+      formPlacement,
+      sideFormWidthPct: 34,
+      formSectionWeights: [1.095, 1.35, 1.2, 0.56],
+    }));
+  }, placement);
+}
 
 try {
   await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
@@ -88,7 +105,7 @@ try {
       const items = Array.from(section.querySelectorAll(':scope > .ant-form-item')).map((item) => {
         const itemRect = item.getBoundingClientRect();
         const label = item.querySelector('.ant-form-item-label')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
-        const control = item.querySelector('.ant-input, .ant-select, .ant-input-number-group-wrapper, .ant-input-number');
+        const control = item.querySelector('.ant-input, .ant-select, .unit-input-number, .ant-input-number-group-wrapper, .ant-input-number');
         const controlRect = control?.getBoundingClientRect();
         return {
           label,
@@ -117,7 +134,7 @@ try {
           itemRect.right > sectionRect.right + 1;
 
         const childOverflow = Array.from(
-          item.querySelectorAll('.ant-form-item-row, .ant-form-item-label, .ant-input, .ant-select, .ant-input-number, .ant-input-number-group-wrapper, .anticon-info-circle'),
+          item.querySelectorAll('.ant-form-item-row, .ant-form-item-label, .ant-input, .ant-select, .unit-input-number, .unit-input-number__addon, .ant-input-number, .ant-input-number-group-wrapper, .anticon-info-circle'),
         ).some((child) => {
           if (getComputedStyle(child).display === 'contents') return false;
           const childRect = child.getBoundingClientRect();

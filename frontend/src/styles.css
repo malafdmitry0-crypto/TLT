@@ -1265,23 +1265,53 @@ html, body, #root {
   box-sizing: border-box;
 }
 
-/* ── InputNumber с addonAfter ─────────────────────────────────── */
-.inline-object-form .ant-input-number-group-wrapper {
-  display: block;
-  height: var(--inline-control-height);
+/* ── InputNumber с единицей измерения ─────────────────────────── */
+.unit-input-number {
+  display: inline-flex;
   width: max-content;
   min-width: 0;
-  box-sizing: border-box;
   vertical-align: top;
 }
 
-/* antd renders group as display:table — do NOT override display */
-.inline-object-form .ant-input-number-group {
-  height: var(--inline-control-height);
-  width: max-content;
+.unit-input-number .ant-input-number {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
 }
 
-.inline-object-form .ant-input-number-group .ant-input-number {
+.unit-input-number__addon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 32px;
+  padding: 0 11px;
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid #d9d9d9;
+  border-inline-start: 0;
+  border-radius: 0 6px 6px 0;
+  transition: all 0.2s;
+}
+
+.unit-input-number .ant-input-number-disabled + .unit-input-number__addon,
+.unit-input-number .ant-input-number[disabled] + .unit-input-number__addon {
+  color: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.ant-form-item-has-error .unit-input-number__addon {
+  border-color: #ff4d4f;
+}
+
+.inline-object-form .unit-input-number {
+  height: var(--inline-control-height);
+}
+
+.inline-object-form .unit-input-number .ant-input-number {
   height: var(--inline-control-height);
   width: calc(var(--numeric-value-width, 6ch) + 22px);
   min-width: calc(var(--numeric-value-width, 6ch) + 22px);
@@ -1298,7 +1328,7 @@ html, body, #root {
   line-height: calc(var(--inline-control-height) - 2px);
 }
 
-.inline-object-form .ant-input-number-group-addon {
+.inline-object-form .unit-input-number__addon {
   height: var(--inline-control-height);
   font-size: 9px;
   padding: 0 3px;

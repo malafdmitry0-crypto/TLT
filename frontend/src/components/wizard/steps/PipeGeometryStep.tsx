@@ -1,5 +1,6 @@
-import { Form, InputNumber, Typography } from 'antd';
+import { Form, Typography } from 'antd';
 import type { ReactElement } from 'react';
+import UnitInputNumber from '@/components/common/UnitInputNumber';
 import { findDN } from '@/utils/objectWizardUtils';
 import {
   heatCalcFormFieldRules,
@@ -61,10 +62,10 @@ export default function PipeGeometryStep({ fieldInputSettings }: Props) {
               }
             >
               {withHelp(
-                <InputNumber
+                <UnitInputNumber
                   data-testid="outer-diameter-input"
                   {...numberInputProps('outer_diameter_mm')}
-                  addonAfter="мм"
+                    unit="мм"
                 />,
                 fieldHelp('outer_diameter_mm'),
               )}
@@ -80,10 +81,10 @@ export default function PipeGeometryStep({ fieldInputSettings }: Props) {
         rules={heatCalcFormFieldRules(form, 'pipe', 'pipe_length')}
       >
         {withHelp(
-          <InputNumber
+          <UnitInputNumber
             data-testid="pipe-length-input"
             {...numberInputProps('pipe_length')}
-            addonAfter="м"
+                    unit="м"
           />,
           fieldHelp('pipe_length'),
         )}

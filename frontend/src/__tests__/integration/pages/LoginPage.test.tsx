@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
+import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import LoginPage from '@/pages/LoginPage';
 import { useAuthStore } from '@/store/authStore';
 
@@ -26,11 +27,11 @@ describe('LoginPage', () => {
 
   function renderAt(path: string) {
     return render(
-      <MemoryRouter initialEntries={[path]}>
+      <TestMemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
         </Routes>
-      </MemoryRouter>
+      </TestMemoryRouter>
     );
   }
 

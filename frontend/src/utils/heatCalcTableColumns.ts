@@ -66,8 +66,8 @@ interface RegisteredTableColumnCache {
   cachedAt: string;
 }
 
-export const HEATCALC_TABLE_COLUMNS_VERSION = 4;
-// The preference key is intentionally unchanged: v4 extends the existing table
+export const HEATCALC_TABLE_COLUMNS_VERSION = 5;
+// The preference key is intentionally unchanged: v5 extends the existing table
 // config instead of creating a parallel source of truth.
 export const HEATCALC_TABLE_COLUMN_PREF_KEY = 'heatcalc.tableColumns.v1';
 export const HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY = 'heatcalc.tableColumns.v1.guest';
@@ -342,6 +342,42 @@ function normalizeTypeSettingsFromVisibleKeys(
   };
 }
 
+function insertVisibleColumnAfter(
+  settings: HeatCalcTableColumnTypeSettings,
+  key: HeatCalcColumnKey,
+  afterKey: HeatCalcColumnKey,
+): HeatCalcTableColumnTypeSettings {
+  if (settings.visibleOrder.includes(key)) return settings;
+  const insertAfterIndex = settings.visibleOrder.indexOf(afterKey);
+  const visibleOrder = [...settings.visibleOrder];
+  if (insertAfterIndex >= 0) {
+    visibleOrder.splice(insertAfterIndex + 1, 0, key);
+  } else {
+    visibleOrder.push(key);
+  }
+  return {
+    ...settings,
+    visibleOrder,
+  };
+}
+
+function migrateTableColumnSettings(
+  settings: HeatCalcTableColumnSettings,
+  sourceVersion: number,
+): HeatCalcTableColumnSettings {
+  if (sourceVersion >= 5) return settings;
+  return {
+    ...settings,
+    types: {
+      ...settings.types,
+      pipe: normalizeTypeSettingsFromStructuredValue(
+        'pipe',
+        insertVisibleColumnAfter(settings.types.pipe, 'placement', 'name'),
+      ),
+    },
+  };
+}
+
 export function getAvailableTableColumnKeys(type: HeatCalcTableColumnScope) {
   return HEATCALC_TABLE_COLUMN_CATALOG[type].map((column) => column.key);
 }
@@ -371,31 +407,32 @@ export function normalizeVisibleTableColumnKeys(
 
 export function normalizeTableColumnSettings(value: unknown): HeatCalcTableColumnSettings {
   const source = isRecord(value) ? value : {};
+  const sourceVersion = Number.isFinite(Number(source.version)) ? Number(source.version) : 0;
   const sourceTypes = isRecord(source.types) ? source.types : null;
 
   if (sourceTypes) {
     const pipe = isRecord(sourceTypes.pipe) ? sourceTypes.pipe : {};
     const tank = isRecord(sourceTypes.tank) ? sourceTypes.tank : {};
     const all = isRecord(sourceTypes.all) ? sourceTypes.all : {};
-    return {
+    return migrateTableColumnSettings({
       version: HEATCALC_TABLE_COLUMNS_VERSION,
       types: {
         pipe: normalizeTypeSettingsFromStructuredValue('pipe', pipe),
         tank: normalizeTypeSettingsFromStructuredValue('tank', tank),
         all: normalizeTypeSettingsFromStructuredValue('all', all),
       },
-    };
+    }, sourceVersion);
   }
 
   const rawTable = isRecord(source.table) ? source.table : source;
-  return {
+  return migrateTableColumnSettings({
     version: HEATCALC_TABLE_COLUMNS_VERSION,
     types: {
       pipe: normalizeTypeSettingsFromVisibleKeys('pipe', rawTable.pipe),
       tank: normalizeTypeSettingsFromVisibleKeys('tank', rawTable.tank),
       all: normalizeTypeSettingsFromVisibleKeys('all', rawTable.all),
     },
-  };
+  }, sourceVersion);
 }
 
 export function getTableColumnMeta(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey) {

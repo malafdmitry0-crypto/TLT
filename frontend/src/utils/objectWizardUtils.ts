@@ -90,6 +90,14 @@ function tempSign(t: number): string {
   return t >= 0 ? `+${fmt(t)}` : fmt(t);
 }
 
+function hasExplicitNumberValue(value: unknown): boolean {
+  return value !== null && value !== undefined && value !== '';
+}
+
+function numberOrZero(value: unknown): number {
+  return hasExplicitNumberValue(value) ? Number(value) : 0;
+}
+
 // ---------------------------------------------------------------------------
 // Auto-name generators
 // ---------------------------------------------------------------------------
@@ -254,13 +262,22 @@ export function pipeFormToApiParams(
   } else if (v.pipe_material) {
     params.pipe_material = v.pipe_material;
   }
-  const localCount =
-    Number(v.valve_count ?? 0) + Number(v.flange_count ?? 0) + Number(v.support_count ?? 0);
-  params.valve_count = Number(v.valve_count ?? 0);
-  params.flange_count = Number(v.flange_count ?? 0);
-  params.support_count = Number(v.support_count ?? 0);
-  if (localCount > 0) params.num_local_elements = localCount;
-  if (localCount > 0 && v.local_element_equiv_length != null) {
+  const hasExplicitLocalCounts = [
+    v.valve_count,
+    v.flange_count,
+    v.support_count,
+  ].some(hasExplicitNumberValue);
+  if (hasExplicitLocalCounts) {
+    const valveCount = numberOrZero(v.valve_count);
+    const flangeCount = numberOrZero(v.flange_count);
+    const supportCount = numberOrZero(v.support_count);
+    const localCount = valveCount + flangeCount + supportCount;
+    params.valve_count = valveCount;
+    params.flange_count = flangeCount;
+    params.support_count = supportCount;
+    if (localCount > 0) params.num_local_elements = localCount;
+  }
+  if (v.local_element_equiv_length != null) {
     params.local_element_equiv_length = v.local_element_equiv_length;
   }
   applyInsulationLayers(params, v);

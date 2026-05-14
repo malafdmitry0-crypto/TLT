@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
+import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import { useAuthStore } from '@/store/authStore';
 
 function renderRoute(initialPath: string, allow: ('guest' | 'employee' | 'admin')[]) {
   return render(
-    <MemoryRouter initialEntries={[initialPath]}>
+    <TestMemoryRouter initialEntries={[initialPath]}>
       <Routes>
         <Route path="/" element={<div>Home</div>} />
         <Route
@@ -18,7 +19,7 @@ function renderRoute(initialPath: string, allow: ('guest' | 'employee' | 'admin'
           }
         />
       </Routes>
-    </MemoryRouter>
+    </TestMemoryRouter>
   );
 }
 

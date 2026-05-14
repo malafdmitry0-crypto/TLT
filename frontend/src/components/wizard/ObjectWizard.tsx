@@ -17,6 +17,7 @@ import HelpedControl from './HelpedControl';
 import FieldLabel from './FieldLabel';
 import ReferencePicker from './ReferencePicker';
 import InsulationTemperatureRangeField from './InsulationTemperatureRangeField';
+import UnitInputNumber from '@/components/common/UnitInputNumber';
 import { getClimate, getInsulation, getPipeMaterials, getSoilConductivity } from '@/api/references';
 import type { ClimateEntry } from '@/types/reference';
 import {
@@ -514,10 +515,10 @@ export default function ObjectWizard({
                 rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'wall_thickness_mm')}
               >
                 {withHelp(
-                  <InputNumber
+                  <UnitInputNumber
                     data-testid="wall-thickness-input"
                     {...numberInputProps('wall_thickness_mm')}
-                    addonAfter="мм"
+                    unit="мм"
                   />,
                   fieldHelp('wall_thickness_mm', heatCalcObjectType),
                 )}
@@ -550,10 +551,10 @@ export default function ObjectWizard({
                   ]}
                 >
                   {withHelp(
-                    <InputNumber
+                    <UnitInputNumber
                       data-testid="pipe-lambda-input"
                       {...numberInputProps('pipe_lambda')}
-                      addonAfter="Вт/мК"
+                    unit="Вт/мК"
                     />,
                     fieldHelp('pipe_lambda', heatCalcObjectType),
                   )}
@@ -610,10 +611,10 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber
+                  <UnitInputNumber
                     data-testid="burial-depth-input"
                     {...numberInputProps('burial_depth')}
-                    addonAfter="м"
+                    unit="м"
                   />,
                   fieldHelp('burial_depth', heatCalcObjectType),
                 )}
@@ -650,10 +651,10 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber
+                  <UnitInputNumber
                     data-testid="ground-conductivity-input"
                     {...numberInputProps('ground_conductivity')}
-                    addonAfter="Вт/мК"
+                    unit="Вт/мК"
                   />,
                   fieldHelp('ground_conductivity', heatCalcObjectType),
                 )}
@@ -723,10 +724,10 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber
+                  <UnitInputNumber
                     data-testid="second-insulation-thickness-input"
                     {...numberInputProps('second_insulation_thickness_mm')}
-                    addonAfter="мм"
+                    unit="мм"
                   />,
                   fieldHelp('second_insulation_thickness_mm', heatCalcObjectType),
                 )}
@@ -743,12 +744,12 @@ export default function ObjectWizard({
                   ] : undefined}
               >
                 {withHelp(
-                  <InputNumber
+                  <UnitInputNumber
                     data-testid="second-insulation-lambda-input"
                     disabled={!secondInsulationIsOther}
                     value={secondInsulationIsOther ? undefined : selectedSecondInsulation?.conductivity}
                     {...numberInputProps('second_insulation_lambda')}
-                    addonAfter="Вт/мК"
+                    unit="Вт/мК"
                   />,
                   fieldHelp('second_insulation_lambda', heatCalcObjectType, secondInsulationIsOther ? 'manual' : 'reference'),
                 )}
@@ -799,10 +800,10 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber
+                  <UnitInputNumber
                     data-testid="third-insulation-thickness-input"
                     {...numberInputProps('third_insulation_thickness_mm')}
-                    addonAfter="мм"
+                    unit="мм"
                   />,
                   fieldHelp('third_insulation_thickness_mm', heatCalcObjectType),
                 )}
@@ -819,12 +820,12 @@ export default function ObjectWizard({
                   ] : undefined}
               >
                 {withHelp(
-                  <InputNumber
+                  <UnitInputNumber
                     data-testid="third-insulation-lambda-input"
                     disabled={!thirdInsulationIsOther}
                     value={thirdInsulationIsOther ? undefined : selectedThirdInsulation?.conductivity}
                     {...numberInputProps('third_insulation_lambda')}
-                    addonAfter="Вт/мК"
+                    unit="Вт/мК"
                   />,
                   fieldHelp('third_insulation_lambda', heatCalcObjectType, thirdInsulationIsOther ? 'manual' : 'reference'),
                 )}
@@ -912,10 +913,10 @@ export default function ObjectWizard({
             rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'ambient_temperature')}
           >
             {withHelp(
-              <InputNumber
+              <UnitInputNumber
                 data-testid="ambient-temperature-input"
                 {...numberInputProps('ambient_temperature')}
-                addonAfter="°C"
+                    unit="°C"
               />,
               fieldHelp('ambient_temperature', heatCalcObjectType),
             )}
@@ -928,10 +929,10 @@ export default function ObjectWizard({
             rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'process_temperature')}
           >
             {withHelp(
-              <InputNumber
+              <UnitInputNumber
                 data-testid="process-temperature-input"
                 {...numberInputProps('process_temperature')}
-                addonAfter="°C"
+                    unit="°C"
               />,
               fieldHelp('process_temperature', heatCalcObjectType),
             )}
@@ -955,10 +956,10 @@ export default function ObjectWizard({
               ]}
             >
               {withHelp(
-                <InputNumber
+                <UnitInputNumber
                   data-testid="wind-speed-input"
                   {...numberInputProps('wind_speed')}
-                  addonAfter="м/с"
+                    unit="м/с"
                 />,
                 fieldHelp('wind_speed', heatCalcObjectType),
               )}
@@ -976,10 +977,10 @@ export default function ObjectWizard({
               ]}
             >
               {withHelp(
-                <InputNumber
+                <UnitInputNumber
                   data-testid="alpha-vnesh-input"
                   {...numberInputProps('alpha_vnesh')}
-                  addonAfter="Вт/м²К"
+                    unit="Вт/м²К"
                 />,
                 fieldHelp('alpha_vnesh', heatCalcObjectType),
               )}
@@ -995,10 +996,10 @@ export default function ObjectWizard({
             ]}
           >
             {withHelp(
-              <InputNumber
+              <UnitInputNumber
                 data-testid="max-ambient-temperature-input"
                 {...numberInputProps('max_ambient_temperature')}
-                addonAfter="°C"
+                    unit="°C"
               />,
               fieldHelp('max_ambient_temperature', heatCalcObjectType),
             )}
@@ -1013,10 +1014,10 @@ export default function ObjectWizard({
             ]}
           >
             {withHelp(
-              <InputNumber
+              <UnitInputNumber
                 data-testid="max-process-temperature-input"
                 {...numberInputProps('max_process_temperature')}
-                addonAfter="°C"
+                    unit="°C"
               />,
               fieldHelp('max_process_temperature', heatCalcObjectType),
             )}
@@ -1085,10 +1086,10 @@ export default function ObjectWizard({
                 ]}
           >
             {withHelp(
-              <InputNumber
+              <UnitInputNumber
                 data-testid="min-switch-temperature-input"
                 {...numberInputProps('min_switch_temperature')}
-                addonAfter="°C"
+                    unit="°C"
               />,
               fieldHelp('min_switch_temperature', heatCalcObjectType),
             )}
@@ -1135,10 +1136,10 @@ export default function ObjectWizard({
               rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'q_additional')}
             >
               {withHelp(
-                <InputNumber
+                <UnitInputNumber
                   data-testid="q-additional-input"
                   {...numberInputProps('q_additional')}
-                  addonAfter="Вт"
+                    unit="Вт"
                 />,
                 fieldHelp('q_additional', heatCalcObjectType),
               )}
@@ -1170,10 +1171,10 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber
+                  <UnitInputNumber
                     data-testid="valve-count-input"
                     {...numberInputProps('valve_count')}
-                    addonAfter="шт"
+                    unit="шт"
                   />,
                   fieldHelp('valve_count', heatCalcObjectType),
                 )}
@@ -1188,10 +1189,10 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber
+                  <UnitInputNumber
                     data-testid="flange-count-input"
                     {...numberInputProps('flange_count')}
-                    addonAfter="шт"
+                    unit="шт"
                   />,
                   fieldHelp('flange_count', heatCalcObjectType),
                 )}
@@ -1206,10 +1207,10 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber
+                  <UnitInputNumber
                     data-testid="support-count-input"
                     {...numberInputProps('support_count')}
-                    addonAfter="шт"
+                    unit="шт"
                   />,
                   fieldHelp('support_count', heatCalcObjectType),
                 )}
@@ -1224,10 +1225,10 @@ export default function ObjectWizard({
                 ]}
               >
                 {withHelp(
-                  <InputNumber
+                  <UnitInputNumber
                     data-testid="local-element-equiv-length-input"
                     {...numberInputProps('local_element_equiv_length')}
-                    addonAfter="м"
+                    unit="м"
                   />,
                   fieldHelp('local_element_equiv_length', heatCalcObjectType),
                 )}

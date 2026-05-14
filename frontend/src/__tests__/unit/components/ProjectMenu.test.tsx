@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ProjectMenu from '@/components/layout/ProjectMenu';
 import { useAuthStore } from '@/store/authStore';
@@ -16,9 +16,9 @@ function renderMenu() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter>
+      <TestMemoryRouter>
         <ProjectMenu />
-      </MemoryRouter>
+      </TestMemoryRouter>
     </QueryClientProvider>
   );
 }

@@ -1,6 +1,7 @@
-import { Form, InputNumber } from 'antd';
+import { Form } from 'antd';
 import { useMemo, type ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import UnitInputNumber from '@/components/common/UnitInputNumber';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
 import {
@@ -88,10 +89,10 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
         rules={heatCalcFormFieldRules(form, objectType, 'insulation_thickness_mm')}
       >
         {withHelp(
-          <InputNumber
+          <UnitInputNumber
             data-testid="insulation-thickness-input"
             {...numberInputProps('insulation_thickness_mm')}
-            addonAfter="мм"
+                    unit="мм"
           />,
           fieldHelp('insulation_thickness_mm', objectType),
         )}
@@ -109,12 +110,12 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
           ] : undefined}
       >
         {withHelp(
-          <InputNumber
+          <UnitInputNumber
             data-testid="first-insulation-lambda-input"
             disabled={!isOtherMaterial}
             value={isOtherMaterial ? undefined : selectedMaterial?.conductivity}
             {...numberInputProps('first_insulation_lambda')}
-            addonAfter="Вт/мК"
+                    unit="Вт/мК"
           />,
           fieldHelp('first_insulation_lambda', objectType, isOtherMaterial ? 'manual' : 'reference'),
         )}

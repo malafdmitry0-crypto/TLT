@@ -483,7 +483,7 @@ export default function ProjectsPage() {
           <Card
             size="small"
             title={<Text strong>Список проектов</Text>}
-            bodyStyle={{ paddingTop: 0 }}
+            styles={{ body: { paddingTop: 0 } }}
             extra={
               <Space>
                 <Button size="small" onClick={() => singleFileInputRef.current?.click()}>
