@@ -849,7 +849,7 @@ export default function ObjectWizard({
 
         {/* ── Температура и среда ────────────────────────────────────── */}
         <div
-          className="form-col-srs temperature-environment-section"
+          className="form-col-srs"
           style={sectionStyle(2)}
         >
           {renderSectionTitle('Температура и среда', 3)}

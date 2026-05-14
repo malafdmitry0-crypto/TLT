@@ -737,18 +737,14 @@ html, body, #root {
 .heatcalc-workspace-layout--right .form-grid-srs .form-col-srs {
   width: 100% !important;
   min-width: 0;
+  --compact-field-label-width: 72px !important;
   --field-pair-min-width: 204px;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-}
-
-.heatcalc-workspace-layout--left .form-grid-srs .temperature-environment-section,
-.heatcalc-workspace-layout--right .form-grid-srs .temperature-environment-section {
-  --compact-field-label-width: 72px !important;
   gap: 2px;
 }
 
-.heatcalc-workspace-layout--left .form-grid-srs .temperature-environment-section .ant-form-item-row,
-.heatcalc-workspace-layout--right .form-grid-srs .temperature-environment-section .ant-form-item-row {
+.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs .ant-form-item-row,
+.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs .ant-form-item-row {
   column-gap: 2px;
 }
 
