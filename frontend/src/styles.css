@@ -635,11 +635,11 @@ html, body, #root {
 }
 
 .heatcalc-workspace-layout--left .heatcalc-form-pane {
-  margin-right: 5px;
+  margin-right: 2px;
 }
 
 .heatcalc-workspace-layout--right .heatcalc-form-pane {
-  margin-left: 5px;
+  margin-left: 2px;
 }
 
 .heatcalc-workspace-layout--left .heatcalc-table-pane,
@@ -685,7 +685,7 @@ html, body, #root {
 }
 
 .heatcalc-side-resize-handle {
-  flex: 0 0 12px;
+  flex: 0 0 6px;
   align-self: stretch;
   position: relative;
   cursor: col-resize;
@@ -698,7 +698,7 @@ html, body, #root {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 5px;
+  left: 2px;
   width: 2px;
   border-radius: 999px;
   background: #d8e6f3;
@@ -1467,20 +1467,26 @@ html, body, #root {
   --field-label-width: 76px;
   --compact-field-label-width: 76px;
   --field-input-min-width: 112px;
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   grid-column: 1 / -1;
-  grid-template-columns: max-content max-content max-content;
-  gap: 2px 8px;
+  gap: 2px 6px;
   align-items: start;
+  justify-self: stretch;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   padding: 4px 5px 5px;
   border: 1px solid #dbe6f2;
   border-radius: 5px;
   background: #fbfdff;
+  box-sizing: border-box;
 }
 
 .inline-object-form .insulation-layer-group .ant-form-item {
   grid-column: auto;
+  flex: 0 1 auto;
+  width: auto;
   min-height: 22px;
   padding: 0;
 }
@@ -1489,24 +1495,42 @@ html, body, #root {
 .inline-object-form .insulation-layer-group .medium-select-form-item,
 .inline-object-form .insulation-layer-group .layer-material-form-item {
   grid-column: 1 / -1;
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+.inline-object-form .insulation-layer-group > .layer-material-form-item {
+  width: 100% !important;
+  max-width: none;
+  justify-self: stretch;
+}
+
+.inline-object-form .insulation-layer-group > .reduced-select-form-item {
+  width: 100% !important;
+  max-width: none;
+  justify-self: stretch;
 }
 
 .inline-object-form .insulation-layer-group .short-number-form-item,
 .inline-object-form .insulation-layer-group .second-layer-thickness-form-item,
 .inline-object-form .insulation-layer-group .third-layer-thickness-form-item {
   grid-column: 1;
+  flex: 0 0 auto;
 }
 
 .inline-object-form .insulation-layer-group .coefficient-form-item {
   grid-column: 2;
+  flex: 0 0 auto;
 }
 
 .inline-object-form .insulation-layer-group .insulation-temperature-range-form-item {
   grid-column: 3;
+  flex: 0 0 auto;
 }
 
 .inline-object-form .insulation-layer-group .insulation-temperature-range-form-item--editable {
   grid-column: 1 / -1;
+  flex: 0 0 100%;
 }
 
 .inline-object-form .insulation-layer-group .ant-form-item-row,
@@ -1564,7 +1588,22 @@ html, body, #root {
 
 .inline-object-form .insulation-layer-group .layer-material-form-item .reference-picker-control {
   width: 100%;
-  min-width: var(--field-input-min-width, 112px);
+  min-width: 0;
+}
+
+.inline-object-form .insulation-layer-group .reduced-select-form-item .reference-picker-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.inline-object-form .insulation-layer-group > .layer-material-form-item .field-control-with-help {
+  width: 100%;
+  max-width: 100%;
+}
+
+.inline-object-form .insulation-layer-group > .layer-material-form-item .ant-form-item-row {
+  width: 100%;
+  grid-template-columns: var(--compact-field-label-width, 76px) minmax(0, 1fr);
 }
 
 .inline-object-form .insulation-layer-group .ant-form-item-explain,
