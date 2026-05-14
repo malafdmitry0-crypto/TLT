@@ -97,7 +97,6 @@ import {
 import {
   applyColumnFilters,
   applyTableSort,
-  activeTableFilterCount,
   createEmptyTableViewState,
   hasActiveTableViewState,
   isColumnFilterActive,
@@ -1770,18 +1769,6 @@ export default function HeatCalcPage() {
     [selectedRowKeys, visibleTableRows],
   );
   const selectedObjectCount = selectedVisibleRows.length;
-  const typeButtonCountText = useCallback((
-    scope: ActiveObjectScope,
-    total: number,
-  ) => (
-    activeObjectScope === scope && selectedObjectCount > 0
-      ? `${selectedObjectCount} из ${total}`
-      : String(total)
-  ), [activeObjectScope, selectedObjectCount]);
-  const pipeButtonCountText = typeButtonCountText('pipe', pipeCount);
-  const tankButtonCountText = typeButtonCountText('tank', tankCount);
-  const allButtonCountText = typeButtonCountText('all', projectObjectCount);
-  const currentActiveFilterCount = activeTableFilterCount(activeTableViewState);
   const currentTableViewActive = hasActiveTableViewState(activeTableViewState);
   const activeTypeTotalCount = isAllObjectScope
     ? projectObjectCount
@@ -1789,6 +1776,18 @@ export default function HeatCalcPage() {
   const filteredTableCount = isAllObjectScope
     ? allFilteredSortedTableRows.length
     : objectQueryResult?.counts.filtered ?? visibleTableObjects.length;
+  const typeButtonCountText = useCallback((
+    scope: ActiveObjectScope,
+    total: number,
+  ) => {
+    if (activeObjectScope !== scope) return String(total);
+    if (selectedObjectCount > 0) return `${selectedObjectCount}/${total}`;
+    if (currentTableViewActive) return `${filteredTableCount}/${activeTypeTotalCount}`;
+    return String(total);
+  }, [activeObjectScope, activeTypeTotalCount, currentTableViewActive, filteredTableCount, selectedObjectCount]);
+  const pipeButtonCountText = typeButtonCountText('pipe', pipeCount);
+  const tankButtonCountText = typeButtonCountText('tank', tankCount);
+  const allButtonCountText = typeButtonCountText('all', projectObjectCount);
   const enumOptionsByColumn = useMemo(() => {
     const result: Record<HeatCalcColumnKey, { label: string; value: string }[]> = {};
     for (const meta of sourceColumnMetas) {
@@ -2860,15 +2859,6 @@ export default function HeatCalcPage() {
             >
               Настройки отображения
             </Button>
-            {currentTableViewActive && (
-              <Tooltip
-                title={`Показано ${filteredTableCount} из ${activeTypeTotalCount}. Активных фильтров: ${currentActiveFilterCount}`}
-              >
-                <Tag color="blue" className="table-filter-status-tag">
-                  {filteredTableCount}/{activeTypeTotalCount}
-                </Tag>
-              </Tooltip>
-            )}
             <Tooltip title={currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
               <span className="action-tooltip-wrap">
                 <Button

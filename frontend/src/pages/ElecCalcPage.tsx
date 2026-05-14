@@ -123,6 +123,7 @@ export default function ElecCalcPage() {
   const [tablePage, setTablePage] = useState(1);
   const [tablePageSize, setTablePageSize] = useState(ELECTRICAL_TABLE_PAGE_SIZE);
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [activeJobId, setActiveJobId] = useState<string | null>(
     () => navigationActiveJobId,
   );
@@ -138,6 +139,10 @@ export default function ElecCalcPage() {
   useEffect(() => {
     setActiveRowId(null);
   }, [project?.id, variant, tablePage, tablePageSize]);
+
+  useEffect(() => {
+    setSelectedRowKeys([]);
+  }, [project?.id, variant]);
 
   useEffect(() => {
     if (navigationActiveJobId) {
@@ -168,6 +173,16 @@ export default function ElecCalcPage() {
   const elecCalcs = electricalPage?.calculations ?? [];
   const pageSummary = electricalPage?.summary;
   const pageInfo = electricalPage?.page_info;
+
+  useEffect(() => {
+    const visibleIds = new Set(objects.map((object) => object.id));
+    setSelectedRowKeys((keys) => {
+      const nextKeys = keys.filter((key) => visibleIds.has(key));
+      return nextKeys.length === keys.length && nextKeys.every((key, index) => key === keys[index])
+        ? keys
+        : nextKeys;
+    });
+  }, [objects]);
 
   const { data: activeJob } = useQuery({
     queryKey: ['calc-job', activeJobId],
@@ -385,15 +400,32 @@ export default function ElecCalcPage() {
     },
     {
       title: 'Статус',
-      width: 130,
+      width: 56,
+      align: 'center',
       render: (_: unknown, obj) => {
         const calc = stats.calcByObjectId[obj.id];
         const err = electricalCalcError(calc);
         if (isElectricalCalcSuccess(calc))
-          return <Tag color="success" icon={<CheckCircleFilled />}>рассчитан</Tag>;
+          return (
+            <Tooltip title="Рассчитан">
+              <Tag className="electrical-status-icon-tag" color="success" aria-label="Рассчитан">
+                <CheckCircleFilled />
+              </Tag>
+            </Tooltip>
+          );
         if (err)
-          return <Tag color="error" icon={<CloseCircleFilled />}>ошибка</Tag>;
-        return <Tag>не рассчитан</Tag>;
+          return (
+            <Tooltip title="Ошибка">
+              <Tag className="electrical-status-icon-tag" color="error" aria-label="Ошибка">
+                <CloseCircleFilled />
+              </Tag>
+            </Tooltip>
+          );
+        return (
+          <Tooltip title="Не рассчитан">
+            <Tag className="electrical-status-icon-tag" aria-label="Не рассчитан">—</Tag>
+          </Tooltip>
+        );
       },
     },
     {
@@ -773,8 +805,17 @@ export default function ElecCalcPage() {
                 ].filter(Boolean).join(' ')
               }
               onRow={(obj) => ({
-                onClick: () => setActiveRowId(obj.id),
+                onClick: (event) => {
+                  if ((event.target as HTMLElement).closest('.ant-table-selection-column')) return;
+                  setActiveRowId(obj.id);
+                },
               })}
+              rowSelection={{
+                type: 'checkbox',
+                selectedRowKeys,
+                onChange: (keys) => setSelectedRowKeys(keys as string[]),
+                columnWidth: 36,
+              }}
               columns={electricalColumns}
             />
           )}
