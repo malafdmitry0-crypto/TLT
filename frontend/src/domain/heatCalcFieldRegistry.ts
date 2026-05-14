@@ -418,3 +418,20 @@ export function getHeatCalcDefaultVisibleTableKeys(type: HeatCalcObjectType) {
   const keys: unknown[] = Array.isArray(rawKeys) ? rawKeys : [];
   return keys.filter((key): key is string => typeof key === 'string');
 }
+
+export function getHeatCalcFormFieldIds(type: HeatCalcObjectType) {
+  const rawForm = rawConfig.form;
+  const form: Record<string, unknown> = isRecord(rawForm) ? rawForm : {};
+  const rawSections = form.sections;
+  const sectionsByType: Record<string, unknown> = isRecord(rawSections) ? rawSections : {};
+  const rawTypedSections = sectionsByType[type];
+  const typedSections: unknown[] = Array.isArray(rawTypedSections) ? rawTypedSections : [];
+  const keys: string[] = [];
+  for (const section of typedSections) {
+    if (!isRecord(section) || !Array.isArray(section.fields)) continue;
+    for (const field of section.fields) {
+      if (typeof field === 'string' && !keys.includes(field)) keys.push(field);
+    }
+  }
+  return keys;
+}

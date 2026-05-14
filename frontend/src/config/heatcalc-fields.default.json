@@ -3041,7 +3041,7 @@
           "defaultWidthPct": 7,
           "minWidthPx": 48,
           "valueType": "enum",
-          "defaultVisible": false,
+          "defaultVisible": true,
           "sortable": true,
           "filterable": true,
           "resizable": true,
@@ -4409,7 +4409,8 @@
         "ambient_temperature",
         "valve_count",
         "flange_count",
-        "support_count"
+        "support_count",
+        "local_element_equiv_length"
       ],
       "tank": [
         "index",

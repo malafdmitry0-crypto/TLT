@@ -95,6 +95,7 @@ const basePipeParams = {
 describe('ObjectWizard dependencies', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
     await mockReferences();
   });
 
@@ -156,6 +157,26 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.queryByText('Грунт')).not.toBeInTheDocument();
   });
 
+  it('требует климатическую обеспеченность при выбранном климате', async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    renderWizard({
+      onSubmit,
+      initialParams: {
+        ...basePipeParams,
+        climate_city: 'Москва',
+        climate_region: 'Москва',
+        climate_temperature_basis: undefined,
+      },
+    });
+
+    expect(await screen.findByTestId('climate-basis-select')).toBeVisible();
+
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    await waitFor(() => expect(screen.getAllByText('Выберите значение').length).toBeGreaterThan(0));
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it('открывает длинный справочник в модальном окне и подставляет выбранный материал', async () => {
     const user = userEvent.setup();
     renderWizard({ initialParams: basePipeParams });
@@ -184,7 +205,9 @@ describe('ObjectWizard dependencies', () => {
 
     expect(await screen.findByTestId('burial-depth-input')).toBeVisible();
     expect(screen.getByTestId('ground-type-select')).toBeVisible();
+    expect(screen.getByTestId('ground-type-select')).toHaveAttribute('aria-required', 'true');
     expect(screen.getByTestId('ground-conductivity-input')).toBeVisible();
+    expect(screen.getByTestId('ground-conductivity-input')).not.toHaveAttribute('aria-required');
     expect(screen.queryByTestId('wind-speed-input')).not.toBeInTheDocument();
     expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
   });
@@ -277,6 +300,50 @@ describe('ObjectWizard dependencies', () => {
     expect(payload.local_element_equiv_length).toBe(2.4);
   });
 
+  it('требует L_ekv, когда заданы локальные элементы', async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    renderWizard({
+      onSubmit,
+      initialParams: {
+        ...basePipeParams,
+        valve_count: 1,
+        flange_count: 0,
+        support_count: 0,
+        local_element_equiv_length: undefined,
+      },
+    });
+
+    const input = await screen.findByTestId('local-element-equiv-length-input');
+    expect(input).toHaveAttribute('aria-required', 'true');
+
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    await waitFor(() => expect(screen.getAllByText('Укажите значение').length).toBeGreaterThan(0));
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('требует λ грунта только для ручного грунта', async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    renderWizard({
+      onSubmit,
+      initialParams: {
+        ...basePipeParams,
+        placement: 'underground',
+        burial_depth: 1.2,
+        ground_type: 'custom',
+        ground_conductivity: undefined,
+      },
+    });
+
+    expect(await screen.findByTestId('ground-type-select')).toHaveAttribute('aria-required', 'true');
+    expect(screen.getByTestId('ground-conductivity-input')).toHaveAttribute('aria-required', 'true');
+
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    await waitFor(() => expect(screen.getAllByText('Укажите значение').length).toBeGreaterThan(0));
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it('стенка резервуара отображается и уходит в payload', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
@@ -306,6 +373,34 @@ describe('ObjectWizard dependencies', () => {
     const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
     expect(payload.wall_thickness).toBe(0.012);
     expect(payload.wall_lambda).toBe(45);
+  });
+
+  it('валидирует стенку резервуара парой', async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    renderWizard({
+      objectType: 'tank',
+      onSubmit,
+      initialParams: {
+        name: 'Бак',
+        shape: 'cylindrical',
+        diameter: 2,
+        height: 3,
+        wall_thickness: 0.012,
+        wall_lambda: undefined,
+        insulation_thickness: 0.08,
+        insulation_material: 'mineral_wool',
+        ambient_temperature: -20,
+        process_temperature: 70,
+        placement: 'outdoor',
+      },
+    });
+
+    expect(await screen.findByTestId('tank-wall-lambda-input')).toHaveAttribute('aria-required', 'true');
+
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+    await waitFor(() => expect(screen.getByText('Укажите λ стенки')).toBeInTheDocument());
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it('отправляет ручную λ трубы и три слоя изоляции', async () => {

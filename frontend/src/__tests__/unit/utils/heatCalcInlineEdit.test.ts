@@ -23,11 +23,13 @@ function makePipe(): ProjectObject {
       name: 'Pipe 1',
       outer_diameter: 0.108,
       wall_thickness: 0.004,
+      pipe_material: 'carbon_steel',
       pipe_length: 50,
       insulation_thickness: 0.05,
       insulation_material: 'mineral_wool',
       ambient_temperature: -20,
       process_temperature: 80,
+      placement: 'outdoor',
       min_switch_temperature: -20,
       supply_voltage: 220,
       safety_factor: 1.2,
@@ -105,5 +107,17 @@ describe('heatCalcInlineEdit', () => {
     expect(fixedDraft?.errors.outer_diameter_mm).toBeUndefined();
     expect(fixedDraft?.draftFormValues.outer_diameter_mm).toBe(114);
     expect(buildDraftRowParams(fixedDraft!).outer_diameter).toBeCloseTo(0.114);
+  });
+
+  it('blocks inline save when local elements require Lэкв', () => {
+    const record = makePipe();
+    record.params.valve_count = 1;
+    const draft = applyInlineCellDraft(null, record, 'pipe_outer_diameter', 114);
+
+    expect(() => buildDraftRowParams(draft!)).toThrow('Исправьте ошибки');
+
+    record.params.local_element_equiv_length = 1.5;
+    const fixedDraft = applyInlineCellDraft(null, record, 'pipe_outer_diameter', 114);
+    expect(buildDraftRowParams(fixedDraft!).local_element_equiv_length).toBe(1.5);
   });
 });

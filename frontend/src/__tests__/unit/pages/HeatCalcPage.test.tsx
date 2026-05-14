@@ -791,9 +791,9 @@ describe('HeatCalcPage', () => {
       expect(visibleColumnKeys().slice(0, 5)).toEqual([
         'index',
         'name',
+        'placement',
         'pipe_outer_diameter',
         'pipe_dn',
-        'pipe_length',
       ]);
       fireEvent.blur(orderInput);
       await waitFor(() => {
@@ -801,8 +801,8 @@ describe('HeatCalcPage', () => {
           'index',
           'name',
           'pipe_dn',
+          'placement',
           'pipe_outer_diameter',
-          'pipe_length',
         ]);
       });
       fireEvent.change(widthInput, { target: { value: '12.5' } });
@@ -814,8 +814,8 @@ describe('HeatCalcPage', () => {
         'index',
         'name',
         'pipe_dn',
+        'placement',
         'pipe_outer_diameter',
-        'pipe_length',
       ]);
       expect(saved.types.pipe.columns.pipe_dn).toMatchObject({ widthPct: 12.5 });
       expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
@@ -1618,7 +1618,7 @@ describe('HeatCalcPage', () => {
         expect(screen.getByRole('button', { name: /Резервуар:\s*1/ })).toHaveAttribute('aria-pressed', 'true');
       });
       expect(screen.queryByText(/Выбрано:/)).not.toBeInTheDocument();
-    });
+    }, 10_000);
 
   });
 

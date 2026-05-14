@@ -31,6 +31,7 @@ import {
   type TankFormValues,
 } from '@/utils/objectWizardUtils';
 import {
+  heatCalcCustomControlRequiredProps,
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
   heatCalcSelectOptions,
@@ -182,7 +183,8 @@ export default function ObjectWizard({
   const placement = watchedString('placement');
   const pipeLambdaMode = watchedString('pipe_lambda_mode');
   const selectedClimateKey = watchedString('climate_key');
-  const climateBasis = watchedString('climate_temperature_basis', 't_0_92') as ClimateBasis;
+  const climateBasisValue = watchedString('climate_temperature_basis');
+  const climateBasis = climateBasisValue as ClimateBasis;
   const selectedGroundType = watchedString('ground_type');
   const secondInsulationMaterial = watchedString('second_insulation_material');
   const thirdInsulationMaterial = watchedString('third_insulation_material');
@@ -250,13 +252,8 @@ export default function ObjectWizard({
   }, [form, initialValues]);
 
   useEffect(() => {
-    if (!selectedClimate || form.getFieldValue('climate_temperature_basis')) return;
-    form.setFieldsValue({ climate_temperature_basis: 't_0_92' });
-  }, [form, selectedClimate]);
-
-  useEffect(() => {
     if (!selectedClimate) return;
-    const tAmbient = climateTemperature(selectedClimate, climateBasis);
+    const tAmbient = climateBasisValue ? climateTemperature(selectedClimate, climateBasis) : null;
     const wind = climateWind(selectedClimate);
     form.setFieldsValue({
       climate_city: selectedClimate.city ?? selectedClimate.region,
@@ -527,7 +524,7 @@ export default function ObjectWizard({
                 className="compact-select-form-item helped-form-item"
                 label={fieldLabel('pipe_lambda_mode', heatCalcObjectType)}
                 name="pipe_lambda_mode"
-                rules={[{ required: true, message: 'Выберите режим λ трубы' }]}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'pipe_lambda_mode')}
               >
                 {withHelp(
                   <Select
@@ -544,11 +541,7 @@ export default function ObjectWizard({
                   label={fieldLabel('pipe_lambda', heatCalcObjectType)}
                   name="pipe_lambda"
                   preserve={false}
-                  rules={[
-                    { required: true, message: 'Укажите λ трубы' },
-                    { type: 'number', min: 0.001, message: 'λ должна быть больше 0' },
-                    { type: 'number', max: 400, message: 'Максимальное значение λ — 400 Вт/мК' },
-                  ]}
+                  rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'pipe_lambda')}
                 >
                   {withHelp(
                     <UnitInputNumber
@@ -565,7 +558,7 @@ export default function ObjectWizard({
                   label={fieldLabel('pipe_material', heatCalcObjectType)}
                   name="pipe_material"
                   preserve={false}
-                  rules={[{ required: true, message: 'Выберите материал трубы' }]}
+                  rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'pipe_material')}
                 >
                   {withHelp(
                     <ReferencePicker
@@ -574,7 +567,7 @@ export default function ObjectWizard({
                       placeholder="Выберите материал"
                       modalTitle="Материал трубы"
                       searchPlaceholder="Поиск материала трубы"
-                      required
+                      {...heatCalcCustomControlRequiredProps(form, heatCalcObjectType, 'pipe_material')}
                     />,
                     fieldHelp('pipe_material', heatCalcObjectType),
                   )}
@@ -586,7 +579,7 @@ export default function ObjectWizard({
             className="fixed-select-form-item reduced-select-form-item helped-form-item"
             label={fieldLabel('placement', heatCalcObjectType)}
             name="placement"
-            rules={[{ required: true, message: 'Выберите размещение объекта' }]}
+            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'placement')}
           >
             {withHelp(
               <Select
@@ -604,11 +597,7 @@ export default function ObjectWizard({
                 label={fieldLabel('burial_depth', heatCalcObjectType)}
                 name="burial_depth"
                 preserve={false}
-                rules={[
-                  { required: true, message: 'Укажите глубину прокладки' },
-                  { type: 'number', min: 0, message: 'Минимальная глубина — 0 м' },
-                  { type: 'number', max: 200, message: 'Максимальная глубина — 200 м' },
-                ]}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'burial_depth')}
               >
                 {withHelp(
                   <UnitInputNumber
@@ -624,7 +613,7 @@ export default function ObjectWizard({
                 label={fieldLabel('ground_type', heatCalcObjectType)}
                 name="ground_type"
                 preserve={false}
-                rules={[{ required: true, message: 'Выберите грунт' }]}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'ground_type')}
               >
                 {withHelp(
                   <ReferencePicker
@@ -634,7 +623,7 @@ export default function ObjectWizard({
                     modalTitle="Грунт"
                     searchPlaceholder="Поиск грунта"
                     options={[...soilOptions, { value: 'custom', label: 'Другое' }]}
-                    required
+                    {...heatCalcCustomControlRequiredProps(form, heatCalcObjectType, 'ground_type')}
                   />,
                   fieldHelp('ground_type', heatCalcObjectType),
                 )}
@@ -644,11 +633,7 @@ export default function ObjectWizard({
                 label={fieldLabel('ground_conductivity', heatCalcObjectType)}
                 name="ground_conductivity"
                 preserve={false}
-                rules={[
-                  { required: true, message: 'Укажите λ грунта' },
-                  { type: 'number', min: 0.8, message: 'Минимальная λ грунта — 0,8 Вт/мК' },
-                  { type: 'number', max: 3, message: 'Максимальная λ грунта — 3,0 Вт/мК' },
-                ]}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'ground_conductivity')}
               >
                 {withHelp(
                   <UnitInputNumber
@@ -675,7 +660,7 @@ export default function ObjectWizard({
             className="layer-count-form-item insulation-layer-count-form-item helped-form-item"
             label={fieldLabel('insulation_layer_count', heatCalcObjectType)}
             name="insulation_layer_count"
-            rules={[{ required: true, message: 'Выберите количество слоёв изоляции' }]}
+            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'insulation_layer_count')}
           >
             {withHelp(
               <Select
@@ -696,7 +681,7 @@ export default function ObjectWizard({
                 label={fieldLabel('second_insulation_material', heatCalcObjectType)}
                 name="second_insulation_material"
                 preserve={false}
-                rules={[{ required: true, message: 'Выберите материал 2-го слоя' }]}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'second_insulation_material')}
               >
                 {withHelp(
                   <ReferencePicker
@@ -707,7 +692,7 @@ export default function ObjectWizard({
                     searchPlaceholder="Поиск материала"
                     loading={isInsulationMaterialsFetching}
                     notFoundContent={insulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
-                    required
+                    {...heatCalcCustomControlRequiredProps(form, heatCalcObjectType, 'second_insulation_material')}
                   />,
                   fieldHelp('second_insulation_material', heatCalcObjectType),
                 )}
@@ -717,11 +702,7 @@ export default function ObjectWizard({
                 label={fieldLabel('second_insulation_thickness_mm', heatCalcObjectType)}
                 name="second_insulation_thickness_mm"
                 preserve={false}
-                rules={[
-                  { required: true, message: 'Укажите толщину 2-го слоя' },
-                  { type: 'number', min: 0.01, message: 'Минимальная толщина — 0,01 мм' },
-                  { type: 'number', max: 500, message: 'Максимальная толщина — 500 мм' },
-                ]}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'second_insulation_thickness_mm')}
               >
                 {withHelp(
                   <UnitInputNumber
@@ -737,11 +718,9 @@ export default function ObjectWizard({
                 label={fieldLabel('second_insulation_lambda', heatCalcObjectType)}
                 name={secondInsulationIsOther ? 'second_insulation_lambda' : undefined}
                 preserve={false}
-                rules={secondInsulationIsOther ? [
-                    { required: true, message: 'Укажите λ 2-го слоя' },
-                    { type: 'number', min: 0.001, message: 'Минимальная λ — 0,001 Вт/мК' },
-                    { type: 'number', max: 400, message: 'Максимальная λ — 400 Вт/мК' },
-                  ] : undefined}
+                rules={secondInsulationIsOther
+                  ? heatCalcFormFieldRules(form, heatCalcObjectType, 'second_insulation_lambda')
+                  : undefined}
               >
                 {withHelp(
                   <UnitInputNumber
@@ -760,8 +739,10 @@ export default function ObjectWizard({
                 minName="second_insulation_temperature_min"
                 maxName="second_insulation_temperature_max"
                 dataTestIdPrefix="second-insulation"
+                objectType={heatCalcObjectType}
                 labelFieldId="second_insulation_temperature_range"
                 hint={fieldHelp('second_insulation_temperature_range', heatCalcObjectType)}
+                required={heatCalcCustomControlRequiredProps(form, heatCalcObjectType, 'second_insulation_temperature_range').required}
               />
             </div>
           )}
@@ -772,7 +753,7 @@ export default function ObjectWizard({
                 label={fieldLabel('third_insulation_material', heatCalcObjectType)}
                 name="third_insulation_material"
                 preserve={false}
-                rules={[{ required: true, message: 'Выберите материал 3-го слоя' }]}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'third_insulation_material')}
               >
                 {withHelp(
                   <ReferencePicker
@@ -783,7 +764,7 @@ export default function ObjectWizard({
                     searchPlaceholder="Поиск материала"
                     loading={isInsulationMaterialsFetching}
                     notFoundContent={insulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
-                    required
+                    {...heatCalcCustomControlRequiredProps(form, heatCalcObjectType, 'third_insulation_material')}
                   />,
                   fieldHelp('third_insulation_material', heatCalcObjectType),
                 )}
@@ -793,11 +774,7 @@ export default function ObjectWizard({
                 label={fieldLabel('third_insulation_thickness_mm', heatCalcObjectType)}
                 name="third_insulation_thickness_mm"
                 preserve={false}
-                rules={[
-                  { required: true, message: 'Укажите толщину 3-го слоя' },
-                  { type: 'number', min: 0.01, message: 'Минимальная толщина — 0,01 мм' },
-                  { type: 'number', max: 500, message: 'Максимальная толщина — 500 мм' },
-                ]}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'third_insulation_thickness_mm')}
               >
                 {withHelp(
                   <UnitInputNumber
@@ -813,11 +790,9 @@ export default function ObjectWizard({
                 label={fieldLabel('third_insulation_lambda', heatCalcObjectType)}
                 name={thirdInsulationIsOther ? 'third_insulation_lambda' : undefined}
                 preserve={false}
-                rules={thirdInsulationIsOther ? [
-                    { required: true, message: 'Укажите λ 3-го слоя' },
-                    { type: 'number', min: 0.001, message: 'Минимальная λ — 0,001 Вт/мК' },
-                    { type: 'number', max: 400, message: 'Максимальная λ — 400 Вт/мК' },
-                  ] : undefined}
+                rules={thirdInsulationIsOther
+                  ? heatCalcFormFieldRules(form, heatCalcObjectType, 'third_insulation_lambda')
+                  : undefined}
               >
                 {withHelp(
                   <UnitInputNumber
@@ -836,8 +811,10 @@ export default function ObjectWizard({
                 minName="third_insulation_temperature_min"
                 maxName="third_insulation_temperature_max"
                 dataTestIdPrefix="third-insulation"
+                objectType={heatCalcObjectType}
                 labelFieldId="third_insulation_temperature_range"
                 hint={fieldHelp('third_insulation_temperature_range', heatCalcObjectType)}
+                required={heatCalcCustomControlRequiredProps(form, heatCalcObjectType, 'third_insulation_temperature_range').required}
               />
             </div>
           )}
@@ -889,6 +866,7 @@ export default function ObjectWizard({
               label={fieldLabel('climate_temperature_basis', heatCalcObjectType)}
               name="climate_temperature_basis"
               preserve={false}
+              rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'climate_temperature_basis')}
             >
               {withHelp(
                 <Select
@@ -951,8 +929,7 @@ export default function ObjectWizard({
                 />
               }
               rules={[
-                { type: 'number', min: 0, message: 'Минимальная скорость ветра — 0 м/с' },
-                { type: 'number', max: 20, message: 'Максимальная скорость ветра — 20 м/с' },
+                ...heatCalcFormFieldRules(form, heatCalcObjectType, 'wind_speed'),
               ]}
             >
               {withHelp(
@@ -971,10 +948,7 @@ export default function ObjectWizard({
               label={fieldLabel('alpha_vnesh', heatCalcObjectType)}
               name="alpha_vnesh"
               preserve={false}
-              rules={[
-                { type: 'number', min: 7, message: 'Минимальный α — 7 Вт/(м²·К)' },
-                { type: 'number', max: 52, message: 'Максимальный α — 52 Вт/(м²·К)' },
-              ]}
+              rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'alpha_vnesh')}
             >
               {withHelp(
                 <UnitInputNumber
@@ -990,10 +964,7 @@ export default function ObjectWizard({
             className="numeric-form-item temperature-number-form-item max-ambient-temperature-form-item helped-form-item"
             label={fieldLabel('max_ambient_temperature', heatCalcObjectType)}
             name="max_ambient_temperature"
-            rules={[
-              { type: 'number', min: -70, message: 'Минимальная температура среды: −70°C' },
-              { type: 'number', max: 70, message: 'Максимальная температура среды: +70°C' },
-            ]}
+            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'max_ambient_temperature')}
           >
             {withHelp(
               <UnitInputNumber
@@ -1008,10 +979,7 @@ export default function ObjectWizard({
             className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('max_process_temperature', heatCalcObjectType)}
             name="max_process_temperature"
-            rules={[
-              { type: 'number', min: -90, message: 'Минимальная температура продукта: −90°C' },
-              { type: 'number', max: 600, message: 'Максимальная температура продукта: +600°C' },
-            ]}
+            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'max_process_temperature')}
           >
             {withHelp(
               <UnitInputNumber
@@ -1078,12 +1046,7 @@ export default function ObjectWizard({
             className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('min_switch_temperature', heatCalcObjectType)}
             name="min_switch_temperature"
-            rules={objectType === 'pipe'
-              ? heatCalcFormFieldRules(form, heatCalcObjectType, 'min_switch_temperature')
-              : [
-                  { type: 'number', min: -70, message: 'Минимальная температура включения: −70°C' },
-                  { type: 'number', max: 70, message: 'Максимальная температура включения: +70°C' },
-                ]}
+            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'min_switch_temperature')}
           >
             {withHelp(
               <UnitInputNumber
@@ -1112,12 +1075,7 @@ export default function ObjectWizard({
             className="numeric-form-item coefficient-form-item helped-form-item"
             label={fieldLabel('safety_factor', heatCalcObjectType)}
             name="safety_factor"
-            rules={objectType === 'pipe'
-              ? heatCalcFormFieldRules(form, heatCalcObjectType, 'safety_factor')
-              : [
-                  { type: 'number', min: 1.05, message: 'Минимальный коэффициент запаса — 1,05' },
-                  { type: 'number', max: 1.7, message: 'Максимальный коэффициент запаса — 1,70' },
-                ]}
+            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'safety_factor')}
           >
             {withHelp(
               <InputNumber
@@ -1165,10 +1123,7 @@ export default function ObjectWizard({
                 className="numeric-form-item fitting-count-form-item helped-form-item"
                 label={fieldLabel('valve_count', heatCalcObjectType)}
                 name="valve_count"
-                rules={[
-                  { type: 'number', min: 0, message: 'Минимум — 0 шт' },
-                  { type: 'number', max: 100, message: 'Максимум — 100 шт' },
-                ]}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'valve_count')}
               >
                 {withHelp(
                   <UnitInputNumber
@@ -1183,10 +1138,7 @@ export default function ObjectWizard({
                 className="numeric-form-item fitting-count-form-item helped-form-item"
                 label={fieldLabel('flange_count', heatCalcObjectType)}
                 name="flange_count"
-                rules={[
-                  { type: 'number', min: 0, message: 'Минимум — 0 шт' },
-                  { type: 'number', max: 100, message: 'Максимум — 100 шт' },
-                ]}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'flange_count')}
               >
                 {withHelp(
                   <UnitInputNumber
@@ -1201,10 +1153,7 @@ export default function ObjectWizard({
                 className="numeric-form-item fitting-count-form-item helped-form-item"
                 label={fieldLabel('support_count', heatCalcObjectType)}
                 name="support_count"
-                rules={[
-                  { type: 'number', min: 0, message: 'Минимум — 0 шт' },
-                  { type: 'number', max: 100, message: 'Максимум — 100 шт' },
-                ]}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'support_count')}
               >
                 {withHelp(
                   <UnitInputNumber
@@ -1219,10 +1168,7 @@ export default function ObjectWizard({
                 className="numeric-form-item coefficient-form-item helped-form-item"
                 label={fieldLabel('local_element_equiv_length', heatCalcObjectType)}
                 name="local_element_equiv_length"
-                rules={[
-                  { type: 'number', min: 0.1, message: 'Минимальная эквивалентная длина — 0,1 м' },
-                  { type: 'number', max: 6.9, message: 'Максимальная эквивалентная длина — 6,9 м' },
-                ]}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'local_element_equiv_length')}
               >
                 {withHelp(
                   <UnitInputNumber

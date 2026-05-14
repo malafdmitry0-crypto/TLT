@@ -41,7 +41,7 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
         className="fixed-select-form-item helped-form-item"
         label={fieldLabel('shape')}
         name="shape"
-        rules={[{ required: true, message: 'Выберите форму резервуара' }]}
+        rules={heatCalcFormFieldRules(form, 'tank', 'shape')}
       >
         {withHelp(
           <Select

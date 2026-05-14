@@ -66,8 +66,8 @@ interface RegisteredTableColumnCache {
   cachedAt: string;
 }
 
-export const HEATCALC_TABLE_COLUMNS_VERSION = 5;
-// The preference key is intentionally unchanged: v5 extends the existing table
+export const HEATCALC_TABLE_COLUMNS_VERSION = 6;
+// The preference key is intentionally unchanged: v6 extends the existing table
 // config instead of creating a parallel source of truth.
 export const HEATCALC_TABLE_COLUMN_PREF_KEY = 'heatcalc.tableColumns.v1';
 export const HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY = 'heatcalc.tableColumns.v1.guest';
@@ -365,17 +365,32 @@ function migrateTableColumnSettings(
   settings: HeatCalcTableColumnSettings,
   sourceVersion: number,
 ): HeatCalcTableColumnSettings {
-  if (sourceVersion >= 5) return settings;
-  return {
-    ...settings,
-    types: {
-      ...settings.types,
-      pipe: normalizeTypeSettingsFromStructuredValue(
-        'pipe',
-        insertVisibleColumnAfter(settings.types.pipe, 'placement', 'name'),
-      ),
-    },
-  };
+  let next = settings;
+  if (sourceVersion < 5) {
+    next = {
+      ...next,
+      types: {
+        ...next.types,
+        pipe: normalizeTypeSettingsFromStructuredValue(
+          'pipe',
+          insertVisibleColumnAfter(next.types.pipe, 'placement', 'name'),
+        ),
+      },
+    };
+  }
+  if (sourceVersion < 6) {
+    const pipeSettings = next.types.pipe.visibleOrder.includes('support_count')
+      ? insertVisibleColumnAfter(next.types.pipe, 'local_element_equiv_length', 'support_count')
+      : next.types.pipe;
+    next = {
+      ...next,
+      types: {
+        ...next.types,
+        pipe: normalizeTypeSettingsFromStructuredValue('pipe', pipeSettings),
+      },
+    };
+  }
+  return next;
 }
 
 export function getAvailableTableColumnKeys(type: HeatCalcTableColumnScope) {

@@ -6,6 +6,8 @@ import {
   getHeatCalcFieldInputConfig,
   getHeatCalcFieldLabel,
 } from '@/domain/heatCalcFields';
+import { validateHeatCalcField } from '@/domain/heatCalcFieldRules';
+import type { HeatCalcObjectType } from '@/types/project';
 import type { InsulationEntry } from '@/types/reference';
 import { formatInsulationTemperatureRange } from '@/utils/referenceOptions';
 import HelpedControl from './HelpedControl';
@@ -49,8 +51,10 @@ interface Props {
   minName: string;
   maxName: string;
   dataTestIdPrefix: string;
+  objectType: HeatCalcObjectType;
   labelFieldId?: string;
   hint: string;
+  required?: boolean;
 }
 
 export default function InsulationTemperatureRangeField({
@@ -59,8 +63,10 @@ export default function InsulationTemperatureRangeField({
   minName,
   maxName,
   dataTestIdPrefix,
+  objectType,
   labelFieldId = 'first_insulation_temperature_range',
   hint,
+  required = false,
 }: Props) {
   const form = Form.useFormInstance();
   const [modalForm] = Form.useForm<RangeModalValues>();
@@ -77,17 +83,14 @@ export default function InsulationTemperatureRangeField({
   const minStep = minInputConfig?.default_step ?? 1;
   const maxStep = maxInputConfig?.default_step ?? minStep;
   const rangeLimitMessage = `Допустимо ${modalMinLimit}...${modalMaxLimit} °C`;
-  const rangeValidator = (pairName: string, isMin: boolean) => ({
+  const rangeValidator = (currentName: string) => ({
     validator(_: unknown, value: unknown) {
-      const pairValue = form.getFieldValue(pairName);
-      if (!hasValue(value) || !hasValue(pairValue)) {
-        return Promise.reject(new Error('Укажите диапазон T'));
-      }
-      const min = Number(isMin ? value : pairValue);
-      const max = Number(isMin ? pairValue : value);
-      if (Number.isFinite(min) && Number.isFinite(max) && min >= max) {
-        return Promise.reject(new Error('Нижняя граница должна быть меньше верхней'));
-      }
+      const values = {
+        ...form.getFieldsValue(true),
+        [currentName]: value,
+      };
+      const error = validateHeatCalcField(labelFieldId, undefined, { objectType, values });
+      if (error) return Promise.reject(new Error(error));
       return Promise.resolve();
     },
   });
@@ -140,7 +143,7 @@ export default function InsulationTemperatureRangeField({
         label={fieldLabel(labelFieldId)}
         name={isOtherMaterial ? minName : undefined}
         preserve={false}
-        rules={isOtherMaterial ? [rangeValidator(maxName, true)] : undefined}
+        rules={isOtherMaterial ? [rangeValidator(minName)] : undefined}
       >
         {withHelp(
           isOtherMaterial ? (
@@ -150,10 +153,11 @@ export default function InsulationTemperatureRangeField({
                 'reference-picker-control',
                 'temperature-range-picker-control',
                 editableRange ? '' : 'reference-picker-control--empty',
-                'reference-picker-control--required',
+                required ? 'reference-picker-control--required' : '',
               ].filter(Boolean).join(' ')}
               aria-haspopup="dialog"
               aria-expanded={open}
+              aria-required={required}
               title={editableRange ?? 'Задать диапазон T'}
               data-testid={`${dataTestIdPrefix}-temperature-range-button`}
               onClick={openRangeModal}
@@ -182,7 +186,7 @@ export default function InsulationTemperatureRangeField({
           name={maxName}
           hidden
           preserve={false}
-          rules={[rangeValidator(minName, false)]}
+          rules={[rangeValidator(maxName)]}
         >
           <Input />
         </Form.Item>

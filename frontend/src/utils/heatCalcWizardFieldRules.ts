@@ -1,6 +1,5 @@
 import type { FormInstance } from 'antd';
 import {
-  getHeatCalcFieldDefinition,
   getHeatCalcFieldInputConfig,
   type HeatCalcFieldOption,
 } from '@/domain/heatCalcFields';
@@ -14,6 +13,29 @@ import {
   resolveHeatCalcFieldStep,
   type HeatCalcFieldInputSettings,
 } from '@/utils/heatCalcFieldInputSettings';
+
+export function heatCalcFieldRequired(
+  form: FormInstance,
+  objectType: HeatCalcObjectType,
+  fieldId: string,
+) {
+  return isHeatCalcFieldRequired(fieldId, {
+    objectType,
+    values: form.getFieldsValue(true),
+  });
+}
+
+export function heatCalcCustomControlRequiredProps(
+  form: FormInstance,
+  objectType: HeatCalcObjectType,
+  fieldId: string,
+) {
+  const required = heatCalcFieldRequired(form, objectType, fieldId);
+  return {
+    required,
+    'aria-required': required ? true : undefined,
+  };
+}
 
 export function heatCalcFormFieldRules(
   form: FormInstance,
@@ -47,8 +69,9 @@ export function heatCalcFormFieldRules(
 }
 
 function getRequiredMessage(objectType: HeatCalcObjectType, fieldId: string) {
-  const field = getHeatCalcFieldDefinition(fieldId, objectType);
-  if (field?.editor === 'select') return 'Выберите значение';
+  const input = getHeatCalcFieldInputConfig(fieldId, objectType);
+  if (input?.type === 'select' || input?.type === 'reference') return 'Выберите значение';
+  if (input?.type === 'range') return 'Укажите диапазон T';
   return 'Укажите значение';
 }
 
@@ -57,11 +80,10 @@ export function heatCalcNumberInputProps(
   fieldId: string,
   options: { includeStep?: boolean; fieldInputSettings?: HeatCalcFieldInputSettings } = {},
 ) {
-  const field = getHeatCalcFieldDefinition(fieldId, objectType);
   const input = getHeatCalcFieldInputConfig(fieldId, objectType);
   return {
-    min: field?.min ?? input?.min,
-    max: field?.max ?? input?.max,
+    min: input?.min,
+    max: input?.max,
     step: options.includeStep === false
       ? undefined
       : resolveHeatCalcFieldStep(objectType, fieldId, options.fieldInputSettings) ?? input?.default_step,
@@ -69,9 +91,9 @@ export function heatCalcNumberInputProps(
 }
 
 export function heatCalcTextInputProps(objectType: HeatCalcObjectType, fieldId: string) {
-  const field = getHeatCalcFieldDefinition(fieldId, objectType);
+  const input = getHeatCalcFieldInputConfig(fieldId, objectType);
   return {
-    maxLength: field?.maxLength,
+    maxLength: input?.max_length,
   };
 }
 
@@ -79,7 +101,5 @@ export function heatCalcSelectOptions(
   objectType: HeatCalcObjectType,
   fieldId: string,
 ): HeatCalcFieldOption[] {
-  return getHeatCalcFieldDefinition(fieldId, objectType)?.options
-    ?? getHeatCalcFieldInputConfig(fieldId, objectType)?.options
-    ?? [];
+  return getHeatCalcFieldInputConfig(fieldId, objectType)?.options ?? [];
 }

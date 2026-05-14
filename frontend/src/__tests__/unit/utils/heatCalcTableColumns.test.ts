@@ -88,6 +88,27 @@ describe('heatCalcTableColumns', () => {
     ]);
   });
 
+  it('добавляет Lэкв после локальных элементов в старые сохранённые настройки', () => {
+    const settings = normalizeTableColumnSettings({
+      version: 5,
+      types: {
+        pipe: {
+          visibleOrder: ['index', 'name', 'valve_count', 'flange_count', 'support_count'],
+          columns: {},
+        },
+      },
+    });
+
+    expect(settings.types.pipe.visibleOrder).toEqual([
+      'index',
+      'name',
+      'valve_count',
+      'flange_count',
+      'support_count',
+      'local_element_equiv_length',
+    ]);
+  });
+
   it('не возвращает размещение трубопровода после ручного скрытия в новой версии', () => {
     const settings = normalizeTableColumnSettings({
       version: HEATCALC_TABLE_COLUMNS_VERSION,
@@ -149,6 +170,14 @@ describe('heatCalcTableColumns', () => {
     const visiblePipe = getVisibleTableColumnMetas('pipe', settings).map((column) => column.key);
 
     expect(visiblePipe).toContain('placement');
+  });
+
+  it('показывает Lэкв рядом с локальными элементами в дефолтной таблице труб', () => {
+    const settings = getDefaultTableColumnSettings();
+    const visiblePipe = getVisibleTableColumnMetas('pipe', settings).map((column) => column.key);
+
+    expect(visiblePipe.slice(visiblePipe.indexOf('valve_count'), visiblePipe.indexOf('local_element_equiv_length') + 1))
+      .toEqual(['valve_count', 'flange_count', 'support_count', 'local_element_equiv_length']);
   });
 
   it('оставляет расчетные детали скрытыми по умолчанию, но доступными в каталоге', () => {

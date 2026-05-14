@@ -8,6 +8,7 @@ export {
   getHeatCalcFieldDescription,
   getHeatCalcFieldInputConfig,
   getHeatCalcFieldLabel,
+  getHeatCalcFormFieldIds,
   getHeatCalcTableColumnRegistry,
   getHeatCalcDefaultVisibleTableKeys,
   isHeatCalcFieldStepConfigurable,

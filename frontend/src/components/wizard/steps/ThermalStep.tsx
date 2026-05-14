@@ -5,6 +5,7 @@ import UnitInputNumber from '@/components/common/UnitInputNumber';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
 import {
+  heatCalcCustomControlRequiredProps,
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
 } from '@/utils/heatCalcWizardFieldRules';
@@ -65,7 +66,7 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
         className="fixed-select-form-item reduced-select-form-item layer-material-form-item first-layer-material-form-item helped-form-item"
         label={fieldLabel('insulation_material', objectType)}
         name="insulation_material"
-        rules={[{ required: true, message: 'Выберите материал изоляции' }]}
+        rules={heatCalcFormFieldRules(form, objectType, 'insulation_material')}
       >
         {withHelp(
           <ReferencePicker
@@ -76,7 +77,7 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
             searchPlaceholder="Поиск материала"
             loading={isFetching}
             notFoundContent={isError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
-            required
+            {...heatCalcCustomControlRequiredProps(form, objectType, 'insulation_material')}
           />,
           fieldHelp('insulation_material', objectType),
         )}
@@ -103,11 +104,7 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
         label={fieldLabel('first_insulation_lambda', objectType)}
         name={isOtherMaterial ? 'first_insulation_lambda' : undefined}
         preserve={false}
-        rules={isOtherMaterial ? [
-            { required: true, message: 'Укажите λ 1-го слоя' },
-            { type: 'number', min: 0.001, message: 'Минимальная λ — 0,001 Вт/мК' },
-            { type: 'number', max: 400, message: 'Максимальная λ — 400 Вт/мК' },
-          ] : undefined}
+        rules={isOtherMaterial ? heatCalcFormFieldRules(form, objectType, 'first_insulation_lambda') : undefined}
       >
         {withHelp(
           <UnitInputNumber
@@ -127,8 +124,10 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
         minName="first_insulation_temperature_min"
         maxName="first_insulation_temperature_max"
         dataTestIdPrefix="first-insulation"
+        objectType={objectType}
         labelFieldId="first_insulation_temperature_range"
         hint={fieldHelp('first_insulation_temperature_range', objectType)}
+        required={heatCalcCustomControlRequiredProps(form, objectType, 'first_insulation_temperature_range').required}
       />
     </>
   );
