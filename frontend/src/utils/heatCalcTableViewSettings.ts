@@ -9,6 +9,7 @@ export interface HeatCalcTableViewSettings {
   inlineEditingEnabled: boolean;
   formPlacement: HeatCalcFormPlacement;
   sideFormWidthPct: number;
+  formSectionWeights: HeatCalcFormSectionWeights;
 }
 
 export interface HeatCalcResolvedTableFontSize {
@@ -32,6 +33,10 @@ export const HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY = 'heatcalc.tableView.v1.r
 export const HEATCALC_SIDE_FORM_WIDTH_DEFAULT = 34;
 export const HEATCALC_SIDE_FORM_WIDTH_MIN = 22;
 export const HEATCALC_SIDE_FORM_WIDTH_MAX = 62;
+export const HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT = [1.095, 1.35, 1.2, 0.56] as const;
+export const HEATCALC_FORM_SECTION_WEIGHT_MIN = 0.35;
+export const HEATCALC_FORM_SECTION_WEIGHT_MAX = 3;
+export type HeatCalcFormSectionWeights = [number, number, number, number];
 export const HEATCALC_FORM_PLACEMENT_OPTIONS: Array<{ key: HeatCalcFormPlacement; label: string }> = [
   { key: 'top', label: 'Вверху' },
   { key: 'bottom', label: 'Внизу' },
@@ -104,6 +109,32 @@ function normalizeSideFormWidthPct(value: unknown): number {
   return Math.round(clamped * 10) / 10;
 }
 
+export function normalizeFormSectionWeights(value: unknown): HeatCalcFormSectionWeights {
+  if (!Array.isArray(value) || value.length !== HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT.length) {
+    return [...HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT] as HeatCalcFormSectionWeights;
+  }
+  const normalized = value.map((item) => {
+    const numeric = Number(item);
+    if (!Number.isFinite(numeric)) return null;
+    const clamped = Math.min(
+      HEATCALC_FORM_SECTION_WEIGHT_MAX,
+      Math.max(HEATCALC_FORM_SECTION_WEIGHT_MIN, numeric),
+    );
+    return Math.round(clamped * 1000) / 1000;
+  });
+  if (normalized.some((item) => item == null)) {
+    return [...HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT] as HeatCalcFormSectionWeights;
+  }
+  return normalized as HeatCalcFormSectionWeights;
+}
+
+export function areFormSectionWeightsEqual(
+  left: HeatCalcFormSectionWeights,
+  right: HeatCalcFormSectionWeights,
+) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
 export function getDefaultTableViewSettings(): HeatCalcTableViewSettings {
   return {
     version: HEATCALC_TABLE_VIEW_VERSION,
@@ -111,6 +142,7 @@ export function getDefaultTableViewSettings(): HeatCalcTableViewSettings {
     inlineEditingEnabled: false,
     formPlacement: 'top',
     sideFormWidthPct: HEATCALC_SIDE_FORM_WIDTH_DEFAULT,
+    formSectionWeights: [...HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT] as HeatCalcFormSectionWeights,
   };
 }
 
@@ -122,6 +154,7 @@ export function normalizeTableViewSettings(value: unknown): HeatCalcTableViewSet
     inlineEditingEnabled: source.inlineEditingEnabled === true,
     formPlacement: normalizeFormPlacement(source.formPlacement),
     sideFormWidthPct: normalizeSideFormWidthPct(source.sideFormWidthPct),
+    formSectionWeights: normalizeFormSectionWeights(source.formSectionWeights),
   };
 }
 
@@ -131,7 +164,8 @@ export function isDefaultTableViewSettings(settings: HeatCalcTableViewSettings) 
   return normalized.fontSize === defaults.fontSize
     && normalized.inlineEditingEnabled === defaults.inlineEditingEnabled
     && normalized.formPlacement === defaults.formPlacement
-    && normalized.sideFormWidthPct === defaults.sideFormWidthPct;
+    && normalized.sideFormWidthPct === defaults.sideFormWidthPct
+    && areFormSectionWeightsEqual(normalized.formSectionWeights, defaults.formSectionWeights);
 }
 
 export function resolveTableFontSize(

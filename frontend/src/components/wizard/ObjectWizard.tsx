@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, type ReactElement } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactElement,
+} from 'react';
 import { Button, Form, Input, InputNumber, Select, Tag, type FormInstance } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import type { ObjectType } from '@/constants/objectTypes';
@@ -34,6 +41,11 @@ import {
   buildSoilReferenceOptions,
 } from '@/utils/referenceOptions';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
+import {
+  HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT,
+  normalizeFormSectionWeights,
+  type HeatCalcFormSectionWeights,
+} from '@/utils/heatCalcTableViewSettings';
 import type { HeatCalcObjectType } from '@/types/project';
 
 interface Props {
@@ -44,11 +56,14 @@ interface Props {
   /** Pass existing params to enable edit mode */
   initialParams?: Record<string, unknown>;
   fieldInputSettings?: HeatCalcFieldInputSettings;
+  formSectionWeights?: HeatCalcFormSectionWeights;
+  sectionResizeEnabled?: boolean;
+  onFormSectionWeightsChange?: (weights: HeatCalcFormSectionWeights) => void;
+  onFormSectionWeightsCommit?: (weights: HeatCalcFormSectionWeights) => void;
 }
 
-const SECTION_RESIZE_HANDLE_WIDTH = 0;
-const SECTION_GRID_GAP_WIDTH = 4;
-const SECTION_WIDTH_WEIGHTS = [1.095, 1.35, 1.2, 0.56];
+const SECTION_RESIZE_HANDLE_WIDTH = 4;
+const SECTION_GRID_GAP_WIDTH = 2;
 const SECTION_FIELD_PAIR_MIN_WIDTHS = [206, 206, 220, 180];
 const SECTION_FIELD_GRID =
   'repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr))';
@@ -109,9 +124,19 @@ export default function ObjectWizard({
   submitting = false,
   initialParams,
   fieldInputSettings,
+  formSectionWeights,
+  sectionResizeEnabled = false,
+  onFormSectionWeightsChange,
+  onFormSectionWeightsCommit,
 }: Props) {
   const [form] = Form.useForm();
+  const formGridRef = useRef<HTMLDivElement | null>(null);
   const heatCalcObjectType = objectType as HeatCalcObjectType;
+  const resolvedFormSectionWeights = useMemo(
+    () => normalizeFormSectionWeights(formSectionWeights ?? HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT),
+    [formSectionWeights],
+  );
+  const formSectionWeightsRef = useRef<HeatCalcFormSectionWeights>(resolvedFormSectionWeights);
   const numberInputProps = (
     fieldId: string,
     options: { includeStep?: boolean } = {},
@@ -145,6 +170,11 @@ export default function ObjectWizard({
     return value == null ? fallback : String(value);
   };
   const prevSuggestedRef = useRef<string>('');
+
+  useEffect(() => {
+    formSectionWeightsRef.current = resolvedFormSectionWeights;
+  }, [resolvedFormSectionWeights]);
+
   const insulationLayerCount = watchedString('insulation_layer_count');
   const placement = watchedString('placement');
   const pipeLambdaMode = watchedString('pipe_lambda_mode');
@@ -299,13 +329,116 @@ export default function ObjectWizard({
     }
   }
 
+  function resizedSectionWeights(
+    handleIndex: number,
+    clientX: number,
+    startX: number,
+    startWeights: HeatCalcFormSectionWeights,
+    availableWidth: number,
+  ): HeatCalcFormSectionWeights {
+    const totalWeight = startWeights.reduce((total, weight) => total + weight, 0);
+    const pxPerWeight = availableWidth / totalWeight;
+    if (!Number.isFinite(pxPerWeight) || pxPerWeight <= 0) return startWeights;
+    const minWeights = SECTION_FIELD_PAIR_MIN_WIDTHS.map((minWidth) =>
+      Math.max(0.35, Math.min(1.1, (minWidth / availableWidth) * totalWeight)),
+    );
+    const pairTotal = startWeights[handleIndex] + startWeights[handleIndex + 1];
+    const minLeft = minWeights[handleIndex] ?? 0.35;
+    const minRight = minWeights[handleIndex + 1] ?? 0.35;
+    const maxLeft = pairTotal - minRight;
+    if (maxLeft <= minLeft) return startWeights;
+    const deltaWeight = (clientX - startX) / pxPerWeight;
+    const nextLeft = Math.min(maxLeft, Math.max(minLeft, startWeights[handleIndex] + deltaWeight));
+    const next = [...startWeights] as HeatCalcFormSectionWeights;
+    next[handleIndex] = Math.round(nextLeft * 1000) / 1000;
+    next[handleIndex + 1] = Math.round((pairTotal - nextLeft) * 1000) / 1000;
+    return normalizeFormSectionWeights(next);
+  }
+
+  function startSectionResizeDrag(
+    handleIndex: number,
+    startX: number,
+    moveEventName: 'pointermove' | 'mousemove',
+    upEventName: 'pointerup' | 'mouseup',
+    cancelEventName?: 'pointercancel',
+  ) {
+    if (!sectionResizeEnabled || !onFormSectionWeightsChange) return;
+    const handleWeightsChange: (weights: HeatCalcFormSectionWeights) => void = onFormSectionWeightsChange;
+    const handleWeightsCommit = onFormSectionWeightsCommit;
+    const rect = formGridRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return;
+    const startWeights = formSectionWeightsRef.current;
+    const availableWidth = Math.max(
+      1,
+      rect.width - SECTION_RESIZE_HANDLE_WIDTH * 3 - SECTION_GRID_GAP_WIDTH * 6,
+    );
+    document.body.classList.add('heatcalc-form-section-resizing');
+
+    const finishResize = (event?: PointerEvent | MouseEvent) => {
+      window.removeEventListener(moveEventName, handleMove as EventListener);
+      window.removeEventListener(upEventName, handleUp as EventListener);
+      if (cancelEventName) window.removeEventListener(cancelEventName, handleCancel as EventListener);
+      document.body.classList.remove('heatcalc-form-section-resizing');
+      const finalWeights = event
+        ? resizedSectionWeights(handleIndex, event.clientX, startX, startWeights, availableWidth)
+        : formSectionWeightsRef.current;
+      handleWeightsChange(finalWeights);
+      handleWeightsCommit?.(finalWeights);
+    };
+
+    function handleMove(event: PointerEvent | MouseEvent) {
+      const nextWeights = resizedSectionWeights(handleIndex, event.clientX, startX, startWeights, availableWidth);
+      formSectionWeightsRef.current = nextWeights;
+      handleWeightsChange(nextWeights);
+    }
+
+    function handleUp(event: PointerEvent | MouseEvent) {
+      finishResize(event);
+    }
+
+    function handleCancel() {
+      finishResize();
+    }
+
+    window.addEventListener(moveEventName, handleMove as EventListener);
+    window.addEventListener(upEventName, handleUp as EventListener);
+    if (cancelEventName) window.addEventListener(cancelEventName, handleCancel as EventListener);
+  }
+
+  function startSectionResize(handleIndex: number, event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    startSectionResizeDrag(handleIndex, event.clientX, 'pointermove', 'pointerup', 'pointercancel');
+  }
+
+  function startSectionMouseResize(handleIndex: number, event: ReactMouseEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    startSectionResizeDrag(handleIndex, event.clientX, 'mousemove', 'mouseup');
+  }
+
+  function renderSectionResizeHandle(handleIndex: number) {
+    return (
+      <div
+        className="form-col-resize-handle"
+        role={sectionResizeEnabled ? 'separator' : undefined}
+        aria-label={sectionResizeEnabled ? 'Изменить ширину областей формы' : undefined}
+        aria-orientation={sectionResizeEnabled ? 'vertical' : undefined}
+        tabIndex={sectionResizeEnabled ? 0 : undefined}
+        onPointerDown={sectionResizeEnabled ? (event) => startSectionResize(handleIndex, event) : undefined}
+        onMouseDown={sectionResizeEnabled ? (event) => startSectionMouseResize(handleIndex, event) : undefined}
+      />
+    );
+  }
+
   function sectionStyle(idx: number): React.CSSProperties {
-    const expandedWeight = SECTION_WIDTH_WEIGHTS.reduce(
+    const expandedWeight = resolvedFormSectionWeights.reduce(
       (total, weight) => total + weight,
       0,
     );
     const availableWidth = `100% - ${SECTION_RESIZE_HANDLE_WIDTH * 3 + SECTION_GRID_GAP_WIDTH * 6}px`;
-    const share = expandedWeight > 0 ? SECTION_WIDTH_WEIGHTS[idx] / expandedWeight : 1;
+    const share = expandedWeight > 0 ? resolvedFormSectionWeights[idx] / expandedWeight : 1;
 
     const style = {
       width: `calc((${availableWidth}) * ${share})`,
@@ -345,7 +478,7 @@ export default function ObjectWizard({
       <Form.Item name="wind_speed_source" hidden noStyle>
         <Input type="hidden" />
       </Form.Item>
-      <div className="form-grid-srs">
+      <div className="form-grid-srs" ref={formGridRef}>
 
         {/* ── Геометрия ──────────────────────────────────────────────── */}
         <div
@@ -524,7 +657,7 @@ export default function ObjectWizard({
           )}
         </div>
 
-        <div className="form-col-resize-handle" />
+        {renderSectionResizeHandle(0)}
 
         {/* ── Теплоизоляция ──────────────────────────────────────────── */}
         <div
@@ -712,11 +845,11 @@ export default function ObjectWizard({
           </Form.Item>
         </div>
 
-        <div className="form-col-resize-handle" />
+        {renderSectionResizeHandle(1)}
 
         {/* ── Температура и среда ────────────────────────────────────── */}
         <div
-          className="form-col-srs"
+          className="form-col-srs temperature-environment-section"
           style={sectionStyle(2)}
         >
           {renderSectionTitle('Температура и среда', 3)}
@@ -903,7 +1036,7 @@ export default function ObjectWizard({
           </Form.Item>
         </div>
 
-        <div className="form-col-resize-handle" />
+        {renderSectionResizeHandle(2)}
 
         {/* ── Электропараметры и арматура ───────────────────────────── */}
         <div

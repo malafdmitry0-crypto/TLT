@@ -741,6 +741,17 @@ html, body, #root {
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }
 
+.heatcalc-workspace-layout--left .form-grid-srs .temperature-environment-section,
+.heatcalc-workspace-layout--right .form-grid-srs .temperature-environment-section {
+  --compact-field-label-width: 72px !important;
+  gap: 2px;
+}
+
+.heatcalc-workspace-layout--left .form-grid-srs .temperature-environment-section .ant-form-item-row,
+.heatcalc-workspace-layout--right .form-grid-srs .temperature-environment-section .ant-form-item-row {
+  column-gap: 2px;
+}
+
 .heatcalc-workspace-layout--left .form-grid-srs .form-col-srs > .name-form-item,
 .heatcalc-workspace-layout--left .form-grid-srs .form-col-srs > .fixed-select-form-item,
 .heatcalc-workspace-layout--left .form-grid-srs .form-col-srs > .pipe-material-form-item,
@@ -842,7 +853,7 @@ html, body, #root {
   align-items: stretch;
   width: 100%;
   overflow: hidden;
-  gap: 4px;
+  gap: 2px;
 }
 
 .form-grid-srs .form-col-srs {
@@ -867,9 +878,37 @@ html, body, #root {
 }
 
 .form-col-resize-handle {
-  width: 0;
-  flex-shrink: 0;
+  flex: 0 0 4px;
+  align-self: stretch;
+  position: relative;
+  width: 4px;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
   background: transparent;
+}
+
+.form-col-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 1px;
+  width: 2px;
+  border-radius: 999px;
+  background: #d8e6f3;
+}
+
+.form-col-resize-handle:hover::before,
+.form-col-resize-handle:focus-visible::before,
+.heatcalc-form-section-resizing .form-col-resize-handle::before {
+  background: var(--color-primary);
+}
+
+.heatcalc-form-section-resizing,
+.heatcalc-form-section-resizing * {
+  cursor: col-resize !important;
+  user-select: none;
 }
 
 .form-col-srs h4 {
@@ -1425,17 +1464,6 @@ html, body, #root {
   flex: 0 0 108px;
   width: 108px;
   min-width: 108px;
-}
-
-.heatcalc-workspace-layout--left .inline-object-form .environment-form-item,
-.heatcalc-workspace-layout--left .inline-object-form .zone-classification-form-item,
-.heatcalc-workspace-layout--left .inline-object-form .alpha-vnesh-form-item,
-.heatcalc-workspace-layout--left .inline-object-form .max-ambient-temperature-form-item,
-.heatcalc-workspace-layout--right .inline-object-form .environment-form-item,
-.heatcalc-workspace-layout--right .inline-object-form .zone-classification-form-item,
-.heatcalc-workspace-layout--right .inline-object-form .alpha-vnesh-form-item,
-.heatcalc-workspace-layout--right .inline-object-form .max-ambient-temperature-form-item {
-  grid-column: 1 / -1;
 }
 
 .heatcalc-workspace-layout--left .inline-object-form .environment-form-item .field-control-with-help,

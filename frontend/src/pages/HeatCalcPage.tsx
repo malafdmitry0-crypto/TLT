@@ -95,27 +95,34 @@ import {
   type HeatCalcTableColumnScope,
 } from '@/utils/heatCalcTableColumns';
 import {
+  applyColumnFilters,
+  applyTableSort,
   activeTableFilterCount,
   createEmptyTableViewState,
   hasActiveTableViewState,
   isColumnFilterActive,
   removeHiddenTableViewState,
+  type HeatCalcColumnValueAccessors,
   type HeatCalcColumnFilter,
+  type HeatCalcIndexedTableRow,
   type HeatCalcTableViewState,
 } from '@/utils/heatCalcTableFindability';
 import {
   HEATCALC_TABLE_VIEW_PREF_KEY,
+  areFormSectionWeightsEqual,
   clearGuestTableViewSettings,
   clearRegisteredTableViewCache,
   getDefaultTableViewSettings,
   isDefaultTableViewSettings,
   normalizeTableViewSettings,
+  normalizeFormSectionWeights,
   readGuestTableViewSettings,
   readRegisteredTableViewCache,
   resolveTableFontSize,
   writeGuestTableViewSettings,
   writeRegisteredTableViewCache,
   type HeatCalcFormPlacement,
+  type HeatCalcFormSectionWeights,
   type HeatCalcTableFontSize,
   type HeatCalcTableViewSettings,
 } from '@/utils/heatCalcTableViewSettings';
@@ -766,6 +773,9 @@ export default function HeatCalcPage() {
     pipe: createEmptyTableViewState(),
     tank: createEmptyTableViewState(),
   }));
+  const [allTableViewState, setAllTableViewState] = useState<HeatCalcTableViewState>(
+    () => createEmptyTableViewState(),
+  );
   const [tablePageByScope, setTablePageByScope] = useState<Record<ActiveObjectScope, number>>({
     pipe: 1,
     tank: 1,
@@ -870,7 +880,7 @@ export default function HeatCalcPage() {
   const isAllObjectScope = activeObjectScope === 'all';
   const activeTableObjectType: HeatCalcObjectType = activeObjectScope === 'tank' ? 'tank' : 'pipe';
   const activeTableColumnScope: HeatCalcTableColumnScope = isAllObjectScope ? 'all' : activeTableObjectType;
-  const activeTableViewState = tableViewStateByType[activeTableObjectType];
+  const activeTableViewState = isAllObjectScope ? allTableViewState : tableViewStateByType[activeTableObjectType];
   const activeTablePage = tablePageByScope[activeObjectScope];
 
   const { data: objectQueryCapabilities } = useQuery({
@@ -1704,29 +1714,56 @@ export default function HeatCalcPage() {
     () => sourceColumnMetas.map((meta) => meta.key),
     [sourceColumnMetas],
   );
-  const allObjectsForTable = useMemo(
+  const tableValueAccessors = useMemo<HeatCalcColumnValueAccessors<ProjectObject>>(() => {
+    const accessors: HeatCalcColumnValueAccessors<ProjectObject> = {};
+    for (const meta of HEATCALC_TABLE_COLUMN_CATALOG.all) {
+      accessors[meta.key] = (record, sourceIndex) => {
+        if (!isColumnApplicableToObjectType(meta.key, record.object_type)) {
+          return INAPPLICABLE_TABLE_VALUE;
+        }
+        return columnRenderers[meta.key].copyValue(record, sourceIndex);
+      };
+    }
+    return accessors;
+  }, [columnRenderers]);
+  const allIndexedTableRows = useMemo<HeatCalcIndexedTableRow<ProjectObject>[]>(
     () => allProjectObjects
       .filter((object) => object.object_type === 'pipe' || object.object_type === 'tank')
       .sort((left, right) => {
         const bySortOrder = left.sort_order - right.sort_order;
         if (bySortOrder !== 0) return bySortOrder;
         return left.created_at.localeCompare(right.created_at);
-      }),
+      })
+      .map((record, index) => ({ record, sourceIndex: index })),
     [allProjectObjects],
   );
+  const allFilteredSortedTableRows = useMemo(
+    () => applyTableSort(
+      applyColumnFilters(allIndexedTableRows, allTableViewState.filters, tableValueAccessors),
+      allTableViewState.sort,
+      tableValueAccessors,
+    ),
+    [allIndexedTableRows, allTableViewState, tableValueAccessors],
+  );
   const allTableOffset = isAllObjectScope ? (activeTablePage - 1) * DEFAULT_OBJECT_QUERY_PAGE_SIZE : 0;
+  const visibleAllTableRows = useMemo(
+    () => allFilteredSortedTableRows.slice(allTableOffset, allTableOffset + DEFAULT_OBJECT_QUERY_PAGE_SIZE),
+    [allFilteredSortedTableRows, allTableOffset],
+  );
   const visibleTableObjects = useMemo(
     () => (isAllObjectScope
-      ? allObjectsForTable.slice(allTableOffset, allTableOffset + DEFAULT_OBJECT_QUERY_PAGE_SIZE)
+      ? visibleAllTableRows.map(({ record }) => record)
       : objectQueryResult?.items ?? []),
-    [allObjectsForTable, allTableOffset, isAllObjectScope, objectQueryResult],
+    [isAllObjectScope, objectQueryResult, visibleAllTableRows],
   );
   const visibleTableRows = useMemo(
-    () => visibleTableObjects.map((record, index) => ({
-      record,
-      sourceIndex: (isAllObjectScope ? allTableOffset : objectQueryResult?.page_info.offset ?? 0) + index,
-    })),
-    [allTableOffset, isAllObjectScope, objectQueryResult, visibleTableObjects],
+    () => (isAllObjectScope
+      ? visibleAllTableRows
+      : visibleTableObjects.map((record, index) => ({
+          record,
+          sourceIndex: (objectQueryResult?.page_info.offset ?? 0) + index,
+        }))),
+    [isAllObjectScope, objectQueryResult, visibleAllTableRows, visibleTableObjects],
   );
   const selectedVisibleRows = useMemo(
     () => visibleTableRows.filter(({ record }) => selectedRowKeys.includes(record.id)),
@@ -1744,26 +1781,40 @@ export default function HeatCalcPage() {
   const pipeButtonCountText = typeButtonCountText('pipe', pipeCount);
   const tankButtonCountText = typeButtonCountText('tank', tankCount);
   const allButtonCountText = typeButtonCountText('all', projectObjectCount);
-  const currentActiveFilterCount = isAllObjectScope ? 0 : activeTableFilterCount(activeTableViewState);
-  const currentTableViewActive = !isAllObjectScope && hasActiveTableViewState(activeTableViewState);
+  const currentActiveFilterCount = activeTableFilterCount(activeTableViewState);
+  const currentTableViewActive = hasActiveTableViewState(activeTableViewState);
   const activeTypeTotalCount = isAllObjectScope
     ? projectObjectCount
     : objectQueryResult?.counts.by_type[activeTableObjectType] ?? totalCount;
   const filteredTableCount = isAllObjectScope
-    ? allObjectsForTable.length
+    ? allFilteredSortedTableRows.length
     : objectQueryResult?.counts.filtered ?? visibleTableObjects.length;
   const enumOptionsByColumn = useMemo(() => {
     const result: Record<HeatCalcColumnKey, { label: string; value: string }[]> = {};
     for (const meta of sourceColumnMetas) {
       const capability = fieldCapabilityByKey.get(meta.key);
       if (filterKindForColumn(meta.key, capability) !== 'enum') continue;
+      if (isAllObjectScope) {
+        const values = new Map<string, string>();
+        for (const row of allIndexedTableRows) {
+          const value = tableValueAccessors[meta.key]?.(row.record, row.sourceIndex);
+          if (value == null || value === INAPPLICABLE_TABLE_VALUE) continue;
+          const textValue = String(value).trim();
+          if (!textValue) continue;
+          values.set(textValue, textValue);
+        }
+        result[meta.key] = [...values.values()]
+          .sort((left, right) => left.localeCompare(right, 'ru', { numeric: true, sensitivity: 'base' }))
+          .map((value) => ({ label: value, value }));
+        continue;
+      }
       result[meta.key] = (capability?.options?.items ?? []).map((item) => ({
         label: item.label,
         value: String(item.value),
       }));
     }
     return result;
-  }, [fieldCapabilityByKey, sourceColumnMetas]);
+  }, [allIndexedTableRows, fieldCapabilityByKey, isAllObjectScope, sourceColumnMetas, tableValueAccessors]);
   const inlineEditingEnabled = normalizedTableView.inlineEditingEnabled;
   const dirtyDraftRows = useMemo(
     () => Object.values(draftRowsById).filter(isDraftRowDirty),
@@ -1831,7 +1882,7 @@ export default function HeatCalcPage() {
       ? DEFAULT_OBJECT_QUERY_PAGE_SIZE
       : objectQueryResult?.page_info.page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE;
     const currentTargetCount = activeObjectScope === 'all'
-      ? allObjectsForTable.length
+      ? allFilteredSortedTableRows.length
       : objectQueryResult?.counts.filtered ?? activeTypeTotalCount;
     const targetPage = Math.max(1, Math.ceil((currentTargetCount + createdInTargetScope) / pageSize));
 
@@ -1843,7 +1894,7 @@ export default function HeatCalcPage() {
     activeObjectScope,
     activeTypeTotalCount,
     add,
-    allObjectsForTable.length,
+    allFilteredSortedTableRows.length,
     objectQueryResult?.counts.filtered,
     objectQueryResult?.page_info.page_size,
     projectObjectCount,
@@ -1979,7 +2030,19 @@ export default function HeatCalcPage() {
   }, [inlineEditingEnabled]);
 
   useEffect(() => {
-    if (isAllObjectScope) return;
+    if (isAllObjectScope) {
+      setAllTableViewState((current) => {
+        const cleaned = removeHiddenTableViewState(current, visibleTableColumnKeys);
+        if (
+          cleaned.sort === current.sort
+          && Object.keys(cleaned.filters).length === Object.keys(current.filters).length
+        ) {
+          return current;
+        }
+        return cleaned;
+      });
+      return;
+    }
     setTableViewStateByType((current) => {
       const cleaned = removeHiddenTableViewState(current[activeTableObjectType], visibleTableColumnKeys);
       if (
@@ -2046,8 +2109,22 @@ export default function HeatCalcPage() {
   }, [activeTableObjectType, currentTableViewActive, isAllObjectScope, lastSavedObject, visibleTableObjects]);
 
   const setColumnFilter = useCallback((columnKey: HeatCalcColumnKey, filter?: HeatCalcColumnFilter) => {
-    if (isAllObjectScope) return;
     setTablePageByScope((current) => ({ ...current, [activeObjectScope]: 1 }));
+    if (isAllObjectScope) {
+      setAllTableViewState((current) => {
+        const nextFilters = { ...current.filters };
+        if (filter && isColumnFilterActive(filter)) {
+          nextFilters[columnKey] = filter;
+        } else {
+          delete nextFilters[columnKey];
+        }
+        return {
+          ...current,
+          filters: nextFilters,
+        };
+      });
+      return;
+    }
     setTableViewStateByType((current) => {
       const nextFilters = { ...current[activeTableObjectType].filters };
       if (filter && isColumnFilterActive(filter)) {
@@ -2070,8 +2147,11 @@ export default function HeatCalcPage() {
   }, [setColumnFilter]);
 
   const resetCurrentTableViewState = useCallback(() => {
-    if (isAllObjectScope) return;
     setTablePageByScope((current) => ({ ...current, [activeObjectScope]: 1 }));
+    if (isAllObjectScope) {
+      setAllTableViewState(createEmptyTableViewState());
+      return;
+    }
     setTableViewStateByType((current) => ({
       ...current,
       [activeTableObjectType]: createEmptyTableViewState(),
@@ -2081,12 +2161,20 @@ export default function HeatCalcPage() {
   const handleSourceTableChange = useCallback<NonNullable<TableProps<ProjectObject>['onChange']>>((pagination, _filters, sorter, extra) => {
     const nextPage = extra.action === 'sort' ? 1 : pagination.current ?? 1;
     setTablePageByScope((current) => ({ ...current, [activeObjectScope]: nextPage }));
-    if (isAllObjectScope) return;
     const nextSorter = Array.isArray(sorter)
       ? sorter.find((item) => item.order)
       : sorter;
     const columnKey = typeof nextSorter?.columnKey === 'string' ? nextSorter.columnKey : null;
     const order = nextSorter?.order;
+    if (isAllObjectScope) {
+      setAllTableViewState((current) => ({
+        ...current,
+        sort: columnKey && order
+          ? { columnKey, direction: order === 'ascend' ? 'asc' : 'desc' }
+          : undefined,
+      }));
+      return;
+    }
     setTableViewStateByType((current) => ({
       ...current,
       [activeTableObjectType]: {
@@ -2134,7 +2222,8 @@ export default function HeatCalcPage() {
     const viewChanged = normalizedView.fontSize !== currentView.fontSize
       || normalizedView.inlineEditingEnabled !== currentView.inlineEditingEnabled
       || normalizedView.formPlacement !== currentView.formPlacement
-      || normalizedView.sideFormWidthPct !== currentView.sideFormWidthPct;
+      || normalizedView.sideFormWidthPct !== currentView.sideFormWidthPct
+      || !areFormSectionWeightsEqual(normalizedView.formSectionWeights, currentView.formSectionWeights);
     const detailsChanged = normalizedDetails.preset !== currentDetails.preset
       || normalizedDetails.visibleMetrics.length !== currentDetails.visibleMetrics.length
       || normalizedDetails.visibleMetrics.some((metric) => !currentDetails.visibleMetrics.includes(metric));
@@ -2216,6 +2305,21 @@ export default function HeatCalcPage() {
     setTableViewSettings(normalizedView);
     return normalizedView;
   }, []);
+
+  const applyFormSectionWeights = useCallback((formSectionWeights: HeatCalcFormSectionWeights) => {
+    const normalizedView = normalizeTableViewSettings({
+      ...tableViewSettingsRef.current,
+      formSectionWeights: normalizeFormSectionWeights(formSectionWeights),
+    });
+    tableViewSettingsRef.current = normalizedView;
+    setTableViewSettings(normalizedView);
+    return normalizedView;
+  }, []);
+
+  const commitFormSectionWeights = useCallback((formSectionWeights: HeatCalcFormSectionWeights) => {
+    const normalizedView = applyFormSectionWeights(formSectionWeights);
+    persistTableViewOnly(normalizedView);
+  }, [applyFormSectionWeights, persistTableViewOnly]);
 
   const sideFormWidthPctFromClientX = useCallback((clientX: number) => {
     const state = sideResizeStateRef.current;
@@ -2349,8 +2453,8 @@ export default function HeatCalcPage() {
     () => sourceColumnMetas.map((meta) => {
       const renderer = columnRenderers[meta.key];
       const capability = fieldCapabilityByKey.get(meta.key);
-      const filterEnabled = !isAllObjectScope && meta.filterable !== false && (capability?.filter.enabled ?? true);
-      const sortEnabled = !isAllObjectScope && meta.sortable !== false && (capability?.sort.enabled ?? true);
+      const filterEnabled = meta.filterable !== false && (isAllObjectScope || (capability?.filter.enabled ?? true));
+      const sortEnabled = meta.sortable !== false && (isAllObjectScope || (capability?.sort.enabled ?? true));
       const filterKind = filterKindForColumn(meta.key, capability);
       const activeFilter = activeTableViewState.filters[meta.key];
       return {
@@ -2600,6 +2704,13 @@ export default function HeatCalcPage() {
       });
       return changed ? next : current;
     });
+    setAllTableViewState((current) => {
+      const visibleKeys = getVisibleTableColumnMetas('all', normalized).map((column) => column.key);
+      const cleaned = removeHiddenTableViewState(current, visibleKeys);
+      const currentFilterCount = Object.keys(current.filters).length;
+      const cleanedFilterCount = Object.keys(cleaned.filters).length;
+      return cleaned.sort !== current.sort || cleanedFilterCount !== currentFilterCount ? cleaned : current;
+    });
     persistTableSettings(normalized, normalizedView, normalizedDetails, normalizedFieldInputs);
   }
 
@@ -2621,6 +2732,10 @@ export default function HeatCalcPage() {
                 submitting={add.isPending || edit.isPending}
                 initialParams={wizardState.editingObject?.params}
                 fieldInputSettings={fieldInputSettings}
+                formSectionWeights={tableViewSettings.formSectionWeights}
+                sectionResizeEnabled={formPlacement === 'top' || formPlacement === 'bottom'}
+                onFormSectionWeightsChange={applyFormSectionWeights}
+                onFormSectionWeightsCommit={commitFormSectionWeights}
               />
             </Suspense>
           ) : null}

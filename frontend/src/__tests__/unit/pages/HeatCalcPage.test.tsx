@@ -394,6 +394,41 @@ describe('HeatCalcPage', () => {
       expect(screen.getAllByText('Тип').length).toBeGreaterThan(0);
     });
 
+    it('режим «Все» поддерживает сортировку и фильтры в колонках', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject({ id: 'pipe-beta', sort_order: 0, params: { ...makeObject().params, name: 'Бета труба' } }),
+        makeTank({ id: 'tank-alpha', sort_order: 1, params: { ...makeTank().params, name: 'Альфа резервуар' } }),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+      await user.click(await within(typeToolbar).findByRole('button', { name: /Все:/ }));
+      expect(await screen.findByText('Бета труба')).toBeInTheDocument();
+      expect(await screen.findByText('Альфа резервуар')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('columnheader', { name: /Наименование/ }));
+      await waitFor(() => {
+        const rows = [...document.querySelectorAll('.calc-spreadsheet .ant-table-tbody > tr[data-row-key]')];
+        expect(rows[0]).toHaveTextContent('Альфа резервуар');
+        expect(rows[1]).toHaveTextContent('Бета труба');
+      });
+
+      await openColumnFilter(user, 'Наименование');
+      await user.type(await screen.findByLabelText('Поиск: Наименование'), 'альфа');
+      await user.click(screen.getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(screen.queryByText('Бета труба')).not.toBeInTheDocument();
+      });
+      expect(screen.getByText('Альфа резервуар')).toBeInTheDocument();
+      expect(screen.getByText('1/2')).toBeInTheDocument();
+      expect(within(typeToolbar).getByRole('button', { name: /Все:\s*2/ })).toBeInTheDocument();
+    }, 10_000);
+
     it('настройки таблицы для режима «Все» сохраняются отдельно от труб и резервуаров', async () => {
       const { listObjects } = await import('@/api/projects');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
@@ -721,6 +756,7 @@ describe('HeatCalcPage', () => {
         inlineEditingEnabled: false,
         formPlacement: 'top',
         sideFormWidthPct: 34,
+        formSectionWeights: [1.095, 1.35, 1.2, 0.56],
       });
       expect(saved).not.toHaveProperty('fontSizePx');
     }, 10_000);
@@ -795,6 +831,41 @@ describe('HeatCalcPage', () => {
         formPlacement: 'left',
         sideFormWidthPct: 48,
       });
+    }, 10_000);
+
+    it('запоминает ширину горизонтальных областей формы после перетаскивания разделителя', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await waitFor(() => {
+        expect(document.querySelector('.form-grid-srs')).toBeInTheDocument();
+      });
+      const grid = document.querySelector('.form-grid-srs') as HTMLElement;
+      vi.spyOn(grid, 'getBoundingClientRect').mockReturnValue({
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        right: 1400,
+        bottom: 240,
+        width: 1400,
+        height: 240,
+        toJSON: () => ({}),
+      } as DOMRect);
+
+      const handles = screen.getAllByRole('separator', { name: 'Изменить ширину областей формы' });
+      fireEvent.mouseDown(handles[1], { clientX: 700 });
+      fireEvent.mouseMove(window, { clientX: 820 });
+      fireEvent.mouseUp(window, { clientX: 820 });
+
+      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
+      expect(saved.formPlacement).toBe('top');
+      expect(saved.formSectionWeights[1]).toBeGreaterThan(1.35);
+      expect(saved.formSectionWeights[2]).toBeLessThan(1.2);
     }, 10_000);
 
     it('показывает расшифровку расчёта без ошибочного Tср', async () => {
@@ -1213,6 +1284,7 @@ describe('HeatCalcPage', () => {
         inlineEditingEnabled: false,
         formPlacement: 'top',
         sideFormWidthPct: 34,
+        formSectionWeights: [1.095, 1.35, 1.2, 0.56],
       });
       const fieldInputPayload = (updateUserPreference as ReturnType<typeof vi.fn>).mock.calls.find(
         ([key]) => key === HEATCALC_FIELD_INPUT_PREF_KEY,
