@@ -1,5 +1,5 @@
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { Empty, Input, Modal, Spin } from 'antd';
+import { Empty, Input, Modal, Select, Spin } from 'antd';
 import { CloseCircleFilled, SearchOutlined } from '@ant-design/icons';
 
 type ReferencePickerValue = string | number;
@@ -9,6 +9,7 @@ export interface ReferencePickerOption {
   label: ReactNode;
   description?: ReactNode;
   searchText?: string;
+  group?: string;
   disabled?: boolean;
 }
 
@@ -23,6 +24,7 @@ interface ReferencePickerProps {
   disabled?: boolean;
   allowClear?: boolean;
   required?: boolean;
+  groupFilterPlaceholder?: string;
   notFoundContent?: ReactNode;
   className?: string;
   'data-testid'?: string;
@@ -50,6 +52,7 @@ export default function ReferencePicker({
   disabled = false,
   allowClear = false,
   required = false,
+  groupFilterPlaceholder,
   notFoundContent = 'Ничего не найдено',
   className,
   'data-testid': dataTestId,
@@ -57,13 +60,23 @@ export default function ReferencePicker({
 }: ReferencePickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState<string | undefined>();
   const selectedOption = options.find((option) => String(option.value) === String(value));
   const selectedText = selectedOption ? nodeText(selectedOption.label) : value == null ? '' : String(value);
   const hasValue = value != null && value !== '';
   const query = normalizeSearch(search);
+  const groupOptions = useMemo(() => {
+    if (!groupFilterPlaceholder) return [];
+    const groups = [...new Set(options.map((option) => option.group).filter((group): group is string => Boolean(group)))];
+    groups.sort((left, right) => left.localeCompare(right, 'ru'));
+    return groups.map((group) => ({ value: group, label: group }));
+  }, [groupFilterPlaceholder, options]);
   const filteredOptions = useMemo(() => {
-    if (!query) return options;
-    return options.filter((option) => {
+    const groupFilteredOptions = selectedGroup
+      ? options.filter((option) => option.group === selectedGroup)
+      : options;
+    if (!query) return groupFilteredOptions;
+    return groupFilteredOptions.filter((option) => {
       const haystack = normalizeSearch([
         nodeText(option.label),
         nodeText(option.description),
@@ -72,11 +85,12 @@ export default function ReferencePicker({
       ].join(' '));
       return haystack.includes(query);
     });
-  }, [options, query]);
+  }, [options, query, selectedGroup]);
 
   function openModal() {
     if (disabled) return;
     setSearch('');
+    setSelectedGroup(undefined);
     setOpen(true);
   }
 
@@ -153,15 +167,39 @@ export default function ReferencePicker({
         className="reference-picker-modal"
         onCancel={() => setOpen(false)}
       >
-        <Input
-          autoFocus
-          allowClear
-          prefix={<SearchOutlined />}
-          value={search}
-          placeholder={searchPlaceholder}
-          className="reference-picker-search"
-          onChange={(event) => setSearch(event.target.value)}
-        />
+        {groupFilterPlaceholder && groupOptions.length > 0 ? (
+          <div className="reference-picker-filter-row">
+            <Select
+              allowClear
+              showSearch
+              value={selectedGroup}
+              placeholder={groupFilterPlaceholder}
+              className="reference-picker-group-filter"
+              optionFilterProp="label"
+              options={groupOptions}
+              onChange={(nextGroup) => setSelectedGroup(nextGroup)}
+            />
+            <Input
+              autoFocus
+              allowClear
+              prefix={<SearchOutlined />}
+              value={search}
+              placeholder={searchPlaceholder}
+              className="reference-picker-search"
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+        ) : (
+          <Input
+            autoFocus
+            allowClear
+            prefix={<SearchOutlined />}
+            value={search}
+            placeholder={searchPlaceholder}
+            className="reference-picker-search"
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        )}
         {loading ? (
           <div className="reference-picker-loading">
             <Spin />

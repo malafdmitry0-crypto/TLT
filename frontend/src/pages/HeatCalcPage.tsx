@@ -2606,7 +2606,7 @@ export default function HeatCalcPage() {
   function renderFormPanel() {
     return (
       <div
-        className="inline-form-shell heatcalc-form-pane"
+        className={`inline-form-shell heatcalc-form-pane heatcalc-form-pane--${formPlacement}`}
         aria-label="Блок заполнения параметров"
         hidden={!formBlockVisible}
       >

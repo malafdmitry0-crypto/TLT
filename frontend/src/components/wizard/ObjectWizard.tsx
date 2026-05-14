@@ -48,7 +48,7 @@ interface Props {
 
 const SECTION_RESIZE_HANDLE_WIDTH = 0;
 const SECTION_GRID_GAP_WIDTH = 4;
-const SECTION_WIDTH_WEIGHTS = [1.095, 1.095, 1.45, 0.56];
+const SECTION_WIDTH_WEIGHTS = [1.095, 1.35, 1.2, 0.56];
 const SECTION_FIELD_PAIR_MIN_WIDTHS = [206, 206, 220, 180];
 const SECTION_FIELD_GRID =
   'repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr))';
@@ -197,6 +197,7 @@ export default function ObjectWizard({
     () => climateEntries.map((entry) => ({
       value: climateKey(entry),
       label: `${entry.city ?? entry.region} · ${entry.region}`,
+      group: entry.region,
     })),
     [climateEntries],
   );
@@ -733,6 +734,7 @@ export default function ObjectWizard({
                 placeholder="Выберите город"
                 modalTitle="Климат"
                 searchPlaceholder="Город или регион"
+                groupFilterPlaceholder="Область или край"
               />,
               'Климатический справочник: выбор города заполняет расчётную температуру среды и скорость ветра.',
             )}
@@ -814,7 +816,7 @@ export default function ObjectWizard({
           )}
           {showAlphaField && (
             <Form.Item
-              className="numeric-form-item coefficient-form-item helped-form-item"
+              className="numeric-form-item coefficient-form-item alpha-vnesh-form-item helped-form-item"
               label={fieldLabel('α внеш')}
               name="alpha_vnesh"
               preserve={false}
@@ -830,7 +832,7 @@ export default function ObjectWizard({
             </Form.Item>
           )}
           <Form.Item
-            className="numeric-form-item temperature-number-form-item helped-form-item"
+            className="numeric-form-item temperature-number-form-item max-ambient-temperature-form-item helped-form-item"
             label={fieldLabel('Макс. T° окр. среды')}
             name="max_ambient_temperature"
             rules={[
@@ -858,7 +860,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="medium-select-form-item helped-form-item"
+            className="medium-select-form-item environment-form-item helped-form-item"
             label={fieldLabel('Среда')}
             name="environment"
           >
@@ -872,7 +874,7 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <Form.Item
-            className="medium-select-form-item helped-form-item"
+            className="medium-select-form-item zone-classification-form-item helped-form-item"
             label={fieldLabel('Классификация зоны')}
             name="zone_classification"
           >

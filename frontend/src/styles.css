@@ -1188,23 +1188,23 @@ html, body, #root {
 
 .inline-object-form .ant-select-single.ant-select-show-arrow .ant-select-selection-item,
 .inline-object-form .ant-select-single.ant-select-show-arrow .ant-select-selection-placeholder {
-  padding-inline-end: 14px !important;
+  padding-inline-end: 10px !important;
 }
 
 .inline-object-form .ant-select .ant-select-arrow {
-  inset-inline-end: 5px;
-  width: 14px;
-  height: 14px;
+  inset-inline-end: 3px;
+  width: 10px;
+  height: 10px;
   color: #b5c0ca;
-  font-size: 12px;
+  font-size: 10px;
   transition: color 0.15s ease;
 }
 
 .inline-object-form .ant-select .ant-select-arrow .anticon,
 .inline-object-form .ant-select .ant-select-arrow svg {
-  width: 12px;
-  height: 12px;
-  font-size: 12px;
+  width: 10px;
+  height: 10px;
+  font-size: 10px;
 }
 
 .inline-object-form .ant-select:hover .ant-select-arrow,
@@ -1400,6 +1400,50 @@ html, body, #root {
 .inline-object-form .medium-select-form-item .reference-picker-control {
   width: 128px;
   min-width: 128px;
+}
+
+.inline-object-form .zone-classification-form-item {
+  --compact-field-label-width: 74px;
+}
+
+.inline-object-form .zone-classification-form-item .ant-form-item-label {
+  font-size: 9px;
+  line-height: 1.05;
+}
+
+.inline-object-form .zone-classification-form-item .field-label-two-line {
+  line-height: 1.05;
+}
+
+.inline-object-form .environment-form-item .ant-select {
+  flex: 0 0 94px;
+  width: 94px;
+  min-width: 94px;
+}
+
+.inline-object-form .zone-classification-form-item .ant-select {
+  flex: 0 0 108px;
+  width: 108px;
+  min-width: 108px;
+}
+
+.heatcalc-workspace-layout--left .inline-object-form .environment-form-item,
+.heatcalc-workspace-layout--left .inline-object-form .zone-classification-form-item,
+.heatcalc-workspace-layout--left .inline-object-form .alpha-vnesh-form-item,
+.heatcalc-workspace-layout--left .inline-object-form .max-ambient-temperature-form-item,
+.heatcalc-workspace-layout--right .inline-object-form .environment-form-item,
+.heatcalc-workspace-layout--right .inline-object-form .zone-classification-form-item,
+.heatcalc-workspace-layout--right .inline-object-form .alpha-vnesh-form-item,
+.heatcalc-workspace-layout--right .inline-object-form .max-ambient-temperature-form-item {
+  grid-column: 1 / -1;
+}
+
+.heatcalc-workspace-layout--left .inline-object-form .environment-form-item .field-control-with-help,
+.heatcalc-workspace-layout--left .inline-object-form .zone-classification-form-item .field-control-with-help,
+.heatcalc-workspace-layout--right .inline-object-form .environment-form-item .field-control-with-help,
+.heatcalc-workspace-layout--right .inline-object-form .zone-classification-form-item .field-control-with-help {
+  width: max-content;
+  max-width: none;
 }
 
 .inline-object-form .layer-material-form-item .ant-select {
@@ -1637,8 +1681,8 @@ html, body, #root {
 }
 
 .inline-object-form .temperature-group-form-item .ant-select {
-  width: 72px;
-  min-width: 72px;
+  width: 44px;
+  min-width: 44px;
 }
 
 .inline-object-form .short-number-form-item {
@@ -2445,6 +2489,21 @@ html, body, #root {
   margin-bottom: 10px;
 }
 
+.reference-picker-filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.reference-picker-filter-row .reference-picker-search {
+  flex: 1 1 auto;
+  margin-bottom: 0;
+}
+
+.reference-picker-group-filter {
+  flex: 0 0 240px;
+}
+
 .reference-picker-list {
   display: grid;
   gap: 4px;
@@ -2498,6 +2557,17 @@ html, body, #root {
 .reference-picker-loading,
 .reference-picker-empty {
   padding: 28px 0;
+}
+
+@media (max-width: 640px) {
+  .reference-picker-filter-row {
+    flex-direction: column;
+  }
+
+  .reference-picker-group-filter {
+    flex-basis: auto;
+    width: 100%;
+  }
 }
 
 .table-filter-empty {
