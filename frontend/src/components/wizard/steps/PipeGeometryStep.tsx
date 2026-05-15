@@ -35,7 +35,7 @@ interface Props {
 export default function PipeGeometryStep({ fieldInputSettings }: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
-    heatCalcNumberInputProps('pipe', fieldId, { fieldInputSettings });
+    heatCalcNumberInputProps('pipe', fieldId, { fieldInputSettings, form });
 
   return (
     <>

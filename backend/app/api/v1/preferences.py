@@ -40,6 +40,7 @@ HEATCALC_FIELD_INPUT_LAYOUT_KEYS = {"step"}
 HEATCALC_TABLE_COLUMN_KEYS: dict[str, set[str]] = {
     "pipe": {
         "index",
+        "heat_loss_status",
         "type",
         "name",
         "pipe_outer_diameter",
@@ -98,6 +99,7 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, set[str]] = {
     },
     "tank": {
         "index",
+        "heat_loss_status",
         "type",
         "name",
         "tank_shape",

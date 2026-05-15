@@ -61,7 +61,12 @@ describe('heatCalcTableColumns', () => {
     });
 
     expect(settings.version).toBe(HEATCALC_TABLE_COLUMNS_VERSION);
-    expect(settings.types.pipe.visibleOrder).toEqual(['pipe_dn', 'name', 'placement']);
+    expect(settings.types.pipe.visibleOrder).toEqual([
+      'pipe_dn',
+      'name',
+      'placement',
+      'heat_loss_status',
+    ]);
     expect(settings.types.pipe.columns.pipe_dn).toMatchObject({ widthPct: 5.8 });
     expect(settings.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
     expect(settings.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
@@ -82,9 +87,9 @@ describe('heatCalcTableColumns', () => {
 
     expect(settings.types.pipe.visibleOrder.slice(0, 4)).toEqual([
       'index',
+      'heat_loss_status',
       'name',
       'placement',
-      'pipe_outer_diameter',
     ]);
   });
 
@@ -101,6 +106,7 @@ describe('heatCalcTableColumns', () => {
 
     expect(settings.types.pipe.visibleOrder).toEqual([
       'index',
+      'heat_loss_status',
       'name',
       'valve_count',
       'flange_count',
@@ -130,17 +136,17 @@ describe('heatCalcTableColumns', () => {
 
     expect(keys.slice(0, 5)).toEqual([
       'index',
-      'name',
+      'heat_loss_status',
       'pipe_dn',
+      'name',
       'placement',
-      'pipe_outer_diameter',
     ]);
     expect(moved.types.pipe.visibleOrder.slice(0, 5)).toEqual([
       'index',
-      'name',
+      'heat_loss_status',
       'pipe_dn',
+      'name',
       'placement',
-      'pipe_outer_diameter',
     ]);
     expect(new Set(moved.types.pipe.visibleOrder).size).toBe(moved.types.pipe.visibleOrder.length);
   });
@@ -149,7 +155,7 @@ describe('heatCalcTableColumns', () => {
     const settings = getDefaultTableColumnSettings();
     const moved = reorderTableColumn(settings, 'pipe', 'pipe_dn', 'pipe_outer_diameter');
 
-    expect(moved.types.pipe.visibleOrder.slice(2, 5)).toEqual([
+    expect(moved.types.pipe.visibleOrder.slice(3, 6)).toEqual([
       'placement',
       'pipe_dn',
       'pipe_outer_diameter',

@@ -92,10 +92,10 @@ class TestExcelRoundTrip:
         assert body["created"] == 2
         assert len(body["errors"]) == 0
 
-    async def test_csv_pipe_with_invalid_row_reported_in_errors(
+    async def test_csv_pipe_with_missing_required_field_is_saved_for_later_fix(
         self, client: AsyncClient, guest_session: str
     ):
-        """Невалидная строка не блокирует импорт остальных — попадает в errors."""
+        """Расчётно неполная строка сохраняется и попадёт в фоновый пересчёт."""
         pid = (
             await client.get("/api/v1/projects", headers={"X-Session-Id": guest_session})
         ).json()[0]["id"]
@@ -113,9 +113,9 @@ class TestExcelRoundTrip:
         )
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert body["created"] == 1
-        assert len(body["errors"]) == 1
-        assert "Диаметр" in body["errors"][0]["message"]
+        assert body["created"] == 2
+        assert body["errors"] == []
+        assert body["heat_loss_task"]["type"] == "heat_loss_batch"
 
     async def test_roundtrip_preserves_material_and_dimensions(
         self, client: AsyncClient, employee_token: str
@@ -268,6 +268,7 @@ class TestExcelImport:
         body = resp.json()
         assert body["created"] == 2, body
         assert body["errors"] == []
+        assert body["heat_loss_task"]["type"] == "heat_loss_batch"
 
         # Объекты появились в проекте
         objs = (
@@ -278,7 +279,6 @@ class TestExcelImport:
         ).json()
         assert len(objs) == 2
         assert all(o["object_type"] == "pipe" for o in objs)
-        assert all(o["is_valid"] for o in objs)
 
     async def test_import_tanks_all_shapes(self, client: AsyncClient, guest_session: str):
         pid = await _create_project(client, guest_session)
@@ -305,13 +305,26 @@ class TestExcelImport:
         assert body["created"] == 3
         assert body["errors"] == []
 
-    async def test_import_reports_row_errors(self, client: AsyncClient, guest_session: str):
+    async def test_import_reports_structural_row_errors(
+        self, client: AsyncClient, guest_session: str
+    ):
         pid = await _create_project(client, guest_session)
         xlsx = _build_xlsx(
-            pipes=[
-                ["OK", 108, 50, 50, "Минеральная вата", -20, 80],
-                ["Без материала", 57, 20, 40, "", -20, 80],  # no material
-                ["Неизвестный материал", 57, 20, 40, "Какой-то утеплитель", -20, 80],
+            tanks=[
+                ["OK", "Цилиндр", 2000, "", "", 3000, 80, "Минеральная вата", -20, 80],
+                ["Неизвестная форма 1", "Куб", 2000, "", "", 3000, 80, "Минеральная вата", -20, 80],
+                [
+                    "Неизвестная форма 2",
+                    "Конус",
+                    2000,
+                    "",
+                    "",
+                    3000,
+                    80,
+                    "Минеральная вата",
+                    -20,
+                    80,
+                ],
             ]
         )
         resp = await client.post(
@@ -329,6 +342,7 @@ class TestExcelImport:
         body = resp.json()
         assert body["created"] == 1
         assert len(body["errors"]) == 2
+        assert body["heat_loss_task"]["type"] == "heat_loss_batch"
         # Номера строк в Excel: 3 и 4 (заголовок — 1, OK — 2)
         rows_with_errors = sorted(e["row"] for e in body["errors"])
         assert rows_with_errors == [3, 4]
@@ -410,6 +424,7 @@ class TestCsvImport:
         body = resp.json()
         assert body["created"] == 2, body
         assert body["errors"] == []
+        assert body["heat_loss_task"]["type"] == "heat_loss_batch"
 
     async def test_csv_requires_type_column(self, client: AsyncClient, guest_session: str):
         pid = await _create_project(client, guest_session)

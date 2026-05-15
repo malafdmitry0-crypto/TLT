@@ -221,11 +221,13 @@ async def import_excel(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
+    from app.schemas.calculation import HeatLossBatchJobRequest
     from app.services.excel_import_service import (
         ExcelImportError,
         import_objects_from_csv,
         import_objects_from_excel,
     )
+    from app.services.task_service import TaskService
 
     filename = (file.filename or "").lower()
     if not (filename.endswith(".xlsx") or filename.endswith(".csv")):
@@ -236,8 +238,21 @@ async def import_excel(
     content = await file.read()
     try:
         if filename.endswith(".csv"):
-            return await import_objects_from_csv(db, project_id, principal, content)
-        return await import_objects_from_excel(db, project_id, principal, content)
+            result = await import_objects_from_csv(db, project_id, principal, content)
+        else:
+            result = await import_objects_from_excel(db, project_id, principal, content)
+        created_object_ids = result.pop("created_object_ids", [])
+        if created_object_ids:
+            task = await TaskService(db).create_heat_loss_batch_task(
+                HeatLossBatchJobRequest(
+                    project_id=project_id,
+                    include_errors=True,
+                    object_ids=created_object_ids,
+                ),
+                principal,
+            )
+            result["heat_loss_task"] = TaskService.to_response(task)
+        return result
     except ExcelImportError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)

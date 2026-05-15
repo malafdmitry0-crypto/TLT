@@ -109,12 +109,12 @@ describe('heatCalcInlineEdit', () => {
     expect(buildDraftRowParams(fixedDraft!).outer_diameter).toBeCloseTo(0.114);
   });
 
-  it('blocks inline save when local elements require Lэкв', () => {
+  it('allows inline save when local elements require Lэкв so backend can mark calculation status', () => {
     const record = makePipe();
     record.params.valve_count = 1;
     const draft = applyInlineCellDraft(null, record, 'pipe_outer_diameter', 114);
 
-    expect(() => buildDraftRowParams(draft!)).toThrow('Исправьте ошибки');
+    expect(buildDraftRowParams(draft!).outer_diameter).toBeCloseTo(0.114);
 
     record.params.local_element_equiv_length = 1.5;
     const fixedDraft = applyInlineCellDraft(null, record, 'pipe_outer_diameter', 114);

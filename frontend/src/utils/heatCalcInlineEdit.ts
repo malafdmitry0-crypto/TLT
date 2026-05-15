@@ -184,6 +184,8 @@ export function applyInlineCellDraft(
   const error = validateHeatCalcField(config.fieldId, normalizedValue, {
     objectType: currentRow.objectType,
     values: nextValuesForValidation,
+  }, {
+    enforceRequired: false,
   });
   if (error) {
     const nextRow = {
@@ -219,6 +221,8 @@ export function buildDraftRowParams(draftRow: DraftRowState): Record<string, unk
   const errors = validateHeatCalcFormValues({
     objectType: draftRow.objectType,
     values: draftRow.draftFormValues,
+  }, {
+    enforceRequired: false,
   });
   if (Object.keys({ ...draftRow.errors, ...errors }).length > 0) {
     throw new Error('Исправьте ошибки в строке перед сохранением');

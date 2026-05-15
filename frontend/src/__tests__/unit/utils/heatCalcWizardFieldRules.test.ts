@@ -14,7 +14,7 @@ describe('heatCalcFormFieldRules', () => {
 
     expect(rules).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ required: true }),
+        expect.objectContaining({ required: true, warningOnly: true, message: '' }),
       ]),
     );
   });

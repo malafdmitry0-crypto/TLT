@@ -116,6 +116,11 @@ ENVIRONMENT_OPTIONS = (("normal", "Нормальная"), ("aggressive", "Аг�
 ZONE_OPTIONS = (("safe", "Безопасная"), ("hazardous", "Взрывоопасная"))
 LAMBDA_MODE_OPTIONS = (("reference", "Справ."), ("manual", "Ручн."))
 STEAM_OPTIONS = (("yes", "Да"), ("no", "Нет"), (True, "Да"), (False, "Нет"))
+HEAT_LOSS_STATUS_OPTIONS = (
+    ("calculated", "Рассчитан"),
+    ("error", "Ошибка"),
+    ("not_calculated", "Не рассчитан"),
+)
 CAPABILITIES_SAMPLE_LIMIT = 1000
 
 
@@ -133,6 +138,14 @@ def _param_m_as_mm(key: str) -> Callable[[ProjectObject], Any]:
 
 def _placement(obj: ProjectObject) -> Any:
     return obj.params.get("placement") or obj.params.get("location")
+
+
+def _heat_loss_status(obj: ProjectObject) -> str:
+    if obj.is_valid and obj.results is not None:
+        return "calculated"
+    if obj.validation_errors:
+        return "error"
+    return "not_calculated"
 
 
 def _layer(obj: ProjectObject, index: int) -> dict[str, Any] | None:
@@ -287,6 +300,19 @@ def _common_fields(object_type: str) -> list[FieldDef]:
             lambda _obj: object_type,
             filter_reason="object_type_query",
             sort_reason="object_type_query",
+        ),
+        FieldDef(
+            "heat_loss_status",
+            "Статус расчёта",
+            "Статус",
+            (object_type,),
+            "enum",
+            _heat_loss_status,
+            filter_ops=("in",),
+            sortable=True,
+            sort_type="label",
+            options_mode="inline",
+            static_options=HEAT_LOSS_STATUS_OPTIONS,
         ),
         FieldDef(
             "name",
@@ -711,7 +737,7 @@ def _common_fields(object_type: str) -> list[FieldDef]:
 
 
 PIPE_FIELDS: tuple[FieldDef, ...] = (
-    *_common_fields("pipe")[:3],
+    *_common_fields("pipe")[:4],
     FieldDef(
         "pipe_outer_diameter",
         "Наружный диаметр",
@@ -797,7 +823,7 @@ PIPE_FIELDS: tuple[FieldDef, ...] = (
         static_options=LAMBDA_MODE_OPTIONS,
         sort_reason="calculation_mode",
     ),
-    *_common_fields("pipe")[3:],
+    *_common_fields("pipe")[4:],
     FieldDef(
         "valve_count",
         "Задвижки",
@@ -849,7 +875,7 @@ PIPE_FIELDS: tuple[FieldDef, ...] = (
 )
 
 TANK_FIELDS: tuple[FieldDef, ...] = (
-    *_common_fields("tank")[:3],
+    *_common_fields("tank")[:4],
     FieldDef(
         "tank_shape",
         "Форма резервуара",
@@ -945,7 +971,7 @@ TANK_FIELDS: tuple[FieldDef, ...] = (
         sortable=True,
         sort_type="number",
     ),
-    *_common_fields("tank")[3:],
+    *_common_fields("tank")[4:],
     FieldDef(
         "q_additional",
         "Q доп.",

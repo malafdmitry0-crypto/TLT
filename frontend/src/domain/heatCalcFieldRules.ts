@@ -10,6 +10,10 @@ export interface HeatCalcFieldContext {
   values: Record<string, unknown>;
 }
 
+export interface HeatCalcFieldValidationOptions {
+  enforceRequired?: boolean;
+}
+
 function numericValue(value: unknown) {
   if (value == null || value === '') return null;
   const numberValue = Number(value);
@@ -127,13 +131,18 @@ function fieldRequired(fieldId: string, context: HeatCalcFieldContext) {
   return fieldInput?.required === true;
 }
 
-function validateRangeField(fieldId: RangeFieldId, context: HeatCalcFieldContext) {
+function validateRangeField(
+  fieldId: RangeFieldId,
+  context: HeatCalcFieldContext,
+  options: HeatCalcFieldValidationOptions = {},
+) {
   const range = RANGE_FIELDS[fieldId];
   const required = fieldRequired(fieldId, context);
+  const enforceRequired = options.enforceRequired !== false;
   const min = numericValue(context.values[range.min]);
   const max = numericValue(context.values[range.max]);
   if (!required && min == null && max == null) return null;
-  if (min == null || max == null) return required ? 'Укажите диапазон T' : null;
+  if (min == null || max == null) return required && enforceRequired ? 'Укажите диапазон T' : null;
   if (!Number.isFinite(min) || !Number.isFinite(max)) return 'Введите число';
   const minInput = getHeatCalcFieldInputConfig(range.min, context.objectType);
   const maxInput = getHeatCalcFieldInputConfig(range.max, context.objectType);
@@ -215,19 +224,23 @@ export function validateHeatCalcField(
   fieldId: string,
   value: unknown,
   context: HeatCalcFieldContext,
+  options: HeatCalcFieldValidationOptions = {},
 ): string | null {
   const fieldInput = input(fieldId, context);
   if (!fieldInput || !fieldExistsForContext(fieldId, context)) return 'Поле недоступно для редактирования';
   if (!isHeatCalcFieldVisible(fieldId, context)) return 'Поле скрыто для текущих параметров объекта';
+  const enforceRequired = options.enforceRequired !== false;
 
-  if (isRangeField(fieldId)) return validateRangeField(fieldId, context);
+  if (isRangeField(fieldId)) return validateRangeField(fieldId, context, options);
 
-  const pairError = pairValidationError(fieldId, context);
-  if (pairError) return pairError;
+  if (enforceRequired) {
+    const pairError = pairValidationError(fieldId, context);
+    if (pairError) return pairError;
+  }
 
   if (fieldInput.type === 'text') {
     const textValue = String(value ?? '').trim();
-    if (fieldRequired(fieldId, context) && textValue.length === 0) return 'Укажите значение';
+    if (enforceRequired && fieldRequired(fieldId, context) && textValue.length === 0) return 'Укажите значение';
     if (fieldInput.max_length != null && textValue.length > fieldInput.max_length) {
       return `Максимальная длина — ${fieldInput.max_length} символов`;
     }
@@ -236,7 +249,7 @@ export function validateHeatCalcField(
 
   if (fieldInput.type === 'select' || fieldInput.type === 'reference') {
     if (value == null || value === '') {
-      return fieldRequired(fieldId, context) ? 'Выберите значение' : null;
+      return enforceRequired && fieldRequired(fieldId, context) ? 'Выберите значение' : null;
     }
     if (fieldInput.type === 'select') {
       const known = fieldInput.options?.some((item) => String(item.value) === String(value)) ?? false;
@@ -246,7 +259,7 @@ export function validateHeatCalcField(
   }
 
   const numberValue = numericValue(value);
-  if (numberValue == null) return fieldRequired(fieldId, context) ? 'Укажите значение' : null;
+  if (numberValue == null) return enforceRequired && fieldRequired(fieldId, context) ? 'Укажите значение' : null;
   if (!Number.isFinite(numberValue)) return 'Введите число';
   if (fieldInput.min != null && numberValue < fieldInput.min) return `Минимальное значение — ${fieldInput.min}`;
   if (fieldInput.max != null && numberValue > fieldInput.max) return `Максимальное значение — ${fieldInput.max}`;
@@ -266,7 +279,10 @@ export function validateHeatCalcField(
   return null;
 }
 
-export function validateHeatCalcFormValues(context: HeatCalcFieldContext): Record<string, string> {
+export function validateHeatCalcFormValues(
+  context: HeatCalcFieldContext,
+  options: HeatCalcFieldValidationOptions = {},
+): Record<string, string> {
   const errors: Record<string, string> = {};
   const fieldIds = new Set([
     ...getHeatCalcFormFieldIds(context.objectType),
@@ -275,7 +291,7 @@ export function validateHeatCalcFormValues(context: HeatCalcFieldContext): Recor
   for (const fieldId of fieldIds) {
     if (RANGE_BOUND_FIELDS.has(fieldId)) continue;
     if (!fieldExistsForContext(fieldId, context) || !isHeatCalcFieldVisible(fieldId, context)) continue;
-    const error = validateHeatCalcField(fieldId, context.values[fieldId], context);
+    const error = validateHeatCalcField(fieldId, context.values[fieldId], context, options);
     if (error) errors[fieldId] = error;
   }
   return errors;

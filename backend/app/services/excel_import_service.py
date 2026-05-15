@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
 from app.schemas.project import ProjectObjectCreate
-from app.services.calculation_service import CalculationService
 from app.services.project_service import (
     ProjectAccessError,
     ProjectLimitError,
@@ -338,57 +337,57 @@ def _apply_common_srs_params(params: dict[str, Any], row: dict[str, Any]) -> Non
         params["insulation_cover_material"] = str(cover).strip()
 
 
-def _apply_layered_insulation(params: dict[str, Any], row: dict[str, Any]) -> str | None:
+def _apply_layered_insulation(params: dict[str, Any], row: dict[str, Any]) -> None:
     count = int(_to_float(row.get("insulation_layer_count")) or 1)
     count = min(max(count, 1), 3)
     params["insulation_layer_count"] = str(count)
 
-    layers: list[dict[str, Any]] = [
-        {
-            "thickness": params["insulation_thickness"],
-            "material": params["insulation_material"],
-        }
-    ]
+    layers: list[dict[str, Any]] = []
+    first_layer: dict[str, Any] = {}
+    if params.get("insulation_thickness") is not None:
+        first_layer["thickness"] = params["insulation_thickness"]
+    if params.get("insulation_material") is not None:
+        first_layer["material"] = params["insulation_material"]
     first_lambda = _to_float(row.get("first_insulation_lambda"))
     if first_lambda is not None:
-        layers[0]["conductivity"] = first_lambda
-    elif params["insulation_material"] == "other":
-        return "Для материала изоляции «Другое» нужно заполнить λ 1-го слоя"
+        first_layer["conductivity"] = first_lambda
+    if first_layer:
+        layers.append(first_layer)
 
     if count >= 2:
         material2 = _resolve_material(row.get("second_insulation_material"))
         thickness2 = _to_float(row.get("second_insulation_thickness_mm"))
-        if material2 and thickness2 is not None:
-            layer2: dict[str, Any] = {
-                "thickness": thickness2 / 1000.0,
-                "material": material2,
-            }
-            lambda2 = _to_float(row.get("second_insulation_lambda"))
+        lambda2 = _to_float(row.get("second_insulation_lambda"))
+        if material2 or thickness2 is not None or lambda2 is not None:
+            while len(layers) < 1:
+                layers.append({})
+            layer2: dict[str, Any] = {}
+            if thickness2 is not None:
+                layer2["thickness"] = thickness2 / 1000.0
+            if material2:
+                layer2["material"] = material2
             if lambda2 is not None:
                 layer2["conductivity"] = lambda2
-            elif material2 == "other":
-                return "Для материала 2-го слоя «Другое» нужно заполнить λ 2-го слоя"
             layers.append(layer2)
 
     if count >= 3:
         material3 = _resolve_material(row.get("third_insulation_material"))
         thickness3 = _to_float(row.get("third_insulation_thickness_mm"))
-        if material3 and thickness3 is not None:
-            layer3: dict[str, Any] = {
-                "thickness": thickness3 / 1000.0,
-                "material": material3,
-            }
-            lambda3 = _to_float(row.get("third_insulation_lambda"))
+        lambda3 = _to_float(row.get("third_insulation_lambda"))
+        if material3 or thickness3 is not None or lambda3 is not None:
+            while len(layers) < 2:
+                layers.append({})
+            layer3: dict[str, Any] = {}
+            if thickness3 is not None:
+                layer3["thickness"] = thickness3 / 1000.0
+            if material3:
+                layer3["material"] = material3
             if lambda3 is not None:
                 layer3["conductivity"] = lambda3
-            elif material3 == "other":
-                return "Для материала 3-го слоя «Другое» нужно заполнить λ 3-го слоя"
             layers.append(layer3)
 
-    if len(layers) == count:
+    if layers:
         params["insulation_layers"] = layers
-        return None
-    return f"Для {count} слоёв изоляции нужно заполнить материал и толщину каждого слоя"
 
 
 def _read_sheet(ws: Any, header_map: dict[str, str]) -> list[dict[str, Any]]:
@@ -427,30 +426,19 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     t_a = _to_float(row.get("ambient_temperature"))
     t_p = _to_float(row.get("process_temperature"))
 
-    missing: list[str] = []
-    if d_mm is None:
-        missing.append("Диаметр")
-    if L is None:
-        missing.append("Длина")
-    if ins_mm is None:
-        missing.append("Толщина изоляции")
-    if not material:
-        missing.append("Материал")
-    if t_a is None:
-        missing.append("T° среды")
-    if t_p is None:
-        missing.append("T° продукта")
-    if missing:
-        return None, "Не заполнены поля: " + ", ".join(missing)
-
-    params: dict[str, Any] = {
-        "outer_diameter": d_mm / 1000.0,
-        "pipe_length": L,
-        "insulation_thickness": ins_mm / 1000.0,
-        "insulation_material": material,
-        "ambient_temperature": t_a,
-        "process_temperature": t_p,
-    }
+    params: dict[str, Any] = {}
+    if d_mm is not None:
+        params["outer_diameter"] = d_mm / 1000.0
+    if L is not None:
+        params["pipe_length"] = L
+    if ins_mm is not None:
+        params["insulation_thickness"] = ins_mm / 1000.0
+    if material:
+        params["insulation_material"] = material
+    if t_a is not None:
+        params["ambient_temperature"] = t_a
+    if t_p is not None:
+        params["process_temperature"] = t_p
     wall_mm = _to_float(row.get("wall_thickness_mm"))
     if wall_mm is not None:
         params["wall_thickness"] = wall_mm / 1000.0
@@ -470,9 +458,7 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     if local_count:
         params["num_local_elements"] = local_count
     _apply_common_srs_params(params, row)
-    layer_error = _apply_layered_insulation(params, row)
-    if layer_error:
-        return None, layer_error
+    _apply_layered_insulation(params, row)
     name = row.get("name")
     if name and str(name).strip():
         params["name"] = str(name).strip()
@@ -481,7 +467,7 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
 
 def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
     shape = _resolve_shape(row.get("shape"))
-    if not shape:
+    if not shape and row.get("shape") not in (None, ""):
         return None, "Не указана или не распознана форма (цилиндр / параллелепипед / шар)"
 
     ins_mm = _to_float(row.get("insulation_thickness_mm"))
@@ -489,31 +475,21 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     t_a = _to_float(row.get("ambient_temperature"))
     t_p = _to_float(row.get("process_temperature"))
 
-    missing: list[str] = []
-    if ins_mm is None:
-        missing.append("Толщина изоляции")
-    if not material:
-        missing.append("Материал")
-    if t_a is None:
-        missing.append("T° среды")
-    if t_p is None:
-        missing.append("T° продукта")
-
-    params: dict[str, Any] = {
-        "shape": shape,
-        "insulation_thickness": (ins_mm / 1000.0) if ins_mm is not None else None,
-        "insulation_material": material,
-        "ambient_temperature": t_a,
-        "process_temperature": t_p,
-    }
+    params: dict[str, Any] = {}
+    if shape:
+        params["shape"] = shape
+    if ins_mm is not None:
+        params["insulation_thickness"] = ins_mm / 1000.0
+    if material:
+        params["insulation_material"] = material
+    if t_a is not None:
+        params["ambient_temperature"] = t_a
+    if t_p is not None:
+        params["process_temperature"] = t_p
 
     if shape == "cylindrical":
         d_mm = _to_float(row.get("diameter_mm"))
         h_mm = _to_float(row.get("height_mm"))
-        if d_mm is None:
-            missing.append("Диаметр")
-        if h_mm is None:
-            missing.append("Высота")
         if d_mm is not None:
             params["diameter"] = d_mm / 1000.0
         if h_mm is not None:
@@ -522,12 +498,6 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
         L_mm = _to_float(row.get("length_mm"))
         W_mm = _to_float(row.get("width_mm"))
         H_mm = _to_float(row.get("height_mm"))
-        if L_mm is None:
-            missing.append("Длина")
-        if W_mm is None:
-            missing.append("Ширина")
-        if H_mm is None:
-            missing.append("Высота")
         if L_mm is not None:
             params["length"] = L_mm / 1000.0
         if W_mm is not None:
@@ -536,23 +506,16 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
             params["height"] = H_mm / 1000.0
     elif shape == "spherical":
         d_mm = _to_float(row.get("diameter_mm"))
-        if d_mm is None:
-            missing.append("Диаметр")
         if d_mm is not None:
             params["diameter"] = d_mm / 1000.0
 
-    if missing:
-        return None, "Не заполнены поля: " + ", ".join(missing)
-
     _apply_common_srs_params(params, row)
-    layer_error = _apply_layered_insulation(params, row)
-    if layer_error:
-        return None, layer_error
+    _apply_layered_insulation(params, row)
 
     name = row.get("name")
     if name and str(name).strip():
         params["name"] = str(name).strip()
-    return {k: v for k, v in params.items() if v is not None}, None
+    return params, None
 
 
 def _parse_csv(content: bytes) -> list[tuple[str, list[dict[str, Any]]]]:
@@ -646,11 +609,15 @@ async def _add_rows(
     rows: list[dict[str, Any]],
     object_type: str,
     next_sort: int,
-) -> tuple[int, int, list[dict[str, Any]]]:
-    """Создаёт объекты из распарсенных строк. Возвращает (created, next_sort, errors)."""
+) -> tuple[int, int, list[dict[str, Any]], list[UUID]]:
+    """Создаёт объекты из распарсенных строк.
+
+    Расчёт теплопотерь здесь намеренно не запускается: импорт должен быстро
+    сохранить всё распознанное и отдать новые объекты в один фоновый batch.
+    """
     project_service = ProjectService(db)
-    calc_service = CalculationService(db)
     created = 0
+    created_object_ids: list[UUID] = []
     errors: list[dict[str, Any]] = []
     builder = _build_pipe_params if object_type == "pipe" else _build_tank_params
     for row in rows:
@@ -666,10 +633,9 @@ async def _add_rows(
                 ProjectObjectCreate(object_type=object_type, params=params, sort_order=next_sort),
                 principal,
             )
-            await calc_service.recalculate_object(obj)
-            await db.commit()
             next_sort += 1
             created += 1
+            created_object_ids.append(obj.id)
         except ProjectLimitError as exc:
             errors.append({"sheet": sheet_label, "row": row["_row"], "message": str(exc)})
             break
@@ -681,7 +647,7 @@ async def _add_rows(
                     "message": f"{type(exc).__name__}: {exc}",
                 }
             )
-    return created, next_sort, errors
+    return created, next_sort, errors, created_object_ids
 
 
 async def import_objects_from_csv(
@@ -705,15 +671,21 @@ async def import_objects_from_csv(
 
     total_created = 0
     all_errors: list[dict[str, Any]] = []
+    created_object_ids: list[UUID] = []
     for sheet_label, rows in sheets:
         obj_type = "pipe" if "Трубопровод" in sheet_label else "tank"
-        created, next_sort, errors = await _add_rows(
+        created, next_sort, errors, object_ids = await _add_rows(
             db, project_id, principal, sheet_label, rows, obj_type, next_sort
         )
         total_created += created
         all_errors.extend(errors)
+        created_object_ids.extend(object_ids)
 
-    return {"created": total_created, "errors": all_errors}
+    return {
+        "created": total_created,
+        "errors": all_errors,
+        "created_object_ids": created_object_ids,
+    }
 
 
 async def import_objects_from_excel(
@@ -732,7 +704,6 @@ async def import_objects_from_excel(
         raise ExcelImportError(f"Не удалось открыть файл: {exc}") from exc
 
     project_service = ProjectService(db)
-    calc_service = CalculationService(db)
 
     # Проверяем доступ к проекту
     try:
@@ -746,6 +717,7 @@ async def import_objects_from_excel(
 
     created = 0
     errors: list[dict[str, Any]] = []
+    created_object_ids: list[UUID] = []
     found_sheet = False
 
     for sheet in wb.sheetnames:
@@ -754,74 +726,34 @@ async def import_objects_from_excel(
             found_sheet = True
             ws = wb[sheet]
             rows = _read_sheet(ws, PIPE_HEADERS)
-            for row in rows:
-                params, err = _build_pipe_params(row)
-                if err or params is None:
-                    errors.append(
-                        {"sheet": sheet, "row": row["_row"], "message": err or "Ошибка парсинга"}
-                    )
-                    continue
-                try:
-                    obj = await project_service.add_object(
-                        project_id,
-                        ProjectObjectCreate(
-                            object_type="pipe",
-                            params=params,
-                            sort_order=next_sort,
-                        ),
-                        principal,
-                    )
-                    await calc_service.recalculate_object(obj)
-                    await db.commit()
-                    next_sort += 1
-                    created += 1
-                except ProjectLimitError as exc:
-                    errors.append({"sheet": sheet, "row": row["_row"], "message": str(exc)})
-                    return {"created": created, "errors": errors}
-                except Exception as exc:
-                    errors.append(
-                        {
-                            "sheet": sheet,
-                            "row": row["_row"],
-                            "message": f"{type(exc).__name__}: {exc}",
-                        }
-                    )
+            added, next_sort, sheet_errors, object_ids = await _add_rows(
+                db,
+                project_id,
+                principal,
+                sheet,
+                rows,
+                "pipe",
+                next_sort,
+            )
+            created += added
+            errors.extend(sheet_errors)
+            created_object_ids.extend(object_ids)
         elif norm in TANK_SHEET_NAMES:
             found_sheet = True
             ws = wb[sheet]
             rows = _read_sheet(ws, TANK_HEADERS)
-            for row in rows:
-                params, err = _build_tank_params(row)
-                if err or params is None:
-                    errors.append(
-                        {"sheet": sheet, "row": row["_row"], "message": err or "Ошибка парсинга"}
-                    )
-                    continue
-                try:
-                    obj = await project_service.add_object(
-                        project_id,
-                        ProjectObjectCreate(
-                            object_type="tank",
-                            params=params,
-                            sort_order=next_sort,
-                        ),
-                        principal,
-                    )
-                    await calc_service.recalculate_object(obj)
-                    await db.commit()
-                    next_sort += 1
-                    created += 1
-                except ProjectLimitError as exc:
-                    errors.append({"sheet": sheet, "row": row["_row"], "message": str(exc)})
-                    return {"created": created, "errors": errors}
-                except Exception as exc:
-                    errors.append(
-                        {
-                            "sheet": sheet,
-                            "row": row["_row"],
-                            "message": f"{type(exc).__name__}: {exc}",
-                        }
-                    )
+            added, next_sort, sheet_errors, object_ids = await _add_rows(
+                db,
+                project_id,
+                principal,
+                sheet,
+                rows,
+                "tank",
+                next_sort,
+            )
+            created += added
+            errors.extend(sheet_errors)
+            created_object_ids.extend(object_ids)
 
     if not found_sheet:
         raise ExcelImportError(
@@ -829,7 +761,7 @@ async def import_objects_from_excel(
             "Используйте шаблон (кнопка «Скачать шаблон»)."
         )
 
-    return {"created": created, "errors": errors}
+    return {"created": created, "errors": errors, "created_object_ids": created_object_ids}
 
 
 MATERIAL_LABELS_RU: dict[str, str] = {

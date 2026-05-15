@@ -12,26 +12,16 @@ import { ROUTES } from '@/routes/routes';
 import type { CreateObjectRequest, ProjectObject } from '@/types/project';
 
 /**
- * Возвращает осмысленный текст ошибки для объекта, у которого is_valid === false.
- * Поле validation_errors.error — нетипизированный JSON из бэкенда (Python dict).
- */
-function extractValidationError(obj: ProjectObject): string {
-  return (
-    (obj.validation_errors?.error as string | undefined) ??
-    'Расчёт не выполнен: проверьте параметры объекта'
-  );
-}
-
-/**
  * Показывает пользователю результат add/edit-операции: success если расчёт
- * прошёл, warning с причиной если объект сохранён, но не валиден.
+ * прошёл, warning если объект сохранён, но не валиден. Детали ошибок
+ * показываются в панели параметров объекта, а не в глобальном toast.
  */
 function notifyObjectResult(obj: ProjectObject, action: 'added' | 'updated') {
   const verb = action === 'added' ? 'добавлен' : 'обновлён';
   const past = action === 'added' ? 'рассчитан' : 'пересчитан';
   if (!obj.is_valid) {
     message.warning(
-      `Объект ${verb}, но расчёт не выполнен: ${extractValidationError(obj)}`,
+      `Объект ${verb}, но расчёт не выполнен. Проверьте панель параметров.`,
       10,
     );
   } else {

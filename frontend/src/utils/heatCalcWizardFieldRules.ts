@@ -42,11 +42,15 @@ export function heatCalcFormFieldRules(
   objectType: HeatCalcObjectType,
   fieldId: string,
 ) {
-  const values = form.getFieldsValue(true);
-  const required = isHeatCalcFieldRequired(fieldId, { objectType, values });
-  const requiredMessage = getRequiredMessage(objectType, fieldId);
+  const required = heatCalcFieldRequired(form, objectType, fieldId);
   return [
-    ...(required ? [{ required: true, message: requiredMessage }] : []),
+    ...(required
+      ? [{
+        required: true,
+        warningOnly: true,
+        message: '',
+      }]
+      : []),
     {
       async validator(_: unknown, value: unknown) {
         const values = {
@@ -61,6 +65,8 @@ export function heatCalcFormFieldRules(
         const error = validateHeatCalcField(fieldId, normalizedValue, {
           objectType,
           values: normalizedValues,
+        }, {
+          enforceRequired: false,
         });
         if (error) throw new Error(error);
       },
@@ -68,22 +74,21 @@ export function heatCalcFormFieldRules(
   ];
 }
 
-function getRequiredMessage(objectType: HeatCalcObjectType, fieldId: string) {
-  const input = getHeatCalcFieldInputConfig(fieldId, objectType);
-  if (input?.type === 'select' || input?.type === 'reference') return 'Выберите значение';
-  if (input?.type === 'range') return 'Укажите диапазон T';
-  return 'Укажите значение';
-}
-
 export function heatCalcNumberInputProps(
   objectType: HeatCalcObjectType,
   fieldId: string,
-  options: { includeStep?: boolean; fieldInputSettings?: HeatCalcFieldInputSettings } = {},
+  options: {
+    includeStep?: boolean;
+    fieldInputSettings?: HeatCalcFieldInputSettings;
+    form?: FormInstance;
+  } = {},
 ) {
   const input = getHeatCalcFieldInputConfig(fieldId, objectType);
+  const required = options.form ? heatCalcFieldRequired(options.form, objectType, fieldId) : false;
   return {
     min: input?.min,
     max: input?.max,
+    'aria-required': required ? true : undefined,
     step: options.includeStep === false
       ? undefined
       : resolveHeatCalcFieldStep(objectType, fieldId, options.fieldInputSettings) ?? input?.default_step,

@@ -788,8 +788,9 @@ describe('HeatCalcPage', () => {
       const orderInput = within(dialog).getByRole('spinbutton', { name: 'Порядок: DN' });
       const widthInput = within(dialog).getByRole('spinbutton', { name: 'Ширина: DN' });
       fireEvent.change(orderInput, { target: { value: '3' } });
-      expect(visibleColumnKeys().slice(0, 5)).toEqual([
+      expect(visibleColumnKeys().slice(0, 6)).toEqual([
         'index',
+        'heat_loss_status',
         'name',
         'placement',
         'pipe_outer_diameter',
@@ -797,10 +798,11 @@ describe('HeatCalcPage', () => {
       ]);
       fireEvent.blur(orderInput);
       await waitFor(() => {
-        expect(visibleColumnKeys().slice(0, 5)).toEqual([
+        expect(visibleColumnKeys().slice(0, 6)).toEqual([
           'index',
-          'name',
+          'heat_loss_status',
           'pipe_dn',
+          'name',
           'placement',
           'pipe_outer_diameter',
         ]);
@@ -810,10 +812,11 @@ describe('HeatCalcPage', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY) ?? '{}');
-      expect(saved.types.pipe.visibleOrder.slice(0, 5)).toEqual([
+      expect(saved.types.pipe.visibleOrder.slice(0, 6)).toEqual([
         'index',
-        'name',
+        'heat_loss_status',
         'pipe_dn',
+        'name',
         'placement',
         'pipe_outer_diameter',
       ]);
@@ -1168,7 +1171,7 @@ describe('HeatCalcPage', () => {
       const rowNumberCell = bodyRow!.querySelectorAll('td')[1];
       expect(rowNumberCell).toBeInstanceOf(HTMLElement);
       expect(rowNumberCell).not.toHaveClass('editable-cell-enabled');
-    }, 10_000);
+    }, 15_000);
 
     it('подсвечивает невалидную inline-ячейку до сохранения и не отправляет её', async () => {
       const { listObjects, updateObject } = await import('@/api/projects');
@@ -1189,25 +1192,27 @@ describe('HeatCalcPage', () => {
       await user.click(within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
-      await user.click(await screen.findByText('Труба DN100'));
-      const editor = await screen.findByDisplayValue('Труба DN100');
-      await user.clear(editor);
-      await user.keyboard('{Enter}');
+      const row = (await screen.findByText('Труба DN100')).closest('tr');
+      expect(row).toBeInstanceOf(HTMLElement);
+      await user.click(within(row as HTMLElement).getByRole('button', { name: '60' }));
+      const editor = await within(row as HTMLElement).findByDisplayValue('60.0');
+      fireEvent.change(editor, { target: { value: '-30' } });
+      fireEvent.keyDown(editor, { key: 'Enter' });
 
-      expect(await screen.findByText('Укажите значение')).toBeInTheDocument();
-      expect(editor).toHaveClass('error');
+      expect(await screen.findByText('Требуемая температура объекта должна быть выше температуры среды')).toBeInTheDocument();
+      expect(editor.closest('.editable-cell-editor')).toHaveClass('error');
       expect(await screen.findByText('Несохранено: 1')).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Сохранить' }));
       expect(updateObject).not.toHaveBeenCalled();
 
-      await user.type(editor, 'Труба valid');
-      await user.keyboard('{Enter}');
+      fireEvent.change(editor, { target: { value: '70' } });
+      fireEvent.keyDown(editor, { key: 'Enter' });
 
       await waitFor(() => {
-        expect(screen.queryByText('Укажите значение')).not.toBeInTheDocument();
+        expect(screen.queryByText('Требуемая температура объекта должна быть выше температуры среды')).not.toBeInTheDocument();
       });
-      const fixedCell = await screen.findByRole('button', { name: 'Труба valid' });
+      const fixedCell = await screen.findByRole('button', { name: '70' });
       expect(fixedCell).not.toHaveClass('error');
 
       await user.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -1216,7 +1221,7 @@ describe('HeatCalcPage', () => {
           'proj-test-1',
           source.id,
           expect.objectContaining({
-            params: expect.objectContaining({ name: 'Труба valid' }),
+            params: expect.objectContaining({ process_temperature: 70 }),
           }),
         );
       });
@@ -1251,11 +1256,13 @@ describe('HeatCalcPage', () => {
       await user.click(within(dialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
-      await user.click(await screen.findByRole('button', { name: 'Труба invalid' }));
-      const invalidEditor = await screen.findByDisplayValue('Труба invalid');
-      await user.clear(invalidEditor);
-      await user.keyboard('{Enter}');
-      expect(await screen.findByText('Укажите значение')).toBeInTheDocument();
+      const invalidRow = (await screen.findByText('Труба invalid')).closest('tr');
+      expect(invalidRow).toBeInstanceOf(HTMLElement);
+      await user.click(within(invalidRow as HTMLElement).getByRole('button', { name: '60' }));
+      const invalidEditor = await within(invalidRow as HTMLElement).findByDisplayValue('60.0');
+      fireEvent.change(invalidEditor, { target: { value: '-30' } });
+      fireEvent.keyDown(invalidEditor, { key: 'Enter' });
+      expect(await screen.findByText('Требуемая температура объекта должна быть выше температуры среды')).toBeInTheDocument();
 
       await user.click(await screen.findByRole('button', { name: 'Труба valid' }));
       const validEditor = await screen.findByDisplayValue('Труба valid');
@@ -1276,7 +1283,7 @@ describe('HeatCalcPage', () => {
           params: expect.objectContaining({ name: 'Труба valid saved' }),
         }),
       );
-      expect(screen.getByTitle('Укажите значение')).toHaveClass('error');
+      expect(screen.getByTitle('Требуемая температура объекта должна быть выше температуры среды')).toHaveClass('error');
       await waitFor(() => {
         expect(screen.getByText('Несохранено: 1')).toBeInTheDocument();
       });

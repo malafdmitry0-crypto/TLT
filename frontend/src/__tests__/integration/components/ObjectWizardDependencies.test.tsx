@@ -124,6 +124,63 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.getByTestId('valve-count-input')).not.toHaveAttribute('aria-required');
   });
 
+  it('подсвечивает незаполненные обязательные поля без верхней диагностики', async () => {
+    renderWizard({
+      initialParams: {
+        ...basePipeParams,
+        outer_diameter: undefined,
+        pipe_length: undefined,
+      },
+      validationErrors: {
+        error: 'Не заполнены обязательные поля объекта: Наружный диаметр, Длина трубопровода',
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('outer-diameter-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    });
+    expect(screen.getByTestId('pipe-length-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    expect(screen.queryByTestId('heatcalc-object-diagnostic')).not.toBeInTheDocument();
+    expect(screen.queryByText('Расчёт не выполнен')).not.toBeInTheDocument();
+    expect(screen.queryByText('Заполните обязательные поля')).not.toBeInTheDocument();
+    expect(screen.queryByText('Выберите значение')).not.toBeInTheDocument();
+  });
+
+  it('подсвечивает незаполненные поля второго слоя без текста обязательности', async () => {
+    renderWizard({
+      initialParams: {
+        ...basePipeParams,
+        insulation_layer_count: '2',
+      },
+      validationErrors: {
+        error: 'Не заполнены обязательные поля объекта: Толщина 2-го слоя изоляции, Материал 2-го слоя изоляции',
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('second-insulation-thickness-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    });
+    expect(screen.getByTestId('second-insulation-material-select').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    expect(screen.queryByText('Обязательное поле')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('heatcalc-object-diagnostic')).not.toBeInTheDocument();
+  });
+
+  it('показывает текст диапазонной ошибки рядом с конкретным полем', async () => {
+    renderWizard({
+      initialParams: {
+        ...basePipeParams,
+        ambient_temperature: -90,
+      },
+      validationErrors: {
+        error: 'Температура окружающей среды должна быть в диапазоне −70…+70 °C',
+      },
+    });
+
+    expect(await screen.findByText('Температура окружающей среды должна быть в диапазоне −70…+70 °C')).toBeInTheDocument();
+    expect(screen.getByTestId('ambient-temperature-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    expect(screen.queryByTestId('heatcalc-object-diagnostic')).not.toBeInTheDocument();
+  });
+
   it('не подставляет форму и размеры в новый резервуар', async () => {
     renderWizard({ objectType: 'tank' });
 
@@ -157,7 +214,7 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.queryByText('Грунт')).not.toBeInTheDocument();
   });
 
-  it('требует климатическую обеспеченность при выбранном климате', async () => {
+  it('помечает климатическую обеспеченность при выбранном климате, но позволяет сохранить для расчёта статуса', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
@@ -173,8 +230,9 @@ describe('ObjectWizard dependencies', () => {
     expect(await screen.findByTestId('climate-basis-select')).toBeVisible();
 
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
-    await waitFor(() => expect(screen.getAllByText('Выберите значение').length).toBeGreaterThan(0));
-    expect(onSubmit).not.toHaveBeenCalled();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.climate_temperature_basis).toBeUndefined();
   });
 
   it('открывает длинный справочник в модальном окне и подставляет выбранный материал', async () => {
@@ -300,7 +358,7 @@ describe('ObjectWizard dependencies', () => {
     expect(payload.local_element_equiv_length).toBe(2.4);
   });
 
-  it('требует L_ekv, когда заданы локальные элементы', async () => {
+  it('помечает L_ekv, когда заданы локальные элементы, но позволяет сохранить для расчёта статуса', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
@@ -318,11 +376,12 @@ describe('ObjectWizard dependencies', () => {
     expect(input).toHaveAttribute('aria-required', 'true');
 
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
-    await waitFor(() => expect(screen.getAllByText('Укажите значение').length).toBeGreaterThan(0));
-    expect(onSubmit).not.toHaveBeenCalled();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.local_element_equiv_length).toBeNull();
   });
 
-  it('требует λ грунта только для ручного грунта', async () => {
+  it('помечает λ грунта только для ручного грунта, но позволяет сохранить для расчёта статуса', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
@@ -340,8 +399,9 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.getByTestId('ground-conductivity-input')).toHaveAttribute('aria-required', 'true');
 
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
-    await waitFor(() => expect(screen.getAllByText('Укажите значение').length).toBeGreaterThan(0));
-    expect(onSubmit).not.toHaveBeenCalled();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.ground_conductivity).toBeUndefined();
   });
 
   it('стенка резервуара отображается и уходит в payload', async () => {
@@ -375,7 +435,7 @@ describe('ObjectWizard dependencies', () => {
     expect(payload.wall_lambda).toBe(45);
   });
 
-  it('валидирует стенку резервуара парой', async () => {
+  it('помечает стенку резервуара парой, но позволяет сохранить для расчёта статуса', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
@@ -399,8 +459,10 @@ describe('ObjectWizard dependencies', () => {
     expect(await screen.findByTestId('tank-wall-lambda-input')).toHaveAttribute('aria-required', 'true');
 
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
-    await waitFor(() => expect(screen.getByText('Укажите λ стенки')).toBeInTheDocument());
-    expect(onSubmit).not.toHaveBeenCalled();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.wall_thickness).toBe(0.012);
+    expect(payload.wall_lambda).toBeUndefined();
   });
 
   it('отправляет ручную λ трубы и три слоя изоляции', async () => {

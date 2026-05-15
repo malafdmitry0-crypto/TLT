@@ -94,6 +94,17 @@ function hasExplicitNumberValue(value: unknown): boolean {
   return value !== null && value !== undefined && value !== '';
 }
 
+function numberOrNull(value: unknown): number | null {
+  if (!hasExplicitNumberValue(value)) return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function mmToMOrNull(value: unknown): number | null {
+  const numeric = numberOrNull(value);
+  return numeric == null ? null : numeric / 1000;
+}
+
 function numberOrZero(value: unknown): number {
   return hasExplicitNumberValue(value) ? Number(value) : 0;
 }
@@ -248,19 +259,19 @@ export function pipeFormToApiParams(
   v: PipeFormValues & { name?: string }
 ): Record<string, unknown> {
   const params: Record<string, unknown> = {
-    outer_diameter: v.outer_diameter_mm / 1000,
-    insulation_thickness: v.insulation_thickness_mm / 1000,
-    insulation_material: v.insulation_material,
-    ambient_temperature: v.ambient_temperature,
-    process_temperature: v.process_temperature,
-    pipe_length: v.pipe_length,
+    outer_diameter: mmToMOrNull(v.outer_diameter_mm),
+    wall_thickness: mmToMOrNull(v.wall_thickness_mm),
+    insulation_thickness: mmToMOrNull(v.insulation_thickness_mm),
+    insulation_material: v.insulation_material ?? null,
+    ambient_temperature: numberOrNull(v.ambient_temperature),
+    process_temperature: numberOrNull(v.process_temperature),
+    pipe_length: numberOrNull(v.pipe_length),
   };
   applyCommonObjectParams(params, v);
-  if (v.wall_thickness_mm != null) params.wall_thickness = v.wall_thickness_mm / 1000;
   if (v.pipe_lambda_mode === 'manual') {
-    if (v.pipe_lambda != null) params.pipe_lambda = v.pipe_lambda;
-  } else if (v.pipe_material) {
-    params.pipe_material = v.pipe_material;
+    params.pipe_lambda = numberOrNull(v.pipe_lambda);
+  } else {
+    params.pipe_material = v.pipe_material ?? null;
   }
   const hasExplicitLocalCounts = [
     v.valve_count,
@@ -276,9 +287,11 @@ export function pipeFormToApiParams(
     params.flange_count = flangeCount;
     params.support_count = supportCount;
     if (localCount > 0) params.num_local_elements = localCount;
-  }
-  if (v.local_element_equiv_length != null) {
-    params.local_element_equiv_length = v.local_element_equiv_length;
+    if (localCount > 0 || hasExplicitNumberValue(v.local_element_equiv_length)) {
+      params.local_element_equiv_length = numberOrNull(v.local_element_equiv_length);
+    }
+  } else if (hasExplicitNumberValue(v.local_element_equiv_length)) {
+    params.local_element_equiv_length = numberOrNull(v.local_element_equiv_length);
   }
   applyInsulationLayers(params, v);
   if (v.name) params.name = v.name;
@@ -289,21 +302,21 @@ export function tankFormToApiParams(
   v: TankFormValues & { name?: string }
 ): Record<string, unknown> {
   const params: Record<string, unknown> = {
-    shape: v.shape,
-    insulation_thickness: v.insulation_thickness_mm / 1000,
-    insulation_material: v.insulation_material,
-    ambient_temperature: v.ambient_temperature,
-    process_temperature: v.process_temperature,
+    shape: v.shape ?? null,
+    insulation_thickness: mmToMOrNull(v.insulation_thickness_mm),
+    insulation_material: v.insulation_material ?? null,
+    ambient_temperature: numberOrNull(v.ambient_temperature),
+    process_temperature: numberOrNull(v.process_temperature),
   };
   applyCommonObjectParams(params, v);
   applyInsulationLayers(params, v);
-  if (v.diameter_mm != null) params.diameter = v.diameter_mm / 1000;
-  if (v.height_mm != null) params.height = v.height_mm / 1000;
-  if (v.length_mm != null) params.length = v.length_mm / 1000;
-  if (v.width_mm != null) params.width = v.width_mm / 1000;
-  if (v.wall_thickness_mm != null) params.wall_thickness = v.wall_thickness_mm / 1000;
-  if (v.wall_lambda != null) params.wall_lambda = v.wall_lambda;
-  if (v.q_additional != null) params.q_additional = v.q_additional;
+  if (hasExplicitNumberValue(v.diameter_mm)) params.diameter = mmToMOrNull(v.diameter_mm);
+  if (hasExplicitNumberValue(v.height_mm)) params.height = mmToMOrNull(v.height_mm);
+  if (hasExplicitNumberValue(v.length_mm)) params.length = mmToMOrNull(v.length_mm);
+  if (hasExplicitNumberValue(v.width_mm)) params.width = mmToMOrNull(v.width_mm);
+  if (hasExplicitNumberValue(v.wall_thickness_mm)) params.wall_thickness = mmToMOrNull(v.wall_thickness_mm);
+  if (hasExplicitNumberValue(v.wall_lambda)) params.wall_lambda = numberOrNull(v.wall_lambda);
+  if (hasExplicitNumberValue(v.q_additional)) params.q_additional = numberOrNull(v.q_additional);
   if (v.name) params.name = v.name;
   return params;
 }
@@ -345,9 +358,11 @@ function apiTemperatureRange(layer: Record<string, unknown> | undefined) {
 }
 
 function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormValues | TankFormValues) {
-  const placement = v.placement ?? 'outdoor';
+  const placement = v.placement ?? null;
   params.placement = placement;
-  params.location = placement === 'indoor' ? 'indoor' : 'outdoor';
+  if (placement === 'indoor' || placement === 'outdoor' || placement === 'underground') {
+    params.location = placement === 'indoor' ? 'indoor' : 'outdoor';
+  }
   if (placement === 'underground' && v.burial_depth != null) {
     params.burial_depth = v.burial_depth;
   }
@@ -384,8 +399,8 @@ function applyInsulationLayers(params: Record<string, unknown>, v: LayeredFormVa
 
   const layers = [
     {
-      thickness: v.insulation_thickness_mm / 1000,
-      material: v.insulation_material,
+      thickness: mmToMOrNull(v.insulation_thickness_mm),
+      material: v.insulation_material ?? null,
       ...(v.insulation_material === 'other' && v.first_insulation_lambda != null
         ? { conductivity: v.first_insulation_lambda }
         : {}),
@@ -397,7 +412,7 @@ function applyInsulationLayers(params: Record<string, unknown>, v: LayeredFormVa
 
   if (count >= 2 && v.second_insulation_thickness_mm != null && v.second_insulation_material) {
     layers.push({
-      thickness: v.second_insulation_thickness_mm / 1000,
+      thickness: mmToMOrNull(v.second_insulation_thickness_mm),
       material: v.second_insulation_material,
       ...(v.second_insulation_material === 'other' && v.second_insulation_lambda != null
         ? { conductivity: v.second_insulation_lambda }
@@ -409,7 +424,7 @@ function applyInsulationLayers(params: Record<string, unknown>, v: LayeredFormVa
   }
   if (count >= 3 && v.third_insulation_thickness_mm != null && v.third_insulation_material) {
     layers.push({
-      thickness: v.third_insulation_thickness_mm / 1000,
+      thickness: mmToMOrNull(v.third_insulation_thickness_mm),
       material: v.third_insulation_material,
       ...(v.third_insulation_material === 'other' && v.third_insulation_lambda != null
         ? { conductivity: v.third_insulation_lambda }

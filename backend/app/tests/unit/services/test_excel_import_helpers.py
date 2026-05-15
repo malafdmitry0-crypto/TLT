@@ -124,15 +124,16 @@ class TestBuildPipeParams:
         assert params["insulation_material"] == "mineral_wool"
         assert params["name"] == "Т1"
 
-    def test_missing_required_field_produces_error(self):
+    def test_missing_required_field_keeps_partial_params(self):
         row = {"_row": 5, "outer_diameter_mm": 108, "pipe_length": 50}
         params, err = _build_pipe_params(row)
-        assert params is None
-        assert err is not None
-        # В тексте должны быть перечислены недостающие
-        assert "Толщина" in err or "изоляции" in err
+        assert err is None
+        assert params is not None
+        assert params["outer_diameter"] == pytest.approx(0.108)
+        assert params["pipe_length"] == 50
+        assert "insulation_thickness" not in params
 
-    def test_unknown_material_marked_as_missing(self):
+    def test_unknown_material_keeps_object_without_material(self):
         row = {
             "_row": 3,
             "outer_diameter_mm": 108,
@@ -143,8 +144,9 @@ class TestBuildPipeParams:
             "process_temperature": 80,
         }
         params, err = _build_pipe_params(row)
-        assert params is None
-        assert "Материал" in err
+        assert err is None
+        assert params is not None
+        assert "insulation_material" not in params
 
     def test_name_stripped(self):
         row = {
@@ -226,13 +228,21 @@ class TestBuildTankParams:
         assert err is None
         assert params["diameter"] == pytest.approx(1.5)
 
-    def test_missing_shape_rejected(self):
+    def test_missing_shape_keeps_partial_params(self):
         row = {"_row": 2, "insulation_thickness_mm": 60}
         params, err = _build_tank_params(row)
+        assert err is None
+        assert params is not None
+        assert params["insulation_thickness"] == pytest.approx(0.06)
+
+    def test_unknown_shape_rejected(self):
+        row = {"_row": 2, "shape": "Куб", "insulation_thickness_mm": 60}
+        params, err = _build_tank_params(row)
         assert params is None
+        assert err is not None
         assert "форма" in err.lower()
 
-    def test_cylindrical_missing_height(self):
+    def test_cylindrical_missing_height_keeps_partial_params(self):
         row = {
             "_row": 2,
             "shape": "Цилиндр",
@@ -243,10 +253,13 @@ class TestBuildTankParams:
             "process_temperature": 80,
         }
         params, err = _build_tank_params(row)
-        assert params is None
-        assert "Высота" in err
+        assert err is None
+        assert params is not None
+        assert params["shape"] == "cylindrical"
+        assert params["diameter"] == pytest.approx(2.0)
+        assert "height" not in params
 
-    def test_rectangular_missing_width(self):
+    def test_rectangular_missing_width_keeps_partial_params(self):
         row = {
             "_row": 2,
             "shape": "Параллелепипед",
@@ -258,8 +271,12 @@ class TestBuildTankParams:
             "process_temperature": 60,
         }
         params, err = _build_tank_params(row)
-        assert params is None
-        assert "Ширина" in err
+        assert err is None
+        assert params is not None
+        assert params["shape"] == "rectangular"
+        assert params["length"] == pytest.approx(5.0)
+        assert params["height"] == pytest.approx(4.0)
+        assert "width" not in params
 
 
 class TestParseCsv:
@@ -352,7 +369,7 @@ class TestAliasTables:
 class TestAddRowsHelper:
     """Прямые unit-тесты на _add_rows (внутренний helper import flow)."""
 
-    async def test_skip_invalid_row_continues_to_next(self):
+    async def test_skip_structural_row_error_continues_to_next(self):
         from types import SimpleNamespace
         from unittest.mock import AsyncMock
         from uuid import uuid4
@@ -361,11 +378,12 @@ class TestAddRowsHelper:
         from app.services.excel_import_service import _add_rows
 
         rows = [
-            {"_row": 2},  # пустая → builder вернёт error
+            {"_row": 2, "shape": "куб"},
             {
                 "_row": 3,
-                "outer_diameter_mm": 108,
-                "pipe_length": 50,
+                "shape": "Цилиндр",
+                "diameter_mm": 108,
+                "height_mm": 50,
                 "insulation_thickness_mm": 50,
                 "insulation_material": "mineral_wool",
                 "ambient_temperature": -20,
@@ -382,41 +400,33 @@ class TestAddRowsHelper:
                     id="oid",
                     project_id=project_id,
                     params=payload.params,
-                    object_type="pipe",
+                    object_type="tank",
                     results=None,
                     is_valid=False,
                     validation_errors=None,
                 )
 
-        class FakeCalcService:
-            def __init__(self, db):
-                pass
-
-            async def recalculate_object(self, obj):
-                return obj
-
-        original_ps, original_cs = mod.ProjectService, mod.CalculationService
+        original_ps = mod.ProjectService
         mod.ProjectService = FakeProjectService
-        mod.CalculationService = FakeCalcService
         try:
             db = AsyncMock()
             db.commit = AsyncMock()
             principal = SimpleNamespace(role="employee", user_id=uuid4(), session_id=None)
-            created, next_sort, errors = await _add_rows(
+            created, next_sort, errors, object_ids = await _add_rows(
                 db,
                 uuid4(),
                 principal,
-                "Pipes",
+                "Tanks",
                 rows,
-                "pipe",
+                "tank",
                 next_sort=0,
             )
             assert created == 1
             assert len(errors) == 1
             assert next_sort == 1
+            assert object_ids == ["oid"]
         finally:
             mod.ProjectService = original_ps
-            mod.CalculationService = original_cs
 
     async def test_project_limit_breaks_loop(self):
         from types import SimpleNamespace
@@ -455,20 +465,12 @@ class TestAddRowsHelper:
             async def add_object(self, *a, **kw):
                 raise ProjectLimitError("Лимит исчерпан")
 
-        class FakeCalcService:
-            def __init__(self, db):
-                pass
-
-            async def recalculate_object(self, obj):
-                return obj
-
-        original_ps, original_cs = mod.ProjectService, mod.CalculationService
+        original_ps = mod.ProjectService
         mod.ProjectService = LimitProjectService
-        mod.CalculationService = FakeCalcService
         try:
             db = AsyncMock()
             principal = SimpleNamespace(role="guest", session_id="s", user_id=None)
-            created, _, errors = await _add_rows(
+            created, _, errors, object_ids = await _add_rows(
                 db,
                 uuid4(),
                 principal,
@@ -479,9 +481,9 @@ class TestAddRowsHelper:
             )
             assert created == 0
             assert len(errors) == 1  # break после первой ошибки
+            assert object_ids == []
         finally:
             mod.ProjectService = original_ps
-            mod.CalculationService = original_cs
 
     async def test_unexpected_exception_logged_to_errors(self):
         from types import SimpleNamespace
@@ -510,20 +512,12 @@ class TestAddRowsHelper:
             async def add_object(self, *a, **kw):
                 raise RuntimeError("DB down")
 
-        class FakeCalcService:
-            def __init__(self, db):
-                pass
-
-            async def recalculate_object(self, obj):
-                return obj
-
-        original_ps, original_cs = mod.ProjectService, mod.CalculationService
+        original_ps = mod.ProjectService
         mod.ProjectService = BoomService
-        mod.CalculationService = FakeCalcService
         try:
             db = AsyncMock()
             principal = SimpleNamespace(role="employee", user_id=uuid4(), session_id=None)
-            created, _, errors = await _add_rows(
+            created, _, errors, object_ids = await _add_rows(
                 db,
                 uuid4(),
                 principal,
@@ -534,9 +528,9 @@ class TestAddRowsHelper:
             )
             assert created == 0
             assert "RuntimeError" in errors[0]["message"]
+            assert object_ids == []
         finally:
             mod.ProjectService = original_ps
-            mod.CalculationService = original_cs
 
 
 class TestParseCsvAdvanced:

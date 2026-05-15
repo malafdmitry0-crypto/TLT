@@ -1,4 +1,5 @@
 import apiClient from './client';
+import type { CalculationTaskResponse } from '@/types/calculation';
 import type {
   CreateObjectRequest,
   CreateProjectRequest,
@@ -164,6 +165,7 @@ export async function reorderObjects(
 export interface ImportResult {
   created: number;
   errors: { sheet: string; row: number; message: string }[];
+  heat_loss_task?: CalculationTaskResponse;
 }
 
 export async function importObjectsExcel(

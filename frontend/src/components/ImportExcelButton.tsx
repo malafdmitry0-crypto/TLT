@@ -1,12 +1,14 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, Modal, Space, Tooltip, Typography, message } from 'antd';
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getCalcTask } from '@/api/calculations';
 import {
   downloadImportTemplate,
   importObjectsExcel,
   type ImportResult,
 } from '@/api/projects';
+import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
 
 const { Text } = Typography;
 
@@ -17,7 +19,37 @@ interface Props {
 export default function ImportExcelButton({ projectId }: Props) {
   const qc = useQueryClient();
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: activeTask } = useQuery({
+    queryKey: ['calc-job', activeTaskId],
+    queryFn: () => getCalcTask(activeTaskId!),
+    enabled: !!activeTaskId,
+    refetchInterval: (query) => getCalcJobRefetchInterval(query.state.data?.status),
+    refetchIntervalInBackground: true,
+  });
+
+  useEffect(() => {
+    if (!activeTask || isActiveCalcJobStatus(activeTask.status)) return;
+    qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'query'] });
+    qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
+    if (activeTask.status === 'succeeded') {
+      const batchResult = activeTask.result;
+      if (batchResult && 'updated' in batchResult && 'failed' in batchResult) {
+        message.success(
+          `Пересчёт завершён: рассчитано ${batchResult.updated}, ошибок ${batchResult.failed}`
+        );
+      } else {
+        message.success('Пересчёт теплопотерь завершён');
+      }
+    } else if (activeTask.status === 'cancelled') {
+      message.warning('Пересчёт теплопотерь отменён');
+    } else {
+      message.error(activeTask.error_message || 'Пересчёт теплопотерь завершился ошибкой');
+    }
+    setActiveTaskId(null);
+  }, [activeTask, projectId, qc]);
 
   const importMut = useMutation({
     mutationFn: (file: File) => importObjectsExcel(projectId, file),
@@ -25,6 +57,11 @@ export default function ImportExcelButton({ projectId }: Props) {
       setResult(res);
       qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'query'] });
       qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
+      if (res.heat_loss_task) {
+        setActiveTaskId(res.heat_loss_task.id);
+        qc.invalidateQueries({ queryKey: ['calc-job', res.heat_loss_task.id] });
+        message.info('Пересчёт теплопотерь поставлен в очередь');
+      }
       if (res.errors.length === 0) {
         message.success(`Импортировано объектов: ${res.created}`);
       } else {
@@ -127,6 +164,11 @@ export default function ImportExcelButton({ projectId }: Props) {
               <Text strong>Создано объектов: </Text>
               <Text style={{ color: '#52c41a' }}>{result.created}</Text>
             </p>
+            {result.heat_loss_task && (
+              <p>
+                <Text type="secondary">Пересчёт теплопотерь поставлен в очередь.</Text>
+              </p>
+            )}
             {result.errors.length > 0 && (
               <>
                 <p>

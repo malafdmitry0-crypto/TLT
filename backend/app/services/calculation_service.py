@@ -374,10 +374,17 @@ class CalculationService:
             obj.validation_errors = {"error": message}
             return Err(message)
 
-    async def _heat_batch_count(self, project_id: UUID) -> int:
-        result = await self.db.execute(
-            select(func.count(ProjectObject.id)).where(ProjectObject.project_id == project_id)
-        )
+    async def _heat_batch_count(
+        self,
+        project_id: UUID,
+        object_ids: list[UUID] | None = None,
+    ) -> int:
+        filters = [ProjectObject.project_id == project_id]
+        if object_ids is not None:
+            if not object_ids:
+                return 0
+            filters.append(ProjectObject.id.in_(object_ids))
+        result = await self.db.execute(select(func.count(ProjectObject.id)).where(*filters))
         return int(result.scalar() or 0)
 
     async def _load_project_object_chunk(
@@ -387,8 +394,13 @@ class CalculationService:
         limit: int,
         after_sort_order: int | None = None,
         after_id: UUID | None = None,
+        object_ids: list[UUID] | None = None,
     ) -> list[ProjectObject]:
         filters = [ProjectObject.project_id == project_id]
+        if object_ids is not None:
+            if not object_ids:
+                return []
+            filters.append(ProjectObject.id.in_(object_ids))
         if after_sort_order is not None and after_id is not None:
             filters.append(
                 or_(
@@ -424,6 +436,7 @@ class CalculationService:
         project_id: UUID,
         progress_callback: ProgressCallback | None = None,
         should_cancel: CancelChecker | None = None,
+        object_ids: list[UUID] | None = None,
     ) -> tuple[int, int, list[dict[str, Any]]]:
         async def emit_progress(progress: BatchProgress) -> None:
             if progress_callback is not None:
@@ -433,7 +446,7 @@ class CalculationService:
             should_cancel,
             cancel_message="Пакетный пересчёт теплопотерь отменён",
         )
-        total_count = await self._heat_batch_count(project_id)
+        total_count = await self._heat_batch_count(project_id, object_ids)
         updated = 0
         failed = 0
         errors: list[dict[str, Any]] = []
@@ -452,6 +465,7 @@ class CalculationService:
                 limit=BATCH_HEAT_RECALCULATE_CHUNK_SIZE,
                 after_sort_order=last_sort_order,
                 after_id=last_id,
+                object_ids=object_ids,
             )
             if not objects:
                 break

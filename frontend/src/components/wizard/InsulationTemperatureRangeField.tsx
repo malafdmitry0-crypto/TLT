@@ -89,7 +89,12 @@ export default function InsulationTemperatureRangeField({
         ...form.getFieldsValue(true),
         [currentName]: value,
       };
-      const error = validateHeatCalcField(labelFieldId, undefined, { objectType, values });
+      const error = validateHeatCalcField(
+        labelFieldId,
+        undefined,
+        { objectType, values },
+        { enforceRequired: false },
+      );
       if (error) return Promise.reject(new Error(error));
       return Promise.resolve();
     },

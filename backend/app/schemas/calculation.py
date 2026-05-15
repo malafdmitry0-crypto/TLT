@@ -669,6 +669,7 @@ class HeatLossBatchJobRequest(BaseModel):
 
     project_id: UUID
     include_errors: bool = True
+    object_ids: list[UUID] | None = None
 
 
 class CalculationTaskProgress(BaseModel):

@@ -31,6 +31,8 @@ import {
 } from 'antd';
 import {
   AppstoreOutlined,
+  CheckCircleFilled,
+  CloseCircleFilled,
   CloseCircleOutlined,
   CopyOutlined,
   DeleteOutlined,
@@ -193,11 +195,33 @@ type TableColumnRenderSpec = Pick<ColumnType<ProjectObject>, 'render' | 'ellipsi
 };
 
 type HeatCalcFilterKind = 'text' | 'numberRange' | 'enum';
+type HeatLossCalcStatus = 'calculated' | 'error' | 'not_calculated';
 const DEFAULT_OBJECT_QUERY_PAGE_SIZE = 50;
 const INAPPLICABLE_TABLE_VALUE = '—';
 
 function isBatchHeatLossResponse(result: unknown): result is BatchHeatLossResponse {
   return typeof result === 'object' && result !== null && 'updated' in result && 'failed' in result;
+}
+
+function heatLossCalcStatus(record: ProjectObject): HeatLossCalcStatus {
+  if (record.is_valid && record.results != null) return 'calculated';
+  if (record.validation_errors) return 'error';
+  return 'not_calculated';
+}
+
+function heatLossStatusLabel(status: HeatLossCalcStatus) {
+  if (status === 'calculated') return 'Рассчитан';
+  if (status === 'error') return 'Ошибка';
+  return 'Не рассчитан';
+}
+
+function heatLossErrorText(record: ProjectObject) {
+  const errors = record.validation_errors;
+  if (!errors) return 'Ошибка расчёта';
+  if (typeof errors === 'object' && errors !== null && 'error' in errors) {
+    return String((errors as { error?: unknown }).error ?? 'Ошибка расчёта');
+  }
+  return JSON.stringify(errors);
 }
 
 const PIPE_TABLE_COLUMN_KEYS = new Set<HeatCalcColumnKey>(
@@ -1370,6 +1394,10 @@ export default function HeatCalcPage() {
 
   function handleObjectAdded(obj: ProjectObject) {
     setLastSavedObject(obj);
+    if (!obj.is_valid && (obj.object_type === 'pipe' || obj.object_type === 'tank')) {
+      setWizardState({ type: obj.object_type, editingObject: obj });
+      return;
+    }
     openNewObjectMode(obj);
   }
 
@@ -1477,6 +1505,36 @@ export default function HeatCalcPage() {
     index: {
       render: (_: unknown, __: ProjectObject, idx: number) => idx + 1,
       copyValue: (_record, idx) => String(idx + 1),
+    },
+    heat_loss_status: {
+      align: 'center',
+      render: (_: unknown, r: ProjectObject) => {
+        const status = heatLossCalcStatus(r);
+        if (status === 'calculated') {
+          return (
+            <Tooltip title="Рассчитан">
+              <Tag className="heatloss-status-icon-tag" color="success" aria-label="Рассчитан">
+                <CheckCircleFilled />
+              </Tag>
+            </Tooltip>
+          );
+        }
+        if (status === 'error') {
+          return (
+            <Tooltip title={heatLossErrorText(r)}>
+              <Tag className="heatloss-status-icon-tag" color="error" aria-label="Ошибка">
+                <CloseCircleFilled />
+              </Tag>
+            </Tooltip>
+          );
+        }
+        return (
+          <Tooltip title="Не рассчитан">
+            <Tag className="heatloss-status-icon-tag" aria-label="Не рассчитан">—</Tag>
+          </Tooltip>
+        );
+      },
+      copyValue: (r) => heatLossStatusLabel(heatLossCalcStatus(r)),
     },
     type: {
       render: (_: unknown, r: ProjectObject) => (r.object_type === 'pipe' ? 'Тр.' : 'Рез.'),
@@ -2857,6 +2915,7 @@ export default function HeatCalcPage() {
                 onSubmit={handleWizardSubmit}
                 submitting={add.isPending || edit.isPending}
                 initialParams={wizardState.editingObject?.params}
+                validationErrors={wizardState.editingObject?.validation_errors}
                 fieldInputSettings={fieldInputSettings}
                 formSectionWeights={tableViewSettings.formSectionWeights}
                 sectionResizeEnabled={formPlacement === 'top' || formPlacement === 'bottom'}
@@ -3170,7 +3229,7 @@ export default function HeatCalcPage() {
             }}
             rowClassName={(r) => {
               const classes = [];
-              if (!r.is_valid) classes.push('row-invalid');
+              if (heatLossCalcStatus(r) === 'error') classes.push('row-invalid');
               if (r.id === selectedRowId) classes.push('row-selected');
               if (isDraftRowDirty(draftRowsById[r.id])) classes.push('row-dirty');
               return classes.join(' ');

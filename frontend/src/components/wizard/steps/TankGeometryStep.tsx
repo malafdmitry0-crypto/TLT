@@ -33,7 +33,7 @@ interface Props {
 export default function TankGeometryStep({ fieldInputSettings }: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
-    heatCalcNumberInputProps('tank', fieldId, { fieldInputSettings });
+    heatCalcNumberInputProps('tank', fieldId, { fieldInputSettings, form });
 
   return (
     <>

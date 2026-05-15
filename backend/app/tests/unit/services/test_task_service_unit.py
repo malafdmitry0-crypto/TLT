@@ -347,11 +347,16 @@ class TestTaskStateTransitions:
             status="running",
             project_id=project_id,
             session_id="sid",
-            request_payload={"project_id": str(project_id), "include_errors": True},
+            request_payload={
+                "project_id": str(project_id),
+                "include_errors": True,
+                "object_ids": [str(uuid.uuid4()), str(uuid.uuid4())],
+            },
             progress_current=0,
             progress_total=None,
         )
         mock_db.get = AsyncMock(return_value=task)
+        expected_object_ids = [uuid.UUID(value) for value in task.request_payload["object_ids"]]
 
         class FakeCalculationService:
             def __init__(self, db) -> None:
@@ -363,9 +368,11 @@ class TestTaskStateTransitions:
                 *,
                 progress_callback=None,
                 should_cancel=None,
+                object_ids=None,
             ):
                 assert project_id_arg == project_id
                 assert should_cancel is not None
+                assert object_ids == expected_object_ids
                 if progress_callback is not None:
                     await progress_callback(BatchProgress(current=1, total=2, phase="calculate"))
                 return 1, 1, [{"object_id": "bad", "error": {"error": "missing"}}]

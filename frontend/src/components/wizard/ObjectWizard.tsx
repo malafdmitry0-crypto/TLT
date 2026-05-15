@@ -52,7 +52,7 @@ import {
   normalizeFormSectionWeights,
   type HeatCalcFormSectionWeights,
 } from '@/utils/heatCalcTableViewSettings';
-import type { HeatCalcObjectType } from '@/types/project';
+import type { HeatCalcObjectType, ProjectObject } from '@/types/project';
 
 interface Props {
   objectType: ObjectType;
@@ -61,6 +61,7 @@ interface Props {
   submitting?: boolean;
   /** Pass existing params to enable edit mode */
   initialParams?: Record<string, unknown>;
+  validationErrors?: ProjectObject['validation_errors'];
   fieldInputSettings?: HeatCalcFieldInputSettings;
   formSectionWeights?: HeatCalcFormSectionWeights;
   sectionResizeEnabled?: boolean;
@@ -73,6 +74,93 @@ const SECTION_GRID_GAP_WIDTH = 2;
 const SECTION_FIELD_PAIR_MIN_WIDTHS = [206, 206, 220, 180];
 const SECTION_FIELD_GRID =
   'repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr))';
+const REQUIRED_FIELDS_ERROR_PREFIX = 'Не заполнены обязательные поля объекта:';
+const REQUIRED_FIELD_ERROR_MESSAGE = '';
+
+const REQUIRED_FIELD_LABEL_TO_FORM_NAMES: Record<string, string[]> = {
+  'Наружный диаметр': ['outer_diameter_mm'],
+  'Длина трубопровода': ['pipe_length'],
+  'Толщина стенки': ['wall_thickness_mm'],
+  'Материал трубы или λ трубы': ['pipe_material', 'pipe_lambda'],
+  'Форма резервуара': ['shape'],
+  'λ стенки': ['wall_lambda'],
+  'Диаметр резервуара': ['diameter_mm'],
+  'Высота резервуара': ['height_mm'],
+  'Длина резервуара': ['length_mm'],
+  'Ширина резервуара': ['width_mm'],
+  'Размещение объекта': ['placement'],
+  'Температура окружающей среды': ['ambient_temperature'],
+  'Требуемая температура объекта': ['process_temperature'],
+  'Температура продукта': ['process_temperature'],
+  'Глубина/высота подземной части': ['burial_depth'],
+  'Тип грунта': ['ground_type'],
+  'λ грунта': ['ground_conductivity'],
+  'Толщина изоляции': ['insulation_thickness_mm'],
+  'Материал изоляции': ['insulation_material'],
+  'Толщина 1-го слоя': ['insulation_thickness_mm'],
+  'Толщина 1-го слоя изоляции': ['insulation_thickness_mm'],
+  'Материал 1-го слоя': ['insulation_material'],
+  'Материал 1-го слоя изоляции': ['insulation_material'],
+  'λ 1-го слоя изоляции': ['first_insulation_lambda'],
+  'Толщина 2-го слоя': ['second_insulation_thickness_mm'],
+  'Толщина 2-го слоя изоляции': ['second_insulation_thickness_mm'],
+  'Материал 2-го слоя': ['second_insulation_material'],
+  'Материал 2-го слоя изоляции': ['second_insulation_material'],
+  'λ 2-го слоя изоляции': ['second_insulation_lambda'],
+  'Толщина 3-го слоя': ['third_insulation_thickness_mm'],
+  'Толщина 3-го слоя изоляции': ['third_insulation_thickness_mm'],
+  'Материал 3-го слоя': ['third_insulation_material'],
+  'Материал 3-го слоя изоляции': ['third_insulation_material'],
+  'λ 3-го слоя изоляции': ['third_insulation_lambda'],
+};
+
+const API_FIELD_TO_FORM_NAMES: Record<string, string[]> = {
+  outer_diameter: ['outer_diameter_mm'],
+  pipe_length: ['pipe_length'],
+  wall_thickness: ['wall_thickness_mm'],
+  pipe_material: ['pipe_material'],
+  pipe_lambda: ['pipe_lambda'],
+  shape: ['shape'],
+  diameter: ['diameter_mm'],
+  height: ['height_mm'],
+  length: ['length_mm'],
+  width: ['width_mm'],
+  wall_lambda: ['wall_lambda'],
+  insulation_thickness: ['insulation_thickness_mm'],
+  insulation_material: ['insulation_material'],
+  ambient_temperature: ['ambient_temperature'],
+  process_temperature: ['process_temperature'],
+  burial_depth: ['burial_depth'],
+  ground_type: ['ground_type'],
+  ground_conductivity: ['ground_conductivity'],
+  wind_speed: ['wind_speed'],
+  alpha_vnesh: ['alpha_vnesh'],
+  safety_factor: ['safety_factor'],
+  local_element_equiv_length: ['local_element_equiv_length'],
+  q_additional: ['q_additional'],
+  insulation_layer_count: ['insulation_layer_count'],
+};
+
+const RANGE_MESSAGE_TO_FORM_NAMES: Array<[RegExp, string[]]> = [
+  [/Температура окружающей среды/i, ['ambient_temperature']],
+  [/Температура продукта|Требуемая температура объекта/i, ['process_temperature']],
+  [/Наружный диаметр/i, ['outer_diameter_mm']],
+  [/Длина трубопровода/i, ['pipe_length']],
+  [/Толщина стенки/i, ['wall_thickness_mm']],
+  [/Толщина изоляции/i, ['insulation_thickness_mm']],
+  [/Глубина|подземной части/i, ['burial_depth']],
+  [/λ грунта|теплопроводность грунта/i, ['ground_conductivity']],
+  [/Скорость ветра/i, ['wind_speed']],
+  [/коэф.*наружной теплоотдачи|alpha/i, ['alpha_vnesh']],
+  [/Коэффициент запаса/i, ['safety_factor']],
+  [/эквивалентн.*длин/i, ['local_element_equiv_length']],
+  [/Диаметр резервуара/i, ['diameter_mm']],
+  [/Высота резервуара/i, ['height_mm']],
+  [/Длина резервуара/i, ['length_mm']],
+  [/Ширина резервуара/i, ['width_mm']],
+  [/λ стенки/i, ['wall_lambda']],
+  [/Максимальное количество слоёв/i, ['insulation_layer_count']],
+];
 
 function withHelp(control: ReactElement, hint: string) {
   return <HelpedControl hint={hint}>{control}</HelpedControl>;
@@ -84,6 +172,90 @@ function fieldLabel(fieldId: string, objectType?: HeatCalcObjectType) {
 
 function fieldHelp(fieldId: string, objectType?: HeatCalcObjectType, mode?: string) {
   return getHeatCalcFieldDescription(fieldId, { objectType, mode });
+}
+
+function validationErrorsText(validationErrors: ProjectObject['validation_errors'] | undefined) {
+  if (!validationErrors) return '';
+  const error = validationErrors['error'];
+  if (typeof error === 'string') return error;
+  if (error != null) return String(error);
+  try {
+    return JSON.stringify(validationErrors);
+  } catch {
+    return 'Проверьте параметры объекта';
+  }
+}
+
+function validationRequiredFields(validationErrors: ProjectObject['validation_errors'] | undefined, message: string) {
+  const explicitFields = validationErrors?.['missing_fields'];
+  if (Array.isArray(explicitFields)) {
+    return explicitFields
+      .map((field) => String(field).trim())
+      .filter(Boolean);
+  }
+
+  const prefixIndex = message.indexOf(REQUIRED_FIELDS_ERROR_PREFIX);
+  if (prefixIndex < 0) return [];
+  return message
+    .slice(prefixIndex + REQUIRED_FIELDS_ERROR_PREFIX.length)
+    .split(',')
+    .map((field) => field.trim())
+    .filter(Boolean);
+}
+
+function uniqueFieldNames(fieldNames: string[]) {
+  return [...new Set(fieldNames.filter(Boolean))];
+}
+
+function requiredFieldNamesFromLabels(labels: string[]) {
+  return uniqueFieldNames(labels.flatMap((field) => {
+    const trimmed = field.trim();
+    if (!trimmed) return [];
+    if (REQUIRED_FIELD_LABEL_TO_FORM_NAMES[trimmed]) return REQUIRED_FIELD_LABEL_TO_FORM_NAMES[trimmed];
+    if (API_FIELD_TO_FORM_NAMES[trimmed]) return API_FIELD_TO_FORM_NAMES[trimmed];
+    return /^[a-z][a-z0-9_]*$/i.test(trimmed) ? [trimmed] : [];
+  }));
+}
+
+function insulationLayerFieldNamesFromMessage(message: string) {
+  const matches = [...message.matchAll(/insulation_layers[.\s]+(\d+)[.\s]+(thickness|material|conductivity|temperature_range)/gi)];
+  return matches.flatMap((match) => {
+    const index = Number(match[1]);
+    const field = match[2];
+    const prefix = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : null;
+    if (!prefix) return [];
+    if (field === 'thickness') return [index === 0 ? 'insulation_thickness_mm' : `${prefix}_insulation_thickness_mm`];
+    if (field === 'material') return [index === 0 ? 'insulation_material' : `${prefix}_insulation_material`];
+    if (field === 'conductivity') return [`${prefix}_insulation_lambda`];
+    if (field === 'temperature_range') return [`${prefix}_insulation_temperature_range`];
+    return [];
+  });
+}
+
+function fieldNamesFromValidationMessage(message: string) {
+  const fromApiNames = Object.entries(API_FIELD_TO_FORM_NAMES)
+    .filter(([apiName]) => new RegExp(`(^|\\n|\\s)${apiName}(\\n|\\s|$)`).test(message))
+    .flatMap(([, formNames]) => formNames);
+  const fromRangeMessages = RANGE_MESSAGE_TO_FORM_NAMES
+    .filter(([pattern]) => pattern.test(message))
+    .flatMap(([, formNames]) => formNames);
+  return uniqueFieldNames([
+    ...fromApiNames,
+    ...fromRangeMessages,
+    ...insulationLayerFieldNamesFromMessage(message),
+  ]);
+}
+
+function buildCalculationFieldErrors(
+  validationErrors: ProjectObject['validation_errors'] | undefined,
+): Record<string, string> {
+  const message = validationErrorsText(validationErrors).trim();
+  if (!message) return {};
+  const requiredFieldNames = requiredFieldNamesFromLabels(validationRequiredFields(validationErrors, message));
+  if (requiredFieldNames.length > 0) {
+    return Object.fromEntries(requiredFieldNames.map((fieldName) => [fieldName, REQUIRED_FIELD_ERROR_MESSAGE]));
+  }
+  return Object.fromEntries(fieldNamesFromValidationMessage(message).map((fieldName) => [fieldName, message]));
 }
 
 type ClimateBasis = 't_0_92' | 't_0_98' | 't_abs_min';
@@ -127,6 +299,7 @@ export default function ObjectWizard({
   onSubmit,
   submitting = false,
   initialParams,
+  validationErrors,
   fieldInputSettings,
   formSectionWeights,
   sectionResizeEnabled = false,
@@ -147,6 +320,7 @@ export default function ObjectWizard({
   ) => heatCalcNumberInputProps(heatCalcObjectType, fieldId, {
     ...options,
     fieldInputSettings,
+    form,
   });
   const isEditMode = !!initialParams;
   const initialValues = useMemo(() =>
@@ -161,6 +335,11 @@ export default function ObjectWizard({
     () => initialValues ?? {},
     [initialValues],
   );
+  const calculationFieldErrors = useMemo(
+    () => buildCalculationFieldErrors(validationErrors),
+    [validationErrors],
+  );
+  const calculationFieldErrorNamesRef = useRef<string[]>([]);
   const values = Form.useWatch([], form);
   const watchedValues = values as Record<string, unknown> | undefined;
   const watchedValue = (name: string, fallback?: unknown) => {
@@ -252,6 +431,28 @@ export default function ObjectWizard({
   }, [form, initialValues]);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const previousFieldNames = calculationFieldErrorNamesRef.current;
+      if (previousFieldNames.length > 0) {
+        form.setFields(previousFieldNames.map((fieldName) => ({ name: fieldName, errors: [] })));
+      }
+
+      const nextFieldEntries = Object.entries(calculationFieldErrors);
+      if (nextFieldEntries.length > 0) {
+        form.setFields(nextFieldEntries.map(([fieldName, message]) => ({
+          name: fieldName,
+          errors: [message],
+        })));
+        calculationFieldErrorNamesRef.current = nextFieldEntries.map(([fieldName]) => fieldName);
+        scrollToFirstError();
+      } else {
+        calculationFieldErrorNamesRef.current = [];
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [calculationFieldErrors, form]);
+
+  useEffect(() => {
     if (!selectedClimate) return;
     const tAmbient = climateBasisValue ? climateTemperature(selectedClimate, climateBasis) : null;
     const wind = climateWind(selectedClimate);
@@ -313,6 +514,7 @@ export default function ObjectWizard({
   }
 
   function handleValuesChange(changed: Record<string, unknown>) {
+    clearCalculationFieldErrors(Object.keys(changed));
     if (Object.prototype.hasOwnProperty.call(changed, 'climate_key') && !changed.climate_key) {
       form.setFieldsValue({
         climate_city: undefined,
@@ -327,6 +529,26 @@ export default function ObjectWizard({
     if (Object.prototype.hasOwnProperty.call(changed, 'wind_speed')) {
       form.setFieldsValue({ wind_speed_source: 'manual' });
     }
+  }
+
+  function clearCalculationFieldErrors(changedFieldNames?: string[]) {
+    const currentFieldNames = calculationFieldErrorNamesRef.current;
+    if (currentFieldNames.length === 0) return;
+    const resetAll = !changedFieldNames
+      || changedFieldNames.some((fieldName) => (
+        fieldName === 'insulation_layer_count'
+        || fieldName === 'placement'
+        || fieldName === 'shape'
+        || fieldName === 'pipe_lambda_mode'
+      ));
+    const namesToClear = resetAll
+      ? currentFieldNames
+      : currentFieldNames.filter((fieldName) => changedFieldNames.includes(fieldName));
+    if (namesToClear.length === 0) return;
+    form.setFields(namesToClear.map((fieldName) => ({ name: fieldName, errors: [] })));
+    calculationFieldErrorNamesRef.current = resetAll
+      ? []
+      : currentFieldNames.filter((fieldName) => !namesToClear.includes(fieldName));
   }
 
   function resizedSectionWeights(

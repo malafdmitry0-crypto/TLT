@@ -357,6 +357,33 @@ html, body, #root {
   --inline-control-height: 24px;
 }
 
+.heatcalc-object-diagnostic {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 2px;
+  padding: 3px 6px;
+  border: 1px solid #ffd591;
+  border-radius: 5px;
+  background: #fff7e6;
+  color: #5c3b00;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.heatcalc-object-diagnostic strong {
+  flex: 0 0 auto;
+  color: #8a5600;
+}
+
+.heatcalc-object-diagnostic span {
+  min-width: 0;
+}
+
+.heatcalc-object-diagnostic__fields {
+  color: #1f2d3d;
+}
+
 .flat-form-section {
   height: 100%;
   border: 1px solid #d9d9d9;
@@ -1131,6 +1158,38 @@ html, body, #root {
 .inline-object-form .ant-input-number:has(.ant-input-number-input[aria-required='true']) {
   box-shadow: inset 2px 0 0 #d48806;
   background-color: #fffdf6;
+}
+
+.inline-object-form .ant-form-item-has-warning .ant-form-item-explain,
+.inline-object-form .ant-form-item-has-warning .ant-form-item-extra {
+  display: none;
+  min-height: 0;
+}
+
+.inline-object-form .ant-form-item-has-error .ant-form-item-label > label {
+  color: #cf1322;
+}
+
+.inline-object-form .ant-form-item-has-error .ant-input:not([disabled]),
+.inline-object-form .ant-form-item-has-error .ant-input-number:not(.ant-input-number-disabled),
+.inline-object-form .ant-form-item-has-error .ant-select:not(.ant-select-disabled) .ant-select-selector,
+.inline-object-form .ant-form-item-has-error .reference-picker-control:not(.reference-picker-control--disabled) {
+  border-color: #ff4d4f !important;
+  background-color: #fff1f0;
+}
+
+.inline-object-form .ant-form-item-has-error .reference-picker-control:not(.reference-picker-control--disabled):hover,
+.inline-object-form .ant-form-item-has-error .reference-picker-control:not(.reference-picker-control--disabled):focus {
+  border-color: #ff7875 !important;
+}
+
+.inline-object-form .ant-form-item-explain-error:empty {
+  display: none;
+}
+
+.inline-object-form .ant-form-item-explain:has(.ant-form-item-explain-error:empty):not(:has(.ant-form-item-explain-error:not(:empty))) {
+  display: none;
+  min-height: 0;
 }
 
 /* ── Select ───────────────────────────────────────────────────── */
@@ -2641,6 +2700,23 @@ html, body, #root {
 }
 
 .electrical-spreadsheet .electrical-status-icon-tag .anticon {
+  margin: 0;
+  font-size: 12px;
+}
+
+.calc-spreadsheet .heatloss-status-icon-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border-radius: 999px;
+  line-height: 1;
+}
+
+.calc-spreadsheet .heatloss-status-icon-tag .anticon {
   margin: 0;
   font-size: 12px;
 }

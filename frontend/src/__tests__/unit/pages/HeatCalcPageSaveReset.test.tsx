@@ -15,6 +15,7 @@ vi.mock('@/components/wizard/ObjectWizard', async () => {
     default: function FakeObjectWizard(props: {
       objectType: string;
       initialParams?: Record<string, unknown>;
+      validationErrors?: Record<string, unknown> | null;
       onSubmit: (params: Record<string, unknown>) => void;
     }) {
       const [draftName, setDraftName] = React.useState(
@@ -23,6 +24,13 @@ vi.mock('@/components/wizard/ObjectWizard', async () => {
       return React.createElement(
         'div',
         { 'data-testid': 'fake-object-wizard', 'data-object-type': props.objectType },
+        props.validationErrors
+          ? React.createElement(
+              'div',
+              { 'data-testid': 'fake-validation-errors' },
+              String(props.validationErrors.error ?? ''),
+            )
+          : null,
         React.createElement('input', {
           'data-testid': 'fake-draft-name',
           value: draftName,
@@ -220,5 +228,35 @@ describe('HeatCalcPage save reset', () => {
       expect(screen.getByText('Режим: добавление')).toBeInTheDocument();
     });
     expect(useWorkspaceHeaderStore.getState().context).toBeNull();
+  }, 10_000);
+
+  it('после сохранения новой нерассчитанной записи открывает её для исправления', async () => {
+    const { listObjects, createObject } = await import('@/api/projects');
+    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (createObject as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeObject({
+        id: 'obj-invalid',
+        params: { name: 'bad' },
+        is_valid: false,
+        results: null,
+        validation_errors: {
+          error: 'Не заполнены обязательные поля объекта: Наружный диаметр',
+        },
+      }),
+    );
+
+    useProjectStore.getState().setCurrentProject(mockProject);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: 'Добавить' }));
+    await user.type(await screen.findByTestId('fake-draft-name'), 'bad');
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fake-draft-name')).toHaveValue('bad');
+    });
+    expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
+    expect(screen.getByTestId('fake-validation-errors')).toHaveTextContent('Наружный диаметр');
   }, 10_000);
 });

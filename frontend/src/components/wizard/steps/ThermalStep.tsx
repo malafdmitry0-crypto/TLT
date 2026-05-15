@@ -43,7 +43,7 @@ interface Props {
 export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
-    heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings });
+    heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings, form });
   const insulationMaterial = Form.useWatch('insulation_material', form);
   const { data: materials = [], isError, isFetching } = useQuery({
     queryKey: referenceQueryKeys.insulation,

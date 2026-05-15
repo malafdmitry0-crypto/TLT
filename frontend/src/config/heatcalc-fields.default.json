@@ -70,6 +70,41 @@
         "type": "computed"
       }
     },
+    "heat_loss_status": {
+      "service_name": "heat_loss_status",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Основные",
+      "labels": {
+        "full": "Статус расчёта",
+        "short": "Статус",
+        "compact": "Статус"
+      },
+      "contexts": {
+        "table_by_key": {
+          "heat_loss_status": {
+            "label": "Статус",
+            "full_label": "Статус расчёта",
+            "tooltip": "Статус расчёта теплопотерь"
+          }
+        },
+        "settings_by_key": {
+          "heat_loss_status": {
+            "label": "Статус расчёта"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "heat_loss_status",
+        "tank": "heat_loss_status"
+      },
+      "input": {
+        "type": "computed"
+      },
+      "description": "Статус расчёта теплопотерь объекта: рассчитан, ошибка или не рассчитан."
+    },
     "name": {
       "service_name": "name",
       "object_types": [
@@ -3036,6 +3071,18 @@
           "field": "index"
         },
         {
+          "key": "heat_loss_status",
+          "group": "Основные",
+          "defaultWidthPct": 5.6,
+          "minWidthPx": 52,
+          "valueType": "enum",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "heat_loss_status"
+        },
+        {
           "key": "type",
           "group": "Основные",
           "defaultWidthPct": 7,
@@ -3722,6 +3769,18 @@
           "field": "index"
         },
         {
+          "key": "heat_loss_status",
+          "group": "Основные",
+          "defaultWidthPct": 5.6,
+          "minWidthPx": 52,
+          "valueType": "enum",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "heat_loss_status"
+        },
+        {
           "key": "type",
           "group": "Основные",
           "defaultWidthPct": 7,
@@ -4397,6 +4456,7 @@
     "default_visible": {
       "pipe": [
         "index",
+        "heat_loss_status",
         "name",
         "placement",
         "pipe_outer_diameter",
@@ -4414,6 +4474,7 @@
       ],
       "tank": [
         "index",
+        "heat_loss_status",
         "name",
         "tank_shape",
         "tank_dimensions",

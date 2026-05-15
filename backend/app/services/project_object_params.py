@@ -179,6 +179,10 @@ def _validate_pipe_params(params: Mapping[str, Any], missing: list[str]) -> None
 
 def _validate_tank_params(params: Mapping[str, Any], missing: list[str]) -> None:
     _require(params, "shape", "Форма резервуара", missing)
+    if _is_missing(params.get("wall_thickness")) and not _is_missing(params.get("wall_lambda")):
+        missing.append("Толщина стенки")
+    if _is_missing(params.get("wall_lambda")) and not _is_missing(params.get("wall_thickness")):
+        missing.append("λ стенки")
     shape = params.get("shape")
     if shape == "cylindrical":
         _require(params, "diameter", "Диаметр резервуара", missing)

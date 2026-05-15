@@ -465,11 +465,15 @@ class TaskService:
             persist=lambda progress: self._update_progress(task_id, progress)
         )
         try:
+            object_ids = [
+                UUID(str(object_id)) for object_id in payload.get("object_ids") or []
+            ] or None
             async with self.session_factory() as calc_db:
                 updated, failed, errors = await CalculationService(calc_db).batch_recalculate(
                     UUID(payload["project_id"]),
                     progress_callback=progress_throttler.offer,
                     should_cancel=lambda: self._should_cancel(task_id),
+                    object_ids=object_ids,
                 )
         except BatchCancelledError:
             await progress_throttler.flush()
@@ -590,10 +594,13 @@ class TaskService:
 
     @staticmethod
     def _heat_loss_payload(request: HeatLossBatchJobRequest) -> dict[str, Any]:
-        return {
+        payload = {
             "project_id": str(request.project_id),
             "include_errors": request.include_errors,
         }
+        if request.object_ids is not None:
+            payload["object_ids"] = [str(object_id) for object_id in request.object_ids]
+        return payload
 
     @staticmethod
     def _dedupe_key(
