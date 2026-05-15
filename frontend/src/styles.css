@@ -2343,6 +2343,13 @@ html, body, #root {
   line-height: 1.2;
 }
 
+.column-layout-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .column-layout-title,
 .column-layout-meta {
   min-width: 0;
@@ -2359,6 +2366,16 @@ html, body, #root {
 .column-layout-meta {
   color: #7a8794;
   font-size: 11px;
+}
+
+.column-layout-computed-tag {
+  flex: 0 0 auto;
+  margin-inline-end: 0;
+  border-color: #b7d5ef;
+  background: #eef7ff;
+  color: #24527a;
+  font-size: 10px;
+  line-height: 16px;
 }
 
 .column-layout-empty {

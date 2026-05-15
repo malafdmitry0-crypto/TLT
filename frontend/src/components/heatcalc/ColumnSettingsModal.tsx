@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { Button, Checkbox, InputNumber, Modal, Segmented, Space, Tabs, Tooltip, Typography } from 'antd';
+import { Button, Checkbox, InputNumber, Modal, Segmented, Space, Tabs, Tag, Tooltip, Typography } from 'antd';
 import { HolderOutlined, ReloadOutlined } from '@ant-design/icons';
 import {
   closestCenter,
@@ -59,6 +59,20 @@ const TABLE_SETTINGS_TYPE_LABELS: Record<HeatCalcTableColumnScope, string> = {
   all: 'Все',
 };
 
+const FORMULA_RESULT_COLUMN_KEYS = new Set<HeatCalcColumnKey>([
+  'applied_alpha_vnesh',
+  'applied_safety_factor',
+  'thermal_resistance',
+  'wall_resistance',
+  'insulation_resistance',
+  'external_resistance',
+  'ground_resistance',
+  'effective_length',
+  'surface_area',
+  'air_surface_area',
+  'ground_surface_area',
+]);
+
 interface ColumnStepTarget {
   objectType: HeatCalcObjectType;
   fieldId: string;
@@ -85,6 +99,10 @@ function isNumberFieldWithStep(
 
 function sameNumber(left: number, right: number) {
   return Math.abs(left - right) < 1e-9;
+}
+
+function isFormulaResultColumn(column: HeatCalcResolvedColumnMeta) {
+  return FORMULA_RESULT_COLUMN_KEYS.has(column.key);
 }
 
 function getColumnStepSettings(
@@ -157,6 +175,7 @@ function ColumnSettingsRowContent({
   const [draftOrder, setDraftOrder] = useState<number | null>(orderValue);
   const [orderEditing, setOrderEditing] = useState(false);
   const metaLabel = column.title !== column.labels.full ? column.labels.full : column.labels.short;
+  const formulaResult = isFormulaResultColumn(column);
 
   useEffect(() => {
     if (!orderEditing) setDraftOrder(orderValue);
@@ -215,7 +234,14 @@ function ColumnSettingsRowContent({
         }}
       />
       <div className="column-layout-label">
-        <span className="column-layout-title">{column.title}</span>
+        <span className="column-layout-title-row">
+          <span className="column-layout-title">{column.title}</span>
+          {formulaResult && (
+            <Tooltip title="Поле рассчитывается формулами теплопотерь">
+              <Tag className="column-layout-computed-tag">Расчётное</Tag>
+            </Tooltip>
+          )}
+        </span>
         <span className="column-layout-meta">{metaLabel} · {column.group}</span>
       </div>
       {stepSettings ? (
