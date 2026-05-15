@@ -119,6 +119,7 @@ export interface ElectricalBatchOptions {
   vaporTemperature?: number | null;
   aggressiveProduct?: boolean;
   skipManual?: boolean;
+  objectIds?: string[];
 }
 
 function electricalParams(
@@ -155,6 +156,7 @@ export async function batchCalcElectrical(
       include_results: false,
       include_errors: false,
       ...electricalParams(cableType, options),
+      object_ids: options.objectIds,
     },
   });
   return data;
@@ -176,6 +178,7 @@ export async function enqueueElectricalBatchJob(
       include_results: false,
       include_errors: true,
       ...electricalParams(cableType, options),
+      object_ids: options.objectIds,
     },
   );
   return data;

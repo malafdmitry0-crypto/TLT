@@ -1054,7 +1054,15 @@ class CalculationService:
         )
         return await self.calc_electrical(request)
 
-    async def _electrical_batch_counts(self, project_id: UUID) -> tuple[int, int]:
+    async def _electrical_batch_counts(
+        self,
+        project_id: UUID,
+        *,
+        object_ids: list[UUID] | None = None,
+    ) -> tuple[int, int]:
+        filters = [ProjectObject.project_id == project_id]
+        if object_ids is not None:
+            filters.append(ProjectObject.id.in_(object_ids))
         row = (
             await self.db.execute(
                 select(
@@ -1062,10 +1070,31 @@ class CalculationService:
                     func.count(ProjectObject.id).filter(
                         ProjectObject.is_valid == True,  # noqa: E712
                     ),
-                ).where(ProjectObject.project_id == project_id)
+                ).where(*filters)
             )
         ).one()
         return int(row[0] or 0), int(row[1] or 0)
+
+    async def _validate_project_object_ids(
+        self,
+        project_id: UUID,
+        object_ids: list[UUID] | None,
+    ) -> list[UUID] | None:
+        if object_ids is None:
+            return None
+        normalized = list(dict.fromkeys(object_ids))
+        if not normalized:
+            raise CalculationError("Список выбранных объектов не должен быть пустым")
+        result = await self.db.execute(
+            select(ProjectObject.id).where(
+                ProjectObject.project_id == project_id,
+                ProjectObject.id.in_(normalized),
+            )
+        )
+        found_ids = set(result.scalars().all())
+        if len(found_ids) != len(normalized):
+            raise CalculationError("Все выбранные объекты должны принадлежать проекту")
+        return normalized
 
     async def _load_valid_project_object_chunk(
         self,
@@ -1074,11 +1103,14 @@ class CalculationService:
         limit: int,
         after_sort_order: int | None,
         after_id: UUID | None,
+        object_ids: list[UUID] | None = None,
     ) -> list[ProjectObject]:
         filters = [
             ProjectObject.project_id == project_id,
             ProjectObject.is_valid == True,  # noqa: E712
         ]
+        if object_ids is not None:
+            filters.append(ProjectObject.id.in_(object_ids))
         if after_sort_order is not None and after_id is not None:
             filters.append(
                 or_(
@@ -1150,6 +1182,7 @@ class CalculationService:
         return_calcs: bool = True,
         progress_callback: ProgressCallback | None = None,
         should_cancel: CancelChecker | None = None,
+        object_ids: list[UUID] | None = None,
     ) -> tuple[int, int, int, list[dict[str, Any]], list[ElectricalCalculation]]:
         """Автоподбор кабеля для всех валидных объектов проекта (cable_mark=None)."""
 
@@ -1159,9 +1192,13 @@ class CalculationService:
 
         cancel_checker = BatchCancelChecker(should_cancel)
 
-        # Считаем общее количество объектов в проекте — чтобы сообщить фронту,
+        object_ids = await self._validate_project_object_ids(project_id, object_ids)
+        # Считаем общее количество объектов в области пересчёта — чтобы сообщить фронту,
         # сколько объектов исключено из-за ошибок теплопотерь.
-        total_count, total_valid = await self._electrical_batch_counts(project_id)
+        total_count, total_valid = await self._electrical_batch_counts(
+            project_id,
+            object_ids=object_ids,
+        )
         heat_loss_failed = total_count - total_valid
         calculated = 0
         skipped = 0
@@ -1189,6 +1226,7 @@ class CalculationService:
                 limit=BATCH_ELECTRICAL_CHUNK_SIZE,
                 after_sort_order=last_sort_order,
                 after_id=last_id,
+                object_ids=object_ids,
             )
             if not objects:
                 break

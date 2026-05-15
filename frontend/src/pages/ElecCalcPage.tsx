@@ -14,6 +14,7 @@ import {
   Checkbox,
   Input,
   InputNumber,
+  Popconfirm,
   Select,
   Segmented,
   Space,
@@ -148,6 +149,11 @@ const ENABLED_CABLE_TYPES: ReadonlySet<CableTypeKey> = new Set([
   'three_core',
 ]);
 const ELECTRICAL_TABLE_PAGE_SIZE = 50;
+type ElectricalBatchScope = 'all' | 'selected';
+type ElectricalBatchMutationArgs = {
+  scope: ElectricalBatchScope;
+  objectIds?: string[];
+};
 const EMPTY_OBJECTS: ProjectObject[] = [];
 const EMPTY_ELECTRICAL_CALCS: ElectricalCalcSummary[] = [];
 const THREAD_OPTIONS = [
@@ -538,7 +544,8 @@ export default function ElecCalcPage() {
   const [activeJobId, setActiveJobId] = useState<string | null>(
     () => navigationActiveJobId,
   );
-  const activeJobScopeRef = useRef<{ projectId?: string; variant: number } | null>(null);
+  const [activeBatchScope, setActiveBatchScope] = useState<ElectricalBatchScope | null>(null);
+  const pageScopeRef = useRef<{ projectId?: string; variant: number } | null>(null);
 
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -571,8 +578,8 @@ export default function ElecCalcPage() {
 
   useEffect(() => {
     const currentScope = { projectId: project?.id, variant };
-    const previousScope = activeJobScopeRef.current;
-    activeJobScopeRef.current = currentScope;
+    const previousScope = pageScopeRef.current;
+    pageScopeRef.current = currentScope;
     if (!previousScope) return;
     if (!previousScope.projectId && currentScope.projectId) return;
     if (
@@ -580,6 +587,7 @@ export default function ElecCalcPage() {
       previousScope.variant !== currentScope.variant
     ) {
       setActiveJobId(null);
+      setActiveBatchScope(null);
     }
   }, [project?.id, variant]);
 
@@ -781,7 +789,7 @@ export default function ElecCalcPage() {
   }, [isRegisteredUser, persistedTableViewPreference, registeredUserId]);
 
   const batchMut = useMutation({
-    mutationFn: () =>
+    mutationFn: ({ scope, objectIds }: ElectricalBatchMutationArgs) =>
       enqueueElectricalBatchJob(project!.id, effectiveSource, variant, cableType, {
         supplyVoltage,
         connectionType,
@@ -790,10 +798,16 @@ export default function ElecCalcPage() {
         layingStep,
         vaporTemperature,
         aggressiveProduct,
-    }),
-    onSuccess: (task) => {
+        objectIds: scope === 'selected' ? objectIds : undefined,
+      }),
+    onSuccess: (task, variables) => {
       setActiveJobId(task.id);
-      message.info(`СО${variant} · электрорасчёт поставлен в очередь`);
+      setActiveBatchScope(variables.scope);
+      message.info(
+        variables.scope === 'selected'
+          ? `СО${variant} · электрорасчёт выбранных объектов поставлен в очередь`
+          : `СО${variant} · электрорасчёт всех объектов поставлен в очередь`,
+      );
     },
     onError: (e: Error) => message.error(e.message),
   });
@@ -802,6 +816,7 @@ export default function ElecCalcPage() {
     mutationFn: () => cancelCalcTask(activeJobId!),
     onSuccess: (task) => {
       setActiveJobId(task.id);
+      setActiveBatchScope(null);
       message.warning('Электрорасчёт остановлен');
     },
     onError: (e: Error) => message.error(e.message),
@@ -811,32 +826,37 @@ export default function ElecCalcPage() {
     if (!activeJob) return;
     if (activeJob.status === 'succeeded') {
       const res = isBatchElectricalResponse(activeJob.result) ? activeJob.result : null;
+      const resultScope = res?.scope ?? activeBatchScope ?? 'all';
+      const scopeLabel = resultScope === 'selected' ? 'выбранных объектов' : 'всех объектов';
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
       if (res && res.skipped > 0) {
         message.warning(
-          `СО${variant} · рассчитано: ${res.calculated}, пропущено: ${res.skipped}` +
+          `СО${variant} · рассчитано для ${scopeLabel}: ${res.calculated}, пропущено: ${res.skipped}` +
           `${res.heat_loss_failed > 0 ? `, ошибок теплопотерь: ${res.heat_loss_failed}` : ''}.`,
         );
       } else if (res) {
         message.success(
-          `СО${variant} — расчёт выполнен для ${res.calculated} объектов` +
+          `СО${variant} — расчёт выполнен для ${scopeLabel}: ${res.calculated}` +
           `${res.heat_loss_failed > 0 ? ` (ещё ${res.heat_loss_failed} с ошибками теплопотерь)` : ''}`,
         );
       } else {
         message.success(`СО${variant} — расчёт выполнен`);
       }
       setActiveJobId(null);
+      setActiveBatchScope(null);
     }
     if (activeJob.status === 'failed') {
       message.error(activeJob.error_message || 'Электрорасчёт завершился ошибкой');
       setActiveJobId(null);
+      setActiveBatchScope(null);
     }
     if (activeJob.status === 'cancelled') {
       setActiveJobId(null);
+      setActiveBatchScope(null);
     }
-  }, [activeJob, project?.id, qc, variant]);
+  }, [activeBatchScope, activeJob, project?.id, qc, variant]);
 
   const stats = useElectricalStats(objects, elecCalcs);
 
@@ -1679,6 +1699,7 @@ export default function ElecCalcPage() {
   const totalObjects = pageSummary?.total_objects ?? objects.length;
   const filteredTableCount = electricalPage?.counts?.filtered ?? totalObjects;
   const validObjectsCount = pageSummary?.valid_objects ?? stats.validObjects.length;
+  const selectedObjectsCount = selectedRowKeys.length;
   const calculatedCount = pageSummary?.calculated_count ?? stats.calcedCount;
   const failedCount = pageSummary?.failed_count ?? stats.failedCount;
   const totalCableLength = pageSummary?.total_cable_length ?? stats.totalCableLength;
@@ -1817,11 +1838,35 @@ export default function ElecCalcPage() {
             type="primary"
             icon={<ReloadOutlined />}
             loading={batchMut.isPending || isJobActive}
-            disabled={validObjectsCount === 0 || isJobActive}
-            onClick={() => batchMut.mutate()}
+            disabled={selectedObjectsCount === 0 || isJobActive}
+            onClick={() =>
+              batchMut.mutate({
+                scope: 'selected',
+                objectIds: selectedRowKeys,
+              })
+            }
           >
-            Выполнить электрорасчёт СО{variant}
+            Пересчитать выбранные ({selectedObjectsCount})
           </Button>
+          <Popconfirm
+            title={`Пересчитать электрорасчёт для всех объектов СО${variant}?`}
+            description="Существующие результаты этого варианта будут обновлены. Вы уверены?"
+            okText="Да, пересчитать все"
+            okButtonProps={{ danger: true }}
+            cancelText="Отмена"
+            onConfirm={() => batchMut.mutate({ scope: 'all' })}
+            disabled={validObjectsCount === 0 || isJobActive}
+          >
+            <Button
+              size="small"
+              danger
+              icon={<ReloadOutlined />}
+              loading={batchMut.isPending || isJobActive}
+              disabled={validObjectsCount === 0 || isJobActive}
+            >
+              Пересчитать все СО{variant}
+            </Button>
+          </Popconfirm>
           {isJobActive && activeJobId && (
             <Button
               size="small"
@@ -1933,7 +1978,7 @@ export default function ElecCalcPage() {
           {/* Legend / summary row */}
           <div className="legend-row-srs">
             <span>
-              ⓘ Красная строка = ошибка подбора кабеля. Нажмите «Выполнить электрорасчёт» чтобы рассчитать все объекты.
+              ⓘ Красная строка = ошибка подбора кабеля. Отметьте строки для пересчёта выбранных или используйте «Пересчитать все».
             </span>
             {calculatedCount > 0 && (
               <Space size={16}>

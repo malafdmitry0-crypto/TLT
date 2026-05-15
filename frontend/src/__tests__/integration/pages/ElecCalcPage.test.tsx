@@ -288,15 +288,14 @@ describe('ElecCalcPage (integration)', () => {
     });
   });
 
-  it('при наличии валидного объекта показывает кнопку «Выполнить электрорасчёт»', async () => {
+  it('при наличии объекта показывает кнопки пересчёта', async () => {
     const { getElectricalPage } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
     await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: /Выполнить электрорасчёт/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Пересчитать выбранные \(0\)/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Пересчитать все СО1/i })).toBeInTheDocument();
     });
   });
 
@@ -351,9 +350,14 @@ describe('ElecCalcPage (integration)', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Выполнить электрорасчёт СО1/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Пересчитать выбранные \(0\)/i })).toBeInTheDocument();
     });
-    await user.click(screen.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Труба-1')).toBeInTheDocument();
+    });
+    const rowCheckbox = document.querySelector('tbody .ant-checkbox-input') as HTMLInputElement;
+    fireEvent.click(rowCheckbox);
+    await user.click(screen.getByRole('button', { name: /Пересчитать выбранные \(1\)/i }));
 
     await waitFor(() => {
       expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
@@ -365,6 +369,7 @@ describe('ElecCalcPage (integration)', () => {
           supplyVoltage: 220,
           windingCoefficient: 1,
           layingStep: 0.1,
+          objectIds: ['o-1'],
         }),
       );
     });
@@ -773,7 +778,8 @@ describe('ElecCalcPage (integration)', () => {
     expect(cableTypeSelect).toBeTruthy();
     await user.click(cableTypeSelect as HTMLElement);
     await user.click(await screen.findByText('ТТН/ТТВ/ТТХ'));
-    await user.click(screen.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }));
+    await user.click(screen.getByRole('button', { name: /Пересчитать все СО1/i }));
+    await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));
 
     await waitFor(() => {
       expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(

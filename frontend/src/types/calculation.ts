@@ -228,6 +228,7 @@ export interface CalculationTaskLinks {
 export interface BatchElectricalResponse {
   calculated: number;
   skipped: number;
+  scope?: 'all' | 'selected';
   heat_loss_failed: number;
   errors: Array<{ object_id: string; error: string }>;
   results: ElectricalCalcSummary[];

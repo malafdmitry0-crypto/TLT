@@ -165,6 +165,56 @@ class TestCalcJobs:
         assert result_resp.status_code == 200, result_resp.text
         assert result_resp.json()["calculated"] == 1
 
+    async def test_worker_executes_selected_electrical_batch(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        test_engine,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        project = await _guest_project(client, guest_session)
+        selected = await _create_pipe(client, project["id"], guest_session)
+        skipped = await _create_pipe(client, project["id"], guest_session)
+        job_resp = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json={
+                "project_id": project["id"],
+                "object_ids": [selected["id"]],
+                "include_results": False,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert job_resp.status_code == 202, job_resp.text
+        task_id = UUID(job_resp.json()["id"])
+
+        session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
+        async with session_factory() as worker_db:
+            await TaskService(worker_db, session_factory=session_factory).run_task(
+                task_id,
+                worker_id="test-worker",
+            )
+
+        status_resp = await client.get(
+            f"/api/v1/calc/jobs/{task_id}",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert status_resp.status_code == 200, status_resp.text
+        body = status_resp.json()
+        assert body["status"] == "succeeded"
+        assert body["result"]["scope"] == "selected"
+        assert body["result"]["calculated"] == 1
+
+        listing_resp = await client.get(
+            "/api/v1/calc/electrical",
+            params={"project_id": project["id"]},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert listing_resp.status_code == 200, listing_resp.text
+        calculation_object_ids = {item["object_id"] for item in listing_resp.json()}
+        assert selected["id"] in calculation_object_ids
+        assert skipped["id"] not in calculation_object_ids
+
     async def test_worker_executes_enqueued_heat_loss_batch(
         self,
         client: AsyncClient,

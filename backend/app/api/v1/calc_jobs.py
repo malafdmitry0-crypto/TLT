@@ -25,6 +25,8 @@ def _raise_task_error(exc: Exception) -> None:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     if isinstance(exc, TaskAccessError | ProjectAccessError):
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    if isinstance(exc, ValueError):
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     raise exc
 
 

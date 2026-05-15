@@ -670,6 +670,7 @@ class BatchElectricalResponse(BaseModel):
 
     calculated: int
     skipped: int
+    scope: Literal["all", "selected"] = "all"
     heat_loss_failed: int = Field(
         default=0,
         description="Количество объектов с ошибками теплопотерь, исключённых из расчёта",
@@ -685,6 +686,7 @@ class ElectricalBatchJobRequest(BaseModel):
     """Запрос асинхронного пакетного электрорасчёта."""
 
     project_id: UUID
+    object_ids: list[UUID] | None = Field(default=None, min_length=1)
     cable_source: str = "builtin"
     variant_number: int = Field(default=1, ge=1, le=4)
     cable_type: Literal[

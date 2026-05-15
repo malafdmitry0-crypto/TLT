@@ -20,6 +20,7 @@ from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.dependencies import CurrentPrincipal
 from app.models.background_task import BackgroundTask
+from app.models.project_object import ProjectObject
 from app.schemas.calculation import (
     BatchCalcResponse,
     BatchElectricalResponse,
@@ -151,8 +152,12 @@ class TaskService:
         await ProjectService(self.db).get_project_basic(request.project_id, principal)
         if request.cable_source != "builtin" and principal.role not in ("employee", "admin"):
             raise TaskAccessError("Расширенный каталог доступен только сотрудникам")
+        object_ids = await self._validate_object_ids_belong_to_project(
+            request.project_id,
+            request.object_ids,
+        )
 
-        payload = self._electrical_payload(request)
+        payload = self._electrical_payload(request, object_ids=object_ids)
         dedupe_key = self._dedupe_key(
             task_type=TASK_ELECTRICAL_BATCH,
             project_id=request.project_id,
@@ -404,6 +409,9 @@ class TaskService:
             persist=lambda progress: self._update_progress(task_id, progress)
         )
         try:
+            object_ids = [
+                UUID(str(object_id)) for object_id in payload.get("object_ids") or []
+            ] or None
             async with self.session_factory() as calc_db:
                 service = CalculationService(calc_db)
                 (
@@ -422,6 +430,7 @@ class TaskService:
                     return_calcs=bool(payload.get("include_results", False)),
                     progress_callback=progress_throttler.offer,
                     should_cancel=lambda: self._should_cancel(task_id),
+                    object_ids=object_ids,
                 )
         except BatchCancelledError:
             await progress_throttler.flush()
@@ -438,6 +447,7 @@ class TaskService:
         result_payload = {
             "calculated": calculated,
             "skipped": skipped,
+            "scope": "selected" if payload.get("object_ids") else "all",
             "heat_loss_failed": heat_loss_failed,
             "errors": errors if include_errors else [],
             "results": [
@@ -579,9 +589,34 @@ class TaskService:
         )
         return result.scalar_one_or_none()
 
+    async def _validate_object_ids_belong_to_project(
+        self,
+        project_id: UUID,
+        object_ids: list[UUID] | None,
+    ) -> list[UUID] | None:
+        if object_ids is None:
+            return None
+        normalized = list(dict.fromkeys(object_ids))
+        if not normalized:
+            raise ValueError("Список выбранных объектов не должен быть пустым")
+        result = await self.db.execute(
+            select(ProjectObject.id).where(
+                ProjectObject.project_id == project_id,
+                ProjectObject.id.in_(normalized),
+            )
+        )
+        found_ids = set(result.scalars().all())
+        if len(found_ids) != len(normalized):
+            raise ValueError("Все выбранные объекты должны принадлежать проекту")
+        return normalized
+
     @staticmethod
-    def _electrical_payload(request: ElectricalBatchJobRequest) -> dict[str, Any]:
-        return {
+    def _electrical_payload(
+        request: ElectricalBatchJobRequest,
+        *,
+        object_ids: list[UUID] | None,
+    ) -> dict[str, Any]:
+        payload = {
             "project_id": str(request.project_id),
             "cable_source": request.cable_source,
             "variant_number": request.variant_number,
@@ -591,6 +626,9 @@ class TaskService:
             "include_results": request.include_results,
             "include_errors": request.include_errors,
         }
+        if object_ids is not None:
+            payload["object_ids"] = [str(object_id) for object_id in object_ids]
+        return payload
 
     @staticmethod
     def _heat_loss_payload(request: HeatLossBatchJobRequest) -> dict[str, Any]:
@@ -647,6 +685,7 @@ class TaskService:
                 result = BatchElectricalResponse(
                     calculated=int(task.result_payload.get("calculated", 0)),
                     skipped=int(task.result_payload.get("skipped", 0)),
+                    scope=task.result_payload.get("scope", "all"),
                     heat_loss_failed=int(task.result_payload.get("heat_loss_failed", 0)),
                     errors=list(task.result_payload.get("errors") or []),
                     results=[

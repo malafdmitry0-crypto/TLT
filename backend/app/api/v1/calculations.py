@@ -325,6 +325,8 @@ async def batch_calc_electrical(
     skip_manual: bool = False,
     include_results: bool = True,
     include_errors: bool = True,
+    object_ids: list[UUID] | None = Query(default=None),
+    object_ids_brackets: list[UUID] | None = Query(default=None, alias="object_ids[]"),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -335,29 +337,35 @@ async def batch_calc_electrical(
         raise HTTPException(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"
         )
+    selected_object_ids = object_ids or object_ids_brackets
     service = CalculationService(db)
-    calculated, skipped, heat_loss_failed, errors, calcs = await service.batch_calc_electrical(
-        project_id,
-        cable_source,
-        variant_number,
-        cable_type,
-        {
-            "supply_voltage": supply_voltage,
-            "connection_type": connection_type,
-            "winding_coefficient": winding_coefficient,
-            "winding_pitch": winding_pitch,
-            "number_of_threads": number_of_threads,
-            "heating_height": heating_height,
-            "laying_step": laying_step,
-            "vapor_temperature": vapor_temperature,
-            "aggressive_product": aggressive_product,
-        },
-        skip_manual=skip_manual,
-        return_calcs=include_results,
-    )
+    try:
+        calculated, skipped, heat_loss_failed, errors, calcs = await service.batch_calc_electrical(
+            project_id,
+            cable_source,
+            variant_number,
+            cable_type,
+            {
+                "supply_voltage": supply_voltage,
+                "connection_type": connection_type,
+                "winding_coefficient": winding_coefficient,
+                "winding_pitch": winding_pitch,
+                "number_of_threads": number_of_threads,
+                "heating_height": heating_height,
+                "laying_step": laying_step,
+                "vapor_temperature": vapor_temperature,
+                "aggressive_product": aggressive_product,
+            },
+            skip_manual=skip_manual,
+            return_calcs=include_results,
+            object_ids=selected_object_ids,
+        )
+    except CalculationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return BatchElectricalResponse(
         calculated=calculated,
         skipped=skipped,
+        scope="selected" if selected_object_ids else "all",
         heat_loss_failed=heat_loss_failed,
         errors=errors if include_errors else [],
         results=[
