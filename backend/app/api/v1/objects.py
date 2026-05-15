@@ -13,6 +13,7 @@ from app.core.dependencies import (
     require_any,
     require_employee,
 )
+from app.core.uploads import read_upload_with_limit
 from app.schemas.project import (
     ObjectQueryCapabilitiesResponse,
     ProjectObjectCreate,
@@ -235,7 +236,7 @@ async def import_excel(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Ожидается файл формата .xlsx или .csv",
         )
-    content = await file.read()
+    content = await read_upload_with_limit(file)
     try:
         if filename.endswith(".csv"):
             result = await import_objects_from_csv(db, project_id, principal, content)

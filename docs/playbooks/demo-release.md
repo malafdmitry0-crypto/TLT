@@ -32,7 +32,7 @@ demo/
 - `FIRST_ADMIN_EMAIL=admin@heatcalc.io` обязательно должен быть в env,
   иначе дефолт backend'а `admin@heatcalc.local` → сиды несовместимы.
 - `RUN_SEEDS=1` — сиды идемпотентны, безопасно гонять при каждом старте.
-- `GUEST_SESSION_HOURLY_LIMIT=500` в demo (для тестирования), в проде — 10.
+- `GUEST_MAX_SESSIONS_PER_IP=500` в demo (для тестирования), в проде — 10.
 
 ## Учётные данные по умолчанию
 

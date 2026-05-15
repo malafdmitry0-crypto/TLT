@@ -16,14 +16,16 @@ export async function login(payload: LoginRequest): Promise<TokenPair> {
   return data;
 }
 
-export async function refresh(refreshToken: string): Promise<TokenPair> {
-  const { data } = await apiClient.post<TokenPair>('/auth/refresh', {
-    refresh_token: refreshToken,
-  });
+export async function refresh(): Promise<TokenPair> {
+  const { data } = await apiClient.post<TokenPair>('/auth/refresh');
   return data;
 }
 
 export async function getMe(): Promise<CurrentUser> {
   const { data } = await apiClient.get<CurrentUser>('/auth/me');
   return data;
+}
+
+export async function logout(): Promise<void> {
+  await apiClient.post('/auth/logout');
 }

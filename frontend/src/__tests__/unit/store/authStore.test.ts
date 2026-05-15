@@ -14,7 +14,7 @@ describe('authStore', () => {
     expect(localStorage.getItem('session_id')).toBe('abc');
   });
 
-  it('setEmployee stores user and tokens', () => {
+  it('setEmployee stores user and keeps tokens out of localStorage', () => {
     useAuthStore.getState().setEmployee(
       {
         id: '1',
@@ -26,7 +26,9 @@ describe('authStore', () => {
       { access: 'A', refresh: 'R' }
     );
     expect(useAuthStore.getState().role).toBe('employee');
-    expect(localStorage.getItem('access_token')).toBe('A');
+    expect(useAuthStore.getState().accessToken).toBe('A');
+    expect(localStorage.getItem('access_token')).toBeNull();
+    expect(localStorage.getItem('refresh_token')).toBeNull();
   });
 
   it('logout clears state', () => {
@@ -44,13 +46,14 @@ describe('authStore', () => {
     expect(s.sessionId).toBe('foo');
   });
 
-  it('readInitialState восстанавливает сотрудника из токенов', async () => {
+  it('readInitialState восстанавливает роль сотрудника без JWT из localStorage', async () => {
     localStorage.setItem('access_token', 'A');
     localStorage.setItem('refresh_token', 'R');
     localStorage.setItem('role', 'admin');
     const { readInitialState } = await import('@/store/authStore');
     const s = readInitialState();
     expect(s.role).toBe('admin');
-    expect(s.accessToken).toBe('A');
+    expect(s.accessToken).toBeNull();
+    expect(s.refreshToken).toBeNull();
   });
 });

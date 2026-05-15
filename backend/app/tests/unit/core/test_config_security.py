@@ -1,0 +1,18 @@
+"""Runtime security settings validation."""
+
+import pytest
+
+from app.core.config import Settings
+
+
+def test_production_rejects_default_secrets():
+    settings = Settings(APP_ENV="production")
+
+    with pytest.raises(RuntimeError, match="SECRET_KEY"):
+        settings.validate_runtime_security()
+
+
+def test_development_allows_defaults():
+    settings = Settings(APP_ENV="development")
+
+    settings.validate_runtime_security()

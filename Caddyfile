@@ -23,13 +23,14 @@
 		X-Content-Type-Options "nosniff"
 		# HSTS — браузер запоминает, что сайт только https (1 год)
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 		# Убираем стандартный заголовок раскрывающий стек
 		-Server
 	}
 
 	# Лимит на размер запроса (импорт CSV/Excel может быть большим)
 	request_body {
-		max_size 20MB
+		max_size 5MB
 	}
 
 	# Логи — в stdout контейнера (docker logs caddy)

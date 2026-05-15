@@ -1,6 +1,7 @@
 import { Layout, Menu } from 'antd';
 import { QuestionCircleOutlined } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { logout as logoutApi } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 
 const { Header, Sider, Content } = Layout;
@@ -15,7 +16,8 @@ export default function AdminLayout() {
       <Header className="heatcalc-header">
         <h2 style={{ color: 'white', margin: 0 }}>HeatCalc — Администрирование</h2>
         <a
-          onClick={() => {
+          onClick={async () => {
+            await logoutApi().catch(() => undefined);
             logout();
             navigate('/');
           }}

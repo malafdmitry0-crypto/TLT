@@ -37,22 +37,28 @@ async function getCurrentProjectId(page: Page): Promise<string> {
   return JSON.parse(data!).state.currentProject.id;
 }
 
+async function apiHeaders(page: Page, options: { mutating?: boolean } = {}): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+  const sid = await page.evaluate(() => localStorage.getItem('session_id'));
+  if (sid) headers['X-Session-Id'] = sid;
+  if (options.mutating) {
+    const csrf = (await page.context().cookies(API_BASE)).find((c) => c.name === 'csrf_token');
+    if (csrf) headers['X-CSRF-Token'] = csrf.value;
+  }
+  return headers;
+}
+
 async function importViaAPI(
   page: Page,
   projectId: string,
   filePath: string,
   mime: string
 ): Promise<void> {
-  const token = await page.evaluate(() => localStorage.getItem('access_token'));
-  const sid = await page.evaluate(() => localStorage.getItem('session_id'));
-  const headers: Record<string, string> = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  if (sid) headers['X-Session-Id'] = sid;
   const buf = fs.readFileSync(filePath);
   const resp = await page.request.post(
     `${API_BASE}/api/v1/projects/${projectId}/objects/import-excel`,
     {
-      headers,
+      headers: await apiHeaders(page, { mutating: true }),
       multipart: { file: { name: path.basename(filePath), mimeType: mime, buffer: buf } },
     }
   );
@@ -77,10 +83,9 @@ test.describe('Проекты: import/export scenarios', () => {
 
     // Экспорт объектов в Excel — через API (UI-кнопка тоже работает, но reload после
     // API-импорта ломает auth-hydration — см. `ProtectedRoute` race).
-    const token = await page.evaluate(() => localStorage.getItem('access_token'));
     const exp = await page.request.get(
       `${API_BASE}/api/v1/projects/${srcId}/objects/export-excel`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      { headers: await apiHeaders(page) }
     );
     expect(exp.ok()).toBeTruthy();
     const xlsx = path.join(os.tmpdir(), `xl-${Date.now()}.xlsx`);
@@ -96,7 +101,7 @@ test.describe('Проекты: import/export scenarios', () => {
     // Проверяем через API — объекты восстановились
     const listResp = await page.request.get(
       `${API_BASE}/api/v1/projects/${dstId}/objects`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      { headers: await apiHeaders(page) }
     );
     const list = await listResp.json();
     expect(list.length).toBeGreaterThan(50); // из sample_import.csv — 100
@@ -135,8 +140,7 @@ test.describe('Проекты: import/export scenarios', () => {
     await loginAsTestEmployee(page);
     const unique = `Cross-2-${Date.now()}`;
     await createEmployeeProject(page, unique);
-    const token = await page.evaluate(() => localStorage.getItem('access_token'));
-    const headers = { Authorization: `Bearer ${token}` };
+    const headers = await apiHeaders(page);
 
     const list = await (await page.request.get(`${API_BASE}/api/v1/projects`, { headers })).json();
     const proj = list.find((p: { name: string }) => p.name === unique)!;
@@ -148,7 +152,7 @@ test.describe('Проекты: import/export scenarios', () => {
     expect(exp.ok()).toBeTruthy();
 
     const resp = await page.request.post(`${API_BASE}/api/v1/projects/import-csv`, {
-      headers,
+      headers: await apiHeaders(page, { mutating: true }),
       multipart: { file: { name: 'bulk.csv', mimeType: 'text/csv', buffer: await exp.body() } },
     });
     expect(resp.status()).toBe(201);

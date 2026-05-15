@@ -51,6 +51,7 @@ describe('apiClient guest recovery', () => {
     useAuthStore.getState().logout();
     useProjectStore.getState().setCurrentProject(null);
     localStorage.clear();
+    document.cookie = 'csrf_token=; Max-Age=0';
   });
 
   it('не создает guest session из произвольного 401 без guest context', async () => {
@@ -116,5 +117,43 @@ describe('apiClient guest recovery', () => {
 
     expect(postSpy).not.toHaveBeenCalled();
     expect(localStorage.getItem('session_id')).toBe('sid-expired');
+  });
+
+  it('после 401 один раз refresh-ит employee session и повторяет запрос', async () => {
+    localStorage.setItem('role', 'employee');
+    useAuthStore.getState().setAccessToken('old-token');
+    document.cookie = 'csrf_token=csrf-1';
+
+    const postSpy = vi.spyOn(axios, 'post').mockResolvedValue({
+      data: { access_token: 'new-token', token_type: 'bearer' },
+    });
+    const adapter = vi.fn(async (config) => {
+      if (getHeader(config.headers, 'Authorization') === 'Bearer new-token') {
+        return {
+          config,
+          data: { ok: true },
+          headers: {},
+          status: 200,
+          statusText: 'OK',
+        };
+      }
+      throw unauthorized(config);
+    });
+    apiClient.defaults.adapter = adapter;
+
+    const response = await apiClient.get('/projects');
+
+    expect(response.data).toEqual({ ok: true });
+    expect(postSpy).toHaveBeenCalledTimes(1);
+    expect(postSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/refresh'),
+      undefined,
+      expect.objectContaining({
+        withCredentials: true,
+        headers: { 'X-CSRF-Token': 'csrf-1' },
+      }),
+    );
+    expect(useAuthStore.getState().accessToken).toBe('new-token');
+    expect(localStorage.getItem('access_token')).toBeNull();
   });
 });

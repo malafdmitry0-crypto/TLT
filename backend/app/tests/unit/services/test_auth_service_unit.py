@@ -9,7 +9,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.core.security import create_access_token, create_refresh_token, hash_password
+from app.core.security import create_access_token, create_refresh_token, decode_token, hash_password
+from app.models.refresh_session import RefreshSession
 from app.services.auth_service import AuthError, AuthService
 
 
@@ -26,6 +27,31 @@ def _mock_db(
     db.refresh = AsyncMock()
     db.add = MagicMock()
     return db
+
+
+def _mock_db_sequence(values: list[object | None]) -> AsyncMock:
+    db = AsyncMock()
+    results = []
+    for value in values:
+        result = MagicMock()
+        result.scalar_one_or_none = lambda value=value: value
+        results.append(result)
+    db.execute = AsyncMock(side_effect=results)
+    db.commit = AsyncMock()
+    db.refresh = AsyncMock()
+    db.add = MagicMock()
+    return db
+
+
+def _refresh_token_and_session(user_id: uuid.UUID) -> tuple[str, RefreshSession]:
+    refresh = create_refresh_token(str(user_id))
+    payload = decode_token(refresh)
+    session = RefreshSession(
+        user_id=user_id,
+        jti_hash=AuthService._hash_jti(payload["jti"]),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
+    )
+    return refresh, session
 
 
 class TestCreateGuestSession:
@@ -150,17 +176,17 @@ class TestRefresh:
 
     async def test_deactivated_user_rejected(self):
         user_id = uuid.uuid4()
-        refresh = create_refresh_token(str(user_id))
+        refresh, session = _refresh_token_and_session(user_id)
         user = SimpleNamespace(id=user_id, is_active=False, role="employee")
-        db = _mock_db(scalar_value=user)
+        db = _mock_db_sequence([session, user])
         with pytest.raises(AuthError, match="не найден"):
             await AuthService(db).refresh(refresh)
 
     async def test_happy_path_returns_new_tokens(self):
         user_id = uuid.uuid4()
-        refresh = create_refresh_token(str(user_id))
+        refresh, session = _refresh_token_and_session(user_id)
         user = SimpleNamespace(id=user_id, is_active=True, role="admin")
-        db = _mock_db(scalar_value=user)
+        db = _mock_db_sequence([session, user])
         pair = await AuthService(db).refresh(refresh)
         assert pair.access_token
         assert pair.refresh_token

@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import io
 import re
+import zipfile
 from typing import Any
 from uuid import UUID
 
 from openpyxl import load_workbook
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.dependencies import CurrentPrincipal
 from app.schemas.project import ProjectObjectCreate
 from app.services.project_service import (
@@ -267,6 +269,28 @@ class ExcelImportError(Exception):
     """Ошибка импорта Excel/CSV."""
 
 
+def _validate_xlsx_archive(content: bytes) -> None:
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            infos = archive.infolist()
+            if len(infos) > settings.MAX_XLSX_FILES:
+                raise ExcelImportError(
+                    f"XLSX содержит слишком много внутренних файлов: {len(infos)}"
+                )
+            total_uncompressed = sum(info.file_size for info in infos)
+            if total_uncompressed > settings.MAX_XLSX_UNCOMPRESSED_BYTES:
+                raise ExcelImportError(
+                    "XLSX слишком большой после распаковки " f"({total_uncompressed // 1024} КБ)"
+                )
+            for info in infos:
+                if info.compress_size and info.file_size / info.compress_size > 100:
+                    raise ExcelImportError(
+                        "XLSX похож на zip-bomb: слишком высокий коэффициент сжатия"
+                    )
+    except zipfile.BadZipFile as exc:
+        raise ExcelImportError("Файл не является корректным XLSX-архивом") from exc
+
+
 def _norm(s: Any) -> str:
     if s is None:
         return ""
@@ -422,6 +446,8 @@ def _read_sheet(ws: Any, header_map: dict[str, str]) -> list[dict[str, Any]]:
             mapped_cols.append((idx, key))
     result: list[dict[str, Any]] = []
     for row_idx, row in enumerate(rows_iter, start=2):
+        if len(result) >= settings.MAX_IMPORT_ROWS:
+            raise ExcelImportError(f"Превышен лимит строк импорта: {settings.MAX_IMPORT_ROWS}")
         if all(v is None or str(v).strip() == "" for v in row):
             continue
         item: dict[str, Any] = {"_row": row_idx}
@@ -564,6 +590,8 @@ def _parse_csv(content: bytes) -> list[tuple[str, list[dict[str, Any]]]]:
     all_rows = list(reader)
     if not all_rows:
         raise ExcelImportError("CSV-файл пустой")
+    if len(all_rows) - 1 > settings.MAX_IMPORT_ROWS:
+        raise ExcelImportError(f"Превышен лимит строк импорта: {settings.MAX_IMPORT_ROWS}")
 
     header = all_rows[0]
     # Индекс колонки «Тип»
@@ -713,10 +741,13 @@ async def import_objects_from_excel(
 
     Возвращает сводку: {"created": N, "errors": [{"sheet", "row", "message"}]}.
     """
+    _validate_xlsx_archive(content)
     try:
-        wb = load_workbook(io.BytesIO(content), data_only=True)
+        wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
     except Exception as exc:
         raise ExcelImportError(f"Не удалось открыть файл: {exc}") from exc
+    if len(wb.sheetnames) > settings.MAX_IMPORT_SHEETS:
+        raise ExcelImportError(f"Превышен лимит листов импорта: {settings.MAX_IMPORT_SHEETS}")
 
     project_service = ProjectService(db)
 

@@ -48,7 +48,7 @@ describe('useAuth', () => {
     expect(useProjectStore.getState().currentProject?.id).toBe('p1');
   });
 
-  it('loginAsEmployee сохраняет user и tokens', async () => {
+  it('loginAsEmployee сохраняет user и не пишет JWT в localStorage', async () => {
     const { login, getMe } = await import('@/api/auth');
     (login as ReturnType<typeof vi.fn>).mockResolvedValue({
       access_token: 'A',
@@ -70,7 +70,8 @@ describe('useAuth', () => {
 
     expect(useAuthStore.getState().role).toBe('employee');
     expect(useAuthStore.getState().accessToken).toBe('A');
-    expect(localStorage.getItem('access_token')).toBe('A');
+    expect(localStorage.getItem('access_token')).toBeNull();
+    expect(localStorage.getItem('refresh_token')).toBeNull();
   });
 
   it('loginAsEmployee запрашивает только роль employee', async () => {

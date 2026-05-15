@@ -4,6 +4,7 @@ import { DatabaseOutlined, FireFilled, LogoutOutlined, QuestionCircleOutlined } 
 import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ProjectMenu from './ProjectMenu';
+import { logout as logoutApi } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 
@@ -19,7 +20,8 @@ function HeaderActions() {
   const logout = useAuthStore((s) => s.logout);
   const helpRoute = role === 'admin' ? '/help/admin' : role === 'employee' ? '/help/employee' : '/help/guest';
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await logoutApi().catch(() => undefined);
     logout();
     navigate('/');
   };

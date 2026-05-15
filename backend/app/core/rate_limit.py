@@ -11,11 +11,12 @@ in-memory вариант.
 from __future__ import annotations
 
 import logging
-import os
 import time
 from collections import defaultdict, deque
 from threading import Lock
 from typing import Protocol
+
+from app.core.config import settings
 
 logger = logging.getLogger("heatcalc.rate_limit")
 
@@ -132,7 +133,7 @@ def _build_limiter(max_calls: int) -> RateLimiter:
     недоступен — graceful fallback на in-memory с WARNING в лог. Это позволяет
     запускать demo/dev без обязательного Redis-сервиса.
     """
-    redis_url = os.environ.get("REDIS_URL")
+    redis_url = settings.REDIS_URL
     if redis_url:
         try:
             limiter = RedisRateLimiter(max_calls=max_calls, redis_url=redis_url)
@@ -152,7 +153,4 @@ def _build_limiter(max_calls: int) -> RateLimiter:
     return IPRateLimiter(max_calls=max_calls, window_seconds=_WINDOW_SECONDS)
 
 
-# В dev/test окружении (E2E) поднимаем лимит, иначе 10 сессий/час режет батч-прогон Playwright.
-_GUEST_LIMIT = int(os.environ.get("GUEST_SESSION_HOURLY_LIMIT", "10"))
-
-guest_session_limiter: RateLimiter = _build_limiter(_GUEST_LIMIT)
+guest_session_limiter: RateLimiter = _build_limiter(settings.GUEST_MAX_SESSIONS_PER_IP)

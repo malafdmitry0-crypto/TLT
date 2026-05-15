@@ -23,7 +23,10 @@ services:
     restart: always
     environment:
       # Жёсткий лимит создания гостевых сессий на IP в проде (10/час)
-      GUEST_SESSION_HOURLY_LIMIT: ${GUEST_SESSION_HOURLY_LIMIT:-10}
+      APP_ENV: production
+      GUEST_MAX_SESSIONS_PER_IP: ${GUEST_MAX_SESSIONS_PER_IP:-10}
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}
+      AUTH_COOKIE_SECURE: "true"
       # CORS — обязательно прописать SITE_DOMAIN в .env (без https:// нельзя)
       CORS_ORIGINS: https://${SITE_DOMAIN}
     # В проде backend ходит только через nginx-фронтенд, не пробрасываем наружу

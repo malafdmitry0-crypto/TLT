@@ -25,7 +25,8 @@ export function useAuth() {
     async (email: string, password: string, role: LoginRole) => {
       setCurrentProject(null);
       const tokens = await loginApi({ email, password, role });
-      localStorage.setItem('access_token', tokens.access_token);
+      store.setAccessToken(tokens.access_token);
+      localStorage.setItem('role', role);
       const user = await getMe();
       if (user.role !== role) {
         store.logout();

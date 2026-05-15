@@ -9,6 +9,7 @@ from app.models.electrical_calculation import ElectricalCalculation
 from app.models.guest_session import GuestSession
 from app.models.project import Project, ProjectStatus
 from app.models.project_object import ObjectType, ProjectObject
+from app.models.refresh_session import RefreshSession
 from app.models.specification import Specification
 from app.models.user import User, UserRole
 from app.models.user_preference import UserPreference
@@ -24,6 +25,7 @@ __all__ = [
     "ProjectStatus",
     "ProjectObject",
     "ObjectType",
+    "RefreshSession",
     "ElectricalCalculation",
     "Specification",
     "CorrectionCoefficient",

@@ -1,13 +1,15 @@
 """Сервис авторизации: логин, гостевые сессии, создание пользователей."""
 
+import hashlib
 import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -16,6 +18,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models.guest_session import GuestSession
+from app.models.refresh_session import RefreshSession
 from app.models.user import User, UserRole
 from app.schemas.auth import TokenPair
 
@@ -87,10 +90,7 @@ class AuthService:
         if expected_role_value is not None and user_role != expected_role_value:
             raise AuthError("Неверный email или пароль")
 
-        return TokenPair(
-            access_token=create_access_token(str(user.id), role=user.role),
-            refresh_token=create_refresh_token(str(user.id)),
-        )
+        return await self._issue_token_pair(user)
 
     async def refresh(self, refresh_token: str) -> TokenPair:
         try:
@@ -100,16 +100,68 @@ class AuthService:
         if payload.get("type") != "refresh":
             raise AuthError("Ожидался refresh-токен")
         user_id = payload.get("sub")
-        if not user_id:
+        jti = payload.get("jti")
+        if not user_id or not jti:
             raise AuthError("Некорректный токен")
-        result = await self.db.execute(select(User).where(User.id == UUID(user_id)))
+        user_uuid = UUID(user_id)
+        session_result = await self.db.execute(
+            select(RefreshSession).where(
+                RefreshSession.user_id == user_uuid,
+                RefreshSession.jti_hash == self._hash_jti(str(jti)),
+            )
+        )
+        session = session_result.scalar_one_or_none()
+        now = datetime.now(UTC)
+        if session is None:
+            raise AuthError("Refresh-сессия не найдена")
+        if session.revoked_at is not None:
+            await self.revoke_all_refresh_sessions(user_uuid)
+            raise AuthError("Refresh-токен уже был отозван")
+        if session.expires_at <= now:
+            session.revoked_at = now
+            await self.db.commit()
+            raise AuthError("Refresh-токен истёк")
+
+        result = await self.db.execute(select(User).where(User.id == user_uuid))
         user = result.scalar_one_or_none()
         if user is None or not user.is_active:
             raise AuthError("Пользователь не найден")
-        return TokenPair(
-            access_token=create_access_token(str(user.id), role=user.role),
-            refresh_token=create_refresh_token(str(user.id)),
+        session.revoked_at = now
+        return await self._issue_token_pair(user)
+
+    async def revoke_refresh_token(self, refresh_token: str) -> None:
+        try:
+            payload = decode_token(refresh_token)
+        except ValueError:
+            return
+        if payload.get("type") != "refresh":
+            return
+        user_id = payload.get("sub")
+        jti = payload.get("jti")
+        if not user_id or not jti:
+            return
+        now = datetime.now(UTC)
+        await self.db.execute(
+            update(RefreshSession)
+            .where(
+                RefreshSession.user_id == UUID(str(user_id)),
+                RefreshSession.jti_hash == self._hash_jti(str(jti)),
+                RefreshSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=now)
         )
+        await self.db.commit()
+
+    async def revoke_all_refresh_sessions(self, user_id: UUID) -> None:
+        await self.db.execute(
+            update(RefreshSession)
+            .where(
+                RefreshSession.user_id == user_id,
+                RefreshSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=datetime.now(UTC))
+        )
+        await self.db.commit()
 
     async def create_user(
         self,
@@ -132,3 +184,22 @@ class AuthService:
         await self.db.commit()
         await self.db.refresh(user)
         return user
+
+    async def _issue_token_pair(self, user: User) -> TokenPair:
+        jti = secrets.token_urlsafe(32)
+        expires_at = datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        session = RefreshSession(
+            user_id=user.id,
+            jti_hash=self._hash_jti(jti),
+            expires_at=expires_at,
+        )
+        self.db.add(session)
+        await self.db.commit()
+        return TokenPair(
+            access_token=create_access_token(str(user.id), role=user.role),
+            refresh_token=create_refresh_token(str(user.id), jti=jti),
+        )
+
+    @staticmethod
+    def _hash_jti(jti: str) -> str:
+        return hashlib.sha256(jti.encode("utf-8")).hexdigest()

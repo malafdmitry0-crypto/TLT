@@ -14,6 +14,7 @@ from app.services.project_io_service import (
     _parse_json_or_empty,
     _parse_sections,
     _rows_to_dicts,
+    _safe_csv_cell,
     _suggest_filename,
 )
 
@@ -140,6 +141,14 @@ class TestSuggestFilename:
 
     def test_empty_name_falls_back_to_project(self):
         assert _suggest_filename(None, "").endswith("project.tlt.csv")
+
+
+class TestCsvFormulaInjection:
+    def test_safe_csv_cell_escapes_formula_prefixes(self):
+        assert _safe_csv_cell("=cmd|' /C calc'!A0") == "'=cmd|' /C calc'!A0"
+        assert _safe_csv_cell(" @SUM(1,2)") == "' @SUM(1,2)"
+        assert _safe_csv_cell("plain") == "plain"
+        assert _safe_csv_cell(42) == 42
 
 
 class TestFirstProjectFromBulk:

@@ -420,7 +420,7 @@ docker-compose up --build -d
 
 Текущее состояние:
 <!-- AUTO:test-counts -->
-**899 backend** (655 unit + 244 integration) ✅ · **309 frontend vitest** ✅ · **52 e2e Playwright** ✅
+**906 backend** (661 unit + 245 integration) ✅ · **310 frontend vitest** ✅ · **52 e2e Playwright** ✅
 <!-- /AUTO -->
 
 Цифры обновляются командой `scripts/sync-docs.py`.
@@ -469,10 +469,10 @@ FIRST_ADMIN_EMAIL=admin@heatcalc.io
 FIRST_ADMIN_PASSWORD=admin
 
 # Лимиты гостевых сессий
-GUEST_SESSION_HOURLY_LIMIT=10        # rate limit по IP (in-memory)
-GUEST_MAX_PROJECTS=10
+GUEST_MAX_SESSIONS_PER_IP=10         # rate limit по IP (in-memory/Redis)
+GUEST_MAX_PROJECTS=1
 GUEST_MAX_OBJECTS_PER_PROJECT=50
-GUEST_SESSION_TTL_DAYS=30
+GUEST_SESSION_TTL_MINUTES=20
 
 # Авто-сиды в entrypoint (1 — прогнать `python -m app.seeds`)
 RUN_SEEDS=0

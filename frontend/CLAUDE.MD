@@ -253,11 +253,8 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
   const sessionId = localStorage.getItem('session_id');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  // Access/refresh JWT живут в HttpOnly cookie, а access token держится только в памяти.
   if (sessionId) {
     config.headers['X-Session-Id'] = sessionId;
   }

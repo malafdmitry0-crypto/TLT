@@ -6,6 +6,7 @@ import os
 
 import pytest
 
+from app.core.config import settings
 from app.core.rate_limit import (
     IPRateLimiter,
     RedisRateLimiter,
@@ -45,14 +46,14 @@ class TestBuildLimiterFallback:
     def test_unreachable_redis_falls_back_with_warning(self, monkeypatch, caplog):
         import logging
 
-        monkeypatch.setenv("REDIS_URL", "redis://nonexistent-host:9999/0")
+        monkeypatch.setattr(settings, "REDIS_URL", "redis://nonexistent-host:9999/0")
         with caplog.at_level(logging.WARNING, logger="heatcalc.rate_limit"):
             lim = _build_limiter(max_calls=10)
         assert isinstance(lim, IPRateLimiter)
         assert any("недоступен" in r.message for r in caplog.records)
 
     def test_no_redis_url_falls_back_to_in_memory(self, monkeypatch):
-        monkeypatch.delenv("REDIS_URL", raising=False)
+        monkeypatch.setattr(settings, "REDIS_URL", None)
         lim = _build_limiter(max_calls=10)
         assert isinstance(lim, IPRateLimiter)
 

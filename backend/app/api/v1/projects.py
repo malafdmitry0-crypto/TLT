@@ -13,6 +13,7 @@ from app.core.dependencies import (
     require_any,
     require_employee,
 )
+from app.core.uploads import read_upload_with_limit
 from app.schemas.project import (
     ProjectCreate,
     ProjectResponse,
@@ -114,7 +115,7 @@ async def import_project_csv_top(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
-    raw = await file.read()
+    raw = await read_upload_with_limit(file)
     try:
         project = await import_project(db, raw, principal)
     except ProjectImportError as exc:
@@ -133,7 +134,7 @@ async def import_projects_csv_bulk_top(
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
 ):
-    raw = await file.read()
+    raw = await read_upload_with_limit(file)
     try:
         return await import_projects_bulk(db, raw, principal)
     except ProjectImportError as exc:

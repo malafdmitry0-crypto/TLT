@@ -9,7 +9,7 @@ export interface LoginRequest {
 
 export interface TokenPair {
   access_token: string;
-  refresh_token: string;
+  refresh_token?: string | null;
   token_type: string;
 }
 

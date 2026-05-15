@@ -5,8 +5,12 @@
 питоновские типы. Любая ошибка здесь = неправильный расчёт.
 """
 
+import io
+import zipfile
+
 import pytest
 
+from app.core.config import settings
 from app.services.excel_import_service import (
     MATERIAL_ALIASES,
     SHAPE_ALIASES,
@@ -18,6 +22,7 @@ from app.services.excel_import_service import (
     _resolve_material,
     _resolve_shape,
     _to_float,
+    _validate_xlsx_archive,
     build_template_csv,
     build_template_xlsx,
 )
@@ -37,6 +42,18 @@ class TestNorm:
     )
     def test_variants(self, inp, expected):
         assert _norm(inp) == expected
+
+
+class TestXlsxArchiveGuard:
+    def test_rejects_large_uncompressed_archive(self, monkeypatch):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("xl/worksheets/sheet1.xml", "x" * 2048)
+
+        monkeypatch.setattr(settings, "MAX_XLSX_UNCOMPRESSED_BYTES", 1024)
+
+        with pytest.raises(ExcelImportError, match="распаковки"):
+            _validate_xlsx_archive(buf.getvalue())
 
 
 class TestToFloat:

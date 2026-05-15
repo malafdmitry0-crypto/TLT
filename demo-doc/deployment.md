@@ -17,7 +17,7 @@ $EDITOR .env
 #     FIRST_ADMIN_EMAIL          — учётка первого администратора
 #     FIRST_ADMIN_PASSWORD       — пароль первого администратора
 #     VITE_API_BASE_URL          — оставить /api/v1 если фронтенд проксирует backend через nginx
-#     GUEST_SESSION_HOURLY_LIMIT — лимит создания гостевых сессий с одного IP
+#     GUEST_MAX_SESSIONS_PER_IP  — лимит создания гостевых сессий с одного IP
 
 # 2. Собрать образы и запустить
 make prod
@@ -46,7 +46,7 @@ Override `docker-compose.dev.yml`:
 - Backend с `--reload` и bind-mount `./backend:/app` (hot-reload Python).
 - Frontend через `vite dev-server` на :3003 с HMR.
 - Все порты опубликованы для удобства отладки.
-- `GUEST_SESSION_HOURLY_LIMIT=500` для прогона e2e.
+- `GUEST_MAX_SESSIONS_PER_IP=500` для прогона e2e.
 
 ## Сборка и упаковка образов
 

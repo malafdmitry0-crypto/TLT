@@ -22,10 +22,17 @@ class Settings(BaseSettings):
     DB_STATEMENT_TIMEOUT_MS: int = 30_000
 
     # JWT / Security
+    APP_ENV: str = "development"
     SECRET_KEY: str = "change-me-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_COOKIE_NAME: str = "access_token"
+    REFRESH_COOKIE_NAME: str = "refresh_token"
+    CSRF_COOKIE_NAME: str = "csrf_token"
+    AUTH_COOKIE_SECURE: bool = False
+    AUTH_COOKIE_SAMESITE: str = "lax"
+    TRUSTED_PROXY_IPS: str = ""
 
     # First admin
     FIRST_ADMIN_EMAIL: str = "admin@heatcalc.local"
@@ -62,6 +69,10 @@ class Settings(BaseSettings):
 
     # Защита от DoS через большие загрузки (Excel/CSV/проект)
     MAX_UPLOAD_BYTES: int = 5 * 1024 * 1024  # 5 МБ — потолок одного multipart-запроса
+    MAX_IMPORT_ROWS: int = 10_000
+    MAX_IMPORT_SHEETS: int = 10
+    MAX_XLSX_FILES: int = 200
+    MAX_XLSX_UNCOMPRESSED_BYTES: int = 50 * 1024 * 1024
 
     # Redis для distributed rate limiter. Если пусто — fallback на in-memory.
     REDIS_URL: str | None = None
@@ -78,6 +89,29 @@ class Settings(BaseSettings):
     WORKER_MAX_ATTEMPTS: int = 3
     WORKER_PROGRESS_MIN_INTERVAL_MS: int = 500
     WORKER_PROGRESS_MIN_PERCENT_DELTA: float = 1.0
+
+    @property
+    def trusted_proxy_ips_list(self) -> list[str]:
+        return [ip.strip() for ip in self.TRUSTED_PROXY_IPS.split(",") if ip.strip()]
+
+    @property
+    def is_production(self) -> bool:
+        return self.APP_ENV.strip().lower() in {"prod", "production"}
+
+    def validate_runtime_security(self) -> None:
+        if not self.is_production:
+            return
+        errors: list[str] = []
+        if self.SECRET_KEY == "change-me-in-production":
+            errors.append("SECRET_KEY must be changed in production")
+        if len(self.SECRET_KEY) < 32:
+            errors.append("SECRET_KEY must be at least 32 characters in production")
+        if self.FIRST_ADMIN_PASSWORD == "admin":
+            errors.append("FIRST_ADMIN_PASSWORD must be changed in production")
+        if len(self.FIRST_ADMIN_PASSWORD) < 12:
+            errors.append("FIRST_ADMIN_PASSWORD must be at least 12 characters in production")
+        if errors:
+            raise RuntimeError("; ".join(errors))
 
 
 @lru_cache

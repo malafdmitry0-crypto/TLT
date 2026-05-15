@@ -9,7 +9,8 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   setGuest: (sessionId: string) => void;
-  setEmployee: (user: CurrentUser, tokens: { access: string; refresh: string }) => void;
+  setEmployee: (user: CurrentUser, tokens: { access: string; refresh?: string | null }) => void;
+  setAccessToken: (accessToken: string | null) => void;
   logout: () => void;
 }
 
@@ -23,17 +24,15 @@ export function readInitialState(): Pick<AuthState, 'role' | 'sessionId' | 'acce
   if (typeof localStorage === 'undefined') {
     return { role: null, user: null, sessionId: null, accessToken: null, refreshToken: null };
   }
-  const accessToken = localStorage.getItem('access_token');
-  const refreshToken = localStorage.getItem('refresh_token');
   const sessionId = localStorage.getItem('session_id');
   const storedRole = localStorage.getItem('role') as Role | null;
-  if (accessToken && refreshToken) {
+  if (storedRole === 'employee' || storedRole === 'admin') {
     return {
-      role: storedRole ?? 'employee',
+      role: storedRole,
       user: null,
       sessionId: null,
-      accessToken,
-      refreshToken,
+      accessToken: null,
+      refreshToken: null,
     };
   }
   if (sessionId) {
@@ -66,17 +65,23 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   setEmployee: (user, tokens) => {
-    localStorage.setItem('access_token', tokens.access);
-    localStorage.setItem('refresh_token', tokens.refresh);
     localStorage.setItem('role', user.role);
     localStorage.removeItem('session_id');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     set({
       role: user.role,
       user,
       sessionId: null,
       accessToken: tokens.access,
-      refreshToken: tokens.refresh,
+      refreshToken: null,
     });
+  },
+
+  setAccessToken: (accessToken) => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    set({ accessToken, refreshToken: null });
   },
 
   logout: () => {

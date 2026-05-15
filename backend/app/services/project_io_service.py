@@ -36,6 +36,7 @@ logger = logging.getLogger("heatcalc.project_io")
 
 SCHEMA_VERSION = "1"
 DELIMITER = ";"  # экспорт всегда `;`; импорт определяет сам
+DANGEROUS_CSV_PREFIXES = ("=", "+", "-", "@")
 
 
 class ProjectImportError(Exception):
@@ -48,7 +49,20 @@ class ProjectImportError(Exception):
 
 
 def _write_section(w: csv._writer, name: str) -> None:
-    w.writerow(["[SECTION]", name])
+    _write_row(w, ["[SECTION]", name])
+
+
+def _safe_csv_cell(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    stripped = value.lstrip()
+    if stripped.startswith(DANGEROUS_CSV_PREFIXES):
+        return "'" + value
+    return value
+
+
+def _write_row(w: csv._writer, row: list[Any]) -> None:
+    w.writerow([_safe_csv_cell(value) for value in row])
 
 
 def _dump_project_to_writer(
@@ -66,19 +80,19 @@ def _dump_project_to_writer(
     if project_key is None:
         # одиночный экспорт — metadata в отдельной секции
         _write_section(w, "metadata")
-        w.writerow(["key", "value"])
-        w.writerow(["schema_version", SCHEMA_VERSION])
-        w.writerow(["name", project.name])
-        w.writerow(["task_number", project.task_number or ""])
-        w.writerow(["description", project.description or ""])
-        w.writerow(["status", project.status])
-        w.writerow([])
+        _write_row(w, ["key", "value"])
+        _write_row(w, ["schema_version", SCHEMA_VERSION])
+        _write_row(w, ["name", project.name])
+        _write_row(w, ["task_number", project.task_number or ""])
+        _write_row(w, ["description", project.description or ""])
+        _write_row(w, ["status", project.status])
+        _write_row(w, [])
 
     _write_section(w, "objects")
     header = ["type", "name", "sort_order", "params", "results", "is_valid", "validation_errors"]
     if project_key is not None:
         header = ["project_key", *header]
-    w.writerow(header)
+    _write_row(w, header)
 
     # Авто-имя объекта нужно для связи с electrical/specifications
     obj_key_by_id: dict[UUID, str] = {}
@@ -96,8 +110,8 @@ def _dump_project_to_writer(
             if obj.validation_errors is not None
             else "",
         ]
-        w.writerow(prefix + row)
-    w.writerow([])
+        _write_row(w, prefix + row)
+    _write_row(w, [])
 
     if electrical:
         _write_section(w, "electrical")
@@ -113,7 +127,7 @@ def _dump_project_to_writer(
         ]
         if project_key is not None:
             header = ["project_key", *header]
-        w.writerow(header)
+        _write_row(w, header)
         for calc in electrical:
             row = [
                 obj_key_by_id.get(calc.object_id, str(calc.object_id)),
@@ -125,19 +139,19 @@ def _dump_project_to_writer(
                 json.dumps(calc.params or {}, ensure_ascii=False),
                 json.dumps(calc.results, ensure_ascii=False) if calc.results is not None else "",
             ]
-            w.writerow(prefix + row)
-        w.writerow([])
+            _write_row(w, prefix + row)
+        _write_row(w, [])
 
     if specifications:
         _write_section(w, "specifications")
         header = ["variant_number", "items"]
         if project_key is not None:
             header = ["project_key", *header]
-        w.writerow(header)
+        _write_row(w, header)
         for spec in specifications:
             row = [spec.variant_number, json.dumps(spec.items or [], ensure_ascii=False)]
-            w.writerow(prefix + row)
-        w.writerow([])
+            _write_row(w, prefix + row)
+        _write_row(w, [])
 
 
 async def export_project(
@@ -192,24 +206,25 @@ async def export_projects_bulk(
         project = await service.get_project_basic(pid, principal)
         projects.append((f"p{idx}", project))
 
-    w.writerow(["[SECTION]", "meta"])
-    w.writerow(["key", "value"])
-    w.writerow(["schema_version", SCHEMA_VERSION])
-    w.writerow([])
+    _write_row(w, ["[SECTION]", "meta"])
+    _write_row(w, ["key", "value"])
+    _write_row(w, ["schema_version", SCHEMA_VERSION])
+    _write_row(w, [])
 
-    w.writerow(["[SECTION]", "projects"])
-    w.writerow(["project_key", "name", "task_number", "description", "status"])
+    _write_row(w, ["[SECTION]", "projects"])
+    _write_row(w, ["project_key", "name", "task_number", "description", "status"])
     for key, project in projects:
-        w.writerow(
+        _write_row(
+            w,
             [
                 key,
                 project.name,
                 project.task_number or "",
                 project.description or "",
                 project.status,
-            ]
+            ],
         )
-    w.writerow([])
+    _write_row(w, [])
 
     for key, project in projects:
         objects = list(

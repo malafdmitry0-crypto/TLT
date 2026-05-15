@@ -6,7 +6,7 @@ export default defineConfig({
   retries: 0,
   grepInvert: process.env.E2E_INCLUDE_MANUAL === '1' ? undefined : /@manual/,
   // Сериализуем: параллельные гостевые сессии с одного IP быстро упираются в
-  // GUEST_SESSION_HOURLY_LIMIT rate-лимитер. Для CI-прогона всего ~20-30 сек.
+  // GUEST_MAX_SESSIONS_PER_IP rate-лимитер. Для CI-прогона всего ~20-30 сек.
   workers: 1,
   use: {
     // По умолчанию — порт фронтенда, поднятого через docker-compose.e2e.yml (3001).

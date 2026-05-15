@@ -123,6 +123,21 @@ class TestEmployeeAuth:
         assert resp.json()["email"] == "employee@test.com"
         assert resp.json()["role"] == "employee"
 
+    async def test_login_sets_httponly_auth_cookies(self, client: AsyncClient, employee_user):
+        resp = await client.post(
+            "/api/v1/auth/login",
+            json={"email": "employee@test.com", "password": "emp12345"},
+        )
+        assert resp.status_code == 200
+        set_cookie = resp.headers.get_list("set-cookie")
+        assert any("access_token=" in item and "HttpOnly" in item for item in set_cookie)
+        assert any("refresh_token=" in item and "HttpOnly" in item for item in set_cookie)
+        assert any("csrf_token=" in item and "HttpOnly" not in item for item in set_cookie)
+
+        me = await client.get("/api/v1/auth/me")
+        assert me.status_code == 200
+        assert me.json()["email"] == "employee@test.com"
+
     async def test_login_invalid_credentials(self, client: AsyncClient):
         resp = await client.post(
             "/api/v1/auth/login",

@@ -10,7 +10,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db
       # Высокий лимит для dev/E2E — продакшен оставляет дефолт 10
-      GUEST_SESSION_HOURLY_LIMIT: "500"
+      GUEST_MAX_SESSIONS_PER_IP: "500"
       GUEST_MAX_OBJECTS_PER_PROJECT: "500"
 
   worker:
@@ -25,7 +25,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db
       REDIS_URL: redis://redis:6379/0
       WORKER_QUEUE_CONSUMER: worker-dev
-      GUEST_SESSION_HOURLY_LIMIT: "500"
+      GUEST_MAX_SESSIONS_PER_IP: "500"
       GUEST_MAX_OBJECTS_PER_PROJECT: "500"
 
   frontend:

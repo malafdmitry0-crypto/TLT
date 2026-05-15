@@ -1,5 +1,6 @@
 """JWT-токены и хеширование паролей."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -37,11 +38,19 @@ def create_access_token(
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def create_refresh_token(subject: str) -> str:
-    expire = datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+def create_refresh_token(
+    subject: str,
+    *,
+    jti: str | None = None,
+    expires_delta: timedelta | None = None,
+) -> str:
+    expire = datetime.now(UTC) + (
+        expires_delta or timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    )
     payload: dict[str, Any] = {
         "sub": subject,
         "type": "refresh",
+        "jti": jti or uuid.uuid4().hex,
         "exp": expire,
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)

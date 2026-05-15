@@ -5,11 +5,12 @@ from datetime import UTC, datetime
 from typing import Literal, cast
 from uuid import UUID
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Cookie, Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import decode_token
 from app.models.guest_session import GuestSession
@@ -36,16 +37,18 @@ class CurrentPrincipal:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    access_cookie: str | None = Cookie(default=None, alias=settings.ACCESS_COOKIE_NAME),
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """Возвращает User из JWT или 401."""
-    if credentials is None:
+    token = credentials.credentials if credentials is not None else access_cookie
+    if token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Требуется авторизация",
         )
     try:
-        payload = decode_token(credentials.credentials)
+        payload = decode_token(token)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -74,12 +77,13 @@ async def get_current_user(
 
 async def get_current_user_or_guest(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    access_cookie: str | None = Cookie(default=None, alias=settings.ACCESS_COOKIE_NAME),
     x_session_id: str | None = Header(default=None, alias="X-Session-Id"),
     db: AsyncSession = Depends(get_db),
 ) -> CurrentPrincipal:
     """JWT → Employee/Admin, иначе X-Session-Id → Guest."""
     if credentials is not None:
-        user = await get_current_user(credentials, db)
+        user = await get_current_user(credentials, access_cookie, db)
         # user.role — строка из ENUM в БД; типизируется как Role (employee|admin).
         # Guest не попадает сюда (приходит по X-Session-Id), поэтому cast безопасен.
         return CurrentPrincipal(
@@ -102,6 +106,13 @@ async def get_current_user_or_guest(
         session.last_activity = datetime.now(UTC)
         await db.commit()
         return CurrentPrincipal(role="guest", session_id=session.session_id)
+    if access_cookie is not None:
+        user = await get_current_user(credentials, access_cookie, db)
+        return CurrentPrincipal(
+            role=cast(Role, user.role),
+            user_id=user.id,
+            email=user.email,
+        )
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Требуется авторизация или X-Session-Id",

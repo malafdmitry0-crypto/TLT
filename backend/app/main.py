@@ -2,15 +2,14 @@
 
 import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager, suppress
+from typing import ClassVar
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, ORJSONResponse
 from sqlalchemy import select
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -47,7 +46,7 @@ def _try_acquire_cleanup_lock(ttl_seconds: int) -> bool:
 
     Без Redis (нет REDIS_URL) — всегда True (single-instance режим).
     """
-    redis_url = os.environ.get("REDIS_URL")
+    redis_url = settings.REDIS_URL
     if not redis_url:
         return True
     try:
@@ -98,6 +97,7 @@ async def lifespan(app: FastAPI):
     Миграции Alembic применяются в entrypoint контейнера до запуска uvicorn
     (см. command в docker-compose.dev.yml / Dockerfile).
     """
+    settings.validate_runtime_security()
     preload_all()
     try:
         await ensure_first_admin()
@@ -132,29 +132,114 @@ app.add_middleware(
 )
 
 
-class MaxBodySizeMiddleware(BaseHTTPMiddleware):
-    """Защита от DoS: отвергает запросы с Content-Length > MAX_UPLOAD_BYTES.
-
-    Применяется ко всем POST/PUT/PATCH с multipart или большим телом.
-    Streaming-загрузки без Content-Length проходят (отлавливаются на уровне
-    самого endpoint'а).
-    """
-
-    async def dispatch(self, request: Request, call_next):
-        cl = request.headers.get("content-length")
-        if cl is not None and int(cl) > settings.MAX_UPLOAD_BYTES:
-            return JSONResponse(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                content={
-                    "detail": (
-                        f"Размер запроса превышает лимит " f"{settings.MAX_UPLOAD_BYTES // 1024} КБ"
-                    ),
-                    "error_code": "PAYLOAD_TOO_LARGE",
-                },
-            )
-        return await call_next(request)
+class PayloadTooLargeError(Exception):
+    pass
 
 
+async def _send_payload_too_large(send) -> None:
+    response = JSONResponse(
+        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        content={
+            "detail": f"Размер запроса превышает лимит {settings.MAX_UPLOAD_BYTES // 1024} КБ",
+            "error_code": "PAYLOAD_TOO_LARGE",
+        },
+    )
+
+    async def empty_receive():
+        return {"type": "http.disconnect"}
+
+    await response({"type": "http", "method": "POST", "path": ""}, empty_receive, send)
+
+
+class MaxBodySizeMiddleware:
+    """Rejects oversized requests both by Content-Length and by streamed body bytes."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        headers = {
+            key.decode("latin1").lower(): value.decode("latin1")
+            for key, value in scope.get("headers", [])
+        }
+        content_length = headers.get("content-length")
+        if content_length is not None:
+            try:
+                if int(content_length) > settings.MAX_UPLOAD_BYTES:
+                    await _send_payload_too_large(send)
+                    return
+            except ValueError:
+                pass
+
+        seen = 0
+        response_started = False
+
+        async def send_wrapper(message):
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
+
+        async def receive_wrapper():
+            nonlocal seen
+            message = await receive()
+            if message["type"] == "http.request":
+                seen += len(message.get("body") or b"")
+                if seen > settings.MAX_UPLOAD_BYTES:
+                    raise PayloadTooLargeError
+            return message
+
+        try:
+            await self.app(scope, receive_wrapper, send_wrapper)
+        except PayloadTooLargeError:
+            if not response_started:
+                await _send_payload_too_large(send)
+
+
+class CsrfCookieMiddleware:
+    """Require an explicit CSRF header when browser auth cookies are present."""
+
+    SAFE_METHODS: ClassVar[set[str]] = {"GET", "HEAD", "OPTIONS"}
+    EXEMPT_PATHS: ClassVar[set[str]] = {
+        settings.API_V1_PREFIX + "/auth/login",
+        settings.API_V1_PREFIX + "/auth/guest",
+        settings.API_V1_PREFIX + "/auth/refresh",
+    }
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope.get("method") in self.SAFE_METHODS:
+            await self.app(scope, receive, send)
+            return
+        path = scope.get("path") or ""
+        if path in self.EXEMPT_PATHS:
+            await self.app(scope, receive, send)
+            return
+        request = Request(scope, receive=receive)
+        has_bearer = bool(request.headers.get("Authorization"))
+        has_auth_cookie = not has_bearer and bool(
+            request.cookies.get(settings.ACCESS_COOKIE_NAME)
+            or request.cookies.get(settings.REFRESH_COOKIE_NAME)
+        )
+        if has_auth_cookie:
+            csrf_cookie = request.cookies.get(settings.CSRF_COOKIE_NAME)
+            csrf_header = request.headers.get("X-CSRF-Token")
+            if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+                response = JSONResponse(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    content={"detail": "CSRF token mismatch", "error_code": "CSRF_TOKEN_MISMATCH"},
+                )
+                await response(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(CsrfCookieMiddleware)
 app.add_middleware(MaxBodySizeMiddleware)
 
 
