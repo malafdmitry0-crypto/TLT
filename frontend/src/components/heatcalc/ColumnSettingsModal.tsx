@@ -46,7 +46,9 @@ import {
 } from '@/utils/heatCalcFieldInputSettings';
 import type { HeatCalcObjectType } from '@/types/project';
 import {
+  getHeatCalcFieldConfig,
   getHeatCalcFieldByColumn,
+  getHeatCalcFieldInputConfig,
   isHeatCalcFieldStepConfigurable,
   type HeatCalcFieldDefinition,
 } from '@/domain/heatCalcFields';
@@ -59,19 +61,113 @@ const TABLE_SETTINGS_TYPE_LABELS: Record<HeatCalcTableColumnScope, string> = {
   all: 'Все',
 };
 
-const FORMULA_RESULT_COLUMN_KEYS = new Set<HeatCalcColumnKey>([
-  'applied_alpha_vnesh',
-  'applied_safety_factor',
-  'thermal_resistance',
-  'wall_resistance',
-  'insulation_resistance',
-  'external_resistance',
-  'ground_resistance',
-  'effective_length',
-  'surface_area',
-  'air_surface_area',
-  'ground_surface_area',
+interface ComputedColumnBadge {
+  label: string;
+  tooltip: string;
+  tone: 'result' | 'specific' | 'applied' | 'geometry' | 'resistance' | 'derived';
+}
+
+interface ColumnNatureBadge {
+  label: string;
+  tooltip: string;
+  tone: 'input' | 'computed';
+}
+
+const SERVICE_COLUMN_KEYS = new Set<HeatCalcColumnKey>([
+  'index',
+  'heat_loss_status',
+  'type',
 ]);
+
+const INPUT_COLUMN_BADGE: ColumnNatureBadge = {
+  label: 'Вводится',
+  tooltip: 'Входной параметр объекта. Значение хранится в project_objects.params и может вводиться вручную, через форму или импорт.',
+  tone: 'input',
+};
+
+const COMPUTED_COLUMN_BADGE: ColumnNatureBadge = {
+  label: 'Вычисляется',
+  tooltip: 'Значение вычисляется системой из входных параметров или результата расчёта. Не заполняется вручную.',
+  tone: 'computed',
+};
+
+const COMPUTED_COLUMN_BADGES: Record<HeatCalcColumnKey, ComputedColumnBadge> = {
+  total_heat_loss: {
+    label: 'Итог',
+    tooltip: 'Главный итог расчёта: суммарные теплопотери объекта',
+    tone: 'result',
+  },
+  heat_loss_per_meter: {
+    label: 'Удельное',
+    tooltip: 'Теплопотери на метр трубы из результата расчёта',
+    tone: 'specific',
+  },
+  heat_loss_per_m2: {
+    label: 'Удельное',
+    tooltip: 'Теплопотери на м² поверхности резервуара из результата расчёта',
+    tone: 'specific',
+  },
+  applied_alpha_vnesh: {
+    label: 'Применено',
+    tooltip: 'Фактически применённое расчётом значение',
+    tone: 'applied',
+  },
+  applied_safety_factor: {
+    label: 'Применено',
+    tooltip: 'Фактически применённое расчётом значение',
+    tone: 'applied',
+  },
+  effective_length: {
+    label: 'Геометрия',
+    tooltip: 'Расчётная геометрия, полученная для тепловой модели',
+    tone: 'geometry',
+  },
+  surface_area: {
+    label: 'Геометрия',
+    tooltip: 'Расчётная геометрия, полученная для тепловой модели',
+    tone: 'geometry',
+  },
+  air_surface_area: {
+    label: 'Геометрия',
+    tooltip: 'Расчётная геометрия, полученная для тепловой модели',
+    tone: 'geometry',
+  },
+  ground_surface_area: {
+    label: 'Геометрия',
+    tooltip: 'Расчётная геометрия, полученная для тепловой модели',
+    tone: 'geometry',
+  },
+  thermal_resistance: {
+    label: 'R',
+    tooltip: 'Термосопротивление в тепловой модели',
+    tone: 'resistance',
+  },
+  wall_resistance: {
+    label: 'R',
+    tooltip: 'Термосопротивление в тепловой модели',
+    tone: 'resistance',
+  },
+  insulation_resistance: {
+    label: 'R',
+    tooltip: 'Термосопротивление в тепловой модели',
+    tone: 'resistance',
+  },
+  external_resistance: {
+    label: 'R',
+    tooltip: 'Термосопротивление в тепловой модели',
+    tone: 'resistance',
+  },
+  ground_resistance: {
+    label: 'R',
+    tooltip: 'Термосопротивление в тепловой модели',
+    tone: 'resistance',
+  },
+  delta_t: {
+    label: 'Производное',
+    tooltip: 'Значение получено из других входных параметров',
+    tone: 'derived',
+  },
+};
 
 interface ColumnStepTarget {
   objectType: HeatCalcObjectType;
@@ -101,8 +197,43 @@ function sameNumber(left: number, right: number) {
   return Math.abs(left - right) < 1e-9;
 }
 
-function isFormulaResultColumn(column: HeatCalcResolvedColumnMeta) {
-  return FORMULA_RESULT_COLUMN_KEYS.has(column.key);
+function computedColumnBadge(column: HeatCalcResolvedColumnMeta) {
+  return COMPUTED_COLUMN_BADGES[column.key] ?? null;
+}
+
+function fieldInputTypeForColumn(
+  type: HeatCalcTableColumnScope,
+  column: HeatCalcResolvedColumnMeta,
+) {
+  if (!column.field) return null;
+  const field = getHeatCalcFieldConfig(column.field);
+  if (!field) return null;
+  const objectTypes: HeatCalcObjectType[] = type === 'all' ? ['pipe', 'tank'] : [type];
+  for (const objectType of objectTypes) {
+    if (!field.object_types.includes(objectType)) continue;
+    const input = getHeatCalcFieldInputConfig(column.field, objectType);
+    if (input?.type) return input.type;
+  }
+  return null;
+}
+
+function isEditableColumn(type: HeatCalcTableColumnScope, column: HeatCalcResolvedColumnMeta) {
+  const inputType = fieldInputTypeForColumn(type, column);
+  return inputType === 'text'
+    || inputType === 'number'
+    || inputType === 'select'
+    || inputType === 'reference';
+}
+
+function columnNatureBadge(
+  type: HeatCalcTableColumnScope,
+  column: HeatCalcResolvedColumnMeta,
+  detailsBadge: ComputedColumnBadge | null,
+) {
+  if (SERVICE_COLUMN_KEYS.has(column.key)) return null;
+  if (detailsBadge) return COMPUTED_COLUMN_BADGE;
+  if (fieldInputTypeForColumn(type, column) === 'computed') return COMPUTED_COLUMN_BADGE;
+  return isEditableColumn(type, column) ? INPUT_COLUMN_BADGE : null;
 }
 
 function getColumnStepSettings(
@@ -149,6 +280,7 @@ function getColumnStepSettings(
 }
 
 function ColumnSettingsRowContent({
+  type,
   column,
   stepSettings,
   rowCount,
@@ -160,6 +292,7 @@ function ColumnSettingsRowContent({
   onResetStep,
   onResetWidth,
 }: {
+  type: HeatCalcTableColumnScope;
   column: HeatCalcResolvedColumnMeta;
   stepSettings: ColumnStepSettings | null;
   rowCount: number;
@@ -175,7 +308,8 @@ function ColumnSettingsRowContent({
   const [draftOrder, setDraftOrder] = useState<number | null>(orderValue);
   const [orderEditing, setOrderEditing] = useState(false);
   const metaLabel = column.title !== column.labels.full ? column.labels.full : column.labels.short;
-  const formulaResult = isFormulaResultColumn(column);
+  const computedBadge = computedColumnBadge(column);
+  const natureBadge = columnNatureBadge(type, column, computedBadge);
 
   useEffect(() => {
     if (!orderEditing) setDraftOrder(orderValue);
@@ -236,9 +370,18 @@ function ColumnSettingsRowContent({
       <div className="column-layout-label">
         <span className="column-layout-title-row">
           <span className="column-layout-title">{column.title}</span>
-          {formulaResult && (
-            <Tooltip title="Поле рассчитывается формулами теплопотерь">
-              <Tag className="column-layout-computed-tag">Расчётное</Tag>
+          {natureBadge && (
+            <Tooltip title={natureBadge.tooltip}>
+              <Tag className={`column-layout-nature-tag column-layout-nature-tag--${natureBadge.tone}`}>
+                {natureBadge.label}
+              </Tag>
+            </Tooltip>
+          )}
+          {computedBadge && (
+            <Tooltip title={computedBadge.tooltip}>
+              <Tag className={`column-layout-computed-tag column-layout-computed-tag--${computedBadge.tone}`}>
+                {computedBadge.label}
+              </Tag>
             </Tooltip>
           )}
         </span>
@@ -298,6 +441,7 @@ function ColumnSettingsRowContent({
 }
 
 function ColumnSettingsRow({
+  type,
   column,
   stepSettings,
   rowCount,
@@ -308,6 +452,7 @@ function ColumnSettingsRow({
   onResetStep,
   onResetWidth,
 }: {
+  type: HeatCalcTableColumnScope;
   column: HeatCalcResolvedColumnMeta;
   stepSettings: ColumnStepSettings | null;
   rowCount: number;
@@ -321,6 +466,7 @@ function ColumnSettingsRow({
   return (
     <div className="column-layout-row hidden" data-column-key={column.key}>
       <ColumnSettingsRowContent
+        type={type}
         column={column}
         stepSettings={stepSettings}
         rowCount={rowCount}
@@ -346,6 +492,7 @@ function ColumnSettingsRow({
 }
 
 function SortableColumnSettingsRow({
+  type,
   column,
   stepSettings,
   rowCount,
@@ -356,6 +503,7 @@ function SortableColumnSettingsRow({
   onResetStep,
   onResetWidth,
 }: {
+  type: HeatCalcTableColumnScope;
   column: HeatCalcResolvedColumnMeta;
   stepSettings: ColumnStepSettings | null;
   rowCount: number;
@@ -387,6 +535,7 @@ function SortableColumnSettingsRow({
       data-column-key={column.key}
     >
       <ColumnSettingsRowContent
+        type={type}
         column={column}
         stepSettings={stepSettings}
         rowCount={rowCount}
@@ -555,6 +704,7 @@ export default function ColumnSettingsModal({
                         {visibleColumns.map((column) => (
                           <SortableColumnSettingsRow
                             key={column.key}
+                            type={activeType}
                             column={column}
                             stepSettings={getColumnStepSettings(activeType, column.key, draftFieldInputSettings)}
                             rowCount={visibleRowCount}
@@ -579,6 +729,7 @@ export default function ColumnSettingsModal({
                       {hiddenColumns.map((column) => (
                         <ColumnSettingsRow
                           key={column.key}
+                          type={activeType}
                           column={column}
                           stepSettings={getColumnStepSettings(activeType, column.key, draftFieldInputSettings)}
                           rowCount={visibleRowCount}

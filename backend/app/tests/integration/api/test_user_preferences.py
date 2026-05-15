@@ -64,6 +64,33 @@ def heatcalc_field_inputs_value(step: float = 2.5) -> dict[str, object]:
     }
 
 
+def electrical_table_columns_value(
+    visible: list[str] | None = None,
+) -> dict[str, object]:
+    return {
+        "version": 1,
+        "visibleOrder": visible or ["index", "object_name", "current"],
+        "columns": {
+            "index": {"widthPct": 4},
+            "object_name": {"widthPct": 22},
+            "current": {"widthPct": 8},
+        },
+    }
+
+
+def electrical_table_view_value(
+    font_size: str = "standard",
+    table_label_format: str = "short",
+    settings_label_format: str = "full",
+) -> dict[str, object]:
+    return {
+        "version": 1,
+        "fontSize": font_size,
+        "tableLabelFormat": table_label_format,
+        "settingsLabelFormat": settings_label_format,
+    }
+
+
 class TestUserPreferencesApi:
     async def test_missing_preference_returns_null_value(
         self,
@@ -155,6 +182,84 @@ class TestUserPreferencesApi:
         resp = await client.put(
             "/api/v1/preferences/heatcalc.tableColumns.v1",
             json={"value": value},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 422
+
+    async def test_employee_can_upsert_electrical_table_columns_preference(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        headers = {"Authorization": f"Bearer {employee_token}"}
+
+        resp = await client.put(
+            "/api/v1/preferences/electrical.tableColumns.v1",
+            json={"value": electrical_table_columns_value()},
+            headers=headers,
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["value"]["visibleOrder"] == ["index", "object_name", "current"]
+
+        read_back = await client.get(
+            "/api/v1/preferences/electrical.tableColumns.v1",
+            headers=headers,
+        )
+        assert read_back.status_code == 200
+        assert read_back.json()["value"]["columns"]["current"] == {"widthPct": 8}
+
+    async def test_electrical_table_columns_rejects_unknown_key(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        value = electrical_table_columns_value(["index", "not_a_column"])
+
+        resp = await client.put(
+            "/api/v1/preferences/electrical.tableColumns.v1",
+            json={"value": value},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 422
+
+    async def test_employee_can_upsert_electrical_table_view_preference(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        headers = {"Authorization": f"Bearer {employee_token}"}
+
+        resp = await client.put(
+            "/api/v1/preferences/electrical.tableView.v1",
+            json={"value": electrical_table_view_value("compact", "full", "compact")},
+            headers=headers,
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["value"] == electrical_table_view_value("compact", "full", "compact")
+
+        read_back = await client.get(
+            "/api/v1/preferences/electrical.tableView.v1",
+            headers=headers,
+        )
+        assert read_back.status_code == 200
+        assert read_back.json()["value"] == electrical_table_view_value(
+            "compact",
+            "full",
+            "compact",
+        )
+
+    async def test_electrical_table_view_rejects_unknown_label_format(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        resp = await client.put(
+            "/api/v1/preferences/electrical.tableView.v1",
+            json={"value": electrical_table_view_value(table_label_format="verbose")},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
 

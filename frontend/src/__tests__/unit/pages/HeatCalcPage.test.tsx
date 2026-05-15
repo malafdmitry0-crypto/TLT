@@ -417,6 +417,9 @@ describe('HeatCalcPage', () => {
       expect(screen.queryByText('Резервуар прямоугольный')).not.toBeInTheDocument();
       expect(screen.getAllByText('DN').length).toBeGreaterThan(0);
       expect(screen.getAllByText('L, м').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('q, Вт/м').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Q, Вт').length).toBeGreaterThan(0);
+      expect(screen.getByText('50,0')).toBeInTheDocument();
     });
 
     it('при переключении на резервуар показывает только резервуары и форму добавления резервуара', async () => {
@@ -447,6 +450,9 @@ describe('HeatCalcPage', () => {
       expect(screen.getAllByText('Форма').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Габариты').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Размещение').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('q, Вт/м²').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Q, Вт').length).toBeGreaterThan(0);
+      expect(screen.getByText('35,0')).toBeInTheDocument();
       expect(screen.queryByText('DN')).not.toBeInTheDocument();
       expect(screen.queryByText('L, м')).not.toBeInTheDocument();
       expect(screen.queryByText('Зад.')).not.toBeInTheDocument();
@@ -751,6 +757,32 @@ describe('HeatCalcPage', () => {
       await screen.findByText('Труба DN100');
       await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
+      const rowByKey = (key: string) => {
+        const row = dialog.querySelector<HTMLElement>(`.column-layout-row[data-column-key="${key}"]`);
+        expect(row).not.toBeNull();
+        return row!;
+      };
+
+      expect(within(dialog).getAllByText('Вводится').length).toBeGreaterThan(0);
+      expect(within(dialog).getAllByText('Вычисляется').length).toBeGreaterThan(0);
+      expect(within(dialog).getAllByText('Удельное').length).toBeGreaterThan(0);
+      expect(within(dialog).getAllByText('Итог').length).toBeGreaterThan(0);
+      expect(within(dialog).getAllByText('Применено').length).toBeGreaterThan(0);
+      expect(within(dialog).getAllByText('Геометрия').length).toBeGreaterThan(0);
+      expect(within(dialog).getAllByText('R').length).toBeGreaterThan(0);
+      expect(within(dialog).getAllByText('Производное').length).toBeGreaterThan(0);
+      expect(within(dialog).queryByText('Расчётное')).not.toBeInTheDocument();
+      expect(within(rowByKey('name')).getByText('Вводится')).toBeInTheDocument();
+      expect(within(rowByKey('pipe_material')).getByText('Вводится')).toBeInTheDocument();
+      expect(within(rowByKey('pipe_dn')).getByText('Вычисляется')).toBeInTheDocument();
+      expect(within(rowByKey('total_heat_loss')).getByText('Вычисляется')).toBeInTheDocument();
+      expect(within(rowByKey('total_heat_loss')).getByText('Итог')).toBeInTheDocument();
+      expect(within(rowByKey('thermal_resistance')).getByText('Вычисляется')).toBeInTheDocument();
+      expect(within(rowByKey('thermal_resistance')).getByText('R')).toBeInTheDocument();
+      for (const serviceKey of ['index', 'heat_loss_status', 'type']) {
+        expect(within(rowByKey(serviceKey)).queryByText('Вводится')).not.toBeInTheDocument();
+        expect(within(rowByKey(serviceKey)).queryByText('Вычисляется')).not.toBeInTheDocument();
+      }
       await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
@@ -788,9 +820,11 @@ describe('HeatCalcPage', () => {
       const orderInput = within(dialog).getByRole('spinbutton', { name: 'Порядок: DN' });
       const widthInput = within(dialog).getByRole('spinbutton', { name: 'Ширина: DN' });
       fireEvent.change(orderInput, { target: { value: '3' } });
-      expect(visibleColumnKeys().slice(0, 6)).toEqual([
+      expect(visibleColumnKeys().slice(0, 8)).toEqual([
         'index',
         'heat_loss_status',
+        'heat_loss_per_meter',
+        'total_heat_loss',
         'name',
         'placement',
         'pipe_outer_diameter',
@@ -798,10 +832,12 @@ describe('HeatCalcPage', () => {
       ]);
       fireEvent.blur(orderInput);
       await waitFor(() => {
-        expect(visibleColumnKeys().slice(0, 6)).toEqual([
+        expect(visibleColumnKeys().slice(0, 8)).toEqual([
           'index',
           'heat_loss_status',
           'pipe_dn',
+          'heat_loss_per_meter',
+          'total_heat_loss',
           'name',
           'placement',
           'pipe_outer_diameter',
@@ -812,10 +848,12 @@ describe('HeatCalcPage', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY) ?? '{}');
-      expect(saved.types.pipe.visibleOrder.slice(0, 6)).toEqual([
+      expect(saved.types.pipe.visibleOrder.slice(0, 8)).toEqual([
         'index',
         'heat_loss_status',
         'pipe_dn',
+        'heat_loss_per_meter',
+        'total_heat_loss',
         'name',
         'placement',
         'pipe_outer_diameter',

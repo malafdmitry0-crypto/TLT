@@ -16,19 +16,26 @@ async def _create_project(client: AsyncClient, session_id: str) -> dict:
     return resp.json()[0]
 
 
-async def _create_pipe_object(client: AsyncClient, project_id: str, session_id: str) -> dict:
+async def _create_pipe_object(
+    client: AsyncClient,
+    project_id: str,
+    session_id: str,
+    params_override: dict | None = None,
+) -> dict:
+    params = {
+        "outer_diameter": 0.108,
+        "insulation_thickness": 0.05,
+        "insulation_material": "mineral_wool",
+        "ambient_temperature": -30,
+        "process_temperature": 150,
+        "pipe_length": 50,
+    }
+    params.update(params_override or {})
     resp = await client.post(
         f"/api/v1/projects/{project_id}/objects",
         json={
             "object_type": "pipe",
-            "params": {
-                "outer_diameter": 0.108,
-                "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool",
-                "ambient_temperature": -30,
-                "process_temperature": 150,
-                "pipe_length": 50,
-            },
+            "params": params,
         },
         headers={"X-Session-Id": session_id},
     )
@@ -415,6 +422,91 @@ class TestElectricalCalculation:
             "has_next_page": True,
             "has_previous_page": False,
         }
+
+    async def test_electrical_query_capabilities_include_result_fields(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        await _create_pipe_object(client, project["id"], guest_session)
+
+        resp = await client.get(
+            "/api/v1/calc/electrical/query-capabilities",
+            params={"project_id": project["id"], "variant_number": 1},
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        fields = {field["key"]: field for field in resp.json()["fields"]}
+        assert fields["current"]["filter"]["ops"] == ["range"]
+        assert fields["total_power"]["sort"]["enabled"] is True
+        assert fields["electrical_status"]["options"]["items"]
+
+    async def test_electrical_query_filters_not_calculated_status(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        await _create_pipe_object(client, project["id"], guest_session)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "variant_number": 1,
+                "filters": [
+                    {
+                        "key": "electrical_status",
+                        "op": "in",
+                        "values": ["not_calculated"],
+                    }
+                ],
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["counts"]["filtered"] == 1
+        assert body["items"][0]["id"]
+
+    async def test_electrical_query_sorts_by_total_power(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        await _create_pipe_object(
+            client,
+            project["id"],
+            guest_session,
+            {"name": "Короткая", "pipe_length": 10},
+        )
+        await _create_pipe_object(
+            client,
+            project["id"],
+            guest_session,
+            {"name": "Длинная", "pipe_length": 200},
+        )
+        batch = await client.post(
+            "/api/v1/calc/electrical/batch",
+            params={"project_id": project["id"]},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert batch.status_code == 200, batch.text
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "variant_number": 1,
+                "sort": {"key": "total_power", "dir": "desc"},
+                "page_size": 10,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["counts"]["filtered"] == 2
+        assert body["items"][0]["params"]["name"] == "Длинная"
+        assert len(body["calculations"]) == 2
 
     async def test_batch_can_skip_error_payload(self, client: AsyncClient, guest_session: str):
         project = await _create_project(client, guest_session)

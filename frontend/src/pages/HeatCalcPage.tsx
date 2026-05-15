@@ -319,6 +319,9 @@ const NUMBER_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
   'flange_count',
   'support_count',
   'local_element_equiv_length',
+  'heat_loss_per_meter',
+  'heat_loss_per_m2',
+  'total_heat_loss',
   'tank_diameter',
   'tank_height',
   'tank_length',
@@ -899,6 +902,8 @@ export default function HeatCalcPage() {
     if (!project?.id) return;
     queryClient.invalidateQueries({ queryKey: ['project', project.id, 'objects'] });
     queryClient.invalidateQueries({ queryKey: ['project', project.id, 'electrical-page'] });
+    queryClient.invalidateQueries({ queryKey: ['project', project.id, 'electrical-query'] });
+    queryClient.invalidateQueries({ queryKey: ['project', project.id, 'electrical-query-capabilities'] });
   }, [project?.id, queryClient]);
 
   useEffect(() => {
@@ -1782,6 +1787,18 @@ export default function HeatCalcPage() {
     q_additional: {
       render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'q_additional', 0),
       copyValue: (r) => formatParamNumber(r, 'q_additional', 0),
+    },
+    heat_loss_per_meter: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'heat_loss_per_meter', 1),
+      copyValue: (r) => formatResultNumber(r, 'heat_loss_per_meter', 1),
+    },
+    heat_loss_per_m2: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'heat_loss_per_m2', 1),
+      copyValue: (r) => formatResultNumber(r, 'heat_loss_per_m2', 1),
+    },
+    total_heat_loss: {
+      render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'total_heat_loss', 0),
+      copyValue: (r) => formatResultNumber(r, 'total_heat_loss', 0),
     },
     delta_t: {
       render: (_: unknown, r: ProjectObject) => formatDeltaTemperature(r, 0),

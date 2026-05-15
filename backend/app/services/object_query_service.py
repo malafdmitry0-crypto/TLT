@@ -128,6 +128,10 @@ def _param(key: str) -> Callable[[ProjectObject], Any]:
     return lambda obj: obj.params.get(key)
 
 
+def _result(key: str) -> Callable[[ProjectObject], Any]:
+    return lambda obj: obj.results.get(key) if isinstance(obj.results, dict) else None
+
+
 def _param_m_as_mm(key: str) -> Callable[[ProjectObject], Any]:
     return (
         lambda obj: _to_float(obj.params.get(key)) * 1000
@@ -751,6 +755,30 @@ def _common_fields(object_type: str) -> list[FieldDef]:
 PIPE_FIELDS: tuple[FieldDef, ...] = (
     *_common_fields("pipe")[:4],
     FieldDef(
+        "heat_loss_per_meter",
+        "Линейные теплопотери",
+        "q, Вт/м",
+        ("pipe",),
+        "number",
+        _result("heat_loss_per_meter"),
+        unit="W/m",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "total_heat_loss",
+        "Суммарные теплопотери",
+        "Q, Вт",
+        ("pipe",),
+        "number",
+        _result("total_heat_loss"),
+        unit="W",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
         "pipe_outer_diameter",
         "Наружный диаметр",
         "Ø, мм",
@@ -888,6 +916,30 @@ PIPE_FIELDS: tuple[FieldDef, ...] = (
 
 TANK_FIELDS: tuple[FieldDef, ...] = (
     *_common_fields("tank")[:4],
+    FieldDef(
+        "heat_loss_per_m2",
+        "Удельные теплопотери",
+        "q, Вт/м²",
+        ("tank",),
+        "number",
+        _result("heat_loss_per_m2"),
+        unit="W/m²",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "total_heat_loss",
+        "Суммарные теплопотери",
+        "Q, Вт",
+        ("tank",),
+        "number",
+        _result("total_heat_loss"),
+        unit="W",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
     FieldDef(
         "tank_shape",
         "Форма резервуара",

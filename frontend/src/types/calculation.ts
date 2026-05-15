@@ -1,4 +1,11 @@
-import type { ProjectObject, ProjectObjectsPageInfo } from './project';
+import type {
+  ObjectQueryCapabilities,
+  ObjectQueryFilter,
+  ObjectQuerySearch,
+  ObjectQuerySort,
+  ProjectObject,
+  ProjectObjectsPageInfo,
+} from './project';
 
 export interface InsulationLayerParams {
   thickness: number;
@@ -171,6 +178,31 @@ export interface ElectricalPageResponse {
   summary: ElectricalPageSummary;
   page_info: ProjectObjectsPageInfo;
 }
+
+export interface ElectricalQueryRequest {
+  project_id: string;
+  variant_number?: number;
+  page?: number;
+  page_size?: number;
+  search?: ObjectQuerySearch | null;
+  filters?: ObjectQueryFilter[];
+  sort?: ObjectQuerySort | null;
+}
+
+export interface ElectricalQueryCounts {
+  total: number;
+  filtered: number;
+}
+
+export interface ElectricalQueryResponse extends ElectricalPageResponse {
+  counts: ElectricalQueryCounts;
+  query: {
+    variant_number: number;
+    sort: ObjectQuerySort | null;
+  };
+}
+
+export type ElectricalQueryCapabilities = Omit<ObjectQueryCapabilities, 'object_type'>;
 
 export type CalculationTaskStatus =
   | 'queued'

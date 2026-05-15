@@ -1,12 +1,61 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ElecCalcPage from '@/pages/ElecCalcPage';
+import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import type { ElectricalCalcSummary, ElectricalPageResponse } from '@/types/calculation';
 import type { Project, ProjectObject } from '@/types/project';
 import { getCalcJobRefetchInterval } from '@/utils/calcJobPolling';
+import { ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY } from '@/utils/electricalTableColumns';
+import { ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY } from '@/utils/electricalTableViewSettings';
+
+const apiMocks = vi.hoisted(() => {
+  const field = (
+    key: string,
+    dataType: 'text' | 'number' | 'enum' | 'boolean' = 'text',
+    ops: Array<'contains' | 'range' | 'in' | 'equals'> = ['contains'],
+    options: Array<{ value: unknown; label: string }> = [],
+  ) => ({
+    key,
+    label: key,
+    title: key,
+    data_type: dataType,
+    unit: null,
+    filter: { enabled: ops.length > 0, ops, include_empty: true },
+    sort: { enabled: key !== 'index', type: dataType === 'number' ? 'number' : 'text', nulls: 'last' },
+    options: options.length
+      ? { mode: 'inline', items: options, include_empty: true }
+      : null,
+  });
+  return {
+    electricalPage: vi.fn(),
+    electricalCapabilities: vi.fn().mockResolvedValue({
+      version: 1,
+      default_page_size: 50,
+      max_page_size: 200,
+      default_sort: { key: 'sort_order', dir: 'asc' },
+      search: { enabled: true, max_text_length: 120, default_columns: ['object_name'] },
+      fields: [
+        field('index', 'text', []),
+        field('object_name'),
+        field('electrical_status', 'enum', ['in'], [
+          { value: 'calculated', label: 'Рассчитан' },
+          { value: 'error', label: 'Ошибка' },
+          { value: 'not_calculated', label: 'Не рассчитан' },
+        ]),
+        field('cable_mark'),
+        field('winding_pitch_mm', 'number', ['range']),
+        field('number_of_threads', 'number', ['range']),
+        field('cable_length', 'number', ['range']),
+        field('total_power', 'number', ['range']),
+        field('current', 'number', ['range']),
+        field('message'),
+      ],
+    }),
+  };
+});
 
 vi.mock('@/api/projects', () => ({
   deleteObject: vi.fn(),
@@ -33,7 +82,9 @@ vi.mock('@/api/calculations', () => ({
       cancel: '/api/v1/calc/jobs/task-1/cancel',
     },
   }),
-  getElectricalPage: vi.fn(),
+  getElectricalPage: apiMocks.electricalPage,
+  getElectricalQueryCapabilities: apiMocks.electricalCapabilities,
+  queryElectrical: apiMocks.electricalPage,
   listCables: vi.fn().mockResolvedValue([]),
   selectCableManual: vi.fn(),
 }));
@@ -148,9 +199,19 @@ function renderPage(state?: { activeJobId?: string }) {
   );
 }
 
+async function openElectricalTableSettingsOtherTab(
+  user: { click: (element: Element) => Promise<unknown> },
+  dialog: HTMLElement,
+) {
+  await user.click(within(dialog).getByRole('tab', { name: 'Остальное' }));
+  expect(within(dialog).getByText('Размер текста таблицы')).toBeInTheDocument();
+}
+
 describe('ElecCalcPage (integration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    useAuthStore.getState().logout();
     useProjectStore.getState().setCurrentProject(null);
   });
 
@@ -207,13 +268,23 @@ describe('ElecCalcPage (integration)', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(getElectricalPage).toHaveBeenCalledWith('p-1', 1, 1, 50);
+      expect(getElectricalPage).toHaveBeenCalledWith(expect.objectContaining({
+        project_id: 'p-1',
+        variant_number: 1,
+        page: 1,
+        page_size: 50,
+      }));
     });
 
     await user.click(screen.getByRole('button', { name: 'СО2' }));
 
     await waitFor(() => {
-      expect(getElectricalPage).toHaveBeenCalledWith('p-1', 2, 1, 50);
+      expect(getElectricalPage).toHaveBeenCalledWith(expect.objectContaining({
+        project_id: 'p-1',
+        variant_number: 2,
+        page: 1,
+        page_size: 50,
+      }));
     });
   });
 
@@ -349,6 +420,204 @@ describe('ElecCalcPage (integration)', () => {
     renderPage();
     await waitFor(() => {
       expect(screen.getAllByText('ТЛТ-30').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('позволяет гостю скрыть колонку электрорасчёта через настройки таблицы', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject()], [
+        {
+          id: 'c-1',
+          object_id: 'o-1',
+          cable_type: 'self_regulating',
+          cable_mark: 'ТЛТ-30',
+          variant_number: 1,
+          results: {
+            selected_cable: 'ТЛТ-30',
+            winding_pitch: 0,
+            num_circuits: 1,
+            cable_length: 11,
+            total_power: 600,
+            current: 2.7,
+            voltage: 220,
+          },
+        },
+      ]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await waitFor(() => {
+      expect(document.querySelector('.electrical-spreadsheet')?.textContent).toContain('Ток, А');
+    });
+
+    await user.click(screen.getByRole('button', { name: /Настройки отображения/i }));
+    await user.click(screen.getByRole('checkbox', { name: /Показать Расчётный ток/i }));
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => {
+      expect(document.querySelector('.electrical-spreadsheet')?.textContent).not.toContain('Ток, А');
+    });
+    const stored = JSON.parse(
+      localStorage.getItem(ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY) ?? '{}',
+    );
+    expect(stored.visibleOrder).not.toContain('current');
+  });
+
+  it('сохраняет размер шрифта и формат заголовков таблицы электрорасчёта', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject()], [
+        {
+          id: 'c-1',
+          object_id: 'o-1',
+          cable_type: 'self_regulating',
+          cable_mark: 'ТЛТ-30',
+          variant_number: 1,
+          results: {
+            selected_cable: 'ТЛТ-30',
+            winding_pitch: 0,
+            num_circuits: 1,
+            cable_length: 11,
+            total_power: 600,
+            current: 2.7,
+            voltage: 220,
+          },
+        },
+      ]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await waitFor(() => {
+      expect(document.querySelector('.electrical-spreadsheet')?.textContent).toContain('Ток, А');
+    });
+
+    await user.click(screen.getByRole('button', { name: /Настройки отображения/i }));
+    const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы электрорасчёта' });
+    await openElectricalTableSettingsOtherTab(user, dialog);
+    await user.click(within(dialog).getByText('Компактный'));
+    await user.click(within(dialog).getAllByText('Полные')[0]);
+    await user.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => {
+      expect(document.querySelector('.electrical-spreadsheet')).toHaveClass('calc-spreadsheet--compact');
+      expect(document.querySelector('.electrical-spreadsheet')?.textContent).toContain('Расчётный ток, А');
+    });
+    const stored = JSON.parse(
+      localStorage.getItem(ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}',
+    );
+    expect(stored).toEqual({
+      version: 1,
+      fontSize: 'compact',
+      tableLabelFormat: 'full',
+      settingsLabelFormat: 'full',
+    });
+  });
+
+  it('сохраняет resize колонки прямо из заголовка таблицы электрорасчёта', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject()], [
+        {
+          id: 'c-1',
+          object_id: 'o-1',
+          cable_type: 'self_regulating',
+          cable_mark: 'ТЛТ-30',
+          variant_number: 1,
+          results: {
+            selected_cable: 'ТЛТ-30',
+            winding_pitch: 0,
+            num_circuits: 1,
+            cable_length: 11,
+            total_power: 600,
+            current: 2.7,
+            voltage: 220,
+          },
+        },
+      ]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Труба-1')).toBeInTheDocument();
+    });
+    const handle = screen.getByRole('button', { name: 'Изменить ширину: Расчётный ток, А' });
+    await act(async () => {
+      fireEvent(handle, new MouseEvent('pointerdown', { clientX: 100, bubbles: true }));
+      window.dispatchEvent(new MouseEvent('pointermove', { clientX: 160, bubbles: true }));
+      window.dispatchEvent(new MouseEvent('pointerup', { clientX: 160, bubbles: true }));
+    });
+
+    await waitFor(() => {
+      const stored = JSON.parse(
+        localStorage.getItem(ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY) ?? '{}',
+      );
+      expect(stored.columns.current.widthPct).toBeGreaterThan(8);
+    });
+  });
+
+  it('отправляет backend-фильтр по числовой колонке электрорасчёта', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject()], [
+        {
+          id: 'c-1',
+          object_id: 'o-1',
+          cable_type: 'self_regulating',
+          cable_mark: 'ТЛТ-30',
+          variant_number: 1,
+          results: {
+            selected_cable: 'ТЛТ-30',
+            winding_pitch: 0,
+            num_circuits: 1,
+            cable_length: 11,
+            total_power: 600,
+            current: 2.7,
+            voltage: 220,
+          },
+        },
+      ]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Труба-1')).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'Фильтр Расчётный ток, А' }));
+    await user.type(await screen.findByLabelText('Минимум: Расчётный ток, А'), '2');
+    await user.click(screen.getByRole('button', { name: 'Применить' }));
+
+    await waitFor(() => {
+      expect(getElectricalPage).toHaveBeenLastCalledWith(expect.objectContaining({
+        filters: [expect.objectContaining({ key: 'current', op: 'range', min: 2 })],
+      }));
+    });
+    expect(screen.getByRole('button', { name: 'Сбросить фильтры таблицы' })).toBeEnabled();
+  });
+
+  it('отправляет backend-сортировку по току', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Труба-1')).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('columnheader', { name: /Ток, А/ }));
+
+    await waitFor(() => {
+      expect(getElectricalPage).toHaveBeenLastCalledWith(expect.objectContaining({
+        sort: { key: 'current', dir: 'asc' },
+      }));
     });
   });
 

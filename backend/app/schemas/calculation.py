@@ -6,7 +6,16 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.schemas.project import ProjectObjectResponse, ProjectObjectsPageInfo
+from app.schemas.project import (
+    ObjectQueryDefaultSort,
+    ObjectQueryFieldCapability,
+    ObjectQueryFilter,
+    ObjectQuerySearch,
+    ObjectQuerySearchCapability,
+    ObjectQuerySort,
+    ProjectObjectResponse,
+    ProjectObjectsPageInfo,
+)
 
 # ---------- Heat loss ----------
 
@@ -581,6 +590,7 @@ class ElectricalCalcSummary(BaseModel):
     cable_type: str
     cable_mark: str | None
     variant_number: int
+    params: dict[str, Any] | None = None
     results: dict[str, Any] | None
 
 
@@ -605,6 +615,54 @@ class ElectricalPageResponse(BaseModel):
     calculations: list[ElectricalCalcSummary]
     summary: ElectricalPageSummary
     page_info: ProjectObjectsPageInfo
+
+
+class ElectricalQueryRequest(BaseModel):
+    """Backend-query таблицы электрорасчёта."""
+
+    project_id: UUID
+    variant_number: int = 1
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=50, ge=1, le=200)
+    search: ObjectQuerySearch | None = None
+    filters: list[ObjectQueryFilter] = Field(default_factory=list, max_length=20)
+    sort: ObjectQuerySort | None = None
+
+
+class ElectricalQueryCounts(BaseModel):
+    """Счётчики backend-query таблицы электрорасчёта."""
+
+    total: int
+    filtered: int
+
+
+class ElectricalQueryEcho(BaseModel):
+    """Нормализованный query, применённый к таблице электрорасчёта."""
+
+    variant_number: int
+    sort: ObjectQuerySort | None = None
+
+
+class ElectricalQueryResponse(BaseModel):
+    """Постраничные данные электрорасчёта после поиска/фильтрации/сортировки."""
+
+    items: list[ProjectObjectResponse]
+    calculations: list[ElectricalCalcSummary]
+    summary: ElectricalPageSummary
+    page_info: ProjectObjectsPageInfo
+    counts: ElectricalQueryCounts
+    query: ElectricalQueryEcho
+
+
+class ElectricalQueryCapabilitiesResponse(BaseModel):
+    """Возможности backend-фильтров и сортировок таблицы электрорасчёта."""
+
+    version: int
+    default_page_size: int
+    max_page_size: int
+    default_sort: ObjectQueryDefaultSort
+    search: ObjectQuerySearchCapability
+    fields: list[ObjectQueryFieldCapability]
 
 
 class BatchElectricalResponse(BaseModel):

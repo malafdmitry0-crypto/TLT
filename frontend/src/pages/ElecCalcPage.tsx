@@ -1,9 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import {
   Alert,
   Button,
   Card,
   Checkbox,
+  Input,
   InputNumber,
   Select,
   Segmented,
@@ -13,12 +22,16 @@ import {
   Tooltip,
   Typography,
   message,
+  type TableProps,
 } from 'antd';
 import {
   CheckCircleFilled,
   CloseCircleFilled,
+  CloseCircleOutlined,
+  FilterFilled,
   ReloadOutlined,
   StopOutlined,
+  TableOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -28,12 +41,14 @@ import type { ColumnsType } from 'antd/es/table';
 import {
   cancelCalcTask,
   enqueueElectricalBatchJob,
-  getElectricalPage,
+  getElectricalQueryCapabilities,
   getCalcTask,
   listCables,
+  queryElectrical,
   selectCableManual,
   type CableSource,
 } from '@/api/calculations';
+import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getCablesTt, getResistiveCables } from '@/api/references';
 import { useAuthStore } from '@/store/authStore';
@@ -41,12 +56,67 @@ import { useProjectStore } from '@/store/projectStore';
 import { useElectricalStats } from '@/hooks/useElectricalStats';
 import { isElectricalCalcSuccess, electricalCalcError } from '@/utils/calcStatus';
 import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
+import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 import { formatNumber, formatPower } from '@/utils/formatters';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
+import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalColumnSettingsModal';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject } from '@/types/project';
-import type { BatchElectricalResponse, ElectricalCalcSummary } from '@/types/calculation';
+import type {
+  BatchElectricalResponse,
+  ElectricalCalcSummary,
+  ElectricalQueryRequest,
+} from '@/types/calculation';
+import {
+  ELECTRICAL_TABLE_COLUMN_PREF_KEY,
+  clampElectricalTableColumnWidthPct,
+  clearRegisteredElectricalTableColumnCache,
+  createElectricalTableColumnSettingsPatch,
+  electricalTableColumnWidthPxToPct,
+  getAvailableElectricalTableColumnKeys,
+  getDefaultElectricalTableColumnSettings,
+  getVisibleElectricalTableColumnMetas,
+  moveElectricalTableColumnToOrder,
+  normalizeElectricalTableColumnSettings,
+  readGuestElectricalTableColumnSettings,
+  readRegisteredElectricalTableColumnCache,
+  reorderElectricalTableColumn,
+  resetElectricalTableColumnSettings,
+  resetElectricalTableColumnWidth,
+  setElectricalTableColumnVisibility,
+  setElectricalTableColumnWidthPct,
+  writeGuestElectricalTableColumnSettings,
+  writeRegisteredElectricalTableColumnCache,
+  type ElectricalColumnKey,
+  type ElectricalTableColumnSettings,
+} from '@/utils/electricalTableColumns';
+import {
+  ELECTRICAL_TABLE_VIEW_PREF_KEY,
+  clearRegisteredElectricalTableViewCache,
+  getDefaultElectricalTableViewSettings,
+  normalizeElectricalTableViewSettings,
+  readGuestElectricalTableViewSettings,
+  readRegisteredElectricalTableViewCache,
+  resolveElectricalTableFontSize,
+  writeGuestElectricalTableViewSettings,
+  writeRegisteredElectricalTableViewCache,
+  type ElectricalTableFontSize,
+  type ElectricalTableLabelFormat,
+  type ElectricalTableViewSettings,
+} from '@/utils/electricalTableViewSettings';
+import {
+  createEmptyTableViewState,
+  hasActiveTableViewState,
+  isColumnFilterActive,
+  removeHiddenTableViewState,
+  type HeatCalcColumnFilter,
+  type HeatCalcTableViewState,
+} from '@/utils/heatCalcTableFindability';
+import type {
+  ObjectQueryFieldCapability,
+  ObjectQueryFilter as BackendObjectQueryFilter,
+} from '@/types/project';
 
 const { Text } = Typography;
 
@@ -78,6 +148,8 @@ const ENABLED_CABLE_TYPES: ReadonlySet<CableTypeKey> = new Set([
   'three_core',
 ]);
 const ELECTRICAL_TABLE_PAGE_SIZE = 50;
+const EMPTY_OBJECTS: ProjectObject[] = [];
+const EMPTY_ELECTRICAL_CALCS: ElectricalCalcSummary[] = [];
 const THREAD_OPTIONS = [
   { value: 1, label: '1' },
   { value: 2, label: '2' },
@@ -93,6 +165,17 @@ type ElectricalNavigationState = {
   activeJobId?: string;
 } | null;
 
+type ElectricalTableColumnPreferenceMutation = {
+  settings: ElectricalTableColumnSettings;
+  closeModal?: boolean;
+  showMessage?: boolean;
+};
+
+type ElectricalTableSettingsPreferenceMutation = {
+  columnSettings: ElectricalTableColumnSettings;
+  viewSettings: ElectricalTableViewSettings;
+};
+
 function getCableMark(calc: ElectricalCalcSummary | undefined) {
   const selectedCable = calc?.results?.selected_cable;
   return calc?.cable_mark ?? (typeof selectedCable === 'string' ? selectedCable : undefined);
@@ -105,10 +188,307 @@ function calcLayoutValues(calc: ElectricalCalcSummary | undefined, draft?: Cable
   };
 }
 
+type ElectricalColumnRenderSpec = {
+  align?: 'left' | 'right' | 'center';
+  ellipsis?: boolean;
+  render: (_: unknown, obj: ProjectObject, idx: number) => ReactNode;
+};
+
+const OBJECT_TYPE_LABEL: Record<string, string> = {
+  pipe: 'Труба',
+  tank: 'Резервуар',
+};
+
+const CONNECTION_TYPE_LABEL: Record<string, string> = {
+  line_1ph: 'Линия',
+  loop_1ph: 'Петля',
+  star_3ph: 'Звезда',
+  loop_2x3: 'Петля 2×3',
+  loop_1x3: 'Петля 1×3',
+  star_3x3: 'Звезда 3×3',
+  star_1x3: 'Звезда 1×3',
+};
+
+type ElectricalFilterKind = 'text' | 'numberRange' | 'enum' | 'boolean';
+
+function valueText(value: unknown) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'boolean') return value ? 'Да' : 'Нет';
+  return String(value);
+}
+
+function numberText(value: unknown, digits = 2) {
+  if (value === null || value === undefined || value === '') return formatNumber(null, digits);
+  return formatNumber(Number(value), digits);
+}
+
+function powerText(value: unknown) {
+  if (value === null || value === undefined || value === '') return '—';
+  return formatPower(Number(value));
+}
+
+function resultNumber(calc: ElectricalCalcSummary | undefined, key: string, digits = 2) {
+  return numberText(calc?.results?.[key], digits);
+}
+
+function objectResultNumber(obj: ProjectObject, key: string, digits = 2) {
+  return numberText(obj.results?.[key], digits);
+}
+
+function toInputNumberValue(value: unknown) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function filterKindForElectricalColumn(
+  key: ElectricalColumnKey,
+  capability?: ObjectQueryFieldCapability,
+): ElectricalFilterKind {
+  if (capability?.filter.enabled) {
+    if (capability.filter.ops.includes('range')) return 'numberRange';
+    if (capability.filter.ops.includes('in')) return 'enum';
+    if (capability.filter.ops.includes('equals') && capability.data_type === 'boolean') {
+      return 'boolean';
+    }
+    return 'text';
+  }
+  if (['cable_length', 'total_power', 'current', 'voltage'].includes(key)) return 'numberRange';
+  if (['electrical_status', 'object_type', 'heat_loss_status', 'cable_type'].includes(key)) {
+    return 'enum';
+  }
+  return 'text';
+}
+
+function backendFilterFromElectricalColumnFilter(
+  key: ElectricalColumnKey,
+  filter: HeatCalcColumnFilter,
+  capability?: ObjectQueryFieldCapability,
+): BackendObjectQueryFilter | null {
+  if (!isColumnFilterActive(filter)) return null;
+  const ops = capability?.filter.ops ?? [];
+  if (filter.kind === 'text') {
+    return { key, op: 'contains', value: filter.value };
+  }
+  if (filter.kind === 'numberRange') {
+    return {
+      key,
+      op: 'range',
+      min: Number.isFinite(filter.min) ? filter.min : undefined,
+      max: Number.isFinite(filter.max) ? filter.max : undefined,
+      include_empty: !!filter.includeEmpty,
+    };
+  }
+  if (filter.kind === 'enum') {
+    return {
+      key,
+      op: ops.includes('equals') && filter.values.length === 1 ? 'equals' : 'in',
+      value: ops.includes('equals') && filter.values.length === 1 ? filter.values[0] : undefined,
+      values: ops.includes('equals') && filter.values.length === 1 ? undefined : filter.values,
+      include_empty: !!filter.includeEmpty,
+    };
+  }
+  if (filter.kind === 'boolean') {
+    return {
+      key,
+      op: 'equals',
+      value: filter.value === 'empty' ? null : filter.value,
+      include_empty: filter.value === 'empty',
+    };
+  }
+  return null;
+}
+
+function buildElectricalQueryRequest(
+  projectId: string,
+  variant: number,
+  state: HeatCalcTableViewState,
+  page: number,
+  pageSize: number,
+  capabilities?: { fields: ObjectQueryFieldCapability[] },
+): ElectricalQueryRequest {
+  const capabilityByKey = new Map(capabilities?.fields.map((field) => [field.key, field]) ?? []);
+  const filters = Object.entries(state.filters)
+    .map(([key, filter]) => filter
+      ? backendFilterFromElectricalColumnFilter(key, filter, capabilityByKey.get(key))
+      : null)
+    .filter((filter): filter is BackendObjectQueryFilter => filter != null);
+  const sortCapability = state.sort ? capabilityByKey.get(state.sort.columnKey) : undefined;
+  return {
+    project_id: projectId,
+    variant_number: variant,
+    page,
+    page_size: pageSize,
+    filters,
+    sort: state.sort && (sortCapability?.sort.enabled ?? true)
+      ? { key: state.sort.columnKey, dir: state.sort.direction }
+      : null,
+  };
+}
+
+function ColumnFilterDropdown({
+  title,
+  kind,
+  filter,
+  enumOptions,
+  onApply,
+  onReset,
+  onClose,
+}: {
+  title: string;
+  kind: ElectricalFilterKind;
+  filter?: HeatCalcColumnFilter;
+  enumOptions?: Array<{ value: string; label: string }>;
+  onApply: (filter: HeatCalcColumnFilter) => void;
+  onReset: () => void;
+  onClose: () => void;
+}) {
+  const [textValue, setTextValue] = useState(filter?.kind === 'text' ? filter.value : '');
+  const [minValue, setMinValue] = useState<number | null>(
+    filter?.kind === 'numberRange' ? toInputNumberValue(filter.min) : null,
+  );
+  const [maxValue, setMaxValue] = useState<number | null>(
+    filter?.kind === 'numberRange' ? toInputNumberValue(filter.max) : null,
+  );
+  const [enumValues, setEnumValues] = useState<string[]>(
+    filter?.kind === 'enum' ? filter.values.map(String) : [],
+  );
+  const [booleanValue, setBooleanValue] = useState<boolean | 'empty' | undefined>(
+    filter?.kind === 'boolean' ? filter.value : undefined,
+  );
+  const [includeEmpty, setIncludeEmpty] = useState(
+    (filter?.kind === 'numberRange' || filter?.kind === 'enum') && !!filter.includeEmpty,
+  );
+  const invalidRange = Number.isFinite(minValue)
+    && Number.isFinite(maxValue)
+    && Number(minValue) > Number(maxValue);
+
+  const applyFilter = () => {
+    if (kind === 'text') onApply({ kind: 'text', value: textValue });
+    if (kind === 'numberRange') {
+      onApply({
+        kind: 'numberRange',
+        min: minValue ?? undefined,
+        max: maxValue ?? undefined,
+        includeEmpty,
+      });
+    }
+    if (kind === 'enum') onApply({ kind: 'enum', values: enumValues, includeEmpty });
+    if (kind === 'boolean') onApply({ kind: 'boolean', value: booleanValue });
+    onClose();
+  };
+
+  const resetFilter = () => {
+    onReset();
+    onClose();
+  };
+
+  return (
+    <div className="table-filter-dropdown">
+      <Text strong>{title}</Text>
+      {kind === 'text' && (
+        <Input
+          size="small"
+          aria-label={`Поиск: ${title}`}
+          value={textValue}
+          onChange={(event) => setTextValue(event.target.value)}
+          onPressEnter={applyFilter}
+          allowClear
+        />
+      )}
+      {kind === 'numberRange' && (
+        <Space size={6}>
+          <InputNumber
+            size="small"
+            placeholder="от"
+            aria-label={`Минимум: ${title}`}
+            value={minValue}
+            onChange={(value) => setMinValue(toInputNumberValue(value))}
+          />
+          <InputNumber
+            size="small"
+            placeholder="до"
+            aria-label={`Максимум: ${title}`}
+            value={maxValue}
+            onChange={(value) => setMaxValue(toInputNumberValue(value))}
+          />
+        </Space>
+      )}
+      {kind === 'enum' && (
+        <Select
+          mode="multiple"
+          size="small"
+          aria-label={`Значения: ${title}`}
+          value={enumValues}
+          options={enumOptions}
+          onChange={setEnumValues}
+          style={{ minWidth: 220 }}
+          maxTagCount="responsive"
+        />
+      )}
+      {kind === 'boolean' && (
+        <Select
+          size="small"
+          aria-label={`Значение: ${title}`}
+          allowClear
+          value={booleanValue}
+          options={[
+            { value: true, label: 'Да' },
+            { value: false, label: 'Нет' },
+            { value: 'empty', label: 'Пустые' },
+          ]}
+          onChange={setBooleanValue}
+          style={{ minWidth: 160 }}
+        />
+      )}
+      {(kind === 'numberRange' || kind === 'enum') && (
+        <Checkbox checked={includeEmpty} onChange={(event) => setIncludeEmpty(event.target.checked)}>
+          Пустые
+        </Checkbox>
+      )}
+      <div className="table-filter-actions">
+        <Button size="small" onClick={resetFilter}>
+          Сбросить
+        </Button>
+        <Button size="small" type="primary" disabled={invalidRange} onClick={applyFilter}>
+          Применить
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ResizableColumnTitle({
+  title,
+  label,
+  onResizeStart,
+}: {
+  title: string;
+  label: string;
+  onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <span className="resizable-column-title">
+      <span className="resizable-column-title-text">{title}</span>
+      <button
+        type="button"
+        className="column-resize-handle"
+        aria-label={`Изменить ширину: ${label}`}
+        onPointerDown={onResizeStart}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+      />
+    </span>
+  );
+}
+
 export default function ElecCalcPage() {
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
+  const registeredUserId = useAuthStore((s) => s.user?.id ?? null);
   const isEmployee = role === 'employee' || role === 'admin';
+  const isRegisteredUser = isEmployee;
   const location = useLocation();
   const navigationActiveJobId =
     (location.state as ElectricalNavigationState)?.activeJobId ?? null;
@@ -128,6 +508,33 @@ export default function ElecCalcPage() {
   const [tablePageSize, setTablePageSize] = useState(ELECTRICAL_TABLE_PAGE_SIZE);
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [tableColumnSettings, setTableColumnSettings] =
+    useState<ElectricalTableColumnSettings>(() => {
+      const auth = useAuthStore.getState();
+      const cached = readRegisteredElectricalTableColumnCache(auth.user?.id ?? null);
+      if (auth.role === 'employee' || auth.role === 'admin') {
+        return cached ?? getDefaultElectricalTableColumnSettings();
+      }
+      return readGuestElectricalTableColumnSettings();
+    });
+  const [tableViewSettings, setTableViewSettings] =
+    useState<ElectricalTableViewSettings>(() => {
+      const auth = useAuthStore.getState();
+      const cached = readRegisteredElectricalTableViewCache(auth.user?.id ?? null);
+      if (auth.role === 'employee' || auth.role === 'admin') {
+        return cached ?? getDefaultElectricalTableViewSettings();
+      }
+      return readGuestElectricalTableViewSettings();
+    });
+  const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
+  const [draftTableColumnSettings, setDraftTableColumnSettings] =
+    useState<ElectricalTableColumnSettings>(() => tableColumnSettings);
+  const [draftTableViewSettings, setDraftTableViewSettings] =
+    useState<ElectricalTableViewSettings>(() => tableViewSettings);
+  const tableColumnSettingsRef = useRef(tableColumnSettings);
+  const tableViewSettingsRef = useRef(tableViewSettings);
+  const [tableViewState, setTableViewState] =
+    useState<HeatCalcTableViewState>(() => createEmptyTableViewState());
   const [activeJobId, setActiveJobId] = useState<string | null>(
     () => navigationActiveJobId,
   );
@@ -135,6 +542,14 @@ export default function ElecCalcPage() {
 
   const qc = useQueryClient();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    tableColumnSettingsRef.current = tableColumnSettings;
+  }, [tableColumnSettings]);
+
+  useEffect(() => {
+    tableViewSettingsRef.current = tableViewSettings;
+  }, [tableViewSettings]);
 
   useEffect(() => {
     setTablePage(1);
@@ -168,13 +583,33 @@ export default function ElecCalcPage() {
     }
   }, [project?.id, variant]);
 
-  const { data: electricalPage, isFetching: isElectricalPageFetching } = useQuery({
-    queryKey: ['project', project?.id, 'electrical-page', variant, tablePage, tablePageSize],
-    queryFn: () => getElectricalPage(project!.id, variant, tablePage, tablePageSize),
+  const { data: electricalQueryCapabilities } = useQuery({
+    queryKey: ['project', project?.id, 'electrical-query-capabilities', variant],
+    queryFn: () => getElectricalQueryCapabilities(project!.id, variant),
     enabled: !!project,
+    staleTime: 60_000,
   });
-  const objects = electricalPage?.items ?? [];
-  const elecCalcs = electricalPage?.calculations ?? [];
+  const electricalQueryRequest = useMemo(
+    () => (project
+      ? buildElectricalQueryRequest(
+        project.id,
+        variant,
+        tableViewState,
+        tablePage,
+        tablePageSize,
+        electricalQueryCapabilities,
+      )
+      : null),
+    [electricalQueryCapabilities, project, tablePage, tablePageSize, tableViewState, variant],
+  );
+  const { data: electricalPage, isFetching: isElectricalPageFetching } = useQuery({
+    queryKey: ['project', project?.id, 'electrical-query', electricalQueryRequest],
+    queryFn: () => queryElectrical(electricalQueryRequest!),
+    enabled: !!project && electricalQueryRequest != null && !!electricalQueryCapabilities,
+    placeholderData: (previous) => previous,
+  });
+  const objects = electricalPage?.items ?? EMPTY_OBJECTS;
+  const elecCalcs = electricalPage?.calculations ?? EMPTY_ELECTRICAL_CALCS;
   const pageSummary = electricalPage?.summary;
   const pageInfo = electricalPage?.page_info;
 
@@ -218,6 +653,133 @@ export default function ElecCalcPage() {
     ...referenceQueryOptions,
   });
 
+  const { data: persistedTableColumnPreference } = useQuery({
+    queryKey: ['preference', ELECTRICAL_TABLE_COLUMN_PREF_KEY],
+    queryFn: () =>
+      getUserPreference<ElectricalTableColumnSettings>(ELECTRICAL_TABLE_COLUMN_PREF_KEY),
+    enabled: isRegisteredUser,
+    staleTime: 30_000,
+  });
+
+  const { data: persistedTableViewPreference } = useQuery({
+    queryKey: ['preference', ELECTRICAL_TABLE_VIEW_PREF_KEY],
+    queryFn: () =>
+      getUserPreference<ElectricalTableViewSettings>(ELECTRICAL_TABLE_VIEW_PREF_KEY),
+    enabled: isRegisteredUser,
+    staleTime: 30_000,
+  });
+
+  const updateTableColumnPreference = useMutation({
+    mutationFn: ({ settings }: ElectricalTableColumnPreferenceMutation) =>
+      updateUserPreference<ElectricalTableColumnSettings>(
+        ELECTRICAL_TABLE_COLUMN_PREF_KEY,
+        normalizeElectricalTableColumnSettings(settings),
+      ),
+    onSuccess: (preference, variables) => {
+      const normalized = normalizeElectricalTableColumnSettings(preference.value);
+      setTableColumnSettings(normalized);
+      if (preference.user_id) {
+        writeRegisteredElectricalTableColumnCache(preference.user_id, normalized);
+      }
+      if (variables.closeModal) setColumnSettingsOpen(false);
+      if (variables.showMessage !== false) message.success('Настройки таблицы сохранены');
+    },
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : 'Не удалось сохранить настройки таблицы');
+    },
+  });
+
+  const updateTableSettingsPreference = useMutation({
+    mutationFn: async ({ columnSettings, viewSettings }: ElectricalTableSettingsPreferenceMutation) => {
+      const columnPreference = await updateUserPreference<ElectricalTableColumnSettings>(
+        ELECTRICAL_TABLE_COLUMN_PREF_KEY,
+        normalizeElectricalTableColumnSettings(columnSettings),
+      );
+      const viewPreference = await updateUserPreference<ElectricalTableViewSettings>(
+        ELECTRICAL_TABLE_VIEW_PREF_KEY,
+        normalizeElectricalTableViewSettings(viewSettings),
+      );
+      return { columnPreference, viewPreference };
+    },
+    onSuccess: ({ columnPreference, viewPreference }) => {
+      const normalizedColumns = normalizeElectricalTableColumnSettings(columnPreference.value);
+      const normalizedView = normalizeElectricalTableViewSettings(viewPreference.value);
+      setTableColumnSettings(normalizedColumns);
+      tableViewSettingsRef.current = normalizedView;
+      setTableViewSettings(normalizedView);
+      if (columnPreference.user_id) {
+        writeRegisteredElectricalTableColumnCache(columnPreference.user_id, normalizedColumns);
+      }
+      if (viewPreference.user_id) {
+        writeRegisteredElectricalTableViewCache(viewPreference.user_id, normalizedView);
+      }
+      setColumnSettingsOpen(false);
+      message.success('Настройки таблицы сохранены');
+    },
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : 'Не удалось сохранить настройки таблицы');
+    },
+  });
+
+  useEffect(() => {
+    if (isRegisteredUser) {
+      const registeredViewSettings =
+        readRegisteredElectricalTableViewCache(registeredUserId) ??
+        getDefaultElectricalTableViewSettings();
+      setTableColumnSettings(
+        readRegisteredElectricalTableColumnCache(registeredUserId) ??
+          getDefaultElectricalTableColumnSettings(),
+      );
+      tableViewSettingsRef.current = registeredViewSettings;
+      setTableViewSettings(registeredViewSettings);
+      return;
+    }
+    setTableColumnSettings(readGuestElectricalTableColumnSettings());
+    const guestViewSettings = readGuestElectricalTableViewSettings();
+    tableViewSettingsRef.current = guestViewSettings;
+    setTableViewSettings(guestViewSettings);
+  }, [isRegisteredUser, registeredUserId]);
+
+  useEffect(() => {
+    if (!isRegisteredUser || !persistedTableColumnPreference) return;
+    if (persistedTableColumnPreference.value) {
+      const normalized = normalizeElectricalTableColumnSettings(
+        persistedTableColumnPreference.value,
+      );
+      setTableColumnSettings(normalized);
+      if (persistedTableColumnPreference.user_id) {
+        writeRegisteredElectricalTableColumnCache(
+          persistedTableColumnPreference.user_id,
+          normalized,
+        );
+      }
+      return;
+    }
+    clearRegisteredElectricalTableColumnCache(
+      registeredUserId ?? persistedTableColumnPreference.user_id,
+    );
+    setTableColumnSettings(getDefaultElectricalTableColumnSettings());
+  }, [isRegisteredUser, persistedTableColumnPreference, registeredUserId]);
+
+  useEffect(() => {
+    if (!isRegisteredUser || !persistedTableViewPreference) return;
+    if (persistedTableViewPreference.value) {
+      const normalized = normalizeElectricalTableViewSettings(persistedTableViewPreference.value);
+      tableViewSettingsRef.current = normalized;
+      setTableViewSettings(normalized);
+      if (persistedTableViewPreference.user_id) {
+        writeRegisteredElectricalTableViewCache(persistedTableViewPreference.user_id, normalized);
+      }
+      return;
+    }
+    clearRegisteredElectricalTableViewCache(
+      registeredUserId ?? persistedTableViewPreference.user_id,
+    );
+    const defaults = getDefaultElectricalTableViewSettings();
+    tableViewSettingsRef.current = defaults;
+    setTableViewSettings(defaults);
+  }, [isRegisteredUser, persistedTableViewPreference, registeredUserId]);
+
   const batchMut = useMutation({
     mutationFn: () =>
       enqueueElectricalBatchJob(project!.id, effectiveSource, variant, cableType, {
@@ -249,7 +811,8 @@ export default function ElecCalcPage() {
     if (!activeJob) return;
     if (activeJob.status === 'succeeded') {
       const res = isBatchElectricalResponse(activeJob.result) ? activeJob.result : null;
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-page'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
       if (res && res.skipped > 0) {
         message.warning(
@@ -317,7 +880,8 @@ export default function ElecCalcPage() {
         aggressiveProduct,
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-page'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
       message.success('Кабель выбран, расчёт обновлён');
     },
@@ -353,7 +917,8 @@ export default function ElecCalcPage() {
         delete next[vars.objectId];
         return next;
       });
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-page'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
       message.success('Параметры укладки применены');
     },
@@ -384,27 +949,125 @@ export default function ElecCalcPage() {
     });
   }, [layoutDrafts, layoutMutate, stats.calcByObjectId]);
 
-  const electricalColumns = useMemo<ColumnsType<ProjectObject>>(() => [
-    {
-      title: '#',
-      width: 40,
+  const visibleElectricalColumnMetas = useMemo(
+    () => getVisibleElectricalTableColumnMetas(
+      tableColumnSettings,
+      normalizeElectricalTableViewSettings(tableViewSettings).tableLabelFormat,
+    ),
+    [tableColumnSettings, tableViewSettings],
+  );
+  const resolvedTableFontSize = useMemo(
+    () => resolveElectricalTableFontSize(normalizeElectricalTableViewSettings(tableViewSettings)),
+    [tableViewSettings],
+  );
+  const visibleElectricalColumnKeys = useMemo(
+    () => visibleElectricalColumnMetas.map((meta) => meta.key),
+    [visibleElectricalColumnMetas],
+  );
+  const fieldCapabilityByKey = useMemo(
+    () => new Map(electricalQueryCapabilities?.fields.map((field) => [field.key, field]) ?? []),
+    [electricalQueryCapabilities],
+  );
+  const enumOptionsByColumn = useMemo(() => {
+    const result: Record<string, Array<{ value: string; label: string }>> = {};
+    for (const field of electricalQueryCapabilities?.fields ?? []) {
+      if (!field.options) continue;
+      result[field.key] = field.options.items.map((item) => ({
+        value: String(item.value),
+        label: item.label,
+      }));
+    }
+    return result;
+  }, [electricalQueryCapabilities]);
+  const currentTableViewActive = hasActiveTableViewState(tableViewState);
+
+  useEffect(() => {
+    setTableViewState((current) => {
+      const cleaned = removeHiddenTableViewState(current, visibleElectricalColumnKeys);
+      if (
+        cleaned.sort === current.sort
+        && Object.keys(cleaned.filters).length === Object.keys(current.filters).length
+      ) {
+        return current;
+      }
+      return cleaned;
+    });
+  }, [visibleElectricalColumnKeys]);
+
+  const setColumnFilter = useCallback((columnKey: ElectricalColumnKey, filter?: HeatCalcColumnFilter) => {
+    setTablePage(1);
+    setTableViewState((current) => {
+      const nextFilters = { ...current.filters };
+      if (filter && isColumnFilterActive(filter)) {
+        nextFilters[columnKey] = filter;
+      } else {
+        delete nextFilters[columnKey];
+      }
+      return {
+        ...current,
+        filters: nextFilters,
+      };
+    });
+  }, []);
+
+  const resetColumnFilter = useCallback((columnKey: ElectricalColumnKey) => {
+    setColumnFilter(columnKey, undefined);
+  }, [setColumnFilter]);
+
+  const resetCurrentTableViewState = useCallback(() => {
+    setTablePage(1);
+    setTableViewState(createEmptyTableViewState());
+  }, []);
+
+  const handleElectricalTableChange = useCallback<NonNullable<TableProps<ProjectObject>['onChange']>>((pagination, _filters, sorter, extra) => {
+    const nextPage = extra.action === 'sort' ? 1 : pagination.current ?? 1;
+    setTablePage(nextPage);
+    if (pagination.pageSize) setTablePageSize(pagination.pageSize);
+    const nextSorter = Array.isArray(sorter)
+      ? sorter.find((item) => item.order)
+      : sorter;
+    const columnKey = typeof nextSorter?.columnKey === 'string'
+      ? nextSorter.columnKey
+      : typeof nextSorter?.column?.key === 'string'
+        ? nextSorter.column.key
+        : null;
+    const order = nextSorter?.order;
+    setTableViewState((current) => ({
+      ...current,
+      sort: columnKey && order
+        ? { columnKey, direction: order === 'ascend' ? 'asc' : 'desc' }
+        : undefined,
+    }));
+  }, []);
+
+  const electricalColumnRenderers = useMemo<Record<ElectricalColumnKey, ElectricalColumnRenderSpec>>(() => ({
+    index: {
       render: (_: unknown, __: ProjectObject, idx: number) =>
         (pageInfo?.offset ?? 0) + idx + 1,
     },
-    {
-      title: 'Объект',
-      dataIndex: ['params', 'name'],
-      width: 220,
+    object_name: {
       ellipsis: true,
-      render: (v: unknown, obj) => (
+      render: (_: unknown, obj) => (
         <Text style={{ fontSize: 12 }}>
-          {String(v ?? `${obj.object_type} ${obj.id}`)}
+          {String(obj.params?.name ?? `${obj.object_type} ${obj.id}`)}
         </Text>
       ),
     },
-    {
-      title: 'Статус',
-      width: 56,
+    object_type: {
+      render: (_: unknown, obj) => OBJECT_TYPE_LABEL[obj.object_type] ?? obj.object_type,
+    },
+    heat_loss_status: {
+      align: 'center',
+      render: (_: unknown, obj) => {
+        if (obj.is_valid) return <Tag color="success">ОК</Tag>;
+        return (
+          <Tooltip title={valueText(obj.validation_errors?.error ?? obj.validation_errors)}>
+            <Tag color="error">Ошибка</Tag>
+          </Tooltip>
+        );
+      },
+    },
+    electrical_status: {
       align: 'center',
       render: (_: unknown, obj) => {
         const calc = stats.calcByObjectId[obj.id];
@@ -432,9 +1095,14 @@ export default function ElecCalcPage() {
         );
       },
     },
-    {
-      title: 'Марка',
-      width: 180,
+    cable_type: {
+      render: (_: unknown, obj) => {
+        const calc = stats.calcByObjectId[obj.id];
+        const type = calc?.cable_type ?? cableType;
+        return CABLE_TYPE_LABEL[type as CableTypeKey] ?? valueText(type);
+      },
+    },
+    cable_mark: {
       render: (_: unknown, obj) => {
         const calc = stats.calcByObjectId[obj.id];
         const mark = getCableMark(calc);
@@ -466,9 +1134,18 @@ export default function ElecCalcPage() {
         );
       },
     },
-    {
-      title: 'Шаг навива, мм',
-      width: 120,
+    selected_cable: {
+      render: (_: unknown, obj) => (
+        <Text style={{ fontSize: 12 }}>
+          {valueText(stats.calcByObjectId[obj.id]?.results?.selected_cable)}
+        </Text>
+      ),
+    },
+    variant_number: {
+      align: 'right',
+      render: (_: unknown, obj) => stats.calcByObjectId[obj.id]?.variant_number ?? variant,
+    },
+    winding_pitch_mm: {
       align: 'right',
       render: (_: unknown, obj) => {
         const calc = stats.calcByObjectId[obj.id];
@@ -499,9 +1176,7 @@ export default function ElecCalcPage() {
         );
       },
     },
-    {
-      title: 'Ниток',
-      width: 74,
+    number_of_threads: {
       align: 'right',
       render: (_: unknown, obj) => {
         const calc = stats.calcByObjectId[obj.id];
@@ -537,29 +1212,75 @@ export default function ElecCalcPage() {
         );
       },
     },
-    {
-      title: 'Длина, м',
-      width: 90,
+    laying_step: {
       align: 'right',
       render: (_: unknown, obj) =>
-        formatNumber(Number(stats.calcByObjectId[obj.id]?.results?.cable_length), 1),
+        numberText(stats.calcByObjectId[obj.id]?.params?.laying_step ?? layingStep, 2),
     },
-    {
-      title: 'Мощность, Вт',
-      width: 110,
+    heating_height: {
       align: 'right',
       render: (_: unknown, obj) =>
-        formatPower(Number(stats.calcByObjectId[obj.id]?.results?.total_power)),
+        numberText(stats.calcByObjectId[obj.id]?.params?.heating_height ?? heatingHeight, 1),
     },
-    {
-      title: 'Ток, А',
-      width: 80,
+    connection_type: {
+      render: (_: unknown, obj) => {
+        const value = stats.calcByObjectId[obj.id]?.params?.connection_type ?? connectionType;
+        return CONNECTION_TYPE_LABEL[String(value)] ?? valueText(value);
+      },
+    },
+    supply_voltage: {
       align: 'right',
       render: (_: unknown, obj) =>
-        formatNumber(Number(stats.calcByObjectId[obj.id]?.results?.current), 2),
+        numberText(stats.calcByObjectId[obj.id]?.params?.supply_voltage ?? supplyVoltage, 0),
     },
-    {
-      title: 'Сообщение',
+    winding_coefficient: {
+      align: 'right',
+      render: (_: unknown, obj) =>
+        numberText(
+          stats.calcByObjectId[obj.id]?.params?.winding_coefficient ?? windingCoefficient,
+          2,
+        ),
+    },
+    vapor_temperature: {
+      align: 'right',
+      render: (_: unknown, obj) =>
+        numberText(stats.calcByObjectId[obj.id]?.params?.vapor_temperature ?? vaporTemperature, 1),
+    },
+    aggressive_product: {
+      align: 'center',
+      render: (_: unknown, obj) =>
+        valueText(stats.calcByObjectId[obj.id]?.params?.aggressive_product ?? aggressiveProduct),
+    },
+    cable_length: {
+      align: 'right',
+      render: (_: unknown, obj) => resultNumber(stats.calcByObjectId[obj.id], 'cable_length', 1),
+    },
+    total_power: {
+      align: 'right',
+      render: (_: unknown, obj) =>
+        powerText(stats.calcByObjectId[obj.id]?.results?.total_power),
+    },
+    current: {
+      align: 'right',
+      render: (_: unknown, obj) => resultNumber(stats.calcByObjectId[obj.id], 'current', 2),
+    },
+    voltage: {
+      align: 'right',
+      render: (_: unknown, obj) => resultNumber(stats.calcByObjectId[obj.id], 'voltage', 0),
+    },
+    heat_loss_per_meter: {
+      align: 'right',
+      render: (_: unknown, obj) => objectResultNumber(obj, 'heat_loss_per_meter', 2),
+    },
+    heat_loss_per_m2: {
+      align: 'right',
+      render: (_: unknown, obj) => objectResultNumber(obj, 'heat_loss_per_m2', 2),
+    },
+    total_heat_loss: {
+      align: 'right',
+      render: (_: unknown, obj) => powerText(obj.results?.total_heat_loss),
+    },
+    message: {
       ellipsis: true,
       render: (_: unknown, obj) => (
         <Text type="secondary" style={{ fontSize: 11 }}>
@@ -567,19 +1288,375 @@ export default function ElecCalcPage() {
         </Text>
       ),
     },
-  ], [
+  }), [
     activeRowId,
+    aggressiveProduct,
+    cableType,
     commitLayout,
+    connectionType,
+    heatingHeight,
     isLayoutPending,
     isManualCablePending,
+    layingStep,
     layoutDrafts,
     layoutMutate,
     manualCableMutate,
     manualCableOptions,
     pageInfo?.offset,
     stats.calcByObjectId,
+    supplyVoltage,
     updateLayoutDraft,
+    vaporTemperature,
+    variant,
+    windingCoefficient,
   ]);
+
+  const persistTableColumnSettings = useCallback((
+    settings: ElectricalTableColumnSettings,
+    options: { closeModal?: boolean; showMessage?: boolean } = {},
+  ) => {
+    const normalized = normalizeElectricalTableColumnSettings(settings);
+    setTableColumnSettings(normalized);
+    if (isRegisteredUser) {
+      clearRegisteredElectricalTableColumnCache(registeredUserId);
+      updateTableColumnPreference.mutate({
+        settings: normalized,
+        closeModal: options.closeModal,
+        showMessage: options.showMessage,
+      });
+      return;
+    }
+    writeGuestElectricalTableColumnSettings(normalized);
+    if (options.closeModal) setColumnSettingsOpen(false);
+    if (options.showMessage !== false) message.success('Настройки таблицы сохранены');
+  }, [isRegisteredUser, registeredUserId, updateTableColumnPreference]);
+
+  const persistTableSettings = useCallback((
+    columnSettings: ElectricalTableColumnSettings,
+    viewSettings: ElectricalTableViewSettings,
+  ) => {
+    const normalizedColumns = normalizeElectricalTableColumnSettings(columnSettings);
+    const normalizedView = normalizeElectricalTableViewSettings(viewSettings);
+    setTableColumnSettings(normalizedColumns);
+    tableViewSettingsRef.current = normalizedView;
+    setTableViewSettings(normalizedView);
+    if (isRegisteredUser) {
+      clearRegisteredElectricalTableColumnCache(registeredUserId);
+      clearRegisteredElectricalTableViewCache(registeredUserId);
+      updateTableSettingsPreference.mutate({
+        columnSettings: normalizedColumns,
+        viewSettings: normalizedView,
+      });
+      return;
+    }
+    writeGuestElectricalTableColumnSettings(normalizedColumns);
+    writeGuestElectricalTableViewSettings(normalizedView);
+    setColumnSettingsOpen(false);
+    message.success('Настройки таблицы сохранены');
+  }, [isRegisteredUser, registeredUserId, updateTableSettingsPreference]);
+
+  const applyColumnWidth = useCallback((key: ElectricalColumnKey, widthPct: number) => {
+    const nextSettings = setElectricalTableColumnWidthPct(
+      tableColumnSettingsRef.current,
+      key,
+      clampElectricalTableColumnWidthPct(widthPct),
+    );
+    persistTableColumnSettings(nextSettings, { showMessage: false });
+  }, [persistTableColumnSettings]);
+
+  const startColumnResize = useCallback((
+    meta: { key: ElectricalColumnKey; width: number; widthPct: number },
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth = meta.width;
+    let latestWidthPct = meta.widthPct;
+    let frameId: number | null = null;
+
+    function flushDraftWidth() {
+      frameId = null;
+      setTableColumnSettings((settings) =>
+        setElectricalTableColumnWidthPct(settings, meta.key, latestWidthPct),
+      );
+    }
+
+    function handlePointerMove(pointerEvent: PointerEvent) {
+      const nextWidthPx = Math.max(30, startWidth + pointerEvent.clientX - startX);
+      latestWidthPct = electricalTableColumnWidthPxToPct(nextWidthPx);
+      if (frameId == null) {
+        frameId = window.requestAnimationFrame(flushDraftWidth);
+      }
+    }
+
+    function handlePointerUp() {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      if (frameId != null) {
+        window.cancelAnimationFrame(frameId);
+        frameId = null;
+      }
+      applyColumnWidth(meta.key, latestWidthPct);
+    }
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }, [applyColumnWidth]);
+
+  const electricalColumns = useMemo<ColumnsType<ProjectObject>>(() =>
+    visibleElectricalColumnMetas.map((column) => {
+      const renderer = electricalColumnRenderers[column.key];
+      const capability = fieldCapabilityByKey.get(column.key);
+      const filterEnabled = column.key !== 'index' && (capability?.filter.enabled ?? false);
+      const sortEnabled = column.key !== 'index' && (capability?.sort.enabled ?? false);
+      const filterKind = filterKindForElectricalColumn(column.key, capability);
+      const activeFilter = tableViewState.filters[column.key];
+      return {
+        key: column.key,
+        title: (
+          <ResizableColumnTitle
+            title={column.title}
+            label={column.label}
+            onResizeStart={(event) => startColumnResize(column, event)}
+          />
+        ),
+        columnKey: column.key,
+        width: Math.max(column.width, column.minWidthPx),
+        align: renderer?.align,
+        ellipsis: column.ellipsis || renderer?.ellipsis,
+        render: renderer?.render ?? (() => '—'),
+        sorter: sortEnabled,
+        sortOrder: sortEnabled && tableViewState.sort?.columnKey === column.key
+          ? tableViewState.sort.direction === 'asc'
+            ? 'ascend'
+            : 'descend'
+          : null,
+        showSorterTooltip: false,
+        filtered: isColumnFilterActive(activeFilter),
+        filterIcon: filterEnabled ? () => (
+          <span role="button" aria-label={`Фильтр ${column.label}`} className="table-filter-trigger">
+            <FilterFilled
+              className={isColumnFilterActive(activeFilter) ? 'table-filter-icon active' : 'table-filter-icon'}
+            />
+          </span>
+        ) : undefined,
+        filterDropdown: filterEnabled ? ({ close }) => (
+          <ColumnFilterDropdown
+            title={column.label}
+            kind={filterKind}
+            filter={activeFilter}
+            enumOptions={enumOptionsByColumn[column.key] ?? []}
+            onApply={(filter) => setColumnFilter(column.key, filter)}
+            onReset={() => resetColumnFilter(column.key)}
+            onClose={close}
+          />
+        ) : undefined,
+      };
+    }), [
+      electricalColumnRenderers,
+      enumOptionsByColumn,
+      fieldCapabilityByKey,
+      resetColumnFilter,
+      setColumnFilter,
+      startColumnResize,
+      tableViewState,
+      visibleElectricalColumnMetas,
+    ]);
+
+  const electricalColumnCopyValue = useCallback((
+    key: ElectricalColumnKey,
+    obj: ProjectObject,
+    index: number,
+  ) => {
+    const calc = stats.calcByObjectId[obj.id];
+    switch (key) {
+      case 'index':
+        return (pageInfo?.offset ?? 0) + index + 1;
+      case 'object_name':
+        return obj.params?.name ?? `${obj.object_type} ${obj.id}`;
+      case 'object_type':
+        return OBJECT_TYPE_LABEL[obj.object_type] ?? obj.object_type;
+      case 'heat_loss_status':
+        return obj.is_valid ? 'Рассчитан' : obj.validation_errors ? 'Ошибка' : 'Не рассчитан';
+      case 'electrical_status':
+        return isElectricalCalcSuccess(calc)
+          ? 'Рассчитан'
+          : electricalCalcError(calc)
+            ? 'Ошибка'
+            : 'Не рассчитан';
+      case 'cable_type':
+        return CABLE_TYPE_LABEL[(calc?.cable_type ?? cableType) as CableTypeKey] ?? calc?.cable_type;
+      case 'cable_mark':
+        return getCableMark(calc) ?? 'Авто';
+      case 'selected_cable':
+        return valueText(calc?.results?.selected_cable);
+      case 'variant_number':
+        return calc?.variant_number ?? variant;
+      case 'winding_pitch_mm':
+        return valueText(calc?.results?.winding_pitch);
+      case 'number_of_threads':
+        return valueText(calc?.results?.num_circuits);
+      case 'laying_step':
+      case 'heating_height':
+      case 'connection_type':
+      case 'supply_voltage':
+      case 'winding_coefficient':
+      case 'vapor_temperature':
+      case 'aggressive_product':
+        return valueText(calc?.params?.[key]);
+      case 'cable_length':
+      case 'total_power':
+      case 'current':
+      case 'voltage':
+        return valueText(calc?.results?.[key]);
+      case 'heat_loss_per_meter':
+      case 'heat_loss_per_m2':
+      case 'total_heat_loss':
+        return valueText(obj.results?.[key]);
+      case 'message':
+        return electricalCalcError(calc) ?? '';
+      default:
+        return '';
+    }
+  }, [cableType, pageInfo?.offset, stats.calcByObjectId, variant]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.key !== 'c') return;
+      if (selectedRowKeys.length === 0) return;
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
+
+      const selectedRows = objects
+        .map((object, index) => ({ object, index }))
+        .filter(({ object }) => selectedRowKeys.includes(object.id));
+      if (selectedRows.length === 0) return;
+      const header = visibleElectricalColumnMetas.map((meta) => meta.title);
+      const rows = selectedRows.map(({ object, index }) =>
+        visibleElectricalColumnMetas.map((meta) =>
+          String(electricalColumnCopyValue(meta.key, object, index) ?? ''),
+        ),
+      );
+      copyToClipboard(buildTsv([header, ...rows])).then(() => {
+        message.success(`Скопировано строк: ${selectedRows.length}`);
+      });
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [
+    electricalColumnCopyValue,
+    objects,
+    selectedRowKeys,
+    visibleElectricalColumnMetas,
+  ]);
+
+  const electricalTableScrollX = useMemo(
+    () => Math.max(
+      1200,
+      visibleElectricalColumnMetas.reduce(
+        (sum, column) => sum + Math.max(column.width, column.minWidthPx),
+        36,
+      ),
+    ),
+    [visibleElectricalColumnMetas],
+  );
+
+  function openColumnSettings() {
+    setDraftTableColumnSettings(normalizeElectricalTableColumnSettings(tableColumnSettings));
+    setDraftTableViewSettings(normalizeElectricalTableViewSettings(tableViewSettings));
+    setColumnSettingsOpen(true);
+  }
+
+  function updateDraftColumn(key: ElectricalColumnKey, checked: boolean) {
+    setDraftTableColumnSettings((settings) =>
+      setElectricalTableColumnVisibility(settings, key, checked),
+    );
+  }
+
+  function updateDraftColumnOrder(key: ElectricalColumnKey, order: number) {
+    setDraftTableColumnSettings((settings) =>
+      moveElectricalTableColumnToOrder(settings, key, order),
+    );
+  }
+
+  function reorderDraftColumn(activeKey: ElectricalColumnKey, overKey: ElectricalColumnKey) {
+    setDraftTableColumnSettings((settings) =>
+      reorderElectricalTableColumn(settings, activeKey, overKey),
+    );
+  }
+
+  function updateDraftColumnWidth(key: ElectricalColumnKey, widthPct: number) {
+    setDraftTableColumnSettings((settings) =>
+      setElectricalTableColumnWidthPct(settings, key, widthPct),
+    );
+  }
+
+  function updateDraftTableFontSize(fontSize: ElectricalTableFontSize) {
+    setDraftTableViewSettings((settings) =>
+      normalizeElectricalTableViewSettings({ ...settings, fontSize }),
+    );
+  }
+
+  function resetDraftTableFontSize() {
+    const defaultView = getDefaultElectricalTableViewSettings();
+    setDraftTableViewSettings((settings) =>
+      normalizeElectricalTableViewSettings({
+        ...settings,
+        fontSize: defaultView.fontSize,
+      }),
+    );
+  }
+
+  function updateDraftTableLabelFormat(tableLabelFormat: ElectricalTableLabelFormat) {
+    setDraftTableViewSettings((settings) =>
+      normalizeElectricalTableViewSettings({
+        ...settings,
+        tableLabelFormat,
+      }),
+    );
+  }
+
+  function updateDraftSettingsLabelFormat(settingsLabelFormat: ElectricalTableLabelFormat) {
+    setDraftTableViewSettings((settings) =>
+      normalizeElectricalTableViewSettings({
+        ...settings,
+        settingsLabelFormat,
+      }),
+    );
+  }
+
+  function resetDraftLabelFormats() {
+    const defaultView = getDefaultElectricalTableViewSettings();
+    setDraftTableViewSettings((settings) =>
+      normalizeElectricalTableViewSettings({
+        ...settings,
+        tableLabelFormat: defaultView.tableLabelFormat,
+        settingsLabelFormat: defaultView.settingsLabelFormat,
+      }),
+    );
+  }
+
+  function resetDraftColumnWidth(key: ElectricalColumnKey) {
+    setDraftTableColumnSettings((settings) => resetElectricalTableColumnWidth(settings, key));
+  }
+
+  function resetDraftColumns() {
+    setDraftTableColumnSettings(resetElectricalTableColumnSettings());
+  }
+
+  function selectAllDraftColumns() {
+    setDraftTableColumnSettings((settings) =>
+      createElectricalTableColumnSettingsPatch(settings, getAvailableElectricalTableColumnKeys()),
+    );
+  }
+
+  function applyColumnSettings() {
+    const normalized = normalizeElectricalTableColumnSettings(draftTableColumnSettings);
+    const normalizedView = normalizeElectricalTableViewSettings(draftTableViewSettings);
+    persistTableSettings(normalized, normalizedView);
+  }
 
   if (!project) {
     return (
@@ -600,6 +1677,7 @@ export default function ElecCalcPage() {
   }));
 
   const totalObjects = pageSummary?.total_objects ?? objects.length;
+  const filteredTableCount = electricalPage?.counts?.filtered ?? totalObjects;
   const validObjectsCount = pageSummary?.valid_objects ?? stats.validObjects.length;
   const calculatedCount = pageSummary?.calculated_count ?? stats.calcedCount;
   const failedCount = pageSummary?.failed_count ?? stats.failedCount;
@@ -755,6 +1833,27 @@ export default function ElecCalcPage() {
               Отменить
             </Button>
           )}
+          <Button
+            size="small"
+            icon={<TableOutlined />}
+            aria-label="Настройки отображения"
+            onClick={openColumnSettings}
+          >
+            Настройки отображения
+          </Button>
+          <Tooltip title={currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
+            <span className="action-tooltip-wrap">
+              <Button
+                size="small"
+                icon={<CloseCircleOutlined />}
+                aria-label="Сбросить фильтры таблицы"
+                disabled={!currentTableViewActive}
+                onClick={resetCurrentTableViewState}
+              >
+                Сбросить фильтры
+              </Button>
+            </span>
+          </Tooltip>
           <div style={{ marginLeft: 'auto' }}>
             <Button size="small" onClick={() => navigate(ROUTES.specification)}>
               Спецификация →
@@ -782,26 +1881,23 @@ export default function ElecCalcPage() {
             />
           ) : (
             <Table<ProjectObject>
-              className="calc-spreadsheet electrical-spreadsheet"
+              className={`calc-spreadsheet calc-spreadsheet--${resolvedTableFontSize.key} electrical-spreadsheet`}
               rowKey="id"
               size="small"
               loading={isElectricalPageFetching}
               pagination={{
                 current: tablePage,
                 pageSize: tablePageSize,
-                total: totalObjects,
+                total: filteredTableCount,
                 pageSizeOptions: ['25', '50', '100'],
                 showSizeChanger: true,
-                hideOnSinglePage: totalObjects <= tablePageSize,
+                hideOnSinglePage: filteredTableCount <= tablePageSize,
                 showTotal: (total, range) => `${range[0]}-${range[1]} из ${total}`,
                 size: 'small',
-                onChange: (nextPage, nextPageSize) => {
-                  setTablePage(nextPage);
-                  setTablePageSize(nextPageSize);
-                },
               }}
               dataSource={objects}
-              scroll={{ x: 1200, y: 'calc(100vh - 430px)' }}
+              onChange={handleElectricalTableChange}
+              scroll={{ x: electricalTableScrollX, y: 'calc(100vh - 430px)' }}
               rowClassName={(obj) =>
                 [
                   electricalCalcError(stats.calcByObjectId[obj.id]) ? 'row-invalid' : '',
@@ -821,6 +1917,16 @@ export default function ElecCalcPage() {
                 columnWidth: 36,
               }}
               columns={electricalColumns}
+              locale={{
+                emptyText: currentTableViewActive && totalObjects > 0 ? (
+                  <div className="table-filter-empty">
+                    <Text type="secondary">Нет строк по текущим фильтрам</Text>
+                    <Button size="small" onClick={resetCurrentTableViewState}>
+                      Сбросить фильтры
+                    </Button>
+                  </div>
+                ) : undefined,
+              }}
             />
           )}
 
@@ -854,6 +1960,30 @@ export default function ElecCalcPage() {
         </Card>
 
       </Space>
+      {columnSettingsOpen && (
+        <ElectricalColumnSettingsModal
+          open={columnSettingsOpen}
+          settings={draftTableColumnSettings}
+          viewSettings={draftTableViewSettings}
+          confirmLoading={
+            updateTableColumnPreference.isPending || updateTableSettingsPreference.isPending
+          }
+          onOk={applyColumnSettings}
+          onCancel={() => setColumnSettingsOpen(false)}
+          onSelectAllColumns={selectAllDraftColumns}
+          onResetColumns={resetDraftColumns}
+          onVisibleChange={updateDraftColumn}
+          onOrderChange={updateDraftColumnOrder}
+          onColumnReorder={reorderDraftColumn}
+          onWidthChange={updateDraftColumnWidth}
+          onResetWidth={resetDraftColumnWidth}
+          onFontSizeChange={updateDraftTableFontSize}
+          onTableLabelFormatChange={updateDraftTableLabelFormat}
+          onSettingsLabelFormatChange={updateDraftSettingsLabelFormat}
+          onResetFontSize={resetDraftTableFontSize}
+          onResetLabelFormats={resetDraftLabelFormats}
+        />
+      )}
     </>
   );
 }

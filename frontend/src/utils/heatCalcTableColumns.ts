@@ -66,8 +66,8 @@ interface RegisteredTableColumnCache {
   cachedAt: string;
 }
 
-export const HEATCALC_TABLE_COLUMNS_VERSION = 7;
-// The preference key is intentionally unchanged: v7 extends the existing table
+export const HEATCALC_TABLE_COLUMNS_VERSION = 8;
+// The preference key is intentionally unchanged: v8 extends the existing table
 // config instead of creating a parallel source of truth.
 export const HEATCALC_TABLE_COLUMN_PREF_KEY = 'heatcalc.tableColumns.v1';
 export const HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY = 'heatcalc.tableColumns.v1.guest';
@@ -79,6 +79,7 @@ export const HEATCALC_TABLE_COLUMN_MAX_WIDTH_PCT = 60;
 export const HEATCALC_ALL_OBJECT_COLUMN_KEYS: HeatCalcColumnKey[] = [
   'index',
   'heat_loss_status',
+  'total_heat_loss',
   'type',
   'name',
   'placement',
@@ -407,6 +408,40 @@ function migrateTableColumnSettings(
         all: normalizeTypeSettingsFromStructuredValue(
           'all',
           insertVisibleColumnAfter(next.types.all, 'heat_loss_status', 'index'),
+        ),
+      },
+    };
+  }
+  if (sourceVersion < 8) {
+    const pipeWithLinearHeatLoss = insertVisibleColumnAfter(
+      next.types.pipe,
+      'heat_loss_per_meter',
+      'heat_loss_status',
+    );
+    const pipeWithTotalHeatLoss = insertVisibleColumnAfter(
+      pipeWithLinearHeatLoss,
+      'total_heat_loss',
+      'heat_loss_per_meter',
+    );
+    const tankWithSpecificHeatLoss = insertVisibleColumnAfter(
+      next.types.tank,
+      'heat_loss_per_m2',
+      'heat_loss_status',
+    );
+    const tankWithTotalHeatLoss = insertVisibleColumnAfter(
+      tankWithSpecificHeatLoss,
+      'total_heat_loss',
+      'heat_loss_per_m2',
+    );
+    next = {
+      ...next,
+      types: {
+        ...next.types,
+        pipe: normalizeTypeSettingsFromStructuredValue('pipe', pipeWithTotalHeatLoss),
+        tank: normalizeTypeSettingsFromStructuredValue('tank', tankWithTotalHeatLoss),
+        all: normalizeTypeSettingsFromStructuredValue(
+          'all',
+          insertVisibleColumnAfter(next.types.all, 'total_heat_loss', 'heat_loss_status'),
         ),
       },
     };

@@ -2393,14 +2393,60 @@ html, body, #root {
   font-size: 11px;
 }
 
+.column-layout-nature-tag,
 .column-layout-computed-tag {
   flex: 0 0 auto;
   margin-inline-end: 0;
-  border-color: #b7d5ef;
-  background: #eef7ff;
-  color: #24527a;
   font-size: 10px;
   line-height: 16px;
+}
+
+.column-layout-nature-tag--input {
+  border-color: #b6c7d6;
+  background: #f5f8fb;
+  color: #34485b;
+}
+
+.column-layout-nature-tag--computed {
+  border-color: #90bddf;
+  background: #edf6ff;
+  color: #214f73;
+}
+
+.column-layout-computed-tag--result {
+  border-color: #8fc7a8;
+  background: #eefaf3;
+  color: #216444;
+}
+
+.column-layout-computed-tag--specific {
+  border-color: #9fc7ec;
+  background: #eef7ff;
+  color: #24527a;
+}
+
+.column-layout-computed-tag--applied {
+  border-color: #b7c9ef;
+  background: #f2f6ff;
+  color: #2c4e92;
+}
+
+.column-layout-computed-tag--geometry {
+  border-color: #c8b9e8;
+  background: #f7f2ff;
+  color: #5a3f8f;
+}
+
+.column-layout-computed-tag--resistance {
+  border-color: #d6bf9e;
+  background: #fff7ed;
+  color: #755121;
+}
+
+.column-layout-computed-tag--derived {
+  border-color: #c7d0da;
+  background: #f4f7fa;
+  color: #485868;
 }
 
 .column-layout-empty {

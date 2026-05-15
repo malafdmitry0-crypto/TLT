@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "columns": {
+    "index": {
+      "labels": { "short": "#", "full": "Номер строки", "compact": "#" },
+      "group": "Основные",
+      "source": "service",
+      "valueType": "service",
+      "description": "Порядковый номер строки на текущей странице таблицы."
+    },
+    "object_name": {
+      "labels": { "short": "Объект", "full": "Наименование объекта", "compact": "Объект" },
+      "group": "Основные",
+      "source": "params",
+      "valueType": "input",
+      "description": "Наименование объекта из project_objects.params.name."
+    },
+    "object_type": {
+      "labels": { "short": "Тип", "full": "Тип объекта", "compact": "Тип" },
+      "group": "Основные",
+      "source": "params",
+      "valueType": "input",
+      "description": "Тип объекта: трубопровод или резервуар."
+    },
+    "heat_loss_status": {
+      "labels": { "short": "Теплопотери", "full": "Статус теплового расчёта", "compact": "ТП" },
+      "group": "Диагностика",
+      "source": "project_objects",
+      "valueType": "computed",
+      "description": "Статус предыдущего расчёта теплопотерь объекта."
+    },
+    "electrical_status": {
+      "labels": { "short": "Статус", "full": "Статус электрорасчёта", "compact": "Статус" },
+      "group": "Диагностика",
+      "source": "electrical_calculations",
+      "valueType": "service",
+      "description": "Показывает, рассчитан ли объект, есть ли ошибка или расчёт ещё не выполнен."
+    },
+    "cable_type": {
+      "labels": { "short": "Тип кабеля", "full": "Тип греющего кабеля", "compact": "Тип каб." },
+      "group": "Кабель",
+      "source": "electrical_calculations",
+      "valueType": "input",
+      "description": "Тип кабеля, с которым выполнен расчёт варианта СО."
+    },
+    "cable_mark": {
+      "labels": { "short": "Марка", "full": "Марка кабеля", "compact": "Марка" },
+      "group": "Кабель",
+      "source": "electrical_calculations",
+      "valueType": "input",
+      "description": "Подобранная или вручную выбранная марка кабеля."
+    },
+    "selected_cable": {
+      "labels": { "short": "Подбор", "full": "Подобранный кабель", "compact": "Подбор" },
+      "group": "Кабель",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Марка кабеля из результата электрорасчёта."
+    },
+    "variant_number": {
+      "labels": { "short": "СО", "full": "Вариант СО", "compact": "СО" },
+      "group": "Кабель",
+      "source": "electrical_calculations",
+      "valueType": "service",
+      "description": "Номер варианта системы обогрева."
+    },
+    "winding_pitch_mm": {
+      "labels": { "short": "Шаг навива, мм", "full": "Шаг навива кабеля, мм", "compact": "Шаг, мм" },
+      "group": "Укладка",
+      "source": "results",
+      "valueType": "input",
+      "description": "Шаг навива кабеля. В строке можно изменить значение для пересчёта объекта."
+    },
+    "number_of_threads": {
+      "labels": { "short": "Ниток", "full": "Количество ниток кабеля", "compact": "Ниток" },
+      "group": "Укладка",
+      "source": "results",
+      "valueType": "input",
+      "description": "Количество параллельных ниток кабеля для объекта."
+    },
+    "laying_step": {
+      "labels": { "short": "Шаг укладки, м", "full": "Шаг укладки на резервуаре, м", "compact": "Шаг укл." },
+      "group": "Укладка",
+      "source": "params",
+      "valueType": "input",
+      "description": "Шаг укладки кабеля на резервуаре из параметров электрорасчёта."
+    },
+    "heating_height": {
+      "labels": { "short": "Высота обогр., м", "full": "Высота обогреваемой зоны, м", "compact": "H обогр." },
+      "group": "Укладка",
+      "source": "params",
+      "valueType": "input",
+      "description": "Высота обогреваемой зоны для резервуаров."
+    },
+    "connection_type": {
+      "labels": { "short": "Схема", "full": "Схема подключения", "compact": "Схема" },
+      "group": "Электропараметры",
+      "source": "params",
+      "valueType": "input",
+      "description": "Схема подключения резистивного кабеля."
+    },
+    "supply_voltage": {
+      "labels": { "short": "U, В", "full": "Рабочее напряжение, В", "compact": "U" },
+      "group": "Электропараметры",
+      "source": "params",
+      "valueType": "input",
+      "description": "Напряжение питания, переданное в электрорасчёт."
+    },
+    "winding_coefficient": {
+      "labels": { "short": "w", "full": "Коэффициент навива", "compact": "w" },
+      "group": "Электропараметры",
+      "source": "params",
+      "valueType": "input",
+      "description": "Коэффициент навива для резистивного расчёта."
+    },
+    "vapor_temperature": {
+      "labels": { "short": "T проп., °C", "full": "Температура пропарки, °C", "compact": "T проп." },
+      "group": "Электропараметры",
+      "source": "params",
+      "valueType": "input",
+      "description": "Температура пропарки для ТТН/ТТВ/ТТХ. Может задаваться глобально или на объекте."
+    },
+    "aggressive_product": {
+      "labels": { "short": "Агр.", "full": "Агрессивный продукт", "compact": "Агр." },
+      "group": "Электропараметры",
+      "source": "params",
+      "valueType": "input",
+      "description": "Признак агрессивного продукта для выбора исполнения кабеля."
+    },
+    "cable_length": {
+      "labels": { "short": "Длина, м", "full": "Расчётная длина кабеля, м", "compact": "L каб." },
+      "group": "Результат",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Длина кабеля из результата электрорасчёта."
+    },
+    "total_power": {
+      "labels": { "short": "Мощность, Вт", "full": "Суммарная мощность, Вт", "compact": "P" },
+      "group": "Результат",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Суммарная электрическая мощность объекта."
+    },
+    "current": {
+      "labels": { "short": "Ток, А", "full": "Расчётный ток, А", "compact": "I" },
+      "group": "Результат",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Расчётный ток объекта."
+    },
+    "voltage": {
+      "labels": { "short": "U расч., В", "full": "Напряжение в результате расчёта, В", "compact": "U расч." },
+      "group": "Результат",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Напряжение, применённое в результате электрорасчёта."
+    },
+    "heat_loss_per_meter": {
+      "labels": { "short": "q, Вт/м", "full": "Теплопотери трубы, Вт/м", "compact": "q" },
+      "group": "Теплопотери",
+      "source": "project_objects.results",
+      "valueType": "computed",
+      "description": "Удельные теплопотери трубы из теплового расчёта."
+    },
+    "heat_loss_per_m2": {
+      "labels": { "short": "q, Вт/м²", "full": "Теплопотери резервуара, Вт/м²", "compact": "q м²" },
+      "group": "Теплопотери",
+      "source": "project_objects.results",
+      "valueType": "computed",
+      "description": "Удельные теплопотери резервуара из теплового расчёта."
+    },
+    "total_heat_loss": {
+      "labels": { "short": "Q тепл., Вт", "full": "Суммарные теплопотери, Вт", "compact": "Q тепл." },
+      "group": "Теплопотери",
+      "source": "project_objects.results",
+      "valueType": "computed",
+      "description": "Суммарные теплопотери объекта из теплового расчёта."
+    },
+    "message": {
+      "labels": { "short": "Сообщение", "full": "Сообщение расчёта", "compact": "Сообщ." },
+      "group": "Диагностика",
+      "source": "electrical_calculations.results",
+      "valueType": "service",
+      "description": "Текст ошибки или диагностическое сообщение электрорасчёта."
+    }
+  },
+  "table": {
+    "default_visible": [
+      "index",
+      "object_name",
+      "electrical_status",
+      "cable_mark",
+      "winding_pitch_mm",
+      "number_of_threads",
+      "cable_length",
+      "total_power",
+      "current",
+      "message"
+    ],
+    "registry": [
+      { "key": "index", "defaultWidthPct": 4, "minWidthPx": 40, "required": true },
+      { "key": "object_name", "defaultWidthPct": 22, "minWidthPx": 160, "required": true, "ellipsis": true },
+      { "key": "object_type", "defaultWidthPct": 8, "minWidthPx": 80 },
+      { "key": "heat_loss_status", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "electrical_status", "defaultWidthPct": 5.6, "minWidthPx": 56 },
+      { "key": "cable_type", "defaultWidthPct": 13, "minWidthPx": 120 },
+      { "key": "cable_mark", "defaultWidthPct": 18, "minWidthPx": 140 },
+      { "key": "selected_cable", "defaultWidthPct": 14, "minWidthPx": 120 },
+      { "key": "variant_number", "defaultWidthPct": 5, "minWidthPx": 52 },
+      { "key": "winding_pitch_mm", "defaultWidthPct": 12, "minWidthPx": 90 },
+      { "key": "number_of_threads", "defaultWidthPct": 7.4, "minWidthPx": 60 },
+      { "key": "laying_step", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "heating_height", "defaultWidthPct": 11, "minWidthPx": 100 },
+      { "key": "connection_type", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "supply_voltage", "defaultWidthPct": 8, "minWidthPx": 74 },
+      { "key": "winding_coefficient", "defaultWidthPct": 7, "minWidthPx": 64 },
+      { "key": "vapor_temperature", "defaultWidthPct": 10, "minWidthPx": 92 },
+      { "key": "aggressive_product", "defaultWidthPct": 7, "minWidthPx": 64 },
+      { "key": "cable_length", "defaultWidthPct": 9, "minWidthPx": 70 },
+      { "key": "total_power", "defaultWidthPct": 11, "minWidthPx": 90 },
+      { "key": "current", "defaultWidthPct": 8, "minWidthPx": 70 },
+      { "key": "voltage", "defaultWidthPct": 8, "minWidthPx": 74 },
+      { "key": "heat_loss_per_meter", "defaultWidthPct": 9, "minWidthPx": 80 },
+      { "key": "heat_loss_per_m2", "defaultWidthPct": 9, "minWidthPx": 80 },
+      { "key": "total_heat_loss", "defaultWidthPct": 11, "minWidthPx": 90 },
+      { "key": "message", "defaultWidthPct": 26, "minWidthPx": 180, "ellipsis": true }
+    ]
+  }
+}

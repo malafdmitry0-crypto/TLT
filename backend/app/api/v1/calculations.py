@@ -16,12 +16,19 @@ from app.schemas.calculation import (
     ElectricalCalcSummary,
     ElectricalPageResponse,
     ElectricalPageSummary,
+    ElectricalQueryCapabilitiesResponse,
+    ElectricalQueryRequest,
+    ElectricalQueryResponse,
     ElectricalRequest,
     ElectricalResponse,
     HeatLossRequest,
     HeatLossResponse,
 )
 from app.services.calculation_service import CalculationError, CalculationService
+from app.services.electrical_query_service import (
+    ElectricalQueryService,
+    ElectricalQueryValidationError,
+)
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 
 router = APIRouter()
@@ -123,6 +130,7 @@ async def list_electrical(
             cable_type=c.cable_type,
             cable_mark=c.cable_mark,
             variant_number=c.variant_number,
+            params=c.params,
             results=c.results,
         )
         for c in calcs
@@ -166,6 +174,7 @@ async def electrical_page(
                 cable_type=c.cable_type,
                 cable_mark=c.cable_mark,
                 variant_number=c.variant_number,
+                params=c.params,
                 results=c.results,
             )
             for c in calculations
@@ -173,6 +182,57 @@ async def electrical_page(
         summary=ElectricalPageSummary(**summary),
         page_info=page_info,
     )
+
+
+@router.get(
+    "/electrical/query-capabilities",
+    response_model=ElectricalQueryCapabilitiesResponse,
+    summary="Возможности backend-фильтров и сортировок таблицы электрорасчёта",
+)
+async def electrical_query_capabilities(
+    project_id: UUID,
+    variant_number: int = 1,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await ElectricalQueryService(db).capabilities(
+            project_id,
+            variant_number,
+            principal,
+        )
+    except ElectricalQueryValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ProjectAccessError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.post(
+    "/electrical/query",
+    response_model=ElectricalQueryResponse,
+    summary="Постраничный backend-query таблицы электрорасчёта",
+)
+async def query_electrical(
+    data: ElectricalQueryRequest,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await ElectricalQueryService(db).query(data, principal)
+    except ElectricalQueryValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ProjectAccessError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
 @router.post(
@@ -238,6 +298,7 @@ async def select_cable(
         cable_type=calc.cable_type,
         cable_mark=calc.cable_mark,
         variant_number=calc.variant_number,
+        params=calc.params,
         results=calc.results,
     )
 
@@ -306,6 +367,7 @@ async def batch_calc_electrical(
                 cable_type=c.cable_type,
                 cable_mark=c.cable_mark,
                 variant_number=c.variant_number,
+                params=c.params,
                 results=c.results,
             )
             for c in calcs

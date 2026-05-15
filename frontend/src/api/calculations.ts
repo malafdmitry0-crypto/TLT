@@ -5,6 +5,9 @@ import type {
   CalculationTaskResponse,
   ElectricalCalcSummary,
   ElectricalPageResponse,
+  ElectricalQueryCapabilities,
+  ElectricalQueryRequest,
+  ElectricalQueryResponse,
   ElectricalRequest,
   ElectricalResponse,
   HeatLossRequest,
@@ -67,6 +70,32 @@ export async function getElectricalPage(
       page_size: pageSize,
     },
   });
+  return data;
+}
+
+export async function getElectricalQueryCapabilities(
+  projectId: string,
+  variantNumber: number = 1,
+): Promise<ElectricalQueryCapabilities> {
+  const { data } = await apiClient.get<ElectricalQueryCapabilities>(
+    '/calc/electrical/query-capabilities',
+    {
+      params: {
+        project_id: projectId,
+        variant_number: variantNumber,
+      },
+    },
+  );
+  return data;
+}
+
+export async function queryElectrical(
+  payload: ElectricalQueryRequest,
+): Promise<ElectricalQueryResponse> {
+  const { data } = await apiClient.post<ElectricalQueryResponse>(
+    '/calc/electrical/query',
+    payload,
+  );
   return data;
 }
 

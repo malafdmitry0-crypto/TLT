@@ -66,6 +66,8 @@ describe('heatCalcTableColumns', () => {
       'name',
       'placement',
       'heat_loss_status',
+      'heat_loss_per_meter',
+      'total_heat_loss',
     ]);
     expect(settings.types.pipe.columns.pipe_dn).toMatchObject({ widthPct: 5.8 });
     expect(settings.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
@@ -85,9 +87,11 @@ describe('heatCalcTableColumns', () => {
       },
     });
 
-    expect(settings.types.pipe.visibleOrder.slice(0, 4)).toEqual([
+    expect(settings.types.pipe.visibleOrder.slice(0, 6)).toEqual([
       'index',
       'heat_loss_status',
+      'heat_loss_per_meter',
+      'total_heat_loss',
       'name',
       'placement',
     ]);
@@ -107,6 +111,8 @@ describe('heatCalcTableColumns', () => {
     expect(settings.types.pipe.visibleOrder).toEqual([
       'index',
       'heat_loss_status',
+      'heat_loss_per_meter',
+      'total_heat_loss',
       'name',
       'valve_count',
       'flange_count',
@@ -134,17 +140,21 @@ describe('heatCalcTableColumns', () => {
     const moved = moveTableColumnToOrder(settings, 'pipe', 'pipe_dn', 3);
     const keys = getAllTableColumnMetas('pipe', moved).map((column) => column.key);
 
-    expect(keys.slice(0, 5)).toEqual([
+    expect(keys.slice(0, 7)).toEqual([
       'index',
       'heat_loss_status',
       'pipe_dn',
+      'heat_loss_per_meter',
+      'total_heat_loss',
       'name',
       'placement',
     ]);
-    expect(moved.types.pipe.visibleOrder.slice(0, 5)).toEqual([
+    expect(moved.types.pipe.visibleOrder.slice(0, 7)).toEqual([
       'index',
       'heat_loss_status',
       'pipe_dn',
+      'heat_loss_per_meter',
+      'total_heat_loss',
       'name',
       'placement',
     ]);
@@ -155,7 +165,8 @@ describe('heatCalcTableColumns', () => {
     const settings = getDefaultTableColumnSettings();
     const moved = reorderTableColumn(settings, 'pipe', 'pipe_dn', 'pipe_outer_diameter');
 
-    expect(moved.types.pipe.visibleOrder.slice(3, 6)).toEqual([
+    expect(moved.types.pipe.visibleOrder.slice(4, 8)).toEqual([
+      'name',
       'placement',
       'pipe_dn',
       'pipe_outer_diameter',
@@ -182,6 +193,23 @@ describe('heatCalcTableColumns', () => {
     expect(visibleTank).not.toContain('vapor_temperature');
     expect(allPipe).toContain('vapor_temperature');
     expect(allTank).toContain('vapor_temperature');
+  });
+
+  it('показывает теплопотери как результатные колонки по умолчанию', () => {
+    const settings = getDefaultTableColumnSettings();
+    const visiblePipe = getVisibleTableColumnMetas('pipe', settings).map((column) => column.key);
+    const visibleTank = getVisibleTableColumnMetas('tank', settings).map((column) => column.key);
+    const visibleAll = getVisibleTableColumnMetas('all', settings).map((column) => column.key);
+
+    expect(visiblePipe).toEqual(expect.arrayContaining([
+      'heat_loss_per_meter',
+      'total_heat_loss',
+    ]));
+    expect(visibleTank).toEqual(expect.arrayContaining([
+      'heat_loss_per_m2',
+      'total_heat_loss',
+    ]));
+    expect(visibleAll).toContain('total_heat_loss');
   });
 
   it('показывает размещение трубопровода в дефолтной таблице', () => {

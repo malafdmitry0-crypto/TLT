@@ -26,6 +26,10 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
             object_type="pipe",
             sort_order=0,
             is_valid=True,
+            results={
+                "heat_loss_per_meter": 40.0,
+                "total_heat_loss": 440.0,
+            },
             params={
                 "name": "Труба Север",
                 "outer_diameter": 0.06,
@@ -40,6 +44,10 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
             object_type="pipe",
             sort_order=1,
             is_valid=False,
+            results={
+                "heat_loss_per_meter": 65.0,
+                "total_heat_loss": 1787.5,
+            },
             params={
                 "name": "Труба Юг",
                 "outer_diameter": 0.219,
@@ -54,6 +62,10 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
             object_type="tank",
             sort_order=2,
             is_valid=True,
+            results={
+                "heat_loss_per_m2": 35.0,
+                "total_heat_loss": 2500.0,
+            },
             params={
                 "name": "Резервуар Юг",
                 "shape": "cylindrical",
@@ -85,6 +97,9 @@ class TestObjectQuery:
         fields = {field["key"]: field for field in resp.json()["fields"]}
         assert fields["pipe_outer_diameter"]["filter"]["ops"] == ["range"]
         assert fields["pipe_outer_diameter"]["sort"]["enabled"] is True
+        assert fields["heat_loss_per_meter"]["filter"]["ops"] == ["range"]
+        assert fields["heat_loss_per_meter"]["sort"]["enabled"] is True
+        assert fields["total_heat_loss"]["filter"]["ops"] == ["range"]
         assert fields["index"]["filter"]["enabled"] is False
         assert fields["index"]["filter"]["reason"] == "display_only"
         assert fields["type"]["sort"]["enabled"] is False
@@ -122,6 +137,33 @@ class TestObjectQuery:
             "filtered": 1,
         }
         assert body["page_info"]["page_size"] == 1
+        assert body["items"][0]["params"]["name"] == "Труба Юг"
+
+    async def test_query_filters_and_sorts_result_heat_loss_fields(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        pid = await _project(client, guest_session)
+        await _seed_objects(db_session, pid)
+
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects/query",
+            json={
+                "object_type": "pipe",
+                "filters": [
+                    {
+                        "key": "heat_loss_per_meter",
+                        "op": "range",
+                        "min": 50,
+                    }
+                ],
+                "sort": {"key": "total_heat_loss", "dir": "desc"},
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["counts"]["filtered"] == 1
         assert body["items"][0]["params"]["name"] == "Труба Юг"
 
     async def test_query_default_page_uses_fast_paginated_response(

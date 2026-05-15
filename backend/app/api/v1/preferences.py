@@ -23,24 +23,72 @@ HEATCALC_TABLE_VIEW_VERSION = 1
 HEATCALC_TABLE_VIEW_KEYS = {
     "version",
     "fontSize",
+    "tableLabelFormat",
+    "settingsLabelFormat",
     "inlineEditingEnabled",
     "formPlacement",
     "sideFormWidthPct",
+    "formSectionWeights",
 }
 HEATCALC_TABLE_VIEW_FONT_SIZES = {"compact", "standard", "comfortable", "large"}
+TABLE_VIEW_LABEL_FORMATS = {"full", "short", "compact"}
 HEATCALC_TABLE_VIEW_FORM_PLACEMENTS = {"top", "bottom", "left", "right"}
 HEATCALC_TABLE_VIEW_SIDE_FORM_WIDTH_MIN = 22
 HEATCALC_TABLE_VIEW_SIDE_FORM_WIDTH_MAX = 62
+HEATCALC_FORM_SECTION_WEIGHT_MIN = 0.35
+HEATCALC_FORM_SECTION_WEIGHT_MAX = 3
 HEATCALC_FIELD_INPUT_PREF_KEY = "heatcalc.fieldInputs.v1"
 HEATCALC_FIELD_INPUT_VERSION = 1
 HEATCALC_FIELD_INPUT_MAX_STEP = 1_000_000
 HEATCALC_FIELD_INPUT_KEYS = {"version", "fields"}
 HEATCALC_FIELD_INPUT_LAYOUT_KEYS = {"step"}
+ELECTRICAL_TABLE_COLUMNS_PREF_KEY = "electrical.tableColumns.v1"
+ELECTRICAL_TABLE_COLUMNS_VERSION = 1
+ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView.v1"
+ELECTRICAL_TABLE_VIEW_VERSION = 1
+ELECTRICAL_TABLE_VIEW_KEYS = {
+    "version",
+    "fontSize",
+    "tableLabelFormat",
+    "settingsLabelFormat",
+}
+ELECTRICAL_TABLE_COLUMN_KEYS = {
+    "index",
+    "object_name",
+    "object_type",
+    "heat_loss_status",
+    "electrical_status",
+    "cable_type",
+    "cable_mark",
+    "selected_cable",
+    "variant_number",
+    "winding_pitch_mm",
+    "number_of_threads",
+    "laying_step",
+    "heating_height",
+    "connection_type",
+    "supply_voltage",
+    "winding_coefficient",
+    "vapor_temperature",
+    "aggressive_product",
+    "cable_length",
+    "total_power",
+    "current",
+    "voltage",
+    "heat_loss_per_meter",
+    "heat_loss_per_m2",
+    "total_heat_loss",
+    "message",
+}
+ELECTRICAL_TABLE_COLUMN_PAYLOAD_KEYS = {"version", "visibleOrder", "columns"}
+ELECTRICAL_TABLE_COLUMN_LAYOUT_KEYS = {"widthPct"}
 
 HEATCALC_TABLE_COLUMN_KEYS: dict[str, set[str]] = {
     "pipe": {
         "index",
         "heat_loss_status",
+        "heat_loss_per_meter",
+        "total_heat_loss",
         "type",
         "name",
         "pipe_outer_diameter",
@@ -101,6 +149,8 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, set[str]] = {
     "tank": {
         "index",
         "heat_loss_status",
+        "heat_loss_per_m2",
+        "total_heat_loss",
         "type",
         "name",
         "tank_shape",
@@ -258,15 +308,60 @@ def _validate_heatcalc_table_columns(value: dict[str, object]) -> None:
                 _preference_validation_error("HeatCalc table column widthPct is out of range")
 
 
+def _validate_electrical_table_columns(value: dict[str, object]) -> None:
+    if set(value) - ELECTRICAL_TABLE_COLUMN_PAYLOAD_KEYS:
+        _preference_validation_error(
+            "Electrical table columns payload can contain only version, visibleOrder and columns"
+        )
+    if value.get("version") != ELECTRICAL_TABLE_COLUMNS_VERSION:
+        _preference_validation_error("Unsupported electrical table column settings version")
+
+    visible_order = value.get("visibleOrder")
+    if not isinstance(visible_order, list) or not all(
+        isinstance(key, str) for key in visible_order
+    ):
+        _preference_validation_error("Electrical table columns visibleOrder must be a string array")
+    if len(visible_order) != len(set(visible_order)):
+        _preference_validation_error(
+            "Electrical table columns visibleOrder contains duplicate keys"
+        )
+    if any(key not in ELECTRICAL_TABLE_COLUMN_KEYS for key in visible_order):
+        _preference_validation_error("Electrical table columns visibleOrder contains unknown key")
+
+    columns = value.get("columns")
+    if not isinstance(columns, dict):
+        _preference_validation_error("Electrical table columns payload requires columns")
+    if any(not isinstance(key, str) or key not in ELECTRICAL_TABLE_COLUMN_KEYS for key in columns):
+        _preference_validation_error("Electrical table columns payload contains unknown column key")
+
+    for layout in columns.values():
+        if not isinstance(layout, dict):
+            _preference_validation_error("Electrical table column layout must be an object")
+        if set(layout) - ELECTRICAL_TABLE_COLUMN_LAYOUT_KEYS:
+            _preference_validation_error("Electrical table column layout can contain only widthPct")
+        if "widthPct" not in layout:
+            continue
+        width_pct = layout["widthPct"]
+        if isinstance(width_pct, bool) or not isinstance(width_pct, int | float):
+            _preference_validation_error("Electrical table column widthPct must be numeric")
+        if not HEATCALC_TABLE_COLUMN_WIDTH_MIN <= width_pct <= HEATCALC_TABLE_COLUMN_WIDTH_MAX:
+            _preference_validation_error("Electrical table column widthPct is out of range")
+
+
 def _validate_heatcalc_table_view(value: dict[str, object]) -> None:
     if set(value) - HEATCALC_TABLE_VIEW_KEYS:
-        _preference_validation_error(
-            "HeatCalc table view payload can contain only version, fontSize, inlineEditingEnabled, formPlacement and sideFormWidthPct"
-        )
+        _preference_validation_error("HeatCalc table view payload contains unsupported keys")
     if value.get("version") != HEATCALC_TABLE_VIEW_VERSION:
         _preference_validation_error("Unsupported heatcalc table view settings version")
     if value.get("fontSize") not in HEATCALC_TABLE_VIEW_FONT_SIZES:
         _preference_validation_error("HeatCalc table view fontSize is unsupported")
+    if "tableLabelFormat" in value and value["tableLabelFormat"] not in TABLE_VIEW_LABEL_FORMATS:
+        _preference_validation_error("HeatCalc table view tableLabelFormat is unsupported")
+    if (
+        "settingsLabelFormat" in value
+        and value["settingsLabelFormat"] not in TABLE_VIEW_LABEL_FORMATS
+    ):
+        _preference_validation_error("HeatCalc table view settingsLabelFormat is unsupported")
     if "inlineEditingEnabled" in value and not isinstance(value["inlineEditingEnabled"], bool):
         _preference_validation_error("HeatCalc table view inlineEditingEnabled must be boolean")
     if value.get("formPlacement") not in HEATCALC_TABLE_VIEW_FORM_PLACEMENTS:
@@ -281,6 +376,36 @@ def _validate_heatcalc_table_view(value: dict[str, object]) -> None:
             <= HEATCALC_TABLE_VIEW_SIDE_FORM_WIDTH_MAX
         ):
             _preference_validation_error("HeatCalc table view sideFormWidthPct is out of range")
+    if "formSectionWeights" in value:
+        weights = value["formSectionWeights"]
+        if not isinstance(weights, list) or len(weights) != 4:
+            _preference_validation_error(
+                "HeatCalc table view formSectionWeights must be a 4-item array"
+            )
+        for weight in weights:
+            if isinstance(weight, bool) or not isinstance(weight, int | float):
+                _preference_validation_error(
+                    "HeatCalc table view formSectionWeights must be numeric"
+                )
+            if not HEATCALC_FORM_SECTION_WEIGHT_MIN <= weight <= HEATCALC_FORM_SECTION_WEIGHT_MAX:
+                _preference_validation_error(
+                    "HeatCalc table view formSectionWeights value is out of range"
+                )
+
+
+def _validate_electrical_table_view(value: dict[str, object]) -> None:
+    if set(value) - ELECTRICAL_TABLE_VIEW_KEYS:
+        _preference_validation_error(
+            "Electrical table view payload can contain only version, fontSize, tableLabelFormat and settingsLabelFormat"
+        )
+    if value.get("version") != ELECTRICAL_TABLE_VIEW_VERSION:
+        _preference_validation_error("Unsupported electrical table view settings version")
+    if value.get("fontSize") not in HEATCALC_TABLE_VIEW_FONT_SIZES:
+        _preference_validation_error("Electrical table view fontSize is unsupported")
+    if value.get("tableLabelFormat") not in TABLE_VIEW_LABEL_FORMATS:
+        _preference_validation_error("Electrical table view tableLabelFormat is unsupported")
+    if value.get("settingsLabelFormat") not in TABLE_VIEW_LABEL_FORMATS:
+        _preference_validation_error("Electrical table view settingsLabelFormat is unsupported")
 
 
 def _validate_heatcalc_field_inputs(value: dict[str, object]) -> None:
@@ -320,8 +445,12 @@ def _validate_heatcalc_field_inputs(value: dict[str, object]) -> None:
 def _validate_preference_value(key: str, value: dict[str, object]) -> None:
     if key == HEATCALC_TABLE_COLUMNS_PREF_KEY:
         _validate_heatcalc_table_columns(value)
+    if key == ELECTRICAL_TABLE_COLUMNS_PREF_KEY:
+        _validate_electrical_table_columns(value)
     if key == HEATCALC_TABLE_VIEW_PREF_KEY:
         _validate_heatcalc_table_view(value)
+    if key == ELECTRICAL_TABLE_VIEW_PREF_KEY:
+        _validate_electrical_table_view(value)
     if key == HEATCALC_FIELD_INPUT_PREF_KEY:
         _validate_heatcalc_field_inputs(value)
 
