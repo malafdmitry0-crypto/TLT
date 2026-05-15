@@ -1053,7 +1053,7 @@ html, body, #root {
   overflow: visible;
 }
 
-.inline-object-form .ant-form-item-label > label[data-field-help]::after {
+.inline-object-form .ant-form-item-label > label[data-field-help]:not([data-field-help-floating])::after {
   content: attr(data-field-help);
   position: absolute;
   z-index: 30;
@@ -1078,10 +1078,35 @@ html, body, #root {
     visibility 0s linear 0.47s;
 }
 
-.inline-object-form .ant-form-item-label > label[data-field-help]:hover::after {
+.inline-object-form .ant-form-item-label > label[data-field-help]:not([data-field-help-floating]):hover::after {
   opacity: 1;
   visibility: visible;
   transition-delay: 0.35s, 0s;
+}
+
+.field-help-floating-tooltip {
+  position: fixed;
+  z-index: 100000;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 6px 8px;
+  border-radius: 3px;
+  background: rgba(35, 40, 48, 0.97);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  opacity: 0;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity 0.12s ease;
+  white-space: normal;
+}
+
+.field-help-floating-tooltip.is-visible {
+  opacity: 1;
 }
 
 .inline-object-form .field-label-two-line {
