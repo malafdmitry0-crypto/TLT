@@ -31,7 +31,6 @@ describe('electricalTableColumns', () => {
       'cable_length',
       'total_power',
       'current',
-      'message',
     ]);
   });
 

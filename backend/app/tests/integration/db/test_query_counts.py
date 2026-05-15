@@ -12,8 +12,10 @@ from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.user import User
+from app.schemas.calculation import ElectricalQueryRequest
 from app.schemas.project import ProjectObjectsQueryRequest
 from app.services.calculation_service import CalculationService
+from app.services.electrical_query_service import ElectricalQueryService
 from app.services.object_query_service import ObjectQueryService
 from app.services.project_service import ProjectService
 
@@ -173,7 +175,7 @@ async def test_default_object_query_is_constant_query_count(
     _assert_query_count(statements, 3)
 
 
-async def test_object_query_fallback_loads_only_requested_type(
+async def test_object_query_search_uses_sql_page_not_python_project_fallback(
     db_session: AsyncSession,
     employee_user: User,
     test_engine: AsyncEngine,
@@ -192,7 +194,7 @@ async def test_object_query_fallback_loads_only_requested_type(
 
     assert response.counts.total == 400
     assert response.counts.filtered > 0
-    _assert_query_count(statements, 3)
+    _assert_query_count(statements, 4)
     object_page_selects = [
         statement
         for statement in statements
@@ -200,6 +202,7 @@ async def test_object_query_fallback_loads_only_requested_type(
     ]
     assert len(object_page_selects) == 1
     assert "project_objects.object_type" in object_page_selects[0]
+    assert "LIMIT" in object_page_selects[0]
 
 
 async def test_batch_electrical_uses_constant_select_count(
@@ -314,6 +317,39 @@ async def test_electrical_project_page_is_constant_query_count_with_many_objects
     _assert_query_count(statements, 4)
 
 
+async def test_electrical_query_search_uses_sql_page_not_python_project_fallback(
+    db_session: AsyncSession,
+    employee_user: User,
+    test_engine: AsyncEngine,
+):
+    project, _objects = await _seed_project(
+        db_session,
+        employee_user,
+        per_type=200,
+        with_electrical=True,
+    )
+
+    with count_sql(test_engine) as statements:
+        response = await ElectricalQueryService(db_session).query(
+            ElectricalQueryRequest(
+                project_id=project.id,
+                search={"text": "Pipe-1", "columns": ["object_name"]},
+            ),
+            _principal(employee_user),
+        )
+
+    assert response.counts.total == 400
+    assert response.counts.filtered > 0
+    _assert_query_count(statements, 7)
+    page_selects = [
+        statement
+        for statement in statements
+        if "LEFT OUTER JOIN electrical_calculations" in statement and "ORDER BY" in statement
+    ]
+    assert len(page_selects) == 1
+    assert "LIMIT" in page_selects[0]
+
+
 async def test_list_projects_uses_lightweight_object_type_lookup(
     db_session: AsyncSession,
     employee_user: User,
@@ -387,6 +423,7 @@ async def test_perf_indexes_are_declared_in_metadata():
         "electrical_calculations": {
             "ix_electrical_calculations_project_variant": ("project_id", "variant_number"),
             "ix_electrical_calculations_object_variant": ("object_id", "variant_number"),
+            "ix_electrical_calculations_cable_type_source": ("cable_type_source",),
         },
         "projects": {
             "ix_projects_user_updated": ("user_id", "updated_at"),

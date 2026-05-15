@@ -55,9 +55,16 @@ import { getCablesTt, getResistiveCables } from '@/api/references';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useElectricalStats } from '@/hooks/useElectricalStats';
-import { isElectricalCalcSuccess, electricalCalcError } from '@/utils/calcStatus';
+import {
+  electricalCalcError,
+  electricalCalcErrorCode,
+  electricalCalcGuidanceContext,
+  electricalCalcSuggestedActions,
+  isElectricalCalcSuccess,
+} from '@/utils/calcStatus';
 import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
+import { getElectricalErrorGuidance } from '@/utils/electricalErrorGuidance';
 import { formatNumber, formatPower } from '@/utils/formatters';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
@@ -167,6 +174,8 @@ type CableLayoutDraft = {
   numberOfThreads?: number | null;
 };
 
+type CableMarkSource = 'auto' | 'manual';
+
 type ElectricalNavigationState = {
   activeJobId?: string;
 } | null;
@@ -185,6 +194,22 @@ type ElectricalTableSettingsPreferenceMutation = {
 function getCableMark(calc: ElectricalCalcSummary | undefined) {
   const selectedCable = calc?.results?.selected_cable;
   return calc?.cable_mark ?? (typeof selectedCable === 'string' ? selectedCable : undefined);
+}
+
+function getCableMarkSource(calc: ElectricalCalcSummary | undefined): CableMarkSource {
+  const value = calc?.cable_mark_source ?? calc?.params?.cable_mark_source;
+  return value === 'manual' ? 'manual' : 'auto';
+}
+
+function cableMarkSourceTag(source: CableMarkSource) {
+  if (source === 'manual') {
+    return {
+      color: 'purple',
+      label: 'ручн.',
+      tooltip: 'Марка кабеля выбрана вручную',
+    };
+  }
+  return null;
 }
 
 function calcLayoutValues(calc: ElectricalCalcSummary | undefined, draft?: CableLayoutDraft) {
@@ -221,6 +246,10 @@ function valueText(value: unknown) {
   if (value === null || value === undefined || value === '') return '—';
   if (typeof value === 'boolean') return value ? 'Да' : 'Нет';
   return String(value);
+}
+
+function objectDisplayName(obj: ProjectObject) {
+  return String(obj.params?.name ?? `${obj.object_type} ${obj.id}`);
 }
 
 function numberText(value: unknown, digits = 2) {
@@ -648,13 +677,24 @@ export default function ElecCalcPage() {
     return selectedCableTypes.every((type) => type === firstType) ? firstType : null;
   }, [selectedCableTypes]);
   const selectedCableTypesMixed = selectedCableTypes.length > 0 && selectedCableType == null;
+  const cableTypeForRecalculation = selectedCableTypesMixed
+    ? defaultCableType
+    : selectedCableType ?? defaultCableType;
+  const visibleCableTypeControl = selectedCableTypesMixed ? null : cableTypeForRecalculation;
 
   const objectOverridesForIds = useCallback((objectIds: string[]) =>
-    objectIds.map((objectId) => ({
-      object_id: objectId,
-      cable_type: getDraftCableTypeForObject(objectId),
-    })),
-  [getDraftCableTypeForObject]);
+    objectIds
+      .map((objectId) => {
+        const draftType = cableTypeDraftByObjectId[objectId];
+        return draftType
+          ? {
+              object_id: objectId,
+              cable_type: draftType,
+            }
+          : null;
+      })
+      .filter((item): item is { object_id: string; cable_type: CableTypeKey } => item != null),
+  [cableTypeDraftByObjectId]);
 
   useEffect(() => {
     const visibleIds = new Set(objects.map((object) => object.id));
@@ -828,13 +868,10 @@ export default function ElecCalcPage() {
       const selectedObjectIds = objectIds ?? [];
       const objectOverrides = scope === 'selected'
         ? objectOverridesForIds(selectedObjectIds)
-        : Object.entries(cableTypeDraftByObjectId).map(([objectId, type]) => ({
-            object_id: objectId,
-            cable_type: type,
-          }));
+        : [];
       const fallbackCableType = scope === 'selected'
         ? selectedCableType ?? defaultCableType
-        : defaultCableType;
+        : cableTypeForRecalculation;
       return enqueueElectricalBatchJob(
         project!.id,
         effectiveSource,
@@ -849,6 +886,7 @@ export default function ElecCalcPage() {
           vaporTemperature,
           aggressiveProduct,
           objectIds: scope === 'selected' ? selectedObjectIds : undefined,
+          forceCableType: scope === 'all',
           objectOverrides: objectOverrides.length > 0 ? objectOverrides : undefined,
         },
       );
@@ -1148,7 +1186,7 @@ export default function ElecCalcPage() {
       ellipsis: true,
       render: (_: unknown, obj) => (
         <Text style={{ fontSize: 12 }}>
-          {String(obj.params?.name ?? `${obj.object_type} ${obj.id}`)}
+          {objectDisplayName(obj)}
         </Text>
       ),
     },
@@ -1197,47 +1235,68 @@ export default function ElecCalcPage() {
     cable_type: {
       render: (_: unknown, obj) => {
         const type = getSavedCableTypeForObject(obj.id);
-        return CABLE_TYPE_LABEL[type] ?? valueText(type);
+        return (
+          <Text style={{ fontSize: 12 }}>
+            {CABLE_TYPE_LABEL[type] ?? valueText(type)}
+          </Text>
+        );
       },
     },
     cable_mark: {
       render: (_: unknown, obj) => {
         const calc = stats.calcByObjectId[obj.id];
         const mark = getCableMark(calc);
+        const sourceMeta = cableMarkSourceTag(getCableMarkSource(calc));
+        const sourceTag = sourceMeta ? (
+          <Tooltip title={sourceMeta.tooltip}>
+            <Tag
+              color={sourceMeta.color}
+              style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}
+            >
+              {sourceMeta.label}
+            </Tag>
+          </Tooltip>
+        ) : null;
         const isActive = activeRowId === obj.id;
 
         if (!isActive) {
           return (
-            <Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>
-              {mark ?? 'Авто'}
-            </Text>
+            <Space size={4} wrap={false}>
+              <Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>
+                {mark ?? 'Авто'}
+              </Text>
+              {sourceTag}
+            </Space>
           );
         }
 
         return (
-          <Select
-            size="small"
-            showSearch
-            allowClear
-            placeholder="Авто"
-            value={mark}
-            options={manualCableOptionsForType(getSavedCableTypeForObject(obj.id))}
-            disabled={
-              !obj.is_valid
-              || manualCableOptionsForType(getSavedCableTypeForObject(obj.id)).length === 0
-            }
-            loading={isManualCablePending}
-            style={{ width: '100%' }}
-            onChange={(nextMark) => {
-              if (nextMark) {
-                manualCableMutate({
-                  objectId: obj.id,
-                  mark: nextMark,
-                  cableType: getSavedCableTypeForObject(obj.id),
-                });
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+            <Select
+              size="small"
+              showSearch
+              allowClear
+              placeholder="Авто"
+              value={mark}
+              options={manualCableOptionsForType(getSavedCableTypeForObject(obj.id))}
+              disabled={
+                !obj.is_valid
+                || manualCableOptionsForType(getSavedCableTypeForObject(obj.id)).length === 0
               }
-            }}
-          />
+              loading={isManualCablePending}
+              style={{ flex: 1, minWidth: 0 }}
+              onChange={(nextMark) => {
+                if (nextMark) {
+                  manualCableMutate({
+                    objectId: obj.id,
+                    mark: nextMark,
+                    cableType: getSavedCableTypeForObject(obj.id),
+                  });
+                }
+              }}
+            />
+            {sourceTag}
+          </div>
         );
       },
     },
@@ -1387,14 +1446,6 @@ export default function ElecCalcPage() {
     total_heat_loss: {
       align: 'right',
       render: (_: unknown, obj) => powerText(obj.results?.total_heat_loss),
-    },
-    message: {
-      ellipsis: true,
-      render: (_: unknown, obj) => (
-        <Text type="secondary" style={{ fontSize: 11 }}>
-          {electricalCalcError(stats.calcByObjectId[obj.id]) ?? '—'}
-        </Text>
-      ),
     },
   }), [
     activeRowId,
@@ -1582,7 +1633,7 @@ export default function ElecCalcPage() {
       case 'index':
         return (pageInfo?.offset ?? 0) + index + 1;
       case 'object_name':
-        return obj.params?.name ?? `${obj.object_type} ${obj.id}`;
+        return objectDisplayName(obj);
       case 'object_type':
         return OBJECT_TYPE_LABEL[obj.object_type] ?? obj.object_type;
       case 'heat_loss_status':
@@ -1597,7 +1648,10 @@ export default function ElecCalcPage() {
         return CABLE_TYPE_LABEL[getSavedCableTypeForObject(obj.id)]
           ?? getSavedCableTypeForObject(obj.id);
       case 'cable_mark':
-        return getCableMark(calc) ?? 'Авто';
+        {
+          const label = getCableMark(calc) ?? 'Авто';
+          return getCableMarkSource(calc) === 'manual' ? `${label} (ручной выбор)` : label;
+        }
       case 'selected_cable':
         return valueText(calc?.results?.selected_cable);
       case 'variant_number':
@@ -1623,8 +1677,6 @@ export default function ElecCalcPage() {
       case 'heat_loss_per_m2':
       case 'total_heat_loss':
         return valueText(obj.results?.[key]);
-      case 'message':
-        return electricalCalcError(calc) ?? '';
       default:
         return '';
     }
@@ -1767,24 +1819,6 @@ export default function ElecCalcPage() {
     persistTableSettings(normalized, normalizedView);
   }
 
-  if (!project) {
-    return (
-      <EmptyProjectState
-        icon={<ThunderboltOutlined style={{ marginRight: 8, color: '#faad14' }} />}
-        title="Электротехнический расчёт"
-        description="Шаг 2 из 4. Результаты автоподбора греющего кабеля ТЛТ для каждого объекта."
-      />
-    );
-  }
-
-  const cableTypeOptions = (Object.keys(CABLE_TYPE_LABEL) as CableTypeKey[]).map((k) => ({
-    label: ENABLED_CABLE_TYPES.has(k)
-      ? CABLE_TYPE_LABEL[k]
-      : <Tooltip title="Нет формулы/каталога в текущей поставке">{CABLE_TYPE_LABEL[k]}</Tooltip>,
-    value: k,
-    disabled: !ENABLED_CABLE_TYPES.has(k),
-  }));
-
   const totalObjects = pageSummary?.total_objects ?? objects.length;
   const filteredTableCount = electricalPage?.counts?.filtered ?? totalObjects;
   const validObjectsCount = pageSummary?.valid_objects ?? stats.validObjects.length;
@@ -1794,6 +1828,64 @@ export default function ElecCalcPage() {
   const totalCableLength = pageSummary?.total_cable_length ?? stats.totalCableLength;
   const totalPower = pageSummary?.total_power ?? stats.totalPower;
   const totalCurrent = pageSummary?.total_current ?? stats.totalCurrent;
+  const electricalErrorItems = useMemo(() => objects
+    .map((obj, index) => {
+      const calc = stats.calcByObjectId[obj.id];
+      const error = electricalCalcError(calc);
+      if (!error) return null;
+      return {
+        objectId: obj.id,
+        rowNumber: (pageInfo?.offset ?? 0) + index + 1,
+        objectName: objectDisplayName(obj),
+        error,
+        cableType: calc?.cable_type ?? null,
+        errorContext: electricalCalcGuidanceContext(calc),
+        errorCode: electricalCalcErrorCode(calc),
+        suggestedActions: electricalCalcSuggestedActions(calc),
+      };
+    })
+    .filter((item): item is {
+      objectId: string;
+      rowNumber: number;
+      objectName: string;
+      error: string;
+      cableType: string;
+      errorContext: Record<string, unknown> | null;
+      errorCode: string | null;
+      suggestedActions: string[] | null;
+    } => item != null),
+  [objects, pageInfo?.offset, stats.calcByObjectId]);
+  const activeElectricalErrorItem = useMemo(() => {
+    if (activeRowId) {
+      const activeIndex = objects.findIndex((obj) => obj.id === activeRowId);
+      const activeObject = activeIndex >= 0 ? objects[activeIndex] : null;
+      if (activeObject) {
+        const calc = stats.calcByObjectId[activeObject.id];
+        return {
+          objectId: activeObject.id,
+          rowNumber: (pageInfo?.offset ?? 0) + activeIndex + 1,
+          objectName: objectDisplayName(activeObject),
+          error: electricalCalcError(calc) ?? null,
+          cableType: calc?.cable_type ?? null,
+          errorContext: electricalCalcGuidanceContext(calc),
+          errorCode: electricalCalcErrorCode(calc),
+          suggestedActions: electricalCalcSuggestedActions(calc),
+          fallback: false,
+        };
+      }
+    }
+    const firstError = electricalErrorItems[0];
+    return firstError ? { ...firstError, fallback: true } : null;
+  }, [activeRowId, electricalErrorItems, objects, pageInfo?.offset, stats.calcByObjectId]);
+  const activeElectricalErrorGuidance = activeElectricalErrorItem?.error
+    ? getElectricalErrorGuidance({
+        error: activeElectricalErrorItem.error,
+        cableType: activeElectricalErrorItem.cableType,
+        errorContext: activeElectricalErrorItem.errorContext,
+        errorCode: activeElectricalErrorItem.errorCode,
+        suggestedActions: activeElectricalErrorItem.suggestedActions,
+      })
+    : null;
   const showSummaryInKW = totalPower >= 1000;
   const summaryPowerDisplay = showSummaryInKW
     ? `${(totalPower / 1000).toFixed(2)} кВт`
@@ -1813,17 +1905,30 @@ export default function ElecCalcPage() {
     : selectedCableType
       ? CABLE_TYPE_LABEL[selectedCableType]
       : 'тип по объектам';
-  const controlCableType = selectedCableTypesMixed
-    ? null
-    : selectedCableType ?? defaultCableType;
-  const cableTypeControlLabel = selectedRowKeys.length > 0
-    ? 'Тип для выбранных:'
-    : 'Тип по умолчанию:';
+  const cableTypeControlLabel = 'Тип для пересчёта:';
+
+  if (!project) {
+    return (
+      <EmptyProjectState
+        icon={<ThunderboltOutlined style={{ marginRight: 8, color: '#faad14' }} />}
+        title="Электротехнический расчёт"
+        description="Шаг 2 из 4. Результаты автоподбора греющего кабеля ТЛТ для каждого объекта."
+      />
+    );
+  }
+
+  const cableTypeOptions = (Object.keys(CABLE_TYPE_LABEL) as CableTypeKey[]).map((k) => ({
+    label: ENABLED_CABLE_TYPES.has(k)
+      ? CABLE_TYPE_LABEL[k]
+      : <Tooltip title="Нет формулы/каталога в текущей поставке">{CABLE_TYPE_LABEL[k]}</Tooltip>,
+    value: k,
+    disabled: !ENABLED_CABLE_TYPES.has(k),
+  }));
 
   function renderElectricalTypeControls() {
-    if (!controlCableType) return null;
-    if (controlCableType === 'self_regulating') return null;
-    if (controlCableType === 'self_regulating_tt') {
+    if (!visibleCableTypeControl) return null;
+    if (visibleCableTypeControl === 'self_regulating') return null;
+    if (visibleCableTypeControl === 'self_regulating_tt') {
       return (
         <>
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>T проп., °C:</Text>
@@ -1837,8 +1942,8 @@ export default function ElecCalcPage() {
         </>
       );
     }
-    if (controlCableType === 'single_core' || controlCableType === 'three_core') {
-      const connectionOptions = controlCableType === 'single_core'
+    if (visibleCableTypeControl === 'single_core' || visibleCableTypeControl === 'three_core') {
+      const connectionOptions = visibleCableTypeControl === 'single_core'
         ? [
             { value: 'line_1ph', label: 'Линия' },
             { value: 'loop_1ph', label: 'Петля' },
@@ -1878,19 +1983,52 @@ export default function ElecCalcPage() {
             <span className="label">СО{variant} · {bannerCableTypeLabel} · </span>
             {bannerStats}
           </span>
-          {failedCount > 0 && (
-            <Tag color="error" icon={<CloseCircleFilled />}>
-              Ошибок: {failedCount}
-            </Tag>
-          )}
         </div>
+        {failedCount > 0 && (
+          <div className="electrical-error-summary" aria-label="Сообщения ошибок электрорасчёта">
+            <div className="electrical-error-summary__header">
+              <Tag color="error" icon={<CloseCircleFilled />}>
+                Ошибок: {failedCount}
+              </Tag>
+            </div>
+            {activeElectricalErrorItem?.error ? (
+              <div className="electrical-error-summary__record">
+                <Tooltip title={activeElectricalErrorItem.error}>
+                  <Text type="secondary" ellipsis className="electrical-error-summary__message">
+                    {activeElectricalErrorItem.error}
+                  </Text>
+                </Tooltip>
+                {activeElectricalErrorItem.fallback && (
+                  <Text type="secondary" className="electrical-error-summary__hint">
+                    Показана первая ошибка на текущей странице. Выберите строку, чтобы переключить сообщение.
+                  </Text>
+                )}
+                {activeElectricalErrorGuidance && (
+                  <div className="electrical-error-summary__suggestions" aria-label="Предложения по исправлению ошибки">
+                    <Tag color={activeElectricalErrorGuidance.tagColor} className="electrical-error-summary__kind">
+                      {activeElectricalErrorGuidance.label}
+                    </Tag>
+                    <Text type="secondary" className="electrical-error-summary__suggestion-label">
+                      Что попробовать:
+                    </Text>
+                    {activeElectricalErrorGuidance.suggestions.map((suggestion) => (
+                      <Tag key={suggestion} className="electrical-error-summary__suggestion-tag">
+                        {suggestion}
+                      </Tag>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : !activeRowId && !activeElectricalErrorItem ? (
+              <Text type="secondary" className="electrical-error-summary__empty">
+                Ошибки есть вне текущей страницы таблицы.
+              </Text>
+            ) : null}
+          </div>
+        )}
 
         {/* ActionBar */}
         <div className="actionbar-srs">
-          <Button size="small" onClick={() => navigate(ROUTES.heatCalc)}>
-            ← Теплопотери
-          </Button>
-          <span className="sep" />
           {[1, 2, 3, 4].map((n) => (
             <Button
               key={n}
@@ -1908,7 +2046,7 @@ export default function ElecCalcPage() {
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>{cableTypeControlLabel}</Text>
           <Select<CableTypeKey>
             size="small"
-            value={controlCableType ?? undefined}
+            value={visibleCableTypeControl ?? undefined}
             placeholder="Несколько типов"
             disabled={isJobActive}
             onChange={(next) => {
@@ -1918,7 +2056,11 @@ export default function ElecCalcPage() {
                 setCableTypeDraftByObjectId((prev) => {
                   const nextDrafts = { ...prev };
                   for (const objectId of selectedRowKeys) {
-                    nextDrafts[objectId] = next;
+                    if (next === getSavedCableTypeForObject(objectId)) {
+                      delete nextDrafts[objectId];
+                    } else {
+                      nextDrafts[objectId] = next;
+                    }
                   }
                   return nextDrafts;
                 });
@@ -1962,8 +2104,12 @@ export default function ElecCalcPage() {
             Пересчитать выбранные ({selectedObjectsCount})
           </Button>
           <Popconfirm
-            title={`Пересчитать электрорасчёт для всех объектов СО${variant}?`}
-            description="Существующие результаты этого варианта будут обновлены. Вы уверены?"
+            title={`Пересчитать все объекты СО${variant}?`}
+            description={
+              `Все объекты СО${variant} будут пересчитаны с типом ` +
+              `«${CABLE_TYPE_LABEL[cableTypeForRecalculation]}». ` +
+              'Текущие типы кабеля у объектов будут заменены. Продолжить?'
+            }
             okText="Да, пересчитать все"
             okButtonProps={{ danger: true }}
             cancelText="Отмена"
@@ -2012,11 +2158,6 @@ export default function ElecCalcPage() {
               </Button>
             </span>
           </Tooltip>
-          <div style={{ marginLeft: 'auto' }}>
-            <Button size="small" onClick={() => navigate(ROUTES.specification)}>
-              Спецификация →
-            </Button>
-          </div>
         </div>
 
         {isJobActive && (

@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: './tests',
   timeout: 30_000,
   retries: 0,
+  grepInvert: process.env.E2E_INCLUDE_MANUAL === '1' ? undefined : /@manual/,
   // Сериализуем: параллельные гостевые сессии с одного IP быстро упираются в
   // GUEST_SESSION_HOURLY_LIMIT rate-лимитер. Для CI-прогона всего ~20-30 сек.
   workers: 1,

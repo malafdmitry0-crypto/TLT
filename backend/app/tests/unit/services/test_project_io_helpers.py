@@ -255,7 +255,9 @@ class TestDumpProjectToWriter:
             object_id=obj_id,
             variant_number=1,
             cable_type="self_regulating",
+            cable_type_source="manual",
             cable_mark="ТЛТ-25",
+            cable_mark_source="manual",
             params={"x": 1},
             results={"selected_cable": "ТЛТ-25"},
         )
@@ -263,6 +265,9 @@ class TestDumpProjectToWriter:
         _dump_project_to_writer(w, self._project(), [obj], [calc], [])
         text = buf.getvalue()
         assert "[SECTION];electrical" in text
+        assert "cable_type_source" in text
+        assert "cable_mark_source" in text
+        assert "manual" in text
         assert "ТЛТ-25" in text
 
     def test_writes_specifications_section(self):
@@ -336,7 +341,9 @@ class TestApplyProjectData:
                     "object_key": "T1",
                     "variant_number": "1",
                     "cable_type": "self_regulating",
+                    "cable_type_source": "manual",
                     "cable_mark": "ТЛТ-25",
+                    "cable_mark_source": "manual",
                     "params": "{}",
                     "results": '{"selected_cable": "ТЛТ-25"}',
                 }

@@ -101,7 +101,16 @@ def _dump_project_to_writer(
 
     if electrical:
         _write_section(w, "electrical")
-        header = ["object_key", "variant_number", "cable_type", "cable_mark", "params", "results"]
+        header = [
+            "object_key",
+            "variant_number",
+            "cable_type",
+            "cable_type_source",
+            "cable_mark",
+            "cable_mark_source",
+            "params",
+            "results",
+        ]
         if project_key is not None:
             header = ["project_key", *header]
         w.writerow(header)
@@ -110,7 +119,9 @@ def _dump_project_to_writer(
                 obj_key_by_id.get(calc.object_id, str(calc.object_id)),
                 calc.variant_number,
                 calc.cable_type,
+                calc.cable_type_source,
                 calc.cable_mark or "",
+                calc.cable_mark_source,
                 json.dumps(calc.params or {}, ensure_ascii=False),
                 json.dumps(calc.results, ensure_ascii=False) if calc.results is not None else "",
             ]
@@ -347,12 +358,18 @@ async def _apply_project_data(
         obj = obj_by_key.get(key)
         if obj is None:
             continue  # объект мог не сохраниться — пропускаем расчёт
+        cable_mark = row.get("cable_mark", "").strip() or None
+        cable_mark_source = row.get("cable_mark_source", "").strip() or (
+            "manual" if cable_mark else "auto"
+        )
         calc = ElectricalCalculation(
             project_id=project.id,
             object_id=obj.id,
             variant_number=int(row.get("variant_number", "1") or "1"),
             cable_type=row.get("cable_type", "").strip() or "self_regulating",
-            cable_mark=row.get("cable_mark", "").strip() or None,
+            cable_type_source=row.get("cable_type_source", "").strip() or "auto",
+            cable_mark=cable_mark,
+            cable_mark_source=cable_mark_source,
             params=_parse_json_or_empty(row.get("params", ""), {}),
             results=_parse_json_or_empty(row.get("results", ""), None),
         )

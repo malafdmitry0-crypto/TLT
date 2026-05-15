@@ -152,7 +152,9 @@ export interface ElectricalCalcSummary {
   project_id?: string;
   object_id: string;
   cable_type: string;
+  cable_type_source?: 'auto' | 'manual' | 'bulk' | string | null;
   cable_mark: string | null;
+  cable_mark_source?: 'auto' | 'manual' | string | null;
   variant_number: number;
   params?: Record<string, unknown> | null;
   results: Record<string, unknown> | null;

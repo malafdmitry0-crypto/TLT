@@ -10,7 +10,7 @@ from math import ceil
 from typing import Any, Literal
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import Float, String, and_, case, cast, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
@@ -40,6 +40,7 @@ from app.services.project_service import ProjectService
 FieldType = Literal["display", "text", "number", "enum", "boolean"]
 SortType = Literal["text", "number", "label", "enum_rank"]
 OptionMode = Literal["inline", "dictionary", "project_values", "derived"]
+SqlExprFactory = Callable[[], Any]
 
 
 class ObjectQueryValidationError(ValueError):
@@ -236,6 +237,77 @@ def _normal_text(value: Any) -> str:
     if _is_empty(value):
         return ""
     return str(value).strip().lower()
+
+
+def _sql_param_text(key: str) -> Any:
+    return ProjectObject.params[key].astext
+
+
+def _sql_result_text(key: str) -> Any:
+    return ProjectObject.results[key].astext
+
+
+def _sql_layer_text(index: int, key: str) -> Any:
+    return ProjectObject.params["insulation_layers"][index][key].astext
+
+
+def _sql_number(text_expr: Any) -> Any:
+    return cast(func.nullif(text_expr, ""), Float)
+
+
+def _sql_param_number(key: str) -> Any:
+    return _sql_number(_sql_param_text(key))
+
+
+def _sql_result_number(key: str) -> Any:
+    return _sql_number(_sql_result_text(key))
+
+
+def _sql_param_mm(key: str) -> Any:
+    return _sql_param_number(key) * 1000.0
+
+
+def _sql_layer_number(index: int, key: str) -> Any:
+    return _sql_number(_sql_layer_text(index, key))
+
+
+def _sql_layer_mm(index: int, key: str) -> Any:
+    return _sql_layer_number(index, key) * 1000.0
+
+
+def _sql_heat_loss_status() -> Any:
+    return case(
+        (
+            and_(
+                ProjectObject.is_valid.is_(True),
+                ProjectObject.results.is_not(None),
+            ),
+            literal("calculated"),
+        ),
+        (ProjectObject.validation_errors.is_not(None), literal("error")),
+        else_=literal("not_calculated"),
+    )
+
+
+def _sql_insulation_layer_count() -> Any:
+    layers = ProjectObject.params["insulation_layers"]
+    return func.coalesce(
+        cast(func.nullif(_sql_param_text("insulation_layer_count"), ""), Float),
+        case(
+            (func.jsonb_typeof(layers) == "array", func.jsonb_array_length(layers)),
+            else_=1,
+        ),
+    )
+
+
+def _sql_label_expr(expr: Any, options: tuple[tuple[Any, str], ...]) -> Any:
+    whens: list[tuple[Any, Any]] = []
+    text_expr = cast(expr, String)
+    for value, label in options:
+        whens.append((text_expr == str(value), literal(label)))
+        if isinstance(value, bool):
+            whens.append((text_expr == str(value).lower(), literal(label)))
+    return case(*whens, else_=text_expr)
 
 
 def _label_from_options(value: Any, options: tuple[tuple[Any, str], ...]) -> str:
@@ -1086,6 +1158,67 @@ DEFAULT_SEARCH_COLUMNS = {
     ),
 }
 
+OBJECT_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
+    "heat_loss_status": _sql_heat_loss_status,
+    "name": lambda: _sql_param_text("name"),
+    "placement": lambda: func.coalesce(_sql_param_text("placement"), _sql_param_text("location")),
+    "insulation_layer_count": _sql_insulation_layer_count,
+    "insulation_thickness": lambda: _sql_param_mm("insulation_thickness"),
+    "insulation_material": lambda: _sql_param_text("insulation_material"),
+    "first_insulation_lambda": lambda: _sql_layer_number(0, "conductivity"),
+    "second_insulation_thickness": lambda: _sql_layer_mm(1, "thickness"),
+    "second_insulation_material": lambda: _sql_layer_text(1, "material"),
+    "second_insulation_lambda": lambda: _sql_layer_number(1, "conductivity"),
+    "third_insulation_thickness": lambda: _sql_layer_mm(2, "thickness"),
+    "third_insulation_material": lambda: _sql_layer_text(2, "material"),
+    "third_insulation_lambda": lambda: _sql_layer_number(2, "conductivity"),
+    "insulation_cover_material": lambda: _sql_param_text("insulation_cover_material"),
+    "process_temperature": lambda: _sql_param_number("process_temperature"),
+    "ambient_temperature": lambda: _sql_param_number("ambient_temperature"),
+    "ambient_temperature_source": lambda: _sql_param_text("ambient_temperature_source"),
+    "max_ambient_temperature": lambda: _sql_param_number("max_ambient_temperature"),
+    "max_process_temperature": lambda: _sql_param_number("max_process_temperature"),
+    "wind_speed": lambda: _sql_param_number("wind_speed"),
+    "wind_speed_source": lambda: _sql_param_text("wind_speed_source"),
+    "alpha_vnesh": lambda: _sql_param_number("alpha_vnesh"),
+    "environment": lambda: _sql_param_text("environment"),
+    "zone_classification": lambda: _sql_param_text("zone_classification"),
+    "temperature_group": lambda: _sql_param_text("temperature_group"),
+    "climate_city": lambda: _sql_param_text("climate_city"),
+    "climate_region": lambda: _sql_param_text("climate_region"),
+    "climate_key": lambda: _sql_param_text("climate_key"),
+    "climate_temperature_basis": lambda: _sql_param_number("climate_temperature_basis"),
+    "burial_depth": lambda: _sql_param_number("burial_depth"),
+    "ground_type": lambda: _sql_param_text("ground_type"),
+    "ground_conductivity": lambda: _sql_param_number("ground_conductivity"),
+    "min_switch_temperature": lambda: _sql_param_number("min_switch_temperature"),
+    "supply_voltage": lambda: _sql_param_number("supply_voltage"),
+    "safety_factor": lambda: _sql_param_number("safety_factor"),
+    "steam_tracing": lambda: _sql_param_text("steam_tracing"),
+    "vapor_temperature": lambda: _sql_param_number("vapor_temperature"),
+    "heat_loss_per_meter": lambda: _sql_result_number("heat_loss_per_meter"),
+    "heat_loss_per_m2": lambda: _sql_result_number("heat_loss_per_m2"),
+    "total_heat_loss": lambda: _sql_result_number("total_heat_loss"),
+    "pipe_outer_diameter": lambda: _sql_param_mm("outer_diameter"),
+    "pipe_length": lambda: _sql_param_number("pipe_length"),
+    "pipe_wall_thickness": lambda: _sql_param_mm("wall_thickness"),
+    "pipe_material": lambda: _sql_param_text("pipe_material"),
+    "pipe_lambda": lambda: _sql_param_number("pipe_lambda"),
+    "pipe_lambda_mode": lambda: _sql_param_text("pipe_lambda_mode"),
+    "valve_count": lambda: _sql_param_number("valve_count"),
+    "flange_count": lambda: _sql_param_number("flange_count"),
+    "support_count": lambda: _sql_param_number("support_count"),
+    "local_element_equiv_length": lambda: _sql_param_number("local_element_equiv_length"),
+    "tank_shape": lambda: _sql_param_text("shape"),
+    "tank_diameter": lambda: _sql_param_mm("diameter"),
+    "tank_height": lambda: _sql_param_mm("height"),
+    "tank_length": lambda: _sql_param_mm("length"),
+    "tank_width": lambda: _sql_param_mm("width"),
+    "tank_wall_thickness": lambda: _sql_param_mm("wall_thickness"),
+    "tank_wall_lambda": lambda: _sql_param_number("wall_lambda"),
+    "q_additional": lambda: _sql_param_number("q_additional"),
+}
+
 
 class ObjectQueryService:
     def __init__(self, db: AsyncSession) -> None:
@@ -1133,6 +1266,8 @@ class ObjectQueryService:
         by_type = await self._counts_by_type(project_id)
         if self._can_use_sql_page(data):
             return await self._query_default_page(project_id, data, by_type)
+        if self._can_use_sql_query(data):
+            return await self._query_sql_page(project_id, data, by_type)
 
         objects_result = await self.db.execute(
             select(ProjectObject)
@@ -1183,6 +1318,36 @@ class ObjectQueryService:
         search_text = (data.search.text if data.search else "").strip()
         return not search_text and not data.filters and data.sort is None
 
+    def _can_use_sql_query(self, data: ProjectObjectsQueryRequest) -> bool:
+        search_text = (data.search.text if data.search else "").strip()
+        if search_text:
+            columns = (
+                data.search.columns
+                if data.search and data.search.columns
+                else list(DEFAULT_SEARCH_COLUMNS[data.object_type])
+            )
+            if any(
+                self._field(data.object_type, key).key not in OBJECT_SQL_EXPRESSIONS
+                for key in columns
+            ):
+                return False
+        for item in data.filters:
+            field = self._field(data.object_type, item.key)
+            if item.op not in field.filter_ops or field.key not in OBJECT_SQL_EXPRESSIONS:
+                return False
+            if (
+                item.op == "range"
+                and item.min is not None
+                and item.max is not None
+                and item.min > item.max
+            ):
+                raise ObjectQueryValidationError("min не может быть больше max")
+        if data.sort is not None:
+            field = self._field(data.object_type, data.sort.key)
+            if not field.sortable or field.key not in OBJECT_SQL_EXPRESSIONS:
+                return False
+        return True
+
     async def _query_default_page(
         self,
         project_id: UUID,
@@ -1221,6 +1386,137 @@ class ObjectQueryService:
             ),
             query=ProjectObjectsQueryEcho(object_type=data.object_type, sort=data.sort),
         )
+
+    async def _query_sql_page(
+        self,
+        project_id: UUID,
+        data: ProjectObjectsQueryRequest,
+        by_type: Counter[str],
+    ) -> ProjectObjectsQueryResponse:
+        conditions = [
+            ProjectObject.project_id == project_id,
+            ProjectObject.object_type == data.object_type,
+        ]
+        search_clause = self._sql_search_clause(data)
+        if search_clause is not None:
+            conditions.append(search_clause)
+        for item in data.filters:
+            clause = self._sql_filter_clause(self._field(data.object_type, item.key), item)
+            if clause is not None:
+                conditions.append(clause)
+
+        count_result = await self.db.execute(
+            select(func.count()).select_from(ProjectObject).where(*conditions)
+        )
+        filtered_count = int(count_result.scalar_one() or 0)
+        offset = (data.page - 1) * data.page_size
+        result = await self.db.execute(
+            select(ProjectObject)
+            .where(*conditions)
+            .order_by(*self._sql_order_by(data))
+            .offset(offset)
+            .limit(data.page_size)
+        )
+        items = list(result.scalars().all())
+        total_pages = ceil(filtered_count / data.page_size) if filtered_count else 0
+
+        return ProjectObjectsQueryResponse(
+            items=items,
+            page_info=ProjectObjectsPageInfo(
+                page=data.page,
+                page_size=data.page_size,
+                offset=offset,
+                total_pages=total_pages,
+                has_next_page=data.page * data.page_size < filtered_count,
+                has_previous_page=data.page > 1,
+            ),
+            counts=ProjectObjectsQueryCounts(
+                total=sum(by_type.values()),
+                by_type={"pipe": by_type.get("pipe", 0), "tank": by_type.get("tank", 0)},
+                filtered=filtered_count,
+            ),
+            query=ProjectObjectsQueryEcho(object_type=data.object_type, sort=data.sort),
+        )
+
+    def _sql_expr(self, field: FieldDef) -> Any:
+        factory = OBJECT_SQL_EXPRESSIONS.get(field.key)
+        if factory is None:
+            raise ObjectQueryValidationError(f"Поле {field.key} не поддерживает SQL-query")
+        return factory()
+
+    def _sql_text_expr(self, field: FieldDef, expr: Any | None = None) -> Any:
+        expr = self._sql_expr(field) if expr is None else expr
+        if field.static_options:
+            return _sql_label_expr(expr, field.static_options)
+        return cast(expr, String)
+
+    def _sql_empty_clause(self, expr: Any) -> Any:
+        text_expr = cast(expr, String)
+        return or_(expr.is_(None), text_expr == "", text_expr == "—")
+
+    def _sql_search_clause(self, data: ProjectObjectsQueryRequest) -> Any | None:
+        text = (data.search.text if data.search else "").strip()
+        if not text:
+            return None
+        columns = (
+            data.search.columns
+            if data.search and data.search.columns
+            else list(DEFAULT_SEARCH_COLUMNS[data.object_type])
+        )
+        needle = _normal_text(text)
+        clauses = []
+        for key in columns:
+            field = self._field(data.object_type, key)
+            clauses.append(func.lower(self._sql_text_expr(field)).contains(needle))
+        return or_(*clauses) if clauses else None
+
+    def _sql_filter_clause(self, field: FieldDef, item: Any) -> Any | None:
+        expr = self._sql_expr(field)
+        empty_clause = self._sql_empty_clause(expr)
+        if item.op == "contains":
+            needle = _normal_text(item.value)
+            if not needle:
+                return None
+            return func.lower(self._sql_text_expr(field, expr)).contains(needle)
+
+        if item.op == "range":
+            clauses = [empty_clause] if item.include_empty else []
+            range_clauses = [empty_clause.is_(False)]
+            if item.min is not None:
+                range_clauses.append(expr >= item.min)
+            if item.max is not None:
+                range_clauses.append(expr <= item.max)
+            clauses.append(and_(*range_clauses))
+            return or_(*clauses) if item.include_empty else clauses[-1]
+
+        if item.op == "in":
+            values = [str(value) for value in item.values or []]
+            clauses = [empty_clause] if item.include_empty else []
+            if values:
+                clauses.append(cast(expr, String).in_(values))
+                if field.static_options:
+                    clauses.append(self._sql_text_expr(field, expr).in_(values))
+            return or_(*clauses) if clauses else None
+
+        if item.op == "equals":
+            clauses = [empty_clause] if item.include_empty else []
+            if item.value is not None:
+                clauses.append(cast(expr, String) == str(item.value))
+            return or_(*clauses) if clauses else None
+
+        return None
+
+    def _sql_order_by(self, data: ProjectObjectsQueryRequest) -> list[Any]:
+        if data.sort is None:
+            return [ProjectObject.sort_order.asc(), ProjectObject.id.asc()]
+        field = self._field(data.object_type, data.sort.key)
+        expr = self._sql_expr(field)
+        if field.sort_type in {"text", "label"}:
+            order_expr = func.lower(self._sql_text_expr(field, expr))
+        else:
+            order_expr = expr
+        ordered = order_expr.desc() if data.sort.dir == "desc" else order_expr.asc()
+        return [ordered.nulls_last(), ProjectObject.sort_order.asc(), ProjectObject.id.asc()]
 
     def _field_capability(
         self, field: FieldDef, objects: list[ProjectObject]

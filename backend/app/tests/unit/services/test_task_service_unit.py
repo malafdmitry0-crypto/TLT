@@ -89,6 +89,7 @@ def mock_db():
     db = AsyncMock()
     db.add = MagicMock()
     db.commit = AsyncMock()
+    db.rollback = AsyncMock()
 
     async def refresh(obj):
         if getattr(obj, "id", None) is None:
@@ -187,6 +188,7 @@ class TestTaskCreation:
                 project_id=project_id,
                 variant_number=2,
                 winding_pitch=120,
+                force_cable_type=True,
                 include_errors=False,
             ),
             guest_principal,
@@ -198,6 +200,7 @@ class TestTaskCreation:
         assert task.session_id == "sid"
         assert task.request_payload["project_id"] == str(project_id)
         assert task.request_payload["variant_number"] == 2
+        assert task.request_payload["force_cable_type"] is True
         assert task.request_payload["electrical_params"]["winding_pitch"] == 120
         assert task.request_payload["include_errors"] is False
         assert task.arq_job_id is not None
@@ -285,6 +288,7 @@ class TestTaskStateTransitions:
             progress_current=0,
             cancel_requested=True,
         )
+        mock_db.execute = AsyncMock(return_value=ResultRows([]))
         mock_db.get = AsyncMock(return_value=task)
         service = TaskService(mock_db)
         service._mark_cancelled = AsyncMock()  # type: ignore[method-assign]
@@ -304,14 +308,15 @@ class TestTaskStateTransitions:
             progress_current=0,
             cancel_requested=False,
         )
-        mock_db.get = AsyncMock(return_value=task)
+        mock_db.execute = AsyncMock(return_value=ResultRows([task]))
+        mock_db.get = AsyncMock(return_value=None)
         service = TaskService(mock_db)
         service._mark_failed = AsyncMock()  # type: ignore[method-assign]
 
         await service.run_task(task.id, worker_id="worker")
 
         service._mark_failed.assert_awaited_once()
-        mock_db.commit.assert_not_awaited()
+        mock_db.commit.assert_awaited_once()
 
     async def test_run_task_dispatches_heat_loss_batch(self, mock_db):
         task = BackgroundTask(
@@ -324,7 +329,11 @@ class TestTaskStateTransitions:
             cancel_requested=False,
             attempts=0,
         )
-        mock_db.get = AsyncMock(return_value=task)
+        task.status = "running"
+        task.attempts = 1
+        task.locked_by = "worker"
+        mock_db.execute = AsyncMock(return_value=ResultRows([task]))
+        mock_db.get = AsyncMock(return_value=None)
         service = TaskService(mock_db)
         service._run_heat_loss_batch = AsyncMock()  # type: ignore[method-assign]
 
@@ -334,6 +343,27 @@ class TestTaskStateTransitions:
         assert task.locked_by == "worker"
         service._run_heat_loss_batch.assert_awaited_once_with(task.id)
         mock_db.commit.assert_awaited_once()
+
+    async def test_run_task_does_not_dispatch_if_claim_lost(self, mock_db):
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_HEAT_LOSS_BATCH,
+            status="running",
+            session_id="sid",
+            request_payload={"project_id": str(uuid.uuid4())},
+            progress_current=0,
+            cancel_requested=False,
+            attempts=1,
+        )
+        mock_db.execute = AsyncMock(return_value=ResultRows([]))
+        mock_db.get = AsyncMock(return_value=task)
+        service = TaskService(mock_db)
+        service._run_heat_loss_batch = AsyncMock()  # type: ignore[method-assign]
+
+        await service.run_task(task.id, worker_id="worker-2")
+
+        service._run_heat_loss_batch.assert_not_awaited()
+        mock_db.commit.assert_not_awaited()
 
     async def test_run_heat_loss_batch_marks_succeeded(
         self,

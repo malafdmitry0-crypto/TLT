@@ -42,6 +42,7 @@ from app.schemas.json_shapes import (
     TankHeatLossResultDict,
 )
 from app.schemas.project import ProjectObjectsPageInfo
+from app.services.electrical_error_guidance import build_electrical_error_payload
 from app.services.project_object_params import prepare_project_object_params
 
 # Источник каталога кабелей. Значения заданы для совместимости с текущим API;
@@ -79,6 +80,20 @@ BATCH_HEAT_RECALCULATE_YIELD_EVERY_OBJECTS = 25
 BATCH_ELECTRICAL_CHUNK_SIZE = 2_000
 BATCH_CANCEL_CHECK_MIN_OBJECTS = 500
 BATCH_CANCEL_CHECK_MIN_INTERVAL_SECONDS = 0.5
+CABLE_TYPE_SOURCE_AUTO = "auto"
+CABLE_TYPE_SOURCE_MANUAL = "manual"
+CABLE_TYPE_SOURCE_BULK = "bulk"
+VALID_CABLE_TYPE_SOURCES = {
+    CABLE_TYPE_SOURCE_AUTO,
+    CABLE_TYPE_SOURCE_MANUAL,
+    CABLE_TYPE_SOURCE_BULK,
+}
+CABLE_MARK_SOURCE_AUTO = "auto"
+CABLE_MARK_SOURCE_MANUAL = "manual"
+VALID_CABLE_MARK_SOURCES = {
+    CABLE_MARK_SOURCE_AUTO,
+    CABLE_MARK_SOURCE_MANUAL,
+}
 
 
 async def _maybe_await(value: Awaitable[Any] | Any) -> Any:
@@ -594,20 +609,26 @@ class CalculationService:
         existing_calc: ElectricalCalculation | None,
     ) -> ElectricalCalculation:
         calc = existing_calc
+        cable_type_source = self._normalize_cable_type_source(request.data.get("cable_type_source"))
+        cable_mark_source = self._resolve_cable_mark_source(request.data)
         if calc is None:
             calc = ElectricalCalculation(
                 project_id=obj.project_id,
                 object_id=obj.id,
                 variant_number=request.variant_number,
                 cable_type=request.cable_type,
+                cable_type_source=cable_type_source,
                 cable_mark=cable_mark,
+                cable_mark_source=cable_mark_source,
                 params=request.data,
                 results=result_dict,
             )
             self.db.add(calc)
         else:
             calc.cable_type = request.cable_type
+            calc.cable_type_source = cable_type_source
             calc.cable_mark = cable_mark
+            calc.cable_mark_source = cable_mark_source
             calc.params = request.data
             calc.results = result_dict
         return calc
@@ -621,6 +642,13 @@ class CalculationService:
         if not rows:
             return []
 
+        for row in rows:
+            row["cable_type_source"] = self._normalize_cable_type_source(
+                row.get("cable_type_source")
+            )
+            row["cable_mark_source"] = self._normalize_cable_mark_source(
+                row.get("cable_mark_source")
+            )
         chunk_size = self._electrical_bulk_upsert_chunk_size(rows[0])
         calcs: list[ElectricalCalculation] = []
         for chunk in _chunked_rows(rows, chunk_size):
@@ -638,6 +666,38 @@ class CalculationService:
         max_rows_by_bind_limit = max(1, POSTGRES_BIND_PARAMETER_LIMIT // params_per_row)
         return min(ELECTRICAL_BULK_UPSERT_TARGET_CHUNK_SIZE, max_rows_by_bind_limit)
 
+    @staticmethod
+    def _normalize_cable_type_source(value: Any) -> str:
+        if isinstance(value, str) and value in VALID_CABLE_TYPE_SOURCES:
+            return value
+        return CABLE_TYPE_SOURCE_AUTO
+
+    @staticmethod
+    def _existing_cable_type_source(calc: ElectricalCalculation | None) -> str:
+        if calc is None:
+            return CABLE_TYPE_SOURCE_AUTO
+        calc_dict = getattr(calc, "__dict__", {})
+        source = calc_dict.get("cable_type_source")
+        if source in VALID_CABLE_TYPE_SOURCES:
+            return str(source)
+        params = calc_dict.get("params")
+        if isinstance(params, dict):
+            return CalculationService._normalize_cable_type_source(params.get("cable_type_source"))
+        return CABLE_TYPE_SOURCE_AUTO
+
+    @staticmethod
+    def _normalize_cable_mark_source(value: Any) -> str:
+        if isinstance(value, str) and value in VALID_CABLE_MARK_SOURCES:
+            return value
+        return CABLE_MARK_SOURCE_AUTO
+
+    @staticmethod
+    def _resolve_cable_mark_source(data: dict[str, Any]) -> str:
+        source = data.get("cable_mark_source")
+        if source in VALID_CABLE_MARK_SOURCES:
+            return str(source)
+        return CABLE_MARK_SOURCE_MANUAL if data.get("cable_mark") else CABLE_MARK_SOURCE_AUTO
+
     async def _bulk_upsert_electrical_calculation_chunk(
         self,
         rows: list[dict[str, Any]],
@@ -650,7 +710,9 @@ class CalculationService:
             set_={
                 "project_id": insert_stmt.excluded.project_id,
                 "cable_type": insert_stmt.excluded.cable_type,
+                "cable_type_source": insert_stmt.excluded.cable_type_source,
                 "cable_mark": insert_stmt.excluded.cable_mark,
+                "cable_mark_source": insert_stmt.excluded.cable_mark_source,
                 "params": insert_stmt.excluded.params,
                 "results": insert_stmt.excluded.results,
                 "updated_at": func.now(),
@@ -1046,6 +1108,7 @@ class CalculationService:
             tlt_catalog=catalog,
             overrides=electrical_params or {},
         )
+        data["cable_mark_source"] = CABLE_MARK_SOURCE_MANUAL
         request = ElectricalRequest(
             object_id=object_id,
             cable_type=cast(Any, cable_type),
@@ -1193,6 +1256,7 @@ class CalculationService:
                     ElectricalCalculation.id,
                     ElectricalCalculation.object_id,
                     ElectricalCalculation.cable_type,
+                    ElectricalCalculation.cable_type_source,
                     ElectricalCalculation.params,
                     ElectricalCalculation.results,
                 )
@@ -1222,6 +1286,7 @@ class CalculationService:
         should_cancel: CancelChecker | None = None,
         object_ids: list[UUID] | None = None,
         object_overrides: list[dict[str, Any]] | None = None,
+        force_cable_type: bool = False,
     ) -> tuple[int, int, int, list[dict[str, Any]], list[ElectricalCalculation]]:
         """Автоподбор кабеля для всех валидных объектов проекта (cable_mark=None)."""
 
@@ -1285,13 +1350,24 @@ class CalculationService:
 
             for obj in objects:
                 await cancel_checker.check(processed)
+                request_data: dict[str, Any] | None = None
+                object_cable_type = cable_type
+                cable_type_source = CABLE_TYPE_SOURCE_AUTO
                 try:
                     existing_calc = existing_by_object_id.get(obj.id)
-                    object_cable_type = (
-                        object_overrides_by_id.get(obj.id, {}).get("cable_type")
-                        or (existing_calc.cable_type if existing_calc is not None else None)
-                        or cable_type
-                    )
+                    existing_cable_type_source = self._existing_cable_type_source(existing_calc)
+                    object_override = object_overrides_by_id.get(obj.id, {})
+                    if force_cable_type:
+                        object_cable_type = cable_type
+                        cable_type_source = CABLE_TYPE_SOURCE_BULK
+                    elif object_override.get("cable_type"):
+                        object_cable_type = object_override["cable_type"]
+                        cable_type_source = CABLE_TYPE_SOURCE_MANUAL
+                    else:
+                        object_cable_type = (
+                            existing_calc.cable_type if existing_calc is not None else cable_type
+                        )
+                        cable_type_source = existing_cable_type_source
                     if (
                         skip_manual
                         and existing_calc is not None
@@ -1304,17 +1380,20 @@ class CalculationService:
                         base_overrides,
                         self._layout_overrides_from_existing(existing_calc),
                     )
+                    request_data = self._build_electrical_data(
+                        obj=obj,
+                        cable_type=object_cable_type,
+                        cable_mark=None,
+                        tlt_catalog=catalog,
+                        overrides=overrides,
+                    )
+                    request_data["cable_type_source"] = cable_type_source
+                    request_data["cable_mark_source"] = CABLE_MARK_SOURCE_AUTO
                     request = ElectricalRequest(
                         object_id=obj.id,
                         cable_type=cast(Any, object_cable_type),
                         variant_number=variant_number,
-                        data=self._build_electrical_data(
-                            obj=obj,
-                            cable_type=object_cable_type,
-                            cable_mark=None,
-                            tlt_catalog=catalog,
-                            overrides=overrides,
-                        ),
+                        data=request_data,
                     )
                     cable_mark, result_dict = self._calculate_electrical_result(request)
                     successful_rows.append(
@@ -1324,7 +1403,9 @@ class CalculationService:
                             "object_id": obj.id,
                             "variant_number": request.variant_number,
                             "cable_type": request.cable_type,
+                            "cable_type_source": cable_type_source,
                             "cable_mark": cable_mark,
+                            "cable_mark_source": CABLE_MARK_SOURCE_AUTO,
                             "params": request.data,
                             "results": result_dict,
                         }
@@ -1335,13 +1416,29 @@ class CalculationService:
                 except Exception as exc:
                     skipped += 1
                     err_msg = f"{type(exc).__name__}: {exc}"
-                    errors.append({"object_id": str(obj.id), "error": err_msg})
+                    error_request_data = dict(obj.params or {})
+                    if request_data:
+                        error_request_data.update(request_data)
+                    errors.append(
+                        {
+                            "object_id": str(obj.id),
+                            **build_electrical_error_payload(
+                                err_msg,
+                                object_type=obj.object_type,
+                                object_name=(obj.params or {}).get("name"),
+                                cable_type=object_cable_type,
+                                request_data=error_request_data,
+                            ),
+                        }
+                    )
                     self._upsert_failed_electrical(
                         obj,
                         err_msg,
                         variant_number,
                         object_cable_type,
                         existing_calc=existing_by_object_id.get(obj.id),
+                        cable_type_source=cable_type_source,
+                        request_data=error_request_data,
                     )
                 finally:
                     processed += 1
@@ -1399,12 +1496,26 @@ class CalculationService:
         cable_type: str,
         *,
         existing_calc: ElectricalCalculation | None,
+        cable_type_source: str | None = None,
+        cable_mark_source: str | None = None,
+        request_data: dict[str, Any] | None = None,
     ) -> ElectricalCalculation:
-        payload = {
-            "error": error_message,
-            "object_type": obj.object_type,
-            "object_name": (obj.params or {}).get("name"),
+        normalized_source = self._normalize_cable_type_source(cable_type_source)
+        normalized_mark_source = self._normalize_cable_mark_source(cable_mark_source)
+        params = {
+            "cable_type_source": normalized_source,
+            "cable_mark_source": normalized_mark_source,
         }
+        error_request_data = dict(obj.params or {})
+        if request_data:
+            error_request_data.update(request_data)
+        payload = build_electrical_error_payload(
+            error_message,
+            object_type=obj.object_type,
+            object_name=(obj.params or {}).get("name"),
+            cable_type=cable_type,
+            request_data=error_request_data,
+        )
         row = existing_calc
         if row is None:
             row = ElectricalCalculation(
@@ -1412,14 +1523,19 @@ class CalculationService:
                 object_id=obj.id,
                 variant_number=variant_number,
                 cable_type=cable_type,
+                cable_type_source=normalized_source,
                 cable_mark=None,
-                params={},
+                cable_mark_source=normalized_mark_source,
+                params=params,
                 results=payload,
             )
             self.db.add(row)
         else:
             row.cable_type = cable_type
+            row.cable_type_source = normalized_source
             row.cable_mark = None
+            row.cable_mark_source = normalized_mark_source
+            row.params = params
             row.results = payload
         return row
 

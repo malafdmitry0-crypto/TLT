@@ -620,6 +620,72 @@ html, body, #root {
   font-weight: 600;
 }
 
+.electrical-error-summary {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: start;
+  padding: 5px 10px;
+  background: #fff7f7;
+  border-left: 4px solid #ff7875;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.electrical-error-summary__header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  white-space: nowrap;
+}
+
+.electrical-error-summary__header .ant-tag {
+  margin-inline-end: 0;
+}
+
+.electrical-error-summary__record {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  color: #5c0011;
+}
+
+.electrical-error-summary__message {
+  min-width: 0;
+  font-size: 11px;
+}
+
+.electrical-error-summary__hint,
+.electrical-error-summary__empty {
+  font-size: 11px;
+}
+
+.electrical-error-summary__hint {
+  grid-column: 1 / -1;
+}
+
+.electrical-error-summary__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.electrical-error-summary__kind,
+.electrical-error-summary__suggestion-tag {
+  margin-inline-end: 0;
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.electrical-error-summary__suggestion-label {
+  font-size: 11px;
+}
+
 .inline-form-srs {
   background: #fff;
   border: 1px solid #dbe6f2;

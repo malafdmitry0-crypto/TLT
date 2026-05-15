@@ -12,7 +12,7 @@ from time import monotonic
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -323,30 +323,56 @@ class TaskService:
         await self.db.refresh(task)
 
     async def run_task(self, task_id: UUID, *, worker_id: str) -> None:
-        task = await self.db.get(BackgroundTask, task_id)
-        if task is None or task.status in TERMINAL_STATUSES:
-            return
-        if task.cancel_requested:
-            await self._mark_cancelled(task_id)
+        task = await self._claim_task_for_run(task_id, worker_id=worker_id)
+        if task is None:
+            current = await self.db.get(BackgroundTask, task_id)
+            if (
+                current is not None
+                and current.cancel_requested
+                and current.status not in TERMINAL_STATUSES
+            ):
+                await self._mark_cancelled(task_id)
             return
         if task.type not in (TASK_ELECTRICAL_BATCH, TASK_HEAT_LOSS_BATCH):
             await self._mark_failed(task_id, f"Неизвестный тип задачи: {task.type}")
             return
 
-        now = datetime.now(UTC)
-        task.status = "running"
-        task.attempts += 1
-        task.locked_by = worker_id
-        task.lock_expires_at = now + timedelta(seconds=settings.WORKER_TASK_STALE_SECONDS)
-        task.started_at = task.started_at or now
-        task.heartbeat_at = now
-        task.progress_phase = "running"
-        await self.db.commit()
-
         if task.type == TASK_HEAT_LOSS_BATCH:
             await self._run_heat_loss_batch(task_id)
         else:
             await self._run_electrical_batch(task_id)
+
+    async def _claim_task_for_run(
+        self,
+        task_id: UUID,
+        *,
+        worker_id: str,
+    ) -> BackgroundTask | None:
+        now = datetime.now(UTC)
+        result = await self.db.execute(
+            update(BackgroundTask)
+            .where(
+                BackgroundTask.id == task_id,
+                BackgroundTask.status.in_(("queued", "enqueued")),
+                BackgroundTask.cancel_requested.is_(False),
+            )
+            .values(
+                status="running",
+                attempts=BackgroundTask.attempts + 1,
+                locked_by=worker_id,
+                lock_expires_at=now + timedelta(seconds=settings.WORKER_TASK_STALE_SECONDS),
+                started_at=func.coalesce(BackgroundTask.started_at, now),
+                heartbeat_at=now,
+                progress_phase="running",
+            )
+            .returning(BackgroundTask)
+        )
+        task = result.scalar_one_or_none()
+        if task is None:
+            await self.db.rollback()
+            return None
+        await self.db.commit()
+        return task
 
     async def recover_stuck_tasks(
         self,
@@ -449,6 +475,7 @@ class TaskService:
                     should_cancel=lambda: self._should_cancel(task_id),
                     object_ids=object_ids,
                     object_overrides=object_overrides,
+                    force_cable_type=bool(payload.get("force_cable_type", False)),
                 )
         except BatchCancelledError:
             await progress_throttler.flush()
@@ -473,7 +500,9 @@ class TaskService:
                     "id": str(calc.id),
                     "object_id": str(calc.object_id),
                     "cable_type": calc.cable_type,
+                    "cable_type_source": calc.cable_type_source,
                     "cable_mark": calc.cable_mark,
+                    "cable_mark_source": calc.cable_mark_source,
                     "variant_number": calc.variant_number,
                     "results": calc.results,
                 }
@@ -678,6 +707,7 @@ class TaskService:
             "cable_source": request.cable_source,
             "variant_number": request.variant_number,
             "cable_type": request.cable_type,
+            "force_cable_type": request.force_cable_type,
             "electrical_params": request.electrical_params(),
             "skip_manual": request.skip_manual,
             "include_results": request.include_results,

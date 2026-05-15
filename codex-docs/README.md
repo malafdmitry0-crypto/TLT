@@ -11,6 +11,8 @@
 3. Перед изменением кода проверить [development-guide.md](development-guide.md).
 4. Перед сдачей задачи свериться с [testing.md](testing.md).
 5. Для выбора следующей работы смотреть [backlog-and-risks.md](backlog-and-risks.md).
+6. Для общего аудита улучшений приложения смотреть
+   [application-improvement-checklist.md](application-improvement-checklist.md).
 
 ## Источники правды
 
@@ -23,6 +25,7 @@
 | Формулы | `formules.md`, `coefficients.MD`, `backend/app/formulas/` | [project-map.md](project-map.md) |
 | Приёмка и QA | `docs/qa/`, `e2e/tests/`, тесты backend/frontend | [testing.md](testing.md) |
 | Текущие пробелы | `TO_DO.md`, `docs/analysis/current-status-and-missing-info.md` | [backlog-and-risks.md](backlog-and-risks.md) |
+| Технический аудит приложения | код frontend/backend, тесты, текущие замечания | [application-improvement-checklist.md](application-improvement-checklist.md) |
 
 ## Правило актуализации
 

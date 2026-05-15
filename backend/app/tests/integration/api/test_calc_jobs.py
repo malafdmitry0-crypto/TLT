@@ -219,6 +219,87 @@ class TestCalcJobs:
         assert skipped["id"] not in calculation_object_ids
         selected_calc = next(item for item in calculations if item["object_id"] == selected["id"])
         assert selected_calc["cable_type"] == "single_core"
+        assert selected_calc["cable_type_source"] == "manual"
+        assert selected_calc["cable_mark_source"] == "auto"
+
+    async def test_worker_force_cable_type_replaces_existing_types_for_all(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        test_engine,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        project = await _guest_project(client, guest_session)
+        first = await _create_pipe(client, project["id"], guest_session)
+        second = await _create_pipe(client, project["id"], guest_session)
+
+        selected_resp = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json={
+                "project_id": project["id"],
+                "object_ids": [first["id"]],
+                "object_overrides": [{"object_id": first["id"], "cable_type": "single_core"}],
+                "connection_type": "line_1ph",
+                "include_results": False,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert selected_resp.status_code == 202, selected_resp.text
+
+        session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
+        async with session_factory() as worker_db:
+            await TaskService(worker_db, session_factory=session_factory).run_task(
+                UUID(selected_resp.json()["id"]),
+                worker_id="test-worker",
+            )
+
+        force_resp = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json={
+                "project_id": project["id"],
+                "cable_type": "self_regulating",
+                "force_cable_type": True,
+                "include_results": False,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert force_resp.status_code == 202, force_resp.text
+        task_id = UUID(force_resp.json()["id"])
+
+        async with session_factory() as worker_db:
+            await TaskService(worker_db, session_factory=session_factory).run_task(
+                task_id,
+                worker_id="test-worker",
+            )
+
+        status_resp = await client.get(
+            f"/api/v1/calc/jobs/{task_id}",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert status_resp.status_code == 200, status_resp.text
+        body = status_resp.json()
+        assert body["status"] == "succeeded"
+        assert body["result"]["scope"] == "all"
+        assert body["result"]["calculated"] >= 2
+
+        listing_resp = await client.get(
+            "/api/v1/calc/electrical",
+            params={"project_id": project["id"]},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert listing_resp.status_code == 200, listing_resp.text
+        calculations = {
+            item["object_id"]: item
+            for item in listing_resp.json()
+            if item["object_id"] in {first["id"], second["id"]}
+        }
+        assert calculations[first["id"]]["cable_type"] == "self_regulating"
+        assert calculations[second["id"]]["cable_type"] == "self_regulating"
+        assert calculations[first["id"]]["cable_type_source"] == "bulk"
+        assert calculations[second["id"]]["cable_type_source"] == "bulk"
+        assert calculations[first["id"]]["cable_mark_source"] == "auto"
+        assert calculations[second["id"]]["cable_mark_source"] == "auto"
 
     async def test_worker_executes_enqueued_heat_loss_batch(
         self,

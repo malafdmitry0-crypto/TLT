@@ -7,7 +7,8 @@
   },
   "scripts": {
     "test": "playwright test --reporter=list",
-    "test:chrome": "PLAYWRIGHT_CHROMIUM_CHANNEL=chrome playwright test --reporter=list"
+    "test:chrome": "PLAYWRIGHT_CHROMIUM_CHANNEL=chrome playwright test --reporter=list",
+    "test:elec-clicks": "E2E_INCLUDE_MANUAL=1 playwright test tests/electrical-clickthrough.manual.spec.ts --reporter=list"
   },
   "keywords": [],
   "author": "",

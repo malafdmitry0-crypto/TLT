@@ -1282,6 +1282,7 @@ async function main() {
         cable_source: 'builtin',
         variant_number: String(variant.variant_number),
         cable_type: variant.cable_type,
+        force_cable_type: 'true',
       });
       for (const [key, value] of Object.entries(variant.params)) {
         query.set(key, String(value));
@@ -1321,7 +1322,7 @@ async function main() {
     await page.getByText('Добавить', { exact: true }).waitFor({ state: 'visible', timeout: 5_000 });
     await addButton.click();
     await page.getByText('Форма и геометрия резервуара').waitFor({ state: 'visible', timeout: 10_000 });
-    await page.locator('.action-reset-button').click();
+    await page.locator('#inline-object-cancel').evaluate((button) => button.click());
     await page.getByText('Режим: добавление', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
     await selectObjectType(page, 'Трубопровод');
     await page.locator('td.ant-table-cell', { hasText: 'P01 · труба' }).first().click();
@@ -1330,6 +1331,11 @@ async function main() {
     await page.locator('td.ant-table-cell', { hasText: 'T01 · резервуар' }).first().click();
     await page.getByText('Режим: изменение', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
     await page.locator('.action-save-button.save').click();
+    await page.waitForFunction(() => {
+      const saveButton = document.querySelector('.action-save-button.save');
+      return !saveButton?.classList.contains('ant-btn-loading');
+    }, null, { timeout: 10_000 });
+    await page.locator('#inline-object-cancel').evaluate((button) => button.click());
     await page.getByText('Режим: добавление', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
     if (await page.getByRole('button', { name: 'Результаты расчёта' }).count() > 0) {
       throw new Error('Unexpected inner results tab is visible on heat-calc page');

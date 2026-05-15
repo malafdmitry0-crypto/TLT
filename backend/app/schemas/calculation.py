@@ -591,7 +591,9 @@ class ElectricalCalcSummary(BaseModel):
     id: UUID
     object_id: UUID
     cable_type: str
+    cable_type_source: str = "auto"
     cable_mark: str | None
+    cable_mark_source: str = "auto"
     variant_number: int
     params: dict[str, Any] | None = None
     results: dict[str, Any] | None
@@ -701,6 +703,7 @@ class ElectricalBatchJobRequest(BaseModel):
     variant_number: int = Field(default=1, ge=1, le=4)
     cable_type: ElectricalCableType = "self_regulating"
     object_overrides: list[ElectricalObjectBatchOverride] | None = None
+    force_cable_type: bool = False
     supply_voltage: float | None = None
     connection_type: str | None = None
     winding_coefficient: float | None = None

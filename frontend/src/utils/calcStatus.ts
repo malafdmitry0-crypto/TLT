@@ -1,5 +1,11 @@
 import type { ElectricalCalcSummary } from '@/types/calculation';
 
+const ERROR_PREFIX_RE = /^[A-Za-z_][\w.]*Error:\s*/;
+
+function cleanCalcErrorText(value: string) {
+  return value.replace(ERROR_PREFIX_RE, '').trim();
+}
+
 /**
  * Успешным электрорасчётом считается запись, в которой есть выбранная марка
  * кабеля и нет поля `error` в `results`. Записи с ошибкой создаются бэкендом,
@@ -12,13 +18,54 @@ export function isElectricalCalcSuccess(
   if (!calc) return false;
   const r = calc.results;
   if (!r) return false;
-  if ((r as Record<string, unknown>).error) return false;
+  if ((r as Record<string, unknown>).error || (r as Record<string, unknown>).error_code) {
+    return false;
+  }
   return !!(r as Record<string, unknown>).selected_cable || !!calc.cable_mark;
 }
 
 export function electricalCalcError(
   calc: ElectricalCalcSummary | null | undefined
 ): string | null {
+  const message = calc?.results?.message;
+  if (typeof message === 'string' && message.trim()) {
+    return cleanCalcErrorText(message);
+  }
   const err = calc?.results?.error;
-  return typeof err === 'string' ? err : null;
+  return typeof err === 'string' ? cleanCalcErrorText(err) : null;
+}
+
+export function electricalCalcErrorCode(
+  calc: ElectricalCalcSummary | null | undefined
+): string | null {
+  const code = calc?.results?.error_code;
+  return typeof code === 'string' && code.trim() ? code : null;
+}
+
+export function electricalCalcSuggestedActions(
+  calc: ElectricalCalcSummary | null | undefined
+): string[] | null {
+  const actions = calc?.results?.suggested_actions;
+  if (!Array.isArray(actions)) return null;
+  const normalized = actions.filter((action): action is string => typeof action === 'string');
+  return normalized.length > 0 ? normalized : null;
+}
+
+export function electricalCalcGuidanceContext(
+  calc: ElectricalCalcSummary | null | undefined
+): Record<string, unknown> | null {
+  if (!calc) return null;
+  const params = calc.params && typeof calc.params === 'object' && !Array.isArray(calc.params)
+    ? calc.params
+    : {};
+  const resultContext = calc.results?.error_context;
+  const errorContext = resultContext && typeof resultContext === 'object' && !Array.isArray(resultContext)
+    ? resultContext as Record<string, unknown>
+    : {};
+
+  return {
+    ...params,
+    ...errorContext,
+    cable_type: calc.cable_type,
+  };
 }

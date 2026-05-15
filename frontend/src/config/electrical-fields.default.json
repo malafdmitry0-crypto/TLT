@@ -175,13 +175,6 @@
       "source": "project_objects.results",
       "valueType": "computed",
       "description": "Суммарные теплопотери объекта из теплового расчёта."
-    },
-    "message": {
-      "labels": { "short": "Сообщение", "full": "Сообщение расчёта", "compact": "Сообщ." },
-      "group": "Диагностика",
-      "source": "electrical_calculations.results",
-      "valueType": "service",
-      "description": "Текст ошибки или диагностическое сообщение электрорасчёта."
     }
   },
   "table": {
@@ -194,8 +187,7 @@
       "number_of_threads",
       "cable_length",
       "total_power",
-      "current",
-      "message"
+      "current"
     ],
     "registry": [
       { "key": "index", "defaultWidthPct": 4, "minWidthPx": 40, "required": true },
@@ -222,8 +214,7 @@
       { "key": "voltage", "defaultWidthPct": 8, "minWidthPx": 74 },
       { "key": "heat_loss_per_meter", "defaultWidthPct": 9, "minWidthPx": 80 },
       { "key": "heat_loss_per_m2", "defaultWidthPct": 9, "minWidthPx": 80 },
-      { "key": "total_heat_loss", "defaultWidthPct": 11, "minWidthPx": 90 },
-      { "key": "message", "defaultWidthPct": 26, "minWidthPx": 180, "ellipsis": true }
+      { "key": "total_heat_loss", "defaultWidthPct": 11, "minWidthPx": 90 }
     ]
   }
 }

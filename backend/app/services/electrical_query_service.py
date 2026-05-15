@@ -9,7 +9,7 @@ from math import ceil
 from typing import Any, Literal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import Float, String, and_, case, cast, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
@@ -32,6 +32,7 @@ from app.schemas.project import (
     ObjectQueryFieldSortCapability,
     ObjectQueryOptionItem,
     ObjectQuerySearchCapability,
+    ProjectObjectResponse,
     ProjectObjectsPageInfo,
 )
 from app.services.calculation_service import CalculationService
@@ -40,6 +41,7 @@ from app.services.project_service import ProjectService
 FieldType = Literal["display", "text", "number", "enum", "boolean"]
 SortType = Literal["text", "number", "label", "enum_rank"]
 OptionMode = Literal["inline", "dictionary", "project_values", "derived"]
+SqlExprFactory = Callable[[], Any]
 
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
@@ -112,6 +114,94 @@ def _normal_text(value: Any) -> str:
     if _is_empty(value):
         return ""
     return str(value).strip().lower()
+
+
+def _sql_object_param_text(key: str) -> Any:
+    return ProjectObject.params[key].astext
+
+
+def _sql_object_result_text(key: str) -> Any:
+    return ProjectObject.results[key].astext
+
+
+def _sql_calc_param_text(key: str) -> Any:
+    return ElectricalCalculation.params[key].astext
+
+
+def _sql_calc_result_text(key: str) -> Any:
+    return ElectricalCalculation.results[key].astext
+
+
+def _sql_number(text_expr: Any) -> Any:
+    return cast(func.nullif(text_expr, ""), Float)
+
+
+def _sql_calc_param_number(key: str) -> Any:
+    return _sql_number(_sql_calc_param_text(key))
+
+
+def _sql_calc_result_number(key: str) -> Any:
+    return _sql_number(_sql_calc_result_text(key))
+
+
+def _sql_object_result_number(key: str) -> Any:
+    return _sql_number(_sql_object_result_text(key))
+
+
+def _sql_heat_loss_status() -> Any:
+    return case(
+        (
+            and_(
+                ProjectObject.is_valid.is_(True),
+                ProjectObject.results.is_not(None),
+            ),
+            literal("calculated"),
+        ),
+        (ProjectObject.validation_errors.is_not(None), literal("error")),
+        else_=literal("not_calculated"),
+    )
+
+
+def _sql_calc_error() -> Any:
+    return func.coalesce(
+        _sql_calc_result_text("message"),
+        _sql_calc_result_text("error"),
+    )
+
+
+def _sql_selected_cable() -> Any:
+    return func.coalesce(
+        ElectricalCalculation.cable_mark,
+        _sql_calc_result_text("selected_cable"),
+    )
+
+
+def _sql_electrical_status() -> Any:
+    return case(
+        (ElectricalCalculation.id.is_(None), literal("not_calculated")),
+        (_sql_calc_result_text("error").is_not(None), literal("error")),
+        (
+            and_(
+                ElectricalCalculation.results.is_not(None),
+                or_(
+                    ElectricalCalculation.cable_mark.is_not(None),
+                    _sql_calc_result_text("selected_cable").is_not(None),
+                ),
+            ),
+            literal("calculated"),
+        ),
+        else_=literal("not_calculated"),
+    )
+
+
+def _sql_label_expr(expr: Any, options: tuple[tuple[Any, str], ...]) -> Any:
+    whens: list[tuple[Any, Any]] = []
+    text_expr = cast(expr, String)
+    for value, label in options:
+        whens.append((text_expr == str(value), literal(label)))
+        if isinstance(value, bool):
+            whens.append((text_expr == str(value).lower(), literal(label)))
+    return case(*whens, else_=text_expr)
 
 
 def _to_float(value: Any) -> float | None:
@@ -469,6 +559,70 @@ FIELDS: tuple[FieldDef, ...] = (
 
 FIELDS_BY_KEY = {field.key: field for field in FIELDS}
 
+ELECTRICAL_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
+    "object_name": lambda: _sql_object_param_text("name"),
+    "object_type": lambda: ProjectObject.object_type,
+    "heat_loss_status": _sql_heat_loss_status,
+    "electrical_status": _sql_electrical_status,
+    "cable_type": lambda: ElectricalCalculation.cable_type,
+    "cable_mark": lambda: ElectricalCalculation.cable_mark,
+    "selected_cable": _sql_selected_cable,
+    "winding_pitch_mm": lambda: _sql_calc_result_number("winding_pitch"),
+    "number_of_threads": lambda: _sql_calc_result_number("num_circuits"),
+    "laying_step": lambda: _sql_calc_param_number("laying_step"),
+    "heating_height": lambda: _sql_calc_param_number("heating_height"),
+    "connection_type": lambda: _sql_calc_param_text("connection_type"),
+    "supply_voltage": lambda: _sql_calc_param_number("supply_voltage"),
+    "winding_coefficient": lambda: _sql_calc_param_number("winding_coefficient"),
+    "vapor_temperature": lambda: _sql_calc_param_number("vapor_temperature"),
+    "aggressive_product": lambda: _sql_calc_param_text("aggressive_product"),
+    "cable_length": lambda: _sql_calc_result_number("cable_length"),
+    "total_power": lambda: _sql_calc_result_number("total_power"),
+    "current": lambda: _sql_calc_result_number("current"),
+    "voltage": lambda: _sql_calc_result_number("voltage"),
+    "heat_loss_per_meter": lambda: _sql_object_result_number("heat_loss_per_meter"),
+    "heat_loss_per_m2": lambda: _sql_object_result_number("heat_loss_per_m2"),
+    "total_heat_loss": lambda: _sql_object_result_number("total_heat_loss"),
+    "message": _sql_calc_error,
+}
+
+ELECTRICAL_OBJECT_PARAM_KEYS = frozenset({"name"})
+ELECTRICAL_OBJECT_RESULT_KEYS = frozenset(
+    {
+        "heat_loss_per_meter",
+        "heat_loss_per_m2",
+        "total_heat_loss",
+    }
+)
+ELECTRICAL_CALC_PARAM_KEYS = frozenset(
+    {
+        "laying_step",
+        "heating_height",
+        "connection_type",
+        "supply_voltage",
+        "winding_coefficient",
+        "vapor_temperature",
+        "aggressive_product",
+        "cable_mark_source",
+    }
+)
+ELECTRICAL_CALC_RESULT_KEYS = frozenset(
+    {
+        "selected_cable",
+        "winding_pitch",
+        "num_circuits",
+        "cable_length",
+        "total_power",
+        "current",
+        "voltage",
+        "message",
+        "error",
+        "error_code",
+        "suggested_actions",
+        "error_context",
+    }
+)
+
 
 class ElectricalQueryService:
     def __init__(self, db: AsyncSession) -> None:
@@ -514,7 +668,7 @@ class ElectricalQueryService:
                 page_size=page_size,
             )
             return ElectricalQueryResponse(
-                items=objects,
+                items=[self._object_summary(obj) for obj in objects],
                 calculations=[self._calc_summary(calc) for calc in calculations],
                 summary=ElectricalPageSummary(**summary),
                 page_info=page_info,
@@ -524,6 +678,8 @@ class ElectricalQueryService:
                 ),
                 query=ElectricalQueryEcho(variant_number=data.variant_number, sort=data.sort),
             )
+        if self._can_use_sql_query(data):
+            return await self._query_sql_page(data, page=page, page_size=page_size)
 
         rows = await self._load_rows(data.project_id, data.variant_number)
         filtered_rows = self._apply_search(rows, data)
@@ -543,7 +699,7 @@ class ElectricalQueryService:
         )
 
         return ElectricalQueryResponse(
-            items=[row.obj for row in page_rows],
+            items=[self._object_summary(row.obj) for row in page_rows],
             calculations=[
                 self._calc_summary(row.calc) for row in page_rows if row.calc is not None
             ],
@@ -559,6 +715,86 @@ class ElectricalQueryService:
             counts=ElectricalQueryCounts(total=len(rows), filtered=filtered_count),
             query=ElectricalQueryEcho(variant_number=data.variant_number, sort=data.sort),
         )
+
+    def _sql_expr(self, field: FieldDef) -> Any:
+        factory = ELECTRICAL_SQL_EXPRESSIONS.get(field.key)
+        if factory is None:
+            raise ElectricalQueryValidationError(f"Поле {field.key} не поддерживает SQL-query")
+        return factory()
+
+    def _sql_text_expr(self, field: FieldDef, expr: Any | None = None) -> Any:
+        expr = self._sql_expr(field) if expr is None else expr
+        if field.static_options:
+            return _sql_label_expr(expr, field.static_options)
+        return cast(expr, String)
+
+    def _sql_empty_clause(self, expr: Any) -> Any:
+        text_expr = cast(expr, String)
+        return or_(expr.is_(None), text_expr == "", text_expr == "—")
+
+    def _sql_search_clause(self, data: ElectricalQueryRequest) -> Any | None:
+        text = (data.search.text if data.search else "").strip()
+        if not text:
+            return None
+        columns = (
+            data.search.columns
+            if data.search and data.search.columns
+            else list(DEFAULT_SEARCH_COLUMNS)
+        )
+        needle = _normal_text(text)
+        clauses = []
+        for key in columns:
+            field = self._field(key)
+            clauses.append(func.lower(self._sql_text_expr(field)).contains(needle))
+        return or_(*clauses) if clauses else None
+
+    def _sql_filter_clause(self, field: FieldDef, item: Any) -> Any | None:
+        expr = self._sql_expr(field)
+        empty_clause = self._sql_empty_clause(expr)
+        if item.op == "contains":
+            needle = _normal_text(item.value)
+            if not needle:
+                return None
+            return func.lower(self._sql_text_expr(field, expr)).contains(needle)
+
+        if item.op == "range":
+            clauses = [empty_clause] if item.include_empty else []
+            range_clauses = [empty_clause.is_(False)]
+            if item.min is not None:
+                range_clauses.append(expr >= item.min)
+            if item.max is not None:
+                range_clauses.append(expr <= item.max)
+            clauses.append(and_(*range_clauses))
+            return or_(*clauses) if item.include_empty else clauses[-1]
+
+        if item.op == "in":
+            values = [str(value) for value in item.values or []]
+            clauses = [empty_clause] if item.include_empty else []
+            if values:
+                clauses.append(cast(expr, String).in_(values))
+                if field.static_options:
+                    clauses.append(self._sql_text_expr(field, expr).in_(values))
+            return or_(*clauses) if clauses else None
+
+        if item.op == "equals":
+            clauses = [empty_clause] if item.include_empty else []
+            if item.value is not None:
+                clauses.append(cast(expr, String) == str(item.value))
+            return or_(*clauses) if clauses else None
+
+        return None
+
+    def _sql_order_by(self, data: ElectricalQueryRequest) -> list[Any]:
+        if data.sort is None:
+            return [ProjectObject.sort_order.asc(), ProjectObject.id.asc()]
+        field = self._field(data.sort.key)
+        expr = self._sql_expr(field)
+        if field.sort_type in {"text", "label"}:
+            order_expr = func.lower(self._sql_text_expr(field, expr))
+        else:
+            order_expr = expr
+        ordered = order_expr.desc() if data.sort.dir == "desc" else order_expr.asc()
+        return [ordered.nulls_last(), ProjectObject.sort_order.asc(), ProjectObject.id.asc()]
 
     async def _load_rows(
         self,
@@ -665,6 +901,101 @@ class ElectricalQueryService:
     def _can_use_default_page(self, data: ElectricalQueryRequest) -> bool:
         search_text = (data.search.text if data.search else "").strip()
         return not search_text and not data.filters and data.sort is None
+
+    def _can_use_sql_query(self, data: ElectricalQueryRequest) -> bool:
+        search_text = (data.search.text if data.search else "").strip()
+        if search_text:
+            columns = (
+                data.search.columns
+                if data.search and data.search.columns
+                else list(DEFAULT_SEARCH_COLUMNS)
+            )
+            if any(self._field(key).key not in ELECTRICAL_SQL_EXPRESSIONS for key in columns):
+                return False
+        for item in data.filters:
+            field = self._field(item.key)
+            if item.op not in field.filter_ops or field.key not in ELECTRICAL_SQL_EXPRESSIONS:
+                return False
+            if (
+                item.op == "range"
+                and item.min is not None
+                and item.max is not None
+                and item.min > item.max
+            ):
+                raise ElectricalQueryValidationError("min не может быть больше max")
+        if data.sort is not None:
+            field = self._field(data.sort.key)
+            if not field.sortable or field.key not in ELECTRICAL_SQL_EXPRESSIONS:
+                return False
+        return True
+
+    async def _query_sql_page(
+        self,
+        data: ElectricalQueryRequest,
+        *,
+        page: int,
+        page_size: int,
+    ) -> ElectricalQueryResponse:
+        join_condition = and_(
+            ElectricalCalculation.object_id == ProjectObject.id,
+            ElectricalCalculation.project_id == data.project_id,
+            ElectricalCalculation.variant_number == data.variant_number,
+        )
+        conditions = [ProjectObject.project_id == data.project_id]
+        search_clause = self._sql_search_clause(data)
+        if search_clause is not None:
+            conditions.append(search_clause)
+        for item in data.filters:
+            clause = self._sql_filter_clause(self._field(item.key), item)
+            if clause is not None:
+                conditions.append(clause)
+
+        count_result = await self.db.execute(
+            select(func.count())
+            .select_from(ProjectObject)
+            .outerjoin(ElectricalCalculation, join_condition)
+            .where(*conditions)
+        )
+        filtered_count = int(count_result.scalar_one() or 0)
+        offset = (page - 1) * page_size
+        rows_result = await self.db.execute(
+            select(ProjectObject, ElectricalCalculation)
+            .outerjoin(ElectricalCalculation, join_condition)
+            .where(*conditions)
+            .order_by(*self._sql_order_by(data))
+            .offset(offset)
+            .limit(page_size)
+        )
+        page_rows = [ElectricalQueryRow(obj=obj, calc=calc) for obj, calc in rows_result.all()]
+        total_pages = ceil(filtered_count / page_size) if filtered_count else 0
+
+        _, _, summary, _ = await CalculationService(self.db).electrical_project_page(
+            data.project_id,
+            variant_number=data.variant_number,
+            page=1,
+            page_size=1,
+        )
+
+        return ElectricalQueryResponse(
+            items=[self._object_summary(row.obj) for row in page_rows],
+            calculations=[
+                self._calc_summary(row.calc) for row in page_rows if row.calc is not None
+            ],
+            summary=ElectricalPageSummary(**summary),
+            page_info=ProjectObjectsPageInfo(
+                page=page,
+                page_size=page_size,
+                offset=offset,
+                total_pages=total_pages,
+                has_next_page=page * page_size < filtered_count,
+                has_previous_page=page > 1,
+            ),
+            counts=ElectricalQueryCounts(
+                total=int(summary["total_objects"]),
+                filtered=filtered_count,
+            ),
+            query=ElectricalQueryEcho(variant_number=data.variant_number, sort=data.sort),
+        )
 
     def _apply_search(
         self,
@@ -797,8 +1128,33 @@ class ElectricalQueryService:
             id=calc.id,
             object_id=calc.object_id,
             cable_type=calc.cable_type,
+            cable_type_source=calc.cable_type_source,
             cable_mark=calc.cable_mark,
+            cable_mark_source=calc.cable_mark_source,
             variant_number=calc.variant_number,
-            params=calc.params,
-            results=calc.results,
+            params=self._prune_dict(calc.params, ELECTRICAL_CALC_PARAM_KEYS),
+            results=self._prune_dict(calc.results, ELECTRICAL_CALC_RESULT_KEYS),
         )
+
+    def _object_summary(self, obj: ProjectObject) -> ProjectObjectResponse:
+        return ProjectObjectResponse(
+            id=obj.id,
+            project_id=obj.project_id,
+            object_type=obj.object_type,
+            sort_order=obj.sort_order,
+            params=self._prune_dict(obj.params, ELECTRICAL_OBJECT_PARAM_KEYS) or {},
+            results=self._prune_dict(obj.results, ELECTRICAL_OBJECT_RESULT_KEYS),
+            is_valid=obj.is_valid,
+            validation_errors=obj.validation_errors,
+            created_at=obj.created_at,
+            updated_at=obj.updated_at,
+        )
+
+    @staticmethod
+    def _prune_dict(
+        value: dict[str, Any] | None,
+        keys: frozenset[str],
+    ) -> dict[str, Any] | None:
+        if not isinstance(value, dict):
+            return None
+        return {key: value[key] for key in keys if key in value}

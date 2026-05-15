@@ -72,7 +72,9 @@ def _electrical_upsert_row(project_id: uuid.UUID, object_id: uuid.UUID) -> dict[
         "object_id": object_id,
         "variant_number": 1,
         "cable_type": "self_regulating",
+        "cable_type_source": "auto",
         "cable_mark": "TLT-30",
+        "cable_mark_source": "auto",
         "params": {},
         "results": {"selected_cable": "TLT-30"},
     }
@@ -899,6 +901,52 @@ class TestBatchElectricalCallbacks:
         assert progress[1].current == 1
         assert progress[1].total == 1
 
+    async def test_batch_electrical_saves_structured_error_if_build_data_fails(self):
+        project_id = uuid.uuid4()
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=project_id,
+            object_type="tank",
+            sort_order=0,
+            params={
+                "name": "Spherical tank",
+                "shape": "spherical",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+            },
+            results={"total_heat_loss": 300, "safety_factor": 1.1},
+            is_valid=True,
+        )
+        db = AsyncMock()
+        count_result = MagicMock()
+        count_result.one = lambda: (1, 1)
+        objects_result = MagicMock()
+        objects_result.scalars = lambda: MagicMock(all=lambda: [obj])
+        existing_result = MagicMock()
+        existing_result.scalars = lambda: MagicMock(all=lambda: [])
+        db.execute = AsyncMock(side_effect=[count_result, objects_result, existing_result])
+        db.add = MagicMock()
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+
+        calculated, skipped, heat_loss_failed, errors, _ = await service.batch_calc_electrical(
+            project_id,
+            return_calcs=False,
+        )
+
+        assert calculated == 0
+        assert skipped == 1
+        assert heat_loss_failed == 0
+        assert errors[0]["error_code"] == "MISSING_TANK_LAYOUT"
+        assert errors[0]["suggested_actions"] == ["SET_TANK_LAYOUT"]
+        created = db.add.call_args.args[0]
+        assert created.results["error_code"] == "MISSING_TANK_LAYOUT"
+        assert created.results["message"].startswith("Для электрорасчёта резервуара")
+        assert created.results["error_context"]["shape"] == "spherical"
+        assert created.results["error_context"]["cable_type"] == "self_regulating"
+
     async def test_batch_electrical_uses_existing_cable_type_per_object(self):
         project_id = uuid.uuid4()
         objects = [
@@ -968,6 +1016,135 @@ class TestBatchElectricalCallbacks:
         assert request_types == ["single_core", "three_core"]
         rows = service._bulk_upsert_electrical_calculations.await_args.args[0]
         assert [row["cable_type"] for row in rows] == ["single_core", "three_core"]
+        assert [row["cable_type_source"] for row in rows] == ["auto", "auto"]
+        assert [row["cable_mark_source"] for row in rows] == ["auto", "auto"]
+
+    async def test_batch_electrical_force_cable_type_ignores_existing_types(self):
+        project_id = uuid.uuid4()
+        objects = [
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                project_id=project_id,
+                object_type="pipe",
+                sort_order=index,
+                params={
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 10,
+                },
+                results={"heat_loss_per_meter": 30, "total_heat_loss": 300},
+                is_valid=True,
+            )
+            for index in range(2)
+        ]
+        existing_calcs = [
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                object_id=objects[0].id,
+                cable_type="single_core",
+                params={},
+                results={},
+            ),
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                object_id=objects[1].id,
+                cable_type="three_core",
+                params={},
+                results={},
+            ),
+        ]
+        count_result = MagicMock()
+        count_result.one = lambda: (2, 2)
+        objects_result = MagicMock()
+        objects_result.scalars = lambda: MagicMock(all=lambda: objects)
+        existing_result = MagicMock()
+        existing_result.scalars = lambda: MagicMock(all=lambda: existing_calcs)
+        db = AsyncMock()
+        db.execute = AsyncMock(side_effect=[count_result, objects_result, existing_result])
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service._calculate_electrical_result = MagicMock(  # type: ignore[method-assign]
+            return_value=("Кабель", {"selected_cable": "Кабель"})
+        )
+        service._bulk_upsert_electrical_calculations = AsyncMock(  # type: ignore[method-assign]
+            return_value=[]
+        )
+
+        calculated, skipped, heat_loss_failed, errors, _ = await service.batch_calc_electrical(
+            project_id,
+            cable_type="self_regulating",
+            force_cable_type=True,
+            return_calcs=False,
+        )
+
+        assert calculated == 2
+        assert skipped == 0
+        assert heat_loss_failed == 0
+        assert errors == []
+        request_types = [
+            call.args[0].cable_type for call in service._calculate_electrical_result.call_args_list
+        ]
+        assert request_types == ["self_regulating", "self_regulating"]
+        rows = service._bulk_upsert_electrical_calculations.await_args.args[0]
+        assert [row["cable_type"] for row in rows] == ["self_regulating", "self_regulating"]
+        assert [row["cable_type_source"] for row in rows] == ["bulk", "bulk"]
+        assert [row["cable_mark_source"] for row in rows] == ["auto", "auto"]
+
+    async def test_batch_electrical_marks_object_override_as_manual_source(self):
+        project_id = uuid.uuid4()
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=project_id,
+            object_type="pipe",
+            sort_order=0,
+            params={
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 10,
+            },
+            results={"heat_loss_per_meter": 30, "total_heat_loss": 300},
+            is_valid=True,
+        )
+        count_result = MagicMock()
+        count_result.one = lambda: (1, 1)
+        ids_result = MagicMock()
+        ids_result.scalars = lambda: MagicMock(all=lambda: [obj.id])
+        objects_result = MagicMock()
+        objects_result.scalars = lambda: MagicMock(all=lambda: [obj])
+        existing_result = MagicMock()
+        existing_result.scalars = lambda: MagicMock(all=lambda: [])
+        db = AsyncMock()
+        db.execute = AsyncMock(
+            side_effect=[ids_result, ids_result, count_result, objects_result, existing_result]
+        )
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service._calculate_electrical_result = MagicMock(  # type: ignore[method-assign]
+            return_value=("Кабель", {"selected_cable": "Кабель"})
+        )
+        service._bulk_upsert_electrical_calculations = AsyncMock(  # type: ignore[method-assign]
+            return_value=[]
+        )
+
+        calculated, skipped, heat_loss_failed, errors, _ = await service.batch_calc_electrical(
+            project_id,
+            object_ids=[obj.id],
+            object_overrides=[{"object_id": obj.id, "cable_type": "three_core"}],
+            return_calcs=False,
+        )
+
+        assert calculated == 1
+        assert skipped == 0
+        assert heat_loss_failed == 0
+        assert errors == []
+        rows = service._bulk_upsert_electrical_calculations.await_args.args[0]
+        assert rows[0]["cable_type"] == "three_core"
+        assert rows[0]["cable_type_source"] == "manual"
+        assert rows[0]["cable_mark_source"] == "auto"
 
     async def test_batch_electrical_cancel_stops_before_commit(self):
         project_id = uuid.uuid4()
@@ -1143,6 +1320,12 @@ class TestSaveFailedElectrical:
         # cable_mark обнуляется, results заменяются на error
         assert existing.cable_mark is None
         assert existing.results["error"] == "Some error"
+        assert existing.results["error_code"] == "UNKNOWN"
+        assert existing.results["message"] == "Some error"
+        assert existing.results["suggested_actions"] == [
+            "CHECK_OBJECT_PARAMS",
+            "TRY_OTHER_CABLE_TYPE",
+        ]
 
     async def test_creates_record_with_given_variant_number(self):
         """Regression: фейл электрорасчёта варианта 2 сохраняется с variant_number=2,

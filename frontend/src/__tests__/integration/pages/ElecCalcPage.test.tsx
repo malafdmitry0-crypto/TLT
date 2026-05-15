@@ -299,6 +299,71 @@ describe('ElecCalcPage (integration)', () => {
     });
   });
 
+  it('показывает сообщения ошибок в отдельной области, а не колонкой таблицы', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const firstObject = makeObject({
+      id: 'o-error-1',
+      params: { name: 'Резервуар со сферой 1' },
+    });
+    const secondObject = makeObject({
+      id: 'o-error-2',
+      params: { name: 'Резервуар со сферой 2' },
+    });
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([firstObject, secondObject], [
+        {
+          id: 'c-error-1',
+          object_id: firstObject.id,
+          cable_type: 'self_regulating',
+          cable_mark: null,
+          variant_number: 1,
+          results: {
+            error: 'CalculationError: Для электрорасчёта резервуара требуется геометрия укладки кабеля: цилиндр/параллелепипед, высота обогрева и шаг укладки',
+            error_code: 'MISSING_TANK_LAYOUT',
+            message: 'Для электрорасчёта резервуара требуется геометрия укладки кабеля: цилиндр/параллелепипед, высота обогрева и шаг укладки',
+            suggested_actions: ['SET_HEATING_HEIGHT', 'SET_LAYING_STEP'],
+          },
+        },
+        {
+          id: 'c-error-2',
+          object_id: secondObject.id,
+          cable_type: 'self_regulating',
+          cable_mark: null,
+          variant_number: 1,
+          results: {
+            error: 'ValueError: Не найден кабель с мощностью ≥ 132.67 Вт/м с учётом навива и количества ниток (максимум линейки - 100 Вт/м на одну нитку)',
+            error_code: 'POWER_TOO_HIGH',
+            message: 'Не найден кабель с мощностью ≥ 132.67 Вт/м с учётом навива и количества ниток',
+            suggested_actions: ['TRY_OTHER_CABLE_TYPE'],
+          },
+        },
+      ]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    const errorRegion = await screen.findByLabelText('Сообщения ошибок электрорасчёта');
+    expect(errorRegion).toHaveTextContent('Ошибок: 2');
+    expect(errorRegion).not.toHaveTextContent('Резервуар со сферой 1');
+    expect(errorRegion).toHaveTextContent('геометрия укладки кабеля');
+    expect(errorRegion).toHaveTextContent('Нет геометрии укладки');
+    expect(errorRegion).toHaveTextContent('Задать высоту обогрева');
+    expect(errorRegion).toHaveTextContent('Задать шаг укладки');
+    expect(errorRegion).not.toHaveTextContent('CalculationError');
+    expect(document.querySelector('.electrical-spreadsheet')?.textContent).not.toContain('Сообщение');
+
+    await user.click(screen.getByText('Резервуар со сферой 2'));
+    await waitFor(() => {
+      expect(errorRegion).not.toHaveTextContent('Резервуар со сферой 2');
+      expect(errorRegion).toHaveTextContent('Не найден кабель с мощностью');
+      expect(errorRegion).toHaveTextContent('Мощность выше линейки');
+      expect(errorRegion).toHaveTextContent('Попробовать другой тип кабеля');
+      expect(errorRegion).not.toHaveTextContent('Попробовать 2 нитки');
+      expect(errorRegion).not.toHaveTextContent('Попробовать 3 нитки');
+    });
+  });
+
   it('пагинирует таблицу электрики, чтобы не рендерить все строки сразу', async () => {
     const { getElectricalPage } = await import('@/api/calculations');
     const objects = Array.from({ length: 80 }, (_, index) =>
@@ -370,10 +435,11 @@ describe('ElecCalcPage (integration)', () => {
           windingCoefficient: 1,
           layingStep: 0.1,
           objectIds: ['o-1'],
-          objectOverrides: [{ object_id: 'o-1', cable_type: 'self_regulating' }],
         }),
       );
     });
+    const options = (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mock.calls[0][4];
+    expect(options.objectOverrides).toBeUndefined();
   });
 
   it('селектор типа кабеля содержит ТТН/ТТВ/ТТХ, single_core, three_core как доступные', async () => {
@@ -383,7 +449,7 @@ describe('ElecCalcPage (integration)', () => {
     const user = (await import('@testing-library/user-event')).default.setup();
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/Тип по умолчанию/i)).toBeInTheDocument();
+      expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
     const rowCheckbox = document.querySelector('tbody .ant-checkbox-input') as HTMLInputElement;
@@ -405,7 +471,7 @@ describe('ElecCalcPage (integration)', () => {
     expect(screen.getByText(/Трёхж. пост. мощн./i)).toBeInTheDocument();
   });
 
-  it('позволяет выбрать тип по умолчанию без выбранных строк для полного пересчёта', async () => {
+  it('применяет выбранный сверху тип ко всем объектам при полном пересчёте', async () => {
     const { enqueueElectricalBatchJob, getElectricalPage } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
     (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -427,7 +493,7 @@ describe('ElecCalcPage (integration)', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/Тип по умолчанию/i)).toBeInTheDocument();
+      expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
     const selectors = document.querySelectorAll('.ant-select-selector');
@@ -448,6 +514,7 @@ describe('ElecCalcPage (integration)', () => {
         'self_regulating_tt',
         expect.objectContaining({
           aggressiveProduct: false,
+          forceCableType: true,
         }),
       );
     });
@@ -540,6 +607,48 @@ describe('ElecCalcPage (integration)', () => {
           objectOverrides: [{ object_id: 'o-1', cable_type: 'self_regulating_tt' }],
         }),
       );
+    });
+  });
+
+  it('показывает источник ручного выбора марки кабеля в колонке марки', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    const objects = [
+      makeObject({ id: 'o-1', params: { name: 'Труба-1' } }),
+      makeObject({ id: 'o-2', sort_order: 1, params: { name: 'Труба-2' } }),
+    ];
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage(objects, [
+        {
+          id: 'c-1',
+          object_id: 'o-1',
+          cable_type: 'single_core',
+          cable_mark: 'TT P1 62',
+          cable_mark_source: 'manual',
+          variant_number: 1,
+          results: { selected_cable: 'TT P1 62' },
+        },
+        {
+          id: 'c-2',
+          object_id: 'o-2',
+          cable_type: 'self_regulating',
+          cable_mark: 'ТЛТ-30',
+          cable_mark_source: 'auto',
+          variant_number: 1,
+          results: { selected_cable: 'ТЛТ-30' },
+        },
+      ]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    localStorage.setItem(ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      visibleOrder: ['index', 'object_name', 'cable_type', 'cable_mark'],
+      columns: { cable_mark: { widthPct: 18 } },
+    }));
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('row', { name: /Труба-1/ })).toHaveTextContent('ручн.');
+      expect(screen.getByRole('row', { name: /Труба-2/ })).not.toHaveTextContent('ручн.');
     });
   });
 
@@ -911,13 +1020,13 @@ describe('ElecCalcPage (integration)', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/Тип по умолчанию/i)).toBeInTheDocument();
+      expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
     const rowCheckbox = document.querySelector('tbody .ant-checkbox-input') as HTMLInputElement;
     fireEvent.click(rowCheckbox);
     await waitFor(() => {
-      expect(screen.getByText(/Тип для выбранных/i)).toBeInTheDocument();
+      expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
     });
     const selectors = document.querySelectorAll('.ant-select-selector');
     const cableTypeSelect = Array.from(selectors).find((el) =>
@@ -934,12 +1043,14 @@ describe('ElecCalcPage (integration)', () => {
         'p-1',
         'builtin',
         1,
-        'self_regulating',
+        'self_regulating_tt',
         expect.objectContaining({
           aggressiveProduct: false,
-          objectOverrides: [{ object_id: 'o-1', cable_type: 'self_regulating_tt' }],
+          forceCableType: true,
         }),
       );
     });
+    const options = (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mock.calls[0][4];
+    expect(options.objectOverrides).toBeUndefined();
   });
 });

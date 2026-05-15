@@ -589,6 +589,7 @@ class TestManualCableSelection:
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["cable_mark"] == "ТЛТ-50"
+        assert body["cable_mark_source"] == "manual"
         assert body["results"]["selected_cable"] == "ТЛТ-50"
         # В листе тоже одна запись (upsert не плодит дубликаты)
         listing = (
@@ -600,6 +601,7 @@ class TestManualCableSelection:
         ).json()
         assert len(listing) == 1
         assert listing[0]["cable_mark"] == "ТЛТ-50"
+        assert listing[0]["cable_mark_source"] == "manual"
 
     async def test_manual_select_cable_too_weak(self, client: AsyncClient, guest_session: str):
         """Слишком слабый кабель → 422 с текстом «не обеспечивает»."""

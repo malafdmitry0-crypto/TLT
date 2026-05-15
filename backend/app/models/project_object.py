@@ -31,6 +31,12 @@ class ProjectObject(Base, TimestampMixin):
     __tablename__ = "project_objects"
     __table_args__ = (
         Index(
+            "ix_project_objects_project_sort",
+            "project_id",
+            "sort_order",
+            "id",
+        ),
+        Index(
             "ix_project_objects_project_type_sort",
             "project_id",
             "object_type",
