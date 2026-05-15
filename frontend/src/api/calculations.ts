@@ -120,6 +120,10 @@ export interface ElectricalBatchOptions {
   aggressiveProduct?: boolean;
   skipManual?: boolean;
   objectIds?: string[];
+  objectOverrides?: Array<{
+    object_id: string;
+    cable_type?: CableType | null;
+  }>;
 }
 
 function electricalParams(
@@ -179,6 +183,7 @@ export async function enqueueElectricalBatchJob(
       include_errors: true,
       ...electricalParams(cableType, options),
       object_ids: options.objectIds,
+      object_overrides: options.objectOverrides,
     },
   );
   return data;

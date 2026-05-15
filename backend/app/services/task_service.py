@@ -29,6 +29,7 @@ from app.schemas.calculation import (
     CalculationTaskResponse,
     ElectricalBatchJobRequest,
     ElectricalCalcSummary,
+    ElectricalObjectBatchOverride,
     HeatLossBatchJobRequest,
 )
 from app.services.calculation_service import BatchCancelledError, BatchProgress, CalculationService
@@ -156,8 +157,17 @@ class TaskService:
             request.project_id,
             request.object_ids,
         )
+        object_overrides = await self._validate_electrical_object_overrides(
+            request.project_id,
+            request.object_overrides,
+            object_ids=object_ids,
+        )
 
-        payload = self._electrical_payload(request, object_ids=object_ids)
+        payload = self._electrical_payload(
+            request,
+            object_ids=object_ids,
+            object_overrides=object_overrides,
+        )
         dedupe_key = self._dedupe_key(
             task_type=TASK_ELECTRICAL_BATCH,
             project_id=request.project_id,
@@ -412,6 +422,13 @@ class TaskService:
             object_ids = [
                 UUID(str(object_id)) for object_id in payload.get("object_ids") or []
             ] or None
+            object_overrides = [
+                {
+                    "object_id": UUID(str(item["object_id"])),
+                    "cable_type": item.get("cable_type"),
+                }
+                for item in payload.get("object_overrides") or []
+            ]
             async with self.session_factory() as calc_db:
                 service = CalculationService(calc_db)
                 (
@@ -431,6 +448,7 @@ class TaskService:
                     progress_callback=progress_throttler.offer,
                     should_cancel=lambda: self._should_cancel(task_id),
                     object_ids=object_ids,
+                    object_overrides=object_overrides,
                 )
         except BatchCancelledError:
             await progress_throttler.flush()
@@ -610,11 +628,50 @@ class TaskService:
             raise ValueError("Все выбранные объекты должны принадлежать проекту")
         return normalized
 
+    async def _validate_electrical_object_overrides(
+        self,
+        project_id: UUID,
+        object_overrides: list[ElectricalObjectBatchOverride] | None,
+        *,
+        object_ids: list[UUID] | None,
+    ) -> list[dict[str, str]] | None:
+        if object_overrides is None:
+            return None
+        normalized: dict[UUID, ElectricalObjectBatchOverride] = {}
+        for item in object_overrides:
+            normalized[item.object_id] = item
+        if not normalized:
+            return None
+
+        override_ids = list(normalized)
+        if object_ids is not None and not set(override_ids).issubset(set(object_ids)):
+            raise ValueError("Переопределения должны относиться только к выбранным объектам")
+
+        result = await self.db.execute(
+            select(ProjectObject.id).where(
+                ProjectObject.project_id == project_id,
+                ProjectObject.id.in_(override_ids),
+            )
+        )
+        found_ids = set(result.scalars().all())
+        if len(found_ids) != len(override_ids):
+            raise ValueError("Все переопределения должны принадлежать объектам проекта")
+
+        return [
+            {
+                "object_id": str(item.object_id),
+                "cable_type": item.cable_type,
+            }
+            for item in normalized.values()
+            if item.cable_type is not None
+        ] or None
+
     @staticmethod
     def _electrical_payload(
         request: ElectricalBatchJobRequest,
         *,
         object_ids: list[UUID] | None,
+        object_overrides: list[dict[str, str]] | None,
     ) -> dict[str, Any]:
         payload = {
             "project_id": str(request.project_id),
@@ -628,6 +685,8 @@ class TaskService:
         }
         if object_ids is not None:
             payload["object_ids"] = [str(object_id) for object_id in object_ids]
+        if object_overrides is not None:
+            payload["object_overrides"] = object_overrides
         return payload
 
     @staticmethod

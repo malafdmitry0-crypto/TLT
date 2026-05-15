@@ -370,6 +370,7 @@ describe('ElecCalcPage (integration)', () => {
           windingCoefficient: 1,
           layingStep: 0.1,
           objectIds: ['o-1'],
+          objectOverrides: [{ object_id: 'o-1', cable_type: 'self_regulating' }],
         }),
       );
     });
@@ -377,13 +378,16 @@ describe('ElecCalcPage (integration)', () => {
 
   it('селектор типа кабеля содержит ТТН/ТТВ/ТТХ, single_core, three_core как доступные', async () => {
     const { getElectricalPage } = await import('@/api/calculations');
-    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([]));
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
     useProjectStore.getState().setCurrentProject(mockProject);
     const user = (await import('@testing-library/user-event')).default.setup();
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/Тип кабеля/i)).toBeInTheDocument();
+      expect(screen.getByText(/Тип для выбранных/i)).toBeInTheDocument();
+      expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
+    const rowCheckbox = document.querySelector('tbody .ant-checkbox-input') as HTMLInputElement;
+    fireEvent.click(rowCheckbox);
     // Открываем селектор
     const selectors = document.querySelectorAll('.ant-select-selector');
     const cableTypeSelect = Array.from(selectors).find((el) =>
@@ -399,6 +403,93 @@ describe('ElecCalcPage (integration)', () => {
     });
     expect(screen.getByText(/Однож. пост. мощн./i)).toBeInTheDocument();
     expect(screen.getByText(/Трёхж. пост. мощн./i)).toBeInTheDocument();
+  });
+
+  it('меняет тип кабеля только для выбранной строки и отправляет override по объекту', async () => {
+    const { enqueueElectricalBatchJob, getElectricalPage } = await import('@/api/calculations');
+    const objects = [
+      makeObject({ id: 'o-1', params: { name: 'Труба-1' } }),
+      makeObject({ id: 'o-2', sort_order: 1, params: { name: 'Труба-2' } }),
+    ];
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage(objects, [
+        {
+          id: 'c-1',
+          object_id: 'o-1',
+          cable_type: 'self_regulating',
+          cable_mark: 'ТЛТ-20',
+          variant_number: 1,
+          results: { selected_cable: 'ТЛТ-20' },
+        },
+        {
+          id: 'c-2',
+          object_id: 'o-2',
+          cable_type: 'three_core',
+          cable_mark: 'Рез-3',
+          variant_number: 1,
+          results: { selected_cable: 'Рез-3' },
+        },
+      ]),
+    );
+    (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'task-1',
+      type: 'electrical_batch',
+      status: 'enqueued',
+      project_id: 'p-1',
+      progress: { current: 0, total: null, phase: 'enqueued', percent: null },
+      result: null,
+      error_message: null,
+      cancel_requested: false,
+      created_at: '2026-01-01T00:00:00Z',
+      started_at: null,
+      finished_at: null,
+      links: { status: '', result: '', cancel: '' },
+    });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    localStorage.setItem(ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      visibleOrder: ['index', 'object_name', 'cable_type', 'cable_mark'],
+      columns: { cable_type: { widthPct: 13 } },
+    }));
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Труба-1')).toBeInTheDocument();
+      expect(screen.getByText('Труба-2')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('row', { name: /Труба-1/ })).toHaveTextContent('Саморегулирующийся');
+    expect(screen.getByRole('row', { name: /Труба-2/ })).toHaveTextContent('Трёхж. пост. мощн.');
+    const firstRow = screen.getByRole('row', { name: /Труба-1/ });
+    fireEvent.click(within(firstRow).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Пересчитать выбранные \(1\)/i })).toBeInTheDocument();
+    });
+    const selectors = document.querySelectorAll('.ant-select-selector');
+    const cableTypeSelect = Array.from(selectors).find((el) =>
+      el.textContent?.includes('Саморегулирующийся')
+    );
+    expect(cableTypeSelect).toBeTruthy();
+    await user.click(cableTypeSelect as HTMLElement);
+    await user.click(await screen.findByText('ТТН/ТТВ/ТТХ'));
+
+    expect(screen.getAllByText('ТТН/ТТВ/ТТХ').length).toBeGreaterThan(0);
+    expect(screen.getByRole('row', { name: /Труба-1/ })).toHaveTextContent('Саморегулирующийся');
+    expect(screen.getByRole('row', { name: /Труба-2/ })).toHaveTextContent('Трёхж. пост. мощн.');
+    await user.click(screen.getByRole('button', { name: /Пересчитать выбранные \(1\)/i }));
+
+    await waitFor(() => {
+      expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
+        'p-1',
+        'builtin',
+        1,
+        'self_regulating_tt',
+        expect.objectContaining({
+          objectIds: ['o-1'],
+          objectOverrides: [{ object_id: 'o-1', cable_type: 'self_regulating_tt' }],
+        }),
+      );
+    });
   });
 
   it('при успешном расчёте отображает подобранный кабель в карточке объекта', async () => {
@@ -769,8 +860,11 @@ describe('ElecCalcPage (integration)', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/Тип кабеля/i)).toBeInTheDocument();
+      expect(screen.getByText(/Тип для выбранных/i)).toBeInTheDocument();
+      expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
+    const rowCheckbox = document.querySelector('tbody .ant-checkbox-input') as HTMLInputElement;
+    fireEvent.click(rowCheckbox);
     const selectors = document.querySelectorAll('.ant-select-selector');
     const cableTypeSelect = Array.from(selectors).find((el) =>
       el.textContent?.includes('Саморегулирующийся')
@@ -786,8 +880,11 @@ describe('ElecCalcPage (integration)', () => {
         'p-1',
         'builtin',
         1,
-        'self_regulating_tt',
-        expect.objectContaining({ aggressiveProduct: false }),
+        'self_regulating',
+        expect.objectContaining({
+          aggressiveProduct: false,
+          objectOverrides: [{ object_id: 'o-1', cable_type: 'self_regulating_tt' }],
+        }),
       );
     });
   });

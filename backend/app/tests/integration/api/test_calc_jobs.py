@@ -181,6 +181,8 @@ class TestCalcJobs:
             json={
                 "project_id": project["id"],
                 "object_ids": [selected["id"]],
+                "object_overrides": [{"object_id": selected["id"], "cable_type": "single_core"}],
+                "connection_type": "line_1ph",
                 "include_results": False,
             },
             headers={"X-Session-Id": guest_session},
@@ -211,9 +213,12 @@ class TestCalcJobs:
             headers={"X-Session-Id": guest_session},
         )
         assert listing_resp.status_code == 200, listing_resp.text
-        calculation_object_ids = {item["object_id"] for item in listing_resp.json()}
+        calculations = listing_resp.json()
+        calculation_object_ids = {item["object_id"] for item in calculations}
         assert selected["id"] in calculation_object_ids
         assert skipped["id"] not in calculation_object_ids
+        selected_calc = next(item for item in calculations if item["object_id"] == selected["id"])
+        assert selected_calc["cable_type"] == "single_core"
 
     async def test_worker_executes_enqueued_heat_loss_batch(
         self,

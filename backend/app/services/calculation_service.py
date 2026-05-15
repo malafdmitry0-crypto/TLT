@@ -1096,6 +1096,43 @@ class CalculationService:
             raise CalculationError("Все выбранные объекты должны принадлежать проекту")
         return normalized
 
+    async def _validate_electrical_object_overrides(
+        self,
+        project_id: UUID,
+        object_overrides: list[dict[str, Any]] | None,
+        *,
+        object_ids: list[UUID] | None,
+    ) -> dict[UUID, dict[str, Any]]:
+        if not object_overrides:
+            return {}
+
+        normalized: dict[UUID, dict[str, Any]] = {}
+        for item in object_overrides:
+            object_id = item.get("object_id")
+            if object_id is None:
+                raise CalculationError("В переопределении не указан object_id")
+            parsed_id = object_id if isinstance(object_id, UUID) else UUID(str(object_id))
+            normalized[parsed_id] = {
+                key: value
+                for key, value in item.items()
+                if key != "object_id" and value is not None
+            }
+
+        override_ids = list(normalized)
+        if object_ids is not None and not set(override_ids).issubset(set(object_ids)):
+            raise CalculationError("Переопределения должны относиться только к выбранным объектам")
+
+        result = await self.db.execute(
+            select(ProjectObject.id).where(
+                ProjectObject.project_id == project_id,
+                ProjectObject.id.in_(override_ids),
+            )
+        )
+        found_ids = set(result.scalars().all())
+        if len(found_ids) != len(override_ids):
+            raise CalculationError("Все переопределения должны принадлежать объектам проекта")
+        return normalized
+
     async def _load_valid_project_object_chunk(
         self,
         project_id: UUID,
@@ -1155,6 +1192,7 @@ class CalculationService:
                 load_only(
                     ElectricalCalculation.id,
                     ElectricalCalculation.object_id,
+                    ElectricalCalculation.cable_type,
                     ElectricalCalculation.params,
                     ElectricalCalculation.results,
                 )
@@ -1183,6 +1221,7 @@ class CalculationService:
         progress_callback: ProgressCallback | None = None,
         should_cancel: CancelChecker | None = None,
         object_ids: list[UUID] | None = None,
+        object_overrides: list[dict[str, Any]] | None = None,
     ) -> tuple[int, int, int, list[dict[str, Any]], list[ElectricalCalculation]]:
         """Автоподбор кабеля для всех валидных объектов проекта (cable_mark=None)."""
 
@@ -1193,6 +1232,11 @@ class CalculationService:
         cancel_checker = BatchCancelChecker(should_cancel)
 
         object_ids = await self._validate_project_object_ids(project_id, object_ids)
+        object_overrides_by_id = await self._validate_electrical_object_overrides(
+            project_id,
+            object_overrides,
+            object_ids=object_ids,
+        )
         # Считаем общее количество объектов в области пересчёта — чтобы сообщить фронту,
         # сколько объектов исключено из-за ошибок теплопотерь.
         total_count, total_valid = await self._electrical_batch_counts(
@@ -1243,6 +1287,11 @@ class CalculationService:
                 await cancel_checker.check(processed)
                 try:
                     existing_calc = existing_by_object_id.get(obj.id)
+                    object_cable_type = (
+                        object_overrides_by_id.get(obj.id, {}).get("cable_type")
+                        or (existing_calc.cable_type if existing_calc is not None else None)
+                        or cable_type
+                    )
                     if (
                         skip_manual
                         and existing_calc is not None
@@ -1257,11 +1306,11 @@ class CalculationService:
                     )
                     request = ElectricalRequest(
                         object_id=obj.id,
-                        cable_type=cast(Any, cable_type),
+                        cable_type=cast(Any, object_cable_type),
                         variant_number=variant_number,
                         data=self._build_electrical_data(
                             obj=obj,
-                            cable_type=cable_type,
+                            cable_type=object_cable_type,
                             cable_mark=None,
                             tlt_catalog=catalog,
                             overrides=overrides,
@@ -1291,7 +1340,7 @@ class CalculationService:
                         obj,
                         err_msg,
                         variant_number,
-                        cable_type,
+                        object_cable_type,
                         existing_calc=existing_by_object_id.get(obj.id),
                     )
                 finally:

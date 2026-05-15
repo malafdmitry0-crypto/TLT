@@ -20,7 +20,7 @@ services:
     image: heatcalc-backend-dev:${IMAGE_TAG:-latest}
     volumes:
       - ./backend:/app
-    command: sh -c "alembic upgrade head && python -m app.worker"
+    command: sh -c "alembic upgrade head && watchfiles --filter python 'python -m app.worker' app"
     environment:
       DATABASE_URL: postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db
       REDIS_URL: redis://redis:6379/0

@@ -562,16 +562,19 @@ class ResistiveThreeCoreResult(BaseModel):
     num_circuits: int
 
 
+ElectricalCableType = Literal[
+    "self_regulating",
+    "self_regulating_tt",
+    "single_core",
+    "three_core",
+    "mineral",
+    "skin",
+]
+
+
 class ElectricalRequest(BaseModel):
     object_id: UUID
-    cable_type: Literal[
-        "self_regulating",
-        "self_regulating_tt",
-        "single_core",
-        "three_core",
-        "mineral",
-        "skin",
-    ]
+    cable_type: ElectricalCableType
     data: dict[str, Any]
     variant_number: int = 1
 
@@ -682,6 +685,13 @@ class BatchElectricalResponse(BaseModel):
 TaskStatus = Literal["queued", "enqueued", "running", "succeeded", "failed", "cancelled"]
 
 
+class ElectricalObjectBatchOverride(BaseModel):
+    """Переопределение параметров электрорасчёта для конкретного объекта."""
+
+    object_id: UUID
+    cable_type: ElectricalCableType | None = None
+
+
 class ElectricalBatchJobRequest(BaseModel):
     """Запрос асинхронного пакетного электрорасчёта."""
 
@@ -689,14 +699,8 @@ class ElectricalBatchJobRequest(BaseModel):
     object_ids: list[UUID] | None = Field(default=None, min_length=1)
     cable_source: str = "builtin"
     variant_number: int = Field(default=1, ge=1, le=4)
-    cable_type: Literal[
-        "self_regulating",
-        "self_regulating_tt",
-        "single_core",
-        "three_core",
-        "mineral",
-        "skin",
-    ] = "self_regulating"
+    cable_type: ElectricalCableType = "self_regulating"
+    object_overrides: list[ElectricalObjectBatchOverride] | None = None
     supply_voltage: float | None = None
     connection_type: str | None = None
     winding_coefficient: float | None = None

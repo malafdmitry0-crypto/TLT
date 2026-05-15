@@ -501,7 +501,8 @@ export default function ElecCalcPage() {
 
   const [variant, setVariant] = useState<number>(1);
   const [cableSource, setCableSource] = useState<CableSource>('builtin');
-  const [cableType, setCableType] = useState<CableTypeKey>('self_regulating');
+  const [cableTypeDraftByObjectId, setCableTypeDraftByObjectId] =
+    useState<Record<string, CableTypeKey>>({});
   const [supplyVoltage, setSupplyVoltage] = useState<number | null>(220);
   const [connectionType, setConnectionType] = useState<string>('line_1ph');
   const [windingCoefficient, setWindingCoefficient] = useState<number | null>(1);
@@ -545,6 +546,7 @@ export default function ElecCalcPage() {
     () => navigationActiveJobId,
   );
   const [activeBatchScope, setActiveBatchScope] = useState<ElectricalBatchScope | null>(null);
+  const activeBatchObjectIdsRef = useRef<string[] | null>(null);
   const pageScopeRef = useRef<{ projectId?: string; variant: number } | null>(null);
 
   const qc = useQueryClient();
@@ -568,6 +570,7 @@ export default function ElecCalcPage() {
 
   useEffect(() => {
     setSelectedRowKeys([]);
+    setCableTypeDraftByObjectId({});
   }, [project?.id, variant]);
 
   useEffect(() => {
@@ -620,6 +623,36 @@ export default function ElecCalcPage() {
   const elecCalcs = electricalPage?.calculations ?? EMPTY_ELECTRICAL_CALCS;
   const pageSummary = electricalPage?.summary;
   const pageInfo = electricalPage?.page_info;
+  const stats = useElectricalStats(objects, elecCalcs);
+
+  const getSavedCableTypeForObject = useCallback((objectId: string): CableTypeKey => {
+    const savedType = stats.calcByObjectId[objectId]?.cable_type;
+    return (savedType && savedType in CABLE_TYPE_LABEL
+      ? savedType
+      : 'self_regulating') as CableTypeKey;
+  }, [stats.calcByObjectId]);
+
+  const getDraftCableTypeForObject = useCallback((objectId: string): CableTypeKey =>
+    cableTypeDraftByObjectId[objectId] ?? getSavedCableTypeForObject(objectId),
+  [cableTypeDraftByObjectId, getSavedCableTypeForObject]);
+
+  const selectedCableTypes = useMemo(
+    () => selectedRowKeys.map((objectId) => getDraftCableTypeForObject(objectId)),
+    [getDraftCableTypeForObject, selectedRowKeys],
+  );
+  const selectedCableType = useMemo<CableTypeKey | null>(() => {
+    if (selectedCableTypes.length === 0) return null;
+    const [firstType] = selectedCableTypes;
+    return selectedCableTypes.every((type) => type === firstType) ? firstType : null;
+  }, [selectedCableTypes]);
+  const selectedCableTypesMixed = selectedCableTypes.length > 0 && selectedCableType == null;
+
+  const objectOverridesForIds = useCallback((objectIds: string[]) =>
+    objectIds.map((objectId) => ({
+      object_id: objectId,
+      cable_type: getDraftCableTypeForObject(objectId),
+    })),
+  [getDraftCableTypeForObject]);
 
   useEffect(() => {
     const visibleIds = new Set(objects.map((object) => object.id));
@@ -651,13 +684,13 @@ export default function ElecCalcPage() {
   const { data: ttCables = [] } = useQuery({
     queryKey: referenceQueryKeys.ttCables,
     queryFn: getCablesTt,
-    enabled: !!project && cableType === 'self_regulating_tt',
+    enabled: !!project,
     ...referenceQueryOptions,
   });
   const { data: resistiveCables } = useQuery({
     queryKey: referenceQueryKeys.resistiveCables,
     queryFn: getResistiveCables,
-    enabled: !!project && (cableType === 'single_core' || cableType === 'three_core'),
+    enabled: !!project,
     ...referenceQueryOptions,
   });
 
@@ -789,20 +822,41 @@ export default function ElecCalcPage() {
   }, [isRegisteredUser, persistedTableViewPreference, registeredUserId]);
 
   const batchMut = useMutation({
-    mutationFn: ({ scope, objectIds }: ElectricalBatchMutationArgs) =>
-      enqueueElectricalBatchJob(project!.id, effectiveSource, variant, cableType, {
-        supplyVoltage,
-        connectionType,
-        windingCoefficient,
-        heatingHeight,
-        layingStep,
-        vaporTemperature,
-        aggressiveProduct,
-        objectIds: scope === 'selected' ? objectIds : undefined,
-      }),
+    mutationFn: ({ scope, objectIds }: ElectricalBatchMutationArgs) => {
+      const selectedObjectIds = objectIds ?? [];
+      const objectOverrides = scope === 'selected'
+        ? objectOverridesForIds(selectedObjectIds)
+        : Object.entries(cableTypeDraftByObjectId).map(([objectId, type]) => ({
+            object_id: objectId,
+            cable_type: type,
+          }));
+      const fallbackCableType = scope === 'selected'
+        ? selectedCableType ?? 'self_regulating'
+        : 'self_regulating';
+      return enqueueElectricalBatchJob(
+        project!.id,
+        effectiveSource,
+        variant,
+        fallbackCableType,
+        {
+          supplyVoltage,
+          connectionType,
+          windingCoefficient,
+          heatingHeight,
+          layingStep,
+          vaporTemperature,
+          aggressiveProduct,
+          objectIds: scope === 'selected' ? selectedObjectIds : undefined,
+          objectOverrides: objectOverrides.length > 0 ? objectOverrides : undefined,
+        },
+      );
+    },
     onSuccess: (task, variables) => {
       setActiveJobId(task.id);
       setActiveBatchScope(variables.scope);
+      activeBatchObjectIdsRef.current = variables.scope === 'selected'
+        ? variables.objectIds ?? []
+        : null;
       message.info(
         variables.scope === 'selected'
           ? `СО${variant} · электрорасчёт выбранных объектов поставлен в очередь`
@@ -817,6 +871,7 @@ export default function ElecCalcPage() {
     onSuccess: (task) => {
       setActiveJobId(task.id);
       setActiveBatchScope(null);
+      activeBatchObjectIdsRef.current = null;
       message.warning('Электрорасчёт остановлен');
     },
     onError: (e: Error) => message.error(e.message),
@@ -844,6 +899,17 @@ export default function ElecCalcPage() {
       } else {
         message.success(`СО${variant} — расчёт выполнен`);
       }
+      setCableTypeDraftByObjectId((prev) => {
+        if (resultScope === 'all') return {};
+        const affectedIds = activeBatchObjectIdsRef.current;
+        if (!affectedIds || affectedIds.length === 0) return prev;
+        const next = { ...prev };
+        for (const objectId of affectedIds) {
+          delete next[objectId];
+        }
+        return next;
+      });
+      activeBatchObjectIdsRef.current = null;
       setActiveJobId(null);
       setActiveBatchScope(null);
     }
@@ -851,45 +917,53 @@ export default function ElecCalcPage() {
       message.error(activeJob.error_message || 'Электрорасчёт завершился ошибкой');
       setActiveJobId(null);
       setActiveBatchScope(null);
+      activeBatchObjectIdsRef.current = null;
     }
     if (activeJob.status === 'cancelled') {
       setActiveJobId(null);
       setActiveBatchScope(null);
+      activeBatchObjectIdsRef.current = null;
     }
   }, [activeBatchScope, activeJob, project?.id, qc, variant]);
-
-  const stats = useElectricalStats(objects, elecCalcs);
 
   const cableOptions = useMemo(
     () => cables.map((c) => ({ value: c.model, label: `${c.model} · ${c.power_per_meter} Вт/м` })),
     [cables],
   );
-  const manualCableOptions = useMemo(() => {
-    if (cableType === 'self_regulating') return cableOptions;
-    if (cableType === 'self_regulating_tt') {
+  const manualCableOptionsForType = useCallback((type: CableTypeKey) => {
+    if (type === 'self_regulating') return cableOptions;
+    if (type === 'self_regulating_tt') {
       const suffix = aggressiveProduct ? 'СТ' : 'СР';
       return ttCables.map((c) => ({
         value: `${c.model}-${suffix}`,
         label: `${c.model}-${suffix} · ${c.series} · ${c.nominal_power} Вт/м`,
       }));
     }
-    if (cableType === 'single_core') {
+    if (type === 'single_core') {
       return (resistiveCables?.single_core ?? []).map((c) => ({
         value: c.model,
         label: `${c.model} · ${c.resistance_ohm_km ?? '—'} Ом/км`,
       }));
     }
-    if (cableType === 'three_core') {
+    if (type === 'three_core') {
       return (resistiveCables?.three_core ?? []).map((c) => ({
         value: c.model,
         label: `${c.model} · ${c.nominal_size_mm ?? '—'}`,
       }));
     }
     return [];
-  }, [aggressiveProduct, cableOptions, cableType, resistiveCables, ttCables]);
+  }, [aggressiveProduct, cableOptions, resistiveCables, ttCables]);
 
   const manualCableMut = useMutation({
-    mutationFn: ({ objectId, mark }: { objectId: string; mark: string }) =>
+    mutationFn: ({
+      objectId,
+      mark,
+      cableType,
+    }: {
+      objectId: string;
+      mark: string;
+      cableType: CableTypeKey;
+    }) =>
       selectCableManual(objectId, mark, effectiveSource, variant, cableType, {
         supplyVoltage,
         connectionType,
@@ -912,11 +986,13 @@ export default function ElecCalcPage() {
     mutationFn: ({
       objectId,
       mark,
+      cableType,
       windingPitchMm,
       numberOfThreads,
     }: {
       objectId: string;
       mark: string;
+      cableType: CableTypeKey;
       windingPitchMm: number;
       numberOfThreads: number;
     }) =>
@@ -964,10 +1040,11 @@ export default function ElecCalcPage() {
     layoutMutate({
       objectId: obj.id,
       mark,
+      cableType: getSavedCableTypeForObject(obj.id),
       windingPitchMm: values.windingPitchMm,
       numberOfThreads: values.numberOfThreads,
     });
-  }, [layoutDrafts, layoutMutate, stats.calcByObjectId]);
+  }, [getSavedCableTypeForObject, layoutDrafts, layoutMutate, stats.calcByObjectId]);
 
   const visibleElectricalColumnMetas = useMemo(
     () => getVisibleElectricalTableColumnMetas(
@@ -1117,9 +1194,8 @@ export default function ElecCalcPage() {
     },
     cable_type: {
       render: (_: unknown, obj) => {
-        const calc = stats.calcByObjectId[obj.id];
-        const type = calc?.cable_type ?? cableType;
-        return CABLE_TYPE_LABEL[type as CableTypeKey] ?? valueText(type);
+        const type = getSavedCableTypeForObject(obj.id);
+        return CABLE_TYPE_LABEL[type] ?? valueText(type);
       },
     },
     cable_mark: {
@@ -1143,12 +1219,21 @@ export default function ElecCalcPage() {
             allowClear
             placeholder="Авто"
             value={mark}
-            options={manualCableOptions}
-            disabled={!obj.is_valid || manualCableOptions.length === 0}
+            options={manualCableOptionsForType(getSavedCableTypeForObject(obj.id))}
+            disabled={
+              !obj.is_valid
+              || manualCableOptionsForType(getSavedCableTypeForObject(obj.id)).length === 0
+            }
             loading={isManualCablePending}
             style={{ width: '100%' }}
             onChange={(nextMark) => {
-              if (nextMark) manualCableMutate({ objectId: obj.id, mark: nextMark });
+              if (nextMark) {
+                manualCableMutate({
+                  objectId: obj.id,
+                  mark: nextMark,
+                  cableType: getSavedCableTypeForObject(obj.id),
+                });
+              }
             }}
           />
         );
@@ -1224,6 +1309,7 @@ export default function ElecCalcPage() {
               layoutMutate({
                 objectId: obj.id,
                 mark,
+                cableType: getSavedCableTypeForObject(obj.id),
                 windingPitchMm: values.windingPitchMm,
                 numberOfThreads: v,
               });
@@ -1311,9 +1397,9 @@ export default function ElecCalcPage() {
   }), [
     activeRowId,
     aggressiveProduct,
-    cableType,
     commitLayout,
     connectionType,
+    getSavedCableTypeForObject,
     heatingHeight,
     isLayoutPending,
     isManualCablePending,
@@ -1321,7 +1407,7 @@ export default function ElecCalcPage() {
     layoutDrafts,
     layoutMutate,
     manualCableMutate,
-    manualCableOptions,
+    manualCableOptionsForType,
     pageInfo?.offset,
     stats.calcByObjectId,
     supplyVoltage,
@@ -1506,7 +1592,8 @@ export default function ElecCalcPage() {
             ? 'Ошибка'
             : 'Не рассчитан';
       case 'cable_type':
-        return CABLE_TYPE_LABEL[(calc?.cable_type ?? cableType) as CableTypeKey] ?? calc?.cable_type;
+        return CABLE_TYPE_LABEL[getSavedCableTypeForObject(obj.id)]
+          ?? getSavedCableTypeForObject(obj.id);
       case 'cable_mark':
         return getCableMark(calc) ?? 'Авто';
       case 'selected_cable':
@@ -1539,7 +1626,7 @@ export default function ElecCalcPage() {
       default:
         return '';
     }
-  }, [cableType, pageInfo?.offset, stats.calcByObjectId, variant]);
+  }, [getSavedCableTypeForObject, pageInfo?.offset, stats.calcByObjectId, variant]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -1719,10 +1806,16 @@ export default function ElecCalcPage() {
   const jobProgressLabel = jobProgress?.total
     ? `${jobProgress.current}/${jobProgress.total}`
     : activeJobStatus ?? '';
+  const bannerCableTypeLabel = selectedCableTypesMixed
+    ? 'смешанные типы'
+    : selectedCableType
+      ? CABLE_TYPE_LABEL[selectedCableType]
+      : 'тип по объектам';
 
   function renderElectricalTypeControls() {
-    if (cableType === 'self_regulating') return null;
-    if (cableType === 'self_regulating_tt') {
+    if (!selectedCableType || selectedCableTypesMixed) return null;
+    if (selectedCableType === 'self_regulating') return null;
+    if (selectedCableType === 'self_regulating_tt') {
       return (
         <>
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>T проп., °C:</Text>
@@ -1736,8 +1829,8 @@ export default function ElecCalcPage() {
         </>
       );
     }
-    if (cableType === 'single_core' || cableType === 'three_core') {
-      const connectionOptions = cableType === 'single_core'
+    if (selectedCableType === 'single_core' || selectedCableType === 'three_core') {
+      const connectionOptions = selectedCableType === 'single_core'
         ? [
             { value: 'line_1ph', label: 'Линия' },
             { value: 'loop_1ph', label: 'Петля' },
@@ -1774,7 +1867,7 @@ export default function ElecCalcPage() {
         {/* Summary banner */}
         <div className="common-data-banner">
           <span>
-            <span className="label">СО{variant} · {CABLE_TYPE_LABEL[cableType]} · </span>
+            <span className="label">СО{variant} · {bannerCableTypeLabel} · </span>
             {bannerStats}
           </span>
           {failedCount > 0 && (
@@ -1804,12 +1897,20 @@ export default function ElecCalcPage() {
             </Button>
           ))}
           <span className="sep" />
-          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>Тип кабеля:</Text>
+          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>Тип для выбранных:</Text>
           <Select<CableTypeKey>
             size="small"
-            value={cableType}
+            value={selectedCableType ?? undefined}
+            placeholder={selectedRowKeys.length === 0 ? 'Выберите строки' : 'Несколько типов'}
+            disabled={selectedRowKeys.length === 0 || isJobActive}
             onChange={(next) => {
-              setCableType(next);
+              setCableTypeDraftByObjectId((prev) => {
+                const nextDrafts = { ...prev };
+                for (const objectId of selectedRowKeys) {
+                  nextDrafts[objectId] = next;
+                }
+                return nextDrafts;
+              });
               setConnectionType('line_1ph');
             }}
             options={cableTypeOptions}
