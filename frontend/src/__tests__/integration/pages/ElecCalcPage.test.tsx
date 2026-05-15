@@ -383,7 +383,7 @@ describe('ElecCalcPage (integration)', () => {
     const user = (await import('@testing-library/user-event')).default.setup();
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/Тип для выбранных/i)).toBeInTheDocument();
+      expect(screen.getByText(/Тип по умолчанию/i)).toBeInTheDocument();
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
     const rowCheckbox = document.querySelector('tbody .ant-checkbox-input') as HTMLInputElement;
@@ -403,6 +403,57 @@ describe('ElecCalcPage (integration)', () => {
     });
     expect(screen.getByText(/Однож. пост. мощн./i)).toBeInTheDocument();
     expect(screen.getByText(/Трёхж. пост. мощн./i)).toBeInTheDocument();
+  });
+
+  it('позволяет выбрать тип по умолчанию без выбранных строк для полного пересчёта', async () => {
+    const { enqueueElectricalBatchJob, getElectricalPage } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
+    (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'task-1',
+      type: 'electrical_batch',
+      status: 'enqueued',
+      project_id: 'p-1',
+      progress: { current: 0, total: null, phase: 'enqueued', percent: null },
+      result: null,
+      error_message: null,
+      cancel_requested: false,
+      created_at: '2026-01-01T00:00:00Z',
+      started_at: null,
+      finished_at: null,
+      links: { status: '', result: '', cancel: '' },
+    });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Тип по умолчанию/i)).toBeInTheDocument();
+      expect(screen.getByText('Труба-1')).toBeInTheDocument();
+    });
+    const selectors = document.querySelectorAll('.ant-select-selector');
+    const cableTypeSelect = Array.from(selectors).find((el) =>
+      el.textContent?.includes('Саморегулирующийся')
+    );
+    expect(cableTypeSelect).toBeTruthy();
+    await user.click(cableTypeSelect as HTMLElement);
+    await user.click(await screen.findByText('ТТН/ТТВ/ТТХ'));
+    await user.click(screen.getByRole('button', { name: /Пересчитать все СО1/i }));
+    await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));
+
+    await waitFor(() => {
+      expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
+        'p-1',
+        'builtin',
+        1,
+        'self_regulating_tt',
+        expect.objectContaining({
+          aggressiveProduct: false,
+        }),
+      );
+    });
+    const options = (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mock.calls[0][4];
+    expect(options.objectIds).toBeUndefined();
+    expect(options.objectOverrides).toBeUndefined();
   });
 
   it('меняет тип кабеля только для выбранной строки и отправляет override по объекту', async () => {
@@ -860,11 +911,14 @@ describe('ElecCalcPage (integration)', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/Тип для выбранных/i)).toBeInTheDocument();
+      expect(screen.getByText(/Тип по умолчанию/i)).toBeInTheDocument();
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
     const rowCheckbox = document.querySelector('tbody .ant-checkbox-input') as HTMLInputElement;
     fireEvent.click(rowCheckbox);
+    await waitFor(() => {
+      expect(screen.getByText(/Тип для выбранных/i)).toBeInTheDocument();
+    });
     const selectors = document.querySelectorAll('.ant-select-selector');
     const cableTypeSelect = Array.from(selectors).find((el) =>
       el.textContent?.includes('Саморегулирующийся')

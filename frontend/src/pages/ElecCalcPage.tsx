@@ -501,6 +501,8 @@ export default function ElecCalcPage() {
 
   const [variant, setVariant] = useState<number>(1);
   const [cableSource, setCableSource] = useState<CableSource>('builtin');
+  const [defaultCableType, setDefaultCableType] =
+    useState<CableTypeKey>('self_regulating');
   const [cableTypeDraftByObjectId, setCableTypeDraftByObjectId] =
     useState<Record<string, CableTypeKey>>({});
   const [supplyVoltage, setSupplyVoltage] = useState<number | null>(220);
@@ -831,8 +833,8 @@ export default function ElecCalcPage() {
             cable_type: type,
           }));
       const fallbackCableType = scope === 'selected'
-        ? selectedCableType ?? 'self_regulating'
-        : 'self_regulating';
+        ? selectedCableType ?? defaultCableType
+        : defaultCableType;
       return enqueueElectricalBatchJob(
         project!.id,
         effectiveSource,
@@ -1811,11 +1813,17 @@ export default function ElecCalcPage() {
     : selectedCableType
       ? CABLE_TYPE_LABEL[selectedCableType]
       : 'тип по объектам';
+  const controlCableType = selectedCableTypesMixed
+    ? null
+    : selectedCableType ?? defaultCableType;
+  const cableTypeControlLabel = selectedRowKeys.length > 0
+    ? 'Тип для выбранных:'
+    : 'Тип по умолчанию:';
 
   function renderElectricalTypeControls() {
-    if (!selectedCableType || selectedCableTypesMixed) return null;
-    if (selectedCableType === 'self_regulating') return null;
-    if (selectedCableType === 'self_regulating_tt') {
+    if (!controlCableType) return null;
+    if (controlCableType === 'self_regulating') return null;
+    if (controlCableType === 'self_regulating_tt') {
       return (
         <>
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>T проп., °C:</Text>
@@ -1829,8 +1837,8 @@ export default function ElecCalcPage() {
         </>
       );
     }
-    if (selectedCableType === 'single_core' || selectedCableType === 'three_core') {
-      const connectionOptions = selectedCableType === 'single_core'
+    if (controlCableType === 'single_core' || controlCableType === 'three_core') {
+      const connectionOptions = controlCableType === 'single_core'
         ? [
             { value: 'line_1ph', label: 'Линия' },
             { value: 'loop_1ph', label: 'Петля' },
@@ -1897,20 +1905,24 @@ export default function ElecCalcPage() {
             </Button>
           ))}
           <span className="sep" />
-          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>Тип для выбранных:</Text>
+          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>{cableTypeControlLabel}</Text>
           <Select<CableTypeKey>
             size="small"
-            value={selectedCableType ?? undefined}
-            placeholder={selectedRowKeys.length === 0 ? 'Выберите строки' : 'Несколько типов'}
-            disabled={selectedRowKeys.length === 0 || isJobActive}
+            value={controlCableType ?? undefined}
+            placeholder="Несколько типов"
+            disabled={isJobActive}
             onChange={(next) => {
-              setCableTypeDraftByObjectId((prev) => {
-                const nextDrafts = { ...prev };
-                for (const objectId of selectedRowKeys) {
-                  nextDrafts[objectId] = next;
-                }
-                return nextDrafts;
-              });
+              if (selectedRowKeys.length === 0) {
+                setDefaultCableType(next);
+              } else {
+                setCableTypeDraftByObjectId((prev) => {
+                  const nextDrafts = { ...prev };
+                  for (const objectId of selectedRowKeys) {
+                    nextDrafts[objectId] = next;
+                  }
+                  return nextDrafts;
+                });
+              }
               setConnectionType('line_1ph');
             }}
             options={cableTypeOptions}
