@@ -38,6 +38,7 @@ export interface PipeParams {
   local_element_equiv_length?: number | null;
   supply_voltage?: number | null;
   safety_factor?: number | null;
+  vapor_temperature?: number | null;
   location?: 'indoor' | 'outdoor';
 }
 
@@ -87,6 +88,7 @@ export interface TankParams {
   wind_speed_source?: 'manual' | 'climate' | null;
   supply_voltage?: number | null;
   safety_factor?: number | null;
+  vapor_temperature?: number | null;
   location?: 'indoor' | 'outdoor';
 }
 

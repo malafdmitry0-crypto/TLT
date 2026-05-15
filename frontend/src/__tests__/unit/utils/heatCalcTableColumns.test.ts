@@ -171,6 +171,19 @@ describe('heatCalcTableColumns', () => {
     expect(all).toContain('type');
   });
 
+  it('добавляет T проп. как скрытую настраиваемую колонку объекта', () => {
+    const settings = getDefaultTableColumnSettings();
+    const visiblePipe = getVisibleTableColumnMetas('pipe', settings).map((column) => column.key);
+    const allPipe = getAllTableColumnMetas('pipe', settings).map((column) => column.key);
+    const visibleTank = getVisibleTableColumnMetas('tank', settings).map((column) => column.key);
+    const allTank = getAllTableColumnMetas('tank', settings).map((column) => column.key);
+
+    expect(visiblePipe).not.toContain('vapor_temperature');
+    expect(visibleTank).not.toContain('vapor_temperature');
+    expect(allPipe).toContain('vapor_temperature');
+    expect(allTank).toContain('vapor_temperature');
+  });
+
   it('показывает размещение трубопровода в дефолтной таблице', () => {
     const settings = getDefaultTableColumnSettings();
     const visiblePipe = getVisibleTableColumnMetas('pipe', settings).map((column) => column.key);

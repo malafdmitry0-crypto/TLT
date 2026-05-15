@@ -84,6 +84,7 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, set[str]] = {
         "supply_voltage",
         "safety_factor",
         "steam_tracing",
+        "vapor_temperature",
         "valve_count",
         "flange_count",
         "support_count",
@@ -145,6 +146,7 @@ HEATCALC_TABLE_COLUMN_KEYS: dict[str, set[str]] = {
         "safety_factor",
         "q_additional",
         "steam_tracing",
+        "vapor_temperature",
         "delta_t",
         "applied_alpha_vnesh",
         "applied_safety_factor",
@@ -171,6 +173,7 @@ HEATCALC_FIELD_INPUT_FIELD_KEYS: dict[str, set[str]] = {
         "process_temperature",
         "min_switch_temperature",
         "safety_factor",
+        "vapor_temperature",
     },
     "tank": {
         "diameter_mm",
@@ -183,6 +186,7 @@ HEATCALC_FIELD_INPUT_FIELD_KEYS: dict[str, set[str]] = {
         "ambient_temperature",
         "process_temperature",
         "q_additional",
+        "vapor_temperature",
     },
 }
 

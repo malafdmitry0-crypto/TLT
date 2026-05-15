@@ -136,6 +136,7 @@ class PipeParamsDict(TypedDict, total=False):
     min_switch_temperature: float | None
     supply_voltage: float | None
     steam_tracing: Literal["yes", "no"] | None
+    vapor_temperature: float | None
 
 
 class TankParamsDict(TypedDict, total=False):
@@ -176,6 +177,7 @@ class TankParamsDict(TypedDict, total=False):
     min_switch_temperature: float | None
     supply_voltage: float | None
     steam_tracing: Literal["yes", "no"] | None
+    vapor_temperature: float | None
 
 
 # ---------------------------------------------------------------------------

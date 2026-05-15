@@ -926,6 +926,13 @@ class CalculationService:
         )
         pipe_length = self._base_cable_length(obj, overrides, params, results)
         winding_pitch = self._winding_pitch_mm(overrides, params)
+        override_vapor_temperature = self._num(overrides.get("vapor_temperature"))
+        object_vapor_temperature = self._num(params.get("vapor_temperature"))
+        vapor_temperature = (
+            override_vapor_temperature
+            if override_vapor_temperature is not None
+            else object_vapor_temperature
+        )
 
         if cable_type == "self_regulating":
             return {
@@ -957,7 +964,7 @@ class CalculationService:
                 "supply_voltage": supply_voltage,
                 "safety_factor": safety_factor,
                 "cable_mark": cable_mark,
-                "vapor_temperature": self._num(overrides.get("vapor_temperature")),
+                "vapor_temperature": vapor_temperature,
                 "aggressive_product": bool(overrides.get("aggressive_product", False)),
                 "winding_coefficient": self._winding_coefficient(obj, overrides, params, 1.1),
                 "winding_pitch": winding_pitch,

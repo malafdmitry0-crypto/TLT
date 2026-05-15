@@ -149,6 +149,12 @@ PIPE_HEADERS: dict[str, str] = {
     "температура поддержания": "process_temperature",
     "т° поддержания": "process_temperature",
     "t° поддержания": "process_temperature",
+    "t проп": "vapor_temperature",
+    "t проп.": "vapor_temperature",
+    "t° проп": "vapor_temperature",
+    "t° пропарки": "vapor_temperature",
+    "t проп., °c": "vapor_temperature",
+    "температура пропарки": "vapor_temperature",
     "макс. t° окр. среды": "max_ambient_temperature",
     "макс t° окр. среды": "max_ambient_temperature",
     "макс. допуст. t° продукта": "max_process_temperature",
@@ -223,6 +229,12 @@ TANK_HEADERS: dict[str, str] = {
     "температура поддержания": "process_temperature",
     "т° поддержания": "process_temperature",
     "t° поддержания": "process_temperature",
+    "t проп": "vapor_temperature",
+    "t проп.": "vapor_temperature",
+    "t° проп": "vapor_temperature",
+    "t° пропарки": "vapor_temperature",
+    "t проп., °c": "vapor_temperature",
+    "температура пропарки": "vapor_temperature",
     "макс. t° окр. среды": "max_ambient_temperature",
     "макс t° окр. среды": "max_ambient_temperature",
     "макс. допуст. t° продукта": "max_process_temperature",
@@ -326,6 +338,9 @@ def _apply_common_srs_params(params: dict[str, Any], row: dict[str, Any]) -> Non
     supply_voltage = _to_float(row.get("supply_voltage"))
     if supply_voltage is not None:
         params["supply_voltage"] = supply_voltage
+    vapor_temperature = _to_float(row.get("vapor_temperature"))
+    if vapor_temperature is not None:
+        params["vapor_temperature"] = vapor_temperature
     max_ambient = _to_float(row.get("max_ambient_temperature"))
     if max_ambient is not None:
         params["max_ambient_temperature"] = max_ambient
@@ -801,6 +816,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Материал изоляции",
         "T° среды",
         "T° продукта",
+        "T проп., °C",
     ]
     for c, h in enumerate(pipe_cols, start=1):
         cell = ws_pipe.cell(row=1, column=c, value=h)
@@ -819,6 +835,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Материал изоляции",
         "T° среды",
         "T° продукта",
+        "T проп., °C",
     ]
     for c, h in enumerate(tank_cols, start=1):
         cell = ws_tank.cell(row=1, column=c, value=h)
@@ -841,6 +858,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     material,
                     params.get("ambient_temperature", ""),
                     params.get("process_temperature", ""),
+                    params.get("vapor_temperature", ""),
                 ]
             )
         elif obj.object_type == "tank":
@@ -862,14 +880,15 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     material,
                     params.get("ambient_temperature", ""),
                     params.get("process_temperature", ""),
+                    params.get("vapor_temperature", ""),
                 ]
             )
 
     ws_pipe.column_dimensions["A"].width = 24
-    for col in "BCDEFG":
+    for col in "BCDEFGH":
         ws_pipe.column_dimensions[col].width = 18
     ws_tank.column_dimensions["A"].width = 24
-    for col in "BCDEFGHIJ":
+    for col in "BCDEFGHIJK":
         ws_tank.column_dimensions[col].width = 18
 
     buf = io.BytesIO()
@@ -893,15 +912,16 @@ def build_template_xlsx() -> bytes:
         "Материал изоляции",
         "T° среды",
         "T° продукта",
+        "T проп., °C",
     ]
     for c, h in enumerate(pipe_cols, start=1):
         cell = ws_pipe.cell(row=1, column=c, value=h)
         cell.font = Font(bold=True)
         cell.fill = PatternFill("solid", fgColor="DCEEF7")
-    ws_pipe.append(["Пример DN100", 108, 50, 50, "Минеральная вата", -20, 80])
-    ws_pipe.append(["Пример DN50", 57, 20, 40, "Пеностекло", -30, 60])
+    ws_pipe.append(["Пример DN100", 108, 50, 50, "Минеральная вата", -20, 80, ""])
+    ws_pipe.append(["Пример DN50", 57, 20, 40, "Пеностекло", -30, 60, ""])
     ws_pipe.column_dimensions["A"].width = 24
-    for col in "BCDEFG":
+    for col in "BCDEFGH":
         ws_pipe.column_dimensions[col].width = 18
 
     ws_tank = wb.create_sheet("Резервуары")
@@ -916,18 +936,19 @@ def build_template_xlsx() -> bytes:
         "Материал изоляции",
         "T° среды",
         "T° продукта",
+        "T проп., °C",
     ]
     for c, h in enumerate(tank_cols, start=1):
         cell = ws_tank.cell(row=1, column=c, value=h)
         cell.font = Font(bold=True)
         cell.fill = PatternFill("solid", fgColor="DCEEF7")
-    ws_tank.append(["Бак цил.", "Цилиндр", 2000, "", "", 3000, 80, "Минеральная вата", -20, 80])
+    ws_tank.append(["Бак цил.", "Цилиндр", 2000, "", "", 3000, 80, "Минеральная вата", -20, 80, ""])
     ws_tank.append(
-        ["Бак прям.", "Параллелепипед", "", 5000, 3000, 4000, 80, "Минеральная вата", -20, 80]
+        ["Бак прям.", "Параллелепипед", "", 5000, 3000, 4000, 80, "Минеральная вата", -20, 80, ""]
     )
-    ws_tank.append(["Шаровой", "Шар", 1500, "", "", "", 60, "Пенополиуретан", -20, 60])
+    ws_tank.append(["Шаровой", "Шар", 1500, "", "", "", 60, "Пенополиуретан", -20, 60, ""])
     ws_tank.column_dimensions["A"].width = 24
-    for col in "BCDEFGHIJ":
+    for col in "BCDEFGHIJK":
         ws_tank.column_dimensions[col].width = 18
 
     ws_info = wb.create_sheet("Справка")
@@ -979,13 +1000,14 @@ def build_template_csv() -> bytes:
             "Материал изоляции",
             "T° среды",
             "T° продукта",
+            "T проп., °C",
         ]
     )
     # Для трубы: диаметр в мм, длина в м, форма/ширина/высота пустые
     writer.writerow(
-        ["труба", "Пример DN100", "", 108, "", "", "", 50, 50, "Минеральная вата", -20, 80]
+        ["труба", "Пример DN100", "", 108, "", "", "", 50, 50, "Минеральная вата", -20, 80, ""]
     )
-    writer.writerow(["труба", "Пример DN50", "", 57, "", "", "", 20, 40, "Пеностекло", -30, 60])
+    writer.writerow(["труба", "Пример DN50", "", 57, "", "", "", 20, 40, "Пеностекло", -30, 60, ""])
     # Резервуары: заполняем Форма + нужные габариты в мм
     writer.writerow(
         [
@@ -1001,6 +1023,7 @@ def build_template_csv() -> bytes:
             "Минеральная вата",
             -20,
             80,
+            "",
         ]
     )
     writer.writerow(
@@ -1017,8 +1040,11 @@ def build_template_csv() -> bytes:
             "Пенополиуретан",
             -20,
             60,
+            "",
         ]
     )
-    writer.writerow(["резервуар", "Шар", "Шар", 1500, "", "", "", "", 60, "Пеностекло", -20, 50])
+    writer.writerow(
+        ["резервуар", "Шар", "Шар", 1500, "", "", "", "", 60, "Пеностекло", -20, 50, ""]
+    )
     # UTF-8 BOM чтобы Excel правильно открывал файл
     return ("\ufeff" + buf.getvalue()).encode("utf-8")

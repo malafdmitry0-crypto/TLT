@@ -157,6 +157,7 @@ describe('pipeFormToApiParams', () => {
       ground_conductivity: 1.7,
       safety_factor: 1.2,
       supply_voltage: 380,
+      vapor_temperature: 140,
       valve_count: 1,
       flange_count: 2,
       support_count: 3,
@@ -173,6 +174,7 @@ describe('pipeFormToApiParams', () => {
     expect(api.ground_conductivity).toBe(1.7);
     expect(api.safety_factor).toBe(1.2);
     expect(api.supply_voltage).toBe(380);
+    expect(api.vapor_temperature).toBe(140);
     expect(api.insulation_cover_material).toBe('none');
     expect(api.max_ambient_temperature).toBe(30);
     expect(api.max_process_temperature).toBe(90);
@@ -311,11 +313,13 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
       ambient_temperature: -20,
       process_temperature: 80,
       pipe_length: 50,
+      vapor_temperature: 140,
       local_element_equiv_length: 1.2,
       name: 'X',
     });
     expect(form.outer_diameter_mm).toBe(108);
     expect(form.insulation_thickness_mm).toBe(50);
+    expect(form.vapor_temperature).toBe(140);
     expect(form.local_element_equiv_length).toBe(1.2);
     expect(form.name).toBe('X');
   });

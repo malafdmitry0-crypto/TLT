@@ -733,6 +733,18 @@ def _common_fields(object_type: str) -> list[FieldDef]:
             static_options=STEAM_OPTIONS,
             sort_reason="boolean_flag",
         ),
+        FieldDef(
+            "vapor_temperature",
+            "Температура пропарки",
+            "T проп.",
+            (object_type,),
+            "number",
+            _param("vapor_temperature"),
+            unit="°C",
+            filter_ops=("range",),
+            sortable=True,
+            sort_type="number",
+        ),
     ]
 
 

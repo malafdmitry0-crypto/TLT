@@ -1981,6 +1981,55 @@
       },
       "description": "Признак пропарки. Сохраняется в параметрах объекта для проверки эксплуатационных ограничений."
     },
+    "vapor_temperature": {
+      "service_name": "vapor_temperature",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Электропараметры и арматура",
+      "labels": {
+        "full": "Температура пропарки",
+        "short": "T проп.",
+        "compact": "T проп."
+      },
+      "contexts": {
+        "table_by_key": {
+          "vapor_temperature": {
+            "label": "T проп.",
+            "full_label": "Температура пропарки",
+            "tooltip": "Температура пропарки"
+          }
+        },
+        "settings_by_key": {
+          "vapor_temperature": {
+            "label": "Температура пропарки"
+          }
+        },
+        "form": {
+          "label": "T проп."
+        }
+      },
+      "table_keys": {
+        "pipe": "vapor_temperature",
+        "tank": "vapor_temperature"
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": 0,
+        "max": 600,
+        "default_step": 0.1,
+        "configurable_step": true,
+        "input_unit": "raw",
+        "display_digits": 0
+      },
+      "description": "Температура пропарки, °C. Необязательный параметр объекта для электротехнического расчёта ТТ; общий T проп. на вкладке электрорасчёта переопределяет это значение.",
+      "definition_object_types": [
+        "pipe",
+        "tank"
+      ]
+    },
     "valve_count": {
       "service_name": "valve_count",
       "object_types": [
@@ -3610,6 +3659,18 @@
           "field": "steam_tracing"
         },
         {
+          "key": "vapor_temperature",
+          "group": "Электропараметры",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "vapor_temperature"
+        },
+        {
           "key": "valve_count",
           "group": "Локальные элементы",
           "defaultWidthPct": 6.4,
@@ -4332,6 +4393,18 @@
           "field": "steam_tracing"
         },
         {
+          "key": "vapor_temperature",
+          "group": "Электропараметры",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "vapor_temperature"
+        },
+        {
           "key": "delta_t",
           "group": "Расчётные детали",
           "defaultWidthPct": 7,
@@ -4561,6 +4634,7 @@
             "supply_voltage",
             "safety_factor",
             "steam_tracing",
+            "vapor_temperature",
             "valve_count",
             "flange_count",
             "support_count",
@@ -4632,7 +4706,8 @@
             "supply_voltage",
             "safety_factor",
             "q_additional",
-            "steam_tracing"
+            "steam_tracing",
+            "vapor_temperature"
           ]
         }
       ]

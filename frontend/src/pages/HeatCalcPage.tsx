@@ -314,6 +314,7 @@ const NUMBER_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
   'min_switch_temperature',
   'supply_voltage',
   'safety_factor',
+  'vapor_temperature',
   'valve_count',
   'flange_count',
   'support_count',
@@ -1724,6 +1725,10 @@ export default function HeatCalcPage() {
     steam_tracing: {
       render: (_: unknown, r: ProjectObject) => booleanChoiceLabel(r.params?.steam_tracing),
       copyValue: (r) => booleanChoiceLabel(r.params?.steam_tracing),
+    },
+    vapor_temperature: {
+      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'vapor_temperature', 0),
+      copyValue: (r) => formatParamNumber(r, 'vapor_temperature', 0),
     },
     valve_count: {
       render: (_: unknown, r: ProjectObject) => countParamValue(r, 'valve_count'),

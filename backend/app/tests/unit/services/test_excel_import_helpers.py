@@ -162,6 +162,21 @@ class TestBuildPipeParams:
         params, _ = _build_pipe_params(row)
         assert params["name"] == "Спейс Т"
 
+    def test_vapor_temperature_is_kept_in_common_params(self):
+        row = {
+            "_row": 2,
+            "outer_diameter_mm": 108,
+            "pipe_length": 50,
+            "insulation_thickness_mm": 50,
+            "insulation_material": "mineral_wool",
+            "ambient_temperature": -20,
+            "process_temperature": 80,
+            "vapor_temperature": 140,
+        }
+        params, err = _build_pipe_params(row)
+        assert err is None
+        assert params["vapor_temperature"] == 140
+
     def test_russian_decimal_comma_works(self):
         """Пользователи часто пишут 108,5 вместо 108.5 — должно работать."""
         row = {
@@ -344,6 +359,7 @@ class TestTemplateBuilders:
         data = build_template_csv()
         text = data.decode("utf-8-sig")
         assert text.splitlines()[0].startswith("Тип")
+        assert "T проп., °C" in text.splitlines()[0]
 
 
 class TestAliasTables:

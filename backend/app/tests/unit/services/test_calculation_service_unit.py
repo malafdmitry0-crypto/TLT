@@ -1177,3 +1177,71 @@ class TestSelectCableManual:
         request = service.calc_electrical.call_args.args[0]
         assert request.data["supply_voltage"] == 380
         assert request.data["safety_factor"] == 1.2
+
+    async def test_object_vapor_temperature_used_for_tt_when_global_empty(self):
+        """Если общий T проп. не задан, ТТ-расчёт берёт температуру пропарки из params объекта."""
+        db = AsyncMock()
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            object_type="pipe",
+            params={
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 10,
+                "vapor_temperature": 140,
+            },
+            results={"heat_loss_per_meter": 20},
+            is_valid=True,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none = lambda: obj
+        db.execute = AsyncMock(return_value=result)
+
+        service = CalculationService(db)
+        service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service.calc_electrical = AsyncMock(return_value={"ok": True})  # type: ignore[method-assign]
+
+        await service.select_cable_manual(
+            obj.id,
+            "30ТТВ2",
+            cable_type="self_regulating_tt",
+            electrical_params={"vapor_temperature": None},
+        )
+
+        request = service.calc_electrical.call_args.args[0]
+        assert request.data["vapor_temperature"] == 140
+
+    async def test_global_vapor_temperature_overrides_object_value(self):
+        """Общий T проп. с вкладки электрорасчёта приоритетнее object params."""
+        db = AsyncMock()
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            object_type="pipe",
+            params={
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 10,
+                "vapor_temperature": 140,
+            },
+            results={"heat_loss_per_meter": 20},
+            is_valid=True,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none = lambda: obj
+        db.execute = AsyncMock(return_value=result)
+
+        service = CalculationService(db)
+        service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service.calc_electrical = AsyncMock(return_value={"ok": True})  # type: ignore[method-assign]
+
+        await service.select_cable_manual(
+            obj.id,
+            "30ТТВ2",
+            cable_type="self_regulating_tt",
+            electrical_params={"vapor_temperature": 160},
+        )
+
+        request = service.calc_electrical.call_args.args[0]
+        assert request.data["vapor_temperature"] == 160

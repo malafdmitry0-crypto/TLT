@@ -160,6 +160,7 @@ export interface PipeFormValues {
   supply_voltage?: number;
   safety_factor?: number;
   steam_tracing?: 'yes' | 'no';
+  vapor_temperature?: number;
   valve_count?: number;
   flange_count?: number;
   support_count?: number;
@@ -214,6 +215,7 @@ export interface TankFormValues {
   supply_voltage?: number;
   safety_factor?: number;
   steam_tracing?: 'yes' | 'no';
+  vapor_temperature?: number;
   q_additional?: number;
 }
 
@@ -391,6 +393,7 @@ function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormVal
   if (v.supply_voltage != null) params.supply_voltage = v.supply_voltage;
   if (v.safety_factor != null) params.safety_factor = v.safety_factor;
   if (v.steam_tracing) params.steam_tracing = v.steam_tracing;
+  if (v.vapor_temperature != null) params.vapor_temperature = v.vapor_temperature;
 }
 
 function applyInsulationLayers(params: Record<string, unknown>, v: LayeredFormValues) {
@@ -512,6 +515,7 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     supply_voltage: p.supply_voltage as number | undefined,
     safety_factor: p.safety_factor as number | undefined,
     steam_tracing: p.steam_tracing as PipeFormValues['steam_tracing'],
+    vapor_temperature: p.vapor_temperature as number | undefined,
     valve_count: p.valve_count as number | undefined,
     flange_count: p.flange_count as number | undefined,
     support_count: p.support_count as number | undefined,
@@ -591,6 +595,7 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     supply_voltage: p.supply_voltage as number | undefined,
     safety_factor: p.safety_factor as number | undefined,
     steam_tracing: p.steam_tracing as TankFormValues['steam_tracing'],
+    vapor_temperature: p.vapor_temperature as number | undefined,
     q_additional: p.q_additional as number | undefined,
     name: p.name as string | undefined,
   };

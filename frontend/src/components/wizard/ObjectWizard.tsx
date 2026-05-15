@@ -136,6 +136,7 @@ const API_FIELD_TO_FORM_NAMES: Record<string, string[]> = {
   wind_speed: ['wind_speed'],
   alpha_vnesh: ['alpha_vnesh'],
   safety_factor: ['safety_factor'],
+  vapor_temperature: ['vapor_temperature'],
   local_element_equiv_length: ['local_element_equiv_length'],
   q_additional: ['q_additional'],
   insulation_layer_count: ['insulation_layer_count'],
@@ -153,6 +154,7 @@ const RANGE_MESSAGE_TO_FORM_NAMES: Array<[RegExp, string[]]> = [
   [/Скорость ветра/i, ['wind_speed']],
   [/коэф.*наружной теплоотдачи|alpha/i, ['alpha_vnesh']],
   [/Коэффициент запаса/i, ['safety_factor']],
+  [/Температура пропарки|T проп/i, ['vapor_temperature']],
   [/эквивалентн.*длин/i, ['local_element_equiv_length']],
   [/Диаметр резервуара/i, ['diameter_mm']],
   [/Высота резервуара/i, ['height_mm']],
@@ -1337,6 +1339,21 @@ export default function ObjectWizard({
                 placeholder="Выберите"
               />,
               fieldHelp('steam_tracing', heatCalcObjectType),
+            )}
+          </Form.Item>
+          <Form.Item
+            className="numeric-form-item temperature-number-form-item helped-form-item"
+            label={fieldLabel('vapor_temperature', heatCalcObjectType)}
+            name="vapor_temperature"
+            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'vapor_temperature')}
+          >
+            {withHelp(
+              <UnitInputNumber
+                data-testid="vapor-temperature-input"
+                {...numberInputProps('vapor_temperature')}
+                unit="°C"
+              />,
+              fieldHelp('vapor_temperature', heatCalcObjectType),
             )}
           </Form.Item>
           {objectType === 'pipe' && (
