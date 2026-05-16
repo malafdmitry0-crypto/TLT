@@ -117,3 +117,5 @@ flowchart TD
 
 - В схеме нет явных веток для `D = 75`, `D = 89`, `D = 108`; QA-agent нормализует их в нижний соседний диапазон как более консервативный максимум навива.
 - В QA-agent правило закреплено как deterministic oracle `tlt_max_winding_coefficient`.
+- В backend explicit/geometric коэффициент навива валидируется как hard-limit;
+  неявный default ограничивается максимумом для диаметра трубы.

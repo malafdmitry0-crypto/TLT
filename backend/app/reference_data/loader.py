@@ -113,7 +113,7 @@ def get_tt_cable_by_model(model: str) -> dict[str, Any] | None:
 def get_insulation_conductivity(material: str, temperature: float) -> float:
     """Возвращает теплопроводность λ материала.
 
-    В MVP температурной зависимости нет — возвращаем табличное значение.
+    Температурная зависимость пока не применяется — возвращаем табличное значение.
     """
     for m in _insulation():
         if m["material"] == material:

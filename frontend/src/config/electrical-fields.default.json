@@ -120,6 +120,13 @@
       "valueType": "input",
       "description": "Температура пропарки для ТТН/ТТВ/ТТХ. Может задаваться глобально или на объекте."
     },
+    "maintain_temperature": {
+      "labels": { "short": "T3, °C", "full": "Температура поддержания T3, °C", "compact": "T3" },
+      "group": "Электропараметры",
+      "source": "params",
+      "valueType": "input",
+      "description": "Температура поддержания T3 для расчёта q_б(T3) у ТТН/ТТВ/ТТХ."
+    },
     "aggressive_product": {
       "labels": { "short": "Агр.", "full": "Агрессивный продукт", "compact": "Агр." },
       "group": "Электропараметры",
@@ -207,6 +214,7 @@
       { "key": "supply_voltage", "defaultWidthPct": 8, "minWidthPx": 74 },
       { "key": "winding_coefficient", "defaultWidthPct": 7, "minWidthPx": 64 },
       { "key": "vapor_temperature", "defaultWidthPct": 10, "minWidthPx": 92 },
+      { "key": "maintain_temperature", "defaultWidthPct": 8, "minWidthPx": 78 },
       { "key": "aggressive_product", "defaultWidthPct": 7, "minWidthPx": 64 },
       { "key": "cable_length", "defaultWidthPct": 9, "minWidthPx": 70 },
       { "key": "total_power", "defaultWidthPct": 11, "minWidthPx": 90 },

@@ -60,7 +60,7 @@ Report Generator
 - Unit tests for comparator, formula oracle, algorithm oracle and pipeline.
 - Working example that writes JSON and HTML reports.
 
-## MVP Skeleton
+## Full-Version QA Scope
 
 - Full pipe/tank/electrical calculations are catalogued, but not all are independent oracles yet.
   The agent must not treat backend implementation code as the only source of truth.
@@ -114,8 +114,9 @@ cylindrical/external/ground resistance, no-double-K electrical handoff
 primitives, tank surface areas, tank flat-wall external resistance, tank
 heat-flux primitive, self-reg cable length, TT power curve and resistive
 rho/cross-section primitives. `AlgorithmOracle` also includes the TNP climate
-`K`/temperature rule, max winding coefficient, inclusive TT series limits and
-tank cable length geometry.
+`K`/temperature rule, max winding coefficient, inclusive TT series limits,
+tank cable length geometry and the passport-resistance resistive oracle
+`R/P/I/65A`.
 
 ## Add A Backend Endpoint
 

@@ -213,7 +213,7 @@ class TestProjectAccessAndEdges:
     async def test_employee_does_not_see_others_via_visibility_filter(
         self, client: AsyncClient, employee_token: str, admin_token: str
     ):
-        """Сотрудник видит ВСЕ проекты — это контракт MVP."""
+        """Сотрудник видит ВСЕ проекты — это контракт текущего контура."""
         before = (
             await client.get(
                 "/api/v1/projects",

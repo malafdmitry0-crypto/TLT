@@ -188,17 +188,23 @@ def _select_tt_series(process_temp: float, vapor_temp: float | None) -> str:
 def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTResult:
     """Подбор саморегулирующегося кабеля ТТН/ТТВ/ТТХ.
 
-    Формула мощности: q_б(T_ж) = q1 × T_ж + q2  [Вт/м]
+    Формула мощности: q_б(T3) = q1 × T3 + q2  [Вт/м]
     Марка: <мощность>ТТН/ТТВ/ТТХ2-СР (агрессивная среда → СТ)
     Количество ниток: N = задано пользователем или ceil(q_required / q_б)
 
-    Алгоритм серии: начинаем с минимально подходящей по температуре серии,
-    затем эскалируем ТТН → ТТВ → ТТХ если ни один кабель серии не даёт нужную мощность.
+    Алгоритм серии: выбираем минимально подходящую по T1/T2 серию. Если
+    одной нитки недостаточно, берём максимальный номинал этой серии и считаем
+    N = ceil(q_required / q_б) без эскалации серии только из-за мощности.
     """
     catalog = list_tt_cables()
     suffix = "СТ" if params.aggressive_product else "СР"
     q_required = params.required_power_per_meter * params.safety_factor
     selected_threads: int | None = None
+    t3 = (
+        params.maintain_temperature
+        if params.maintain_temperature is not None
+        else params.process_temperature
+    )
 
     if params.cable_mark is not None:
         if params.cable_mark.endswith("-СТ"):
@@ -226,52 +232,39 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
                 f"серии {series} ({cable['max_vapor_temp']}°C)"
             )
     else:
-        min_series = _select_tt_series(params.process_temperature, params.vapor_temperature)
-        series_order = list(_SERIES_LIMITS.keys())
-        start_idx = series_order.index(min_series)
-
-        cable = None
-        series = min_series
-        for s in series_order[start_idx:]:
-            limits = _SERIES_LIMITS[s]
-            if params.process_temperature > limits["max_product_temp"]:
-                continue
-            if (
-                params.vapor_temperature is not None
-                and params.vapor_temperature > limits["max_vapor_temp"]
-            ):
-                continue
-            s_cables = sorted(
-                [c for c in catalog if c["series"] == s],
-                key=lambda c: c["nominal_power"],
-            )
-            candidates: list[tuple[float, int, float, CableRow]] = []
-            for c in s_cables:
-                q_b = c["q1"] * params.process_temperature + c["q2"]
-                if q_b <= 0:
-                    continue
-                threads = (
-                    params.number_of_threads
-                    if params.number_of_threads is not None
-                    else math.ceil(q_required / q_b)
-                )
-                if threads <= 3 and q_b * threads >= q_required:
-                    candidates.append((q_b * threads, threads, c["nominal_power"], c))
-            if candidates:
-                _, selected_threads, _, cable = min(candidates, key=lambda item: item[:3])
-                series = s
-                break
-
-        if cable is None:
+        series = _select_tt_series(params.process_temperature, params.vapor_temperature)
+        s_cables = sorted(
+            [c for c in catalog if c["series"] == series],
+            key=lambda c: c["nominal_power"],
+        )
+        power_rows = [(c["q1"] * t3 + c["q2"], c) for c in s_cables if c["q1"] * t3 + c["q2"] > 0]
+        if not power_rows:
             raise ValueError(
-                f"Ни один кабель серии ТТН/ТТВ/ТТХ не обеспечивает {q_required:.2f} Вт/м "
-                f"при T_ж={params.process_temperature}°C. Требуется другой тип кабеля."
+                f"Ни один кабель серии {series} не имеет положительной мощности "
+                f"при T3={t3}°C. Требуется другой тип кабеля."
             )
 
-    q_b = cable["q1"] * params.process_temperature + cable["q2"]
+        if params.number_of_threads is not None:
+            candidates = [
+                (c["nominal_power"], q_b * params.number_of_threads, q_b, c)
+                for q_b, c in power_rows
+                if q_b * params.number_of_threads >= q_required
+            ]
+            if not candidates:
+                raise ValueError(
+                    f"Ни один кабель серии {series} при {params.number_of_threads} нитк. "
+                    f"не обеспечивает {q_required:.2f} Вт/м при T3={t3}°C"
+                )
+            _, _, _, cable = min(candidates, key=lambda item: (item[0], item[1]))
+            selected_threads = params.number_of_threads
+        else:
+            q_b_max, cable = max(power_rows, key=lambda item: item[1]["nominal_power"])
+            selected_threads = math.ceil(q_required / q_b_max)
+
+    q_b = cable["q1"] * t3 + cable["q2"]
     if q_b <= 0:
         raise ValueError(
-            f"Кабель {cable['model']} при T={params.process_temperature}°C "
+            f"Кабель {cable['model']} при T3={t3}°C "
             f"имеет нулевую или отрицательную мощность ({q_b:.2f} Вт/м)"
         )
 

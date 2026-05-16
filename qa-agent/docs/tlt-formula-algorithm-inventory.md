@@ -174,8 +174,12 @@ Implementation: `backend/app/formulas/electrical/self_regulating.py`
 Algorithm:
 
 - Select minimal series by product/vapor temperature limits.
-- Power curve: `q_b = q1 * process_temperature + q2`.
-- If threads are not fixed, choose `ceil(q_required / q_b)` with max 3 threads.
+- Power curve: `q_b = q1 * T3 + q2`; `maintain_temperature` is `T3` from
+  the parsed VSDX. If it is absent, current backend/registry uses
+  `process_temperature` as a compatibility fallback.
+- If threads are not fixed and the selected series cannot cover `Pоб` in one
+  thread, choose the max nominal in that temperature series and compute
+  `N = ceil(Pоб / Pi.ном(T3))`; do not escalate series only to keep `N <= 3`.
 - Tank geometry can use `compute_tank_cable_length` as base length.
 - Cable mark suffix is `-СТ` for aggressive product, otherwise `-СР`.
 
@@ -190,6 +194,14 @@ Engineering review:
 
 - Temperature limits are inclusive rated maximums; boundary values at 65/85,
   120/210 and 150/250 are mandatory.
+- The parsed VSDX distinguishes `T1` product, `T2` vapor and `T3` maintain
+  temperature. Backend now preserves that split: `process_temperature` selects
+  series as `T1`, `vapor_temperature` is `T2`, and `maintain_temperature`
+  drives `q_b(T3)`.
+- Parsed VSDX counts `N = ceil(Pоб / Pi.ном(T3))` after max nominal selection;
+  backend now follows this full-version rule for TTН/TTВ/TTХ auto-selection.
+- Parsed `R=1 -> СР` conflicts with the accepted domain interpretation.
+  Current contract explicitly fixes `aggressive_product -> СТ`, otherwise `СР`.
 - Negative or zero `q_b` must be treated as invalid, not as a selectable cable.
 
 ## Electrical: Resistive TT R1 / TT R3
@@ -223,6 +235,12 @@ Engineering review:
 - Connection-type multipliers are the highest risk: every supported branch needs
   at least one fixed case and one near-threshold catalog case.
 - Constants `0.0175` and `0.0042` are mutation-testing targets.
+- For catalog rows with passport `resistance_ohm_km`, backend now computes
+  `R = resistance_ohm_km / 1000 * L`, `P = U^2/R`, `I = P/U` and rejects
+  passport candidates above `65 A`.
+- The parsed TNP resistive algorithm is broader than this base oracle: it sorts
+  `Q(i,1)`, computes `p2/p3`, applies the `65 A` current limit and iterates
+  `U/N/M`. Full `U/N/M`, `L1/L2` auto-selection still needs formalization.
 - `ТТ Р3` legacy fields `standard_supply_voltage_v` and `max_linear_power_w_m`
   still need source-page confirmation if they are used as hard business limits.
 

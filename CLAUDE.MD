@@ -214,7 +214,7 @@
 
 ---
 
-## 5a. Импорт объектов из Excel / CSV (MVP по ТЗ 4.1.3)
+## 5a. Импорт объектов из Excel / CSV (ТЗ 4.1.3)
 
 Кнопка «Импорт (Excel/CSV)» на `HeatCalcPage` в левой панели. Рядом — линки
 «Шаблон .xlsx» и «Шаблон .csv» для скачивания образцов.
@@ -241,7 +241,7 @@ UTF-8-BOM / CP1251).
 
 ---
 
-## 5b. Drag-and-drop сортировки (MVP по ТЗ 4.1.3)
+## 5b. Drag-and-drop сортировки (ТЗ 4.1.3)
 
 `PipeTable` / `TankTable` обёрнуты в `DndContext` + `SortableContext` (библиотека
 `@dnd-kit/*`). Строки — `DraggableRow` через `components.body.row` antd-Table.
@@ -420,7 +420,7 @@ docker-compose up --build -d
 
 Текущее состояние:
 <!-- AUTO:test-counts -->
-**934 backend** (689 unit + 245 integration) ✅ · **310 frontend vitest** ✅ · **58 e2e Playwright** ✅
+**964 backend** (716 unit + 248 integration) ✅ · **310 frontend vitest** ✅ · **58 e2e Playwright** ✅
 <!-- /AUTO -->
 
 Цифры обновляются командой `scripts/sync-docs.py`.
@@ -507,8 +507,8 @@ CLAUDE.MD остаётся «архитектурной правдой». Про
 
 ## 14. Текущий статус и ограничения
 
+Правило текущего целевого уровня:
+@docs/context/full-version-rule.md
+
 Актуальный срез готовности и недостающей информации:
 @docs/analysis/current-status-and-missing-info.md
-
-Исторический MVP-контекст и известные ограничения:
-@docs/context/mvp-status.md

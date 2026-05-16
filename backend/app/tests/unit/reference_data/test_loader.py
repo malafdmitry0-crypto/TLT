@@ -203,8 +203,8 @@ class TestGetInsulationConductivity:
         assert lam > 0
         assert lam < 1.0  # для изоляции λ < 1 Вт/(м·К)
 
-    def test_temperature_ignored_in_mvp(self):
-        """В MVP λ не зависит от T — одинаковое значение для разных T."""
+    def test_temperature_currently_uses_table_value(self):
+        """λ пока берется из таблицы и не зависит от T."""
         assert get_insulation_conductivity("mineral_wool", -40) == get_insulation_conductivity(
             "mineral_wool", 200
         )

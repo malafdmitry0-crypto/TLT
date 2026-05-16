@@ -3,6 +3,10 @@
 Таблица сверки ТЗ (Приложение № 1 + Приложения 1–4) с фактической реализацией
 в коде и тестами. Дата актуализации: **2026-05-02**.
 
+Актуальное правило приемки: проект проверяется против полной версии. Исторические
+разделы базового уровня ТЗ ниже не снижают критерий приемки для формул,
+алгоритмов и справочников.
+
 **Статус тестов на момент актуализации:** Backend `676` ✅ · Frontend vitest `139` ✅ ·
 E2E Playwright `40` ✅. Числа синхронизируются через `scripts/sync-docs.py`.
 
@@ -33,17 +37,17 @@ E2E Playwright `40` ✅. Числа синхронизируются через 
 | 4.1.3 Импорт таблиц из Excel/CSV | ✅ | `components/ImportExcelButton.tsx`, `services/excel_import_service.py` | `app/tests/integration/api/test_import_excel.py` (12 тестов) |
 | 4.1.3 Экспорт таблицы объектов в Excel | ✅ | `components/ExportObjectsButton.tsx`, `GET /objects/export-excel` | manual (UI) |
 | 4.1.4 Корректирующие коэффициенты администратора | ✅ | `pages/admin/CoefficientsPage.tsx`, `models/coefficient.py`, `formulas/heat_loss/common.py:merge_coefficients` | `app/tests/unit/services/test_calculation_service_unit.py` |
-| **Сверх MVP:** Экспорт/импорт проекта в CSV (одиночный — все роли) | ✅ | `services/project_io_service.py`, `GET/POST /projects/{id}/export-csv`, `POST /projects/import-csv` | `app/tests/integration/api/test_project_io.py` (7 тестов) |
-| **Сверх MVP:** Пакетный экспорт/импорт (сотрудник) | ✅ | `GET /projects/export-csv-bulk`, `POST /projects/import-csv-bulk` | `test_project_io.py::TestBulkExportImport` |
-| **Сверх MVP:** Дублирование проекта (сотрудник) | ✅ | `ProjectService.duplicate_project`, `POST /projects/{id}/duplicate` | `test_projects.py::TestProjectDuplicate` |
+| **Дополнительно к базовому уровню:** Экспорт/импорт проекта в CSV (одиночный — все роли) | ✅ | `services/project_io_service.py`, `GET/POST /projects/{id}/export-csv`, `POST /projects/import-csv` | `app/tests/integration/api/test_project_io.py` (7 тестов) |
+| **Дополнительно к базовому уровню:** Пакетный экспорт/импорт (сотрудник) | ✅ | `GET /projects/export-csv-bulk`, `POST /projects/import-csv-bulk` | `test_project_io.py::TestBulkExportImport` |
+| **Дополнительно к базовому уровню:** Дублирование проекта (сотрудник) | ✅ | `ProjectService.duplicate_project`, `POST /projects/{id}/duplicate` | `test_projects.py::TestProjectDuplicate` |
 | **Сверх ТЗ:** Режим «Пользователь» — один авто-проект + авто-очистка 20 мин | ✅ | `api/v1/auth.py` (авто-проект), `main.py: _periodic_guest_cleanup` | `test_auth.py` (5 тестов TTL/cleanup/touch) |
 
-## 4.2 MVP (уровень «Пользователь»)
+## 4.2 Базовый уровень ТЗ (уровень «Пользователь»)
 
 | Требование ТЗ | Статус | Где |
 |---|:--:|---|
-| 4.2.1 Расчёт теплопотерь — типы из ТНП «для MVP» (труба, резервуар) | ✅ | `formulas/heat_loss/{pipe,tank}.py` |
-| 4.2.1 Формулы строго из ТНП «для MVP» | ✅ | Закон Фурье для цилиндрической стенки (труба) и плоская стенка (резервуар); 100% покрытие unit-тестами |
+| 4.2.1 Расчёт теплопотерь — типы из ТНП для базового уровня (труба, резервуар) | ✅ | `formulas/heat_loss/{pipe,tank}.py` |
+| 4.2.1 Формулы строго из ТНП для базового уровня | ✅ | Закон Фурье для цилиндрической стенки (труба) и плоская стенка (резервуар); 100% покрытие unit-тестами |
 | 4.2.1 Климат / теплопроводность / параметры — встроенные справочники | ✅ | `reference_data/{climate,insulation,pipe_materials,soil_conductivity,cables_tlt,resistive_cables,accessories}.json` + `loader.py` |
 | 4.2.2 Электротехнический расчёт — расчётно поддержан саморегулирующийся ТЛТ | ✅ | `formulas/electrical/self_regulating.py` |
 | 4.2.2 Бренд ТЛТ встроенный, без внешней БД | ✅ | `cables_tlt.json` + `seeds.py` |
@@ -52,15 +56,15 @@ E2E Playwright `40` ✅. Числа синхронизируются через 
 | 4.2.3 Базовая спецификация (кабель + минимум аксессуаров) | ✅ | `formulas/specification/builder.py:build_basic_specification` |
 | 4.2.4 Базовый отчёт (исходные данные + теплопотери + кабель + спецификация) | ✅ | `services/report_service.py`, `templates/report.html` |
 
-**Покрытие тестами MVP-формул:** `app/tests/unit/formulas/` — 23 теста (tank), 21 (pipe),
+**Покрытие тестами формул базового уровня:** `app/tests/unit/formulas/` — 23 теста (tank), 21 (pipe),
 6 (self_regulating) + property-based тесты (Hypothesis) на устойчивость.
 
 ## 4.3 Полная версия (Сотрудник + Админ)
 
 | Требование ТЗ | Статус | Где |
 |---|:--:|---|
-| 4.3.1 Все типы объектов из ТНП (включая отсутствующие в MVP) | ❌ | pump/platform/other перечислены в `ObjectType`, форм мастера и формул нет — формул в ТНП не предоставлено |
-| 4.3.1 Все формулы «Полной версии» из ТНП | ❌ | Формулы помечены в `.docx` как «MVP» и «Полная версия», но физически файлов с формулами «Полной версии» в `/ТНП/` нет |
+| 4.3.1 Все типы объектов из ТНП (включая отсутствующие в базовом уровне) | ❌ | pump/platform/other перечислены в `ObjectType`, форм мастера и формул нет — формул в ТНП не предоставлено |
+| 4.3.1 Все формулы «Полной версии» из ТНП | ❌ | Старые `.docx` разделяют базовый уровень и «Полную версию», но физически файлов с формулами «Полной версии» в `/ТНП/` нет |
 | 4.3.2 Все типы кабеля (саморег, одножил, трёхжил, минер. изол., скин) | ⚠️ | Расчётно поддержаны ТЛТ, ТТН/ТТВ/ТТХ, ТТ Р1 (`single_core`) и ТТ Р3 (`three_core`); для `mineral` и `skin` формулы пока не реализованы |
 | 4.3.2 Доступ к расширенной внешней БД (альтернативные кабели/аксессуары) | ✅ | `models/{cable,accessory}.py` (CableExtended/AccessoryExtended) + админ-CRUD `pages/admin/DatabasePage.tsx` |
 | 4.3.2 Обновление номенклатуры через админку | ✅ | `api/v1/admin.py:cables_create/update/delete` |
@@ -140,7 +144,7 @@ E2E-тесты (`e2e/tests/`) автоматизируют ключевые пр
 | Раздел ТЗ | Готовность |
 |---|---|
 | 4.1 Общие требования | **≈100%** по реализуемому контуру; оставшиеся Excel-like детали зависят от Q-B |
-| 4.2 MVP | **100%** ✅ |
+| 4.2 Базовый уровень | **100%** ✅ |
 | 4.3 Полная версия | **≈80%**: реализованы CO1..CO4, внешняя БД, спецификация, отчёты; остаются формулы кабелей полной версии и pump/platform/other |
 | 5 Безопасность | **частично**: auth/roles готовы, по формулам/справочникам нужен финальный выбор варианта защиты |
 | 6 Документация | **90%** (нет отдельного справочника кодов ошибок) |

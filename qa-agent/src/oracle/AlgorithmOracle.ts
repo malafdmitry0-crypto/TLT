@@ -172,6 +172,31 @@ function pickCrossSection(input: Record<string, unknown>): number {
   return candidates[0];
 }
 
+function resistivePassportOhmLaw(input: Record<string, unknown>): Record<string, number | boolean> {
+  const resistanceOhmKm = numberInput(input, 'resistanceOhmKm');
+  const cableLength = numberInput(input, 'cableLength');
+  const supplyVoltage = numberInput(input, 'supplyVoltage');
+  const resistanceFactor = optionalNumberInput(input, 'resistanceFactor') ?? 1;
+  const powerMultiplier = optionalNumberInput(input, 'powerMultiplier') ?? 1;
+  const maxCurrentA = optionalNumberInput(input, 'maxCurrentA') ?? 65;
+  if (resistanceOhmKm <= 0) throw new Error('resistanceOhmKm must be > 0');
+  if (cableLength <= 0) throw new Error('cableLength must be > 0');
+  if (supplyVoltage <= 0) throw new Error('supplyVoltage must be > 0');
+  if (resistanceFactor <= 0) throw new Error('resistanceFactor must be > 0');
+  if (powerMultiplier <= 0) throw new Error('powerMultiplier must be > 0');
+
+  const resistanceOhm = (resistanceOhmKm / 1000) * cableLength * resistanceFactor;
+  const totalPower = (supplyVoltage ** 2 / resistanceOhm) * powerMultiplier;
+  const current = totalPower / supplyVoltage;
+  return {
+    resistanceOhm,
+    totalPower,
+    current,
+    maxCurrentA,
+    withinCurrentLimit: current <= maxCurrentA,
+  };
+}
+
 const BUILTIN_ALGORITHMS: Record<string, AlgorithmFunction> = {
   tlt_tank_cable_length: tankCableLength,
   tlt_climate_safety_factor: climateSafetyFactor,
@@ -179,6 +204,7 @@ const BUILTIN_ALGORITHMS: Record<string, AlgorithmFunction> = {
   tlt_tt_series_selection: ttSeriesSelection,
   tlt_select_min_sufficient_cable: selectMinSufficientCable,
   tlt_resistive_pick_cross_section: pickCrossSection,
+  tlt_resistive_passport_ohm_law: resistivePassportOhmLaw,
 };
 
 export class AlgorithmOracle implements ReferenceOracle {

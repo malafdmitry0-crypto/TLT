@@ -51,6 +51,8 @@ python3 scripts/convert-vsdx-algorithms.py
 ## Сверка
 
 - [Сверка корректности ТНП-документации](correctness-review.md)
+- [Сверка ТНП с проектной документацией и кодом](project-reconciliation-audit.md)
+- [Сверка качества парсинга алгоритмов](algorithm-parsing-coverage-audit.md)
 
 ## Ограничения конвертации
 

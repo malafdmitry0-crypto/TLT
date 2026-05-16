@@ -352,6 +352,7 @@ class TestFormulaCheck:
                     "required_power_per_meter": 20.0,
                     "pipe_length": 50.0,
                     "process_temperature": 60.0,
+                    "maintain_temperature": 50.0,
                     "vapor_temperature": 80.0,
                 },
             },

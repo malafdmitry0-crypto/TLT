@@ -149,8 +149,8 @@ safety_factor = self._num(
 | Перенос `winding_pitch` и `num_circuits` из предыдущего расчёта через `_layout_overrides_from_existing` | ✅ |
 | `_tank_heat_loss_without_double_safety` — деление Q/K перед подачей в ТТ/резистивные формулы | ✅ |
 | `_merge_electrical_overrides` — сохранённые настройки укладки + новые overrides от пользователя | ✅ |
-| Валидация `process_temperature` для ТТН/ТТВ/ТТХ и резистивных (обязательное поле) | ✅ |
-| Автоподбор серии ТТН→ТТВ→ТТХ с эскалацией при недостаточной мощности | ✅ |
+| Валидация `process_temperature` для ТТН/ТТВ/ТТХ и резистивных (обязательное поле); `maintain_temperature` опционален с fallback `T3=T1` | ✅ |
+| Автоподбор ТТН/ТТВ/ТТХ: серия по температурам, при нехватке мощности `N=ceil(Pоб/Pi)` без эскалации серии ради лимита ниток | ✅ |
 | `_save_failed_electrical` — upsert записи с ошибкой, не теряем диагностику | ✅ |
 | Проверка `cable_mark is None` для batch — автоподбор, не ручной выбор | ✅ |
 | Frontend: `isElectricalCalcSuccess` / `electricalCalcError` — отделение успеха от ошибки | ✅ |

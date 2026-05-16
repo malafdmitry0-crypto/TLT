@@ -46,7 +46,8 @@ const BUILTIN_FORMULAS: Record<string, FormulaFunction> = {
   // TLT electrical primitives from backend/app/formulas/electrical.
   tlt_self_reg_cable_length: ({ pipeLength, windingCoefficient, numberOfThreads }) =>
     pipeLength * 1.1 * windingCoefficient * numberOfThreads,
-  tlt_tt_power_curve: ({ q1, processTemperature, q2 }) => q1 * processTemperature + q2,
+  tlt_tt_power_curve: ({ q1, maintainTemperature, processTemperature, q2 }) =>
+    q1 * (maintainTemperature ?? processTemperature) + q2,
   tlt_resistive_rho_t: ({ processTemperature }) => 0.0175 * (1.0 + 0.0042 * (processTemperature - 20.0)),
   tlt_resistive_single_line_cross_section: ({ requiredHeatLoss, supplyVoltage, rhoT, cableLength }) =>
     (requiredHeatLoss / supplyVoltage ** 2) * rhoT * cableLength,
@@ -84,12 +85,32 @@ function numericInput(
   input: Record<string, unknown>,
 ): { values?: Record<string, number>; error?: string } {
   const values: Record<string, number> = {};
+  const ttPowerCurveOptional = new Set(['maintainTemperature', 'processTemperature']);
   for (const variable of definition.variables) {
     const raw = input[variable];
+    if (
+      definition.id === 'tlt_tt_power_curve' &&
+      ttPowerCurveOptional.has(variable) &&
+      (raw === null || raw === undefined)
+    ) {
+      continue;
+    }
     if (typeof raw !== 'number' || Number.isNaN(raw)) {
       return { error: `Missing or non-numeric variable: ${variable}` };
     }
     values[variable] = raw;
+  }
+  for (const [key, raw] of Object.entries(input)) {
+    if (values[key] === undefined && typeof raw === 'number' && !Number.isNaN(raw)) {
+      values[key] = raw;
+    }
+  }
+  if (
+    definition.id === 'tlt_tt_power_curve' &&
+    values.maintainTemperature === undefined &&
+    values.processTemperature === undefined
+  ) {
+    return { error: 'Missing maintainTemperature or processTemperature' };
   }
   return { values };
 }

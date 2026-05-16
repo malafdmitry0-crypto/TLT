@@ -45,6 +45,7 @@ export interface PipeParams {
   local_element_equiv_length?: number | null;
   supply_voltage?: number | null;
   safety_factor?: number | null;
+  maintain_temperature?: number | null;
   vapor_temperature?: number | null;
   location?: 'indoor' | 'outdoor';
 }
@@ -95,6 +96,7 @@ export interface TankParams {
   wind_speed_source?: 'manual' | 'climate' | null;
   supply_voltage?: number | null;
   safety_factor?: number | null;
+  maintain_temperature?: number | null;
   vapor_temperature?: number | null;
   location?: 'indoor' | 'outdoor';
 }
@@ -242,13 +244,22 @@ export interface BatchHeatLossResponse {
   errors: Array<{ object_id: string; error: unknown }>;
 }
 
+export interface ReportExportTaskResult {
+  project_id: string;
+  format: 'pdf' | 'docx' | 'xlsx';
+  filename: string;
+  media_type: string;
+  size_bytes: number;
+  download_url: string;
+}
+
 export interface CalculationTaskResponse {
   id: string;
   type: string;
   status: CalculationTaskStatus;
   project_id: string | null;
   progress: CalculationTaskProgress;
-  result: BatchElectricalResponse | BatchHeatLossResponse | null;
+  result: BatchElectricalResponse | BatchHeatLossResponse | ReportExportTaskResult | null;
   error_message: string | null;
   cancel_requested: boolean;
   created_at: string;

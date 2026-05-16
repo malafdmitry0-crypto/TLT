@@ -31,6 +31,7 @@ export default function ReportPage() {
   const isEmployee = role === 'employee';
   const [sections, setSections] = useState<ReportSection[]>([...REPORT_SECTIONS]);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<'pdf' | 'docx' | 'xlsx' | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['report-preview', project?.id, sections.join(',')],
@@ -50,6 +51,8 @@ export default function ReportPage() {
 
   const download = async (fmt: 'pdf' | 'docx' | 'xlsx') => {
     try {
+      setExportingFormat(fmt);
+      message.loading({ content: 'Формирование отчёта...', key: 'report-export', duration: 0 });
       const blob = await exportReport(project.id, fmt, sections);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -57,8 +60,11 @@ export default function ReportPage() {
       a.download = `${project.name}.${fmt}`;
       a.click();
       URL.revokeObjectURL(url);
+      message.success({ content: 'Отчёт готов', key: 'report-export' });
     } catch {
-      message.error('Не удалось скачать отчёт');
+      message.error({ content: 'Не удалось скачать отчёт', key: 'report-export' });
+    } finally {
+      setExportingFormat(null);
     }
   };
 
@@ -99,9 +105,30 @@ export default function ReportPage() {
             )}
             {isEmployee && (
               <>
-                <Button icon={<FilePdfOutlined />} onClick={() => download('pdf')}>PDF</Button>
-                <Button icon={<FileWordOutlined />} onClick={() => download('docx')}>Word</Button>
-                <Button icon={<FileExcelOutlined />} onClick={() => download('xlsx')}>Excel</Button>
+                <Button
+                  icon={<FilePdfOutlined />}
+                  loading={exportingFormat === 'pdf'}
+                  disabled={exportingFormat !== null}
+                  onClick={() => download('pdf')}
+                >
+                  PDF
+                </Button>
+                <Button
+                  icon={<FileWordOutlined />}
+                  loading={exportingFormat === 'docx'}
+                  disabled={exportingFormat !== null}
+                  onClick={() => download('docx')}
+                >
+                  Word
+                </Button>
+                <Button
+                  icon={<FileExcelOutlined />}
+                  loading={exportingFormat === 'xlsx'}
+                  disabled={exportingFormat !== null}
+                  onClick={() => download('xlsx')}
+                >
+                  Excel
+                </Button>
               </>
             )}
           </Space>

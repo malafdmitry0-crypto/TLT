@@ -32,14 +32,18 @@ from app.schemas.calculation import (
     ElectricalObjectBatchOverride,
     HeatLossBatchJobRequest,
 )
+from app.schemas.report import ReportExportJobRequest, ReportExportTaskResult
 from app.services.calculation_service import BatchCancelledError, BatchProgress, CalculationService
 from app.services.project_service import ProjectService
+from app.services.report_artifact_service import write_report_artifact
+from app.services.report_service import ReportService
 from app.services.task_queue import TaskQueue
 
 logger = logging.getLogger("heatcalc.worker")
 
 TASK_ELECTRICAL_BATCH = "electrical_batch"
 TASK_HEAT_LOSS_BATCH = "heat_loss_batch"
+TASK_REPORT_EXPORT = "report_export"
 ACTIVE_STATUSES = ("queued", "enqueued", "running")
 TERMINAL_STATUSES = ("succeeded", "failed", "cancelled")
 MAX_TASK_ERROR_MESSAGE_LENGTH = 4_000
@@ -262,6 +266,60 @@ class TaskService:
         await self.enqueue_existing_task(task, queue=queue)
         return task
 
+    async def create_report_export_task(
+        self,
+        request: ReportExportJobRequest,
+        principal: CurrentPrincipal,
+        *,
+        queue: TaskQueue | None = None,
+        idempotency_key: str | None = None,
+    ) -> BackgroundTask:
+        if principal.role not in ("employee", "admin"):
+            raise TaskAccessError("Экспорт отчёта доступен только сотрудникам")
+        await ProjectService(self.db).get_project_basic(request.project_id, principal)
+
+        payload = self._report_export_payload(request)
+        dedupe_key = self._dedupe_key(
+            task_type=TASK_REPORT_EXPORT,
+            project_id=request.project_id,
+            principal=principal,
+            payload=payload,
+            idempotency_key=idempotency_key,
+        )
+        existing = await self._find_active_by_dedupe(dedupe_key)
+        if existing is not None:
+            return existing
+
+        task = BackgroundTask(
+            type=TASK_REPORT_EXPORT,
+            status="queued",
+            project_id=request.project_id,
+            user_id=principal.user_id,
+            session_id=principal.session_id,
+            request_payload=payload,
+            progress_current=0,
+            progress_total=3,
+            progress_phase="queued",
+            idempotency_key=dedupe_key,
+            cancel_requested=False,
+            attempts=0,
+            enqueue_attempts=0,
+        )
+        self.db.add(task)
+        try:
+            await self.db.commit()
+        except IntegrityError:
+            await self.db.rollback()
+            existing = await self._find_active_by_dedupe(dedupe_key)
+            if existing is None:
+                raise
+            return existing
+        await self.db.refresh(task)
+
+        queue = queue or TaskQueue()
+        await self.enqueue_existing_task(task, queue=queue)
+        return task
+
     async def get_task_for_principal(
         self,
         task_id: UUID,
@@ -334,14 +392,16 @@ class TaskService:
             ):
                 await self._mark_cancelled(task_id)
             return
-        if task.type not in (TASK_ELECTRICAL_BATCH, TASK_HEAT_LOSS_BATCH):
+        if task.type not in (TASK_ELECTRICAL_BATCH, TASK_HEAT_LOSS_BATCH, TASK_REPORT_EXPORT):
             await self._mark_failed(task_id, f"Неизвестный тип задачи: {task.type}")
             return
 
         if task.type == TASK_HEAT_LOSS_BATCH:
             await self._run_heat_loss_batch(task_id)
-        else:
+        elif task.type == TASK_ELECTRICAL_BATCH:
             await self._run_electrical_batch(task_id)
+        else:
+            await self._run_report_export(task_id)
 
     async def record_worker_exception(
         self,
@@ -597,6 +657,44 @@ class TaskService:
         }
         await self._mark_succeeded(task_id, result_payload)
 
+    async def _run_report_export(self, task_id: UUID) -> None:
+        task = await self.db.get(BackgroundTask, task_id)
+        if task is None:
+            return
+        payload = dict(task.request_payload or {})
+        try:
+            project_id = UUID(payload["project_id"])
+            fmt = payload["format"]
+            sections = payload.get("sections")
+            await self._update_progress(task_id, BatchProgress(current=1, total=3, phase="load"))
+            if await self._should_cancel(task_id):
+                await self._mark_cancelled(task_id)
+                return
+            async with self.session_factory() as report_db:
+                data = await ReportService(report_db).export(project_id, fmt, sections)
+            await self._update_progress(task_id, BatchProgress(current=2, total=3, phase="write"))
+            if await self._should_cancel(task_id):
+                await self._mark_cancelled(task_id)
+                return
+            artifact = write_report_artifact(task_id, fmt, data)
+        except BatchCancelledError:
+            await self._mark_cancelled(task_id)
+            return
+        except Exception as exc:
+            await self._mark_failed(task_id, f"{type(exc).__name__}: {exc}")
+            return
+
+        filename = f"report.{fmt}"
+        result_payload = {
+            "project_id": str(project_id),
+            "format": fmt,
+            "filename": filename,
+            "media_type": _REPORT_MEDIA_TYPES[fmt],
+            "download_url": f"{settings.API_V1_PREFIX}/reports/jobs/{task_id}/download",
+            **artifact,
+        }
+        await self._mark_succeeded(task_id, result_payload)
+
     async def _update_progress(self, task_id: UUID, progress: BatchProgress) -> None:
         async with self.session_factory() as db:
             task = await db.get(BackgroundTask, task_id)
@@ -777,6 +875,16 @@ class TaskService:
         return payload
 
     @staticmethod
+    def _report_export_payload(request: ReportExportJobRequest) -> dict[str, Any]:
+        payload = {
+            "project_id": str(request.project_id),
+            "format": request.format,
+        }
+        if request.sections is not None:
+            payload["sections"] = request.sections
+        return payload
+
+    @staticmethod
     def _dedupe_key(
         *,
         task_type: str,
@@ -817,7 +925,7 @@ class TaskService:
                     failed=int(task.result_payload.get("failed", 0)),
                     errors=list(task.result_payload.get("errors") or []),
                 )
-            else:
+            elif task.type == TASK_ELECTRICAL_BATCH:
                 result = BatchElectricalResponse(
                     calculated=int(task.result_payload.get("calculated", 0)),
                     skipped=int(task.result_payload.get("skipped", 0)),
@@ -829,7 +937,21 @@ class TaskService:
                         for item in list(task.result_payload.get("results") or [])
                     ],
                 )
-        base = f"{settings.API_V1_PREFIX}/calc/jobs/{task.id}"
+            elif task.type == TASK_REPORT_EXPORT:
+                result = ReportExportTaskResult(
+                    project_id=UUID(str(task.result_payload["project_id"])),
+                    format=task.result_payload["format"],
+                    filename=task.result_payload["filename"],
+                    media_type=task.result_payload["media_type"],
+                    size_bytes=int(task.result_payload.get("size_bytes", 0)),
+                    download_url=task.result_payload["download_url"],
+                )
+        if task.type == TASK_REPORT_EXPORT:
+            base = f"{settings.API_V1_PREFIX}/reports/jobs/{task.id}"
+            result_url = f"{base}/download"
+        else:
+            base = f"{settings.API_V1_PREFIX}/calc/jobs/{task.id}"
+            result_url = f"{base}/result"
         return CalculationTaskResponse(
             id=task.id,
             type=task.type,
@@ -849,7 +971,14 @@ class TaskService:
             finished_at=task.finished_at,
             links=CalculationTaskLinks(
                 status=base,
-                result=f"{base}/result",
+                result=result_url,
                 cancel=f"{base}/cancel",
             ),
         )
+
+
+_REPORT_MEDIA_TYPES = {
+    "pdf": "application/pdf",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}

@@ -70,6 +70,7 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
     "supply_voltage",
     "winding_coefficient",
     "vapor_temperature",
+    "maintain_temperature",
     "aggressive_product",
     "cable_length",
     "total_power",

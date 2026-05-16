@@ -185,6 +185,24 @@ describe('AlgorithmOracle', () => {
     expect(result.value).toBe(4);
   });
 
+  it('evaluates resistive passport resistance power and 65A current limit', () => {
+    const result = new AlgorithmOracle(registry()).evaluate(
+      testCase('tlt_resistive_passport_ohm_law', {
+        resistanceOhmKm: 80,
+        cableLength: 100,
+        supplyVoltage: 220,
+      }),
+    );
+
+    expect(result.value).toEqual({
+      resistanceOhm: 8,
+      totalPower: 6050,
+      current: 27.5,
+      maxCurrentA: 65,
+      withinCurrentLimit: true,
+    });
+  });
+
   it('returns a structured error for unsupported algorithms', () => {
     const result = new AlgorithmOracle(registry()).evaluate(testCase('unknown_algorithm', {}));
 

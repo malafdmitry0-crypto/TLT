@@ -14,6 +14,7 @@ from sqlalchemy import select
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.core.redis_client import close_redis, get_redis
 from app.core.security import hash_password
 from app.models.user import User
 from app.reference_data.loader import preload_all
@@ -40,7 +41,7 @@ async def ensure_first_admin() -> None:
         logger.info("Создан администратор по умолчанию: %s", settings.FIRST_ADMIN_EMAIL)
 
 
-def _try_acquire_cleanup_lock(ttl_seconds: int) -> bool:
+async def _try_acquire_cleanup_lock(ttl_seconds: int) -> bool:
     """Distributed lock через Redis SETNX. Возвращает True если этот инстанс
     получил эксклюзивное право на cleanup в этом окне.
 
@@ -50,11 +51,8 @@ def _try_acquire_cleanup_lock(ttl_seconds: int) -> bool:
     if not redis_url:
         return True
     try:
-        from redis import Redis  # type: ignore[import-not-found]
-
-        client = Redis.from_url(redis_url, decode_responses=True)
         # SET key value NX EX ttl — атомарный «set if not exists» с TTL
-        return bool(client.set("lock:guest_cleanup", "1", nx=True, ex=ttl_seconds))
+        return bool(await get_redis().set("lock:guest_cleanup", "1", nx=True, ex=ttl_seconds))
     except Exception as exc:
         logger.warning("Cleanup lock через Redis недоступен: %s", exc)
         return True
@@ -82,7 +80,7 @@ async def _periodic_guest_cleanup() -> None:
         try:
             await asyncio.sleep(interval)
             # TTL лока чуть меньше интервала — освободится перед следующим окном
-            if _try_acquire_cleanup_lock(ttl_seconds=interval - 5):
+            if await _try_acquire_cleanup_lock(ttl_seconds=interval - 5):
                 await cleanup_guest_sessions()
         except asyncio.CancelledError:
             raise
@@ -111,6 +109,7 @@ async def lifespan(app: FastAPI):
         cleanup_task.cancel()
         with suppress(asyncio.CancelledError, Exception):
             await cleanup_task
+        await close_redis()
 
 
 app = FastAPI(

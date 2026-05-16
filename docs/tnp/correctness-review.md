@@ -135,7 +135,8 @@ boundary cases для `D = 99` и `D = 100`. В приложении клима�
 - `D > 108 -> Kn = 1,5`.
 
 В QA-agent добавлен deterministic algorithm `tlt_max_winding_coefficient` с
-boundary cases для `75`, `89` и `108`.
+boundary cases для `75`, `89` и `108`; backend валидирует explicit/geometric
+коэффициент навива как hard-limit.
 
 ### 7. Температурные пределы ТТН/ТТВ/ТТХ трактуются как включительные
 
@@ -158,9 +159,27 @@ T1 < 150, T2 < 250
 Такой контракт уже совпадает с текущим backend. В QA-agent добавлены boundary
 cases на точных предельных значениях.
 
+### 8. T3 и число ниток ТТН/ТТВ/ТТХ
+
+VSDX различает:
+
+- `T1` — температура продукта для выбора серии;
+- `T2` — температура пропарки для выбора серии;
+- `T3` — температура поддержания для `Pi.ном(T3)`.
+
+В backend/API `maintain_temperature` является T3. Для совместимости старых
+запросов, где T3 не передан, используется fallback `T3=T1`. Автоматический
+подбор следует full-version правилу: серия выбирается по температурам, а если
+мощности одной нитки не хватает, `N = ceil(Pоб / Pi.ном(T3))` без ограничения
+`N <= 3` и без эскалации серии только ради числа ниток.
+
+Суффикс марки закреплен как рабочий контракт:
+`aggressive_product -> СТ`, иначе `СР`. Parsed ветка `R=1 -> СР` считается
+неоднозначностью OCR/VSDX.
+
 ## Остается подтвердить или доработать
 
-### 8. PDF-справочники резистивных кабелей закрыты пользовательскими скринами по ключевым таблицам
+### 9. PDF-справочники резистивных кабелей закрыты пользовательскими скринами по ключевым таблицам
 
 Это ограничение относится не к блок-схемам алгоритмов: они разобраны из
 исходных `Алгоритмы/*.vsdx` в Markdown, JSON и Mermaid.
@@ -205,11 +224,13 @@ cases на точных предельных значениях.
 | Резервуар: `Rвнеш = 1 / alpha` | Markdown исправлен | Backend корректен для flat-wall модели |
 | Кабель резервуара: `N = П/2 * h_укл/w` | Да | `backend/app/formulas/electrical/cable_geometry.py` |
 | Периметр прямоугольного резервуара | Markdown исправлен | Backend корректен |
-| Максимальный коэффициент навива | QA policy добавлена | Нужен backend/API enforcement при появлении отдельного поля |
+| Максимальный коэффициент навива | QA policy добавлена | Backend hard-limit реализован |
 | Границы ТТН/ТТВ/ТТХ | Включительные | Backend совпадает |
-| TT power curve `q_b = q1*T + q2` | Да | `backend/app/formulas/electrical/self_regulating.py` |
+| TT power curve `q_b(T3) = q1*T3 + q2` | Да | `backend/app/formulas/electrical/self_regulating.py`, `maintain_temperature` с fallback `T3=T1` |
+| TT full-version threads | Да | Backend auto `N=ceil(Pоб/Pi)` без лимита 3 |
 | Резистивный `rho_T` | Да | `backend/app/formulas/electrical/resistive.py` |
 | Подбор минимального сечения `Sк_б >= Sк` | Да | `backend/app/formulas/electrical/resistive.py` |
+| Резистивное `R/P/I` по паспорту | Да | Для строк с `resistance_ohm_km` backend считает мощность/ток по паспорту и лимиту `65 А` |
 
 ## Рекомендации для QA-agent
 
@@ -218,6 +239,7 @@ cases на точных предельных значениях.
    - `tlt_tank_external_resistance` — добавлен;
    - `tlt_tank_cable_length` с прямоугольным периметром — добавлен;
    - `tlt_max_winding_coefficient` — добавлен.
+   - `tlt_resistive_passport_ohm_law` — добавлен.
 2. Держать regression cases для пограничных мест:
    - `D = 75`, `89`, `108`;
    - `T1 = 65`, `120`, `150`;

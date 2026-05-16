@@ -70,8 +70,12 @@ services:
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
       GUEST_MAX_SESSIONS_PER_IP: ${GUEST_MAX_SESSIONS_PER_IP:-10}
       TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-5}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
+      REDIS_MAX_CONNECTIONS: ${REDIS_MAX_CONNECTIONS:-50}
+      REPORT_ARTIFACT_DIR: ${REPORT_ARTIFACT_DIR:-/var/lib/heatcalc/reports}
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-4}
       UVICORN_LIMIT_CONCURRENCY: ${UVICORN_LIMIT_CONCURRENCY:-100}
       UVICORN_BACKLOG: ${UVICORN_BACKLOG:-128}
       UVICORN_KEEPALIVE: ${UVICORN_KEEPALIVE:-5}
@@ -87,6 +91,8 @@ services:
         condition: service_healthy
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - report_artifacts:/var/lib/heatcalc/reports
     healthcheck:
       # python -c вместо curl — работает и в dev (Dockerfile.dev без curl), и в prod
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/docs', timeout=3).status==200 else 1)"]
@@ -106,7 +112,11 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db}
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-5}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_MAX_CONNECTIONS: ${REDIS_MAX_CONNECTIONS:-50}
+      REPORT_ARTIFACT_DIR: ${REPORT_ARTIFACT_DIR:-/var/lib/heatcalc/reports}
       WORKER_QUEUE_CONSUMER: ${WORKER_QUEUE_CONSUMER:-worker}
       WORKER_QUEUE_MAXLEN: ${WORKER_QUEUE_MAXLEN:-10000}
       WORKER_DEAD_LETTER_STREAM: ${WORKER_DEAD_LETTER_STREAM:-heatcalc:tasks:cpu:dead}
@@ -120,6 +130,8 @@ services:
         condition: service_healthy
       backend:
         condition: service_healthy
+    volumes:
+      - report_artifacts:/var/lib/heatcalc/reports
 
   frontend:
     build:
@@ -146,3 +158,4 @@ services:
 
 volumes:
   pgdata:
+  report_artifacts:

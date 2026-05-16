@@ -1,8 +1,10 @@
 """Endpoints справочников."""
 
+import hashlib
+import json
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,51 +30,110 @@ from app.reference_data.loader import (
 
 # TTL для статичных JSON-справочников: 24 часа (изменения = пересборка образа).
 _BUILTIN_TTL = 24 * 3600
+_HTTP_CACHE_SECONDS = 3600
 # TTL для расширенных каталогов из БД: 5 минут (админ-CRUD инвалидирует ключ).
 _EXTENDED_TTL = 5 * 60
 
 router = APIRouter()
 
 
+def _etag(payload: object) -> str:
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+    return '"' + hashlib.sha256(raw).hexdigest()[:16] + '"'
+
+
+_BUILTIN_ETAGS = {
+    "climate": _etag(list_climate_cities()),
+    "insulation": _etag(list_insulation_materials()),
+    "pipe-materials": _etag(list_pipe_materials()),
+    "soil-conductivity": _etag(list_soil_conductivity()),
+    "resistive-cables": _etag(list_resistive_cables()),
+    "tt-cables": _etag(list_tt_cables()),
+    "internal": _etag(
+        {
+            "climate": list_climate_cities(),
+            "insulation": list_insulation_materials(),
+            "pipe_materials": list_pipe_materials(),
+            "soil_conductivity": list_soil_conductivity(),
+            "cables": list_tlt_cables(),
+            "tt_cables": list_tt_cables(),
+            "resistive_cables": list_resistive_cables(),
+            "accessories": list_basic_accessories(),
+        }
+    ),
+    "accessories": _etag(list_basic_accessories()),
+    "cables:builtin": _etag([{**c, "source": "builtin"} for c in list_tlt_cables()]),
+}
+
+
+def _builtin_http_cache(name: str):
+    def dependency(response: Response) -> None:
+        response.headers["Cache-Control"] = f"public, max-age={_HTTP_CACHE_SECONDS}"
+        response.headers["ETag"] = _BUILTIN_ETAGS[name]
+
+    return dependency
+
+
 @router.get("/climate", summary="Справочник климата")
 @cache.cached("references:climate", ttl=_BUILTIN_TTL)
-async def climate(_: CurrentPrincipal = Depends(require_any())):
+async def climate(
+    _: CurrentPrincipal = Depends(require_any()),
+    _cache_headers: None = Depends(_builtin_http_cache("climate")),
+):
     return list_climate_cities()
 
 
 @router.get("/insulation", summary="Справочник теплоизоляции")
 @cache.cached("references:insulation", ttl=_BUILTIN_TTL)
-async def insulation(_: CurrentPrincipal = Depends(require_any())):
+async def insulation(
+    _: CurrentPrincipal = Depends(require_any()),
+    _cache_headers: None = Depends(_builtin_http_cache("insulation")),
+):
     return list_insulation_materials()
 
 
 @router.get("/pipe-materials", summary="Справочник материалов трубы и λ(T)")
 @cache.cached("references:pipe-materials", ttl=_BUILTIN_TTL)
-async def pipe_materials(_: CurrentPrincipal = Depends(require_any())):
+async def pipe_materials(
+    _: CurrentPrincipal = Depends(require_any()),
+    _cache_headers: None = Depends(_builtin_http_cache("pipe-materials")),
+):
     return list_pipe_materials()
 
 
 @router.get("/soil-conductivity", summary="Справочник теплопроводности грунтов")
 @cache.cached("references:soil-conductivity", ttl=_BUILTIN_TTL)
-async def soil_conductivity(_: CurrentPrincipal = Depends(require_any())):
+async def soil_conductivity(
+    _: CurrentPrincipal = Depends(require_any()),
+    _cache_headers: None = Depends(_builtin_http_cache("soil-conductivity")),
+):
     return list_soil_conductivity()
 
 
 @router.get("/resistive-cables", summary="Справочник резистивных кабелей ТТ Р1/ТТ Р3")
 @cache.cached("references:resistive-cables", ttl=_BUILTIN_TTL)
-async def resistive_cables(_: CurrentPrincipal = Depends(require_any())):
+async def resistive_cables(
+    _: CurrentPrincipal = Depends(require_any()),
+    _cache_headers: None = Depends(_builtin_http_cache("resistive-cables")),
+):
     return list_resistive_cables()
 
 
 @router.get("/tt-cables", summary="Справочник саморегулирующихся кабелей ТТН/ТТВ/ТТХ")
 @cache.cached("references:tt-cables", ttl=_BUILTIN_TTL)
-async def tt_cables(_: CurrentPrincipal = Depends(require_any())):
+async def tt_cables(
+    _: CurrentPrincipal = Depends(require_any()),
+    _cache_headers: None = Depends(_builtin_http_cache("tt-cables")),
+):
     return list_tt_cables()
 
 
 @router.get("/internal", summary="Все встроенные внутренние справочники")
 @cache.cached("references:internal", ttl=_BUILTIN_TTL)
-async def internal_references(_: CurrentPrincipal = Depends(require_any())):
+async def internal_references(
+    _: CurrentPrincipal = Depends(require_any()),
+    _cache_headers: None = Depends(_builtin_http_cache("internal")),
+):
     return {
         "climate": list_climate_cities(),
         "insulation": list_insulation_materials(),
@@ -90,6 +151,7 @@ async def internal_references(_: CurrentPrincipal = Depends(require_any())):
     summary="Кабели. source=builtin|extended|all — для сотрудника",
 )
 async def cables(
+    response: Response,
     source: Literal["builtin", "extended", "all"] = "builtin",
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
@@ -101,6 +163,8 @@ async def cables(
         )
     builtin = [{**c, "source": "builtin"} for c in list_tlt_cables()]
     if source == "builtin":
+        response.headers["Cache-Control"] = f"public, max-age={_HTTP_CACHE_SECONDS}"
+        response.headers["ETag"] = _BUILTIN_ETAGS["cables:builtin"]
         return builtin
     result = await db.execute(select(CableExtended).where(CableExtended.is_active.is_(True)))
     extended = [
@@ -147,7 +211,10 @@ async def cables_extended(
 
 
 @router.get("/accessories", summary="Базовые аксессуары")
-async def accessories(_: CurrentPrincipal = Depends(require_any())):
+async def accessories(
+    _: CurrentPrincipal = Depends(require_any()),
+    _cache_headers: None = Depends(_builtin_http_cache("accessories")),
+):
     return list_basic_accessories()
 
 

@@ -54,6 +54,7 @@ export default function ReportWizardPage() {
   const [sections, setSections] = useState<ReportSection[]>([...REPORT_SECTIONS]);
   const [format, setFormat] = useState<Format>('pdf');
   const [step, setStep] = useState(0);
+  const [exporting, setExporting] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['report-preview-wizard', project?.id, sections.join(',')],
@@ -89,6 +90,8 @@ export default function ReportWizardPage() {
 
   const handleExport = async () => {
     try {
+      setExporting(true);
+      message.loading({ content: 'Формирование отчёта...', key: 'report-export', duration: 0 });
       const blob = await exportReport(project.id, format, sections);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -96,9 +99,11 @@ export default function ReportWizardPage() {
       a.download = `${project.name}.${format}`;
       a.click();
       URL.revokeObjectURL(url);
-      message.success(`Файл ${project.name}.${format} скачан`);
+      message.success({ content: `Файл ${project.name}.${format} скачан`, key: 'report-export' });
     } catch {
-      message.error('Не удалось скачать отчёт');
+      message.error({ content: 'Не удалось скачать отчёт', key: 'report-export' });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -240,6 +245,7 @@ export default function ReportWizardPage() {
                   block
                   size="large"
                   icon={FORMAT_LABEL[format].icon}
+                  loading={exporting}
                   onClick={handleExport}
                 >
                   Скачать {FORMAT_LABEL[format].label}

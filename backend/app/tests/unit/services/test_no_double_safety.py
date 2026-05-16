@@ -130,7 +130,9 @@ async def test_batch_calc_electrical_passes_raw_q_linear_not_total():
 async def test_heat_loss_per_meter_never_includes_safety_factor():
     """calc_heat_loss (через service) не должен применять K к q_linear.
 
-    Проверяем через реальный вызов формулы: q_linear при K=1.5 == q_linear при K=1.1.
+    Проверяем через реальный вызов формулы: q_linear не меняется от входного K.
+    Явно заданный K сохраняется, поэтому total_heat_loss меняется пропорционально
+    K, но heat_loss_per_meter остается неизменным.
     """
     db = AsyncMock()
     db.execute = AsyncMock(return_value=MagicMock(scalars=lambda: MagicMock(all=lambda: [])))
@@ -156,8 +158,8 @@ async def test_heat_loss_per_meter_never_includes_safety_factor():
         "(будет двойная накрутка). Fix: убрать × K из расчёта q_linear в pipe.py."
     )
 
-    # total_heat_loss — должен пропорционально измениться
+    # total_heat_loss масштабируется только один раз через safety_factor.
     ratio = r2["total_heat_loss"] / r1["total_heat_loss"]
-    assert ratio == pytest.approx(1.5 / 1.1, rel=1e-3), (
-        f"total_heat_loss пропорционален К: ожидали ratio={1.5/1.1:.4f}, " f"получили {ratio:.4f}"
-    )
+    assert ratio == pytest.approx(1.5 / 1.1, rel=1e-3)
+    assert r1["safety_factor"] == pytest.approx(1.1)
+    assert r2["safety_factor"] == pytest.approx(1.5)

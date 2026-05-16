@@ -9,15 +9,23 @@
 вопрос: "реализованное поведение соответствует требованиям, бизнес-правилам и
 пользовательскому сценарию?"
 
+## Full Version Rule
+
+Для ТНП-логики агент проверяет полную версию: частичная реализация или
+временное упрощение не являются приемлемым статусом. Если формула, алгоритм,
+справочник, API или UI workflow не закрывает действующий контракт полностью,
+результат помечается как `Needs implementation`, `Needs correction` или
+`Needs business decision`. Подробное правило: `docs/context/full-version-rule.md`.
+
 ## Источники
 
 | Что проверяется | Документы |
 |---|---|
 | Общая карта | `codex-docs/project-map.md`, `CLAUDE.MD` |
 | Требования | `codex-docs/requirements-map.md`, `docs/srs.md`, `docs/srs/` |
-| Бизнес-правила | `docs/business-logic-contract.md`, `docs/analysis/business-rules.md` |
+| Бизнес-правила | `docs/context/full-version-rule.md`, `docs/business-logic-contract.md`, `docs/analysis/business-rules.md` |
 | API | `docs/api.md` |
-| Формулы | `docs/business-logic-contract.md`, `docs/tnp/README.md`, `docs/tnp/correctness-review.md`, `qa-agent/examples/tlt-formulas.registry.yaml`, `docs/context/formulas-summary.md`, `formules.md`, `coefficients.MD` |
+| Формулы | `docs/business-logic-contract.md`, `docs/tnp/README.md`, `docs/tnp/correctness-review.md`, `docs/tnp/project-reconciliation-audit.md`, `qa-agent/examples/tlt-formulas.registry.yaml`, `docs/context/formulas-summary.md`, `formules.md`, `coefficients.MD` |
 | QA | `docs/qa/`, `docs/qa/business-logic-coverage.md`, `codex-docs/testing.md` |
 | Пробелы | `TO_DO.md`, `docs/analysis/current-status-and-missing-info.md` |
 

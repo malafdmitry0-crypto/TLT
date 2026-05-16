@@ -32,6 +32,7 @@
 | `docs/context/formulas-summary.md` | Краткое описание формул; использовать после business contract |
 | `docs/tnp/README.md` | Markdown-конвертация исходных ТНП/алгоритмов/внутренних справочников |
 | `docs/tnp/correctness-review.md` | Сверка ТНП-формул и алгоритмов с инженерными правилами и backend |
+| `docs/tnp/project-reconciliation-audit.md` | Повторная сверка ТНП-алгоритмов и справочников с проектным кодом |
 | `qa-agent/examples/tlt-formulas.registry.yaml` | Machine-readable registry для deterministic QA-agent |
 | `formules.md` | Подробные формулы и объяснения; не выше business contract при расхождениях |
 | `coefficients.MD` | Корректирующие коэффициенты; не выше business contract при расхождениях |

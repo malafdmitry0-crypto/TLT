@@ -157,6 +157,28 @@ class TestExport:
             await ReportService(db).export(pid, "txt")
         db.execute.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("fmt", "generator_name", "expected"),
+        [
+            ("pdf", "generate_pdf", b"pdf"),
+            ("docx", "generate_docx", b"docx"),
+            ("xlsx", "generate_xlsx", b"xlsx"),
+        ],
+    )
+    async def test_export_dispatches_supported_formats_to_thread(
+        self, monkeypatch, fmt: str, generator_name: str, expected: bytes
+    ):
+        pid = uuid.uuid4()
+        service = ReportService(AsyncMock())
+        service._load_context = AsyncMock(return_value={"sections": ["summary"]})
+        monkeypatch.setattr(
+            f"app.services.report_service.{generator_name}",
+            lambda ctx: expected,
+        )
+
+        assert await service.export(pid, fmt) == expected
+        service._load_context.assert_awaited_once_with(pid, None)
+
 
 class TestReportRendering:
     def test_electrical_table_uses_tt_power_per_meter(self):

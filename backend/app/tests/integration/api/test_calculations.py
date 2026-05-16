@@ -261,6 +261,7 @@ class TestElectricalCalculation:
                     "required_power_per_meter": 18.0,
                     "pipe_length": 50.0,
                     "process_temperature": 50.0,
+                    "maintain_temperature": 50.0,
                     "safety_factor": 1.1,
                     "aggressive_product": False,
                 },

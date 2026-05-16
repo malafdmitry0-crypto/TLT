@@ -13,6 +13,7 @@ def _params(**kwargs) -> SelfRegulatingTTParams:
         "required_power_per_meter": 18.0,
         "pipe_length": 50.0,
         "process_temperature": 50.0,
+        "maintain_temperature": 50.0,
         "safety_factor": 1.1,
     }
     defaults.update(kwargs)
@@ -67,11 +68,40 @@ class TestCableSelection:
         assert r.num_circuits == 2
         assert r.power_per_meter == pytest.approx(-0.491 * 50 + 37.5, rel=1e-3)
 
+    def test_power_curve_uses_t3_not_product_temperature(self):
+        """T1 выбирает серию, но q_б считается от T3."""
+        r = calc_self_regulating_tt(
+            _params(
+                cable_mark="33ТТН2",
+                process_temperature=60.0,
+                maintain_temperature=40.0,
+                required_power_per_meter=5.0,
+                safety_factor=1.0,
+            )
+        )
+        assert r.series == "ТТН"
+        assert r.power_per_meter == pytest.approx(-0.491 * 40 + 37.5, rel=1e-3)
+
+    def test_power_curve_falls_back_to_product_temperature_when_t3_missing(self):
+        """Для совместимости старых запросов отсутствие T3 означает T3=T1."""
+        r = calc_self_regulating_tt(
+            _params(
+                cable_mark="33ТТН2",
+                process_temperature=40.0,
+                maintain_temperature=None,
+                required_power_per_meter=5.0,
+                safety_factor=1.0,
+            )
+        )
+        assert r.series == "ТТН"
+        assert r.power_per_meter == pytest.approx(-0.491 * 40 + 37.5, rel=1e-3)
+
     def test_user_threads_participate_in_autoselect(self):
         """При заданных 2 нитках можно выбрать 30ТТВ2 вместо более мощного 45ТТВ2."""
         r = calc_self_regulating_tt(
             _params(
-                process_temperature=50.0,
+                process_temperature=80.0,
+                maintain_temperature=50.0,
                 required_power_per_meter=30.0,
                 safety_factor=1.0,
                 number_of_threads=2,
@@ -148,15 +178,17 @@ class TestCableSelection:
                 )
             )
 
-    def test_raises_when_power_not_achievable(self):
-        with pytest.raises(ValueError, match="Ни один кабель"):
-            calc_self_regulating_tt(
-                _params(
-                    process_temperature=40.0,
-                    required_power_per_meter=500.0,
-                    safety_factor=1.0,
-                )
+    def test_autoselect_allows_more_than_three_threads_in_temperature_series(self):
+        r = calc_self_regulating_tt(
+            _params(
+                process_temperature=40.0,
+                required_power_per_meter=500.0,
+                safety_factor=1.0,
             )
+        )
+        assert r.series == "ТТН"
+        assert r.num_circuits > 3
+        assert r.power_per_meter * r.num_circuits >= 500.0
 
 
 class TestManualMark:

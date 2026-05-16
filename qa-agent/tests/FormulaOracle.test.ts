@@ -106,6 +106,20 @@ describe('FormulaOracle', () => {
     expect(result.value).toBeCloseTo(20);
   });
 
+  it('evaluates TT power curve from maintain temperature T3', () => {
+    const result = new FormulaOracle(tltRegistry()).evaluate(
+      testCase('tlt_tt_power_curve', { q1: -0.1, maintainTemperature: 50, q2: 35 }),
+    );
+    expect(result.value).toBeCloseTo(30);
+  });
+
+  it('falls back to process temperature when TT maintain temperature is absent', () => {
+    const result = new FormulaOracle(tltRegistry()).evaluate(
+      testCase('tlt_tt_power_curve', { q1: -0.1, processTemperature: 40, q2: 35 }),
+    );
+    expect(result.value).toBeCloseTo(31);
+  });
+
   it('evaluates TLT resistive rho temperature primitive', () => {
     const result = new FormulaOracle(tltRegistry()).evaluate(
       testCase('tlt_resistive_rho_t', { processTemperature: 70 }),

@@ -279,17 +279,93 @@ class TestGetCoefficients:
         assert coeffs == {}
 
 
+class TestClimatePolicy:
+    def test_pipe_ge_100_uses_cold_fiveday_and_k_1_1(self):
+        normalized = CalculationService._apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.1,
+                "ambient_temperature": -10,
+                "climate_city": "Славгород",
+            },
+        )
+        assert normalized["safety_factor"] == pytest.approx(1.1)
+        assert normalized["ambient_temperature"] == pytest.approx(-35.0)
+        assert normalized["climate_temperature_basis"] == "t_0_92"
+        assert normalized["climate_policy_rule"] == "pipe_diameter_ge_100"
+
+    def test_pipe_lt_100_uses_absolute_minimum_and_k_1_12(self):
+        normalized = CalculationService._apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.099,
+                "ambient_temperature": -10,
+                "climate_city": "Славгород",
+            },
+        )
+        assert normalized["safety_factor"] == pytest.approx(1.12)
+        assert normalized["ambient_temperature"] == pytest.approx(-48.0)
+        assert normalized["climate_temperature_basis"] == "t_abs_min"
+        assert normalized["climate_policy_rule"] == "pipe_diameter_lt_100"
+
+    def test_non_pipe_uses_cold_fiveday_0_92_and_k_1_1(self):
+        normalized = CalculationService._apply_climate_policy(
+            "tank",
+            {
+                "ambient_temperature": -10,
+                "climate_city": "Славгород",
+            },
+        )
+        assert normalized["safety_factor"] == pytest.approx(1.1)
+        assert normalized["ambient_temperature"] == pytest.approx(-35.0)
+        assert normalized["climate_temperature_basis"] == "t_0_92"
+        assert normalized["climate_policy_rule"] == "non_pipe_cold_fiveday_0_92"
+
+
 class TestCableLayoutMapping:
     def test_pipe_winding_pitch_converts_to_geometric_coefficient(self):
         service = CalculationService(_mock_db_empty())
         obj = SimpleNamespace(object_type="pipe")
         coefficient = service._winding_coefficient(
             obj,
-            {"winding_pitch": 200},
+            {"winding_pitch": 1000},
             {"outer_diameter": 0.1},
             1.0,
         )
         assert coefficient > 1.0
+
+    def test_pipe_winding_coefficient_must_not_exceed_diameter_limit(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(object_type="pipe")
+        with pytest.raises(ValueError, match="Коэффициент навива"):
+            service._winding_coefficient(
+                obj,
+                {"winding_coefficient": 1.5},
+                {"outer_diameter": 0.108},
+                1.0,
+            )
+
+    def test_pipe_winding_coefficient_allows_conservative_boundary(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(object_type="pipe")
+        coefficient = service._winding_coefficient(
+            obj,
+            {"winding_coefficient": 1.4},
+            {"outer_diameter": 0.108},
+            1.0,
+        )
+        assert coefficient == pytest.approx(1.4)
+
+    def test_implicit_default_winding_coefficient_is_clamped_to_diameter_limit(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(object_type="pipe")
+        coefficient = service._winding_coefficient(
+            obj,
+            {},
+            {"outer_diameter": 0.05},
+            1.1,
+        )
+        assert coefficient == pytest.approx(1.0)
 
     def test_pipe_winding_pitch_must_exceed_outer_diameter(self):
         service = CalculationService(_mock_db_empty())
@@ -1441,6 +1517,7 @@ class TestSelectCableManual:
             params={
                 "ambient_temperature": -20,
                 "process_temperature": 80,
+                "maintain_temperature": 50,
                 "pipe_length": 10,
                 "vapor_temperature": 140,
             },
@@ -1464,6 +1541,7 @@ class TestSelectCableManual:
 
         request = service.calc_electrical.call_args.args[0]
         assert request.data["vapor_temperature"] == 140
+        assert request.data["maintain_temperature"] == 50
 
     async def test_global_vapor_temperature_overrides_object_value(self):
         """Общий T проп. с вкладки электрорасчёта приоритетнее object params."""
@@ -1475,6 +1553,7 @@ class TestSelectCableManual:
             params={
                 "ambient_temperature": -20,
                 "process_temperature": 80,
+                "maintain_temperature": 50,
                 "pipe_length": 10,
                 "vapor_temperature": 140,
             },
@@ -1498,3 +1577,72 @@ class TestSelectCableManual:
 
         request = service.calc_electrical.call_args.args[0]
         assert request.data["vapor_temperature"] == 160
+        assert request.data["maintain_temperature"] == 50
+
+    async def test_tt_maintain_temperature_falls_back_to_process_temperature(self):
+        """T3 опционален: backend пропускает None, формула использует T1 как fallback."""
+        db = AsyncMock()
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            object_type="pipe",
+            params={
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 10,
+            },
+            results={"heat_loss_per_meter": 20},
+            is_valid=True,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none = lambda: obj
+        db.execute = AsyncMock(return_value=result)
+
+        service = CalculationService(db)
+        service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service.calc_electrical = AsyncMock(return_value={"ok": True})  # type: ignore[method-assign]
+
+        await service.select_cable_manual(
+            obj.id,
+            "30ТТВ2",
+            cable_type="self_regulating_tt",
+            electrical_params={},
+        )
+
+        request = service.calc_electrical.call_args.args[0]
+        assert request.data["maintain_temperature"] is None
+        assert request.data["process_temperature"] == 80
+
+    async def test_global_maintain_temperature_overrides_object_value(self):
+        """T3 из панели электрорасчёта приоритетнее object params."""
+        db = AsyncMock()
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            object_type="pipe",
+            params={
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "maintain_temperature": 45,
+                "pipe_length": 10,
+            },
+            results={"heat_loss_per_meter": 20},
+            is_valid=True,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none = lambda: obj
+        db.execute = AsyncMock(return_value=result)
+
+        service = CalculationService(db)
+        service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service.calc_electrical = AsyncMock(return_value={"ok": True})  # type: ignore[method-assign]
+
+        await service.select_cable_manual(
+            obj.id,
+            "30ТТВ2",
+            cable_type="self_regulating_tt",
+            electrical_params={"maintain_temperature": 55},
+        )
+
+        request = service.calc_electrical.call_args.args[0]
+        assert request.data["maintain_temperature"] == 55

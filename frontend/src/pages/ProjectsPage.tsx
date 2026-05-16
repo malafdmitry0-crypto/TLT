@@ -547,7 +547,7 @@ export default function ProjectsPage() {
                       selectedRowKeys: selectedIds,
                       onChange: (keys) => setSelectedIds(keys as string[]),
                       getCheckboxProps: (record) => ({
-                        'aria-label': `Выбрать проект ${record.name}`,
+                        title: `Выбрать проект ${record.name}`,
                       }),
                     }
                   : undefined

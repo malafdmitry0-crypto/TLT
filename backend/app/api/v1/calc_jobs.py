@@ -14,6 +14,7 @@ from app.schemas.calculation import (
     ElectricalBatchJobRequest,
     HeatLossBatchJobRequest,
 )
+from app.schemas.report import ReportExportTaskResult
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError
 from app.services.task_service import TaskAccessError, TaskNotFoundError, TaskService
 
@@ -95,7 +96,7 @@ async def get_calc_task(
 
 @router.get(
     "/jobs/{task_id}/result",
-    response_model=BatchElectricalResponse | BatchCalcResponse,
+    response_model=BatchElectricalResponse | BatchCalcResponse | ReportExportTaskResult,
     summary="Результат завершённой фоновой задачи",
 )
 async def get_calc_task_result(

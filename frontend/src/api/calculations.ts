@@ -116,6 +116,7 @@ export interface ElectricalBatchOptions {
   numberOfThreads?: number | null;
   heatingHeight?: number | null;
   layingStep?: number | null;
+  maintainTemperature?: number | null;
   vaporTemperature?: number | null;
   aggressiveProduct?: boolean;
   skipManual?: boolean;
@@ -140,6 +141,7 @@ function electricalParams(
     number_of_threads: options.numberOfThreads ?? undefined,
     heating_height: options.heatingHeight ?? undefined,
     laying_step: options.layingStep ?? undefined,
+    maintain_temperature: options.maintainTemperature ?? undefined,
     vapor_temperature: options.vaporTemperature ?? undefined,
     aggressive_product: options.aggressiveProduct ?? undefined,
     skip_manual: options.skipManual ?? undefined,

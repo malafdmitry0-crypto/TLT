@@ -16,8 +16,8 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db"
-    DB_POOL_SIZE: int = 20
-    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 5
     DB_POOL_RECYCLE_SECONDS: int = 3600
     DB_STATEMENT_TIMEOUT_MS: int = 30_000
 
@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     GUEST_SESSION_TTL_MINUTES: int = 20  # неактивная сессия чистится после N мин
     GUEST_CLEANUP_INTERVAL_MINUTES: int = 10  # периодичность фонового cleanup
     GUEST_MAX_SESSIONS_PER_IP: int = 10  # максимум новых сессий с одного IP за 1 час
+    GUEST_ACTIVITY_TOUCH_INTERVAL_SECONDS: int = 60  # throttle UPDATE last_activity
 
     # Защита от DoS через большие загрузки (Excel/CSV/проект)
     MAX_UPLOAD_BYTES: int = 5 * 1024 * 1024  # 5 МБ — потолок одного multipart-запроса
@@ -76,8 +77,13 @@ class Settings(BaseSettings):
     MAX_XLSX_FILES: int = 200
     MAX_XLSX_UNCOMPRESSED_BYTES: int = 50 * 1024 * 1024
 
+    # Generated report artifacts. Backend and worker must share this path.
+    REPORT_ARTIFACT_DIR: str = "/var/lib/heatcalc/reports"
+    REPORT_ARTIFACT_TTL_HOURS: int = 24
+
     # Redis для distributed rate limiter. Если пусто — fallback на in-memory.
     REDIS_URL: str | None = None
+    REDIS_MAX_CONNECTIONS: int = 50
 
     # Worker queue для тяжёлых расчётов. Postgres хранит состояние задач,
     # Redis используется только как транспорт доставки worker'ам.

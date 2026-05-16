@@ -116,3 +116,6 @@ flowchart TD
 - Порог `D = 100` должен быть явно зафиксирован в миллиметрах.
 - Нужны boundary cases для `D = 99, 100, 101` и для отсутствующих значений `T0`, `T1`, `T`.
 - В QA-agent правило закреплено как deterministic oracle `tlt_climate_safety_factor`.
+- В backend правило применяется в `CalculationService` до расчета теплопотерь:
+  оно нормализует `safety_factor` и, если указан `climate_city`, расчетную
+  `ambient_temperature`.

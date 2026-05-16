@@ -25,7 +25,7 @@ from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project_object import ProjectObject
-from app.reference_data.loader import list_resistive_cables, list_tlt_cables
+from app.reference_data.loader import get_climate_by_city, list_resistive_cables, list_tlt_cables
 from app.result import Err, Ok, Result
 from app.schemas.calculation import (
     ElectricalRequest,
@@ -258,12 +258,12 @@ class CalculationService:
         # в `admin_service.update_coefficient`.
         from app.core.cache import cache
 
-        cached = cache.get("coefficients")
+        cached = await cache.aget("coefficients")
         if cached is not None:
             return cached
         result = await self.db.execute(select(CorrectionCoefficient))
         coeffs = {row.key: row.value for row in result.scalars().all()}
-        cache.set("coefficients", coeffs, ttl=3600)
+        await cache.aset("coefficients", coeffs, ttl=3600)
         return coeffs
 
     async def load_cable_catalog(self, source: CableSource = "builtin") -> list[dict[str, Any]]:
@@ -316,6 +316,7 @@ class CalculationService:
         data: dict[str, Any],
         coefficients: dict[str, float],
     ) -> HeatLossResultDict:
+        data = self._apply_climate_policy(object_type, data)
         if object_type == "pipe":
             params = PipeHeatLossParams(**data)
             pipe_result = calc_pipe_heat_loss(params, coefficients=coefficients)
@@ -373,6 +374,7 @@ class CalculationService:
         """
         try:
             obj.params = prepare_project_object_params(obj.object_type, obj.params)
+            obj.params = self._apply_climate_policy(obj.object_type, obj.params)
             result = (
                 self._calc_heat_loss_with_coefficients(obj.object_type, obj.params, coefficients)
                 if coefficients is not None
@@ -388,6 +390,66 @@ class CalculationService:
             obj.is_valid = False
             obj.validation_errors = {"error": message}
             return Err(message)
+
+    @staticmethod
+    def _climate_temperature(entry: dict[str, Any] | None, key: str) -> float | None:
+        if entry is None:
+            return None
+        value = entry.get(key)
+        if value is None:
+            return None
+        return float(value)
+
+    @staticmethod
+    def _climate_entry(data: dict[str, Any]) -> dict[str, Any] | None:
+        city = data.get("climate_city")
+        if city:
+            return get_climate_by_city(str(city))
+        return None
+
+    @classmethod
+    def _apply_climate_policy(cls, object_type: str, data: dict[str, Any]) -> dict[str, Any]:
+        """Применяет VSDX climate policy к K и расчетной температуре.
+
+        Если город не задан или справочник не содержит нужной температуры,
+        ambient_temperature остается пользовательским. safety_factor заполняется
+        по типу объекта и диаметру трубы только если он не задан явно.
+        """
+        normalized = dict(data)
+        climate = cls._climate_entry(normalized)
+        explicit_safety_factor = cls._num(normalized.get("safety_factor")) is not None
+
+        if object_type == "pipe":
+            diameter = cls._num(normalized.get("outer_diameter"))
+            if diameter is None or diameter <= 0:
+                return normalized
+            diameter_mm = diameter * 1000.0
+            if diameter_mm >= 100.0:
+                if not explicit_safety_factor:
+                    normalized["safety_factor"] = 1.1
+                basis = "t_0_92"
+                rule = "pipe_diameter_ge_100"
+            else:
+                if not explicit_safety_factor:
+                    normalized["safety_factor"] = 1.12
+                basis = "t_abs_min"
+                rule = "pipe_diameter_lt_100"
+        elif object_type == "tank":
+            if not explicit_safety_factor:
+                normalized["safety_factor"] = 1.1
+            basis = "t_0_92"
+            rule = "non_pipe_cold_fiveday_0_92"
+        else:
+            return normalized
+
+        climate_temperature = cls._climate_temperature(climate, basis)
+        if climate_temperature is not None:
+            normalized["ambient_temperature"] = climate_temperature
+            normalized["ambient_temperature_source"] = "climate"
+            normalized["climate_temperature_basis"] = basis
+        normalized["climate_policy_rule"] = rule
+        normalized["safety_factor_source"] = "climate_policy"
+        return normalized
 
     async def _heat_batch_count(
         self,
@@ -821,9 +883,47 @@ class CalculationService:
         if raw is None:
             return default
         value = int(raw)
-        if value < 1 or value > 3:
-            raise ValueError("Количество ниток должно быть 1, 2 или 3")
+        if value < 1 or value > 100:
+            raise ValueError("Количество ниток должно быть в диапазоне 1…100")
         return value
+
+    @staticmethod
+    def _max_winding_coefficient_for_diameter(diameter_m: float) -> float:
+        diameter_mm = diameter_m * 1000.0
+        if diameter_mm < 57.0:
+            return 1.0
+        if diameter_mm == 57.0:
+            return 1.1
+        if diameter_mm <= 75.0:
+            return 1.2
+        if diameter_mm <= 89.0:
+            return 1.3
+        if diameter_mm <= 108.0:
+            return 1.4
+        return 1.5
+
+    def _validate_winding_coefficient_limit(
+        self,
+        obj: ProjectObject,
+        params: dict[str, Any],
+        coefficient: float,
+    ) -> float:
+        if obj.object_type != "pipe":
+            return coefficient
+        diameter = self._num(params.get("outer_diameter"))
+        if diameter is None or diameter <= 0:
+            if coefficient <= 1.1 + 1e-9:
+                return coefficient
+            raise CalculationError(
+                "Для проверки максимального навива требуется наружный диаметр трубы"
+            )
+        max_coefficient = self._max_winding_coefficient_for_diameter(diameter)
+        if coefficient > max_coefficient + 1e-9:
+            raise ValueError(
+                f"Коэффициент навива {coefficient:.3f} превышает максимум "
+                f"{max_coefficient:.1f} для D={diameter * 1000.0:.0f} мм"
+            )
+        return coefficient
 
     def _winding_pitch_mm(
         self,
@@ -856,13 +956,18 @@ class CalculationService:
                 pitch_m = pitch_mm / 1000.0
                 if pitch_m <= diameter:
                     raise ValueError("Шаг навива должен быть больше наружного диаметра трубы")
-                return math.sqrt(1.0 + (math.pi * diameter / pitch_m) ** 2)
+                coefficient = math.sqrt(1.0 + (math.pi * diameter / pitch_m) ** 2)
+                return self._validate_winding_coefficient_limit(obj, params, coefficient)
 
-        coefficient = self._num(
-            overrides.get("winding_coefficient") or params.get("winding_coefficient"),
-            default,
-        )
-        return coefficient or default
+        raw_coefficient = overrides.get("winding_coefficient") or params.get("winding_coefficient")
+        if raw_coefficient is None:
+            if obj.object_type == "pipe":
+                diameter = self._num(params.get("outer_diameter"))
+                if diameter is not None and diameter > 0:
+                    return min(default, self._max_winding_coefficient_for_diameter(diameter))
+            return default
+        coefficient = self._num(raw_coefficient, default)
+        return self._validate_winding_coefficient_limit(obj, params, coefficient or default)
 
     def _tank_base_cable_length(
         self,
@@ -995,6 +1100,13 @@ class CalculationService:
             if override_vapor_temperature is not None
             else object_vapor_temperature
         )
+        override_maintain_temperature = self._num(overrides.get("maintain_temperature"))
+        object_maintain_temperature = self._num(params.get("maintain_temperature"))
+        maintain_temperature = (
+            override_maintain_temperature
+            if override_maintain_temperature is not None
+            else object_maintain_temperature
+        )
 
         if cable_type == "self_regulating":
             return {
@@ -1023,6 +1135,7 @@ class CalculationService:
                     process_temperature,
                     "Для ТТН/ТТВ/ТТХ требуется температура продукта",
                 ),
+                "maintain_temperature": maintain_temperature,
                 "supply_voltage": supply_voltage,
                 "safety_factor": safety_factor,
                 "cable_mark": cable_mark,

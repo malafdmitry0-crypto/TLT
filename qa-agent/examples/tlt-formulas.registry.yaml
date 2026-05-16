@@ -526,8 +526,8 @@ formulas:
         expected: 264
 
   - id: tlt_tt_power_curve
-    expression: "q_b = q1 * processTemperature + q2"
-    variables: [q1, processTemperature, q2]
+    expression: "q_b = q1 * (maintainTemperature ?? processTemperature) + q2"
+    variables: [q1, maintainTemperature, processTemperature, q2]
     output: power_per_meter
     tolerance:
       absoluteTolerance: 0.001
@@ -553,7 +553,7 @@ formulas:
         kind: fixed
         input:
           q1: -0.1
-          processTemperature: 50
+          maintainTemperature: 50
           q2: 35
         expected: 30
 
@@ -915,6 +915,33 @@ algorithms:
           requiredCrossSection: 3.7
           crossSections: [1.5, 2.5, 4, 6]
         expected: 4
+
+  - id: tlt_resistive_passport_ohm_law
+    description: "Compute resistive cable power/current from passport resistance, length and voltage."
+    inputs: [resistanceOhmKm, cableLength, supplyVoltage, resistanceFactor, powerMultiplier, maxCurrentA]
+    outputs: [resistance_ohm, total_power, current, within_current_limit]
+    sourceRefs:
+      - "docs/tnp/internal-references/resistive-cable-r1.md"
+    implementationRefs:
+      - "backend/app/formulas/electrical/resistive.py"
+    oracle:
+      status: implemented
+      notes:
+        - "Uses R = resistanceOhmKm / 1000 * cableLength * resistanceFactor and P = U^2 / R * powerMultiplier."
+        - "Current limit defaults to 65 A."
+    examples:
+      - id: passport-ohm-law-basic
+        kind: fixed
+        input:
+          resistanceOhmKm: 80
+          cableLength: 100
+          supplyVoltage: 220
+        expected:
+          resistanceOhm: 8
+          totalPower: 6050
+          current: 27.5
+          maxCurrentA: 65
+          withinCurrentLimit: true
 
   - id: tlt_specification_grouping
     description: "Group electrical calculation results by selected cable/cable_mark and add accessory quantities per total object count."

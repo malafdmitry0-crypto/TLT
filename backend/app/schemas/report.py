@@ -1,8 +1,9 @@
 """Схемы отчётов."""
 
 from typing import Literal
+from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ReportPreviewResponse(BaseModel):
@@ -12,3 +13,18 @@ class ReportPreviewResponse(BaseModel):
 
 
 ReportFormat = Literal["pdf", "docx", "xlsx"]
+
+
+class ReportExportJobRequest(BaseModel):
+    project_id: UUID
+    format: ReportFormat
+    sections: list[str] | None = Field(default=None)
+
+
+class ReportExportTaskResult(BaseModel):
+    project_id: UUID
+    format: ReportFormat
+    filename: str
+    media_type: str
+    size_bytes: int
+    download_url: str

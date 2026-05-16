@@ -101,7 +101,7 @@ class AdminService:
         # Инвалидируем кэш — следующий recalculate увидит новое значение
         from app.core.cache import cache
 
-        cache.invalidate("coefficients")
+        await cache.ainvalidate("coefficients")
         return coeff
 
     async def create_coefficient(

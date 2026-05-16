@@ -503,6 +503,7 @@ describe('ElecCalcPage (integration)', () => {
     expect(cableTypeSelect).toBeTruthy();
     await user.click(cableTypeSelect as HTMLElement);
     await user.click(await screen.findByText('ТТН/ТТВ/ТТХ'));
+    await user.type(await screen.findByLabelText('T3 поддержания'), '50');
     await user.click(screen.getByRole('button', { name: /Пересчитать все СО1/i }));
     await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));
 
@@ -514,6 +515,7 @@ describe('ElecCalcPage (integration)', () => {
         'self_regulating_tt',
         expect.objectContaining({
           aggressiveProduct: false,
+          maintainTemperature: 50,
           forceCableType: true,
         }),
       );
@@ -590,6 +592,7 @@ describe('ElecCalcPage (integration)', () => {
     expect(cableTypeSelect).toBeTruthy();
     await user.click(cableTypeSelect as HTMLElement);
     await user.click(await screen.findByText('ТТН/ТТВ/ТТХ'));
+    await user.type(await screen.findByLabelText('T3 поддержания'), '50');
 
     expect(screen.getAllByText('ТТН/ТТВ/ТТХ').length).toBeGreaterThan(0);
     expect(screen.getByRole('row', { name: /Труба-1/ })).toHaveTextContent('Саморегулирующийся');
@@ -603,6 +606,7 @@ describe('ElecCalcPage (integration)', () => {
         1,
         'self_regulating_tt',
         expect.objectContaining({
+          maintainTemperature: 50,
           objectIds: ['o-1'],
           objectOverrides: [{ object_id: 'o-1', cable_type: 'self_regulating_tt' }],
         }),
@@ -1035,6 +1039,7 @@ describe('ElecCalcPage (integration)', () => {
     expect(cableTypeSelect).toBeTruthy();
     await user.click(cableTypeSelect as HTMLElement);
     await user.click(await screen.findByText('ТТН/ТТВ/ТТХ'));
+    await user.type(await screen.findByLabelText('T3 поддержания'), '50');
     await user.click(screen.getByRole('button', { name: /Пересчитать все СО1/i }));
     await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));
 
@@ -1046,6 +1051,7 @@ describe('ElecCalcPage (integration)', () => {
         'self_regulating_tt',
         expect.objectContaining({
           aggressiveProduct: false,
+          maintainTemperature: 50,
           forceCableType: true,
         }),
       );

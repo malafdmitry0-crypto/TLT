@@ -12,12 +12,14 @@ import pytest
 from app.core.dependencies import CurrentPrincipal
 from app.models.background_task import BackgroundTask
 from app.schemas.calculation import ElectricalBatchJobRequest, HeatLossBatchJobRequest
+from app.schemas.report import ReportExportJobRequest
 from app.services.calculation_service import BatchProgress
 from app.services.project_service import ProjectService
 from app.services.task_service import (
     MAX_TASK_ERROR_MESSAGE_LENGTH,
     TASK_ELECTRICAL_BATCH,
     TASK_HEAT_LOSS_BATCH,
+    TASK_REPORT_EXPORT,
     ProgressThrottler,
     ProgressWritePolicy,
     TaskAccessError,
@@ -324,6 +326,52 @@ class TestTaskCreation:
         assert task.arq_job_id is not None
         mock_db.add.assert_called_once()
 
+    async def test_create_report_export_task_enqueues_and_persists_payload(
+        self,
+        mock_db,
+        employee_principal: CurrentPrincipal,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        service = TaskService(mock_db)
+        service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
+        project_id = uuid.uuid4()
+
+        task = await service.create_report_export_task(
+            ReportExportJobRequest(
+                project_id=project_id,
+                format="pdf",
+                sections=["summary", "electrical"],
+            ),
+            employee_principal,
+            queue=QueueOk(),
+            idempotency_key="report-click-1",
+        )
+
+        assert task.status == "enqueued"
+        assert task.type == TASK_REPORT_EXPORT
+        assert task.user_id == employee_principal.user_id
+        assert task.progress_total == 3
+        assert task.request_payload == {
+            "project_id": str(project_id),
+            "format": "pdf",
+            "sections": ["summary", "electrical"],
+        }
+        assert task.arq_job_id is not None
+        mock_db.add.assert_called_once()
+
+    async def test_guest_cannot_enqueue_report_export(
+        self,
+        mock_db,
+        guest_principal: CurrentPrincipal,
+    ):
+        with pytest.raises(TaskAccessError):
+            await TaskService(mock_db).create_report_export_task(
+                ReportExportJobRequest(project_id=uuid.uuid4(), format="pdf"),
+                guest_principal,
+                queue=QueueOk(),
+            )
+
     async def test_guest_cannot_enqueue_extended_catalog(
         self,
         mock_db,
@@ -405,6 +453,30 @@ class TestTaskStateTransitions:
         assert task.status == "running"
         assert task.locked_by == "worker"
         service._run_heat_loss_batch.assert_awaited_once_with(task.id)
+        mock_db.commit.assert_awaited_once()
+
+    async def test_run_task_dispatches_report_export(self, mock_db):
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_REPORT_EXPORT,
+            status="enqueued",
+            session_id="sid",
+            request_payload={"project_id": str(uuid.uuid4()), "format": "pdf"},
+            progress_current=0,
+            cancel_requested=False,
+            attempts=0,
+        )
+        task.status = "running"
+        task.attempts = 1
+        task.locked_by = "worker"
+        mock_db.execute = AsyncMock(return_value=ResultRows([task]))
+        mock_db.get = AsyncMock(return_value=None)
+        service = TaskService(mock_db)
+        service._run_report_export = AsyncMock()  # type: ignore[method-assign]
+
+        await service.run_task(task.id, worker_id="worker")
+
+        service._run_report_export.assert_awaited_once_with(task.id)
         mock_db.commit.assert_awaited_once()
 
     async def test_run_task_does_not_dispatch_if_claim_lost(self, mock_db):
@@ -586,6 +658,62 @@ class TestTaskStateTransitions:
         assert task.status == "failed"
         assert task.error_message == "RuntimeError: boom"
 
+    async def test_run_report_export_marks_succeeded(
+        self,
+        mock_db,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        project_id = uuid.uuid4()
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_REPORT_EXPORT,
+            status="running",
+            project_id=project_id,
+            user_id=uuid.uuid4(),
+            request_payload={
+                "project_id": str(project_id),
+                "format": "pdf",
+                "sections": ["summary"],
+            },
+            progress_current=0,
+            progress_total=3,
+        )
+        mock_db.get = AsyncMock(return_value=task)
+
+        class FakeReportService:
+            def __init__(self, db) -> None:
+                self.db = db
+
+            async def export(self, project_id_arg, fmt, sections):
+                assert project_id_arg == project_id
+                assert fmt == "pdf"
+                assert sections == ["summary"]
+                return b"%PDF"
+
+        monkeypatch.setattr("app.services.task_service.ReportService", FakeReportService)
+        monkeypatch.setattr(
+            "app.services.task_service.write_report_artifact",
+            lambda task_id, fmt, data: {
+                "artifact_name": f"{task_id}.{fmt}",
+                "size_bytes": len(data),
+            },
+        )
+        service = TaskService(mock_db, session_factory=StaticSessionFactory(mock_db))
+        service._should_cancel = AsyncMock(return_value=False)  # type: ignore[method-assign]
+
+        await service._run_report_export(task.id)
+
+        assert task.status == "succeeded"
+        assert task.result_payload == {
+            "project_id": str(project_id),
+            "format": "pdf",
+            "filename": "report.pdf",
+            "media_type": "application/pdf",
+            "download_url": f"/api/v1/reports/jobs/{task.id}/download",
+            "artifact_name": f"{task.id}.pdf",
+            "size_bytes": 4,
+        }
+
     async def test_mark_failed_compacts_large_error_message(self, mock_db):
         task = BackgroundTask(
             id=uuid.uuid4(),
@@ -742,3 +870,36 @@ class TestTaskResponse:
         assert response.result is not None
         assert response.result.updated == 2
         assert response.result.failed == 1
+
+    def test_to_response_supports_report_export_result(self):
+        task_id = uuid.uuid4()
+        project_id = uuid.uuid4()
+        task = BackgroundTask(
+            id=task_id,
+            type=TASK_REPORT_EXPORT,
+            status="succeeded",
+            project_id=project_id,
+            user_id=uuid.uuid4(),
+            request_payload={},
+            result_payload={
+                "project_id": str(project_id),
+                "format": "pdf",
+                "filename": "report.pdf",
+                "media_type": "application/pdf",
+                "download_url": f"/api/v1/reports/jobs/{task_id}/download",
+                "artifact_name": f"{task_id}.pdf",
+                "size_bytes": 123,
+            },
+            progress_current=3,
+            progress_total=3,
+            progress_phase="done",
+            created_at=datetime.now(UTC),
+        )
+
+        response = TaskService.to_response(task)
+
+        assert response.progress.percent == 100
+        assert response.result is not None
+        assert response.result.filename == "report.pdf"
+        assert response.links.status.endswith(f"/reports/jobs/{task_id}")
+        assert response.links.result.endswith(f"/reports/jobs/{task_id}/download")

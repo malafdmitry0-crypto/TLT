@@ -457,6 +457,17 @@ FIELDS: tuple[FieldDef, ...] = (
         sort_type="number",
     ),
     FieldDef(
+        "maintain_temperature",
+        "Температура поддержания T3, °C",
+        "T3, °C",
+        "number",
+        lambda row: _calc_param(row, "maintain_temperature"),
+        unit="°C",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
         "aggressive_product",
         "Агрессивный продукт",
         "Агр.",
@@ -575,6 +586,7 @@ ELECTRICAL_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
     "supply_voltage": lambda: _sql_calc_param_number("supply_voltage"),
     "winding_coefficient": lambda: _sql_calc_param_number("winding_coefficient"),
     "vapor_temperature": lambda: _sql_calc_param_number("vapor_temperature"),
+    "maintain_temperature": lambda: _sql_calc_param_number("maintain_temperature"),
     "aggressive_product": lambda: _sql_calc_param_text("aggressive_product"),
     "cable_length": lambda: _sql_calc_result_number("cable_length"),
     "total_power": lambda: _sql_calc_result_number("total_power"),
@@ -602,6 +614,7 @@ ELECTRICAL_CALC_PARAM_KEYS = frozenset(
         "supply_voltage",
         "winding_coefficient",
         "vapor_temperature",
+        "maintain_temperature",
         "aggressive_product",
         "cable_mark_source",
     }

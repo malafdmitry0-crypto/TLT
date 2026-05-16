@@ -413,10 +413,10 @@ function TTFormulaDisplay() {
         </FL>
         <FL>
           <V c={C.result}>q</V><S>б</S>
-          <span>(</span><V c={C.temp}>T</V><S>ж</S><span>) = </span>
+          <span>(</span><V c={C.temp}>T3</V><span>) = </span>
           <V c={C.coeff}>q</V><S>1</S>
           <span> × </span>
-          <V c={C.temp}>T</V><S>ж</S>
+          <V c={C.temp}>T3</V>
           <span> + </span>
           <V c={C.coeff}>q</V><S>2</S>
           <V c={C.unit}>&nbsp;[Вт/м]</V>
@@ -425,9 +425,9 @@ function TTFormulaDisplay() {
 
       <SubTitle>Выбор серии ТТН / ТТВ / ТТХ</SubTitle>
       <FormulaBox accent={C.coeff}>
-        <FL><span style={{ color: C.label, width: 72 }}>ТТН:</span><V c={C.temp}>T</V><S>прод</S> ≤ 65°C; <V c={C.temp}>T</V><S>проп</S> ≤ 85°C</FL>
-        <FL><span style={{ color: C.label, width: 72 }}>ТТВ:</span><V c={C.temp}>T</V><S>прод</S> ≤ 120°C; <V c={C.temp}>T</V><S>проп</S> ≤ 210°C</FL>
-        <FL><span style={{ color: C.label, width: 72 }}>ТТХ:</span><V c={C.temp}>T</V><S>прод</S> ≤ 150°C; <V c={C.temp}>T</V><S>проп</S> ≤ 250°C</FL>
+        <FL><span style={{ color: C.label, width: 72 }}>ТТН:</span><V c={C.temp}>T1</V> ≤ 65°C; <V c={C.temp}>T2</V> ≤ 85°C</FL>
+        <FL><span style={{ color: C.label, width: 72 }}>ТТВ:</span><V c={C.temp}>T1</V> ≤ 120°C; <V c={C.temp}>T2</V> ≤ 210°C</FL>
+        <FL><span style={{ color: C.label, width: 72 }}>ТТХ:</span><V c={C.temp}>T1</V> ≤ 150°C; <V c={C.temp}>T2</V> ≤ 250°C</FL>
       </FormulaBox>
 
       <SubTitle>Количество ниток и мощность</SubTitle>
@@ -1194,6 +1194,7 @@ function TTTab() {
       required_power_per_meter: v.required_power_per_meter,
       pipe_length: v.pipe_length,
       process_temperature: v.process_temperature,
+      maintain_temperature: v.maintain_temperature,
       supply_voltage: v.supply_voltage ?? 220,
       aggressive_product: v.aggressive_product ?? false,
       winding_coefficient: v.winding_coefficient ?? 1.1,
@@ -1227,6 +1228,9 @@ function TTTab() {
             <Col span={12}><Form.Item name="vapor_temperature" label="T пропарки, °C"><InputNumber style={{ width: '100%' }} placeholder="85" /></Form.Item></Col>
           </Row>
           <Row gutter={12}>
+            <Col span={12}><Form.Item name="maintain_temperature" label="T3 поддержания, °C (необяз.)"><InputNumber min={-90} max={600} style={{ width: '100%' }} placeholder="по умолчанию T продукта" /></Form.Item></Col>
+          </Row>
+          <Row gutter={12}>
             <Col span={8}><Form.Item name="supply_voltage" label="U, В"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
             <Col span={8}><Form.Item name="safety_factor" label="K запаса"><InputNumber min={1} max={2} step={0.05} style={{ width: '100%' }} /></Form.Item></Col>
             <Col span={8}><Form.Item name="aggressive_product" label="Среда"><Select><Select.Option value={false}>Обычная</Select.Option><Select.Option value={true}>Агрессивная</Select.Option></Select></Form.Item></Col>
@@ -1234,7 +1238,7 @@ function TTTab() {
           <Row gutter={12}>
             <Col span={8}><Form.Item name="winding_coefficient" label="Коэф. укладки"><InputNumber min={1} max={10} step={0.1} style={{ width: '100%' }} /></Form.Item></Col>
             <Col span={8}><Form.Item name="winding_pitch" label="Шаг навива, мм"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="number_of_threads" label="Нитки"><InputNumber min={1} max={3} style={{ width: '100%' }} placeholder="авто" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="number_of_threads" label="Нитки"><InputNumber min={1} max={100} style={{ width: '100%' }} placeholder="авто" /></Form.Item></Col>
           </Row>
           <Row gutter={12}>
             <Col span={12}><Form.Item name="cable_mark" label="Марка кабеля"><Input placeholder="пусто = автоподбор" /></Form.Item></Col>

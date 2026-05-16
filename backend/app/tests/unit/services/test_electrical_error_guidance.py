@@ -31,13 +31,15 @@ def test_builds_power_too_high_payload_with_actions_and_context():
 def test_power_too_high_actions_do_not_offer_used_or_impossible_thread_changes():
     payload = build_electrical_error_payload(
         "ValueError: Ни один кабель серии ТТН/ТТВ/ТТХ не обеспечивает 180.00 Вт/м "
-        "при T_ж=120°C. Требуется другой тип кабеля.",
+        "при T3=120°C. Требуется другой тип кабеля.",
         object_type="pipe",
         cable_type="self_regulating_tt",
-        request_data={"number_of_threads": None},
+        request_data={"number_of_threads": None, "maintain_temperature": 120},
     )
 
     assert payload["error_code"] == "POWER_TOO_HIGH"
+    assert payload["error_context"]["temperature_subject"] == "maintain"
+    assert payload["error_context"]["maintain_temperature"] == 120
     assert payload["suggested_actions"] == ["TRY_OTHER_CABLE_TYPE"]
 
 

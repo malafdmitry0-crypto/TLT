@@ -1,22 +1,8 @@
-"""Простой Redis-cache wrapper с in-memory fallback.
-
-Использование:
-    from app.core.cache import cache
-
-    @cache.cached("references:climate", ttl=3600)
-    async def list_climate_cities() -> list[dict]:
-        ...
-
-    cache.invalidate("coefficients")
-    cache.invalidate_prefix("references:")
-
-Семантика fallback'а — как у rate_limit:
-- Если REDIS_URL задан → Redis обязателен (RuntimeError при недоступности).
-- Если REDIS_URL пуст → in-memory dict (для dev/тестов).
-"""
+"""Async Redis cache wrapper with in-memory fallback."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -24,6 +10,9 @@ import threading
 from collections.abc import Callable
 from functools import wraps
 from typing import Any, Protocol, TypeVar
+
+from app.core.config import settings
+from app.core.redis_client import get_redis
 
 logger = logging.getLogger("heatcalc.cache")
 
@@ -35,10 +24,14 @@ class _CacheBackend(Protocol):
     def set(self, key: str, value: Any, ttl: int | None) -> None: ...
     def delete(self, key: str) -> None: ...
     def delete_prefix(self, prefix: str) -> None: ...
+    async def aget(self, key: str) -> Any | None: ...
+    async def aset(self, key: str, value: Any, ttl: int | None) -> None: ...
+    async def adelete(self, key: str) -> None: ...
+    async def adelete_prefix(self, prefix: str) -> None: ...
 
 
 class _InMemoryBackend:
-    """Простой dict-кэш без TTL-эвикции (TTL игнорируется — для dev/тестов)."""
+    """Simple dict cache for dev/tests. TTL is intentionally ignored."""
 
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}
@@ -58,23 +51,49 @@ class _InMemoryBackend:
 
     def delete_prefix(self, prefix: str) -> None:
         with self._lock:
-            for k in list(self._data.keys()):
-                if k.startswith(prefix):
-                    del self._data[k]
+            for key in list(self._data.keys()):
+                if key.startswith(prefix):
+                    del self._data[key]
+
+    async def aget(self, key: str) -> Any | None:
+        return self.get(key)
+
+    async def aset(self, key: str, value: Any, ttl: int | None) -> None:
+        self.set(key, value, ttl)
+
+    async def adelete(self, key: str) -> None:
+        self.delete(key)
+
+    async def adelete_prefix(self, prefix: str) -> None:
+        self.delete_prefix(prefix)
 
 
 class _RedisBackend:
-    """Redis-backed cache. JSON-serialization в payload."""
+    """Redis-backed cache. Values are JSON payloads."""
 
     def __init__(self, redis_url: str) -> None:
-        from redis import Redis  # type: ignore[import-not-found]
+        # Sync Redis is kept for tests and synchronous utilities. Request paths
+        # use redis.asyncio through the async methods below.
+        from redis import Redis
 
-        self._client = Redis.from_url(redis_url, decode_responses=True)
-        # healthcheck — упадёт громко если Redis недоступен
-        self._client.ping()
+        self._sync_client = Redis.from_url(
+            redis_url,
+            decode_responses=True,
+            max_connections=settings.REDIS_MAX_CONNECTIONS,
+            socket_keepalive=True,
+            socket_connect_timeout=5,
+            retry_on_timeout=True,
+            health_check_interval=30,
+        )
+
+    def ping(self) -> None:
+        self._sync_client.ping()
+
+    def _key(self, key: str) -> str:
+        return f"cache:{key}"
 
     def get(self, key: str) -> Any | None:
-        raw = self._client.get(f"cache:{key}")
+        raw = self._sync_client.get(self._key(key))
         if raw is None:
             return None
         return json.loads(raw)
@@ -82,29 +101,45 @@ class _RedisBackend:
     def set(self, key: str, value: Any, ttl: int | None) -> None:
         payload = json.dumps(value, ensure_ascii=False, default=str)
         if ttl:
-            self._client.setex(f"cache:{key}", ttl, payload)
+            self._sync_client.setex(self._key(key), ttl, payload)
         else:
-            self._client.set(f"cache:{key}", payload)
+            self._sync_client.set(self._key(key), payload)
 
     def delete(self, key: str) -> None:
-        self._client.delete(f"cache:{key}")
+        self._sync_client.delete(self._key(key))
 
     def delete_prefix(self, prefix: str) -> None:
-        for k in self._client.scan_iter(f"cache:{prefix}*"):
-            self._client.delete(k)
+        for key in self._sync_client.scan_iter(self._key(f"{prefix}*")):
+            self._sync_client.delete(key)
+
+    async def aget(self, key: str) -> Any | None:
+        raw = await get_redis().get(self._key(key))
+        if raw is None:
+            return None
+        return json.loads(raw)
+
+    async def aset(self, key: str, value: Any, ttl: int | None) -> None:
+        payload = json.dumps(value, ensure_ascii=False, default=str)
+        if ttl:
+            await get_redis().setex(self._key(key), ttl, payload)
+        else:
+            await get_redis().set(self._key(key), payload)
+
+    async def adelete(self, key: str) -> None:
+        await get_redis().delete(self._key(key))
+
+    async def adelete_prefix(self, prefix: str) -> None:
+        async for key in get_redis().scan_iter(self._key(f"{prefix}*")):
+            await get_redis().delete(key)
 
 
 def _build_backend() -> _CacheBackend:
-    """Redis если REDIS_URL задан и доступен, иначе in-memory.
-
-    Graceful fallback — позволяет запускать demo/dev без обязательного
-    Redis-сервиса. При недоступности залогируем WARNING.
-    """
-    redis_url = os.environ.get("REDIS_URL")
+    redis_url = os.getenv("REDIS_URL")
     if redis_url:
         try:
             backend = _RedisBackend(redis_url)
-            logger.info("Cache: Redis @ %s", redis_url)
+            backend.ping()
+            logger.info("Cache: Redis async backend")
             return backend
         except Exception as exc:
             logger.warning(
@@ -118,7 +153,11 @@ def _build_backend() -> _CacheBackend:
 
 
 class _Cache:
-    """Public-facing API. Singleton."""
+    """Public-facing cache API.
+
+    Use async methods from async request/task paths. Sync methods are kept for
+    tests and synchronous utilities.
+    """
 
     def __init__(self) -> None:
         self._backend = _build_backend()
@@ -126,47 +165,53 @@ class _Cache:
     def get(self, key: str) -> Any | None:
         return self._backend.get(key)
 
+    async def aget(self, key: str) -> Any | None:
+        return await self._backend.aget(key)
+
     def set(self, key: str, value: Any, ttl: int | None = None) -> None:
         self._backend.set(key, value, ttl)
+
+    async def aset(self, key: str, value: Any, ttl: int | None = None) -> None:
+        await self._backend.aset(key, value, ttl)
 
     def invalidate(self, key: str) -> None:
         self._backend.delete(key)
 
+    async def ainvalidate(self, key: str) -> None:
+        await self._backend.adelete(key)
+
     def invalidate_prefix(self, prefix: str) -> None:
         self._backend.delete_prefix(prefix)
+
+    async def ainvalidate_prefix(self, prefix: str) -> None:
+        await self._backend.adelete_prefix(prefix)
 
     def cached(
         self, key: str, ttl: int | None = None
     ) -> Callable[[Callable[..., T]], Callable[..., T]]:
-        """Декоратор для функций (sync/async). Ключ статический — не зависит от args.
-
-        Пригодно для «глобальных» кэшей вида справочников. Для key-by-args
-        используйте `cache.get/set` явно.
-        """
+        """Static-key cache decorator for sync and async callables."""
 
         def decorator(fn: Callable[..., T]) -> Callable[..., T]:
-            import asyncio
-
             if asyncio.iscoroutinefunction(fn):
 
                 @wraps(fn)
                 async def async_wrapper(*args: Any, **kwargs: Any) -> T:
-                    hit = self._backend.get(key)
+                    hit = await self.aget(key)
                     if hit is not None:
                         return hit  # type: ignore[no-any-return]
                     result = await fn(*args, **kwargs)
-                    self._backend.set(key, result, ttl)
+                    await self.aset(key, result, ttl)
                     return result
 
                 return async_wrapper  # type: ignore[return-value]
 
             @wraps(fn)
             def sync_wrapper(*args: Any, **kwargs: Any) -> T:
-                hit = self._backend.get(key)
+                hit = self.get(key)
                 if hit is not None:
                     return hit  # type: ignore[no-any-return]
                 result = fn(*args, **kwargs)
-                self._backend.set(key, result, ttl)
+                self.set(key, result, ttl)
                 return result
 
             return sync_wrapper

@@ -31,11 +31,12 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 Гостевой вход — сразу без регистрации. Сотрудник и админ — через `/login`
 (первый админ создаётся из `FIRST_ADMIN_EMAIL`/`FIRST_ADMIN_PASSWORD` в `.env`).
 
-## Что умеет MVP
+## Что умеет текущая версия
 
 Подробная сверка с ТЗ — в `CLAUDE.MD` §15. Кратко:
 
-- Расчёт тепловых потерь для трубопроводов и резервуаров (формулы ТНП «для MVP»)
+- Расчёт тепловых потерь для трубопроводов и резервуаров по действующему
+  ТНП-контракту
 - Автоподбор греющего кабеля ТЛТ (10 марок, 10–100 Вт/м)
 - Импорт объектов из **Excel (.xlsx) и CSV** (см. `docs/samples/`)
 - Drag-and-drop сортировка строк в таблицах
@@ -61,7 +62,8 @@ coefficients.MD     Корректирующие коэффициенты
 
 | Файл | Что внутри |
 |---|---|
-| `CLAUDE.MD` | Архитектура, навигация, API, матрица доступа, статус MVP |
+| `CLAUDE.MD` | Архитектура, навигация, API, матрица доступа, full-version target |
+| `docs/context/full-version-rule.md` | Правило: частичная реализация не принимается как бизнес-статус |
 | `backend/CLAUDE.MD` | Структура backend, сервисы, эндпоинты, тесты |
 | `frontend/CLAUDE.MD` | Структура frontend, компоненты, сторы, стили |
 | `formules.md` | Все формулы расчёта с примерами (текст для человека) |
@@ -86,7 +88,7 @@ npx playwright test
 
 Текущее состояние:
 <!-- AUTO:test-counts -->
-**934 backend** (689 unit + 245 integration) ✅ · **310 frontend vitest** ✅ · **58 e2e Playwright** ✅
+**964 backend** (716 unit + 248 integration) ✅ · **310 frontend vitest** ✅ · **58 e2e Playwright** ✅
 <!-- /AUTO -->
 
 > Цифры синхронизируются `scripts/sync-docs.py` (правит этот блок на месте).

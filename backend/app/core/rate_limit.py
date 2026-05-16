@@ -10,8 +10,10 @@ in-memory вариант.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
+from asyncio import AbstractEventLoop
 from collections import defaultdict, deque
 from threading import Lock
 from typing import Protocol
@@ -25,7 +27,9 @@ _WINDOW_SECONDS = 3600  # 1 час
 
 class RateLimiter(Protocol):
     def is_allowed(self, ip: str) -> bool: ...
+    async def ais_allowed(self, ip: str) -> bool: ...
     def remaining(self, ip: str) -> int: ...
+    async def aremaining(self, ip: str) -> int: ...
     def reset(self, ip: str | None = None) -> None: ...
 
 
@@ -50,6 +54,9 @@ class IPRateLimiter:
             q.append(now)
             return True
 
+    async def ais_allowed(self, ip: str) -> bool:
+        return self.is_allowed(ip)
+
     def remaining(self, ip: str) -> int:
         now = time.monotonic()
         cutoff = now - self._window
@@ -58,6 +65,9 @@ class IPRateLimiter:
             while q and q[0] < cutoff:
                 q.popleft()
             return max(0, self._max - len(q))
+
+    async def aremaining(self, ip: str) -> int:
+        return self.remaining(ip)
 
     def reset(self, ip: str | None = None) -> None:
         with self._lock:
@@ -82,47 +92,111 @@ class RedisRateLimiter:
         self, max_calls: int, redis_url: str, window_seconds: int = _WINDOW_SECONDS
     ) -> None:
         # Импорт лениво, чтобы in-memory режим не требовал redis-pip
-        from redis import Redis  # type: ignore[import-not-found]
+        from redis import Redis as SyncRedis
 
         self._max = max_calls
         self._window = window_seconds
-        self._client = Redis.from_url(redis_url, decode_responses=True)
+        self._redis_url = redis_url
+        self._client = None
+        self._client_loop: AbstractEventLoop | None = None
+        self._sync_client = SyncRedis.from_url(
+            redis_url,
+            decode_responses=True,
+            max_connections=settings.REDIS_MAX_CONNECTIONS,
+            socket_keepalive=True,
+            socket_connect_timeout=5,
+            retry_on_timeout=True,
+            health_check_interval=30,
+        )
 
     def _key(self, ip: str) -> str:
         return f"ratelimit:{ip}"
+
+    def _async_client(self):
+        from redis.asyncio import Redis as AsyncRedis
+
+        loop = asyncio.get_running_loop()
+        if self._client is None or self._client_loop is not loop:
+            self._client = AsyncRedis.from_url(
+                self._redis_url,
+                decode_responses=True,
+                max_connections=settings.REDIS_MAX_CONNECTIONS,
+                socket_keepalive=True,
+                socket_connect_timeout=5,
+                retry_on_timeout=True,
+                health_check_interval=30,
+            )
+            self._client_loop = loop
+        return self._client
 
     def is_allowed(self, ip: str) -> bool:
         now_us = int(time.time() * 1_000_000)
         cutoff = now_us - self._window * 1_000_000
         key = self._key(ip)
-        pipe = self._client.pipeline()
+        pipe = self._sync_client.pipeline()
         pipe.zremrangebyscore(key, 0, cutoff)
         pipe.zcard(key)
         _, count = pipe.execute()
         if count >= self._max:
             return False
-        pipe = self._client.pipeline()
+        pipe = self._sync_client.pipeline()
         pipe.zadd(key, {str(now_us): now_us})
         pipe.expire(key, self._window)
         pipe.execute()
+        return True
+
+    async def ais_allowed(self, ip: str) -> bool:
+        client = self._async_client()
+        now_us = int(time.time() * 1_000_000)
+        cutoff = now_us - self._window * 1_000_000
+        key = self._key(ip)
+        pipe = client.pipeline()
+        pipe.zremrangebyscore(key, 0, cutoff)
+        pipe.zcard(key)
+        _, count = await pipe.execute()
+        if count >= self._max:
+            return False
+        pipe = client.pipeline()
+        pipe.zadd(key, {str(now_us): now_us})
+        pipe.expire(key, self._window)
+        await pipe.execute()
         return True
 
     def remaining(self, ip: str) -> int:
         now_us = int(time.time() * 1_000_000)
         cutoff = now_us - self._window * 1_000_000
         key = self._key(ip)
-        pipe = self._client.pipeline()
+        pipe = self._sync_client.pipeline()
         pipe.zremrangebyscore(key, 0, cutoff)
         pipe.zcard(key)
         _, count = pipe.execute()
         return max(0, self._max - int(count))
 
+    async def aremaining(self, ip: str) -> int:
+        client = self._async_client()
+        now_us = int(time.time() * 1_000_000)
+        cutoff = now_us - self._window * 1_000_000
+        key = self._key(ip)
+        pipe = client.pipeline()
+        pipe.zremrangebyscore(key, 0, cutoff)
+        pipe.zcard(key)
+        _, count = await pipe.execute()
+        return max(0, self._max - int(count))
+
     def reset(self, ip: str | None = None) -> None:
         if ip is None:
-            for k in self._client.scan_iter("ratelimit:*"):
-                self._client.delete(k)
+            for key in self._sync_client.scan_iter("ratelimit:*"):
+                self._sync_client.delete(key)
         else:
-            self._client.delete(self._key(ip))
+            self._sync_client.delete(self._key(ip))
+
+    async def areset(self, ip: str | None = None) -> None:
+        client = self._async_client()
+        if ip is None:
+            async for k in client.scan_iter("ratelimit:*"):
+                await client.delete(k)
+        else:
+            await client.delete(self._key(ip))
 
 
 def _build_limiter(max_calls: int) -> RateLimiter:

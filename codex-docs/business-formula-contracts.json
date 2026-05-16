@@ -8,8 +8,10 @@
       "requirementRefs": [
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_pipe_total_heat_loss" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_pipe_heat_loss_no_double_k" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_climate_safety_factor" },
         { "path": "docs/tnp/block-heat-loss-and-cable-selection/pipe-heat-loss-and-cable-selection.md" },
         { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_pipe_total_heat_loss" },
+        { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_climate_safety_factor" },
         { "path": "formules.md", "symbol": "Теплопотери" },
         { "path": "docs/context/formulas-summary.md", "symbol": "трубы" }
       ],
@@ -28,6 +30,8 @@
       "testRefs": [
         { "path": "backend/app/tests/unit/formulas/test_pipe_heat_loss.py", "command": "scripts/formula-qa.sh quick" },
         { "path": "backend/app/tests/unit/services/test_no_double_safety.py", "command": "scripts/formula-qa.sh quick" },
+        { "path": "backend/app/tests/unit/services/test_calculation_service_unit.py", "command": "scripts/formula-qa.sh quick" },
+        { "path": "qa-agent/tests/AlgorithmOracle.test.ts", "command": "npm --prefix qa-agent test" },
         { "path": "backend/app/tests/integration/api/test_calculations.py", "command": "scripts/formula-qa.sh full" },
         { "path": "e2e/tests/heat-calculation.spec.ts", "command": "scripts/codex-functional-audit.sh user-flows" }
       ]
@@ -68,9 +72,14 @@
       "requirementRefs": [
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_series_limits_inclusive" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_max_winding_coefficient" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_t3_power_curve" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_thread_count_policy" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_mark_suffix_policy" },
+        { "path": "docs/tnp/project-reconciliation-audit.md", "symbol": "ALG-SR-01" },
         { "path": "docs/tnp/algorithms/self-regulating-pipe-selection.md" },
         { "path": "docs/tnp/algorithms/winding.md" },
         { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_max_winding_coefficient" },
+        { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_tt_power_curve" },
         { "path": "docs/context/formulas-summary.md", "symbol": "Саморегулирующийся" },
         { "path": "docs/analysis/business-rules.md", "symbol": "кабель" }
       ],
@@ -92,6 +101,8 @@
         { "path": "backend/app/tests/unit/formulas/test_self_regulating_tt.py", "command": "scripts/formula-qa.sh quick" },
         { "path": "backend/app/tests/unit/formulas/test_self_regulating_critical.py", "command": "scripts/formula-qa.sh quick" },
         { "path": "qa-agent/tests/AlgorithmOracle.test.ts", "command": "npm --prefix qa-agent test" },
+        { "path": "qa-agent/tests/FormulaOracle.test.ts", "command": "npm --prefix qa-agent test" },
+        { "path": "backend/app/tests/unit/services/test_calculation_service_unit.py", "command": "scripts/formula-qa.sh quick" },
         { "path": "backend/app/tests/integration/api/test_calc_jobs.py", "command": "scripts/formula-qa.sh full" },
         { "path": "e2e/tests/cable-business-flows.spec.ts", "command": "scripts/codex-functional-audit.sh user-flows" }
       ]
@@ -102,6 +113,10 @@
       "requirementRefs": [
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_r1_catalog" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_r3_catalog" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_r1_resistance_based_power" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_resistive_selection_algorithm_full" },
+        { "path": "docs/tnp/project-reconciliation-audit.md", "symbol": "ALG-RES-01" },
+        { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_resistive_passport_ohm_law" },
         { "path": "docs/tnp/internal-references/resistive-cable-r1.md" },
         { "path": "docs/tnp/internal-references/resistive-cable-r3.md" },
         { "path": "formules.md", "symbol": "подбирает кабель" },
@@ -124,6 +139,7 @@
       "testRefs": [
         { "path": "backend/app/tests/unit/formulas/test_resistive.py", "command": "scripts/formula-qa.sh quick" },
         { "path": "backend/app/tests/unit/reference_data/test_loader.py", "command": "scripts/formula-qa.sh quick" },
+        { "path": "qa-agent/tests/AlgorithmOracle.test.ts", "command": "npm --prefix qa-agent test" },
         { "path": "backend/app/tests/integration/api/test_calculations.py", "command": "scripts/formula-qa.sh full" },
         { "path": "e2e/tests/elec-calculation.spec.ts", "command": "scripts/codex-functional-audit.sh user-flows" }
       ]

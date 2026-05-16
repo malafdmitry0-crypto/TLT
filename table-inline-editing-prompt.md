@@ -88,7 +88,7 @@ The central requirement is **single source of truth**: inline editing must reuse
 
 Use a staged rollout. The first implementation must include only the fields listed in **Phase 1 Enabled Scope** and must prove the shared-rule architecture before enabling dependent fields.
 
-### Phase 1: Safe MVP
+### Phase 1: Safe Baseline
 
 Implement inline editing only for the exact pipe and tank columns listed in **Phase 1 Enabled Scope**.
 

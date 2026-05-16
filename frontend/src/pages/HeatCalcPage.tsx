@@ -186,7 +186,7 @@ const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSetti
 
 const { Text } = Typography;
 
-/** В MVP мастер знает только две формы — трубу и резервуар. */
+/** Мастер сейчас знает две формы — трубу и резервуар. */
 type WizardObjectType = HeatCalcObjectType;
 type ActiveObjectScope = HeatCalcObjectType | 'all';
 
@@ -1369,7 +1369,7 @@ export default function HeatCalcPage() {
   }
 
   function openEditWizard(obj: ProjectObject) {
-    // Редактировать можно только те типы, которые умеем — MVP: трубы и резервуары.
+    // Редактировать можно только те типы, которые умеем: трубы и резервуары.
     // Другие типы (pump/platform/other) пока не имеют форм мастера.
     if (obj.object_type !== 'pipe' && obj.object_type !== 'tank') return;
     if (inlineEditingEnabled && isDraftRowDirty(draftRowsById[obj.id])) {

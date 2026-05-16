@@ -168,6 +168,10 @@ const THREAD_OPTIONS = [
   { value: 2, label: '2' },
   { value: 3, label: '3' },
 ];
+const TT_THREAD_OPTIONS = Array.from({ length: 100 }, (_, index) => {
+  const value = index + 1;
+  return { value, label: String(value) };
+});
 
 type CableLayoutDraft = {
   windingPitchMm?: number | null;
@@ -539,6 +543,7 @@ export default function ElecCalcPage() {
   const [windingCoefficient, setWindingCoefficient] = useState<number | null>(1);
   const [heatingHeight, setHeatingHeight] = useState<number | null>(null);
   const [layingStep, setLayingStep] = useState<number | null>(0.1);
+  const [maintainTemperature, setMaintainTemperature] = useState<number | null>(null);
   const [vaporTemperature, setVaporTemperature] = useState<number | null>(null);
   const [aggressiveProduct, setAggressiveProduct] = useState(false);
   const [layoutDrafts, setLayoutDrafts] = useState<Record<string, CableLayoutDraft>>({});
@@ -883,6 +888,7 @@ export default function ElecCalcPage() {
           windingCoefficient,
           heatingHeight,
           layingStep,
+          maintainTemperature,
           vaporTemperature,
           aggressiveProduct,
           objectIds: scope === 'selected' ? selectedObjectIds : undefined,
@@ -1010,9 +1016,10 @@ export default function ElecCalcPage() {
         windingCoefficient,
         heatingHeight,
         layingStep,
+        maintainTemperature,
         vaporTemperature,
         aggressiveProduct,
-    }),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
@@ -1044,6 +1051,7 @@ export default function ElecCalcPage() {
         numberOfThreads,
         heatingHeight,
         layingStep,
+        maintainTemperature,
         vaporTemperature,
         aggressiveProduct,
       }),
@@ -1349,6 +1357,7 @@ export default function ElecCalcPage() {
         const mark = getCableMark(calc);
         const values = calcLayoutValues(calc, layoutDrafts[obj.id]);
         const isActive = activeRowId === obj.id;
+        const rowCableType = getSavedCableTypeForObject(obj.id);
 
         if (!isActive || !obj.is_valid || !mark) {
           return (
@@ -1363,14 +1372,14 @@ export default function ElecCalcPage() {
             size="small"
             value={values.numberOfThreads}
             disabled={isLayoutPending}
-            options={THREAD_OPTIONS}
+            options={rowCableType === 'self_regulating_tt' ? TT_THREAD_OPTIONS : THREAD_OPTIONS}
             style={{ width: '100%' }}
             onChange={(v) => {
               updateLayoutDraft(obj.id, { numberOfThreads: v });
               layoutMutate({
                 objectId: obj.id,
                 mark,
-                cableType: getSavedCableTypeForObject(obj.id),
+                cableType: rowCableType,
                 windingPitchMm: values.windingPitchMm,
                 numberOfThreads: v,
               });
@@ -1412,6 +1421,14 @@ export default function ElecCalcPage() {
       align: 'right',
       render: (_: unknown, obj) =>
         numberText(stats.calcByObjectId[obj.id]?.params?.vapor_temperature ?? vaporTemperature, 1),
+    },
+    maintain_temperature: {
+      align: 'right',
+      render: (_: unknown, obj) =>
+        numberText(
+          stats.calcByObjectId[obj.id]?.params?.maintain_temperature ?? maintainTemperature,
+          1,
+        ),
     },
     aggressive_product: {
       align: 'center',
@@ -1459,6 +1476,7 @@ export default function ElecCalcPage() {
     layingStep,
     layoutDrafts,
     layoutMutate,
+    maintainTemperature,
     manualCableMutate,
     manualCableOptionsForType,
     pageInfo?.offset,
@@ -1666,6 +1684,7 @@ export default function ElecCalcPage() {
       case 'supply_voltage':
       case 'winding_coefficient':
       case 'vapor_temperature':
+      case 'maintain_temperature':
       case 'aggressive_product':
         return valueText(calc?.params?.[key]);
       case 'cable_length':
@@ -1932,7 +1951,21 @@ export default function ElecCalcPage() {
       return (
         <>
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>T проп., °C:</Text>
-          <InputNumber<number> size="small" value={vaporTemperature} onChange={setVaporTemperature} style={{ width: 92 }} />
+          <InputNumber<number>
+            aria-label="T пропарки"
+            size="small"
+            value={vaporTemperature}
+            onChange={setVaporTemperature}
+            style={{ width: 92 }}
+          />
+          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>T3, °C:</Text>
+          <InputNumber<number>
+            aria-label="T3 поддержания"
+            size="small"
+            value={maintainTemperature}
+            onChange={setMaintainTemperature}
+            style={{ width: 92 }}
+          />
           <Checkbox
             checked={aggressiveProduct}
             onChange={(e) => setAggressiveProduct(e.target.checked)}

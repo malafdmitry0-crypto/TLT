@@ -99,7 +99,7 @@ async def create_guest_session(
     Лимит: 10 новых сессий с одного IP за 1 час.
     """
     ip = _client_ip(request)
-    if not guest_session_limiter.is_allowed(ip):
+    if not await guest_session_limiter.ais_allowed(ip):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Превышен лимит создания пользовательских сессий. Повторите через час.",

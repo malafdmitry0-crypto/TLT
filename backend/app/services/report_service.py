@@ -1,5 +1,6 @@
 """Сервис генерации отчётов."""
 
+import asyncio
 from typing import ClassVar
 from uuid import UUID
 
@@ -130,7 +131,7 @@ class ReportService:
 
         ctx = await self._load_context(project_id, sections)
         if fmt == "pdf":
-            return generate_pdf(ctx)
+            return await asyncio.to_thread(generate_pdf, ctx)
         if fmt == "docx":
-            return generate_docx(ctx)
-        return generate_xlsx(ctx)
+            return await asyncio.to_thread(generate_docx, ctx)
+        return await asyncio.to_thread(generate_xlsx, ctx)

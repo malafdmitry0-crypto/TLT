@@ -1,7 +1,15 @@
 """Integration-тесты отчётов."""
 
+from uuid import UUID, uuid4
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
+from app.models.background_task import BackgroundTask
+from app.models.user import User
+from app.services.report_artifact_service import write_report_artifact
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -70,6 +78,106 @@ class TestReports:
         assert resp.headers["content-type"].startswith(
             "application/vnd.openxmlformats-officedocument.spreadsheetml"
         )
+
+    async def test_employee_can_enqueue_report_export_job(
+        self, client: AsyncClient, guest_session: str, employee_token: str
+    ):
+        pid = await _project_with_object(client, guest_session)
+        resp = await client.post(
+            f"/api/v1/reports/{pid}/export/xlsx/jobs",
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+        assert resp.status_code == 202
+        task = resp.json()
+        assert task["type"] == "report_export"
+        assert task["project_id"] == pid
+        assert task["links"]["result"].endswith(f"/reports/jobs/{task['id']}/download")
+
+        status_resp = await client.get(
+            f"/api/v1/reports/jobs/{task['id']}",
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+        assert status_resp.status_code == 200
+        assert status_resp.json()["id"] == task["id"]
+
+    async def test_employee_can_download_finished_report_job(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        employee_token: str,
+        employee_user: User,
+        db_session: AsyncSession,
+        tmp_path,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(settings, "REPORT_ARTIFACT_DIR", str(tmp_path))
+        pid = await _project_with_object(client, guest_session)
+        task_id = uuid4()
+        artifact = write_report_artifact(task_id, "xlsx", b"report-bytes")
+        task = BackgroundTask(
+            id=task_id,
+            type="report_export",
+            status="succeeded",
+            project_id=UUID(pid),
+            user_id=employee_user.id,
+            request_payload={"project_id": pid, "format": "xlsx", "sections": None},
+            result_payload={
+                "project_id": pid,
+                "format": "xlsx",
+                "filename": "report.xlsx",
+                "media_type": ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                "download_url": f"/api/v1/reports/jobs/{task_id}/download",
+                **artifact,
+            },
+            progress_current=3,
+            progress_total=3,
+            progress_phase="done",
+        )
+        db_session.add(task)
+        await db_session.commit()
+
+        resp = await client.get(
+            f"/api/v1/reports/jobs/{task_id}/download",
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 200
+        assert resp.content == b"report-bytes"
+        assert resp.headers["content-type"].startswith(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml"
+        )
+
+    async def test_report_job_download_returns_409_until_ready(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        employee_token: str,
+        employee_user: User,
+        db_session: AsyncSession,
+    ):
+        pid = await _project_with_object(client, guest_session)
+        task_id = uuid4()
+        task = BackgroundTask(
+            id=task_id,
+            type="report_export",
+            status="running",
+            project_id=UUID(pid),
+            user_id=employee_user.id,
+            request_payload={"project_id": pid, "format": "xlsx", "sections": None},
+            progress_current=1,
+            progress_total=3,
+            progress_phase="render",
+        )
+        db_session.add(task)
+        await db_session.commit()
+
+        resp = await client.get(
+            f"/api/v1/reports/jobs/{task_id}/download",
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 409
+        assert resp.json()["detail"] == "Отчёт ещё не готов"
 
     async def test_preview_without_electrical_returns_partial_report(
         self, client: AsyncClient, guest_session: str

@@ -1,4 +1,5 @@
 import apiClient from './client';
+import type { CalculationTaskResponse } from '@/types/calculation';
 
 export type ReportSection = 'summary' | 'pipes' | 'tanks' | 'electrical' | 'specification';
 
@@ -37,6 +38,62 @@ export async function getReportPreview(
 }
 
 export async function exportReport(
+  projectId: string,
+  format: 'pdf' | 'docx' | 'xlsx',
+  sections?: ReportSection[],
+): Promise<Blob> {
+  const task = await enqueueReportExportJob(projectId, format, sections);
+  const completed = await waitReportExportTask(task.id);
+  if (completed.status !== 'succeeded') {
+    throw new Error(completed.error_message || 'Не удалось сформировать отчёт');
+  }
+  const { data } = await apiClient.get(`/reports/jobs/${completed.id}/download`, {
+    responseType: 'blob',
+  });
+  return data as Blob;
+}
+
+export async function enqueueReportExportJob(
+  projectId: string,
+  format: 'pdf' | 'docx' | 'xlsx',
+  sections?: ReportSection[],
+): Promise<CalculationTaskResponse> {
+  const { data } = await apiClient.post<CalculationTaskResponse>(
+    `/reports/${projectId}/export/${format}/jobs`,
+    null,
+    {
+      params: sections && sections.length > 0 ? { sections } : undefined,
+      paramsSerializer: { indexes: null },
+    },
+  );
+  return data;
+}
+
+export async function getReportExportTask(taskId: string): Promise<CalculationTaskResponse> {
+  const { data } = await apiClient.get<CalculationTaskResponse>(`/reports/jobs/${taskId}`);
+  return data;
+}
+
+async function waitReportExportTask(
+  taskId: string,
+  timeoutMs: number = 120_000,
+): Promise<CalculationTaskResponse> {
+  const startedAt = Date.now();
+  let delayMs = 700;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const task = await getReportExportTask(taskId);
+    if (['succeeded', 'failed', 'cancelled'].includes(task.status)) {
+      return task;
+    }
+    await new Promise((resolve) => globalThis.setTimeout(resolve, delayMs));
+    delayMs = Math.min(2_000, Math.round(delayMs * 1.25));
+  }
+
+  throw new Error('Отчёт формируется дольше ожидаемого времени');
+}
+
+export async function exportReportDirect(
   projectId: string,
   format: 'pdf' | 'docx' | 'xlsx',
   sections?: ReportSection[],

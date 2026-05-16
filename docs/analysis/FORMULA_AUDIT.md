@@ -153,9 +153,9 @@ cable_length = pipe_length * 1.1 * layout_factor
 
 | Формула | Код | Статус |
 |---|---|---|
-| q_б(T) = q1×T + q2 | `q1 * T_product + q2` | ✅ |
+| q_б(T3) = q1×T3 + q2 | `q1 * (maintain_temperature ?? process_temperature) + q2` | ✅ |
 | Выбор серии по T_прод, T_пропарки | `_select_tt_series()` | ✅ |
-| N = ceil(q_треб / q_б) или задано | `ceil(q_required/q_b)` или из params | ✅ |
+| N = ceil(q_треб / q_б) или задано | `ceil(q_required/q_b)` или из params; для ТТ auto без лимита 3 | ✅ |
 
 ### Электрорасчёт: резистивный (ТТ Р1 / ТТ Р3)
 
@@ -166,6 +166,7 @@ cable_length = pipe_length * 1.1 * layout_factor
 | Sк = (Q/U²)×ρ_T×2N (петля 1ф) | `q/u**2 * rho_t * 2 * cable_length` | ✅ |
 | Sк = (Q/Uф²)×ρ_T×3N (звезда 3ф) | `q/u_phase**2 * rho_t * 3 * cable_length` | ✅ |
 | Все 5 схем ТТ Р3 | 5 веток в `calc_resistive_three_core` | ✅ |
+| R/P/I по паспортному сопротивлению | `resistance_ohm_km/1000*L`, `U²/R`, лимит `65 А` | ✅ |
 
 ### Геометрия укладки кабеля на резервуар
 
@@ -204,8 +205,9 @@ cable_length = pipe_length * 1.1 * layout_factor
 | r_inner > 0 для стенки | `_r_wall: if r_inner <= 0` | Толщина стенки не может превышать радиус |
 | ΔT > 0 | `validate_temperature_range` | T_продукта обязана быть выше T_среды |
 | Double safety factor protection | `_tank_heat_loss_without_double_safety` | Для резервуара Q/K перед подачей в электрорасчёт |
-| Количество ниток 1–3 | `_number_of_threads` | Ограничение модели |
+| Количество ниток | `_number_of_threads` | ТЛТ/резистивные 1–3; ТТН/ТТВ/ТТХ до 100 и auto по full-version |
 | Шаг навива > диаметра трубы | `_winding_coefficient` | Геометрическая невозможность навива |
+| Максимальный Kn(D) | `_validate_winding_coefficient_limit` | Hard-limit по ТНП |
 
 ---
 
@@ -236,7 +238,8 @@ cable_length = pipe_length * 1.1 * layout_factor
 ### На будущее (низкий приоритет)
 
 6. **Температурная зависимость λ изоляции** — задокументирована как ограничение
-   MVP, но для высокотемпературных применений (T > 150°C) погрешность значима.
+   текущего контура, но для высокотемпературных применений (T > 150°C)
+   погрешность значима.
 
 7. **Валидация q_additional** — сейчас `or 0.0` в `calc_tank_heat_loss`.
    Pydantic-валидатор `ge=0` уже отсекает отрицательные, но дублирующая проверка

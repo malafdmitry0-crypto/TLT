@@ -110,6 +110,41 @@ class TestSingleCoreLinear:
         assert r2.cable_length == pytest.approx(r1.cable_length * 3, rel=1e-4)
         assert r2.num_circuits == 3
 
+    def test_selection_uses_passport_resistance_for_power_and_current(self):
+        catalog = [
+            {"model": "ТТ Р1 80,00", "conductor_cross_section": 0.22, "resistance_ohm_km": 80.0},
+            {"model": "ТТ Р1 50,00", "conductor_cross_section": 0.35, "resistance_ohm_km": 50.0},
+        ]
+        r = calc_resistive_single_core(
+            _sc(required_heat_loss=5000.0, pipe_length=100.0, cable_catalog=catalog)
+        )
+        assert r.selected_cable == "ТТ Р1 80,00"
+        assert r.resistance_ohm_km == pytest.approx(80.0)
+        assert r.circuit_resistance_ohm == pytest.approx(8.0)
+        assert r.total_power == pytest.approx(220.0**2 / 8.0, rel=1e-4)
+        assert r.current == pytest.approx((220.0**2 / 8.0) / 220.0, rel=1e-4)
+        assert r.current <= 65.0
+
+    def test_selection_rejects_passport_cables_above_65a(self):
+        catalog = [
+            {"model": "ТТ Р1 1,810", "conductor_cross_section": 9.69, "resistance_ohm_km": 1.81},
+            {"model": "ТТ Р1 80,00", "conductor_cross_section": 0.22, "resistance_ohm_km": 80.0},
+        ]
+        r = calc_resistive_single_core(
+            _sc(required_heat_loss=5000.0, pipe_length=100.0, cable_catalog=catalog)
+        )
+        assert r.selected_cable == "ТТ Р1 80,00"
+        assert r.current <= 65.0
+
+    def test_all_passport_candidates_over_65a_raise(self):
+        catalog = [
+            {"model": "ТТ Р1 1,810", "conductor_cross_section": 9.69, "resistance_ohm_km": 1.81},
+        ]
+        with pytest.raises(ValueError, match="65 А"):
+            calc_resistive_single_core(
+                _sc(required_heat_loss=5000.0, pipe_length=100.0, cable_catalog=catalog)
+            )
+
 
 class TestSingleCoreLoop:
     def test_loop_requires_larger_cross_section_than_line(self):

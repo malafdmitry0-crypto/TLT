@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.guest_activity import should_touch_guest_session_in_db
 from app.core.security import decode_token
 from app.models.guest_session import GuestSession
 from app.models.user import User
@@ -101,10 +102,11 @@ async def get_current_user_or_guest(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Сессия не найдена или истекла",
             )
-        # Любой запрос от пользователя продлевает TTL сессии: пока работает —
-        # данные живут, ушёл — через GUEST_SESSION_TTL_MINUTES фоновый cleanup удалит.
-        session.last_activity = datetime.now(UTC)
-        await db.commit()
+        # Redis stores a fresh heartbeat on every request, while Postgres
+        # last_activity is throttled to avoid UPDATE+COMMIT on every GET.
+        if await should_touch_guest_session_in_db(session.session_id):
+            session.last_activity = datetime.now(UTC)
+            await db.commit()
         return CurrentPrincipal(role="guest", session_id=session.session_id)
     if access_cookie is not None:
         user = await get_current_user(credentials, access_cookie, db)

@@ -222,7 +222,9 @@ def build_electrical_error_context(
     context: dict[str, Any] = {}
 
     _add_context_value(context, "cable_type", cable_type)
-    if "t среды" in lower_message:
+    if "t3" in lower_message or "maintain_temperature" in lower_message:
+        context["temperature_subject"] = "maintain"
+    elif "t среды" in lower_message:
         context["temperature_subject"] = "ambient"
     elif (
         "пропарк" in lower_message or "max_vapor_temp" in lower_message or "t проп" in lower_message
@@ -240,6 +242,7 @@ def build_electrical_error_context(
         "heating_height",
         "laying_step",
         "vapor_temperature",
+        "maintain_temperature",
         "process_temperature",
         "shape",
         "height",

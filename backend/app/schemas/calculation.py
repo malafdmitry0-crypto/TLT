@@ -16,6 +16,7 @@ from app.schemas.project import (
     ProjectObjectResponse,
     ProjectObjectsPageInfo,
 )
+from app.schemas.report import ReportExportTaskResult
 
 # ---------- Heat loss ----------
 
@@ -400,9 +401,21 @@ class SelfRegulatingTTParams(BaseModel):
 
     required_power_per_meter: float = Field(gt=0, description="Требуемая мощность, Вт/м")
     pipe_length: float = Field(gt=0, description="Длина трубопровода/секции, м")
-    process_temperature: float = Field(description="T_ж — температура жидкости, °C")
+    process_temperature: float = Field(
+        description="T1 — температура продукта для выбора серии ТТН/ТТВ/ТТХ, °C"
+    )
+    maintain_temperature: float | None = Field(
+        default=None,
+        description=(
+            "T3 — температура поддержания для расчёта q_б(T3), °C; "
+            "если не задана, для совместимости используется T1/process_temperature"
+        ),
+    )
     supply_voltage: float = Field(default=220.0, gt=0, description="U — напряжение питания, В")
-    vapor_temperature: float | None = Field(default=None, description="Температура пропарки, °C")
+    vapor_temperature: float | None = Field(
+        default=None,
+        description="T2 — температура пропарки для выбора серии ТТН/ТТВ/ТТХ, °C",
+    )
     aggressive_product: bool = Field(
         default=False, description="Агрессивная среда → суффикс -СТ в марке"
     )
@@ -418,8 +431,8 @@ class SelfRegulatingTTParams(BaseModel):
     number_of_threads: int | None = Field(
         default=None,
         ge=1,
-        le=3,
-        description="Заданное пользователем количество ниток; null — автоподбор",
+        le=100,
+        description="Заданное пользователем количество ниток; null — автоподбор по full-version policy",
     )
     cable_mark: str | None = Field(default=None, description="Марка кабеля; null — автоподбор")
     safety_factor: float = Field(default=1.1, ge=1.0, le=2.0)
@@ -499,6 +512,10 @@ class ResistiveSingleCoreResult(BaseModel):
     conductor_cross_section: float
     cable_length: float
     required_cross_section: float
+    resistance_ohm_km: float | None = None
+    circuit_resistance_ohm: float | None = None
+    max_current_limit_a: float | None = None
+    power_margin_w: float | None = None
     total_power: float
     current: float
     voltage: float
@@ -553,6 +570,10 @@ class ResistiveThreeCoreResult(BaseModel):
     conductor_cross_section: float
     cable_length: float
     required_cross_section: float
+    resistance_ohm_km: float | None = None
+    circuit_resistance_ohm: float | None = None
+    max_current_limit_a: float | None = None
+    power_margin_w: float | None = None
     total_power: float
     current: float
     voltage: float
@@ -711,6 +732,7 @@ class ElectricalBatchJobRequest(BaseModel):
     number_of_threads: int | None = None
     heating_height: float | None = None
     laying_step: float | None = None
+    maintain_temperature: float | None = None
     vapor_temperature: float | None = None
     aggressive_product: bool = False
     skip_manual: bool = False
@@ -726,6 +748,7 @@ class ElectricalBatchJobRequest(BaseModel):
             "number_of_threads": self.number_of_threads,
             "heating_height": self.heating_height,
             "laying_step": self.laying_step,
+            "maintain_temperature": self.maintain_temperature,
             "vapor_temperature": self.vapor_temperature,
             "aggressive_product": self.aggressive_product,
         }
@@ -760,7 +783,7 @@ class CalculationTaskResponse(BaseModel):
     status: TaskStatus
     project_id: UUID | None = None
     progress: CalculationTaskProgress
-    result: BatchElectricalResponse | BatchCalcResponse | None = None
+    result: BatchElectricalResponse | BatchCalcResponse | ReportExportTaskResult | None = None
     error_message: str | None = None
     cancel_requested: bool = False
     created_at: datetime
