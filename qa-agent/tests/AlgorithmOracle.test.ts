@@ -203,6 +203,29 @@ describe('AlgorithmOracle', () => {
     });
   });
 
+  it('evaluates full-version resistive VSDX auto selection', () => {
+    const result = new AlgorithmOracle(registry()).evaluate(
+      testCase('tlt_resistive_vsdx_auto_select', {
+        requiredHeatLoss: 5000,
+        objectLength: 100,
+        catalog: [
+          { model: 'TT R1 100', resistanceOhmKm: 100, conductorCrossSection: 0.47 },
+          { model: 'TT R1 80', resistanceOhmKm: 80, conductorCrossSection: 0.22 },
+        ],
+      }),
+    );
+
+    expect(result.metadata.ok).toBe(true);
+    expect(result.value).toMatchObject({
+      model: 'TT R1 100',
+      voltage: 380,
+      threads: 2,
+      schemes: 1,
+      connectionType: 'loop_1ph',
+    });
+    expect((result.value as { totalPower: number }).totalPower).toBeGreaterThan(5000);
+  });
+
   it('returns a structured error for unsupported algorithms', () => {
     const result = new AlgorithmOracle(registry()).evaluate(testCase('unknown_algorithm', {}));
 

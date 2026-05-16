@@ -94,6 +94,16 @@ VALID_CABLE_MARK_SOURCES = {
     CABLE_MARK_SOURCE_AUTO,
     CABLE_MARK_SOURCE_MANUAL,
 }
+THREAD_SOURCE_MANUAL = "manual"
+THREAD_SOURCE_AUTO = "auto"
+THREAD_SOURCE_DEFAULT = "default"
+THREAD_SOURCE_PREVIOUS_RESULT = "previous_result"
+VALID_THREAD_SOURCES = {
+    THREAD_SOURCE_MANUAL,
+    THREAD_SOURCE_AUTO,
+    THREAD_SOURCE_DEFAULT,
+    THREAD_SOURCE_PREVIOUS_RESULT,
+}
 
 
 async def _maybe_await(value: Awaitable[Any] | Any) -> Any:
@@ -294,6 +304,12 @@ class CalculationService:
                 "max_temperature": c.max_temperature,
                 "min_temperature": c.min_temperature,
                 "resistance_per_meter": c.resistance_per_meter,
+                "price_per_meter": c.price_per_meter,
+                "stock_quantity_m": c.stock_quantity_m,
+                "lead_time_days": c.lead_time_days,
+                "supplier_priority": c.supplier_priority,
+                "is_preferred": c.is_preferred,
+                "order_multiple_m": c.order_multiple_m,
             }
             for c in result.scalars().all()
         ]
@@ -417,26 +433,38 @@ class CalculationService:
         """
         normalized = dict(data)
         climate = cls._climate_entry(normalized)
-        explicit_safety_factor = cls._num(normalized.get("safety_factor")) is not None
+        safety_factor = cls._num(normalized.get("safety_factor"))
+        safety_factor_source = normalized.get("safety_factor_source")
+        safety_factor_is_default_value = safety_factor_source is None and safety_factor == 1.1
+        explicit_safety_factor = (
+            safety_factor is not None
+            and safety_factor_source not in ("default", "climate_policy")
+            and not safety_factor_is_default_value
+        )
+        safety_factor_from_policy = False
 
         if object_type == "pipe":
             diameter = cls._num(normalized.get("outer_diameter"))
             if diameter is None or diameter <= 0:
+                normalized.pop("climate_temperature_basis", None)
                 return normalized
             diameter_mm = diameter * 1000.0
             if diameter_mm >= 100.0:
                 if not explicit_safety_factor:
                     normalized["safety_factor"] = 1.1
+                    safety_factor_from_policy = True
                 basis = "t_0_92"
                 rule = "pipe_diameter_ge_100"
             else:
                 if not explicit_safety_factor:
                     normalized["safety_factor"] = 1.12
+                    safety_factor_from_policy = True
                 basis = "t_abs_min"
                 rule = "pipe_diameter_lt_100"
         elif object_type == "tank":
             if not explicit_safety_factor:
                 normalized["safety_factor"] = 1.1
+                safety_factor_from_policy = True
             basis = "t_0_92"
             rule = "non_pipe_cold_fiveday_0_92"
         else:
@@ -447,8 +475,13 @@ class CalculationService:
             normalized["ambient_temperature"] = climate_temperature
             normalized["ambient_temperature_source"] = "climate"
             normalized["climate_temperature_basis"] = basis
+        else:
+            normalized.pop("climate_temperature_basis", None)
         normalized["climate_policy_rule"] = rule
-        normalized["safety_factor_source"] = "climate_policy"
+        if safety_factor_from_policy:
+            normalized["safety_factor_source"] = "climate_policy"
+        elif explicit_safety_factor and safety_factor_source is None:
+            normalized["safety_factor_source"] = "manual"
         return normalized
 
     async def _heat_batch_count(
@@ -659,6 +692,7 @@ class CalculationService:
                 f"Для типа кабеля «{cable_type}» расчётная формула не реализована"
             )
 
+        self._apply_thread_result_metadata(request.data, result_dict)
         return cable_mark, result_dict
 
     def _upsert_electrical_calculation(
@@ -682,7 +716,7 @@ class CalculationService:
                 cable_type_source=cable_type_source,
                 cable_mark=cable_mark,
                 cable_mark_source=cable_mark_source,
-                params=request.data,
+                params=self._compact_electrical_params(request.data),
                 results=result_dict,
             )
             self.db.add(calc)
@@ -691,7 +725,7 @@ class CalculationService:
             calc.cable_type_source = cable_type_source
             calc.cable_mark = cable_mark
             calc.cable_mark_source = cable_mark_source
-            calc.params = request.data
+            calc.params = self._compact_electrical_params(request.data)
             calc.results = result_dict
         return calc
 
@@ -754,11 +788,40 @@ class CalculationService:
         return CABLE_MARK_SOURCE_AUTO
 
     @staticmethod
+    def _normalize_thread_source(value: Any) -> str | None:
+        if isinstance(value, str) and value in VALID_THREAD_SOURCES:
+            return value
+        return None
+
+    @staticmethod
     def _resolve_cable_mark_source(data: dict[str, Any]) -> str:
         source = data.get("cable_mark_source")
         if source in VALID_CABLE_MARK_SOURCES:
             return str(source)
         return CABLE_MARK_SOURCE_MANUAL if data.get("cable_mark") else CABLE_MARK_SOURCE_AUTO
+
+    @staticmethod
+    def _compact_electrical_params(data: dict[str, Any]) -> dict[str, Any]:
+        return {key: value for key, value in data.items() if key != "cable_catalog"}
+
+    @classmethod
+    def _apply_thread_result_metadata(
+        cls,
+        request_data: dict[str, Any],
+        result_dict: dict[str, Any],
+    ) -> None:
+        applied = result_dict.get("num_circuits")
+        if applied is None:
+            return
+        source = (
+            cls._normalize_thread_source(request_data.get("number_of_threads_source"))
+            or cls._normalize_thread_source(result_dict.get("number_of_threads_source"))
+            or THREAD_SOURCE_MANUAL
+        )
+        requested = request_data.get("requested_number_of_threads")
+        result_dict["requested_number_of_threads"] = requested
+        result_dict["applied_number_of_threads"] = applied
+        result_dict["number_of_threads_source"] = source
 
     async def _bulk_upsert_electrical_calculation_chunk(
         self,
@@ -813,6 +876,111 @@ class CalculationService:
         if parsed is None:
             raise CalculationError(message)
         return parsed
+
+    @staticmethod
+    def _pick_numeric_policy(
+        *,
+        key: str,
+        fallback: float | None,
+        overrides: dict[str, Any],
+        params: dict[str, Any],
+        coefficients: dict[str, float] | None,
+        aliases: tuple[str, ...] = (),
+    ) -> float | None:
+        for source in (overrides, params, coefficients or {}):
+            for candidate_key in (key, *aliases):
+                if source.get(candidate_key) is not None:
+                    return CalculationService._num(source.get(candidate_key), fallback)
+        return fallback
+
+    @staticmethod
+    def _resistive_selection_mode(overrides: dict[str, Any], params: dict[str, Any]) -> str:
+        raw = (
+            overrides.get("selection_mode")
+            or params.get("selection_mode")
+            or params.get("resistive_selection_mode")
+            or "auto"
+        )
+        return "manual" if raw == "manual" else "auto"
+
+    def _resistive_policy_payload(
+        self,
+        *,
+        overrides: dict[str, Any],
+        params: dict[str, Any],
+        coefficients: dict[str, float] | None,
+        supply_voltage: float,
+    ) -> dict[str, Any]:
+        """DB-backed VSDX policy values with deterministic fallbacks."""
+        max_linear_power = self._pick_numeric_policy(
+            key="max_linear_power_w_m",
+            fallback=None,
+            overrides=overrides,
+            params=params,
+            coefficients=coefficients,
+            aliases=("resistive_max_linear_power_w_m",),
+        )
+        max_parallel = self._pick_numeric_policy(
+            key="max_parallel_schemes",
+            fallback=20.0,
+            overrides=overrides,
+            params=params,
+            coefficients=coefficients,
+            aliases=("resistive_max_parallel_schemes",),
+        )
+        return {
+            "selection_mode": self._resistive_selection_mode(overrides, params),
+            "start_voltage": self._pick_numeric_policy(
+                key="start_voltage",
+                fallback=supply_voltage,
+                overrides=overrides,
+                params=params,
+                coefficients=coefficients,
+                aliases=("resistive_start_voltage_v", "resistive_default_voltage_v"),
+            ),
+            "high_voltage": self._pick_numeric_policy(
+                key="high_voltage",
+                fallback=380.0,
+                overrides=overrides,
+                params=params,
+                coefficients=coefficients,
+                aliases=("resistive_high_voltage_v",),
+            ),
+            "min_adjusted_voltage": self._pick_numeric_policy(
+                key="min_adjusted_voltage",
+                fallback=1.0,
+                overrides=overrides,
+                params=params,
+                coefficients=coefficients,
+                aliases=("resistive_min_adjusted_voltage_v", "resistive_min_voltage_v"),
+            ),
+            "voltage_step": self._pick_numeric_policy(
+                key="voltage_step",
+                fallback=1.0,
+                overrides=overrides,
+                params=params,
+                coefficients=coefficients,
+                aliases=("resistive_voltage_step_v",),
+            ),
+            "max_current_a": self._pick_numeric_policy(
+                key="max_current_a",
+                fallback=65.0,
+                overrides=overrides,
+                params=params,
+                coefficients=coefficients,
+                aliases=("resistive_max_current_a",),
+            ),
+            "max_linear_power_w_m": max_linear_power,
+            "max_parallel_schemes": int(max_parallel or 20),
+            "max_conductor_temperature": self._pick_numeric_policy(
+                key="max_conductor_temperature",
+                fallback=None,
+                overrides=overrides,
+                params=params,
+                coefficients=coefficients,
+                aliases=("resistive_max_conductor_temperature",),
+            ),
+        }
 
     @staticmethod
     def _positive_heat_loss(value: Any) -> float:
@@ -886,6 +1054,44 @@ class CalculationService:
         if value < 1 or value > 100:
             raise ValueError("Количество ниток должно быть в диапазоне 1…100")
         return value
+
+    def _number_of_threads_payload(
+        self,
+        overrides: dict[str, Any],
+        params: dict[str, Any],
+        default: int | None,
+    ) -> dict[str, Any]:
+        raw = overrides.get("number_of_threads")
+        source = self._normalize_thread_source(overrides.get("number_of_threads_source"))
+        if raw is not None:
+            value = self._number_of_threads({"number_of_threads": raw}, {}, None)
+            source = source or THREAD_SOURCE_MANUAL
+        else:
+            raw = params.get("number_of_threads")
+            if raw is not None:
+                value = self._number_of_threads({}, {"number_of_threads": raw}, None)
+                source = THREAD_SOURCE_MANUAL
+            elif default is not None:
+                value = default
+                source = THREAD_SOURCE_DEFAULT
+            else:
+                value = None
+                source = THREAD_SOURCE_AUTO
+        return {
+            "number_of_threads": value,
+            "requested_number_of_threads": value if source == THREAD_SOURCE_MANUAL else None,
+            "number_of_threads_source": source,
+        }
+
+    @staticmethod
+    def _base_overrides_with_sources(overrides: dict[str, Any]) -> dict[str, Any]:
+        normalized = dict(overrides)
+        if (
+            normalized.get("number_of_threads") is not None
+            and normalized.get("number_of_threads_source") is None
+        ):
+            normalized["number_of_threads_source"] = THREAD_SOURCE_MANUAL
+        return normalized
 
     @staticmethod
     def _max_winding_coefficient_for_diameter(diameter_m: float) -> float:
@@ -1075,6 +1281,7 @@ class CalculationService:
         cable_mark: str | None,
         tlt_catalog: list[dict[str, Any]],
         overrides: dict[str, Any],
+        coefficients: dict[str, float] | None = None,
     ) -> dict[str, Any]:
         """Единый маппинг теплопотери/объект → payload электрической формулы."""
         if not obj.is_valid or not obj.results:
@@ -1109,6 +1316,11 @@ class CalculationService:
         )
 
         if cable_type == "self_regulating":
+            thread_payload = self._number_of_threads_payload(
+                overrides,
+                params,
+                1 if cable_mark is not None else None,
+            )
             return {
                 "required_power_per_meter": self._required_power_per_meter(
                     obj, cable_type, overrides, safety_factor or 1.1
@@ -1122,10 +1334,11 @@ class CalculationService:
                 "cable_catalog": tlt_catalog,
                 "winding_coefficient": self._winding_coefficient(obj, overrides, params, 1.0),
                 "winding_pitch": winding_pitch,
-                "number_of_threads": self._number_of_threads(overrides, params, 1),
+                **thread_payload,
             }
 
         if cable_type == "self_regulating_tt":
+            thread_payload = self._number_of_threads_payload(overrides, params, None)
             data = {
                 "required_power_per_meter": self._required_power_per_meter(
                     obj, cable_type, overrides, safety_factor or 1.1
@@ -1143,13 +1356,13 @@ class CalculationService:
                 "aggressive_product": bool(overrides.get("aggressive_product", False)),
                 "winding_coefficient": self._winding_coefficient(obj, overrides, params, 1.1),
                 "winding_pitch": winding_pitch,
-                "number_of_threads": self._number_of_threads(overrides, params, None),
+                **thread_payload,
             }
             data.update(self._tank_geometry_payload(obj, overrides))
             return data
 
         if cable_type in ("single_core", "three_core"):
-            default_connection = "line_1ph"
+            thread_payload = self._number_of_threads_payload(overrides, params, 1)
             data = {
                 "required_heat_loss": self._positive_heat_loss(results.get("total_heat_loss")),
                 "pipe_length": pipe_length,
@@ -1159,12 +1372,23 @@ class CalculationService:
                     "Для резистивного кабеля требуется температура продукта",
                 ),
                 "supply_voltage": supply_voltage,
-                "connection_type": overrides.get("connection_type") or default_connection,
+                "maintain_temperature": maintain_temperature,
+                "connection_type": overrides.get("connection_type")
+                or params.get("connection_type")
+                or "line_1ph",
                 "winding_coefficient": self._winding_coefficient(obj, overrides, params, 1.0),
                 "winding_pitch": winding_pitch,
-                "number_of_threads": self._number_of_threads(overrides, params, 1),
+                **thread_payload,
                 "cable_catalog": self._resistive_manual_catalog(cable_type, cable_mark),
             }
+            data.update(
+                self._resistive_policy_payload(
+                    overrides=overrides,
+                    params=params,
+                    coefficients=coefficients,
+                    supply_voltage=supply_voltage,
+                )
+            )
             data.update(self._tank_geometry_payload(obj, overrides))
             return data
 
@@ -1175,10 +1399,29 @@ class CalculationService:
             return {}
         results = calc.results
         overrides: dict[str, Any] = {}
+        is_auto_resistive = (
+            getattr(calc, "cable_type", None) in ("single_core", "three_core")
+            and results.get("selection_mode") == "auto"
+        )
+        calc_params = getattr(calc, "params", None)
+        params_source = (
+            (calc_params or {}).get("number_of_threads_source")
+            if isinstance(calc_params, dict)
+            else None
+        )
+        thread_source = self._normalize_thread_source(
+            results.get("number_of_threads_source") or params_source
+        )
         if results.get("winding_pitch") is not None:
             overrides["winding_pitch"] = results.get("winding_pitch")
-        if results.get("num_circuits") is not None:
+        should_reuse_threads = thread_source not in (THREAD_SOURCE_AUTO, THREAD_SOURCE_DEFAULT)
+        if (
+            results.get("num_circuits") is not None
+            and not is_auto_resistive
+            and should_reuse_threads
+        ):
             overrides["number_of_threads"] = results.get("num_circuits")
+            overrides["number_of_threads_source"] = THREAD_SOURCE_PREVIOUS_RESULT
         if results.get("winding_coefficient") is not None and "winding_pitch" not in overrides:
             overrides["winding_coefficient"] = results.get("winding_coefficient")
         return overrides
@@ -1214,12 +1457,16 @@ class CalculationService:
             raise CalculationError("Теплопотери объекта не рассчитаны — невозможно выбрать кабель")
 
         catalog = await self.load_cable_catalog(cable_source)
+        coefficients = (
+            await self.get_coefficients() if cable_type in ("single_core", "three_core") else None
+        )
         data = self._build_electrical_data(
             obj=obj,
             cable_type=cable_type,
             cable_mark=cable_mark,
             tlt_catalog=catalog,
-            overrides=electrical_params or {},
+            overrides=self._base_overrides_with_sources(electrical_params or {}),
+            coefficients=coefficients,
         )
         data["cable_mark_source"] = CABLE_MARK_SOURCE_MANUAL
         request = ElectricalRequest(
@@ -1427,7 +1674,8 @@ class CalculationService:
         errors: list[dict[str, Any]] = []
         calcs: list[ElectricalCalculation] = []
         catalog = await self.load_cable_catalog(cable_source)
-        base_overrides = electrical_params or {}
+        base_overrides = self._base_overrides_with_sources(electrical_params or {})
+        resistive_coefficients: dict[str, float] | None = None
         processed = 0
         last_sort_order: int | None = None
         last_id: UUID | None = None
@@ -1493,12 +1741,18 @@ class CalculationService:
                         base_overrides,
                         self._layout_overrides_from_existing(existing_calc),
                     )
+                    if (
+                        object_cable_type in ("single_core", "three_core")
+                        and resistive_coefficients is None
+                    ):
+                        resistive_coefficients = await self.get_coefficients()
                     request_data = self._build_electrical_data(
                         obj=obj,
                         cable_type=object_cable_type,
                         cable_mark=None,
                         tlt_catalog=catalog,
                         overrides=overrides,
+                        coefficients=resistive_coefficients,
                     )
                     request_data["cable_type_source"] = cable_type_source
                     request_data["cable_mark_source"] = CABLE_MARK_SOURCE_AUTO
@@ -1622,6 +1876,9 @@ class CalculationService:
         error_request_data = dict(obj.params or {})
         if request_data:
             error_request_data.update(request_data)
+            params.update(self._compact_electrical_params(request_data))
+        params["cable_type_source"] = normalized_source
+        params["cable_mark_source"] = normalized_mark_source
         payload = build_electrical_error_payload(
             error_message,
             object_type=obj.object_type,

@@ -111,6 +111,7 @@ export type CableType =
 export interface ElectricalBatchOptions {
   supplyVoltage?: number | null;
   connectionType?: string | null;
+  selectionMode?: 'auto' | 'manual' | null;
   windingCoefficient?: number | null;
   windingPitchMm?: number | null;
   numberOfThreads?: number | null;
@@ -135,6 +136,7 @@ function electricalParams(
   return {
     cable_type: cableType,
     supply_voltage: options.supplyVoltage ?? undefined,
+    selection_mode: options.selectionMode ?? undefined,
     connection_type: options.connectionType ?? undefined,
     winding_coefficient: options.windingCoefficient ?? undefined,
     winding_pitch: options.windingPitchMm ?? undefined,
@@ -257,6 +259,13 @@ export interface CableInfo {
   power_per_meter: number;
   max_temperature: number;
   min_temperature: number;
+  resistance_per_meter?: number | null;
+  price_per_meter?: number | null;
+  stock_quantity_m?: number | null;
+  lead_time_days?: number | null;
+  supplier_priority?: number | null;
+  is_preferred?: boolean;
+  order_multiple_m?: number | null;
   voltage?: number;
   source?: CableSource;
 }

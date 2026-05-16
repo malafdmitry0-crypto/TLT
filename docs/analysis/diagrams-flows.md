@@ -102,7 +102,7 @@ sequenceDiagram
     Form->>Form: R_ins = ln(0.107/0.057)\n/ (2π · 0.04 · 1)\n= 2.35 (м·°C/Вт)
 
     Note over Form: 4. Внешнее конвективное сопротивление
-    Form->>Form: alpha_ext = 10 Вт/(м²·°C)\n(надземная прокладка)
+    Form->>Form: alpha_ext = min((11.6 + 7√v)\n× wind_factor, 52)
     Form->>Form: R_ext = 1 / (2π · r_ins_outer · alpha_ext)\n= 0.149 (м·°C/Вт)
 
     Note over Form: 5. Суммарное сопротивление
@@ -112,13 +112,13 @@ sequenceDiagram
     Form->>Form: ΔT = t_proc - t_amb = 80 - (-30) = 110 °C
     Form->>Form: q_base = ΔT / R_total = 110 / 2.499\n= 44.0 Вт/м
 
-    Note over Form: 7. Применение корректирующих коэффициентов
-    Form->>Form: q_corrected = q_base\n× wind_factor (1.05)\n× location_outdoor (1.0)\n= 46.2 Вт/м
+    Note over Form: 7. Удельные теплопотери без K
+    Form->>Form: q_linear = q_base\nlocation_* сейчас не применяется
 
     Note over Form: 8. Коэффициент запаса
-    Form->>Form: q_final = q_corrected × safety_factor\n= 46.2 × 1.1 = 50.8 Вт/м
+    Form->>Form: Q_total = q_linear × L_eff × safety_factor
 
-    Form-->>API: { heat_loss_per_meter: 50.8,\n  total_heat_loss: 5080,\n  r_wall: 0.000184,\n  r_insulation: [2.35],\n  r_ext: 0.149,\n  applied_coefficients: {safety:1.1,\n    wind:1.05, location:1.0} }
+    Form-->>API: { heat_loss_per_meter: q_linear,\n  total_heat_loss: Q_total,\n  r_wall: 0.000184,\n  r_insulation: [2.35],\n  r_ext: 0.149,\n  safety_factor:1.1 }
 ```
 
 ---

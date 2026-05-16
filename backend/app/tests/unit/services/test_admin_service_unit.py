@@ -196,9 +196,17 @@ class TestCables:
                 power_per_meter=20.0,
                 max_temperature=100.0,
                 min_temperature=-30.0,
+                price_per_meter=520.0,
+                stock_quantity_m=150.0,
+                lead_time_days=7,
+                supplier_priority=20,
+                is_preferred=True,
+                order_multiple_m=10.0,
             )
         )
         assert cable.brand == "X"
+        assert cable.price_per_meter == 520.0
+        assert cable.is_preferred is True
         db.add.assert_called_once()
 
     async def test_update_cable_unknown_raises(self):
@@ -221,10 +229,17 @@ class TestCables:
         db = _mock_db(scalar=existing)
         result = await AdminService(db).update_cable(
             existing.id,
-            CableExtendedUpdate(brand="New", power_per_meter=15.0),
+            CableExtendedUpdate(
+                brand="New",
+                power_per_meter=15.0,
+                price_per_meter=430.0,
+                stock_quantity_m=80.0,
+            ),
         )
         assert result.brand == "New"
         assert result.power_per_meter == 15.0
+        assert result.price_per_meter == 430.0
+        assert result.stock_quantity_m == 80.0
 
     async def test_delete_cable_unknown_raises(self):
         db = _mock_db(scalar=None)

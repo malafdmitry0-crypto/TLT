@@ -20,8 +20,8 @@
 ## Автоматическое тестирование
 
 ```
-make test-backend        # 934 backend-теста: unit + integration
-make test-frontend       # Vitest: unit + integration (frontend)
+make test-backend        # backend unit + integration
+make test-frontend       # Vitest unit + integration
 ```
 
 Состояние: **см. automation-coverage.md** и `README.md` AUTO-блоки.

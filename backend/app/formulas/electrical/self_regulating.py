@@ -13,6 +13,7 @@ from app.schemas.calculation import (
 )
 
 CableRow = dict[str, Any]
+MAX_SELF_REG_AUTO_THREADS = 3
 
 
 def _lookup_by_mark(catalog: list[CableRow], mark: str) -> CableRow | None:
@@ -70,18 +71,17 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
 
     required_effective = params.required_power_per_meter * params.safety_factor
     process_temp = getattr(params, "process_temperature", None)
-    layout_factor = params.winding_coefficient * params.number_of_threads
+    requested_threads = params.number_of_threads
 
     if params.cable_mark is None:
         # Автоподбор: минимально-мощный кабель, удовлетворяющий ВСЕМ трём условиям
         #   1) power_per_meter × k_навива × ниток ≥ required_effective
         #   2) min_temperature ≤ ambient_temperature (монтаж при холоде)
         #   3) max_temperature ≥ process_temperature (не перегреется)
-        candidates = [
+        temperature_candidates = [
             c
             for c in catalog
             if c.get("power_per_meter") is not None
-            and c["power_per_meter"] * layout_factor >= required_effective
             and c.get("min_temperature") is not None
             and c["min_temperature"] <= params.ambient_temperature
             and (
@@ -89,19 +89,8 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
                 or (c.get("max_temperature") is not None and c["max_temperature"] >= process_temp)
             )
         ]
-        if not candidates:
-            by_power = [
-                c
-                for c in catalog
-                if c.get("power_per_meter") is not None
-                and c["power_per_meter"] * layout_factor >= required_effective
-            ]
-            if not by_power:
-                raise ValueError(
-                    f"Не найден кабель с мощностью ≥ {required_effective:.2f} Вт/м "
-                    "с учётом навива и количества ниток "
-                    "(максимум линейки — 100 Вт/м на одну нитку)"
-                )
+        if not temperature_candidates:
+            by_power = [c for c in catalog if c.get("power_per_meter") is not None]
             by_min_t = [
                 c
                 for c in by_power
@@ -117,18 +106,51 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
                 f"Не найден кабель, выдерживающий T продукта = {process_temp}°C "
                 f"при требуемой мощности ≥ {required_effective:.2f} Вт/м"
             )
-        cable = min(candidates, key=lambda c: c["power_per_meter"])
+
+        if requested_threads is None:
+            candidates = [
+                (threads, c)
+                for threads in range(1, MAX_SELF_REG_AUTO_THREADS + 1)
+                for c in temperature_candidates
+                if c["power_per_meter"] * params.winding_coefficient * threads >= required_effective
+            ]
+        else:
+            candidates = [
+                (requested_threads, c)
+                for c in temperature_candidates
+                if c["power_per_meter"] * params.winding_coefficient * requested_threads
+                >= required_effective
+            ]
+        if not candidates:
+            raise ValueError(
+                f"Не найден кабель с мощностью ≥ {required_effective:.2f} Вт/м "
+                "с учётом навива и количества ниток "
+                f"(максимум линейки — 100 Вт/м на одну нитку, "
+                f"максимум ниток — {MAX_SELF_REG_AUTO_THREADS})"
+            )
+        applied_threads, cable = min(
+            candidates,
+            key=lambda item: (
+                item[0],
+                item[1]["power_per_meter"],
+                item[1]["power_per_meter"] * item[0],
+            ),
+        )
+        thread_source = "auto" if requested_threads is None else "manual"
     else:
         looked_up = _lookup_by_mark(catalog, params.cable_mark)
         if looked_up is None:
             raise ValueError(f"Кабель «{params.cable_mark}» не найден в справочнике")
         cable = looked_up
+        applied_threads = requested_threads or 1
+        thread_source = "default" if requested_threads is None else "manual"
 
+    layout_factor = params.winding_coefficient * applied_threads
     installed_power_per_meter = cable["power_per_meter"] * layout_factor
     if installed_power_per_meter < required_effective:
         raise ValueError(
             f"Кабель {cable['model']} ({cable['power_per_meter']} Вт/м × "
-            f"{params.winding_coefficient:.3f} × {params.number_of_threads}) "
+            f"{params.winding_coefficient:.3f} × {applied_threads}) "
             f"не обеспечивает требуемую мощность {required_effective:.1f} Вт/м"
         )
     if params.ambient_temperature < cable["min_temperature"]:
@@ -156,7 +178,10 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
         voltage=params.supply_voltage,
         winding_pitch=round(params.winding_pitch or 0.0, 3),
         winding_coefficient=round(params.winding_coefficient, 6),
-        num_circuits=params.number_of_threads,
+        num_circuits=applied_threads,
+        requested_number_of_threads=requested_threads,
+        applied_number_of_threads=applied_threads,
+        number_of_threads_source=thread_source,
     )
 
 

@@ -192,7 +192,7 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.getByTestId('q-additional-input')).toHaveValue('');
   });
 
-  it('показывает климатическую обеспеченность и источники, когда выбран климат', async () => {
+  it('показывает расчётную климатическую обеспеченность и источники, когда выбран климат', async () => {
     renderWizard({
       initialParams: {
         ...basePipeParams,
@@ -205,7 +205,7 @@ describe('ObjectWizard dependencies', () => {
       },
     });
 
-    expect(await screen.findByTestId('climate-basis-select')).toBeVisible();
+    expect(await screen.findByTestId('climate-basis-display')).toHaveDisplayValue(/0,92/);
     expect(screen.getByTestId('wind-speed-input')).toBeVisible();
     expect(screen.getByTestId('alpha-vnesh-input')).toBeVisible();
     expect(screen.getAllByText('из климата').length).toBeGreaterThanOrEqual(1);
@@ -214,7 +214,7 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.queryByText('Грунт')).not.toBeInTheDocument();
   });
 
-  it('помечает климатическую обеспеченность при выбранном климате, но позволяет сохранить для расчёта статуса', async () => {
+  it('сохраняет климатическую обеспеченность как расчётное значение по алгоритму', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
@@ -227,12 +227,12 @@ describe('ObjectWizard dependencies', () => {
       },
     });
 
-    expect(await screen.findByTestId('climate-basis-select')).toBeVisible();
+    expect(await screen.findByTestId('climate-basis-display')).toHaveDisplayValue(/0,92/);
 
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
-    expect(payload.climate_temperature_basis).toBeUndefined();
+    expect(payload.climate_temperature_basis).toBe('t_0_92');
   });
 
   it('открывает длинный справочник в модальном окне и подставляет выбранный материал', async () => {

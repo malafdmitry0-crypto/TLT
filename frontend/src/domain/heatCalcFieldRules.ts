@@ -123,7 +123,7 @@ function fieldRequired(fieldId: string, context: HeatCalcFieldContext) {
   if (fieldId === 'ground_conductivity') {
     return context.values.placement === 'underground' && isCustomGroundType(context.values.ground_type);
   }
-  if (fieldId === 'climate_temperature_basis') return hasValue(context.values.climate_key);
+  if (fieldId === 'climate_temperature_basis') return false;
   if (fieldId === 'local_element_equiv_length') return context.objectType === 'pipe' && localElementCount(context) > 0;
   if (isRangeField(fieldId)) return context.values[RANGE_FIELDS[fieldId].material] === 'other';
   const materialField = materialFieldForLambda(fieldId);

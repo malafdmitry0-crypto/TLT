@@ -129,11 +129,11 @@ class TestMetamorphicElectrical:
 
     def test_error_message_distinguishes_power_from_tmax(self):
         """Разные ошибки для разных причин."""
-        # Слишком мощно
+        # Слишком мощно даже для 3 ниток
         with pytest.raises(ValueError, match="максимум линейки"):
             calc_self_regulating(
                 _p(
-                    required_power_per_meter=200,  # > 100 / 1.1
+                    required_power_per_meter=400,
                     process_temperature=50,
                     ambient_temperature=-20,
                 )

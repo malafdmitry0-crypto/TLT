@@ -1282,6 +1282,7 @@ function ResistiveTab() {
       add_length: v.add_length ?? 0,
       process_temperature: v.process_temperature,
       supply_voltage: v.supply_voltage ?? 220,
+      selection_mode: v.selection_mode ?? 'manual',
       connection_type: v.connection_type,
       winding_coefficient: v.winding_coefficient ?? 1,
       number_of_threads: v.number_of_threads ?? 1,
@@ -1301,7 +1302,7 @@ function ResistiveTab() {
       <Col xs={24} lg={12}><ResistiveFormulaDisplay /></Col>
       <Col xs={24} lg={12}>
         <div style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}>Проверить резистивный кабель</div>
-        <Form form={form} name="resistive_formula_check" layout="vertical" initialValues={{ cable_kind: 'resistive_single', connection_type: 'line_1ph', supply_voltage: 220, winding_coefficient: 1, number_of_threads: 1 }}>
+        <Form form={form} name="resistive_formula_check" layout="vertical" initialValues={{ cable_kind: 'resistive_single', selection_mode: 'manual', connection_type: 'line_1ph', supply_voltage: 220, winding_coefficient: 1, number_of_threads: 1 }}>
           <Form.Item name="cable_kind" label="Тип кабеля">
             <Select>
               <Select.Option value="resistive_single">ТТ Р1 одножильный</Select.Option>
@@ -1312,6 +1313,12 @@ function ResistiveTab() {
             <Col span={12}><Form.Item name="required_heat_loss" label="Q треб., Вт" rules={[{ required: true }]}><InputNumber min={0.1} style={{ width: '100%' }} placeholder="1000" /></Form.Item></Col>
             <Col span={12}><Form.Item name="pipe_length" label="Длина, м" rules={[{ required: true }]}><InputNumber min={0.1} style={{ width: '100%' }} placeholder="50" /></Form.Item></Col>
           </Row>
+          <Form.Item name="selection_mode" label="Режим подбора">
+            <Select>
+              <Select.Option value="manual">Ручная схема</Select.Option>
+              <Select.Option value="auto">Auto VSDX U/N/M</Select.Option>
+            </Select>
+          </Form.Item>
           <Row gutter={12}>
             <Col span={8}><Form.Item name="add_length" label="Lдоп, м"><InputNumber min={0} style={{ width: '100%' }} placeholder="0" /></Form.Item></Col>
             <Col span={8}><Form.Item name="process_temperature" label="T продукта, °C" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} placeholder="60" /></Form.Item></Col>

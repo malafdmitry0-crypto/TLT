@@ -42,8 +42,8 @@ HEATCALC_FIELD_INPUT_VERSION = 1
 HEATCALC_FIELD_INPUT_MAX_STEP = 1_000_000
 HEATCALC_FIELD_INPUT_KEYS = {"version", "fields"}
 HEATCALC_FIELD_INPUT_LAYOUT_KEYS = {"step"}
-ELECTRICAL_TABLE_COLUMNS_PREF_KEY = "electrical.tableColumns.v1"
-ELECTRICAL_TABLE_COLUMNS_VERSION = 1
+ELECTRICAL_TABLE_COLUMNS_PREF_KEY = "electrical.tableColumns.v2"
+ELECTRICAL_TABLE_COLUMNS_VERSION = 2
 ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView.v1"
 ELECTRICAL_TABLE_VIEW_VERSION = 1
 ELECTRICAL_TABLE_VIEW_KEYS = {
@@ -60,7 +60,6 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
     "electrical_status",
     "cable_type",
     "cable_mark",
-    "selected_cable",
     "variant_number",
     "winding_pitch_mm",
     "number_of_threads",

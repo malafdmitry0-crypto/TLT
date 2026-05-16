@@ -115,8 +115,9 @@ primitives, tank surface areas, tank flat-wall external resistance, tank
 heat-flux primitive, self-reg cable length, TT power curve and resistive
 rho/cross-section primitives. `AlgorithmOracle` also includes the TNP climate
 `K`/temperature rule, max winding coefficient, inclusive TT series limits,
-tank cable length geometry and the passport-resistance resistive oracle
-`R/P/I/65A`.
+tank cable length geometry, the passport-resistance resistive oracle
+`R/P/I/65A`, and full-version resistive `tlt_resistive_vsdx_auto_select`
+for `U/N/M`, `p2/p3`, `L1/L2` with fallback limits.
 
 ## Add A Backend Endpoint
 

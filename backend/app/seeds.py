@@ -165,6 +165,25 @@ async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficie
     return created
 
 
+def _commercial(
+    *,
+    price_per_meter: float,
+    stock_quantity_m: float,
+    lead_time_days: int,
+    supplier_priority: int,
+    is_preferred: bool = False,
+    order_multiple_m: float = 1.0,
+) -> dict[str, object]:
+    return {
+        "price_per_meter": price_per_meter,
+        "stock_quantity_m": stock_quantity_m,
+        "lead_time_days": lead_time_days,
+        "supplier_priority": supplier_priority,
+        "is_preferred": is_preferred,
+        "order_multiple_m": order_multiple_m,
+    }
+
+
 async def seed_cables(db) -> None:
     cables_data = [
         # self_regulating — саморегулирующиеся
@@ -177,6 +196,14 @@ async def seed_cables(db) -> None:
             min_temperature=-60.0,
             resistance_per_meter=None,
             params={"voltage": 230, "protection": "IP67"},
+            **_commercial(
+                price_per_meter=320.0,
+                stock_quantity_m=1200.0,
+                lead_time_days=2,
+                supplier_priority=10,
+                is_preferred=True,
+                order_multiple_m=1.0,
+            ),
         ),
         dict(
             cable_type="self_regulating",
@@ -187,6 +214,13 @@ async def seed_cables(db) -> None:
             min_temperature=-60.0,
             resistance_per_meter=None,
             params={"voltage": 230, "protection": "IP67"},
+            **_commercial(
+                price_per_meter=380.0,
+                stock_quantity_m=900.0,
+                lead_time_days=3,
+                supplier_priority=15,
+                order_multiple_m=1.0,
+            ),
         ),
         dict(
             cable_type="self_regulating",
@@ -197,6 +231,13 @@ async def seed_cables(db) -> None:
             min_temperature=-60.0,
             resistance_per_meter=None,
             params={"voltage": 230, "protection": "IP67"},
+            **_commercial(
+                price_per_meter=460.0,
+                stock_quantity_m=750.0,
+                lead_time_days=3,
+                supplier_priority=20,
+                order_multiple_m=1.0,
+            ),
         ),
         # single_core — одножильные резистивные
         dict(
@@ -208,6 +249,14 @@ async def seed_cables(db) -> None:
             min_temperature=-55.0,
             resistance_per_meter=22.0,
             params={"voltage": 220, "cross_section": 1.5},
+            **_commercial(
+                price_per_meter=210.0,
+                stock_quantity_m=2000.0,
+                lead_time_days=1,
+                supplier_priority=12,
+                is_preferred=True,
+                order_multiple_m=10.0,
+            ),
         ),
         dict(
             cable_type="single_core",
@@ -218,6 +267,13 @@ async def seed_cables(db) -> None:
             min_temperature=-55.0,
             resistance_per_meter=11.0,
             params={"voltage": 220, "cross_section": 2.5},
+            **_commercial(
+                price_per_meter=260.0,
+                stock_quantity_m=1600.0,
+                lead_time_days=2,
+                supplier_priority=18,
+                order_multiple_m=10.0,
+            ),
         ),
         dict(
             cable_type="single_core",
@@ -228,6 +284,13 @@ async def seed_cables(db) -> None:
             min_temperature=-55.0,
             resistance_per_meter=14.2,
             params={"voltage": 380, "cross_section": 2.5},
+            **_commercial(
+                price_per_meter=290.0,
+                stock_quantity_m=1100.0,
+                lead_time_days=4,
+                supplier_priority=25,
+                order_multiple_m=10.0,
+            ),
         ),
         # three_core — трёхжильные резистивные
         dict(
@@ -239,6 +302,13 @@ async def seed_cables(db) -> None:
             min_temperature=-60.0,
             resistance_per_meter=18.0,
             params={"voltage": 220, "cross_section": 1.0},
+            **_commercial(
+                price_per_meter=340.0,
+                stock_quantity_m=900.0,
+                lead_time_days=4,
+                supplier_priority=30,
+                order_multiple_m=10.0,
+            ),
         ),
         dict(
             cable_type="three_core",
@@ -249,6 +319,13 @@ async def seed_cables(db) -> None:
             min_temperature=-60.0,
             resistance_per_meter=12.5,
             params={"voltage": 220, "cross_section": 1.5},
+            **_commercial(
+                price_per_meter=390.0,
+                stock_quantity_m=850.0,
+                lead_time_days=5,
+                supplier_priority=35,
+                order_multiple_m=10.0,
+            ),
         ),
         dict(
             cable_type="three_core",
@@ -259,6 +336,13 @@ async def seed_cables(db) -> None:
             min_temperature=-60.0,
             resistance_per_meter=7.4,
             params={"voltage": 380, "cross_section": 2.5},
+            **_commercial(
+                price_per_meter=480.0,
+                stock_quantity_m=600.0,
+                lead_time_days=6,
+                supplier_priority=40,
+                order_multiple_m=10.0,
+            ),
         ),
         # mineral — кабели с минеральной изоляцией
         dict(
@@ -270,6 +354,13 @@ async def seed_cables(db) -> None:
             min_temperature=-60.0,
             resistance_per_meter=None,
             params={"voltage": 220, "max_pipe_temp": 200},
+            **_commercial(
+                price_per_meter=1250.0,
+                stock_quantity_m=300.0,
+                lead_time_days=14,
+                supplier_priority=60,
+                order_multiple_m=5.0,
+            ),
         ),
         dict(
             cable_type="mineral",
@@ -280,6 +371,13 @@ async def seed_cables(db) -> None:
             min_temperature=-60.0,
             resistance_per_meter=None,
             params={"voltage": 220, "max_pipe_temp": 200},
+            **_commercial(
+                price_per_meter=1450.0,
+                stock_quantity_m=220.0,
+                lead_time_days=21,
+                supplier_priority=65,
+                order_multiple_m=5.0,
+            ),
         ),
         dict(
             cable_type="mineral",
@@ -290,6 +388,13 @@ async def seed_cables(db) -> None:
             min_temperature=-60.0,
             resistance_per_meter=None,
             params={"voltage": 380, "max_pipe_temp": 200},
+            **_commercial(
+                price_per_meter=1680.0,
+                stock_quantity_m=180.0,
+                lead_time_days=21,
+                supplier_priority=70,
+                order_multiple_m=5.0,
+            ),
         ),
         # skin — кабели скин-эффекта
         dict(
@@ -301,6 +406,13 @@ async def seed_cables(db) -> None:
             min_temperature=-60.0,
             resistance_per_meter=None,
             params={"voltage": 220, "max_length": 2000},
+            **_commercial(
+                price_per_meter=2100.0,
+                stock_quantity_m=120.0,
+                lead_time_days=30,
+                supplier_priority=80,
+                order_multiple_m=50.0,
+            ),
         ),
         dict(
             cable_type="skin",
@@ -311,6 +423,13 @@ async def seed_cables(db) -> None:
             min_temperature=-60.0,
             resistance_per_meter=None,
             params={"voltage": 220, "max_length": 3000},
+            **_commercial(
+                price_per_meter=2450.0,
+                stock_quantity_m=100.0,
+                lead_time_days=35,
+                supplier_priority=85,
+                order_multiple_m=50.0,
+            ),
         ),
         dict(
             cable_type="skin",
@@ -321,6 +440,13 @@ async def seed_cables(db) -> None:
             min_temperature=-60.0,
             resistance_per_meter=None,
             params={"voltage": 380, "max_length": 5000},
+            **_commercial(
+                price_per_meter=2950.0,
+                stock_quantity_m=80.0,
+                lead_time_days=45,
+                supplier_priority=90,
+                order_multiple_m=50.0,
+            ),
         ),
     ]
     for data in cables_data:
@@ -330,9 +456,21 @@ async def seed_cables(db) -> None:
                 CableExtended.brand == data["brand"],
             )
         )
-        if result.scalar_one_or_none() is None:
+        existing = result.scalar_one_or_none()
+        if existing is None:
             db.add(CableExtended(**data))
             logger.info("  + cable %s %s", data["brand"], data["model"])
+        elif existing.price_per_meter is None and existing.stock_quantity_m is None:
+            for key in (
+                "price_per_meter",
+                "stock_quantity_m",
+                "lead_time_days",
+                "supplier_priority",
+                "is_preferred",
+                "order_multiple_m",
+            ):
+                setattr(existing, key, data[key])
+            logger.info("  ~ cable commercial seed %s %s", data["brand"], data["model"])
     await db.flush()
 
 

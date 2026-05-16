@@ -95,6 +95,12 @@
 | max_temperature      | FLOAT        | nullable         | Макс. рабочая температура, °C       |
 | min_temperature      | FLOAT        | nullable         | Мин. рабочая температура, °C        |
 | resistance_per_meter | FLOAT        | nullable         | Сопротивление, Ом/м                 |
+| price_per_meter      | FLOAT        | nullable         | Цена за метр для коммерческого ранжирования |
+| stock_quantity_m     | FLOAT        | nullable         | Доступный остаток, м                |
+| lead_time_days       | INTEGER      | nullable         | Срок поставки, дней                 |
+| supplier_priority    | INTEGER      | nullable         | Приоритет поставщика/производителя; меньше — выше |
+| is_preferred         | BOOLEAN      | NOT NULL, default false | Предпочтительная позиция        |
+| order_multiple_m     | FLOAT        | nullable         | Кратность заказа, м                 |
 | params               | JSONB        | nullable         | Доп. характеристики                 |
 | is_active            | BOOLEAN      | NOT NULL, default true | Активна ли запись               |
 | created_at           | TIMESTAMPTZ  | server default   |                                     |

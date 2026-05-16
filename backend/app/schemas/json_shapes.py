@@ -222,3 +222,9 @@ class CableCatalogEntryDict(TypedDict, total=False):
     max_temperature: float
     min_temperature: float
     resistance_per_meter: float | None
+    price_per_meter: float | None
+    stock_quantity_m: float | None
+    lead_time_days: int | None
+    supplier_priority: int | None
+    is_preferred: bool
+    order_multiple_m: float | None

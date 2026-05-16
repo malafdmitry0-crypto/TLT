@@ -54,6 +54,8 @@ docs/               Документация: analysis/, qa/, samples/, api.md, 
 docs/samples/       Тестовые файлы для импорта (100 записей)
 scripts/            Утилиты: dev-setup.sh, gen_import_samples.py
 CLAUDE.MD           Корневой «source of truth» (архитектура, API, матрица доступа)
+docs/business-logic-contract.md
+                    Текущий контракт формул, алгоритмов и справочников
 formules.md         Формулы с примерами и пояснениями переменных
 coefficients.MD     Корректирующие коэффициенты
 ```
@@ -63,6 +65,7 @@ coefficients.MD     Корректирующие коэффициенты
 | Файл | Что внутри |
 |---|---|
 | `CLAUDE.MD` | Архитектура, навигация, API, матрица доступа, full-version target |
+| `docs/business-logic-contract.md` | Действующий контракт формул, алгоритмов, справочников и evidence |
 | `docs/context/full-version-rule.md` | Правило: частичная реализация не принимается как бизнес-статус |
 | `backend/CLAUDE.MD` | Структура backend, сервисы, эндпоинты, тесты |
 | `frontend/CLAUDE.MD` | Структура frontend, компоненты, сторы, стили |
@@ -88,7 +91,7 @@ npx playwright test
 
 Текущее состояние:
 <!-- AUTO:test-counts -->
-**964 backend** (716 unit + 248 integration) ✅ · **310 frontend vitest** ✅ · **58 e2e Playwright** ✅
+**977 backend** (728 unit + 249 integration) ✅ · **310 frontend vitest** ✅ · **58 e2e Playwright** ✅
 <!-- /AUTO -->
 
 > Цифры синхронизируются `scripts/sync-docs.py` (правит этот блок на месте).

@@ -266,6 +266,16 @@ function climateKey(entry: ClimateEntry) {
   return `${entry.region}|||${entry.city ?? entry.region}`;
 }
 
+function isClimateBasis(value: unknown): value is ClimateBasis {
+  return value === 't_0_92' || value === 't_0_98' || value === 't_abs_min';
+}
+
+function climateBasisLabel(basis: ClimateBasis) {
+  if (basis === 't_abs_min') return 'Абс. мин.';
+  if (basis === 't_0_98') return '0,98';
+  return '0,92';
+}
+
 function climateTemperature(entry: ClimateEntry, basis: ClimateBasis) {
   if (basis === 't_abs_min') return entry.t_abs_min;
   if (basis === 't_0_98') return entry.t_0_98 ?? entry.t_cold_day_0_98;
@@ -274,6 +284,39 @@ function climateTemperature(entry: ClimateEntry, basis: ClimateBasis) {
 
 function climateWind(entry: ClimateEntry) {
   return entry.wind_avg_cold ?? entry.wind_max_jan;
+}
+
+function numericFormValue(value: unknown) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const numeric = Number(value.replace(',', '.'));
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+  return null;
+}
+
+function climatePolicyBasisForObject(
+  objectType: ObjectType,
+  outerDiameterMm: number | null,
+  fallback: unknown,
+): ClimateBasis | undefined {
+  if (objectType === 'tank') return 't_0_92';
+  if (objectType === 'pipe') {
+    if (outerDiameterMm != null && outerDiameterMm > 0) {
+      return outerDiameterMm >= 100 ? 't_0_92' : 't_abs_min';
+    }
+    return isClimateBasis(fallback) ? fallback : undefined;
+  }
+  return undefined;
+}
+
+function climatePolicyBasisReason(objectType: ObjectType, outerDiameterMm: number | null) {
+  if (objectType === 'tank') return 'резервуар';
+  if (objectType === 'pipe') {
+    if (outerDiameterMm == null || outerDiameterMm <= 0) return 'задайте Ø трубы';
+    return outerDiameterMm >= 100 ? 'D >= 100 мм' : 'D < 100 мм';
+  }
+  return 'по алгоритму';
 }
 
 function sourceTag(source: unknown) {
@@ -365,7 +408,11 @@ export default function ObjectWizard({
   const pipeLambdaMode = watchedString('pipe_lambda_mode');
   const selectedClimateKey = watchedString('climate_key');
   const climateBasisValue = watchedString('climate_temperature_basis');
-  const climateBasis = climateBasisValue as ClimateBasis;
+  const outerDiameterMm = numericFormValue(watchedValue('outer_diameter_mm'));
+  const climateBasis = climatePolicyBasisForObject(objectType, outerDiameterMm, climateBasisValue);
+  const climateBasisDisplay = climateBasis
+    ? `${climateBasisLabel(climateBasis)} · ${climatePolicyBasisReason(objectType, outerDiameterMm)}`
+    : climatePolicyBasisReason(objectType, outerDiameterMm);
   const selectedGroundType = watchedString('ground_type');
   const secondInsulationMaterial = watchedString('second_insulation_material');
   const thirdInsulationMaterial = watchedString('third_insulation_material');
@@ -456,11 +503,12 @@ export default function ObjectWizard({
 
   useEffect(() => {
     if (!selectedClimate) return;
-    const tAmbient = climateBasisValue ? climateTemperature(selectedClimate, climateBasis) : null;
+    const tAmbient = climateBasis ? climateTemperature(selectedClimate, climateBasis) : null;
     const wind = climateWind(selectedClimate);
     form.setFieldsValue({
       climate_city: selectedClimate.city ?? selectedClimate.region,
       climate_region: selectedClimate.region,
+      climate_temperature_basis: climateBasis,
       ...(tAmbient != null
         ? {
             ambient_temperature: tAmbient,
@@ -521,6 +569,7 @@ export default function ObjectWizard({
       form.setFieldsValue({
         climate_city: undefined,
         climate_region: undefined,
+        climate_temperature_basis: undefined,
         ambient_temperature_source: form.getFieldValue('ambient_temperature') == null ? undefined : 'manual',
         wind_speed_source: form.getFieldValue('wind_speed') == null ? undefined : 'manual',
       });
@@ -702,6 +751,9 @@ export default function ObjectWizard({
         <Input type="hidden" />
       </Form.Item>
       <Form.Item name="climate_region" hidden noStyle>
+        <Input type="hidden" />
+      </Form.Item>
+      <Form.Item name="climate_temperature_basis" hidden noStyle>
         <Input type="hidden" />
       </Form.Item>
       <Form.Item name="ambient_temperature_source" hidden noStyle>
@@ -1096,16 +1148,14 @@ export default function ObjectWizard({
             <Form.Item
               className="compact-select-form-item helped-form-item"
               label={fieldLabel('climate_temperature_basis', heatCalcObjectType)}
-              name="climate_temperature_basis"
-              preserve={false}
-              rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'climate_temperature_basis')}
             >
               {withHelp(
-                <Select
-                  data-testid="climate-basis-select"
-                  options={heatCalcSelectOptions(heatCalcObjectType, 'climate_temperature_basis')}
+                <Input
+                  data-testid="climate-basis-display"
+                  readOnly
+                  value={climateBasisDisplay}
                 />,
-                fieldHelp('climate_temperature_basis', heatCalcObjectType),
+                `${fieldHelp('climate_temperature_basis', heatCalcObjectType)} Значение применяется автоматически по алгоритму климата.`,
               )}
             </Form.Item>
           )}

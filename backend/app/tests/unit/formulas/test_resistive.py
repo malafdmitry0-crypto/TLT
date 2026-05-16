@@ -145,6 +145,47 @@ class TestSingleCoreLinear:
                 _sc(required_heat_loss=5000.0, pipe_length=100.0, cable_catalog=catalog)
             )
 
+    def test_auto_vsdx_selects_u_n_m_by_passport_resistance(self):
+        catalog = [
+            {"model": "ТТ Р1 100,0", "conductor_cross_section": 0.47, "resistance_ohm_km": 100.0},
+            {"model": "ТТ Р1 80,0", "conductor_cross_section": 0.22, "resistance_ohm_km": 80.0},
+        ]
+        r = calc_resistive_single_core(
+            _sc(
+                selection_mode="auto",
+                required_heat_loss=5000.0,
+                pipe_length=100.0,
+                cable_catalog=catalog,
+            )
+        )
+        assert r.selection_mode == "auto"
+        assert r.selected_cable == "ТТ Р1 100,0"
+        assert r.connection_type == "loop_1ph"
+        assert r.voltage == pytest.approx(380.0)
+        assert r.scheme_threads == 2
+        assert r.scheme_count == 1
+        assert r.linear_power_w_m >= r.required_linear_power_w_m
+        assert r.p2_w_m <= r.p3_w_m
+        assert r.current <= 65.0
+
+    def test_auto_vsdx_uses_p3_linear_power_fallback_limit(self):
+        catalog = [
+            {"model": "ТТ Р1 100,0", "conductor_cross_section": 0.47, "resistance_ohm_km": 100.0},
+            {"model": "ТТ Р1 80,0", "conductor_cross_section": 0.22, "resistance_ohm_km": 80.0},
+        ]
+        r = calc_resistive_single_core(
+            _sc(
+                selection_mode="auto",
+                required_heat_loss=5000.0,
+                pipe_length=100.0,
+                cable_catalog=catalog,
+                max_linear_power_w_m=35.0,
+            )
+        )
+        assert r.p2_w_m <= 35.0
+        assert r.p3_w_m <= 35.0
+        assert r.scheme_count is not None and r.scheme_count >= 1
+
 
 class TestSingleCoreLoop:
     def test_loop_requires_larger_cross_section_than_line(self):

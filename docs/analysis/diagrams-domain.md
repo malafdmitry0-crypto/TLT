@@ -99,6 +99,11 @@ erDiagram
         float power_per_meter
         float max_temperature
         float price_per_meter
+        float stock_quantity_m
+        int lead_time_days
+        int supplier_priority
+        boolean is_preferred
+        float order_multiple_m
         boolean is_active
         timestamp created_at
     }
@@ -260,6 +265,11 @@ classDiagram
         +float power_per_meter
         +float max_temperature
         +float price_per_meter
+        +float stock_quantity_m
+        +int lead_time_days
+        +int supplier_priority
+        +bool is_preferred
+        +float order_multiple_m
         +bool is_active
         +matches_power(required: float) bool
     }

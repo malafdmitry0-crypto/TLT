@@ -321,6 +321,80 @@ class TestClimatePolicy:
         assert normalized["climate_temperature_basis"] == "t_0_92"
         assert normalized["climate_policy_rule"] == "non_pipe_cold_fiveday_0_92"
 
+    def test_backend_overrides_frontend_climate_basis_for_small_pipe(self):
+        normalized = CalculationService._apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.099,
+                "ambient_temperature": -10,
+                "climate_city": "Славгород",
+                "climate_temperature_basis": "t_0_92",
+            },
+        )
+
+        assert normalized["ambient_temperature"] == pytest.approx(-48.0)
+        assert normalized["climate_temperature_basis"] == "t_abs_min"
+        assert normalized["climate_policy_rule"] == "pipe_diameter_lt_100"
+
+    def test_backend_treats_default_safety_factor_as_overridable(self):
+        normalized = CalculationService._apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.099,
+                "ambient_temperature": -10,
+                "climate_city": "Славгород",
+                "climate_temperature_basis": "t_0_92",
+                "safety_factor": 1.1,
+                "safety_factor_source": "default",
+            },
+        )
+
+        assert normalized["safety_factor"] == pytest.approx(1.12)
+        assert normalized["safety_factor_source"] == "climate_policy"
+
+    def test_backend_preserves_manual_safety_factor(self):
+        normalized = CalculationService._apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.099,
+                "ambient_temperature": -10,
+                "climate_city": "Славгород",
+                "safety_factor": 1.2,
+            },
+        )
+
+        assert normalized["safety_factor"] == pytest.approx(1.2)
+        assert normalized["safety_factor_source"] == "manual"
+
+    def test_backend_drops_frontend_climate_basis_when_climate_not_applied(self):
+        normalized = CalculationService._apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "ambient_temperature": -10,
+                "climate_city": "Атлантида",
+                "climate_temperature_basis": "t_abs_min",
+            },
+        )
+
+        assert normalized["ambient_temperature"] == pytest.approx(-10.0)
+        assert "climate_temperature_basis" not in normalized
+        assert normalized["climate_policy_rule"] == "pipe_diameter_ge_100"
+
+    def test_backend_drops_frontend_climate_basis_when_pipe_diameter_is_missing(self):
+        normalized = CalculationService._apply_climate_policy(
+            "pipe",
+            {
+                "ambient_temperature": -10,
+                "climate_city": "Славгород",
+                "climate_temperature_basis": "t_abs_min",
+            },
+        )
+
+        assert normalized["ambient_temperature"] == pytest.approx(-10.0)
+        assert "climate_temperature_basis" not in normalized
+        assert "climate_policy_rule" not in normalized
+
 
 class TestCableLayoutMapping:
     def test_pipe_winding_pitch_converts_to_geometric_coefficient(self):
@@ -396,6 +470,33 @@ class TestCableLayoutMapping:
         assert merged["number_of_threads"] == 2
         assert "winding_coefficient" not in merged
 
+    def test_auto_threads_are_not_reused_as_requested_layout(self):
+        service = CalculationService(_mock_db_empty())
+        saved = SimpleNamespace(
+            cable_type="self_regulating",
+            params={"number_of_threads_source": "auto"},
+            results={
+                "num_circuits": 2,
+                "number_of_threads_source": "auto",
+            },
+        )
+        layout = service._layout_overrides_from_existing(saved)
+        assert "number_of_threads" not in layout
+
+    def test_previous_manual_threads_are_reused_with_previous_source(self):
+        service = CalculationService(_mock_db_empty())
+        saved = SimpleNamespace(
+            cable_type="self_regulating",
+            params={"number_of_threads_source": "manual"},
+            results={
+                "num_circuits": 2,
+                "number_of_threads_source": "manual",
+            },
+        )
+        layout = service._layout_overrides_from_existing(saved)
+        assert layout["number_of_threads"] == 2
+        assert layout["number_of_threads_source"] == "previous_result"
+
     def test_explicit_batch_layout_overrides_saved_layout(self):
         service = CalculationService(_mock_db_empty())
         saved = SimpleNamespace(results={"winding_pitch": 120.0, "num_circuits": 2})
@@ -405,6 +506,20 @@ class TestCableLayoutMapping:
         )
         assert merged["winding_pitch"] == 0.0
         assert merged["number_of_threads"] == 1
+
+    def test_auto_resistive_num_circuits_is_not_reused_as_manual_thread_override(self):
+        service = CalculationService(_mock_db_empty())
+        saved = SimpleNamespace(
+            cable_type="single_core",
+            results={
+                "selection_mode": "auto",
+                "winding_coefficient": 1.0,
+                "num_circuits": 8,
+            },
+        )
+        layout = service._layout_overrides_from_existing(saved)
+        assert "number_of_threads" not in layout
+        assert layout["winding_coefficient"] == pytest.approx(1.0)
 
     def test_tank_q_additional_is_not_safetied_twice_for_electrical_input(self):
         service = CalculationService(_mock_db_empty())
@@ -444,6 +559,9 @@ class TestCableLayoutMapping:
         )
 
         assert data["pipe_length"] == pytest.approx(60.0)
+        assert data["number_of_threads"] is None
+        assert data["requested_number_of_threads"] is None
+        assert data["number_of_threads_source"] == "auto"
 
     def test_tlt_tank_required_power_uses_cable_geometry_not_m2(self):
         service = CalculationService(_mock_db_empty())
@@ -506,6 +624,44 @@ class TestCableLayoutMapping:
                 tlt_catalog=[],
                 overrides={},
             )
+
+    def test_resistive_electrical_data_uses_db_policy_coefficients_with_fallbacks(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(
+            object_type="pipe",
+            params={
+                "outer_diameter": 0.108,
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 100,
+                "safety_factor": 1.1,
+            },
+            results={
+                "heat_loss_per_meter": 30,
+                "total_heat_loss": 3000,
+                "effective_length": 100,
+            },
+            is_valid=True,
+        )
+
+        data = service._build_electrical_data(
+            obj=obj,
+            cable_type="single_core",
+            cable_mark=None,
+            tlt_catalog=[],
+            overrides={},
+            coefficients={
+                "resistive_max_current_a": 60.0,
+                "resistive_max_parallel_schemes": 7.0,
+                "resistive_max_linear_power_w_m": 45.0,
+            },
+        )
+
+        assert data["selection_mode"] == "auto"
+        assert data["max_current_a"] == pytest.approx(60.0)
+        assert data["max_parallel_schemes"] == 7
+        assert data["max_linear_power_w_m"] == pytest.approx(45.0)
+        assert data["high_voltage"] == pytest.approx(380.0)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1069,6 +1225,7 @@ class TestBatchElectricalCallbacks:
         db.commit = AsyncMock()
         service = CalculationService(db)
         service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
         service._calculate_electrical_result = MagicMock(  # type: ignore[method-assign]
             return_value=("Кабель", {"selected_cable": "Кабель"})
         )
@@ -1141,6 +1298,7 @@ class TestBatchElectricalCallbacks:
         db.commit = AsyncMock()
         service = CalculationService(db)
         service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
         service._calculate_electrical_result = MagicMock(  # type: ignore[method-assign]
             return_value=("Кабель", {"selected_cable": "Кабель"})
         )
@@ -1199,6 +1357,7 @@ class TestBatchElectricalCallbacks:
         db.commit = AsyncMock()
         service = CalculationService(db)
         service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
         service._calculate_electrical_result = MagicMock(  # type: ignore[method-assign]
             return_value=("Кабель", {"selected_cable": "Кабель"})
         )
@@ -1297,6 +1456,12 @@ class TestLoadCableCatalog:
             max_temperature=100.0,
             min_temperature=-30.0,
             resistance_per_meter=None,
+            price_per_meter=500.0,
+            stock_quantity_m=100.0,
+            lead_time_days=3,
+            supplier_priority=10,
+            is_preferred=True,
+            order_multiple_m=5.0,
         )
         db = AsyncMock()
         result = MagicMock()
@@ -1307,6 +1472,8 @@ class TestLoadCableCatalog:
         assert len(cables) == 1
         assert cables[0]["source"] == "extended"
         assert cables[0]["brand"] == "X"
+        assert cables[0]["price_per_meter"] == 500.0
+        assert cables[0]["is_preferred"] is True
 
     async def test_all_returns_builtin_plus_extended(self):
         ext = SimpleNamespace(
@@ -1317,6 +1484,12 @@ class TestLoadCableCatalog:
             max_temperature=100,
             min_temperature=-30,
             resistance_per_meter=None,
+            price_per_meter=None,
+            stock_quantity_m=None,
+            lead_time_days=None,
+            supplier_priority=None,
+            is_preferred=False,
+            order_multiple_m=None,
         )
         db = AsyncMock()
         result = MagicMock()

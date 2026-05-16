@@ -231,6 +231,7 @@ VSDX различает:
 | Резистивный `rho_T` | Да | `backend/app/formulas/electrical/resistive.py` |
 | Подбор минимального сечения `Sк_б >= Sк` | Да | `backend/app/formulas/electrical/resistive.py` |
 | Резистивное `R/P/I` по паспорту | Да | Для строк с `resistance_ohm_km` backend считает мощность/ток по паспорту и лимиту `65 А` |
+| Резистивный full-version auto `U/N/M`, `p2/p3`, `L1/L2` | Да, с fallback policy | Backend/QA-agent перебирают VSDX-схемы; thermal `p3` можно уточнять через `correction_coefficients`, fallback — `65 А` |
 
 ## Рекомендации для QA-agent
 
@@ -240,6 +241,7 @@ VSDX различает:
    - `tlt_tank_cable_length` с прямоугольным периметром — добавлен;
    - `tlt_max_winding_coefficient` — добавлен.
    - `tlt_resistive_passport_ohm_law` — добавлен.
+   - `tlt_resistive_vsdx_auto_select` — добавлен.
 2. Держать regression cases для пограничных мест:
    - `D = 75`, `89`, `108`;
    - `T1 = 65`, `120`, `150`;

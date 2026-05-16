@@ -192,11 +192,20 @@ class TestAdminCables:
                 "power_per_meter": 25.0,
                 "max_temperature": 110.0,
                 "min_temperature": -40.0,
+                "price_per_meter": 700.0,
+                "stock_quantity_m": 250.0,
+                "lead_time_days": 5,
+                "supplier_priority": 12,
+                "is_preferred": True,
+                "order_multiple_m": 10.0,
             },
             headers=headers,
         )
         assert created.status_code == 201, created.text
-        cid = created.json()["id"]
+        created_body = created.json()
+        cid = created_body["id"]
+        assert created_body["price_per_meter"] == 700.0
+        assert created_body["is_preferred"] is True
 
         # List
         listing = await client.get("/api/v1/admin/cables", headers=headers)
@@ -205,11 +214,12 @@ class TestAdminCables:
         # Update
         upd = await client.put(
             f"/api/v1/admin/cables/{cid}",
-            json={"power_per_meter": 30.0},
+            json={"power_per_meter": 30.0, "stock_quantity_m": 400.0},
             headers=headers,
         )
         assert upd.status_code == 200
         assert upd.json()["power_per_meter"] == 30.0
+        assert upd.json()["stock_quantity_m"] == 400.0
 
         # Delete
         rm = await client.delete(f"/api/v1/admin/cables/{cid}", headers=headers)

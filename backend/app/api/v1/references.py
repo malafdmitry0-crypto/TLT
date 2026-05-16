@@ -66,6 +66,26 @@ _BUILTIN_ETAGS = {
 }
 
 
+def _extended_cable_payload(cable: CableExtended) -> dict[str, object]:
+    return {
+        "id": str(cable.id),
+        "source": "extended",
+        "cable_type": cable.cable_type,
+        "brand": cable.brand,
+        "model": cable.model,
+        "power_per_meter": cable.power_per_meter,
+        "max_temperature": cable.max_temperature,
+        "min_temperature": cable.min_temperature,
+        "resistance_per_meter": cable.resistance_per_meter,
+        "price_per_meter": cable.price_per_meter,
+        "stock_quantity_m": cable.stock_quantity_m,
+        "lead_time_days": cable.lead_time_days,
+        "supplier_priority": cable.supplier_priority,
+        "is_preferred": cable.is_preferred,
+        "order_multiple_m": cable.order_multiple_m,
+    }
+
+
 def _builtin_http_cache(name: str):
     def dependency(response: Response) -> None:
         response.headers["Cache-Control"] = f"public, max-age={_HTTP_CACHE_SECONDS}"
@@ -167,20 +187,7 @@ async def cables(
         response.headers["ETag"] = _BUILTIN_ETAGS["cables:builtin"]
         return builtin
     result = await db.execute(select(CableExtended).where(CableExtended.is_active.is_(True)))
-    extended = [
-        {
-            "id": str(c.id),
-            "source": "extended",
-            "cable_type": c.cable_type,
-            "brand": c.brand,
-            "model": c.model,
-            "power_per_meter": c.power_per_meter,
-            "max_temperature": c.max_temperature,
-            "min_temperature": c.min_temperature,
-            "resistance_per_meter": c.resistance_per_meter,
-        }
-        for c in result.scalars().all()
-    ]
+    extended = [_extended_cable_payload(c) for c in result.scalars().all()]
     if source == "extended":
         return extended
     return builtin + extended
@@ -195,19 +202,7 @@ async def cables_extended(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(CableExtended).where(CableExtended.is_active.is_(True)))
-    return [
-        {
-            "id": str(c.id),
-            "cable_type": c.cable_type,
-            "brand": c.brand,
-            "model": c.model,
-            "power_per_meter": c.power_per_meter,
-            "max_temperature": c.max_temperature,
-            "min_temperature": c.min_temperature,
-            "resistance_per_meter": c.resistance_per_meter,
-        }
-        for c in result.scalars().all()
-    ]
+    return [_extended_cable_payload(c) for c in result.scalars().all()]
 
 
 @router.get("/accessories", summary="Базовые аксессуары")

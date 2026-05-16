@@ -54,7 +54,7 @@
 |-----|----------|---------------------|
 | 1 | `GET /api/v1/references/cables/extended` с `X-Session-Id` гостя | HTTP 403 |
 | 2 | `GET /api/v1/references/cables/extended` с токеном сотрудника | HTTP 200 |
-| 3 | Структура ответа | Массив с `cable_type`, `brand`, `model`, `power_per_meter`, `is_active` |
+| 3 | Структура ответа | Массив с `cable_type`, `brand`, `model`, `power_per_meter`, commercial fields (`price_per_meter`, `stock_quantity_m`, `lead_time_days`, `supplier_priority`, `is_preferred`, `order_multiple_m`) |
 
 ---
 

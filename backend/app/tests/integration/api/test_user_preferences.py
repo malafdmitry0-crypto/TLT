@@ -68,7 +68,7 @@ def electrical_table_columns_value(
     visible: list[str] | None = None,
 ) -> dict[str, object]:
     return {
-        "version": 1,
+        "version": 2,
         "visibleOrder": visible or ["index", "object_name", "current"],
         "columns": {
             "index": {"widthPct": 4},
@@ -195,7 +195,7 @@ class TestUserPreferencesApi:
         headers = {"Authorization": f"Bearer {employee_token}"}
 
         resp = await client.put(
-            "/api/v1/preferences/electrical.tableColumns.v1",
+            "/api/v1/preferences/electrical.tableColumns.v2",
             json={"value": electrical_table_columns_value()},
             headers=headers,
         )
@@ -204,7 +204,7 @@ class TestUserPreferencesApi:
         assert resp.json()["value"]["visibleOrder"] == ["index", "object_name", "current"]
 
         read_back = await client.get(
-            "/api/v1/preferences/electrical.tableColumns.v1",
+            "/api/v1/preferences/electrical.tableColumns.v2",
             headers=headers,
         )
         assert read_back.status_code == 200
@@ -218,7 +218,7 @@ class TestUserPreferencesApi:
         value = electrical_table_columns_value(["index", "not_a_column"])
 
         resp = await client.put(
-            "/api/v1/preferences/electrical.tableColumns.v1",
+            "/api/v1/preferences/electrical.tableColumns.v2",
             json={"value": value},
             headers={"Authorization": f"Bearer {employee_token}"},
         )

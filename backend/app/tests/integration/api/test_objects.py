@@ -257,6 +257,40 @@ class TestObjectsLifecycle:
         assert results["local_elements_count"] == 3
         assert results["local_element_equiv_length"] == 1.1
 
+    async def test_backend_overrides_frontend_climate_basis_on_object_recalculate(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "name": "Pipe with stale frontend climate basis",
+                    "outer_diameter": 0.099,
+                    "pipe_length": 35,
+                    "insulation_thickness": 0.04,
+                    "insulation_material": "mineral_wool",
+                    "ambient_temperature": -10,
+                    "process_temperature": 80,
+                    "climate_city": "Славгород",
+                    "climate_region": "Могилёвская область",
+                    "climate_temperature_basis": "t_0_92",
+                    "ambient_temperature_source": "manual",
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["is_valid"] is True
+        assert body["params"]["climate_temperature_basis"] == "t_abs_min"
+        assert body["params"]["ambient_temperature"] == pytest.approx(-48.0)
+        assert body["params"]["ambient_temperature_source"] == "climate"
+        assert body["params"]["safety_factor"] == pytest.approx(1.12)
+        assert body["results"]["safety_factor"] == pytest.approx(1.12)
+
     async def test_underground_tank_returns_air_ground_split(
         self, client: AsyncClient, guest_session: str
     ):

@@ -102,7 +102,8 @@
 ├── CLAUDE.MD               ← этот файл
 ├── formules.md             ← все формулы расчёта (с примером)
 ├── coefficients.MD         ← корректирующие коэффициенты
-├── changes.md              ← актуальное ТЗ (источник истины)
+├── docs/business-logic-contract.md
+│                             ← текущий контракт формул, алгоритмов и справочников
 ├── docker-compose.yml
 ├── docker-compose.dev.yml
 ├── .env.example
@@ -420,7 +421,7 @@ docker-compose up --build -d
 
 Текущее состояние:
 <!-- AUTO:test-counts -->
-**964 backend** (716 unit + 248 integration) ✅ · **310 frontend vitest** ✅ · **58 e2e Playwright** ✅
+**977 backend** (728 unit + 249 integration) ✅ · **310 frontend vitest** ✅ · **58 e2e Playwright** ✅
 <!-- /AUTO -->
 
 Цифры обновляются командой `scripts/sync-docs.py`.

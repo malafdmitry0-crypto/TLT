@@ -148,9 +148,16 @@ Algorithm:
 - `required_effective = required_power_per_meter * safety_factor`.
 - Auto-select the minimum-power catalog cable satisfying power, min ambient
   temperature and max process temperature.
-- `layout_factor = winding_coefficient * number_of_threads`.
+- If `number_of_threads` is absent in auto mode, try `N=1..3`; if it is
+  explicit, keep the requested value and do not increase it silently.
+- Candidate ordering is deterministic: lower `N`, then lower catalog
+  `power_per_meter`, then lower installed `power_per_meter * N`.
+- `layout_factor = winding_coefficient * applied_number_of_threads`.
 - `cable_length = pipe_length * 1.1 * layout_factor`.
 - `total_power = cable_power_per_meter * cable_length`.
+- Result metadata separates user input from calculated state:
+  `requested_number_of_threads`, `applied_number_of_threads` and
+  `number_of_threads_source`.
 
 QA status:
 
@@ -165,6 +172,9 @@ Engineering review:
 - The main historical risk is applying the heat-loss safety factor once in heat
   loss and again in electrical selection. The contract says electrical receives
   `q_linear` without heat-loss `K`.
+- A second historical risk is treating calculated `num_circuits` as if the user
+  had manually requested that thread count. Current contract keeps requested and
+  applied thread counts separate.
 - Catalog fixtures should test temperature rejection, power rejection and ties.
 
 ## Electrical: TTН / TTВ / TTХ

@@ -103,8 +103,8 @@
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
 | 1 | `GET /api/v1/admin/cables` | HTTP 200, список |
-| 2 | `POST /api/v1/admin/cables` с `{"cable_type":"self_regulating","brand":"Test","model":"TEST-30","power_per_meter":30.0,"is_active":true}` | HTTP 201 |
-| 3 | `PUT /api/v1/admin/cables/{id}` с `{"power_per_meter":35.0}` | HTTP 200 |
+| 2 | `POST /api/v1/admin/cables` с `{"cable_type":"self_regulating","brand":"Test","model":"TEST-30","power_per_meter":30.0,"price_per_meter":700.0,"stock_quantity_m":250.0,"lead_time_days":5,"supplier_priority":12,"is_preferred":true,"order_multiple_m":10.0,"is_active":true}` | HTTP 201 |
+| 3 | `PUT /api/v1/admin/cables/{id}` с `{"power_per_meter":35.0,"stock_quantity_m":400.0}` | HTTP 200 |
 | 4 | `DELETE /api/v1/admin/cables/{id}` | HTTP 204 |
 | 5 | Кабель после удаления | Отсутствует в списке |
 

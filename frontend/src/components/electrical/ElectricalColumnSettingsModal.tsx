@@ -72,11 +72,6 @@ const COLUMN_DETAIL_BADGES: Record<ElectricalColumnKey, ColumnDetailBadge> = {
     tooltip: 'Марка может быть подобрана автоматически или выбрана вручную по строке',
     tone: 'applied',
   },
-  selected_cable: {
-    label: 'Кабель',
-    tooltip: 'Марка кабеля из результата электрорасчёта',
-    tone: 'applied',
-  },
   cable_length: {
     label: 'Итог',
     tooltip: 'Итоговая длина кабеля из результата электрорасчёта',

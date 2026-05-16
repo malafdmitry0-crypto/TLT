@@ -22,7 +22,6 @@ COMMON_OBJECT_DEFAULTS: dict[str, Any] = {
     "temperature_group": "T1",
     "min_switch_temperature": -20,
     "supply_voltage": 220,
-    "safety_factor": 1.1,
     "steam_tracing": "no",
 }
 
@@ -56,6 +55,9 @@ def normalize_project_object_params(
         return normalized
 
     _apply_defaults(normalized, COMMON_OBJECT_DEFAULTS)
+    if "safety_factor" not in normalized:
+        normalized["safety_factor"] = 1.1
+        normalized.setdefault("safety_factor_source", "default")
     _normalize_placement(normalized)
     _normalize_insulation_layers(normalized)
 

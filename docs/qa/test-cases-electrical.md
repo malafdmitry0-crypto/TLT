@@ -58,6 +58,30 @@
 
 ---
 
+## TC-ELEC-03A: Автоподбор ТЛТ увеличивает число ниток
+
+**Автоматизировано:** ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_auto_selection_can_increase_threads`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Запрос `self_regulating` без `cable_mark` и без `number_of_threads`, где одной нитки ТЛТ-100 недостаточно | HTTP 200 |
+| 2 | Алгоритм перебирает `N=1..3` | Подобран кабель с `num_circuits > 1` |
+| 3 | Проверить source metadata | `requested_number_of_threads=null`, `applied_number_of_threads=num_circuits`, `number_of_threads_source=auto` |
+
+---
+
+## TC-ELEC-03B: Ручные нитки не изменяются алгоритмом
+
+**Автоматизировано:** ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_manual_threads_are_respected`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Запрос `self_regulating` с явным `number_of_threads=2` | Алгоритм проверяет только 2 нитки |
+| 2 | Проверить результат | `requested_number_of_threads=2`, `applied_number_of_threads=2`, `number_of_threads_source=manual` |
+| 3 | Повторный batch-пересчёт без ручных ниток | Auto/default результат не должен стать новым ручным `params.number_of_threads` |
+
+---
+
 ## TC-ELEC-04: Требуемая мощность превышает максимум каталога
 
 **Автоматизировано:** ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_insufficient_cable_raises`
@@ -183,3 +207,20 @@
 | 7 | Повторный `POST /calc/electrical/batch` | Новая строка НЕ создаётся (upsert); `results` заменяется на успешный результат, `cable_mark` ≠ null |
 | 8 | Sidebar: после 100% успешных расчётов | Появляется ✓-чекмарк на «Электротехнический расчёт» |
 | 9 | При наличии хотя бы одной ошибки | ✓-чекмарк на Sidebar/WorkspacePage НЕ выставляется |
+
+---
+
+## TC-ELEC-13: Full-version auto-подбор резистивного кабеля ТТ Р1/ТТ Р3
+
+**Автоматизировано:** ✅ (unit) `test_resistive.py::test_auto_vsdx_selects_u_n_m_by_passport_resistance`
+**Автоматизировано:** ✅ (service) `test_calculation_service_unit.py::test_resistive_electrical_data_uses_db_policy_coefficients_with_fallbacks`
+**Автоматизировано:** ✅ (qa-agent) `AlgorithmOracle.test.ts::evaluates full-version resistive VSDX auto selection`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Запустить batch/формульный расчёт с `cable_type=single_core` или `three_core` без `selection_mode=manual` | Используется `selection_mode=auto` |
+| 2 | Проверить результат | Есть `scheme_threads=N`, `scheme_count=M`, `voltage=U`, `p2_w_m`, `p3_w_m`, `l1_m` или `l2_m` |
+| 3 | Проверить ограничение мощности | `p2_w_m <= p3_w_m` |
+| 4 | Проверить покрытие теплопотерь | `linear_power_w_m >= required_linear_power_w_m` |
+| 5 | Проверить ток | `current <= max_current_limit_a` |
+| 6 | Передать коэффициенты `resistive_max_current_a`, `resistive_max_linear_power_w_m`, `resistive_max_parallel_schemes` | Расчёт использует БД/override значения; при отсутствии работает fallback |

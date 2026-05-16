@@ -53,3 +53,8 @@
 (`three_core`). **Upsert** по `(object_id, variant_number)`. При ошибке расчёта
 сохраняется запись с `results.error`, `cable_mark=null` — причина видна на UI
 после reload.
+
+Для резистивных `single_core`/`three_core` основной автоподбор использует
+`selection_mode=auto`: full-version VSDX-стратегия `U/N/M`, `p2/p3`, `L1/L2`.
+`selection_mode=manual` остается диагностическим/ручным режимом для явно
+заданной схемы подключения и числа ниток.

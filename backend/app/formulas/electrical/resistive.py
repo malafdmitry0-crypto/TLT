@@ -28,6 +28,7 @@ legacy-каталогов без паспортного сопротивлени
 
 import math
 import re
+from dataclasses import dataclass
 from typing import Any
 
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
@@ -42,6 +43,26 @@ from app.schemas.calculation import (
 RHO = 0.0175  # удельное сопротивление меди при 20°C, Ом·мм²/м
 ALPHA = 0.0042  # температурный коэффициент сопротивления, 1/К
 MAX_RESISTIVE_CURRENT_A = 65.0
+
+
+@dataclass(frozen=True)
+class _AutoSchemeMetrics:
+    cable: dict[str, Any]
+    connection_type: str
+    voltage: float
+    threads: int
+    schemes: int
+    resistance_ohm_km: float
+    circuit_resistance_ohm: float
+    current: float
+    p2_w_m: float
+    p3_w_m: float
+    total_power: float
+    linear_power_w_m: float
+    cable_length: float
+    section_length: float
+    l1_m: float | None
+    l2_m: float | None
 
 
 def _rho_t(process_temperature: float) -> float:
@@ -218,6 +239,7 @@ def _pick_passport_resistance_cable(
     supply_voltage: float,
     connection_type: str,
     cable_kind: str,
+    max_current_a: float = MAX_RESISTIVE_CURRENT_A,
 ) -> tuple[dict[str, Any], dict[str, float]]:
     candidates: list[tuple[float, float, dict[str, Any], dict[str, float]]] = []
     rejected_overcurrent: list[tuple[str, float]] = []
@@ -230,7 +252,7 @@ def _pick_passport_resistance_cable(
             cable_kind=cable_kind,
         )
         has_passport_resistance = cable.get("resistance_ohm_km") is not None
-        if has_passport_resistance and metrics["current"] > MAX_RESISTIVE_CURRENT_A:
+        if has_passport_resistance and metrics["current"] > max_current_a:
             rejected_overcurrent.append((str(cable.get("model", "")), metrics["current"]))
             continue
         if metrics["total_power"] >= required_heat_loss:
@@ -241,10 +263,13 @@ def _pick_passport_resistance_cable(
         suffix = ""
         if rejected_overcurrent:
             max_current = max(current for _, current in rejected_overcurrent)
-            suffix = f"; часть вариантов отклонена по току до {max_current:.1f} А > 65 А"
+            suffix = (
+                f"; часть вариантов отклонена по току до {max_current:.1f} А "
+                f"> {max_current_a:.0f} А"
+            )
         raise ValueError(
             f"Не найден резистивный кабель, обеспечивающий {required_heat_loss:.2f} Вт "
-            f"при токе ≤ {MAX_RESISTIVE_CURRENT_A:.0f} А{suffix}"
+            f"при токе ≤ {max_current_a:.0f} А{suffix}"
         )
     _, _, cable, metrics = min(candidates, key=lambda item: (item[0], item[1]))
     return cable, metrics
@@ -252,6 +277,263 @@ def _pick_passport_resistance_cable(
 
 def _catalog_has_passport_resistance(catalog: list[dict[str, Any]]) -> bool:
     return any(c.get("resistance_ohm_km") is not None for c in catalog)
+
+
+def _sorted_by_resistance(catalog: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """VSDX-логика идёт от большего Q(i,1) к меньшему сопротивлению."""
+    return sorted(catalog, key=_resistance_ohm_km, reverse=True)
+
+
+def _auto_connection_type(cable_kind: str, threads: int) -> str:
+    if cable_kind == "single_core":
+        return "loop_1ph" if threads == 2 else "star_3ph"
+    return "loop_2x3" if threads == 2 else "star_3x3"
+
+
+def _p3_w_m(
+    *,
+    resistance_ohm_km: float,
+    max_current_a: float,
+    max_linear_power_w_m: float | None,
+) -> float:
+    current_limited = max_current_a**2 * (resistance_ohm_km / 1000.0)
+    if max_linear_power_w_m is None:
+        return current_limited
+    return min(current_limited, max_linear_power_w_m)
+
+
+def _auto_scheme_metrics(
+    cable: dict[str, Any],
+    *,
+    section_length: float,
+    object_length: float,
+    voltage: float,
+    threads: int,
+    schemes: int,
+    cable_kind: str,
+    max_current_a: float,
+    max_linear_power_w_m: float | None,
+) -> _AutoSchemeMetrics:
+    if section_length <= 0 or object_length <= 0:
+        raise ValueError("Длина участка должна быть положительной")
+    if threads not in (2, 3):
+        raise ValueError("Auto-подбор резистивного кабеля поддерживает N=2 или N=3")
+
+    resistance_ohm_km = _resistance_ohm_km(cable)
+    resistance_per_m = resistance_ohm_km / 1000.0
+    if resistance_per_m <= 0:
+        raise ValueError("Паспортное сопротивление должно быть положительным")
+
+    connection_type = _auto_connection_type(cable_kind, threads)
+    if threads == 2:
+        circuit_resistance = resistance_per_m * section_length * threads
+        current = voltage / circuit_resistance
+        per_thread_power = current**2 * resistance_per_m * section_length
+        l1_m = section_length
+        l2_m = None
+    else:
+        phase_voltage = voltage / math.sqrt(3)
+        circuit_resistance = resistance_per_m * section_length
+        current = phase_voltage / circuit_resistance
+        per_thread_power = current**2 * resistance_per_m * section_length
+        l1_m = None
+        l2_m = section_length
+
+    p2 = per_thread_power / section_length
+    total_power = per_thread_power * threads * schemes
+    cable_length = section_length * threads * schemes
+    return _AutoSchemeMetrics(
+        cable=cable,
+        connection_type=connection_type,
+        voltage=voltage,
+        threads=threads,
+        schemes=schemes,
+        resistance_ohm_km=resistance_ohm_km,
+        circuit_resistance_ohm=circuit_resistance,
+        current=current,
+        p2_w_m=p2,
+        p3_w_m=_p3_w_m(
+            resistance_ohm_km=resistance_ohm_km,
+            max_current_a=max_current_a,
+            max_linear_power_w_m=max_linear_power_w_m,
+        ),
+        total_power=total_power,
+        linear_power_w_m=total_power / object_length,
+        cable_length=cable_length,
+        section_length=section_length,
+        l1_m=l1_m,
+        l2_m=l2_m,
+    )
+
+
+def _within_p3(metrics: _AutoSchemeMetrics) -> bool:
+    return metrics.p2_w_m <= metrics.p3_w_m + 1e-9
+
+
+def _try_auto_loop(
+    catalog: list[dict[str, Any]],
+    *,
+    object_length: float,
+    section_length: float,
+    required_linear_power: float,
+    voltage: float,
+    schemes: int,
+    cable_kind: str,
+    max_current_a: float,
+    max_linear_power_w_m: float | None,
+    can_reduce_voltage: bool,
+    min_adjusted_voltage: float,
+    voltage_step: float,
+) -> _AutoSchemeMetrics | None:
+    current_voltage = voltage
+    while current_voltage >= min_adjusted_voltage - 1e-9:
+        reduce_voltage = False
+        for index, cable in enumerate(catalog):
+            metrics = _auto_scheme_metrics(
+                cable,
+                object_length=object_length,
+                section_length=section_length,
+                voltage=current_voltage,
+                threads=2,
+                schemes=schemes,
+                cable_kind=cable_kind,
+                max_current_a=max_current_a,
+                max_linear_power_w_m=max_linear_power_w_m,
+            )
+            if not _within_p3(metrics):
+                if index == 0 and can_reduce_voltage:
+                    reduce_voltage = True
+                    break
+                continue
+            if metrics.linear_power_w_m >= required_linear_power:
+                return metrics
+        if not reduce_voltage:
+            return None
+        current_voltage -= voltage_step
+    return None
+
+
+def _try_auto_star(
+    catalog: list[dict[str, Any]],
+    *,
+    object_length: float,
+    section_length: float,
+    required_linear_power: float,
+    voltage: float,
+    schemes: int,
+    cable_kind: str,
+    max_current_a: float,
+    max_linear_power_w_m: float | None,
+) -> _AutoSchemeMetrics | None:
+    for cable in catalog:
+        metrics = _auto_scheme_metrics(
+            cable,
+            object_length=object_length,
+            section_length=section_length,
+            voltage=voltage,
+            threads=3,
+            schemes=schemes,
+            cable_kind=cable_kind,
+            max_current_a=max_current_a,
+            max_linear_power_w_m=max_linear_power_w_m,
+        )
+        if _within_p3(metrics) and metrics.linear_power_w_m >= required_linear_power:
+            return metrics
+    return None
+
+
+def _select_resistive_auto(
+    catalog: list[dict[str, Any]],
+    *,
+    required_heat_loss: float,
+    object_length: float,
+    section_length: float,
+    cable_kind: str,
+    start_voltage: float,
+    high_voltage: float,
+    max_current_a: float,
+    max_linear_power_w_m: float | None,
+    max_parallel_schemes: int,
+    min_adjusted_voltage: float,
+    voltage_step: float,
+) -> _AutoSchemeMetrics:
+    sorted_catalog = _sorted_by_resistance(catalog)
+    required_linear_power = required_heat_loss / object_length
+    for schemes in range(1, max_parallel_schemes + 1):
+        loop_start = _try_auto_loop(
+            sorted_catalog,
+            object_length=object_length,
+            section_length=section_length,
+            required_linear_power=required_linear_power,
+            voltage=start_voltage,
+            schemes=schemes,
+            cable_kind=cable_kind,
+            max_current_a=max_current_a,
+            max_linear_power_w_m=max_linear_power_w_m,
+            can_reduce_voltage=True,
+            min_adjusted_voltage=min_adjusted_voltage,
+            voltage_step=voltage_step,
+        )
+        if loop_start is not None:
+            return loop_start
+
+        loop_high = _try_auto_loop(
+            sorted_catalog,
+            object_length=object_length,
+            section_length=section_length,
+            required_linear_power=required_linear_power,
+            voltage=high_voltage,
+            schemes=schemes,
+            cable_kind=cable_kind,
+            max_current_a=max_current_a,
+            max_linear_power_w_m=max_linear_power_w_m,
+            can_reduce_voltage=False,
+            min_adjusted_voltage=high_voltage,
+            voltage_step=voltage_step,
+        )
+        if loop_high is not None:
+            return loop_high
+
+        star = _try_auto_star(
+            sorted_catalog,
+            object_length=object_length,
+            section_length=section_length,
+            required_linear_power=required_linear_power,
+            voltage=high_voltage,
+            schemes=schemes,
+            cable_kind=cable_kind,
+            max_current_a=max_current_a,
+            max_linear_power_w_m=max_linear_power_w_m,
+        )
+        if star is not None:
+            return star
+
+    raise ValueError(
+        "Не найден full-version вариант резистивного кабеля "
+        f"для {required_linear_power:.3f} Вт/м при M ≤ {max_parallel_schemes}"
+    )
+
+
+def _legacy_required_for_result(
+    *,
+    required_heat_loss: float,
+    voltage: float,
+    process_temperature: float,
+    cable_length: float,
+    connection_type: str,
+    cable_kind: str,
+) -> float:
+    try:
+        return _legacy_required_cross_section(
+            required_heat_loss=required_heat_loss,
+            supply_voltage=voltage,
+            process_temperature=process_temperature,
+            cable_length=cable_length,
+            connection_type=connection_type,
+            cable_kind=cable_kind,
+        )
+    except ValueError:
+        return 0.0
 
 
 def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSingleCoreResult:
@@ -265,9 +547,62 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
     if not catalog:
         raise ValueError("Каталог одножильных кабелей пуст")
 
-    cable_length = (
-        _resolve_base_length(params) * params.winding_coefficient * params.number_of_threads
-    )
+    object_length = _resolve_base_length(params)
+    if params.selection_mode == "auto":
+        section_length = object_length * params.winding_coefficient
+        metrics = _select_resistive_auto(
+            catalog,
+            required_heat_loss=params.required_heat_loss,
+            object_length=object_length,
+            section_length=section_length,
+            cable_kind="single_core",
+            start_voltage=params.start_voltage or params.supply_voltage,
+            high_voltage=params.high_voltage,
+            max_current_a=params.max_current_a,
+            max_linear_power_w_m=params.max_linear_power_w_m,
+            max_parallel_schemes=params.max_parallel_schemes,
+            min_adjusted_voltage=params.min_adjusted_voltage,
+            voltage_step=params.voltage_step,
+        )
+        cable = metrics.cable
+        q = params.required_heat_loss
+        sk_required = _legacy_required_for_result(
+            required_heat_loss=q,
+            voltage=metrics.voltage,
+            process_temperature=params.maintain_temperature or params.process_temperature,
+            cable_length=metrics.cable_length,
+            connection_type=metrics.connection_type,
+            cable_kind="single_core",
+        )
+        return ResistiveSingleCoreResult(
+            selected_cable=str(cable.get("model", cable.get("brand", ""))),
+            conductor_cross_section=float(cable["conductor_cross_section"]),
+            cable_length=round(metrics.cable_length, 3),
+            required_cross_section=round(sk_required, 6),
+            resistance_ohm_km=round(metrics.resistance_ohm_km, 6),
+            circuit_resistance_ohm=round(metrics.circuit_resistance_ohm, 6),
+            max_current_limit_a=round(params.max_current_a, 6),
+            power_margin_w=round(metrics.total_power - q, 3),
+            total_power=round(metrics.total_power, 3),
+            current=round(metrics.current, 3),
+            voltage=round(metrics.voltage, 3),
+            connection_type=metrics.connection_type,
+            winding_pitch=round(params.winding_pitch or 0.0, 3),
+            winding_coefficient=round(params.winding_coefficient, 6),
+            num_circuits=metrics.threads * metrics.schemes,
+            selection_mode="auto",
+            scheme_count=metrics.schemes,
+            scheme_threads=metrics.threads,
+            linear_power_w_m=round(metrics.linear_power_w_m, 6),
+            required_linear_power_w_m=round(q / object_length, 6),
+            p2_w_m=round(metrics.p2_w_m, 6),
+            p3_w_m=round(metrics.p3_w_m, 6),
+            section_length_m=round(metrics.section_length, 3),
+            l1_m=round(metrics.l1_m, 3) if metrics.l1_m is not None else None,
+            l2_m=round(metrics.l2_m, 3) if metrics.l2_m is not None else None,
+        )
+
+    cable_length = object_length * params.winding_coefficient * params.number_of_threads
     q = params.required_heat_loss
     u = params.supply_voltage
     connection = params.connection_type
@@ -287,6 +622,7 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
             supply_voltage=u,
             connection_type=connection,
             cable_kind="single_core",
+            max_current_a=params.max_current_a,
         )
     else:
         cable = _pick_cable(catalog, sk_required)
@@ -308,7 +644,7 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
         required_cross_section=round(sk_required, 6),
         resistance_ohm_km=round(metrics["resistance_ohm_km"], 6),
         circuit_resistance_ohm=round(metrics["circuit_resistance_ohm"], 6),
-        max_current_limit_a=MAX_RESISTIVE_CURRENT_A,
+        max_current_limit_a=params.max_current_a,
         power_margin_w=round(p_actual - q, 3),
         total_power=round(p_actual, 3),
         current=round(current, 3),
@@ -317,6 +653,7 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
         winding_pitch=round(params.winding_pitch or 0.0, 3),
         winding_coefficient=round(params.winding_coefficient, 6),
         num_circuits=params.number_of_threads,
+        selection_mode="manual",
     )
 
 
@@ -329,9 +666,62 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
     if not catalog:
         raise ValueError("Каталог трёхжильных кабелей пуст")
 
-    cable_length = (
-        _resolve_base_length(params) * params.winding_coefficient * params.number_of_threads
-    )
+    object_length = _resolve_base_length(params)
+    if params.selection_mode == "auto":
+        section_length = object_length * params.winding_coefficient
+        metrics = _select_resistive_auto(
+            catalog,
+            required_heat_loss=params.required_heat_loss,
+            object_length=object_length,
+            section_length=section_length,
+            cable_kind="three_core",
+            start_voltage=params.start_voltage or params.supply_voltage,
+            high_voltage=params.high_voltage,
+            max_current_a=params.max_current_a,
+            max_linear_power_w_m=params.max_linear_power_w_m,
+            max_parallel_schemes=params.max_parallel_schemes,
+            min_adjusted_voltage=params.min_adjusted_voltage,
+            voltage_step=params.voltage_step,
+        )
+        cable = metrics.cable
+        q = params.required_heat_loss
+        sk_required = _legacy_required_for_result(
+            required_heat_loss=q,
+            voltage=metrics.voltage,
+            process_temperature=params.maintain_temperature or params.process_temperature,
+            cable_length=metrics.cable_length,
+            connection_type=metrics.connection_type,
+            cable_kind="three_core",
+        )
+        return ResistiveThreeCoreResult(
+            selected_cable=str(cable.get("model", cable.get("brand", ""))),
+            conductor_cross_section=float(cable["conductor_cross_section"]),
+            cable_length=round(metrics.cable_length, 3),
+            required_cross_section=round(sk_required, 6),
+            resistance_ohm_km=round(metrics.resistance_ohm_km, 6),
+            circuit_resistance_ohm=round(metrics.circuit_resistance_ohm, 6),
+            max_current_limit_a=round(params.max_current_a, 6),
+            power_margin_w=round(metrics.total_power - q, 3),
+            total_power=round(metrics.total_power, 3),
+            current=round(metrics.current, 3),
+            voltage=round(metrics.voltage, 3),
+            connection_type=metrics.connection_type,
+            winding_pitch=round(params.winding_pitch or 0.0, 3),
+            winding_coefficient=round(params.winding_coefficient, 6),
+            num_circuits=metrics.threads * metrics.schemes,
+            selection_mode="auto",
+            scheme_count=metrics.schemes,
+            scheme_threads=metrics.threads,
+            linear_power_w_m=round(metrics.linear_power_w_m, 6),
+            required_linear_power_w_m=round(q / object_length, 6),
+            p2_w_m=round(metrics.p2_w_m, 6),
+            p3_w_m=round(metrics.p3_w_m, 6),
+            section_length_m=round(metrics.section_length, 3),
+            l1_m=round(metrics.l1_m, 3) if metrics.l1_m is not None else None,
+            l2_m=round(metrics.l2_m, 3) if metrics.l2_m is not None else None,
+        )
+
+    cable_length = object_length * params.winding_coefficient * params.number_of_threads
     q = params.required_heat_loss
     u = params.supply_voltage
 
@@ -352,6 +742,7 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
             supply_voltage=u,
             connection_type=connection,
             cable_kind="three_core",
+            max_current_a=params.max_current_a,
         )
     else:
         cable = _pick_cable(catalog, sk_required)
@@ -373,7 +764,7 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
         required_cross_section=round(sk_required, 6),
         resistance_ohm_km=round(metrics["resistance_ohm_km"], 6),
         circuit_resistance_ohm=round(metrics["circuit_resistance_ohm"], 6),
-        max_current_limit_a=MAX_RESISTIVE_CURRENT_A,
+        max_current_limit_a=params.max_current_a,
         power_margin_w=round(p_actual - q, 3),
         total_power=round(p_actual, 3),
         current=round(current, 3),
@@ -382,4 +773,5 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
         winding_pitch=round(params.winding_pitch or 0.0, 3),
         winding_coefficient=round(params.winding_coefficient, 6),
         num_circuits=params.number_of_threads,
+        selection_mode="manual",
     )

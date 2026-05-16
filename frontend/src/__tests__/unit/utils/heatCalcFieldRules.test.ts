@@ -56,7 +56,7 @@ describe('heatCalcFieldRules', () => {
     })).not.toHaveProperty('wall_lambda');
   });
 
-  it('требует климатическую обеспеченность только при выбранном климате', () => {
+  it('показывает климатическую обеспеченность при выбранном климате, но не требует ручного выбора', () => {
     expect(isHeatCalcFieldVisible('climate_temperature_basis', {
       objectType: 'pipe',
       values: {},
@@ -64,11 +64,11 @@ describe('heatCalcFieldRules', () => {
     expect(isHeatCalcFieldRequired('climate_temperature_basis', {
       objectType: 'pipe',
       values: { climate_key: 'Москва|||Москва' },
-    })).toBe(true);
+    })).toBe(false);
     expect(validateHeatCalcField('climate_temperature_basis', undefined, {
       objectType: 'pipe',
       values: { climate_key: 'Москва|||Москва' },
-    })).toBe('Выберите значение');
+    })).toBeNull();
   });
 
   it('учитывает количество слоёв и материал other для λ и диапазона T', () => {

@@ -34,11 +34,13 @@ UI/API workflow считается gap до полного соответств�
 | `tlt_tank_heat_loss_no_double_k` | Да | Да | Да | Да | Да | Covered |
 | `tlt_climate_safety_factor` | Да | Да | Да, backend resolver нормализует K и расчетную T | Частично через поля климата | Да | Covered |
 | `tlt_max_winding_coefficient` | Да | Да | Да, hard-limit для explicit/geometric Kn | Частично: UI manual max `1.5` | Да | Covered |
+| `tlt_self_regulating_tlt_selection` | Да | Частично | Да, auto подбор ТЛТ по мощности и температурам | Да, таблица электрорасчёта и ручной/авто выбор марки | Да | Covered |
+| `tlt_self_regulating_thread_source_policy` | Да | Нет | Да, auto `N=1..3`, manual override и source metadata | Да, колонка ниток показывает источник | Да | Covered |
 | `tlt_tt_series_limits_inclusive` | Да | Да | Да | Да | Да | Covered |
 | `tlt_tt_t3_power_curve` | Да | Да | Да | Да | Да | Covered |
 | `tlt_tt_r1_catalog` | Да | Нет формулы, справочник | Да | Да через резистивный подбор | Да | Covered |
 | `tlt_tt_r3_catalog` | Да | Нет формулы, справочник | Да | Да через резистивный подбор | Да | Covered |
-| `tlt_resistive_selection_algorithm_full` | Да | Частично | Базовые R/P/I/65А есть; полный `U/N/M`, `p2/p3`, `L1/L2` не закрыт | Manual scheme only | Частично | Needs implementation |
+| `tlt_resistive_selection_algorithm_full` | Да | Да | Да, auto `U/N/M`, `p2/p3`, `L1/L2`, DB-policy coefficients with fallback | Да, основной flow auto; manual scheme остается override | Да | Covered with fallback policy |
 | `tlt_tt_r1_resistance_based_power` | Да | Да | Да | Да через резистивный подбор | Да | Covered |
 | `tlt_tt_t3_temperature_policy` | Да | Да | Да, T3 опционален с fallback на `process_temperature` | Да | Да | Covered |
 | `tlt_tt_thread_count_policy` | Да | Частично | Да, auto `N=ceil(Pоб/Pi)` без лимита 3 для ТТ | Нет отдельного policy control | Да | Covered |

@@ -28,6 +28,7 @@ def test_pipe_object_defaults_match_inline_form_defaults():
     assert params["location"] == "outdoor"
     assert params["supply_voltage"] == 220
     assert params["safety_factor"] == pytest.approx(1.1)
+    assert params["safety_factor_source"] == "default"
     assert params["steam_tracing"] == "no"
     assert params["num_local_elements"] == 6
     assert params["insulation_layers"] == [{"thickness": 0.05, "material": "mineral_wool"}]

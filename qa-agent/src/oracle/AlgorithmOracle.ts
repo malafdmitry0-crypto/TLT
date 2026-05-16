@@ -197,6 +197,144 @@ function resistivePassportOhmLaw(input: Record<string, unknown>): Record<string,
   };
 }
 
+function resistiveCableResistanceOhmKm(item: Record<string, unknown>): number {
+  const raw = item.resistanceOhmKm ?? item.resistance_ohm_km;
+  if (typeof raw === 'number' && !Number.isNaN(raw) && raw > 0) return raw;
+  const section = item.conductorCrossSection ?? item.conductor_cross_section;
+  if (typeof section !== 'number' || Number.isNaN(section) || section <= 0) {
+    throw new Error('catalog item must include resistanceOhmKm or conductorCrossSection');
+  }
+  return (0.0175 * 1000) / section;
+}
+
+function resistiveAutoMetrics(
+  cable: Record<string, unknown>,
+  {
+    objectLength,
+    sectionLength,
+    voltage,
+    threads,
+    schemes,
+    maxCurrentA,
+    maxLinearPowerWM,
+  }: {
+    objectLength: number;
+    sectionLength: number;
+    voltage: number;
+    threads: number;
+    schemes: number;
+    maxCurrentA: number;
+    maxLinearPowerWM?: number;
+  },
+) {
+  const resistanceOhmKm = resistiveCableResistanceOhmKm(cable);
+  const resistancePerM = resistanceOhmKm / 1000;
+  let circuitResistanceOhm: number;
+  let current: number;
+  if (threads === 2) {
+    circuitResistanceOhm = resistancePerM * sectionLength * threads;
+    current = voltage / circuitResistanceOhm;
+  } else if (threads === 3) {
+    circuitResistanceOhm = resistancePerM * sectionLength;
+    current = (voltage / Math.sqrt(3)) / circuitResistanceOhm;
+  } else {
+    throw new Error('threads must be 2 or 3');
+  }
+  const p2WM = current ** 2 * resistancePerM;
+  const p3ByCurrent = maxCurrentA ** 2 * resistancePerM;
+  const p3WM = maxLinearPowerWM === undefined ? p3ByCurrent : Math.min(p3ByCurrent, maxLinearPowerWM);
+  const perThreadPower = p2WM * sectionLength;
+  const totalPower = perThreadPower * threads * schemes;
+  return {
+    model: String(cable.model ?? cable.brand ?? ''),
+    resistanceOhmKm,
+    circuitResistanceOhm,
+    current,
+    p2WM,
+    p3WM,
+    totalPower,
+    linearPowerWM: totalPower / objectLength,
+    voltage,
+    threads,
+    schemes,
+    connectionType: threads === 2 ? 'loop_1ph' : 'star_3ph',
+    cableLength: sectionLength * threads * schemes,
+  };
+}
+
+function resistiveVsdxAutoSelect(input: Record<string, unknown>) {
+  const requiredHeatLoss = numberInput(input, 'requiredHeatLoss');
+  const objectLength = numberInput(input, 'objectLength');
+  const windingCoefficient = optionalNumberInput(input, 'windingCoefficient') ?? 1;
+  const startVoltage = optionalNumberInput(input, 'startVoltage') ?? 220;
+  const highVoltage = optionalNumberInput(input, 'highVoltage') ?? 380;
+  const minAdjustedVoltage = optionalNumberInput(input, 'minAdjustedVoltage') ?? 1;
+  const voltageStep = optionalNumberInput(input, 'voltageStep') ?? 1;
+  const maxCurrentA = optionalNumberInput(input, 'maxCurrentA') ?? 65;
+  const maxLinearPowerWM = optionalNumberInput(input, 'maxLinearPowerWM');
+  const maxParallelSchemes = optionalNumberInput(input, 'maxParallelSchemes') ?? 20;
+  const catalog = input.catalog;
+  if (requiredHeatLoss <= 0) throw new Error('requiredHeatLoss must be > 0');
+  if (objectLength <= 0) throw new Error('objectLength must be > 0');
+  if (windingCoefficient <= 0) throw new Error('windingCoefficient must be > 0');
+  if (!Array.isArray(catalog)) throw new Error('catalog must be an array');
+
+  const cables = catalog
+    .filter((raw): raw is Record<string, unknown> => typeof raw === 'object' && raw !== null)
+    .sort((left, right) => resistiveCableResistanceOhmKm(right) - resistiveCableResistanceOhmKm(left));
+  const requiredLinearPowerWM = requiredHeatLoss / objectLength;
+  const sectionLength = objectLength * windingCoefficient;
+
+  for (let schemes = 1; schemes <= maxParallelSchemes; schemes += 1) {
+    let voltage = startVoltage;
+    while (voltage >= minAdjustedVoltage) {
+      let reduceVoltage = false;
+      for (let index = 0; index < cables.length; index += 1) {
+        const metrics = resistiveAutoMetrics(cables[index], {
+          objectLength,
+          sectionLength,
+          voltage,
+          threads: 2,
+          schemes,
+          maxCurrentA,
+          maxLinearPowerWM,
+        });
+        if (metrics.p2WM > metrics.p3WM) {
+          if (index === 0) {
+            reduceVoltage = true;
+            break;
+          }
+          continue;
+        }
+        if (metrics.linearPowerWM >= requiredLinearPowerWM) return metrics;
+      }
+      if (!reduceVoltage) break;
+      voltage -= voltageStep;
+    }
+
+    for (const candidate of [
+      { voltage: highVoltage, threads: 2 },
+      { voltage: highVoltage, threads: 3 },
+    ]) {
+      for (const cable of cables) {
+        const metrics = resistiveAutoMetrics(cable, {
+          objectLength,
+          sectionLength,
+          voltage: candidate.voltage,
+          threads: candidate.threads,
+          schemes,
+          maxCurrentA,
+          maxLinearPowerWM,
+        });
+        if (metrics.p2WM <= metrics.p3WM && metrics.linearPowerWM >= requiredLinearPowerWM) {
+          return metrics;
+        }
+      }
+    }
+  }
+  throw new Error(`No VSDX auto selection for ${requiredLinearPowerWM} W/m`);
+}
+
 const BUILTIN_ALGORITHMS: Record<string, AlgorithmFunction> = {
   tlt_tank_cable_length: tankCableLength,
   tlt_climate_safety_factor: climateSafetyFactor,
@@ -205,6 +343,7 @@ const BUILTIN_ALGORITHMS: Record<string, AlgorithmFunction> = {
   tlt_select_min_sufficient_cable: selectMinSufficientCable,
   tlt_resistive_pick_cross_section: pickCrossSection,
   tlt_resistive_passport_ohm_law: resistivePassportOhmLaw,
+  tlt_resistive_vsdx_auto_select: resistiveVsdxAutoSelect,
 };
 
 export class AlgorithmOracle implements ReferenceOracle {

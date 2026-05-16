@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ProtectedRoute from './ProtectedRoute';
-import MainLayout from '@/components/layout/MainLayout';
 import { ROUTES } from './routes';
 
 const HomePage = lazy(() => import('@/pages/HomePage'));
@@ -14,6 +13,7 @@ const SpecificationPage = lazy(() => import('@/pages/SpecificationPage'));
 const ReportPage = lazy(() => import('@/pages/ReportPage'));
 const ProjectsPage = lazy(() => import('@/pages/ProjectsPage'));
 const ReportWizardPage = lazy(() => import('@/pages/ReportWizardPage'));
+const MainLayout = lazy(() => import('@/components/layout/MainLayout'));
 
 const AdminLayout = lazy(() => import('@/pages/admin/AdminLayout'));
 const UsersPage = lazy(() => import('@/pages/admin/UsersPage'));

@@ -370,11 +370,11 @@ class SelfRegulatingParams(BaseModel):
         ge=0,
         description="Шаг навива, мм; 0 или null — прямая укладка",
     )
-    number_of_threads: int = Field(
-        default=1,
+    number_of_threads: int | None = Field(
+        default=None,
         ge=1,
         le=3,
-        description="Количество ниток кабеля",
+        description="Явно заданное количество ниток; null — автоподбор",
     )
     cable_catalog: list[dict[str, Any]] | None = Field(
         default=None,
@@ -394,6 +394,9 @@ class SelfRegulatingResult(BaseModel):
     winding_pitch: float
     winding_coefficient: float
     num_circuits: int
+    requested_number_of_threads: int | None = None
+    applied_number_of_threads: int
+    number_of_threads_source: Literal["manual", "auto", "default", "previous_result"] = "auto"
 
 
 class SelfRegulatingTTParams(BaseModel):
@@ -469,6 +472,13 @@ class ResistiveSingleCoreParams(BaseModel):
     add_length: float = Field(default=0.0, ge=0, description="L_доп — дополнительная длина, м")
     process_temperature: float = Field(description="T_ж — температура жидкости, °C")
     supply_voltage: float = Field(default=220.0, gt=0, description="U — напряжение питания, В")
+    selection_mode: Literal["manual", "auto"] = Field(
+        default="manual",
+        description=(
+            "manual — прежний расчёт по явно заданной схеме; "
+            "auto — full-version VSDX-подбор U/N/M по p2/p3 и 65 А"
+        ),
+    )
     connection_type: Literal["line_1ph", "loop_1ph", "star_3ph"] = Field(
         default="line_1ph",
         description="Схема подключения: line_1ph=линия 220В, loop_1ph=петля 220В, star_3ph=звезда 380В",
@@ -482,7 +492,39 @@ class ResistiveSingleCoreParams(BaseModel):
     winding_pitch: float | None = Field(
         default=None, ge=0, description="Шаг навива, мм; 0 или null — прямая укладка"
     )
-    number_of_threads: int = Field(default=1, ge=1, le=3, description="Количество ниток")
+    number_of_threads: int = Field(default=1, ge=1, le=100, description="Количество ниток")
+    max_current_a: float = Field(default=65.0, gt=0, description="Лимит тока резистивного кабеля")
+    max_linear_power_w_m: float | None = Field(
+        default=None,
+        gt=0,
+        description="Дополнительный лимит p3, Вт/м; если не задан — используется только 65 А",
+    )
+    max_parallel_schemes: int = Field(
+        default=20,
+        ge=1,
+        le=1000,
+        description="Максимальное M при full-version автоподборе",
+    )
+    start_voltage: float | None = Field(
+        default=None,
+        gt=0,
+        description="Начальное U для автоподбора; fallback — supply_voltage",
+    )
+    high_voltage: float = Field(default=380.0, gt=0, description="U для повышенной схемы/звезды")
+    min_adjusted_voltage: float = Field(
+        default=1.0,
+        gt=0,
+        description="Минимальное U при шаговом снижении, если первый вариант перегрет",
+    )
+    voltage_step: float = Field(default=1.0, gt=0, description="Шаг снижения U в auto")
+    maintain_temperature: float | None = Field(
+        default=None,
+        description="T1/температура поддержания для VSDX-подбора; fallback — process_temperature",
+    )
+    max_conductor_temperature: float | None = Field(
+        default=None,
+        description="T3 — максимальная температура жилы/кабеля из справочника; metadata для p3",
+    )
     cable_catalog: list[dict[str, Any]] | None = Field(
         default=None, description="Каталог ТТ Р1; None — встроенный"
     )
@@ -523,6 +565,16 @@ class ResistiveSingleCoreResult(BaseModel):
     winding_pitch: float
     winding_coefficient: float
     num_circuits: int
+    selection_mode: str = "manual"
+    scheme_count: int | None = None
+    scheme_threads: int | None = None
+    linear_power_w_m: float | None = None
+    required_linear_power_w_m: float | None = None
+    p2_w_m: float | None = None
+    p3_w_m: float | None = None
+    section_length_m: float | None = None
+    l1_m: float | None = None
+    l2_m: float | None = None
 
 
 class ResistiveThreeCoreParams(BaseModel):
@@ -533,6 +585,13 @@ class ResistiveThreeCoreParams(BaseModel):
     add_length: float = Field(default=0.0, ge=0, description="L_доп — дополнительная длина, м")
     process_temperature: float = Field(description="T_ж — температура жидкости, °C")
     supply_voltage: float = Field(default=220.0, gt=0, description="U — напряжение питания, В")
+    selection_mode: Literal["manual", "auto"] = Field(
+        default="manual",
+        description=(
+            "manual — прежний расчёт по явно заданной схеме; "
+            "auto — full-version VSDX-подбор U/N/M по p2/p3 и 65 А"
+        ),
+    )
     connection_type: Literal["line_1ph", "loop_2x3", "loop_1x3", "star_3x3", "star_1x3"] = Field(
         default="line_1ph",
         description="Схема подключения трёхжильного кабеля",
@@ -546,7 +605,39 @@ class ResistiveThreeCoreParams(BaseModel):
     winding_pitch: float | None = Field(
         default=None, ge=0, description="Шаг навива, мм; 0 или null — прямая укладка"
     )
-    number_of_threads: int = Field(default=1, ge=1, le=3, description="Количество ниток")
+    number_of_threads: int = Field(default=1, ge=1, le=100, description="Количество ниток")
+    max_current_a: float = Field(default=65.0, gt=0, description="Лимит тока резистивного кабеля")
+    max_linear_power_w_m: float | None = Field(
+        default=None,
+        gt=0,
+        description="Дополнительный лимит p3, Вт/м; если не задан — используется только 65 А",
+    )
+    max_parallel_schemes: int = Field(
+        default=20,
+        ge=1,
+        le=1000,
+        description="Максимальное M при full-version автоподборе",
+    )
+    start_voltage: float | None = Field(
+        default=None,
+        gt=0,
+        description="Начальное U для автоподбора; fallback — supply_voltage",
+    )
+    high_voltage: float = Field(default=380.0, gt=0, description="U для повышенной схемы/звезды")
+    min_adjusted_voltage: float = Field(
+        default=1.0,
+        gt=0,
+        description="Минимальное U при шаговом снижении, если первый вариант перегрет",
+    )
+    voltage_step: float = Field(default=1.0, gt=0, description="Шаг снижения U в auto")
+    maintain_temperature: float | None = Field(
+        default=None,
+        description="T1/температура поддержания для VSDX-подбора; fallback — process_temperature",
+    )
+    max_conductor_temperature: float | None = Field(
+        default=None,
+        description="T3 — максимальная температура жилы/кабеля из справочника; metadata для p3",
+    )
     cable_catalog: list[dict[str, Any]] | None = Field(
         default=None, description="Каталог ТТ Р3; None — встроенный"
     )
@@ -581,6 +672,16 @@ class ResistiveThreeCoreResult(BaseModel):
     winding_pitch: float
     winding_coefficient: float
     num_circuits: int
+    selection_mode: str = "manual"
+    scheme_count: int | None = None
+    scheme_threads: int | None = None
+    linear_power_w_m: float | None = None
+    required_linear_power_w_m: float | None = None
+    p2_w_m: float | None = None
+    p3_w_m: float | None = None
+    section_length_m: float | None = None
+    l1_m: float | None = None
+    l2_m: float | None = None
 
 
 ElectricalCableType = Literal[

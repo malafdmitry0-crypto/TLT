@@ -49,6 +49,10 @@ class TestSelfRegulating:
         r = calc_self_regulating(_params(cable_mark=None))
         # должен автоматически подобрать ≥ 20 * 1.1 = 22 → ТЛТ-25
         assert r.selected_cable == "ТЛТ-25"
+        assert r.num_circuits == 1
+        assert r.number_of_threads_source == "auto"
+        assert r.requested_number_of_threads is None
+        assert r.applied_number_of_threads == 1
 
     def test_unknown_cable_mark_raises(self):
         # Ручной выбор несуществующей марки → явная ошибка
@@ -107,7 +111,26 @@ class TestSelfRegulating:
         )
         assert r.selected_cable == "ТЛТ-15"
         assert r.num_circuits == 2
+        assert r.number_of_threads_source == "manual"
+        assert r.requested_number_of_threads == 2
         assert r.cable_length == pytest.approx(50 * CABLE_LENGTH_FACTOR * 2, rel=1e-3)
+
+    def test_auto_selection_can_increase_threads_when_one_thread_is_not_enough(self):
+        r = calc_self_regulating(
+            _params(
+                cable_mark=None,
+                required_power_per_meter=167.858,
+                safety_factor=1.1,
+                ambient_temperature=-20,
+                process_temperature=90,
+            )
+        )
+
+        assert r.num_circuits == 2
+        assert r.applied_number_of_threads == 2
+        assert r.requested_number_of_threads is None
+        assert r.number_of_threads_source == "auto"
+        assert r.selected_cable == "ТЛТ-100"
 
     def test_layout_is_reported_in_result(self):
         r = calc_self_regulating(
@@ -162,12 +185,12 @@ class TestAutoSelectionWithTemperature:
             )
 
     def test_auto_no_cable_due_to_power_limit(self):
-        """Req > 100 Вт/м — всегда сообщение про максимум линейки."""
+        """Req выше доступной мощности при 3 нитках — сообщение про максимум линейки."""
         with pytest.raises(ValueError, match="максимум линейки"):
             calc_self_regulating(
                 _params(
                     cable_mark=None,
-                    required_power_per_meter=150,
+                    required_power_per_meter=400,
                     ambient_temperature=-20,
                     process_temperature=40,
                     safety_factor=1.1,

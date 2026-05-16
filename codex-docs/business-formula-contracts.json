@@ -70,6 +70,8 @@
       "id": "self_regulating_cable_selection",
       "title": "Автоподбор саморегулирующегося кабеля",
       "requirementRefs": [
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_self_regulating_tlt_selection" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_self_regulating_thread_source_policy" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_series_limits_inclusive" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_max_winding_coefficient" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_t3_power_curve" },
@@ -117,6 +119,7 @@
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_resistive_selection_algorithm_full" },
         { "path": "docs/tnp/project-reconciliation-audit.md", "symbol": "ALG-RES-01" },
         { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_resistive_passport_ohm_law" },
+        { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_resistive_vsdx_auto_select" },
         { "path": "docs/tnp/internal-references/resistive-cable-r1.md" },
         { "path": "docs/tnp/internal-references/resistive-cable-r3.md" },
         { "path": "formules.md", "symbol": "подбирает кабель" },

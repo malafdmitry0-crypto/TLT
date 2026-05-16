@@ -842,7 +842,7 @@ algorithms:
         expected: "ТТХ"
 
   - id: tlt_select_min_sufficient_cable
-    description: "Select the lowest power TLT cable that satisfies effective power and temperature constraints."
+    description: "Select the lowest sufficient TLT cable that satisfies effective power, temperature and self-regulating thread constraints."
     inputs:
       - requiredPowerPerMeter
       - safetyFactor
@@ -869,6 +869,7 @@ algorithms:
         - "The oracle takes an explicit catalog in the test input to avoid importing backend reference data."
     engineeringReview:
       - "Catalog-driven selection must be tested with ties, unavailable temperature ranges and manual cable selection."
+      - "If TLT threads are not explicitly requested, backend auto-selection may try 1..3 threads and must keep requested/applied thread counts separate."
     examples:
       - id: min-sufficient-cable-basic
         kind: fixed
@@ -942,6 +943,40 @@ algorithms:
           current: 27.5
           maxCurrentA: 65
           withinCurrentLimit: true
+
+  - id: tlt_resistive_vsdx_auto_select
+    description: "Full-version deterministic auto-selection for resistive cable by U/N/M, p2/p3 and 65A current limit."
+    inputs: [requiredHeatLoss, objectLength, windingCoefficient, catalog, startVoltage, highVoltage, maxCurrentA, maxLinearPowerWM, maxParallelSchemes]
+    outputs: [selected_cable, voltage, threads, schemes, p2_w_m, p3_w_m, total_power]
+    sourceRefs:
+      - "docs/tnp/algorithms/resistive-selection.md"
+      - "docs/tnp/internal-references/resistive-cable-r1.md"
+    implementationRefs:
+      - "backend/app/formulas/electrical/resistive.py"
+      - "qa-agent/src/oracle/AlgorithmOracle.ts"
+    oracle:
+      status: implemented
+      notes:
+        - "VSDX order: M from 1 up; loop at start voltage with step-down if first cable exceeds p3; loop at high voltage; star at high voltage."
+        - "p2 is per-thread W/m, p3 is min(65A current limit, optional maxLinearPowerWM)."
+    examples:
+      - id: resistive-vsdx-auto-loop-380
+        kind: fixed
+        input:
+          requiredHeatLoss: 5000
+          objectLength: 100
+          catalog:
+            - model: TT R1 100
+              resistanceOhmKm: 100
+              conductorCrossSection: 0.47
+            - model: TT R1 80
+              resistanceOhmKm: 80
+              conductorCrossSection: 0.22
+        expected:
+          model: TT R1 100
+          voltage: 380
+          threads: 2
+          schemes: 1
 
   - id: tlt_specification_grouping
     description: "Group electrical calculation results by selected cable/cable_mark and add accessory quantities per total object count."

@@ -40,6 +40,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 
 import {
+  batchCalcElectrical,
   cancelCalcTask,
   enqueueElectricalBatchJob,
   getElectricalQueryCapabilities,
@@ -155,6 +156,7 @@ const ENABLED_CABLE_TYPES: ReadonlySet<CableTypeKey> = new Set([
   'single_core',
   'three_core',
 ]);
+const isResistiveCableType = (type: CableTypeKey) => type === 'single_core' || type === 'three_core';
 const ELECTRICAL_TABLE_PAGE_SIZE = 50;
 type ElectricalBatchScope = 'all' | 'selected';
 type ElectricalBatchMutationArgs = {
@@ -179,6 +181,7 @@ type CableLayoutDraft = {
 };
 
 type CableMarkSource = 'auto' | 'manual';
+type ThreadSource = 'auto' | 'manual' | 'default' | 'previous_result';
 
 type ElectricalNavigationState = {
   activeJobId?: string;
@@ -194,6 +197,8 @@ type ElectricalTableSettingsPreferenceMutation = {
   columnSettings: ElectricalTableColumnSettings;
   viewSettings: ElectricalTableViewSettings;
 };
+
+const AUTO_CABLE_MARK_VALUE = '__auto__';
 
 function getCableMark(calc: ElectricalCalcSummary | undefined) {
   const selectedCable = calc?.results?.selected_cable;
@@ -212,6 +217,32 @@ function cableMarkSourceTag(source: CableMarkSource) {
       label: 'ручн.',
       tooltip: 'Марка кабеля выбрана вручную',
     };
+  }
+  return null;
+}
+
+function getThreadSource(calc: ElectricalCalcSummary | undefined): ThreadSource | null {
+  const value = calc?.results?.number_of_threads_source ?? calc?.params?.number_of_threads_source;
+  return value === 'auto'
+    || value === 'manual'
+    || value === 'default'
+    || value === 'previous_result'
+    ? value
+    : null;
+}
+
+function threadSourceTag(source: ThreadSource | null) {
+  if (source === 'manual') {
+    return { color: 'purple', label: 'ручн.', tooltip: 'Количество ниток задано вручную' };
+  }
+  if (source === 'auto') {
+    return { color: 'blue', label: 'авто', tooltip: 'Количество ниток подобрано алгоритмом' };
+  }
+  if (source === 'previous_result') {
+    return { color: 'gold', label: 'пред.', tooltip: 'Количество ниток взято из предыдущего результата' };
+  }
+  if (source === 'default') {
+    return { color: 'default', label: 'по ум.', tooltip: 'Использовано значение по умолчанию' };
   }
   return null;
 }
@@ -877,6 +908,7 @@ export default function ElecCalcPage() {
       const fallbackCableType = scope === 'selected'
         ? selectedCableType ?? defaultCableType
         : cableTypeForRecalculation;
+      const selectionMode = isResistiveCableType(fallbackCableType) ? 'auto' : undefined;
       return enqueueElectricalBatchJob(
         project!.id,
         effectiveSource,
@@ -884,6 +916,7 @@ export default function ElecCalcPage() {
         fallbackCableType,
         {
           supplyVoltage,
+          selectionMode,
           connectionType,
           windingCoefficient,
           heatingHeight,
@@ -1012,6 +1045,7 @@ export default function ElecCalcPage() {
     }) =>
       selectCableManual(objectId, mark, effectiveSource, variant, cableType, {
         supplyVoltage,
+        selectionMode: isResistiveCableType(cableType) ? 'auto' : undefined,
         connectionType,
         windingCoefficient,
         heatingHeight,
@@ -1025,6 +1059,36 @@ export default function ElecCalcPage() {
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
       message.success('Кабель выбран, расчёт обновлён');
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+
+  const autoCableMut = useMutation({
+    mutationFn: ({
+      objectId,
+      cableType,
+    }: {
+      objectId: string;
+      cableType: CableTypeKey;
+    }) =>
+      batchCalcElectrical(project!.id, effectiveSource, variant, cableType, {
+        supplyVoltage,
+        selectionMode: isResistiveCableType(cableType) ? 'auto' : undefined,
+        connectionType,
+        windingCoefficient,
+        heatingHeight,
+        layingStep,
+        maintainTemperature,
+        vaporTemperature,
+        aggressiveProduct,
+        objectIds: [objectId],
+        forceCableType: true,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
+      message.success('Автоподбор выполнен');
     },
     onError: (e: Error) => message.error(e.message),
   });
@@ -1045,6 +1109,7 @@ export default function ElecCalcPage() {
     }) =>
       selectCableManual(objectId, mark, effectiveSource, variant, cableType, {
         supplyVoltage,
+        selectionMode: isResistiveCableType(cableType) ? 'manual' : undefined,
         connectionType,
         windingCoefficient,
         windingPitchMm,
@@ -1069,7 +1134,8 @@ export default function ElecCalcPage() {
     onError: (e: Error) => message.error(e.message),
   });
   const manualCableMutate = manualCableMut.mutate;
-  const isManualCablePending = manualCableMut.isPending;
+  const autoCableMutate = autoCableMut.mutate;
+  const isCableMarkPending = manualCableMut.isPending || autoCableMut.isPending;
   const layoutMutate = layoutMut.mutate;
   const isLayoutPending = layoutMut.isPending;
 
@@ -1266,6 +1332,12 @@ export default function ElecCalcPage() {
           </Tooltip>
         ) : null;
         const isActive = activeRowId === obj.id;
+        const cableType = getSavedCableTypeForObject(obj.id);
+        const manualOptions = manualCableOptionsForType(cableType);
+        const options = [
+          { value: AUTO_CABLE_MARK_VALUE, label: 'Авто' },
+          ...manualOptions,
+        ];
 
         if (!isActive) {
           return (
@@ -1283,22 +1355,22 @@ export default function ElecCalcPage() {
             <Select
               size="small"
               showSearch
-              allowClear
-              placeholder="Авто"
-              value={mark}
-              options={manualCableOptionsForType(getSavedCableTypeForObject(obj.id))}
-              disabled={
-                !obj.is_valid
-                || manualCableOptionsForType(getSavedCableTypeForObject(obj.id)).length === 0
-              }
-              loading={isManualCablePending}
+              value={mark ?? AUTO_CABLE_MARK_VALUE}
+              options={options}
+              disabled={!obj.is_valid || !project}
+              loading={isCableMarkPending}
               style={{ flex: 1, minWidth: 0 }}
               onChange={(nextMark) => {
-                if (nextMark) {
+                if (nextMark === AUTO_CABLE_MARK_VALUE) {
+                  autoCableMutate({
+                    objectId: obj.id,
+                    cableType,
+                  });
+                } else if (nextMark) {
                   manualCableMutate({
                     objectId: obj.id,
                     mark: nextMark,
-                    cableType: getSavedCableTypeForObject(obj.id),
+                    cableType,
                   });
                 }
               }}
@@ -1307,13 +1379,6 @@ export default function ElecCalcPage() {
           </div>
         );
       },
-    },
-    selected_cable: {
-      render: (_: unknown, obj) => (
-        <Text style={{ fontSize: 12 }}>
-          {valueText(stats.calcByObjectId[obj.id]?.results?.selected_cable)}
-        </Text>
-      ),
     },
     variant_number: {
       align: 'right',
@@ -1358,12 +1423,26 @@ export default function ElecCalcPage() {
         const values = calcLayoutValues(calc, layoutDrafts[obj.id]);
         const isActive = activeRowId === obj.id;
         const rowCableType = getSavedCableTypeForObject(obj.id);
+        const sourceMeta = threadSourceTag(getThreadSource(calc));
+        const sourceTag = sourceMeta ? (
+          <Tooltip title={sourceMeta.tooltip}>
+            <Tag
+              color={sourceMeta.color}
+              style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}
+            >
+              {sourceMeta.label}
+            </Tag>
+          </Tooltip>
+        ) : null;
 
         if (!isActive || !obj.is_valid || !mark) {
           return (
-            <Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>
-              {mark ? values.numberOfThreads : '—'}
-            </Text>
+            <Space size={4} wrap={false}>
+              <Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>
+                {mark ? values.numberOfThreads : '—'}
+              </Text>
+              {mark ? sourceTag : null}
+            </Space>
           );
         }
 
@@ -1467,12 +1546,13 @@ export default function ElecCalcPage() {
   }), [
     activeRowId,
     aggressiveProduct,
+    autoCableMutate,
     commitLayout,
     connectionType,
     getSavedCableTypeForObject,
     heatingHeight,
+    isCableMarkPending,
     isLayoutPending,
-    isManualCablePending,
     layingStep,
     layoutDrafts,
     layoutMutate,
@@ -1480,6 +1560,7 @@ export default function ElecCalcPage() {
     manualCableMutate,
     manualCableOptionsForType,
     pageInfo?.offset,
+    project,
     stats.calcByObjectId,
     supplyVoltage,
     updateLayoutDraft,
@@ -1670,14 +1751,16 @@ export default function ElecCalcPage() {
           const label = getCableMark(calc) ?? 'Авто';
           return getCableMarkSource(calc) === 'manual' ? `${label} (ручной выбор)` : label;
         }
-      case 'selected_cable':
-        return valueText(calc?.results?.selected_cable);
       case 'variant_number':
         return calc?.variant_number ?? variant;
       case 'winding_pitch_mm':
         return valueText(calc?.results?.winding_pitch);
       case 'number_of_threads':
-        return valueText(calc?.results?.num_circuits);
+        {
+          const source = threadSourceTag(getThreadSource(calc));
+          const value = valueText(calc?.results?.num_circuits);
+          return source ? `${value} (${source.label})` : value;
+        }
       case 'laying_step':
       case 'heating_height':
       case 'connection_type':

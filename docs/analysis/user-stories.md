@@ -743,7 +743,7 @@
 
 **Критерии приёмки:**
 - [ ] CRUD-операции: GET, POST, PUT, DELETE /admin/cables
-- [ ] Поля: cable_type (enum), brand, model, power_per_meter, max/min_temperature, resistance_per_meter, params, is_active
+- [ ] Поля: cable_type (enum), brand, model, power_per_meter, max/min_temperature, resistance_per_meter, commercial fields (`price_per_meter`, `stock_quantity_m`, `lead_time_days`, `supplier_priority`, `is_preferred`, `order_multiple_m`), params, is_active
 - [ ] Только для роли `admin`
 
 ---
@@ -833,20 +833,20 @@
 | ID | Описание | Статус |
 |----|----------|:------:|
 | US-09.1 | Импорт объектов из Excel (xlsx, два листа) + CSV (один файл, колонка «Тип»). Парсер с алиасами материалов и форм, построчный отчёт об ошибках, шаблон для скачивания. Тестовые sample-файлы на 100 записей. | ✅ |
+| US-09.2 | Экспорт объектов в Excel для редактирования: backend-endpoint `GET /projects/{id}/objects/export-excel` и UI-кнопка на HeatCalcPage. | ✅ |
 | US-09.3 | Drag-and-drop сортировка строк в таблицах Pipe/Tank (`@dnd-kit`, `activationConstraint=6px` чтобы сохранить кликабельность кнопок Edit/Delete). Порядок сохраняется через `PUT /objects/reorder`. | ✅ |
+| US-09.7 | Расчёт резистивных кабелей ТТ Р1 (`single_core`) и ТТ Р3 (`three_core`) по full-version VSDX fallback policy. | ✅ |
 | US-09.12 | Персистентные ошибки электрорасчёта: при сбое сохраняется запись `ElectricalCalculation` с `results.error`, на UI показывается красный Alert с причиной (после reload не теряется). Upsert по `(object_id, variant_number)` — без дубликатов. | ✅ |
 
 ## Нереализованные истории (бэклог)
 
 | ID | Описание | Приоритет | SP |
 |----|----------|-----------|-----|
-| US-09.2 | Экспорт объектов в Excel для редактирования — **частично ✅**: backend-endpoint `GET /projects/{id}/objects/export-excel` реализован; UI-кнопка в HeatCalcPage ещё в бэклоге | Should | 3 |
 | US-09.4 | Комментарии к объектам и проектам | Could | 5 |
 | US-09.5 | История изменений коэффициентов | Should | 8 |
 | US-09.6 | Уведомления при истечении сессии | Should | 3 |
-| US-09.7 | Расчёт резистивных кабелей (single_core, three_core) | Should | 13 |
 | US-09.8 | Расчёт кабелей с минеральной изоляцией | Could | 13 |
 | US-09.9 | Расчёт кабелей скин-эффекта | Could | 13 |
 | US-09.10 | Поиск и фильтрация проектов | Should | 5 |
 | US-09.11 | Мобильная адаптация интерфейса | Could | 13 |
-| US-09.13 | Копирование диапазонов ячеек (ТЗ 4.1.3) — требует inline-редактирования таблиц | Could | 13 |
+| US-09.13 | Excel-like bulk edit: TSV-копирование уже есть; вставка диапазонов, drag-fill и массовое редактирование остаются UX-бэклогом | Could | 13 |

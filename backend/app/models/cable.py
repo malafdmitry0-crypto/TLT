@@ -4,7 +4,7 @@ import enum
 import uuid
 from typing import Any
 
-from sqlalchemy import Boolean, Float, String
+from sqlalchemy import Boolean, Float, Integer, String
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -38,5 +38,11 @@ class CableExtended(Base, TimestampMixin):
     max_temperature: Mapped[float | None] = mapped_column(Float, nullable=True)
     min_temperature: Mapped[float | None] = mapped_column(Float, nullable=True)
     resistance_per_meter: Mapped[float | None] = mapped_column(Float, nullable=True)
+    price_per_meter: Mapped[float | None] = mapped_column(Float, nullable=True)
+    stock_quantity_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lead_time_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    supplier_priority: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_preferred: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    order_multiple_m: Mapped[float | None] = mapped_column(Float, nullable=True)
     params: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
