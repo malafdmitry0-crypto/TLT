@@ -56,7 +56,7 @@ export default function HomePage() {
               <div>
                 <Text strong style={{ fontSize: 15 }}>Войти без регистрации</Text>
                 <br />
-                <Text type="secondary" style={{ fontSize: 13 }}>
+                <Text type="secondary" style={{ fontSize: 13, color: '#595959' }}>
                   Быстрый доступ к расчётам — регистрация не нужна. Работа ведётся в одном проекте; после 20 мин неактивности все данные автоматически удаляются.
                 </Text>
               </div>
@@ -70,7 +70,7 @@ export default function HomePage() {
               icon={<QuestionCircleOutlined />}
               block
               onClick={() => navigate('/help/guest')}
-              style={{ marginTop: 6 }}
+              style={{ marginTop: 6, color: '#1a5276' }}
             >
               Инструкция для гостей
             </Button>
@@ -92,7 +92,7 @@ export default function HomePage() {
               <div>
                 <Text strong style={{ fontSize: 15 }}>Войти как сотрудник</Text>
                 <br />
-                <Text type="secondary" style={{ fontSize: 13 }}>
+                <Text type="secondary" style={{ fontSize: 13, color: '#595959' }}>
                   Полный доступ: сохранение проектов, история расчётов, экспорт отчётов. Требуется учётная запись.
                 </Text>
               </div>
@@ -106,7 +106,7 @@ export default function HomePage() {
               icon={<QuestionCircleOutlined />}
               block
               onClick={() => navigate('/help/employee')}
-              style={{ marginTop: 6 }}
+              style={{ marginTop: 6, color: '#1a5276' }}
             >
               Инструкция для сотрудников
             </Button>
@@ -127,7 +127,7 @@ export default function HomePage() {
               <div>
                 <Text strong style={{ fontSize: 15 }}>Войти как администратор</Text>
                 <br />
-                <Text type="secondary" style={{ fontSize: 13 }}>
+                <Text type="secondary" style={{ fontSize: 13, color: '#595959' }}>
                   Управление сотрудниками, коэффициентами и справочниками. Требуется учётная запись администратора.
                 </Text>
               </div>
@@ -141,7 +141,7 @@ export default function HomePage() {
               icon={<QuestionCircleOutlined />}
               block
               onClick={() => navigate('/help/admin')}
-              style={{ marginTop: 6 }}
+              style={{ marginTop: 6, color: '#1a5276' }}
             >
               Инструкция для администратора
             </Button>

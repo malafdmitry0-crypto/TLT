@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "description": "Matrix for Codex functional audits: documentation -> formula implementation -> API -> UI -> tests.",
+  "contracts": [
+    {
+      "id": "pipe_heat_loss",
+      "title": "Расчет теплопотерь трубы",
+      "requirementRefs": [
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_pipe_total_heat_loss" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_pipe_heat_loss_no_double_k" },
+        { "path": "docs/tnp/block-heat-loss-and-cable-selection/pipe-heat-loss-and-cable-selection.md" },
+        { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_pipe_total_heat_loss" },
+        { "path": "formules.md", "symbol": "Теплопотери" },
+        { "path": "docs/context/formulas-summary.md", "symbol": "трубы" }
+      ],
+      "backendRefs": [
+        { "path": "backend/app/formulas/heat_loss/pipe.py" },
+        { "path": "backend/app/services/calculation_service.py", "symbol": "calc_pipe_heat_loss" }
+      ],
+      "apiRefs": [
+        { "path": "backend/app/api/v1/calculations.py" },
+        { "path": "backend/app/api/v1/objects.py" }
+      ],
+      "frontendRefs": [
+        { "path": "frontend/src/pages/HeatCalcPage.tsx" },
+        { "path": "frontend/src/api/calculations.ts" }
+      ],
+      "testRefs": [
+        { "path": "backend/app/tests/unit/formulas/test_pipe_heat_loss.py", "command": "scripts/formula-qa.sh quick" },
+        { "path": "backend/app/tests/unit/services/test_no_double_safety.py", "command": "scripts/formula-qa.sh quick" },
+        { "path": "backend/app/tests/integration/api/test_calculations.py", "command": "scripts/formula-qa.sh full" },
+        { "path": "e2e/tests/heat-calculation.spec.ts", "command": "scripts/codex-functional-audit.sh user-flows" }
+      ]
+    },
+    {
+      "id": "tank_heat_loss",
+      "title": "Расчет теплопотерь резервуара",
+      "requirementRefs": [
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_tank_external_resistance" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_rectangular_tank_perimeter" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_tank_heat_loss_no_double_k" },
+        { "path": "docs/tnp/block-heat-loss-and-cable-selection/tank-heat-loss-and-cable-selection.md" },
+        { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_tank_external_resistance" },
+        { "path": "formules.md", "symbol": "резервуар" },
+        { "path": "docs/context/formulas-summary.md", "symbol": "резервуар" }
+      ],
+      "backendRefs": [
+        { "path": "backend/app/formulas/heat_loss/tank.py" },
+        { "path": "backend/app/services/calculation_service.py", "symbol": "calc_tank_heat_loss" }
+      ],
+      "apiRefs": [
+        { "path": "backend/app/api/v1/calculations.py" },
+        { "path": "backend/app/api/v1/objects.py" }
+      ],
+      "frontendRefs": [
+        { "path": "frontend/src/pages/HeatCalcPage.tsx" },
+        { "path": "frontend/src/components/wizard/ObjectWizard.tsx" }
+      ],
+      "testRefs": [
+        { "path": "backend/app/tests/unit/formulas/test_tank_heat_loss.py", "command": "scripts/formula-qa.sh quick" },
+        { "path": "backend/app/tests/integration/api/test_objects.py", "command": "scripts/formula-qa.sh full" },
+        { "path": "e2e/tests/heat-calculation.spec.ts", "command": "scripts/codex-functional-audit.sh user-flows" }
+      ]
+    },
+    {
+      "id": "self_regulating_cable_selection",
+      "title": "Автоподбор саморегулирующегося кабеля",
+      "requirementRefs": [
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_series_limits_inclusive" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_max_winding_coefficient" },
+        { "path": "docs/tnp/algorithms/self-regulating-pipe-selection.md" },
+        { "path": "docs/tnp/algorithms/winding.md" },
+        { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_max_winding_coefficient" },
+        { "path": "docs/context/formulas-summary.md", "symbol": "Саморегулирующийся" },
+        { "path": "docs/analysis/business-rules.md", "symbol": "кабель" }
+      ],
+      "backendRefs": [
+        { "path": "backend/app/formulas/electrical/self_regulating.py" },
+        { "path": "backend/app/formulas/electrical/cable_geometry.py" },
+        { "path": "backend/app/services/calculation_service.py", "symbol": "electrical" }
+      ],
+      "apiRefs": [
+        { "path": "backend/app/api/v1/calculations.py" },
+        { "path": "backend/app/api/v1/calc_jobs.py" }
+      ],
+      "frontendRefs": [
+        { "path": "frontend/src/pages/ElecCalcPage.tsx" },
+        { "path": "frontend/src/components/electrical/CableSelector.tsx" }
+      ],
+      "testRefs": [
+        { "path": "backend/app/tests/unit/formulas/test_self_regulating.py", "command": "scripts/formula-qa.sh quick" },
+        { "path": "backend/app/tests/unit/formulas/test_self_regulating_tt.py", "command": "scripts/formula-qa.sh quick" },
+        { "path": "backend/app/tests/unit/formulas/test_self_regulating_critical.py", "command": "scripts/formula-qa.sh quick" },
+        { "path": "qa-agent/tests/AlgorithmOracle.test.ts", "command": "npm --prefix qa-agent test" },
+        { "path": "backend/app/tests/integration/api/test_calc_jobs.py", "command": "scripts/formula-qa.sh full" },
+        { "path": "e2e/tests/cable-business-flows.spec.ts", "command": "scripts/codex-functional-audit.sh user-flows" }
+      ]
+    },
+    {
+      "id": "resistive_cable_selection",
+      "title": "Расчет резистивного кабеля",
+      "requirementRefs": [
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_r1_catalog" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_r3_catalog" },
+        { "path": "docs/tnp/internal-references/resistive-cable-r1.md" },
+        { "path": "docs/tnp/internal-references/resistive-cable-r3.md" },
+        { "path": "formules.md", "symbol": "подбирает кабель" },
+        { "path": "docs/context/formulas-summary.md", "symbol": "кабель" }
+      ],
+      "backendRefs": [
+        { "path": "backend/app/formulas/electrical/resistive.py" },
+        { "path": "backend/app/formulas/electrical/cable_geometry.py" },
+        { "path": "backend/app/reference_data/resistive_cables.json" },
+        { "path": "backend/app/services/calculation_service.py", "symbol": "resistive" }
+      ],
+      "apiRefs": [
+        { "path": "backend/app/api/v1/calculations.py" },
+        { "path": "backend/app/api/v1/objects.py" }
+      ],
+      "frontendRefs": [
+        { "path": "frontend/src/pages/ElecCalcPage.tsx" },
+        { "path": "frontend/src/api/calculations.ts" }
+      ],
+      "testRefs": [
+        { "path": "backend/app/tests/unit/formulas/test_resistive.py", "command": "scripts/formula-qa.sh quick" },
+        { "path": "backend/app/tests/unit/reference_data/test_loader.py", "command": "scripts/formula-qa.sh quick" },
+        { "path": "backend/app/tests/integration/api/test_calculations.py", "command": "scripts/formula-qa.sh full" },
+        { "path": "e2e/tests/elec-calculation.spec.ts", "command": "scripts/codex-functional-audit.sh user-flows" }
+      ]
+    },
+    {
+      "id": "specification_from_electrical_variant",
+      "title": "Спецификация из актуального варианта электротехнического расчета",
+      "requirementRefs": [
+        { "path": "docs/srs/05-functional-nonfunctional.md", "symbol": "спецификац" },
+        { "path": "docs/srs/ui/employee/05-screen-workspace-specification.md", "symbol": "спецификац" }
+      ],
+      "backendRefs": [
+        { "path": "backend/app/formulas/specification/builder.py" },
+        { "path": "backend/app/services/specification_service.py", "symbol": "variant_number" }
+      ],
+      "apiRefs": [
+        { "path": "backend/app/api/v1/specifications.py" }
+      ],
+      "frontendRefs": [
+        { "path": "frontend/src/pages/SpecificationPage.tsx" },
+        { "path": "frontend/src/api/specifications.ts" }
+      ],
+      "testRefs": [
+        { "path": "backend/app/tests/unit/formulas/test_spec_builder.py", "command": "scripts/formula-qa.sh quick" },
+        { "path": "backend/app/tests/integration/api/test_specifications.py", "command": "scripts/codex-functional-audit.sh business" },
+        { "path": "e2e/tests/specification.spec.ts", "command": "scripts/codex-functional-audit.sh user-flows" }
+      ]
+    }
+  ]
+}

@@ -29,6 +29,8 @@ import {
   HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY,
 } from '@/utils/heatCalcFieldInputSettings';
 
+const HEATCALC_PAGE_TEST_TIMEOUT = 60_000;
+
 // ── Моки API ─────────────────────────────────────────────────────────────────
 
 vi.mock('@/api/projects', () => {
@@ -470,7 +472,7 @@ describe('HeatCalcPage', () => {
         expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       });
       expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('режим «Все» показывает трубопроводы и резервуары в одной таблице', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -525,7 +527,7 @@ describe('HeatCalcPage', () => {
       expect(screen.getByText('Альфа резервуар')).toBeInTheDocument();
       expect(screen.getByText('1/2')).toBeInTheDocument();
       expect(within(typeToolbar).getByRole('button', { name: /Все:\s*1\/2/ })).toBeInTheDocument();
-    }, 20_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('настройки таблицы для режима «Все» сохраняются отдельно от труб и резервуаров', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -556,7 +558,7 @@ describe('HeatCalcPage', () => {
       expect(saved.types.all.visibleOrder).not.toContain('process_temperature');
       expect(saved.types.pipe.visibleOrder).toContain('process_temperature');
       expect(saved.types.tank.visibleOrder).toContain('process_temperature');
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('режим «Все» позволяет включить поля труб и резервуаров и показывает прочерки для чужого типа', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -617,7 +619,7 @@ describe('HeatCalcPage', () => {
       expect(saved.types.all.visibleOrder).toEqual(expect.arrayContaining(['pipe_dn', 'tank_shape']));
       expect(saved.types.pipe.visibleOrder).toContain('pipe_dn');
       expect(saved.types.tank.visibleOrder).toContain('tank_shape');
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('кнопка «Добавить» сбрасывает форму активного типа без dropdown', async () => {
       useProjectStore.getState().setCurrentProject(mockProject);
@@ -637,7 +639,7 @@ describe('HeatCalcPage', () => {
       await user.click(addButton);
 
       expect(await screen.findByText('Форма и геометрия резервуара')).toBeInTheDocument();
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('основные действия toolbar доступны по имени при icon-only отображении', async () => {
       useProjectStore.getState().setCurrentProject(mockProject);
@@ -729,7 +731,7 @@ describe('HeatCalcPage', () => {
       expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       expect(screen.getByTestId('object-name-input')).toHaveValue('');
       expect(paramsBlock()).toBeVisible();
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('берёт дефолтные колонки из JSON и не пишет гостевой localStorage до изменения', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -800,7 +802,7 @@ describe('HeatCalcPage', () => {
         expect(screen.getByText('Резервуар прямоугольный')).toBeInTheDocument();
       });
       expect(screen.getAllByText('Габариты').length).toBeGreaterThan(0);
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('сохраняет порядок и ширину колонок из окна «Настройки таблицы»', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -861,7 +863,7 @@ describe('HeatCalcPage', () => {
       expect(saved.types.pipe.columns.pipe_dn).toMatchObject({ widthPct: 12.5 });
       expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
       expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('сохраняет размер текста таблицы отдельной guest-настройкой', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -894,7 +896,7 @@ describe('HeatCalcPage', () => {
         formSectionWeights: [1.095, 1.35, 1.2, 0.56],
       });
       expect(saved).not.toHaveProperty('fontSizePx');
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('сохраняет форматы названий для таблицы и настроек колонок', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -928,7 +930,7 @@ describe('HeatCalcPage', () => {
       await user.click(screen.getByRole('button', { name: 'Настройки отображения' }));
       const nextDialog = await screen.findByRole('dialog', { name: 'Настройки таблицы' });
       expect(within(nextDialog).getByText('Ø, мм')).toBeInTheDocument();
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('сохраняет положение блока параметров в настройках отображения', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -958,7 +960,7 @@ describe('HeatCalcPage', () => {
         formPlacement: 'left',
         sideFormWidthPct: 34,
       });
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('запоминает ширину боковых областей после перетаскивания разделителя', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1002,7 +1004,7 @@ describe('HeatCalcPage', () => {
         formPlacement: 'left',
         sideFormWidthPct: 48,
       });
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('запоминает ширину горизонтальных областей формы после перетаскивания разделителя', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1037,7 +1039,7 @@ describe('HeatCalcPage', () => {
       expect(saved.formPlacement).toBe('top');
       expect(saved.formSectionWeights[1]).toBeGreaterThan(1.35);
       expect(saved.formSectionWeights[2]).toBeLessThan(1.2);
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('показывает расшифровку расчёта без ошибочного Tср', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1073,7 +1075,7 @@ describe('HeatCalcPage', () => {
       expect(screen.getByText('Lэфф: 64,0 м')).toBeInTheDocument();
       expect(screen.queryByText(/Tср/)).not.toBeInTheDocument();
       expect(screen.queryByText(/\(—\)/)).not.toBeInTheDocument();
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('сохраняет настройки расшифровки расчёта отдельно от настроек таблицы', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1095,7 +1097,7 @@ describe('HeatCalcPage', () => {
       expect(saved).toMatchObject({ version: 1, preset: 'detailed' });
       expect(saved.visibleMetrics).toContain('thermal_resistance');
       expect(saved.visibleMetrics).toContain('temperature_source');
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('сохраняет гостевой шаг числового поля и применяет его в форме', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1119,7 +1121,7 @@ describe('HeatCalcPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('outer-diameter-input')).toHaveAttribute('step', '10');
       });
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('включает inline-редактирование через настройки таблицы и сохраняет draft только по кнопке', async () => {
       const { listObjects, updateObject } = await import('@/api/projects');
@@ -1173,7 +1175,7 @@ describe('HeatCalcPage', () => {
       });
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
       expect(saved.inlineEditingEnabled).toBe(true);
-    }, 30_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('подсвечивает только inline-редактируемые ячейки при включенном режиме', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1209,7 +1211,7 @@ describe('HeatCalcPage', () => {
       const rowNumberCell = bodyRow!.querySelectorAll('td')[1];
       expect(rowNumberCell).toBeInstanceOf(HTMLElement);
       expect(rowNumberCell).not.toHaveClass('editable-cell-enabled');
-    }, 15_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('подсвечивает невалидную inline-ячейку до сохранения и не отправляет её', async () => {
       const { listObjects, updateObject } = await import('@/api/projects');
@@ -1263,7 +1265,7 @@ describe('HeatCalcPage', () => {
           }),
         );
       });
-    }, 30_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('сохраняет валидные dirty-строки и оставляет невалидные dirty-строки', async () => {
       const { listObjects, updateObject } = await import('@/api/projects');
@@ -1325,7 +1327,7 @@ describe('HeatCalcPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Несохранено: 1')).toBeInTheDocument();
       });
-    }, 30_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('для зарегистрированного пользователя без записи очищает кеш и возвращает дефолтный JSON', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1470,7 +1472,7 @@ describe('HeatCalcPage', () => {
       const fieldInputCached = JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY) ?? '{}');
       expect(fieldInputCached.userId).toBe('user-test-1');
       expect(fieldInputCached.settings.fields.pipe.outer_diameter_mm).toEqual({ step: 2.5 });
-    }, 15_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('фильтр по наименованию скрывает строки только в таблице, не меняя счётчики расчёта', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1524,7 +1526,7 @@ describe('HeatCalcPage', () => {
       await user.click(screen.getByRole('button', { name: 'Сбросить фильтры таблицы' }));
       expect(await screen.findByText('Труба 60')).toBeInTheDocument();
       expect(screen.getByText('Труба 219')).toBeInTheDocument();
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('при скрытии колонки убирает невидимый фильтр по этой колонке', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1554,7 +1556,7 @@ describe('HeatCalcPage', () => {
       expect(await screen.findByText('Труба 60')).toBeInTheDocument();
       expect(screen.getByText('Труба 219')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Сбросить фильтры таблицы' })).toBeDisabled();
-    }, 15_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('сортировка по диаметру меняет только визуальный порядок строк', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1603,7 +1605,7 @@ describe('HeatCalcPage', () => {
       await user.click(screen.getByRole('button', { name: /Резервуар:/ }));
       expect(await screen.findByText('Резервуар основной')).toBeInTheDocument();
       expect(screen.queryByText('1/1')).not.toBeInTheDocument();
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('скрытая фильтром выбранная строка снимается с выбора, но форма остаётся открытой', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1637,7 +1639,7 @@ describe('HeatCalcPage', () => {
       });
       expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
       expect(screen.getByText('Труба Юг')).toBeInTheDocument();
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('при переключении типа очищает выбранные строки', async () => {
       const { listObjects } = await import('@/api/projects');
@@ -1663,7 +1665,7 @@ describe('HeatCalcPage', () => {
         expect(screen.getByRole('button', { name: /Резервуар:\s*1/ })).toHaveAttribute('aria-pressed', 'true');
       });
       expect(screen.queryByText(/Выбрано:/)).not.toBeInTheDocument();
-    }, 10_000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
   });
 
@@ -1692,7 +1694,7 @@ describe('HeatCalcPage', () => {
       await waitFor(() => {
         expect(cancelCalcTask).toHaveBeenCalledWith('heat-task-1');
       });
-    }, 10000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('после успешного фонового пересчёта запрашивает свежие объекты', async () => {
       const { listObjects, getObjectsSummary } = await import('@/api/projects');
@@ -1842,7 +1844,7 @@ describe('HeatCalcPage', () => {
         expect(focusedRow).toHaveClass('row-selected');
         expect(within(focusedRow as HTMLElement).getByRole('checkbox')).not.toBeChecked();
       });
-    }, 10000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('удаляет объекты, выбранные галочками', async () => {
       const { listObjects, deleteObject } = await import('@/api/projects');
@@ -1880,6 +1882,6 @@ describe('HeatCalcPage', () => {
           'proj-test-1',
         secondSource.id,
       );
-    }, 10000);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
   });
 });

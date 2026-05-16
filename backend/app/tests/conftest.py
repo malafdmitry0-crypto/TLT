@@ -35,10 +35,17 @@ TEST_DATABASE_URL = os.getenv(
 
 @pytest_asyncio.fixture(scope="session")
 async def test_engine():
-    engine = create_async_engine(TEST_DATABASE_URL, future=True)
+    engine = create_async_engine(
+        TEST_DATABASE_URL,
+        future=True,
+        connect_args={"prepared_statement_cache_size": 0},
+    )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
+    # После пересоздания PostgreSQL enum-типов asyncpg может держать stale schema
+    # cache на соединении, которое делало DDL. Закрываем его до начала тестов.
+    await engine.dispose()
     yield engine
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)

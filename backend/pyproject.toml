@@ -44,7 +44,12 @@ addopts = "-ra -q --cov=app --cov-fail-under=85 --cov-report=term-missing:skip-c
 
 [tool.mutmut]
 # Mutation testing — проверка качества тестов, не их количества.
-# Запуск см. scripts/mutation-test.sh
+# Цель: критичные формулы (расчет теплопотерь / подбор кабеля).
+# Запуск: scripts/formula-qa.sh mutation
+paths_to_mutate = ["app/formulas/"]
+runner = "python -m pytest -x --no-cov -q app/tests/unit/formulas"
+tests_dir = "app/tests/unit/formulas"
+backup = false
 
 [tool.bandit]
 # SAST-сканер безопасности: только боевой код, без тестов (там assert = норма).

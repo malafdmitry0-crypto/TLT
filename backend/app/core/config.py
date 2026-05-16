@@ -49,9 +49,11 @@ class Settings(BaseSettings):
     # Используйте property `cors_origins_list` для получения списка.
     CORS_ORIGINS: str = (
         "http://localhost:3000,"
+        "http://localhost:3001,"
         "http://localhost:3003,"
         "http://localhost:5173,"
         "http://127.0.0.1:3000,"
+        "http://127.0.0.1:3001,"
         "http://127.0.0.1:3003"
     )
 
@@ -80,6 +82,7 @@ class Settings(BaseSettings):
     # Worker queue для тяжёлых расчётов. Postgres хранит состояние задач,
     # Redis используется только как транспорт доставки worker'ам.
     WORKER_QUEUE_STREAM: str = "heatcalc:tasks:cpu"
+    WORKER_DEAD_LETTER_STREAM: str = "heatcalc:tasks:cpu:dead"
     WORKER_QUEUE_GROUP: str = "heatcalc-workers"
     WORKER_QUEUE_CONSUMER: str = "worker-1"
     WORKER_QUEUE_MAXLEN: int = 10_000

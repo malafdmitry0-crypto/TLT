@@ -57,6 +57,109 @@ class TestListFunctions:
         assert len(cables["three_core"]) == 18
         assert cables["single_core"][0]["model"].startswith("ТТ Р1")
 
+    def test_resistive_single_core_common_matches_latest_tnp_screenshot(self):
+        common = list_resistive_cables()["common"]["single_core"]
+
+        assert common["max_supply_voltage_v"] == 600
+        assert common["supply_frequency_hz"] == 50
+        assert common["ordering_example"] == "ТТ Р1 1,810-3"
+        assert common["ordering_code_parts"]["sheath_material_codes"] == {
+            "2": "FEP",
+            "3": "PFA",
+        }
+        assert common["connection_schemes"] == [
+            {"id": "line_1ph", "name": "в одну линию", "heating_threads": 1},
+            {"id": "loop_1ph", "name": "петлей", "heating_threads": 2},
+            {"id": "star_3ph", "name": "звездой", "heating_threads": 3},
+        ]
+
+    def test_resistive_single_core_visible_rows_match_latest_tnp_screenshot(self):
+        cables = {c["model"]: c for c in list_resistive_cables()["single_core"]}
+
+        assert cables["ТТ Р1 8000"]["resistance_ohm_km"] == pytest.approx(8000.0)
+        assert cables["ТТ Р1 8000"]["conductor_section_mm2"] == pytest.approx(0.14)
+        assert cables["ТТ Р1 8000"]["diameter_mm"] == pytest.approx(3.52)
+        assert cables["ТТ Р1 8000"]["nominal_section_length_m"] == {
+            "20": 17,
+            "30": 14,
+            "40": 12,
+        }
+
+        assert cables["ТТ Р1 32,7"]["nominal_section_length_m"] == {
+            "20": 272,
+            "30": 222,
+            "40": 192,
+        }
+        assert cables["ТТ Р1 24,8"]["nominal_section_length_m"] == {
+            "20": 312,
+            "30": 255,
+            "40": 221,
+        }
+        assert cables["ТТ Р1 17,4"]["nominal_section_length_m"] == {
+            "20": 373,
+            "30": 305,
+            "40": 264,
+        }
+        assert cables["ТТ Р1 7,13"]["nominal_section_length_m"] == {
+            "20": 582,
+            "30": 476,
+            "40": 412,
+        }
+        assert cables["ТТ Р1 1,81"]["resistance_ohm_km"] == pytest.approx(1.81)
+        assert cables["ТТ Р1 1,81"]["conductor_section_mm2"] == pytest.approx(9.69)
+        assert cables["ТТ Р1 1,81"]["diameter_mm"] == pytest.approx(8.04)
+        assert cables["ТТ Р1 1,81"]["nominal_section_length_m"] == {
+            "20": 1156,
+            "30": 944,
+            "40": 818,
+        }
+
+    def test_resistive_three_core_common_matches_latest_tnp_screenshot(self):
+        common = list_resistive_cables()["common"]["three_core"]
+
+        assert common["max_temperature_loaded_c"] == 130
+        assert common["max_temperature_unloaded_c"] == 180
+        assert common["min_operating_temperature_c"] == -60
+        assert common["min_storage_temperature_c"] == -60
+        assert common["min_installation_temperature_c"] == -60
+        assert common["conductor_sections_mm2"] == [
+            0.5,
+            0.7,
+            1.0,
+            1.5,
+            2.0,
+            3.0,
+            4.0,
+            6.0,
+            8.0,
+            10.0,
+            12.0,
+            14.0,
+            16.0,
+        ]
+        assert common["nominal_linear_supply_voltage_v"] == 1000
+        assert common["construction_length_min_m"] == 200
+        assert common["temperature_class"] == "T6...T3"
+        assert common["explosion_protection_marking"] == "Ex 60079-30-1 IIC T6...T3 Gb X"
+
+    def test_resistive_three_core_visible_rows_match_latest_tnp_screenshot(self):
+        cables = list_resistive_cables()["three_core"]
+
+        assert cables[0]["model"] == "ТТ Р3 х 1,5-1,0"
+        assert cables[0]["nominal_size_mm"] == "20,40 х 9,20"
+        assert cables[0]["mass_kg_km"] == pytest.approx(281.51)
+        assert cables[0]["min_bend_radius_mm"] == 40
+
+        assert cables[9]["model"] == "ТТ Р3 х 16,0-1,0"
+        assert cables[9]["nominal_size_mm"] == "34,40 х 14,80"
+        assert cables[9]["mass_kg_km"] == pytest.approx(1009.91)
+        assert cables[9]["min_bend_radius_mm"] == 100
+
+        assert cables[-1]["model"] == "ТТ Р3 х 6,0-0,6"
+        assert cables[-1]["nominal_size_mm"] == "19,55 х 9,35"
+        assert cables[-1]["mass_kg_km"] == pytest.approx(384.93)
+        assert cables[-1]["min_bend_radius_mm"] == 50
+
     def test_tlt_cables_full_range(self):
         cables = list_tlt_cables()
         marks = {c["model"] for c in cables}

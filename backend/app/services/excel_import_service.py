@@ -9,20 +9,23 @@ from typing import Any
 from uuid import UUID
 
 from openpyxl import load_workbook
+from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.dependencies import CurrentPrincipal
-from app.schemas.project import ProjectObjectCreate
+from app.models.project_object import ProjectObject
+from app.services.project_object_params import normalize_project_object_params
 from app.services.project_service import (
     ProjectAccessError,
-    ProjectLimitError,
     ProjectNotFoundError,
     ProjectService,
 )
 
 PIPE_SHEET_NAMES = {"трубопроводы", "трубы", "pipes"}
 TANK_SHEET_NAMES = {"резервуары", "ёмкости", "емкости", "tanks"}
+IMPORT_COMMIT_BATCH_SIZE = 25
 
 # Алиасы для колонки «Тип» в CSV (различает трубу/резервуар в одном файле)
 TYPE_ALIASES: dict[str, str] = {
@@ -644,26 +647,123 @@ def _parse_csv(content: bytes) -> list[tuple[str, list[dict[str, Any]]]]:
     return result
 
 
-async def _add_rows(
+async def _project_import_state(db: AsyncSession, project_id: UUID) -> tuple[int, int]:
+    result = await db.execute(
+        select(func.count(ProjectObject.id), func.max(ProjectObject.sort_order)).where(
+            ProjectObject.project_id == project_id
+        )
+    )
+    count, max_sort = result.one()
+    return int(count or 0), int(max_sort if max_sort is not None else -1) + 1
+
+
+async def _ensure_import_access(
     db: AsyncSession,
     project_id: UUID,
     principal: CurrentPrincipal,
+) -> None:
+    project_service = ProjectService(db)
+    project = await project_service.get_project_basic(project_id, principal)
+    project_service._check_owner(project, principal)
+
+
+async def _commit_object_batch(
+    db: AsyncSession,
+    batch: list[tuple[ProjectObject, dict[str, Any]]],
+    sheet_label: str,
+) -> tuple[int, list[UUID], list[dict[str, Any]]]:
+    if not batch:
+        return 0, [], []
+    objects = [item[0] for item in batch]
+    try:
+        db.add_all(objects)
+        await db.flush()
+        object_ids = [obj.id for obj in objects]
+        await db.commit()
+        return len(objects), object_ids, []
+    except SQLAlchemyError as exc:
+        await db.rollback()
+        return await _commit_object_batch_row_by_row(db, batch, sheet_label, exc)
+
+
+async def _commit_object_batch_row_by_row(
+    db: AsyncSession,
+    batch: list[tuple[ProjectObject, dict[str, Any]]],
+    sheet_label: str,
+    batch_error: SQLAlchemyError,
+) -> tuple[int, list[UUID], list[dict[str, Any]]]:
+    created = 0
+    object_ids: list[UUID] = []
+    errors: list[dict[str, Any]] = []
+    for obj, row in batch:
+        retry_obj = ProjectObject(
+            project_id=obj.project_id,
+            object_type=obj.object_type,
+            sort_order=obj.sort_order,
+            params=obj.params,
+        )
+        try:
+            db.add(retry_obj)
+            await db.flush()
+            object_ids.append(retry_obj.id)
+            await db.commit()
+            created += 1
+        except Exception as exc:
+            await db.rollback()
+            message = f"{type(exc).__name__}: {exc}"
+            if not message.strip():
+                message = f"{type(batch_error).__name__}: {batch_error}"
+            errors.append({"sheet": sheet_label, "row": row["_row"], "message": message})
+    return created, object_ids, errors
+
+
+async def _add_rows(
+    db: AsyncSession,
+    project_id: UUID,
     sheet_label: str,
     rows: list[dict[str, Any]],
     object_type: str,
     next_sort: int,
-) -> tuple[int, int, list[dict[str, Any]], list[UUID]]:
+    current_count: int,
+) -> tuple[int, int, int, list[dict[str, Any]], list[UUID]]:
     """Создаёт объекты из распарсенных строк.
 
     Расчёт теплопотерь здесь намеренно не запускается: импорт должен быстро
     сохранить всё распознанное и отдать новые объекты в один фоновый batch.
     """
-    project_service = ProjectService(db)
     created = 0
     created_object_ids: list[UUID] = []
     errors: list[dict[str, Any]] = []
+    batch: list[tuple[ProjectObject, dict[str, Any]]] = []
     builder = _build_pipe_params if object_type == "pipe" else _build_tank_params
+
+    async def flush_batch() -> None:
+        nonlocal batch, created, current_count
+        attempted = len(batch)
+        batch_created, object_ids, batch_errors = await _commit_object_batch(
+            db,
+            batch,
+            sheet_label,
+        )
+        created += batch_created
+        created_object_ids.extend(object_ids)
+        errors.extend(batch_errors)
+        current_count -= attempted - batch_created
+        batch = []
+
     for row in rows:
+        if current_count >= settings.GUEST_MAX_OBJECTS_PER_PROJECT:
+            errors.append(
+                {
+                    "sheet": sheet_label,
+                    "row": row["_row"],
+                    "message": (
+                        "Достигнут лимит объектов в проекте "
+                        f"({settings.GUEST_MAX_OBJECTS_PER_PROJECT})."
+                    ),
+                }
+            )
+            break
         params, err = builder(row)
         if err or params is None:
             errors.append(
@@ -671,17 +771,17 @@ async def _add_rows(
             )
             continue
         try:
-            obj = await project_service.add_object(
-                project_id,
-                ProjectObjectCreate(object_type=object_type, params=params, sort_order=next_sort),
-                principal,
+            obj = ProjectObject(
+                project_id=project_id,
+                object_type=object_type,
+                sort_order=next_sort,
+                params=normalize_project_object_params(object_type, params),
             )
+            batch.append((obj, row))
+            current_count += 1
             next_sort += 1
-            created += 1
-            created_object_ids.append(obj.id)
-        except ProjectLimitError as exc:
-            errors.append({"sheet": sheet_label, "row": row["_row"], "message": str(exc)})
-            break
+            if len(batch) >= IMPORT_COMMIT_BATCH_SIZE:
+                await flush_batch()
         except Exception as exc:
             errors.append(
                 {
@@ -690,7 +790,8 @@ async def _add_rows(
                     "message": f"{type(exc).__name__}: {exc}",
                 }
             )
-    return created, next_sort, errors, created_object_ids
+    await flush_batch()
+    return created, next_sort, current_count, errors, created_object_ids
 
 
 async def import_objects_from_csv(
@@ -700,11 +801,8 @@ async def import_objects_from_csv(
     content: bytes,
 ) -> dict[str, Any]:
     """Импортирует объекты из CSV-файла. Требуется колонка «Тип»."""
-    project_service = ProjectService(db)
-    await project_service.get_project_basic(project_id, principal)
-
-    current_objects = await project_service.list_objects(project_id, principal)
-    next_sort = (max((o.sort_order for o in current_objects), default=-1)) + 1
+    await _ensure_import_access(db, project_id, principal)
+    current_count, next_sort = await _project_import_state(db, project_id)
 
     sheets = _parse_csv(content)
     if not sheets:
@@ -717,8 +815,14 @@ async def import_objects_from_csv(
     created_object_ids: list[UUID] = []
     for sheet_label, rows in sheets:
         obj_type = "pipe" if "Трубопровод" in sheet_label else "tank"
-        created, next_sort, errors, object_ids = await _add_rows(
-            db, project_id, principal, sheet_label, rows, obj_type, next_sort
+        created, next_sort, current_count, errors, object_ids = await _add_rows(
+            db,
+            project_id,
+            sheet_label,
+            rows,
+            obj_type,
+            next_sort,
+            current_count,
         )
         total_created += created
         all_errors.extend(errors)
@@ -749,17 +853,14 @@ async def import_objects_from_excel(
     if len(wb.sheetnames) > settings.MAX_IMPORT_SHEETS:
         raise ExcelImportError(f"Превышен лимит листов импорта: {settings.MAX_IMPORT_SHEETS}")
 
-    project_service = ProjectService(db)
-
     # Проверяем доступ к проекту
     try:
-        await project_service.get_project_basic(project_id, principal)
+        await _ensure_import_access(db, project_id, principal)
     except (ProjectNotFoundError, ProjectAccessError):
         raise
 
     # Определяем текущий sort_order
-    current_objects = await project_service.list_objects(project_id, principal)
-    next_sort = (max((o.sort_order for o in current_objects), default=-1)) + 1
+    current_count, next_sort = await _project_import_state(db, project_id)
 
     created = 0
     errors: list[dict[str, Any]] = []
@@ -772,14 +873,14 @@ async def import_objects_from_excel(
             found_sheet = True
             ws = wb[sheet]
             rows = _read_sheet(ws, PIPE_HEADERS)
-            added, next_sort, sheet_errors, object_ids = await _add_rows(
+            added, next_sort, current_count, sheet_errors, object_ids = await _add_rows(
                 db,
                 project_id,
-                principal,
                 sheet,
                 rows,
                 "pipe",
                 next_sort,
+                current_count,
             )
             created += added
             errors.extend(sheet_errors)
@@ -788,14 +889,14 @@ async def import_objects_from_excel(
             found_sheet = True
             ws = wb[sheet]
             rows = _read_sheet(ws, TANK_HEADERS)
-            added, next_sort, sheet_errors, object_ids = await _add_rows(
+            added, next_sort, current_count, sheet_errors, object_ids = await _add_rows(
                 db,
                 project_id,
-                principal,
                 sheet,
                 rows,
                 "tank",
                 next_sort,
+                current_count,
             )
             created += added
             errors.extend(sheet_errors)

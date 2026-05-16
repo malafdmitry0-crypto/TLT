@@ -1,6 +1,7 @@
 import type { FormInstance } from 'antd';
 import {
   getHeatCalcFieldInputConfig,
+  getHeatCalcFieldLabel,
   type HeatCalcFieldOption,
 } from '@/domain/heatCalcFields';
 import {
@@ -88,6 +89,11 @@ export function heatCalcNumberInputProps(
   return {
     min: input?.min,
     max: input?.max,
+    'aria-label': getHeatCalcFieldLabel(fieldId, {
+      objectType,
+      context: 'form',
+      variant: 'full',
+    }),
     'aria-required': required ? true : undefined,
     step: options.includeStep === false
       ? undefined
@@ -99,6 +105,11 @@ export function heatCalcTextInputProps(objectType: HeatCalcObjectType, fieldId: 
   const input = getHeatCalcFieldInputConfig(fieldId, objectType);
   return {
     maxLength: input?.max_length,
+    'aria-label': getHeatCalcFieldLabel(fieldId, {
+      objectType,
+      context: 'form',
+      variant: 'full',
+    }),
   };
 }
 

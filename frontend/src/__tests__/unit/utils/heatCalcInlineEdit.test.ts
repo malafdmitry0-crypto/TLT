@@ -65,7 +65,10 @@ describe('heatCalcInlineEdit', () => {
   });
 
   it('exposes the same Phase 1 metadata to ObjectWizard inputs', () => {
-    expect(heatCalcTextInputProps('pipe', 'name')).toEqual({ maxLength: 200 });
+    expect(heatCalcTextInputProps('pipe', 'name')).toMatchObject({
+      maxLength: 200,
+      'aria-label': 'Наименование',
+    });
     expect(heatCalcNumberInputProps('pipe', 'outer_diameter_mm')).toMatchObject({
       min: 10.8,
       max: 3000,

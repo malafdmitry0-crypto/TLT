@@ -3,8 +3,8 @@ import { expect, type Page } from '@playwright/test';
 export const API_BASE =
   process.env.E2E_API_BASE ??
   (process.env.E2E_BASE_URL?.includes(':3001')
-    ? 'http://localhost:8001'
-    : 'http://localhost:8000');
+    ? 'http://127.0.0.1:8001'
+    : 'http://127.0.0.1:8000');
 
 export async function loginAsGuest(page: Page): Promise<void> {
   await page.goto('/');

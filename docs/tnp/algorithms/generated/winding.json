@@ -1,0 +1,571 @@
+{
+  "sourceVsdx": "Алгоритмы/алгоритм навив.vsdx",
+  "sourcePdf": "Алгоритмы/алгоритм навив.pdf",
+  "title": "Алгоритм: максимальный коэффициент навива",
+  "shapes": [
+    {
+      "id": "1",
+      "kind": "Start/End",
+      "text": "Определение макс.коэф.навива",
+      "x": 4.69611231889853,
+      "y": 7.677165354330708,
+      "width": null,
+      "height": null,
+      "is_connector": false
+    },
+    {
+      "id": "41",
+      "kind": "Shape",
+      "text": "",
+      "x": 4.69611231889853,
+      "y": 7.299832222883861,
+      "width": 0.1968503937007874,
+      "height": -0.3609654754921188,
+      "is_connector": true
+    },
+    {
+      "id": "40",
+      "kind": "Shape",
+      "text": "Трубопроводы",
+      "x": 4.69611231889853,
+      "y": 6.939231389092284,
+      "width": 0.7923228537191926,
+      "height": 0.3602361920910361,
+      "is_connector": false
+    },
+    {
+      "id": "44",
+      "kind": "Dynamic connector",
+      "text": "да",
+      "x": 4.69611231889853,
+      "y": 6.578630555300706,
+      "width": 0.1968503937007874,
+      "height": -0.3609654754921188,
+      "is_connector": true
+    },
+    {
+      "id": "42",
+      "kind": "Process",
+      "text": "Dim\nD,Kn as single",
+      "x": 4.696112318898531,
+      "y": 6.274988827074881,
+      "width": 0.7923228537191922,
+      "height": 0.2463179809595288,
+      "is_connector": false
+    },
+    {
+      "id": "46",
+      "kind": "Shape",
+      "text": "",
+      "x": 4.69057591485087,
+      "y": 6.04503850207008,
+      "width": -0.1968503937007874,
+      "height": -0.2135826690500746,
+      "is_connector": true
+    },
+    {
+      "id": "45",
+      "kind": "Data",
+      "text": "D=Диаметр обогреваемого тр-да;\nKn=Максим.Коэф.навива",
+      "x": 4.685039510803208,
+      "y": 5.631652649344377,
+      "width": 2.125984315826667,
+      "height": 0.6131890364013293,
+      "is_connector": false
+    },
+    {
+      "id": "48",
+      "kind": "Shape",
+      "text": "",
+      "x": 4.689960734515452,
+      "y": 5.032735268116639,
+      "width": 0.1968503937007874,
+      "height": -0.5846457260541484,
+      "is_connector": true
+    },
+    {
+      "id": "47",
+      "kind": "Decision",
+      "text": "D<57",
+      "x": 4.694881958227696,
+      "y": 4.560294309044046,
+      "width": 0.7923228537191926,
+      "height": 0.3602361920910361,
+      "is_connector": false
+    },
+    {
+      "id": "51",
+      "kind": "Shape",
+      "text": "да",
+      "x": 5.338336739424049,
+      "y": 4.560294309044046,
+      "width": 0.4945867086735145,
+      "height": 0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "49",
+      "kind": "Shape",
+      "text": "Kn=1\n(без навива)",
+      "x": 5.981791520620402,
+      "y": 4.560294309044046,
+      "width": 0.7923228537191918,
+      "height": 0.4753937122315149,
+      "is_connector": false
+    },
+    {
+      "id": "61",
+      "kind": "Shape",
+      "text": "нет",
+      "x": 4.694881958227695,
+      "y": 4.23327659319526,
+      "width": 0.1968503937007874,
+      "height": -0.2937992396065354,
+      "is_connector": true
+    },
+    {
+      "id": "84",
+      "kind": "Shape",
+      "text": "нет",
+      "x": 6.729207857276652,
+      "y": 4.209039379182045,
+      "width": 3.27386822303705,
+      "height": -5.460384019820479,
+      "is_connector": true
+    },
+    {
+      "id": "52",
+      "kind": "Decision",
+      "text": "D=57",
+      "x": 4.694881958227696,
+      "y": 3.906258877346474,
+      "width": 0.7923228537191926,
+      "height": 0.3602361920910361,
+      "is_connector": false
+    },
+    {
+      "id": "54",
+      "kind": "Dynamic connector",
+      "text": "да",
+      "x": 5.338336739424049,
+      "y": 3.906258877346474,
+      "width": 0.4945867086735145,
+      "height": -0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "53",
+      "kind": "Process",
+      "text": "Kn=1,1",
+      "x": 5.981791520620402,
+      "y": 3.906258877346474,
+      "width": 0.7923228537191918,
+      "height": 0.4753937122315149,
+      "is_connector": false
+    },
+    {
+      "id": "62",
+      "kind": "Shape",
+      "text": "нет",
+      "x": 4.694881958227695,
+      "y": 3.551928158042029,
+      "width": 0.1968503937007874,
+      "height": -0.3484252465178526,
+      "is_connector": true
+    },
+    {
+      "id": "55",
+      "kind": "Decision",
+      "text": "57<D<75",
+      "x": 4.694881958227696,
+      "y": 3.197597438737585,
+      "width": 0.7923228537191926,
+      "height": 0.3602361920910361,
+      "is_connector": false
+    },
+    {
+      "id": "57",
+      "kind": "Dynamic connector",
+      "text": "да",
+      "x": 5.338336739424049,
+      "y": 3.197597438737585,
+      "width": 0.4945867086735145,
+      "height": 0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "56",
+      "kind": "Process",
+      "text": "Kn=1,2",
+      "x": 5.981791520620402,
+      "y": 3.197597438737585,
+      "width": 0.7923228537191918,
+      "height": 0.4753937122315149,
+      "is_connector": false
+    },
+    {
+      "id": "81",
+      "kind": "Shape",
+      "text": "",
+      "x": 7.372047458137587,
+      "y": 3.019570839157926,
+      "width": 1.988189021315178,
+      "height": -3.081446939772241,
+      "is_connector": true
+    },
+    {
+      "id": "63",
+      "kind": "Shape",
+      "text": "нет",
+      "x": 4.694881958227695,
+      "y": 2.884113175935318,
+      "width": 0.1968503937007874,
+      "height": -0.2667323335134983,
+      "is_connector": true
+    },
+    {
+      "id": "80",
+      "kind": "Shape",
+      "text": "",
+      "x": 7.372047458137587,
+      "y": 2.69255312330914,
+      "width": 1.988189021315178,
+      "height": -2.427411508074669,
+      "is_connector": true
+    },
+    {
+      "id": "58",
+      "kind": "Decision",
+      "text": "75<D<89",
+      "x": 4.694881958227696,
+      "y": 2.570628913133051,
+      "width": 0.7923228537191926,
+      "height": 0.3602361920910361,
+      "is_connector": false
+    },
+    {
+      "id": "60",
+      "kind": "Dynamic connector",
+      "text": "да",
+      "x": 5.338336739424049,
+      "y": 2.570628913133051,
+      "width": 0.4945867086735145,
+      "height": 0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "59",
+      "kind": "Process",
+      "text": "Kn=1,3",
+      "x": 5.981791520620402,
+      "y": 2.570628913133051,
+      "width": 0.7923228537191918,
+      "height": 0.4753937122315149,
+      "is_connector": false
+    },
+    {
+      "id": "79",
+      "kind": "Shape",
+      "text": "",
+      "x": 7.372047458137587,
+      "y": 2.338222404004696,
+      "width": 1.988189021315178,
+      "height": -1.71875006946578,
+      "is_connector": true
+    },
+    {
+      "id": "70",
+      "kind": "Dynamic connector",
+      "text": "нет",
+      "x": 4.694881958227695,
+      "y": 2.255668273751323,
+      "width": 0.1968503937007874,
+      "height": -0.2696850866724203,
+      "is_connector": true
+    },
+    {
+      "id": "78",
+      "kind": "Shape",
+      "text": "",
+      "x": 7.372047458137587,
+      "y": 2.024738141202428,
+      "width": 1.988189021315178,
+      "height": -1.091781543861246,
+      "is_connector": true
+    },
+    {
+      "id": "67",
+      "kind": "Decision",
+      "text": "89<D<108",
+      "x": 4.694881958227696,
+      "y": 1.940707634369595,
+      "width": 0.7923228537191926,
+      "height": 0.3602361920910361,
+      "is_connector": false
+    },
+    {
+      "id": "69",
+      "kind": "Dynamic connector",
+      "text": "да",
+      "x": 5.338336739424049,
+      "y": 1.940707634369595,
+      "width": 0.4945867086735145,
+      "height": -0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "68",
+      "kind": "Process",
+      "text": "Kn=1,4",
+      "x": 5.981791520620402,
+      "y": 1.940707634369595,
+      "width": 0.7923228537191918,
+      "height": 0.4753937122315149,
+      "is_connector": false
+    },
+    {
+      "id": "77",
+      "kind": "Shape",
+      "text": "",
+      "x": 7.372047458137587,
+      "y": 1.7097775018207,
+      "width": 1.988189021315178,
+      "height": -0.4618602650977892,
+      "is_connector": true
+    },
+    {
+      "id": "74",
+      "kind": "Dynamic connector",
+      "text": "нет",
+      "x": 4.694881958227695,
+      "y": 1.611352304970307,
+      "width": 0.1968503937007874,
+      "height": -0.2984744667075401,
+      "is_connector": true
+    },
+    {
+      "id": "71",
+      "kind": "Decision",
+      "text": "D>108",
+      "x": 4.694881958227696,
+      "y": 1.281996975571018,
+      "width": 0.7923228537191926,
+      "height": 0.3602361920910361,
+      "is_connector": false
+    },
+    {
+      "id": "73",
+      "kind": "Dynamic connector",
+      "text": "да",
+      "x": 5.338336739424049,
+      "y": 1.281996975571018,
+      "width": 0.4945867086735145,
+      "height": -0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "72",
+      "kind": "Process",
+      "text": "Kn=1,5",
+      "x": 5.981791520620402,
+      "y": 1.281996975571018,
+      "width": 0.7923228537191918,
+      "height": 0.4753937122315149,
+      "is_connector": false
+    },
+    {
+      "id": "75",
+      "kind": "Start/End",
+      "text": "Конец процедуры",
+      "x": 8.366141968795176,
+      "y": 1.281996975571018,
+      "width": null,
+      "height": null,
+      "is_connector": false
+    },
+    {
+      "id": "76",
+      "kind": "Shape",
+      "text": "",
+      "x": 7.125984466011603,
+      "y": 1.281996975571016,
+      "width": 1.49606303706321,
+      "height": -0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "82",
+      "kind": "Shape",
+      "text": "нет",
+      "x": 6.530511963511436,
+      "y": 1.093512730697865,
+      "width": 3.671260010567481,
+      "height": -0.1968503937007874,
+      "is_connector": true
+    }
+  ],
+  "edges": [
+    {
+      "connector_id": "41",
+      "source": "1",
+      "target": "40",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "44",
+      "source": "40",
+      "target": "42",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "46",
+      "source": "42",
+      "target": "45",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "48",
+      "source": "45",
+      "target": "47",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "51",
+      "source": "47",
+      "target": "49",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "54",
+      "source": "52",
+      "target": "53",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "57",
+      "source": "55",
+      "target": "56",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "60",
+      "source": "58",
+      "target": "59",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "61",
+      "source": "47",
+      "target": "52",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "62",
+      "source": "52",
+      "target": "55",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "63",
+      "source": "55",
+      "target": "58",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "69",
+      "source": "67",
+      "target": "68",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "70",
+      "source": "58",
+      "target": "67",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "73",
+      "source": "71",
+      "target": "72",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "74",
+      "source": "67",
+      "target": "71",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "76",
+      "source": "72",
+      "target": "75",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "77",
+      "source": "68",
+      "target": "75",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "78",
+      "source": "59",
+      "target": "75",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "79",
+      "source": "56",
+      "target": "75",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "80",
+      "source": "53",
+      "target": "75",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "81",
+      "source": "49",
+      "target": "75",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "82",
+      "source": "71",
+      "target": "75",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "84",
+      "source": "40",
+      "target": "75",
+      "label": "нет",
+      "inferred": false
+    }
+  ],
+  "warnings": []
+}

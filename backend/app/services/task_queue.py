@@ -75,3 +75,43 @@ class TaskQueue:
 
     async def ack(self, stream_id: str) -> None:
         await self.redis.xack(self.stream, self.group, stream_id)
+
+    async def reclaim_pending(
+        self,
+        *,
+        consumer: str,
+        min_idle_ms: int,
+        start_id: str = "0-0",
+        count: int = 10,
+    ) -> tuple[str, list[tuple[str, dict[str, str]]]]:
+        """Claim stale pending entries from dead or crashed consumers."""
+        await self.ensure_group()
+        response = await self.redis.xautoclaim(
+            self.stream,
+            self.group,
+            consumer,
+            min_idle_ms,
+            start_id=start_id,
+            count=count,
+        )
+        next_start_id = str(response[0])
+        entries = list(response[1] or [])
+        return next_start_id, entries
+
+    async def dead_letter(
+        self,
+        stream_id: str,
+        fields: dict[str, str],
+        *,
+        reason: str,
+    ) -> str:
+        payload = dict(fields)
+        payload["original_stream_id"] = stream_id
+        payload["dead_letter_reason"] = reason
+        dead_id = await self.redis.xadd(
+            settings.WORKER_DEAD_LETTER_STREAM,
+            payload,
+            maxlen=settings.WORKER_QUEUE_MAXLEN,
+            approximate=True,
+        )
+        return str(dead_id)

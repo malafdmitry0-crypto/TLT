@@ -14,16 +14,17 @@
 | [test-cases-admin.md](test-cases-admin.md) | TC: Администрирование |
 | [test-cases-references.md](test-cases-references.md) | TC: Справочники |
 | [automation-coverage.md](automation-coverage.md) | Покрытие автотестами |
+| [business-logic-coverage.md](business-logic-coverage.md) | Матрица покрытия формул, алгоритмов и справочников |
 | [environments.md](environments.md) | Тестовые окружения и данные |
 
 ## Автоматическое тестирование
 
 ```
-make test-backend        # 113 тестов: unit + integration
+make test-backend        # 934 backend-теста: unit + integration
 make test-frontend       # Vitest: unit + integration (frontend)
 ```
 
-Состояние: **✅ 113/113 passing** (backend), **см. automation-coverage.md**
+Состояние: **см. automation-coverage.md** и `README.md` AUTO-блоки.
 
 ## Быстрый старт мануального тестирования
 

@@ -330,7 +330,7 @@
       "conductor_section_mm2": 0.53,
       "diameter_mm": 3.97,
       "nominal_section_length_m": {
-        "20": null,
+        "20": 272,
         "30": 222,
         "40": 192
       },
@@ -344,8 +344,8 @@
       "conductor_section_mm2": 0.71,
       "diameter_mm": 4.2,
       "nominal_section_length_m": {
-        "20": null,
-        "30": 312,
+        "20": 312,
+        "30": 255,
         "40": 221
       },
       "source": "Внутренние справочники/Резистивный кабель.pdf"
@@ -358,9 +358,9 @@
       "conductor_section_mm2": 1.0,
       "diameter_mm": 4.34,
       "nominal_section_length_m": {
-        "20": null,
-        "30": null,
-        "40": 305
+        "20": 373,
+        "30": 305,
+        "40": 264
       },
       "source": "Внутренние справочники/Резистивный кабель.pdf"
     },
@@ -388,7 +388,7 @@
       "nominal_section_length_m": {
         "20": 501,
         "30": 409,
-        "40": null
+        "40": 354
       },
       "source": "Внутренние справочники/Резистивный кабель.pdf"
     },
@@ -401,8 +401,8 @@
       "diameter_mm": 5.1,
       "nominal_section_length_m": {
         "20": 582,
-        "30": 412,
-        "40": null
+        "30": 476,
+        "40": 412
       },
       "source": "Внутренние справочники/Резистивный кабель.pdf"
     },
@@ -414,9 +414,9 @@
       "conductor_section_mm2": 4.02,
       "diameter_mm": 5.69,
       "nominal_section_length_m": {
-        "20": 604,
-        "30": null,
-        "40": null
+        "20": 740,
+        "30": 604,
+        "40": 523
       },
       "source": "Внутренние справочники/Резистивный кабель.pdf"
     },
@@ -429,8 +429,8 @@
       "diameter_mm": 6.36,
       "nominal_section_length_m": {
         "20": 906,
-        "30": 641,
-        "40": null
+        "30": 740,
+        "40": 641
       },
       "source": "Внутренние справочники/Резистивный кабель.pdf"
     },
@@ -614,17 +614,67 @@
     }
   ],
   "common": {
+    "single_core": {
+      "max_supply_voltage_v": 600,
+      "supply_frequency_hz": 50,
+      "connection_schemes": [
+        {
+          "id": "line_1ph",
+          "name": "в одну линию",
+          "heating_threads": 1
+        },
+        {
+          "id": "loop_1ph",
+          "name": "петлей",
+          "heating_threads": 2
+        },
+        {
+          "id": "star_3ph",
+          "name": "звездой",
+          "heating_threads": 3
+        }
+      ],
+      "ordering_example": "ТТ Р1 1,810-3",
+      "ordering_code_parts": {
+        "brand": "ТТ Р1",
+        "cable_type": "резистивный одножильный",
+        "nominal_resistance_ohm_km": "1,810",
+        "sheath_material_codes": {
+          "2": "FEP",
+          "3": "PFA"
+        }
+      },
+      "source": "Внутренние справочники/Резистивный кабель.pdf; пользовательские скрины схемы питания и таблицы ТТ Р1"
+    },
     "three_core": {
       "max_temperature_loaded_c": 130,
       "max_temperature_unloaded_c": 180,
       "min_operating_temperature_c": -60,
       "min_storage_temperature_c": -60,
       "min_installation_temperature_c": -60,
+      "conductor_sections_mm2": [
+        0.5,
+        0.7,
+        1.0,
+        1.5,
+        2.0,
+        3.0,
+        4.0,
+        6.0,
+        8.0,
+        10.0,
+        12.0,
+        14.0,
+        16.0
+      ],
+      "nominal_linear_supply_voltage_v": 1000,
       "max_supply_voltage_v": 1000,
+      "construction_length_min_m": 200,
       "standard_supply_voltage_v": 380,
       "max_linear_power_w_m": 50,
       "temperature_class": "T6...T3",
-      "explosion_protection_marking": "Ex 60079-30-1 IIC T6...T3 Gb X"
+      "explosion_protection_marking": "Ex 60079-30-1 IIC T6...T3 Gb X",
+      "source": "Внутренние справочники/Резистивный кабель трехжильный.pdf; пользовательский скрин общих характеристик ТТ Р3"
     }
   }
 }

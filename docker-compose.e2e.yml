@@ -17,27 +17,67 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
+    volumes:
+      - ./backend:/app
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://test:test@db-test:5432/heatcalc_test
       SECRET_KEY: test-secret
+      REDIS_URL: redis://redis:6379/1
       # Учётные данные сидов — единый формат с dev/demo (admin@heatcalc.io).
       FIRST_ADMIN_EMAIL: admin@heatcalc.io
       FIRST_ADMIN_PASSWORD: admin
       # E2E создаёт много гостевых сессий с одного IP; лимит не должен маскировать UI-регрессии.
       GUEST_MAX_SESSIONS_PER_IP: "500"
+      GUEST_MAX_OBJECTS_PER_PROJECT: "500"
+      CORS_ORIGINS: http://localhost:3001,http://127.0.0.1:3001
     depends_on:
       db-test:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "8001:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/docs', timeout=3).status==200 else 1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  worker:
+    command: sh -c "alembic upgrade head && python -m app.worker"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://test:test@db-test:5432/heatcalc_test
+      SECRET_KEY: test-secret
+      REDIS_URL: redis://redis:6379/1
+      WORKER_QUEUE_CONSUMER: worker-e2e
+      WORKER_MAX_ATTEMPTS: "3"
+      WORKER_DEAD_LETTER_STREAM: heatcalc:tasks:cpu:dead
+      GUEST_MAX_SESSIONS_PER_IP: "500"
+      GUEST_MAX_OBJECTS_PER_PROJECT: "500"
+    depends_on:
+      db-test:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend-test:
+        condition: service_healthy
 
   frontend-test:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
     environment:
-      VITE_API_BASE_URL: http://backend-test:8000/api/v1
+      VITE_API_BASE_URL: http://127.0.0.1:8001/api/v1
     depends_on:
-      - backend-test
+      backend-test:
+        condition: service_healthy
     ports:
       - "3001:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1:3000/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s

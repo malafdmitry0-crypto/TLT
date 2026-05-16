@@ -26,10 +26,9 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     await expect(tableActionsToolbar).toBeVisible();
     await expect(formActionsToolbar.getByRole('button', { name: 'Добавить' })).toBeVisible();
     await expect(formActionsToolbar.getByRole('button', { name: 'Сохранить' })).toBeVisible();
-    await expect(formActionsToolbar.getByRole('button', { name: 'Сбросить' })).toBeVisible();
+    await expect(formActionsToolbar.getByRole('button', { name: 'Удалить выбранные' })).toBeDisabled();
     await expect(tableActionsToolbar.getByRole('button', { name: 'Настройки отображения' })).toBeVisible();
     await expect(tableActionsToolbar.getByRole('button', { name: 'Добавить копии выбранных' })).toBeDisabled();
-    await expect(tableActionsToolbar.getByRole('button', { name: 'Удалить выбранные' })).toBeDisabled();
     await expect(tableActionsToolbar.getByRole('button', { name: 'Импорт XLSX/CSV' })).toBeVisible();
     await expect(tableActionsToolbar.getByRole('button', { name: 'Трубопровод' })).toHaveCount(0);
     await expect(tableActionsToolbar.getByRole('button', { name: 'Резервуар' })).toHaveCount(0);
@@ -68,7 +67,8 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     await expect(page.getByTestId('object-name-input')).toHaveValue('');
     await expect(formActionsToolbar.getByRole('button', { name: 'Добавить' })).toBeVisible();
     await expect(page.getByText(/Трубопроводы не добавлены/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /Электрорасчёт/i })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /Электрорасчёт/i })).toHaveCount(0);
+    await expect(page.getByRole('menuitem', { name: /Электротехнический расчёт/i })).toBeVisible();
   });
 
   test('кнопка «Добавить» открывает inline-форму активного типа', async ({
@@ -108,23 +108,26 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     await expect(page.getByText('50,0')).toBeVisible();
     await expect(page.getByText('Минеральная вата')).toBeVisible();
 
-    await expect(page.getByRole('button', { name: /Электрорасчёт/i })).toBeEnabled();
+    await expect(page.getByRole('button', { name: /Электрорасчёт/i })).toHaveCount(0);
+    await expect(page.getByRole('menuitem', { name: /Электротехнический расчёт/i })).toBeVisible();
   });
 
-  test('со страницы теплопотерь запускается электрорасчёт выбранного СО', async ({
+  test('со страницы теплопотерь открывается электрорасчёт и запускается ручной пересчёт', async ({
     page,
   }) => {
     await loginAsGuest(page);
     const pipeName = `E2E heat-to-elec ${Date.now()}`;
     await createCalculatedPipe(page, pipeName);
 
-    await page.reload({ waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: /Электрорасчёт/i }).click();
+    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
 
     await expect(page).toHaveURL(/\/workspace\/elec-calc/);
-    await expect(page.getByText(/СО1 · Саморегулирующийся · .*рассчитано: 1\/1/i)).toBeVisible();
-    await expect(page.getByText(pipeName)).toBeVisible();
-    await expect(page.getByText('рассчитан', { exact: true })).toBeVisible();
+    await expect(page.getByRole('row').filter({ hasText: pipeName }).first()).toBeVisible();
+    await expect(page.getByText(/СО1 · тип по объектам · расчёт не выполнен/i)).toBeVisible();
+    await page.getByRole('button', { name: /Пересчитать все СО1/i }).click();
+    await page.getByRole('button', { name: /Да, пересчитать все/i }).click();
+    await expect(page.getByText(/электрорасчёт всех объектов поставлен в очередь/i)).toBeVisible();
+    await expect(page.getByText(/СО1 · тип по объектам · .*рассчитано: 1\/1/i)).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(/ТЛТ-100/)).toBeVisible();
   });
 });

@@ -2,6 +2,11 @@
         migrate migrate-new \
         seed setup setup-fresh \
         test test-backend test-frontend test-e2e \
+        test-formulas test-formulas-full test-formulas-mutation \
+        audit-docs audit-contracts audit-mcp audit-db-invariants audit-smoke audit-calc \
+        audit-mutation audit-business audit-user-flows audit-layout audit-accessibility \
+        audit-warnings audit-backend audit-frontend audit-functional audit-deep \
+        qa-agent-install qa-agent-typecheck qa-agent-test qa-agent-example \
         lint lint-backend lint-frontend \
         shell-backend shell-frontend shell-db \
         build clean ps db-perf-report \
@@ -104,16 +109,84 @@ test-backend-integration: ## Run backend integration tests only
 test-backend-cov: ## Run backend tests with coverage report
 	$(BACKEND) pytest app/tests --cov=app --cov-report=html --cov-report=term-missing
 
+test-formulas: ## Run formula QA: unit/metamorphic/golden tests + service guards
+	@bash scripts/formula-qa.sh quick
+
+test-formulas-full: ## Run formula QA plus API/object integration guards
+	@bash scripts/formula-qa.sh full
+
+test-formulas-mutation: ## Run mutation testing for backend formulas (requires mutmut)
+	@bash scripts/formula-qa.sh mutation
+
+audit-docs: ## Codex audit: docs drift
+	@bash scripts/codex-functional-audit.sh docs
+
+audit-contracts: ## Codex audit: docs -> formula -> API -> UI contract matrix
+	@bash scripts/codex-functional-audit.sh contracts
+
+audit-mcp: ## Codex audit: MCP/Postgres smoke + DB invariants
+	@bash scripts/codex-functional-audit.sh mcp
+
+audit-db-invariants: ## Codex audit: Postgres business-data invariants only
+	@bash scripts/codex-functional-audit.sh db-invariants
+
+audit-smoke: ## Codex audit: API/UI smoke against running stack
+	@bash scripts/codex-functional-audit.sh smoke
+
+audit-calc: ## Codex audit: calculation accuracy gate
+	@bash scripts/codex-functional-audit.sh calc
+
+audit-mutation: ## Codex audit: formula mutation testing
+	@bash scripts/codex-functional-audit.sh mutation
+
+audit-business: ## Codex audit: deep backend business logic tests
+	@bash scripts/codex-functional-audit.sh business
+
+audit-user-flows: ## Codex audit: Playwright user-flow simulation
+	@bash scripts/codex-functional-audit.sh user-flows
+
+audit-layout: ## Codex audit: Playwright layout regression checks
+	@bash scripts/codex-functional-audit.sh layout
+
+audit-accessibility: ## Codex audit: Playwright accessibility checks
+	@bash scripts/codex-functional-audit.sh accessibility
+
+audit-warnings: ## Codex audit: selected backend warnings fail the gate
+	@bash scripts/codex-functional-audit.sh warnings
+
+audit-backend: ## Codex audit: backend unit + integration
+	@bash scripts/codex-functional-audit.sh backend
+
+audit-frontend: ## Codex audit: frontend tests
+	@bash scripts/codex-functional-audit.sh frontend
+
+audit-functional: ## Codex audit: docs + MCP + smoke + calc + business + user flows
+	@bash scripts/codex-functional-audit.sh all
+
+audit-deep: ## Codex audit: full deep gate including backend/frontend suites
+	@bash scripts/codex-functional-audit.sh deep
+
+qa-agent-install: ## Install TypeScript QA agent dependencies
+	npm --prefix qa-agent install
+
+qa-agent-typecheck: ## Typecheck the TypeScript QA agent
+	npm --prefix qa-agent run typecheck
+
+qa-agent-test: ## Run TypeScript QA agent unit tests
+	npm --prefix qa-agent run qa-agent:test
+
+qa-agent-example: ## Run TypeScript QA agent vertical-slice example
+	npm --prefix qa-agent run qa-agent:example
+
 test-frontend: ## Run frontend unit + integration tests
-	$(FRONTEND_CTR) npm run test
+	$(FRONTEND_CTR) npm run test:run
 
 test-frontend-cov: ## Run frontend tests with coverage
 	$(FRONTEND_CTR) npm run test:coverage
 
 test-e2e: ## Run E2E tests (Playwright)
-	$(COMPOSE_E2E) up --build -d
-	cd e2e && PLAYWRIGHT_CHROMIUM_CHANNEL=$${PLAYWRIGHT_CHROMIUM_CHANNEL:-chrome} E2E_BASE_URL=$${E2E_BASE_URL:-http://localhost:3001} E2E_API_BASE=$${E2E_API_BASE:-http://localhost:8001} npx playwright test --reporter=list
-	$(COMPOSE_E2E) down
+	$(COMPOSE_E2E) up --build --wait -d
+	cd e2e && PLAYWRIGHT_CHROMIUM_CHANNEL=$${PLAYWRIGHT_CHROMIUM_CHANNEL:-chrome} E2E_BASE_URL=$${E2E_BASE_URL:-http://127.0.0.1:3001} E2E_API_BASE=$${E2E_API_BASE:-http://127.0.0.1:8001} npx playwright test --reporter=list; status=$$?; cd ..; $(COMPOSE_E2E) down; exit $$status
 
 # ─── Lint ─────────────────────────────────────────────────────────────────────
 lint: lint-backend lint-frontend ## Run all linters

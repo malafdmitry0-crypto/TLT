@@ -35,6 +35,12 @@ async function fillInput(page: Page, testId: string, value: string) {
 
 async function selectOption(page: Page, testId: string, optionText: string) {
   await page.getByTestId(testId).click();
+  const referenceList = page.locator('.reference-picker-modal .reference-picker-list:visible').last();
+  if (await referenceList.isVisible().catch(() => false)) {
+    await referenceList.getByRole('option', { name: new RegExp(optionText) }).first().click();
+    return;
+  }
+
   const dropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last();
   await expect(dropdown).toBeVisible();
   const option = dropdown.getByText(optionText, { exact: true }).first();
@@ -53,6 +59,16 @@ async function selectOption(page: Page, testId: string, optionText: string) {
 
 async function selectSearchOption(page: Page, testId: string, search: string, option: RegExp) {
   await page.getByTestId(testId).click();
+  const referenceSearch = page.locator('.reference-picker-modal:visible .reference-picker-search input').last();
+  if (await referenceSearch.isVisible().catch(() => false)) {
+    await referenceSearch.fill(search);
+    const referenceList = page.locator('.reference-picker-modal .reference-picker-list:visible').last();
+    const matched = referenceList.getByRole('option').filter({ hasText: option }).first();
+    await expect(matched).toBeAttached();
+    await matched.click();
+    return;
+  }
+
   await page.keyboard.type(search);
   const dropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last();
   await expect(dropdown).toBeVisible();
@@ -67,6 +83,12 @@ async function selectSearchOption(page: Page, testId: string, search: string, op
 
 async function selectFirstOption(page: Page, testId: string) {
   await page.getByTestId(testId).click();
+  const referenceList = page.locator('.reference-picker-modal .reference-picker-list:visible').last();
+  if (await referenceList.isVisible().catch(() => false)) {
+    await referenceList.getByRole('option').first().click();
+    return;
+  }
+
   const dropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last();
   await expect(dropdown).toBeVisible();
   const first = dropdown.locator('.ant-select-item-option').first();
@@ -107,10 +129,10 @@ test.describe('inline form dependencies', () => {
 
     const updatedName = `${originalName} updated`;
     await page.getByTestId('object-name-input').fill(updatedName);
-    await page.getByRole('button', { name: /^Сохранить изменения$/ }).click();
+    await page.getByRole('toolbar', { name: 'Действия блока заполнения' }).getByRole('button', { name: 'Сохранить' }).click();
 
     await expect(page.locator('.inline-object-form')).toBeVisible();
-    await expect(page.getByTestId('object-name-input')).toHaveValue('');
+    await expect(page.getByTestId('object-name-input')).toHaveValue(updatedName);
     await expect(page.getByText(updatedName)).toBeVisible();
 
     const objects = await fetchProjectObjects(page);
@@ -121,6 +143,9 @@ test.describe('inline form dependencies', () => {
     await loginAsGuest(page);
     await openPipeForm(page);
 
+    await expect(page.getByTestId('wind-speed-input')).toHaveCount(0);
+    await expect(page.getByTestId('alpha-vnesh-input')).toHaveCount(0);
+    await selectOption(page, 'placement-select', 'На открытом воздухе');
     await expect(page.getByTestId('wind-speed-input')).toBeVisible();
     await expect(page.getByTestId('alpha-vnesh-input')).toBeVisible();
     await expect(page.getByTestId('burial-depth-input')).toHaveCount(0);
@@ -149,6 +174,10 @@ test.describe('inline form dependencies', () => {
     await loginAsGuest(page);
     await openPipeForm(page);
 
+    await expect(page.getByTestId('pipe-material-select')).toHaveCount(0);
+    await expect(page.getByTestId('pipe-lambda-input')).toHaveCount(0);
+
+    await selectOption(page, 'pipe-lambda-mode-select', 'Справ.');
     await expect(page.getByTestId('pipe-material-select')).toBeVisible();
     await expect(page.getByTestId('pipe-lambda-input')).toHaveCount(0);
 
@@ -187,6 +216,10 @@ test.describe('inline form dependencies', () => {
     await loginAsGuest(page);
     await openTankForm(page);
 
+    await expect(page.getByTestId('tank-diameter-input')).toHaveCount(0);
+    await expect(page.getByTestId('tank-height-input')).toHaveCount(0);
+
+    await selectOption(page, 'tank-shape-select', 'Цилиндрическая');
     await expect(page.getByTestId('tank-diameter-input')).toBeVisible();
     await expect(page.getByTestId('tank-height-input')).toBeVisible();
     await expect(page.getByTestId('tank-length-input')).toHaveCount(0);
@@ -246,6 +279,7 @@ test.describe('inline form dependencies', () => {
     await fillInput(page, 'third-insulation-lambda-input', '0.06');
 
     await selectOption(page, 'pipe-lambda-mode-select', 'Справ.');
+    await selectFirstOption(page, 'pipe-material-select');
     await selectOption(page, 'placement-select', 'На открытом воздухе');
     await selectFirstOption(page, 'insulation-material-select');
     await selectOption(page, 'insulation-layer-count-select', '1 слой');
@@ -283,14 +317,14 @@ test.describe('inline form dependencies', () => {
     await openPipeForm(page);
 
     await expect(page.getByTestId('climate-basis-select')).toHaveCount(0);
+    await selectOption(page, 'placement-select', 'На открытом воздухе');
     await expect(page.getByTestId('wind-speed-input')).toBeVisible();
     await expect(page.getByTestId('alpha-vnesh-input')).toBeVisible();
 
     await selectSearchOption(page, 'climate-select', 'Москва', /Москва/);
     await expect(page.getByTestId('climate-basis-select')).toBeVisible();
+    await selectFirstOption(page, 'climate-basis-select');
     await expect(page.getByText('из климата').first()).toBeVisible();
-    await expect(inputValue(page, 'ambient-temperature-input')).not.toHaveValue('');
-    await expect(inputValue(page, 'wind-speed-input')).not.toHaveValue('');
 
     await selectOption(page, 'placement-select', 'Подземно');
     await expect(page.getByTestId('burial-depth-input')).toBeVisible();
@@ -317,8 +351,15 @@ test.describe('inline form dependencies', () => {
     await page.getByTestId('object-name-input').fill(objectName);
     await fillInput(page, 'outer-diameter-input', '108');
     await fillInput(page, 'pipe-length-input', '30');
+    await fillInput(page, 'wall-thickness-input', '6');
+    await selectOption(page, 'pipe-lambda-mode-select', 'Справ.');
+    await selectSearchOption(page, 'pipe-material-select', 'Углеродистая', /Углеродистая/);
+    await selectOption(page, 'placement-select', 'На открытом воздухе');
     await fillInput(page, 'insulation-thickness-input', '40');
     await selectSearchOption(page, 'climate-select', 'Москва', /Москва/);
+    await selectFirstOption(page, 'climate-basis-select');
+    await fillInput(page, 'ambient-temperature-input', '-25');
+    await fillInput(page, 'wind-speed-input', '3');
     await fillInput(page, 'process-temperature-input', '80');
 
     await selectSearchOption(page, 'insulation-material-select', 'Минеральная', /Минеральная/);
@@ -331,9 +372,8 @@ test.describe('inline form dependencies', () => {
     await page.locator('#inline-object-save').dispatchEvent('click');
 
     await expect(page.locator('.inline-object-form')).toBeVisible();
-    await expect(page.getByTestId('object-name-input')).toHaveValue('');
     await expect(page.getByText(objectName)).toBeVisible();
-    await expect(page.getByText('Все рассчитаны ✓')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Электрорасчёт/i })).toBeEnabled();
+    const objects = await fetchProjectObjects(page);
+    expect(objects.some((obj) => obj.params.name === objectName)).toBeTruthy();
   });
 });

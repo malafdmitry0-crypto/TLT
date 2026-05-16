@@ -7,6 +7,7 @@
 #
 # Использование:
 #   scripts/test.sh                 # всё: backend unit + integration + frontend
+#   scripts/test.sh formulas        # formula QA: golden/metamorphic/unit + service guards
 #   scripts/test.sh backend-unit    # только backend unit
 #   scripts/test.sh backend-int     # только backend integration (нужна БД heatcalc_test)
 #   scripts/test.sh frontend        # только frontend vitest
@@ -61,6 +62,7 @@ run_e2e() {
 }
 
 case "$TARGET" in
+  formulas)     "$ROOT/scripts/formula-qa.sh" quick ;;
   backend-unit) run_backend_unit ;;
   backend-int)  run_backend_integration ;;
   frontend)     run_frontend ;;
@@ -73,7 +75,7 @@ case "$TARGET" in
     ;;
   *)
     echo "Неизвестная цель: $TARGET" >&2
-    echo "Доступно: backend-unit | backend-int | frontend | e2e | all" >&2
+    echo "Доступно: formulas | backend-unit | backend-int | frontend | e2e | all" >&2
     exit 1
     ;;
 esac

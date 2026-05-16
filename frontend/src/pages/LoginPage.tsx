@@ -65,7 +65,7 @@ export default function LoginPage() {
             Войти
           </Button>
         </Form>
-        <Button type="link" block onClick={() => navigate('/')}>
+        <Button type="link" block onClick={() => navigate('/')} style={{ color: '#1a5276' }}>
           Назад
         </Button>
         <Button
@@ -73,7 +73,7 @@ export default function LoginPage() {
           size="small"
           block
           onClick={() => navigate(loginRole === 'admin' ? '/help/admin' : '/help/employee')}
-          style={{ color: '#888' }}
+          style={{ color: '#595959' }}
         >
           {loginRole === 'admin' ? 'Инструкция для администратора' : 'Инструкция для сотрудника'}
         </Button>

@@ -135,8 +135,8 @@ export default function SpecificationPage() {
 
   return (
     <>
-      <Row gutter={12} align="top">
-        <Col flex="0 0 240px">
+      <Row className="specification-page-layout" gutter={12} align="top">
+        <Col className="specification-page-sidebar" flex="0 0 240px">
           <Card size="small" style={{ height: '100%' }}>
             <div style={{ marginBottom: 10 }}>
               <Text strong style={{ fontSize: 13 }}>
@@ -212,7 +212,7 @@ export default function SpecificationPage() {
           </Card>
         </Col>
 
-        <Col flex="1" style={{ minWidth: 0 }}>
+        <Col className="specification-page-main" flex="1" style={{ minWidth: 0 }}>
           <Card
             size="small"
             title={<Text strong>Окно спецификаций</Text>}
@@ -220,6 +220,7 @@ export default function SpecificationPage() {
           >
             {!hasItems && (
               <Alert
+                className="specification-empty-alert"
                 type="warning"
                 showIcon
                 message="Спецификация не сформирована"

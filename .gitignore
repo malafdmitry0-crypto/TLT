@@ -46,3 +46,6 @@ Thumbs.db
 test-results/
 playwright-report/
 playwright/.cache/
+
+# QA agent generated reports
+qa-agent/reports/

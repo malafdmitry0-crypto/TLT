@@ -13,6 +13,8 @@
 5. Для выбора следующей работы смотреть [backlog-and-risks.md](backlog-and-risks.md).
 6. Для общего аудита улучшений приложения смотреть
    [application-improvement-checklist.md](application-improvement-checklist.md).
+7. Для проверки точности функционала по цепочке "документы -> код -> тесты"
+   смотреть [functional-accuracy-agent.md](functional-accuracy-agent.md).
 
 ## Источники правды
 
@@ -26,6 +28,7 @@
 | Приёмка и QA | `docs/qa/`, `e2e/tests/`, тесты backend/frontend | [testing.md](testing.md) |
 | Текущие пробелы | `TO_DO.md`, `docs/analysis/current-status-and-missing-info.md` | [backlog-and-risks.md](backlog-and-risks.md) |
 | Технический аудит приложения | код frontend/backend, тесты, текущие замечания | [application-improvement-checklist.md](application-improvement-checklist.md) |
+| Функциональная точность | SRS/QA/API/код/тесты | [functional-accuracy-agent.md](functional-accuracy-agent.md) |
 
 ## Правило актуализации
 

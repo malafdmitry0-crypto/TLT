@@ -9,6 +9,18 @@ html, body, #root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
 
+.ant-typography-secondary {
+  color: #595959 !important;
+}
+
+.ant-btn-link:not(:disabled) {
+  color: #1a5276;
+}
+
+.ant-table-expanded-row-fixed {
+  color: #595959 !important;
+}
+
 .cell-invalid {
   border: 2px solid #d9363e !important;
   background-color: #fff1f0;
@@ -246,6 +258,61 @@ html, body, #root {
   line-height: 1;
 }
 
+@media (max-width: 900px) {
+  .heatcalc-primary-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 3px 6px;
+    padding: 2px 0;
+  }
+
+  .heatcalc-primary-nav {
+    order: 3;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .heatcalc-primary-actions {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 3px;
+  }
+
+  .project-menu,
+  .project-menu-current,
+  .header-actions {
+    flex-wrap: wrap;
+  }
+
+  .header-actions {
+    margin-left: 0;
+  }
+
+  .project-menu-current-name {
+    max-width: min(140px, 38vw);
+  }
+}
+
+@media (max-width: 520px) {
+  .heatcalc-header {
+    padding-inline: 6px;
+  }
+
+  .heatcalc-brand {
+    flex: 1 1 120px;
+  }
+
+  .heatcalc-primary-actions {
+    flex-basis: 100%;
+  }
+
+  .project-menu .ant-btn,
+  .header-actions .ant-btn {
+    padding-inline: 6px;
+  }
+}
+
 .heatcalc-sidebar {
   background: #ebf5fb;
   width: 220px;
@@ -325,6 +392,70 @@ html, body, #root {
 .workspace-header-context-mode.new {
   background: #e5f3e3;
   color: #1f6f3e;
+}
+
+.projects-page-layout {
+  min-width: 0;
+}
+
+.projects-page-sidebar,
+.projects-page-main {
+  min-width: 0;
+}
+
+.projects-page-card-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.projects-page-main .ant-table-wrapper {
+  min-width: 0;
+}
+
+.specification-page-layout {
+  min-width: 0;
+}
+
+.specification-page-sidebar,
+.specification-page-main {
+  min-width: 0;
+}
+
+.specification-empty-alert {
+  min-width: 0;
+}
+
+.specification-empty-alert .ant-alert-action {
+  margin-inline-start: 8px;
+}
+
+@media (max-width: 900px) {
+  .projects-page-layout,
+  .specification-page-layout {
+    flex-direction: column;
+    row-gap: 8px;
+  }
+
+  .projects-page-layout > .ant-col,
+  .specification-page-layout > .ant-col {
+    flex: 1 1 100% !important;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .projects-page-card-actions {
+    justify-content: flex-start;
+  }
+
+  .specification-empty-alert {
+    align-items: flex-start;
+  }
+
+  .specification-empty-alert .ant-alert-action {
+    margin-inline-start: 0;
+    margin-top: 8px;
+    flex: 1 1 100%;
+  }
 }
 
 .workspace-control-card .ant-card-body {
@@ -966,6 +1097,31 @@ html, body, #root {
   flex: none;
 }
 
+@media (max-width: 1180px) {
+  .form-grid-srs {
+    flex-direction: column;
+    align-items: stretch;
+    overflow: visible;
+  }
+
+  .form-grid-srs .form-col-srs {
+    width: 100% !important;
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    flex: none;
+  }
+
+  .form-col-resize-handle {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .form-grid-srs .form-col-srs {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 .form-col-resize-handle {
   flex: 0 0 4px;
   align-self: stretch;
@@ -1337,7 +1493,7 @@ html, body, #root {
 }
 
 .inline-object-form .reference-picker-placeholder {
-  color: #bfbfbf;
+  color: #595959;
 }
 
 .inline-object-form .reference-picker-icon,
@@ -1449,7 +1605,7 @@ html, body, #root {
 
 .unit-input-number .ant-input-number-disabled + .unit-input-number__addon,
 .unit-input-number .ant-input-number[disabled] + .unit-input-number__addon {
-  color: rgba(0, 0, 0, 0.25);
+  color: #5f6b76;
   background: rgba(0, 0, 0, 0.04);
 }
 
@@ -2217,6 +2373,21 @@ html, body, #root {
   padding-inline-end: 0;
 }
 
+@media (max-width: 900px) {
+  .actionbar-srs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .actionbar-group {
+    flex-wrap: wrap;
+  }
+
+  .actionbar-table-actions-row {
+    flex: 1 1 100%;
+  }
+}
+
 .srs-table-wrap .ant-card-body {
   padding: 0;
 }
@@ -2574,6 +2745,7 @@ html, body, #root {
 .import-actions-compact .template-download-button {
   height: 20px;
   padding: 0 3px;
+  color: #1a5276;
   font-size: 11px;
 }
 

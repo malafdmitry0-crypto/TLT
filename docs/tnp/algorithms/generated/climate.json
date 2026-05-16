@@ -1,0 +1,547 @@
+{
+  "sourceVsdx": "Алгоритмы/алгоритм климат.vsdx",
+  "sourcePdf": "Алгоритмы/алгоритм климат.pdf",
+  "title": "Алгоритм: климат и коэффициент запаса",
+  "shapes": [
+    {
+      "id": "1",
+      "kind": "Start/End",
+      "text": "Функция определения коэф. запаса мощности (K) и расчетной минимальной температуры окружающей среды (T)",
+      "x": 2.627952837517111,
+      "y": 7.480315574797425,
+      "width": 2.696850487496355,
+      "height": null,
+      "is_connector": false
+    },
+    {
+      "id": "6",
+      "kind": "Dynamic connector",
+      "text": "",
+      "x": 2.627952837517111,
+      "y": 7.18503997833345,
+      "width": 0.1968503937007874,
+      "height": -0.1968504055263765,
+      "is_connector": true
+    },
+    {
+      "id": "5",
+      "kind": "Decision",
+      "text": "Трубопровод?",
+      "x": 2.627952837517111,
+      "y": 6.871063594346532,
+      "width": 0.7185039374124322,
+      "height": 0.4311023624474593,
+      "is_connector": false
+    },
+    {
+      "id": "52",
+      "kind": "Shape",
+      "text": "нет",
+      "x": 4.821525070570522,
+      "y": 6.871063594346532,
+      "width": 3.668640528694391,
+      "height": 0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "53",
+      "kind": "Process",
+      "text": "Dim\nK, Т as single\nA as char",
+      "x": 7.605648502464673,
+      "y": 6.871063594346532,
+      "width": 1.899606335093915,
+      "height": 0.5905511811023623,
+      "is_connector": false
+    },
+    {
+      "id": "8",
+      "kind": "Shape",
+      "text": "да",
+      "x": 2.625492199030081,
+      "y": 6.557087210359615,
+      "width": -0.1968503937007874,
+      "height": -0.1968504055263747,
+      "is_connector": true
+    },
+    {
+      "id": "3",
+      "kind": "Process",
+      "text": "Dim\nK, Т, T0, T1,D as single\nA as char",
+      "x": 2.623031560543051,
+      "y": 6.163386417045247,
+      "width": 1.899606335093915,
+      "height": 0.5905511811023623,
+      "is_connector": false
+    },
+    {
+      "id": "54",
+      "kind": "Dynamic connector",
+      "text": "",
+      "x": 7.605648502464674,
+      "y": 5.977495521703278,
+      "width": 0.1968503937007874,
+      "height": -1.196584964184146,
+      "is_connector": true
+    },
+    {
+      "id": "26",
+      "kind": "Shape",
+      "text": "",
+      "x": 2.62303156054305,
+      "y": 5.699803683505477,
+      "width": 0.1968503937007874,
+      "height": -0.336614285977177,
+      "is_connector": true
+    },
+    {
+      "id": "2",
+      "kind": "Data",
+      "text": "Т0=абс.мин.температура воздуха;\nТ1=мин. температура воздуха наиболее холодной 5д. с коэф. Обеспеченности 0,92;\nТ=расчетная мин.температура окр. среды\nD=Диаметр обогреваемого тр-да;\nК= коэф. запаса мощности\nA=Климатическая зона(Город)",
+      "x": 2.623031560543049,
+      "y": 5.07874064171896,
+      "width": 2.359744156875933,
+      "height": 0.9055117975958566,
+      "is_connector": false
+    },
+    {
+      "id": "37",
+      "kind": "Data",
+      "text": "Т=мин. температура воздуха наиболее холодной 5д. с коэф. Обеспеченности 0,92;\nA=Климатическая зона(Город)",
+      "x": 7.605648502464673,
+      "y": 4.926447140813277,
+      "width": 2.359744156875933,
+      "height": 0.9055117975958566,
+      "is_connector": false
+    },
+    {
+      "id": "25",
+      "kind": "Shape",
+      "text": "",
+      "x": 2.637180208285657,
+      "y": 4.457732291766803,
+      "width": 0.1968503937007874,
+      "height": -0.3365049023084596,
+      "is_connector": true
+    },
+    {
+      "id": "45",
+      "kind": "Dynamic connector",
+      "text": "",
+      "x": 7.619797150207281,
+      "y": 4.305438790861119,
+      "width": 0.1968503937007874,
+      "height": -0.3365049023084596,
+      "is_connector": true
+    },
+    {
+      "id": "16",
+      "kind": "Shape",
+      "text": "Если\nT0 и T1 > 0",
+      "x": 2.651328856028264,
+      "y": 4.073928659388843,
+      "width": 0.718503937412434,
+      "height": 0.4311023624474603,
+      "is_connector": false
+    },
+    {
+      "id": "7",
+      "kind": "Database",
+      "text": "БД по климатологии",
+      "x": 5.243602547500258,
+      "y": 4.073928659388843,
+      "width": 0.718503937412434,
+      "height": 0.4311023624474603,
+      "is_connector": false
+    },
+    {
+      "id": "23",
+      "kind": "Shape",
+      "text": "",
+      "x": 4.595534124632259,
+      "y": 4.073928659388841,
+      "width": 0.5776329083235643,
+      "height": 0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "21",
+      "kind": "Shape",
+      "text": "нет",
+      "x": 3.299397278896261,
+      "y": 4.07392865938884,
+      "width": 0.5776329083235612,
+      "height": -0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "20",
+      "kind": "Shape",
+      "text": "Запрос значений “T0” и “T1” в БД\nПо параметру “А”",
+      "x": 3.947465701764259,
+      "y": 4.073928659388839,
+      "width": 0.718503937412434,
+      "height": 0.5905511811023638,
+      "is_connector": false
+    },
+    {
+      "id": "41",
+      "kind": "Decision",
+      "text": "Если\nT > 0",
+      "x": 7.633945797949888,
+      "y": 3.921635158483159,
+      "width": 0.718503937412434,
+      "height": 0.4311023624474603,
+      "is_connector": false
+    },
+    {
+      "id": "38",
+      "kind": "Database",
+      "text": "БД по климатологии",
+      "x": 10.22621948942188,
+      "y": 3.921635158483159,
+      "width": 0.718503937412434,
+      "height": 0.4311023624474603,
+      "is_connector": false
+    },
+    {
+      "id": "42",
+      "kind": "Dynamic connector",
+      "text": "нет",
+      "x": 8.282014220817885,
+      "y": 3.921635158483158,
+      "width": 0.5776329083235634,
+      "height": -0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "44",
+      "kind": "Dynamic connector",
+      "text": "",
+      "x": 9.578151066553882,
+      "y": 3.921635158483158,
+      "width": 0.5776329083235634,
+      "height": 0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "43",
+      "kind": "Process",
+      "text": "Запрос значения “T” в БД\nПо параметру “А”",
+      "x": 8.930082643685884,
+      "y": 3.921635158483156,
+      "width": 0.718503937412434,
+      "height": 0.5905511811023638,
+      "is_connector": false
+    },
+    {
+      "id": "36",
+      "kind": "Shape",
+      "text": "",
+      "x": 4.775160108985367,
+      "y": 3.638939450075247,
+      "width": -0.9368848770297813,
+      "height": -0.4388760561797307,
+      "is_connector": true
+    },
+    {
+      "id": "27",
+      "kind": "Shape",
+      "text": "да",
+      "x": 2.659018283773679,
+      "y": 3.538175433831182,
+      "width": 0.1968503937007874,
+      "height": -0.6404040886678617,
+      "is_connector": true
+    },
+    {
+      "id": "51",
+      "kind": "Shape",
+      "text": "",
+      "x": 7.641635225695303,
+      "y": 3.473761570330852,
+      "width": 0.1968503937007874,
+      "height": -0.4646448138571526,
+      "is_connector": true
+    },
+    {
+      "id": "61",
+      "kind": "Process",
+      "text": "Т0=\nT1=",
+      "x": 3.814591686218507,
+      "y": 3.419501421985382,
+      "width": 0.9842519685039388,
+      "height": 0.3515185496214201,
+      "is_connector": false
+    },
+    {
+      "id": "50",
+      "kind": "Dynamic connector",
+      "text": "",
+      "x": 9.183835063557286,
+      "y": 3.385881932925497,
+      "width": -2.084768851729194,
+      "height": -0.640404088667863,
+      "is_connector": true
+    },
+    {
+      "id": "63",
+      "kind": "Shape",
+      "text": "",
+      "x": 2.994586706742816,
+      "y": 3.318737405741316,
+      "width": -0.6557579904474444,
+      "height": -0.201528032488131,
+      "is_connector": true
+    },
+    {
+      "id": "47",
+      "kind": "Process",
+      "text": "K=1,1\nT=",
+      "x": 7.649324653440718,
+      "y": 3.065679888591566,
+      "width": 0.9842519685039388,
+      "height": 0.3515185496214201,
+      "is_connector": false
+    },
+    {
+      "id": "9",
+      "kind": "Decision",
+      "text": "D>=100",
+      "x": 2.666707711519094,
+      "y": 3.00242220827352,
+      "width": 0.7185039374124337,
+      "height": 0.4311023624474601,
+      "is_connector": false
+    },
+    {
+      "id": "34",
+      "kind": "Shape",
+      "text": "да",
+      "x": 2.157664893318568,
+      "y": 2.725464436706134,
+      "width": -0.2995816989886171,
+      "height": -0.5539155431347731,
+      "is_connector": true
+    },
+    {
+      "id": "35",
+      "kind": "Shape",
+      "text": "нет",
+      "x": 3.205893258669595,
+      "y": 2.725464436706134,
+      "width": 0.3598671568885696,
+      "height": -0.5539155431347731,
+      "is_connector": true
+    },
+    {
+      "id": "10",
+      "kind": "Process",
+      "text": "K=1,1\nT=T1",
+      "x": 2.00787404382426,
+      "y": 2.272747390328037,
+      "width": 0.9842519685039388,
+      "height": 0.3515185496214201,
+      "is_connector": false
+    },
+    {
+      "id": "33",
+      "kind": "Process",
+      "text": "K=1,12\nT=T0",
+      "x": 3.38582683711388,
+      "y": 2.272747390328037,
+      "width": 0.9842519685039388,
+      "height": 0.3515185496214201,
+      "is_connector": false
+    },
+    {
+      "id": "60",
+      "kind": "Shape",
+      "text": "",
+      "x": 6.453567655853553,
+      "y": 2.095836623631131,
+      "width": -2.39151399517433,
+      "height": -1.58816798029945,
+      "is_connector": true
+    },
+    {
+      "id": "58",
+      "kind": "Shape",
+      "text": "",
+      "x": 3.632842351045324,
+      "y": 1.699370374499367,
+      "width": 3.249936614442129,
+      "height": -0.7952354820359218,
+      "is_connector": true
+    },
+    {
+      "id": "59",
+      "kind": "Shape",
+      "text": "",
+      "x": 4.321818747690134,
+      "y": 1.699370374499367,
+      "width": 1.871983821152508,
+      "height": -0.7952354820359218,
+      "is_connector": true
+    },
+    {
+      "id": "57",
+      "kind": "Start/End",
+      "text": "Конец процедуры",
+      "x": 5.257810658266388,
+      "y": 1.104902239780618,
+      "width": 2.696850487496355,
+      "height": null,
+      "is_connector": false
+    }
+  ],
+  "edges": [
+    {
+      "connector_id": "6",
+      "source": "1",
+      "target": "5",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "8",
+      "source": "5",
+      "target": "3",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "21",
+      "source": "16",
+      "target": "20",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "23",
+      "source": "20",
+      "target": "7",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "25",
+      "source": "2",
+      "target": "16",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "26",
+      "source": "3",
+      "target": "2",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "27",
+      "source": "16",
+      "target": "9",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "34",
+      "source": "9",
+      "target": "10",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "35",
+      "source": "9",
+      "target": "33",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "36",
+      "source": "7",
+      "target": "61",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "42",
+      "source": "41",
+      "target": "43",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "44",
+      "source": "43",
+      "target": "38",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "45",
+      "source": "37",
+      "target": "41",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "50",
+      "source": "38",
+      "target": "47",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "51",
+      "source": "41",
+      "target": "47",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "52",
+      "source": "5",
+      "target": "53",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "54",
+      "source": "53",
+      "target": "37",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "58",
+      "source": "10",
+      "target": "57",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "59",
+      "source": "33",
+      "target": "57",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "60",
+      "source": "47",
+      "target": "57",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "63",
+      "source": "61",
+      "target": "9",
+      "label": "",
+      "inferred": false
+    }
+  ],
+  "warnings": []
+}

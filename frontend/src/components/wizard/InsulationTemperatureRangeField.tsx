@@ -178,6 +178,7 @@ export default function InsulationTemperatureRangeField({
           ) : (
             <Input
               data-testid={`${dataTestIdPrefix}-temperature-range-input`}
+              aria-label="Диапазон температуры изоляции"
               disabled
               value={referenceRange}
             />

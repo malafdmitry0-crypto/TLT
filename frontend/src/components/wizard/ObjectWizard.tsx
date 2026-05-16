@@ -643,12 +643,20 @@ export default function ObjectWizard({
   }
 
   function renderSectionResizeHandle(handleIndex: number) {
+    const totalWeight = resolvedFormSectionWeights.reduce((total, weight) => total + weight, 0);
+    const leftWeight = resolvedFormSectionWeights
+      .slice(0, handleIndex + 1)
+      .reduce((total, weight) => total + weight, 0);
+    const separatorValue = totalWeight > 0 ? Math.round((leftWeight / totalWeight) * 100) : 0;
     return (
       <div
         className="form-col-resize-handle"
         role={sectionResizeEnabled ? 'separator' : undefined}
         aria-label={sectionResizeEnabled ? 'Изменить ширину областей формы' : undefined}
         aria-orientation={sectionResizeEnabled ? 'vertical' : undefined}
+        aria-valuemin={sectionResizeEnabled ? 0 : undefined}
+        aria-valuemax={sectionResizeEnabled ? 100 : undefined}
+        aria-valuenow={sectionResizeEnabled ? separatorValue : undefined}
         tabIndex={sectionResizeEnabled ? 0 : undefined}
         onPointerDown={sectionResizeEnabled ? (event) => startSectionResize(handleIndex, event) : undefined}
         onMouseDown={sectionResizeEnabled ? (event) => startSectionMouseResize(handleIndex, event) : undefined}

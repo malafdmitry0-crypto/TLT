@@ -59,13 +59,13 @@ test.describe('CSV-обмен проектами (US-02.6, US-02.7, US-02.8)', (
     // Импорт сэмпла через API текущей сессии — ProjectMenu не имеет кнопки «Excel-импорт»
     // (она на HeatCalcPage), поэтому используем API
     const sessionId = await page.evaluate(() => localStorage.getItem('session_id'));
-    const project = await (await request.get('http://localhost:8000/api/v1/projects', {
+    const project = await (await request.get(`${API_BASE}/api/v1/projects`, {
       headers: { 'X-Session-Id': sessionId! },
     })).json();
     const samplePath = path.resolve(__dirname, '../../docs/samples/sample_import.csv');
     const sampleBuf = fs.readFileSync(samplePath);
     const imp = await request.post(
-      `http://localhost:8000/api/v1/projects/${project[0].id}/objects/import-excel`,
+      `${API_BASE}/api/v1/projects/${project[0].id}/objects/import-excel`,
       {
         headers: { 'X-Session-Id': sessionId! },
         multipart: { file: { name: 'sample_import.csv', mimeType: 'text/csv', buffer: sampleBuf } },
@@ -110,7 +110,7 @@ test.describe('CSV-обмен проектами (US-02.6, US-02.7, US-02.8)', (
     await page.getByRole('button', { name: 'Открыть', exact: true }).click();
     await expect(page).toHaveURL(/\/projects/);
     // Ждём пока проект появится в ячейке таблицы (не просто в header)
-    await expect(page.getByRole('cell', { name: unique })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('cell', { name: unique, exact: true })).toBeVisible({ timeout: 10_000 });
 
     const downloadPromise = page.waitForEvent('download', { timeout: 15_000 });
     await page.getByRole('button', { name: /Экспорт/i }).click();

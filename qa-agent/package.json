@@ -1,0 +1,24 @@
+{
+  "name": "tlt-qa-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "qa-agent:run": "tsx src/index.ts",
+    "qa-agent:test": "vitest run",
+    "qa-agent:example": "tsx src/index.ts --example",
+    "qa-agent:llm-extract": "tsx src/index.ts --llm-extract",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^22.15.21",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
+  }
+}

@@ -1,0 +1,902 @@
+{
+  "sourceVsdx": "Алгоритмы/Алгоритм подбора резистив.vsdx",
+  "sourcePdf": "Алгоритмы/Алгоритм подбора резистив.pdf",
+  "title": "Алгоритм: подбор резистивного кабеля",
+  "shapes": [
+    {
+      "id": "1",
+      "kind": "Start/End",
+      "text": "Подбор резистивного кабеля",
+      "x": 7.243069207075149,
+      "y": 21.96850393700787,
+      "width": null,
+      "height": 0.4724409448818898,
+      "is_connector": false
+    },
+    {
+      "id": "5",
+      "kind": "Dynamic connector",
+      "text": "",
+      "x": 7.24306920707515,
+      "y": 21.67322844525755,
+      "width": 0.1968503937007874,
+      "height": -0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "4",
+      "kind": "Process",
+      "text": "Dim\np1,p2,p3,t1,t2,L1,L2 as single\nN,M as integer\nQ(i,j)= Параметры кабельной линейки:\nГде Q(i,0)=Обозначение номинала кабеля;\nQ(i,1) номинальное сопротивление.\n(t1-температура поддержания; t2-максимальная температура воздействия; t3-максимальная температура жилы кабеля при температуре поддержания; p1 – тепловые потери(Вт/м) ; p2 – расчетная мощность нагревательной секции (Вт/м) i кабеля; p3 – максимальная допустимая мощность(Вт/м); N-схема обогрева (N=2-петля; N=3 - звезда); M – количество схем; L1-длина нагревательной секции по схеме петля; L2-длина нагревательной секции по схеме звезда)",
+      "x": 7.243069207075149,
+      "y": 20.84645687804102,
+      "width": 5.511811189180243,
+      "height": 1.535433095814312,
+      "is_connector": false
+    },
+    {
+      "id": "6",
+      "kind": "Shape",
+      "text": "",
+      "x": 6.74489418681395,
+      "y": 19.91476394158891,
+      "width": -0.9963500405224002,
+      "height": -0.3279527770899122,
+      "is_connector": true
+    },
+    {
+      "id": "3",
+      "kind": "Data",
+      "text": "Q(i,j)=",
+      "x": 6.24671916655275,
+      "y": 19.54606313744583,
+      "width": 0.6824147186604125,
+      "height": 0.4094488311962475,
+      "is_connector": false
+    },
+    {
+      "id": "7",
+      "kind": "Shape",
+      "text": "",
+      "x": 7.02151002221242,
+      "y": 19.54468519031538,
+      "width": -0.8671669926589267,
+      "height": 0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "2",
+      "kind": "Database",
+      "text": "База данных параметров\nкабелей выбранной линейки",
+      "x": 8.281865205322475,
+      "y": 19.54330724318493,
+      "width": 1.653543373561186,
+      "height": 0.4724409590725934,
+      "is_connector": false
+    },
+    {
+      "id": "17",
+      "kind": "Shape",
+      "text": "",
+      "x": 6.489501330277943,
+      "y": 19.12874029026504,
+      "width": 0.485564327450386,
+      "height": -0.4251968631653362,
+      "is_connector": true
+    },
+    {
+      "id": "14",
+      "kind": "Process",
+      "text": "Сортировка Q(i,j) по столбцу Q(i,1) по убыванию",
+      "x": 6.732283494003136,
+      "y": 18.68543319224747,
+      "width": 1.653543373561185,
+      "height": 0.4614173328697943,
+      "is_connector": false
+    },
+    {
+      "id": "21",
+      "kind": "Shape",
+      "text": "",
+      "x": 6.732283494003136,
+      "y": 18.1594489352614,
+      "width": 0.1968503937007874,
+      "height": -0.5905511811023594,
+      "is_connector": true
+    },
+    {
+      "id": "22",
+      "kind": "Shape",
+      "text": "",
+      "x": 8.06102365234176,
+      "y": 17.43799221971155,
+      "width": -1.67322834817331,
+      "height": 0.4429134188010835,
+      "is_connector": true
+    },
+    {
+      "id": "116",
+      "kind": "Dynamic connector",
+      "text": "",
+      "x": 6.732283494003138,
+      "y": 17.30413394911873,
+      "width": 0.1968503937007874,
+      "height": -0.301181128790482,
+      "is_connector": true
+    },
+    {
+      "id": "48",
+      "kind": "Process",
+      "text": "расчет длины нагревательной секции L1,L2",
+      "x": 6.748687747418884,
+      "y": 17.26576168971878,
+      "width": 0.9842519685039361,
+      "height": 0.4094488311962472,
+      "is_connector": false
+    },
+    {
+      "id": "19",
+      "kind": "External Data",
+      "text": "Расчетное значение тепловых потерь;\nпараметры обогреваемых объектов",
+      "x": 9.526533820848858,
+      "y": 17.21653551031101,
+      "width": 1.257791988840887,
+      "height": 0.724409470577978,
+      "is_connector": false
+    },
+    {
+      "id": "117",
+      "kind": "Shape",
+      "text": "",
+      "x": 8.110236259636146,
+      "y": 17.00393707987276,
+      "width": -1.574803133584537,
+      "height": -0.4251968608765111,
+      "is_connector": true
+    },
+    {
+      "id": "20",
+      "kind": "Data",
+      "text": "P1=; L1=; L2=;\nU=220; N=2;\nM=1;",
+      "x": 6.732283494003137,
+      "y": 16.7913386494345,
+      "width": 1.181102397681481,
+      "height": 0.7244094705779729,
+      "is_connector": false
+    },
+    {
+      "id": "108",
+      "kind": "Shape",
+      "text": "",
+      "x": 6.306850945960353,
+      "y": 13.40627397498539,
+      "width": -0.8508650960855686,
+      "height": -6.045719878320242,
+      "is_connector": true
+    },
+    {
+      "id": "23",
+      "kind": "Shape",
+      "text": "For n=1 to i(max)-1\np2=(Расчетная мощности секции для кабеля с сопротивлением Q(n-1;1) при t1 длиной L1);\np3= при максимально допустимой t3 и максимальным током 65А",
+      "x": 5.881418397917569,
+      "y": 10.02120930053629,
+      "width": 2.982283550956527,
+      "height": 0.7244094705779744,
+      "is_connector": false
+    },
+    {
+      "id": "126",
+      "kind": "Shape",
+      "text": "",
+      "x": 8.330327309508895,
+      "y": 9.591348017209747,
+      "width": -1.915534189690937,
+      "height": 0.4971193555969951,
+      "is_connector": true
+    },
+    {
+      "id": "26",
+      "kind": "Shape",
+      "text": "",
+      "x": 6.165457106618293,
+      "y": 9.485371398161101,
+      "width": 0.5680774174014456,
+      "height": -0.3472663341723923,
+      "is_connector": true
+    },
+    {
+      "id": "66",
+      "kind": "Shape",
+      "text": "",
+      "x": 8.609990445871833,
+      "y": 9.408242552363102,
+      "width": -2.474860544952,
+      "height": 1.225933496346366,
+      "is_connector": true
+    },
+    {
+      "id": "125",
+      "kind": "Shape",
+      "text": "да",
+      "x": 8.726521766391848,
+      "y": 9.138063923813123,
+      "width": 0.5380577389165815,
+      "height": 0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "41",
+      "kind": "Decision",
+      "text": "p2<p3",
+      "x": 6.449495815319016,
+      "y": 9.138063923813121,
+      "width": 0.6824147186604139,
+      "height": 0.3473486145235682,
+      "is_connector": false
+    },
+    {
+      "id": "110",
+      "kind": "Shape",
+      "text": "нет",
+      "x": 7.282890676461182,
+      "y": 9.138063923813121,
+      "width": 0.9843750036239207,
+      "height": 0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "75",
+      "kind": "Decision",
+      "text": "n=1",
+      "x": 8.11628553760335,
+      "y": 9.138063923813121,
+      "width": 0.6824147186604139,
+      "height": 0.3473486145235682,
+      "is_connector": false
+    },
+    {
+      "id": "73",
+      "kind": "Dynamic connector",
+      "text": "да",
+      "x": 6.816983332293147,
+      "y": 8.794226599945059,
+      "width": 0.7349750339482632,
+      "height": -0.3403260332125555,
+      "is_connector": true
+    },
+    {
+      "id": "124",
+      "kind": "Process",
+      "text": "U=U-1",
+      "x": 9.297845895369488,
+      "y": 8.744376684419812,
+      "width": 0.5850875370084516,
+      "height": 0.4094488311962472,
+      "is_connector": false
+    },
+    {
+      "id": "111",
+      "kind": "Process",
+      "text": "p=p2*N*M",
+      "x": 7.477014617771506,
+      "y": 8.624063583338781,
+      "width": 0.5850875370084525,
+      "height": 0.3424244417022573,
+      "is_connector": false
+    },
+    {
+      "id": "123",
+      "kind": "Shape",
+      "text": "",
+      "x": 8.708784748084124,
+      "y": 8.585312628352963,
+      "width": -5.654732700333108,
+      "height": 3.596202814944618,
+      "is_connector": true
+    },
+    {
+      "id": "112",
+      "kind": "Shape",
+      "text": "",
+      "x": 7.477014617771506,
+      "y": 8.36028404490019,
+      "width": 0.1968503937007874,
+      "height": -0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "35",
+      "kind": "Shape",
+      "text": "",
+      "x": 5.810614124042413,
+      "y": 8.306816937495139,
+      "width": -2.840675003206214,
+      "height": 3.428784726082292,
+      "is_connector": true
+    },
+    {
+      "id": "128",
+      "kind": "Shape",
+      "text": "нет",
+      "x": 8.433133027568815,
+      "y": 8.205524834314122,
+      "width": 0.6336949799309295,
+      "height": -1.517729564474431,
+      "is_connector": true
+    },
+    {
+      "id": "33",
+      "kind": "Shape",
+      "text": "U=380",
+      "x": 9.86382497176358,
+      "y": 8.196864149198483,
+      "width": 0.9842519685039361,
+      "height": 0.4094488311962472,
+      "is_connector": false
+    },
+    {
+      "id": "25",
+      "kind": "Decision",
+      "text": "p1<=p",
+      "x": 7.477014617771506,
+      "y": 8.062992311714602,
+      "width": 0.6824147186604135,
+      "height": 0.409448831196248,
+      "is_connector": false
+    },
+    {
+      "id": "64",
+      "kind": "Dynamic connector",
+      "text": "нет",
+      "x": 9.46930429760616,
+      "y": 7.813881304736227,
+      "width": 0.7562328414833459,
+      "height": 1.143891336514889,
+      "is_connector": true
+    },
+    {
+      "id": "81",
+      "kind": "Shape",
+      "text": "нет",
+      "x": 7.477014617771506,
+      "y": 7.652463974096692,
+      "width": 0.1968503937007874,
+      "height": -0.4116078440395725,
+      "is_connector": true
+    },
+    {
+      "id": "27",
+      "kind": "Shape",
+      "text": "n=i(max)",
+      "x": 7.477014617771506,
+      "y": 7.241935636478782,
+      "width": 0.682414718660412,
+      "height": 0.4094488311962471,
+      "is_connector": false
+    },
+    {
+      "id": "34",
+      "kind": "Shape",
+      "text": "да",
+      "x": 8.113497567652892,
+      "y": 7.241935636478782,
+      "width": 0.5905511811023629,
+      "height": 0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "63",
+      "kind": "Decision",
+      "text": "U=380",
+      "x": 8.74998051753428,
+      "y": 7.241935636478782,
+      "width": 0.682414718660412,
+      "height": 0.4094488311962471,
+      "is_connector": false
+    },
+    {
+      "id": "83",
+      "kind": "Shape",
+      "text": "да",
+      "x": 8.74998051753428,
+      "y": 6.912211220880656,
+      "width": 0.1968503937007874,
+      "height": -0.2500000000000053,
+      "is_connector": true
+    },
+    {
+      "id": "30",
+      "kind": "Shape",
+      "text": "нет",
+      "x": 7.477014617771505,
+      "y": 6.888636795305121,
+      "width": 0.1968503937007874,
+      "height": -0.2971488511510758,
+      "is_connector": true
+    },
+    {
+      "id": "82",
+      "kind": "Process",
+      "text": "N=3",
+      "x": 8.74998051753428,
+      "y": 6.615999000029525,
+      "width": 0.4306102483574046,
+      "height": 0.3424244417022573,
+      "is_connector": false
+    },
+    {
+      "id": "119",
+      "kind": "Process",
+      "text": "N=2;\nM=M+1",
+      "x": 11.53615109825068,
+      "y": 6.615999000029525,
+      "width": 0.4306102483574046,
+      "height": 0.3424244417022573,
+      "is_connector": false
+    },
+    {
+      "id": "29",
+      "kind": "Shape",
+      "text": "next",
+      "x": 7.477014617771504,
+      "y": 6.592424574453993,
+      "width": 0.4921259842519682,
+      "height": 0.2952755905511809,
+      "is_connector": false
+    },
+    {
+      "id": "106",
+      "kind": "Shape",
+      "text": "",
+      "x": 8.75125129085332,
+      "y": 5.836836534535797,
+      "width": 0.1968503937007874,
+      "height": -1.215900489285199,
+      "is_connector": true
+    },
+    {
+      "id": "62",
+      "kind": "Shape",
+      "text": "да",
+      "x": 6.244812749337272,
+      "y": 5.453922818580084,
+      "width": -1.781989018208055,
+      "height": -5.218138986269036,
+      "is_connector": true
+    },
+    {
+      "id": "134",
+      "kind": "Shape",
+      "text": "нет",
+      "x": 10.31494026087662,
+      "y": 5.240109969082111,
+      "width": 2.442421674748109,
+      "height": 2.409353620192571,
+      "is_connector": true
+    },
+    {
+      "id": "84",
+      "kind": "Process",
+      "text": "For n=1 to i(max)-1\np2=(Расчетная мощности секции для кабеля с сопротивлением Q(n-1;1) при t1 длиной L2)\np3= при максимально допустимой t3 и максимальным током 65А",
+      "x": 8.75252206417236,
+      "y": 4.87822272324123,
+      "width": 2.982283550956527,
+      "height": 0.7013271333039359,
+      "is_connector": false
+    },
+    {
+      "id": "85",
+      "kind": "Dynamic connector",
+      "text": "",
+      "x": 8.75252206417236,
+      "y": 4.368333311418436,
+      "width": 0.1968503937007874,
+      "height": -0.3184516903416537,
+      "is_connector": true
+    },
+    {
+      "id": "90",
+      "kind": "Dynamic connector",
+      "text": "да",
+      "x": 10.83015534479826,
+      "y": 4.040306779825768,
+      "width": 1.411991506904833,
+      "height": 4.808959998705258,
+      "is_connector": true
+    },
+    {
+      "id": "93",
+      "kind": "Decision",
+      "text": "p2<p3",
+      "x": 8.75252206417236,
+      "y": 4.035433158985825,
+      "width": 0.6824147186604139,
+      "height": 0.3473486145235682,
+      "is_connector": false
+    },
+    {
+      "id": "101",
+      "kind": "Dynamic connector",
+      "text": "да",
+      "x": 9.267737148093998,
+      "y": 3.578469628842282,
+      "width": 1.030430167843274,
+      "height": -0.5665784457635179,
+      "is_connector": true
+    },
+    {
+      "id": "120",
+      "kind": "Process",
+      "text": "p=p2*N*M",
+      "x": 9.782952232015635,
+      "y": 3.123968185109394,
+      "width": 0.5850875370084525,
+      "height": 0.3424244417022573,
+      "is_connector": false
+    },
+    {
+      "id": "92",
+      "kind": "Dynamic connector",
+      "text": "",
+      "x": 8.399134764291873,
+      "y": 2.955843646420327,
+      "width": -2.275508951195551,
+      "height": 3.844758153641806,
+      "is_connector": true
+    },
+    {
+      "id": "121",
+      "kind": "Shape",
+      "text": "",
+      "x": 9.782952232015637,
+      "y": 2.825835069324993,
+      "width": 0.1968503937007874,
+      "height": -0.2538417898665459,
+      "is_connector": true
+    },
+    {
+      "id": "118",
+      "kind": "Shape",
+      "text": "да",
+      "x": 7.643844548585323,
+      "y": 2.494189758793596,
+      "width": -3.595800648200219,
+      "height": 0.1968503937007874,
+      "is_connector": true
+    },
+    {
+      "id": "86",
+      "kind": "Decision",
+      "text": "p1<p",
+      "x": 9.782952232015639,
+      "y": 2.494189758793596,
+      "width": 0.6824147186604135,
+      "height": 0.409448831196248,
+      "is_connector": false
+    },
+    {
+      "id": "103",
+      "kind": "Dynamic connector",
+      "text": "нет",
+      "x": 9.782952232015639,
+      "y": 2.065008269633367,
+      "width": 0.1968503937007874,
+      "height": -0.4489141471242095,
+      "is_connector": true
+    },
+    {
+      "id": "60",
+      "kind": "Process",
+      "text": "кабель выбран:\nQ(i;0)\nпо схеме N на напряжение U,\nток I=p2/U\nколичеством M",
+      "x": 5.370222493648993,
+      "y": 1.819859972052267,
+      "width": 0.9842519685039361,
+      "height": 0.7013271333039368,
+      "is_connector": false
+    },
+    {
+      "id": "87",
+      "kind": "Decision",
+      "text": "n=i(max)",
+      "x": 9.782952232015639,
+      "y": 1.635826780473138,
+      "width": 0.682414718660412,
+      "height": 0.4094488311962471,
+      "is_connector": false
+    },
+    {
+      "id": "61",
+      "kind": "Shape",
+      "text": "",
+      "x": 5.353818240233244,
+      "y": 1.465463883472389,
+      "width": 0.1968503937007874,
+      "height": -1.35612461733848,
+      "is_connector": true
+    },
+    {
+      "id": "88",
+      "kind": "Dynamic connector",
+      "text": "нет",
+      "x": 9.782952232015635,
+      "y": 1.306102364875015,
+      "width": 0.1968503937007874,
+      "height": -0.25,
+      "is_connector": true
+    },
+    {
+      "id": "89",
+      "kind": "Process",
+      "text": "next",
+      "x": 9.782952232015631,
+      "y": 1.033464569599424,
+      "width": 0.4921259842519682,
+      "height": 0.2952755905511809,
+      "is_connector": false
+    },
+    {
+      "id": "45",
+      "kind": "Start/End",
+      "text": "Конец процедуры",
+      "x": 5.353818240233244,
+      "y": 0.5905511811023612,
+      "width": null,
+      "height": null,
+      "is_connector": false
+    }
+  ],
+  "edges": [
+    {
+      "connector_id": "5",
+      "source": "1",
+      "target": "4",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "6",
+      "source": "4",
+      "target": "3",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "7",
+      "source": "2",
+      "target": "3",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "17",
+      "source": "3",
+      "target": "14",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "21",
+      "source": "14",
+      "target": "48",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "22",
+      "source": "19",
+      "target": "48",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "26",
+      "source": "23",
+      "target": "41",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "30",
+      "source": "27",
+      "target": "29",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "34",
+      "source": "27",
+      "target": "63",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "35",
+      "source": "29",
+      "target": "23",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "61",
+      "source": "60",
+      "target": "45",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "62",
+      "source": "25",
+      "target": "60",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "64",
+      "source": "63",
+      "target": "33",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "66",
+      "source": "33",
+      "target": "23",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "73",
+      "source": "41",
+      "target": "111",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "81",
+      "source": "25",
+      "target": "27",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "83",
+      "source": "63",
+      "target": "82",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "85",
+      "source": "84",
+      "target": "93",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "88",
+      "source": "87",
+      "target": "89",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "90",
+      "source": "87",
+      "target": "119",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "92",
+      "source": "89",
+      "target": "84",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "101",
+      "source": "93",
+      "target": "120",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "103",
+      "source": "86",
+      "target": "87",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "106",
+      "source": "82",
+      "target": "84",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "108",
+      "source": "20",
+      "target": "23",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "110",
+      "source": "41",
+      "target": "75",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "112",
+      "source": "111",
+      "target": "25",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "116",
+      "source": "48",
+      "target": "20",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "117",
+      "source": "19",
+      "target": "20",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "118",
+      "source": "86",
+      "target": "60",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "121",
+      "source": "120",
+      "target": "86",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "123",
+      "source": "119",
+      "target": "23",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "125",
+      "source": "75",
+      "target": "124",
+      "label": "да",
+      "inferred": false
+    },
+    {
+      "connector_id": "126",
+      "source": "124",
+      "target": "23",
+      "label": "",
+      "inferred": false
+    },
+    {
+      "connector_id": "128",
+      "source": "75",
+      "target": "63",
+      "label": "нет",
+      "inferred": false
+    },
+    {
+      "connector_id": "134",
+      "source": "93",
+      "target": "119",
+      "label": "нет",
+      "inferred": false
+    }
+  ],
+  "warnings": []
+}

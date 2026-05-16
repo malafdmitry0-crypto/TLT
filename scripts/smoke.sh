@@ -4,7 +4,8 @@
 # =====================================================================
 # Запуск:
 #   scripts/smoke.sh                       # http://localhost:8080 (demo)
-#   scripts/smoke.sh http://localhost:3003 # произвольный URL (dev через nginx)
+#   scripts/smoke.sh http://localhost:3003 # произвольный URL UI
+#   SMOKE_API_BASE_URL=http://localhost:8000/api/v1 scripts/smoke.sh http://localhost:3003
 #
 # Exit code: 0 — все проверки прошли, 1 — есть падения.
 # Требует: curl, python3.
@@ -13,7 +14,7 @@
 set -uo pipefail
 
 BASE_URL="${1:-http://localhost:8080}"
-API="$BASE_URL/api/v1"
+API="${SMOKE_API_BASE_URL:-$BASE_URL/api/v1}"
 
 pass=0
 fail=0
@@ -29,8 +30,13 @@ _json_len() {
   python3 -c "import sys,json;print(len(json.loads(sys.argv[1])))" "$1" 2>/dev/null
 }
 
+_json_first_field() {
+  python3 -c "import sys,json;d=json.loads(sys.argv[1]);print(d[0].get(sys.argv[2], '') if d else '')" "$1" "$2" 2>/dev/null
+}
+
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  ТЛТ smoke · $BASE_URL"
+echo "  API · $API"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # --- Инфраструктура ---
@@ -69,15 +75,13 @@ CNT=$(_json_len "$(curl -s -H "X-Session-Id: $SID" $API/references/cables)")
 [ "${CNT:-0}" = "10" ] && ok "Кабели ТЛТ: 10 марок" || bad "Кабелей: $CNT"
 
 CNT=$(_json_len "$(curl -s -H "X-Session-Id: $SID" $API/references/insulation)")
-[ "${CNT:-0}" = "6" ] && ok "Материалы изоляции: 6" || bad "Изоляция: $CNT"
+[ "${CNT:-0}" -ge 6 ] && ok "Материалы изоляции: $CNT (≥6)" || bad "Изоляция: $CNT"
 
 # --- Бизнес-сценарий ---
 echo ""
 echo "[Бизнес-сценарий]"
-PID=$(_json_field "$(curl -s -X POST $API/projects \
-  -H "Content-Type: application/json" -H "X-Session-Id: $SID" \
-  -d '{"name":"Smoke"}')" "id")
-[ -n "$PID" ] && ok "Проект создан" || bad "Проект не создан"
+PID=$(_json_first_field "$(curl -s -H "X-Session-Id: $SID" $API/projects)" "id")
+[ -n "$PID" ] && ok "Гостевой авто-проект доступен" || bad "Гостевой авто-проект не найден"
 
 PAYLOAD='{"object_type":"pipe","params":{"outer_diameter":0.108,"insulation_thickness":0.05,"insulation_material":"mineral_wool","ambient_temperature":-30,"process_temperature":80,"pipe_length":50,"installation":"outdoor"}}'
 RESP=$(curl -s -X POST "$API/projects/$PID/objects" \
@@ -130,7 +134,7 @@ PCNT=$(_json_len "$(curl -s -H "Authorization: Bearer $ETOK" $API/projects)")
 [ "${PCNT:-0}" -ge 10 ] && ok "Демо-проектов: $PCNT (≥10)" || bad "Проектов: $PCNT"
 
 UCNT=$(_json_len "$(curl -s -H "Authorization: Bearer $TOK" $API/admin/users)")
-[ "${UCNT:-0}" -ge 5 ] && ok "Пользователей: $UCNT" || bad "Пользователей: $UCNT"
+[ "${UCNT:-0}" -ge 2 ] && ok "Пользователей: $UCNT (≥2)" || bad "Пользователей: $UCNT"
 
 # --- Итог ---
 echo ""

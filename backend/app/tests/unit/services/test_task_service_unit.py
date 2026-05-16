@@ -171,6 +171,69 @@ class TestProgressThrottler:
         assert [item.current for item in persisted] == [0, 4]
 
 
+class TestWorkerFailureRecording:
+    async def test_record_worker_exception_retries_when_attempts_left(
+        self,
+        mock_db,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_ELECTRICAL_BATCH,
+            status="running",
+            session_id="sid",
+            request_payload={},
+            attempts=1,
+            locked_by="worker-a",
+        )
+        mock_db.get = AsyncMock(return_value=task)
+        monkeypatch.setattr("app.services.task_service.settings.WORKER_MAX_ATTEMPTS", 3)
+
+        action = await TaskService(mock_db).record_worker_exception(
+            task.id,
+            worker_id="worker-a",
+            error_message="RuntimeError: redis glitch",
+        )
+
+        assert action == "retry"
+        assert task.status == "enqueued"
+        assert task.progress_phase == "retry_pending"
+        assert task.locked_by is None
+        assert task.lock_expires_at is None
+        assert task.error_message == "RuntimeError: redis glitch"
+        mock_db.commit.assert_awaited_once()
+
+    async def test_record_worker_exception_fails_after_max_attempts(
+        self,
+        mock_db,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_ELECTRICAL_BATCH,
+            status="running",
+            session_id="sid",
+            request_payload={},
+            attempts=3,
+            locked_by="worker-a",
+        )
+        mock_db.get = AsyncMock(return_value=task)
+        monkeypatch.setattr("app.services.task_service.settings.WORKER_MAX_ATTEMPTS", 3)
+
+        action = await TaskService(mock_db).record_worker_exception(
+            task.id,
+            worker_id="worker-a",
+            error_message="RuntimeError: permanent bug",
+        )
+
+        assert action == "dead_letter"
+        assert task.status == "failed"
+        assert task.progress_phase == "failed"
+        assert task.finished_at is not None
+        assert task.locked_by is None
+        mock_db.commit.assert_awaited_once()
+
+
 class TestTaskCreation:
     async def test_create_electrical_batch_task_enqueues_and_persists_payload(
         self,

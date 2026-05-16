@@ -239,7 +239,7 @@ export default function ProjectsPage() {
       title: '№ задачи',
       dataIndex: 'task_number',
       render: (v: string | null) =>
-        v ? <Tag color="blue">{v}</Tag> : <span style={{ color: '#bbb' }}>—</span>,
+        v ? <Tag color="blue">{v}</Tag> : <span style={{ color: '#595959' }}>—</span>,
       sorter: (a: Project, b: Project) =>
         (a.task_number ?? '').localeCompare(b.task_number ?? ''),
     },
@@ -255,7 +255,11 @@ export default function ProjectsPage() {
           computed === 'pipe' ? 'orange' :
           computed === 'tank' ? 'cyan' :
           'geekblue';
-        return <Tag color={color}>{label}</Tag>;
+        return (
+          <Tag color={color} style={computed === 'pipe' ? { color: '#873800' } : undefined}>
+            {label}
+          </Tag>
+        );
       },
     },
     {
@@ -270,7 +274,7 @@ export default function ProjectsPage() {
       title: 'Владелец',
       dataIndex: 'owner_email',
       render: (email: string | null) =>
-        email ? email : <span style={{ color: '#aaa' }}>гость</span>,
+        email ? email : <span style={{ color: '#595959' }}>гость</span>,
       sorter: (a: Project, b: Project) =>
         (a.owner_email ?? '').localeCompare(b.owner_email ?? ''),
     },
@@ -324,8 +328,8 @@ export default function ProjectsPage() {
 
   return (
     <>
-      <Row gutter={12} align="top">
-        <Col flex="0 0 240px">
+      <Row className="projects-page-layout" gutter={12} align="top">
+        <Col className="projects-page-sidebar" flex="0 0 240px">
           <Card size="small" style={{ height: '100%' }}>
             <div style={{ marginBottom: 10 }}>
               <Text strong style={{ fontSize: 13 }}>
@@ -347,7 +351,7 @@ export default function ProjectsPage() {
 
               {isEmployee && (
                 <div>
-                  <Text style={{ fontSize: 11, color: '#888' }}>Владелец</Text>
+                  <Text style={{ fontSize: 11, color: '#595959' }}>Владелец</Text>
                   <Segmented<OwnerFilter>
                     block
                     size="small"
@@ -363,8 +367,9 @@ export default function ProjectsPage() {
               )}
 
               <div>
-                <Text style={{ fontSize: 11, color: '#888' }}>Тип проекта</Text>
+                <Text style={{ fontSize: 11, color: '#595959' }}>Тип проекта</Text>
                 <Select<ProjectTypeFilter>
+                  aria-label="Тип проекта"
                   value={typeFilter}
                   onChange={setTypeFilter}
                   size="small"
@@ -382,8 +387,9 @@ export default function ProjectsPage() {
               </div>
 
               <div>
-                <Text style={{ fontSize: 11, color: '#888' }}>Содержит объект</Text>
+                <Text style={{ fontSize: 11, color: '#595959' }}>Содержит объект</Text>
                 <Select<ObjectType | 'all'>
+                  aria-label="Содержит объект"
                   value={containsType}
                   onChange={setContainsType}
                   size="small"
@@ -399,8 +405,9 @@ export default function ProjectsPage() {
               </div>
 
               <div>
-                <Text style={{ fontSize: 11, color: '#888' }}>Год создания</Text>
+                <Text style={{ fontSize: 11, color: '#595959' }}>Год создания</Text>
                 <Select<number | 'all'>
+                  aria-label="Год создания"
                   value={yearFilter}
                   onChange={setYearFilter}
                   size="small"
@@ -413,8 +420,9 @@ export default function ProjectsPage() {
               </div>
 
               <div>
-                <Text style={{ fontSize: 11, color: '#888' }}>Статус</Text>
+                <Text style={{ fontSize: 11, color: '#595959' }}>Статус</Text>
                 <Select<StatusFilter>
+                  aria-label="Статус"
                   value={statusFilter}
                   onChange={setStatus}
                   size="small"
@@ -428,7 +436,7 @@ export default function ProjectsPage() {
               </div>
 
               <div>
-                <Text style={{ fontSize: 11, color: '#888' }}>№ задачи</Text>
+                <Text style={{ fontSize: 11, color: '#595959' }}>№ задачи</Text>
                 <Input.Search
                   placeholder="Поиск"
                   value={taskSearch}
@@ -440,7 +448,7 @@ export default function ProjectsPage() {
               </div>
 
               <div>
-                <Text style={{ fontSize: 11, color: '#888' }}>Название</Text>
+                <Text style={{ fontSize: 11, color: '#595959' }}>Название</Text>
                 <Input.Search
                   placeholder="По названию"
                   value={search}
@@ -479,13 +487,13 @@ export default function ProjectsPage() {
           </Card>
         </Col>
 
-        <Col flex="1" style={{ minWidth: 0 }}>
+        <Col className="projects-page-main" flex="1" style={{ minWidth: 0 }}>
           <Card
             size="small"
             title={<Text strong>Список проектов</Text>}
             styles={{ body: { paddingTop: 0 } }}
             extra={
-              <Space>
+              <Space className="projects-page-card-actions">
                 <Button size="small" onClick={() => singleFileInputRef.current?.click()}>
                   Загрузить CSV
                 </Button>
@@ -538,9 +546,13 @@ export default function ProjectsPage() {
                   ? {
                       selectedRowKeys: selectedIds,
                       onChange: (keys) => setSelectedIds(keys as string[]),
+                      getCheckboxProps: (record) => ({
+                        'aria-label': `Выбрать проект ${record.name}`,
+                      }),
                     }
                   : undefined
               }
+              scroll={{ x: 980 }}
             />
           </Card>
         </Col>

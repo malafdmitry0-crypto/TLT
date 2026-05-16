@@ -1958,7 +1958,14 @@ export default function ElecCalcPage() {
           ];
       return (
         <>
-          <Select size="small" value={connectionType} onChange={setConnectionType} options={connectionOptions} style={{ width: 118 }} />
+          <Select
+            aria-label="Схема подключения"
+            size="small"
+            value={connectionType}
+            onChange={setConnectionType}
+            options={connectionOptions}
+            style={{ width: 118 }}
+          />
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>U:</Text>
           <InputNumber<number> size="small" min={1} value={supplyVoltage} onChange={setSupplyVoltage} style={{ width: 76 }} />
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>w:</Text>
@@ -2045,6 +2052,7 @@ export default function ElecCalcPage() {
           <span className="sep" />
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>{cableTypeControlLabel}</Text>
           <Select<CableTypeKey>
+            aria-label="Тип кабеля для пересчёта"
             size="small"
             value={visibleCableTypeControl ?? undefined}
             placeholder="Несколько типов"

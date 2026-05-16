@@ -33,6 +33,10 @@ class FakeRedis:
     async def xack(self, stream, group, stream_id):
         self.calls.append(("xack", (stream, group, stream_id)))
 
+    async def xautoclaim(self, stream, group, consumer, min_idle_ms, start_id, count):
+        self.calls.append(("xautoclaim", (stream, group, consumer, min_idle_ms, start_id, count)))
+        return ["0-0", [("1-0", {"task_id": str(uuid4())})]]
+
     async def aclose(self):
         self.closed = True
 
@@ -72,6 +76,58 @@ async def test_task_queue_enqueue_read_ack_and_close(monkeypatch: pytest.MonkeyP
         "xack",
     ]
     assert fake.calls[1][1][2:] == (10_000, True)
+
+
+async def test_task_queue_reclaims_pending_entries(monkeypatch: pytest.MonkeyPatch):
+    fake = FakeRedis()
+    monkeypatch.setattr("app.services.task_queue.Redis.from_url", FakeRedisFactory(fake))
+    queue = TaskQueue("redis://test")
+
+    next_start_id, entries = await queue.reclaim_pending(
+        consumer="worker-a",
+        min_idle_ms=120_000,
+        start_id="0-0",
+        count=5,
+    )
+
+    assert next_start_id == "0-0"
+    assert entries
+    assert [call[0] for call in fake.calls] == ["xgroup_create", "xautoclaim"]
+    assert fake.calls[1][1][2:] == ("worker-a", 120_000, "0-0", 5)
+
+
+async def test_task_queue_dead_letters_original_payload(monkeypatch: pytest.MonkeyPatch):
+    fake = FakeRedis()
+    monkeypatch.setattr("app.services.task_queue.Redis.from_url", FakeRedisFactory(fake))
+    monkeypatch.setattr(
+        "app.services.task_queue.settings.WORKER_DEAD_LETTER_STREAM",
+        "tasks:dead",
+    )
+    queue = TaskQueue("redis://test")
+
+    dead_id = await queue.dead_letter(
+        "1-0",
+        {"task_id": "task-1", "type": "electrical_batch"},
+        reason="worker_attempts_exhausted",
+    )
+
+    assert dead_id == "1-0"
+    assert fake.calls == [
+        (
+            "xadd",
+            (
+                "tasks:dead",
+                {
+                    "task_id": "task-1",
+                    "type": "electrical_batch",
+                    "original_stream_id": "1-0",
+                    "dead_letter_reason": "worker_attempts_exhausted",
+                },
+                10_000,
+                True,
+            ),
+        )
+    ]
 
 
 async def test_task_queue_ignores_existing_consumer_group(monkeypatch: pytest.MonkeyPatch):

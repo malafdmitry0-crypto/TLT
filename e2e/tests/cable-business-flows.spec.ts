@@ -62,7 +62,14 @@ async function fetchElectricalCalcs(page: Page, projectId: string, sessionId: st
 }
 
 async function expectBatchSuccess(page: Page) {
-  await expect(page.getByText(/СО1 — расчёт выполнен для 1 объектов/i).last()).toBeVisible();
+  await expect(page.getByText(/СО1 — расчёт выполнен для всех объектов: 1/i).last()).toBeVisible({
+    timeout: 20_000,
+  });
+}
+
+async function recalculateAll(page: Page) {
+  await page.getByRole('button', { name: /Пересчитать все СО1/i }).click();
+  await page.getByRole('button', { name: /Да, пересчитать все/i }).click();
 }
 
 test.describe('business flow: cable layout controls', () => {
@@ -75,10 +82,11 @@ test.describe('business flow: cable layout controls', () => {
     const pipe = await createCalculatedPipe(page, pipeName);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await page.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }).click();
+    await recalculateAll(page);
     await expectBatchSuccess(page);
 
     const row = await rowForObject(page, pipeName);
+    await row.click();
     const pitchInput = row.getByRole('spinbutton').first();
     await expect(pitchInput).toBeEnabled();
     await expect(pitchInput).toHaveValue('0');
@@ -94,10 +102,11 @@ test.describe('business flow: cable layout controls', () => {
     await expect(pitchInput).toHaveValue('200');
     await expect(row.locator('.ant-select-selector').nth(1)).toContainText('2');
 
-    await page.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }).click();
+    await recalculateAll(page);
     await expectBatchSuccess(page);
 
     const refreshedRow = await rowForObject(page, pipeName);
+    await refreshedRow.click();
     await expect(refreshedRow.getByRole('spinbutton').first()).toHaveValue('200');
     await expect(refreshedRow.locator('.ant-select-selector').nth(1)).toContainText('2');
 
@@ -117,10 +126,11 @@ test.describe('business flow: cable layout controls', () => {
     await createCalculatedPipe(page, pipeName);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await page.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }).click();
+    await recalculateAll(page);
     await expectBatchSuccess(page);
 
     const row = await rowForObject(page, pipeName);
+    await row.click();
     const pitchInput = row.getByRole('spinbutton').first();
 
     await pitchInput.fill('50');
@@ -149,7 +159,7 @@ test.describe('business flow: cable layout controls', () => {
 
     await expect(page.getByText('T проп., °C:')).toBeVisible();
     await page.getByRole('checkbox', { name: /агр./i }).check();
-    await page.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }).click();
+    await recalculateAll(page);
 
     await expectBatchSuccess(page);
     const row = await rowForObject(page, pipeName);
@@ -176,11 +186,10 @@ test.describe('business flow: cable layout controls', () => {
     await expect(page.getByText('U:')).toBeVisible();
     await expect(page.getByText('w:')).toBeVisible();
     await expect(page.getByText('h:')).toBeVisible();
-    await page.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }).click();
+    await recalculateAll(page);
 
     await expectBatchSuccess(page);
-    const row = await rowForObject(page, pipeName);
-    await expect(row.getByText('рассчитан', { exact: true })).toBeVisible();
+    await rowForObject(page, pipeName);
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const calc = calcs.find((item) => item.object_id === pipe.id);
@@ -202,11 +211,10 @@ test.describe('business flow: cable layout controls', () => {
 
     await page.locator('.actionbar-srs .ant-select-selector').filter({ hasText: 'Линия' }).first().click();
     await selectDropdownOption(page, 'Петля 1×3');
-    await page.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }).click();
+    await recalculateAll(page);
 
     await expectBatchSuccess(page);
-    const row = await rowForObject(page, pipeName);
-    await expect(row.getByText('рассчитан', { exact: true })).toBeVisible();
+    await rowForObject(page, pipeName);
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const calc = calcs.find((item) => item.object_id === pipe.id);
@@ -229,10 +237,10 @@ test.describe('business flow: cable layout controls', () => {
     await expect(page.getByText('w:')).toBeVisible();
     await expect(page.getByText('h:')).toBeVisible();
 
-    await page.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }).click();
+    await recalculateAll(page);
     await expectBatchSuccess(page);
     await expect(page.getByText(pipeName)).toBeVisible();
-    await expect(page.getByText('рассчитан', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Рассчитан/i)).toBeVisible();
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const calc = calcs.find((item) => item.object_id === pipe.id);
@@ -254,7 +262,7 @@ test.describe('business flow: cable layout controls', () => {
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
     await selectCableType(page, 'Саморегулирующийся', 'ТТН/ТТВ/ТТХ');
     await page.getByRole('checkbox', { name: /агр./i }).check();
-    await page.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }).click();
+    await recalculateAll(page);
     await expectBatchSuccess(page);
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);

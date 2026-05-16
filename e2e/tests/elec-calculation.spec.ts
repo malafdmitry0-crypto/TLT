@@ -1,6 +1,11 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 import { createCalculatedPipe, loginAsGuest } from './helpers/workspace';
+
+async function recalculateAll(page: Page, variant = 1) {
+  await page.getByRole('button', { name: new RegExp(`Пересчитать все СО${variant}`, 'i') }).click();
+  await page.getByRole('button', { name: /Да, пересчитать все/i }).click();
+}
 
 test.describe('4.4 Электротехнический расчёт', () => {
   test('пустой проект показывает таблицу электрорасчёта, варианты СО1..СО4 и сообщение', async ({
@@ -10,10 +15,10 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
     await expect(page).toHaveURL(/\/workspace\/elec-calc/);
 
-    await expect(page.getByText(/СО1 · Саморегулирующийся · расчёт не выполнен/i)).toBeVisible();
+    await expect(page.getByText(/СО1 · тип по объектам · расчёт не выполнен/i)).toBeVisible();
     await expect(page.getByRole('button').filter({ hasText: /^СО1$/ })).toBeVisible();
     await expect(page.getByRole('button').filter({ hasText: /^СО4$/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Выполнить электрорасчёт СО1/i })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /Пересчитать все СО1/i })).toBeDisabled();
     await expect(page.getByText(/нет объектов/i)).toBeVisible();
   });
 
@@ -25,18 +30,18 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await createCalculatedPipe(page, pipeName);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await expect(page.getByText(pipeName)).toBeVisible();
-    await expect(page.getByText('не рассчитан')).toBeVisible();
+    const row = page.getByRole('row').filter({ hasText: pipeName }).first();
+    await expect(row).toBeVisible();
+    await expect(page.getByText(/СО1 · тип по объектам · расчёт не выполнен/i)).toBeVisible();
 
-    await page.getByRole('button', { name: /Выполнить электрорасчёт СО1/i }).click();
+    await recalculateAll(page);
 
-    await expect(page.getByText(/СО1 — расчёт выполнен для 1 объектов/i)).toBeVisible();
-    await expect(page.getByText(/СО1 · Саморегулирующийся · 55.0 м · 5.50 кВт · 25.00 А · рассчитано: 1\/1/i)).toBeVisible();
-    await expect(page.getByText('рассчитан', { exact: true })).toBeVisible();
-    await expect(page.getByText(/ТЛТ-100 · 100 Вт\/м/)).toBeVisible();
-    await expect(page.getByText('55,0')).toBeVisible();
-    await expect(page.getByText('5,50 кВт')).toBeVisible();
-    await expect(page.getByText('25,00')).toBeVisible();
+    await expect(page.getByText(/СО1 — расчёт выполнен для всех объектов: 1/i)).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText(/СО1 · тип по объектам · .*рассчитано: 1\/1/i)).toBeVisible();
+    await expect(page.getByText(/ТЛТ-100/)).toBeVisible();
+    await expect(page.getByText(/6,49 кВт|6\.49 кВт/i).first()).toBeVisible();
   });
 
   test('варианты СО изолированы: расчёт СО2 не подменяет статус СО1', async ({
@@ -48,30 +53,32 @@ test.describe('4.4 Электротехнический расчёт', () => {
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
     await page.getByRole('button').filter({ hasText: /^СО2$/ }).click();
-    await expect(page.getByText(/СО2 · Саморегулирующийся · расчёт не выполнен/i)).toBeVisible();
+    await expect(page.getByText(/СО2 · тип по объектам · расчёт не выполнен/i)).toBeVisible();
 
-    await page.getByRole('button', { name: /Выполнить электрорасчёт СО2/i }).click();
-    await expect(page.getByText(/СО2 — расчёт выполнен для 1 объектов/i)).toBeVisible();
-    await expect(page.getByText(/СО2 · Саморегулирующийся · 55.0 м · 5.50 кВт · 25.00 А · рассчитано: 1\/1/i)).toBeVisible();
+    await recalculateAll(page, 2);
+    await expect(page.getByText(/СО2 — расчёт выполнен для всех объектов: 1/i)).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText(/СО2 · тип по объектам · .*рассчитано: 1\/1/i)).toBeVisible();
     await expect(page.getByText(pipeName)).toBeVisible();
 
     await page.getByRole('button').filter({ hasText: /^СО1$/ }).click();
-    await expect(page.getByText(/СО1 · Саморегулирующийся · расчёт не выполнен/i)).toBeVisible();
-    await expect(page.getByText('не рассчитан')).toBeVisible();
+    await expect(page.getByText(/СО1 · тип по объектам · расчёт не выполнен/i)).toBeVisible();
+    await expect(page.getByRole('row').filter({ hasText: pipeName }).first()).toBeVisible();
   });
 
-  test('кнопки навигации связывают электрорасчёт со страницами теплопотерь и спецификации', async ({
+  test('основное меню связывает электрорасчёт со страницами теплопотерь и спецификации', async ({
     page,
   }) => {
     await loginAsGuest(page);
     await createCalculatedPipe(page, `E2E nav pipe ${Date.now()}`);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await page.getByRole('button', { name: /← Теплопотери/i }).click();
+    await page.getByRole('menuitem', { name: /Расчёт тепловых потерь/i }).click();
     await expect(page).toHaveURL(/\/workspace\/heat-calc/);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await page.getByRole('button', { name: /Спецификация →/i }).click();
+    await page.getByRole('menuitem', { name: /Спецификация/i }).click();
     await expect(page).toHaveURL(/\/workspace\/specification/);
   });
 });

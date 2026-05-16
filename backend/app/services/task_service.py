@@ -9,7 +9,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from time import monotonic
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy import func, or_, select, update
@@ -43,6 +43,7 @@ TASK_HEAT_LOSS_BATCH = "heat_loss_batch"
 ACTIVE_STATUSES = ("queued", "enqueued", "running")
 TERMINAL_STATUSES = ("succeeded", "failed", "cancelled")
 MAX_TASK_ERROR_MESSAGE_LENGTH = 4_000
+WorkerFailureAction = Literal["ack", "retry", "dead_letter"]
 
 
 @dataclass(frozen=True)
@@ -341,6 +342,52 @@ class TaskService:
             await self._run_heat_loss_batch(task_id)
         else:
             await self._run_electrical_batch(task_id)
+
+    async def record_worker_exception(
+        self,
+        task_id: UUID,
+        *,
+        worker_id: str,
+        error_message: str,
+    ) -> WorkerFailureAction:
+        """Persist worker-level crashes that escape normal task execution.
+
+        Formula/calculation errors are handled inside the task runners and end
+        in a terminal DB state. This covers infrastructure or runtime failures
+        that would otherwise leave the Redis Stream entry in PEL forever.
+        """
+        task = await self.db.get(BackgroundTask, task_id)
+        if task is None:
+            return "ack"
+        await self.db.refresh(task)
+        if task.status in TERMINAL_STATUSES:
+            return "ack"
+
+        now = datetime.now(UTC)
+        task.error_message = compact_task_error_message(error_message)
+        task.locked_by = None
+        task.lock_expires_at = None
+        task.heartbeat_at = now
+
+        if task.cancel_requested:
+            task.status = "cancelled"
+            task.progress_phase = "cancelled"
+            task.finished_at = now
+            await self.db.commit()
+            return "ack"
+
+        if task.attempts >= settings.WORKER_MAX_ATTEMPTS:
+            task.status = "failed"
+            task.progress_phase = "failed"
+            task.finished_at = now
+            await self.db.commit()
+            return "dead_letter"
+
+        task.status = "enqueued"
+        task.progress_phase = "retry_pending"
+        task.next_retry_at = None
+        await self.db.commit()
+        return "retry"
 
     async def _claim_task_for_run(
         self,
