@@ -19,7 +19,7 @@ class TestLoadContext:
         result.scalar_one_or_none = lambda: None
         db.execute = AsyncMock(return_value=result)
         with pytest.raises(ReportError, match="не найден"):
-            await ReportService(db)._load_context(uuid.uuid4())
+            await ReportService(db)._load_context(uuid.uuid4(), principal=None)
 
     async def test_returns_full_context(self):
         """Проект + объекты + спецификация + elec-расчёты — собираются в dict."""
@@ -53,7 +53,7 @@ class TestLoadContext:
         ]
         db = AsyncMock()
         db.execute = AsyncMock(side_effect=results_stack)
-        ctx = await ReportService(db)._load_context(pid)
+        ctx = await ReportService(db)._load_context(pid, principal=None)
         assert ctx["project"]["id"] == str(pid)
         assert ctx["project"]["name"] == "P"
         assert len(ctx["objects"]) == 1
@@ -72,7 +72,7 @@ class TestLoadContext:
                 _r(all_=[]),
             ]
         )
-        ctx = await ReportService(db)._load_context(pid)
+        ctx = await ReportService(db)._load_context(pid, principal=None)
         assert ctx["specification"]["items"] == []
 
     async def test_latest_variant_picked(self):
@@ -113,7 +113,7 @@ class TestLoadContext:
                 _r(all_=[old, new]),
             ]
         )
-        ctx = await ReportService(db)._load_context(pid)
+        ctx = await ReportService(db)._load_context(pid, principal=None)
         assert ctx["objects"][0]["electrical"]["cable_mark"] == "ТЛТ-50"
 
     async def test_specification_only_skips_objects_and_electrical(self):
@@ -127,7 +127,7 @@ class TestLoadContext:
                 _r(first=spec),
             ]
         )
-        ctx = await ReportService(db)._load_context(pid, ["specification"])
+        ctx = await ReportService(db)._load_context(pid, ["specification"], principal=None)
         assert ctx["sections"] == ["specification"]
         assert ctx["objects"] == []
         assert ctx["specification"]["items"] == [{"name": "Кабель"}]
@@ -143,7 +143,11 @@ class TestLoadContext:
                 _r(all_=[]),
             ]
         )
-        response = await ReportService(db).preview(pid, ["pipes"])
+        response = await ReportService(db).preview(
+            pid,
+            ["pipes"],
+            principal=SimpleNamespace(role="admin", user_id=uuid.uuid4(), session_id=None),
+        )
         assert response["sections"] == ["pipes"]
         assert "data" not in response
 
@@ -154,7 +158,11 @@ class TestExport:
         db = AsyncMock()
         db.execute = AsyncMock()
         with pytest.raises(ReportError, match="Неизвестный формат"):
-            await ReportService(db).export(pid, "txt")
+            await ReportService(db).export(
+                pid,
+                "txt",
+                principal=SimpleNamespace(role="admin", user_id=uuid.uuid4(), session_id=None),
+            )
         db.execute.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -175,9 +183,23 @@ class TestExport:
             f"app.services.report_service.{generator_name}",
             lambda ctx: expected,
         )
+        principal = SimpleNamespace(role="admin", user_id=uuid.uuid4(), session_id=None)
 
-        assert await service.export(pid, fmt) == expected
-        service._load_context.assert_awaited_once_with(pid, None)
+        assert await service.export(pid, fmt, principal=principal) == expected
+        service._load_context.assert_awaited_once_with(pid, None, principal=principal)
+
+    async def test_export_trusted_skips_project_access_check(self, monkeypatch):
+        pid = uuid.uuid4()
+        service = ReportService(AsyncMock())
+        service._load_context = AsyncMock(return_value={"sections": ["summary"]})
+        monkeypatch.setattr("app.services.report_service.generate_pdf", lambda ctx: b"pdf")
+
+        assert await service.export_trusted(pid, "pdf", ["summary"]) == b"pdf"
+        service._load_context.assert_awaited_once_with(
+            pid,
+            ["summary"],
+            principal=None,
+        )
 
 
 class TestReportRendering:

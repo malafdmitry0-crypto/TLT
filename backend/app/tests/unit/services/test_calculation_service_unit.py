@@ -1500,6 +1500,46 @@ class TestLoadCableCatalog:
         sources = {c["source"] for c in cables}
         assert sources == {"builtin", "extended"}
 
+    async def test_commercial_merges_db_fields_over_builtin(self):
+        ext = SimpleNamespace(
+            cable_type="self_regulating",
+            brand="ТЛТ",
+            model="ТЛТ-25",
+            power_per_meter=999.0,
+            max_temperature=999.0,
+            min_temperature=-999.0,
+            resistance_per_meter=None,
+            supplier_name="Поставщик",
+            article="ART-25",
+            currency="RUB",
+            price_per_meter=460.0,
+            stock_quantity_m=750.0,
+            stock_status="in_stock",
+            lead_time_days=3,
+            supplier_priority=20,
+            is_preferred=True,
+            order_multiple_m=1.0,
+            min_order_quantity_m=0.0,
+            is_discontinued=False,
+            replacement_group=None,
+            price_updated_at=None,
+            stock_updated_at=None,
+            commercial_data_source="test",
+        )
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars = lambda: MagicMock(all=lambda: [ext])
+        db.execute = AsyncMock(return_value=result)
+        service = CalculationService(db)
+
+        cables = await service.load_cable_catalog("commercial")
+        tlt25 = next(c for c in cables if c["model"] == "ТЛТ-25")
+
+        assert tlt25["source"] == "commercial"
+        assert tlt25["power_per_meter"] == 25
+        assert tlt25["price_per_meter"] == 460.0
+        assert tlt25["supplier_name"] == "Поставщик"
+
 
 class TestCoefficientsCaching:
     """Кэш коэффициентов — ключ-инвалидация работает, второй вызов не идёт в БД."""

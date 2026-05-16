@@ -77,13 +77,80 @@ def _extended_cable_payload(cable: CableExtended) -> dict[str, object]:
         "max_temperature": cable.max_temperature,
         "min_temperature": cable.min_temperature,
         "resistance_per_meter": cable.resistance_per_meter,
+        "supplier_name": cable.supplier_name,
+        "article": cable.article,
+        "currency": cable.currency,
         "price_per_meter": cable.price_per_meter,
         "stock_quantity_m": cable.stock_quantity_m,
+        "stock_status": cable.stock_status,
         "lead_time_days": cable.lead_time_days,
         "supplier_priority": cable.supplier_priority,
         "is_preferred": cable.is_preferred,
         "order_multiple_m": cable.order_multiple_m,
+        "min_order_quantity_m": cable.min_order_quantity_m,
+        "is_discontinued": cable.is_discontinued,
+        "replacement_group": cable.replacement_group,
+        "price_updated_at": cable.price_updated_at,
+        "stock_updated_at": cable.stock_updated_at,
+        "commercial_data_source": cable.commercial_data_source,
     }
+
+
+def _commercial_cable_payload(
+    base: dict[str, object], cable: CableExtended | None
+) -> dict[str, object]:
+    payload = {
+        **base,
+        "source": "commercial",
+        "cable_type": "self_regulating",
+        "price_per_meter": None,
+        "stock_status": "unknown",
+        "lead_time_days": None,
+        "supplier_priority": None,
+        "is_preferred": False,
+        "order_multiple_m": None,
+        "min_order_quantity_m": None,
+        "is_discontinued": False,
+        "commercial_data_source": None,
+        "price_updated_at": None,
+        "stock_updated_at": None,
+    }
+    if cable is None:
+        return payload
+    payload.update(
+        {
+            "brand": cable.brand or base.get("brand"),
+            "price_per_meter": cable.price_per_meter,
+            "currency": cable.currency,
+            "stock_status": cable.stock_status,
+            "lead_time_days": cable.lead_time_days,
+            "supplier_priority": cable.supplier_priority,
+            "is_preferred": cable.is_preferred,
+            "order_multiple_m": cable.order_multiple_m,
+            "min_order_quantity_m": cable.min_order_quantity_m,
+            "is_discontinued": cable.is_discontinued,
+            "article": cable.article,
+            "supplier_name": cable.supplier_name,
+            "commercial_data_source": cable.commercial_data_source,
+            "price_updated_at": cable.price_updated_at,
+            "stock_updated_at": cable.stock_updated_at,
+        }
+    )
+    return payload
+
+
+async def _commercial_cable_catalog(db: AsyncSession) -> list[dict[str, object]]:
+    result = await db.execute(
+        select(CableExtended).where(
+            CableExtended.is_active.is_(True),
+            CableExtended.cable_type == "self_regulating",
+        )
+    )
+    extended_by_model = {c.model: c for c in result.scalars().all()}
+    return [
+        _commercial_cable_payload(dict(c), extended_by_model.get(str(c.get("model"))))
+        for c in list_tlt_cables()
+    ]
 
 
 def _builtin_http_cache(name: str):
@@ -168,15 +235,15 @@ async def internal_references(
 
 @router.get(
     "/cables",
-    summary="Кабели. source=builtin|extended|all — для сотрудника",
+    summary="Кабели. source=builtin|commercial|extended|all",
 )
 async def cables(
     response: Response,
-    source: Literal["builtin", "extended", "all"] = "builtin",
+    source: Literal["builtin", "commercial", "extended", "all"] = "builtin",
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
-    if source != "builtin" and principal.role not in ("employee", "admin"):
+    if source in ("extended", "all") and principal.role not in ("employee", "admin"):
         raise HTTPException(
             status_code=403,
             detail="Расширенный каталог доступен только сотрудникам",
@@ -186,11 +253,24 @@ async def cables(
         response.headers["Cache-Control"] = f"public, max-age={_HTTP_CACHE_SECONDS}"
         response.headers["ETag"] = _BUILTIN_ETAGS["cables:builtin"]
         return builtin
+    if source == "commercial":
+        return await _commercial_cable_catalog(db)
     result = await db.execute(select(CableExtended).where(CableExtended.is_active.is_(True)))
     extended = [_extended_cable_payload(c) for c in result.scalars().all()]
     if source == "extended":
         return extended
     return builtin + extended
+
+
+@router.get(
+    "/cables/commercial",
+    summary="Публичная commercial projection кабелей для всех ролей",
+)
+async def cables_commercial(
+    _: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _commercial_cable_catalog(db)
 
 
 @router.get(

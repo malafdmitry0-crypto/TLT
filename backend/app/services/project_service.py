@@ -45,8 +45,8 @@ class ProjectService:
         if principal.role == "guest":
             stmt = stmt.where(Project.session_id == principal.session_id)
         elif principal.role == "employee":
-            pass  # Employee видит все проекты (по матрице доступа)
-        # admin не работает с проектами
+            stmt = stmt.where(Project.user_id == principal.user_id)
+        # admin видит все проекты для администрирования и поддержки.
         stmt = stmt.order_by(Project.updated_at.desc())
         rows = await self.db.execute(stmt)
         projects = []
@@ -99,6 +99,26 @@ class ProjectService:
             raise ProjectNotFoundError(f"Проект {project_id} не найден")
         self._check_access(project, principal)
         return project
+
+    async def get_project_for_write(self, project_id: UUID, principal: CurrentPrincipal) -> Project:
+        project = await self.get_project_basic(project_id, principal)
+        self._check_owner(project, principal)
+        return project
+
+    async def get_object_for_read(
+        self, object_id: UUID, principal: CurrentPrincipal
+    ) -> ProjectObject:
+        obj, project = await self._get_object_with_project(object_id)
+        self._check_access(project, principal)
+        return obj
+
+    async def get_object_for_write(
+        self, object_id: UUID, principal: CurrentPrincipal
+    ) -> ProjectObject:
+        obj, project = await self._get_object_with_project(object_id)
+        self._check_access(project, principal)
+        self._check_owner(project, principal)
+        return obj
 
     async def get_project_summary(self, project_id: UUID, principal: CurrentPrincipal) -> Project:
         project = await self.get_project_basic(project_id, principal)
@@ -337,6 +357,17 @@ class ProjectService:
             raise ProjectNotFoundError(f"Объект {object_id} не найден")
         return obj
 
+    async def _get_object_with_project(self, object_id: UUID) -> tuple[ProjectObject, Project]:
+        result = await self.db.execute(
+            select(ProjectObject, Project)
+            .join(Project, ProjectObject.project_id == Project.id)
+            .where(ProjectObject.id == object_id)
+        )
+        row = result.one_or_none()
+        if row is None:
+            raise ProjectNotFoundError(f"Объект {object_id} не найден")
+        return row[0], row[1]
+
     async def _annotate_object_types(self, projects: list[Project]) -> None:
         if not projects:
             return
@@ -354,8 +385,12 @@ class ProjectService:
             project.object_types = sorted(types_by_project.get(project.id, set()))
 
     def _check_access(self, project: Project, principal: CurrentPrincipal) -> None:
-        if principal.role == "employee":
+        if principal.role == "admin":
             return
+        if principal.role == "employee":
+            if project.user_id == principal.user_id:
+                return
+            raise ProjectAccessError("Нет доступа к чужому проекту")
         if principal.role == "guest":
             if project.session_id != principal.session_id:
                 raise ProjectAccessError("Нет доступа к чужому проекту")
@@ -363,6 +398,8 @@ class ProjectService:
         raise ProjectAccessError("Нет доступа")
 
     def _check_owner(self, project: Project, principal: CurrentPrincipal) -> None:
+        if principal.role == "admin":
+            return
         if principal.role == "guest":
             if project.session_id != principal.session_id:
                 raise ProjectAccessError("Нет доступа")
@@ -370,7 +407,6 @@ class ProjectService:
         if principal.role == "employee":
             if project.user_id == principal.user_id:
                 return
-            # сотрудник по ТЗ может видеть, но не редактировать чужие проекты
             raise ProjectAccessError("Нельзя редактировать чужой проект")
         raise ProjectAccessError("Нет доступа")
 

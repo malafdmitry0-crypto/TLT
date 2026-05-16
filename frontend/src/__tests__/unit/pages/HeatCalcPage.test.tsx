@@ -277,7 +277,7 @@ function makeTank(overrides: Partial<ProjectObject> = {}): ProjectObject {
 
 function renderPage() {
   const qc = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
   });
   return render(
     <QueryClientProvider client={qc}>

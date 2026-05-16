@@ -8,6 +8,16 @@
 } %}
 {% set SHAPES = {'cylindrical': 'Цилиндрический', 'rectangular': 'Параллелепипед', 'spherical': 'Сферический'} %}
 {% set TYPES = {'pipe': 'Трубопровод', 'tank': 'Резервуар'} %}
+{% set POLICIES = {
+  'technical_minimum': 'Технический',
+  'lowest_cost': 'Минимальная стоимость',
+  'fastest_delivery': 'Минимальный срок',
+  'in_stock': 'В наличии',
+  'preferred_supplier': 'Приоритет поставщика',
+  'balanced': 'Баланс',
+  'manual_selection': 'Ручной выбор'
+} %}
+{% set STOCK = {'in_stock': 'В наличии', 'limited': 'Ограничено', 'on_order': 'Под заказ', 'unknown': 'Неизвестно'} %}
 {% macro fmt(v, digits=1) -%}
   {%- if v is number -%}{{ '%.*f'|format(digits, v) }}{%- else -%}—{%- endif -%}
 {%- endmacro %}
@@ -177,16 +187,22 @@
     <thead>
       <tr>
         <th>#</th><th>Объект</th><th>Марка кабеля</th>
+        <th>Критерий</th>
+        <th>Применено</th>
         <th class="num">Длина кабеля, м</th>
         <th class="num">Уд. мощность, Вт/м</th>
         <th class="num">Суммарная мощность</th>
         <th class="num">Ток, А</th>
         <th class="num">U, В</th>
+        <th class="num">Стоимость кабеля</th>
+        <th>Склад / срок</th>
+        <th>Причина выбора</th>
       </tr>
     </thead>
     <tbody>
       {% for o in elec_objs %}
       {% set r = o.electrical.results %}
+      {% set commercial = r.get('commercial') or {} %}
       {% set p_meter = r.get('power_per_meter') or r.get('power_at_operating_temp') or r.get('required_power_per_meter') %}
       {% if not p_meter and r.get('total_power') and r.get('cable_length') %}
         {% set p_meter = r.get('total_power') / r.get('cable_length') %}
@@ -195,11 +211,29 @@
         <td>{{ loop.index }}</td>
         <td>{{ o.params.get('name') or TYPES.get(o.object_type, o.object_type) }}</td>
         <td><strong>{{ o.electrical.cable_mark or r.get('selected_cable') or '—' }}</strong></td>
+        <td>{{ POLICIES.get(r.get('selection_policy'), r.get('selection_policy') or '—') }}</td>
+        <td>{{ POLICIES.get(r.get('applied_selection_policy'), r.get('applied_selection_policy') or '—') }}</td>
         <td class="num">{{ fmt(r.get('cable_length'), 1) }}</td>
         <td class="num">{{ fmt(p_meter, 1) }}</td>
         <td class="num">{{ kwt(r.get('total_power')) }}</td>
         <td class="num">{{ fmt(r.get('current'), 2) }}</td>
         <td class="num">{{ r.get('voltage', 220) }}</td>
+        <td class="num">
+          {% if commercial.get('total_cost') is number %}
+            {{ fmt(commercial.get('total_cost'), 2) }} {{ commercial.get('currency') or 'RUB' }}
+            <br><span class="muted">только кабель</span>
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {{ STOCK.get(commercial.get('stock_status'), commercial.get('stock_status') or '—') }}
+          {% if commercial.get('lead_time_days') is number %}<br><span class="muted">{{ commercial.get('lead_time_days') }} дн.</span>{% endif %}
+        </td>
+        <td>
+          {{ r.get('selection_reason') or '—' }}
+          {% if r.get('warnings') %}
+            <br><span class="badge-err">{{ r.get('warnings') | join('; ') }}</span>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>

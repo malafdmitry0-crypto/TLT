@@ -39,6 +39,33 @@ async def _project_with_object(client: AsyncClient, session_id: str) -> str:
     return p["id"]
 
 
+async def _employee_project_with_object(client: AsyncClient, token: str) -> str:
+    headers = {"Authorization": f"Bearer {token}"}
+    p = (
+        await client.post(
+            "/api/v1/projects",
+            json={"name": "Report project"},
+            headers=headers,
+        )
+    ).json()
+    await client.post(
+        f"/api/v1/projects/{p['id']}/objects",
+        json={
+            "object_type": "pipe",
+            "params": {
+                "outer_diameter": 0.1,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 10,
+            },
+        },
+        headers=headers,
+    )
+    return p["id"]
+
+
 class TestReports:
     async def test_preview_returns_html(self, client: AsyncClient, guest_session: str):
         pid = await _project_with_object(client, guest_session)
@@ -66,10 +93,8 @@ class TestReports:
         )
         assert resp.status_code == 403
 
-    async def test_employee_export_xlsx(
-        self, client: AsyncClient, guest_session: str, employee_token: str
-    ):
-        pid = await _project_with_object(client, guest_session)
+    async def test_employee_export_xlsx(self, client: AsyncClient, employee_token: str):
+        pid = await _employee_project_with_object(client, employee_token)
         resp = await client.get(
             f"/api/v1/reports/{pid}/export/xlsx",
             headers={"Authorization": f"Bearer {employee_token}"},
@@ -80,9 +105,9 @@ class TestReports:
         )
 
     async def test_employee_can_enqueue_report_export_job(
-        self, client: AsyncClient, guest_session: str, employee_token: str
+        self, client: AsyncClient, employee_token: str
     ):
-        pid = await _project_with_object(client, guest_session)
+        pid = await _employee_project_with_object(client, employee_token)
         resp = await client.post(
             f"/api/v1/reports/{pid}/export/xlsx/jobs",
             headers={"Authorization": f"Bearer {employee_token}"},
@@ -103,7 +128,6 @@ class TestReports:
     async def test_employee_can_download_finished_report_job(
         self,
         client: AsyncClient,
-        guest_session: str,
         employee_token: str,
         employee_user: User,
         db_session: AsyncSession,
@@ -111,7 +135,7 @@ class TestReports:
         monkeypatch,
     ):
         monkeypatch.setattr(settings, "REPORT_ARTIFACT_DIR", str(tmp_path))
-        pid = await _project_with_object(client, guest_session)
+        pid = await _employee_project_with_object(client, employee_token)
         task_id = uuid4()
         artifact = write_report_artifact(task_id, "xlsx", b"report-bytes")
         task = BackgroundTask(
@@ -150,12 +174,11 @@ class TestReports:
     async def test_report_job_download_returns_409_until_ready(
         self,
         client: AsyncClient,
-        guest_session: str,
         employee_token: str,
         employee_user: User,
         db_session: AsyncSession,
     ):
-        pid = await _project_with_object(client, guest_session)
+        pid = await _employee_project_with_object(client, employee_token)
         task_id = uuid4()
         task = BackgroundTask(
             id=task_id,

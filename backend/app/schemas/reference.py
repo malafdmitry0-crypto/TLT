@@ -45,12 +45,25 @@ class CableExtendedBase(BaseModel):
     max_temperature: float | None = None
     min_temperature: float | None = None
     resistance_per_meter: float | None = None
+    supplier_name: str | None = None
+    article: str | None = None
+    currency: str | None = Field(default="RUB", max_length=8)
     price_per_meter: float | None = Field(default=None, ge=0)
     stock_quantity_m: float | None = Field(default=None, ge=0)
+    stock_status: str | None = Field(
+        default=None,
+        pattern="^(in_stock|limited|on_order|unknown)$",
+    )
     lead_time_days: int | None = Field(default=None, ge=0)
     supplier_priority: int | None = Field(default=None, ge=0)
     is_preferred: bool = False
     order_multiple_m: float | None = Field(default=None, ge=0)
+    min_order_quantity_m: float | None = Field(default=None, ge=0)
+    is_discontinued: bool = False
+    replacement_group: str | None = None
+    price_updated_at: datetime | None = None
+    stock_updated_at: datetime | None = None
+    commercial_data_source: str | None = None
     params: dict[str, Any] | None = None
     is_active: bool = True
 
@@ -66,12 +79,25 @@ class CableExtendedUpdate(BaseModel):
     max_temperature: float | None = None
     min_temperature: float | None = None
     resistance_per_meter: float | None = None
+    supplier_name: str | None = None
+    article: str | None = None
+    currency: str | None = Field(default=None, max_length=8)
     price_per_meter: float | None = Field(default=None, ge=0)
     stock_quantity_m: float | None = Field(default=None, ge=0)
+    stock_status: str | None = Field(
+        default=None,
+        pattern="^(in_stock|limited|on_order|unknown)$",
+    )
     lead_time_days: int | None = Field(default=None, ge=0)
     supplier_priority: int | None = Field(default=None, ge=0)
     is_preferred: bool | None = None
     order_multiple_m: float | None = Field(default=None, ge=0)
+    min_order_quantity_m: float | None = Field(default=None, ge=0)
+    is_discontinued: bool | None = None
+    replacement_group: str | None = None
+    price_updated_at: datetime | None = None
+    stock_updated_at: datetime | None = None
+    commercial_data_source: str | None = None
     params: dict[str, Any] | None = None
     is_active: bool | None = None
 

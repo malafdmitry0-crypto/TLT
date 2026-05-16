@@ -76,6 +76,7 @@
 - [ ] `GET /references/climate` — доступен гостю, содержит «Москва»
 - [ ] `GET /references/insulation` — содержит `mineral_wool`
 - [ ] `GET /references/cables` — содержит «ТЛТ-25»
+- [ ] `GET /references/cables?source=commercial` — доступен гостю, содержит `source=commercial`
 - [ ] `GET /references/cables/extended` — гость получает 403, сотрудник 200
 - [ ] `GET /references/accessories/extended` — аналогично
 

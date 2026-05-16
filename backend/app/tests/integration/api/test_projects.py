@@ -47,16 +47,25 @@ class TestProjectsCRUD:
         assert all(p["session_id"] == guest_session for p in projects)
         assert len(projects) == 1
 
-    async def test_employee_can_see_all_projects(
+    async def test_employee_sees_only_own_projects(
         self, client: AsyncClient, guest_session: str, employee_token: str
     ):
-        # guest_session уже содержит авто-проект
+        guest_project = await _guest_project(client, guest_session)
+        own_project = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "Свой проект"},
+                headers={"Authorization": f"Bearer {employee_token}"},
+            )
+        ).json()
         resp = await client.get(
             "/api/v1/projects",
             headers={"Authorization": f"Bearer {employee_token}"},
         )
         assert resp.status_code == 200
-        assert len(resp.json()) >= 1
+        ids = {p["id"] for p in resp.json()}
+        assert own_project["id"] in ids
+        assert guest_project["id"] not in ids
 
     async def test_update_project(self, client: AsyncClient, guest_session: str):
         created = await _guest_project(client, guest_session)
@@ -162,7 +171,7 @@ class TestProjectAccessAndEdges:
     async def test_employee_cannot_edit_other_employee_project(
         self, client: AsyncClient, employee_token: str, admin_token: str
     ):
-        """Сотрудник видит чужой, но редактировать не может."""
+        """Сотрудник не видит и не редактирует чужой проект."""
         # Создаём проект под админом
         owner = (
             await client.post(
@@ -213,22 +222,52 @@ class TestProjectAccessAndEdges:
     async def test_employee_does_not_see_others_via_visibility_filter(
         self, client: AsyncClient, employee_token: str, admin_token: str
     ):
-        """Сотрудник видит ВСЕ проекты — это контракт текущего контура."""
+        """Сотрудник видит только свои проекты."""
         before = (
             await client.get(
                 "/api/v1/projects",
                 headers={"Authorization": f"Bearer {employee_token}"},
             )
         ).json()
-        await client.post(
-            "/api/v1/projects",
-            json={"name": "Admin's"},
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
+        foreign = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "Admin's"},
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+        ).json()
         after = (
             await client.get(
                 "/api/v1/projects",
                 headers={"Authorization": f"Bearer {employee_token}"},
             )
         ).json()
-        assert len(after) > len(before)
+        assert len(after) == len(before)
+        assert foreign["id"] not in {p["id"] for p in after}
+
+    async def test_admin_sees_all_projects(
+        self, client: AsyncClient, employee_token: str, admin_token: str
+    ):
+        own = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "Employee's"},
+                headers={"Authorization": f"Bearer {employee_token}"},
+            )
+        ).json()
+        admin_project = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "Admin's"},
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+        ).json()
+        after = (
+            await client.get(
+                "/api/v1/projects",
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+        ).json()
+        ids = {p["id"] for p in after}
+        assert own["id"] in ids
+        assert admin_project["id"] in ids

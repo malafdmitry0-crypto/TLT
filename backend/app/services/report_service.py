@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project import Project
 from app.models.project_object import ProjectObject
@@ -14,6 +15,7 @@ from app.models.specification import Specification
 from app.reports.excel_generator import generate_xlsx
 from app.reports.pdf_generator import generate_pdf, render_html
 from app.reports.word_generator import generate_docx
+from app.services.project_service import ProjectService
 
 
 class ReportError(Exception):
@@ -33,13 +35,22 @@ class ReportService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def _load_context(self, project_id: UUID, sections: list[str] | None = None) -> dict:
+    async def _load_context(
+        self,
+        project_id: UUID,
+        sections: list[str] | None = None,
+        *,
+        principal: CurrentPrincipal | None,
+    ) -> dict:
         enabled_sections = self._normalize_sections(sections)
 
-        result = await self.db.execute(select(Project).where(Project.id == project_id))
-        project = result.scalar_one_or_none()
-        if project is None:
-            raise ReportError("Проект не найден")
+        if principal is not None:
+            project = await ProjectService(self.db).get_project_basic(project_id, principal)
+        else:
+            result = await self.db.execute(select(Project).where(Project.id == project_id))
+            project = result.scalar_one_or_none()
+            if project is None:
+                raise ReportError("Проект не найден")
 
         needs_objects = bool(
             {"summary", "pipes", "tanks", "electrical"}.intersection(enabled_sections)
@@ -116,8 +127,14 @@ class ReportService:
             return list(self.AVAILABLE_SECTIONS)
         return [s for s in sections if s in self.AVAILABLE_SECTIONS]
 
-    async def preview(self, project_id: UUID, sections: list[str] | None = None) -> dict:
-        ctx = await self._load_context(project_id, sections)
+    async def preview(
+        self,
+        project_id: UUID,
+        sections: list[str] | None = None,
+        *,
+        principal: CurrentPrincipal,
+    ) -> dict:
+        ctx = await self._load_context(project_id, sections, principal=principal)
         html = render_html(ctx)
         return {
             "project_id": str(project_id),
@@ -125,11 +142,33 @@ class ReportService:
             "sections": ctx["sections"],
         }
 
-    async def export(self, project_id: UUID, fmt: str, sections: list[str] | None = None) -> bytes:
+    async def export(
+        self,
+        project_id: UUID,
+        fmt: str,
+        sections: list[str] | None = None,
+        *,
+        principal: CurrentPrincipal,
+    ) -> bytes:
+        return await self._export(project_id, fmt, sections, principal=principal)
+
+    async def export_trusted(
+        self, project_id: UUID, fmt: str, sections: list[str] | None = None
+    ) -> bytes:
+        return await self._export(project_id, fmt, sections, principal=None)
+
+    async def _export(
+        self,
+        project_id: UUID,
+        fmt: str,
+        sections: list[str] | None = None,
+        *,
+        principal: CurrentPrincipal | None,
+    ) -> bytes:
         if fmt not in {"pdf", "docx", "xlsx"}:
             raise ReportError(f"Неизвестный формат: {fmt}")
 
-        ctx = await self._load_context(project_id, sections)
+        ctx = await self._load_context(project_id, sections, principal=principal)
         if fmt == "pdf":
             return await asyncio.to_thread(generate_pdf, ctx)
         if fmt == "docx":

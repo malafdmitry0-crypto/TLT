@@ -76,6 +76,23 @@ class TestReferences:
         assert resp.status_code == 200
         assert any(c["model"] == "ТЛТ-25" for c in resp.json())
 
+    async def test_commercial_cables_public(self, client: AsyncClient, guest_session: str):
+        resp = await client.get(
+            "/api/v1/references/cables",
+            params={"source": "commercial"},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200
+        row = next(c for c in resp.json() if c["model"] == "ТЛТ-25")
+        assert row["source"] == "commercial"
+        assert "price_per_meter" in row
+
+        direct = await client.get(
+            "/api/v1/references/cables/commercial",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert direct.status_code == 200
+
     async def test_extended_cables_requires_employee(
         self, client: AsyncClient, guest_session: str, employee_token: str
     ):

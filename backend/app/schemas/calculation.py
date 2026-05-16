@@ -346,6 +346,16 @@ class BatchCalcResponse(BaseModel):
 # ---------- Electrical ----------
 
 
+SelectionPolicy = Literal[
+    "technical_minimum",
+    "lowest_cost",
+    "fastest_delivery",
+    "in_stock",
+    "preferred_supplier",
+    "balanced",
+]
+
+
 class SelfRegulatingParams(BaseModel):
     """Параметры расчёта саморегулирующегося кабеля."""
 
@@ -383,6 +393,10 @@ class SelfRegulatingParams(BaseModel):
             "Если None — используется встроенный справочник ТЛТ."
         ),
     )
+    selection_policy: SelectionPolicy = Field(
+        default="technical_minimum",
+        description="Критерий выбора среди технически подходящих кабелей",
+    )
 
 
 class SelfRegulatingResult(BaseModel):
@@ -397,6 +411,12 @@ class SelfRegulatingResult(BaseModel):
     requested_number_of_threads: int | None = None
     applied_number_of_threads: int
     number_of_threads_source: Literal["manual", "auto", "default", "previous_result"] = "auto"
+    selection_policy: str = "technical_minimum"
+    applied_selection_policy: str = "technical_minimum"
+    selection_reason: str | None = None
+    candidate_count: int = 0
+    commercial: dict[str, Any] | None = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 class SelfRegulatingTTParams(BaseModel):
@@ -824,6 +844,7 @@ class ElectricalBatchJobRequest(BaseModel):
     cable_source: str = "builtin"
     variant_number: int = Field(default=1, ge=1, le=4)
     cable_type: ElectricalCableType = "self_regulating"
+    selection_policy: SelectionPolicy = "technical_minimum"
     object_overrides: list[ElectricalObjectBatchOverride] | None = None
     force_cable_type: bool = False
     supply_voltage: float | None = None
@@ -852,6 +873,7 @@ class ElectricalBatchJobRequest(BaseModel):
             "maintain_temperature": self.maintain_temperature,
             "vapor_temperature": self.vapor_temperature,
             "aggressive_product": self.aggressive_product,
+            "selection_policy": self.selection_policy,
         }
 
 

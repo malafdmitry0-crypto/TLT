@@ -58,3 +58,15 @@
 `selection_mode=auto`: full-version VSDX-стратегия `U/N/M`, `p2/p3`, `L1/L2`.
 `selection_mode=manual` остается диагностическим/ручным режимом для явно
 заданной схемы подключения и числа ниток.
+
+Для ТЛТ-автоподбора поддерживается `selection_policy`:
+`technical_minimum`, `lowest_cost`, `fastest_delivery`, `in_stock`,
+`preferred_supplier`, `balanced`. Коммерческая политика применяется только после
+технического отбора. Если данных не хватает, backend возвращает
+`applied_selection_policy=technical_minimum`, `selection_reason` и warning.
+Источник `cable_source=commercial` доступен всем ролям и строится как public
+commercial projection поверх встроенного ТЛТ-каталога.
+
+**`GET /references/cables?source=commercial`** и
+**`GET /references/cables/commercial`** — публичный commercial catalog для всех
+ролей. `source=extended|all` по-прежнему доступен только сотруднику/админу.

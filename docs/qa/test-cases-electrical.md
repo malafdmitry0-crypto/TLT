@@ -224,3 +224,24 @@
 | 4 | Проверить покрытие теплопотерь | `linear_power_w_m >= required_linear_power_w_m` |
 | 5 | Проверить ток | `current <= max_current_limit_a` |
 | 6 | Передать коэффициенты `resistive_max_current_a`, `resistive_max_linear_power_w_m`, `resistive_max_parallel_schemes` | Расчёт использует БД/override значения; при отсутствии работает fallback |
+
+---
+
+## TC-ELEC-14: Коммерческое ранжирование ТЛТ-автоподбора
+
+**Автоматизировано:**
+
+- ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_lowest_cost_uses_total_order_cost`
+- ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_lowest_cost_falls_back_without_prices`
+- ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_fastest_delivery_and_in_stock_do_not_treat_null_as_zero`
+- ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_preferred_supplier_and_balanced_fallback`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Запустить ТЛТ-автоподбор с `selection_policy=lowest_cost` | Выбор идёт по `total_cost = required_order_length × price_per_meter`, а не только по цене за метр |
+| 2 | Указать `order_multiple_m` и `min_order_quantity_m` | Заказная длина учитывает кратность и минимальную партию |
+| 3 | Запустить `fastest_delivery` при `lead_time_days=null` у части кабелей | `null` не считается нулём и не выигрывает у известного срока |
+| 4 | Запустить `in_stock` при `stock_quantity_m=null` | `null` не считается нулём; используется `stock_status` или fallback |
+| 5 | Запустить `preferred_supplier` | Учитываются `is_preferred` и `supplier_priority` |
+| 6 | Запустить `balanced` без утверждённых весов | Возвращается controlled fallback: `applied_selection_policy=technical_minimum` и warning |
+| 7 | Проверить результат | Есть `selection_policy`, `applied_selection_policy`, `selection_reason`, `candidate_count`, `commercial`, `warnings` |

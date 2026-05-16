@@ -156,7 +156,10 @@ class TaskService:
         idempotency_key: str | None = None,
     ) -> BackgroundTask:
         await ProjectService(self.db).get_project_basic(request.project_id, principal)
-        if request.cable_source != "builtin" and principal.role not in ("employee", "admin"):
+        if request.cable_source in ("extended", "all") and principal.role not in (
+            "employee",
+            "admin",
+        ):
             raise TaskAccessError("Расширенный каталог доступен только сотрудникам")
         object_ids = await self._validate_object_ids_belong_to_project(
             request.project_id,
@@ -671,7 +674,7 @@ class TaskService:
                 await self._mark_cancelled(task_id)
                 return
             async with self.session_factory() as report_db:
-                data = await ReportService(report_db).export(project_id, fmt, sections)
+                data = await ReportService(report_db).export_trusted(project_id, fmt, sections)
             await self._update_progress(task_id, BatchProgress(current=2, total=3, phase="write"))
             if await self._should_cancel(task_id):
                 await self._mark_cancelled(task_id)

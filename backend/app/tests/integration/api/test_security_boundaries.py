@@ -10,6 +10,29 @@ from httpx import AsyncClient
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
+async def _guest_project_with_object(client: AsyncClient) -> tuple[str, dict, dict]:
+    sid = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+    project = (await client.get("/api/v1/projects", headers={"X-Session-Id": sid})).json()[0]
+    obj_resp = await client.post(
+        f"/api/v1/projects/{project['id']}/objects",
+        json={
+            "object_type": "pipe",
+            "sort_order": 0,
+            "params": {
+                "outer_diameter": 0.108,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 10,
+            },
+        },
+        headers={"X-Session-Id": sid},
+    )
+    assert obj_resp.status_code in (200, 201), obj_resp.text
+    return sid, project, obj_resp.json()
+
+
 class TestGuestIsolation:
     """Пользователь A никак не должен видеть/изменять данные пользователя B."""
 
@@ -83,6 +106,82 @@ class TestGuestIsolation:
         )
         assert resp.status_code in (403, 404)
 
+    async def test_guest_b_cannot_preview_guest_a_report(self, client: AsyncClient):
+        _, project, _ = await _guest_project_with_object(client)
+        sid_b = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+
+        resp = await client.get(
+            f"/api/v1/reports/{project['id']}/preview",
+            headers={"X-Session-Id": sid_b},
+        )
+        assert resp.status_code in (403, 404)
+
+    async def test_guest_b_cannot_recalculate_guest_a_heat_loss(self, client: AsyncClient):
+        _, project, _ = await _guest_project_with_object(client)
+        sid_b = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+
+        resp = await client.post(
+            f"/api/v1/calc/heat-loss/batch?project_id={project['id']}",
+            headers={"X-Session-Id": sid_b},
+        )
+        assert resp.status_code in (403, 404)
+
+    async def test_guest_b_cannot_list_guest_a_electrical_calcs(self, client: AsyncClient):
+        _, project, _ = await _guest_project_with_object(client)
+        sid_b = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+
+        resp = await client.get(
+            f"/api/v1/calc/electrical?project_id={project['id']}",
+            headers={"X-Session-Id": sid_b},
+        )
+        assert resp.status_code in (403, 404)
+
+    async def test_guest_b_cannot_calc_guest_a_object_electrical(self, client: AsyncClient):
+        _, _, obj = await _guest_project_with_object(client)
+        sid_b = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+
+        resp = await client.post(
+            "/api/v1/calc/electrical",
+            json={"object_id": obj["id"], "cable_type": "self_regulating", "data": {}},
+            headers={"X-Session-Id": sid_b},
+        )
+        assert resp.status_code in (403, 404)
+
+    async def test_guest_b_cannot_select_cable_for_guest_a_object(self, client: AsyncClient):
+        _, _, obj = await _guest_project_with_object(client)
+        sid_b = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/select-cable",
+            params={
+                "object_id": obj["id"],
+                "cable_mark": "ТЛТ-25",
+                "cable_type": "self_regulating",
+            },
+            headers={"X-Session-Id": sid_b},
+        )
+        assert resp.status_code in (403, 404)
+
+    async def test_guest_b_cannot_batch_calc_guest_a_electrical(self, client: AsyncClient):
+        _, project, _ = await _guest_project_with_object(client)
+        sid_b = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+
+        resp = await client.post(
+            f"/api/v1/calc/electrical/batch?project_id={project['id']}",
+            headers={"X-Session-Id": sid_b},
+        )
+        assert resp.status_code in (403, 404)
+
+    async def test_guest_b_cannot_get_guest_a_cable_options(self, client: AsyncClient):
+        _, _, obj = await _guest_project_with_object(client)
+        sid_b = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+
+        resp = await client.get(
+            f"/api/v1/calc/cable-options/{obj['id']}",
+            headers={"X-Session-Id": sid_b},
+        )
+        assert resp.status_code in (403, 404)
+
 
 class TestGuestCannotAccessEmployeeFeatures:
     """Гость не должен дёргать сотруднические endpoints даже зная URL."""
@@ -143,7 +242,7 @@ class TestGuestCannotAccessEmployeeFeatures:
 
 
 class TestEmployeeCannotEditOthersProjects:
-    """Сотрудник видит чужие проекты (по матрице), но НЕ может их менять."""
+    """Сотрудник не должен видеть или менять чужие проекты."""
 
     async def test_employee_cannot_edit_admin_project(
         self, client: AsyncClient, employee_token: str, admin_token: str

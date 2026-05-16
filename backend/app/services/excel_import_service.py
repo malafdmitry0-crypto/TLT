@@ -14,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.database import use_fast_commit_for_current_transaction
 from app.core.dependencies import CurrentPrincipal
 from app.models.project_object import ProjectObject
 from app.services.project_object_params import normalize_project_object_params
@@ -690,6 +691,7 @@ async def _commit_object_batch(
         db.add_all(objects)
         await db.flush()
         object_ids = [obj.id for obj in objects]
+        await use_fast_commit_for_current_transaction(db)
         await db.commit()
         return len(objects), object_ids, []
     except SQLAlchemyError as exc:
@@ -717,6 +719,7 @@ async def _commit_object_batch_row_by_row(
             db.add(retry_obj)
             await db.flush()
             object_ids.append(retry_obj.id)
+            await use_fast_commit_for_current_transaction(db)
             await db.commit()
             created += 1
         except Exception as exc:

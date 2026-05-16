@@ -140,6 +140,139 @@ class TestSelfRegulating:
         assert r.winding_coefficient == pytest.approx(1.25)
         assert r.num_circuits == 2
 
+    def test_lowest_cost_uses_total_order_cost(self):
+        catalog = [
+            {
+                "brand": "ТЛТ",
+                "model": "Дешевле-за-метр",
+                "power_per_meter": 25,
+                "max_temperature": 120,
+                "min_temperature": -60,
+                "price_per_meter": 100.0,
+                "order_multiple_m": 100.0,
+                "min_order_quantity_m": 0.0,
+                "stock_status": "in_stock",
+            },
+            {
+                "brand": "ТЛТ",
+                "model": "Дешевле-за-заказ",
+                "power_per_meter": 30,
+                "max_temperature": 120,
+                "min_temperature": -60,
+                "price_per_meter": 120.0,
+                "order_multiple_m": 1.0,
+                "min_order_quantity_m": 0.0,
+                "stock_status": "in_stock",
+            },
+        ]
+
+        r = calc_self_regulating(
+            _params(cable_mark=None, cable_catalog=catalog, selection_policy="lowest_cost")
+        )
+
+        assert r.selected_cable == "Дешевле-за-заказ"
+        assert r.applied_selection_policy == "lowest_cost"
+        assert r.commercial is not None
+        assert r.commercial["total_cost"] == pytest.approx(55 * 120)
+
+    def test_lowest_cost_falls_back_without_prices(self):
+        catalog = [
+            {
+                "brand": "ТЛТ",
+                "model": "Тех-25",
+                "power_per_meter": 25,
+                "max_temperature": 120,
+                "min_temperature": -60,
+            },
+            {
+                "brand": "ТЛТ",
+                "model": "Тех-40",
+                "power_per_meter": 40,
+                "max_temperature": 120,
+                "min_temperature": -60,
+            },
+        ]
+
+        r = calc_self_regulating(
+            _params(cable_mark=None, cable_catalog=catalog, selection_policy="lowest_cost")
+        )
+
+        assert r.selected_cable == "Тех-25"
+        assert r.selection_policy == "lowest_cost"
+        assert r.applied_selection_policy == "technical_minimum"
+        assert r.warnings
+
+    def test_fastest_delivery_and_in_stock_do_not_treat_null_as_zero(self):
+        catalog = [
+            {
+                "brand": "ТЛТ",
+                "model": "Неизвестный-срок",
+                "power_per_meter": 25,
+                "max_temperature": 120,
+                "min_temperature": -60,
+                "lead_time_days": None,
+                "stock_quantity_m": None,
+                "stock_status": "unknown",
+            },
+            {
+                "brand": "ТЛТ",
+                "model": "Известный-срок",
+                "power_per_meter": 30,
+                "max_temperature": 120,
+                "min_temperature": -60,
+                "lead_time_days": 4,
+                "stock_quantity_m": 100,
+                "stock_status": "in_stock",
+            },
+        ]
+
+        fastest = calc_self_regulating(
+            _params(cable_mark=None, cable_catalog=catalog, selection_policy="fastest_delivery")
+        )
+        in_stock = calc_self_regulating(
+            _params(cable_mark=None, cable_catalog=catalog, selection_policy="in_stock")
+        )
+
+        assert fastest.selected_cable == "Известный-срок"
+        assert fastest.applied_selection_policy == "fastest_delivery"
+        assert in_stock.selected_cable == "Известный-срок"
+        assert in_stock.applied_selection_policy == "in_stock"
+
+    def test_preferred_supplier_and_balanced_fallback(self):
+        catalog = [
+            {
+                "brand": "ТЛТ",
+                "model": "Обычный",
+                "power_per_meter": 25,
+                "max_temperature": 120,
+                "min_temperature": -60,
+                "supplier_priority": 50,
+                "is_preferred": False,
+            },
+            {
+                "brand": "ТЛТ",
+                "model": "Предпочтительный",
+                "power_per_meter": 30,
+                "max_temperature": 120,
+                "min_temperature": -60,
+                "supplier_priority": 100,
+                "is_preferred": True,
+            },
+        ]
+
+        preferred = calc_self_regulating(
+            _params(cable_mark=None, cable_catalog=catalog, selection_policy="preferred_supplier")
+        )
+        balanced = calc_self_regulating(
+            _params(cable_mark=None, cable_catalog=catalog, selection_policy="balanced")
+        )
+
+        assert preferred.selected_cable == "Предпочтительный"
+        assert preferred.applied_selection_policy == "preferred_supplier"
+        assert balanced.selected_cable == "Обычный"
+        assert balanced.applied_selection_policy == "technical_minimum"
+        assert balanced.warnings
+
 
 class TestAutoSelectionWithTemperature:
     """Автоподбор учитывает T_max и T_min кабелей (регрессия-тест)."""

@@ -301,8 +301,8 @@ class TestElectricalCalculation:
         assert result["conductor_cross_section"] > 0
         assert result["total_power"] > 0
 
-    async def test_nonexistent_object_returns_400(self, client: AsyncClient, guest_session: str):
-        """Несуществующий object_id → 400 с читаемым сообщением."""
+    async def test_nonexistent_object_returns_404(self, client: AsyncClient, guest_session: str):
+        """Несуществующий object_id → 404 с читаемым сообщением."""
         import uuid
 
         resp = await client.post(
@@ -321,7 +321,7 @@ class TestElectricalCalculation:
             },
             headers={"X-Session-Id": guest_session},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 404
         assert "не найден" in resp.json()["detail"].lower()
 
     async def test_tlt_tank_batch_uses_laying_geometry(

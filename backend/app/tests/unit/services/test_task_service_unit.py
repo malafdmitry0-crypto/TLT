@@ -690,6 +690,9 @@ class TestTaskStateTransitions:
                 assert sections == ["summary"]
                 return b"%PDF"
 
+            async def export_trusted(self, project_id_arg, fmt, sections):
+                return await self.export(project_id_arg, fmt, sections)
+
         monkeypatch.setattr("app.services.task_service.ReportService", FakeReportService)
         monkeypatch.setattr(
             "app.services.task_service.write_report_artifact",

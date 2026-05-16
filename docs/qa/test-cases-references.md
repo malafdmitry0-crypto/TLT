@@ -58,6 +58,18 @@
 
 ---
 
+## TC-REF-04b: Commercial catalog доступен всем ролям
+
+**Автоматизировано:** ✅ `test_references.py::TestReferences::test_commercial_cables_public`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | `GET /api/v1/references/cables?source=commercial` с `X-Session-Id` гостя | HTTP 200 |
+| 2 | `GET /api/v1/references/cables/commercial` с `X-Session-Id` гостя | HTTP 200 |
+| 3 | Проверить структуру | Массив ТЛТ-кабелей с `source=commercial` и public commercial fields |
+
+---
+
 ## TC-REF-05: Встроенные аксессуары (публичный)
 
 **Автоматизировано:** ❌ (мануальный)

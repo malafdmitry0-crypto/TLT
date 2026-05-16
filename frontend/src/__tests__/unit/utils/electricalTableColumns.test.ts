@@ -26,6 +26,8 @@ describe('electricalTableColumns', () => {
       'object_name',
       'electrical_status',
       'cable_mark',
+      'selection_policy',
+      'applied_selection_policy',
       'winding_pitch_mm',
       'number_of_threads',
       'cable_length',

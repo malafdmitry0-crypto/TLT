@@ -15,6 +15,7 @@ from app.core.dependencies import (
 )
 from app.schemas.calculation import CalculationTaskResponse
 from app.schemas.report import ReportExportJobRequest, ReportPreviewResponse
+from app.services.project_service import ProjectAccessError, ProjectNotFoundError
 from app.services.report_artifact_service import report_artifact_path
 from app.services.report_service import ReportError, ReportService
 from app.services.task_service import TaskAccessError, TaskNotFoundError, TaskService
@@ -38,6 +39,14 @@ def _raise_task_error(exc: Exception) -> None:
     raise exc
 
 
+def _raise_project_error(exc: Exception) -> None:
+    if isinstance(exc, ProjectNotFoundError):
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if isinstance(exc, ProjectAccessError):
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    raise exc
+
+
 @router.get(
     "/{project_id}/preview",
     response_model=ReportPreviewResponse,
@@ -51,7 +60,9 @@ async def preview(
 ):
     service = ReportService(db)
     try:
-        result = await service.preview(project_id, sections)
+        result = await service.preview(project_id, sections, principal=principal)
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
     except ReportError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return ReportPreviewResponse(**result)
@@ -75,7 +86,9 @@ async def export(
         )
     service = ReportService(db)
     try:
-        data = await service.export(project_id, format, sections)
+        data = await service.export(project_id, format, sections, principal=principal)
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
     except ReportError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return StreamingResponse(

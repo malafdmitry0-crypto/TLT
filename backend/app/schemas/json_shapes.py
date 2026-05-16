@@ -214,7 +214,7 @@ class ImportRowErrorDict(TypedDict):
 class CableCatalogEntryDict(TypedDict, total=False):
     """Строка каталога кабелей."""
 
-    source: Literal["builtin", "extended"]
+    source: Literal["builtin", "extended", "commercial"]
     cable_type: str  # "self_regulating" и др.
     brand: str
     model: str  # "ТЛТ-25"
@@ -222,9 +222,19 @@ class CableCatalogEntryDict(TypedDict, total=False):
     max_temperature: float
     min_temperature: float
     resistance_per_meter: float | None
+    supplier_name: str | None
+    article: str | None
+    currency: str | None
     price_per_meter: float | None
     stock_quantity_m: float | None
+    stock_status: str | None
     lead_time_days: int | None
     supplier_priority: int | None
     is_preferred: bool
     order_multiple_m: float | None
+    min_order_quantity_m: float | None
+    is_discontinued: bool
+    replacement_group: str | None
+    price_updated_at: str | None
+    stock_updated_at: str | None
+    commercial_data_source: str | None

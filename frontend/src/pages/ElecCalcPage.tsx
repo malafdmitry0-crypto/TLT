@@ -49,6 +49,7 @@ import {
   queryElectrical,
   selectCableManual,
   type CableSource,
+  type SelectionPolicy,
 } from '@/api/calculations';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
@@ -156,6 +157,20 @@ const ENABLED_CABLE_TYPES: ReadonlySet<CableTypeKey> = new Set([
   'single_core',
   'three_core',
 ]);
+const SELECTION_POLICY_LABEL: Record<SelectionPolicy, string> = {
+  technical_minimum: 'Технический',
+  lowest_cost: 'Дешевле',
+  fastest_delivery: 'Быстрее',
+  in_stock: 'В наличии',
+  preferred_supplier: 'Приоритет',
+  balanced: 'Баланс',
+};
+const SELECTION_POLICY_OPTIONS = (Object.keys(SELECTION_POLICY_LABEL) as SelectionPolicy[]).map(
+  (value) => ({
+    value,
+    label: SELECTION_POLICY_LABEL[value],
+  }),
+);
 const isResistiveCableType = (type: CableTypeKey) => type === 'single_core' || type === 'three_core';
 const ELECTRICAL_TABLE_PAGE_SIZE = 50;
 type ElectricalBatchScope = 'all' | 'selected';
@@ -275,6 +290,13 @@ const CONNECTION_TYPE_LABEL: Record<string, string> = {
   star_1x3: 'Звезда 1×3',
 };
 
+const STOCK_STATUS_LABEL: Record<string, string> = {
+  in_stock: 'В наличии',
+  limited: 'Ограничено',
+  on_order: 'Под заказ',
+  unknown: 'Неизвестно',
+};
+
 type ElectricalFilterKind = 'text' | 'numberRange' | 'enum' | 'boolean';
 
 function valueText(value: unknown) {
@@ -299,6 +321,21 @@ function powerText(value: unknown) {
 
 function resultNumber(calc: ElectricalCalcSummary | undefined, key: string, digits = 2) {
   return numberText(calc?.results?.[key], digits);
+}
+
+function commercialValue(calc: ElectricalCalcSummary | undefined, key: string) {
+  const commercial = calc?.results?.commercial;
+  if (typeof commercial !== 'object' || commercial === null || Array.isArray(commercial)) return undefined;
+  return (commercial as Record<string, unknown>)[key];
+}
+
+function commercialNumber(calc: ElectricalCalcSummary | undefined, key: string, digits = 2) {
+  return numberText(commercialValue(calc, key), digits);
+}
+
+function selectionPolicyText(value: unknown) {
+  if (typeof value !== 'string') return '—';
+  return SELECTION_POLICY_LABEL[value as SelectionPolicy] ?? (value === 'manual_selection' ? 'Ручной' : value);
 }
 
 function objectResultNumber(obj: ProjectObject, key: string, digits = 2) {
@@ -564,7 +601,8 @@ export default function ElecCalcPage() {
     (location.state as ElectricalNavigationState)?.activeJobId ?? null;
 
   const [variant, setVariant] = useState<number>(1);
-  const [cableSource, setCableSource] = useState<CableSource>('builtin');
+  const [cableSource, setCableSource] = useState<CableSource>('commercial');
+  const [selectionPolicy, setSelectionPolicy] = useState<SelectionPolicy>('technical_minimum');
   const [defaultCableType, setDefaultCableType] =
     useState<CableTypeKey>('self_regulating');
   const [cableTypeDraftByObjectId, setCableTypeDraftByObjectId] =
@@ -753,12 +791,30 @@ export default function ElecCalcPage() {
     refetchIntervalInBackground: true,
   });
 
-  const effectiveSource: CableSource = isEmployee ? cableSource : 'builtin';
+  const effectiveSource: CableSource = cableSource;
   const { data: cables = [] } = useQuery({
     queryKey: referenceQueryKeys.cables(effectiveSource),
     queryFn: () => listCables(effectiveSource),
     ...referenceQueryOptions,
   });
+  const commercialDataStatus = useMemo(() => {
+    if (cables.length === 0) return { label: 'Нет коммерческих данных', color: 'default' as const };
+    const withAnyCommercialData = cables.filter((c) =>
+      c.price_per_meter != null
+      || c.stock_quantity_m != null
+      || (c.stock_status != null && c.stock_status !== 'unknown')
+      || c.lead_time_days != null
+      || c.supplier_priority != null
+      || c.is_preferred,
+    ).length;
+    if (withAnyCommercialData === 0) {
+      return { label: 'Нет коммерческих данных', color: 'default' as const };
+    }
+    if (withAnyCommercialData < cables.length) {
+      return { label: 'Коммерческие данные неполные', color: 'warning' as const };
+    }
+    return { label: 'Коммерческие данные есть', color: 'success' as const };
+  }, [cables]);
   const { data: ttCables = [] } = useQuery({
     queryKey: referenceQueryKeys.ttCables,
     queryFn: getCablesTt,
@@ -917,6 +973,7 @@ export default function ElecCalcPage() {
         {
           supplyVoltage,
           selectionMode,
+          selectionPolicy,
           connectionType,
           windingCoefficient,
           heatingHeight,
@@ -1046,6 +1103,7 @@ export default function ElecCalcPage() {
       selectCableManual(objectId, mark, effectiveSource, variant, cableType, {
         supplyVoltage,
         selectionMode: isResistiveCableType(cableType) ? 'auto' : undefined,
+        selectionPolicy,
         connectionType,
         windingCoefficient,
         heatingHeight,
@@ -1074,6 +1132,7 @@ export default function ElecCalcPage() {
       batchCalcElectrical(project!.id, effectiveSource, variant, cableType, {
         supplyVoltage,
         selectionMode: isResistiveCableType(cableType) ? 'auto' : undefined,
+        selectionPolicy,
         connectionType,
         windingCoefficient,
         heatingHeight,
@@ -1384,6 +1443,33 @@ export default function ElecCalcPage() {
       align: 'right',
       render: (_: unknown, obj) => stats.calcByObjectId[obj.id]?.variant_number ?? variant,
     },
+    selection_policy: {
+      render: (_: unknown, obj) =>
+        selectionPolicyText(stats.calcByObjectId[obj.id]?.results?.selection_policy),
+    },
+    applied_selection_policy: {
+      render: (_: unknown, obj) => {
+        const calc = stats.calcByObjectId[obj.id];
+        const requested = calc?.results?.selection_policy;
+        const applied = calc?.results?.applied_selection_policy;
+        const label = selectionPolicyText(applied);
+        const changed = typeof requested === 'string' && typeof applied === 'string' && requested !== applied;
+        return changed ? <Tag color="warning">{label}</Tag> : label;
+      },
+    },
+    selection_reason: {
+      ellipsis: true,
+      render: (_: unknown, obj) => {
+        const reason = stats.calcByObjectId[obj.id]?.results?.selection_reason;
+        return (
+          <Tooltip title={valueText(reason)}>
+            <Text style={{ fontSize: 12 }} ellipsis>
+              {valueText(reason)}
+            </Text>
+          </Tooltip>
+        );
+      },
+    },
     winding_pitch_mm: {
       align: 'right',
       render: (_: unknown, obj) => {
@@ -1530,6 +1616,29 @@ export default function ElecCalcPage() {
     voltage: {
       align: 'right',
       render: (_: unknown, obj) => resultNumber(stats.calcByObjectId[obj.id], 'voltage', 0),
+    },
+    price_per_meter: {
+      align: 'right',
+      render: (_: unknown, obj) => commercialNumber(stats.calcByObjectId[obj.id], 'price_per_meter', 2),
+    },
+    required_order_length: {
+      align: 'right',
+      render: (_: unknown, obj) =>
+        commercialNumber(stats.calcByObjectId[obj.id], 'required_order_length', 1),
+    },
+    total_cost: {
+      align: 'right',
+      render: (_: unknown, obj) => commercialNumber(stats.calcByObjectId[obj.id], 'total_cost', 2),
+    },
+    stock_status: {
+      render: (_: unknown, obj) => {
+        const value = commercialValue(stats.calcByObjectId[obj.id], 'stock_status');
+        return typeof value === 'string' ? STOCK_STATUS_LABEL[value] ?? value : '—';
+      },
+    },
+    lead_time_days: {
+      align: 'right',
+      render: (_: unknown, obj) => commercialNumber(stats.calcByObjectId[obj.id], 'lead_time_days', 0),
     },
     heat_loss_per_meter: {
       align: 'right',
@@ -1753,6 +1862,12 @@ export default function ElecCalcPage() {
         }
       case 'variant_number':
         return calc?.variant_number ?? variant;
+      case 'selection_policy':
+        return selectionPolicyText(calc?.results?.selection_policy);
+      case 'applied_selection_policy':
+        return selectionPolicyText(calc?.results?.applied_selection_policy);
+      case 'selection_reason':
+        return valueText(calc?.results?.selection_reason);
       case 'winding_pitch_mm':
         return valueText(calc?.results?.winding_pitch);
       case 'number_of_threads':
@@ -1775,6 +1890,16 @@ export default function ElecCalcPage() {
       case 'current':
       case 'voltage':
         return valueText(calc?.results?.[key]);
+      case 'price_per_meter':
+      case 'required_order_length':
+      case 'total_cost':
+      case 'lead_time_days':
+        return valueText(commercialValue(calc, key));
+      case 'stock_status':
+        {
+          const value = commercialValue(calc, key);
+          return typeof value === 'string' ? STOCK_STATUS_LABEL[value] ?? value : '—';
+        }
       case 'heat_loss_per_meter':
       case 'heat_loss_per_m2':
       case 'total_heat_loss':
@@ -2026,6 +2151,16 @@ export default function ElecCalcPage() {
     value: k,
     disabled: !ENABLED_CABLE_TYPES.has(k),
   }));
+  const cableSourceOptions: Array<{ label: string; value: CableSource }> = [
+    { label: 'Встроенная', value: 'builtin' },
+    { label: 'Коммерческая', value: 'commercial' },
+    ...(isEmployee
+      ? [
+          { label: 'Внешняя', value: 'extended' as CableSource },
+          { label: 'Все', value: 'all' as CableSource },
+        ]
+      : []),
+  ];
 
   function renderElectricalTypeControls() {
     if (!visibleCableTypeControl) return null;
@@ -2151,7 +2286,7 @@ export default function ElecCalcPage() {
         )}
 
         {/* ActionBar */}
-        <div className="actionbar-srs">
+        <div className="actionbar-srs electrical-actionbar">
           {[1, 2, 3, 4].map((n) => (
             <Button
               key={n}
@@ -2195,22 +2330,26 @@ export default function ElecCalcPage() {
             style={{ width: 210 }}
           />
           {renderElectricalTypeControls()}
-          {isEmployee && (
-            <>
-              <span className="sep" />
-              <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>База:</Text>
-              <Segmented<CableSource>
-                size="small"
-                value={cableSource}
-                onChange={setCableSource}
-                options={[
-                  { label: 'Встроенная', value: 'builtin' },
-                  { label: 'Внешняя', value: 'extended' },
-                  { label: 'Все', value: 'all' },
-                ]}
-              />
-            </>
-          )}
+          <span className="sep" />
+          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>База:</Text>
+          <Segmented<CableSource>
+            size="small"
+            value={cableSource}
+            onChange={setCableSource}
+            options={cableSourceOptions}
+          />
+          <Tag color={commercialDataStatus.color} style={{ marginInlineEnd: 0 }}>
+            {commercialDataStatus.label}
+          </Tag>
+          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>Критерий:</Text>
+          <Select<SelectionPolicy>
+            aria-label="Критерий подбора кабеля"
+            size="small"
+            value={selectionPolicy}
+            onChange={setSelectionPolicy}
+            options={SELECTION_POLICY_OPTIONS}
+            style={{ width: 128 }}
+          />
           <span className="sep" />
           <Button
             size="small"

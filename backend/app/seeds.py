@@ -19,6 +19,7 @@
 import asyncio
 import logging
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -173,14 +174,28 @@ def _commercial(
     supplier_priority: int,
     is_preferred: bool = False,
     order_multiple_m: float = 1.0,
+    min_order_quantity_m: float = 0.0,
+    supplier_name: str = "ТЛТ",
+    currency: str = "RUB",
 ) -> dict[str, object]:
+    now = datetime.now(UTC)
     return {
+        "supplier_name": supplier_name,
+        "article": None,
+        "currency": currency,
         "price_per_meter": price_per_meter,
         "stock_quantity_m": stock_quantity_m,
+        "stock_status": "in_stock" if stock_quantity_m > 0 else "unknown",
         "lead_time_days": lead_time_days,
         "supplier_priority": supplier_priority,
         "is_preferred": is_preferred,
         "order_multiple_m": order_multiple_m,
+        "min_order_quantity_m": min_order_quantity_m,
+        "is_discontinued": False,
+        "replacement_group": None,
+        "price_updated_at": now,
+        "stock_updated_at": now,
+        "commercial_data_source": "seed",
     }
 
 
@@ -471,6 +486,19 @@ async def seed_cables(db) -> None:
             ):
                 setattr(existing, key, data[key])
             logger.info("  ~ cable commercial seed %s %s", data["brand"], data["model"])
+        if existing is not None:
+            for key in (
+                "supplier_name",
+                "currency",
+                "stock_status",
+                "min_order_quantity_m",
+                "is_discontinued",
+                "price_updated_at",
+                "stock_updated_at",
+                "commercial_data_source",
+            ):
+                if getattr(existing, key, None) is None:
+                    setattr(existing, key, data[key])
     await db.flush()
 
 

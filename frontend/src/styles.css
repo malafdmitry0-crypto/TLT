@@ -2342,6 +2342,17 @@ html, body, #root {
   margin: 0 3px;
 }
 
+.electrical-actionbar > * {
+  flex: 0 0 auto;
+}
+
+.electrical-actionbar .ant-typography,
+.electrical-actionbar .ant-tag,
+.electrical-actionbar .ant-checkbox-wrapper,
+.electrical-actionbar .ant-btn {
+  white-space: nowrap;
+}
+
 .actionbar-mode-tag {
   margin: 0;
   height: 20px;

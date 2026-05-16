@@ -99,7 +99,14 @@ export async function queryElectrical(
   return data;
 }
 
-export type CableSource = 'builtin' | 'extended' | 'all';
+export type SelectionPolicy =
+  | 'technical_minimum'
+  | 'lowest_cost'
+  | 'fastest_delivery'
+  | 'in_stock'
+  | 'preferred_supplier'
+  | 'balanced';
+export type CableSource = 'builtin' | 'commercial' | 'extended' | 'all';
 export type CableType =
   | 'self_regulating'
   | 'self_regulating_tt'
@@ -120,6 +127,7 @@ export interface ElectricalBatchOptions {
   maintainTemperature?: number | null;
   vaporTemperature?: number | null;
   aggressiveProduct?: boolean;
+  selectionPolicy?: SelectionPolicy;
   skipManual?: boolean;
   objectIds?: string[];
   forceCableType?: boolean;
@@ -146,6 +154,7 @@ function electricalParams(
     maintain_temperature: options.maintainTemperature ?? undefined,
     vapor_temperature: options.vaporTemperature ?? undefined,
     aggressive_product: options.aggressiveProduct ?? undefined,
+    selection_policy: options.selectionPolicy ?? undefined,
     skip_manual: options.skipManual ?? undefined,
   };
 }
@@ -262,10 +271,19 @@ export interface CableInfo {
   resistance_per_meter?: number | null;
   price_per_meter?: number | null;
   stock_quantity_m?: number | null;
+  stock_status?: 'in_stock' | 'limited' | 'on_order' | 'unknown' | string | null;
   lead_time_days?: number | null;
   supplier_priority?: number | null;
   is_preferred?: boolean;
   order_multiple_m?: number | null;
+  min_order_quantity_m?: number | null;
+  supplier_name?: string | null;
+  article?: string | null;
+  currency?: string | null;
+  is_discontinued?: boolean;
+  price_updated_at?: string | null;
+  stock_updated_at?: string | null;
+  commercial_data_source?: string | null;
   voltage?: number;
   source?: CableSource;
 }

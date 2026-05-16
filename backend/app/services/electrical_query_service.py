@@ -93,6 +93,21 @@ CABLE_TYPE_OPTIONS = (
     ("mineral", "С мин. изоляцией"),
     ("skin", "Скин-система"),
 )
+SELECTION_POLICY_OPTIONS = (
+    ("technical_minimum", "Технический"),
+    ("lowest_cost", "Дешевле"),
+    ("fastest_delivery", "Быстрее"),
+    ("in_stock", "В наличии"),
+    ("preferred_supplier", "Приоритет"),
+    ("balanced", "Баланс"),
+    ("manual_selection", "Ручной выбор"),
+)
+STOCK_STATUS_OPTIONS = (
+    ("in_stock", "В наличии"),
+    ("limited", "Ограничено"),
+    ("on_order", "Под заказ"),
+    ("unknown", "Неизвестно"),
+)
 BOOL_OPTIONS = ((True, "Да"), (False, "Нет"))
 CONNECTION_TYPE_OPTIONS = (
     ("line_1ph", "Линия"),
@@ -142,6 +157,14 @@ def _sql_calc_param_number(key: str) -> Any:
 
 def _sql_calc_result_number(key: str) -> Any:
     return _sql_number(_sql_calc_result_text(key))
+
+
+def _sql_calc_commercial_text(key: str) -> Any:
+    return ElectricalCalculation.results["commercial"][key].astext
+
+
+def _sql_calc_commercial_number(key: str) -> Any:
+    return _sql_number(_sql_calc_commercial_text(key))
 
 
 def _sql_object_result_number(key: str) -> Any:
@@ -225,6 +248,15 @@ def _calc_result(row: ElectricalQueryRow, key: str) -> Any:
     if row.calc is None or not isinstance(row.calc.results, dict):
         return None
     return row.calc.results.get(key)
+
+
+def _calc_commercial(row: ElectricalQueryRow, key: str) -> Any:
+    if row.calc is None or not isinstance(row.calc.results, dict):
+        return None
+    commercial = row.calc.results.get("commercial")
+    if not isinstance(commercial, dict):
+        return None
+    return commercial.get(key)
 
 
 def _calc_param(row: ElectricalQueryRow, key: str) -> Any:
@@ -368,6 +400,40 @@ FIELDS: tuple[FieldDef, ...] = (
         lambda row: row.calc.variant_number if row.calc else None,
         filter_reason="current_variant",
         sort_reason="current_variant",
+    ),
+    FieldDef(
+        "selection_policy",
+        "Запрошенный критерий подбора",
+        "Критерий",
+        "enum",
+        lambda row: _calc_result(row, "selection_policy"),
+        filter_ops=("in",),
+        sortable=True,
+        sort_type="label",
+        options_mode="inline",
+        static_options=SELECTION_POLICY_OPTIONS,
+    ),
+    FieldDef(
+        "applied_selection_policy",
+        "Фактически применённый критерий",
+        "Применено",
+        "enum",
+        lambda row: _calc_result(row, "applied_selection_policy"),
+        filter_ops=("in",),
+        sortable=True,
+        sort_type="label",
+        options_mode="inline",
+        static_options=SELECTION_POLICY_OPTIONS,
+    ),
+    FieldDef(
+        "selection_reason",
+        "Причина выбора кабеля",
+        "Причина выбора",
+        "text",
+        lambda row: _calc_result(row, "selection_reason"),
+        filter_ops=("contains",),
+        sortable=True,
+        sort_type="text",
     ),
     FieldDef(
         "winding_pitch_mm",
@@ -524,6 +590,59 @@ FIELDS: tuple[FieldDef, ...] = (
         sort_type="number",
     ),
     FieldDef(
+        "price_per_meter",
+        "Цена кабеля за метр",
+        "Цена за м",
+        "number",
+        lambda row: _calc_commercial(row, "price_per_meter"),
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "required_order_length",
+        "Заказная длина кабеля, м",
+        "Заказ, м",
+        "number",
+        lambda row: _calc_commercial(row, "required_order_length"),
+        unit="м",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "total_cost",
+        "Стоимость кабеля",
+        "Стоимость",
+        "number",
+        lambda row: _calc_commercial(row, "total_cost"),
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "stock_status",
+        "Статус склада",
+        "Склад",
+        "enum",
+        lambda row: _calc_commercial(row, "stock_status"),
+        filter_ops=("in",),
+        sortable=True,
+        sort_type="label",
+        options_mode="inline",
+        static_options=STOCK_STATUS_OPTIONS,
+    ),
+    FieldDef(
+        "lead_time_days",
+        "Срок поставки, дней",
+        "Срок, дн.",
+        "number",
+        lambda row: _calc_commercial(row, "lead_time_days"),
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
         "heat_loss_per_meter",
         "Теплопотери трубы, Вт/м",
         "q, Вт/м",
@@ -578,6 +697,9 @@ ELECTRICAL_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
     "cable_type": lambda: ElectricalCalculation.cable_type,
     "cable_mark": lambda: ElectricalCalculation.cable_mark,
     "selected_cable": _sql_selected_cable,
+    "selection_policy": lambda: _sql_calc_result_text("selection_policy"),
+    "applied_selection_policy": lambda: _sql_calc_result_text("applied_selection_policy"),
+    "selection_reason": lambda: _sql_calc_result_text("selection_reason"),
     "winding_pitch_mm": lambda: _sql_calc_result_number("winding_pitch"),
     "number_of_threads": lambda: _sql_calc_result_number("num_circuits"),
     "laying_step": lambda: _sql_calc_param_number("laying_step"),
@@ -592,6 +714,11 @@ ELECTRICAL_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
     "total_power": lambda: _sql_calc_result_number("total_power"),
     "current": lambda: _sql_calc_result_number("current"),
     "voltage": lambda: _sql_calc_result_number("voltage"),
+    "price_per_meter": lambda: _sql_calc_commercial_number("price_per_meter"),
+    "required_order_length": lambda: _sql_calc_commercial_number("required_order_length"),
+    "total_cost": lambda: _sql_calc_commercial_number("total_cost"),
+    "stock_status": lambda: _sql_calc_commercial_text("stock_status"),
+    "lead_time_days": lambda: _sql_calc_commercial_number("lead_time_days"),
     "heat_loss_per_meter": lambda: _sql_object_result_number("heat_loss_per_meter"),
     "heat_loss_per_m2": lambda: _sql_object_result_number("heat_loss_per_m2"),
     "total_heat_loss": lambda: _sql_object_result_number("total_heat_loss"),
@@ -622,6 +749,9 @@ ELECTRICAL_CALC_PARAM_KEYS = frozenset(
 ELECTRICAL_CALC_RESULT_KEYS = frozenset(
     {
         "selected_cable",
+        "selection_policy",
+        "applied_selection_policy",
+        "selection_reason",
         "winding_pitch",
         "num_circuits",
         "cable_length",
@@ -633,6 +763,7 @@ ELECTRICAL_CALC_RESULT_KEYS = frozenset(
         "error_code",
         "suggested_actions",
         "error_context",
+        "commercial",
     }
 )
 

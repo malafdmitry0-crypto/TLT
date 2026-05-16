@@ -95,12 +95,22 @@
 | max_temperature      | FLOAT        | nullable         | Макс. рабочая температура, °C       |
 | min_temperature      | FLOAT        | nullable         | Мин. рабочая температура, °C        |
 | resistance_per_meter | FLOAT        | nullable         | Сопротивление, Ом/м                 |
+| supplier_name        | VARCHAR(128) | nullable         | Поставщик для объяснения коммерческого выбора |
+| article              | VARCHAR(128) | nullable         | Артикул поставщика                  |
+| currency             | VARCHAR(8)   | nullable         | Валюта цены                         |
 | price_per_meter      | FLOAT        | nullable         | Цена за метр для коммерческого ранжирования |
 | stock_quantity_m     | FLOAT        | nullable         | Доступный остаток, м                |
+| stock_status         | VARCHAR(32)  | nullable         | `in_stock` / `limited` / `on_order` / `unknown` |
 | lead_time_days       | INTEGER      | nullable         | Срок поставки, дней                 |
 | supplier_priority    | INTEGER      | nullable         | Приоритет поставщика/производителя; меньше — выше |
 | is_preferred         | BOOLEAN      | NOT NULL, default false | Предпочтительная позиция        |
 | order_multiple_m     | FLOAT        | nullable         | Кратность заказа, м                 |
+| min_order_quantity_m | FLOAT        | nullable         | Минимальная партия заказа, м        |
+| is_discontinued      | BOOLEAN      | NOT NULL, default false | Снята ли позиция с поставки     |
+| replacement_group    | VARCHAR(128) | nullable         | Группа аналогов/замен               |
+| price_updated_at     | TIMESTAMPTZ  | nullable         | Дата актуализации цены              |
+| stock_updated_at     | TIMESTAMPTZ  | nullable         | Дата актуализации остатка           |
+| commercial_data_source | VARCHAR(32) | nullable       | Источник commercial data: seed/admin/import/api |
 | params               | JSONB        | nullable         | Доп. характеристики                 |
 | is_active            | BOOLEAN      | NOT NULL, default true | Активна ли запись               |
 | created_at           | TIMESTAMPTZ  | server default   |                                     |

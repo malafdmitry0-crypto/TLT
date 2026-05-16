@@ -23,6 +23,7 @@ from app.schemas.calculation import (
     ElectricalResponse,
     HeatLossRequest,
     HeatLossResponse,
+    SelectionPolicy,
 )
 from app.services.calculation_service import CalculationError, CalculationService
 from app.services.electrical_query_service import (
@@ -32,6 +33,14 @@ from app.services.electrical_query_service import (
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 
 router = APIRouter()
+
+
+def _raise_project_error(exc: Exception) -> None:
+    if isinstance(exc, ProjectNotFoundError):
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if isinstance(exc, ProjectAccessError):
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    raise exc
 
 
 @router.post(
@@ -46,7 +55,10 @@ async def calc_heat_loss(
 ):
     service = CalculationService(db)
     try:
+        await ProjectService(db).get_project_basic(request.project_id, principal)
         result = await service.calc_heat_loss(request.object_type, request.data)
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
     except (ValueError, ValidationError) as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
@@ -67,6 +79,10 @@ async def batch_recalculate(
     db: AsyncSession = Depends(get_db),
 ):
     service = CalculationService(db)
+    try:
+        await ProjectService(db).get_project_for_write(project_id, principal)
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
     updated, failed, errors = await service.batch_recalculate(project_id)
     return BatchCalcResponse(updated=updated, failed=failed, errors=errors)
 
@@ -83,7 +99,10 @@ async def calc_electrical(
 ):
     service = CalculationService(db)
     try:
+        await ProjectService(db).get_object_for_write(request.object_id, principal)
         calc = await service.calc_electrical(request)
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
     except (ValueError, ValidationError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except CalculationError as exc:
@@ -109,6 +128,11 @@ async def list_electrical(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
+    try:
+        await ProjectService(db).get_project_basic(project_id, principal)
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
+
     stmt = sa_select(ElectricalCalculation).where(ElectricalCalculation.project_id == project_id)
     if variant_number is not None:
         stmt = stmt.where(ElectricalCalculation.variant_number == variant_number)
@@ -260,6 +284,7 @@ async def select_cable(
     maintain_temperature: float | None = None,
     vapor_temperature: float | None = None,
     aggressive_product: bool = False,
+    selection_policy: SelectionPolicy = "technical_minimum",
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -269,12 +294,13 @@ async def select_cable(
     результатов теплопотерь. Если кабель не подходит — 422 с текстом причины.
     На успех — upsert `ElectricalCalculation` и возврат новой записи.
     """
-    if cable_source != "builtin" and principal.role not in ("employee", "admin"):
+    if cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
         raise HTTPException(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"
         )
     service = CalculationService(db)
     try:
+        await ProjectService(db).get_object_for_write(object_id, principal)
         calc = await service.select_cable_manual(
             object_id,
             cable_mark,
@@ -292,8 +318,11 @@ async def select_cable(
                 "maintain_temperature": maintain_temperature,
                 "vapor_temperature": vapor_temperature,
                 "aggressive_product": aggressive_product,
+                "selection_policy": selection_policy,
             },
         )
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
     except (ValueError, ValidationError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except CalculationError as exc:
@@ -332,6 +361,7 @@ async def batch_calc_electrical(
     maintain_temperature: float | None = None,
     vapor_temperature: float | None = None,
     aggressive_product: bool = False,
+    selection_policy: SelectionPolicy = "technical_minimum",
     skip_manual: bool = False,
     include_results: bool = True,
     include_errors: bool = True,
@@ -343,13 +373,14 @@ async def batch_calc_electrical(
     """Автоматически подбирает кабель для каждого валидного объекта проекта.
     Использует результаты теплопотерь и выбранный `cable_type`.
     """
-    if cable_source != "builtin" and principal.role not in ("employee", "admin"):
+    if cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
         raise HTTPException(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"
         )
     selected_object_ids = object_ids or object_ids_brackets
     service = CalculationService(db)
     try:
+        await ProjectService(db).get_project_for_write(project_id, principal)
         calculated, skipped, heat_loss_failed, errors, calcs = await service.batch_calc_electrical(
             project_id,
             cable_source,
@@ -366,12 +397,15 @@ async def batch_calc_electrical(
                 "maintain_temperature": maintain_temperature,
                 "vapor_temperature": vapor_temperature,
                 "aggressive_product": aggressive_product,
+                "selection_policy": selection_policy,
             },
             skip_manual=skip_manual,
             return_calcs=include_results,
             object_ids=selected_object_ids,
             force_cable_type=force_cable_type,
         )
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
     except CalculationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return BatchElectricalResponse(
@@ -408,4 +442,8 @@ async def cable_options(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
+    try:
+        await ProjectService(db).get_object_for_read(object_id, principal)
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
     return await CalculationService(db).get_cable_options(object_id)

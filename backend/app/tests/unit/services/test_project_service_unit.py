@@ -26,11 +26,22 @@ def _principal(role="guest", session_id=None, user_id=None):
 class TestAccessChecks:
     """Приватные хелперы _check_access / _check_owner — безопасность."""
 
-    def test_employee_can_access_any_project(self):
+    def test_employee_cannot_access_foreign_project(self):
         service = ProjectService(AsyncMock())
         project = SimpleNamespace(session_id=str(uuid.uuid4()), user_id=uuid.uuid4())
-        # Любой сотрудник → доступ OK
-        service._check_access(project, _principal(role="employee"))
+        with pytest.raises(ProjectAccessError, match="чужому"):
+            service._check_access(project, _principal(role="employee"))
+
+    def test_employee_can_access_own_project(self):
+        service = ProjectService(AsyncMock())
+        user_id = uuid.uuid4()
+        project = SimpleNamespace(session_id=None, user_id=user_id)
+        service._check_access(project, _principal(role="employee", user_id=user_id))
+
+    def test_admin_can_access_any_project(self):
+        service = ProjectService(AsyncMock())
+        project = SimpleNamespace(session_id=str(uuid.uuid4()), user_id=uuid.uuid4())
+        service._check_access(project, _principal(role="admin"))
 
     def test_guest_can_access_own_project(self):
         service = ProjectService(AsyncMock())
@@ -48,10 +59,10 @@ class TestAccessChecks:
         service = ProjectService(AsyncMock())
         project = SimpleNamespace(session_id=None, user_id=None)
         with pytest.raises(ProjectAccessError):
-            service._check_access(project, _principal(role="admin"))
+            service._check_access(project, _principal(role="unknown"))
 
     def test_employee_cannot_edit_foreign_project(self):
-        """По ТЗ сотрудник видит все, но редактирует только свои."""
+        """Сотрудник не может менять чужие проекты."""
         service = ProjectService(AsyncMock())
         other_user = uuid.uuid4()
         my_user = uuid.uuid4()
@@ -106,13 +117,11 @@ class TestDuplicateProjectAccess:
 
 
 class TestCheckOwnerEdges:
-    def test_admin_role_through_check_owner_denied(self):
-        """admin не редактирует проекты по матрице — проверка через _check_owner."""
+    def test_admin_role_through_check_owner_allowed(self):
+        """admin может сопровождать проекты любого владельца."""
         service = ProjectService(AsyncMock())
         project = SimpleNamespace(session_id=None, user_id=uuid.uuid4())
-        # admin не employee — попадает в else-ветку → ProjectAccessError
-        with pytest.raises(ProjectAccessError):
-            service._check_owner(project, _principal(role="admin"))
+        service._check_owner(project, _principal(role="admin"))
 
     def test_check_owner_employee_owns(self):
         service = ProjectService(AsyncMock())
@@ -131,13 +140,13 @@ class TestCheckOwnerEdges:
         service = ProjectService(AsyncMock())
         project = SimpleNamespace(session_id="x", user_id=None)
         with pytest.raises(ProjectAccessError):
-            service._check_access(project, _principal(role="admin"))
+            service._check_access(project, _principal(role="unknown"))
 
     def test_check_owner_unknown_role_denied(self):
         service = ProjectService(AsyncMock())
         project = SimpleNamespace(session_id=None, user_id=None)
         with pytest.raises(ProjectAccessError):
-            service._check_owner(project, _principal(role="admin"))
+            service._check_owner(project, _principal(role="unknown"))
 
 
 def _result_with(scalar=None, scalars_all=None):
@@ -417,7 +426,7 @@ class TestListProjects:
         assert out[0].owner_email is None
         assert out[0].object_types == []
 
-    async def test_employee_sees_all_with_owner_emails(self):
+    async def test_admin_sees_all_with_owner_emails(self):
         db = AsyncMock()
         proj1 = SimpleNamespace(id=uuid.uuid4(), name="A")
         proj2 = SimpleNamespace(id=uuid.uuid4(), name="B")
@@ -430,7 +439,7 @@ class TestListProjects:
             (proj1.id, "pipe"),
         ]
         db.execute = AsyncMock(side_effect=[project_result, type_result])
-        out = await ProjectService(db).list_projects(_principal(role="employee"))
+        out = await ProjectService(db).list_projects(_principal(role="admin"))
         assert len(out) == 2
         assert out[0].owner_email == "a@b"
         assert sorted(out[0].object_types) == ["pipe", "tank"]

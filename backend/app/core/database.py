@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncGenerator
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -43,3 +44,18 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         except Exception:
             await session.rollback()
             raise
+
+
+async def use_fast_commit_for_current_transaction(session: AsyncSession) -> None:
+    """Disable synchronous WAL commit for the current PostgreSQL transaction only.
+
+    This is intentionally transaction-local and opt-in. Do not use it for auth,
+    admin/reference edits, project creation, or user preferences.
+    """
+    if not isinstance(session, AsyncSession):
+        return
+    bind = session.get_bind()
+    dialect_name = getattr(getattr(bind, "dialect", None), "name", None)
+    if dialect_name != "postgresql":
+        return
+    await session.execute(text("SET LOCAL synchronous_commit = off"))

@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
+from app.core.database import use_fast_commit_for_current_transaction
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.resistive import calc_resistive_single_core, calc_resistive_three_core
 from app.formulas.electrical.self_regulating import calc_self_regulating, calc_self_regulating_tt
@@ -48,7 +49,7 @@ from app.services.project_object_params import prepare_project_object_params
 # Источник каталога кабелей. Значения заданы для совместимости с текущим API;
 # внутри функций валидируется через проверку, не enum (чтобы случайная строка
 # попадала в default, а не падала).
-CableSource = str  # "builtin" | "extended" | "all"
+CableSource = str  # "builtin" | "commercial" | "extended" | "all"
 
 
 class CalculationError(Exception):
@@ -276,14 +277,81 @@ class CalculationService:
         await cache.aset("coefficients", coeffs, ttl=3600)
         return coeffs
 
+    @staticmethod
+    def _extended_cable_catalog_entry(
+        c: CableExtended, *, source: str = "extended"
+    ) -> dict[str, Any]:
+        return {
+            "source": source,
+            "cable_type": c.cable_type,
+            "brand": c.brand,
+            "model": c.model,
+            "power_per_meter": c.power_per_meter,
+            "max_temperature": c.max_temperature,
+            "min_temperature": c.min_temperature,
+            "resistance_per_meter": c.resistance_per_meter,
+            "supplier_name": getattr(c, "supplier_name", None),
+            "article": getattr(c, "article", None),
+            "currency": getattr(c, "currency", None),
+            "price_per_meter": c.price_per_meter,
+            "stock_quantity_m": c.stock_quantity_m,
+            "stock_status": getattr(c, "stock_status", None),
+            "lead_time_days": c.lead_time_days,
+            "supplier_priority": c.supplier_priority,
+            "is_preferred": c.is_preferred,
+            "order_multiple_m": c.order_multiple_m,
+            "min_order_quantity_m": getattr(c, "min_order_quantity_m", None),
+            "is_discontinued": bool(getattr(c, "is_discontinued", False)),
+            "replacement_group": getattr(c, "replacement_group", None),
+            "price_updated_at": (
+                c.price_updated_at.isoformat() if getattr(c, "price_updated_at", None) else None
+            ),
+            "stock_updated_at": (
+                c.stock_updated_at.isoformat() if getattr(c, "stock_updated_at", None) else None
+            ),
+            "commercial_data_source": getattr(c, "commercial_data_source", None),
+        }
+
+    @classmethod
+    def _merge_commercial_cable_entry(
+        cls,
+        base: dict[str, Any],
+        commercial: CableExtended | None,
+    ) -> dict[str, Any]:
+        entry = {
+            **base,
+            "source": "commercial",
+            "cable_type": "self_regulating",
+            "currency": "RUB",
+            "price_per_meter": None,
+            "stock_quantity_m": None,
+            "stock_status": "unknown",
+            "lead_time_days": None,
+            "supplier_priority": None,
+            "is_preferred": False,
+            "order_multiple_m": None,
+            "min_order_quantity_m": None,
+            "is_discontinued": False,
+            "commercial_data_source": None,
+        }
+        if commercial is None:
+            return entry
+        overlay = cls._extended_cable_catalog_entry(commercial, source="commercial")
+        for key, value in overlay.items():
+            if key in {"model", "power_per_meter", "max_temperature", "min_temperature"}:
+                continue
+            entry[key] = value
+        return entry
+
     async def load_cable_catalog(self, source: CableSource = "builtin") -> list[dict[str, Any]]:
         """Возвращает каталог кабелей по запрошенному источнику.
 
-        builtin  — встроенная линейка ТЛТ для self_regulating
-        extended — только `cables_extended` (self_regulating)
-        all      — объединение
+        builtin    — встроенная линейка ТЛТ для self_regulating
+        commercial — встроенная линейка ТЛТ + commercial projection из БД
+        extended   — только `cables_extended` (self_regulating)
+        all        — объединение builtin + extended
         """
-        if source not in ("builtin", "extended", "all"):
+        if source not in ("builtin", "commercial", "extended", "all"):
             source = "builtin"
         builtin = [{**c, "source": "builtin"} for c in list_tlt_cables()]
         if source == "builtin":
@@ -294,25 +362,13 @@ class CalculationService:
                 CableExtended.cable_type == "self_regulating",
             )
         )
-        extended = [
-            {
-                "source": "extended",
-                "cable_type": c.cable_type,
-                "brand": c.brand,
-                "model": c.model,
-                "power_per_meter": c.power_per_meter,
-                "max_temperature": c.max_temperature,
-                "min_temperature": c.min_temperature,
-                "resistance_per_meter": c.resistance_per_meter,
-                "price_per_meter": c.price_per_meter,
-                "stock_quantity_m": c.stock_quantity_m,
-                "lead_time_days": c.lead_time_days,
-                "supplier_priority": c.supplier_priority,
-                "is_preferred": c.is_preferred,
-                "order_multiple_m": c.order_multiple_m,
-            }
-            for c in result.scalars().all()
-        ]
+        rows = list(result.scalars().all())
+        if source == "commercial":
+            by_model = {c.model: c for c in rows}
+            return [
+                self._merge_commercial_cable_entry(c, by_model.get(c["model"])) for c in builtin
+            ]
+        extended = [self._extended_cable_catalog_entry(c) for c in rows]
         if source == "extended":
             return extended
         return builtin + extended
@@ -620,6 +676,7 @@ class CalculationService:
                 heat_loss_failed=failed,
             )
         )
+        await use_fast_commit_for_current_transaction(self.db)
         await self.db.commit()
         await emit_progress(
             BatchProgress(
@@ -1334,6 +1391,7 @@ class CalculationService:
                 "cable_catalog": tlt_catalog,
                 "winding_coefficient": self._winding_coefficient(obj, overrides, params, 1.0),
                 "winding_pitch": winding_pitch,
+                "selection_policy": overrides.get("selection_policy") or "technical_minimum",
                 **thread_payload,
             }
 
@@ -1841,6 +1899,7 @@ class CalculationService:
                 heat_loss_failed=heat_loss_failed,
             )
         )
+        await use_fast_commit_for_current_transaction(self.db)
         await self.db.commit()
         await emit_progress(
             BatchProgress(

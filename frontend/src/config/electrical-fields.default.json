@@ -57,6 +57,27 @@
       "valueType": "service",
       "description": "Номер варианта системы обогрева."
     },
+    "selection_policy": {
+      "labels": { "short": "Критерий", "full": "Запрошенный критерий подбора", "compact": "Крит." },
+      "group": "Коммерческий подбор",
+      "source": "results",
+      "valueType": "input",
+      "description": "Критерий, выбранный пользователем для ранжирования технически подходящих кабелей."
+    },
+    "applied_selection_policy": {
+      "labels": { "short": "Применено", "full": "Фактически применённый критерий", "compact": "Прим." },
+      "group": "Коммерческий подбор",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Фактически применённая политика; отличается от критерия при fallback."
+    },
+    "selection_reason": {
+      "labels": { "short": "Причина", "full": "Причина выбора кабеля", "compact": "Прич." },
+      "group": "Коммерческий подбор",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Пояснение backend, почему выбран этот кабель."
+    },
     "winding_pitch_mm": {
       "labels": { "short": "Шаг навива, мм", "full": "Шаг навива кабеля, мм", "compact": "Шаг, мм" },
       "group": "Укладка",
@@ -155,6 +176,41 @@
       "valueType": "computed",
       "description": "Напряжение, применённое в результате электрорасчёта."
     },
+    "price_per_meter": {
+      "labels": { "short": "Цена за м", "full": "Цена кабеля за метр", "compact": "Цена/м" },
+      "group": "Коммерческий подбор",
+      "source": "results.commercial",
+      "valueType": "input",
+      "description": "Цена кабеля за метр из commercial snapshot расчёта."
+    },
+    "required_order_length": {
+      "labels": { "short": "Заказ, м", "full": "Заказная длина кабеля, м", "compact": "Заказ" },
+      "group": "Коммерческий подбор",
+      "source": "results.commercial",
+      "valueType": "computed",
+      "description": "Длина заказа с учётом кратности и минимальной партии."
+    },
+    "total_cost": {
+      "labels": { "short": "Стоимость", "full": "Стоимость кабеля", "compact": "Сумма" },
+      "group": "Коммерческий подбор",
+      "source": "results.commercial",
+      "valueType": "computed",
+      "description": "Стоимость только кабеля: заказная длина × цена за метр."
+    },
+    "stock_status": {
+      "labels": { "short": "Склад", "full": "Статус склада", "compact": "Склад" },
+      "group": "Коммерческий подбор",
+      "source": "results.commercial",
+      "valueType": "input",
+      "description": "Складской статус выбранного кабеля."
+    },
+    "lead_time_days": {
+      "labels": { "short": "Срок, дн.", "full": "Срок поставки, дней", "compact": "Срок" },
+      "group": "Коммерческий подбор",
+      "source": "results.commercial",
+      "valueType": "input",
+      "description": "Срок поставки выбранного кабеля."
+    },
     "heat_loss_per_meter": {
       "labels": { "short": "q, Вт/м", "full": "Теплопотери трубы, Вт/м", "compact": "q" },
       "group": "Теплопотери",
@@ -183,6 +239,8 @@
       "object_name",
       "electrical_status",
       "cable_mark",
+      "selection_policy",
+      "applied_selection_policy",
       "winding_pitch_mm",
       "number_of_threads",
       "cable_length",
@@ -198,6 +256,9 @@
       { "key": "cable_type", "defaultWidthPct": 13, "minWidthPx": 120 },
       { "key": "cable_mark", "defaultWidthPct": 18, "minWidthPx": 140 },
       { "key": "variant_number", "defaultWidthPct": 5, "minWidthPx": 52 },
+      { "key": "selection_policy", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "applied_selection_policy", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "selection_reason", "defaultWidthPct": 18, "minWidthPx": 160, "ellipsis": true },
       { "key": "winding_pitch_mm", "defaultWidthPct": 12, "minWidthPx": 90 },
       { "key": "number_of_threads", "defaultWidthPct": 7.4, "minWidthPx": 60 },
       { "key": "laying_step", "defaultWidthPct": 10, "minWidthPx": 90 },
@@ -212,6 +273,11 @@
       { "key": "total_power", "defaultWidthPct": 11, "minWidthPx": 90 },
       { "key": "current", "defaultWidthPct": 8, "minWidthPx": 70 },
       { "key": "voltage", "defaultWidthPct": 8, "minWidthPx": 74 },
+      { "key": "price_per_meter", "defaultWidthPct": 9, "minWidthPx": 80 },
+      { "key": "required_order_length", "defaultWidthPct": 9, "minWidthPx": 80 },
+      { "key": "total_cost", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "stock_status", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "lead_time_days", "defaultWidthPct": 9, "minWidthPx": 80 },
       { "key": "heat_loss_per_meter", "defaultWidthPct": 9, "minWidthPx": 80 },
       { "key": "heat_loss_per_m2", "defaultWidthPct": 9, "minWidthPx": 80 },
       { "key": "total_heat_loss", "defaultWidthPct": 11, "minWidthPx": 90 }

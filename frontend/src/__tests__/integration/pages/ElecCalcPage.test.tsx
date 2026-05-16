@@ -427,7 +427,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
         'p-1',
-        'builtin',
+        'commercial',
         1,
         'self_regulating',
         expect.objectContaining({
@@ -510,7 +510,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
         'p-1',
-        'builtin',
+        'commercial',
         1,
         'self_regulating_tt',
         expect.objectContaining({
@@ -602,7 +602,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
         'p-1',
-        'builtin',
+        'commercial',
         1,
         'self_regulating_tt',
         expect.objectContaining({
@@ -994,7 +994,7 @@ describe('ElecCalcPage (integration)', () => {
       expect(selectCableManual).toHaveBeenCalledWith(
         'o-1',
         'ТЛТ-30',
-        'builtin',
+        'commercial',
         1,
         'self_regulating',
         expect.objectContaining({ windingPitchMm: 80, numberOfThreads: 1 }),
@@ -1046,7 +1046,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
         'p-1',
-        'builtin',
+        'commercial',
         1,
         'self_regulating_tt',
         expect.objectContaining({
