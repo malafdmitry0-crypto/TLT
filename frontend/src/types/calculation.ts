@@ -62,6 +62,7 @@ export interface PipeResult {
   wind_speed?: number | null;
   ground_conductivity?: number | null;
   safety_factor?: number | null;
+  location_factor?: number | null;
   local_elements_count?: number | null;
   local_element_equiv_length?: number | null;
   surface_temperature?: number | null;
@@ -113,6 +114,7 @@ export interface TankResult {
   wind_speed?: number | null;
   ground_conductivity?: number | null;
   safety_factor?: number | null;
+  location_factor?: number | null;
   air_surface_area?: number | null;
   ground_surface_area?: number | null;
   heat_loss_air_per_m2?: number | null;

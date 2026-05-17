@@ -107,10 +107,16 @@ async def test_batch_calc_electrical_passes_raw_q_linear_not_total():
         # Возвращаем любой валидный результат
         return SelfRegulatingResult(
             selected_cable="ТЛТ-25",
-            cable_length=PIPE_LEN * 1.1,
-            total_power=25 * PIPE_LEN * 1.1,
-            current=6.25,
+            cable_length=PIPE_LEN,
+            installed_cable_length=PIPE_LEN,
+            order_cable_length=PIPE_LEN * 1.1,
+            total_power=25 * PIPE_LEN,
+            current=25 * PIPE_LEN / 220.0,
             voltage=220.0,
+            winding_pitch=0.0,
+            winding_coefficient=1.0,
+            num_circuits=1,
+            applied_number_of_threads=1,
         )
 
     with patch("app.services.calculation_service.calc_self_regulating", side_effect=fake_calc):

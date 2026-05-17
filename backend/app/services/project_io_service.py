@@ -31,12 +31,12 @@ from app.services.project_service import (
     ProjectAccessError,
     ProjectService,
 )
+from app.services.spreadsheet_safety import safe_spreadsheet_cell
 
 logger = logging.getLogger("heatcalc.project_io")
 
 SCHEMA_VERSION = "1"
 DELIMITER = ";"  # экспорт всегда `;`; импорт определяет сам
-DANGEROUS_CSV_PREFIXES = ("=", "+", "-", "@")
 
 
 class ProjectImportError(Exception):
@@ -53,12 +53,7 @@ def _write_section(w: csv._writer, name: str) -> None:
 
 
 def _safe_csv_cell(value: Any) -> Any:
-    if not isinstance(value, str):
-        return value
-    stripped = value.lstrip()
-    if stripped.startswith(DANGEROUS_CSV_PREFIXES):
-        return "'" + value
-    return value
+    return safe_spreadsheet_cell(value)
 
 
 def _write_row(w: csv._writer, row: list[Any]) -> None:

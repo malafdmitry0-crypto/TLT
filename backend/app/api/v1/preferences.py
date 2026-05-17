@@ -75,6 +75,7 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
     "maintain_temperature",
     "aggressive_product",
     "cable_length",
+    "order_cable_length",
     "total_power",
     "current",
     "voltage",

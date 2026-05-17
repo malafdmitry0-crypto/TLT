@@ -74,6 +74,21 @@ describe('useElectricalStats', () => {
     expect(result.current.allCalced).toBe(true);
   });
 
+  it('суммирует заказную длину, если она есть в результате', () => {
+    const objects = [makeObj('a')];
+    const calcs = [
+      makeCalc('a', 1, {
+        selected_cable: 'ТЛТ-25',
+        cable_length: 10,
+        order_cable_length: 11,
+        total_power: 250,
+        current: 1.2,
+      }),
+    ];
+    const { result } = renderHook(() => useElectricalStats(objects, calcs));
+    expect(result.current.totalCableLength).toBe(11);
+  });
+
   it('берёт последний вариант расчёта (с наибольшим variant_number)', () => {
     const objects = [makeObj('a')];
     const calcs = [

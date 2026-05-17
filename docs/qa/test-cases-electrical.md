@@ -10,10 +10,11 @@
 | 1 | Создать объект `pipe` с рассчитанными теплопотерями | `object_id` |
 | 2 | `POST /api/v1/calc/electrical` с `cable_type=self_regulating`, `cable_mark=ТЛТ-25` | HTTP 200 |
 | 3 | Проверить `selected_cable` | `"ТЛТ-25"` |
-| 4 | Проверить `cable_length` | `pipe_length × 1.1` (запас 10% по BR-CABLE-02) |
-| 5 | Проверить `total_power` | `25 × cable_length` Вт |
-| 6 | Проверить `current` | `total_power / 220` А |
-| 7 | Проверить `voltage` | `220` В |
+| 4 | Проверить `cable_length` | `pipe_length` — расчётная/уложенная длина без заказного запаса |
+| 5 | Проверить `order_cable_length` | `cable_length × 1.1` (запас 10% по BR-CABLE-02) |
+| 6 | Проверить `total_power` | `25 × cable_length` Вт |
+| 7 | Проверить `current` | `total_power / 220` А |
+| 8 | Проверить `voltage` | `220` В |
 
 **Тело запроса:**
 ```json
@@ -32,7 +33,7 @@
 }
 ```
 
-> **Примечание:** `cable_length = 50 × 1.1 = 55 м` (не 50!)
+> **Примечание:** `cable_length = 50 м`, `order_cable_length = 50 × 1.1 = 55 м`.
 
 ---
 
@@ -165,13 +166,13 @@
 
 ## TC-ELEC-11: Запас длины кабеля (BR-CABLE-02)
 
-**Автоматизировано:** ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_cable_length_has_10_percent_factor`  
-**Автоматизировано:** ✅ (integration) `test_calculations.py::TestElectricalCalculation::test_cable_length_includes_10_percent_factor`
+**Автоматизировано:** ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_order_cable_length_has_10_percent_factor`
+**Автоматизировано:** ✅ (integration) `test_calculations.py::TestElectricalCalculation::test_order_cable_length_includes_10_percent_factor`
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
-| 1 | Расчёт с `pipe_length=100` | `cable_length = 110` (100 × 1.1) |
-| 2 | Расчёт с `pipe_length=50`  | `cable_length = 55`  (50 × 1.1) |
+| 1 | Расчёт с `pipe_length=100` | `cable_length = 100`, `order_cable_length = 110` |
+| 2 | Расчёт с `pipe_length=50`  | `cable_length = 50`, `order_cable_length = 55` |
 
 ---
 

@@ -18,6 +18,28 @@ class TestSpecBuilder:
         by_mark = {c.article: c.quantity for c in cables}
         assert by_mark == {"ТЛТ-25": 50.0, "ТЛТ-40": 15.0}
 
+    def test_uses_order_cable_length_for_cable_quantity(self):
+        results = [
+            {"selected_cable": "ТЛТ-25", "cable_length": 30, "order_cable_length": 33},
+            {"selected_cable": "ТЛТ-25", "cable_length": 20, "order_cable_length": 22},
+        ]
+        items = build_basic_specification(results)
+        cables = [i for i in items if i.category == "Кабель"]
+        assert {c.article: c.quantity for c in cables} == {"ТЛТ-25": 55.0}
+
+    def test_commercial_required_order_length_has_priority(self):
+        results = [
+            {
+                "selected_cable": "ТЛТ-25",
+                "cable_length": 30,
+                "order_cable_length": 33,
+                "commercial": {"required_order_length": 40},
+            },
+        ]
+        items = build_basic_specification(results)
+        cables = [i for i in items if i.category == "Кабель"]
+        assert {c.article: c.quantity for c in cables} == {"ТЛТ-25": 40.0}
+
     def test_adds_accessories(self):
         results = [{"selected_cable": "ТЛТ-25", "cable_length": 10}]
         items = build_basic_specification(results)

@@ -298,6 +298,8 @@ class TestTankGeometryIntegration:
         """Без геометрии резервуара — используется указанный pipe_length."""
         r = calc_resistive_single_core(_sc(pipe_length=50.0))
         assert r.cable_length == pytest.approx(50.0, rel=1e-4)
+        assert r.installed_cable_length == pytest.approx(50.0, rel=1e-4)
+        assert r.order_cable_length == pytest.approx(55.0, rel=1e-4)
 
     def test_tank_cylinder_overrides_pipe_length(self):
         """Цилиндр Ø2 м, h=3 м, w=0.1 → pipe_length = π×2/2 × 30 ≈ 94.25."""

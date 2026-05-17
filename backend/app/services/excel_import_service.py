@@ -23,6 +23,7 @@ from app.services.project_service import (
     ProjectNotFoundError,
     ProjectService,
 )
+from app.services.spreadsheet_safety import safe_spreadsheet_cell
 
 PIPE_SHEET_NAMES = {"трубопроводы", "трубы", "pipes"}
 TANK_SHEET_NAMES = {"резервуары", "ёмкости", "емкости", "tanks"}
@@ -997,14 +998,14 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         if obj.object_type == "pipe":
             ws_pipe.append(
                 [
-                    name,
+                    safe_spreadsheet_cell(name),
                     round((params.get("outer_diameter") or 0) * 1000, 3) or "",
                     params.get("pipe_length") or "",
                     round((params.get("insulation_thickness") or 0) * 1000, 3) or "",
-                    material,
+                    safe_spreadsheet_cell(material),
                     params.get("ambient_temperature", ""),
                     params.get("process_temperature", ""),
-                    params.get("vapor_temperature", ""),
+                    safe_spreadsheet_cell(params.get("vapor_temperature", "")),
                 ]
             )
         elif obj.object_type == "tank":
@@ -1016,17 +1017,17 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
 
             ws_tank.append(
                 [
-                    name,
-                    shape,
+                    safe_spreadsheet_cell(name),
+                    safe_spreadsheet_cell(shape),
                     to_mm("diameter"),
                     to_mm("length"),
                     to_mm("width"),
                     to_mm("height"),
                     to_mm("insulation_thickness"),
-                    material,
+                    safe_spreadsheet_cell(material),
                     params.get("ambient_temperature", ""),
                     params.get("process_temperature", ""),
-                    params.get("vapor_temperature", ""),
+                    safe_spreadsheet_cell(params.get("vapor_temperature", "")),
                 ]
             )
 

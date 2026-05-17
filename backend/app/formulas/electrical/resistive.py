@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
+from app.formulas.electrical.common import cable_order_length
 from app.reference_data.loader import list_resistive_cables
 from app.schemas.calculation import (
     ResistiveSingleCoreParams,
@@ -60,6 +61,7 @@ class _AutoSchemeMetrics:
     total_power: float
     linear_power_w_m: float
     cable_length: float
+    order_cable_length: float
     section_length: float
     l1_m: float | None
     l2_m: float | None
@@ -342,6 +344,7 @@ def _auto_scheme_metrics(
     p2 = per_thread_power / section_length
     total_power = per_thread_power * threads * schemes
     cable_length = section_length * threads * schemes
+    order_length = cable_order_length(cable_length)
     return _AutoSchemeMetrics(
         cable=cable,
         connection_type=connection_type,
@@ -360,6 +363,7 @@ def _auto_scheme_metrics(
         total_power=total_power,
         linear_power_w_m=total_power / object_length,
         cable_length=cable_length,
+        order_cable_length=order_length,
         section_length=section_length,
         l1_m=l1_m,
         l2_m=l2_m,
@@ -578,6 +582,8 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
             selected_cable=str(cable.get("model", cable.get("brand", ""))),
             conductor_cross_section=float(cable["conductor_cross_section"]),
             cable_length=round(metrics.cable_length, 3),
+            installed_cable_length=round(metrics.cable_length, 3),
+            order_cable_length=round(metrics.order_cable_length, 3),
             required_cross_section=round(sk_required, 6),
             resistance_ohm_km=round(metrics.resistance_ohm_km, 6),
             circuit_resistance_ohm=round(metrics.circuit_resistance_ohm, 6),
@@ -603,6 +609,7 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
         )
 
     cable_length = object_length * params.winding_coefficient * params.number_of_threads
+    order_cable_length = cable_order_length(cable_length)
     q = params.required_heat_loss
     u = params.supply_voltage
     connection = params.connection_type
@@ -641,6 +648,8 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
         selected_cable=str(cable.get("model", cable.get("brand", ""))),
         conductor_cross_section=sk_b,
         cable_length=round(cable_length, 3),
+        installed_cable_length=round(cable_length, 3),
+        order_cable_length=round(order_cable_length, 3),
         required_cross_section=round(sk_required, 6),
         resistance_ohm_km=round(metrics["resistance_ohm_km"], 6),
         circuit_resistance_ohm=round(metrics["circuit_resistance_ohm"], 6),
@@ -697,6 +706,8 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
             selected_cable=str(cable.get("model", cable.get("brand", ""))),
             conductor_cross_section=float(cable["conductor_cross_section"]),
             cable_length=round(metrics.cable_length, 3),
+            installed_cable_length=round(metrics.cable_length, 3),
+            order_cable_length=round(metrics.order_cable_length, 3),
             required_cross_section=round(sk_required, 6),
             resistance_ohm_km=round(metrics.resistance_ohm_km, 6),
             circuit_resistance_ohm=round(metrics.circuit_resistance_ohm, 6),
@@ -722,6 +733,7 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
         )
 
     cable_length = object_length * params.winding_coefficient * params.number_of_threads
+    order_cable_length = cable_order_length(cable_length)
     q = params.required_heat_loss
     u = params.supply_voltage
 
@@ -761,6 +773,8 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
         selected_cable=str(cable.get("model", cable.get("brand", ""))),
         conductor_cross_section=sk_b,
         cable_length=round(cable_length, 3),
+        installed_cable_length=round(cable_length, 3),
+        order_cable_length=round(order_cable_length, 3),
         required_cross_section=round(sk_required, 6),
         resistance_ohm_km=round(metrics["resistance_ohm_km"], 6),
         circuit_resistance_ohm=round(metrics["circuit_resistance_ohm"], 6),

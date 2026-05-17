@@ -3,6 +3,19 @@ import { isElectricalCalcSuccess, electricalCalcError } from '@/utils/calcStatus
 import type { ProjectObject } from '@/types/project';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 
+function orderCableLength(calc: ElectricalCalcSummary) {
+  const explicitRaw = calc.results?.order_cable_length;
+  if (explicitRaw !== null && explicitRaw !== undefined && explicitRaw !== '') {
+    const explicitLength = Number(explicitRaw);
+    if (Number.isFinite(explicitLength)) return explicitLength;
+  }
+  const cableLength = Number(calc.results?.cable_length ?? 0);
+  if (!Number.isFinite(cableLength)) return 0;
+  return ['self_regulating_tt', 'single_core', 'three_core'].includes(calc.cable_type)
+    ? cableLength * 1.1
+    : cableLength;
+}
+
 export interface ElectricalStats {
   /** Мапа object_id → последний (с наибольшим variant_number) расчёт. */
   calcByObjectId: Record<string, ElectricalCalcSummary>;
@@ -52,7 +65,7 @@ export function useElectricalStats(
 
     const successCalcs = elecCalcs.filter((c) => isElectricalCalcSuccess(c));
     const totalCableLength = successCalcs.reduce(
-      (sum, c) => sum + Number(c.results?.cable_length ?? 0),
+      (sum, c) => sum + orderCableLength(c),
       0,
     );
     const totalPower = successCalcs.reduce(

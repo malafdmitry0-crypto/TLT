@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
@@ -17,10 +17,19 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'query-vendor': ['@tanstack/react-query', 'axios', 'zustand'],
-          'dnd-vendor': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react')) return 'react-vendor';
+          if (
+            id.includes('node_modules/@tanstack/react-query') ||
+            id.includes('node_modules/axios') ||
+            id.includes('node_modules/zustand')
+          ) {
+            return 'query-vendor';
+          }
+          if (id.includes('node_modules/@dnd-kit')) {
+            return 'dnd-vendor';
+          }
+          return undefined;
         },
       },
     },

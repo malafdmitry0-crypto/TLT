@@ -986,6 +986,7 @@ export default function HeatCalcPage() {
 
     addDetail('applied_alpha_vnesh', 'α примен.', resultDetailValue('alpha_vnesh', 1, ' Вт/м²К'));
     addDetail('applied_safety_factor', 'Kзап примен.', resultValue('safety_factor', 2));
+    addDetail('applied_location_factor', 'Kразм примен.', resultValue('location_factor', 2));
     addDetail('insulation_resistance', 'Rиз', resultValue('insulation_resistance', 4));
 
     if (isPipe) {

@@ -203,11 +203,21 @@ class TestGetInsulationConductivity:
         assert lam > 0
         assert lam < 1.0  # для изоляции λ < 1 Вт/(м·К)
 
-    def test_temperature_currently_uses_table_value(self):
-        """λ пока берется из таблицы и не зависит от T."""
-        assert get_insulation_conductivity("mineral_wool", -40) == get_insulation_conductivity(
-            "mineral_wool", 200
+    def test_material_without_temperature_curve_uses_table_value(self):
+        """Если температурной кривой нет, λ берётся из базовой таблицы."""
+        assert get_insulation_conductivity("mineral_wool", -40) == pytest.approx(0.045)
+        assert get_insulation_conductivity("mineral_wool", 200) == pytest.approx(0.045)
+
+    def test_temperature_curve_for_warm_surface(self):
+        """Для 20°C и выше применяется формула a + b * tm из справочника."""
+        assert get_insulation_conductivity("mineral_wool_boards_120", 100) == pytest.approx(
+            0.045 + 0.00021 * 100
         )
+
+    def test_temperature_curve_for_cold_surface(self):
+        """Для 19°C и ниже используется холодный диапазон справочника."""
+        assert get_insulation_conductivity("mineral_wool_boards_120", -20) == pytest.approx(0.044)
+        assert get_insulation_conductivity("mineral_wool_boards_120", -80) == pytest.approx(0.035)
 
     def test_unknown_material_raises(self):
         with pytest.raises(ValueError, match="Неизвестный материал"):

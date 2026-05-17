@@ -20,6 +20,15 @@ from app.schemas.report import ReportExportTaskResult
 
 # ---------- Heat loss ----------
 
+GROUND_CONDUCTIVITY_MIN = 0.5
+GROUND_CONDUCTIVITY_MAX = 3.0
+TANK_DIAMETER_MIN = 0.1
+TANK_DIAMETER_MAX = 30.0
+TANK_HEIGHT_MIN = 0.1
+TANK_HEIGHT_MAX = 50.0
+TANK_SIDE_MIN = 0.1
+TANK_SIDE_MAX = 100.0
+
 
 class InsulationLayer(BaseModel):
     """Один слой тепловой изоляции (для многослойного расчёта)."""
@@ -138,8 +147,8 @@ class PipeHeatLossParams(BaseModel):
     )
     ground_conductivity: float | None = Field(
         default=None,
-        ge=0.8,
-        le=3.0,
+        ge=GROUND_CONDUCTIVITY_MIN,
+        le=GROUND_CONDUCTIVITY_MAX,
         description="lambda_gr — теплопроводность грунта, Вт/(м·К)",
     )
     safety_factor: float | None = Field(
@@ -204,6 +213,7 @@ class PipeHeatLossResult(BaseModel):
         description="Теплопроводность грунта, Вт/(м·К)",
     )
     safety_factor: float | None = Field(default=None, description="Коэффициент запаса")
+    location_factor: float | None = Field(default=None, description="Коэффициент размещения")
     local_elements_count: int | None = Field(
         default=None,
         description="Количество локальных элементов",
@@ -223,13 +233,13 @@ class TankHeatLossParams(BaseModel):
     shape: Literal["cylindrical", "rectangular", "spherical"] = "cylindrical"
     diameter: float | None = Field(
         default=None,
-        ge=0.0108,
-        le=3.0,
+        ge=TANK_DIAMETER_MIN,
+        le=TANK_DIAMETER_MAX,
         description="d_р — наружный диаметр резервуара, м",
     )
-    height: float | None = Field(default=None, ge=0.5, le=200_000.0)
-    length: float | None = Field(default=None, gt=0)
-    width: float | None = Field(default=None, gt=0)
+    height: float | None = Field(default=None, ge=TANK_HEIGHT_MIN, le=TANK_HEIGHT_MAX)
+    length: float | None = Field(default=None, ge=TANK_SIDE_MIN, le=TANK_SIDE_MAX)
+    width: float | None = Field(default=None, ge=TANK_SIDE_MIN, le=TANK_SIDE_MAX)
     volume: float | None = Field(default=None, gt=0)
     insulation_thickness: float = Field(gt=0)
     insulation_material: str = Field(min_length=1)
@@ -261,8 +271,8 @@ class TankHeatLossParams(BaseModel):
     )
     ground_conductivity: float | None = Field(
         default=None,
-        ge=0.8,
-        le=3.0,
+        ge=GROUND_CONDUCTIVITY_MIN,
+        le=GROUND_CONDUCTIVITY_MAX,
         description="lambda_gr — теплопроводность грунта, Вт/(м·К)",
     )
     # --- Внешние условия ---
@@ -315,6 +325,7 @@ class TankHeatLossResult(BaseModel):
     wind_speed: float | None = None
     ground_conductivity: float | None = None
     safety_factor: float | None = None
+    location_factor: float | None = None
     air_surface_area: float | None = None
     ground_surface_area: float | None = None
     heat_loss_air_per_m2: float | None = None
@@ -402,6 +413,8 @@ class SelfRegulatingParams(BaseModel):
 class SelfRegulatingResult(BaseModel):
     selected_cable: str
     cable_length: float
+    installed_cable_length: float
+    order_cable_length: float
     total_power: float
     current: float
     voltage: float
@@ -475,6 +488,8 @@ class SelfRegulatingTTResult(BaseModel):
     cable_mark: str
     series: str
     cable_length: float
+    installed_cable_length: float
+    order_cable_length: float
     num_circuits: int
     power_per_meter: float
     total_power: float
@@ -573,6 +588,8 @@ class ResistiveSingleCoreResult(BaseModel):
     selected_cable: str
     conductor_cross_section: float
     cable_length: float
+    installed_cable_length: float
+    order_cable_length: float
     required_cross_section: float
     resistance_ohm_km: float | None = None
     circuit_resistance_ohm: float | None = None
@@ -680,6 +697,8 @@ class ResistiveThreeCoreResult(BaseModel):
     selected_cable: str
     conductor_cross_section: float
     cable_length: float
+    installed_cable_length: float
+    order_cable_length: float
     required_cross_section: float
     resistance_ohm_km: float | None = None
     circuit_resistance_ohm: float | None = None

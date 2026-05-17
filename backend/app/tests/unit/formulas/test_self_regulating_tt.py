@@ -123,6 +123,7 @@ class TestCableSelection:
     def test_cable_length_uses_winding_coefficient(self):
         r = calc_self_regulating_tt(_params(pipe_length=100.0, winding_coefficient=1.2))
         assert r.cable_length == pytest.approx(100.0 * 1.2 * r.num_circuits, rel=1e-3)
+        assert r.order_cable_length == pytest.approx(r.cable_length * 1.1, rel=1e-3)
 
     def test_geometric_winding_coefficient_above_1_5_is_allowed(self):
         """Шаг навива чуть больше диаметра трубы даёт k > 1.5 и должен проходить схему."""
@@ -164,6 +165,7 @@ class TestCableSelection:
         assert r.num_circuits == 2
         assert r.winding_pitch == 90
         assert r.cable_length == pytest.approx(50.0 * 1.2 * 2, rel=1e-3)
+        assert r.order_cable_length == pytest.approx(50.0 * 1.2 * 2 * 1.1, rel=1e-3)
         assert r.total_power == pytest.approx(r.power_per_meter * r.cable_length, rel=1e-3)
 
     def test_user_threads_must_cover_required_power(self):

@@ -1765,14 +1765,14 @@
       "input": {
         "type": "number",
         "unit": "Вт/мК",
-        "min": 0.8,
+        "min": 0.5,
         "max": 3,
         "default_step": 0.1,
         "configurable_step": false,
         "input_unit": "raw",
         "display_digits": 2
       },
-      "description": "Теплопроводность грунта для подземной прокладки. Диапазон: 0,8…3,0 Вт/(м·К)."
+      "description": "Теплопроводность грунта для подземной прокладки. Диапазон: 0,5…3,0 Вт/(м·К)."
     },
     "min_switch_temperature": {
       "service_name": "min_switch_temperature",
@@ -2676,15 +2676,15 @@
       "input": {
         "type": "number",
         "unit": "мм",
-        "min": 10.8,
-        "max": 3000,
-        "default_step": 1,
+        "min": 100,
+        "max": 30000,
+        "default_step": 100,
         "configurable_step": true,
         "required": true,
         "input_unit": "mm",
         "display_digits": 0
       },
-      "description": "Внешний диаметр резервуара Ø, мм. Обязателен для цилиндрической и сферической форм. Диапазон ТНП: 10,8–3000 мм.",
+      "description": "Внешний диаметр резервуара Ø, мм. Обязателен для цилиндрической и сферической форм. Диапазон: 100–30 000 мм.",
       "definition_object_types": [
         "tank"
       ]
@@ -2720,15 +2720,15 @@
       "input": {
         "type": "number",
         "unit": "мм",
-        "min": 500,
-        "max": 200000,
+        "min": 100,
+        "max": 50000,
         "default_step": 100,
         "configurable_step": true,
         "required": true,
         "input_unit": "mm",
         "display_digits": 0
       },
-      "description": "Высота резервуара. Обязательна для цилиндрической и прямоугольной форм. Диапазон ТНП: 500–200 000 мм.",
+      "description": "Высота резервуара. Обязательна для цилиндрической и прямоугольной форм. Диапазон: 100–50 000 мм.",
       "definition_object_types": [
         "tank"
       ]
@@ -2764,14 +2764,15 @@
       "input": {
         "type": "number",
         "unit": "мм",
-        "min": 1,
+        "min": 100,
+        "max": 100000,
         "default_step": 100,
         "configurable_step": true,
         "required": true,
         "input_unit": "mm",
         "display_digits": 0
       },
-      "description": "Длина прямоугольного резервуара L, мм. В новых переменных ТНП отдельный диапазон для L не задан.",
+      "description": "Длина прямоугольного резервуара L, мм. Диапазон: 100–100 000 мм.",
       "definition_object_types": [
         "tank"
       ]
@@ -2807,14 +2808,15 @@
       "input": {
         "type": "number",
         "unit": "мм",
-        "min": 1,
+        "min": 100,
+        "max": 100000,
         "default_step": 100,
         "configurable_step": true,
         "required": true,
         "input_unit": "mm",
         "display_digits": 0
       },
-      "description": "Ширина прямоугольного резервуара B, мм. В новых переменных ТНП отдельный диапазон для B не задан.",
+      "description": "Ширина прямоугольного резервуара B, мм. Диапазон: 100–100 000 мм.",
       "definition_object_types": [
         "tank"
       ]

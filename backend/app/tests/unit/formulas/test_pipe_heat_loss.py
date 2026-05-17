@@ -305,6 +305,27 @@ class TestSafetyFactor:
 
 
 # ---------------------------------------------------------------------------
+# Коэффициент размещения
+# ---------------------------------------------------------------------------
+
+
+class TestLocationFactor:
+    def test_location_factor_applies_only_to_total(self):
+        base = calc_pipe_heat_loss(
+            _params(location="indoor"),
+            coefficients={"location_indoor": 1.0},
+        )
+        adjusted = calc_pipe_heat_loss(
+            _params(location="indoor"),
+            coefficients={"location_indoor": 0.9},
+        )
+
+        assert adjusted.heat_loss_per_meter == pytest.approx(base.heat_loss_per_meter, rel=1e-6)
+        assert adjusted.total_heat_loss == pytest.approx(base.total_heat_loss * 0.9, rel=1e-3)
+        assert adjusted.location_factor == pytest.approx(0.9)
+
+
+# ---------------------------------------------------------------------------
 # Коэффициент теплоотдачи из скорости ветра
 # ---------------------------------------------------------------------------
 

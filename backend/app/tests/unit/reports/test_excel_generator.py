@@ -105,3 +105,47 @@ class TestGenerateXlsx:
         wb = _wb(generate_xlsx(ctx))
         ws = wb["Спецификация"]
         assert ws.max_row == 1  # только заголовок
+
+    def test_dangerous_user_strings_are_not_exported_as_formulas(self):
+        ctx = {
+            "project": {
+                "id": "p1",
+                "name": '=HYPERLINK("http://example.test","x")',
+                "description": "+SUM(1,1)",
+                "status": "@cmd",
+            },
+            "sections": ["summary", "specification"],
+            "objects": [
+                {
+                    "object_type": "pipe",
+                    "params": {"name": "=1+1"},
+                    "results": None,
+                    "is_valid": True,
+                }
+            ],
+            "specification": {
+                "items": [
+                    {
+                        "category": "=cat",
+                        "name": "+name",
+                        "article": "-article",
+                        "unit": "@unit",
+                        "quantity": 1,
+                    }
+                ]
+            },
+        }
+        wb = _wb(generate_xlsx(ctx))
+
+        guarded_cells = [
+            wb["Проект"]["B3"],
+            wb["Проект"]["B5"],
+            wb["Проект"]["B6"],
+            wb["Спецификация"]["A2"],
+            wb["Спецификация"]["B2"],
+            wb["Спецификация"]["C2"],
+            wb["Спецификация"]["D2"],
+        ]
+        for cell in guarded_cells:
+            assert cell.data_type == "s"
+            assert str(cell.value).startswith("'")

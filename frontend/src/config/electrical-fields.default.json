@@ -149,11 +149,18 @@
       "description": "Признак агрессивного продукта для выбора исполнения кабеля."
     },
     "cable_length": {
-      "labels": { "short": "Длина, м", "full": "Расчётная длина кабеля, м", "compact": "L каб." },
+      "labels": { "short": "Длина расч., м", "full": "Расчётная длина кабеля, м", "compact": "L расч." },
       "group": "Результат",
       "source": "results",
       "valueType": "computed",
-      "description": "Длина кабеля из результата электрорасчёта."
+      "description": "Расчётная/уложенная длина кабеля. Используется для мощности, тока и технической проверки."
+    },
+    "order_cable_length": {
+      "labels": { "short": "Заказ +10%, м", "full": "Заказная длина кабеля (+10%), м", "compact": "L заказ" },
+      "group": "Результат",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Длина кабеля для спецификации и закупки: расчётная длина с монтажным запасом 10%."
     },
     "total_power": {
       "labels": { "short": "Мощность, Вт", "full": "Суммарная мощность, Вт", "compact": "P" },
@@ -184,7 +191,7 @@
       "description": "Цена кабеля за метр из commercial snapshot расчёта."
     },
     "required_order_length": {
-      "labels": { "short": "Заказ, м", "full": "Заказная длина кабеля, м", "compact": "Заказ" },
+      "labels": { "short": "Заказ партия, м", "full": "Заказная длина с учётом кратности и минимальной партии, м", "compact": "Партия" },
       "group": "Коммерческий подбор",
       "source": "results.commercial",
       "valueType": "computed",
@@ -244,6 +251,7 @@
       "winding_pitch_mm",
       "number_of_threads",
       "cable_length",
+      "order_cable_length",
       "total_power",
       "current"
     ],
@@ -270,6 +278,7 @@
       { "key": "maintain_temperature", "defaultWidthPct": 8, "minWidthPx": 78 },
       { "key": "aggressive_product", "defaultWidthPct": 7, "minWidthPx": 64 },
       { "key": "cable_length", "defaultWidthPct": 9, "minWidthPx": 70 },
+      { "key": "order_cable_length", "defaultWidthPct": 9, "minWidthPx": 70 },
       { "key": "total_power", "defaultWidthPct": 11, "minWidthPx": 90 },
       { "key": "current", "defaultWidthPct": 8, "minWidthPx": 70 },
       { "key": "voltage", "defaultWidthPct": 8, "minWidthPx": 74 },

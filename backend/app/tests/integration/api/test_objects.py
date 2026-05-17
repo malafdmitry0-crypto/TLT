@@ -119,7 +119,7 @@ class TestObjectsLifecycle:
         assert body["results"]["heat_loss_per_m2"] > 0
         assert body["results"]["surface_area"] > 0
 
-    async def test_add_large_tank_with_tnp_dimensions_is_valid(
+    async def test_add_large_tank_with_tank_dimensions_is_valid(
         self, client: AsyncClient, guest_session: str
     ):
         pid = await _project(client, guest_session)
@@ -129,8 +129,8 @@ class TestObjectsLifecycle:
                 "object_type": "tank",
                 "params": {
                     "shape": "cylindrical",
-                    "diameter": 3.0,
-                    "height": 200_000.0,
+                    "diameter": 12.0,
+                    "height": 20.0,
                     "insulation_thickness": 0.1,
                     "insulation_material": "mineral_wool",
                     "ambient_temperature": -20,

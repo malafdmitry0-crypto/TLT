@@ -29,8 +29,8 @@
     "@tanstack/react-query": "^5.59.0",
     "@types/dompurify": "^3.0.5",
     "antd": "^5.21.0",
-    "axios": "^1.7.7",
-    "dompurify": "^3.3.3",
+    "axios": "^1.15.2",
+    "dompurify": "^3.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2",
@@ -48,15 +48,18 @@
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.8.0",
     "@typescript-eslint/parser": "^8.8.0",
-    "@vitejs/plugin-react": "^4.3.2",
-    "@vitest/coverage-v8": "^2.1.2",
+    "@vitejs/plugin-react": "^6.0.2",
+    "@vitest/coverage-v8": "^4.1.6",
     "eslint": "^9.12.0",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.12",
     "eslint-plugin-security": "^3.0.1",
     "jsdom": "^25.0.1",
     "typescript": "^5.6.2",
-    "vite": "^5.4.8",
-    "vitest": "^2.1.2"
+    "vite": "^8.0.13",
+    "vitest": "^4.1.6"
+  },
+  "overrides": {
+    "follow-redirects": "^1.16.0"
   }
 }

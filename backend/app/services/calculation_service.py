@@ -10,7 +10,7 @@ from time import monotonic
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import Float, and_, func, or_, select
+from sqlalchemy import Float, and_, case, func, or_, select
 from sqlalchemy import cast as sa_cast
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -216,7 +216,17 @@ class CalculationService:
             ),
         )
         failed_calc = error_text.is_not(None)
-        cable_length = sa_cast(ElectricalCalculation.results["cable_length"].astext, Float)
+        installed_cable_length = sa_cast(
+            ElectricalCalculation.results["cable_length"].astext, Float
+        )
+        legacy_order_cable_length = case(
+            (ElectricalCalculation.cable_type == "self_regulating", installed_cable_length),
+            else_=installed_cable_length * 1.1,
+        )
+        order_cable_length = func.coalesce(
+            sa_cast(ElectricalCalculation.results["order_cable_length"].astext, Float),
+            legacy_order_cable_length,
+        )
         total_power = sa_cast(ElectricalCalculation.results["total_power"].astext, Float)
         current = sa_cast(ElectricalCalculation.results["current"].astext, Float)
         summary_result = await self.db.execute(
@@ -224,7 +234,7 @@ class CalculationService:
                 func.count(ElectricalCalculation.id),
                 func.count(ElectricalCalculation.id).filter(successful_calc),
                 func.count(ElectricalCalculation.id).filter(failed_calc),
-                func.coalesce(func.sum(cable_length).filter(successful_calc), 0.0),
+                func.coalesce(func.sum(order_cable_length).filter(successful_calc), 0.0),
                 func.coalesce(func.sum(total_power).filter(successful_calc), 0.0),
                 func.coalesce(func.sum(current).filter(successful_calc), 0.0),
             ).where(

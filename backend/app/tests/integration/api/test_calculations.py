@@ -109,14 +109,15 @@ class TestElectricalCalculation:
         result = resp.json()["result"]
         assert result["selected_cable"] == "ТЛТ-25"
         assert "cable_length" in result
+        assert "order_cable_length" in result
         assert "total_power" in result
         assert "current" in result
         assert "voltage" in result
 
-    async def test_cable_length_includes_10_percent_factor(
+    async def test_order_cable_length_includes_10_percent_factor(
         self, client: AsyncClient, guest_session: str
     ):
-        """BR-CABLE-02: длина кабеля = длина трубы × 1.1."""
+        """BR-CABLE-02: заказная длина = расчётная длина × 1.1."""
         project = await _create_project(client, guest_session)
         obj = await _create_pipe_object(client, project["id"], guest_session)
 
@@ -139,7 +140,11 @@ class TestElectricalCalculation:
         )
         assert resp.status_code == 200, resp.text
         result = resp.json()["result"]
-        assert result["cable_length"] == pytest.approx(pipe_length * CABLE_LENGTH_FACTOR, rel=1e-3)
+        assert result["cable_length"] == pytest.approx(pipe_length, rel=1e-3)
+        assert result["order_cable_length"] == pytest.approx(
+            pipe_length * CABLE_LENGTH_FACTOR,
+            rel=1e-3,
+        )
 
     async def test_list_electrical_calcs_for_project(self, client: AsyncClient, guest_session: str):
         """GET /calc/electrical возвращает список расчётов с результатами."""

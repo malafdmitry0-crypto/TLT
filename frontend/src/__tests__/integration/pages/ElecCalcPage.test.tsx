@@ -49,6 +49,7 @@ const apiMocks = vi.hoisted(() => {
         field('winding_pitch_mm', 'number', ['range']),
         field('number_of_threads', 'number', ['range']),
         field('cable_length', 'number', ['range']),
+        field('order_cable_length', 'number', ['range']),
         field('total_power', 'number', ['range']),
         field('current', 'number', ['range']),
         field('message'),
@@ -167,7 +168,11 @@ function makeElectricalPage(
         calculations.filter((calc) => typeof calc.results?.error === 'string').length,
       total_cable_length:
         summaryOverrides.total_cable_length ??
-        calculated.reduce((sum, calc) => sum + Number(calc.results?.cable_length ?? 0), 0),
+        calculated.reduce(
+          (sum, calc) =>
+            sum + Number(calc.results?.order_cable_length ?? calc.results?.cable_length ?? 0),
+          0,
+        ),
       total_power:
         summaryOverrides.total_power ??
         calculated.reduce((sum, calc) => sum + Number(calc.results?.total_power ?? 0), 0),

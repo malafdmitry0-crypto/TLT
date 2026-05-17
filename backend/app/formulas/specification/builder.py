@@ -11,6 +11,15 @@ from app.reference_data.loader import list_basic_accessories
 from app.schemas.specification import SpecificationItem
 
 
+def _legacy_order_length(result: dict[str, Any]) -> float:
+    """Fallback для старых результатов без order_cable_length."""
+    cable_length = float(result.get("cable_length") or 0.0)
+    cable_type = result.get("cable_type")
+    if cable_type in {"self_regulating_tt", "single_core", "three_core"}:
+        return cable_length * 1.1
+    return cable_length
+
+
 def build_basic_specification(
     electrical_results: list[dict[str, Any]],
     total_objects_count: int | None = None,
@@ -18,8 +27,8 @@ def build_basic_specification(
     """Построить спецификацию из результатов электротехнического расчёта.
 
     electrical_results: список результатов расчёта по объектам, каждый содержит
-    поля selected_cable, cable_length. Фейлы (без selected_cable) игнорируются
-    при подсчёте кабельных позиций.
+    поля selected_cable, cable_length/order_cable_length. Фейлы (без selected_cable)
+    игнорируются при подсчёте кабельных позиций.
 
     total_objects_count: общее число объектов в проекте. Аксессуары (УЗО,
     муфты, термостаты и т.д.) заказываются на **каждый заявленный объект**,
@@ -34,7 +43,11 @@ def build_basic_specification(
     cable_totals: dict[str, float] = defaultdict(float)
     for r in electrical_results:
         cable = r.get("cable_mark") or r.get("selected_cable")
-        length = r.get("cable_length", 0)
+        commercial = r.get("commercial")
+        commercial_order_length = (
+            commercial.get("required_order_length") if isinstance(commercial, dict) else None
+        )
+        length = commercial_order_length or r.get("order_cable_length") or _legacy_order_length(r)
         if cable and length:
             cable_totals[str(cable)] += float(length)
 

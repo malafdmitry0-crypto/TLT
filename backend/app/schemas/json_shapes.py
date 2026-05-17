@@ -23,8 +23,8 @@ from typing import Literal, NotRequired, TypedDict
 class PipeHeatLossResultDict(TypedDict):
     """Результат расчёта теплопотерь трубы. Зеркало `PipeHeatLossResult`."""
 
-    heat_loss_per_meter: float  # q_linear — без учёта safety_factor
-    total_heat_loss: float  # q_linear × L_eff × K (с safety_factor)
+    heat_loss_per_meter: float  # q_linear — без учёта safety_factor/location_factor
+    total_heat_loss: float  # q_linear × L_eff × K × K_location
     effective_length: float  # L + n·L_экв
     thermal_resistance: float  # м·К/Вт
     wall_resistance: NotRequired[float | None]
@@ -34,6 +34,7 @@ class PipeHeatLossResultDict(TypedDict):
     wind_speed: NotRequired[float | None]
     ground_conductivity: NotRequired[float | None]
     safety_factor: NotRequired[float | None]
+    location_factor: NotRequired[float | None]
     local_elements_count: NotRequired[int | None]
     local_element_equiv_length: NotRequired[float | None]
     surface_temperature: NotRequired[float | None]
@@ -42,8 +43,8 @@ class PipeHeatLossResultDict(TypedDict):
 class TankHeatLossResultDict(TypedDict):
     """Результат расчёта теплопотерь резервуара. Зеркало `TankHeatLossResult`."""
 
-    heat_loss_per_m2: float  # q — без учёта safety_factor
-    total_heat_loss: float  # q × S × K (с safety_factor)
+    heat_loss_per_m2: float  # q — без учёта safety_factor/location_factor
+    total_heat_loss: float  # q × S × K × K_location
     surface_area: float  # м²
     wall_resistance: NotRequired[float | None]
     insulation_resistance: NotRequired[float | None]
@@ -53,6 +54,7 @@ class TankHeatLossResultDict(TypedDict):
     wind_speed: NotRequired[float | None]
     ground_conductivity: NotRequired[float | None]
     safety_factor: NotRequired[float | None]
+    location_factor: NotRequired[float | None]
     air_surface_area: NotRequired[float | None]
     ground_surface_area: NotRequired[float | None]
     heat_loss_air_per_m2: NotRequired[float | None]
@@ -72,7 +74,9 @@ class ElectricalCalcSuccessDict(TypedDict):
     """Успешный электрорасчёт."""
 
     selected_cable: str  # марка кабеля (например "ТЛТ-25")
-    cable_length: float  # длина кабеля с 10% запасом, м
+    cable_length: float  # legacy alias: расчётная/уложенная длина кабеля, м
+    installed_cable_length: NotRequired[float]  # расчётная/уложенная длина кабеля, м
+    order_cable_length: NotRequired[float]  # длина для заказа с монтажным запасом, м
     total_power: float  # полная мощность, Вт
     current: float  # ток нагрузки, А
     voltage: float  # напряжение питания, В

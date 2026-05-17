@@ -63,7 +63,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.045,
+        0.00021
+      ],
       "conductivity_19_minus": [
         0.044,
         0.035
@@ -79,7 +82,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.049,
+        0.0002
+      ],
       "conductivity_19_minus": [
         0.048,
         0.037
@@ -95,7 +101,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.04,
+        0.00029
+      ],
       "conductivity_19_minus": [
         0.039,
         0.03
@@ -111,7 +120,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.043,
+        0.00022
+      ],
       "conductivity_19_minus": [
         0.042,
         0.031
@@ -127,7 +139,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.044,
+        0.00021
+      ],
       "conductivity_19_minus": [
         0.043,
         0.032
@@ -143,7 +158,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.052,
+        0.0002
+      ],
       "conductivity_19_minus": [
         0.051,
         0.038
@@ -159,7 +177,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.034,
+        0.0002
+      ],
       "conductivity_19_minus": [
         0.033,
         0.033
@@ -175,7 +196,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.04,
+        0.00003
+      ],
       "conductivity_19_minus": [
         0.039,
         0.029
@@ -191,7 +215,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.044,
+        0.00022
+      ],
       "conductivity_19_minus": [
         0.043,
         0.032
@@ -207,7 +234,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.049,
+        0.00021
+      ],
       "conductivity_19_minus": [
         0.048,
         0.036
@@ -223,7 +253,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.05,
+        0.0002
+      ],
       "conductivity_19_minus": [
         0.049,
         0.035
@@ -239,7 +272,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.053,
+        0.00019
+      ],
       "conductivity_19_minus": [
         0.052,
         0.038
@@ -255,7 +291,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.056,
+        0.00019
+      ],
       "conductivity_19_minus": [
         0.055,
         0.04
@@ -271,7 +310,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.04,
+        0.0003
+      ],
       "conductivity_19_minus": [
         0.039,
         0.029
@@ -287,7 +329,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.042,
+        0.00028
+      ],
       "conductivity_19_minus": [
         0.041,
         0.03
@@ -303,7 +348,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.033,
+        0.00014
+      ],
       "conductivity_19_minus": [
         0.032,
         0.024
@@ -319,7 +367,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.032,
+        0.00019
+      ],
       "conductivity_19_minus": [
         0.031,
         0.024
@@ -335,7 +386,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.052,
+        0.00012
+      ],
       "conductivity_19_minus": [
         0.051,
         0.038
@@ -351,7 +405,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.055,
+        0.00012
+      ],
       "conductivity_19_minus": [
         0.054,
         0.04
@@ -367,7 +424,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.058,
+        0.00012
+      ],
       "conductivity_19_minus": [
         0.057,
         0.042
@@ -383,7 +443,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.033,
+        0.00018
+      ],
       "conductivity_19_minus": [
         0.032,
         0.024
@@ -399,7 +462,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.036,
+        0.00018
+      ],
       "conductivity_19_minus": [
         0.035,
         0.026
@@ -415,7 +481,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.041,
+        0.00018
+      ],
       "conductivity_19_minus": [
         0.04,
         0.03
@@ -431,7 +500,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.03,
+        0.00015
+      ],
       "conductivity_19_minus": [
         0.029,
         0.024
@@ -447,7 +519,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.032,
+        0.00015
+      ],
       "conductivity_19_minus": [
         0.031,
         0.025
@@ -463,7 +538,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.037,
+        0.00015
+      ],
       "conductivity_19_minus": [
         0.036,
         0.027
@@ -524,7 +602,10 @@
         -60,
         400
       ],
-      "conductivity_20_plus": null,
+      "conductivity_20_plus": [
+        0.035,
+        0.00018
+      ],
       "conductivity_19_minus": [
         0.033,
         0.033

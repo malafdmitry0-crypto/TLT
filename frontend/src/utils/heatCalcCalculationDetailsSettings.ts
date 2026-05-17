@@ -4,6 +4,7 @@ export type HeatCalcCalculationDetailMetric =
   | 'delta_t'
   | 'applied_alpha_vnesh'
   | 'applied_safety_factor'
+  | 'applied_location_factor'
   | 'insulation_resistance'
   | 'external_resistance'
   | 'ground_resistance'
@@ -52,6 +53,7 @@ export const HEATCALC_CALCULATION_DETAIL_METRIC_OPTIONS: Array<{
   { key: 'delta_t', label: 'ΔT' },
   { key: 'applied_alpha_vnesh', label: 'α примен.' },
   { key: 'applied_safety_factor', label: 'Kзап примен.' },
+  { key: 'applied_location_factor', label: 'Kразм примен.' },
   { key: 'insulation_resistance', label: 'Rиз' },
   { key: 'external_resistance', label: 'Rвнеш/гр' },
   { key: 'ground_resistance', label: 'Rгр' },
@@ -75,6 +77,7 @@ const PRESET_METRICS: Record<
     'delta_t',
     'applied_alpha_vnesh',
     'applied_safety_factor',
+    'applied_location_factor',
     'insulation_resistance',
     'effective_length',
     'surface_area',
@@ -83,6 +86,7 @@ const PRESET_METRICS: Record<
     'delta_t',
     'applied_alpha_vnesh',
     'applied_safety_factor',
+    'applied_location_factor',
     'insulation_resistance',
     'external_resistance',
     'ground_resistance',
@@ -93,6 +97,7 @@ const PRESET_METRICS: Record<
     'delta_t',
     'applied_alpha_vnesh',
     'applied_safety_factor',
+    'applied_location_factor',
     'insulation_resistance',
     'external_resistance',
     'ground_resistance',

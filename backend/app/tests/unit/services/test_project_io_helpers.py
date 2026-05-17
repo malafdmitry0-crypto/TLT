@@ -147,6 +147,8 @@ class TestCsvFormulaInjection:
     def test_safe_csv_cell_escapes_formula_prefixes(self):
         assert _safe_csv_cell("=cmd|' /C calc'!A0") == "'=cmd|' /C calc'!A0"
         assert _safe_csv_cell(" @SUM(1,2)") == "' @SUM(1,2)"
+        assert _safe_csv_cell("-2+3") == "'-2+3"
+        assert _safe_csv_cell("+SUM(1,2)") == "'+SUM(1,2)"
         assert _safe_csv_cell("plain") == "plain"
         assert _safe_csv_cell(42) == 42
 

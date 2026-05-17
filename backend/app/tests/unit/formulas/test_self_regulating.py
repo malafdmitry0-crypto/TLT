@@ -25,24 +25,25 @@ class TestSelfRegulating:
     def test_valid_selection(self):
         r = calc_self_regulating(_params())
         assert r.selected_cable == "ТЛТ-25"
-        # BR-CABLE-02: длина кабеля = длина трубы × 1.1
-        assert r.cable_length == pytest.approx(50 * CABLE_LENGTH_FACTOR, rel=1e-3)
-        assert r.total_power == pytest.approx(25 * 50 * CABLE_LENGTH_FACTOR, rel=1e-3)
-        assert r.current == pytest.approx(25 * 50 * CABLE_LENGTH_FACTOR / 220, rel=1e-3)
+        assert r.cable_length == pytest.approx(50, rel=1e-3)
+        assert r.installed_cable_length == pytest.approx(50, rel=1e-3)
+        assert r.order_cable_length == pytest.approx(50 * CABLE_LENGTH_FACTOR, rel=1e-3)
+        assert r.total_power == pytest.approx(25 * 50, rel=1e-3)
+        assert r.current == pytest.approx(25 * 50 / 220, rel=1e-3)
 
-    def test_cable_length_has_10_percent_factor(self):
-        """BR-CABLE-02: длина кабеля должна быть на 10% больше длины трубопровода."""
+    def test_order_cable_length_has_10_percent_factor(self):
+        """BR-CABLE-02: заказная длина должна быть на 10% больше расчётной."""
         pipe_length = 100.0
         r = calc_self_regulating(_params(pipe_length=pipe_length))
-        assert r.cable_length == pytest.approx(pipe_length * CABLE_LENGTH_FACTOR, rel=1e-3)
+        assert r.cable_length == pytest.approx(pipe_length, rel=1e-3)
+        assert r.order_cable_length == pytest.approx(pipe_length * CABLE_LENGTH_FACTOR, rel=1e-3)
 
     def test_total_power_uses_cable_length_not_pipe_length(self):
-        """Суммарная мощность считается от длины кабеля (с запасом), не от длины трубы."""
+        """Суммарная мощность считается от расчётной длины кабеля без заказного запаса."""
         pipe_length = 80.0
         r = calc_self_regulating(_params(pipe_length=pipe_length))
-        cable_length = pipe_length * CABLE_LENGTH_FACTOR
         # Находим мощность кабеля через total_power / cable_length
-        power_per_meter = r.total_power / cable_length
+        power_per_meter = r.total_power / r.cable_length
         assert power_per_meter == pytest.approx(25.0, rel=1e-3)  # ТЛТ-25 = 25 Вт/м
 
     def test_auto_selection_when_mark_is_none(self):
@@ -113,7 +114,8 @@ class TestSelfRegulating:
         assert r.num_circuits == 2
         assert r.number_of_threads_source == "manual"
         assert r.requested_number_of_threads == 2
-        assert r.cable_length == pytest.approx(50 * CABLE_LENGTH_FACTOR * 2, rel=1e-3)
+        assert r.cable_length == pytest.approx(50 * 2, rel=1e-3)
+        assert r.order_cable_length == pytest.approx(50 * CABLE_LENGTH_FACTOR * 2, rel=1e-3)
 
     def test_auto_selection_can_increase_threads_when_one_thread_is_not_enough(self):
         r = calc_self_regulating(

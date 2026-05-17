@@ -31,6 +31,7 @@ describe('electricalTableColumns', () => {
       'winding_pitch_mm',
       'number_of_threads',
       'cable_length',
+      'order_cable_length',
       'total_power',
       'current',
     ]);

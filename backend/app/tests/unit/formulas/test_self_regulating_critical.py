@@ -182,19 +182,21 @@ class TestSafetyFactorBoundaries:
 
 
 class TestCableLengthFactor:
-    """BR-CABLE-02: cable_length = pipe_length × 1.1 (запас на муфты/петли).
+    """BR-CABLE-02: order_cable_length = cable_length × 1.1 (запас на муфты/петли).
     Если убрать — заказчик получит слишком короткий кабель."""
 
-    def test_cable_length_exactly_1_1_factor(self):
+    def test_order_cable_length_exactly_1_1_factor(self):
         r = calc_self_regulating(_params(pipe_length=100))
-        assert r.cable_length == pytest.approx(110.0)
+        assert r.cable_length == pytest.approx(100.0)
+        assert r.order_cable_length == pytest.approx(110.0)
 
-    def test_cable_length_for_short_pipe(self):
+    def test_order_cable_length_for_short_pipe(self):
         r = calc_self_regulating(_params(pipe_length=1))
-        assert r.cable_length == pytest.approx(1.1)
+        assert r.cable_length == pytest.approx(1.0)
+        assert r.order_cable_length == pytest.approx(1.1)
 
     def test_total_power_proportional_to_cable_length_not_pipe(self):
-        """Total power растёт с cable_length (×1.1), а не с pipe_length."""
+        """Total power растёт с расчётной длиной, а не с заказным запасом."""
         r10 = calc_self_regulating(_params(pipe_length=10))
         r20 = calc_self_regulating(_params(pipe_length=20))
         # Двойная труба → двойная мощность (та же марка кабеля)

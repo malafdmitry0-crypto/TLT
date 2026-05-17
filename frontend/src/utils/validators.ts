@@ -26,10 +26,10 @@ export const pipeParamsSchema = z.object({
 
 export const tankParamsSchema = z.object({
   shape: z.enum(['cylindrical', 'rectangular', 'spherical']),
-  diameter: z.number().min(0.0108).max(3).optional(),
-  height: z.number().min(0.5).max(200_000).optional(),
-  length: z.number().positive().optional(),
-  width: z.number().positive().optional(),
+  diameter: z.number().min(0.1).max(30).optional(),
+  height: z.number().min(0.1).max(50).optional(),
+  length: z.number().min(0.1).max(100).optional(),
+  width: z.number().min(0.1).max(100).optional(),
   insulation_thickness: z.number().min(0.001).max(0.5),
   insulation_material: z.string().min(1),
   ambient_temperature: z.number().min(-70).max(70),

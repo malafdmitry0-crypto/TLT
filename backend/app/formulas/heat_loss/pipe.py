@@ -14,6 +14,7 @@ import math
 from typing import Any
 
 from app.formulas.heat_loss.common import (
+    location_key,
     merge_coefficients,
     validate_positive,
     validate_temperature_range,
@@ -249,9 +250,10 @@ def calc_pipe_heat_loss(
 
     # --- 6. Коэффициент запаса ---
     k = params.safety_factor or merged_coeffs.get("safety_factor", 1.1)
+    location_factor = merged_coeffs.get(location_key(params.location), 1.0)
 
     # --- 7. Итоговые теплопотери ---
-    q_total = q_linear * l_eff * k
+    q_total = q_linear * l_eff * k * location_factor
 
     return PipeHeatLossResult(
         heat_loss_per_meter=round(q_linear, 3),
@@ -265,6 +267,7 @@ def calc_pipe_heat_loss(
         wind_speed=params.wind_speed,
         ground_conductivity=round(lambda_gr, 3) if lambda_gr is not None else None,
         safety_factor=round(k, 3),
+        location_factor=round(location_factor, 3),
         local_elements_count=n_i,
         local_element_equiv_length=round(l_ekv, 3),
         surface_temperature=None,

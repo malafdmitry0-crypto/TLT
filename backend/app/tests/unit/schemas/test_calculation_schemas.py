@@ -3,6 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
+from app.reference_data.loader import list_soil_conductivity
 from app.schemas.calculation import (
     InsulationLayer,
     PipeHeatLossParams,
@@ -119,6 +120,19 @@ class TestPipeHeatLossParams:
         with pytest.raises(ValidationError):
             InsulationLayer(thickness=0.05, material="other", conductivity=400.1)
 
+    def test_reference_soil_conductivity_values_are_valid(self):
+        for row in list_soil_conductivity():
+            p = PipeHeatLossParams(
+                outer_diameter=0.1,
+                insulation_thickness=0.05,
+                insulation_material="mineral_wool",
+                ambient_temperature=-30,
+                process_temperature=80,
+                pipe_length=10,
+                ground_conductivity=row["conductivity"],
+            )
+            assert p.ground_conductivity == row["conductivity"]
+
 
 class TestTankHeatLossParams:
     def test_valid_cylindrical(self):
@@ -133,24 +147,37 @@ class TestTankHeatLossParams:
         )
         assert p.shape == "cylindrical"
 
-    def test_srs_max_dimension_accepted(self):
+    def test_tank_dimension_limits_accepted(self):
         p = TankHeatLossParams(
             shape="cylindrical",
-            diameter=3.0,
-            height=200_000.0,
+            diameter=30.0,
+            height=50.0,
             insulation_thickness=0.1,
             insulation_material="mineral_wool",
             ambient_temperature=-70,
             process_temperature=600,
         )
-        assert p.diameter == 3.0
-        assert p.height == 200_000.0
+        assert p.diameter == 30.0
+        assert p.height == 50.0
+
+        rectangular = TankHeatLossParams(
+            shape="rectangular",
+            length=100.0,
+            width=100.0,
+            height=50.0,
+            insulation_thickness=0.1,
+            insulation_material="mineral_wool",
+            ambient_temperature=-70,
+            process_temperature=600,
+        )
+        assert rectangular.length == 100.0
+        assert rectangular.width == 100.0
 
     def test_too_small_dimension_rejected(self):
         with pytest.raises(ValidationError):
             TankHeatLossParams(
                 shape="cylindrical",
-                diameter=0.0107,
+                diameter=0.099,
                 height=1.0,
                 insulation_thickness=0.1,
                 insulation_material="mineral_wool",
@@ -189,6 +216,45 @@ class TestTankHeatLossParams:
         data[field] = value
         with pytest.raises(ValidationError):
             TankHeatLossParams(**data)
+
+    @pytest.mark.parametrize(
+        "field,value",
+        [
+            ("diameter", 30.1),
+            ("height", 50.1),
+            ("length", 100.1),
+            ("width", 100.1),
+        ],
+    )
+    def test_tank_dimension_limits_rejected(self, field: str, value: float):
+        data = {
+            "shape": "rectangular" if field in {"length", "width"} else "cylindrical",
+            "diameter": 2,
+            "height": 3,
+            "length": 5,
+            "width": 4,
+            "insulation_thickness": 0.1,
+            "insulation_material": "mineral_wool",
+            "ambient_temperature": -20,
+            "process_temperature": 80,
+        }
+        data[field] = value
+        with pytest.raises(ValidationError):
+            TankHeatLossParams(**data)
+
+    def test_reference_soil_conductivity_values_are_valid(self):
+        for row in list_soil_conductivity():
+            p = TankHeatLossParams(
+                shape="cylindrical",
+                diameter=2,
+                height=3,
+                insulation_thickness=0.1,
+                insulation_material="mineral_wool",
+                ambient_temperature=-20,
+                process_temperature=80,
+                ground_conductivity=row["conductivity"],
+            )
+            assert p.ground_conductivity == row["conductivity"]
 
 
 class TestSelfRegulatingParams:

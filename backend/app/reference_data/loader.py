@@ -5,6 +5,7 @@
 """
 
 import json
+from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
@@ -113,12 +114,68 @@ def get_tt_cable_by_model(model: str) -> dict[str, Any] | None:
 def get_insulation_conductivity(material: str, temperature: float) -> float:
     """Возвращает теплопроводность λ материала.
 
-    Температурная зависимость пока не применяется — возвращаем табличное значение.
+    Для расширенного справочника поддерживаются:
+    - conductivity_20_plus: число или [a, b] для формулы a + b * temperature
+    - conductivity_19_minus: [λ(-60..19), λ(<-60)] или одиночное значение
     """
     for m in _insulation():
         if m["material"] == material:
-            return float(m["conductivity"])
+            base = float(m["conductivity"])
+            if temperature >= 20:
+                return _positive_or_base(
+                    _resolve_warm_insulation_conductivity(
+                        m.get("conductivity_20_plus"), temperature
+                    ),
+                    base,
+                )
+            return _positive_or_base(
+                _resolve_cold_insulation_conductivity(
+                    m.get("conductivity_19_minus"), temperature
+                ),
+                base,
+            )
     raise ValueError(f"Неизвестный материал изоляции: {material}")
+
+
+def _positive_or_base(value: float | None, base: float) -> float:
+    return value if value is not None and value > 0 else base
+
+
+def _resolve_warm_insulation_conductivity(value: Any, temperature: float) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, int | float):
+        return float(value)
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes):
+        values = [float(v) for v in value]
+        if len(values) == 1:
+            return values[0]
+        if len(values) >= 2:
+            a, b = values[0], values[1]
+            return a + b * temperature
+    if isinstance(value, dict):
+        a = value.get("a")
+        b = value.get("b")
+        if a is not None and b is not None:
+            return float(a) + float(b) * temperature
+        constant = value.get("value")
+        if constant is not None:
+            return float(constant)
+    return None
+
+
+def _resolve_cold_insulation_conductivity(value: Any, temperature: float) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, int | float):
+        return float(value)
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes):
+        values = [float(v) for v in value]
+        if len(values) == 1:
+            return values[0]
+        if len(values) >= 2:
+            return values[0] if temperature >= -60 else values[1]
+    return None
 
 
 def get_pipe_material_lambda(material: str | None, temperature: float) -> float:

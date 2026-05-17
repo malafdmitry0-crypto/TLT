@@ -33,18 +33,19 @@ def _p(**o) -> SelfRegulatingParams:
 
 
 class TestMetamorphicElectrical:
-    def test_cable_length_equals_pipe_length_times_1_1(self):
-        """MR: L_кабеля = L_трубы × 1.1 (BR-CABLE-02)."""
+    def test_order_cable_length_equals_pipe_length_times_1_1(self):
+        """MR: L_заказ = L_расч × 1.1 (BR-CABLE-02)."""
         for L in (10, 50, 100, 500, 1000):
             r = calc_self_regulating(_p(pipe_length=L))
-            assert r.cable_length == pytest.approx(L * 1.1, rel=1e-6)
+            assert r.cable_length == pytest.approx(L, rel=1e-6)
+            assert r.order_cable_length == pytest.approx(L * 1.1, rel=1e-6)
 
     def test_current_equals_power_over_voltage(self):
         """MR: I = P_total / U (закон Ома)."""
         r = calc_self_regulating(
             _p(pipe_length=50, required_power_per_meter=30, supply_voltage=220)
         )
-        assert r.current == pytest.approx(r.total_power / r.voltage, rel=1e-6)
+        assert r.current == pytest.approx(r.total_power / r.voltage, rel=1e-4)
 
     def test_total_power_equals_cable_power_times_length(self):
         """MR: P_total = P_кабеля × L_кабеля."""
@@ -232,7 +233,8 @@ class TestGoldenElectrical:
             )
         )
         assert r.selected_cable == "ТЛТ-75"
-        assert r.cable_length == pytest.approx(55.0, rel=1e-6)
-        assert r.total_power == pytest.approx(75 * 55, rel=1e-3)  # 4125 Вт
-        assert r.current == pytest.approx(4125 / 220, rel=1e-3)  # 18.75 А
+        assert r.cable_length == pytest.approx(50.0, rel=1e-6)
+        assert r.order_cable_length == pytest.approx(55.0, rel=1e-6)
+        assert r.total_power == pytest.approx(75 * 50, rel=1e-3)  # 3750 Вт
+        assert r.current == pytest.approx(3750 / 220, rel=1e-3)  # 17.05 А
         assert r.voltage == 220

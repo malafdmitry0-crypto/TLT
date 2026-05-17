@@ -646,9 +646,14 @@ function CalcResult({ result, type }: { result: Record<string, unknown>; type: s
         <Descriptions.Item label="Выбранный кабель">
           <Text strong style={{ color: '#fa8c16', fontSize: 16 }}>{String(result.selected_cable)}</Text>
         </Descriptions.Item>
-        <Descriptions.Item label={<><V c={C.geom}>L</V><sub>кабеля</sub> — длина, м</>}>
+        <Descriptions.Item label={<><V c={C.geom}>L</V><sub>кабеля</sub> — расчётная длина, м</>}>
           {Number(result.cable_length).toFixed(1)}
         </Descriptions.Item>
+        {result.order_cable_length != null && (
+          <Descriptions.Item label={<><V c={C.geom}>L</V><sub>заказ</sub> — длина для заказа, м</>}>
+            {Number(result.order_cable_length).toFixed(1)}
+          </Descriptions.Item>
+        )}
         <Descriptions.Item label={<><V c={C.result} bold>P</V> — суммарная мощность, Вт</>}>
           <Text strong>{Number(result.total_power).toFixed(0)}</Text>
         </Descriptions.Item>
@@ -834,7 +839,7 @@ function PipeTab() {
             </Col>
             <Col span={8}>
               <Form.Item name="ground_conductivity" label="λ грунта">
-                <InputNumber min={0.8} max={3} style={{ width: '100%' }} placeholder="1.5" />
+                <InputNumber min={0.5} max={3} style={{ width: '100%' }} placeholder="1.5" />
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -962,13 +967,13 @@ function TankTab() {
             <Row gutter={12}>
               <Col span={12}>
                 <Form.Item name="diameter_mm" label="Диаметр, мм" rules={[{ required: true }]}>
-                  <InputNumber min={11} max={3000} style={{ width: '100%' }} placeholder="2000" />
+                  <InputNumber min={100} max={30000} style={{ width: '100%' }} placeholder="2000" />
                 </Form.Item>
               </Col>
               {shape === 'cylindrical' && (
                 <Col span={12}>
                   <Form.Item name="height_mm" label="Высота, мм" rules={[{ required: true }]}>
-                    <InputNumber min={500} max={200000} style={{ width: '100%' }} placeholder="3000" />
+                    <InputNumber min={100} max={50000} style={{ width: '100%' }} placeholder="3000" />
                   </Form.Item>
                 </Col>
               )}
@@ -978,17 +983,17 @@ function TankTab() {
             <Row gutter={12}>
               <Col span={8}>
                 <Form.Item name="length_mm" label="Длина, мм" rules={[{ required: true }]}>
-                  <InputNumber min={1} style={{ width: '100%' }} placeholder="5000" />
+                  <InputNumber min={100} max={100000} style={{ width: '100%' }} placeholder="5000" />
                 </Form.Item>
               </Col>
               <Col span={8}>
                 <Form.Item name="width_mm" label="Ширина, мм" rules={[{ required: true }]}>
-                  <InputNumber min={1} style={{ width: '100%' }} placeholder="3000" />
+                  <InputNumber min={100} max={100000} style={{ width: '100%' }} placeholder="3000" />
                 </Form.Item>
               </Col>
               <Col span={8}>
                 <Form.Item name="height_mm" label="Высота, мм" rules={[{ required: true }]}>
-                  <InputNumber min={1} style={{ width: '100%' }} placeholder="4000" />
+                  <InputNumber min={100} max={50000} style={{ width: '100%' }} placeholder="4000" />
                 </Form.Item>
               </Col>
             </Row>
@@ -1071,7 +1076,7 @@ function TankTab() {
             </Col>
             <Col span={12}>
               <Form.Item name="ground_conductivity" label="λ грунта">
-                <InputNumber min={0.8} max={3} style={{ width: '100%' }} placeholder="1.5" />
+                <InputNumber min={0.5} max={3} style={{ width: '100%' }} placeholder="1.5" />
               </Form.Item>
             </Col>
           </Row>
@@ -1245,12 +1250,12 @@ function TTTab() {
             <Col span={12}><Form.Item name="tank_shape" label="Геометрия резервуара"><Select allowClear placeholder="не использовать"><Select.Option value="cylindrical">Цилиндр</Select.Option><Select.Option value="rectangular">Параллелепипед</Select.Option></Select></Form.Item></Col>
           </Row>
           {tankShape === 'cylindrical' && (
-            <Form.Item name="tank_diameter_mm" label="Диаметр резервуара, мм" rules={[{ required: true }]}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item name="tank_diameter_mm" label="Диаметр резервуара, мм" rules={[{ required: true }]}><InputNumber min={100} max={30000} style={{ width: '100%' }} /></Form.Item>
           )}
           {tankShape === 'rectangular' && (
             <Row gutter={12}>
-              <Col span={12}><Form.Item name="tank_length_mm" label="Длина резервуара, мм" rules={[{ required: true }]}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
-              <Col span={12}><Form.Item name="tank_width_mm" label="Ширина резервуара, мм" rules={[{ required: true }]}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="tank_length_mm" label="Длина резервуара, мм" rules={[{ required: true }]}><InputNumber min={100} max={100000} style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="tank_width_mm" label="Ширина резервуара, мм" rules={[{ required: true }]}><InputNumber min={100} max={100000} style={{ width: '100%' }} /></Form.Item></Col>
             </Row>
           )}
           {tankShape && (
@@ -1352,11 +1357,11 @@ function ResistiveTab() {
               <Select.Option value="rectangular">Параллелепипед</Select.Option>
             </Select>
           </Form.Item>
-          {tankShape === 'cylindrical' && <Form.Item name="tank_diameter_mm" label="Диаметр резервуара, мм" rules={[{ required: true }]}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>}
+          {tankShape === 'cylindrical' && <Form.Item name="tank_diameter_mm" label="Диаметр резервуара, мм" rules={[{ required: true }]}><InputNumber min={100} max={30000} style={{ width: '100%' }} /></Form.Item>}
           {tankShape === 'rectangular' && (
             <Row gutter={12}>
-              <Col span={12}><Form.Item name="tank_length_mm" label="Длина резервуара, мм" rules={[{ required: true }]}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
-              <Col span={12}><Form.Item name="tank_width_mm" label="Ширина резервуара, мм" rules={[{ required: true }]}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="tank_length_mm" label="Длина резервуара, мм" rules={[{ required: true }]}><InputNumber min={100} max={100000} style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="tank_width_mm" label="Ширина резервуара, мм" rules={[{ required: true }]}><InputNumber min={100} max={100000} style={{ width: '100%' }} /></Form.Item></Col>
             </Row>
           )}
           {tankShape && (

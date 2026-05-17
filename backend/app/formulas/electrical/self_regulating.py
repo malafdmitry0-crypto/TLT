@@ -4,6 +4,7 @@ import math
 from typing import Any
 
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
+from app.formulas.electrical.common import cable_order_length
 from app.reference_data.loader import get_tlt_cable_by_mark, list_tlt_cables, list_tt_cables
 from app.schemas.calculation import (
     SelfRegulatingParams,
@@ -14,7 +15,6 @@ from app.schemas.calculation import (
 
 CableRow = dict[str, Any]
 MAX_SELF_REG_AUTO_THREADS = 3
-CABLE_LENGTH_FACTOR = 1.1
 SELECTION_POLICIES = {
     "technical_minimum",
     "lowest_cost",
@@ -53,7 +53,7 @@ def _normal_policy(value: Any) -> str:
 
 
 def _candidate_length(params: SelfRegulatingParams, threads: int) -> float:
-    return params.pipe_length * CABLE_LENGTH_FACTOR * params.winding_coefficient * threads
+    return params.pipe_length * params.winding_coefficient * threads
 
 
 def _technical_key(item: tuple[int, CableRow]) -> tuple[float, float, float, str]:
@@ -70,13 +70,14 @@ def _non_discontinued(candidates: list[tuple[int, CableRow]]) -> list[tuple[int,
 def _order_lengths(
     params: SelfRegulatingParams, threads: int, cable: CableRow
 ) -> tuple[float, float]:
-    cable_length = _candidate_length(params, threads)
+    installed_length = _candidate_length(params, threads)
+    order_length = cable_order_length(installed_length)
     order_multiple = _numeric(cable.get("order_multiple_m")) or 1.0
     if order_multiple <= 0:
         order_multiple = 1.0
     min_order_quantity = _numeric(cable.get("min_order_quantity_m")) or 0.0
-    rounded_length = math.ceil(max(cable_length - 1e-9, 0.0) / order_multiple) * order_multiple
-    return cable_length, max(rounded_length, min_order_quantity)
+    rounded_length = math.ceil(max(order_length - 1e-9, 0.0) / order_multiple) * order_multiple
+    return order_length, max(rounded_length, min_order_quantity)
 
 
 def _total_cost(params: SelfRegulatingParams, threads: int, cable: CableRow) -> float | None:
@@ -139,13 +140,16 @@ def _commercial_snapshot(
 ) -> dict[str, Any] | None:
     if not _has_commercial_data(cable):
         return None
-    cable_length, required_order_length = _order_lengths(params, threads, cable)
+    order_length, required_order_length = _order_lengths(params, threads, cable)
+    installed_length = _candidate_length(params, threads)
     price = _numeric(cable.get("price_per_meter"))
     return {
         "price_per_meter": price,
         "currency": cable.get("currency") or "RUB",
         "required_order_length": round(required_order_length, 3),
-        "raw_required_length": round(cable_length, 3),
+        "raw_required_length": round(order_length, 3),
+        "installed_cable_length": round(installed_length, 3),
+        "order_cable_length": round(order_length, 3),
         "total_cost": round(required_order_length * price, 2) if price is not None else None,
         "stock_quantity_m": _numeric(cable.get("stock_quantity_m")),
         "stock_status": _stock_status(cable),
@@ -372,8 +376,9 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
            min_temperature ≤ T_ambient, max_temperature ≥ T_process).
         3. Если cable_mark задан — проверяется, что кабель подходит по всем
            критериям; иначе ValueError с указанием конкретного нарушения.
-        4. cable_length = pipe_length × 1.1 (запас 10% на муфты/петли, BR-CABLE-02)
-        5. total_power = P_cable × cable_length
+        4. cable_length = pipe_length × коэффициент укладки
+        5. order_cable_length = cable_length × 1.1 (запас 10% на муфты/петли, BR-CABLE-02)
+        6. total_power = P_cable × cable_length
         6. current = total_power / supply_voltage (P = U·I; cos φ ≈ 1 для резистивной нагрузки)
 
     Args:
@@ -496,13 +501,16 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
             f"допустимую для кабеля {cable['model']} ({cable['max_temperature']}°C)"
         )
 
-    cable_length = params.pipe_length * CABLE_LENGTH_FACTOR * layout_factor
+    cable_length = params.pipe_length * layout_factor
+    order_cable_length = cable_order_length(cable_length)
     total_power = cable["power_per_meter"] * cable_length
     current = total_power / params.supply_voltage
 
     return SelfRegulatingResult(
         selected_cable=cable["model"],
         cable_length=round(cable_length, 3),
+        installed_cable_length=round(cable_length, 3),
+        order_cable_length=round(order_cable_length, 3),
         total_power=round(total_power, 3),
         current=round(current, 3),
         voltage=params.supply_voltage,
@@ -654,6 +662,7 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
     else:
         base_length = params.pipe_length
     cable_length = base_length * params.winding_coefficient * num_circuits
+    order_cable_length = cable_order_length(cable_length)
     total_power = q_b * cable_length
 
     return SelfRegulatingTTResult(
@@ -661,6 +670,8 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
         cable_mark=cable_mark,
         series=series,
         cable_length=round(cable_length, 3),
+        installed_cable_length=round(cable_length, 3),
+        order_cable_length=round(order_cable_length, 3),
         num_circuits=num_circuits,
         power_per_meter=round(q_b, 3),
         total_power=round(total_power, 3),

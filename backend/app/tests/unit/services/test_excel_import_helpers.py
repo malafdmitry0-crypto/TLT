@@ -27,6 +27,7 @@ from app.services.excel_import_service import (
     _resolve_shape,
     _to_float,
     _validate_xlsx_archive,
+    build_objects_xlsx,
     build_template_csv,
     build_template_xlsx,
     import_objects_from_csv,
@@ -60,6 +61,35 @@ class TestXlsxArchiveGuard:
 
         with pytest.raises(ExcelImportError, match="распаковки"):
             _validate_xlsx_archive(buf.getvalue())
+
+
+class TestBuildObjectsXlsxSafety:
+    def test_dangerous_object_strings_are_not_exported_as_formulas(self):
+        from types import SimpleNamespace
+
+        from openpyxl import load_workbook
+
+        obj = SimpleNamespace(
+            object_type="pipe",
+            params={
+                "name": '=HYPERLINK("http://example.test","x")',
+                "outer_diameter": 0.108,
+                "pipe_length": 10,
+                "insulation_thickness": 0.05,
+                "insulation_material": "+SUM(1,1)",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "vapor_temperature": "@cmd",
+            },
+        )
+
+        wb = load_workbook(io.BytesIO(build_objects_xlsx([obj])), data_only=False)
+        ws = wb["Трубопроводы"]
+
+        for cell_ref in ("A2", "E2", "H2"):
+            cell = ws[cell_ref]
+            assert cell.data_type == "s"
+            assert str(cell.value).startswith("'")
 
 
 class TestToFloat:

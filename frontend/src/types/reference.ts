@@ -26,7 +26,7 @@ export interface InsulationEntry {
   conductivity: number;
   temperature_range?: [number, number];
   density_kg_m3?: number | string;
-  conductivity_20_plus?: number | null;
+  conductivity_20_plus?: number | [number, number] | { a: number; b: number } | null;
   conductivity_19_minus?: number[] | null;
   source?: string;
 }

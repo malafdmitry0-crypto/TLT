@@ -323,6 +323,23 @@ function resultNumber(calc: ElectricalCalcSummary | undefined, key: string, digi
   return numberText(calc?.results?.[key], digits);
 }
 
+function orderCableLengthValue(calc: ElectricalCalcSummary | undefined) {
+  if (!calc?.results) return undefined;
+  const explicitRaw = calc.results.order_cable_length;
+  if (explicitRaw !== null && explicitRaw !== undefined && explicitRaw !== '') {
+    const explicitLength = Number(explicitRaw);
+    if (Number.isFinite(explicitLength)) return explicitLength;
+  }
+  if (calc.results.cable_length === null || calc.results.cable_length === undefined) {
+    return undefined;
+  }
+  const cableLength = Number(calc.results.cable_length);
+  if (!Number.isFinite(cableLength)) return undefined;
+  return ['self_regulating_tt', 'single_core', 'three_core'].includes(calc?.cable_type ?? '')
+    ? cableLength * 1.1
+    : cableLength;
+}
+
 function commercialValue(calc: ElectricalCalcSummary | undefined, key: string) {
   const commercial = calc?.results?.commercial;
   if (typeof commercial !== 'object' || commercial === null || Array.isArray(commercial)) return undefined;
@@ -359,7 +376,9 @@ function filterKindForElectricalColumn(
     }
     return 'text';
   }
-  if (['cable_length', 'total_power', 'current', 'voltage'].includes(key)) return 'numberRange';
+  if (['cable_length', 'order_cable_length', 'total_power', 'current', 'voltage'].includes(key)) {
+    return 'numberRange';
+  }
   if (['electrical_status', 'object_type', 'heat_loss_status', 'cable_type'].includes(key)) {
     return 'enum';
   }
@@ -1604,6 +1623,11 @@ export default function ElecCalcPage() {
       align: 'right',
       render: (_: unknown, obj) => resultNumber(stats.calcByObjectId[obj.id], 'cable_length', 1),
     },
+    order_cable_length: {
+      align: 'right',
+      render: (_: unknown, obj) =>
+        numberText(orderCableLengthValue(stats.calcByObjectId[obj.id]), 1),
+    },
     total_power: {
       align: 'right',
       render: (_: unknown, obj) =>
@@ -1885,6 +1909,8 @@ export default function ElecCalcPage() {
       case 'maintain_temperature':
       case 'aggressive_product':
         return valueText(calc?.params?.[key]);
+      case 'order_cable_length':
+        return valueText(orderCableLengthValue(calc));
       case 'cable_length':
       case 'total_power':
       case 'current':

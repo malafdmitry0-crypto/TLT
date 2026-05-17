@@ -73,8 +73,13 @@ const COLUMN_DETAIL_BADGES: Record<ElectricalColumnKey, ColumnDetailBadge> = {
     tone: 'applied',
   },
   cable_length: {
-    label: 'Итог',
-    tooltip: 'Итоговая длина кабеля из результата электрорасчёта',
+    label: 'Расчёт',
+    tooltip: 'Расчётная/уложенная длина кабеля для мощности и тока',
+    tone: 'result',
+  },
+  order_cable_length: {
+    label: 'Заказ',
+    tooltip: 'Длина для спецификации и закупки с монтажным запасом 10%',
     tone: 'result',
   },
   total_power: {

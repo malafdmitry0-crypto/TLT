@@ -100,11 +100,13 @@ alpha = 11.6 + 7.0 * math.sqrt(v)    # корень из скорости
 Код в `calc_self_regulating` учитывает:
 ```python
 layout_factor = winding_coefficient * number_of_threads
-cable_length = pipe_length * 1.1 * layout_factor
+cable_length = pipe_length * layout_factor
+order_cable_length = cable_length * 1.1
 ```
 
 Документация в разделе «Шаг 4.3 — Длина кабеля» показывает упрощённую формулу
-`L_кабеля = L_трубы × 1,1` без упоминания коэффициента навива и многожильности.
+`L_кабеля = L_трубы × 1,1` без разделения расчётной и заказной длины, а также
+без упоминания коэффициента навива и многожильности.
 
 **Влияние:** низкое — формула в документе верна для базового случая
 (прямая укладка, 1 нитка), но неполна.
@@ -153,7 +155,7 @@ cable_length = pipe_length * 1.1 * layout_factor
 | Автоподбор: min P≥P_треб, T_min≤T_ср, T_max≥T_прод | Фильтр кандидатов по мощности, T_min, T_max | ✅ |
 | Auto-нитки для ТЛТ | Если нитки не заданы, перебор `N=1..3`; если заданы — уважать ручное значение | ✅ |
 | Source metadata ниток | `requested_number_of_threads`, `applied_number_of_threads`, `number_of_threads_source` | ✅ |
-| L_кабеля = L_баз × 1,1 × k_навива × N | `pipe_length * 1.1 * layout_factor`; для резервуара L_баз из геометрии укладки | ✅ |
+| L_расч = L_баз × k_навива × N; L_заказ = L_расч × 1,1 | `cable_length = pipe_length * layout_factor`, `order_cable_length = cable_length * 1.1`; для резервуара L_баз из геометрии укладки | ✅ |
 | P_total = P_кабеля × L_кабеля | `power_per_meter * cable_length` | ✅ |
 | I = P_total / U | `total_power / supply_voltage` | ✅ |
 
