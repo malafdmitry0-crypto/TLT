@@ -2236,7 +2236,12 @@ export default function HeatCalcPage() {
         showSorterTooltip: false,
         filtered: isColumnFilterActive(activeFilter),
         filterIcon: filterEnabled ? () => (
-          <span role="button" aria-label={`Фильтр ${meta.label}`} className="table-filter-trigger">
+          <span
+            role="button"
+            aria-label={`Фильтр ${meta.label}`}
+            className="table-filter-trigger"
+            style={{ pointerEvents: 'auto' }}
+          >
             <FilterFilled
               className={isColumnFilterActive(activeFilter) ? 'table-filter-icon active' : 'table-filter-icon'}
             />
@@ -2687,7 +2692,10 @@ export default function HeatCalcPage() {
                 </Button>
               </span>
             </Tooltip>
-            <ImportExcelButton projectId={project!.id} />
+            <ImportExcelButton
+              projectId={project!.id}
+              existingObjectCount={projectObjectCount}
+            />
             {role === 'employee' && (
               <ExportObjectsButton
                 projectId={project!.id}

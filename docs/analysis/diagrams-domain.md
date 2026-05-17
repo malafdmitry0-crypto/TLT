@@ -14,7 +14,9 @@
 - Пользователь и гость — разные таблицы. `User.role ∈ {employee, admin}`. Гость = запись в `guest_sessions`; проект привязывается либо к `projects.user_id`, либо к `projects.session_id` (CHECK: одно из двух не NULL).
 - Результаты теплотехнического расчёта хранятся **внутри** `project_objects.results` (JSONB). Отдельной таблицы `calculations` нет — это сознательный трейдофф: для текущей модели достаточно последнего снимка результата.
 - Электротехнический расчёт — отдельная таблица `electrical_calculations`, поскольку поддерживаются несколько вариантов на объект (`variant_number`). Upsert по `(object_id, variant_number)`.
-- При ошибке электрорасчёта запись всё равно создаётся: `cable_mark = NULL`, `results = {"error": "..."}` — чтобы причина была видна после reload.
+- При ошибке электрорасчёта запись всё равно создаётся: `cable_mark = NULL`,
+  `results = {"error_code": "...", "category": "...", "message": "..."}` —
+  чтобы причина была видна после reload.
 - `specifications` сохраняет полный JSON со списком позиций, что позволяет регенерировать отчёты без повторного обхода объектов.
 
 ```mermaid
@@ -68,7 +70,7 @@ erDiagram
         varchar cable_type "self_regulating|..."
         varchar cable_mark "NULL при ошибке"
         jsonb params
-        jsonb results "selected_cable, cable_length, total_power, error"
+        jsonb results "selected_cable, cable_length, total_power, error_code, category, message"
         timestamp created_at
         timestamp updated_at
     }
@@ -434,7 +436,7 @@ stateDiagram-v2
     note right of INVALID
         calculations.id может быть null
         is_valid = false
-        В raw_result: error message
+        В raw_result: error_code/category/message
     end note
 
     note right of STALE

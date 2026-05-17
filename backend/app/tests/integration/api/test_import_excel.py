@@ -426,6 +426,96 @@ class TestCsvImport:
         assert body["errors"] == []
         assert body["heat_loss_task"]["type"] == "heat_loss_batch"
 
+    async def test_csv_import_default_merge_skips_repeated_file(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _create_project(client, guest_session)
+        csv_body = (
+            "Тип;Наименование;Диаметр, мм;Длина, м;Толщина изоляции, мм;"
+            "Материал изоляции;T° среды;T° продукта\n"
+            "труба;Повтор;108;50;50;Минеральная вата;-20;80\n"
+        ).encode()
+        headers = {"X-Session-Id": guest_session}
+
+        first = await client.post(
+            f"/api/v1/projects/{pid}/objects/import-excel",
+            files={"file": ("t.csv", csv_body, "text/csv")},
+            headers=headers,
+        )
+        assert first.status_code == 200, first.text
+        assert first.json()["created"] == 1
+
+        second = await client.post(
+            f"/api/v1/projects/{pid}/objects/import-excel",
+            files={"file": ("t.csv", csv_body, "text/csv")},
+            headers=headers,
+        )
+        assert second.status_code == 200, second.text
+        second_body = second.json()
+        assert second_body["created"] == 0
+        assert second_body["skipped_duplicates"] == 1
+
+        objs = (await client.get(f"/api/v1/projects/{pid}/objects", headers=headers)).json()
+        assert len(objs) == 1
+
+    async def test_csv_import_append_mode_keeps_explicit_copies(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _create_project(client, guest_session)
+        csv_body = (
+            "Тип;Наименование;Диаметр, мм;Длина, м;Толщина изоляции, мм;"
+            "Материал изоляции;T° среды;T° продукта\n"
+            "труба;Копия;108;50;50;Минеральная вата;-20;80\n"
+        ).encode()
+        headers = {"X-Session-Id": guest_session}
+        for _ in range(2):
+            resp = await client.post(
+                f"/api/v1/projects/{pid}/objects/import-excel",
+                data={"mode": "append"},
+                files={"file": ("t.csv", csv_body, "text/csv")},
+                headers=headers,
+            )
+            assert resp.status_code == 200, resp.text
+            assert resp.json()["created"] == 1
+
+        objs = (await client.get(f"/api/v1/projects/{pid}/objects", headers=headers)).json()
+        assert len(objs) == 2
+
+    async def test_csv_import_replace_mode_replaces_project_objects(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _create_project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        first_csv = (
+            "Тип;Наименование;Диаметр, мм;Длина, м;Толщина изоляции, мм;"
+            "Материал изоляции;T° среды;T° продукта\n"
+            "труба;Старая;108;50;50;Минеральная вата;-20;80\n"
+            "труба;Ещё старая;57;15;30;Минеральная вата;-10;50\n"
+        ).encode()
+        replace_csv = (
+            "Тип;Наименование;Диаметр, мм;Длина, м;Толщина изоляции, мм;"
+            "Материал изоляции;T° среды;T° продукта\n"
+            "труба;Новая;159;30;50;Минеральная вата;-20;80\n"
+        ).encode()
+
+        await client.post(
+            f"/api/v1/projects/{pid}/objects/import-excel",
+            data={"mode": "append"},
+            files={"file": ("old.csv", first_csv, "text/csv")},
+            headers=headers,
+        )
+        replaced = await client.post(
+            f"/api/v1/projects/{pid}/objects/import-excel",
+            data={"mode": "replace"},
+            files={"file": ("new.csv", replace_csv, "text/csv")},
+            headers=headers,
+        )
+        assert replaced.status_code == 200, replaced.text
+        assert replaced.json()["created"] == 1
+
+        objs = (await client.get(f"/api/v1/projects/{pid}/objects", headers=headers)).json()
+        assert [obj["params"]["name"] for obj in objs] == ["Новая"]
+
     async def test_csv_requires_type_column(self, client: AsyncClient, guest_session: str):
         pid = await _create_project(client, guest_session)
         csv_body = b"Name;Diameter\nfoo;108\n"

@@ -120,8 +120,6 @@ export function heatLossErrorText(record: ProjectObject) {
   if (typeof errors === 'object' && errors !== null) {
     const message = (errors as { message?: unknown }).message;
     if (typeof message === 'string' && message.trim()) return message;
-    const error = (errors as { error?: unknown }).error;
-    if (error != null) return String(error);
   }
   return JSON.stringify(errors);
 }

@@ -1,6 +1,10 @@
 import apiClient from './client';
 import type {
+  AccessoryExtended,
+  AccessoryExtendedPayload,
   AdminUser,
+  CableExtended,
+  CableExtendedPayload,
   Coefficient,
   CreateAdminUserRequest,
 } from '@/types/admin';
@@ -53,4 +57,50 @@ export async function checkFormula(
     params,
   });
   return data;
+}
+
+export async function listAdminCables(): Promise<CableExtended[]> {
+  const { data } = await apiClient.get<CableExtended[]>('/admin/cables');
+  return data;
+}
+
+export async function createAdminCable(payload: CableExtendedPayload): Promise<CableExtended> {
+  const { data } = await apiClient.post<CableExtended>('/admin/cables', payload);
+  return data;
+}
+
+export async function updateAdminCable(
+  id: string,
+  payload: Partial<CableExtendedPayload>
+): Promise<CableExtended> {
+  const { data } = await apiClient.put<CableExtended>(`/admin/cables/${id}`, payload);
+  return data;
+}
+
+export async function deleteAdminCable(id: string): Promise<void> {
+  await apiClient.delete(`/admin/cables/${id}`);
+}
+
+export async function listAdminAccessories(): Promise<AccessoryExtended[]> {
+  const { data } = await apiClient.get<AccessoryExtended[]>('/admin/accessories');
+  return data;
+}
+
+export async function createAdminAccessory(
+  payload: AccessoryExtendedPayload
+): Promise<AccessoryExtended> {
+  const { data } = await apiClient.post<AccessoryExtended>('/admin/accessories', payload);
+  return data;
+}
+
+export async function updateAdminAccessory(
+  id: string,
+  payload: Partial<AccessoryExtendedPayload>
+): Promise<AccessoryExtended> {
+  const { data } = await apiClient.put<AccessoryExtended>(`/admin/accessories/${id}`, payload);
+  return data;
+}
+
+export async function deleteAdminAccessory(id: string): Promise<void> {
+  await apiClient.delete(`/admin/accessories/${id}`);
 }

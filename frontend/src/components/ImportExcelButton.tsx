@@ -6,6 +6,7 @@ import { getCalcTask } from '@/api/calculations';
 import {
   downloadImportTemplate,
   importObjectsExcel,
+  type ImportMode,
   type ImportResult,
 } from '@/api/projects';
 import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
@@ -14,11 +15,13 @@ const { Text } = Typography;
 
 interface Props {
   projectId: string;
+  existingObjectCount: number;
 }
 
-export default function ImportExcelButton({ projectId }: Props) {
+export default function ImportExcelButton({ projectId, existingObjectCount }: Props) {
   const qc = useQueryClient();
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -52,7 +55,8 @@ export default function ImportExcelButton({ projectId }: Props) {
   }, [activeTask, projectId, qc]);
 
   const importMut = useMutation({
-    mutationFn: (file: File) => importObjectsExcel(projectId, file),
+    mutationFn: ({ file, mode }: { file: File; mode: ImportMode }) =>
+      importObjectsExcel(projectId, file, mode),
     onSuccess: (res) => {
       setResult(res);
       qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'query'] });
@@ -63,7 +67,10 @@ export default function ImportExcelButton({ projectId }: Props) {
         message.info('Пересчёт теплопотерь поставлен в очередь');
       }
       if (res.errors.length === 0) {
-        message.success(`Импортировано объектов: ${res.created}`);
+        const skippedText = res.skipped_duplicates
+          ? `, дублей пропущено: ${res.skipped_duplicates}`
+          : '';
+        message.success(`Импортировано объектов: ${res.created}${skippedText}`);
       } else {
         message.warning(
           `Импортировано: ${res.created}. Ошибок: ${res.errors.length}`
@@ -84,7 +91,18 @@ export default function ImportExcelButton({ projectId }: Props) {
       message.error('Нужен файл .xlsx или .csv');
       return;
     }
-    importMut.mutate(file);
+    if (existingObjectCount > 0) {
+      setPendingFile(file);
+      return;
+    }
+    importMut.mutate({ file, mode: 'merge' });
+  };
+
+  const runImport = (mode: ImportMode) => {
+    if (!pendingFile) return;
+    const file = pendingFile;
+    setPendingFile(null);
+    importMut.mutate({ file, mode });
   };
 
   const downloadTemplate = async (format: 'xlsx' | 'csv') => {
@@ -150,6 +168,32 @@ export default function ImportExcelButton({ projectId }: Props) {
       />
 
       <Modal
+        open={!!pendingFile}
+        title="Импорт в непустой проект"
+        onCancel={() => setPendingFile(null)}
+        footer={[
+          <Button key="cancel" onClick={() => setPendingFile(null)}>
+            Отмена
+          </Button>,
+          <Button key="append" onClick={() => runImport('append')}>
+            Добавить
+          </Button>,
+          <Button key="replace" danger onClick={() => runImport('replace')}>
+            Заменить
+          </Button>,
+          <Button key="merge" type="primary" onClick={() => runImport('merge')}>
+            Объединить
+          </Button>,
+        ]}
+      >
+        <p>
+          В проекте уже есть {existingObjectCount} объектов. Файл{' '}
+          <Text code>{pendingFile?.name}</Text> можно объединить с текущими объектами,
+          добавить как новые строки или заменить текущий список объектов.
+        </p>
+      </Modal>
+
+      <Modal
         open={!!result}
         title="Результат импорта"
         onCancel={() => setResult(null)}
@@ -164,6 +208,12 @@ export default function ImportExcelButton({ projectId }: Props) {
               <Text strong>Создано объектов: </Text>
               <Text style={{ color: '#52c41a' }}>{result.created}</Text>
             </p>
+            {result.skipped_duplicates > 0 && (
+              <p>
+                <Text strong>Пропущено дублей: </Text>
+                <Text type="secondary">{result.skipped_duplicates}</Text>
+              </p>
+            )}
             {result.heat_loss_task && (
               <p>
                 <Text type="secondary">Пересчёт теплопотерь поставлен в очередь.</Text>
@@ -193,9 +243,11 @@ export default function ImportExcelButton({ projectId }: Props) {
                 </div>
               </>
             )}
-            {result.created > 0 && result.errors.length === 0 && (
-              <Text type="secondary">Все строки импортированы без ошибок ✓</Text>
-            )}
+            {result.created > 0 &&
+              result.errors.length === 0 &&
+              result.skipped_duplicates === 0 && (
+                <Text type="secondary">Все строки импортированы без ошибок ✓</Text>
+              )}
           </>
         )}
       </Modal>

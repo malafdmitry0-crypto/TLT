@@ -32,6 +32,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
+from app.formulas.electrical.commercial import (
+    BalancedRankingConfig,
+    CommercialCandidate,
+    commercial_snapshot,
+    normal_policy,
+    select_commercial_candidate,
+)
 from app.formulas.electrical.common import cable_order_length
 from app.reference_data.loader import list_resistive_cables
 from app.schemas.calculation import (
@@ -65,6 +72,7 @@ class _AutoSchemeMetrics:
     section_length: float
     l1_m: float | None
     l2_m: float | None
+    stage_rank: int = 0
 
 
 def _rho_t(process_temperature: float) -> float:
@@ -315,6 +323,7 @@ def _auto_scheme_metrics(
     cable_kind: str,
     max_current_a: float,
     max_linear_power_w_m: float | None,
+    stage_rank: int = 0,
 ) -> _AutoSchemeMetrics:
     if section_length <= 0 or object_length <= 0:
         raise ValueError("Длина участка должна быть положительной")
@@ -367,11 +376,60 @@ def _auto_scheme_metrics(
         section_length=section_length,
         l1_m=l1_m,
         l2_m=l2_m,
+        stage_rank=stage_rank,
     )
 
 
 def _within_p3(metrics: _AutoSchemeMetrics) -> bool:
     return metrics.p2_w_m <= metrics.p3_w_m + 1e-9
+
+
+def _collect_auto_loop(
+    catalog: list[dict[str, Any]],
+    *,
+    object_length: float,
+    section_length: float,
+    required_linear_power: float,
+    voltage: float,
+    schemes: int,
+    cable_kind: str,
+    max_current_a: float,
+    max_linear_power_w_m: float | None,
+    can_reduce_voltage: bool,
+    min_adjusted_voltage: float,
+    voltage_step: float,
+    stage_rank: int,
+) -> list[_AutoSchemeMetrics]:
+    current_voltage = voltage
+    while current_voltage >= min_adjusted_voltage - 1e-9:
+        reduce_voltage = False
+        valid: list[_AutoSchemeMetrics] = []
+        for index, cable in enumerate(catalog):
+            metrics = _auto_scheme_metrics(
+                cable,
+                object_length=object_length,
+                section_length=section_length,
+                voltage=current_voltage,
+                threads=2,
+                schemes=schemes,
+                cable_kind=cable_kind,
+                max_current_a=max_current_a,
+                max_linear_power_w_m=max_linear_power_w_m,
+                stage_rank=stage_rank,
+            )
+            if not _within_p3(metrics):
+                if index == 0 and can_reduce_voltage:
+                    reduce_voltage = True
+                    break
+                continue
+            if metrics.linear_power_w_m >= required_linear_power:
+                valid.append(metrics)
+        if valid:
+            return valid
+        if not reduce_voltage:
+            return []
+        current_voltage -= voltage_step
+    return []
 
 
 def _try_auto_loop(
@@ -388,33 +446,56 @@ def _try_auto_loop(
     can_reduce_voltage: bool,
     min_adjusted_voltage: float,
     voltage_step: float,
+    stage_rank: int,
 ) -> _AutoSchemeMetrics | None:
-    current_voltage = voltage
-    while current_voltage >= min_adjusted_voltage - 1e-9:
-        reduce_voltage = False
-        for index, cable in enumerate(catalog):
-            metrics = _auto_scheme_metrics(
-                cable,
-                object_length=object_length,
-                section_length=section_length,
-                voltage=current_voltage,
-                threads=2,
-                schemes=schemes,
-                cable_kind=cable_kind,
-                max_current_a=max_current_a,
-                max_linear_power_w_m=max_linear_power_w_m,
-            )
-            if not _within_p3(metrics):
-                if index == 0 and can_reduce_voltage:
-                    reduce_voltage = True
-                    break
-                continue
-            if metrics.linear_power_w_m >= required_linear_power:
-                return metrics
-        if not reduce_voltage:
-            return None
-        current_voltage -= voltage_step
-    return None
+    candidates = _collect_auto_loop(
+        catalog,
+        object_length=object_length,
+        section_length=section_length,
+        required_linear_power=required_linear_power,
+        voltage=voltage,
+        schemes=schemes,
+        cable_kind=cable_kind,
+        max_current_a=max_current_a,
+        max_linear_power_w_m=max_linear_power_w_m,
+        can_reduce_voltage=can_reduce_voltage,
+        min_adjusted_voltage=min_adjusted_voltage,
+        voltage_step=voltage_step,
+        stage_rank=stage_rank,
+    )
+    return candidates[0] if candidates else None
+
+
+def _collect_auto_star(
+    catalog: list[dict[str, Any]],
+    *,
+    object_length: float,
+    section_length: float,
+    required_linear_power: float,
+    voltage: float,
+    schemes: int,
+    cable_kind: str,
+    max_current_a: float,
+    max_linear_power_w_m: float | None,
+    stage_rank: int,
+) -> list[_AutoSchemeMetrics]:
+    valid: list[_AutoSchemeMetrics] = []
+    for cable in catalog:
+        metrics = _auto_scheme_metrics(
+            cable,
+            object_length=object_length,
+            section_length=section_length,
+            voltage=voltage,
+            threads=3,
+            schemes=schemes,
+            cable_kind=cable_kind,
+            max_current_a=max_current_a,
+            max_linear_power_w_m=max_linear_power_w_m,
+            stage_rank=stage_rank,
+        )
+        if _within_p3(metrics) and metrics.linear_power_w_m >= required_linear_power:
+            valid.append(metrics)
+    return valid
 
 
 def _try_auto_star(
@@ -428,22 +509,63 @@ def _try_auto_star(
     cable_kind: str,
     max_current_a: float,
     max_linear_power_w_m: float | None,
+    stage_rank: int,
 ) -> _AutoSchemeMetrics | None:
-    for cable in catalog:
-        metrics = _auto_scheme_metrics(
-            cable,
-            object_length=object_length,
-            section_length=section_length,
-            voltage=voltage,
-            threads=3,
-            schemes=schemes,
-            cable_kind=cable_kind,
-            max_current_a=max_current_a,
-            max_linear_power_w_m=max_linear_power_w_m,
-        )
-        if _within_p3(metrics) and metrics.linear_power_w_m >= required_linear_power:
-            return metrics
-    return None
+    candidates = _collect_auto_star(
+        catalog,
+        object_length=object_length,
+        section_length=section_length,
+        required_linear_power=required_linear_power,
+        voltage=voltage,
+        schemes=schemes,
+        cable_kind=cable_kind,
+        max_current_a=max_current_a,
+        max_linear_power_w_m=max_linear_power_w_m,
+        stage_rank=stage_rank,
+    )
+    return candidates[0] if candidates else None
+
+
+def _balanced_config(
+    params: ResistiveSingleCoreParams | ResistiveThreeCoreParams,
+) -> BalancedRankingConfig | None:
+    if not params.balanced_weights:
+        return None
+    return BalancedRankingConfig(
+        weights=params.balanced_weights,
+        approved=params.balanced_weights_approved,
+        version=params.balanced_weights_version or "default_unapproved",
+    )
+
+
+def _resistive_technical_key(metrics: _AutoSchemeMetrics) -> tuple[float, float, float, float, str]:
+    return (
+        float(metrics.schemes),
+        float(metrics.stage_rank),
+        max(metrics.total_power, 0.0),
+        metrics.current,
+        str(metrics.cable.get("model", metrics.cable.get("brand", ""))),
+    )
+
+
+def _select_resistive_commercial(
+    metrics: list[_AutoSchemeMetrics],
+    *,
+    selection_policy: str,
+    balanced_config: BalancedRankingConfig | None,
+) -> tuple[_AutoSchemeMetrics, dict[str, Any]]:
+    wrapped = [
+        CommercialCandidate(item=item, cable=item.cable, installed_length=item.cable_length)
+        for item in metrics
+    ]
+    selected, metadata = select_commercial_candidate(
+        wrapped,
+        selection_policy=selection_policy,
+        technical_key=lambda item: _resistive_technical_key(item.item),
+        circuit_count=lambda item: item.item.threads * item.item.schemes,
+        balanced_config=balanced_config,
+    )
+    return selected.item, metadata
 
 
 def _select_resistive_auto(
@@ -460,9 +582,13 @@ def _select_resistive_auto(
     max_parallel_schemes: int,
     min_adjusted_voltage: float,
     voltage_step: float,
-) -> _AutoSchemeMetrics:
+    selection_policy: str = "technical_minimum",
+    balanced_config: BalancedRankingConfig | None = None,
+) -> tuple[_AutoSchemeMetrics, dict[str, Any]]:
     sorted_catalog = _sorted_by_resistance(catalog)
     required_linear_power = required_heat_loss / object_length
+    policy = normal_policy(selection_policy)
+    commercial_candidates: list[_AutoSchemeMetrics] = []
     for schemes in range(1, max_parallel_schemes + 1):
         loop_start = _try_auto_loop(
             sorted_catalog,
@@ -477,9 +603,35 @@ def _select_resistive_auto(
             can_reduce_voltage=True,
             min_adjusted_voltage=min_adjusted_voltage,
             voltage_step=voltage_step,
+            stage_rank=0,
         )
         if loop_start is not None:
-            return loop_start
+            if policy == "technical_minimum":
+                return loop_start, _resistive_selection_metadata(
+                    loop_start,
+                    policy=policy,
+                    applied_policy="technical_minimum",
+                    reason="Выбрана первая технически подходящая VSDX-схема",
+                    candidate_count=1,
+                    balanced_config=balanced_config,
+                )
+            commercial_candidates.extend(
+                _collect_auto_loop(
+                    sorted_catalog,
+                    object_length=object_length,
+                    section_length=section_length,
+                    required_linear_power=required_linear_power,
+                    voltage=start_voltage,
+                    schemes=schemes,
+                    cable_kind=cable_kind,
+                    max_current_a=max_current_a,
+                    max_linear_power_w_m=max_linear_power_w_m,
+                    can_reduce_voltage=True,
+                    min_adjusted_voltage=min_adjusted_voltage,
+                    voltage_step=voltage_step,
+                    stage_rank=0,
+                )
+            )
 
         loop_high = _try_auto_loop(
             sorted_catalog,
@@ -494,9 +646,35 @@ def _select_resistive_auto(
             can_reduce_voltage=False,
             min_adjusted_voltage=high_voltage,
             voltage_step=voltage_step,
+            stage_rank=1,
         )
         if loop_high is not None:
-            return loop_high
+            if policy == "technical_minimum":
+                return loop_high, _resistive_selection_metadata(
+                    loop_high,
+                    policy=policy,
+                    applied_policy="technical_minimum",
+                    reason="Выбрана первая технически подходящая VSDX-схема",
+                    candidate_count=1,
+                    balanced_config=balanced_config,
+                )
+            commercial_candidates.extend(
+                _collect_auto_loop(
+                    sorted_catalog,
+                    object_length=object_length,
+                    section_length=section_length,
+                    required_linear_power=required_linear_power,
+                    voltage=high_voltage,
+                    schemes=schemes,
+                    cable_kind=cable_kind,
+                    max_current_a=max_current_a,
+                    max_linear_power_w_m=max_linear_power_w_m,
+                    can_reduce_voltage=False,
+                    min_adjusted_voltage=high_voltage,
+                    voltage_step=voltage_step,
+                    stage_rank=1,
+                )
+            )
 
         star = _try_auto_star(
             sorted_catalog,
@@ -508,14 +686,69 @@ def _select_resistive_auto(
             cable_kind=cable_kind,
             max_current_a=max_current_a,
             max_linear_power_w_m=max_linear_power_w_m,
+            stage_rank=2,
         )
         if star is not None:
-            return star
+            if policy == "technical_minimum":
+                return star, _resistive_selection_metadata(
+                    star,
+                    policy=policy,
+                    applied_policy="technical_minimum",
+                    reason="Выбрана первая технически подходящая VSDX-схема",
+                    candidate_count=1,
+                    balanced_config=balanced_config,
+                )
+            commercial_candidates.extend(
+                _collect_auto_star(
+                    sorted_catalog,
+                    object_length=object_length,
+                    section_length=section_length,
+                    required_linear_power=required_linear_power,
+                    voltage=high_voltage,
+                    schemes=schemes,
+                    cable_kind=cable_kind,
+                    max_current_a=max_current_a,
+                    max_linear_power_w_m=max_linear_power_w_m,
+                    stage_rank=2,
+                )
+            )
+
+    if commercial_candidates:
+        return _select_resistive_commercial(
+            commercial_candidates,
+            selection_policy=policy,
+            balanced_config=balanced_config,
+        )
 
     raise ValueError(
         "Не найден full-version вариант резистивного кабеля "
         f"для {required_linear_power:.3f} Вт/м при M ≤ {max_parallel_schemes}"
     )
+
+
+def _resistive_selection_metadata(
+    metrics: _AutoSchemeMetrics,
+    *,
+    policy: str,
+    applied_policy: str,
+    reason: str,
+    candidate_count: int,
+    balanced_config: BalancedRankingConfig | None,
+    warnings: list[str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "selection_policy": policy,
+        "applied_selection_policy": applied_policy,
+        "selection_reason": reason,
+        "candidate_count": candidate_count,
+        "commercial": commercial_snapshot(
+            metrics.cable_length,
+            metrics.cable,
+            circuit_count=metrics.threads * metrics.schemes,
+            balanced_config=balanced_config,
+        ),
+        "warnings": warnings or [],
+    }
 
 
 def _legacy_required_for_result(
@@ -554,7 +787,7 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
     object_length = _resolve_base_length(params)
     if params.selection_mode == "auto":
         section_length = object_length * params.winding_coefficient
-        metrics = _select_resistive_auto(
+        metrics, selection_metadata = _select_resistive_auto(
             catalog,
             required_heat_loss=params.required_heat_loss,
             object_length=object_length,
@@ -567,6 +800,8 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
             max_parallel_schemes=params.max_parallel_schemes,
             min_adjusted_voltage=params.min_adjusted_voltage,
             voltage_step=params.voltage_step,
+            selection_policy=params.selection_policy,
+            balanced_config=_balanced_config(params),
         )
         cable = metrics.cable
         q = params.required_heat_loss
@@ -606,6 +841,12 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
             section_length_m=round(metrics.section_length, 3),
             l1_m=round(metrics.l1_m, 3) if metrics.l1_m is not None else None,
             l2_m=round(metrics.l2_m, 3) if metrics.l2_m is not None else None,
+            selection_policy=selection_metadata["selection_policy"],
+            applied_selection_policy=selection_metadata["applied_selection_policy"],
+            selection_reason=selection_metadata["selection_reason"],
+            candidate_count=selection_metadata["candidate_count"],
+            commercial=selection_metadata["commercial"],
+            warnings=selection_metadata["warnings"],
         )
 
     cable_length = object_length * params.winding_coefficient * params.number_of_threads
@@ -643,6 +884,19 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
     sk_b = float(cable["conductor_cross_section"])
     p_actual = metrics["total_power"]
     current = metrics["current"]
+    manual_selection_metadata = {
+        "selection_policy": normal_policy(params.selection_policy),
+        "applied_selection_policy": "manual_selection",
+        "selection_reason": "Кабель/схема выбраны вручную; commercial ranking не применялся",
+        "candidate_count": 1,
+        "commercial": commercial_snapshot(
+            cable_length,
+            cable,
+            circuit_count=params.number_of_threads,
+            balanced_config=_balanced_config(params),
+        ),
+        "warnings": [],
+    }
 
     return ResistiveSingleCoreResult(
         selected_cable=str(cable.get("model", cable.get("brand", ""))),
@@ -663,6 +917,12 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
         winding_coefficient=round(params.winding_coefficient, 6),
         num_circuits=params.number_of_threads,
         selection_mode="manual",
+        selection_policy=manual_selection_metadata["selection_policy"],
+        applied_selection_policy=manual_selection_metadata["applied_selection_policy"],
+        selection_reason=manual_selection_metadata["selection_reason"],
+        candidate_count=manual_selection_metadata["candidate_count"],
+        commercial=manual_selection_metadata["commercial"],
+        warnings=manual_selection_metadata["warnings"],
     )
 
 
@@ -678,7 +938,7 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
     object_length = _resolve_base_length(params)
     if params.selection_mode == "auto":
         section_length = object_length * params.winding_coefficient
-        metrics = _select_resistive_auto(
+        metrics, selection_metadata = _select_resistive_auto(
             catalog,
             required_heat_loss=params.required_heat_loss,
             object_length=object_length,
@@ -691,6 +951,8 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
             max_parallel_schemes=params.max_parallel_schemes,
             min_adjusted_voltage=params.min_adjusted_voltage,
             voltage_step=params.voltage_step,
+            selection_policy=params.selection_policy,
+            balanced_config=_balanced_config(params),
         )
         cable = metrics.cable
         q = params.required_heat_loss
@@ -730,6 +992,12 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
             section_length_m=round(metrics.section_length, 3),
             l1_m=round(metrics.l1_m, 3) if metrics.l1_m is not None else None,
             l2_m=round(metrics.l2_m, 3) if metrics.l2_m is not None else None,
+            selection_policy=selection_metadata["selection_policy"],
+            applied_selection_policy=selection_metadata["applied_selection_policy"],
+            selection_reason=selection_metadata["selection_reason"],
+            candidate_count=selection_metadata["candidate_count"],
+            commercial=selection_metadata["commercial"],
+            warnings=selection_metadata["warnings"],
         )
 
     cable_length = object_length * params.winding_coefficient * params.number_of_threads
@@ -768,6 +1036,19 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
     sk_b = float(cable["conductor_cross_section"])
     p_actual = metrics["total_power"]
     current = metrics["current"]
+    manual_selection_metadata = {
+        "selection_policy": normal_policy(params.selection_policy),
+        "applied_selection_policy": "manual_selection",
+        "selection_reason": "Кабель/схема выбраны вручную; commercial ranking не применялся",
+        "candidate_count": 1,
+        "commercial": commercial_snapshot(
+            cable_length,
+            cable,
+            circuit_count=params.number_of_threads,
+            balanced_config=_balanced_config(params),
+        ),
+        "warnings": [],
+    }
 
     return ResistiveThreeCoreResult(
         selected_cable=str(cable.get("model", cable.get("brand", ""))),
@@ -788,4 +1069,10 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
         winding_coefficient=round(params.winding_coefficient, 6),
         num_circuits=params.number_of_threads,
         selection_mode="manual",
+        selection_policy=manual_selection_metadata["selection_policy"],
+        applied_selection_policy=manual_selection_metadata["applied_selection_policy"],
+        selection_reason=manual_selection_metadata["selection_reason"],
+        candidate_count=manual_selection_metadata["candidate_count"],
+        commercial=manual_selection_metadata["commercial"],
+        warnings=manual_selection_metadata["warnings"],
     )

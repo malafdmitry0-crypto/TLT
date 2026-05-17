@@ -408,6 +408,21 @@ class SelfRegulatingParams(BaseModel):
         default="technical_minimum",
         description="Критерий выбора среди технически подходящих кабелей",
     )
+    balanced_weights: dict[str, float] | None = Field(
+        default=None,
+        description=(
+            "Веса commercial balanced ranking: cost, delivery, stock, supplier. "
+            "Используются только если balanced_weights_approved=true."
+        ),
+    )
+    balanced_weights_approved: bool = Field(
+        default=False,
+        description="Явное бизнес-утверждение весов balanced ranking",
+    )
+    balanced_weights_version: str | None = Field(
+        default=None,
+        description="Версия/источник весов balanced ranking",
+    )
 
 
 class SelfRegulatingResult(BaseModel):
@@ -563,6 +578,13 @@ class ResistiveSingleCoreParams(BaseModel):
     cable_catalog: list[dict[str, Any]] | None = Field(
         default=None, description="Каталог ТТ Р1; None — встроенный"
     )
+    selection_policy: SelectionPolicy = Field(
+        default="technical_minimum",
+        description="Commercial ranking для auto-подбора среди технически подходящих схем",
+    )
+    balanced_weights: dict[str, float] | None = Field(default=None)
+    balanced_weights_approved: bool = False
+    balanced_weights_version: str | None = None
     # Геометрия резервуара (для укладки на поверхность бака)
     tank_shape: Literal["cylindrical", "rectangular"] | None = Field(
         default=None, description="Форма резервуара для расчёта длины кабеля по периметру"
@@ -612,6 +634,12 @@ class ResistiveSingleCoreResult(BaseModel):
     section_length_m: float | None = None
     l1_m: float | None = None
     l2_m: float | None = None
+    selection_policy: str = "technical_minimum"
+    applied_selection_policy: str = "technical_minimum"
+    selection_reason: str | None = None
+    candidate_count: int = 0
+    commercial: dict[str, Any] | None = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 class ResistiveThreeCoreParams(BaseModel):
@@ -678,6 +706,13 @@ class ResistiveThreeCoreParams(BaseModel):
     cable_catalog: list[dict[str, Any]] | None = Field(
         default=None, description="Каталог ТТ Р3; None — встроенный"
     )
+    selection_policy: SelectionPolicy = Field(
+        default="technical_minimum",
+        description="Commercial ranking для auto-подбора среди технически подходящих схем",
+    )
+    balanced_weights: dict[str, float] | None = Field(default=None)
+    balanced_weights_approved: bool = False
+    balanced_weights_version: str | None = None
     # Геометрия резервуара
     tank_shape: Literal["cylindrical", "rectangular"] | None = Field(
         default=None, description="Форма резервуара для расчёта длины кабеля по периметру"
@@ -721,6 +756,12 @@ class ResistiveThreeCoreResult(BaseModel):
     section_length_m: float | None = None
     l1_m: float | None = None
     l2_m: float | None = None
+    selection_policy: str = "technical_minimum"
+    applied_selection_policy: str = "technical_minimum"
+    selection_reason: str | None = None
+    candidate_count: int = 0
+    commercial: dict[str, Any] | None = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 ElectricalCableType = Literal[

@@ -147,6 +147,7 @@ class TestCsvFormulaInjection:
     def test_safe_csv_cell_escapes_formula_prefixes(self):
         assert _safe_csv_cell("=cmd|' /C calc'!A0") == "'=cmd|' /C calc'!A0"
         assert _safe_csv_cell(" @SUM(1,2)") == "' @SUM(1,2)"
+        assert _safe_csv_cell("\t=SUM(1,2)") == "'\t=SUM(1,2)"
         assert _safe_csv_cell("-2+3") == "'-2+3"
         assert _safe_csv_cell("+SUM(1,2)") == "'+SUM(1,2)"
         assert _safe_csv_cell("plain") == "plain"
@@ -244,6 +245,8 @@ class TestDumpProjectToWriter:
         buf, w = self._writer()
         _dump_project_to_writer(w, self._project(), [obj], [], [])
         text = buf.getvalue()
+        assert "object_key;type;name;sort_order" in text
+        assert "oid;pipe;Tag-1;0" in text
         assert "Tag-1" in text
         assert "outer_diameter" in text
 
@@ -278,8 +281,66 @@ class TestDumpProjectToWriter:
         assert "[SECTION];electrical" in text
         assert "cable_type_source" in text
         assert "cable_mark_source" in text
+        assert "obj-uuid;1;self_regulating" in text
         assert "manual" in text
         assert "ТЛТ-25" in text
+
+    def test_writes_duplicate_names_with_stable_object_keys(self):
+        from types import SimpleNamespace
+
+        from app.services.project_io_service import _dump_project_to_writer
+
+        objects = [
+            SimpleNamespace(
+                id="obj-1",
+                object_type="pipe",
+                sort_order=0,
+                params={"name": "T1"},
+                results=None,
+                is_valid=False,
+                validation_errors=None,
+            ),
+            SimpleNamespace(
+                id="obj-2",
+                object_type="pipe",
+                sort_order=1,
+                params={"name": "T1"},
+                results=None,
+                is_valid=False,
+                validation_errors=None,
+            ),
+        ]
+        calculations = [
+            SimpleNamespace(
+                object_id="obj-1",
+                variant_number=1,
+                cable_type="self_regulating",
+                cable_type_source="manual",
+                cable_mark="ТЛТ-25",
+                cable_mark_source="manual",
+                params={},
+                results={},
+            ),
+            SimpleNamespace(
+                object_id="obj-2",
+                variant_number=1,
+                cable_type="self_regulating",
+                cable_type_source="manual",
+                cable_mark="ТЛТ-30",
+                cable_mark_source="manual",
+                params={},
+                results={},
+            ),
+        ]
+
+        buf, w = self._writer()
+        _dump_project_to_writer(w, self._project(), objects, calculations, [])
+        text = buf.getvalue()
+
+        assert "obj-1;pipe;T1;0" in text
+        assert "obj-2;pipe;T1;1" in text
+        assert "obj-1;1;self_regulating" in text
+        assert "obj-2;1;self_regulating" in text
 
     def test_writes_specifications_section(self):
         from types import SimpleNamespace
@@ -363,6 +424,125 @@ class TestApplyProjectData:
         )
         # 1 object + 1 electrical → 2 add()
         assert db.add.call_count == 2
+
+    async def test_electrical_prefers_stable_object_key_over_duplicate_name(self):
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock, MagicMock
+        from uuid import uuid4
+
+        from app.models.electrical_calculation import ElectricalCalculation
+        from app.models.project_object import ProjectObject
+        from app.services.project_io_service import _apply_project_data
+
+        project = SimpleNamespace(id="pid")
+        added: list[object] = []
+        db = AsyncMock()
+        db.add = MagicMock(side_effect=added.append)
+
+        async def fake_flush():
+            for item in added:
+                if isinstance(item, ProjectObject) and item.id is None:
+                    item.id = uuid4()
+
+        db.flush = AsyncMock(side_effect=fake_flush)
+        await _apply_project_data(
+            db,
+            project,
+            objects_rows=[
+                {
+                    "object_key": "obj-1",
+                    "type": "pipe",
+                    "name": "T1",
+                    "sort_order": "0",
+                    "params": "{}",
+                    "results": "",
+                    "is_valid": "false",
+                    "validation_errors": "",
+                },
+                {
+                    "object_key": "obj-2",
+                    "type": "pipe",
+                    "name": "T1",
+                    "sort_order": "1",
+                    "params": "{}",
+                    "results": "",
+                    "is_valid": "false",
+                    "validation_errors": "",
+                },
+            ],
+            electrical_rows=[
+                {
+                    "object_key": "obj-1",
+                    "variant_number": "1",
+                    "cable_type": "self_regulating",
+                    "cable_type_source": "manual",
+                    "cable_mark": "ТЛТ-25",
+                    "cable_mark_source": "manual",
+                    "params": "{}",
+                    "results": '{"selected_cable": "ТЛТ-25"}',
+                },
+                {
+                    "object_key": "obj-2",
+                    "variant_number": "1",
+                    "cable_type": "self_regulating",
+                    "cable_type_source": "manual",
+                    "cable_mark": "ТЛТ-30",
+                    "cable_mark_source": "manual",
+                    "params": "{}",
+                    "results": '{"selected_cable": "ТЛТ-30"}',
+                },
+            ],
+            spec_rows=[],
+        )
+
+        electrical = [
+            call.args[0]
+            for call in db.add.call_args_list
+            if isinstance(call.args[0], ElectricalCalculation)
+        ]
+        objects = [item for item in added if isinstance(item, ProjectObject)]
+        assert len(electrical) == 2
+        assert [calc.object_id for calc in electrical] == [objects[0].id, objects[1].id]
+
+    async def test_duplicate_legacy_object_name_is_rejected(self):
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock, MagicMock
+
+        import pytest
+
+        from app.services.project_io_service import ProjectImportError, _apply_project_data
+
+        project = SimpleNamespace(id="pid")
+        db = AsyncMock()
+        db.add = MagicMock()
+        db.flush = AsyncMock()
+        with pytest.raises(ProjectImportError, match="Дублирующийся object_key"):
+            await _apply_project_data(
+                db,
+                project,
+                objects_rows=[
+                    {
+                        "type": "pipe",
+                        "name": "T1",
+                        "sort_order": "0",
+                        "params": "{}",
+                        "results": "",
+                        "is_valid": "false",
+                        "validation_errors": "",
+                    },
+                    {
+                        "type": "pipe",
+                        "name": "T1",
+                        "sort_order": "1",
+                        "params": "{}",
+                        "results": "",
+                        "is_valid": "false",
+                        "validation_errors": "",
+                    },
+                ],
+                electrical_rows=[],
+                spec_rows=[],
+            )
 
     async def test_electrical_with_unknown_key_skipped(self):
         from types import SimpleNamespace

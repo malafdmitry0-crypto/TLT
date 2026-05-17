@@ -191,10 +191,7 @@ def _sql_heat_loss_status() -> Any:
 
 
 def _sql_calc_error() -> Any:
-    return func.coalesce(
-        _sql_calc_result_text("message"),
-        _sql_calc_result_text("error"),
-    )
+    return _sql_calc_result_text("message")
 
 
 def _sql_selected_cable() -> Any:
@@ -208,7 +205,15 @@ def _sql_electrical_status() -> Any:
     return case(
         (ElectricalCalculation.id.is_(None), literal("not_calculated")),
         (_sql_calc_result_text("category") == "unsupported", literal("unsupported")),
-        (_sql_calc_result_text("error").is_not(None), literal("error")),
+        (_sql_calc_result_text("category") == "stale", literal("not_calculated")),
+        (
+            or_(
+                _sql_calc_result_text("error_code").is_not(None),
+                _sql_calc_result_text("category").in_(("validation", "formula", "external")),
+                _sql_calc_result_text("message").is_not(None),
+            ),
+            literal("error"),
+        ),
         (
             and_(
                 ElectricalCalculation.results.is_not(None),
@@ -282,8 +287,14 @@ def _object_name(row: ElectricalQueryRow) -> str:
 
 
 def _calc_error(row: ElectricalQueryRow) -> str | None:
-    error = _calc_result(row, "error")
-    return str(error) if error else None
+    category = _calc_result(row, "category")
+    if category == "stale":
+        return None
+    error_code = _calc_result(row, "error_code")
+    message = _calc_result(row, "message")
+    if category in {"validation", "formula", "external"} or error_code or message:
+        return str(message) if message else None
+    return None
 
 
 def _selected_cable(row: ElectricalQueryRow) -> Any:
@@ -297,6 +308,8 @@ def _electrical_status(row: ElectricalQueryRow) -> str:
         return "not_calculated"
     if _calc_result(row, "category") == "unsupported":
         return "unsupported"
+    if _calc_result(row, "category") == "stale":
+        return "not_calculated"
     if _calc_error(row):
         return "error"
     if row.calc.results and (row.calc.cable_mark or _calc_result(row, "selected_cable")):
@@ -785,7 +798,6 @@ ELECTRICAL_CALC_RESULT_KEYS = frozenset(
         "current",
         "voltage",
         "message",
-        "error",
         "error_code",
         "category",
         "field",

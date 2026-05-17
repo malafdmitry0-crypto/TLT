@@ -6,7 +6,7 @@ from typing import Any
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 
-from app.services.spreadsheet_safety import safe_spreadsheet_cell
+from app.services.spreadsheet_safety import set_safe_cell
 
 
 def generate_xlsx(context: dict[str, Any]) -> bytes:
@@ -23,14 +23,14 @@ def generate_xlsx(context: dict[str, Any]) -> bytes:
     ws_info["A1"] = "HeatCalc — отчёт"
     ws_info["A1"].font = Font(bold=True, size=14, color="1A5276")
     ws_info["A3"] = "Название"
-    ws_info["B3"] = safe_spreadsheet_cell(project["name"])
+    set_safe_cell(ws_info, 3, 2, project["name"])
     ws_info["A4"] = "ID"
-    ws_info["B4"] = safe_spreadsheet_cell(project["id"])
+    set_safe_cell(ws_info, 4, 2, project["id"])
     ws_info["A5"] = "Статус"
-    ws_info["B5"] = safe_spreadsheet_cell(project["status"])
+    set_safe_cell(ws_info, 5, 2, project["status"])
     if project.get("description"):
         ws_info["A6"] = "Описание"
-        ws_info["B6"] = safe_spreadsheet_cell(project["description"])
+        set_safe_cell(ws_info, 6, 2, project["description"])
 
     if not enabled & {"pipes", "tanks", "electrical", "summary", "specification"}:
         buf = io.BytesIO()
@@ -57,19 +57,11 @@ def generate_xlsx(context: dict[str, Any]) -> bytes:
         else:
             objects_to_show = all_objects  # summary/electrical — оставляем все
         for idx, o in enumerate(objects_to_show, start=1):
-            ws_obj.cell(row=idx + 1, column=1, value=idx)
-            ws_obj.cell(row=idx + 1, column=2, value=safe_spreadsheet_cell(o["object_type"]))
-            ws_obj.cell(
-                row=idx + 1,
-                column=3,
-                value=safe_spreadsheet_cell(str(o.get("params", {}))),
-            )
-            ws_obj.cell(
-                row=idx + 1,
-                column=4,
-                value=safe_spreadsheet_cell(str(o.get("results") or "")),
-            )
-            ws_obj.cell(row=idx + 1, column=5, value="да" if o.get("is_valid") else "нет")
+            set_safe_cell(ws_obj, idx + 1, 1, idx)
+            set_safe_cell(ws_obj, idx + 1, 2, o["object_type"])
+            set_safe_cell(ws_obj, idx + 1, 3, str(o.get("params", {})))
+            set_safe_cell(ws_obj, idx + 1, 4, str(o.get("results") or ""))
+            set_safe_cell(ws_obj, idx + 1, 5, "да" if o.get("is_valid") else "нет")
 
     # Sheet 3: Спецификация
     if "specification" in enabled:
@@ -80,27 +72,11 @@ def generate_xlsx(context: dict[str, Any]) -> bytes:
             cell.font = Font(bold=True)
             cell.fill = PatternFill("solid", fgColor="EBF5FB")
         for idx, item in enumerate(context.get("specification", {}).get("items", []), start=1):
-            ws_spec.cell(
-                row=idx + 1,
-                column=1,
-                value=safe_spreadsheet_cell(item.get("category", "")),
-            )
-            ws_spec.cell(
-                row=idx + 1,
-                column=2,
-                value=safe_spreadsheet_cell(item.get("name", "")),
-            )
-            ws_spec.cell(
-                row=idx + 1,
-                column=3,
-                value=safe_spreadsheet_cell(item.get("article") or ""),
-            )
-            ws_spec.cell(
-                row=idx + 1,
-                column=4,
-                value=safe_spreadsheet_cell(item.get("unit", "")),
-            )
-            ws_spec.cell(row=idx + 1, column=5, value=item.get("quantity", 0))
+            set_safe_cell(ws_spec, idx + 1, 1, item.get("category", ""))
+            set_safe_cell(ws_spec, idx + 1, 2, item.get("name", ""))
+            set_safe_cell(ws_spec, idx + 1, 3, item.get("article") or "")
+            set_safe_cell(ws_spec, idx + 1, 4, item.get("unit", ""))
+            set_safe_cell(ws_spec, idx + 1, 5, item.get("quantity", 0))
 
     buf = io.BytesIO()
     wb.save(buf)

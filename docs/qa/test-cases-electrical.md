@@ -201,7 +201,7 @@
 |-----|----------|---------------------|
 | 1 | Создать объект с параметрами, приводящими к требуемой мощности > 100 Вт/м | `is_valid=true` (теплопотери посчитаны) |
 | 2 | `POST /calc/electrical/batch` | HTTP 200, `errors` содержит запись для объекта |
-| 3 | В БД `electrical_calculations` | Строка существует: `cable_mark=null`, `results={"error": "..."}` |
+| 3 | В БД `electrical_calculations` | Строка существует: `cable_mark=null`, `results={"error_code": "...", "category": "formula", "message": "..."}` |
 | 4 | UI: открыть `/workspace/elec-calc` | Карточка объекта показывает красный Alert с текстом ошибки |
 | 5 | Перезагрузить страницу (F5) | Ошибка видна и после reload (не теряется) |
 | 6 | Исправить параметры объекта (уменьшить мощность) | `is_valid=true` |
@@ -228,7 +228,7 @@
 
 ---
 
-## TC-ELEC-14: Коммерческое ранжирование ТЛТ-автоподбора
+## TC-ELEC-14: Коммерческое ранжирование автоподбора кабеля
 
 **Автоматизировано:**
 
@@ -236,6 +236,10 @@
 - ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_lowest_cost_falls_back_without_prices`
 - ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_fastest_delivery_and_in_stock_do_not_treat_null_as_zero`
 - ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_preferred_supplier_and_balanced_fallback`
+- ✅ (unit) `test_resistive.py::TestSingleCoreLinear::test_auto_lowest_cost_ranks_technical_resistive_candidates`
+- ✅ (unit) `test_resistive.py::TestSingleCoreLinear::test_auto_commercial_snapshot_supports_accessory_cost_scope`
+- ✅ (unit) `test_resistive.py::TestSingleCoreLinear::test_auto_balanced_requires_approved_weights`
+- ✅ (e2e) `cable-business-flows.spec.ts::commercial ranking выбирается из UI и сохраняет policy snapshot`
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
@@ -245,4 +249,6 @@
 | 4 | Запустить `in_stock` при `stock_quantity_m=null` | `null` не считается нулём; используется `stock_status` или fallback |
 | 5 | Запустить `preferred_supplier` | Учитываются `is_preferred` и `supplier_priority` |
 | 6 | Запустить `balanced` без утверждённых весов | Возвращается controlled fallback: `applied_selection_policy=technical_minimum` и warning |
-| 7 | Проверить результат | Есть `selection_policy`, `applied_selection_policy`, `selection_reason`, `candidate_count`, `commercial`, `warnings` |
+| 7 | Запустить `balanced` с утверждёнными весами | Используется нормализованный weighted score по cost/delivery/stock/supplier |
+| 8 | Запустить резистивный auto-подбор с commercial policy | Политика применяется только к технически допустимым VSDX-кандидатам |
+| 9 | Проверить результат | Есть `selection_policy`, `applied_selection_policy`, `selection_reason`, `candidate_count`, `commercial`, `warnings` |

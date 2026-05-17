@@ -106,7 +106,16 @@ describe('useElectricalStats', () => {
     const objects = [makeObj('a'), makeObj('b')];
     const calcs = [
       makeCalc('a', 1, { selected_cable: 'ТЛТ-25', cable_length: 10 }),
-      makeCalc('b', 1, { error: 'Теплопотери вне диапазона ТЛТ' }, null),
+      makeCalc(
+        'b',
+        1,
+        {
+          error_code: 'POWER_TOO_HIGH',
+          category: 'formula',
+          message: 'Теплопотери вне диапазона ТЛТ',
+        },
+        null,
+      ),
     ];
     const { result } = renderHook(() => useElectricalStats(objects, calcs));
     expect(result.current.calcedCount).toBe(1);
@@ -121,12 +130,32 @@ describe('useElectricalStats', () => {
         'a',
         1,
         {
-          error: 'raw',
           error_code: 'unsupported_layout',
           category: 'unsupported',
           message: 'Не применимо',
         },
         null,
+      ),
+    ];
+    const { result } = renderHook(() => useElectricalStats(objects, calcs));
+    expect(result.current.calcedCount).toBe(0);
+    expect(result.current.failedCount).toBe(0);
+    expect(result.current.allCalced).toBe(false);
+  });
+
+  it('не считает stale-результат ошибкой электрорасчёта', () => {
+    const objects = [makeObj('a')];
+    const calcs = [
+      makeCalc(
+        'a',
+        1,
+        {
+          error_code: 'STALE_HEAT_LOSS',
+          category: 'stale',
+          message: 'Теплопотери изменились',
+          selected_cable: 'ТЛТ-25',
+        },
+        'ТЛТ-25',
       ),
     ];
     const { result } = renderHook(() => useElectricalStats(objects, calcs));

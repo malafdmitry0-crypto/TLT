@@ -236,7 +236,16 @@ export interface BatchElectricalResponse {
   skipped: number;
   scope?: 'all' | 'selected';
   heat_loss_failed: number;
-  errors: Array<{ object_id: string; error: string }>;
+  errors: Array<{
+    object_id: string;
+    error_code?: string;
+    category?: 'validation' | 'formula' | 'unsupported' | 'external' | 'stale' | string;
+    message?: string;
+    field?: string | null;
+    hint?: string | null;
+    suggested_actions?: string[];
+    error_context?: Record<string, unknown>;
+  }>;
   results: ElectricalCalcSummary[];
 }
 
@@ -249,6 +258,7 @@ export interface BatchHeatLossResponse {
 export interface ReportExportTaskResult {
   project_id: string;
   format: 'pdf' | 'docx' | 'xlsx';
+  variant_number: number;
   filename: string;
   media_type: string;
   size_bytes: number;

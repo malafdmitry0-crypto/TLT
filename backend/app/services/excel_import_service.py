@@ -2,32 +2,37 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
+import json
 import re
 import zipfile
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from openpyxl import load_workbook
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import use_fast_commit_for_current_transaction
 from app.core.dependencies import CurrentPrincipal
+from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project_object import ProjectObject
+from app.models.specification import Specification
 from app.services.project_object_params import normalize_project_object_params
 from app.services.project_service import (
     ProjectAccessError,
     ProjectNotFoundError,
     ProjectService,
 )
-from app.services.spreadsheet_safety import safe_spreadsheet_cell
+from app.services.spreadsheet_safety import append_safe_row
 
 PIPE_SHEET_NAMES = {"трубопроводы", "трубы", "pipes"}
 TANK_SHEET_NAMES = {"резервуары", "ёмкости", "емкости", "tanks"}
 IMPORT_COMMIT_BATCH_SIZE = 25
+ImportMode = Literal["append", "merge", "replace"]
 
 # Алиасы для колонки «Тип» в CSV (различает трубу/резервуар в одном файле)
 TYPE_ALIASES: dict[str, str] = {
@@ -578,7 +583,8 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
 def _parse_csv(content: bytes) -> list[tuple[str, list[dict[str, Any]]]]:
     """Парсит CSV-файл.
 
-    Возвращает список пар (sheet_label, rows) по типу: [('Трубопроводы', [...]), ('Резервуары', [...])].
+    Возвращает список пар (sheet_label, rows) по типу:
+    [('Трубопроводы', [...]), ('Резервуары', [...])].
     CSV должен содержать колонку «Тип» со значениями «труба» / «резервуар».
     Автодетект разделителя (``,``, ``;``, ``\t``). Кодировки: UTF-8 / UTF-8-BOM / CP1251.
     """
@@ -670,6 +676,58 @@ async def _project_import_state(db: AsyncSession, project_id: UUID) -> tuple[int
     return int(count or 0), int(max_sort if max_sort is not None else -1) + 1
 
 
+def _normalize_name_for_dedupe(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
+
+
+def _dedupe_key(object_type: str, params: dict[str, Any]) -> str:
+    key_params = dict(params)
+    name = _normalize_name_for_dedupe(key_params.pop("name", ""))
+    payload = json.dumps(
+        key_params,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return f"{object_type}:{name}:{digest}"
+
+
+def _object_type_for_dedupe(value: Any) -> str:
+    return str(getattr(value, "value", value))
+
+
+async def _existing_dedupe_keys(db: AsyncSession, project_id: UUID) -> set[str]:
+    result = await db.execute(
+        select(ProjectObject.object_type, ProjectObject.params).where(
+            ProjectObject.project_id == project_id
+        )
+    )
+    return {
+        _dedupe_key(_object_type_for_dedupe(object_type), params or {})
+        for object_type, params in result.all()
+    }
+
+
+async def _replace_project_objects(db: AsyncSession, project_id: UUID) -> None:
+    await db.execute(
+        delete(ElectricalCalculation).where(ElectricalCalculation.project_id == project_id)
+    )
+    await db.execute(delete(Specification).where(Specification.project_id == project_id))
+    await db.execute(delete(ProjectObject).where(ProjectObject.project_id == project_id))
+    await db.flush()
+
+
+def _validate_import_mode(mode: str) -> ImportMode:
+    normalized = (mode or "merge").strip().lower()
+    if normalized not in {"append", "merge", "replace"}:
+        raise ExcelImportError(
+            "Некорректный режим импорта: " f"{mode!r} (допустимо: append, merge, replace)"
+        )
+    return normalized  # type: ignore[return-value]
+
+
 async def _ensure_import_access(
     db: AsyncSession,
     project_id: UUID,
@@ -740,13 +798,15 @@ async def _add_rows(
     object_type: str,
     next_sort: int,
     current_count: int,
-) -> tuple[int, int, int, list[dict[str, Any]], list[UUID]]:
+    dedupe_keys: set[str] | None = None,
+) -> tuple[int, int, int, list[dict[str, Any]], list[UUID], int]:
     """Создаёт объекты из распарсенных строк.
 
     Расчёт теплопотерь здесь намеренно не запускается: импорт должен быстро
     сохранить всё распознанное и отдать новые объекты в один фоновый batch.
     """
     created = 0
+    skipped_duplicates = 0
     created_object_ids: list[UUID] = []
     errors: list[dict[str, Any]] = []
     batch: list[tuple[ProjectObject, dict[str, Any]]] = []
@@ -786,11 +846,18 @@ async def _add_rows(
             )
             continue
         try:
+            normalized_params = normalize_project_object_params(object_type, params)
+            if dedupe_keys is not None:
+                key = _dedupe_key(object_type, normalized_params)
+                if key in dedupe_keys:
+                    skipped_duplicates += 1
+                    continue
+                dedupe_keys.add(key)
             obj = ProjectObject(
                 project_id=project_id,
                 object_type=object_type,
                 sort_order=next_sort,
-                params=normalize_project_object_params(object_type, params),
+                params=normalized_params,
             )
             batch.append((obj, row))
             current_count += 1
@@ -806,7 +873,7 @@ async def _add_rows(
                 }
             )
     await flush_batch()
-    return created, next_sort, current_count, errors, created_object_ids
+    return created, next_sort, current_count, errors, created_object_ids, skipped_duplicates
 
 
 async def import_objects_from_csv(
@@ -814,10 +881,11 @@ async def import_objects_from_csv(
     project_id: UUID,
     principal: CurrentPrincipal,
     content: bytes,
+    mode: str = "merge",
 ) -> dict[str, Any]:
     """Импортирует объекты из CSV-файла. Требуется колонка «Тип»."""
+    import_mode = _validate_import_mode(mode)
     await _ensure_import_access(db, project_id, principal)
-    current_count, next_sort = await _project_import_state(db, project_id)
 
     sheets = _parse_csv(content)
     if not sheets:
@@ -825,12 +893,23 @@ async def import_objects_from_csv(
             "В CSV не найдено ни одной строки с распознанным типом (труба/резервуар)."
         )
 
+    if import_mode == "replace":
+        await _replace_project_objects(db, project_id)
+        current_count, next_sort = 0, 0
+        dedupe_keys = None
+    else:
+        current_count, next_sort = await _project_import_state(db, project_id)
+        dedupe_keys = (
+            await _existing_dedupe_keys(db, project_id) if import_mode == "merge" else None
+        )
+
     total_created = 0
+    skipped_duplicates = 0
     all_errors: list[dict[str, Any]] = []
     created_object_ids: list[UUID] = []
     for sheet_label, rows in sheets:
         obj_type = "pipe" if "Трубопровод" in sheet_label else "tank"
-        created, next_sort, current_count, errors, object_ids = await _add_rows(
+        created, next_sort, current_count, errors, object_ids, skipped = await _add_rows(
             db,
             project_id,
             sheet_label,
@@ -838,13 +917,20 @@ async def import_objects_from_csv(
             obj_type,
             next_sort,
             current_count,
+            dedupe_keys=dedupe_keys,
         )
         total_created += created
+        skipped_duplicates += skipped
         all_errors.extend(errors)
         created_object_ids.extend(object_ids)
 
+    if import_mode == "replace" and not created_object_ids:
+        await db.commit()
+
     return {
         "created": total_created,
+        "skipped_duplicates": skipped_duplicates,
+        "mode": import_mode,
         "errors": all_errors,
         "created_object_ids": created_object_ids,
     }
@@ -855,11 +941,13 @@ async def import_objects_from_excel(
     project_id: UUID,
     principal: CurrentPrincipal,
     content: bytes,
+    mode: str = "merge",
 ) -> dict[str, Any]:
     """Импортирует объекты из xlsx-файла в проект.
 
     Возвращает сводку: {"created": N, "errors": [{"sheet", "row", "message"}]}.
     """
+    import_mode = _validate_import_mode(mode)
     _validate_xlsx_archive(content)
     try:
         wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
@@ -874,13 +962,12 @@ async def import_objects_from_excel(
     except (ProjectNotFoundError, ProjectAccessError):
         raise
 
-    # Определяем текущий sort_order
-    current_count, next_sort = await _project_import_state(db, project_id)
-
     created = 0
+    skipped_duplicates = 0
     errors: list[dict[str, Any]] = []
     created_object_ids: list[UUID] = []
     found_sheet = False
+    parsed_sheets: list[tuple[str, str, list[dict[str, Any]]]] = []
 
     for sheet in wb.sheetnames:
         norm = _norm(sheet)
@@ -888,34 +975,12 @@ async def import_objects_from_excel(
             found_sheet = True
             ws = wb[sheet]
             rows = _read_sheet(ws, PIPE_HEADERS)
-            added, next_sort, current_count, sheet_errors, object_ids = await _add_rows(
-                db,
-                project_id,
-                sheet,
-                rows,
-                "pipe",
-                next_sort,
-                current_count,
-            )
-            created += added
-            errors.extend(sheet_errors)
-            created_object_ids.extend(object_ids)
+            parsed_sheets.append((sheet, "pipe", rows))
         elif norm in TANK_SHEET_NAMES:
             found_sheet = True
             ws = wb[sheet]
             rows = _read_sheet(ws, TANK_HEADERS)
-            added, next_sort, current_count, sheet_errors, object_ids = await _add_rows(
-                db,
-                project_id,
-                sheet,
-                rows,
-                "tank",
-                next_sort,
-                current_count,
-            )
-            created += added
-            errors.extend(sheet_errors)
-            created_object_ids.extend(object_ids)
+            parsed_sheets.append((sheet, "tank", rows))
 
     if not found_sheet:
         raise ExcelImportError(
@@ -923,7 +988,42 @@ async def import_objects_from_excel(
             "Используйте шаблон (кнопка «Скачать шаблон»)."
         )
 
-    return {"created": created, "errors": errors, "created_object_ids": created_object_ids}
+    if import_mode == "replace":
+        await _replace_project_objects(db, project_id)
+        current_count, next_sort = 0, 0
+        dedupe_keys = None
+    else:
+        current_count, next_sort = await _project_import_state(db, project_id)
+        dedupe_keys = (
+            await _existing_dedupe_keys(db, project_id) if import_mode == "merge" else None
+        )
+
+    for sheet, object_type, rows in parsed_sheets:
+        added, next_sort, current_count, sheet_errors, object_ids, skipped = await _add_rows(
+            db,
+            project_id,
+            sheet,
+            rows,
+            object_type,
+            next_sort,
+            current_count,
+            dedupe_keys=dedupe_keys,
+        )
+        created += added
+        skipped_duplicates += skipped
+        errors.extend(sheet_errors)
+        created_object_ids.extend(object_ids)
+
+    if import_mode == "replace" and not created_object_ids:
+        await db.commit()
+
+    return {
+        "created": created,
+        "skipped_duplicates": skipped_duplicates,
+        "mode": import_mode,
+        "errors": errors,
+        "created_object_ids": created_object_ids,
+    }
 
 
 MATERIAL_LABELS_RU: dict[str, str] = {
@@ -940,6 +1040,16 @@ SHAPE_LABELS_RU: dict[str, str] = {
     "rectangular": "Параллелепипед",
     "spherical": "Шар",
 }
+
+
+def _to_export_mm(value: Any) -> float | str:
+    if value in (None, ""):
+        return ""
+    try:
+        result = round(float(value) * 1000, 3)
+    except (TypeError, ValueError):
+        return str(value)
+    return result or ""
 
 
 def build_objects_xlsx(objects: list[Any]) -> bytes:
@@ -996,39 +1106,41 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
             params.get("insulation_material", ""), params.get("insulation_material", "")
         )
         if obj.object_type == "pipe":
-            ws_pipe.append(
+            append_safe_row(
+                ws_pipe,
                 [
-                    safe_spreadsheet_cell(name),
-                    round((params.get("outer_diameter") or 0) * 1000, 3) or "",
+                    name,
+                    _to_export_mm(params.get("outer_diameter")),
                     params.get("pipe_length") or "",
-                    round((params.get("insulation_thickness") or 0) * 1000, 3) or "",
-                    safe_spreadsheet_cell(material),
+                    _to_export_mm(params.get("insulation_thickness")),
+                    material,
                     params.get("ambient_temperature", ""),
                     params.get("process_temperature", ""),
-                    safe_spreadsheet_cell(params.get("vapor_temperature", "")),
-                ]
+                    params.get("vapor_temperature", ""),
+                ],
             )
         elif obj.object_type == "tank":
             shape_code = params.get("shape") or "cylindrical"
             shape = SHAPE_LABELS_RU.get(shape_code, shape_code)
 
             def to_mm(k, _params=params):
-                return round((_params.get(k) or 0) * 1000, 3) or "" if _params.get(k) else ""
+                return _to_export_mm(_params.get(k))
 
-            ws_tank.append(
+            append_safe_row(
+                ws_tank,
                 [
-                    safe_spreadsheet_cell(name),
-                    safe_spreadsheet_cell(shape),
+                    name,
+                    shape,
                     to_mm("diameter"),
                     to_mm("length"),
                     to_mm("width"),
                     to_mm("height"),
                     to_mm("insulation_thickness"),
-                    safe_spreadsheet_cell(material),
+                    material,
                     params.get("ambient_temperature", ""),
                     params.get("process_temperature", ""),
-                    safe_spreadsheet_cell(params.get("vapor_temperature", "")),
-                ]
+                    params.get("vapor_temperature", ""),
+                ],
             )
 
     ws_pipe.column_dimensions["A"].width = 24

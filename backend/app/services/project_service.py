@@ -34,6 +34,10 @@ class ProjectLimitError(Exception):
     """Превышен лимит."""
 
 
+class ProjectValidationError(Exception):
+    """Некорректные данные операции проекта."""
+
+
 class ProjectService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -233,9 +237,18 @@ class ProjectService:
         )
         electrical_total = 0
         electrical_success = 0
+        electrical_unsupported = 0
+        electrical_stale = 0
         successful_object_ids: set[UUID] = set()
         for object_id, cable_mark, results in calc_rows.all():
             electrical_total += 1
+            if isinstance(results, dict):
+                if results.get("category") == "unsupported":
+                    electrical_unsupported += 1
+                    continue
+                if results.get("category") == "stale":
+                    electrical_stale += 1
+                    continue
             if self._is_successful_electrical_calculation(cable_mark, results):
                 electrical_success += 1
                 successful_object_ids.add(object_id)
@@ -248,7 +261,9 @@ class ProjectService:
             "valid_by_type": valid_by_type,
             "electrical_calculations_total": electrical_total,
             "successful_electrical_calculations": electrical_success,
-            "failed_electrical_calculations": electrical_total - electrical_success,
+            "failed_electrical_calculations": (
+                electrical_total - electrical_success - electrical_unsupported - electrical_stale
+            ),
             "objects_with_successful_electrical_calculation": len(successful_object_ids),
         }
 
@@ -294,9 +309,12 @@ class ProjectService:
         obj = await self._get_object(project_id, object_id)
         update_data = data.model_dump(exclude_unset=True)
         if "params" in update_data:
-            update_data["params"] = normalize_project_object_params(
-                obj.object_type, update_data["params"]
-            )
+            incoming_params = update_data["params"] or {}
+            merged_params = {
+                **(obj.params or {}),
+                **incoming_params,
+            }
+            update_data["params"] = normalize_project_object_params(obj.object_type, merged_params)
         for key, value in update_data.items():
             setattr(obj, key, value)
         await self.db.commit()
@@ -323,20 +341,34 @@ class ProjectService:
     ) -> list[ProjectObject]:
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
-        if not order:
-            return await self.list_objects(project_id, principal)
         result = await self.db.execute(
-            select(ProjectObject).where(
-                ProjectObject.project_id == project_id,
-                ProjectObject.id.in_(set(order)),
-            )
+            select(ProjectObject)
+            .where(ProjectObject.project_id == project_id)
+            .order_by(ProjectObject.sort_order, ProjectObject.id)
         )
-        objects_by_id = {obj.id: obj for obj in result.scalars().all()}
+        objects = list(result.scalars().all())
+        existing_ids = {obj.id for obj in objects}
+        order_ids = set(order)
+
+        if len(order) != len(order_ids):
+            raise ProjectValidationError("Список order содержит повторяющиеся ID объектов")
+        if order_ids != existing_ids:
+            missing_count = len(existing_ids - order_ids)
+            extra_count = len(order_ids - existing_ids)
+            details: list[str] = []
+            if missing_count:
+                details.append(f"пропущено объектов проекта: {missing_count}")
+            if extra_count:
+                details.append(f"чужих или несуществующих ID: {extra_count}")
+            detail = "; ".join(details) if details else "набор ID не совпадает"
+            raise ProjectValidationError(
+                "Список order должен содержать все объекты проекта без дублей "
+                f"и посторонних ID ({detail})"
+            )
+
+        objects_by_id = {obj.id: obj for obj in objects}
         for idx, obj_id in enumerate(order):
-            obj = objects_by_id.get(obj_id)
-            if obj is None:
-                raise ProjectNotFoundError(f"Объект {obj_id} не найден")
-            obj.sort_order = idx
+            objects_by_id[obj_id].sort_order = idx
         await self.db.commit()
         result = await self.db.execute(
             select(ProjectObject)
@@ -417,6 +449,6 @@ class ProjectService:
     ) -> bool:
         if not results:
             return False
-        if results.get("error"):
+        if results.get("error_code") or results.get("category"):
             return False
         return bool(results.get("selected_cable") or cable_mark)

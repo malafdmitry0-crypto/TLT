@@ -85,8 +85,16 @@ class TestSpecBuilder:
         по total_objects_count, а не по числу успешных расчётов."""
         results = [
             {"selected_cable": "ТЛТ-25", "cable_length": 10},
-            {"error": "Кабель не подобран"},  # fail
-            {"error": "Теплопотери = 0"},  # fail
+            {
+                "error_code": "POWER_TOO_HIGH",
+                "category": "formula",
+                "message": "Кабель не подобран",
+            },
+            {
+                "error_code": "ZERO_HEAT_LOSS",
+                "category": "validation",
+                "message": "Теплопотери = 0",
+            },
         ]
         items = build_basic_specification(results, total_objects_count=3)
         accessories = [i for i in items if i.category != "Кабель"]
@@ -101,7 +109,7 @@ class TestSpecBuilder:
         """Fail-записи не добавляют кабель."""
         results = [
             {"selected_cable": "ТЛТ-25", "cable_length": 10},
-            {"error": "fail"},
+            {"error_code": "UNKNOWN", "category": "formula", "message": "fail"},
         ]
         items = build_basic_specification(results, total_objects_count=2)
         cables = [i for i in items if i.category == "Кабель"]

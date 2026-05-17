@@ -79,6 +79,7 @@ def test_spherical_tank_layout_is_unsupported_not_error():
 
     assert payload["error_code"] == "unsupported_layout"
     assert payload["category"] == "unsupported"
+    assert "error" not in payload
     assert payload["field"] == "shape"
     assert payload["suggested_actions"] == []
     assert "не применим" in payload["message"]

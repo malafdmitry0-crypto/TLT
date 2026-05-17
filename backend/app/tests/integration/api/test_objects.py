@@ -79,9 +79,9 @@ class TestObjectsLifecycle:
         assert body["results"] is None
         assert body["validation_errors"]["error_code"] == "missing_required_fields"
         assert body["validation_errors"]["category"] == "validation"
-        assert body["validation_errors"]["message"] == body["validation_errors"]["error"]
-        assert "Толщина стенки" in body["validation_errors"]["error"]
-        assert "Материал трубы или λ трубы" in body["validation_errors"]["error"]
+        assert "error" not in body["validation_errors"]
+        assert "Толщина стенки" in body["validation_errors"]["message"]
+        assert "Материал трубы или λ трубы" in body["validation_errors"]["message"]
 
     @pytest.mark.parametrize(
         ("shape", "geometry"),
@@ -179,6 +179,41 @@ class TestObjectsLifecycle:
         assert resp.status_code == 200
         new_q = resp.json()["results"]["heat_loss_per_meter"]
         assert new_q > old_q
+
+    async def test_reorder_rejects_partial_object_list(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        object_ids: list[str] = []
+        for idx in range(3):
+            resp = await client.post(
+                f"/api/v1/projects/{pid}/objects",
+                json={
+                    "object_type": "pipe",
+                    "sort_order": idx,
+                    "params": {
+                        "name": f"Pipe-{idx}",
+                        "outer_diameter": 0.1 + idx * 0.01,
+                        "insulation_thickness": 0.05,
+                        "insulation_material": "mineral_wool",
+                        "ambient_temperature": -20,
+                        "process_temperature": 80,
+                        "pipe_length": 10,
+                    },
+                },
+                headers=headers,
+            )
+            assert resp.status_code == 201, resp.text
+            object_ids.append(resp.json()["id"])
+
+        resp = await client.put(
+            f"/api/v1/projects/{pid}/objects/reorder",
+            json={"order": [object_ids[1], object_ids[0]]},
+            headers=headers,
+        )
+        assert resp.status_code == 400
+        assert "все объекты проекта" in resp.json()["detail"]
 
     async def test_invalid_object_marked_invalid(self, client: AsyncClient, guest_session: str):
         pid = await _project(client, guest_session)

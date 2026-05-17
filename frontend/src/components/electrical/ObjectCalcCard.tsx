@@ -23,6 +23,7 @@ import {
   isElectricalCalcSuccess,
   electricalCalcError,
   electricalCalcHint,
+  isElectricalCalcStale,
   isElectricalCalcUnsupported,
 } from '@/utils/calcStatus';
 import CableSelector from './CableSelector';
@@ -60,6 +61,7 @@ export default function ObjectCalcCard({
   const errorMsg = electricalCalcError(calc);
   const hasSuccess = isElectricalCalcSuccess(calc);
   const isUnsupported = isElectricalCalcUnsupported(calc);
+  const isStale = isElectricalCalcStale(calc);
   const unsupportedText = electricalCalcHint(calc) ?? errorMsg ?? 'Не применимо';
   const objectName = String(obj.params?.name ?? `${typeLabel} #${index + 1}`);
   const canManualPick = obj.is_valid;
@@ -89,6 +91,8 @@ export default function ObjectCalcCard({
             <Tag color="default" icon={<MinusCircleFilled />}>
               не применимо
             </Tag>
+          ) : isStale ? (
+            <Tag color="warning">требуется пересчёт</Tag>
           ) : errorMsg ? (
             <Tag color="error" icon={<CloseCircleFilled />}>
               ошибка
@@ -129,6 +133,13 @@ export default function ObjectCalcCard({
               </Text>
             </>
           }
+        />
+      ) : isStale ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="Электрорасчёт требует пересчёта"
+          description={electricalCalcHint(calc) ?? errorMsg ?? 'Изменились теплопотери объекта.'}
         />
       ) : errorMsg ? (
         <Alert

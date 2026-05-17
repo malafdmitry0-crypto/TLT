@@ -88,6 +88,10 @@ def _bulk_upsert_result(rows: list[dict[str, object]]) -> MagicMock:
     return result
 
 
+def _disable_stale_mark(service: CalculationService) -> None:
+    service.mark_electrical_calculations_stale = AsyncMock(return_value=0)  # type: ignore[method-assign]
+
+
 class ManualClock:
     def __init__(self) -> None:
         self.value = 0.0
@@ -168,7 +172,7 @@ class TestRecalculateObject:
             },
             results=None,
             is_valid=False,
-            validation_errors={"error": "old"},
+            validation_errors={"message": "old"},
         )
         result = await service.recalculate_object(obj)
         assert result is obj
@@ -199,12 +203,10 @@ class TestRecalculateObject:
         assert result is obj
         assert obj.is_valid is False
         assert obj.validation_errors is not None
-        assert "error" in obj.validation_errors
         assert obj.validation_errors["category"] == "validation"
-        assert obj.validation_errors["error_code"] == "invalid_object_params"
-        assert obj.validation_errors["message"] == obj.validation_errors["error"]
+        assert obj.validation_errors["error_code"] == "schema_validation_error"
         # Сообщение об ошибке содержит упоминание T_продукта
-        err_msg = obj.validation_errors["error"].lower()
+        err_msg = obj.validation_errors["message"].lower()
         assert "выше" in err_msg or "температур" in err_msg
 
     async def test_failure_clears_results(self):
@@ -566,6 +568,63 @@ class TestCableLayoutMapping:
         assert data["requested_number_of_threads"] is None
         assert data["number_of_threads_source"] == "auto"
 
+    def test_pipe_required_power_applies_location_factor_without_double_safety(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(
+            object_type="pipe",
+            params={
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 50,
+                "safety_factor": 1.1,
+            },
+            results={
+                "heat_loss_per_meter": 20.0,
+                "location_factor": 0.9,
+                "effective_length": 50,
+            },
+            is_valid=True,
+        )
+
+        data = service._build_electrical_data(
+            obj=obj,
+            cable_type="self_regulating",
+            cable_mark=None,
+            tlt_catalog=[],
+            overrides={"safety_factor": 1.3},
+        )
+
+        assert data["required_power_per_meter"] == pytest.approx(18.0)
+        assert data["safety_factor"] == pytest.approx(1.3)
+
+    def test_ttn_uses_object_aggressive_product_when_override_absent(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(
+            object_type="pipe",
+            params={
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 50,
+                "safety_factor": 1.1,
+                "aggressive_product": True,
+            },
+            results={
+                "heat_loss_per_meter": 20.0,
+                "effective_length": 50,
+            },
+            is_valid=True,
+        )
+
+        data = service._build_electrical_data(
+            obj=obj,
+            cable_type="self_regulating_tt",
+            cable_mark=None,
+            tlt_catalog=[],
+            overrides={},
+        )
+
+        assert data["aggressive_product"] is True
+
     def test_tlt_tank_required_power_uses_cable_geometry_not_m2(self):
         service = CalculationService(_mock_db_empty())
         obj = SimpleNamespace(
@@ -668,6 +727,39 @@ class TestCableLayoutMapping:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# stale electrical calculations
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestElectricalStale:
+    async def test_marks_existing_electrical_result_as_stale_without_losing_fields(self):
+        project_id = uuid.uuid4()
+        object_id = uuid.uuid4()
+        calc = SimpleNamespace(
+            project_id=project_id,
+            object_id=object_id,
+            results={
+                "selected_cable": "ТЛТ-30",
+                "cable_length": 12.0,
+            },
+        )
+        db = _mock_db_empty()
+        db.execute = AsyncMock(return_value=_objects_result([calc]))
+        db.flush = AsyncMock()
+
+        count = await CalculationService(db).mark_electrical_calculations_stale(
+            project_id,
+            [object_id],
+        )
+
+        assert count == 1
+        assert calc.results["selected_cable"] == "ТЛТ-30"
+        assert calc.results["category"] == "stale"
+        assert calc.results["error_code"] == "STALE_HEAT_LOSS"
+        db.flush.assert_awaited_once()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # batch_recalculate — агрегация
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -714,6 +806,7 @@ class TestBatchRecalculate:
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
+        _disable_stale_mark(service)
         service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
 
         async def mark_valid(obj, *, coefficients=None):
@@ -762,6 +855,7 @@ class TestBatchRecalculate:
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
+        _disable_stale_mark(service)
         service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
 
         async def mark_valid(obj, *, coefficients=None):
@@ -824,6 +918,7 @@ class TestBatchRecalculate:
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
+        _disable_stale_mark(service)
         service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
         service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
             side_effect=[
@@ -838,7 +933,9 @@ class TestBatchRecalculate:
         assert failed == 1
         assert len(errors) == 1
         assert errors[0]["object_id"] == str(objects[1].id)
-        assert errors[0]["error"] == {"error": "process temperature ниже ambient"}
+        assert errors[0]["error"]["message"] == "process temperature ниже ambient"
+        assert errors[0]["error"]["error_code"] == "invalid_object_params"
+        assert errors[0]["error"]["category"] == "validation"
         db.commit.assert_awaited_once()
 
     async def test_loads_coefficients_once_for_batch(self):
@@ -861,6 +958,7 @@ class TestBatchRecalculate:
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
+        _disable_stale_mark(service)
         coefficients = {"safety_factor": 1.0}
         service.get_coefficients = AsyncMock(return_value=coefficients)  # type: ignore[method-assign]
         service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
@@ -896,6 +994,7 @@ class TestBatchRecalculate:
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
+        _disable_stale_mark(service)
         service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
         service._calc_heat_loss_with_coefficients = MagicMock(  # type: ignore[method-assign]
             return_value={"heat_loss_per_meter": 10}
@@ -1180,6 +1279,7 @@ class TestBatchElectricalCallbacks:
         created = db.add.call_args.args[0]
         assert created.results["error_code"] == "unsupported_layout"
         assert created.results["category"] == "unsupported"
+        assert "error" not in created.results
         assert created.results["message"].startswith("Электрорасчёт укладки кабеля")
         assert created.results["error_context"]["shape"] == "spherical"
         assert created.results["error_context"]["cable_type"] == "self_regulating"
@@ -1545,6 +1645,63 @@ class TestLoadCableCatalog:
         assert tlt25["price_per_meter"] == 460.0
         assert tlt25["supplier_name"] == "Поставщик"
 
+    async def test_commercial_resistive_catalog_includes_sanitized_db_rows(self):
+        ext = SimpleNamespace(
+            cable_type="single_core",
+            brand="ТТ",
+            model="ТТ Р1 Custom",
+            power_per_meter=None,
+            max_temperature=None,
+            min_temperature=None,
+            resistance_per_meter=0.08,
+            supplier_name="Поставщик",
+            article="R1-CUSTOM",
+            currency="RUB",
+            price_per_meter=120.0,
+            stock_quantity_m=1000.0,
+            stock_status="in_stock",
+            lead_time_days=2,
+            supplier_priority=5,
+            is_preferred=True,
+            order_multiple_m=10.0,
+            min_order_quantity_m=20.0,
+            is_discontinued=False,
+            replacement_group=None,
+            price_updated_at=None,
+            stock_updated_at=None,
+            commercial_data_source="test",
+            params={"conductor_section_mm2": 0.47},
+        )
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars = lambda: MagicMock(all=lambda: [ext])
+        db.execute = AsyncMock(return_value=result)
+        service = CalculationService(db)
+
+        cables = await service.load_resistive_cable_catalog("single_core", "commercial")
+        custom = next(c for c in cables if c["model"] == "ТТ Р1 Custom")
+
+        assert custom["source"] == "commercial"
+        assert custom["resistance_ohm_km"] == pytest.approx(80.0)
+        assert custom["conductor_cross_section"] == pytest.approx(0.47)
+        assert custom["price_per_meter"] == 120.0
+
+    def test_balanced_ranking_payload_is_unapproved_by_default(self):
+        service = CalculationService(AsyncMock())
+        payload = service._balanced_ranking_payload(
+            overrides={},
+            params={},
+            coefficients={
+                "commercial_balanced_weight_cost": 0.1,
+                "commercial_balanced_weight_delivery": 0.9,
+                "commercial_balanced_weights_approved": 0.0,
+            },
+        )
+
+        assert payload["balanced_weights"]["delivery"] == pytest.approx(0.9)
+        assert payload["balanced_weights_approved"] is False
+        assert payload["balanced_weights_version"] == "db_coefficients"
+
 
 class TestCoefficientsCaching:
     """Кэш коэффициентов — ключ-инвалидация работает, второй вызов не идёт в БД."""
@@ -1569,7 +1726,7 @@ class TestCoefficientsCaching:
 
 
 class TestSaveFailedElectrical:
-    """Прямые unit-тесты на _save_failed_electrical (восстанавливает запись с error)."""
+    """Прямые unit-тесты на _save_failed_electrical."""
 
     async def test_creates_new_when_no_existing(self):
         from app.services.calculation_service import CalculationService
@@ -1611,11 +1768,11 @@ class TestSaveFailedElectrical:
         db.commit = AsyncMock()
 
         await CalculationService(db)._save_failed_electrical(obj, "Some error")
-        # cable_mark обнуляется, results заменяются на error
+        # cable_mark обнуляется, results заменяются на structured failure payload.
         assert existing.cable_mark is None
-        assert existing.results["error"] == "Some error"
         assert existing.results["error_code"] == "UNKNOWN"
         assert existing.results["category"] == "formula"
+        assert "error" not in existing.results
         assert existing.results["message"] == "Some error"
         assert existing.results["suggested_actions"] == [
             "CHECK_OBJECT_PARAMS",

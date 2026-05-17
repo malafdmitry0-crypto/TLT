@@ -55,6 +55,9 @@ from app.services.project_object_params import (
 # попадала в default, а не падала).
 CableSource = str  # "builtin" | "commercial" | "extended" | "all"
 
+STALE_ELECTRICAL_ERROR_CODE = "STALE_HEAT_LOSS"
+STALE_ELECTRICAL_MESSAGE = "Теплопотери объекта изменились. Пересчитайте электрорасчёт."
+
 
 class CalculationError(Exception):
     pass
@@ -73,11 +76,7 @@ def _missing_fields_from_message(message: str) -> list[str]:
     prefix = "Не заполнены обязательные поля объекта:"
     if prefix not in message:
         return []
-    return [
-        field.strip()
-        for field in message.split(prefix, 1)[1].split(",")
-        if field.strip()
-    ]
+    return [field.strip() for field in message.split(prefix, 1)[1].split(",") if field.strip()]
 
 
 def _first_validation_field(exc: ValidationError) -> str | None:
@@ -97,7 +96,7 @@ def build_heat_loss_error_payload(
     *,
     object_type: str,
 ) -> dict[str, Any]:
-    """Structured `project_objects.validation_errors` with legacy `error` kept."""
+    """Structured `project_objects.validation_errors`."""
 
     message = _clean_exception_message(exc)
     lower_message = message.lower()
@@ -140,6 +139,7 @@ def build_heat_loss_error_payload(
             "диапазон",
             "положитель",
             "выше",
+            "ниже",
             "превыш",
             "не может",
         )
@@ -151,7 +151,6 @@ def build_heat_loss_error_payload(
         hint = "Расчётная формула завершилась ошибкой; проверьте исходные данные."
 
     return {
-        "error": message,
         "error_code": error_code,
         "category": category,
         "message": message,
@@ -306,20 +305,27 @@ class CalculationService:
         else:
             calculations = []
 
-        error_text = ElectricalCalculation.results["error"].astext
+        error_code_text = ElectricalCalculation.results["error_code"].astext
         category_text = ElectricalCalculation.results["category"].astext
+        message_text = ElectricalCalculation.results["message"].astext
         selected_cable_text = ElectricalCalculation.results["selected_cable"].astext
         successful_calc = and_(
             ElectricalCalculation.results.is_not(None),
-            error_text.is_(None),
+            error_code_text.is_(None),
+            category_text.is_(None),
             or_(
                 ElectricalCalculation.cable_mark.is_not(None),
                 selected_cable_text.is_not(None),
             ),
         )
         failed_calc = and_(
-            error_text.is_not(None),
+            or_(
+                error_code_text.is_not(None),
+                category_text.in_(("validation", "formula", "external")),
+                message_text.is_not(None),
+            ),
             func.coalesce(category_text, "") != "unsupported",
+            func.coalesce(category_text, "") != "stale",
         )
         installed_cable_length = sa_cast(
             ElectricalCalculation.results["cable_length"].astext, Float
@@ -396,6 +402,11 @@ class CalculationService:
     def _extended_cable_catalog_entry(
         c: CableExtended, *, source: str = "extended"
     ) -> dict[str, Any]:
+        raw_params = getattr(c, "params", None)
+        params = raw_params if isinstance(raw_params, dict) else {}
+        resistance_ohm_km = params.get("resistance_ohm_km")
+        if resistance_ohm_km is None and c.resistance_per_meter is not None:
+            resistance_ohm_km = float(c.resistance_per_meter) * 1000.0
         return {
             "source": source,
             "cable_type": c.cable_type,
@@ -405,6 +416,15 @@ class CalculationService:
             "max_temperature": c.max_temperature,
             "min_temperature": c.min_temperature,
             "resistance_per_meter": c.resistance_per_meter,
+            "resistance_ohm_km": resistance_ohm_km,
+            "conductor_cross_section": params.get("conductor_cross_section")
+            or params.get("conductor_section_mm2")
+            or params.get("cross_section"),
+            "conductor_section_mm2": params.get("conductor_section_mm2")
+            or params.get("conductor_cross_section")
+            or params.get("cross_section"),
+            "diameter_mm": params.get("diameter_mm"),
+            "nominal_size_mm": params.get("nominal_size_mm"),
             "supplier_name": getattr(c, "supplier_name", None),
             "article": getattr(c, "article", None),
             "currency": getattr(c, "currency", None),
@@ -425,6 +445,7 @@ class CalculationService:
                 c.stock_updated_at.isoformat() if getattr(c, "stock_updated_at", None) else None
             ),
             "commercial_data_source": getattr(c, "commercial_data_source", None),
+            "params": params,
         }
 
     @classmethod
@@ -488,6 +509,82 @@ class CalculationService:
             return extended
         return builtin + extended
 
+    @classmethod
+    def _merge_commercial_resistive_entry(
+        cls,
+        base: dict[str, Any],
+        commercial: CableExtended | None,
+    ) -> dict[str, Any]:
+        entry = {
+            **base,
+            "source": "commercial",
+            "currency": "RUB",
+            "price_per_meter": None,
+            "stock_quantity_m": None,
+            "stock_status": "unknown",
+            "lead_time_days": None,
+            "supplier_priority": None,
+            "is_preferred": False,
+            "order_multiple_m": None,
+            "min_order_quantity_m": None,
+            "is_discontinued": False,
+            "commercial_data_source": None,
+        }
+        if commercial is None:
+            return entry
+        overlay = cls._extended_cable_catalog_entry(commercial, source="commercial")
+        for key, value in overlay.items():
+            if key in {
+                "model",
+                "brand",
+                "resistance_ohm_km",
+                "conductor_cross_section",
+                "conductor_section_mm2",
+                "diameter_mm",
+                "nominal_size_mm",
+            }:
+                continue
+            entry[key] = value
+        return entry
+
+    async def load_resistive_cable_catalog(
+        self,
+        cable_type: str,
+        source: CableSource = "builtin",
+    ) -> list[dict[str, Any]]:
+        if source not in ("builtin", "commercial", "extended", "all"):
+            source = "builtin"
+        key = "single_core" if cable_type == "single_core" else "three_core"
+        builtin = [
+            {**c, "source": "builtin", "cable_type": cable_type}
+            for c in list_resistive_cables().get(key, [])
+        ]
+        if source == "builtin":
+            return builtin
+        result = await self.db.execute(
+            select(CableExtended).where(
+                CableExtended.is_active.is_(True),
+                CableExtended.cable_type == cable_type,
+            )
+        )
+        rows = list(result.scalars().all())
+        if source == "commercial":
+            by_model = {c.model: c for c in rows}
+            merged = [
+                self._merge_commercial_resistive_entry(c, by_model.get(c["model"])) for c in builtin
+            ]
+            builtin_models = {c["model"] for c in builtin}
+            merged.extend(
+                self._extended_cable_catalog_entry(c, source="commercial")
+                for c in rows
+                if c.model not in builtin_models
+            )
+            return merged
+        extended = [self._extended_cable_catalog_entry(c) for c in rows]
+        if source == "extended":
+            return extended
+        return builtin + extended
+
     async def calc_heat_loss(self, object_type: str, data: dict[str, Any]) -> HeatLossResultDict:
         """Возвращает результат теплорасчёта в формате, совпадающем с JSONB.
 
@@ -531,13 +628,55 @@ class CalculationService:
 
         Side effects:
             При ошибке устанавливает `obj.is_valid=False` и пишет причину в
-            `obj.validation_errors` с legacy `error` и structured fields
-            (`error_code`, `category`, `message`, `field`, `hint`).
+            `obj.validation_errors` со structured fields (`error_code`,
+            `category`, `message`, `field`, `hint`).
         """
         await self.try_recalculate(obj)
         # Независимо от Ok/Err, try_recalculate мутирует obj на месте
         # (обновляет results/is_valid/validation_errors). Возвращаем тот же obj.
         return obj
+
+    async def mark_electrical_calculations_stale(
+        self,
+        project_id: UUID,
+        object_ids: list[UUID] | set[UUID] | tuple[UUID, ...],
+        *,
+        reason: str = "heat_loss_changed",
+    ) -> int:
+        """Помечает существующие электрорасчёты как требующие ручного пересчёта.
+
+        Записи остаются в БД вместе с выбранной маркой и прежними result-полями,
+        но structured status перестаёт считать их успешными. Новый пересчёт
+        полностью перезапишет `results` через обычный upsert.
+        """
+        unique_ids = list(dict.fromkeys(object_ids))
+        if not unique_ids:
+            return 0
+
+        result = await self.db.execute(
+            select(ElectricalCalculation).where(
+                ElectricalCalculation.project_id == project_id,
+                ElectricalCalculation.object_id.in_(unique_ids),
+            )
+        )
+        stale_count = 0
+        for calc in result.scalars().all():
+            previous = dict(calc.results or {})
+            if previous.get("category") == "stale":
+                continue
+            calc.results = {
+                **previous,
+                "stale": True,
+                "stale_reason": reason,
+                "error_code": STALE_ELECTRICAL_ERROR_CODE,
+                "category": "stale",
+                "message": STALE_ELECTRICAL_MESSAGE,
+                "hint": "Нажмите «Пересчитать выбранные» или «Пересчитать все» вручную.",
+            }
+            stale_count += 1
+        if stale_count:
+            await self.db.flush()
+        return stale_count
 
     async def try_recalculate(
         self,
@@ -781,6 +920,11 @@ class CalculationService:
                     await asyncio.sleep(0)
 
             await cancel_checker.check(processed, force=True)
+            await self.mark_electrical_calculations_stale(
+                project_id,
+                [obj.id for obj in objects],
+                reason="heat_loss_batch_recalculate",
+            )
             await self.db.flush()
             await asyncio.sleep(0)
 
@@ -1159,6 +1303,90 @@ class CalculationService:
         }
 
     @staticmethod
+    def _bool_policy_value(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int | float):
+            return float(value) >= 1.0
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "approved", "on"}
+        return False
+
+    def _balanced_ranking_payload(
+        self,
+        *,
+        overrides: dict[str, Any],
+        params: dict[str, Any],
+        coefficients: dict[str, float] | None,
+    ) -> dict[str, Any]:
+        explicit_weights = overrides.get("balanced_weights") or params.get("balanced_weights")
+        if isinstance(explicit_weights, dict) and explicit_weights:
+            weights = {
+                key: float(value)
+                for key, value in explicit_weights.items()
+                if key in {"cost", "delivery", "stock", "supplier"} and value is not None
+            }
+            version = str(
+                overrides.get("balanced_weights_version")
+                or params.get("balanced_weights_version")
+                or "request_weights"
+            )
+        else:
+            weights = {
+                "cost": self._pick_numeric_policy(
+                    key="commercial_balanced_weight_cost",
+                    fallback=0.45,
+                    overrides=overrides,
+                    params=params,
+                    coefficients=coefficients,
+                )
+                or 0.45,
+                "delivery": self._pick_numeric_policy(
+                    key="commercial_balanced_weight_delivery",
+                    fallback=0.25,
+                    overrides=overrides,
+                    params=params,
+                    coefficients=coefficients,
+                )
+                or 0.25,
+                "stock": self._pick_numeric_policy(
+                    key="commercial_balanced_weight_stock",
+                    fallback=0.2,
+                    overrides=overrides,
+                    params=params,
+                    coefficients=coefficients,
+                )
+                or 0.2,
+                "supplier": self._pick_numeric_policy(
+                    key="commercial_balanced_weight_supplier",
+                    fallback=0.1,
+                    overrides=overrides,
+                    params=params,
+                    coefficients=coefficients,
+                )
+                or 0.1,
+            }
+            version = (
+                "db_coefficients"
+                if coefficients
+                and any(key.startswith("commercial_balanced_weight_") for key in coefficients)
+                else "default_unapproved"
+            )
+
+        approved_raw = (
+            overrides.get("balanced_weights_approved")
+            if overrides.get("balanced_weights_approved") is not None
+            else params.get("balanced_weights_approved")
+        )
+        if approved_raw is None and coefficients is not None:
+            approved_raw = coefficients.get("commercial_balanced_weights_approved")
+        return {
+            "balanced_weights": weights,
+            "balanced_weights_approved": self._bool_policy_value(approved_raw),
+            "balanced_weights_version": version,
+        }
+
+    @staticmethod
     def _positive_heat_loss(value: Any) -> float:
         parsed = CalculationService._num(value)
         if parsed is None:
@@ -1421,7 +1649,8 @@ class CalculationService:
     ) -> float:
         results = obj.results or {}
         if obj.object_type == "pipe":
-            return self._positive_heat_loss(results.get("heat_loss_per_meter"))
+            location_factor = self._num(results.get("location_factor"), 1.0) or 1.0
+            return self._positive_heat_loss(results.get("heat_loss_per_meter")) * location_factor
 
         # Для кабеля на резервуаре считаем требуемые Вт/м кабеля по
         # полной площади и реальной длине укладки, чтобы не сравнивать Вт/м²
@@ -1439,12 +1668,17 @@ class CalculationService:
         self,
         cable_type: str,
         cable_mark: str | None,
+        catalog_override: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]] | None:
         if cable_mark is None:
             return None
-        catalog = list_resistive_cables()
-        key = "single_core" if cable_type == "single_core" else "three_core"
-        match = [c for c in catalog.get(key, []) if c.get("model") == cable_mark]
+        if catalog_override is None:
+            catalog = list_resistive_cables()
+            key = "single_core" if cable_type == "single_core" else "three_core"
+            rows = list(catalog.get(key, []))
+        else:
+            rows = catalog_override
+        match = [c for c in rows if c.get("model") == cable_mark]
         if not match:
             raise ValueError(f"Кабель «{cable_mark}» не найден в справочнике")
         return match
@@ -1456,6 +1690,7 @@ class CalculationService:
         cable_type: str,
         cable_mark: str | None,
         tlt_catalog: list[dict[str, Any]],
+        resistive_catalog: list[dict[str, Any]] | None = None,
         overrides: dict[str, Any],
         coefficients: dict[str, float] | None = None,
     ) -> dict[str, Any]:
@@ -1470,10 +1705,9 @@ class CalculationService:
             overrides.get("supply_voltage") or params.get("supply_voltage"),
             220.0,
         )
-        safety_factor = self._num(
-            params.get("safety_factor") or overrides.get("safety_factor"),
-            1.1,
-        )
+        safety_factor = self._num(overrides.get("safety_factor"))
+        if safety_factor is None:
+            safety_factor = self._num(params.get("safety_factor"), 1.1)
         pipe_length = self._base_cable_length(obj, overrides, params, results)
         winding_pitch = self._winding_pitch_mm(overrides, params)
         override_vapor_temperature = self._num(overrides.get("vapor_temperature"))
@@ -1511,11 +1745,22 @@ class CalculationService:
                 "winding_coefficient": self._winding_coefficient(obj, overrides, params, 1.0),
                 "winding_pitch": winding_pitch,
                 "selection_policy": overrides.get("selection_policy") or "technical_minimum",
+                **self._balanced_ranking_payload(
+                    overrides=overrides,
+                    params=params,
+                    coefficients=coefficients,
+                ),
                 **thread_payload,
             }
 
         if cable_type == "self_regulating_tt":
             thread_payload = self._number_of_threads_payload(overrides, params, None)
+            aggressive_product = (
+                overrides.get("aggressive_product")
+                if "aggressive_product" in overrides
+                and overrides.get("aggressive_product") is not None
+                else params.get("aggressive_product", False)
+            )
             data = {
                 "required_power_per_meter": self._required_power_per_meter(
                     obj, cable_type, overrides, safety_factor or 1.1
@@ -1530,7 +1775,7 @@ class CalculationService:
                 "safety_factor": safety_factor,
                 "cable_mark": cable_mark,
                 "vapor_temperature": vapor_temperature,
-                "aggressive_product": bool(overrides.get("aggressive_product", False)),
+                "aggressive_product": bool(aggressive_product),
                 "winding_coefficient": self._winding_coefficient(obj, overrides, params, 1.1),
                 "winding_pitch": winding_pitch,
                 **thread_payload,
@@ -1556,7 +1801,17 @@ class CalculationService:
                 "winding_coefficient": self._winding_coefficient(obj, overrides, params, 1.0),
                 "winding_pitch": winding_pitch,
                 **thread_payload,
-                "cable_catalog": self._resistive_manual_catalog(cable_type, cable_mark),
+                "selection_policy": overrides.get("selection_policy") or "technical_minimum",
+                **self._balanced_ranking_payload(
+                    overrides=overrides,
+                    params=params,
+                    coefficients=coefficients,
+                ),
+                "cable_catalog": (
+                    self._resistive_manual_catalog(cable_type, cable_mark, resistive_catalog)
+                    if cable_mark is not None
+                    else resistive_catalog
+                ),
             }
             data.update(
                 self._resistive_policy_payload(
@@ -1634,14 +1889,18 @@ class CalculationService:
             raise CalculationError("Теплопотери объекта не рассчитаны — невозможно выбрать кабель")
 
         catalog = await self.load_cable_catalog(cable_source)
-        coefficients = (
-            await self.get_coefficients() if cable_type in ("single_core", "three_core") else None
+        resistive_catalog = (
+            await self.load_resistive_cable_catalog(cable_type, cable_source)
+            if cable_type in ("single_core", "three_core")
+            else None
         )
+        coefficients = await self.get_coefficients()
         data = self._build_electrical_data(
             obj=obj,
             cable_type=cable_type,
             cable_mark=cable_mark,
             tlt_catalog=catalog,
+            resistive_catalog=resistive_catalog,
             overrides=self._base_overrides_with_sources(electrical_params or {}),
             coefficients=coefficients,
         )
@@ -1852,7 +2111,8 @@ class CalculationService:
         calcs: list[ElectricalCalculation] = []
         catalog = await self.load_cable_catalog(cable_source)
         base_overrides = self._base_overrides_with_sources(electrical_params or {})
-        resistive_coefficients: dict[str, float] | None = None
+        electrical_coefficients: dict[str, float] | None = None
+        resistive_catalogs: dict[str, list[dict[str, Any]]] = {}
         processed = 0
         last_sort_order: int | None = None
         last_id: UUID | None = None
@@ -1920,16 +2180,27 @@ class CalculationService:
                     )
                     if (
                         object_cable_type in ("single_core", "three_core")
-                        and resistive_coefficients is None
-                    ):
-                        resistive_coefficients = await self.get_coefficients()
+                        or overrides.get("selection_policy") == "balanced"
+                    ) and electrical_coefficients is None:
+                        electrical_coefficients = await self.get_coefficients()
+                    resistive_catalog = None
+                    if object_cable_type in ("single_core", "three_core"):
+                        if object_cable_type not in resistive_catalogs:
+                            resistive_catalogs[
+                                object_cable_type
+                            ] = await self.load_resistive_cable_catalog(
+                                object_cable_type,
+                                cable_source,
+                            )
+                        resistive_catalog = resistive_catalogs[object_cable_type]
                     request_data = self._build_electrical_data(
                         obj=obj,
                         cable_type=object_cable_type,
                         cable_mark=None,
                         tlt_catalog=catalog,
+                        resistive_catalog=resistive_catalog,
                         overrides=overrides,
-                        coefficients=resistive_coefficients,
+                        coefficients=electrical_coefficients,
                     )
                     request_data["cable_type_source"] = cable_type_source
                     request_data["cable_mark_source"] = CABLE_MARK_SOURCE_AUTO

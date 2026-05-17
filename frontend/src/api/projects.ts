@@ -162,18 +162,24 @@ export async function reorderObjects(
   return data;
 }
 
+export type ImportMode = 'append' | 'merge' | 'replace';
+
 export interface ImportResult {
   created: number;
+  skipped_duplicates: number;
+  mode: ImportMode;
   errors: { sheet: string; row: number; message: string }[];
   heat_loss_task?: CalculationTaskResponse;
 }
 
 export async function importObjectsExcel(
   projectId: string,
-  file: File
+  file: File,
+  mode: ImportMode = 'merge'
 ): Promise<ImportResult> {
   const form = new FormData();
   form.append('file', file);
+  form.append('mode', mode);
   const { data } = await apiClient.post<ImportResult>(
     `/projects/${projectId}/objects/import-excel`,
     form,

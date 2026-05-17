@@ -836,7 +836,7 @@
 | US-09.2 | Экспорт объектов в Excel для редактирования: backend-endpoint `GET /projects/{id}/objects/export-excel` и UI-кнопка на HeatCalcPage. | ✅ |
 | US-09.3 | Drag-and-drop сортировка строк в таблицах Pipe/Tank (`@dnd-kit`, `activationConstraint=6px` чтобы сохранить кликабельность кнопок Edit/Delete). Порядок сохраняется через `PUT /objects/reorder`. | ✅ |
 | US-09.7 | Расчёт резистивных кабелей ТТ Р1 (`single_core`) и ТТ Р3 (`three_core`) по full-version VSDX fallback policy. | ✅ |
-| US-09.12 | Персистентные ошибки электрорасчёта: при сбое сохраняется запись `ElectricalCalculation` с `results.error`, на UI показывается красный Alert с причиной (после reload не теряется). Upsert по `(object_id, variant_number)` — без дубликатов. | ✅ |
+| US-09.12 | Персистентные ошибки электрорасчёта: при сбое сохраняется запись `ElectricalCalculation` со structured `results.error_code/category/message`, на UI показывается красный Alert с причиной (после reload не теряется). `category=unsupported` отображается как «Не применимо», не как ошибка. Upsert по `(object_id, variant_number)` — без дубликатов. | ✅ |
 
 ## Нереализованные истории (бэклог)
 

@@ -542,7 +542,10 @@ class TestElectricalCalculation:
             )
         ).json()
         assert len(listing) == 1
-        assert "расчётная формула не реализована" in listing[0]["results"]["error"]
+        assert listing[0]["results"]["error_code"] == "UNKNOWN"
+        assert listing[0]["results"]["category"] == "formula"
+        assert "расчётная формула не реализована" in listing[0]["results"]["message"]
+        assert "error" not in listing[0]["results"]
 
 
 class TestManualCableSelection:
@@ -690,7 +693,8 @@ class TestManualCableSelection:
             )
         ).json()
         assert len(before) == 1
-        assert before[0]["results"].get("error")
+        assert before[0]["results"].get("error_code")
+        assert "error" not in before[0]["results"]
 
         # Чиним объект: снижаем процесс-температуру до 80 через update
         await client.put(
@@ -723,7 +727,8 @@ class TestManualCableSelection:
             )
         ).json()
         assert len(after) == 1
-        assert not after[0]["results"].get("error")
+        assert not after[0]["results"].get("error_code")
+        assert not after[0]["results"].get("category")
         assert after[0]["cable_mark"] == "ТЛТ-50"
 
     async def test_batch_skip_manual_preserves_manual_cable(
@@ -954,8 +959,8 @@ class TestVariantIsolation:
         assert v1_calc[0]["cable_mark"] is not None
         v1_cable = v1_calc[0]["cable_mark"]
 
-        # Эмулируем фейл для СО2: ручной выбор заведомо слабого кабеля под variant=2
-        # Это создаст failed-запись (cable_mark=None, results.error) для варианта 2.
+        # Эмулируем фейл для СО2: ручной выбор заведомо слабого кабеля под variant=2.
+        # Это создаст failed-запись (cable_mark=None, structured results) для варианта 2.
         obj_id = v1_calc[0]["object_id"]
         r_fail = await client.post(
             "/api/v1/calc/electrical/select-cable",

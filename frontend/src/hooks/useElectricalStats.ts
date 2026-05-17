@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import {
   isElectricalCalcSuccess,
   electricalCalcError,
+  isElectricalCalcStale,
   isElectricalCalcUnsupported,
 } from '@/utils/calcStatus';
 import type { ProjectObject } from '@/types/project';
@@ -65,7 +66,9 @@ export function useElectricalStats(
     const failedCount = objects.filter(
       (o) => {
         const calc = calcByObjectId[o.id];
-        return !!electricalCalcError(calc) && !isElectricalCalcUnsupported(calc);
+        return !!electricalCalcError(calc)
+          && !isElectricalCalcUnsupported(calc)
+          && !isElectricalCalcStale(calc);
       },
     ).length;
     const allCalced = calcedCount > 0 && calcedCount === validObjects.length;

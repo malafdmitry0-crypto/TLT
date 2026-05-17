@@ -74,11 +74,11 @@ class TestBuildObjectsXlsxSafety:
             params={
                 "name": '=HYPERLINK("http://example.test","x")',
                 "outer_diameter": 0.108,
-                "pipe_length": 10,
+                "pipe_length": "+SUM(1,1)",
                 "insulation_thickness": 0.05,
                 "insulation_material": "+SUM(1,1)",
-                "ambient_temperature": -20,
-                "process_temperature": 80,
+                "ambient_temperature": "-2+3",
+                "process_temperature": "=1+1",
                 "vapor_temperature": "@cmd",
             },
         )
@@ -86,7 +86,35 @@ class TestBuildObjectsXlsxSafety:
         wb = load_workbook(io.BytesIO(build_objects_xlsx([obj])), data_only=False)
         ws = wb["Трубопроводы"]
 
-        for cell_ref in ("A2", "E2", "H2"):
+        for cell_ref in ("A2", "C2", "E2", "F2", "G2", "H2"):
+            cell = ws[cell_ref]
+            assert cell.data_type == "s"
+            assert str(cell.value).startswith("'")
+
+    def test_objects_xlsx_does_not_crash_on_malicious_dimension_strings(self):
+        from types import SimpleNamespace
+
+        from openpyxl import load_workbook
+
+        obj = SimpleNamespace(
+            object_type="tank",
+            params={
+                "name": "tank",
+                "shape": "rectangular",
+                "diameter": "=1+1",
+                "length": "+SUM(1,1)",
+                "width": "-2+3",
+                "height": "@cmd",
+                "insulation_thickness": "=10",
+                "insulation_material": "mineral_wool",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+            },
+        )
+
+        wb = load_workbook(io.BytesIO(build_objects_xlsx([obj])), data_only=False)
+        ws = wb["Резервуары"]
+        for cell_ref in ("C2", "D2", "E2", "F2", "G2"):
             cell = ws[cell_ref]
             assert cell.data_type == "s"
             assert str(cell.value).startswith("'")
@@ -466,7 +494,7 @@ class TestAddRowsHelper:
         monkeypatch.setattr(mod, "_commit_object_batch", fake_commit)
         db = AsyncMock()
 
-        created, next_sort, current_count, errors, object_ids = await _add_rows(
+        created, next_sort, current_count, errors, object_ids, skipped = await _add_rows(
             db,
             uuid4(),
             "Pipes",
@@ -480,8 +508,64 @@ class TestAddRowsHelper:
         assert next_sort == 30
         assert current_count == 30
         assert len(object_ids) == 30
+        assert skipped == 0
         assert errors == []
         assert batch_sizes == [25, 5]
+
+    async def test_merge_mode_skips_existing_dedupe_key(self, monkeypatch: pytest.MonkeyPatch):
+        from unittest.mock import AsyncMock
+        from uuid import uuid4
+
+        from app.services import excel_import_service as mod
+        from app.services.excel_import_service import _add_rows, _dedupe_key
+        from app.services.project_object_params import normalize_project_object_params
+
+        row = {
+            "_row": 2,
+            "name": " Line A ",
+            "outer_diameter_mm": 108,
+            "pipe_length": 50,
+            "insulation_thickness_mm": 50,
+            "insulation_material": "mineral_wool",
+            "ambient_temperature": -20,
+            "process_temperature": 80,
+        }
+        normalized = normalize_project_object_params(
+            "pipe",
+            {
+                "name": " Line A ",
+                "outer_diameter": 0.108,
+                "pipe_length": 50.0,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool",
+                "ambient_temperature": -20.0,
+                "process_temperature": 80.0,
+            },
+        )
+        dedupe_keys = {_dedupe_key("pipe", normalized)}
+
+        async def fake_commit(db, batch, sheet_label):
+            return len(batch), ["should-not-create"] if batch else [], []
+
+        monkeypatch.setattr(mod, "_commit_object_batch", fake_commit)
+
+        created, next_sort, current_count, errors, object_ids, skipped = await _add_rows(
+            AsyncMock(),
+            uuid4(),
+            "Pipes",
+            [row],
+            "pipe",
+            next_sort=7,
+            current_count=3,
+            dedupe_keys=dedupe_keys,
+        )
+
+        assert created == 0
+        assert next_sort == 7
+        assert current_count == 3
+        assert errors == []
+        assert object_ids == []
+        assert skipped == 1
 
     async def test_empty_batch_is_noop(self):
         from unittest.mock import AsyncMock
@@ -611,15 +695,27 @@ class TestAddRowsHelper:
             assert checked_project_id == project_id
             return 3, 4
 
+        async def fake_dedupe_keys(db, checked_project_id):
+            assert checked_project_id == project_id
+            return set()
+
         async def fake_add_rows(
-            db, checked_project_id, sheet_label, rows, object_type, next_sort, current_count
+            db,
+            checked_project_id,
+            sheet_label,
+            rows,
+            object_type,
+            next_sort,
+            current_count,
+            dedupe_keys=None,
         ):
             calls.append((object_type, next_sort, current_count))
             object_id = first_id if object_type == "pipe" else second_id
-            return 1, next_sort + 1, current_count + 1, [], [object_id]
+            return 1, next_sort + 1, current_count + 1, [], [object_id], 0
 
         monkeypatch.setattr(mod, "_ensure_import_access", fake_access)
         monkeypatch.setattr(mod, "_project_import_state", fake_state)
+        monkeypatch.setattr(mod, "_existing_dedupe_keys", fake_dedupe_keys)
         monkeypatch.setattr(
             mod,
             "_parse_csv",
@@ -634,6 +730,8 @@ class TestAddRowsHelper:
 
         assert result == {
             "created": 2,
+            "skipped_duplicates": 0,
+            "mode": "merge",
             "errors": [],
             "created_object_ids": [first_id, second_id],
         }
@@ -684,21 +782,33 @@ class TestAddRowsHelper:
         async def fake_state(db, checked_project_id):
             return 0, 0
 
+        async def fake_dedupe_keys(db, checked_project_id):
+            assert checked_project_id == project_id
+            return set()
+
         def fake_read_sheet(worksheet, headers):
             read_sheets.append(worksheet)
             return [{"_row": len(read_sheets) + 1}]
 
         async def fake_add_rows(
-            db, checked_project_id, sheet_label, rows, object_type, next_sort, current_count
+            db,
+            checked_project_id,
+            sheet_label,
+            rows,
+            object_type,
+            next_sort,
+            current_count,
+            dedupe_keys=None,
         ):
             add_calls.append((object_type, next_sort, current_count))
             object_id = pipe_id if object_type == "pipe" else tank_id
-            return 1, next_sort + 1, current_count + 1, [], [object_id]
+            return 1, next_sort + 1, current_count + 1, [], [object_id], 0
 
         monkeypatch.setattr(mod, "_validate_xlsx_archive", lambda content: None)
         monkeypatch.setattr(mod, "load_workbook", lambda *args, **kwargs: FakeWorkbook())
         monkeypatch.setattr(mod, "_ensure_import_access", fake_access)
         monkeypatch.setattr(mod, "_project_import_state", fake_state)
+        monkeypatch.setattr(mod, "_existing_dedupe_keys", fake_dedupe_keys)
         monkeypatch.setattr(mod, "_read_sheet", fake_read_sheet)
         monkeypatch.setattr(mod, "_add_rows", fake_add_rows)
 
@@ -706,6 +816,8 @@ class TestAddRowsHelper:
 
         assert result == {
             "created": 2,
+            "skipped_duplicates": 0,
+            "mode": "merge",
             "errors": [],
             "created_object_ids": [pipe_id, tank_id],
         }
@@ -765,7 +877,7 @@ class TestAddRowsHelper:
 
         monkeypatch.setattr(mod, "_commit_object_batch", fake_commit)
         db = AsyncMock()
-        created, next_sort, current_count, errors, object_ids = await _add_rows(
+        created, next_sort, current_count, errors, object_ids, skipped = await _add_rows(
             db,
             uuid4(),
             "Tanks",
@@ -779,6 +891,7 @@ class TestAddRowsHelper:
         assert next_sort == 1
         assert current_count == 1
         assert object_ids == ["oid"]
+        assert skipped == 0
 
     async def test_project_limit_breaks_loop(self, monkeypatch: pytest.MonkeyPatch):
         from unittest.mock import AsyncMock
@@ -809,7 +922,7 @@ class TestAddRowsHelper:
 
         monkeypatch.setattr(settings, "GUEST_MAX_OBJECTS_PER_PROJECT", 0)
         db = AsyncMock()
-        created, _, current_count, errors, object_ids = await _add_rows(
+        created, _, current_count, errors, object_ids, skipped = await _add_rows(
             db,
             uuid4(),
             "Pipes",
@@ -822,6 +935,7 @@ class TestAddRowsHelper:
         assert current_count == 0
         assert len(errors) == 1  # break после первой ошибки
         assert object_ids == []
+        assert skipped == 0
 
     async def test_unexpected_exception_logged_to_errors(self, monkeypatch: pytest.MonkeyPatch):
         from unittest.mock import AsyncMock
@@ -847,7 +961,7 @@ class TestAddRowsHelper:
 
         monkeypatch.setattr(mod, "normalize_project_object_params", boom_normalize)
         db = AsyncMock()
-        created, _, current_count, errors, object_ids = await _add_rows(
+        created, _, current_count, errors, object_ids, skipped = await _add_rows(
             db,
             uuid4(),
             "X",
@@ -860,6 +974,7 @@ class TestAddRowsHelper:
         assert current_count == 0
         assert "RuntimeError" in errors[0]["message"]
         assert object_ids == []
+        assert skipped == 0
 
 
 class TestParseCsvAdvanced:

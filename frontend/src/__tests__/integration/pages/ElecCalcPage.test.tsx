@@ -147,7 +147,8 @@ function makeElectricalPage(
   const calculated = calculations.filter(
     (calc) =>
       calc.results &&
-      !calc.results.error &&
+      !calc.results.error_code &&
+      !calc.results.category &&
       (calc.cable_mark || calc.results.selected_cable),
   );
   const pageSize = pageInfoOverrides.page_size ?? 50;
@@ -168,7 +169,7 @@ function makeElectricalPage(
         summaryOverrides.failed_count ??
         calculations.filter(
           (calc) =>
-            typeof calc.results?.error === 'string' &&
+            typeof calc.results?.error_code === 'string' &&
             calc.results?.category !== 'unsupported',
         ).length,
       total_cable_length:
@@ -329,7 +330,6 @@ describe('ElecCalcPage (integration)', () => {
           cable_mark: null,
           variant_number: 1,
           results: {
-            error: 'CalculationError: Для электрорасчёта резервуара требуется геометрия укладки кабеля: цилиндр/параллелепипед, высота обогрева и шаг укладки',
             error_code: 'unsupported_layout',
             category: 'unsupported',
             message:
@@ -346,8 +346,8 @@ describe('ElecCalcPage (integration)', () => {
           cable_mark: null,
           variant_number: 1,
           results: {
-            error: 'ValueError: Не найден кабель с мощностью ≥ 132.67 Вт/м с учётом навива и количества ниток (максимум линейки - 100 Вт/м на одну нитку)',
             error_code: 'POWER_TOO_HIGH',
+            category: 'formula',
             message: 'Не найден кабель с мощностью ≥ 132.67 Вт/м с учётом навива и количества ниток',
             suggested_actions: ['TRY_OTHER_CABLE_TYPE'],
           },

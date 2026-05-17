@@ -25,27 +25,28 @@
 - `is_preferred`;
 - `order_multiple_m`.
 
-После доработки 2026-05-17 закрыт первый production-oriented vertical slice:
+После доработки 2026-05-17 закрыт production-oriented vertical slice:
 
 - production-ready commercial fields добавлены в модель, схемы и Alembic;
 - добавлен public/sanitized source `commercial` для всех ролей;
 - `selection_policy` прокинут в batch/job/frontend API;
-- ТЛТ-автоподбор получил deterministic commercial ranking;
+- ТЛТ-автоподбор и резистивный auto-подбор получили deterministic commercial
+  ranking;
+- `balanced` получил конфигурируемые веса и approval-gate;
 - результат сохраняет requested/applied policy, reason, warnings и commercial
   snapshot;
-- UI получил control критерия и commercial columns;
+- UI получил control критерия, commercial columns и admin-экран редактирования
+  commercial fields;
 - HTML/PDF report получил commercial block в разделе электрорасчёта;
-- добавлены unit/integration tests на ranking и public catalog.
+- добавлены unit/integration/e2e tests на ranking, public catalog и UI policy
+  flow.
 
 Ограничения текущего среза:
 
-- ranking реализован для саморегулирующегося ТЛТ-автоподбора; другие типы
-  кабеля продолжают использовать свои технические алгоритмы;
-- `balanced` намеренно не делает неутверждённый weighted score и уходит в
-  controlled fallback;
-- стоимость остаётся `cable_only`, без аксессуаров;
-- admin UI для полноценного редактирования всех commercial fields ещё остаётся
-  отдельной задачей.
+- `balanced` не делает weighted score без `commercial_balanced_weights_approved`;
+- стоимость остаётся `cable_only`, если нет явной accessory-cost metadata;
+- для ТТН/ТТВ/ТТХ, mineral и skin commercial ranking не включён, пока нет
+  формализованного набора альтернативных технических кандидатов.
 
 ## Термины
 
@@ -659,7 +660,7 @@ E2E:
 
 ## Оценка качества фичи
 
-Текущая оценка фичи после vertical slice: **8.8/10**.
+Текущая оценка фичи после расширения до admin/UI/resistive slice: **9.2/10**.
 
 Разбивка:
 
@@ -668,8 +669,8 @@ E2E:
 | Архитектура | 9/10 | Правильно разделены технический отбор, коммерческое ранжирование, snapshot и объяснение результата. |
 | Инженерная корректность | 9/10 | Коммерческий критерий не подменяет расчётную пригодность кабеля. `null` не превращается в `0`. |
 | UX | 8/10 | Все роли получают одинаковый control, но доверие пользователя зависит от качества `selection_reason` и fallback-сообщений. |
-| Production readiness | 8/10 | Основной vertical slice реализован; остаются admin UI, balanced-веса и коммерческая часть для не-ТЛТ алгоритмов. |
-| Бизнес-готовность | 7/10 | Политики понятны, но `balanced`, чувствительность цен/остатков и период актуализации требуют утверждения. |
+| Production readiness | 9/10 | Есть public commercial catalog, admin UI, deterministic ranking для ТЛТ и резистивного auto-подбора, snapshot и E2E. |
+| Бизнес-готовность | 7/10 | Политики понятны, но финальные веса `balanced`, правила аксессуаров и период актуализации требуют утверждения. |
 | QA-покрываемость | 9/10 | Поведение хорошо раскладывается на unit/integration/e2e tests. |
 
 Сильные стороны:
@@ -687,10 +688,13 @@ E2E:
 
 - если commercial data в БД не заполнены, гости будут получать fallback даже при
   public `commercial` source. Мера: поддерживать seed/import/admin заполнение;
-- стоимость первой версии считает только кабель. Мера: явно показывать
-  `cost_scope = cable_only`, аксессуары вынести в отдельный этап;
-- `balanced` может быть спорным. Мера: не делать default и включать только после
-  утверждения весов;
+- стоимость по умолчанию считает кабель. Если в commercial metadata задан
+  `accessory_total_cost`/`accessory_cost_per_circuit`, snapshot переходит в
+  `cost_scope = cable_with_accessories`; нормализованные правила аксессуаров
+  остаются бизнес-задачей;
+- `balanced` может быть спорным. Мера: веса конфигурируются через коэффициенты
+  `commercial_balanced_weight_*`, но применяются только при
+  `commercial_balanced_weights_approved=1`;
 - коммерческие данные устаревают. Мера: хранить `price_updated_at`,
   `stock_updated_at` и snapshot в каждом расчёте;
 - без хорошего `selection_reason` пользователь не будет доверять выбору. Мера:
@@ -700,7 +704,7 @@ Production-ready критерий:
 
 1. Все policies покрыты unit tests.
 2. Public commercial catalog доступен всем ролям.
-3. Admin CRUD поддерживает commercial fields.
+3. Admin CRUD/UI поддерживает commercial fields.
 4. UI показывает requested/applied policy и warnings.
 5. Report содержит commercial block.
 6. Старые расчёты воспроизводимы по snapshot.
@@ -719,19 +723,21 @@ Production-ready критерий:
 1. Какой источник commercial data будет доступен гостю: встроенный каталог с
    commercial fields или sanitized projection внешней БД. Рекомендация:
    sanitized projection.
-2. Включать ли `balanced` сразу или оставить после утверждения весов.
-3. Учитывать ли аксессуары в стоимости первой версии. Рекомендация: нет,
-   только `cost_scope = cable_only`.
+2. Финальные веса `balanced` и владелец их утверждения.
+3. Нормализованная модель аксессуаров в стоимости: какие позиции обязательны,
+   считаются ли они на объект, контур, кабельную линию или партию.
 4. Какие поля считать чувствительными для guest projection.
 5. Как часто обновлять цену/остатки и кто отвечает за актуальность.
 
 ## Что ещё не реализовано
 
-1. Admin UI для редактирования всех production-ready commercial fields.
-2. `balanced` с утверждёнными весами и нормализацией.
-3. Коммерческое ранжирование для резистивных/ТТН/ТТВ/ТТХ алгоритмов, если оно
-   понадобится в этих ветках подбора.
-4. Стоимость с аксессуарами и монтажными комплектами, если бизнес решит считать
-   не только кабель.
-5. E2E-тест UI-сценария в браузере: выбор критерия, fallback-warning,
-   commercial columns и report preview.
+1. Бизнес-утверждение финальных весов `balanced`. Технически веса уже
+   конфигурируемые и защищены флагом approval.
+2. Нормализованный справочник правил аксессуаров/монтажных комплектов для
+   расчёта `full_installation_estimate`. Сейчас есть snapshot-инфраструктура
+   `cable_with_accessories`, но сами правила не выдумываются.
+3. Commercial ranking для веток `self_regulating_tt`, `mineral`, `skin`, если
+   бизнес решит выбирать несколько технически допустимых вариантов в этих
+   алгоритмах.
+4. E2E на fallback-warning и report preview commercial block отдельно от
+   базового UI-сценария выбора критерия.

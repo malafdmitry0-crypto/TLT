@@ -19,6 +19,16 @@ export function parseTsv(text: string): string[][] {
     .map((line) => line.split('\t'));
 }
 
+const DANGEROUS_SPREADSHEET_PREFIXES = ['=', '+', '-', '@'];
+
+export function safeSpreadsheetText(value: string): string {
+  const trimmedLeft = value.trimStart();
+  if (DANGEROUS_SPREADSHEET_PREFIXES.some((prefix) => trimmedLeft.startsWith(prefix))) {
+    return `'${value}`;
+  }
+  return value;
+}
+
 export function buildTsv(rows: string[][]): string {
-  return rows.map((row) => row.join('\t')).join('\r\n');
+  return rows.map((row) => row.map(safeSpreadsheetText).join('\t')).join('\r\n');
 }

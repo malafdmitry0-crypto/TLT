@@ -33,13 +33,21 @@
 
 ## Импорт объектов из Excel / CSV
 
-**`POST /projects/{id}/objects/import-excel`** (multipart/form-data, поле `file`)
+**`POST /projects/{id}/objects/import-excel`** (multipart/form-data, поля
+`file`, опционально `mode=merge|append|replace`; по умолчанию `merge`)
 
 Детектирует формат по расширению:
 - `.xlsx` — два листа `Трубопроводы` и `Резервуары`
 - `.csv` — один файл, колонка `Тип` (`труба`/`резервуар`), автодетект разделителя
 
-Ответ: `{created: N, errors: [{sheet, row, message}]}`.
+Режимы:
+- `merge` — добавляет только строки, которых ещё нет в проекте по ключу
+  `тип объекта + нормализованное имя + hash(params без name)`;
+- `append` — всегда добавляет строки как новые объекты;
+- `replace` — удаляет текущие объекты проекта, электрорасчёты и спецификации,
+  затем импортирует файл заново.
+
+Ответ: `{created: N, skipped_duplicates: N, mode, errors: [{sheet, row, message}]}`.
 
 **`GET /projects/{id}/objects/import-template?format=xlsx|csv`** — скачать шаблон
 с примерами. Материалы и формы принимают и русские названия, и англ. коды
@@ -52,8 +60,8 @@
 ТТН/ТТВ/ТТХ (`self_regulating_tt`), ТТ Р1 (`single_core`) или ТТ Р3
 (`three_core`). **Upsert** по `(object_id, variant_number)`. При ошибке расчёта
 сохраняется запись с `cable_mark=null` и structured payload:
-`results.error` (legacy/raw), `results.error_code`, `results.category`,
-`results.message`, `results.field`, `results.hint`. Допустимые категории:
+`results.error_code`, `results.category`, `results.message`, `results.field`,
+`results.hint`. Допустимые категории:
 `validation`, `formula`, `unsupported`, `external`; причина видна на UI после
 reload.
 
@@ -68,13 +76,15 @@ UI показывает статус «Не применимо».
 `selection_mode=manual` остается диагностическим/ручным режимом для явно
 заданной схемы подключения и числа ниток.
 
-Для ТЛТ-автоподбора поддерживается `selection_policy`:
+Для ТЛТ и резистивного auto-подбора поддерживается `selection_policy`:
 `technical_minimum`, `lowest_cost`, `fastest_delivery`, `in_stock`,
 `preferred_supplier`, `balanced`. Коммерческая политика применяется только после
 технического отбора. Если данных не хватает, backend возвращает
 `applied_selection_policy=technical_minimum`, `selection_reason` и warning.
-Источник `cable_source=commercial` доступен всем ролям и строится как public
-commercial projection поверх встроенного ТЛТ-каталога.
+`balanced` работает только при `balanced_weights_approved=true`; до бизнес-
+утверждения весов это controlled fallback. Источник `cable_source=commercial`
+доступен всем ролям и строится как public commercial projection поверх
+встроенных ТЛТ/резистивных каталогов и sanitized строк внешней БД.
 
 **`GET /references/cables?source=commercial`** и
 **`GET /references/cables/commercial`** — публичный commercial catalog для всех

@@ -85,10 +85,9 @@ class ElectricalCalcSuccessDict(TypedDict):
 class ElectricalCalcErrorDict(TypedDict):
     """Персистентная ошибка электрорасчёта (см. US-09.12)."""
 
-    error: str  # legacy/raw причина, сохраняется для обратной совместимости
-    error_code: NotRequired[str]  # стабильный код ошибки для UI/автоматизации
-    category: NotRequired[str]  # validation/formula/unsupported/external
-    message: NotRequired[str]  # пользовательское сообщение без Python-префикса ошибки
+    error_code: str  # стабильный код ошибки для UI/автоматизации
+    category: str  # validation/formula/unsupported/external
+    message: str  # пользовательское сообщение без Python-префикса ошибки
     field: NotRequired[str | None]  # поле, с которым связана причина
     hint: NotRequired[str | None]  # краткая подсказка для UI
     suggested_actions: NotRequired[list[str]]  # коды рекомендуемых действий

@@ -225,7 +225,11 @@ class TestObjectQuery:
                     object_id=objects[1].id,
                     cable_type="self-regulating",
                     cable_mark="HTM",
-                    results={"error": "invalid heat loss"},
+                    results={
+                        "error_code": "POWER_TOO_HIGH",
+                        "category": "formula",
+                        "message": "invalid heat loss",
+                    },
                 ),
             ]
         )

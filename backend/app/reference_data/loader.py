@@ -129,9 +129,7 @@ def get_insulation_conductivity(material: str, temperature: float) -> float:
                     base,
                 )
             return _positive_or_base(
-                _resolve_cold_insulation_conductivity(
-                    m.get("conductivity_19_minus"), temperature
-                ),
+                _resolve_cold_insulation_conductivity(m.get("conductivity_19_minus"), temperature),
                 base,
             )
     raise ValueError(f"Неизвестный материал изоляции: {material}")

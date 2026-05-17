@@ -64,6 +64,7 @@ import {
   electricalCalcGuidanceContext,
   electricalCalcHint,
   electricalCalcSuggestedActions,
+  isElectricalCalcStale,
   isElectricalCalcSuccess,
   isElectricalCalcUnsupported,
 } from '@/utils/calcStatus';
@@ -1363,7 +1364,6 @@ export default function ElecCalcPage() {
           <Tooltip
             title={valueText(
               obj.validation_errors?.message ??
-              obj.validation_errors?.error ??
               obj.validation_errors,
             )}
           >
@@ -1378,6 +1378,7 @@ export default function ElecCalcPage() {
         const calc = stats.calcByObjectId[obj.id];
         const err = electricalCalcError(calc);
         const unsupported = isElectricalCalcUnsupported(calc);
+        const stale = isElectricalCalcStale(calc);
         if (isElectricalCalcSuccess(calc))
           return (
             <Tooltip title="Рассчитан">
@@ -1395,6 +1396,14 @@ export default function ElecCalcPage() {
                 aria-label="Не применимо"
               >
                 <MinusCircleFilled />
+              </Tag>
+            </Tooltip>
+          );
+        if (stale)
+          return (
+            <Tooltip title={electricalCalcHint(calc) ?? 'Требуется пересчёт'}>
+              <Tag className="electrical-status-icon-tag" color="warning" aria-label="Требуется пересчёт">
+                ↻
               </Tag>
             </Tooltip>
           );
@@ -1855,7 +1864,12 @@ export default function ElecCalcPage() {
         showSorterTooltip: false,
         filtered: isColumnFilterActive(activeFilter),
         filterIcon: filterEnabled ? () => (
-          <span role="button" aria-label={`Фильтр ${column.label}`} className="table-filter-trigger">
+          <span
+            role="button"
+            aria-label={`Фильтр ${column.label}`}
+            className="table-filter-trigger"
+            style={{ pointerEvents: 'auto' }}
+          >
             <FilterFilled
               className={isColumnFilterActive(activeFilter) ? 'table-filter-icon active' : 'table-filter-icon'}
             />
@@ -1910,6 +1924,8 @@ export default function ElecCalcPage() {
           ? 'Рассчитан'
           : isElectricalCalcUnsupported(calc)
             ? 'Не применимо'
+            : isElectricalCalcStale(calc)
+              ? 'Требуется пересчёт'
             : electricalCalcError(calc)
               ? 'Ошибка'
             : 'Не рассчитан';
@@ -2122,7 +2138,7 @@ export default function ElecCalcPage() {
     .map((obj, index) => {
       const calc = stats.calcByObjectId[obj.id];
       const error = electricalCalcError(calc);
-      if (!error || isElectricalCalcUnsupported(calc)) return null;
+      if (!error || isElectricalCalcUnsupported(calc) || isElectricalCalcStale(calc)) return null;
       return {
         objectId: obj.id,
         rowNumber: (pageInfo?.offset ?? 0) + index + 1,
@@ -2151,7 +2167,9 @@ export default function ElecCalcPage() {
       const activeObject = activeIndex >= 0 ? objects[activeIndex] : null;
       if (activeObject) {
         const calc = stats.calcByObjectId[activeObject.id];
-        const error = isElectricalCalcUnsupported(calc) ? null : electricalCalcError(calc);
+        const error = isElectricalCalcUnsupported(calc) || isElectricalCalcStale(calc)
+          ? null
+          : electricalCalcError(calc);
         if (!error) {
           const firstError = electricalErrorItems[0];
           return firstError ? { ...firstError, fallback: true } : null;

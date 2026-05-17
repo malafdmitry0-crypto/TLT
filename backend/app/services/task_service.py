@@ -669,12 +669,18 @@ class TaskService:
             project_id = UUID(payload["project_id"])
             fmt = payload["format"]
             sections = payload.get("sections")
+            variant_number = int(payload.get("variant_number") or 1)
             await self._update_progress(task_id, BatchProgress(current=1, total=3, phase="load"))
             if await self._should_cancel(task_id):
                 await self._mark_cancelled(task_id)
                 return
             async with self.session_factory() as report_db:
-                data = await ReportService(report_db).export_trusted(project_id, fmt, sections)
+                data = await ReportService(report_db).export_trusted(
+                    project_id,
+                    fmt,
+                    sections,
+                    variant_number=variant_number,
+                )
             await self._update_progress(task_id, BatchProgress(current=2, total=3, phase="write"))
             if await self._should_cancel(task_id):
                 await self._mark_cancelled(task_id)
@@ -691,6 +697,7 @@ class TaskService:
         result_payload = {
             "project_id": str(project_id),
             "format": fmt,
+            "variant_number": variant_number,
             "filename": filename,
             "media_type": _REPORT_MEDIA_TYPES[fmt],
             "download_url": f"{settings.API_V1_PREFIX}/reports/jobs/{task_id}/download",
@@ -882,6 +889,7 @@ class TaskService:
         payload = {
             "project_id": str(request.project_id),
             "format": request.format,
+            "variant_number": request.variant_number,
         }
         if request.sections is not None:
             payload["sections"] = request.sections

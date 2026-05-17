@@ -186,6 +186,111 @@ class TestSingleCoreLinear:
         assert r.p3_w_m <= 35.0
         assert r.scheme_count is not None and r.scheme_count >= 1
 
+    def test_auto_lowest_cost_ranks_technical_resistive_candidates(self):
+        catalog = [
+            {
+                "model": "ТТ Р1 100,0",
+                "conductor_cross_section": 0.47,
+                "resistance_ohm_km": 100.0,
+                "price_per_meter": 1000.0,
+                "stock_status": "in_stock",
+            },
+            {
+                "model": "ТТ Р1 80,0",
+                "conductor_cross_section": 0.22,
+                "resistance_ohm_km": 80.0,
+                "price_per_meter": 100.0,
+                "stock_status": "in_stock",
+            },
+        ]
+        r = calc_resistive_single_core(
+            _sc(
+                selection_mode="auto",
+                required_heat_loss=5000.0,
+                pipe_length=100.0,
+                cable_catalog=catalog,
+                selection_policy="lowest_cost",
+            )
+        )
+
+        assert r.selected_cable == "ТТ Р1 80,0"
+        assert r.applied_selection_policy == "lowest_cost"
+        assert r.commercial is not None
+        assert r.commercial["cost_scope"] == "cable_only"
+
+    def test_auto_commercial_snapshot_supports_accessory_cost_scope(self):
+        catalog = [
+            {
+                "model": "ТТ Р1 100,0",
+                "conductor_cross_section": 0.47,
+                "resistance_ohm_km": 100.0,
+                "price_per_meter": 100.0,
+                "stock_status": "in_stock",
+                "params": {"commercial": {"accessory_total_cost": 250.0}},
+            },
+        ]
+        r = calc_resistive_single_core(
+            _sc(
+                selection_mode="auto",
+                required_heat_loss=5000.0,
+                pipe_length=100.0,
+                cable_catalog=catalog,
+                selection_policy="lowest_cost",
+            )
+        )
+
+        assert r.commercial is not None
+        assert r.commercial["cost_scope"] == "cable_with_accessories"
+        assert r.commercial["accessory_total_cost"] == pytest.approx(250.0)
+
+    def test_auto_balanced_requires_approved_weights(self):
+        catalog = [
+            {
+                "model": "ТТ Р1 100,0",
+                "conductor_cross_section": 0.47,
+                "resistance_ohm_km": 100.0,
+                "price_per_meter": 100.0,
+                "lead_time_days": 20,
+                "stock_status": "in_stock",
+            },
+            {
+                "model": "ТТ Р1 80,0",
+                "conductor_cross_section": 0.22,
+                "resistance_ohm_km": 80.0,
+                "price_per_meter": 500.0,
+                "lead_time_days": 1,
+                "stock_status": "in_stock",
+            },
+        ]
+        fallback = calc_resistive_single_core(
+            _sc(
+                selection_mode="auto",
+                required_heat_loss=5000.0,
+                pipe_length=100.0,
+                cable_catalog=catalog,
+                selection_policy="balanced",
+            )
+        )
+        approved = calc_resistive_single_core(
+            _sc(
+                selection_mode="auto",
+                required_heat_loss=5000.0,
+                pipe_length=100.0,
+                cable_catalog=catalog,
+                selection_policy="balanced",
+                balanced_weights={"cost": 0.0, "delivery": 1.0, "stock": 0.0, "supplier": 0.0},
+                balanced_weights_approved=True,
+                balanced_weights_version="test-approved",
+            )
+        )
+
+        assert fallback.applied_selection_policy == "technical_minimum"
+        assert fallback.warnings
+        assert approved.selected_cable == "ТТ Р1 80,0"
+        assert approved.applied_selection_policy == "balanced"
+        assert approved.commercial is not None
+        assert approved.commercial["balanced_weights_approved"] is True
+
 
 class TestSingleCoreLoop:
     def test_loop_requires_larger_cross_section_than_line(self):

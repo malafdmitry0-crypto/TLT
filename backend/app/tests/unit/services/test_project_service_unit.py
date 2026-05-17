@@ -340,6 +340,46 @@ class TestObjectsCRUD:
                 _principal(role="employee", user_id=my_id),
             )
 
+    async def test_update_object_merges_params_patch(self):
+        from app.schemas.project import ProjectObjectUpdate
+
+        my_id = uuid.uuid4()
+        project = SimpleNamespace(id=uuid.uuid4(), session_id=None, user_id=my_id)
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=project.id,
+            object_type="pipe",
+            sort_order=0,
+            params={
+                "outer_diameter": 0.1,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 10,
+            },
+        )
+        db = AsyncMock()
+        db.execute = AsyncMock(
+            side_effect=[
+                _result_with(scalar=project),
+                _result_with(scalar=obj),
+            ]
+        )
+        db.commit = AsyncMock()
+        db.refresh = AsyncMock()
+
+        updated = await ProjectService(db).update_object(
+            project.id,
+            obj.id,
+            ProjectObjectUpdate(params={"insulation_thickness": 0.02}),
+            _principal(role="employee", user_id=my_id),
+        )
+
+        assert updated.params["outer_diameter"] == pytest.approx(0.1)
+        assert updated.params["insulation_thickness"] == pytest.approx(0.02)
+        assert updated.params["insulation_material"] == "mineral_wool"
+
     async def test_delete_object(self):
         my_id = uuid.uuid4()
         project = SimpleNamespace(id=uuid.uuid4(), session_id=None, user_id=my_id)
@@ -386,8 +426,25 @@ class TestObjectsSummary:
                     [
                         (pipe_ok_id, None, {"selected_cable": {"mark": "HTM"}}),
                         (tank_ok_id, "HTM", {"total_power": 1200}),
-                        (pipe_bad_id, "HTM", {"error": "invalid heat loss"}),
+                        (
+                            pipe_bad_id,
+                            "HTM",
+                            {
+                                "error_code": "POWER_TOO_HIGH",
+                                "category": "formula",
+                                "message": "invalid heat loss",
+                            },
+                        ),
                         (pipe_bad_id, "HTM", None),
+                        (
+                            tank_ok_id,
+                            None,
+                            {
+                                "error_code": "unsupported_layout",
+                                "category": "unsupported",
+                                "message": "Не применимо",
+                            },
+                        ),
                     ]
                 ),
             ]
@@ -404,7 +461,7 @@ class TestObjectsSummary:
             "invalid": 1,
             "by_type": {"pipe": 3, "tank": 1},
             "valid_by_type": {"pipe": 2, "tank": 1},
-            "electrical_calculations_total": 4,
+            "electrical_calculations_total": 5,
             "successful_electrical_calculations": 2,
             "failed_electrical_calculations": 2,
             "objects_with_successful_electrical_calculation": 2,

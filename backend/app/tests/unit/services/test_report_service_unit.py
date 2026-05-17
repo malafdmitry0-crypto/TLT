@@ -56,6 +56,7 @@ class TestLoadContext:
         ctx = await ReportService(db)._load_context(pid, principal=None)
         assert ctx["project"]["id"] == str(pid)
         assert ctx["project"]["name"] == "P"
+        assert ctx["variant_number"] == 1
         assert len(ctx["objects"]) == 1
         assert ctx["objects"][0]["electrical"]["cable_mark"] == "ТЛТ-25"
         assert ctx["specification"]["items"] == [{"name": "Кабель"}]
@@ -75,8 +76,8 @@ class TestLoadContext:
         ctx = await ReportService(db)._load_context(pid, principal=None)
         assert ctx["specification"]["items"] == []
 
-    async def test_latest_variant_picked(self):
-        """Если есть несколько variant_number для одного object_id — берётся старший."""
+    async def test_requested_variant_picked(self):
+        """Отчёт берёт электрорасчёт только запрошенного CO-варианта."""
         pid = uuid.uuid4()
         oid = uuid.uuid4()
         project = SimpleNamespace(
@@ -92,12 +93,6 @@ class TestLoadContext:
             results={},
             is_valid=True,
         )
-        old = SimpleNamespace(
-            object_id=oid,
-            variant_number=1,
-            cable_mark="ТЛТ-10",
-            results={"selected_cable": "ТЛТ-10"},
-        )
         new = SimpleNamespace(
             object_id=oid,
             variant_number=2,
@@ -110,10 +105,10 @@ class TestLoadContext:
                 _r(scalar_one_or_none=project),
                 _r(all_=[obj]),
                 _r(first=None),
-                _r(all_=[old, new]),
+                _r(all_=[new]),
             ]
         )
-        ctx = await ReportService(db)._load_context(pid, principal=None)
+        ctx = await ReportService(db)._load_context(pid, principal=None, variant_number=2)
         assert ctx["objects"][0]["electrical"]["cable_mark"] == "ТЛТ-50"
 
     async def test_specification_only_skips_objects_and_electrical(self):
@@ -147,8 +142,10 @@ class TestLoadContext:
             pid,
             ["pipes"],
             principal=SimpleNamespace(role="admin", user_id=uuid.uuid4(), session_id=None),
+            variant_number=2,
         )
         assert response["sections"] == ["pipes"]
+        assert response["variant_number"] == 2
         assert "data" not in response
 
 
@@ -186,7 +183,12 @@ class TestExport:
         principal = SimpleNamespace(role="admin", user_id=uuid.uuid4(), session_id=None)
 
         assert await service.export(pid, fmt, principal=principal) == expected
-        service._load_context.assert_awaited_once_with(pid, None, principal=principal)
+        service._load_context.assert_awaited_once_with(
+            pid,
+            None,
+            principal=principal,
+            variant_number=1,
+        )
 
     async def test_export_trusted_skips_project_access_check(self, monkeypatch):
         pid = uuid.uuid4()
@@ -199,6 +201,7 @@ class TestExport:
             pid,
             ["summary"],
             principal=None,
+            variant_number=1,
         )
 
 

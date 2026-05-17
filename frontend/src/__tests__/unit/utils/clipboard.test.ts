@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { copyToClipboard, readFromClipboard, parseTsv } from '@/utils/clipboard';
+import {
+  buildTsv,
+  copyToClipboard,
+  parseTsv,
+  readFromClipboard,
+  safeSpreadsheetText,
+} from '@/utils/clipboard';
 
 describe('clipboard', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -60,6 +66,22 @@ describe('clipboard', () => {
 
     it('пустой ввод → пустой массив', () => {
       expect(parseTsv('')).toEqual([]);
+    });
+  });
+
+  describe('spreadsheet safety', () => {
+    it('экранирует текст, который spreadsheet-клиенты могут выполнить как формулу', () => {
+      expect(safeSpreadsheetText('=cmd')).toBe("'=cmd");
+      expect(safeSpreadsheetText(' +SUM(1,2)')).toBe("' +SUM(1,2)");
+      expect(safeSpreadsheetText('-2+3')).toBe("'-2+3");
+      expect(safeSpreadsheetText('@SUM(1,2)')).toBe("'@SUM(1,2)");
+      expect(safeSpreadsheetText('plain')).toBe('plain');
+    });
+
+    it('buildTsv экранирует опасные ячейки перед вставкой в Excel', () => {
+      expect(buildTsv([['name', '=HYPERLINK("https://x")']])).toBe(
+        'name\t\'=HYPERLINK("https://x")',
+      );
     });
   });
 });

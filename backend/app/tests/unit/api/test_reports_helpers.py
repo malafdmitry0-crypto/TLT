@@ -63,7 +63,7 @@ async def test_preview_maps_project_errors(monkeypatch: pytest.MonkeyPatch):
         def __init__(self, db) -> None:
             self.db = db
 
-        async def preview(self, project_id, sections, *, principal):
+        async def preview(self, project_id, sections, *, principal, variant_number=1):
             raise ProjectNotFoundError("missing project")
 
     monkeypatch.setattr(reports_api, "ReportService", FakeReportService)
@@ -85,7 +85,7 @@ async def test_preview_maps_report_errors(monkeypatch: pytest.MonkeyPatch):
         def __init__(self, db) -> None:
             self.db = db
 
-        async def preview(self, project_id, sections, *, principal):
+        async def preview(self, project_id, sections, *, principal, variant_number=1):
             raise ReportError("bad report")
 
     monkeypatch.setattr(reports_api, "ReportService", FakeReportService)

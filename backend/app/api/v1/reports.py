@@ -55,12 +55,18 @@ def _raise_project_error(exc: Exception) -> None:
 async def preview(
     project_id: UUID,
     sections: list[str] | None = Query(default=None),
+    variant_number: int = Query(default=1, ge=1),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
     service = ReportService(db)
     try:
-        result = await service.preview(project_id, sections, principal=principal)
+        result = await service.preview(
+            project_id,
+            sections,
+            principal=principal,
+            variant_number=variant_number,
+        )
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except ReportError as exc:
@@ -76,6 +82,7 @@ async def export(
     project_id: UUID,
     format: str,
     sections: list[str] | None = Query(default=None),
+    variant_number: int = Query(default=1, ge=1),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -86,7 +93,13 @@ async def export(
         )
     service = ReportService(db)
     try:
-        data = await service.export(project_id, format, sections, principal=principal)
+        data = await service.export(
+            project_id,
+            format,
+            sections,
+            principal=principal,
+            variant_number=variant_number,
+        )
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except ReportError as exc:
@@ -108,6 +121,7 @@ async def enqueue_export_job(
     project_id: UUID,
     format: str,
     sections: list[str] | None = Query(default=None),
+    variant_number: int = Query(default=1, ge=1),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
@@ -117,7 +131,12 @@ async def enqueue_export_job(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Неподдерживаемый формат: {format}",
         )
-    request = ReportExportJobRequest(project_id=project_id, format=format, sections=sections)
+    request = ReportExportJobRequest(
+        project_id=project_id,
+        format=format,
+        sections=sections,
+        variant_number=variant_number,
+    )
     try:
         task = await TaskService(db).create_report_export_task(
             request,

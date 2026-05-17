@@ -3,7 +3,7 @@
 import io
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +32,7 @@ from app.services.project_service import (
     ProjectLimitError,
     ProjectNotFoundError,
     ProjectService,
+    ProjectValidationError,
 )
 
 router = APIRouter()
@@ -166,6 +167,8 @@ async def reorder_objects(
 ):
     try:
         return await ProjectService(db).reorder_objects(project_id, data.order, principal)
+    except ProjectValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
@@ -219,6 +222,7 @@ async def import_template(
 async def import_excel(
     project_id: UUID,
     file: UploadFile,
+    mode: str = Form("merge"),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -239,9 +243,9 @@ async def import_excel(
     content = await read_upload_with_limit(file)
     try:
         if filename.endswith(".csv"):
-            result = await import_objects_from_csv(db, project_id, principal, content)
+            result = await import_objects_from_csv(db, project_id, principal, content, mode=mode)
         else:
-            result = await import_objects_from_excel(db, project_id, principal, content)
+            result = await import_objects_from_excel(db, project_id, principal, content, mode=mode)
         created_object_ids = result.pop("created_object_ids", [])
         if created_object_ids:
             task = await TaskService(db).create_heat_loss_batch_task(
@@ -277,6 +281,8 @@ async def export_excel(
         project = await ProjectService(db).get_project(project_id, principal)
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ProjectAccessError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
     # Round-trip совместимый формат: листы «Трубопроводы» / «Резервуары»
     # с теми же колонками, что ожидает `POST /objects/import-excel`.
@@ -305,9 +311,16 @@ async def update_object(
 ):
     try:
         project_service = ProjectService(db)
+        params_changed = "params" in data.model_fields_set
         obj = await project_service.update_object(project_id, object_id, data, principal)
         calc_service = CalculationService(db)
         await calc_service.recalculate_object(obj)
+        if params_changed:
+            await calc_service.mark_electrical_calculations_stale(
+                project_id,
+                [object_id],
+                reason="object_params_updated",
+            )
         await db.commit()
         await db.refresh(obj)
         return obj

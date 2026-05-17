@@ -129,6 +129,12 @@
 | created_at  | TIMESTAMPTZ  | server default                         |                              |
 | updated_at  | TIMESTAMPTZ  | auto-update                            |                              |
 
+Commercial balanced ranking использует ключи в `correction_coefficients`:
+`commercial_balanced_weight_cost`, `commercial_balanced_weight_delivery`,
+`commercial_balanced_weight_stock`, `commercial_balanced_weight_supplier` и
+approval-gate `commercial_balanced_weights_approved` (`0` — fallback,
+`1` — применять веса).
+
 ---
 
 ### accessories_extended
@@ -138,7 +144,7 @@
 | category   | VARCHAR(64)  | NOT NULL, INDEX       | Категория аксессуара         |
 | name       | VARCHAR(255) | NOT NULL              | Наименование                 |
 | article    | VARCHAR(64)  | nullable              | Артикул                      |
-| params     | JSONB        | nullable              | Доп. параметры               |
+| params     | JSONB        | nullable              | Доп. параметры; допускает commercial metadata для будущей стоимости аксессуаров |
 | is_active  | BOOLEAN      | NOT NULL, default true|                              |
 | created_at | TIMESTAMPTZ  | server default        |                              |
 | updated_at | TIMESTAMPTZ  | auto-update           |                              |

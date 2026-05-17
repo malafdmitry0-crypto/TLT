@@ -145,7 +145,7 @@ safety_factor = self._num(
 | Механизм | Оценка |
 |---|---|
 | Upsert по `(object_id, variant_number)` — повторный расчёт не плодит дубликаты | ✅ |
-| Сохранение ошибок в `ElectricalCalculation.results.error` — причина видна после reload | ✅ |
+| Сохранение ошибок в `ElectricalCalculation.results.error_code/category/message` — причина видна после reload | ✅ |
 | Перенос `winding_pitch` и `num_circuits` из предыдущего расчёта через `_layout_overrides_from_existing` | ✅ |
 | `_tank_heat_loss_without_double_safety` — деление Q/K перед подачей в ТТ/резистивные формулы | ✅ |
 | `_merge_electrical_overrides` — сохранённые настройки укладки + новые overrides от пользователя | ✅ |

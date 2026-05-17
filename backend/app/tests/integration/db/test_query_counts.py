@@ -111,7 +111,11 @@ async def _seed_project(
                 cable_type="self_regulating",
                 cable_mark="HTM" if index % 5 != 0 else None,
                 params={},
-                results={"selected_cable": {"mark": "HTM"}} if index % 5 != 0 else {"error": "x"},
+                results=(
+                    {"selected_cable": {"mark": "HTM"}}
+                    if index % 5 != 0
+                    else {"error_code": "UNKNOWN", "category": "formula", "message": "x"}
+                ),
             )
             for index, obj in enumerate(objects)
         )

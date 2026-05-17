@@ -355,6 +355,7 @@ class TestTaskCreation:
         assert task.request_payload == {
             "project_id": str(project_id),
             "format": "pdf",
+            "variant_number": 1,
             "sections": ["summary", "electrical"],
         }
         assert task.arq_job_id is not None
@@ -540,7 +541,7 @@ class TestTaskStateTransitions:
                 assert object_ids == expected_object_ids
                 if progress_callback is not None:
                     await progress_callback(BatchProgress(current=1, total=2, phase="calculate"))
-                return 1, 1, [{"object_id": "bad", "error": {"error": "missing"}}]
+                return 1, 1, [{"object_id": "bad", "error": {"message": "missing"}}]
 
         monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
 
@@ -552,7 +553,7 @@ class TestTaskStateTransitions:
         assert task.result_payload == {
             "updated": 1,
             "failed": 1,
-            "errors": [{"object_id": "bad", "error": {"error": "missing"}}],
+            "errors": [{"object_id": "bad", "error": {"message": "missing"}}],
         }
         assert task.progress_phase == "done"
         assert mock_db.commit.await_count >= 2
@@ -579,7 +580,7 @@ class TestTaskStateTransitions:
                 self.db = db
 
             async def batch_recalculate(self, *args, **kwargs):
-                return 0, 1, [{"object_id": "bad", "error": {"error": "hidden"}}]
+                return 0, 1, [{"object_id": "bad", "error": {"message": "hidden"}}]
 
         monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
 
@@ -673,6 +674,7 @@ class TestTaskStateTransitions:
             request_payload={
                 "project_id": str(project_id),
                 "format": "pdf",
+                "variant_number": 2,
                 "sections": ["summary"],
             },
             progress_current=0,
@@ -684,14 +686,20 @@ class TestTaskStateTransitions:
             def __init__(self, db) -> None:
                 self.db = db
 
-            async def export(self, project_id_arg, fmt, sections):
+            async def export(self, project_id_arg, fmt, sections, *, variant_number=1):
                 assert project_id_arg == project_id
                 assert fmt == "pdf"
                 assert sections == ["summary"]
+                assert variant_number == 2
                 return b"%PDF"
 
-            async def export_trusted(self, project_id_arg, fmt, sections):
-                return await self.export(project_id_arg, fmt, sections)
+            async def export_trusted(self, project_id_arg, fmt, sections, *, variant_number=1):
+                return await self.export(
+                    project_id_arg,
+                    fmt,
+                    sections,
+                    variant_number=variant_number,
+                )
 
         monkeypatch.setattr("app.services.task_service.ReportService", FakeReportService)
         monkeypatch.setattr(
@@ -710,6 +718,7 @@ class TestTaskStateTransitions:
         assert task.result_payload == {
             "project_id": str(project_id),
             "format": "pdf",
+            "variant_number": 2,
             "filename": "report.pdf",
             "media_type": "application/pdf",
             "download_url": f"/api/v1/reports/jobs/{task.id}/download",
@@ -859,7 +868,7 @@ class TestTaskResponse:
             result_payload={
                 "updated": 2,
                 "failed": 1,
-                "errors": [{"object_id": str(uuid.uuid4()), "error": {"error": "bad"}}],
+                "errors": [{"object_id": str(uuid.uuid4()), "error": {"message": "bad"}}],
             },
             progress_current=3,
             progress_total=3,

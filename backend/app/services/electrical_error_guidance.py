@@ -38,7 +38,6 @@ ElectricalSuggestedAction = Literal[
 
 
 class ElectricalErrorPayload(TypedDict, total=False):
-    error: str
     error_code: ElectricalErrorCode
     category: ElectricalErrorCategory
     message: str
@@ -381,7 +380,6 @@ def build_electrical_error_payload(
     _add_context_value(context, "object_type", object_type)
     error_code = _normalize_error_code_for_context(error_code, context)
     payload: ElectricalErrorPayload = {
-        "error": str(error_message),
         "error_code": error_code,
         "category": _category_for_electrical_error(error_code),
         "message": _message_for_electrical_error(error_code, error_message),

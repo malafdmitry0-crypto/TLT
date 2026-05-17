@@ -56,9 +56,62 @@ async function fetchElectricalCalcs(page: Page, projectId: string, sessionId: st
         cable_length?: number | null;
         series?: string | null;
         connection_type?: string | null;
+        selection_policy?: string | null;
+        applied_selection_policy?: string | null;
+        commercial?: Record<string, unknown> | null;
       };
     }>
   >;
+}
+
+async function ensureCheapTlt100CommercialData(page: Page) {
+  const login = await page.request.post(`${API_BASE}/api/v1/auth/login`, {
+    data: {
+      email: process.env.ADMIN_EMAIL ?? 'admin@heatcalc.io',
+      password: process.env.ADMIN_PASSWORD ?? 'admin',
+    },
+  });
+  test.skip(!login.ok(), 'admin credentials are required to seed commercial E2E data');
+  const { access_token: token } = await login.json();
+  const headers = { Authorization: `Bearer ${token}` };
+  const list = await page.request.get(`${API_BASE}/api/v1/admin/cables`, { headers });
+  expect(list.ok()).toBeTruthy();
+  const cables = (await list.json()) as Array<{ id: string; model: string }>;
+  const existing = cables.find((item) => item.model === 'ТЛТ-100');
+  const payload = {
+    cable_type: 'self_regulating',
+    brand: 'ТЛТ',
+    model: 'ТЛТ-100',
+    power_per_meter: 100,
+    max_temperature: 190,
+    min_temperature: -60,
+    resistance_per_meter: null,
+    supplier_name: 'E2E supplier',
+    article: 'E2E-TLT-100',
+    currency: 'RUB',
+    price_per_meter: 1,
+    stock_quantity_m: 100000,
+    stock_status: 'in_stock',
+    lead_time_days: 1,
+    supplier_priority: 1,
+    is_preferred: true,
+    order_multiple_m: 1,
+    min_order_quantity_m: 0,
+    is_discontinued: false,
+    replacement_group: null,
+    price_updated_at: null,
+    stock_updated_at: null,
+    commercial_data_source: 'e2e',
+    params: null,
+    is_active: true,
+  };
+  const response = existing
+    ? await page.request.put(`${API_BASE}/api/v1/admin/cables/${existing.id}`, {
+        headers,
+        data: payload,
+      })
+    : await page.request.post(`${API_BASE}/api/v1/admin/cables`, { headers, data: payload });
+  expect(response.ok()).toBeTruthy();
 }
 
 async function expectBatchSuccess(page: Page) {
@@ -221,6 +274,34 @@ test.describe('business flow: cable layout controls', () => {
     expect(calc?.cable_type).toBe('three_core');
     expect(calc?.cable_mark).toBeTruthy();
     expect(calc?.results.connection_type).toBe('loop_1x3');
+  });
+
+  test('commercial ranking выбирается из UI и сохраняет policy snapshot', async ({ page }) => {
+    await ensureCheapTlt100CommercialData(page);
+    await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
+    const pipeName = `E2E commercial ranking ${Date.now()}`;
+    const pipe = await createCalculatedPipe(page, pipeName, {
+      ambient_temperature: -10,
+      process_temperature: 40,
+    });
+
+    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
+    await page.getByLabel('Критерий подбора кабеля').click();
+    await selectDropdownOption(page, 'Дешевле');
+    await recalculateAll(page);
+    await expectBatchSuccess(page);
+
+    const row = await rowForObject(page, pipeName);
+    await expect(row).toContainText('ТЛТ-100');
+
+    const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
+    const calc = calcs.find((item) => item.object_id === pipe.id);
+    expect(calc?.cable_type).toBe('self_regulating');
+    expect(calc?.cable_mark).toBe('ТЛТ-100');
+    expect(calc?.results.selection_policy).toBe('lowest_cost');
+    expect(calc?.results.applied_selection_policy).toBe('lowest_cost');
+    expect(calc?.results.commercial?.commercial_data_source).toBe('e2e');
   });
 
   test('новый тип кабеля работает после перехода из теплопотерь в электрорасчёт', async ({

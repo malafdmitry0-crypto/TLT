@@ -35,7 +35,7 @@ from app.services.spreadsheet_safety import safe_spreadsheet_cell
 
 logger = logging.getLogger("heatcalc.project_io")
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 DELIMITER = ";"  # экспорт всегда `;`; импорт определяет сам
 
 
@@ -84,19 +84,30 @@ def _dump_project_to_writer(
         _write_row(w, [])
 
     _write_section(w, "objects")
-    header = ["type", "name", "sort_order", "params", "results", "is_valid", "validation_errors"]
+    header = [
+        "object_key",
+        "type",
+        "name",
+        "sort_order",
+        "params",
+        "results",
+        "is_valid",
+        "validation_errors",
+    ]
     if project_key is not None:
         header = ["project_key", *header]
     _write_row(w, header)
 
-    # Авто-имя объекта нужно для связи с electrical/specifications
+    # object_key связывает electrical/specifications с объектом внутри экспортного файла.
     obj_key_by_id: dict[UUID, str] = {}
     for obj in sorted(objects, key=lambda o: o.sort_order):
-        obj_key = (obj.params or {}).get("name") or str(obj.id)
+        obj_key = str(obj.id)
         obj_key_by_id[obj.id] = obj_key
+        obj_name = (obj.params or {}).get("name") or obj_key
         row = [
-            obj.object_type,
             obj_key,
+            obj.object_type,
+            obj_name,
             obj.sort_order,
             json.dumps(obj.params or {}, ensure_ascii=False),
             json.dumps(obj.results, ensure_ascii=False) if obj.results is not None else "",
@@ -349,6 +360,12 @@ async def _apply_project_data(
         params = _parse_json_or_empty(row.get("params", ""), {})
         if row.get("name") and "name" not in params:
             params["name"] = row["name"]
+        object_key = (row.get("object_key") or row.get("name") or f"obj{idx}").strip()
+        if object_key in obj_by_key:
+            raise ProjectImportError(
+                "Дублирующийся object_key в секции objects: "
+                f"{object_key!r}. Экспортируйте проект заново или задайте уникальные ключи."
+            )
         obj = ProjectObject(
             project_id=project.id,
             object_type=row.get("type", "").strip() or "pipe",
@@ -359,7 +376,7 @@ async def _apply_project_data(
             validation_errors=_parse_json_or_empty(row.get("validation_errors", ""), None),
         )
         db.add(obj)
-        obj_by_key[row.get("name") or f"obj{idx}"] = obj
+        obj_by_key[object_key] = obj
     await db.flush()
 
     # electrical

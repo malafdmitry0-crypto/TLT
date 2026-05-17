@@ -130,7 +130,7 @@ class TestGenerateXlsx:
                         "name": "+name",
                         "article": "-article",
                         "unit": "@unit",
-                        "quantity": 1,
+                        "quantity": '=HYPERLINK("http://example.test","qty")',
                     }
                 ]
             },
@@ -145,6 +145,7 @@ class TestGenerateXlsx:
             wb["Спецификация"]["B2"],
             wb["Спецификация"]["C2"],
             wb["Спецификация"]["D2"],
+            wb["Спецификация"]["E2"],
         ]
         for cell in guarded_cells:
             assert cell.data_type == "s"

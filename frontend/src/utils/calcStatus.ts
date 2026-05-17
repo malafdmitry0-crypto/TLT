@@ -11,9 +11,9 @@ function cleanCalcErrorText(value: string) {
 
 /**
  * Успешным электрорасчётом считается запись, в которой есть выбранная марка
- * кабеля и нет поля `error` в `results`. Записи с ошибкой создаются бэкендом,
- * чтобы причина сбоя была видна после перезагрузки страницы — но как «выполненный
- * расчёт» они не считаются.
+ * кабеля и нет structured issue fields в `results`. Записи с ошибкой
+ * создаются бэкендом, чтобы причина сбоя была видна после перезагрузки
+ * страницы — но как «выполненный расчёт» они не считаются.
  */
 export function isElectricalCalcSuccess(
   calc: ElectricalCalcSummary | null | undefined
@@ -21,7 +21,11 @@ export function isElectricalCalcSuccess(
   if (!calc) return false;
   const r = calc.results;
   if (!r) return false;
-  if ((r as Record<string, unknown>).error || (r as Record<string, unknown>).error_code) {
+  if (
+    (r as Record<string, unknown>).error_code ||
+    (r as Record<string, unknown>).category ||
+    (r as Record<string, unknown>).message
+  ) {
     return false;
   }
   return !!(r as Record<string, unknown>).selected_cable || !!calc.cable_mark;
@@ -34,8 +38,7 @@ export function electricalCalcError(
   if (typeof message === 'string' && message.trim()) {
     return cleanCalcErrorText(message);
   }
-  const err = calc?.results?.error;
-  return typeof err === 'string' ? cleanCalcErrorText(err) : null;
+  return null;
 }
 
 export function electricalCalcErrorCode(
@@ -47,13 +50,14 @@ export function electricalCalcErrorCode(
 
 export function electricalCalcCategory(
   calc: ElectricalCalcSummary | null | undefined
-): CalcIssueCategory | null {
+): CalcIssueCategory | 'stale' | null {
   const category = calc?.results?.category;
   if (
     category === 'validation' ||
     category === 'formula' ||
     category === 'unsupported' ||
-    category === 'external'
+    category === 'external' ||
+    category === 'stale'
   ) {
     return category;
   }
@@ -75,6 +79,12 @@ export function isElectricalCalcUnsupported(
     electricalCalcCategory(calc) === 'unsupported' ||
     !!(code && UNSUPPORTED_ERROR_CODES.has(code))
   );
+}
+
+export function isElectricalCalcStale(
+  calc: ElectricalCalcSummary | null | undefined
+): boolean {
+  return electricalCalcCategory(calc) === 'stale';
 }
 
 export function electricalCalcSuggestedActions(

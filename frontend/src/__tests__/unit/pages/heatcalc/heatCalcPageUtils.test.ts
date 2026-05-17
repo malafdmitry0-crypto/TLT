@@ -91,8 +91,8 @@ function normalizeSpaces(value: string) {
 describe('heatCalcPageUtils', () => {
   it('определяет статус теплопотерь и текст ошибки', () => {
     const calculated = makeObject({ is_valid: true, results: { total_heat_loss: 100 } });
-    const failed = makeObject({ validation_errors: { error: 'Нет материала' } });
-    const structuredFailed = makeObject({ validation_errors: { error: 'raw', message: 'Понятная ошибка' } });
+    const failed = makeObject({ validation_errors: { message: 'Нет материала' } });
+    const structuredFailed = makeObject({ validation_errors: { message: 'Понятная ошибка' } });
     const unsupported = makeObject({ validation_errors: { category: 'unsupported', message: 'Не применимо' } });
     const rawFailed = makeObject({ validation_errors: { field: 'required' } });
 

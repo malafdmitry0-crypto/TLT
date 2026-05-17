@@ -150,6 +150,31 @@ async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficie
             value=1.5,
             description="Теплопроводность грунта λ_гр, Вт/(м·К).",
         ),
+        dict(
+            key="commercial_balanced_weight_cost",
+            value=0.45,
+            description="Default weight for balanced commercial ranking cost component.",
+        ),
+        dict(
+            key="commercial_balanced_weight_delivery",
+            value=0.25,
+            description="Default weight for balanced commercial ranking delivery component.",
+        ),
+        dict(
+            key="commercial_balanced_weight_stock",
+            value=0.2,
+            description="Default weight for balanced commercial ranking stock component.",
+        ),
+        dict(
+            key="commercial_balanced_weight_supplier",
+            value=0.1,
+            description="Default weight for balanced commercial ranking supplier component.",
+        ),
+        dict(
+            key="commercial_balanced_weights_approved",
+            value=0.0,
+            description="0 until business approves balanced ranking weights; 1 enables balanced.",
+        ),
     ]
     created = []
     for data in coefficients:
@@ -877,7 +902,13 @@ async def seed_objects_and_calculations(
             except Exception as exc:
                 results_dict = None
                 is_valid = False
-                validation_errors = {"error": str(exc)}
+                validation_errors = {
+                    "error_code": "seed_heat_loss_error",
+                    "category": "formula",
+                    "message": str(exc),
+                    "field": None,
+                    "hint": "Проверьте seed-параметры объекта.",
+                }
                 logger.warning("  ! calc error [%s] '%s': %s", obj_type, cfg["name"], exc)
 
             obj = ProjectObject(

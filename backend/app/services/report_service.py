@@ -41,6 +41,7 @@ class ReportService:
         sections: list[str] | None = None,
         *,
         principal: CurrentPrincipal | None,
+        variant_number: int = 1,
     ) -> dict:
         enabled_sections = self._normalize_sections(sections)
 
@@ -73,7 +74,10 @@ class ReportService:
         spec_items = []
         if "specification" in enabled_sections:
             spec_result = await self.db.execute(
-                select(Specification).where(Specification.project_id == project_id)
+                select(Specification).where(
+                    Specification.project_id == project_id,
+                    Specification.variant_number == variant_number,
+                )
             )
             spec = spec_result.scalars().first()
             spec_items = spec.items if spec else []
@@ -81,15 +85,14 @@ class ReportService:
         latest_by_object: dict[str, ElectricalCalculation] = {}
         if {"summary", "electrical"}.intersection(enabled_sections):
             elec_result = await self.db.execute(
-                select(ElectricalCalculation).where(ElectricalCalculation.project_id == project_id)
+                select(ElectricalCalculation).where(
+                    ElectricalCalculation.project_id == project_id,
+                    ElectricalCalculation.variant_number == variant_number,
+                )
             )
             elec_rows = list(elec_result.scalars().all())
-            # Keep the latest variant per object.
             for e in elec_rows:
-                key = str(e.object_id)
-                prev = latest_by_object.get(key)
-                if prev is None or e.variant_number > prev.variant_number:
-                    latest_by_object[key] = e
+                latest_by_object[str(e.object_id)] = e
 
         return {
             "project": {
@@ -120,6 +123,7 @@ class ReportService:
                 "items": spec_items,
             },
             "sections": enabled_sections,
+            "variant_number": variant_number,
         }
 
     def _normalize_sections(self, sections: list[str] | None) -> list[str]:
@@ -133,13 +137,20 @@ class ReportService:
         sections: list[str] | None = None,
         *,
         principal: CurrentPrincipal,
+        variant_number: int = 1,
     ) -> dict:
-        ctx = await self._load_context(project_id, sections, principal=principal)
+        ctx = await self._load_context(
+            project_id,
+            sections,
+            principal=principal,
+            variant_number=variant_number,
+        )
         html = render_html(ctx)
         return {
             "project_id": str(project_id),
             "html": html,
             "sections": ctx["sections"],
+            "variant_number": variant_number,
         }
 
     async def export(
@@ -149,13 +160,31 @@ class ReportService:
         sections: list[str] | None = None,
         *,
         principal: CurrentPrincipal,
+        variant_number: int = 1,
     ) -> bytes:
-        return await self._export(project_id, fmt, sections, principal=principal)
+        return await self._export(
+            project_id,
+            fmt,
+            sections,
+            principal=principal,
+            variant_number=variant_number,
+        )
 
     async def export_trusted(
-        self, project_id: UUID, fmt: str, sections: list[str] | None = None
+        self,
+        project_id: UUID,
+        fmt: str,
+        sections: list[str] | None = None,
+        *,
+        variant_number: int = 1,
     ) -> bytes:
-        return await self._export(project_id, fmt, sections, principal=None)
+        return await self._export(
+            project_id,
+            fmt,
+            sections,
+            principal=None,
+            variant_number=variant_number,
+        )
 
     async def _export(
         self,
@@ -164,11 +193,17 @@ class ReportService:
         sections: list[str] | None = None,
         *,
         principal: CurrentPrincipal | None,
+        variant_number: int = 1,
     ) -> bytes:
         if fmt not in {"pdf", "docx", "xlsx"}:
             raise ReportError(f"Неизвестный формат: {fmt}")
 
-        ctx = await self._load_context(project_id, sections, principal=principal)
+        ctx = await self._load_context(
+            project_id,
+            sections,
+            principal=principal,
+            variant_number=variant_number,
+        )
         if fmt == "pdf":
             return await asyncio.to_thread(generate_pdf, ctx)
         if fmt == "docx":

@@ -4,6 +4,13 @@ import math
 from typing import Any
 
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
+from app.formulas.electrical.commercial import (
+    BalancedRankingConfig,
+    CommercialCandidate,
+    commercial_snapshot,
+    normal_policy,
+    select_commercial_candidate,
+)
 from app.formulas.electrical.common import cable_order_length
 from app.reference_data.loader import get_tlt_cable_by_mark, list_tlt_cables, list_tt_cables
 from app.schemas.calculation import (
@@ -49,7 +56,7 @@ def _int_numeric(value: Any) -> int | None:
 
 
 def _normal_policy(value: Any) -> str:
-    return value if isinstance(value, str) and value in SELECTION_POLICIES else "technical_minimum"
+    return normal_policy(value)
 
 
 def _candidate_length(params: SelfRegulatingParams, threads: int) -> float:
@@ -138,225 +145,43 @@ def _commercial_snapshot(
     threads: int,
     cable: CableRow,
 ) -> dict[str, Any] | None:
-    if not _has_commercial_data(cable):
+    return commercial_snapshot(
+        _candidate_length(params, threads),
+        cable,
+        circuit_count=threads,
+        balanced_config=_balanced_config(params),
+    )
+
+
+def _balanced_config(params: SelfRegulatingParams) -> BalancedRankingConfig | None:
+    if not params.balanced_weights:
         return None
-    order_length, required_order_length = _order_lengths(params, threads, cable)
-    installed_length = _candidate_length(params, threads)
-    price = _numeric(cable.get("price_per_meter"))
-    return {
-        "price_per_meter": price,
-        "currency": cable.get("currency") or "RUB",
-        "required_order_length": round(required_order_length, 3),
-        "raw_required_length": round(order_length, 3),
-        "installed_cable_length": round(installed_length, 3),
-        "order_cable_length": round(order_length, 3),
-        "total_cost": round(required_order_length * price, 2) if price is not None else None,
-        "stock_quantity_m": _numeric(cable.get("stock_quantity_m")),
-        "stock_status": _stock_status(cable),
-        "lead_time_days": _int_numeric(cable.get("lead_time_days")),
-        "supplier_name": cable.get("supplier_name"),
-        "supplier_priority": _int_numeric(cable.get("supplier_priority")),
-        "is_preferred": bool(cable.get("is_preferred", False)),
-        "article": cable.get("article"),
-        "order_multiple_m": _numeric(cable.get("order_multiple_m")),
-        "min_order_quantity_m": _numeric(cable.get("min_order_quantity_m")),
-        "is_discontinued": bool(cable.get("is_discontinued", False)),
-        "replacement_group": cable.get("replacement_group"),
-        "price_updated_at": cable.get("price_updated_at"),
-        "stock_updated_at": cable.get("stock_updated_at"),
-        "commercial_data_source": cable.get("commercial_data_source"),
-        "cost_scope": "cable_only",
-    }
+    return BalancedRankingConfig(
+        weights=params.balanced_weights,
+        approved=params.balanced_weights_approved,
+        version=params.balanced_weights_version or "default_unapproved",
+    )
 
 
 def _select_auto_candidate(
     candidates: list[tuple[int, CableRow]],
     params: SelfRegulatingParams,
 ) -> tuple[int, CableRow, dict[str, Any]]:
-    policy = _normal_policy(params.selection_policy)
-    technical_choice = min(candidates, key=_technical_key)
-    warnings: list[str] = []
-
-    def metadata(
-        selected: tuple[int, CableRow],
-        *,
-        applied_policy: str,
-        reason: str,
-    ) -> dict[str, Any]:
-        threads, cable = selected
-        return {
-            "selection_policy": policy,
-            "applied_selection_policy": applied_policy,
-            "selection_reason": reason,
-            "candidate_count": len(candidates),
-            "commercial": _commercial_snapshot(params, threads, cable),
-            "warnings": warnings,
-        }
-
-    if policy == "technical_minimum":
-        return (
-            *technical_choice,
-            metadata(
-                technical_choice,
-                applied_policy="technical_minimum",
-                reason=(
-                    "Выбран минимальный технически подходящий кабель по текущей "
-                    "инженерной сортировке"
-                ),
-            ),
+    wrapped = [
+        CommercialCandidate(
+            item=item, cable=item[1], installed_length=_candidate_length(params, item[0])
         )
-
-    if policy == "balanced":
-        warnings.append(
-            "Политика balanced пока не сконфигурирована: нет утверждённых весов. "
-            "Применён технический подбор."
-        )
-        return (
-            *technical_choice,
-            metadata(
-                technical_choice,
-                applied_policy="technical_minimum",
-                reason="Balanced ranking not configured; technical fallback was applied",
-            ),
-        )
-
-    ranked_source = _non_discontinued(candidates)
-
-    if policy == "lowest_cost":
-        eligible = [
-            item for item in ranked_source if _total_cost(params, item[0], item[1]) is not None
-        ]
-        if eligible:
-            selected = min(
-                eligible,
-                key=lambda item: (
-                    _total_cost(params, item[0], item[1]) or math.inf,
-                    _stock_rank(params, item[0], item[1]),
-                    _int_numeric(item[1].get("lead_time_days")) or math.inf,
-                    item[1]["power_per_meter"] * item[0],
-                    _technical_key(item),
-                ),
-            )
-            return (
-                *selected,
-                metadata(
-                    selected,
-                    applied_policy="lowest_cost",
-                    reason=(
-                        "Выбран минимальный total_cost среди технически подходящих "
-                        "кабелей с известной ценой"
-                    ),
-                ),
-            )
-        warnings.append("Для lowest_cost нет цен у технически подходящих кабелей.")
-
-    elif policy == "fastest_delivery":
-        eligible = [
-            item
-            for item in ranked_source
-            if _int_numeric(item[1].get("lead_time_days")) is not None
-        ]
-        if eligible:
-            selected = min(
-                eligible,
-                key=lambda item: (
-                    _int_numeric(item[1].get("lead_time_days")) or math.inf,
-                    _stock_rank(params, item[0], item[1]),
-                    _total_cost(params, item[0], item[1]) or math.inf,
-                    _technical_key(item),
-                ),
-            )
-            return (
-                *selected,
-                metadata(
-                    selected,
-                    applied_policy="fastest_delivery",
-                    reason="Выбран минимальный известный срок поставки",
-                ),
-            )
-        warnings.append("Для fastest_delivery нет сроков поставки у технически подходящих кабелей.")
-
-    elif policy == "in_stock":
-        exact_stock = [
-            item
-            for item in ranked_source
-            if _numeric(item[1].get("stock_quantity_m")) is not None
-            and _stock_rank(params, item[0], item[1]) == 0
-        ]
-        status_stock = [
-            item
-            for item in ranked_source
-            if _numeric(item[1].get("stock_quantity_m")) is None
-            and _stock_status(item[1]) == "in_stock"
-        ]
-        limited_stock = [
-            item
-            for item in ranked_source
-            if _numeric(item[1].get("stock_quantity_m")) is None
-            and _stock_status(item[1]) == "limited"
-        ]
-        eligible = exact_stock or status_stock or limited_stock
-        if eligible:
-            selected = min(
-                eligible,
-                key=lambda item: (
-                    _stock_rank(params, item[0], item[1]),
-                    _total_cost(params, item[0], item[1]) or math.inf,
-                    _int_numeric(item[1].get("lead_time_days")) or math.inf,
-                    _numeric(item[1].get("order_multiple_m")) or math.inf,
-                    _technical_key(item),
-                ),
-            )
-            return (
-                *selected,
-                metadata(
-                    selected,
-                    applied_policy="in_stock",
-                    reason="Выбран технически подходящий кабель с подтверждённым наличием",
-                ),
-            )
-        warnings.append("Для in_stock нет подтверждённого наличия у технически подходящих кабелей.")
-
-    elif policy == "preferred_supplier":
-        eligible = [
-            item
-            for item in ranked_source
-            if bool(item[1].get("is_preferred"))
-            or _int_numeric(item[1].get("supplier_priority")) is not None
-        ]
-        if eligible:
-            selected = min(
-                eligible,
-                key=lambda item: (
-                    0 if bool(item[1].get("is_preferred")) else 1,
-                    _int_numeric(item[1].get("supplier_priority")) or math.inf,
-                    _stock_rank(params, item[0], item[1]),
-                    _total_cost(params, item[0], item[1]) or math.inf,
-                    _int_numeric(item[1].get("lead_time_days")) or math.inf,
-                    _technical_key(item),
-                ),
-            )
-            return (
-                *selected,
-                metadata(
-                    selected,
-                    applied_policy="preferred_supplier",
-                    reason="Выбран предпочтительный поставщик/позиция среди технически подходящих кабелей",
-                ),
-            )
-        warnings.append(
-            "Для preferred_supplier нет supplier_priority или is_preferred у технически подходящих кабелей."
-        )
-
-    warnings.append("Коммерческие данные неполные. Применён технический подбор.")
-    return (
-        *technical_choice,
-        metadata(
-            technical_choice,
-            applied_policy="technical_minimum",
-            reason="Commercial data is incomplete; technical fallback was applied",
-        ),
+        for item in candidates
+    ]
+    selected, metadata = select_commercial_candidate(
+        wrapped,
+        selection_policy=params.selection_policy,
+        technical_key=lambda item: _technical_key(item.item),
+        circuit_count=lambda item: item.item[0],
+        balanced_config=_balanced_config(params),
     )
+    threads, cable = selected.item
+    return threads, cable, metadata
 
 
 def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
@@ -364,8 +189,8 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
 
     Контракт safety_factor:
         Применяется здесь **ровно один раз**. Вызывающий код должен передавать
-        `required_power_per_meter = q_linear` (heat_loss_per_meter БЕЗ K из
-        теплорасчёта), а не q_total / L. Иначе К накрутится дважды. Этот
+        `required_power_per_meter = q_linear × K_разм` (без Kзап из
+        теплорасчёта), а не q_total / L. Иначе Kзап накрутится дважды. Этот
         контракт залочен тестами `test_no_double_safety.py` и
         `TestNoDoubleSafetyFactor`.
 
