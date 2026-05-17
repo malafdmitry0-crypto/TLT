@@ -1,16 +1,29 @@
 """Unit-тесты helpers API отчётов."""
 
 import uuid
-from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+from starlette.requests import Request
 
 from app.api.v1 import reports as reports_api
 from app.api.v1.reports import _raise_project_error, _raise_task_error
+from app.core.dependencies import CurrentPrincipal
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError
 from app.services.report_service import ReportError
 from app.services.task_service import TaskAccessError, TaskNotFoundError
+
+
+def _request() -> Request:
+    return Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/api/v1/reports/test",
+            "headers": [],
+            "client": ("127.0.0.1", 12345),
+        }
+    )
 
 
 @pytest.mark.parametrize(
@@ -71,8 +84,9 @@ async def test_preview_maps_project_errors(monkeypatch: pytest.MonkeyPatch):
     with pytest.raises(HTTPException) as err:
         await reports_api.preview(
             uuid.uuid4(),
+            _request(),
             sections=None,
-            principal=SimpleNamespace(role="guest"),
+            principal=CurrentPrincipal(role="guest", session_id="sid"),
             db=object(),
         )
 
@@ -93,8 +107,9 @@ async def test_preview_maps_report_errors(monkeypatch: pytest.MonkeyPatch):
     with pytest.raises(HTTPException) as err:
         await reports_api.preview(
             uuid.uuid4(),
+            _request(),
             sections=None,
-            principal=SimpleNamespace(role="guest"),
+            principal=CurrentPrincipal(role="guest", session_id="sid"),
             db=object(),
         )
 
@@ -107,8 +122,9 @@ async def test_export_rejects_unsupported_format_before_service_creation():
         await reports_api.export(
             uuid.uuid4(),
             "txt",
+            _request(),
             sections=None,
-            principal=SimpleNamespace(role="employee"),
+            principal=CurrentPrincipal(role="employee", user_id=uuid.uuid4()),
             db=object(),
         )
 

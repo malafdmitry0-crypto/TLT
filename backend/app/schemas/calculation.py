@@ -128,6 +128,24 @@ class PipeHeatLossParams(BaseModel):
         le=100,
         description="n_i — количество локальных элементов (фланцы и др.)",
     )
+    valve_count: int | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="Количество задвижек/клапанов для расчёта локальных элементов",
+    )
+    flange_count: int | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="Количество фланцев для расчёта локальных элементов",
+    )
+    support_count: int | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="Количество опор для расчёта локальных элементов",
+    )
     local_element_equiv_length: float | None = Field(
         default=None,
         ge=0.1,
@@ -161,6 +179,12 @@ class PipeHeatLossParams(BaseModel):
 
     @model_validator(mode="after")
     def check_insulation_provided(self) -> "PipeHeatLossParams":
+        if self.num_local_elements is None:
+            local_count = sum(
+                value or 0 for value in (self.valve_count, self.flange_count, self.support_count)
+            )
+            if local_count > 0:
+                self.num_local_elements = local_count
         if self.process_temperature <= self.ambient_temperature:
             raise ValueError("Температура продукта должна быть выше температуры окружающей среды")
         if (
@@ -831,6 +855,8 @@ class ElectricalQueryRequest(BaseModel):
     variant_number: int = 1
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=50, ge=1, le=200)
+    after_sort_order: int | None = None
+    after_id: UUID | None = None
     search: ObjectQuerySearch | None = None
     filters: list[ObjectQueryFilter] = Field(default_factory=list, max_length=20)
     sort: ObjectQuerySort | None = None

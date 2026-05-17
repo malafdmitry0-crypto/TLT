@@ -1,6 +1,5 @@
 """Endpoints авторизации."""
 
-import ipaddress
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -9,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
-from app.core.rate_limit import guest_session_limiter
+from app.core.rate_limit import client_ip, enforce_rate_limit, guest_session_limiter, login_limiter
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.auth import (
@@ -22,28 +21,6 @@ from app.schemas.user import UserResponse
 from app.services.auth_service import AuthError, AuthService
 
 router = APIRouter()
-
-
-def _client_ip(request: Request) -> str:
-    """Извлекает реальный IP с учётом reverse proxy (X-Forwarded-For)."""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded and _is_trusted_proxy(request):
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
-
-
-def _is_trusted_proxy(request: Request) -> bool:
-    if request.client is None:
-        return False
-    client_host = request.client.host
-    for trusted in settings.trusted_proxy_ips_list:
-        try:
-            if ipaddress.ip_address(client_host) in ipaddress.ip_network(trusted, strict=False):
-                return True
-        except ValueError:
-            if client_host == trusted:
-                return True
-    return False
 
 
 def _set_auth_cookies(response: Response, tokens: TokenPair) -> None:
@@ -98,7 +75,7 @@ async def create_guest_session(
 
     Лимит: 10 новых сессий с одного IP за 1 час.
     """
-    ip = _client_ip(request)
+    ip = client_ip(request)
     if not await guest_session_limiter.ais_allowed(ip):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -125,11 +102,17 @@ async def create_guest_session(
     summary="Логин сотрудника / админа",
 )
 async def login(
+    request: Request,
     data: LoginRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> TokenPair:
     """Авторизация сотрудника/администратора."""
+    await enforce_rate_limit(
+        login_limiter,
+        client_ip(request),
+        detail="Слишком много попыток входа с этого IP. Повторите через час.",
+    )
     service = AuthService(db)
     try:
         tokens = await service.login(data.email, data.password, expected_role=data.role)

@@ -1,6 +1,8 @@
 import axios, { AxiosError } from 'axios';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import apiClient from '@/api/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import apiClient, { withIdempotencyKey } from '@/api/client';
+import { enqueueElectricalBatchJob, enqueueHeatLossBatchJob } from '@/api/calculations';
+import { enqueueReportExportJob } from '@/api/reports';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 
@@ -44,8 +46,25 @@ function unauthorized(config: unknown, detail = 'Unauthorized') {
   );
 }
 
+function httpError(config: unknown, status = 502, detail = 'Bad Gateway') {
+  return new AxiosError(
+    `Request failed with status code ${status}`,
+    'ERR_BAD_RESPONSE',
+    config as never,
+    undefined,
+    {
+      config: config as never,
+      data: { detail },
+      headers: {},
+      status,
+      statusText: detail,
+    },
+  );
+}
+
 describe('apiClient guest recovery', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     apiClient.defaults.adapter = originalAdapter;
     useAuthStore.getState().logout();
@@ -155,5 +174,79 @@ describe('apiClient guest recovery', () => {
     );
     expect(useAuthStore.getState().accessToken).toBe('new-token');
     expect(localStorage.getItem('access_token')).toBeNull();
+  });
+});
+
+describe('apiClient network retry and idempotency', () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    apiClient.defaults.adapter = originalAdapter;
+    useAuthStore.getState().logout();
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    apiClient.defaults.adapter = originalAdapter;
+  });
+
+  it('повторяет GET один раз после 5xx и сохраняет исходный config', async () => {
+    vi.useFakeTimers();
+    const adapter = vi.fn(async (config) => {
+      if (adapter.mock.calls.length === 1) {
+        throw httpError(config);
+      }
+      return {
+        config,
+        data: { ok: true },
+        headers: {},
+        status: 200,
+        statusText: 'OK',
+      };
+    });
+    apiClient.defaults.adapter = adapter;
+
+    const request = apiClient.get('/unstable', { headers: { 'X-Test': '1' } });
+    await vi.advanceTimersByTimeAsync(200);
+
+    await expect(request).resolves.toMatchObject({ data: { ok: true } });
+    expect(adapter).toHaveBeenCalledTimes(2);
+    expect(getHeader(adapter.mock.calls[1][0].headers, 'X-Test')).toBe('1');
+  });
+
+  it('не повторяет POST после 5xx', async () => {
+    const adapter = vi.fn(async (config) => {
+      throw httpError(config);
+    });
+    apiClient.defaults.adapter = adapter;
+
+    await expect(apiClient.post('/unstable', { ok: true })).rejects.toThrow('Bad Gateway');
+    expect(adapter).toHaveBeenCalledTimes(1);
+  });
+
+  it('добавляет Idempotency-Key к async job мутациям', async () => {
+    const adapter = vi.fn(async (config) => ({
+      config,
+      data: { id: 'task-1', status: 'queued' },
+      headers: {},
+      status: 200,
+      statusText: 'OK',
+    }));
+    apiClient.defaults.adapter = adapter;
+
+    await enqueueElectricalBatchJob('project-1');
+    await enqueueHeatLossBatchJob('project-1');
+    await enqueueReportExportJob('project-1', 'pdf', ['summary']);
+
+    expect(adapter).toHaveBeenCalledTimes(3);
+    for (const [config] of adapter.mock.calls) {
+      expect(getHeader(config.headers, 'Idempotency-Key')).toEqual(expect.any(String));
+    }
+  });
+
+  it('не перетирает явно переданный Idempotency-Key', () => {
+    const config = withIdempotencyKey({ headers: { 'Idempotency-Key': 'same-click' } });
+    expect(getHeader(config.headers, 'Idempotency-Key')).toBe('same-click');
   });
 });

@@ -23,6 +23,7 @@ from app.services.task_service import (
     ProgressThrottler,
     ProgressWritePolicy,
     TaskAccessError,
+    TaskLimitError,
     TaskService,
 )
 
@@ -49,6 +50,12 @@ class QueueOk:
 class QueueFail:
     async def enqueue(self, task_id, task_type: str) -> str:
         raise RuntimeError("redis down")
+
+
+def _allow_active_task_limits(service: TaskService) -> None:
+    service._active_global_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
+    service._active_project_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
+    service._active_principal_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
 
 
 class ManualClock:
@@ -246,6 +253,7 @@ class TestTaskCreation:
         monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
+        _allow_active_task_limits(service)
         project_id = uuid.uuid4()
 
         task = await service.create_electrical_batch_task(
@@ -298,6 +306,79 @@ class TestTaskCreation:
         assert task is existing
         mock_db.add.assert_not_called()
 
+    async def test_create_rejects_when_project_active_task_limit_reached(
+        self,
+        mock_db,
+        guest_principal: CurrentPrincipal,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_GLOBAL", 200)
+        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_PER_PROJECT", 1)
+        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_PER_PRINCIPAL", 5)
+        service = TaskService(mock_db)
+        service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
+        service._active_global_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
+        service._active_project_task_count = AsyncMock(return_value=1)  # type: ignore[method-assign]
+        service._active_principal_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
+
+        with pytest.raises(TaskLimitError, match="активных задач для проекта"):
+            await service.create_electrical_batch_task(
+                ElectricalBatchJobRequest(project_id=uuid.uuid4()),
+                guest_principal,
+                queue=QueueOk(),
+            )
+
+        mock_db.add.assert_not_called()
+
+    async def test_create_rejects_when_principal_active_task_limit_reached(
+        self,
+        mock_db,
+        guest_principal: CurrentPrincipal,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_GLOBAL", 200)
+        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_PER_PROJECT", 3)
+        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_PER_PRINCIPAL", 1)
+        service = TaskService(mock_db)
+        service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
+        service._active_global_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
+        service._active_project_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
+        service._active_principal_task_count = AsyncMock(return_value=1)  # type: ignore[method-assign]
+
+        with pytest.raises(TaskLimitError, match="активных задач для пользователя"):
+            await service.create_heat_loss_batch_task(
+                HeatLossBatchJobRequest(project_id=uuid.uuid4()),
+                guest_principal,
+                queue=QueueOk(),
+            )
+
+        mock_db.add.assert_not_called()
+
+    async def test_create_rejects_when_global_queue_depth_reached(
+        self,
+        mock_db,
+        employee_principal: CurrentPrincipal,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_GLOBAL", 1)
+        service = TaskService(mock_db)
+        service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
+        service._active_global_task_count = AsyncMock(return_value=1)  # type: ignore[method-assign]
+        service._active_project_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
+        service._active_principal_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
+
+        with pytest.raises(TaskLimitError, match="Очередь задач перегружена"):
+            await service.create_report_export_task(
+                ReportExportJobRequest(project_id=uuid.uuid4(), format="pdf"),
+                employee_principal,
+                queue=QueueOk(),
+            )
+
+        mock_db.add.assert_not_called()
+
     async def test_create_heat_loss_batch_task_enqueues_and_persists_payload(
         self,
         mock_db,
@@ -307,6 +388,7 @@ class TestTaskCreation:
         monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
+        _allow_active_task_limits(service)
         project_id = uuid.uuid4()
 
         task = await service.create_heat_loss_batch_task(
@@ -335,6 +417,7 @@ class TestTaskCreation:
         monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
+        _allow_active_task_limits(service)
         project_id = uuid.uuid4()
 
         task = await service.create_report_export_task(

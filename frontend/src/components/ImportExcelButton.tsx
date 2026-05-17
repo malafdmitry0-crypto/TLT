@@ -70,7 +70,10 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
         const skippedText = res.skipped_duplicates
           ? `, дублей пропущено: ${res.skipped_duplicates}`
           : '';
-        message.success(`Импортировано объектов: ${res.created}${skippedText}`);
+        const limitText = res.skipped_limit
+          ? `, по лимиту пропущено: ${res.skipped_limit}`
+          : '';
+        message.success(`Импортировано объектов: ${res.created}${skippedText}${limitText}`);
       } else {
         message.warning(
           `Импортировано: ${res.created}. Ошибок: ${res.errors.length}`
@@ -214,6 +217,12 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
                 <Text type="secondary">{result.skipped_duplicates}</Text>
               </p>
             )}
+            {result.skipped_limit > 0 && (
+              <p>
+                <Text strong>Пропущено из-за лимита проекта: </Text>
+                <Text type="warning">{result.skipped_limit}</Text>
+              </p>
+            )}
             {result.heat_loss_task && (
               <p>
                 <Text type="secondary">Пересчёт теплопотерь поставлен в очередь.</Text>
@@ -245,7 +254,8 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
             )}
             {result.created > 0 &&
               result.errors.length === 0 &&
-              result.skipped_duplicates === 0 && (
+              result.skipped_duplicates === 0 &&
+              result.skipped_limit === 0 && (
                 <Text type="secondary">Все строки импортированы без ошибок ✓</Text>
               )}
           </>

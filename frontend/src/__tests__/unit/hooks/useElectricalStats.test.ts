@@ -10,6 +10,7 @@ function makeObj(id: string, isValid = true): ProjectObject {
     project_id: 'p1',
     object_type: 'pipe',
     sort_order: 0,
+    version: 1,
     params: {},
     results: { heat_loss_per_meter: 50 },
     is_valid: isValid,

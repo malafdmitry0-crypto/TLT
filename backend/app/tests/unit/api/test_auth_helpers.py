@@ -2,8 +2,8 @@
 
 from starlette.requests import Request
 
-from app.api.v1.auth import _client_ip
 from app.core.config import settings
+from app.core.rate_limit import client_ip
 
 
 def _request(client_host: str, forwarded_for: str | None = None) -> Request:
@@ -24,10 +24,10 @@ def _request(client_host: str, forwarded_for: str | None = None) -> Request:
 def test_client_ip_ignores_forwarded_for_without_trusted_proxy(monkeypatch):
     monkeypatch.setattr(settings, "TRUSTED_PROXY_IPS", "")
 
-    assert _client_ip(_request("10.0.0.5", "203.0.113.10")) == "10.0.0.5"
+    assert client_ip(_request("10.0.0.5", "203.0.113.10")) == "10.0.0.5"
 
 
 def test_client_ip_uses_forwarded_for_from_trusted_proxy(monkeypatch):
     monkeypatch.setattr(settings, "TRUSTED_PROXY_IPS", "10.0.0.0/24")
 
-    assert _client_ip(_request("10.0.0.5", "203.0.113.10, 10.0.0.5")) == "203.0.113.10"
+    assert client_ip(_request("10.0.0.5", "203.0.113.10, 10.0.0.5")) == "203.0.113.10"

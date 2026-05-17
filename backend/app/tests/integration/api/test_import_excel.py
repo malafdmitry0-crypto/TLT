@@ -516,6 +516,38 @@ class TestCsvImport:
         objs = (await client.get(f"/api/v1/projects/{pid}/objects", headers=headers)).json()
         assert [obj["params"]["name"] for obj in objs] == ["Новая"]
 
+    async def test_csv_import_reports_rows_skipped_by_project_limit(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        from app.core.config import settings
+
+        monkeypatch.setattr(settings, "GUEST_MAX_OBJECTS_PER_PROJECT", 1)
+        pid = await _create_project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        csv_body = (
+            "Тип;Наименование;Диаметр, мм;Длина, м;Толщина изоляции, мм;"
+            "Материал изоляции;T° среды;T° продукта\n"
+            "труба;Первая;108;50;50;Минеральная вата;-20;80\n"
+            "труба;Вторая;57;15;30;Минеральная вата;-10;50\n"
+        ).encode()
+
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects/import-excel",
+            files={"file": ("limit.csv", csv_body, "text/csv")},
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["created"] == 1
+        assert body["skipped_limit"] == 1
+        assert "Пропущено строк: 1" in body["errors"][0]["message"]
+
+        objs = (await client.get(f"/api/v1/projects/{pid}/objects", headers=headers)).json()
+        assert [obj["params"]["name"] for obj in objs] == ["Первая"]
+
     async def test_csv_requires_type_column(self, client: AsyncClient, guest_session: str):
         pid = await _create_project(client, guest_session)
         csv_body = b"Name;Diameter\nfoo;108\n"

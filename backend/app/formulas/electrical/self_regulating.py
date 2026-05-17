@@ -22,14 +22,6 @@ from app.schemas.calculation import (
 
 CableRow = dict[str, Any]
 MAX_SELF_REG_AUTO_THREADS = 3
-SELECTION_POLICIES = {
-    "technical_minimum",
-    "lowest_cost",
-    "fastest_delivery",
-    "in_stock",
-    "preferred_supplier",
-    "balanced",
-}
 
 
 def _lookup_by_mark(catalog: list[CableRow], mark: str) -> CableRow | None:
@@ -40,25 +32,6 @@ def _lookup_by_mark(catalog: list[CableRow], mark: str) -> CableRow | None:
     return get_tlt_cable_by_mark(mark)
 
 
-def _numeric(value: Any) -> float | None:
-    if value is None or value == "":
-        return None
-    try:
-        parsed = float(value)
-    except (TypeError, ValueError):
-        return None
-    return parsed if math.isfinite(parsed) else None
-
-
-def _int_numeric(value: Any) -> int | None:
-    parsed = _numeric(value)
-    return int(parsed) if parsed is not None else None
-
-
-def _normal_policy(value: Any) -> str:
-    return normal_policy(value)
-
-
 def _candidate_length(params: SelfRegulatingParams, threads: int) -> float:
     return params.pipe_length * params.winding_coefficient * threads
 
@@ -67,77 +40,6 @@ def _technical_key(item: tuple[int, CableRow]) -> tuple[float, float, float, str
     threads, cable = item
     power = float(cable["power_per_meter"])
     return (threads, power, power * threads, str(cable.get("model", "")))
-
-
-def _non_discontinued(candidates: list[tuple[int, CableRow]]) -> list[tuple[int, CableRow]]:
-    active = [item for item in candidates if not bool(item[1].get("is_discontinued"))]
-    return active or candidates
-
-
-def _order_lengths(
-    params: SelfRegulatingParams, threads: int, cable: CableRow
-) -> tuple[float, float]:
-    installed_length = _candidate_length(params, threads)
-    order_length = cable_order_length(installed_length)
-    order_multiple = _numeric(cable.get("order_multiple_m")) or 1.0
-    if order_multiple <= 0:
-        order_multiple = 1.0
-    min_order_quantity = _numeric(cable.get("min_order_quantity_m")) or 0.0
-    rounded_length = math.ceil(max(order_length - 1e-9, 0.0) / order_multiple) * order_multiple
-    return order_length, max(rounded_length, min_order_quantity)
-
-
-def _total_cost(params: SelfRegulatingParams, threads: int, cable: CableRow) -> float | None:
-    price = _numeric(cable.get("price_per_meter"))
-    if price is None:
-        return None
-    _, required_order_length = _order_lengths(params, threads, cable)
-    return required_order_length * price
-
-
-def _stock_status(cable: CableRow) -> str:
-    status = cable.get("stock_status")
-    if isinstance(status, str) and status:
-        return status
-    stock = _numeric(cable.get("stock_quantity_m"))
-    if stock is None:
-        return "unknown"
-    return "in_stock" if stock > 0 else "unknown"
-
-
-def _stock_rank(params: SelfRegulatingParams, threads: int, cable: CableRow) -> int:
-    _, required_order_length = _order_lengths(params, threads, cable)
-    stock = _numeric(cable.get("stock_quantity_m"))
-    if stock is not None:
-        return 0 if stock >= required_order_length else 3
-    status = _stock_status(cable)
-    if status == "in_stock":
-        return 1
-    if status == "limited":
-        return 2
-    return 3
-
-
-def _has_commercial_data(cable: CableRow) -> bool:
-    commercial_keys = (
-        "price_per_meter",
-        "stock_quantity_m",
-        "stock_status",
-        "lead_time_days",
-        "supplier_name",
-        "supplier_priority",
-        "is_preferred",
-        "order_multiple_m",
-        "min_order_quantity_m",
-        "article",
-    )
-    for key in commercial_keys:
-        value = cable.get(key)
-        if key == "stock_status" and value == "unknown":
-            continue
-        if value not in (None, "", False):
-            return True
-    return False
 
 
 def _commercial_snapshot(
@@ -299,7 +201,7 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
         applied_threads = requested_threads or 1
         thread_source = "default" if requested_threads is None else "manual"
         selection_metadata = {
-            "selection_policy": _normal_policy(params.selection_policy),
+            "selection_policy": normal_policy(params.selection_policy),
             "applied_selection_policy": "manual_selection",
             "selection_reason": "Кабель выбран вручную; commercial ranking не применялся",
             "candidate_count": 1,

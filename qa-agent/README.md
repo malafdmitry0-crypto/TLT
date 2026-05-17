@@ -218,6 +218,10 @@ npm install
 npm run typecheck
 npm run qa-agent:test
 npm run qa-agent:example
+npm run qa-agent:tlt-ai-cases
+npm run qa-agent:visual
+npm run qa-agent:app-tests
+npm run qa-agent:security
 npm run qa-agent:llm-extract
 ```
 
@@ -227,3 +231,247 @@ The example writes:
 qa-agent/reports/qa-agent-example-report.json
 qa-agent/reports/qa-agent-example-report.html
 ```
+
+## TLT AI/Domain Heat-Loss Cases
+
+`qa-agent:tlt-ai-cases` is the first real domain QA slice for pipe and tank
+heat-loss calculations.
+
+It can:
+
+- generate realistic pipe/tank cases through an LLM;
+- fall back to deterministic built-in fixtures when LLM is disabled;
+- sanitize cases to backend-compatible SI-unit params;
+- run baseline and metamorphic variants;
+- check invariants such as:
+  - thicker insulation lowers heat loss;
+  - higher process temperature raises heat loss;
+  - higher safety factor raises total heat loss without changing linear/surface heat loss;
+  - longer pipe raises total heat loss without changing heat loss per meter;
+- write JSON and HTML reports.
+
+Default local run, no network or LLM:
+
+```bash
+npm run qa-agent:tlt-ai-cases
+```
+
+LLM case generation:
+
+```bash
+QA_AGENT_ENABLE_LLM=1 \
+LLM_API_KEY=... \
+LLM_MODEL=... \
+npm run qa-agent:tlt-ai-cases
+```
+
+Live backend formula-check runner:
+
+```bash
+QA_AGENT_TLT_RUNNER=backend \
+QA_AGENT_BACKEND_BASE_URL=http://127.0.0.1:8000 \
+QA_AGENT_ADMIN_EMAIL=admin@example.com \
+QA_AGENT_ADMIN_PASSWORD=... \
+npm run qa-agent:tlt-ai-cases
+```
+
+or pass an already issued token:
+
+```bash
+QA_AGENT_TLT_RUNNER=backend \
+QA_AGENT_AUTH_TOKEN=... \
+npm run qa-agent:tlt-ai-cases
+```
+
+Reports are written to:
+
+```text
+qa-agent/reports/qa-agent-tlt-ai-cases-report.json
+qa-agent/reports/qa-agent-tlt-ai-cases-report.html
+```
+
+The LLM is only allowed to generate scenarios. It is not the numeric source of
+truth. Numeric correctness is checked by deterministic runners and invariant
+checks.
+
+## Visual QA With Screenshots
+
+`qa-agent:visual` captures screenshots with Playwright at multiple viewport
+sizes and sends those images to an LLM vision model for structured UI review.
+
+Default viewports:
+
+- `desktop:1440x900`
+- `tablet:1024x768`
+- `mobile:390x844`
+
+Run:
+
+```bash
+QA_AGENT_ENABLE_LLM=1 \
+LLM_API_KEY=... \
+LLM_MODEL=... \
+QA_AGENT_VISUAL_BASE_URL=http://127.0.0.1:3003 \
+npm run qa-agent:visual
+```
+
+Useful options:
+
+```bash
+QA_AGENT_VISUAL_URLS="/,/login,/workspace"
+QA_AGENT_VISUAL_VIEWPORTS="desktop:1440x900,tablet:1024x768,mobile:390x844"
+QA_AGENT_VISUAL_WAIT_MS=1000
+QA_AGENT_VISUAL_FULL_PAGE=1
+```
+
+Outputs:
+
+```text
+qa-agent/reports/screenshots/*.png
+qa-agent/reports/qa-agent-visual-report.json
+qa-agent/reports/qa-agent-visual-report.html
+```
+
+The LLM checks visible UX defects only: clipped text, overlaps, unreadable
+controls, broken responsive layout, blank regions, hidden primary actions,
+unexpected horizontal overflow and similar visual regressions.
+
+## Application Test Agent
+
+`qa-agent:app-tests` runs application test commands and writes a JSON/HTML
+report. It can also ask an LLM to propose missing regression tests.
+
+Default commands:
+
+- `backend` -> `make test-backend`
+- `frontend` -> `make test-frontend`
+
+Run selected suites:
+
+```bash
+QA_AGENT_APP_TESTS="backend,frontend,e2e" \
+npm run qa-agent:app-tests
+```
+
+For a quick smoke of the QA-agent itself:
+
+```bash
+QA_AGENT_APP_TESTS="qa-agent" npm run qa-agent:app-tests
+```
+
+Generate test proposals when failures or coverage gaps are found:
+
+```bash
+QA_AGENT_APP_TESTS="backend,frontend" \
+QA_AGENT_GENERATE_TESTS=1 \
+QA_AGENT_ENABLE_LLM=1 \
+LLM_API_KEY=... \
+LLM_MODEL=... \
+npm run qa-agent:app-tests
+```
+
+By default generated tests are written as proposal files under:
+
+```text
+qa-agent/reports/generated-tests/
+```
+
+Direct repo writes are guarded:
+
+```bash
+QA_AGENT_ALLOW_TEST_WRITES=1 npm run qa-agent:app-tests
+```
+
+Even with direct writes enabled, proposals are allowed only under:
+
+- `backend/app/tests/`
+- `frontend/src/__tests__/`
+- `e2e/tests/`
+- `qa-agent/tests/`
+
+Existing files are not overwritten unless `QA_AGENT_OVERWRITE_TESTS=1` is set.
+
+## Local Defensive Security Agent
+
+`qa-agent:security` runs local-only defensive security checks and writes a
+JSON/HTML report. It is for the local TLT stack only; dynamic checks reject
+non-local targets.
+
+Default checks:
+
+- `codebase-subagent` -> read-only heuristic codebase scanner;
+- `backend-sast` -> Bandit inside `heatcalc_backend`;
+- `backend-deps` -> pip-audit inside `heatcalc_backend`;
+- `frontend-sast` -> eslint security rules inside `heatcalc_frontend`;
+- `frontend-deps` -> npm audit inside `heatcalc_frontend`.
+
+Run:
+
+```bash
+npm run qa-agent:security
+```
+
+Select checks:
+
+```bash
+QA_AGENT_SECURITY_SCANS="codebase-subagent,backend-sast,backend-deps,frontend-sast,frontend-deps,qa-agent-deps,e2e-deps" \
+npm run qa-agent:security
+```
+
+The codebase subagent is in-process and read-only. It scans bounded roots,
+skips generated/heavy directories, caps findings, redacts secret-like evidence,
+and passes heuristic issues to the main security agent for optional LLM triage.
+
+Optional bounded local resilience/rate-limit smoke:
+
+```bash
+QA_AGENT_SECURITY_SCANS="local-load" \
+QA_AGENT_SECURITY_TARGET=http://127.0.0.1:3003 \
+QA_AGENT_SECURITY_LOAD_CONCURRENCY=2 \
+QA_AGENT_SECURITY_LOAD_DURATION_MS=10000 \
+npm run qa-agent:security
+```
+
+The load smoke is capped in code: local targets only, max concurrency 8, max
+duration 30 seconds, max 500 requests.
+
+Optional local OWASP ZAP baseline:
+
+```bash
+QA_AGENT_SECURITY_SCANS="zap-baseline" \
+QA_AGENT_SECURITY_TARGET=http://127.0.0.1:3003 \
+npm run qa-agent:security
+```
+
+Optional LLM triage of scan output:
+
+```bash
+QA_AGENT_SECURITY_REVIEW=1 \
+QA_AGENT_ENABLE_LLM=1 \
+LLM_API_KEY=... \
+LLM_MODEL=... \
+npm run qa-agent:security
+```
+
+Optional fix handoff mode:
+
+```bash
+QA_AGENT_AUDIT_FIX=1 \
+QA_AGENT_AUDIT_FIX_DOMAIN=security \
+npm run qa-agent:security
+```
+
+Fix mode only prepares an isolated `qa/audit/<domain>-fixes-*` branch and
+writes a handoff file. Supported domains are `security`, `performance`, and
+`metrics`. It does not auto-commit and does not apply destructive changes.
+
+Outputs:
+
+```text
+qa-agent/reports/qa-agent-security-report.json
+qa-agent/reports/qa-agent-security-report.html
+qa-agent/reports/qa-agent-audit-fix-handoff.json
+```
+
+This mode does not implement destructive traffic generation. It treats load
+checks as bounded local smoke tests for resilience and rate-limit behavior.

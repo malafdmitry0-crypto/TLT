@@ -33,6 +33,7 @@ from app.schemas.project import (
     ObjectQueryOptionItem,
     ObjectQuerySearchCapability,
     ProjectObjectResponse,
+    ProjectObjectsPageCursor,
     ProjectObjectsPageInfo,
 )
 from app.services.calculation_service import CalculationService
@@ -844,6 +845,8 @@ class ElectricalQueryService:
         page_size = min(max(data.page_size, 1), MAX_PAGE_SIZE)
 
         if self._can_use_default_page(data):
+            if page == 1 or (data.after_sort_order is not None and data.after_id is not None):
+                return await self._query_default_keyset_page(data, page=page, page_size=page_size)
             objects, calculations, summary, page_info = await CalculationService(
                 self.db
             ).electrical_project_page(
@@ -898,6 +901,81 @@ class ElectricalQueryService:
                 has_previous_page=page > 1,
             ),
             counts=ElectricalQueryCounts(total=len(rows), filtered=filtered_count),
+            query=ElectricalQueryEcho(variant_number=data.variant_number, sort=data.sort),
+        )
+
+    async def _query_default_keyset_page(
+        self,
+        data: ElectricalQueryRequest,
+        *,
+        page: int,
+        page_size: int,
+    ) -> ElectricalQueryResponse:
+        conditions = [ProjectObject.project_id == data.project_id]
+        if data.after_sort_order is not None and data.after_id is not None:
+            conditions.append(
+                or_(
+                    ProjectObject.sort_order > data.after_sort_order,
+                    and_(
+                        ProjectObject.sort_order == data.after_sort_order,
+                        ProjectObject.id > data.after_id,
+                    ),
+                )
+            )
+
+        objects_result = await self.db.execute(
+            select(ProjectObject)
+            .where(*conditions)
+            .order_by(ProjectObject.sort_order, ProjectObject.id)
+            .limit(page_size + 1)
+        )
+        fetched_objects = list(objects_result.scalars().all())
+        has_next_page = len(fetched_objects) > page_size
+        objects = fetched_objects[:page_size]
+        object_ids = [obj.id for obj in objects]
+
+        if object_ids:
+            calculations_result = await self.db.execute(
+                select(ElectricalCalculation).where(
+                    ElectricalCalculation.project_id == data.project_id,
+                    ElectricalCalculation.variant_number == data.variant_number,
+                    ElectricalCalculation.object_id.in_(object_ids),
+                )
+            )
+            calculations = list(calculations_result.scalars().all())
+        else:
+            calculations = []
+
+        _, _, summary, _ = await CalculationService(self.db).electrical_project_page(
+            data.project_id,
+            variant_number=data.variant_number,
+            page=1,
+            page_size=1,
+        )
+        total_objects = int(summary["total_objects"])
+        total_pages = ceil(total_objects / page_size) if total_objects else 0
+        offset = (page - 1) * page_size
+        last_object = objects[-1] if has_next_page and objects else None
+
+        return ElectricalQueryResponse(
+            items=[self._object_summary(obj) for obj in objects],
+            calculations=[self._calc_summary(calc) for calc in calculations],
+            summary=ElectricalPageSummary(**summary),
+            page_info=ProjectObjectsPageInfo(
+                page=page,
+                page_size=page_size,
+                offset=offset,
+                total_pages=total_pages,
+                has_next_page=has_next_page,
+                has_previous_page=page > 1,
+                next_cursor=ProjectObjectsPageCursor(
+                    sort_order=last_object.sort_order,
+                    id=last_object.id,
+                )
+                if last_object is not None
+                else None,
+            ),
+            counts=ElectricalQueryCounts(total=total_objects, filtered=total_objects),
             query=ElectricalQueryEcho(variant_number=data.variant_number, sort=data.sort),
         )
 
@@ -1325,6 +1403,7 @@ class ElectricalQueryService:
         return ProjectObjectResponse(
             id=obj.id,
             project_id=obj.project_id,
+            version=obj.version,
             object_type=obj.object_type,
             sort_order=obj.sort_order,
             params=self._prune_dict(obj.params, ELECTRICAL_OBJECT_PARAM_KEYS) or {},

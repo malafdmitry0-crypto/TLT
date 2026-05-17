@@ -1,5 +1,6 @@
 """Redis Stream transport for durable background tasks."""
 
+import logging
 from collections.abc import Sequence
 from uuid import UUID
 
@@ -7,6 +8,8 @@ from redis.asyncio import Redis
 from redis.exceptions import ResponseError
 
 from app.core.config import settings
+
+logger = logging.getLogger("heatcalc.task_queue")
 
 
 class TaskQueueError(RuntimeError):
@@ -111,7 +114,18 @@ class TaskQueue:
         dead_id = await self.redis.xadd(
             settings.WORKER_DEAD_LETTER_STREAM,
             payload,
-            maxlen=settings.WORKER_QUEUE_MAXLEN,
+            maxlen=settings.WORKER_DEAD_LETTER_MAXLEN,
             approximate=True,
+        )
+        logger.warning(
+            "Task moved to dead-letter stream",
+            extra={
+                "task_id": payload.get("task_id"),
+                "task_type": payload.get("type"),
+                "original_stream_id": stream_id,
+                "dead_letter_stream_id": str(dead_id),
+                "dead_letter_stream": settings.WORKER_DEAD_LETTER_STREAM,
+                "reason": reason,
+            },
         )
         return str(dead_id)

@@ -313,6 +313,33 @@ class TestFormulaCheck:
         assert data["heat_loss_per_meter"] > 0
         assert data["total_heat_loss"] > 0
 
+    async def test_pipe_formula_check_accepts_named_local_element_counts(
+        self, client: AsyncClient, admin_token: str
+    ):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={
+                "formula_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.108,
+                    "insulation_layers": [{"material": "mineral_wool", "thickness": 0.05}],
+                    "ambient_temperature": -26.0,
+                    "process_temperature": 80.0,
+                    "pipe_length": 50.0,
+                    "wind_speed": 4.9,
+                    "valve_count": 1,
+                    "flange_count": 2,
+                    "support_count": 3,
+                    "local_element_equiv_length": 1.25,
+                },
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["local_elements_count"] == 6
+        assert data["local_element_equiv_length"] == pytest.approx(1.25)
+
     async def test_tank_formula_check_success(self, client: AsyncClient, admin_token: str):
         resp = await client.post(
             "/api/v1/admin/formula-check",

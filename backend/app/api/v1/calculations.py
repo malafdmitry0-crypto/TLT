@@ -2,13 +2,14 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import ValidationError
 from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any
+from app.core.rate_limit import batch_limiter, enforce_principal_rate_limit
 from app.models.electrical_calculation import ElectricalCalculation
 from app.schemas.calculation import (
     BatchCalcResponse,
@@ -75,9 +76,16 @@ async def calc_heat_loss(
 )
 async def batch_recalculate(
     project_id: UUID,
+    request: Request,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_principal_rate_limit(
+        batch_limiter,
+        principal,
+        request,
+        detail="Превышен лимит пакетных расчётов для пользователя и IP. Повторите через час.",
+    )
     service = CalculationService(db)
     try:
         await ProjectService(db).get_project_for_write(project_id, principal)
@@ -166,6 +174,7 @@ async def list_electrical(
 @router.get(
     "/electrical/page",
     response_model=ElectricalPageResponse,
+    response_model_exclude_none=True,
     summary="Постраничные данные страницы электрорасчёта",
 )
 async def electrical_page(
@@ -243,6 +252,7 @@ async def electrical_query_capabilities(
 @router.post(
     "/electrical/query",
     response_model=ElectricalQueryResponse,
+    response_model_exclude_none=True,
     summary="Постраничный backend-query таблицы электрорасчёта",
 )
 async def query_electrical(
@@ -347,6 +357,7 @@ async def select_cable(
 )
 async def batch_calc_electrical(
     project_id: UUID,
+    request: Request,
     cable_source: str = "builtin",
     variant_number: int = 1,
     cable_type: str = "self_regulating",
@@ -373,6 +384,12 @@ async def batch_calc_electrical(
     """Автоматически подбирает кабель для каждого валидного объекта проекта.
     Использует результаты теплопотерь и выбранный `cable_type`.
     """
+    await enforce_principal_rate_limit(
+        batch_limiter,
+        principal,
+        request,
+        detail="Превышен лимит пакетных расчётов для пользователя и IP. Повторите через час.",
+    )
     if cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
         raise HTTPException(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"

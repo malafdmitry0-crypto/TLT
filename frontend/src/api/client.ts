@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import type { GuestSessionResponse } from '@/types/auth';
@@ -12,7 +12,10 @@ const apiClient = axios.create({
 type RetryableConfig = NonNullable<AxiosError['config']> & {
   _authRetry?: boolean;
   _guestRetry?: boolean;
+  _networkRetry?: number;
 };
+
+const NETWORK_RETRY_DELAYS_MS = [200, 500, 1200];
 
 let guestRecoveryPromise: Promise<GuestSessionResponse> | null = null;
 let employeeRefreshPromise: Promise<string> | null = null;
@@ -37,6 +40,42 @@ function csrfToken(): string | null {
 
 function isMutatingMethod(method?: string): boolean {
   return !['get', 'head', 'options'].includes((method ?? 'get').toLowerCase());
+}
+
+function isIdempotentMethod(method?: string): boolean {
+  return ['get', 'head', 'options'].includes((method ?? 'get').toLowerCase());
+}
+
+function retryDelay(ms: number): Promise<void> {
+  return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
+}
+
+function shouldRetryNetworkError(
+  error: AxiosError,
+  config?: RetryableConfig,
+): config is RetryableConfig {
+  if (!config || !isIdempotentMethod(config.method) || error.code === 'ERR_CANCELED') {
+    return false;
+  }
+  const status = error.response?.status;
+  return status == null || status >= 500;
+}
+
+export function createIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `idemp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+export function withIdempotencyKey(config: AxiosRequestConfig = {}): AxiosRequestConfig {
+  return {
+    ...config,
+    headers: {
+      'Idempotency-Key': createIdempotencyKey(),
+      ...config.headers,
+    },
+  };
 }
 
 async function recoverGuestSession() {
@@ -97,8 +136,8 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (r) => r,
   async (error: AxiosError<{ detail?: string | { msg: string }[] }>) => {
+    const originalConfig = error.config as RetryableConfig | undefined;
     if (error.response?.status === 401) {
-      const originalConfig = error.config as RetryableConfig | undefined;
       const url = originalConfig?.url ?? '';
       const role = useAuthStore.getState().role ?? localStorage.getItem('role');
       const canRefreshEmployee =
@@ -138,6 +177,16 @@ apiClient.interceptors.response.use(
           localStorage.removeItem('role');
           localStorage.removeItem('tlt-current-project');
         }
+      }
+    }
+
+    if (shouldRetryNetworkError(error, originalConfig)) {
+      const retryCount = originalConfig._networkRetry ?? 0;
+      const delayMs = NETWORK_RETRY_DELAYS_MS[retryCount];
+      if (delayMs != null) {
+        originalConfig._networkRetry = retryCount + 1;
+        await retryDelay(delayMs);
+        return apiClient(originalConfig);
       }
     }
 

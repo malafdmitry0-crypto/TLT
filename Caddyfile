@@ -30,7 +30,7 @@
 
 	# Лимит на размер запроса (импорт CSV/Excel может быть большим)
 	request_body {
-		max_size 5MB
+		max_size 10MB
 	}
 
 	# Логи — в stdout контейнера (docker logs caddy)

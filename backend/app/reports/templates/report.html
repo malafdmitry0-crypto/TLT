@@ -73,17 +73,24 @@
 
   {# ─────────── Сводка ─────────── #}
   {% set valid_objs = objects | selectattr('is_valid') | list %}
-  {% set elec_objs = objects | selectattr('electrical') | list %}
+  {% set electrical_ctx = electrical if electrical is defined else {} %}
+  {% set electrical_summary = electrical_ctx.get('summary', {}) %}
+  {% set elec_objs = electrical_ctx.get('valid', []) %}
+  {% set elec_failed = electrical_ctx.get('failed', []) %}
+  {% set elec_unsupported = electrical_ctx.get('unsupported', []) %}
+  {% set elec_stale = electrical_ctx.get('stale', []) %}
+  {% set elec_excluded = elec_failed + elec_unsupported + elec_stale %}
   {% set total_heat = valid_objs | map(attribute='results') | map('default', {}) | map(attribute='total_heat_loss', default=0) | sum %}
-  {% set total_power = elec_objs | map(attribute='electrical.results') | map('default', {}) | map(attribute='total_power', default=0) | sum %}
-  {% set total_cable = elec_objs | map(attribute='electrical.results') | map('default', {}) | map(attribute='cable_length', default=0) | sum %}
-  {% set total_current = elec_objs | map(attribute='electrical.results') | map('default', {}) | map(attribute='current', default=0) | sum %}
+  {% set total_power = electrical_summary.get('total_power', 0) %}
+  {% set total_cable = electrical_summary.get('total_cable', 0) %}
+  {% set total_current = electrical_summary.get('total_current', 0) %}
 
   {% if 'summary' in enabled %}
   <div class="summary">
     <div class="row"><span class="lbl">Объектов</span><span class="val">{{ objects|length }}</span></div>
     <div class="row"><span class="lbl">Рассчитано теплопотерь</span><span class="val">{{ valid_objs|length }}</span></div>
     <div class="row"><span class="lbl">Подобрано кабелей</span><span class="val">{{ elec_objs|length }}</span></div>
+    {% if elec_excluded %}<div class="row"><span class="lbl">Не включено в сводку</span><span class="val">{{ elec_excluded|length }}</span></div>{% endif %}
     <div class="row"><span class="lbl">Суммарные теплопотери</span><span class="val">{{ kwt(total_heat) }}</span></div>
     <div class="row"><span class="lbl">Суммарная мощность кабелей</span><span class="val">{{ kwt(total_power) }}</span></div>
     <div class="row"><span class="lbl">Длина кабеля</span><span class="val">{{ fmt(total_cable, 1) }} м</span></div>
@@ -142,7 +149,7 @@
         <th>Габариты</th>
         <th class="num">δ изол., мм</th><th>Материал</th>
         <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
-        <th class="num">S, м²</th><th class="num">q, Вт/м²</th><th class="num">Q, Вт</th>
+        <th class="num">S, м²</th><th class="num">q, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q, Вт</th>
         <th>Статус</th>
       </tr>
     </thead>
@@ -168,6 +175,7 @@
         <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area'), 2) }}{% else %}—{% endif %}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_m2'), 1) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('q_additional', o.params.get('q_additional')), 0) }}{% else %}{{ fmt(o.params.get('q_additional'), 0) }}{% endif %}</td>
         <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss'), 0) }}{% else %}—{% endif %}</td>
         <td>{% if o.is_valid %}<span class="badge-ok">✓ ОК</span>{% else %}<span class="badge-err">✗ Ошибка</span>{% endif %}</td>
       </tr>
@@ -238,8 +246,40 @@
       {% endfor %}
     </tbody>
   </table>
+  {% elif elec_excluded %}
+  <p class="section-empty">Успешных электрорасчётов нет</p>
   {% else %}
   <p class="section-empty">Электрорасчёт не выполнен</p>
+  {% endif %}
+  {% if elec_excluded %}
+  <h3>Не включено в сводку электрорасчёта ({{ elec_excluded|length }})</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Объект</th><th>Статус</th><th>Причина</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in elec_excluded %}
+      {% set r = o.electrical.results %}
+      {% set category = r.get('category') %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ o.params.get('name') or TYPES.get(o.object_type, o.object_type) }}</td>
+        <td>
+          {% if category == 'unsupported' %}
+            Не применимо
+          {% elif category == 'stale' %}
+            Требует пересчёта
+          {% else %}
+            Ошибка
+          {% endif %}
+        </td>
+        <td>{{ r.get('message') or r.get('error_code') or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   {% endif %}
   {% endif %}
 

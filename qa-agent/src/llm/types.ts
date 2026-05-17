@@ -4,6 +4,10 @@ export type LlmCompletionRequest = {
   system: string;
   user: string;
   temperature?: number;
+  images?: Array<{
+    label?: string;
+    dataUrl: string;
+  }>;
 };
 
 export type LlmJudgeResult = {

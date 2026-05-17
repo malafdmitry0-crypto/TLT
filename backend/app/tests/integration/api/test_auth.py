@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.models.guest_session import GuestSession
 from app.models.project import Project
 from app.services.auth_service import AuthService
@@ -144,6 +145,21 @@ class TestEmployeeAuth:
             json={"email": "wrong@test.com", "password": "wrong"},
         )
         assert resp.status_code == 401
+
+    async def test_login_rate_limited_by_ip(self, client: AsyncClient):
+        for _ in range(settings.LOGIN_MAX_ATTEMPTS_PER_IP):
+            resp = await client.post(
+                "/api/v1/auth/login",
+                json={"email": "wrong@test.com", "password": "wrong"},
+            )
+            assert resp.status_code == 401
+
+        resp = await client.post(
+            "/api/v1/auth/login",
+            json={"email": "wrong@test.com", "password": "wrong"},
+        )
+        assert resp.status_code == 429
+        assert resp.headers["Retry-After"] == "3600"
 
     async def test_employee_login_rejects_admin_credentials(self, client: AsyncClient, admin_user):
         resp = await client.post(

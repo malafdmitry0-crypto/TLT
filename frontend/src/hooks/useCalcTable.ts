@@ -7,11 +7,13 @@ export function useUpdateObjectParams(projectId: string) {
   return useMutation({
     mutationFn: async ({
       objectId,
+      version,
       params,
     }: {
       objectId: string;
+      version: number;
       params: Record<string, unknown>;
-    }): Promise<ProjectObject> => updateObject(projectId, objectId, { params }),
+    }): Promise<ProjectObject> => updateObject(projectId, objectId, { version, params }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'query'] });
       qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });

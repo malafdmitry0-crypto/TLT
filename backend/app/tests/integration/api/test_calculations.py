@@ -68,6 +68,36 @@ class TestHeatLossCalculation:
         assert result["total_heat_loss"] > 0
         assert result["thermal_resistance"] > 0
 
+    async def test_heat_loss_accepts_named_local_element_counts(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        resp = await client.post(
+            "/api/v1/calc/heat-loss",
+            json={
+                "project_id": project["id"],
+                "object_type": "pipe",
+                "data": {
+                    "outer_diameter": 0.108,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": "mineral_wool",
+                    "ambient_temperature": -30,
+                    "process_temperature": 150,
+                    "pipe_length": 100,
+                    "valve_count": 1,
+                    "flange_count": 2,
+                    "support_count": 3,
+                    "local_element_equiv_length": 1.25,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200, resp.text
+        result = resp.json()["result"]
+        assert result["local_elements_count"] == 6
+        assert result["local_element_equiv_length"] == pytest.approx(1.25)
+        assert result["total_heat_loss"] > 0
+
     async def test_invalid_params_returns_422(self, client: AsyncClient, guest_session: str):
         project = await _create_project(client, guest_session)
         resp = await client.post(
@@ -447,6 +477,40 @@ class TestElectricalCalculation:
         assert fields["total_power"]["sort"]["enabled"] is True
         assert fields["electrical_status"]["options"]["items"]
 
+    async def test_electrical_query_default_page_supports_keyset_cursor(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        await _create_pipe_object(client, project["id"], guest_session, {"name": "First"})
+        await _create_pipe_object(client, project["id"], guest_session, {"name": "Second"})
+
+        first_page = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={"project_id": project["id"], "page": 1, "page_size": 1},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert first_page.status_code == 200, first_page.text
+        first_body = first_page.json()
+        cursor = first_body["page_info"]["next_cursor"]
+
+        second_page = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "page": 2,
+                "page_size": 1,
+                "after_sort_order": cursor["sort_order"],
+                "after_id": cursor["id"],
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert second_page.status_code == 200, second_page.text
+        second_body = second_page.json()
+        assert second_body["page_info"]["offset"] == 1
+        assert second_body["page_info"]["has_previous_page"] is True
+        assert second_body["items"][0]["id"] != first_body["items"][0]["id"]
+
     async def test_electrical_query_filters_not_calculated_status(
         self, client: AsyncClient, guest_session: str
     ):
@@ -697,9 +761,17 @@ class TestManualCableSelection:
         assert "error" not in before[0]["results"]
 
         # Чиним объект: снижаем процесс-температуру до 80 через update
+        objects = (
+            await client.get(
+                f"/api/v1/projects/{_pid}/objects",
+                headers={"X-Session-Id": guest_session},
+            )
+        ).json()
+        current_object = next(item for item in objects if item["id"] == oid)
         await client.put(
             f"/api/v1/projects/{_pid}/objects/{oid}",
             json={
+                "version": current_object["version"],
                 "params": {
                     "outer_diameter": 0.108,
                     "insulation_thickness": 0.05,
@@ -707,7 +779,7 @@ class TestManualCableSelection:
                     "ambient_temperature": -20,
                     "process_temperature": 80,
                     "pipe_length": 50,
-                }
+                },
             },
             headers={"X-Session-Id": guest_session},
         )

@@ -54,6 +54,7 @@ class ProjectObject(Base, TimestampMixin):
     )
     object_type: Mapped[str] = mapped_column(object_type_enum, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     params: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     results: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     is_valid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

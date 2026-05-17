@@ -10,6 +10,7 @@ import pytest
 
 from app.services.project_service import (
     ProjectAccessError,
+    ProjectConflictError,
     ProjectNotFoundError,
     ProjectService,
 )
@@ -336,7 +337,7 @@ class TestObjectsCRUD:
             await ProjectService(db).update_object(
                 project.id,
                 uuid.uuid4(),
-                ProjectObjectUpdate(params={}),
+                ProjectObjectUpdate(version=1, params={}),
                 _principal(role="employee", user_id=my_id),
             )
 
@@ -364,21 +365,71 @@ class TestObjectsCRUD:
             side_effect=[
                 _result_with(scalar=project),
                 _result_with(scalar=obj),
+                SimpleNamespace(rowcount=1),
             ]
         )
         db.commit = AsyncMock()
-        db.refresh = AsyncMock()
+
+        async def refresh_updated(updated_obj):
+            updated_obj.version = 2
+            updated_obj.params = {
+                **obj.params,
+                "insulation_thickness": 0.02,
+            }
+
+        db.refresh = AsyncMock(side_effect=refresh_updated)
 
         updated = await ProjectService(db).update_object(
             project.id,
             obj.id,
-            ProjectObjectUpdate(params={"insulation_thickness": 0.02}),
+            ProjectObjectUpdate(version=1, params={"insulation_thickness": 0.02}),
             _principal(role="employee", user_id=my_id),
         )
 
         assert updated.params["outer_diameter"] == pytest.approx(0.1)
         assert updated.params["insulation_thickness"] == pytest.approx(0.02)
         assert updated.params["insulation_material"] == "mineral_wool"
+        assert updated.version == 2
+
+    async def test_update_object_stale_version_raises_conflict(self):
+        from app.schemas.project import ProjectObjectUpdate
+
+        my_id = uuid.uuid4()
+        project = SimpleNamespace(id=uuid.uuid4(), session_id=None, user_id=my_id)
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=project.id,
+            object_type="pipe",
+            sort_order=0,
+            version=2,
+            params={
+                "outer_diameter": 0.1,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 10,
+            },
+        )
+        db = AsyncMock()
+        db.execute = AsyncMock(
+            side_effect=[
+                _result_with(scalar=project),
+                _result_with(scalar=obj),
+                SimpleNamespace(rowcount=0),
+            ]
+        )
+        db.rollback = AsyncMock()
+
+        with pytest.raises(ProjectConflictError, match="другой вкладке"):
+            await ProjectService(db).update_object(
+                project.id,
+                obj.id,
+                ProjectObjectUpdate(version=1, params={"insulation_thickness": 0.02}),
+                _principal(role="employee", user_id=my_id),
+            )
+
+        db.rollback.assert_awaited_once()
 
     async def test_delete_object(self):
         my_id = uuid.uuid4()

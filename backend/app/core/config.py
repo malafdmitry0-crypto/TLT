@@ -69,9 +69,14 @@ class Settings(BaseSettings):
     GUEST_CLEANUP_INTERVAL_MINUTES: int = 10  # периодичность фонового cleanup
     GUEST_MAX_SESSIONS_PER_IP: int = 10  # максимум новых сессий с одного IP за 1 час
     GUEST_ACTIVITY_TOUCH_INTERVAL_SECONDS: int = 60  # throttle UPDATE last_activity
+    LOGIN_MAX_ATTEMPTS_PER_IP: int = 10  # максимум попыток логина с одного IP за 1 час
+    IMPORT_MAX_REQUESTS_PER_PRINCIPAL_PER_IP: int = 20
+    REPORT_MAX_REQUESTS_PER_PRINCIPAL_PER_IP: int = 30
+    BATCH_MAX_REQUESTS_PER_PRINCIPAL_PER_IP: int = 30
+    JOB_ENQUEUE_MAX_REQUESTS_PER_PRINCIPAL_PER_IP: int = 20
 
     # Защита от DoS через большие загрузки (Excel/CSV/проект)
-    MAX_UPLOAD_BYTES: int = 5 * 1024 * 1024  # 5 МБ — потолок одного multipart-запроса
+    MAX_UPLOAD_BYTES: int = 10 * 1024 * 1024  # 10 МБ — потолок одного multipart-запроса
     MAX_IMPORT_ROWS: int = 10_000
     MAX_IMPORT_SHEETS: int = 10
     MAX_XLSX_FILES: int = 200
@@ -92,12 +97,16 @@ class Settings(BaseSettings):
     WORKER_QUEUE_GROUP: str = "heatcalc-workers"
     WORKER_QUEUE_CONSUMER: str = "worker-1"
     WORKER_QUEUE_MAXLEN: int = 10_000
+    WORKER_DEAD_LETTER_MAXLEN: int = 1_000
     WORKER_POLL_TIMEOUT_MS: int = 5_000
     WORKER_RECOVERY_INTERVAL_SECONDS: int = 30
     WORKER_TASK_STALE_SECONDS: int = 120
     WORKER_MAX_ATTEMPTS: int = 3
     WORKER_PROGRESS_MIN_INTERVAL_MS: int = 500
     WORKER_PROGRESS_MIN_PERCENT_DELTA: float = 1.0
+    MAX_ACTIVE_TASKS_PER_PROJECT: int = 3
+    MAX_ACTIVE_TASKS_PER_PRINCIPAL: int = 5
+    MAX_ACTIVE_TASKS_GLOBAL: int = 200
 
     @property
     def trusted_proxy_ips_list(self) -> list[str]:

@@ -13,6 +13,15 @@ html, body, #root {
   color: #595959 !important;
 }
 
+.ant-empty-description,
+.ant-tag {
+  color: #595959 !important;
+}
+
+.ant-tag-green {
+  color: #135200 !important;
+}
+
 .ant-btn-link:not(:disabled) {
   color: #1a5276;
 }
@@ -66,7 +75,7 @@ html, body, #root {
 .object-count-segment.success {
   border-color: #b7eb8f;
   background: #f6ffed;
-  color: #389e0d;
+  color: #135200;
 }
 
 .object-count-segment.warning {

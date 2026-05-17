@@ -34,6 +34,7 @@ export interface ProjectObject {
   project_id: string;
   object_type: ObjectType;
   sort_order: number;
+  version: number;
   params: Record<string, unknown>;
   results: Record<string, unknown> | null;
   is_valid: boolean;
@@ -61,6 +62,7 @@ export interface CreateObjectRequest {
 }
 
 export interface UpdateObjectRequest {
+  version: number;
   params?: Record<string, unknown>;
   sort_order?: number;
 }
@@ -105,6 +107,12 @@ export interface ProjectObjectsPageInfo {
   total_pages: number;
   has_next_page: boolean;
   has_previous_page: boolean;
+  next_cursor?: ProjectObjectsPageCursor | null;
+}
+
+export interface ProjectObjectsPageCursor {
+  sort_order: number;
+  id: string;
 }
 
 export interface ProjectObjectsQueryCounts {

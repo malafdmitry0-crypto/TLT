@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient, { withIdempotencyKey } from './client';
 import type {
   BatchElectricalResponse,
   BatchHeatLossResponse,
@@ -201,6 +201,7 @@ export async function enqueueElectricalBatchJob(
       force_cable_type: options.forceCableType,
       object_overrides: options.objectOverrides,
     },
+    withIdempotencyKey(),
   );
   return data;
 }
@@ -215,6 +216,7 @@ export async function enqueueHeatLossBatchJob(
       project_id: projectId,
       include_errors: includeErrors,
     },
+    withIdempotencyKey(),
   );
   return data;
 }

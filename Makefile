@@ -6,7 +6,7 @@
         audit-docs audit-contracts audit-mcp audit-db-invariants audit-smoke audit-calc \
         audit-mutation audit-business audit-user-flows audit-layout audit-accessibility \
         audit-warnings audit-backend audit-frontend audit-functional audit-deep \
-        qa-agent-install qa-agent-typecheck qa-agent-test qa-agent-example \
+        qa-agent-install qa-agent-typecheck qa-agent-test qa-agent-example qa-agent-tlt-ai-cases qa-agent-visual qa-agent-app-tests qa-agent-security \
         lint lint-backend lint-frontend \
         shell-backend shell-frontend shell-db \
         build clean ps db-perf-report \
@@ -177,6 +177,18 @@ qa-agent-test: ## Run TypeScript QA agent unit tests
 
 qa-agent-example: ## Run TypeScript QA agent vertical-slice example
 	npm --prefix qa-agent run qa-agent:example
+
+qa-agent-tlt-ai-cases: ## Run TLT AI/domain heat-loss case agent
+	npm --prefix qa-agent run qa-agent:tlt-ai-cases
+
+qa-agent-visual: ## Run QA agent visual screenshot review with LLM
+	npm --prefix qa-agent run qa-agent:visual
+
+qa-agent-app-tests: ## Run application tests through QA agent and optionally generate test proposals
+	npm --prefix qa-agent run qa-agent:app-tests
+
+qa-agent-security: ## Run local-only defensive security scans through QA agent
+	npm --prefix qa-agent run qa-agent:security
 
 test-frontend: ## Run frontend unit + integration tests
 	$(FRONTEND_CTR) npm run test:run

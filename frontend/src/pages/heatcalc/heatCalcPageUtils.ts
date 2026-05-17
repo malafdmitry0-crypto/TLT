@@ -256,6 +256,10 @@ export function formatParamNumber(record: ProjectObject, key: string, digits = 0
   return formatNumericValue(record.params?.[key], digits);
 }
 
+export function formatResultOrParamNumber(record: ProjectObject, key: string, digits = 0) {
+  return formatNumericValue(record.results?.[key] ?? record.params?.[key], digits);
+}
+
 export function formatParamMetersAsMm(record: ProjectObject, key: string) {
   const value = Number(record.params?.[key]);
   return Number.isFinite(value) ? formatNumber(value * 1000, 0) : '—';

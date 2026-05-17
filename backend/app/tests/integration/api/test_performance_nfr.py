@@ -75,7 +75,10 @@ class TestSingleObjectLatency:
         start = time.perf_counter()
         resp = await client.put(
             f"/api/v1/projects/{proj['id']}/objects/{obj['id']}",
-            json={"params": {**PIPE_PARAMS, "pipe_length": 100.0}},
+            json={
+                "version": obj["version"],
+                "params": {**PIPE_PARAMS, "pipe_length": 100.0},
+            },
             headers=headers,
         )
         elapsed_ms = (time.perf_counter() - start) * 1000

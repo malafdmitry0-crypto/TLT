@@ -42,6 +42,7 @@ export interface PipeParams {
   valve_count?: number | null;
   flange_count?: number | null;
   support_count?: number | null;
+  num_local_elements?: number | null;
   local_element_equiv_length?: number | null;
   supply_voltage?: number | null;
   safety_factor?: number | null;
@@ -119,6 +120,7 @@ export interface TankResult {
   ground_surface_area?: number | null;
   heat_loss_air_per_m2?: number | null;
   heat_loss_ground_per_m2?: number | null;
+  q_additional?: number | null;
 }
 
 export interface HeatLossRequest {
@@ -190,6 +192,8 @@ export interface ElectricalQueryRequest {
   variant_number?: number;
   page?: number;
   page_size?: number;
+  after_sort_order?: number | null;
+  after_id?: string | null;
   search?: ObjectQuerySearch | null;
   filters?: ObjectQueryFilter[];
   sort?: ObjectQuerySort | null;

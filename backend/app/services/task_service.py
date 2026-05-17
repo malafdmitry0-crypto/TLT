@@ -137,6 +137,10 @@ class TaskAccessError(Exception):
     pass
 
 
+class TaskLimitError(Exception):
+    pass
+
+
 class TaskService:
     def __init__(
         self,
@@ -186,6 +190,7 @@ class TaskService:
         existing = await self._find_active_by_dedupe(dedupe_key)
         if existing is not None:
             return existing
+        await self._enforce_active_task_limits(request.project_id, principal)
 
         task = BackgroundTask(
             type=TASK_ELECTRICAL_BATCH,
@@ -238,6 +243,7 @@ class TaskService:
         existing = await self._find_active_by_dedupe(dedupe_key)
         if existing is not None:
             return existing
+        await self._enforce_active_task_limits(request.project_id, principal)
 
         task = BackgroundTask(
             type=TASK_HEAT_LOSS_BATCH,
@@ -292,6 +298,7 @@ class TaskService:
         existing = await self._find_active_by_dedupe(dedupe_key)
         if existing is not None:
             return existing
+        await self._enforce_active_task_limits(request.project_id, principal)
 
         task = BackgroundTask(
             type=TASK_REPORT_EXPORT,
@@ -790,6 +797,61 @@ class TaskService:
             .limit(1)
         )
         return result.scalar_one_or_none()
+
+    async def _enforce_active_task_limits(
+        self,
+        project_id: UUID,
+        principal: CurrentPrincipal,
+    ) -> None:
+        global_limit = settings.MAX_ACTIVE_TASKS_GLOBAL
+        if global_limit > 0 and await self._active_global_task_count() >= global_limit:
+            raise TaskLimitError("Очередь задач перегружена. Повторите позже.")
+
+        project_limit = settings.MAX_ACTIVE_TASKS_PER_PROJECT
+        if project_limit > 0:
+            project_count = await self._active_project_task_count(project_id)
+            if project_count >= project_limit:
+                raise TaskLimitError(
+                    "Превышен лимит активных задач для проекта. Дождитесь завершения "
+                    "или отмените одну из задач."
+                )
+
+        principal_limit = settings.MAX_ACTIVE_TASKS_PER_PRINCIPAL
+        if principal_limit > 0:
+            principal_count = await self._active_principal_task_count(principal)
+            if principal_count >= principal_limit:
+                raise TaskLimitError(
+                    "Превышен лимит активных задач для пользователя. Дождитесь "
+                    "завершения или отмените одну из задач."
+                )
+
+    async def _active_global_task_count(self) -> int:
+        result = await self.db.execute(
+            select(func.count(BackgroundTask.id)).where(
+                BackgroundTask.status.in_(ACTIVE_STATUSES),
+            )
+        )
+        return int(result.scalar_one())
+
+    async def _active_project_task_count(self, project_id: UUID) -> int:
+        result = await self.db.execute(
+            select(func.count(BackgroundTask.id)).where(
+                BackgroundTask.project_id == project_id,
+                BackgroundTask.status.in_(ACTIVE_STATUSES),
+            )
+        )
+        return int(result.scalar_one())
+
+    async def _active_principal_task_count(self, principal: CurrentPrincipal) -> int:
+        stmt = select(func.count(BackgroundTask.id)).where(
+            BackgroundTask.status.in_(ACTIVE_STATUSES),
+        )
+        if principal.role == "guest":
+            stmt = stmt.where(BackgroundTask.session_id == principal.session_id)
+        else:
+            stmt = stmt.where(BackgroundTask.user_id == principal.user_id)
+        result = await self.db.execute(stmt)
+        return int(result.scalar_one())
 
     async def _validate_object_ids_belong_to_project(
         self,

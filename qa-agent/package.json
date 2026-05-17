@@ -7,6 +7,10 @@
     "qa-agent:run": "tsx src/index.ts",
     "qa-agent:test": "vitest run",
     "qa-agent:example": "tsx src/index.ts --example",
+    "qa-agent:tlt-ai-cases": "tsx src/index.ts --tlt-ai-cases",
+    "qa-agent:visual": "tsx src/index.ts --visual-qa",
+    "qa-agent:app-tests": "tsx src/index.ts --app-tests",
+    "qa-agent:security": "tsx src/index.ts --security",
     "qa-agent:llm-extract": "tsx src/index.ts --llm-extract",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

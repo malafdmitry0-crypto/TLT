@@ -59,6 +59,7 @@ class TankHeatLossResultDict(TypedDict):
     ground_surface_area: NotRequired[float | None]
     heat_loss_air_per_m2: NotRequired[float | None]
     heat_loss_ground_per_m2: NotRequired[float | None]
+    q_additional: NotRequired[float | None]
 
 
 # Алиас: результат любого теплорасчёта

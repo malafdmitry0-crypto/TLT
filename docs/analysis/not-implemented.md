@@ -106,9 +106,11 @@
 
 18. **Финальная структура внешней БД кабелей и аксессуаров**
 
-    CRUD и admin UI для commercial fields есть. Остаются финальные связи
-    аксессуаров/монтажных комплектов, правила обязательности и SLA
-    актуальности цен/остатков.
+    CRUD и admin UI для commercial fields есть. Dev/test seed заполняет
+    `cables_extended` и `accessories_extended` demo-ценами, остатками,
+    поставщиками и `accessory_cost_per_circuit`. Остаются production-импорт
+    реальных данных, финальные связи аксессуаров/монтажных комплектов, правила
+    обязательности и SLA актуальности цен/остатков.
 
 19. **Коммерческое ранжирование вне ТЛТ/резистивного auto-среза**
 
@@ -120,8 +122,9 @@
     ветках.
 
     `balanced` технически реализован через конфигурируемые веса
-    `commercial_balanced_weight_*`, но не работает без approval-флага
-    `commercial_balanced_weights_approved=1`.
+    `commercial_balanced_weight_*`. В dev/test seed approval-флаг
+    `commercial_balanced_weights_approved=1` включён; в production его нужно
+    заменить утверждёнными бизнес-весами.
 
 20. **Неиспользуемые коэффициенты `location_indoor`, `location_outdoor`**
 
@@ -137,4 +140,5 @@
 3. Закрыть формулы и UI для `pump`, `platform`, `other`, если они входят в
    текущую поставку.
 4. Добавить audit log и snapshot расчётов.
-5. Заполнить `p3`/thermal limits и финальные commercial/stock freshness rules.
+5. Заменить demo commercial seed на production-импорт цен/остатков/поставщиков
+   и зафиксировать финальные freshness rules.

@@ -19,6 +19,7 @@ function makePipe(): ProjectObject {
     project_id: 'project-1',
     object_type: 'pipe',
     sort_order: 0,
+    version: 1,
     params: {
       name: 'Pipe 1',
       outer_diameter: 0.108,

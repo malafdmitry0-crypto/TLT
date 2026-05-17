@@ -186,10 +186,11 @@ class TestObjectUpdateIdempotency:
         for _ in range(5):
             resp = await client.put(
                 url,
-                json={"params": PIPE_PARAMS},
+                json={"version": obj["version"], "params": PIPE_PARAMS},
                 headers=headers,
             )
             assert resp.status_code == 200
+            obj = resp.json()
 
         objs = (
             await client.get(

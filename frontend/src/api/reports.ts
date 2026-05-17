@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient, { withIdempotencyKey } from './client';
 import type { CalculationTaskResponse } from '@/types/calculation';
 
 export type ReportSection = 'summary' | 'pipes' | 'tanks' | 'electrical' | 'specification';
@@ -71,10 +71,10 @@ export async function enqueueReportExportJob(
   const { data } = await apiClient.post<CalculationTaskResponse>(
     `/reports/${projectId}/export/${format}/jobs`,
     null,
-    {
+    withIdempotencyKey({
       params: reportParams(sections, variantNumber),
       paramsSerializer: { indexes: null },
-    },
+    }),
   );
   return data;
 }

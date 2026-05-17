@@ -2,11 +2,12 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any
+from app.core.rate_limit import enforce_principal_rate_limit, job_enqueue_limiter
 from app.schemas.calculation import (
     BatchCalcResponse,
     BatchElectricalResponse,
@@ -16,7 +17,12 @@ from app.schemas.calculation import (
 )
 from app.schemas.report import ReportExportTaskResult
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError
-from app.services.task_service import TaskAccessError, TaskNotFoundError, TaskService
+from app.services.task_service import (
+    TaskAccessError,
+    TaskLimitError,
+    TaskNotFoundError,
+    TaskService,
+)
 
 router = APIRouter()
 
@@ -26,6 +32,12 @@ def _raise_task_error(exc: Exception) -> None:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     if isinstance(exc, TaskAccessError | ProjectAccessError):
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    if isinstance(exc, TaskLimitError):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc),
+            headers={"Retry-After": "3600"},
+        ) from exc
     if isinstance(exc, ValueError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     raise exc
@@ -39,10 +51,17 @@ def _raise_task_error(exc: Exception) -> None:
 )
 async def enqueue_heat_loss_batch_job(
     request: HeatLossBatchJobRequest,
+    http_request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_principal_rate_limit(
+        job_enqueue_limiter,
+        principal,
+        http_request,
+        detail="Превышен лимит постановки задач в очередь для пользователя и IP.",
+    )
     try:
         task = await TaskService(db).create_heat_loss_batch_task(
             request,
@@ -62,10 +81,17 @@ async def enqueue_heat_loss_batch_job(
 )
 async def enqueue_electrical_batch_job(
     request: ElectricalBatchJobRequest,
+    http_request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_principal_rate_limit(
+        job_enqueue_limiter,
+        principal,
+        http_request,
+        detail="Превышен лимит постановки задач в очередь для пользователя и IP.",
+    )
     try:
         task = await TaskService(db).create_electrical_batch_task(
             request,

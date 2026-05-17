@@ -27,9 +27,53 @@
 
 ## Rate limits
 
-- `/auth/guest`: 10 сессий / IP / час (sliding window, in-memory)
+- `/auth/guest`: 10 сессий / IP / час (sliding window, Redis или in-memory)
+- `/auth/login`: 10 попыток / IP / час
+- Импорт объектов: 20 запросов / пользователь+IP / час
+- Операции с отчётами (preview/export): 30 запросов / пользователь+IP / час
+- Синхронные batch-расчёты: 30 запросов / пользователь+IP / час
+- Постановка фоновых задач в очередь: 20 запросов / пользователь+IP / час
+- Активные фоновые задачи: не более 3 на проект, 5 на пользователя/гостевую
+  сессию и 200 глобально в очереди/исполнении
 - Создание проектов гостем: 10 на сессию
 - Объектов в проекте: 50 (настраивается `GUEST_MAX_OBJECTS_PER_PROJECT`)
+- Размер upload-запроса: 10 МБ на backend, nginx и Caddy
+
+## Объекты проекта
+
+**`PUT /projects/{id}/objects/{object_id}`** обновляет параметры/порядок объекта
+и запускает автопересчёт теплопотерь. Тело запроса должно содержать текущую
+`version` объекта:
+
+```json
+{
+  "version": 1,
+  "params": {"insulation_thickness": 0.02}
+}
+```
+
+Backend выполняет optimistic lock по `project_objects.version`: успешное
+обновление атомарно увеличивает `version` на 1 и возвращает объект с новой
+версией. Если объект уже был изменён другим запросом, ответ:
+`409 Conflict` с `detail="Объект был изменён в другой вкладке, перезагрузите."`.
+
+## Фоновые задачи и idempotency
+
+Async job endpoints принимают заголовок `Idempotency-Key` и дедуплицируют
+повторную постановку одной операции:
+
+- `POST /calc/electrical/batch/jobs`
+- `POST /calc/heat-loss/batch/jobs`
+- `POST /reports/{project_id}/export/{format}/jobs`
+
+Клиент генерирует новый UUID-ключ на пользовательское действие и повторно
+использует тот же HTTP config при transport retry. Сетевые retry включены
+только для идемпотентных `GET`, `HEAD`, `OPTIONS` при 5xx/timeout.
+
+Worker переносит исчерпавшие попытки задачи в Redis stream
+`WORKER_DEAD_LETTER_STREAM`; размер DLQ ограничен
+`WORKER_DEAD_LETTER_MAXLEN=1000`, а запись в DLQ логируется warning-событием с
+`task_id`, исходным stream id и причиной.
 
 ## Импорт объектов из Excel / CSV
 
@@ -47,7 +91,10 @@
 - `replace` — удаляет текущие объекты проекта, электрорасчёты и спецификации,
   затем импортирует файл заново.
 
-Ответ: `{created: N, skipped_duplicates: N, mode, errors: [{sheet, row, message}]}`.
+Ответ:
+`{created: N, skipped_duplicates: N, skipped_limit: N, mode, errors: [{sheet, row, message}]}`.
+Если достигнут лимит объектов проекта, уже созданные строки остаются в проекте,
+а число не импортированных строк явно возвращается в `skipped_limit`.
 
 **`GET /projects/{id}/objects/import-template?format=xlsx|csv`** — скачать шаблон
 с примерами. Материалы и формы принимают и русские названия, и англ. коды
@@ -85,6 +132,13 @@ UI показывает статус «Не применимо».
 утверждения весов это controlled fallback. Источник `cable_source=commercial`
 доступен всем ролям и строится как public commercial projection поверх
 встроенных ТЛТ/резистивных каталогов и sanitized строк внешней БД.
+
+**`POST /calc/electrical/query`** возвращает страницу таблицы электрорасчёта.
+Для стандартной сортировки `(sort_order, id)` ответ может содержать
+`page_info.next_cursor = {sort_order, id}`. Следующая последовательная страница
+может передать `after_sort_order` и `after_id`; backend использует keyset
+pagination. При произвольном переходе на страницу без cursor сохраняется
+совместимый offset fallback.
 
 **`GET /references/cables?source=commercial`** и
 **`GET /references/cables/commercial`** — публичный commercial catalog для всех

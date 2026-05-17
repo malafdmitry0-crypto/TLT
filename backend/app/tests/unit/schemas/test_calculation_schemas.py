@@ -64,6 +64,39 @@ class TestPipeHeatLossParams:
         assert p.outer_diameter == 0.0108
         assert p.wall_thickness == 0.04
 
+    def test_local_element_counts_are_mapped_to_formula_count(self):
+        p = PipeHeatLossParams(
+            outer_diameter=0.1,
+            insulation_thickness=0.05,
+            insulation_material="mineral_wool",
+            ambient_temperature=-30,
+            process_temperature=80,
+            pipe_length=10,
+            valve_count=1,
+            flange_count=2,
+            support_count=3,
+            local_element_equiv_length=1.5,
+        )
+
+        assert p.num_local_elements == 6
+
+    def test_explicit_num_local_elements_wins_over_named_counts(self):
+        p = PipeHeatLossParams(
+            outer_diameter=0.1,
+            insulation_thickness=0.05,
+            insulation_material="mineral_wool",
+            ambient_temperature=-30,
+            process_temperature=80,
+            pipe_length=10,
+            num_local_elements=4,
+            valve_count=1,
+            flange_count=2,
+            support_count=3,
+            local_element_equiv_length=1.5,
+        )
+
+        assert p.num_local_elements == 4
+
     @pytest.mark.parametrize(
         "field,value",
         [

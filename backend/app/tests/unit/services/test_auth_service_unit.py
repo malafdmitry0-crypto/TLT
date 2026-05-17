@@ -11,6 +11,7 @@ import pytest
 
 from app.core.security import create_access_token, create_refresh_token, decode_token, hash_password
 from app.models.refresh_session import RefreshSession
+from app.services import auth_service as auth_service_module
 from app.services.auth_service import AuthError, AuthService
 
 
@@ -104,6 +105,21 @@ class TestLogin:
         db = _mock_db(scalar_value=None)
         with pytest.raises(AuthError, match="Неверный"):
             await AuthService(db).login("a@b.c", "pw")
+
+    async def test_invalid_email_still_verifies_dummy_hash(self, monkeypatch: pytest.MonkeyPatch):
+        calls: list[tuple[str, str]] = []
+
+        def fake_verify_password(password: str, hashed_password: str) -> bool:
+            calls.append((password, hashed_password))
+            return False
+
+        monkeypatch.setattr(auth_service_module, "verify_password", fake_verify_password)
+        db = _mock_db(scalar_value=None)
+
+        with pytest.raises(AuthError, match="Неверный"):
+            await AuthService(db).login("a@b.c", "pw")
+
+        assert calls == [("pw", auth_service_module.DUMMY_PASSWORD_HASH)]
 
     async def test_wrong_password_raises(self):
         user = SimpleNamespace(

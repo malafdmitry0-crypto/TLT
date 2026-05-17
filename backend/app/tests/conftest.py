@@ -10,7 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.core.cache import cache
 from app.core.database import get_db
-from app.core.rate_limit import guest_session_limiter
+from app.core.rate_limit import (
+    batch_limiter,
+    guest_session_limiter,
+    import_limiter,
+    job_enqueue_limiter,
+    login_limiter,
+    report_limiter,
+)
 from app.core.security import hash_password
 from app.main import app
 from app.models import Base
@@ -71,7 +78,15 @@ async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
     async def override_get_db():
         yield db_session
 
-    guest_session_limiter.reset()
+    for limiter in (
+        guest_session_limiter,
+        login_limiter,
+        import_limiter,
+        report_limiter,
+        batch_limiter,
+        job_enqueue_limiter,
+    ):
+        limiter.reset()
     app.dependency_overrides[get_db] = override_get_db
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:

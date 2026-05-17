@@ -48,6 +48,7 @@ class ProjectObjectCreate(ProjectObjectBase):
 
 
 class ProjectObjectUpdate(BaseModel):
+    version: int = Field(ge=1)
     params: dict[str, Any] | None = None
     sort_order: int | None = None
 
@@ -57,6 +58,7 @@ class ProjectObjectResponse(ProjectObjectBase):
 
     id: UUID
     project_id: UUID
+    version: int
     results: dict[str, Any] | None
     is_valid: bool
     validation_errors: dict[str, Any] | None
@@ -114,6 +116,11 @@ class ProjectObjectsQueryRequest(BaseModel):
     sort: ObjectQuerySort | None = None
 
 
+class ProjectObjectsPageCursor(BaseModel):
+    sort_order: int
+    id: UUID
+
+
 class ProjectObjectsPageInfo(BaseModel):
     page: int
     page_size: int
@@ -121,6 +128,7 @@ class ProjectObjectsPageInfo(BaseModel):
     total_pages: int
     has_next_page: bool
     has_previous_page: bool
+    next_cursor: ProjectObjectsPageCursor | None = None
 
 
 class ProjectObjectsQueryCounts(BaseModel):

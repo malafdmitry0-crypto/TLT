@@ -1468,6 +1468,8 @@ class ObjectQueryService:
         text = (data.search.text if data.search else "").strip()
         if not text:
             return None
+        if not (data.search and data.search.columns):
+            return func.lower(cast(ProjectObject.params, String)).contains(_normal_text(text))
         columns = (
             data.search.columns
             if data.search and data.search.columns

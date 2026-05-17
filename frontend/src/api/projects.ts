@@ -167,6 +167,7 @@ export type ImportMode = 'append' | 'merge' | 'replace';
 export interface ImportResult {
   created: number;
   skipped_duplicates: number;
+  skipped_limit: number;
   mode: ImportMode;
   errors: { sheet: string; row: number; message: string }[];
   heat_loss_task?: CalculationTaskResponse;

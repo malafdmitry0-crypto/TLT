@@ -3,7 +3,7 @@
 import copy
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -36,6 +36,10 @@ class ProjectLimitError(Exception):
 
 class ProjectValidationError(Exception):
     """Некорректные данные операции проекта."""
+
+
+class ProjectConflictError(Exception):
+    """Объект был изменён параллельно."""
 
 
 class ProjectService:
@@ -307,7 +311,7 @@ class ProjectService:
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
         obj = await self._get_object(project_id, object_id)
-        update_data = data.model_dump(exclude_unset=True)
+        update_data = data.model_dump(exclude_unset=True, exclude={"version"})
         if "params" in update_data:
             incoming_params = update_data["params"] or {}
             merged_params = {
@@ -315,8 +319,23 @@ class ProjectService:
                 **incoming_params,
             }
             update_data["params"] = normalize_project_object_params(obj.object_type, merged_params)
-        for key, value in update_data.items():
-            setattr(obj, key, value)
+        stmt = (
+            update(ProjectObject)
+            .where(
+                ProjectObject.id == object_id,
+                ProjectObject.project_id == project_id,
+                ProjectObject.version == data.version,
+            )
+            .values(
+                **update_data,
+                version=ProjectObject.version + 1,
+                updated_at=func.now(),
+            )
+        )
+        result = await self.db.execute(stmt)
+        if result.rowcount != 1:
+            await self.db.rollback()
+            raise ProjectConflictError("Объект был изменён в другой вкладке, перезагрузите.")
         await self.db.commit()
         await self.db.refresh(obj)
         return obj

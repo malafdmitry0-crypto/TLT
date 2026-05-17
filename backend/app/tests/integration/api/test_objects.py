@@ -52,6 +52,39 @@ class TestObjectsLifecycle:
         assert body["results"]["safety_factor"] == pytest.approx(1.1)
         assert body["results"]["heat_loss_per_meter"] > 0
 
+    async def test_pipe_local_element_named_counts_are_used(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.1,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": "mineral_wool",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 10,
+                    "valve_count": 1,
+                    "flange_count": 2,
+                    "support_count": 3,
+                    "local_element_equiv_length": 1.1,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["is_valid"] is True
+        assert body["params"]["valve_count"] == 1
+        assert body["params"]["flange_count"] == 2
+        assert body["params"]["support_count"] == 3
+        assert body["params"]["num_local_elements"] == 6
+        assert body["results"]["local_elements_count"] == 6
+        assert body["results"]["local_element_equiv_length"] == pytest.approx(1.1)
+
     async def test_blank_required_pipe_fields_mark_object_invalid(
         self, client: AsyncClient, guest_session: str
     ):
@@ -169,16 +202,65 @@ class TestObjectsLifecycle:
         resp = await client.put(
             f"/api/v1/projects/{pid}/objects/{created['id']}",
             json={
+                "version": created["version"],
                 "params": {
                     **created["params"],
                     "insulation_thickness": 0.02,
-                }
+                },
             },
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 200
+        assert resp.json()["version"] == created["version"] + 1
         new_q = resp.json()["results"]["heat_loss_per_meter"]
         assert new_q > old_q
+
+    async def test_update_object_stale_version_returns_conflict(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        created_resp = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.1,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": "mineral_wool",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 10,
+                },
+            },
+            headers=headers,
+        )
+        assert created_resp.status_code == 201, created_resp.text
+        created = created_resp.json()
+
+        first_update = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={
+                "version": created["version"],
+                "params": {"insulation_thickness": 0.04},
+            },
+            headers=headers,
+        )
+        assert first_update.status_code == 200, first_update.text
+        assert first_update.json()["version"] == created["version"] + 1
+
+        stale_update = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={
+                "version": created["version"],
+                "params": {"insulation_thickness": 0.03},
+            },
+            headers=headers,
+        )
+        assert stale_update.status_code == 409
+        assert stale_update.json()["detail"] == (
+            "Объект был изменён в другой вкладке, перезагрузите."
+        )
 
     async def test_reorder_rejects_partial_object_list(
         self, client: AsyncClient, guest_session: str

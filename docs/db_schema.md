@@ -49,6 +49,7 @@
 | project_id        | UUID        | FK → projects.id ON DELETE CASCADE, INDEX | Проект                                       |
 | object_type       | ENUM        | NOT NULL                                 | `pipe` / `tank` / `pump` / `platform` / `other` |
 | sort_order        | INTEGER     | NOT NULL, default 0                      | Порядок отображения                           |
+| version           | INTEGER     | NOT NULL, default 1                      | Версия для optimistic locking при обновлении  |
 | params            | JSONB       | NOT NULL                                 | Входные параметры (геометрия, изоляция, темп.) |
 | results           | JSONB       | nullable                                 | Результат расчёта теплопотерь                 |
 | is_valid          | BOOLEAN     | NOT NULL, default false                  | Прошёл ли расчёт успешно                     |
@@ -60,7 +61,13 @@
 
 **results (pipe):** `heat_loss_per_meter` (Вт/м), `total_heat_loss` (Вт), `effective_length` (м), `thermal_resistance` (м·К/Вт)
 
-**results (tank):** `heat_loss_per_m2` (Вт/м²), `total_heat_loss` (Вт), `surface_area` (м²)
+**results (tank):** `heat_loss_per_m2` (Вт/м²), `total_heat_loss` (Вт), `surface_area` (м²), `q_additional` (Вт, дополнительные теплопотери крышки/днища/опор)
+
+**Индексы поиска:** для таблицы объектов используются `ix_project_objects_project_sort`
+по `(project_id, sort_order, id)` и trigram GIN-индексы
+`ix_project_objects_params_text_trgm` по `lower(params::text)`,
+`ix_project_objects_name_trgm` по `lower(params->>'name')`. Для trigram
+индексов требуется расширение PostgreSQL `pg_trgm`.
 
 ---
 

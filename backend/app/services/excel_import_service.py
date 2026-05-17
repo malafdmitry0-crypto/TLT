@@ -799,7 +799,7 @@ async def _add_rows(
     next_sort: int,
     current_count: int,
     dedupe_keys: set[str] | None = None,
-) -> tuple[int, int, int, list[dict[str, Any]], list[UUID], int]:
+) -> tuple[int, int, int, list[dict[str, Any]], list[UUID], int, int]:
     """Создаёт объекты из распарсенных строк.
 
     Расчёт теплопотерь здесь намеренно не запускается: импорт должен быстро
@@ -807,6 +807,7 @@ async def _add_rows(
     """
     created = 0
     skipped_duplicates = 0
+    skipped_limit = 0
     created_object_ids: list[UUID] = []
     errors: list[dict[str, Any]] = []
     batch: list[tuple[ProjectObject, dict[str, Any]]] = []
@@ -826,15 +827,17 @@ async def _add_rows(
         current_count -= attempted - batch_created
         batch = []
 
-    for row in rows:
+    for row_index, row in enumerate(rows):
         if current_count >= settings.GUEST_MAX_OBJECTS_PER_PROJECT:
+            skipped_limit = len(rows) - row_index
             errors.append(
                 {
                     "sheet": sheet_label,
                     "row": row["_row"],
                     "message": (
                         "Достигнут лимит объектов в проекте "
-                        f"({settings.GUEST_MAX_OBJECTS_PER_PROJECT})."
+                        f"({settings.GUEST_MAX_OBJECTS_PER_PROJECT}). "
+                        f"Пропущено строк: {skipped_limit}."
                     ),
                 }
             )
@@ -873,7 +876,15 @@ async def _add_rows(
                 }
             )
     await flush_batch()
-    return created, next_sort, current_count, errors, created_object_ids, skipped_duplicates
+    return (
+        created,
+        next_sort,
+        current_count,
+        errors,
+        created_object_ids,
+        skipped_duplicates,
+        skipped_limit,
+    )
 
 
 async def import_objects_from_csv(
@@ -905,11 +916,20 @@ async def import_objects_from_csv(
 
     total_created = 0
     skipped_duplicates = 0
+    skipped_limit = 0
     all_errors: list[dict[str, Any]] = []
     created_object_ids: list[UUID] = []
     for sheet_label, rows in sheets:
         obj_type = "pipe" if "Трубопровод" in sheet_label else "tank"
-        created, next_sort, current_count, errors, object_ids, skipped = await _add_rows(
+        (
+            created,
+            next_sort,
+            current_count,
+            errors,
+            object_ids,
+            skipped,
+            limit_skipped,
+        ) = await _add_rows(
             db,
             project_id,
             sheet_label,
@@ -921,6 +941,7 @@ async def import_objects_from_csv(
         )
         total_created += created
         skipped_duplicates += skipped
+        skipped_limit += limit_skipped
         all_errors.extend(errors)
         created_object_ids.extend(object_ids)
 
@@ -930,6 +951,7 @@ async def import_objects_from_csv(
     return {
         "created": total_created,
         "skipped_duplicates": skipped_duplicates,
+        "skipped_limit": skipped_limit,
         "mode": import_mode,
         "errors": all_errors,
         "created_object_ids": created_object_ids,
@@ -964,6 +986,7 @@ async def import_objects_from_excel(
 
     created = 0
     skipped_duplicates = 0
+    skipped_limit = 0
     errors: list[dict[str, Any]] = []
     created_object_ids: list[UUID] = []
     found_sheet = False
@@ -999,7 +1022,15 @@ async def import_objects_from_excel(
         )
 
     for sheet, object_type, rows in parsed_sheets:
-        added, next_sort, current_count, sheet_errors, object_ids, skipped = await _add_rows(
+        (
+            added,
+            next_sort,
+            current_count,
+            sheet_errors,
+            object_ids,
+            skipped,
+            limit_skipped,
+        ) = await _add_rows(
             db,
             project_id,
             sheet,
@@ -1011,6 +1042,7 @@ async def import_objects_from_excel(
         )
         created += added
         skipped_duplicates += skipped
+        skipped_limit += limit_skipped
         errors.extend(sheet_errors)
         created_object_ids.extend(object_ids)
 
@@ -1020,6 +1052,7 @@ async def import_objects_from_excel(
     return {
         "created": created,
         "skipped_duplicates": skipped_duplicates,
+        "skipped_limit": skipped_limit,
         "mode": import_mode,
         "errors": errors,
         "created_object_ids": created_object_ids,

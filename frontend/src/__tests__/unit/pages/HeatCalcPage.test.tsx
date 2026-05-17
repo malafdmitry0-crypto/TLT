@@ -249,6 +249,7 @@ function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
     ...overrides,
+    version: overrides.version ?? 1,
   };
 }
 

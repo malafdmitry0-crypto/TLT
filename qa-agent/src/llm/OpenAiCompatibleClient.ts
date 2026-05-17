@@ -15,6 +15,20 @@ export class OpenAiCompatibleClient implements LlmClient {
       throw new Error('LLM_API_KEY is required for OpenAiCompatibleClient');
     }
 
+    const userContent =
+      request.images && request.images.length > 0
+        ? [
+            { type: 'text', text: request.user },
+            ...request.images.map((image) => ({
+              type: 'image_url',
+              image_url: {
+                url: image.dataUrl,
+                detail: 'high',
+              },
+            })),
+          ]
+        : request.user;
+
     const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -27,7 +41,7 @@ export class OpenAiCompatibleClient implements LlmClient {
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: request.system },
-          { role: 'user', content: request.user },
+          { role: 'user', content: userContent },
         ],
       }),
     });

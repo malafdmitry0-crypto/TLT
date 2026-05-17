@@ -669,8 +669,8 @@ E2E:
 | Архитектура | 9/10 | Правильно разделены технический отбор, коммерческое ранжирование, snapshot и объяснение результата. |
 | Инженерная корректность | 9/10 | Коммерческий критерий не подменяет расчётную пригодность кабеля. `null` не превращается в `0`. |
 | UX | 8/10 | Все роли получают одинаковый control, но доверие пользователя зависит от качества `selection_reason` и fallback-сообщений. |
-| Production readiness | 9/10 | Есть public commercial catalog, admin UI, deterministic ranking для ТЛТ и резистивного auto-подбора, snapshot и E2E. |
-| Бизнес-готовность | 7/10 | Политики понятны, но финальные веса `balanced`, правила аксессуаров и период актуализации требуют утверждения. |
+| Production readiness | 9.4/10 | Есть public commercial catalog, admin UI, deterministic ranking для ТЛТ и резистивного auto-подбора, snapshot, E2E и dev/test seed commercial data. |
+| Бизнес-готовность | 8/10 | Политики понятны; для dev/test веса `balanced` и demo accessory costs лежат в БД. Для production их нужно заменить утверждёнными реальными значениями. |
 | QA-покрываемость | 9/10 | Поведение хорошо раскладывается на unit/integration/e2e tests. |
 
 Сильные стороны:
@@ -686,15 +686,16 @@ E2E:
 
 Слабые места и меры:
 
-- если commercial data в БД не заполнены, гости будут получать fallback даже при
-  public `commercial` source. Мера: поддерживать seed/import/admin заполнение;
-- стоимость по умолчанию считает кабель. Если в commercial metadata задан
-  `accessory_total_cost`/`accessory_cost_per_circuit`, snapshot переходит в
-  `cost_scope = cable_with_accessories`; нормализованные правила аксессуаров
-  остаются бизнес-задачей;
-- `balanced` может быть спорным. Мера: веса конфигурируются через коэффициенты
-  `commercial_balanced_weight_*`, но применяются только при
-  `commercial_balanced_weights_approved=1`;
+- если production commercial data в БД не заполнены, система будет использовать
+  demo/test seed-значения `commercial_data_source=demo_seed`. Это лучше, чем
+  fallback, но в production такие строки нужно заменить реальным импортом;
+- стоимость по умолчанию считает кабель. Dev/test seed также кладёт
+  `accessory_cost_per_circuit` в `params.commercial`, поэтому snapshot переходит
+  в `cost_scope = cable_with_accessories`; нормализованные production-правила
+  аксессуаров остаются бизнес-данными;
+- `balanced` может быть спорным. Dev/test seed включает
+  `commercial_balanced_weights_approved=1`, чтобы policy работала в тестах.
+  Production должен заменить веса и approval-флаг утверждёнными значениями;
 - коммерческие данные устаревают. Мера: хранить `price_updated_at`,
   `stock_updated_at` и snapshot в каждом расчёте;
 - без хорошего `selection_reason` пользователь не будет доверять выбору. Мера:
@@ -716,28 +717,32 @@ Production-ready критерий:
 3. Добавить public/sanitized commercial catalog или расширить встроенный каталог.
 4. Добавить UI-control и отображение requested/applied policy.
 5. Добавить report block.
-6. Подключить `balanced` только после утверждения весов.
+6. Для production заменить demo seed-значения `commercial_data_source=demo_seed`
+   реальными ценами, остатками, supplier priorities и утверждёнными весами.
 
 ## Открытые решения
 
 1. Какой источник commercial data будет доступен гостю: встроенный каталог с
    commercial fields или sanitized projection внешней БД. Рекомендация:
    sanitized projection.
-2. Финальные веса `balanced` и владелец их утверждения.
-3. Нормализованная модель аксессуаров в стоимости: какие позиции обязательны,
+2. Финальные production-веса `balanced` и владелец их утверждения.
+3. Нормализованная production-модель аксессуаров в стоимости: какие позиции обязательны,
    считаются ли они на объект, контур, кабельную линию или партию.
 4. Какие поля считать чувствительными для guest projection.
 5. Как часто обновлять цену/остатки и кто отвечает за актуальность.
 
 ## Что ещё не реализовано
 
-1. Бизнес-утверждение финальных весов `balanced`. Технически веса уже
-   конфигурируемые и защищены флагом approval.
-2. Нормализованный справочник правил аксессуаров/монтажных комплектов для
-   расчёта `full_installation_estimate`. Сейчас есть snapshot-инфраструктура
-   `cable_with_accessories`, но сами правила не выдумываются.
-3. Commercial ranking для веток `self_regulating_tt`, `mineral`, `skin`, если
+1. Production-импорт реальных цен, остатков, поставщиков и приоритетов вместо
+   dev/test seed-значений `demo_seed`.
+2. Бизнес-утверждение финальных production-весов `balanced`. В dev/test веса
+   уже лежат в БД и включены approval-флагом.
+3. Нормализованный справочник правил аксессуаров/монтажных комплектов для
+   расчёта `full_installation_estimate`. Сейчас есть demo seed
+   `accessory_cost_per_circuit` и snapshot-инфраструктура
+   `cable_with_accessories`, но production-правила не выдумываются.
+4. Commercial ranking для веток `self_regulating_tt`, `mineral`, `skin`, если
    бизнес решит выбирать несколько технически допустимых вариантов в этих
    алгоритмах.
-4. E2E на fallback-warning и report preview commercial block отдельно от
+5. E2E на fallback-warning и report preview commercial block отдельно от
    базового UI-сценария выбора критерия.

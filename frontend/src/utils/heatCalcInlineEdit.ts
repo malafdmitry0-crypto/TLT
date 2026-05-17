@@ -29,6 +29,7 @@ export interface InlineEditFieldConfig {
 export interface DraftRowState {
   objectId: string;
   objectType: HeatCalcObjectType;
+  baseVersion: number;
   baseFormValues: Record<string, unknown>;
   draftFormValues: Record<string, unknown>;
   dirtyFields: Record<string, unknown>;
@@ -82,6 +83,7 @@ function createDraftRow(record: ProjectObject): DraftRowState | null {
   return {
     objectId: record.id,
     objectType: record.object_type,
+    baseVersion: record.version,
     baseFormValues,
     draftFormValues: baseFormValues,
     dirtyFields: {},

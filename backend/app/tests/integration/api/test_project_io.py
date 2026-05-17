@@ -1,5 +1,7 @@
 """Integration-тесты экспорта/импорта проектов в CSV."""
 
+import uuid
+
 import pytest
 from httpx import AsyncClient
 
@@ -421,6 +423,58 @@ class TestBulkExportImport:
         assert body["imported"] == 1
         assert len(body["errors"]) == 1
         assert "project_key" in body["errors"][0]["error"] or "name" in body["errors"][0]["error"]
+
+    async def test_bulk_import_rolls_back_failed_project_and_continues(
+        self, client: AsyncClient, employee_token: str
+    ):
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        suffix = uuid.uuid4().hex[:8]
+        bad_task = f"BULK-BAD-{suffix}"
+        ok_task = f"BULK-OK-{suffix}"
+        ok_params = (
+            "{"
+            '""name"": ""Valid pipe"",'
+            '""outer_diameter"": 0.108,'
+            '""insulation_thickness"": 0.05,'
+            '""insulation_material"": ""mineral_wool"",'
+            '""ambient_temperature"": -20,'
+            '""process_temperature"": 80,'
+            '""pipe_length"": 50'
+            "}"
+        )
+        csv = (
+            "[SECTION];projects\n"
+            "project_key;name;task_number;description;status\n"
+            f"bad;Broken;{bad_task};;draft\n"
+            f"ok;Valid;{ok_task};;draft\n"
+            "\n"
+            "[SECTION];objects\n"
+            "project_key;object_key;type;name;sort_order;params;results;is_valid;validation_errors\n"
+            "bad;o1;pipe;Broken pipe;0;{bad;;; \n"
+            f'ok;o2;pipe;Valid pipe;0;"{ok_params}";;true;\n'
+        ).encode()
+
+        resp = await client.post(
+            "/api/v1/projects/import-csv-bulk",
+            files={"file": ("bulk.csv", csv, "text/csv")},
+            headers=headers,
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["imported"] == 1
+        assert len(body["errors"]) == 1
+        assert body["errors"][0]["project_key"] == "bad"
+
+        projects = (
+            await client.get(
+                "/api/v1/projects",
+                headers=headers,
+            )
+        ).json()
+        by_task = {project.get("task_number"): project for project in projects}
+        assert bad_task not in by_task
+        assert ok_task in by_task
 
     async def test_export_unknown_project_404(self, client: AsyncClient, employee_token: str):
         resp = await client.get(

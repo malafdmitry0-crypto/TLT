@@ -58,6 +58,7 @@ import { getCablesTt, getResistiveCables } from '@/api/references';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useElectricalStats } from '@/hooks/useElectricalStats';
+import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
 import {
   electricalCalcError,
   electricalCalcErrorCode,
@@ -76,7 +77,7 @@ import { formatNumber, formatPower } from '@/utils/formatters';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalColumnSettingsModal';
 import { ROUTES } from '@/routes/routes';
-import type { ProjectObject } from '@/types/project';
+import type { ProjectObject, ProjectObjectsPageCursor } from '@/types/project';
 import type {
   BatchElectricalResponse,
   ElectricalCalcSummary,
@@ -435,6 +436,7 @@ function buildElectricalQueryRequest(
   page: number,
   pageSize: number,
   capabilities?: { fields: ObjectQueryFieldCapability[] },
+  cursor?: ProjectObjectsPageCursor | null,
 ): ElectricalQueryRequest {
   const capabilityByKey = new Map(capabilities?.fields.map((field) => [field.key, field]) ?? []);
   const filters = Object.entries(state.filters)
@@ -448,6 +450,8 @@ function buildElectricalQueryRequest(
     variant_number: variant,
     page,
     page_size: pageSize,
+    after_sort_order: cursor?.sort_order,
+    after_id: cursor?.id,
     filters,
     sort: state.sort && (sortCapability?.sort.enabled ?? true)
       ? { key: state.sort.columnKey, dir: state.sort.direction }
@@ -603,6 +607,7 @@ function ResizableColumnTitle({
         type="button"
         className="column-resize-handle"
         aria-label={`Изменить ширину: ${label}`}
+        tabIndex={-1}
         onPointerDown={onResizeStart}
         onClick={(event) => {
           event.preventDefault();
@@ -670,12 +675,20 @@ export default function ElecCalcPage() {
   const tableViewSettingsRef = useRef(tableViewSettings);
   const [tableViewState, setTableViewState] =
     useState<HeatCalcTableViewState>(() => createEmptyTableViewState());
+  const [electricalPageCursors, setElectricalPageCursors] =
+    useState<Record<number, ProjectObjectsPageCursor | null>>({ 1: null });
   const [activeJobId, setActiveJobId] = useState<string | null>(
     () => navigationActiveJobId,
   );
   const [activeBatchScope, setActiveBatchScope] = useState<ElectricalBatchScope | null>(null);
   const activeBatchObjectIdsRef = useRef<string[] | null>(null);
   const pageScopeRef = useRef<{ projectId?: string; variant: number } | null>(null);
+  const tableScrollRegionsRef = useRef<HTMLDivElement | null>(null);
+  useFocusableTableScrollRegions(
+    tableScrollRegionsRef,
+    'Таблица электротехнического расчёта',
+    Boolean(project),
+  );
 
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -695,6 +708,10 @@ export default function ElecCalcPage() {
   useEffect(() => {
     setActiveRowId(null);
   }, [project?.id, variant, tablePage, tablePageSize]);
+
+  useEffect(() => {
+    setElectricalPageCursors({ 1: null });
+  }, [project?.id, variant, tablePageSize, tableViewState]);
 
   useEffect(() => {
     setSelectedRowKeys([]);
@@ -728,6 +745,11 @@ export default function ElecCalcPage() {
     enabled: !!project,
     staleTime: 60_000,
   });
+  const canUseElectricalCursor =
+    !tableViewState.sort && Object.keys(tableViewState.filters).length === 0;
+  const electricalPageCursor = canUseElectricalCursor
+    ? electricalPageCursors[tablePage] ?? null
+    : null;
   const electricalQueryRequest = useMemo(
     () => (project
       ? buildElectricalQueryRequest(
@@ -737,9 +759,18 @@ export default function ElecCalcPage() {
         tablePage,
         tablePageSize,
         electricalQueryCapabilities,
+        electricalPageCursor,
       )
       : null),
-    [electricalQueryCapabilities, project, tablePage, tablePageSize, tableViewState, variant],
+    [
+      electricalPageCursor,
+      electricalQueryCapabilities,
+      project,
+      tablePage,
+      tablePageSize,
+      tableViewState,
+      variant,
+    ],
   );
   const { data: electricalPage, isFetching: isElectricalPageFetching } = useQuery({
     queryKey: ['project', project?.id, 'electrical-query', electricalQueryRequest],
@@ -752,6 +783,22 @@ export default function ElecCalcPage() {
   const pageSummary = electricalPage?.summary;
   const pageInfo = electricalPage?.page_info;
   const stats = useElectricalStats(objects, elecCalcs);
+
+  useEffect(() => {
+    const nextCursor = pageInfo?.next_cursor;
+    if (!nextCursor) return;
+    setElectricalPageCursors((current) => {
+      const nextPage = tablePage + 1;
+      const existing = current[nextPage];
+      if (
+        existing?.id === nextCursor.id &&
+        existing.sort_order === nextCursor.sort_order
+      ) {
+        return current;
+      }
+      return { ...current, [nextPage]: nextCursor };
+    });
+  }, [pageInfo?.next_cursor?.id, pageInfo?.next_cursor?.sort_order, tablePage]);
 
   const getSavedCableTypeForObject = useCallback((objectId: string): CableTypeKey => {
     const savedType = stats.calcByObjectId[objectId]?.cable_type;
@@ -2319,7 +2366,8 @@ export default function ElecCalcPage() {
 
   return (
     <>
-      <Space direction="vertical" size={5} style={{ width: '100%' }}>
+      <div ref={tableScrollRegionsRef}>
+        <Space direction="vertical" size={5} style={{ width: '100%' }}>
 
         {/* Summary banner */}
         <div className="common-data-banner">
@@ -2611,7 +2659,8 @@ export default function ElecCalcPage() {
           </div>
         </Card>
 
-      </Space>
+        </Space>
+      </div>
       {columnSettingsOpen && (
         <ElectricalColumnSettingsModal
           open={columnSettingsOpen}

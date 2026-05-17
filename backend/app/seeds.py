@@ -18,6 +18,7 @@
 
 import asyncio
 import logging
+import re
 import uuid
 from datetime import UTC, datetime
 
@@ -37,6 +38,7 @@ from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.models.user import User
+from app.reference_data.loader import list_resistive_cables, list_tlt_cables
 from app.schemas.calculation import (
     PipeHeatLossParams,
     SelfRegulatingParams,
@@ -64,6 +66,241 @@ async def _get_or_create_user(db, email: str, **kwargs) -> User:
 
 def _get_coefficients_dict(coeffs: list[CorrectionCoefficient]) -> dict[str, float]:
     return {c.key: c.value for c in coeffs}
+
+
+_DEMO_COMMERCIAL_SOURCES = {None, "seed", "demo_seed", "test"}
+_SELF_REG_ACCESSORY_COST_PER_CIRCUIT = 2400.0
+_RESISTIVE_ACCESSORY_COST_PER_CIRCUIT = 3200.0
+
+
+def _article(model: str) -> str:
+    safe = (
+        model.upper()
+        .replace(" ", "-")
+        .replace(",", ".")
+        .replace("/", "-")
+        .replace("Х", "X")
+        .replace("×", "X")
+    )
+    return f"DEMO-{safe}"
+
+
+def _stock_status(stock_quantity_m: float) -> str:
+    if stock_quantity_m >= 500:
+        return "in_stock"
+    if stock_quantity_m > 0:
+        return "limited"
+    return "unknown"
+
+
+def _with_commercial_params(
+    params: dict[str, object] | None,
+    *,
+    accessory_cost_per_circuit: float,
+) -> dict[str, object]:
+    merged: dict[str, object] = dict(params or {})
+    commercial = merged.get("commercial")
+    commercial_dict = dict(commercial) if isinstance(commercial, dict) else {}
+    commercial_dict.setdefault("accessory_cost_per_circuit", accessory_cost_per_circuit)
+    commercial_dict.setdefault("accessory_cost_scope", "demo_per_circuit")
+    commercial_dict.setdefault("accessory_cost_source", "demo_seed")
+    merged["commercial"] = commercial_dict
+    return merged
+
+
+def _commercial_seed_is_allowed(existing: CableExtended) -> bool:
+    if existing.commercial_data_source in _DEMO_COMMERCIAL_SOURCES:
+        return True
+    commercial_values = (
+        existing.price_per_meter,
+        existing.stock_quantity_m,
+        existing.lead_time_days,
+        existing.supplier_priority,
+        existing.supplier_name,
+        existing.article,
+    )
+    return all(value in (None, "") for value in commercial_values) and not existing.is_preferred
+
+
+def _apply_demo_commercial(existing: CableExtended, data: dict[str, object]) -> None:
+    """Updates seed/demo-managed rows, but leaves real production data alone."""
+    technical_keys = (
+        "power_per_meter",
+        "max_temperature",
+        "min_temperature",
+        "resistance_per_meter",
+        "is_active",
+    )
+    if _commercial_seed_is_allowed(existing):
+        update_keys = (
+            *technical_keys,
+            "params",
+            "supplier_name",
+            "article",
+            "currency",
+            "price_per_meter",
+            "stock_quantity_m",
+            "stock_status",
+            "lead_time_days",
+            "supplier_priority",
+            "is_preferred",
+            "order_multiple_m",
+            "min_order_quantity_m",
+            "is_discontinued",
+            "replacement_group",
+            "price_updated_at",
+            "stock_updated_at",
+            "commercial_data_source",
+        )
+    else:
+        update_keys = technical_keys
+    for key in update_keys:
+        if key in data:
+            setattr(existing, key, data[key])
+
+
+async def _upsert_demo_cable(db, data: dict[str, object]) -> None:
+    result = await db.execute(
+        select(CableExtended).where(
+            CableExtended.model == data["model"],
+            CableExtended.brand == data["brand"],
+            CableExtended.cable_type == data["cable_type"],
+        )
+    )
+    existing = result.scalar_one_or_none()
+    if existing is None:
+        db.add(CableExtended(**data))
+        logger.info("  + demo cable %s %s", data["brand"], data["model"])
+        return
+    _apply_demo_commercial(existing, data)
+    logger.info("  ~ demo cable commercial %s %s", data["brand"], data["model"])
+
+
+def _tlt_demo_cable(cable: dict[str, object], index: int, now: datetime) -> dict[str, object]:
+    power = float(cable["power_per_meter"])
+    price_per_meter = 260.0 + power * 8.5
+    stock_quantity_m = max(180.0, 1600.0 - index * 115.0)
+    return {
+        "cable_type": "self_regulating",
+        "brand": str(cable.get("brand") or "ТЛТ"),
+        "model": str(cable["model"]),
+        "power_per_meter": power,
+        "max_temperature": float(cable["max_temperature"]),
+        "min_temperature": float(cable["min_temperature"]),
+        "resistance_per_meter": None,
+        "supplier_name": "Demo ТЛТ Supply",
+        "article": _article(str(cable["model"])),
+        "currency": "RUB",
+        "price_per_meter": round(price_per_meter, 2),
+        "stock_quantity_m": round(stock_quantity_m, 2),
+        "stock_status": _stock_status(stock_quantity_m),
+        "lead_time_days": 2 + index // 3,
+        "supplier_priority": 10 + index,
+        "is_preferred": index == 0,
+        "order_multiple_m": 1.0,
+        "min_order_quantity_m": 0.0,
+        "is_discontinued": False,
+        "replacement_group": "ТЛТ",
+        "price_updated_at": now,
+        "stock_updated_at": now,
+        "commercial_data_source": "demo_seed",
+        "params": _with_commercial_params(
+            {
+                "voltage": cable.get("voltage", 220),
+                "protection": "IP67",
+            },
+            accessory_cost_per_circuit=_SELF_REG_ACCESSORY_COST_PER_CIRCUIT,
+        ),
+        "is_active": True,
+    }
+
+
+def _resistive_demo_cable(
+    cable: dict[str, object],
+    *,
+    cable_type: str,
+    index: int,
+    now: datetime,
+) -> dict[str, object]:
+    section = _resistive_section(cable)
+    resistance_ohm_km = float(cable.get("resistance_ohm_km") or (17.5 / section))
+    price_per_meter = 95.0 + section * 22.0 + max(0.0, 900.0 - resistance_ohm_km) * 0.018
+    stock_quantity_m = max(120.0, 2400.0 - index * 38.0)
+    brand = str(cable.get("brand") or ("ТТ Р1" if cable_type == "single_core" else "ТТ Р3"))
+    params = {
+        "resistance_ohm_km": resistance_ohm_km,
+        "conductor_section_mm2": section,
+        "diameter_mm": cable.get("diameter_mm"),
+        "nominal_section_length_m": cable.get("nominal_section_length_m"),
+        "nominal_size_mm": cable.get("nominal_size_mm"),
+        "mass_kg_km": cable.get("mass_kg_km"),
+        "min_bend_radius_mm": cable.get("min_bend_radius_mm"),
+        "source": cable.get("source"),
+    }
+    return {
+        "cable_type": cable_type,
+        "brand": brand,
+        "model": str(cable["model"]),
+        "power_per_meter": None,
+        "max_temperature": 130.0,
+        "min_temperature": -60.0,
+        "resistance_per_meter": resistance_ohm_km / 1000.0,
+        "supplier_name": "Demo ТТ Supply",
+        "article": _article(str(cable["model"])),
+        "currency": "RUB",
+        "price_per_meter": round(price_per_meter, 2),
+        "stock_quantity_m": round(stock_quantity_m, 2),
+        "stock_status": _stock_status(stock_quantity_m),
+        "lead_time_days": 3 + min(index // 10, 7),
+        "supplier_priority": 20 + index,
+        "is_preferred": index == 0,
+        "order_multiple_m": 10.0,
+        "min_order_quantity_m": 10.0,
+        "is_discontinued": False,
+        "replacement_group": brand,
+        "price_updated_at": now,
+        "stock_updated_at": now,
+        "commercial_data_source": "demo_seed",
+        "params": _with_commercial_params(
+            params,
+            accessory_cost_per_circuit=_RESISTIVE_ACCESSORY_COST_PER_CIRCUIT,
+        ),
+        "is_active": True,
+    }
+
+
+def _resistive_section(cable: dict[str, object]) -> float:
+    raw = cable.get("conductor_section_mm2") or cable.get("conductor_cross_section")
+    if raw is not None:
+        return float(raw)
+    match = re.search(r"х\s*(\d+(?:[,.]\d+)?)\s*-", str(cable.get("model", "")))
+    if match:
+        return float(match.group(1).replace(",", "."))
+    raise ValueError(f"Не удалось определить сечение для {cable.get('model')}")
+
+
+async def seed_demo_commercial_catalog(db) -> None:
+    """Заполняет DB commercial projection для встроенных ТЛТ/ТТ Р1/ТТ Р3 справочников.
+
+    Значения намеренно помечены `commercial_data_source=demo_seed`: это тестовые
+    цены/остатки для dev/e2e. Production должен заменить их реальным импортом
+    или ручным вводом, а повторный seed не перезапишет строки с другим source.
+    """
+    now = datetime.now(UTC)
+    for index, cable in enumerate(list_tlt_cables()):
+        await _upsert_demo_cable(db, _tlt_demo_cable(cable, index, now))
+
+    resistive_catalog = list_resistive_cables()
+    for index, cable in enumerate(resistive_catalog.get("single_core", [])):
+        await _upsert_demo_cable(
+            db,
+            _resistive_demo_cable(cable, cable_type="single_core", index=index, now=now),
+        )
+    for index, cable in enumerate(resistive_catalog.get("three_core", [])):
+        await _upsert_demo_cable(
+            db,
+            _resistive_demo_cable(cable, cable_type="three_core", index=index, now=now),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -126,6 +363,8 @@ async def seed_users(db) -> list[User]:
 
 
 async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficient]:
+    from app.core.cache import cache
+
     coefficients = [
         dict(
             key="wind_factor", value=1.0, description="Поправочный коэффициент на скорость ветра."
@@ -153,27 +392,86 @@ async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficie
         dict(
             key="commercial_balanced_weight_cost",
             value=0.45,
-            description="Default weight for balanced commercial ranking cost component.",
+            description="Demo/test weight for balanced commercial ranking cost component.",
         ),
         dict(
             key="commercial_balanced_weight_delivery",
             value=0.25,
-            description="Default weight for balanced commercial ranking delivery component.",
+            description="Demo/test weight for balanced commercial ranking delivery component.",
         ),
         dict(
             key="commercial_balanced_weight_stock",
             value=0.2,
-            description="Default weight for balanced commercial ranking stock component.",
+            description="Demo/test weight for balanced commercial ranking stock component.",
         ),
         dict(
             key="commercial_balanced_weight_supplier",
             value=0.1,
-            description="Default weight for balanced commercial ranking supplier component.",
+            description="Demo/test weight for balanced commercial ranking supplier component.",
         ),
         dict(
             key="commercial_balanced_weights_approved",
-            value=0.0,
-            description="0 until business approves balanced ranking weights; 1 enables balanced.",
+            value=1.0,
+            description=(
+                "Demo/test approval flag for balanced commercial ranking. "
+                "Production must replace with approved business value."
+            ),
+        ),
+        dict(
+            key="commercial_accessory_cost_per_circuit_self_regulating",
+            value=_SELF_REG_ACCESSORY_COST_PER_CIRCUIT,
+            description=(
+                "Demo/test accessory cost per self-regulating circuit, RUB. "
+                "Copied into demo cable commercial params."
+            ),
+        ),
+        dict(
+            key="commercial_accessory_cost_per_circuit_resistive",
+            value=_RESISTIVE_ACCESSORY_COST_PER_CIRCUIT,
+            description=(
+                "Demo/test accessory cost per resistive circuit, RUB. "
+                "Copied into demo cable commercial params."
+            ),
+        ),
+        dict(
+            key="resistive_start_voltage_v",
+            value=220.0,
+            description="Demo/test default starting voltage for resistive auto-selection.",
+        ),
+        dict(
+            key="resistive_high_voltage_v",
+            value=380.0,
+            description="Demo/test high-voltage step for resistive auto-selection.",
+        ),
+        dict(
+            key="resistive_min_adjusted_voltage_v",
+            value=1.0,
+            description="Demo/test minimum adjusted voltage for resistive auto-selection.",
+        ),
+        dict(
+            key="resistive_voltage_step_v",
+            value=1.0,
+            description="Demo/test voltage decrement step for resistive auto-selection.",
+        ),
+        dict(
+            key="resistive_max_current_a",
+            value=65.0,
+            description="ТТ Р1/ТТ Р3 current limit from parsed documentation, A.",
+        ),
+        dict(
+            key="resistive_max_linear_power_w_m",
+            value=40.0,
+            description="ТТ Р1/ТТ Р3 max nominal linear power from parsed 20/30/40 W/m tables.",
+        ),
+        dict(
+            key="resistive_max_parallel_schemes",
+            value=20.0,
+            description="Demo/test maximum parallel schemes for full-version resistive auto-selection.",
+        ),
+        dict(
+            key="resistive_max_conductor_temperature",
+            value=130.0,
+            description="ТТ Р1/ТТ Р3 max temperature under load from latest screenshot, °C.",
         ),
     ]
     created = []
@@ -186,8 +484,14 @@ async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficie
             coeff = CorrectionCoefficient(**data, updated_by=admin_id)
             db.add(coeff)
             logger.info("  + coefficient %s = %s", data["key"], data["value"])
+        elif str(data["key"]).startswith(("commercial_", "resistive_")):
+            coeff.value = data["value"]
+            coeff.description = data["description"]
+            coeff.updated_by = admin_id
+            logger.info("  ~ coefficient %s = %s", data["key"], data["value"])
         created.append(coeff)
     await db.flush()
+    await cache.ainvalidate("coefficients")
     return created
 
 
@@ -221,6 +525,15 @@ def _commercial(
         "price_updated_at": now,
         "stock_updated_at": now,
         "commercial_data_source": "seed",
+    }
+
+
+def _accessory_params(base: dict[str, object], *, price_rub: float) -> dict[str, object]:
+    return {
+        **base,
+        "price": price_rub,
+        "currency": "RUB",
+        "commercial_data_source": "demo_seed",
     }
 
 
@@ -524,6 +837,7 @@ async def seed_cables(db) -> None:
             ):
                 if getattr(existing, key, None) is None:
                     setattr(existing, key, data[key])
+    await seed_demo_commercial_catalog(db)
     await db.flush()
 
 
@@ -533,70 +847,76 @@ async def seed_accessories(db) -> None:
             category="end_sleeve",
             name="Муфта концевая термоусаживаемая МКТ-10",
             article="МКТ-10",
-            params={"ip": "IP68"},
+            params=_accessory_params({"ip": "IP68"}, price_rub=780.0),
         ),
         dict(
             category="end_sleeve",
             name="Муфта концевая термоусаживаемая МКТ-25",
             article="МКТ-25",
-            params={"ip": "IP68"},
+            params=_accessory_params({"ip": "IP68"}, price_rub=1120.0),
         ),
         dict(
             category="junction_box",
             name="Муфта соединительная МСТ-10",
             article="МСТ-10",
-            params={"ip": "IP55"},
+            params=_accessory_params({"ip": "IP55"}, price_rub=940.0),
         ),
         dict(
             category="junction_box",
             name="Коробка соединительная КС-1",
             article="КС-1",
-            params={"max_cables": 4, "ip": "IP65"},
+            params=_accessory_params({"max_cables": 4, "ip": "IP65"}, price_rub=1850.0),
         ),
         dict(
             category="thermostat",
             name="Термостат электронный ТЭ-1",
             article="ТЭ-1",
-            params={"channels": 1},
+            params=_accessory_params({"channels": 1}, price_rub=4200.0),
         ),
         dict(
             category="thermostat",
             name="Термостат двухканальный ТЭ-2",
             article="ТЭ-2",
-            params={"channels": 2},
+            params=_accessory_params({"channels": 2}, price_rub=6900.0),
         ),
         dict(
             category="fastener",
             name="Лента стальная перфорированная 20мм",
             article="ЛС-20",
-            params={"width_mm": 20},
+            params=_accessory_params({"width_mm": 20}, price_rub=65.0),
         ),
         dict(
             category="fastener",
             name="Хомут пластиковый 200мм",
             article="ХП-200",
-            params={"length_mm": 200},
+            params=_accessory_params({"length_mm": 200}, price_rub=8.0),
         ),
         dict(
             category="protection",
             name="Защитный кожух из оцинкованной стали 100мм",
             article="КЗ-100",
-            params={"diameter_mm": 100},
+            params=_accessory_params({"diameter_mm": 100}, price_rub=1450.0),
         ),
         dict(
             category="protection",
             name="Защитная сетка плетёная СЗП-50",
             article="СЗП-50",
-            params={"cell_mm": 50},
+            params=_accessory_params({"cell_mm": 50}, price_rub=390.0),
         ),
     ]
     for data in accessories_data:
         result = await db.execute(
             select(AccessoryExtended).where(AccessoryExtended.article == data["article"])
         )
-        if result.scalar_one_or_none() is None:
+        existing = result.scalar_one_or_none()
+        if existing is None:
             db.add(AccessoryExtended(**data))
             logger.info("  + accessory %s", data["article"])
+        else:
+            params = existing.params if isinstance(existing.params, dict) else {}
+            if params.get("commercial_data_source") in (None, "seed", "demo_seed", "test"):
+                existing.params = data["params"]
+                logger.info("  ~ accessory commercial %s", data["article"])
     await db.flush()
 
 

@@ -59,6 +59,7 @@ import { cancelCalcTask, enqueueHeatLossBatchJob, getCalcTask } from '@/api/calc
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
+import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
 import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
 import type { ProjectObject, ProjectObjectsQueryResponse } from '@/types/project';
 import { formatNumber } from '@/utils/formatters';
@@ -183,6 +184,7 @@ import {
   formatParamMetersAsMm,
   formatParamNumber,
   formatParamText,
+  formatResultOrParamNumber,
   formatResultNumber,
   heatLossCalcStatus,
   heatLossErrorText,
@@ -312,6 +314,7 @@ function ResizableColumnTitle({
         type="button"
         className="column-resize-handle"
         aria-label={`Изменить ширину: ${label}`}
+        tabIndex={-1}
         onPointerDown={onResizeStart}
         onClick={(event) => {
           event.preventDefault();
@@ -376,6 +379,7 @@ export default function HeatCalcPage() {
     placement: Extract<HeatCalcFormPlacement, 'left' | 'right'>;
     rect: DOMRect;
   } | null>(null);
+  useFocusableTableScrollRegions(sideWorkspaceRef, 'Таблица расчёта теплопотерь', Boolean(project));
   const [calculationDetailsSettings, setCalculationDetailsSettings] =
     useState<HeatCalcCalculationDetailsSettings>(() => {
       const auth = useAuthStore.getState();
@@ -921,7 +925,7 @@ export default function HeatCalcPage() {
         params,
       };
       setWizardState({ type: currentState.type, editingObject: optimisticObject });
-      edit.mutate({ objectId: editingObject.id, params });
+      edit.mutate({ objectId: editingObject.id, version: editingObject.version, params });
     } else if (wizardState) {
       add.mutate({
         object_type: wizardState.type,
@@ -1332,8 +1336,8 @@ export default function HeatCalcPage() {
       copyValue: (r) => formatParamNumber(r, 'wall_lambda', 3),
     },
     q_additional: {
-      render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'q_additional', 0),
-      copyValue: (r) => formatParamNumber(r, 'q_additional', 0),
+      render: (_: unknown, r: ProjectObject) => formatResultOrParamNumber(r, 'q_additional', 0),
+      copyValue: (r) => formatResultOrParamNumber(r, 'q_additional', 0),
     },
     heat_loss_per_meter: {
       render: (_: unknown, r: ProjectObject) => formatResultNumber(r, 'heat_loss_per_meter', 1),
@@ -1687,7 +1691,10 @@ export default function HeatCalcPage() {
     await Promise.all(validRows.map(async (row) => {
       try {
         const params = buildDraftRowParams(row);
-        const savedObject = await updateObject(project.id, row.objectId, { params });
+        const savedObject = await updateObject(project.id, row.objectId, {
+          version: row.baseVersion,
+          params,
+        });
         saved.push(savedObject);
         updateObjectInCurrentQuery(savedObject);
       } catch (error) {

@@ -24,6 +24,8 @@ from app.schemas.auth import TokenPair
 
 logger = logging.getLogger("heatcalc.auth")
 
+DUMMY_PASSWORD_HASH = "$2b$12$tapTzPGE1beSmRYdG8pAtuVBEA4H0xljKR5.UHnQlgG6sB9jWMAZO"
+
 
 class AuthError(Exception):
     """Ошибка авторизации."""
@@ -79,7 +81,9 @@ class AuthService:
     ) -> TokenPair:
         result = await self.db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
-        if user is None or not verify_password(password, user.hashed_password):
+        password_hash = user.hashed_password if user is not None else DUMMY_PASSWORD_HASH
+        password_ok = verify_password(password, password_hash)
+        if user is None or not password_ok:
             raise AuthError("Неверный email или пароль")
         if not user.is_active:
             raise AuthError("Пользователь деактивирован")

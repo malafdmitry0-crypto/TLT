@@ -3,7 +3,7 @@
 import io
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,12 +13,18 @@ from app.core.dependencies import (
     require_any,
     require_employee,
 )
+from app.core.rate_limit import enforce_principal_rate_limit, job_enqueue_limiter, report_limiter
 from app.schemas.calculation import CalculationTaskResponse
 from app.schemas.report import ReportExportJobRequest, ReportPreviewResponse
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError
 from app.services.report_artifact_service import report_artifact_path
 from app.services.report_service import ReportError, ReportService
-from app.services.task_service import TaskAccessError, TaskNotFoundError, TaskService
+from app.services.task_service import (
+    TaskAccessError,
+    TaskLimitError,
+    TaskNotFoundError,
+    TaskService,
+)
 
 router = APIRouter()
 
@@ -34,6 +40,12 @@ def _raise_task_error(exc: Exception) -> None:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     if isinstance(exc, TaskAccessError):
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    if isinstance(exc, TaskLimitError):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc),
+            headers={"Retry-After": "3600"},
+        ) from exc
     if isinstance(exc, ValueError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     raise exc
@@ -54,11 +66,18 @@ def _raise_project_error(exc: Exception) -> None:
 )
 async def preview(
     project_id: UUID,
+    request: Request,
     sections: list[str] | None = Query(default=None),
     variant_number: int = Query(default=1, ge=1),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_principal_rate_limit(
+        report_limiter,
+        principal,
+        request,
+        detail="Превышен лимит операций с отчётами для пользователя и IP. Повторите через час.",
+    )
     service = ReportService(db)
     try:
         result = await service.preview(
@@ -81,11 +100,18 @@ async def preview(
 async def export(
     project_id: UUID,
     format: str,
+    request: Request,
     sections: list[str] | None = Query(default=None),
     variant_number: int = Query(default=1, ge=1),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_principal_rate_limit(
+        report_limiter,
+        principal,
+        request,
+        detail="Превышен лимит операций с отчётами для пользователя и IP. Повторите через час.",
+    )
     if format not in MEDIA_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -120,18 +146,25 @@ async def export(
 async def enqueue_export_job(
     project_id: UUID,
     format: str,
+    request: Request,
     sections: list[str] | None = Query(default=None),
     variant_number: int = Query(default=1, ge=1),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_principal_rate_limit(
+        job_enqueue_limiter,
+        principal,
+        request,
+        detail="Превышен лимит постановки задач в очередь для пользователя и IP.",
+    )
     if format not in MEDIA_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Неподдерживаемый формат: {format}",
         )
-    request = ReportExportJobRequest(
+    job_request = ReportExportJobRequest(
         project_id=project_id,
         format=format,
         sections=sections,
@@ -139,7 +172,7 @@ async def enqueue_export_job(
     )
     try:
         task = await TaskService(db).create_report_export_task(
-            request,
+            job_request,
             principal,
             idempotency_key=idempotency_key,
         )

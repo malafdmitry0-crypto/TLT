@@ -3,7 +3,7 @@
 import io
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,7 @@ from app.core.dependencies import (
     require_any,
     require_employee,
 )
+from app.core.rate_limit import enforce_principal_rate_limit, import_limiter, report_limiter
 from app.core.uploads import read_upload_with_limit
 from app.schemas.project import (
     ObjectQueryCapabilitiesResponse,
@@ -29,6 +30,7 @@ from app.services.excel_import_service import build_objects_xlsx
 from app.services.object_query_service import ObjectQueryService, ObjectQueryValidationError
 from app.services.project_service import (
     ProjectAccessError,
+    ProjectConflictError,
     ProjectLimitError,
     ProjectNotFoundError,
     ProjectService,
@@ -103,6 +105,7 @@ async def object_query_capabilities(
 @router.post(
     "/{project_id}/objects/query",
     response_model=ProjectObjectsQueryResponse,
+    response_model_exclude_none=True,
     summary="Постраничный backend-query объектов проекта",
 )
 async def query_objects(
@@ -221,6 +224,7 @@ async def import_template(
 )
 async def import_excel(
     project_id: UUID,
+    request: Request,
     file: UploadFile,
     mode: str = Form("merge"),
     principal: CurrentPrincipal = Depends(require_any()),
@@ -232,8 +236,14 @@ async def import_excel(
         import_objects_from_csv,
         import_objects_from_excel,
     )
-    from app.services.task_service import TaskService
+    from app.services.task_service import TaskLimitError, TaskService
 
+    await enforce_principal_rate_limit(
+        import_limiter,
+        principal,
+        request,
+        detail="Превышен лимит импорта для пользователя и IP. Повторите через час.",
+    )
     filename = (file.filename or "").lower()
     if not (filename.endswith(".xlsx") or filename.endswith(".csv")):
         raise HTTPException(
@@ -266,6 +276,12 @@ async def import_excel(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except TaskLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc),
+            headers={"Retry-After": "3600"},
+        ) from exc
 
 
 @router.get(
@@ -274,9 +290,16 @@ async def import_excel(
 )
 async def export_excel(
     project_id: UUID,
+    request: Request,
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
 ):
+    await enforce_principal_rate_limit(
+        report_limiter,
+        principal,
+        request,
+        detail="Превышен лимит экспорта для пользователя и IP. Повторите через час.",
+    )
     try:
         project = await ProjectService(db).get_project(project_id, principal)
     except ProjectNotFoundError as exc:
@@ -328,6 +351,8 @@ async def update_object(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ProjectConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
 
 @router.delete(

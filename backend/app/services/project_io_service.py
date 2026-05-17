@@ -587,25 +587,27 @@ async def import_projects_bulk(
                 task_number = f"{task_number}-импорт"
 
         try:
-            project = Project(
-                name=name,
-                description=row.get("description") or None,
-                task_number=task_number,
-                status=row.get("status", "draft") or "draft",
-                user_id=principal.user_id,
-            )
-            db.add(project)
-            await db.flush()
-            await _apply_project_data(
-                db,
-                project,
-                objects_by_key.get(key, []),
-                electrical_by_key.get(key, []),
-                specs_by_key.get(key, []),
-            )
+            async with db.begin_nested():
+                project = Project(
+                    name=name,
+                    description=row.get("description") or None,
+                    task_number=task_number,
+                    status=row.get("status", "draft") or "draft",
+                    user_id=principal.user_id,
+                )
+                db.add(project)
+                await db.flush()
+                await _apply_project_data(
+                    db,
+                    project,
+                    objects_by_key.get(key, []),
+                    electrical_by_key.get(key, []),
+                    specs_by_key.get(key, []),
+                )
             imported += 1
         except Exception as exc:
             errors.append({"project_key": key, "error": str(exc)})
+            continue
 
     await db.commit()
     return {"imported": imported, "errors": errors}

@@ -273,6 +273,26 @@ class TestObjectQuery:
         assert body["counts"]["filtered"] == 1
         assert [item["params"]["name"] for item in body["items"]] == ["Труба Юг"]
 
+    async def test_default_search_matches_jsonb_params_text(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        pid = await _project(client, guest_session)
+        await _seed_objects(db_session, pid)
+
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects/query",
+            json={
+                "object_type": "pipe",
+                "search": {"text": "95"},
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["counts"]["filtered"] == 1
+        assert [item["params"]["name"] for item in body["items"]] == ["Труба Юг"]
+
     async def test_query_rejects_unknown_filter_key(self, client: AsyncClient, guest_session: str):
         pid = await _project(client, guest_session)
         resp = await client.post(

@@ -17,6 +17,7 @@ import {
   formatParamMetersAsMm,
   formatParamNumber,
   formatParamText,
+  formatResultOrParamNumber,
   formatResultNumber,
   heatLossCalcStatus,
   heatLossErrorText,
@@ -52,6 +53,7 @@ function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
     created_at: '2026-05-17T00:00:00Z',
     updated_at: '2026-05-17T00:00:00Z',
     ...overrides,
+    version: overrides.version ?? 1,
   };
 }
 
@@ -219,10 +221,24 @@ describe('heatCalcPageUtils', () => {
     expect(formatParamText(record, 'ground_type')).toBe('clay');
     expect(formatDeltaTemperature(record, 0)).toBe('90');
     expect(normalizeSpaces(formatResultNumber(record, 'total_heat_loss', 1))).toBe('1 234,6');
+    expect(formatResultOrParamNumber(record, 'q_additional', 0)).toBe('—');
     expect(insulationLayerCount(record)).toBe('2');
     expect(insulationLayerThickness(record, 1)).toBe('30');
     expect(insulationLayerMaterial(record, 0, (material) => `label:${String(material)}`)).toBe('label:mineral_wool');
     expect(insulationLayerConductivity(record, 0)).toBe('0,045');
+  });
+
+  it('для q_additional предпочитает result и падает обратно на params', () => {
+    expect(formatResultOrParamNumber(
+      makeObject({ results: { q_additional: 250 }, params: { q_additional: 100 } }),
+      'q_additional',
+      0,
+    )).toBe('250');
+    expect(formatResultOrParamNumber(
+      makeObject({ results: {}, params: { q_additional: 100 } }),
+      'q_additional',
+      0,
+    )).toBe('100');
   });
 
   it('форматирует справочные подписи', () => {

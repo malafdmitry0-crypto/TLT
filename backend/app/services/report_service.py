@@ -94,6 +94,9 @@ class ReportService:
             for e in elec_rows:
                 latest_by_object[str(e.object_id)] = e
 
+        object_payloads = [self._object_payload(o, latest_by_object) for o in objects]
+        electrical_context = self._build_electrical_context(object_payloads)
+
         return {
             "project": {
                 "id": str(project.id),
@@ -101,24 +104,8 @@ class ReportService:
                 "description": project.description or "",
                 "status": project.status,
             },
-            "objects": [
-                {
-                    "id": str(o.id),
-                    "object_type": o.object_type,
-                    "params": o.params,
-                    "results": o.results,
-                    "is_valid": o.is_valid,
-                    "electrical": (
-                        {
-                            "cable_mark": latest_by_object[str(o.id)].cable_mark,
-                            "results": latest_by_object[str(o.id)].results or {},
-                        }
-                        if str(o.id) in latest_by_object
-                        else None
-                    ),
-                }
-                for o in objects
-            ],
+            "objects": object_payloads,
+            "electrical": electrical_context,
             "specification": {
                 "items": spec_items,
             },
@@ -130,6 +117,116 @@ class ReportService:
         if not sections:
             return list(self.AVAILABLE_SECTIONS)
         return [s for s in sections if s in self.AVAILABLE_SECTIONS]
+
+    @classmethod
+    def _object_payload(
+        cls,
+        obj: ProjectObject,
+        latest_by_object: dict[str, ElectricalCalculation],
+    ) -> dict:
+        calc = latest_by_object.get(str(obj.id))
+        return {
+            "id": str(obj.id),
+            "object_type": obj.object_type,
+            "params": obj.params or {},
+            "results": obj.results or {},
+            "is_valid": obj.is_valid,
+            "electrical": cls._electrical_payload(calc) if calc is not None else None,
+        }
+
+    @classmethod
+    def _electrical_payload(cls, calc: ElectricalCalculation) -> dict:
+        raw_results = calc.results or {}
+        results = raw_results if isinstance(raw_results, dict) else {}
+        return {
+            "cable_mark": calc.cable_mark,
+            "results": results,
+            "status": cls._electrical_status(calc.cable_mark, results),
+        }
+
+    @classmethod
+    def _build_electrical_context(cls, objects: list[dict]) -> dict:
+        valid: list[dict] = []
+        failed: list[dict] = []
+        unsupported: list[dict] = []
+        stale: list[dict] = []
+
+        for obj in objects:
+            electrical = obj.get("electrical")
+            if not isinstance(electrical, dict):
+                continue
+            status = electrical.get("status")
+            if status == "success":
+                valid.append(obj)
+            elif status == "unsupported":
+                unsupported.append(obj)
+            elif status == "stale":
+                stale.append(obj)
+            else:
+                failed.append(obj)
+
+        return {
+            "valid": valid,
+            "failed": failed,
+            "unsupported": unsupported,
+            "stale": stale,
+            "summary": {
+                "total": len(valid) + len(failed) + len(unsupported) + len(stale),
+                "successful": len(valid),
+                "failed": len(failed),
+                "unsupported": len(unsupported),
+                "stale": len(stale),
+                "total_power": cls._sum_electrical_result(valid, "total_power"),
+                "total_cable": cls._sum_electrical_result(valid, "cable_length"),
+                "total_current": cls._sum_electrical_result(valid, "current"),
+            },
+        }
+
+    @classmethod
+    def _electrical_status(cls, cable_mark: str | None, results: dict) -> str:
+        if cls._is_successful_electrical_calculation(cable_mark, results):
+            return "success"
+        category = results.get("category")
+        if category == "unsupported":
+            return "unsupported"
+        if category == "stale":
+            return "stale"
+        return "failed"
+
+    @staticmethod
+    def _is_successful_electrical_calculation(
+        cable_mark: str | None,
+        results: dict | None,
+    ) -> bool:
+        if not results:
+            return False
+        if results.get("error_code") or results.get("category"):
+            return False
+        return bool(results.get("selected_cable") or cable_mark)
+
+    @classmethod
+    def _sum_electrical_result(cls, objects: list[dict], key: str) -> float:
+        total = 0.0
+        for obj in objects:
+            electrical = obj.get("electrical")
+            if not isinstance(electrical, dict):
+                continue
+            results = electrical.get("results")
+            if not isinstance(results, dict):
+                continue
+            total += cls._result_number(results.get(key))
+        return total
+
+    @staticmethod
+    def _result_number(value: object) -> float:
+        if isinstance(value, bool) or value is None:
+            return 0.0
+        if isinstance(value, int | float):
+            return float(value)
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
 
     async def preview(
         self,

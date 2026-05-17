@@ -78,7 +78,7 @@ describe('useHeatCalcMutations', () => {
       () => useHeatCalcMutations('p1', undefined, onEdit),
       { wrapper }
     );
-    await result.current.edit.mutateAsync({ objectId: 'o1', params: {} });
+    await result.current.edit.mutateAsync({ objectId: 'o1', version: 1, params: {} });
     expect(onEdit).toHaveBeenCalled();
   });
 

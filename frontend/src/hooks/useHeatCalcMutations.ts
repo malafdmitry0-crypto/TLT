@@ -67,11 +67,13 @@ export function useHeatCalcMutations(
   const edit = useMutation({
     mutationFn: ({
       objectId,
+      version,
       params,
     }: {
       objectId: string;
+      version: number;
       params: Record<string, unknown>;
-    }) => updateObject(projectId!, objectId, { params }),
+    }) => updateObject(projectId!, objectId, { version, params }),
     onSuccess: (obj) => {
       invalidateObjects();
       notifyObjectResult(obj, 'updated');

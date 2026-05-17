@@ -494,7 +494,15 @@ class TestAddRowsHelper:
         monkeypatch.setattr(mod, "_commit_object_batch", fake_commit)
         db = AsyncMock()
 
-        created, next_sort, current_count, errors, object_ids, skipped = await _add_rows(
+        (
+            created,
+            next_sort,
+            current_count,
+            errors,
+            object_ids,
+            skipped,
+            skipped_limit,
+        ) = await _add_rows(
             db,
             uuid4(),
             "Pipes",
@@ -509,6 +517,7 @@ class TestAddRowsHelper:
         assert current_count == 30
         assert len(object_ids) == 30
         assert skipped == 0
+        assert skipped_limit == 0
         assert errors == []
         assert batch_sizes == [25, 5]
 
@@ -549,7 +558,15 @@ class TestAddRowsHelper:
 
         monkeypatch.setattr(mod, "_commit_object_batch", fake_commit)
 
-        created, next_sort, current_count, errors, object_ids, skipped = await _add_rows(
+        (
+            created,
+            next_sort,
+            current_count,
+            errors,
+            object_ids,
+            skipped,
+            skipped_limit,
+        ) = await _add_rows(
             AsyncMock(),
             uuid4(),
             "Pipes",
@@ -566,6 +583,7 @@ class TestAddRowsHelper:
         assert errors == []
         assert object_ids == []
         assert skipped == 1
+        assert skipped_limit == 0
 
     async def test_empty_batch_is_noop(self):
         from unittest.mock import AsyncMock
@@ -711,7 +729,7 @@ class TestAddRowsHelper:
         ):
             calls.append((object_type, next_sort, current_count))
             object_id = first_id if object_type == "pipe" else second_id
-            return 1, next_sort + 1, current_count + 1, [], [object_id], 0
+            return 1, next_sort + 1, current_count + 1, [], [object_id], 0, 0
 
         monkeypatch.setattr(mod, "_ensure_import_access", fake_access)
         monkeypatch.setattr(mod, "_project_import_state", fake_state)
@@ -731,6 +749,7 @@ class TestAddRowsHelper:
         assert result == {
             "created": 2,
             "skipped_duplicates": 0,
+            "skipped_limit": 0,
             "mode": "merge",
             "errors": [],
             "created_object_ids": [first_id, second_id],
@@ -802,7 +821,7 @@ class TestAddRowsHelper:
         ):
             add_calls.append((object_type, next_sort, current_count))
             object_id = pipe_id if object_type == "pipe" else tank_id
-            return 1, next_sort + 1, current_count + 1, [], [object_id], 0
+            return 1, next_sort + 1, current_count + 1, [], [object_id], 0, 0
 
         monkeypatch.setattr(mod, "_validate_xlsx_archive", lambda content: None)
         monkeypatch.setattr(mod, "load_workbook", lambda *args, **kwargs: FakeWorkbook())
@@ -817,6 +836,7 @@ class TestAddRowsHelper:
         assert result == {
             "created": 2,
             "skipped_duplicates": 0,
+            "skipped_limit": 0,
             "mode": "merge",
             "errors": [],
             "created_object_ids": [pipe_id, tank_id],
@@ -877,7 +897,15 @@ class TestAddRowsHelper:
 
         monkeypatch.setattr(mod, "_commit_object_batch", fake_commit)
         db = AsyncMock()
-        created, next_sort, current_count, errors, object_ids, skipped = await _add_rows(
+        (
+            created,
+            next_sort,
+            current_count,
+            errors,
+            object_ids,
+            skipped,
+            skipped_limit,
+        ) = await _add_rows(
             db,
             uuid4(),
             "Tanks",
@@ -892,6 +920,7 @@ class TestAddRowsHelper:
         assert current_count == 1
         assert object_ids == ["oid"]
         assert skipped == 0
+        assert skipped_limit == 0
 
     async def test_project_limit_breaks_loop(self, monkeypatch: pytest.MonkeyPatch):
         from unittest.mock import AsyncMock
@@ -922,7 +951,7 @@ class TestAddRowsHelper:
 
         monkeypatch.setattr(settings, "GUEST_MAX_OBJECTS_PER_PROJECT", 0)
         db = AsyncMock()
-        created, _, current_count, errors, object_ids, skipped = await _add_rows(
+        created, _, current_count, errors, object_ids, skipped, skipped_limit = await _add_rows(
             db,
             uuid4(),
             "Pipes",
@@ -933,9 +962,11 @@ class TestAddRowsHelper:
         )
         assert created == 0
         assert current_count == 0
-        assert len(errors) == 1  # break после первой ошибки
+        assert len(errors) == 1
+        assert "Пропущено строк: 2" in errors[0]["message"]
         assert object_ids == []
         assert skipped == 0
+        assert skipped_limit == 2
 
     async def test_unexpected_exception_logged_to_errors(self, monkeypatch: pytest.MonkeyPatch):
         from unittest.mock import AsyncMock
@@ -961,7 +992,7 @@ class TestAddRowsHelper:
 
         monkeypatch.setattr(mod, "normalize_project_object_params", boom_normalize)
         db = AsyncMock()
-        created, _, current_count, errors, object_ids, skipped = await _add_rows(
+        created, _, current_count, errors, object_ids, skipped, skipped_limit = await _add_rows(
             db,
             uuid4(),
             "X",
@@ -975,6 +1006,7 @@ class TestAddRowsHelper:
         assert "RuntimeError" in errors[0]["message"]
         assert object_ids == []
         assert skipped == 0
+        assert skipped_limit == 0
 
 
 class TestParseCsvAdvanced:
