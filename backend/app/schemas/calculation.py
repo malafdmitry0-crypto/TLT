@@ -55,7 +55,7 @@ class PipeHeatLossParams(BaseModel):
     - Многослойный: insulation_layers (список InsulationLayer, 1–3 слоя)
     """
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
     # --- Геометрия трубы ---
     outer_diameter: float = Field(
@@ -252,7 +252,7 @@ class PipeHeatLossResult(BaseModel):
 class TankHeatLossParams(BaseModel):
     """Параметры для расчёта теплопотерь ёмкости."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
     shape: Literal["cylindrical", "rectangular", "spherical"] = "cylindrical"
     diameter: float | None = Field(

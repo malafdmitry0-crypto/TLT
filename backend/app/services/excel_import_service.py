@@ -106,6 +106,23 @@ GROUND_ALIASES: dict[str, str] = {
     "custom": "custom",
 }
 
+CLIMATE_BASIS_ALIASES: dict[str, str] = {
+    "0,92": "t_0_92",
+    "0.92": "t_0_92",
+    "t_0_92": "t_0_92",
+    "t0.92": "t_0_92",
+    "t 0.92": "t_0_92",
+    "0,98": "t_0_98",
+    "0.98": "t_0_98",
+    "t_0_98": "t_0_98",
+    "t0.98": "t_0_98",
+    "t 0.98": "t_0_98",
+    "абс. мин.": "t_abs_min",
+    "абс мин": "t_abs_min",
+    "абсолютный минимум": "t_abs_min",
+    "t_abs_min": "t_abs_min",
+}
+
 SHAPE_ALIASES: dict[str, str] = {
     "цилиндр": "cylindrical",
     "цилиндрический": "cylindrical",
@@ -200,11 +217,28 @@ PIPE_HEADERS: dict[str, str] = {
     "грунт": "ground_type",
     "λ грунта": "ground_conductivity",
     "kзап": "safety_factor",
+    "k зап": "safety_factor",
     "коэффициент запаса": "safety_factor",
     "рабочее напряжение": "supply_voltage",
+    "мин. t включения, °c": "min_switch_temperature",
+    "мин t включения": "min_switch_temperature",
+    "минимальная температура включения": "min_switch_temperature",
+    "климатический регион": "climate_region",
+    "регион климата": "climate_region",
+    "климатический город": "climate_city",
+    "город климата": "climate_city",
+    "климат": "climate_city",
+    "ключ климата": "climate_key",
+    "climate_key": "climate_key",
+    "обеспеченность климата": "climate_temperature_basis",
+    "температура климата": "climate_temperature_basis",
     "задвижки": "valve_count",
     "фланцы": "flange_count",
     "опоры": "support_count",
+    "l экв., м": "local_element_equiv_length",
+    "l экв. м": "local_element_equiv_length",
+    "эквивалентная длина локального элемента": "local_element_equiv_length",
+    "эквивалентная длина, м": "local_element_equiv_length",
 }
 
 TANK_HEADERS: dict[str, str] = {
@@ -278,8 +312,24 @@ TANK_HEADERS: dict[str, str] = {
     "грунт": "ground_type",
     "λ грунта": "ground_conductivity",
     "kзап": "safety_factor",
+    "k зап": "safety_factor",
     "коэффициент запаса": "safety_factor",
     "рабочее напряжение": "supply_voltage",
+    "мин. t включения, °c": "min_switch_temperature",
+    "мин t включения": "min_switch_temperature",
+    "минимальная температура включения": "min_switch_temperature",
+    "климатический регион": "climate_region",
+    "регион климата": "climate_region",
+    "климатический город": "climate_city",
+    "город климата": "climate_city",
+    "климат": "climate_city",
+    "ключ климата": "climate_key",
+    "climate_key": "climate_key",
+    "обеспеченность климата": "climate_temperature_basis",
+    "температура климата": "climate_temperature_basis",
+    "q доп., вт": "q_additional",
+    "q доп, вт": "q_additional",
+    "дополнительные теплопотери, вт": "q_additional",
 }
 
 
@@ -351,6 +401,13 @@ def _resolve_alias(v: Any, aliases: dict[str, str]) -> str | None:
     return aliases.get(key)
 
 
+def _resolve_climate_basis(v: Any) -> str | None:
+    key = _norm(v)
+    if not key:
+        return None
+    return CLIMATE_BASIS_ALIASES.get(key)
+
+
 def _resolve_shape(v: Any) -> str | None:
     key = _norm(v)
     if not key:
@@ -377,6 +434,9 @@ def _apply_common_srs_params(params: dict[str, Any], row: dict[str, Any]) -> Non
     safety_factor = _to_float(row.get("safety_factor"))
     if safety_factor is not None:
         params["safety_factor"] = safety_factor
+    min_switch_temperature = _to_float(row.get("min_switch_temperature"))
+    if min_switch_temperature is not None:
+        params["min_switch_temperature"] = min_switch_temperature
     supply_voltage = _to_float(row.get("supply_voltage"))
     if supply_voltage is not None:
         params["supply_voltage"] = supply_voltage
@@ -395,6 +455,23 @@ def _apply_common_srs_params(params: dict[str, Any], row: dict[str, Any]) -> Non
     cover = row.get("insulation_cover_material")
     if cover and str(cover).strip():
         params["insulation_cover_material"] = str(cover).strip()
+    climate_key = row.get("climate_key")
+    if climate_key and str(climate_key).strip():
+        key_value = str(climate_key).strip()
+        params["climate_key"] = key_value
+        if "|||" in key_value:
+            region, city = key_value.split("|||", 1)
+            params.setdefault("climate_region", region.strip())
+            params.setdefault("climate_city", city.strip())
+    climate_region = row.get("climate_region")
+    if climate_region and str(climate_region).strip():
+        params["climate_region"] = str(climate_region).strip()
+    climate_city = row.get("climate_city")
+    if climate_city and str(climate_city).strip():
+        params["climate_city"] = str(climate_city).strip()
+    climate_basis = _resolve_climate_basis(row.get("climate_temperature_basis"))
+    if climate_basis:
+        params["climate_temperature_basis"] = climate_basis
 
 
 def _apply_layered_insulation(params: dict[str, Any], row: dict[str, Any]) -> None:
@@ -514,6 +591,9 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
         value = _to_float(row.get(count_field))
         if value is not None:
             params[count_field] = int(value)
+    local_element_equiv_length = _to_float(row.get("local_element_equiv_length"))
+    if local_element_equiv_length is not None:
+        params["local_element_equiv_length"] = local_element_equiv_length
     local_count = sum(
         int(params.get(k, 0) or 0) for k in ("valve_count", "flange_count", "support_count")
     )
@@ -573,6 +653,9 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
 
     _apply_common_srs_params(params, row)
     _apply_layered_insulation(params, row)
+    q_additional = _to_float(row.get("q_additional"))
+    if q_additional is not None:
+        params["q_additional"] = q_additional
 
     name = row.get("name")
     if name and str(name).strip():
@@ -1094,6 +1177,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
     """
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
+    from openpyxl.utils import get_column_letter
 
     wb = Workbook()
     ws_pipe = wb.active
@@ -1107,6 +1191,17 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "T° среды",
         "T° продукта",
         "T проп., °C",
+        "Размещение",
+        "Климатический регион",
+        "Климатический город",
+        "Ключ климата",
+        "Обеспеченность климата",
+        "Kзап",
+        "Мин. T включения, °C",
+        "Задвижки",
+        "Фланцы",
+        "Опоры",
+        "L экв., м",
     ]
     for c, h in enumerate(pipe_cols, start=1):
         cell = ws_pipe.cell(row=1, column=c, value=h)
@@ -1126,6 +1221,14 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "T° среды",
         "T° продукта",
         "T проп., °C",
+        "Размещение",
+        "Климатический регион",
+        "Климатический город",
+        "Ключ климата",
+        "Обеспеченность климата",
+        "Kзап",
+        "Мин. T включения, °C",
+        "Q доп., Вт",
     ]
     for c, h in enumerate(tank_cols, start=1):
         cell = ws_tank.cell(row=1, column=c, value=h)
@@ -1150,6 +1253,17 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     params.get("ambient_temperature", ""),
                     params.get("process_temperature", ""),
                     params.get("vapor_temperature", ""),
+                    params.get("placement", ""),
+                    params.get("climate_region", ""),
+                    params.get("climate_city", ""),
+                    params.get("climate_key", ""),
+                    params.get("climate_temperature_basis", ""),
+                    params.get("safety_factor", ""),
+                    params.get("min_switch_temperature", ""),
+                    params.get("valve_count", ""),
+                    params.get("flange_count", ""),
+                    params.get("support_count", ""),
+                    params.get("local_element_equiv_length", ""),
                 ],
             )
         elif obj.object_type == "tank":
@@ -1173,15 +1287,23 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     params.get("ambient_temperature", ""),
                     params.get("process_temperature", ""),
                     params.get("vapor_temperature", ""),
+                    params.get("placement", ""),
+                    params.get("climate_region", ""),
+                    params.get("climate_city", ""),
+                    params.get("climate_key", ""),
+                    params.get("climate_temperature_basis", ""),
+                    params.get("safety_factor", ""),
+                    params.get("min_switch_temperature", ""),
+                    params.get("q_additional", ""),
                 ],
             )
 
     ws_pipe.column_dimensions["A"].width = 24
-    for col in "BCDEFGH":
-        ws_pipe.column_dimensions[col].width = 18
+    for col_idx in range(2, len(pipe_cols) + 1):
+        ws_pipe.column_dimensions[get_column_letter(col_idx)].width = 18
     ws_tank.column_dimensions["A"].width = 24
-    for col in "BCDEFGHIJK":
-        ws_tank.column_dimensions[col].width = 18
+    for col_idx in range(2, len(tank_cols) + 1):
+        ws_tank.column_dimensions[get_column_letter(col_idx)].width = 18
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -1192,6 +1314,7 @@ def build_template_xlsx() -> bytes:
     """Формирует xlsx-шаблон с двумя листами и примерами."""
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
+    from openpyxl.utils import get_column_letter
 
     wb = Workbook()
     ws_pipe = wb.active
@@ -1205,16 +1328,71 @@ def build_template_xlsx() -> bytes:
         "T° среды",
         "T° продукта",
         "T проп., °C",
+        "Размещение",
+        "Климатический регион",
+        "Климатический город",
+        "Ключ климата",
+        "Обеспеченность климата",
+        "Kзап",
+        "Мин. T включения, °C",
+        "Задвижки",
+        "Фланцы",
+        "Опоры",
+        "L экв., м",
     ]
     for c, h in enumerate(pipe_cols, start=1):
         cell = ws_pipe.cell(row=1, column=c, value=h)
         cell.font = Font(bold=True)
         cell.fill = PatternFill("solid", fgColor="DCEEF7")
-    ws_pipe.append(["Пример DN100", 108, 50, 50, "Минеральная вата", -20, 80, ""])
-    ws_pipe.append(["Пример DN50", 57, 20, 40, "Пеностекло", -30, 60, ""])
+    ws_pipe.append(
+        [
+            "Пример DN100",
+            108,
+            50,
+            50,
+            "Минеральная вата",
+            -20,
+            80,
+            "",
+            "outdoor",
+            "",
+            "",
+            "",
+            "",
+            1.1,
+            -20,
+            2,
+            2,
+            2,
+            1.5,
+        ]
+    )
+    ws_pipe.append(
+        [
+            "Пример DN50",
+            57,
+            20,
+            40,
+            "Пеностекло",
+            -30,
+            60,
+            "",
+            "outdoor",
+            "",
+            "",
+            "",
+            "",
+            1.1,
+            -20,
+            0,
+            0,
+            0,
+            "",
+        ]
+    )
     ws_pipe.column_dimensions["A"].width = 24
-    for col in "BCDEFGH":
-        ws_pipe.column_dimensions[col].width = 18
+    for col_idx in range(2, len(pipe_cols) + 1):
+        ws_pipe.column_dimensions[get_column_letter(col_idx)].width = 18
 
     ws_tank = wb.create_sheet("Резервуары")
     tank_cols = [
@@ -1229,19 +1407,91 @@ def build_template_xlsx() -> bytes:
         "T° среды",
         "T° продукта",
         "T проп., °C",
+        "Размещение",
+        "Климатический регион",
+        "Климатический город",
+        "Ключ климата",
+        "Обеспеченность климата",
+        "Kзап",
+        "Мин. T включения, °C",
+        "Q доп., Вт",
     ]
     for c, h in enumerate(tank_cols, start=1):
         cell = ws_tank.cell(row=1, column=c, value=h)
         cell.font = Font(bold=True)
         cell.fill = PatternFill("solid", fgColor="DCEEF7")
-    ws_tank.append(["Бак цил.", "Цилиндр", 2000, "", "", 3000, 80, "Минеральная вата", -20, 80, ""])
     ws_tank.append(
-        ["Бак прям.", "Параллелепипед", "", 5000, 3000, 4000, 80, "Минеральная вата", -20, 80, ""]
+        [
+            "Бак цил.",
+            "Цилиндр",
+            2000,
+            "",
+            "",
+            3000,
+            80,
+            "Минеральная вата",
+            -20,
+            80,
+            "",
+            "outdoor",
+            "",
+            "",
+            "",
+            "",
+            1.1,
+            -20,
+            0,
+        ]
     )
-    ws_tank.append(["Шаровой", "Шар", 1500, "", "", "", 60, "Пенополиуретан", -20, 60, ""])
+    ws_tank.append(
+        [
+            "Бак прям.",
+            "Параллелепипед",
+            "",
+            5000,
+            3000,
+            4000,
+            80,
+            "Минеральная вата",
+            -20,
+            80,
+            "",
+            "outdoor",
+            "",
+            "",
+            "",
+            "",
+            1.1,
+            -20,
+            0,
+        ]
+    )
+    ws_tank.append(
+        [
+            "Шаровой",
+            "Шар",
+            1500,
+            "",
+            "",
+            "",
+            60,
+            "Пенополиуретан",
+            -20,
+            60,
+            "",
+            "outdoor",
+            "",
+            "",
+            "",
+            "",
+            1.1,
+            -20,
+            0,
+        ]
+    )
     ws_tank.column_dimensions["A"].width = 24
-    for col in "BCDEFGHIJK":
-        ws_tank.column_dimensions[col].width = 18
+    for col_idx in range(2, len(tank_cols) + 1):
+        ws_tank.column_dimensions[get_column_letter(col_idx)].width = 18
 
     ws_info = wb.create_sheet("Справка")
     ws_info["A1"] = "Подсказки по импорту"
@@ -1293,13 +1543,79 @@ def build_template_csv() -> bytes:
             "T° среды",
             "T° продукта",
             "T проп., °C",
+            "Размещение",
+            "Климатический регион",
+            "Климатический город",
+            "Ключ климата",
+            "Обеспеченность климата",
+            "Kзап",
+            "Мин. T включения, °C",
+            "Задвижки",
+            "Фланцы",
+            "Опоры",
+            "L экв., м",
+            "Q доп., Вт",
         ]
     )
     # Для трубы: диаметр в мм, длина в м, форма/ширина/высота пустые
     writer.writerow(
-        ["труба", "Пример DN100", "", 108, "", "", "", 50, 50, "Минеральная вата", -20, 80, ""]
+        [
+            "труба",
+            "Пример DN100",
+            "",
+            108,
+            "",
+            "",
+            "",
+            50,
+            50,
+            "Минеральная вата",
+            -20,
+            80,
+            "",
+            "outdoor",
+            "",
+            "",
+            "",
+            "",
+            1.1,
+            -20,
+            2,
+            2,
+            2,
+            1.5,
+            "",
+        ]
     )
-    writer.writerow(["труба", "Пример DN50", "", 57, "", "", "", 20, 40, "Пеностекло", -30, 60, ""])
+    writer.writerow(
+        [
+            "труба",
+            "Пример DN50",
+            "",
+            57,
+            "",
+            "",
+            "",
+            20,
+            40,
+            "Пеностекло",
+            -30,
+            60,
+            "",
+            "outdoor",
+            "",
+            "",
+            "",
+            "",
+            1.1,
+            -20,
+            0,
+            0,
+            0,
+            "",
+            "",
+        ]
+    )
     # Резервуары: заполняем Форма + нужные габариты в мм
     writer.writerow(
         [
@@ -1316,6 +1632,18 @@ def build_template_csv() -> bytes:
             -20,
             80,
             "",
+            "outdoor",
+            "",
+            "",
+            "",
+            "",
+            1.1,
+            -20,
+            "",
+            "",
+            "",
+            "",
+            0,
         ]
     )
     writer.writerow(
@@ -1333,6 +1661,18 @@ def build_template_csv() -> bytes:
             -20,
             60,
             "",
+            "outdoor",
+            "",
+            "",
+            "",
+            "",
+            1.1,
+            -20,
+            "",
+            "",
+            "",
+            "",
+            0,
         ]
     )
     writer.writerow(

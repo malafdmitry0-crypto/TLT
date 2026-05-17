@@ -113,6 +113,11 @@ SHAPE_OPTIONS = (
     ("spherical", "Сфера"),
 )
 SOURCE_OPTIONS = (("manual", "вручную"), ("climate", "из климата"))
+CLIMATE_BASIS_OPTIONS = (
+    ("t_0_92", "0,92"),
+    ("t_0_98", "0,98"),
+    ("t_abs_min", "Абс. мин."),
+)
 ENVIRONMENT_OPTIONS = (("normal", "Нормальная"), ("aggressive", "Агрессивная"))
 ZONE_OPTIONS = (("safe", "Безопасная"), ("hazardous", "Взрывоопасная"))
 LAMBDA_MODE_OPTIONS = (("reference", "Справ."), ("manual", "Ручн."))
@@ -729,11 +734,13 @@ def _common_fields(object_type: str) -> list[FieldDef]:
             "Обеспеченность климата",
             "Обесп.",
             (object_type,),
-            "number",
+            "enum",
             _param("climate_temperature_basis"),
-            filter_ops=("range",),
+            filter_ops=("in",),
             sortable=True,
-            sort_type="number",
+            sort_type="label",
+            options_mode="inline",
+            static_options=CLIMATE_BASIS_OPTIONS,
         ),
         FieldDef(
             "burial_depth",
@@ -1197,7 +1204,7 @@ OBJECT_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
     "climate_city": lambda: _sql_param_text("climate_city"),
     "climate_region": lambda: _sql_param_text("climate_region"),
     "climate_key": lambda: _sql_param_text("climate_key"),
-    "climate_temperature_basis": lambda: _sql_param_number("climate_temperature_basis"),
+    "climate_temperature_basis": lambda: _sql_param_text("climate_temperature_basis"),
     "burial_depth": lambda: _sql_param_number("burial_depth"),
     "ground_type": lambda: _sql_param_text("ground_type"),
     "ground_conductivity": lambda: _sql_param_number("ground_conductivity"),

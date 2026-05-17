@@ -1,4 +1,5 @@
 import {
+  getHeatCalcFieldInputSettingsVersion,
   getHeatCalcFieldDefinition,
   HEATCALC_FIELD_DEFINITIONS,
   isHeatCalcFieldStepConfigurable,
@@ -36,7 +37,7 @@ const OBJECT_TYPES: HeatCalcObjectType[] = ['pipe', 'tank'];
 const EPSILON = 1e-9;
 const MAX_STEP = 1_000_000;
 
-export const HEATCALC_FIELD_INPUT_SETTINGS_VERSION = 1;
+export const HEATCALC_FIELD_INPUT_SETTINGS_VERSION = getHeatCalcFieldInputSettingsVersion();
 export const HEATCALC_FIELD_INPUT_PREF_KEY = 'heatcalc.fieldInputs.v1';
 export const HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY = 'heatcalc.fieldInputs.v1.guest';
 export const HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY = 'heatcalc.fieldInputs.v1.registered.cache';

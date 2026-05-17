@@ -2,6 +2,7 @@ import fieldRegistryConfig from '@/config/heatcalc-fields.default.json';
 import type { HeatCalcObjectType } from '@/types/project';
 
 export type HeatCalcFieldId = string;
+export type HeatCalcTableScope = HeatCalcObjectType | 'all';
 export type HeatCalcEditorKind = 'text' | 'number' | 'select';
 export type HeatCalcInputUnit = 'mm' | 'm' | 'raw';
 export type HeatCalcFieldLabelContext = 'form' | 'table' | 'settings' | 'report' | 'import';
@@ -386,6 +387,10 @@ function tableConfig(): Record<string, unknown> {
   return isRecord(rawTable) ? rawTable : {};
 }
 
+export function getHeatCalcTableSettingsVersion() {
+  return numberValue(tableConfig().settings_version) ?? 1;
+}
+
 export function getHeatCalcTableColumnRegistry(type: HeatCalcObjectType): HeatCalcRegistryTableColumn[] {
   const rawRegistry = tableConfig().registry;
   const registry: Record<string, unknown> = isRecord(rawRegistry) ? rawRegistry : {};
@@ -411,7 +416,7 @@ export function getHeatCalcTableColumnRegistry(type: HeatCalcObjectType): HeatCa
     .filter((column) => column.key.length > 0);
 }
 
-export function getHeatCalcDefaultVisibleTableKeys(type: HeatCalcObjectType) {
+export function getHeatCalcDefaultVisibleTableKeys(type: HeatCalcTableScope) {
   const rawDefaultVisible = tableConfig().default_visible;
   const defaultVisible: Record<string, unknown> = isRecord(rawDefaultVisible) ? rawDefaultVisible : {};
   const rawKeys = defaultVisible[type];
@@ -419,9 +424,17 @@ export function getHeatCalcDefaultVisibleTableKeys(type: HeatCalcObjectType) {
   return keys.filter((key): key is string => typeof key === 'string');
 }
 
-export function getHeatCalcFormFieldIds(type: HeatCalcObjectType) {
+function formConfig(): Record<string, unknown> {
   const rawForm = rawConfig.form;
-  const form: Record<string, unknown> = isRecord(rawForm) ? rawForm : {};
+  return isRecord(rawForm) ? rawForm : {};
+}
+
+export function getHeatCalcFieldInputSettingsVersion() {
+  return numberValue(formConfig().field_input_settings_version) ?? 1;
+}
+
+export function getHeatCalcFormFieldIds(type: HeatCalcObjectType) {
+  const form = formConfig();
   const rawSections = form.sections;
   const sectionsByType: Record<string, unknown> = isRecord(rawSections) ? rawSections : {};
   const rawTypedSections = sectionsByType[type];

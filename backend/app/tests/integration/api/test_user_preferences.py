@@ -5,6 +5,8 @@ from typing import Any, cast
 import pytest
 from httpx import AsyncClient
 
+from app.generated.heatcalc_field_contract import HEATCALC_TABLE_COLUMNS_VERSION
+
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
@@ -13,7 +15,7 @@ def heatcalc_table_columns_value(
     tank_visible: list[str] | None = None,
 ) -> dict[str, object]:
     return {
-        "version": 4,
+        "version": HEATCALC_TABLE_COLUMNS_VERSION,
         "types": {
             "pipe": {
                 "visibleOrder": pipe_visible or ["name", "pipe_dn"],

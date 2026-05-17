@@ -374,6 +374,17 @@ function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormVal
   }
   if (v.wind_speed != null) params.wind_speed = v.wind_speed;
   if (v.alpha_vnesh != null) params.alpha_vnesh = v.alpha_vnesh;
+  const hasClimateKeyField = Object.prototype.hasOwnProperty.call(v, 'climate_key');
+  if (v.climate_key) {
+    params.climate_key = v.climate_key;
+  } else if (v.climate_region && v.climate_city) {
+    params.climate_key = `${v.climate_region}|||${v.climate_city}`;
+  } else if (hasClimateKeyField) {
+    params.climate_key = null;
+    params.climate_city = null;
+    params.climate_region = null;
+    params.climate_temperature_basis = null;
+  }
   if (v.climate_city) params.climate_city = v.climate_city;
   if (v.climate_region) params.climate_region = v.climate_region;
   if (v.climate_temperature_basis) {
@@ -502,9 +513,10 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     climate_city: p.climate_city as string | undefined,
     climate_region: p.climate_region as string | undefined,
     climate_key:
-      p.climate_region != null && p.climate_city != null
+      (p.climate_key as string | undefined) ??
+      (p.climate_region != null && p.climate_city != null
         ? `${String(p.climate_region)}|||${String(p.climate_city)}`
-        : undefined,
+        : undefined),
     climate_temperature_basis:
       p.climate_temperature_basis as PipeFormValues['climate_temperature_basis'],
     ambient_temperature_source:
@@ -583,9 +595,10 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     climate_city: p.climate_city as string | undefined,
     climate_region: p.climate_region as string | undefined,
     climate_key:
-      p.climate_region != null && p.climate_city != null
+      (p.climate_key as string | undefined) ??
+      (p.climate_region != null && p.climate_city != null
         ? `${String(p.climate_region)}|||${String(p.climate_city)}`
-        : undefined,
+        : undefined),
     climate_temperature_basis:
       p.climate_temperature_basis as TankFormValues['climate_temperature_basis'],
     ambient_temperature_source:

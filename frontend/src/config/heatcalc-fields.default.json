@@ -3210,6 +3210,7 @@
     }
   },
   "table": {
+    "settings_version": 8,
     "registry": {
       "pipe": [
         {
@@ -3696,7 +3697,7 @@
           "group": "Температура и среда",
           "defaultWidthPct": 8.2,
           "minWidthPx": 64,
-          "valueType": "number",
+          "valueType": "enum",
           "defaultVisible": false,
           "sortable": true,
           "filterable": true,
@@ -4442,7 +4443,7 @@
           "group": "Температура и среда",
           "defaultWidthPct": 8.2,
           "minWidthPx": 64,
-          "valueType": "number",
+          "valueType": "enum",
           "defaultVisible": false,
           "sortable": true,
           "filterable": true,
@@ -4716,6 +4717,19 @@
         "process_temperature",
         "ambient_temperature",
         "q_additional"
+      ],
+      "all": [
+        "index",
+        "heat_loss_status",
+        "total_heat_loss",
+        "type",
+        "name",
+        "placement",
+        "insulation_layer_count",
+        "insulation_thickness",
+        "insulation_material",
+        "process_temperature",
+        "ambient_temperature"
       ]
     },
     "export": {
@@ -4728,6 +4742,7 @@
     }
   },
   "form": {
+    "field_input_settings_version": 1,
     "sections": {
       "pipe": [
         {

@@ -155,6 +155,9 @@ describe('pipeFormToApiParams', () => {
       burial_depth: 1.2,
       ground_type: 'clay',
       ground_conductivity: 1.7,
+      climate_region: 'ХМАО',
+      climate_city: 'Сургут',
+      climate_temperature_basis: 't_0_92',
       safety_factor: 1.2,
       supply_voltage: 380,
       vapor_temperature: 140,
@@ -172,6 +175,8 @@ describe('pipeFormToApiParams', () => {
     expect(api.burial_depth).toBe(1.2);
     expect(api.ground_type).toBe('clay');
     expect(api.ground_conductivity).toBe(1.7);
+    expect(api.climate_key).toBe('ХМАО|||Сургут');
+    expect(api.climate_temperature_basis).toBe('t_0_92');
     expect(api.safety_factor).toBe(1.2);
     expect(api.supply_voltage).toBe(380);
     expect(api.vapor_temperature).toBe(140);
@@ -196,6 +201,23 @@ describe('pipeFormToApiParams', () => {
     expect(api).not.toHaveProperty('flange_count');
     expect(api).not.toHaveProperty('support_count');
     expect(api).not.toHaveProperty('num_local_elements');
+  });
+
+  it('передаёт null для климатических полей при очистке выбора климата', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      climate_key: undefined,
+    });
+
+    expect(api.climate_key).toBeNull();
+    expect(api.climate_city).toBeNull();
+    expect(api.climate_region).toBeNull();
+    expect(api.climate_temperature_basis).toBeNull();
   });
 
   it('сохраняет явно заданные нули локальных элементов', () => {
@@ -314,12 +336,16 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
       process_temperature: 80,
       pipe_length: 50,
       vapor_temperature: 140,
+      climate_key: 'ХМАО|||Сургут',
+      climate_region: 'ХМАО',
+      climate_city: 'Сургут',
       local_element_equiv_length: 1.2,
       name: 'X',
     });
     expect(form.outer_diameter_mm).toBe(108);
     expect(form.insulation_thickness_mm).toBe(50);
     expect(form.vapor_temperature).toBe(140);
+    expect(form.climate_key).toBe('ХМАО|||Сургут');
     expect(form.local_element_equiv_length).toBe(1.2);
     expect(form.name).toBe('X');
   });

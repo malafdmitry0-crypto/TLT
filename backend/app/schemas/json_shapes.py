@@ -128,6 +128,7 @@ class PipeParamsDict(TypedDict, total=False):
     ground_type: str | None
     climate_city: str | None
     climate_region: str | None
+    climate_key: str | None
     climate_temperature_basis: Literal["t_0_92", "t_0_98", "t_abs_min"] | None
     ambient_temperature_source: Literal["manual", "climate"] | None
     wind_speed_source: Literal["manual", "climate"] | None
@@ -174,6 +175,7 @@ class TankParamsDict(TypedDict, total=False):
     ground_type: str | None
     climate_city: str | None
     climate_region: str | None
+    climate_key: str | None
     climate_temperature_basis: Literal["t_0_92", "t_0_98", "t_abs_min"] | None
     ambient_temperature_source: Literal["manual", "climate"] | None
     wind_speed_source: Literal["manual", "climate"] | None

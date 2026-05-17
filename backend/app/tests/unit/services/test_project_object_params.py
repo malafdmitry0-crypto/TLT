@@ -51,6 +51,43 @@ def test_explicit_blank_pipe_wall_is_not_silently_defaulted():
         )
 
 
+def test_climate_key_is_derived_from_region_and_city():
+    params = normalize_project_object_params(
+        "pipe",
+        {
+            "outer_diameter": 0.108,
+            "pipe_length": 10,
+            "insulation_thickness": 0.05,
+            "insulation_material": "mineral_wool",
+            "ambient_temperature": -20,
+            "process_temperature": 80,
+            "climate_region": "ХМАО",
+            "climate_city": "Сургут",
+        },
+    )
+
+    assert params["climate_key"] == "ХМАО|||Сургут"
+
+
+def test_climate_region_and_city_are_derived_from_key_when_missing():
+    params = normalize_project_object_params(
+        "pipe",
+        {
+            "outer_diameter": 0.108,
+            "pipe_length": 10,
+            "insulation_thickness": 0.05,
+            "insulation_material": "mineral_wool",
+            "ambient_temperature": -20,
+            "process_temperature": 80,
+            "climate_key": "ХМАО|||Сургут",
+        },
+    )
+
+    assert params["climate_region"] == "ХМАО"
+    assert params["climate_city"] == "Сургут"
+    assert params["climate_key"] == "ХМАО|||Сургут"
+
+
 def test_declared_second_insulation_layer_requires_fields():
     with pytest.raises(ProjectObjectParamsError, match="2-го слоя"):
         prepare_project_object_params(

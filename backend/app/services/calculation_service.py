@@ -616,15 +616,28 @@ class CalculationService:
     ) -> HeatLossResultDict:
         data = self._apply_climate_policy(object_type, data)
         if object_type == "pipe":
-            params = PipeHeatLossParams(**data)
+            params = PipeHeatLossParams(
+                **self._heat_loss_formula_input(PipeHeatLossParams, data)
+            )
             pipe_result = calc_pipe_heat_loss(params, coefficients=coefficients)
             return cast(PipeHeatLossResultDict, pipe_result.model_dump())
         elif object_type == "tank":
-            params_t = TankHeatLossParams(**data)
+            params_t = TankHeatLossParams(
+                **self._heat_loss_formula_input(TankHeatLossParams, data)
+            )
             tank_result = calc_tank_heat_loss(params_t, coefficients=coefficients)
             return cast(TankHeatLossResultDict, tank_result.model_dump())
         else:
             raise CalculationError(f"Неподдерживаемый тип объекта: {object_type}")
+
+    @staticmethod
+    def _heat_loss_formula_input(
+        schema: type[PipeHeatLossParams] | type[TankHeatLossParams],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Project full object params to the strict formula schema contract."""
+
+        return {key: value for key, value in data.items() if key in schema.model_fields}
 
     async def recalculate_object(self, obj: ProjectObject) -> ProjectObject:
         """Автопересчёт объекта при изменении параметров (мутирует obj).

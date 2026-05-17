@@ -37,6 +37,7 @@ run_docs() {
 
 run_contracts() {
   echo "▶ Docs → formula → API → UI contract matrix"
+  python3 "$ROOT/scripts/sync-heatcalc-field-contract.py" --check
   python3 "$ROOT/scripts/verify-business-contracts.py"
 }
 

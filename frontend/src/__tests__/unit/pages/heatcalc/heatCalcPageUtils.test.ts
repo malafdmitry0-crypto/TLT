@@ -173,6 +173,7 @@ describe('heatCalcPageUtils', () => {
   it('выбирает вид фильтра по capability или локальному fallback', () => {
     expect(filterKindForColumn('process_temperature')).toBe('numberRange');
     expect(filterKindForColumn('placement')).toBe('enum');
+    expect(filterKindForColumn('climate_temperature_basis')).toBe('enum');
     expect(filterKindForColumn('name')).toBe('text');
     expect(filterKindForColumn('custom', capability('custom', ['in']))).toBe('enum');
     expect(filterKindForColumn('custom', capability('custom', ['range']))).toBe('numberRange');

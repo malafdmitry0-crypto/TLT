@@ -58,6 +58,7 @@ def normalize_project_object_params(
     if "safety_factor" not in normalized:
         normalized["safety_factor"] = 1.1
         normalized.setdefault("safety_factor_source", "default")
+    _normalize_climate_key(normalized)
     _normalize_placement(normalized)
     _normalize_insulation_layers(normalized)
 
@@ -102,6 +103,19 @@ def _apply_defaults(params: dict[str, Any], defaults: Mapping[str, Any]) -> None
     for key, value in defaults.items():
         if key not in params:
             params[key] = value
+
+
+def _normalize_climate_key(params: dict[str, Any]) -> None:
+    key = params.get("climate_key")
+    if key and "|||" in str(key):
+        region_from_key, city_from_key = str(key).split("|||", 1)
+        params.setdefault("climate_region", region_from_key)
+        params.setdefault("climate_city", city_from_key)
+    city = params.get("climate_city")
+    region = params.get("climate_region")
+    if not city or not region:
+        return
+    params["climate_key"] = f"{region}|||{city}"
 
 
 def _apply_pipe_defaults(params: dict[str, Any]) -> None:

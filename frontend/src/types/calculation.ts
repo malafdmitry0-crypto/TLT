@@ -36,6 +36,7 @@ export interface PipeParams {
   alpha_vnesh?: number | null;
   climate_city?: string | null;
   climate_region?: string | null;
+  climate_key?: string | null;
   climate_temperature_basis?: 't_0_92' | 't_0_98' | 't_abs_min' | null;
   ambient_temperature_source?: 'manual' | 'climate' | null;
   wind_speed_source?: 'manual' | 'climate' | null;
@@ -93,6 +94,7 @@ export interface TankParams {
   alpha_vnesh?: number | null;
   climate_city?: string | null;
   climate_region?: string | null;
+  climate_key?: string | null;
   climate_temperature_basis?: 't_0_92' | 't_0_98' | 't_abs_min' | null;
   ambient_temperature_source?: 'manual' | 'climate' | null;
   wind_speed_source?: 'manual' | 'climate' | null;

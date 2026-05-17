@@ -8,13 +8,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_employee
+from app.generated.heatcalc_field_contract import (
+    HEATCALC_FIELD_INPUT_FIELD_KEYS,
+    HEATCALC_FIELD_INPUT_VERSION,
+    HEATCALC_TABLE_COLUMN_KEYS,
+    HEATCALC_TABLE_COLUMNS_VERSION,
+)
 from app.models.user_preference import UserPreference
 from app.schemas.user_preference import UserPreferenceResponse, UserPreferenceUpdate
 
 router = APIRouter()
 
 HEATCALC_TABLE_COLUMNS_PREF_KEY = "heatcalc.tableColumns.v1"
-HEATCALC_TABLE_COLUMNS_VERSION = 4
 HEATCALC_TABLE_COLUMN_WIDTH_MIN = 3
 HEATCALC_TABLE_COLUMN_WIDTH_MAX = 60
 HEATCALC_TABLE_COLUMN_LAYOUT_KEYS = {"widthPct"}
@@ -38,7 +43,6 @@ HEATCALC_TABLE_VIEW_SIDE_FORM_WIDTH_MAX = 62
 HEATCALC_FORM_SECTION_WEIGHT_MIN = 0.35
 HEATCALC_FORM_SECTION_WEIGHT_MAX = 3
 HEATCALC_FIELD_INPUT_PREF_KEY = "heatcalc.fieldInputs.v1"
-HEATCALC_FIELD_INPUT_VERSION = 1
 HEATCALC_FIELD_INPUT_MAX_STEP = 1_000_000
 HEATCALC_FIELD_INPUT_KEYS = {"version", "fields"}
 HEATCALC_FIELD_INPUT_LAYOUT_KEYS = {"step"}
@@ -91,163 +95,6 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
 }
 ELECTRICAL_TABLE_COLUMN_PAYLOAD_KEYS = {"version", "visibleOrder", "columns"}
 ELECTRICAL_TABLE_COLUMN_LAYOUT_KEYS = {"widthPct"}
-
-HEATCALC_TABLE_COLUMN_KEYS: dict[str, set[str]] = {
-    "pipe": {
-        "index",
-        "heat_loss_status",
-        "heat_loss_per_meter",
-        "total_heat_loss",
-        "type",
-        "name",
-        "pipe_outer_diameter",
-        "pipe_dn",
-        "pipe_length",
-        "pipe_wall_thickness",
-        "pipe_material",
-        "pipe_lambda",
-        "pipe_lambda_mode",
-        "placement",
-        "insulation_layer_count",
-        "insulation_thickness",
-        "insulation_material",
-        "first_insulation_lambda",
-        "second_insulation_thickness",
-        "second_insulation_material",
-        "second_insulation_lambda",
-        "third_insulation_thickness",
-        "third_insulation_material",
-        "third_insulation_lambda",
-        "insulation_cover_material",
-        "process_temperature",
-        "ambient_temperature",
-        "ambient_temperature_source",
-        "max_ambient_temperature",
-        "max_process_temperature",
-        "wind_speed",
-        "wind_speed_source",
-        "alpha_vnesh",
-        "environment",
-        "zone_classification",
-        "temperature_group",
-        "climate_city",
-        "climate_region",
-        "climate_key",
-        "climate_temperature_basis",
-        "burial_depth",
-        "ground_type",
-        "ground_conductivity",
-        "min_switch_temperature",
-        "supply_voltage",
-        "safety_factor",
-        "steam_tracing",
-        "vapor_temperature",
-        "valve_count",
-        "flange_count",
-        "support_count",
-        "local_element_equiv_length",
-        "delta_t",
-        "applied_alpha_vnesh",
-        "applied_safety_factor",
-        "thermal_resistance",
-        "wall_resistance",
-        "insulation_resistance",
-        "external_resistance",
-        "effective_length",
-    },
-    "tank": {
-        "index",
-        "heat_loss_status",
-        "heat_loss_per_m2",
-        "total_heat_loss",
-        "type",
-        "name",
-        "tank_shape",
-        "tank_dimensions",
-        "tank_diameter",
-        "tank_height",
-        "tank_length",
-        "tank_width",
-        "tank_wall_thickness",
-        "tank_wall_lambda",
-        "placement",
-        "insulation_layer_count",
-        "insulation_thickness",
-        "insulation_material",
-        "first_insulation_lambda",
-        "second_insulation_thickness",
-        "second_insulation_material",
-        "second_insulation_lambda",
-        "third_insulation_thickness",
-        "third_insulation_material",
-        "third_insulation_lambda",
-        "insulation_cover_material",
-        "process_temperature",
-        "ambient_temperature",
-        "ambient_temperature_source",
-        "max_ambient_temperature",
-        "max_process_temperature",
-        "wind_speed",
-        "wind_speed_source",
-        "alpha_vnesh",
-        "environment",
-        "zone_classification",
-        "temperature_group",
-        "climate_city",
-        "climate_region",
-        "climate_key",
-        "climate_temperature_basis",
-        "burial_depth",
-        "ground_type",
-        "ground_conductivity",
-        "min_switch_temperature",
-        "supply_voltage",
-        "safety_factor",
-        "q_additional",
-        "steam_tracing",
-        "vapor_temperature",
-        "delta_t",
-        "applied_alpha_vnesh",
-        "applied_safety_factor",
-        "wall_resistance",
-        "insulation_resistance",
-        "external_resistance",
-        "ground_resistance",
-        "surface_area",
-        "air_surface_area",
-        "ground_surface_area",
-    },
-}
-HEATCALC_TABLE_COLUMN_KEYS["all"] = (
-    HEATCALC_TABLE_COLUMN_KEYS["pipe"] | HEATCALC_TABLE_COLUMN_KEYS["tank"]
-)
-
-HEATCALC_FIELD_INPUT_FIELD_KEYS: dict[str, set[str]] = {
-    "pipe": {
-        "outer_diameter_mm",
-        "pipe_length",
-        "wall_thickness_mm",
-        "insulation_thickness_mm",
-        "ambient_temperature",
-        "process_temperature",
-        "min_switch_temperature",
-        "safety_factor",
-        "vapor_temperature",
-    },
-    "tank": {
-        "diameter_mm",
-        "height_mm",
-        "length_mm",
-        "width_mm",
-        "wall_thickness_mm",
-        "wall_lambda",
-        "insulation_thickness_mm",
-        "ambient_temperature",
-        "process_temperature",
-        "q_additional",
-        "vapor_temperature",
-    },
-}
 
 PreferenceKey = Annotated[
     str,

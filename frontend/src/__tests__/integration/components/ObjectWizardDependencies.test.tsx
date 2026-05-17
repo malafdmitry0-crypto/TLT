@@ -232,6 +232,7 @@ describe('ObjectWizard dependencies', () => {
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.climate_key).toBe('Москва|||Москва');
     expect(payload.climate_temperature_basis).toBe('t_0_92');
   });
 

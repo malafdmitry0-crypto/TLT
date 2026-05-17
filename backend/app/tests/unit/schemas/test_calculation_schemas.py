@@ -35,6 +35,18 @@ class TestPipeHeatLossParams:
                 pipe_length=10,
             )
 
+    def test_unknown_field_rejected(self):
+        with pytest.raises(ValidationError):
+            PipeHeatLossParams(
+                outer_diameter=0.1,
+                insulation_thickness=0.05,
+                insulation_material="mineral_wool",
+                ambient_temperature=-30,
+                process_temperature=80,
+                pipe_length=10,
+                legacy_alias=1,
+            )
+
     def test_zero_thickness_rejected(self):
         with pytest.raises(ValidationError):
             PipeHeatLossParams(
@@ -179,6 +191,19 @@ class TestTankHeatLossParams:
             process_temperature=80,
         )
         assert p.shape == "cylindrical"
+
+    def test_unknown_field_rejected(self):
+        with pytest.raises(ValidationError):
+            TankHeatLossParams(
+                shape="cylindrical",
+                diameter=2,
+                height=3,
+                insulation_thickness=0.1,
+                insulation_material="mineral_wool",
+                ambient_temperature=-20,
+                process_temperature=80,
+                legacy_alias=1,
+            )
 
     def test_tank_dimension_limits_accepted(self):
         p = TankHeatLossParams(

@@ -5,6 +5,7 @@ import {
   getHeatCalcFieldInputConfig,
   getHeatCalcFieldLabel,
   getHeatCalcTableColumnRegistry,
+  getHeatCalcTableSettingsVersion,
   type HeatCalcRegistryTableColumn,
 } from '@/domain/heatCalcFields';
 import type { HeatCalcTableLabelFormat } from '@/utils/heatCalcTableViewSettings';
@@ -66,9 +67,7 @@ interface RegisteredTableColumnCache {
   cachedAt: string;
 }
 
-export const HEATCALC_TABLE_COLUMNS_VERSION = 8;
-// The preference key is intentionally unchanged: v8 extends the existing table
-// config instead of creating a parallel source of truth.
+export const HEATCALC_TABLE_COLUMNS_VERSION = getHeatCalcTableSettingsVersion();
 export const HEATCALC_TABLE_COLUMN_PREF_KEY = 'heatcalc.tableColumns.v1';
 export const HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY = 'heatcalc.tableColumns.v1.guest';
 export const HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY = 'heatcalc.tableColumns.v1.registered.cache';
@@ -76,19 +75,7 @@ export const HEATCALC_TABLE_COLUMN_WIDTH_BASE_PX = 1000;
 export const HEATCALC_TABLE_COLUMN_MIN_WIDTH_PCT = 3;
 export const HEATCALC_TABLE_COLUMN_MAX_WIDTH_PCT = 60;
 
-export const HEATCALC_ALL_OBJECT_COLUMN_KEYS: HeatCalcColumnKey[] = [
-  'index',
-  'heat_loss_status',
-  'total_heat_loss',
-  'type',
-  'name',
-  'placement',
-  'insulation_layer_count',
-  'insulation_thickness',
-  'insulation_material',
-  'process_temperature',
-  'ambient_temperature',
-];
+export const HEATCALC_ALL_OBJECT_COLUMN_KEYS: HeatCalcColumnKey[] = getHeatCalcDefaultVisibleTableKeys('all');
 
 function normalizeRegistryColumn(
   column: HeatCalcRegistryTableColumn,

@@ -37,6 +37,10 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
                 "insulation_material": "mineral_wool",
                 "process_temperature": 65,
                 "ambient_temperature": -25,
+                "climate_region": "ЯНАО",
+                "climate_city": "Салехард",
+                "climate_key": "ЯНАО|||Салехард",
+                "climate_temperature_basis": "t_abs_min",
             },
         ),
         ProjectObject(
@@ -55,6 +59,10 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
                 "insulation_material": "foam_glass",
                 "process_temperature": 95,
                 "ambient_temperature": -20,
+                "climate_region": "ХМАО",
+                "climate_city": "Сургут",
+                "climate_key": "ХМАО|||Сургут",
+                "climate_temperature_basis": "t_0_92",
             },
         ),
         ProjectObject(
@@ -100,6 +108,9 @@ class TestObjectQuery:
         assert fields["heat_loss_per_meter"]["filter"]["ops"] == ["range"]
         assert fields["heat_loss_per_meter"]["sort"]["enabled"] is True
         assert fields["total_heat_loss"]["filter"]["ops"] == ["range"]
+        assert fields["climate_temperature_basis"]["data_type"] == "enum"
+        assert fields["climate_temperature_basis"]["filter"]["ops"] == ["in"]
+        assert fields["climate_temperature_basis"]["sort"]["type"] == "label"
         assert fields["index"]["filter"]["enabled"] is False
         assert fields["index"]["filter"]["reason"] == "display_only"
         assert fields["type"]["sort"]["enabled"] is False
@@ -165,6 +176,33 @@ class TestObjectQuery:
         body = resp.json()
         assert body["counts"]["filtered"] == 1
         assert body["items"][0]["params"]["name"] == "Труба Юг"
+
+    async def test_query_filters_climate_basis_as_enum(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        pid = await _project(client, guest_session)
+        await _seed_objects(db_session, pid)
+
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects/query",
+            json={
+                "object_type": "pipe",
+                "filters": [
+                    {
+                        "key": "climate_temperature_basis",
+                        "op": "in",
+                        "values": ["t_0_92"],
+                    }
+                ],
+                "sort": {"key": "climate_temperature_basis", "dir": "asc"},
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["counts"]["filtered"] == 1
+        assert body["items"][0]["params"]["climate_key"] == "ХМАО|||Сургут"
 
     async def test_query_default_page_uses_fast_paginated_response(
         self, client: AsyncClient, guest_session: str, db_session: AsyncSession

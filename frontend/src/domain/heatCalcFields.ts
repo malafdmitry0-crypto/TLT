@@ -7,10 +7,12 @@ export {
   getHeatCalcFieldDefinition,
   getHeatCalcFieldDescription,
   getHeatCalcFieldInputConfig,
+  getHeatCalcFieldInputSettingsVersion,
   getHeatCalcFieldLabel,
   getHeatCalcFormFieldIds,
   getHeatCalcTableColumnRegistry,
   getHeatCalcDefaultVisibleTableKeys,
+  getHeatCalcTableSettingsVersion,
   isHeatCalcFieldStepConfigurable,
 } from './heatCalcFieldRegistry';
 
@@ -28,4 +30,5 @@ export type {
   HeatCalcFieldOption,
   HeatCalcInputUnit,
   HeatCalcRegistryTableColumn,
+  HeatCalcTableScope,
 } from './heatCalcFieldRegistry';

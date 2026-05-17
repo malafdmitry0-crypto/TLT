@@ -134,9 +134,18 @@ class TestExcelRoundTrip:
             "outer_diameter": 0.273,
             "insulation_thickness": 0.1,
             "insulation_material": "polyurethane",
-            "ambient_temperature": -40.0,
+            "ambient_temperature": -42.0,
             "process_temperature": 150.0,
             "pipe_length": 200.5,
+            "climate_region": "ХМАО",
+            "climate_city": "Сургут",
+            "climate_temperature_basis": "t_0_92",
+            "safety_factor": 1.2,
+            "min_switch_temperature": -35,
+            "valve_count": 1,
+            "flange_count": 2,
+            "support_count": 3,
+            "local_element_equiv_length": 2.4,
         }
         await client.post(
             f"/api/v1/projects/{p1['id']}/objects",
@@ -182,8 +191,16 @@ class TestExcelRoundTrip:
         assert abs(p["outer_diameter"] - 0.273) < 1e-6
         assert abs(p["insulation_thickness"] - 0.1) < 1e-6
         assert p["pipe_length"] == 200.5
-        assert p["ambient_temperature"] == -40.0
+        assert p["ambient_temperature"] == -42.0
         assert p["process_temperature"] == 150.0
+        assert p["climate_key"] == "ХМАО|||Сургут"
+        assert p["climate_temperature_basis"] == "t_0_92"
+        assert p["safety_factor"] == 1.2
+        assert p["min_switch_temperature"] == -35
+        assert p["valve_count"] == 1
+        assert p["flange_count"] == 2
+        assert p["support_count"] == 3
+        assert p["local_element_equiv_length"] == 2.4
 
 
 def _build_xlsx(pipes: list[list] | None = None, tanks: list[list] | None = None) -> bytes:

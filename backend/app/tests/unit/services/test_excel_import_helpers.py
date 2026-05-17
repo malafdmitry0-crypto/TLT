@@ -119,6 +119,104 @@ class TestBuildObjectsXlsxSafety:
             assert cell.data_type == "s"
             assert str(cell.value).startswith("'")
 
+    def test_objects_xlsx_exports_extended_roundtrip_fields(self):
+        from types import SimpleNamespace
+
+        from openpyxl import load_workbook
+
+        obj = SimpleNamespace(
+            object_type="pipe",
+            params={
+                "name": "pipe",
+                "outer_diameter": 0.108,
+                "pipe_length": 50,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "placement": "outdoor",
+                "climate_region": "ХМАО",
+                "climate_city": "Сургут",
+                "climate_key": "ХМАО|||Сургут",
+                "climate_temperature_basis": "t_0_92",
+                "safety_factor": 1.2,
+                "min_switch_temperature": -35,
+                "valve_count": 1,
+                "flange_count": 2,
+                "support_count": 3,
+                "local_element_equiv_length": 2.4,
+            },
+        )
+
+        wb = load_workbook(io.BytesIO(build_objects_xlsx([obj])), data_only=True)
+        ws = wb["Трубопроводы"]
+        headers = [cell.value for cell in ws[1]]
+        row = dict(zip(headers, [cell.value for cell in ws[2]], strict=True))
+
+        assert row["Ключ климата"] == "ХМАО|||Сургут"
+        assert row["Обеспеченность климата"] == "t_0_92"
+        assert row["Мин. T включения, °C"] == -35
+        assert row["L экв., м"] == 2.4
+
+
+class TestExtendedRoundtripFields:
+    def test_pipe_parser_reads_climate_and_local_element_fields(self):
+        params, err = _build_pipe_params(
+            {
+                "name": "pipe",
+                "outer_diameter_mm": 108,
+                "pipe_length": 50,
+                "insulation_thickness_mm": 50,
+                "insulation_material": "Минеральная вата",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "placement": "outdoor",
+                "climate_region": "ХМАО",
+                "climate_city": "Сургут",
+                "climate_temperature_basis": "0,92",
+                "safety_factor": 1.2,
+                "min_switch_temperature": -35,
+                "valve_count": 1,
+                "flange_count": 2,
+                "support_count": 3,
+                "local_element_equiv_length": 2.4,
+            }
+        )
+
+        assert err is None
+        assert params is not None
+        assert params["climate_region"] == "ХМАО"
+        assert params["climate_city"] == "Сургут"
+        assert params["climate_temperature_basis"] == "t_0_92"
+        assert params["min_switch_temperature"] == -35
+        assert params["num_local_elements"] == 6
+        assert params["local_element_equiv_length"] == 2.4
+
+    def test_tank_parser_reads_climate_and_q_additional_fields(self):
+        params, err = _build_tank_params(
+            {
+                "name": "tank",
+                "shape": "Цилиндр",
+                "diameter_mm": 2000,
+                "height_mm": 3000,
+                "insulation_thickness_mm": 80,
+                "insulation_material": "Минеральная вата",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "climate_key": "ХМАО|||Сургут",
+                "climate_temperature_basis": "Абс. мин.",
+                "q_additional": 250,
+            }
+        )
+
+        assert err is None
+        assert params is not None
+        assert params["climate_key"] == "ХМАО|||Сургут"
+        assert params["climate_region"] == "ХМАО"
+        assert params["climate_city"] == "Сургут"
+        assert params["climate_temperature_basis"] == "t_abs_min"
+        assert params["q_additional"] == 250
+
 
 class TestToFloat:
     @pytest.mark.parametrize(
