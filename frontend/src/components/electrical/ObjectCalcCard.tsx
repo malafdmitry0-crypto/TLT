@@ -60,6 +60,7 @@ export default function ObjectCalcCard({
   const errorMsg = electricalCalcError(calc);
   const hasSuccess = isElectricalCalcSuccess(calc);
   const isUnsupported = isElectricalCalcUnsupported(calc);
+  const unsupportedText = electricalCalcHint(calc) ?? errorMsg ?? 'Не применимо';
   const objectName = String(obj.params?.name ?? `${typeLabel} #${index + 1}`);
   const canManualPick = obj.is_valid;
 
@@ -120,7 +121,7 @@ export default function ObjectCalcCard({
           description={
             <>
               <div style={{ marginBottom: 6 }}>
-                <Text code>{electricalCalcHint(calc) ?? errorMsg}</Text>
+                <Text code>{unsupportedText}</Text>
               </div>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 Объект остаётся валидным по теплопотерям, но выбранная

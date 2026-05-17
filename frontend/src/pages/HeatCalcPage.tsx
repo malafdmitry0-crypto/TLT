@@ -1071,7 +1071,11 @@ export default function HeatCalcPage() {
         if (status === 'unsupported') {
           return (
             <Tooltip title={heatLossErrorText(r)}>
-              <Tag className="heatloss-status-icon-tag" color="default" aria-label="Не применимо">
+              <Tag
+                className="heatloss-status-icon-tag"
+                color="default"
+                aria-label="Не применимо"
+              >
                 <MinusCircleFilled />
               </Tag>
             </Tooltip>

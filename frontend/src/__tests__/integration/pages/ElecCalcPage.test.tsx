@@ -167,7 +167,9 @@ function makeElectricalPage(
       failed_count:
         summaryOverrides.failed_count ??
         calculations.filter(
-          (calc) => typeof calc.results?.error === 'string' && calc.results?.category !== 'unsupported',
+          (calc) =>
+            typeof calc.results?.error === 'string' &&
+            calc.results?.category !== 'unsupported',
         ).length,
       total_cable_length:
         summaryOverrides.total_cable_length ??
@@ -330,8 +332,10 @@ describe('ElecCalcPage (integration)', () => {
             error: 'CalculationError: Для электрорасчёта резервуара требуется геометрия укладки кабеля: цилиндр/параллелепипед, высота обогрева и шаг укладки',
             error_code: 'unsupported_layout',
             category: 'unsupported',
-            message: 'Электрорасчёт укладки кабеля для сферического резервуара не применим: формула укладки не определена.',
-            hint: 'Теплопотери доступны, но формула укладки кабеля для сферического резервуара не утверждена.',
+            message:
+              'Электрорасчёт укладки кабеля для сферического резервуара не применим: формула укладки не определена.',
+            hint:
+              'Теплопотери доступны, но формула укладки кабеля для сферического резервуара не утверждена.',
             suggested_actions: [],
           },
         },

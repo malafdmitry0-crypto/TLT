@@ -1360,7 +1360,13 @@ export default function ElecCalcPage() {
           );
         }
         return (
-          <Tooltip title={valueText(obj.validation_errors?.message ?? obj.validation_errors?.error ?? obj.validation_errors)}>
+          <Tooltip
+            title={valueText(
+              obj.validation_errors?.message ??
+              obj.validation_errors?.error ??
+              obj.validation_errors,
+            )}
+          >
             <Tag color="error">Ошибка</Tag>
           </Tooltip>
         );
@@ -1383,7 +1389,11 @@ export default function ElecCalcPage() {
         if (unsupported)
           return (
             <Tooltip title={electricalCalcHint(calc) ?? err ?? 'Не применимо'}>
-              <Tag className="electrical-status-icon-tag" color="default" aria-label="Не применимо">
+              <Tag
+                className="electrical-status-icon-tag"
+                color="default"
+                aria-label="Не применимо"
+              >
                 <MinusCircleFilled />
               </Tag>
             </Tooltip>
@@ -2521,7 +2531,9 @@ export default function ElecCalcPage() {
               rowClassName={(obj) => {
                 const calc = stats.calcByObjectId[obj.id];
                 return [
-                  electricalCalcError(calc) && !isElectricalCalcUnsupported(calc) ? 'row-invalid' : '',
+                  electricalCalcError(calc) && !isElectricalCalcUnsupported(calc)
+                    ? 'row-invalid'
+                    : '',
                   activeRowId === obj.id ? 'electrical-row-active' : '',
                 ].filter(Boolean).join(' ');
               }}
@@ -2554,7 +2566,8 @@ export default function ElecCalcPage() {
           {/* Legend / summary row */}
           <div className="legend-row-srs">
             <span>
-              ⓘ Красная строка = ошибка подбора кабеля, серый статус = не применимо. Отметьте строки для пересчёта выбранных или используйте «Пересчитать все».
+              ⓘ Красная строка = ошибка подбора кабеля, серый статус = не применимо.
+              Отметьте строки для пересчёта выбранных или используйте «Пересчитать все».
             </span>
             {calculatedCount > 0 && (
               <Space size={16}>
