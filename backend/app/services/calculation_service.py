@@ -338,6 +338,14 @@ class CalculationService:
             sa_cast(ElectricalCalculation.results["order_cable_length"].astext, Float),
             legacy_order_cable_length,
         )
+        manual_cable_mark = or_(
+            ElectricalCalculation.cable_mark_source == CABLE_MARK_SOURCE_MANUAL,
+            ElectricalCalculation.params["cable_mark_source"].astext == CABLE_MARK_SOURCE_MANUAL,
+            and_(
+                ElectricalCalculation.params["cable_mark"].astext.is_not(None),
+                ElectricalCalculation.params["cable_mark"].astext != "",
+            ),
+        )
         total_power = sa_cast(ElectricalCalculation.results["total_power"].astext, Float)
         current = sa_cast(ElectricalCalculation.results["current"].astext, Float)
         summary_result = await self.db.execute(
@@ -345,6 +353,7 @@ class CalculationService:
                 func.count(ElectricalCalculation.id),
                 func.count(ElectricalCalculation.id).filter(successful_calc),
                 func.count(ElectricalCalculation.id).filter(failed_calc),
+                func.count(ElectricalCalculation.id).filter(manual_cable_mark),
                 func.coalesce(func.sum(order_cable_length).filter(successful_calc), 0.0),
                 func.coalesce(func.sum(total_power).filter(successful_calc), 0.0),
                 func.coalesce(func.sum(current).filter(successful_calc), 0.0),
@@ -357,6 +366,7 @@ class CalculationService:
             electrical_total,
             calculated_count,
             failed_count,
+            manual_cable_mark_count,
             total_cable_length,
             summary_total_power,
             total_current,
@@ -370,6 +380,7 @@ class CalculationService:
             "electrical_calculations_total": int(electrical_total or 0),
             "calculated_count": int(calculated_count or 0),
             "failed_count": int(failed_count or 0),
+            "manual_cable_mark_count": int(manual_cable_mark_count or 0),
             "total_cable_length": float(total_cable_length or 0.0),
             "total_power": float(summary_total_power or 0.0),
             "total_current": float(total_current or 0.0),
@@ -1100,6 +1111,18 @@ class CalculationService:
         if isinstance(params, dict):
             return CalculationService._normalize_cable_type_source(params.get("cable_type_source"))
         return CABLE_TYPE_SOURCE_AUTO
+
+    @staticmethod
+    def _is_manual_cable_selection(calc: ElectricalCalculation) -> bool:
+        if getattr(calc, "cable_mark_source", None) == CABLE_MARK_SOURCE_MANUAL:
+            return True
+        params = getattr(calc, "params", None)
+        if not isinstance(params, dict):
+            return False
+        if params.get("cable_mark_source") == CABLE_MARK_SOURCE_MANUAL:
+            return True
+        cable_mark = params.get("cable_mark")
+        return isinstance(cable_mark, str) and cable_mark.strip() != ""
 
     @staticmethod
     def _normalize_cable_mark_source(value: Any) -> str:
@@ -2053,6 +2076,8 @@ class CalculationService:
                     ElectricalCalculation.object_id,
                     ElectricalCalculation.cable_type,
                     ElectricalCalculation.cable_type_source,
+                    ElectricalCalculation.cable_mark,
+                    ElectricalCalculation.cable_mark_source,
                     ElectricalCalculation.params,
                     ElectricalCalculation.results,
                 )
@@ -2076,7 +2101,7 @@ class CalculationService:
         variant_number: int = 1,
         cable_type: str = "self_regulating",
         electrical_params: dict[str, Any] | None = None,
-        skip_manual: bool = False,
+        skip_manual: bool = True,
         return_calcs: bool = True,
         progress_callback: ProgressCallback | None = None,
         should_cancel: CancelChecker | None = None,
@@ -2169,8 +2194,7 @@ class CalculationService:
                     if (
                         skip_manual
                         and existing_calc is not None
-                        and isinstance(existing_calc.params, dict)
-                        and existing_calc.params.get("cable_mark") is not None
+                        and self._is_manual_cable_selection(existing_calc)
                     ):
                         skipped += 1
                         continue

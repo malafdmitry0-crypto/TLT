@@ -586,7 +586,7 @@ class TaskService:
                     int(payload.get("variant_number", 1)),
                     payload.get("cable_type", "self_regulating"),
                     payload.get("electrical_params") or {},
-                    skip_manual=bool(payload.get("skip_manual", False)),
+                    skip_manual=bool(payload.get("skip_manual", True)),
                     return_calcs=bool(payload.get("include_results", False)),
                     progress_callback=progress_throttler.offer,
                     should_cancel=lambda: self._should_cancel(task_id),

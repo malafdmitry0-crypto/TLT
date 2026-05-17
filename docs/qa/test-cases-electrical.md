@@ -83,6 +83,21 @@
 
 ---
 
+## TC-ELEC-03C: Массовый автоподбор не перезаписывает ручную марку кабеля
+
+**Автоматизировано:** ✅ (integration) `test_calculations.py::TestManualCableSelection::test_batch_default_preserves_manual_cable`<br>
+**Автоматизировано:** ✅ (integration) `test_calculations.py::TestManualCableSelection::test_batch_skip_manual_false_overwrites_manual_cable`<br>
+**Автоматизировано:** ✅ (frontend) `ElecCalcPage.test.tsx` — предупреждение и чекбокс перезаписи
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Выбрать марку кабеля вручную для объекта | `cable_mark_source=manual`, в таблице видна метка `ручн.` |
+| 2 | Запустить `POST /api/v1/calc/electrical/batch` без `skip_manual` | Ручная марка сохранена, объект попал в `skipped` |
+| 3 | Запустить batch с `skip_manual=true` | Ручная марка сохранена |
+| 4 | Запустить batch с `skip_manual=false` / включить чекбокс «Перезаписать ручные выборы» | Марка заменена автоподбором, `cable_mark_source=auto` |
+
+---
+
 ## TC-ELEC-04: Требуемая мощность превышает максимум каталога
 
 **Автоматизировано:** ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_insufficient_cable_raises`

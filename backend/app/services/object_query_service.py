@@ -1330,12 +1330,8 @@ class ObjectQueryService:
 
     def _can_use_sql_query(self, data: ProjectObjectsQueryRequest) -> bool:
         search_text = (data.search.text if data.search else "").strip()
-        if search_text:
-            columns = (
-                data.search.columns
-                if data.search and data.search.columns
-                else list(DEFAULT_SEARCH_COLUMNS[data.object_type])
-            )
+        if search_text and data.search and data.search.columns:
+            columns = data.search.columns
             if any(
                 self._field(data.object_type, key).key not in OBJECT_SQL_EXPRESSIONS
                 for key in columns

@@ -274,9 +274,35 @@ class TestTaskCreation:
         assert task.request_payload["project_id"] == str(project_id)
         assert task.request_payload["variant_number"] == 2
         assert task.request_payload["force_cable_type"] is True
+        assert task.request_payload["skip_manual"] is True
         assert task.request_payload["electrical_params"]["winding_pitch"] == 120
         assert task.request_payload["include_errors"] is False
         assert task.arq_job_id is not None
+        mock_db.add.assert_called_once()
+
+    async def test_create_electrical_batch_task_allows_explicit_manual_overwrite(
+        self,
+        mock_db,
+        guest_principal: CurrentPrincipal,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        service = TaskService(mock_db)
+        service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
+        _allow_active_task_limits(service)
+        project_id = uuid.uuid4()
+
+        task = await service.create_electrical_batch_task(
+            ElectricalBatchJobRequest(
+                project_id=project_id,
+                skip_manual=False,
+            ),
+            guest_principal,
+            queue=QueueOk(),
+            idempotency_key="overwrite-manual",
+        )
+
+        assert task.request_payload["skip_manual"] is False
         mock_db.add.assert_called_once()
 
     async def test_create_returns_existing_active_task(

@@ -803,7 +803,41 @@ class TestManualCableSelection:
         assert not after[0]["results"].get("category")
         assert after[0]["cable_mark"] == "ТЛТ-50"
 
-    async def test_batch_skip_manual_preserves_manual_cable(
+    async def test_batch_default_preserves_manual_cable(
+        self, client: AsyncClient, guest_session: str
+    ):
+        """По умолчанию batch не затирает ручной выбор повторным автоподбором."""
+        pid, oid = await self._create_pipe_project(client, guest_session)
+
+        manual = await client.post(
+            "/api/v1/calc/electrical/select-cable",
+            params={"object_id": oid, "cable_mark": "ТЛТ-50"},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert manual.status_code == 200, manual.text
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/batch",
+            params={"project_id": pid},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["calculated"] == 0
+        assert body["skipped"] == 1
+
+        listing = (
+            await client.get(
+                "/api/v1/calc/electrical",
+                params={"project_id": pid},
+                headers={"X-Session-Id": guest_session},
+            )
+        ).json()
+        assert len(listing) == 1
+        assert listing[0]["cable_mark"] == "ТЛТ-50"
+        assert listing[0]["cable_mark_source"] == "manual"
+
+    async def test_batch_skip_manual_true_preserves_manual_cable(
         self, client: AsyncClient, guest_session: str
     ):
         """skip_manual=true не затирает ручной выбор повторным автоподбором."""
@@ -835,6 +869,41 @@ class TestManualCableSelection:
         ).json()
         assert len(listing) == 1
         assert listing[0]["cable_mark"] == "ТЛТ-50"
+        assert listing[0]["cable_mark_source"] == "manual"
+
+    async def test_batch_skip_manual_false_overwrites_manual_cable(
+        self, client: AsyncClient, guest_session: str
+    ):
+        """Явное skip_manual=false разрешает пользователю перезаписать ручной выбор."""
+        pid, oid = await self._create_pipe_project(client, guest_session)
+
+        manual = await client.post(
+            "/api/v1/calc/electrical/select-cable",
+            params={"object_id": oid, "cable_mark": "ТЛТ-100"},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert manual.status_code == 200, manual.text
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/batch",
+            params={"project_id": pid, "skip_manual": False},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["calculated"] == 1
+        assert body["skipped"] == 0
+
+        listing = (
+            await client.get(
+                "/api/v1/calc/electrical",
+                params={"project_id": pid},
+                headers={"X-Session-Id": guest_session},
+            )
+        ).json()
+        assert len(listing) == 1
+        assert listing[0]["cable_mark"] != "ТЛТ-100"
+        assert listing[0]["cable_mark_source"] == "auto"
 
 
 class TestNoDoubleSafetyFactor:

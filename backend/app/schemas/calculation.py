@@ -834,6 +834,7 @@ class ElectricalPageSummary(BaseModel):
     electrical_calculations_total: int = 0
     calculated_count: int = 0
     failed_count: int = 0
+    manual_cable_mark_count: int = 0
     total_cable_length: float = 0.0
     total_power: float = 0.0
     total_current: float = 0.0
@@ -943,7 +944,7 @@ class ElectricalBatchJobRequest(BaseModel):
     maintain_temperature: float | None = None
     vapor_temperature: float | None = None
     aggressive_product: bool = False
-    skip_manual: bool = False
+    skip_manual: bool = True
     include_results: bool = False
     include_errors: bool = True
 

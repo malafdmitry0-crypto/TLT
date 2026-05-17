@@ -182,6 +182,7 @@ type ElectricalBatchScope = 'all' | 'selected';
 type ElectricalBatchMutationArgs = {
   scope: ElectricalBatchScope;
   objectIds?: string[];
+  skipManual?: boolean;
 };
 const EMPTY_OBJECTS: ProjectObject[] = [];
 const EMPTY_ELECTRICAL_CALCS: ElectricalCalcSummary[] = [];
@@ -681,6 +682,7 @@ export default function ElecCalcPage() {
     () => navigationActiveJobId,
   );
   const [activeBatchScope, setActiveBatchScope] = useState<ElectricalBatchScope | null>(null);
+  const [overwriteManualChoices, setOverwriteManualChoices] = useState(false);
   const activeBatchObjectIdsRef = useRef<string[] | null>(null);
   const pageScopeRef = useRef<{ projectId?: string; variant: number } | null>(null);
   const tableScrollRegionsRef = useRef<HTMLDivElement | null>(null);
@@ -1026,7 +1028,7 @@ export default function ElecCalcPage() {
   }, [isRegisteredUser, persistedTableViewPreference, registeredUserId]);
 
   const batchMut = useMutation({
-    mutationFn: ({ scope, objectIds }: ElectricalBatchMutationArgs) => {
+    mutationFn: ({ scope, objectIds, skipManual = true }: ElectricalBatchMutationArgs) => {
       const selectedObjectIds = objectIds ?? [];
       const objectOverrides = scope === 'selected'
         ? objectOverridesForIds(selectedObjectIds)
@@ -1051,6 +1053,7 @@ export default function ElecCalcPage() {
           maintainTemperature,
           vaporTemperature,
           aggressiveProduct,
+          skipManual,
           objectIds: scope === 'selected' ? selectedObjectIds : undefined,
           forceCableType: scope === 'all',
           objectOverrides: objectOverrides.length > 0 ? objectOverrides : undefined,
@@ -1212,6 +1215,7 @@ export default function ElecCalcPage() {
         aggressiveProduct,
         objectIds: [objectId],
         forceCableType: true,
+        skipManual: false,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
@@ -2181,6 +2185,39 @@ export default function ElecCalcPage() {
   const totalCableLength = pageSummary?.total_cable_length ?? stats.totalCableLength;
   const totalPower = pageSummary?.total_power ?? stats.totalPower;
   const totalCurrent = pageSummary?.total_current ?? stats.totalCurrent;
+  const visibleManualCableCount = useMemo(
+    () => objects.reduce(
+      (count, object) =>
+        count + (getCableMarkSource(stats.calcByObjectId[object.id]) === 'manual' ? 1 : 0),
+      0,
+    ),
+    [objects, stats.calcByObjectId],
+  );
+  const manualCableCount = pageSummary?.manual_cable_mark_count ?? visibleManualCableCount;
+  const selectedManualCableCount = useMemo(
+    () => selectedRowKeys.reduce(
+      (count, objectId) =>
+        count + (getCableMarkSource(stats.calcByObjectId[objectId]) === 'manual' ? 1 : 0),
+      0,
+    ),
+    [selectedRowKeys, stats.calcByObjectId],
+  );
+  const renderManualOverwriteControl = useCallback((manualCount: number): ReactNode => {
+    if (manualCount <= 0) return null;
+    return (
+      <>
+        <Text type="secondary">
+          Найдено ручных выборов: {manualCount}. По умолчанию они будут сохранены и пропущены.
+        </Text>
+        <Checkbox
+          checked={overwriteManualChoices}
+          onChange={(event) => setOverwriteManualChoices(event.target.checked)}
+        >
+          Перезаписать ручные выборы ({manualCount})
+        </Checkbox>
+      </>
+    );
+  }, [overwriteManualChoices]);
   const electricalErrorItems = useMemo(() => objects
     .map((obj, index) => {
       const calc = stats.calcByObjectId[obj.id];
@@ -2485,32 +2522,84 @@ export default function ElecCalcPage() {
             style={{ width: 128 }}
           />
           <span className="sep" />
-          <Button
-            size="small"
-            type="primary"
-            icon={<ReloadOutlined />}
-            loading={batchMut.isPending || isJobActive}
-            disabled={selectedObjectsCount === 0 || isJobActive}
-            onClick={() =>
-              batchMut.mutate({
-                scope: 'selected',
-                objectIds: selectedRowKeys,
-              })
-            }
-          >
-            Пересчитать выбранные ({selectedObjectsCount})
-          </Button>
+          {selectedManualCableCount > 0 ? (
+            <Popconfirm
+              title="Пересчитать выбранные объекты?"
+              description={(
+                <Space direction="vertical" size={8}>
+                  <Text>
+                    Будет обработано выбранных объектов: {selectedObjectsCount}.
+                  </Text>
+                  {renderManualOverwriteControl(selectedManualCableCount)}
+                </Space>
+              )}
+              okText="Пересчитать"
+              okButtonProps={{ danger: overwriteManualChoices }}
+              cancelText="Отмена"
+              onOpenChange={(open) => {
+                if (open) setOverwriteManualChoices(false);
+              }}
+              onConfirm={() =>
+                batchMut.mutate({
+                  scope: 'selected',
+                  objectIds: selectedRowKeys,
+                  skipManual: !overwriteManualChoices,
+                })
+              }
+              disabled={selectedObjectsCount === 0 || isJobActive}
+            >
+              <Button
+                size="small"
+                type="primary"
+                icon={<ReloadOutlined />}
+                loading={batchMut.isPending || isJobActive}
+                disabled={selectedObjectsCount === 0 || isJobActive}
+              >
+                Пересчитать выбранные ({selectedObjectsCount})
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Button
+              size="small"
+              type="primary"
+              icon={<ReloadOutlined />}
+              loading={batchMut.isPending || isJobActive}
+              disabled={selectedObjectsCount === 0 || isJobActive}
+              onClick={() =>
+                batchMut.mutate({
+                  scope: 'selected',
+                  objectIds: selectedRowKeys,
+                  skipManual: true,
+                })
+              }
+            >
+              Пересчитать выбранные ({selectedObjectsCount})
+            </Button>
+          )}
           <Popconfirm
             title={`Пересчитать все объекты СО${variant}?`}
-            description={
-              `Все объекты СО${variant} будут пересчитаны с типом ` +
-              `«${CABLE_TYPE_LABEL[cableTypeForRecalculation]}». ` +
-              'Текущие типы кабеля у объектов будут заменены. Продолжить?'
-            }
+            description={(
+              <Space direction="vertical" size={8}>
+                <Text>
+                  {manualCableCount > 0
+                    ? `Строки без ручной марки в СО${variant} будут пересчитаны с типом `
+                    : `Все объекты СО${variant} будут пересчитаны с типом `}
+                  «{CABLE_TYPE_LABEL[cableTypeForRecalculation]}». Тип кабеля у пересчитываемых
+                  строк будет заменён.
+                </Text>
+                {renderManualOverwriteControl(manualCableCount)}
+              </Space>
+            )}
             okText="Да, пересчитать все"
             okButtonProps={{ danger: true }}
             cancelText="Отмена"
-            onConfirm={() => batchMut.mutate({ scope: 'all' })}
+            onOpenChange={(open) => {
+              if (open) setOverwriteManualChoices(false);
+            }}
+            onConfirm={() => batchMut.mutate({
+              scope: 'all',
+              skipManual: !overwriteManualChoices,
+            })}
             disabled={validObjectsCount === 0 || isJobActive}
           >
             <Button

@@ -373,7 +373,7 @@ async def batch_calc_electrical(
     vapor_temperature: float | None = None,
     aggressive_product: bool = False,
     selection_policy: SelectionPolicy = "technical_minimum",
-    skip_manual: bool = False,
+    skip_manual: bool = True,
     include_results: bool = True,
     include_errors: bool = True,
     object_ids: list[UUID] | None = Query(default=None),

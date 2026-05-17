@@ -175,6 +175,7 @@ export interface ElectricalPageSummary {
   electrical_calculations_total: number;
   calculated_count: number;
   failed_count: number;
+  manual_cable_mark_count?: number;
   total_cable_length: number;
   total_power: number;
   total_current: number;

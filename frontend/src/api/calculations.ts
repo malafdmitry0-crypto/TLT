@@ -155,7 +155,7 @@ function electricalParams(
     vapor_temperature: options.vaporTemperature ?? undefined,
     aggressive_product: options.aggressiveProduct ?? undefined,
     selection_policy: options.selectionPolicy ?? undefined,
-    skip_manual: options.skipManual ?? undefined,
+    skip_manual: options.skipManual ?? true,
   };
 }
 
