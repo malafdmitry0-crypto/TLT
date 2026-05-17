@@ -352,6 +352,58 @@ async def test_electrical_query_search_uses_sql_page_not_python_project_fallback
     ]
     assert len(page_selects) == 1
     assert "LIMIT" in page_selects[0]
+    assert "OFFSET" not in page_selects[0]
+
+
+async def test_electrical_query_sorted_next_page_uses_keyset_without_offset(
+    db_session: AsyncSession,
+    employee_user: User,
+    test_engine: AsyncEngine,
+):
+    project, _objects = await _seed_project(
+        db_session,
+        employee_user,
+        per_type=200,
+        with_electrical=True,
+    )
+    first_page = await ElectricalQueryService(db_session).query(
+        ElectricalQueryRequest(
+            project_id=project.id,
+            page=1,
+            page_size=50,
+            sort={"key": "object_name", "dir": "asc"},
+        ),
+        _principal(employee_user),
+    )
+    cursor = first_page.page_info.next_cursor
+    assert cursor is not None
+
+    with count_sql(test_engine) as statements:
+        response = await ElectricalQueryService(db_session).query(
+            ElectricalQueryRequest(
+                project_id=project.id,
+                page=2,
+                page_size=50,
+                sort={"key": "object_name", "dir": "asc"},
+                after_sort_order=cursor.sort_order,
+                after_id=cursor.id,
+                after_key=cursor.key,
+                after_value=cursor.value,
+                after_value_is_null=cursor.value_is_null,
+            ),
+            _principal(employee_user),
+        )
+
+    assert len(response.items) == 50
+    _assert_query_count(statements, 7)
+    page_selects = [
+        statement
+        for statement in statements
+        if "LEFT OUTER JOIN electrical_calculations" in statement and "ORDER BY" in statement
+    ]
+    assert len(page_selects) == 1
+    assert "LIMIT" in page_selects[0]
+    assert "OFFSET" not in page_selects[0]
 
 
 async def test_list_projects_uses_lightweight_object_type_lookup(

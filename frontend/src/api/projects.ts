@@ -151,17 +151,6 @@ export async function deleteObject(
   await apiClient.delete(`/projects/${projectId}/objects/${objectId}`);
 }
 
-export async function reorderObjects(
-  projectId: string,
-  order: string[]
-): Promise<ProjectObject[]> {
-  const { data } = await apiClient.put<ProjectObject[]>(
-    `/projects/${projectId}/objects/reorder`,
-    { order }
-  );
-  return data;
-}
-
 export type ImportMode = 'append' | 'merge' | 'replace';
 
 export interface ImportResult {

@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "HeatCalc"
     API_V1_PREFIX: str = "/api/v1"
     DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "json"
+    LOG_ACCESS: bool = False
+    AUDIT_ENABLED: bool = True
+    AUDIT_FAIL_CLOSED: bool = False
 
     # CORS — comma-separated список разрешённых origin'ов фронта.
     # Формат в env: CORS_ORIGINS=https://example.ru,https://www.example.ru

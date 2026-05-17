@@ -48,6 +48,29 @@ Override `docker-compose.dev.yml`:
 - Все порты опубликованы для удобства отладки.
 - `GUEST_MAX_SESSIONS_PER_IP=500` для прогона e2e.
 
+## Локальные логи и observability
+
+Backend и worker пишут структурные JSON-логи в stdout. Каждый HTTP-запрос
+получает `X-Request-Id`; frontend прокидывает этот заголовок в API-запросах, а
+backend возвращает его в ответе. Бизнес-действия пишутся в Postgres
+`audit_events`, технические логи контейнеров собираются отдельно.
+
+Локальный стек Loki/Grafana/Alloy запускается как дополнительный compose:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.observability.yml up -d
+```
+
+По умолчанию:
+- Grafana: `http://localhost:3002`;
+- Loki: `http://localhost:3100`;
+- Alloy: `http://localhost:12345`.
+
+Alloy читает Docker logs контейнеров `heatcalc_backend`, `heatcalc_worker`,
+`heatcalc_frontend`, `heatcalc_db`, `heatcalc_redis` и самого observability-
+стека. Postgres/Redis не требуют отдельного агента: их stdout попадает в тот же
+Loki-поток.
+
 ## Сборка и упаковка образов
 
 ### Сборка локально
@@ -148,6 +171,8 @@ docker-compose.yml         — базовый компоуз (БД, backend, fro
 docker-compose.dev.yml     — overrides для dev: hot-reload, открытые порты, высокий guest-лимит
 docker-compose.prod.yml    — overrides для прод: закрытые порты db/backend, restart=always
 docker-compose.e2e.yml     — отдельный compose для e2e (test DB на :5433)
+docker-compose.observability.yml — локальные Loki/Grafana/Alloy для Docker logs
+observability/             — конфиги Loki, Grafana datasource и Alloy Docker collector
 backend/
   Dockerfile               — production: multi-stage (builder→runtime), non-root, healthcheck
   Dockerfile.dev           — dev: с reload и dev-зависимостями

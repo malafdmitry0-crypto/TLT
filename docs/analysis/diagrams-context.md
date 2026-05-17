@@ -267,7 +267,7 @@ flowchart TB
             RoleGuard["RoleGuard\n(скрыть по роли)"]
             ValidationHighlight["ValidationHighlight\n(подсветка ошибок)"]
             ObjectWizard["ObjectWizard\n(мастер добавления)"]
-            PipeTable["PipeTable / TankTable\n(таблицы объектов)"]
+            HeatCalcColumnSettings["ColumnSettingsModal\n(настройки таблицы SC-03)"]
             SpecTable["SpecTable\n(спецификация)"]
             ReportPreview["ReportPreview\n(HTML-отчёт)"]
         end
@@ -276,8 +276,7 @@ flowchart TB
     Router --> PublicRoutes
     Router --> ProtectedArea
     HeatCalcPage --> ObjectWizard
-    HeatCalcPage --> PipeTable
-    HeatCalcPage --> TankTable
+    HeatCalcPage --> HeatCalcColumnSettings
     SpecPage --> SpecTable
     ReportPage --> ReportPreview
     

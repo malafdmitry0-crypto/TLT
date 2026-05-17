@@ -2,6 +2,9 @@
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.cable import CableExtended
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -58,6 +61,40 @@ class TestReferences:
         data = resp.json()
         assert len(data["single_core"]) >= 30
         assert len(data["three_core"]) >= 18
+        r3 = next(c for c in data["three_core"] if c["model"] == "ТТ Р3 х 1,5-1,0")
+        assert r3["technical_data_complete"] is False
+        assert "resistance_ohm_km" in r3["technical_data_missing"]
+
+    async def test_resistive_commercial_cables_include_technical_status(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        db_session.add(
+            CableExtended(
+                cable_type="three_core",
+                brand="ТТ Р3",
+                model="ТТ Р3 х 1,5-1,0",
+                resistance_per_meter=0.011666666666666665,
+                price_per_meter=140.0,
+                stock_status="in_stock",
+                commercial_data_source="test",
+                params={"conductor_section_mm2": 1.5},
+                is_active=True,
+            )
+        )
+        await db_session.commit()
+
+        resp = await client.get(
+            "/api/v1/references/resistive-cables",
+            params={"source": "commercial"},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        r3 = next(c for c in data["three_core"] if c["model"] == "ТТ Р3 х 1,5-1,0")
+        assert r3["source"] == "commercial"
+        assert r3["technical_data_complete"] is True
+        assert r3["technical_data_missing"] == []
+        assert r3["resistance_ohm_km"] > 0
 
     async def test_internal_references_public(self, client: AsyncClient, guest_session: str):
         resp = await client.get(

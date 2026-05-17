@@ -8,7 +8,6 @@ import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
 vi.mock('@/api/projects', () => ({
   createObject: vi.fn(),
   updateObject: vi.fn(),
-  reorderObjects: vi.fn(),
 }));
 vi.mock('@/api/calculations', () => ({
   enqueueElectricalBatchJob: vi.fn(),
@@ -80,17 +79,6 @@ describe('useHeatCalcMutations', () => {
     );
     await result.current.edit.mutateAsync({ objectId: 'o1', version: 1, params: {} });
     expect(onEdit).toHaveBeenCalled();
-  });
-
-  it('reorder: успешно обновляет порядок', async () => {
-    const { reorderObjects } = await import('@/api/projects');
-    (reorderObjects as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    const { result } = renderHook(
-      () => useHeatCalcMutations('p1'),
-      { wrapper }
-    );
-    await result.current.reorder.mutateAsync(['o1', 'o2']);
-    expect(reorderObjects).toHaveBeenCalledWith('p1', ['o1', 'o2']);
   });
 
   it('batchCalc: ставит задачу в очередь и навигирует на elecCalc', async () => {

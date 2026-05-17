@@ -10,12 +10,13 @@ from uuid import UUID
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.core.logging_config import configure_logging
 from app.reference_data.loader import preload_all
 from app.services.task_queue import TaskQueue
 from app.services.task_service import TaskService
 
+configure_logging()
 logger = logging.getLogger("heatcalc.worker")
-logging.basicConfig(level=logging.INFO)
 
 
 class CalculationWorker:

@@ -64,6 +64,72 @@ import {
   parseAuditDomain,
   prepareAuditFixBranch,
 } from './domain/AuditFixBranchAgent';
+import {
+  applyAuditBaseline,
+  auditBaselineToReportResult,
+  loadAuditBaseline,
+} from './domain/AuditBaseline';
+import {
+  auditConfirmingProbesToReportResult,
+  runAuditConfirmingProbes,
+} from './domain/AuditConfirmingProbes';
+import {
+  buildPerformanceBudgetConfig,
+  evaluatePerformanceBudget,
+  performanceBudgetToReportResult,
+} from './domain/AuditPerformanceBudgets';
+import {
+  auditMetricsCoverage,
+  metricsAuditToReportResult,
+} from './domain/AuditMetricsAgent';
+import {
+  auditLifecycleToReportResult,
+  summarizeAuditLifecycle,
+} from './domain/AuditLifecycle';
+import {
+  auditRecipesToReportResult,
+  suggestAuditRecipes,
+} from './domain/AuditRecipes';
+import {
+  planRegressionTests,
+  regressionPlanToReportResult,
+} from './domain/AuditRegressionPlanner';
+import {
+  appendPerformanceTrend,
+  buildPerformanceTrendRecord,
+  performanceTrendToReportResult,
+  summarizePerformanceTrend,
+} from './domain/AuditPerfTrendStore';
+import {
+  parseScenarioPackSelection,
+  scenarioPacksToReportResult,
+} from './domain/AuditScenarioPacks';
+import {
+  auditContractDrift,
+  contractDriftToReportResult,
+} from './domain/ContractDriftAuditor';
+import {
+  parseUiWorkflowSelection,
+  uiWorkflowsToReportResult,
+} from './domain/UiWorkflowAgent';
+import {
+  detectFlakiness,
+  flakinessToReportResult,
+} from './domain/FlakinessDetector';
+import {
+  auditOwnershipToReportResult,
+  planAuditOwnership,
+} from './domain/AuditOwnershipPlanner';
+import {
+  businessCorrectnessSummaryToReportResult,
+  runBusinessCorrectnessAudit,
+} from './domain/BusinessCorrectnessAuditor';
+import {
+  appendAuditJournalEntries,
+  auditJournalToReportResult,
+  buildAuditJournalEntries,
+  createAuditRunId,
+} from './domain/AuditJournal';
 
 export * from './comparison/NumericComparator';
 export * from './documentation/MarkdownDocumentationParser';
@@ -85,6 +151,21 @@ export * from './domain/AppTestAgent';
 export * from './domain/SecurityPentestAgent';
 export * from './domain/SecurityCodebaseScannerSubagent';
 export * from './domain/AuditFixBranchAgent';
+export * from './domain/AuditBaseline';
+export * from './domain/AuditConfirmingProbes';
+export * from './domain/AuditPerformanceBudgets';
+export * from './domain/AuditMetricsAgent';
+export * from './domain/AuditLifecycle';
+export * from './domain/AuditRecipes';
+export * from './domain/AuditRegressionPlanner';
+export * from './domain/AuditPerfTrendStore';
+export * from './domain/AuditScenarioPacks';
+export * from './domain/ContractDriftAuditor';
+export * from './domain/UiWorkflowAgent';
+export * from './domain/FlakinessDetector';
+export * from './domain/AuditOwnershipPlanner';
+export * from './domain/BusinessCorrectnessAuditor';
+export * from './domain/AuditJournal';
 
 class ExampleRequirementExtractor implements RequirementExtractor {
   extract(): Requirement[] {
@@ -390,6 +471,14 @@ async function runSecurityPentestAgent() {
   const reportPath = path.join(qaRoot, 'reports', 'qa-agent-security-report.json');
   const htmlReportPath = path.join(qaRoot, 'reports', 'qa-agent-security-report.html');
   const fixHandoffPath = path.join(qaRoot, 'reports', 'qa-agent-audit-fix-handoff.json');
+  const baselinePath = process.env.QA_AGENT_AUDIT_BASELINE_PATH ?? path.join(qaRoot, 'audit-baseline.json');
+  const lifecycleHistoryPath =
+    process.env.QA_AGENT_AUDIT_HISTORY_PATH ?? path.join(qaRoot, 'reports', 'audit-history.jsonl');
+  const perfHistoryPath =
+    process.env.QA_AGENT_PERF_HISTORY_PATH ?? path.join(qaRoot, 'reports', 'perf-history.jsonl');
+  const auditJournalPath =
+    process.env.QA_AGENT_AUDIT_JOURNAL_PATH ?? path.join(qaRoot, 'reports', 'audit-journal.jsonl');
+  const auditRunId = process.env.QA_AGENT_AUDIT_RUN_ID ?? createAuditRunId();
   const targetUrl = process.env.QA_AGENT_SECURITY_TARGET ?? 'http://127.0.0.1:3003';
   const selected = parseSecurityScanSelection(process.env.QA_AGENT_SECURITY_SCANS);
 
@@ -407,9 +496,50 @@ async function runSecurityPentestAgent() {
         maxFileBytes: intEnv('QA_AGENT_SECURITY_CODEBASE_MAX_FILE_BYTES', 300_000),
       })
     : undefined;
+  const baselineApplication = codebaseScan
+    ? applyAuditBaseline(codebaseScan.findings, loadAuditBaseline(baselinePath))
+    : undefined;
+  const activeCodebaseScan =
+    codebaseScan && baselineApplication
+      ? {
+          ...codebaseScan,
+          findings: baselineApplication.activeFindings,
+        }
+      : codebaseScan;
 
-  if (codebaseScan) {
-    results.push(codebaseScanToReportResult(codebaseScan));
+  if (activeCodebaseScan) {
+    results.push(codebaseScanToReportResult(activeCodebaseScan));
+  }
+  if (baselineApplication) {
+    results.push(auditBaselineToReportResult(baselineApplication));
+  }
+
+  const recipeMatches = activeCodebaseScan ? suggestAuditRecipes(activeCodebaseScan.findings) : [];
+  let regressionProposals: ReturnType<typeof planRegressionTests> = [];
+  let ownershipItems: ReturnType<typeof planAuditOwnership> = [];
+  if (process.env.QA_AGENT_AUDIT_LIFECYCLE === '1' && activeCodebaseScan) {
+    results.push(
+      auditLifecycleToReportResult(
+        summarizeAuditLifecycle({
+          findings: activeCodebaseScan.findings,
+          historyPath: lifecycleHistoryPath,
+        }),
+      ),
+    );
+  }
+  if (process.env.QA_AGENT_AUDIT_RECIPES === '1') {
+    results.push(auditRecipesToReportResult(recipeMatches));
+  }
+  if (process.env.QA_AGENT_REGRESSION_PLAN === '1' && activeCodebaseScan) {
+    regressionProposals = planRegressionTests({
+      findings: activeCodebaseScan.findings,
+      recipeMatches,
+    });
+    results.push(regressionPlanToReportResult(regressionProposals));
+  }
+  if (process.env.QA_AGENT_OWNERSHIP_PLAN === '1' && activeCodebaseScan) {
+    ownershipItems = planAuditOwnership(activeCodebaseScan.findings);
+    results.push(auditOwnershipToReportResult(ownershipItems));
   }
 
   let loadResult: Awaited<ReturnType<typeof runBoundedLocalLoadSmoke>> | undefined;
@@ -424,6 +554,111 @@ async function runSecurityPentestAgent() {
     results.push(localLoadResultToReportResult(loadResult));
   }
 
+  const performanceBudgetsEnabled = process.env.QA_AGENT_PERFORMANCE_BUDGETS === '1';
+  if (performanceBudgetsEnabled) {
+    if (!loadResult) {
+      const loadConfig = buildLocalLoadConfig({
+        targetUrl,
+        durationMs: intEnv('QA_AGENT_PERF_LOAD_DURATION_MS', 5_000),
+        concurrency: intEnv('QA_AGENT_PERF_LOAD_CONCURRENCY', 1),
+        maxRequests: intEnv('QA_AGENT_PERF_LOAD_MAX_REQUESTS', 20),
+      });
+      loadResult = await runBoundedLocalLoadSmoke(loadConfig);
+      results.push(localLoadResultToReportResult(loadResult));
+    }
+    const performanceEvaluation = evaluatePerformanceBudget(loadResult, buildPerformanceBudgetConfig());
+    results.push(performanceBudgetToReportResult(performanceEvaluation));
+    if (process.env.QA_AGENT_PERF_TRENDS === '1') {
+      const record = buildPerformanceTrendRecord({
+        scenario: process.env.QA_AGENT_PERF_SCENARIO ?? 'bounded-local-load',
+        loadResult,
+      });
+      const trend = summarizePerformanceTrend({ historyPath: perfHistoryPath, record });
+      appendPerformanceTrend(perfHistoryPath, record);
+      results.push(performanceTrendToReportResult(trend));
+    }
+  }
+
+  let confirmingProbesEnabled = false;
+  if (process.env.QA_AGENT_AUDIT_PROBES === '1') {
+    confirmingProbesEnabled = true;
+    const probeSummary = await runAuditConfirmingProbes({
+      targetUrl,
+      codebaseScan: activeCodebaseScan,
+      includeHttpProbe: process.env.QA_AGENT_AUDIT_PROBE_HTTP === '1',
+    });
+    results.push(auditConfirmingProbesToReportResult(probeSummary));
+  }
+
+  let metricsAuditEnabled = false;
+  if (process.env.QA_AGENT_METRICS_AUDIT === '1') {
+    metricsAuditEnabled = true;
+    results.push(metricsAuditToReportResult(auditMetricsCoverage({ repoRoot })));
+  }
+
+  let scenarioPacksEnabled = false;
+  if (process.env.QA_AGENT_SCENARIO_PACKS === '1') {
+    scenarioPacksEnabled = true;
+    results.push(scenarioPacksToReportResult(parseScenarioPackSelection(process.env.QA_AGENT_SCENARIO_PACKS_SELECT)));
+  }
+
+  let contractDriftEnabled = false;
+  if (process.env.QA_AGENT_CONTRACT_DRIFT === '1') {
+    contractDriftEnabled = true;
+    results.push(contractDriftToReportResult(auditContractDrift(repoRoot)));
+  }
+
+  let uiWorkflowPlanEnabled = false;
+  if (process.env.QA_AGENT_UI_WORKFLOWS === '1') {
+    uiWorkflowPlanEnabled = true;
+    results.push(uiWorkflowsToReportResult(parseUiWorkflowSelection(process.env.QA_AGENT_UI_WORKFLOWS_SELECT)));
+  }
+
+  let flakinessEnabled = false;
+  if (process.env.QA_AGENT_FLAKINESS === '1') {
+    flakinessEnabled = true;
+    const command = parseAppTestSelection(process.env.QA_AGENT_FLAKINESS_TESTS ?? 'qa-agent')[0];
+    const repeats = intEnv('QA_AGENT_FLAKINESS_REPEATS', 3);
+    results.push(flakinessToReportResult(await detectFlakiness({ command, repoRoot, repeats })));
+  }
+
+  let businessAuditEnabled = false;
+  if (process.env.QA_AGENT_BUSINESS_AUDIT === '1') {
+    businessAuditEnabled = true;
+    const businessAudit = await runBusinessCorrectnessAudit(intEnv('QA_AGENT_BUSINESS_AUDIT_CASES', 12));
+    results.push(businessCorrectnessSummaryToReportResult(businessAudit.summary));
+    if (process.env.QA_AGENT_BUSINESS_AUDIT_DETAILS === '1') {
+      results.push(...businessAudit.results);
+    }
+  }
+
+  let auditJournalEnabled = process.env.QA_AGENT_AUDIT_JOURNAL !== '0';
+  if (auditJournalEnabled) {
+    const entries = buildAuditJournalEntries({
+      runId: auditRunId,
+      findings: activeCodebaseScan?.findings,
+      recipeMatches,
+      regressionProposals,
+      ownershipItems,
+      summary: {
+        selectedScans: selected,
+        activeFindings: activeCodebaseScan?.findings.length ?? 0,
+        recipeMatches: recipeMatches.length,
+        regressionProposals: regressionProposals.length,
+        ownershipItems: ownershipItems.length,
+        performanceBudgetsEnabled,
+        confirmingProbesEnabled,
+        metricsAuditEnabled,
+        scenarioPacksEnabled,
+        contractDriftEnabled,
+        uiWorkflowPlanEnabled,
+        flakinessEnabled,
+        businessAuditEnabled,
+      },
+    });
+    results.push(auditJournalToReportResult(appendAuditJournalEntries(auditJournalPath, entries)));
+  }
+
   let llmReviewEnabled = false;
   let securityReview: Awaited<ReturnType<typeof analyzeSecurityScanResults>> | undefined;
   if (process.env.QA_AGENT_SECURITY_REVIEW === '1') {
@@ -434,7 +669,7 @@ async function runSecurityPentestAgent() {
     securityReview = await analyzeSecurityScanResults(new OpenAiCompatibleClient(), {
       runs,
       loadResult,
-      codebaseScan,
+      codebaseScan: activeCodebaseScan,
       extraContext: process.env.QA_AGENT_SECURITY_CONTEXT,
     });
     results.push(securityReviewToReportResult(securityReview));
@@ -454,7 +689,7 @@ async function runSecurityPentestAgent() {
     });
     fixHandoff = buildAuditFixHandoff({
       branch,
-      codebaseFindings: codebaseScan?.findings,
+      codebaseFindings: activeCodebaseScan?.findings,
       reviewFindings: securityReview?.findings,
     });
     fs.mkdirSync(path.dirname(fixHandoffPath), { recursive: true });
@@ -480,9 +715,27 @@ async function runSecurityPentestAgent() {
           scannedFiles: codebaseScan.scannedFiles,
           skippedFiles: codebaseScan.skippedFiles,
           findings: codebaseScan.findings.length,
+          activeFindings: activeCodebaseScan?.findings.length ?? 0,
+          suppressedFindings: baselineApplication?.suppressedFindings.length ?? 0,
         }
       : undefined,
+    baselinePath,
+    auditRunId,
+    auditJournalEnabled,
+    auditJournalPath: auditJournalEnabled ? auditJournalPath : undefined,
+    lifecycleHistoryPath,
+    baselineSuppressedFindings: baselineApplication?.suppressedFindings.length,
+    baselineExpiredEntries: baselineApplication?.expiredEntries.length,
     localLoadEnabled: Boolean(loadResult),
+    performanceBudgetsEnabled,
+    perfHistoryPath: process.env.QA_AGENT_PERF_TRENDS === '1' ? perfHistoryPath : undefined,
+    confirmingProbesEnabled,
+    metricsAuditEnabled,
+    scenarioPacksEnabled,
+    contractDriftEnabled,
+    uiWorkflowPlanEnabled,
+    flakinessEnabled,
+    businessAuditEnabled,
     llmReviewEnabled,
     fixModeEnabled: Boolean(fixHandoff),
     fixHandoffPath: fixHandoff ? fixHandoffPath : undefined,
@@ -504,7 +757,18 @@ async function runSecurityPentestAgent() {
         selectedScans: selected,
         targetUrl,
         codebaseScanEnabled: Boolean(codebaseScan),
+        auditRunId,
+        auditJournalEnabled,
+        baselineSuppressedFindings: baselineApplication?.suppressedFindings.length,
         localLoadEnabled: Boolean(loadResult),
+        performanceBudgetsEnabled,
+        confirmingProbesEnabled,
+        metricsAuditEnabled,
+        scenarioPacksEnabled,
+        contractDriftEnabled,
+        uiWorkflowPlanEnabled,
+        flakinessEnabled,
+        businessAuditEnabled,
         llmReviewEnabled,
         fixModeEnabled: Boolean(fixHandoff),
         fixBranch: fixHandoff?.branch,

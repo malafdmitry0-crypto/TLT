@@ -170,6 +170,38 @@ approval-gate `commercial_balanced_weights_approved` (`0` — fallback,
 
 ---
 
+### audit_events
+| Колонка          | Тип          | Ограничения | Описание |
+|------------------|--------------|-------------|----------|
+| id               | UUID         | PK          | Идентификатор события аудита |
+| created_at       | TIMESTAMPTZ  | server default now(), INDEX | Время события |
+| event_type       | VARCHAR(128) | NOT NULL, INDEX | Тип события (`object.created`, `calculation.electrical.batch_completed`, …) |
+| event_version    | INTEGER      | NOT NULL    | Версия контракта события |
+| category         | VARCHAR(32)  | CHECK       | `auth` / `project` / `object` / `calculation` / `task` / `report` / `specification` / `frontend` / `system` / `security` |
+| severity         | VARCHAR(16)  | CHECK       | `debug` / `info` / `warning` / `error` / `critical` |
+| result           | VARCHAR(16)  | CHECK       | `success` / `failure` / `queued` / `skipped` / `cancelled` |
+| source           | VARCHAR(16)  | CHECK       | `backend` / `frontend` / `worker` / `database` / `redis` |
+| actor_type       | VARCHAR(32)  | nullable    | Роль/тип актора |
+| actor_id         | VARCHAR(128) | nullable    | Строковый идентификатор актора |
+| user_id          | UUID         | nullable, INDEX | Авторизованный пользователь |
+| session_id       | VARCHAR(128) | nullable, INDEX | Гостевая сессия |
+| project_id       | UUID         | nullable, INDEX | Проект, если применимо |
+| object_id        | UUID         | nullable, INDEX | Объект, если применимо |
+| task_id          | UUID         | nullable    | Фоновая задача, если применимо |
+| request_id       | VARCHAR(128) | nullable, INDEX | Корреляция с HTTP/логами |
+| requirement_refs | JSONB        | NOT NULL, default [] | Ссылки на ТЗ/SRS/QA-контракты |
+| metadata         | JSONB        | NOT NULL, default {} | Санитизированный контекст события |
+| before_state     | JSONB        | nullable    | Снимок до изменения |
+| after_state      | JSONB        | nullable    | Снимок после изменения |
+| error_code       | VARCHAR(128) | nullable    | Машиночитаемая причина ошибки |
+| message          | TEXT         | nullable    | Короткое человекочитаемое описание |
+
+Audit-таблица намеренно не имеет FK на доменные таблицы: событие должно
+сохранить исходные `project_id`/`object_id`/`session_id` даже после удаления
+проекта или гостевой сессии.
+
+---
+
 ## Связи
 
 ```
@@ -180,6 +212,7 @@ projects ──< electrical_calculations (project_id)
 projects ──< specifications (project_id)
 project_objects ──< electrical_calculations (object_id)
 users ──< correction_coefficients (updated_by, nullable)
+audit_events хранит ссылки на id без FK, чтобы события не удалялись каскадом
 ```
 
 ## Справочные данные (файлы, не таблицы)

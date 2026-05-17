@@ -113,6 +113,9 @@ export interface ProjectObjectsPageInfo {
 export interface ProjectObjectsPageCursor {
   sort_order: number;
   id: string;
+  key?: string | null;
+  value?: unknown;
+  value_is_null?: boolean;
 }
 
 export interface ProjectObjectsQueryCounts {

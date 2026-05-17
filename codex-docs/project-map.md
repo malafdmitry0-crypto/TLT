@@ -17,7 +17,7 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
 | Backend | Python 3.11, FastAPI, SQLAlchemy async, Alembic, Pydantic v2 |
 | DB | PostgreSQL |
 | Тесты | pytest, Vitest/RTL, Playwright |
-| Инфраструктура | Docker Compose, Caddy, Makefile |
+| Инфраструктура | Docker Compose, Caddy, Makefile, Loki/Grafana/Alloy для локальных логов |
 
 ## Основные директории
 
@@ -30,6 +30,7 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
 | `backend/app/schemas/` | Pydantic-схемы API |
 | `backend/app/reference_data/` | Встроенные справочники JSON |
 | `backend/app/reports/` | Генерация HTML/PDF/DOCX/XLSX |
+| `observability/` | Локальные конфиги Loki, Grafana datasource и Alloy Docker logs collector |
 | `frontend/src/pages/` | Страницы рабочих режимов, проектов, админки, помощи |
 | `frontend/src/components/` | UI-компоненты таблиц, мастеров, отчётов, спецификации |
 | `frontend/src/api/` | Клиентские обёртки над API |
@@ -60,6 +61,8 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
 | Админ управляет пользователями, коэффициентами, внешней БД | `frontend/src/pages/admin/`, `backend/app/api/v1/admin.py` |
 | Спецификация зависит от variant_number | `backend/app/models/specification.py`, `frontend/src/api/specifications.ts` |
 | Отчёт принимает набор секций | `frontend/src/components/reports/ReportWizard.tsx`, `backend/app/reports/` |
+| Бизнес-аудит мутаций хранится в Postgres | `backend/app/models/audit_event.py`, `backend/app/services/audit_service.py`, `docs/db_schema.md` |
+| Технические логи коррелируются через `X-Request-Id` | `backend/app/core/logging_config.py`, `backend/app/main.py`, `frontend/src/api/client.ts` |
 
 ## Документы рядом с кодом
 

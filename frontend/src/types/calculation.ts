@@ -195,6 +195,9 @@ export interface ElectricalQueryRequest {
   page_size?: number;
   after_sort_order?: number | null;
   after_id?: string | null;
+  after_key?: string | null;
+  after_value?: unknown;
+  after_value_is_null?: boolean;
   search?: ObjectQuerySearch | null;
   filters?: ObjectQueryFilter[];
   sort?: ObjectQuerySort | null;

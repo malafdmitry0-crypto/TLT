@@ -2,6 +2,9 @@
 
 import asyncio
 import logging
+import re
+import time
+import uuid
 from contextlib import asynccontextmanager, suppress
 from typing import ClassVar
 
@@ -14,14 +17,24 @@ from sqlalchemy import select
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.core.logging_config import configure_logging
 from app.core.redis_client import close_redis, get_redis
+from app.core.request_context import reset_request_id, set_request_id
 from app.core.security import hash_password
 from app.models.user import User
 from app.reference_data.loader import preload_all
 from app.services.auth_service import AuthService
 
+configure_logging()
 logger = logging.getLogger("heatcalc")
-logging.basicConfig(level=logging.INFO)
+http_logger = logging.getLogger("heatcalc.http")
+_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
+
+
+def _safe_request_id(value: str | None) -> str:
+    if value and _REQUEST_ID_RE.fullmatch(value):
+        return value
+    return uuid.uuid4().hex
 
 
 async def ensure_first_admin() -> None:
@@ -121,6 +134,47 @@ app = FastAPI(
     lifespan=lifespan,
     default_response_class=ORJSONResponse,
 )
+
+
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    request_id = _safe_request_id(request.headers.get("X-Request-Id"))
+    token = set_request_id(request_id)
+    started = time.perf_counter()
+    response = None
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    except Exception:
+        http_logger.exception(
+            "http.request.failed",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": status_code,
+                "client_ip": request.client.host if request.client else None,
+            },
+        )
+        raise
+    finally:
+        duration_ms = round((time.perf_counter() - started) * 1000, 2)
+        if response is not None:
+            response.headers["X-Request-Id"] = request_id
+        http_logger.info(
+            "http.request",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": status_code,
+                "duration_ms": duration_ms,
+                "client_ip": request.client.host if request.client else None,
+                "user_agent": request.headers.get("user-agent", "")[:200],
+            },
+        )
+        reset_request_id(token)
+
 
 app.add_middleware(
     CORSMiddleware,

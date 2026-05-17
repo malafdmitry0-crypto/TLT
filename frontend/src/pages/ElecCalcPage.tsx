@@ -177,6 +177,78 @@ const SELECTION_POLICY_OPTIONS = (Object.keys(SELECTION_POLICY_LABEL) as Selecti
   }),
 );
 const isResistiveCableType = (type: CableTypeKey) => type === 'single_core' || type === 'three_core';
+type CatalogStatusColor = 'default' | 'success' | 'warning' | 'error';
+type CatalogStatus = { label: string; color: CatalogStatusColor };
+type CableStatusRow = {
+  power_per_meter?: number | null;
+  max_temperature?: number | null;
+  min_temperature?: number | null;
+  q1?: number | null;
+  q2?: number | null;
+  max_product_temp?: number | null;
+  max_vapor_temp?: number | null;
+  resistance_ohm_km?: number | null;
+  conductor_section_mm2?: number | null;
+  conductor_cross_section?: number | null;
+  technical_data_complete?: boolean;
+  price_per_meter?: number | null;
+  stock_quantity_m?: number | null;
+  stock_status?: string | null;
+  lead_time_days?: number | null;
+  supplier_priority?: number | null;
+  is_preferred?: boolean;
+};
+
+function hasCommercialData(row: CableStatusRow) {
+  return row.price_per_meter != null
+    || row.stock_quantity_m != null
+    || (row.stock_status != null && row.stock_status !== 'unknown')
+    || row.lead_time_days != null
+    || row.supplier_priority != null
+    || row.is_preferred === true;
+}
+
+function commercialStatus(rows: CableStatusRow[]): CatalogStatus {
+  if (rows.length === 0) return { label: 'Нет коммерческих данных', color: 'default' };
+  const completeCount = rows.filter(hasCommercialData).length;
+  if (completeCount === 0) return { label: 'Нет коммерческих данных', color: 'default' };
+  if (completeCount < rows.length) return { label: 'Коммерческие данные неполные', color: 'warning' };
+  return { label: 'Коммерческие данные есть', color: 'success' };
+}
+
+function hasValue(value: unknown) {
+  return value !== null && value !== undefined;
+}
+
+function hasTechnicalData(type: CableTypeKey, row: CableStatusRow) {
+  if (typeof row.technical_data_complete === 'boolean') return row.technical_data_complete;
+  if (type === 'self_regulating') {
+    return hasValue(row.power_per_meter)
+      && hasValue(row.max_temperature)
+      && hasValue(row.min_temperature);
+  }
+  if (type === 'self_regulating_tt') {
+    return hasValue(row.q1)
+      && hasValue(row.q2)
+      && hasValue(row.max_product_temp)
+      && hasValue(row.max_vapor_temp);
+  }
+  if (type === 'single_core' || type === 'three_core') {
+    return hasValue(row.resistance_ohm_km)
+      && (hasValue(row.conductor_section_mm2) || hasValue(row.conductor_cross_section));
+  }
+  return false;
+}
+
+function technicalStatus(type: CableTypeKey | null, rows: CableStatusRow[]): CatalogStatus {
+  if (!type) return { label: 'Техданные: несколько типов', color: 'default' };
+  if (rows.length === 0) return { label: 'Нет техданных', color: 'error' };
+  const completeCount = rows.filter((row) => hasTechnicalData(type, row)).length;
+  if (completeCount === rows.length) return { label: 'Техданные полные', color: 'success' };
+  if (completeCount > 0) return { label: 'Техданные неполные', color: 'warning' };
+  return { label: 'Нет техданных', color: 'error' };
+}
+
 const ELECTRICAL_TABLE_PAGE_SIZE = 50;
 type ElectricalBatchScope = 'all' | 'selected';
 type ElectricalBatchMutationArgs = {
@@ -453,6 +525,9 @@ function buildElectricalQueryRequest(
     page_size: pageSize,
     after_sort_order: cursor?.sort_order,
     after_id: cursor?.id,
+    after_key: cursor?.key,
+    after_value: cursor?.value,
+    after_value_is_null: cursor?.value_is_null,
     filters,
     sort: state.sort && (sortCapability?.sort.enabled ?? true)
       ? { key: state.sort.columnKey, dir: state.sort.direction }
@@ -747,11 +822,7 @@ export default function ElecCalcPage() {
     enabled: !!project,
     staleTime: 60_000,
   });
-  const canUseElectricalCursor =
-    !tableViewState.sort && Object.keys(tableViewState.filters).length === 0;
-  const electricalPageCursor = canUseElectricalCursor
-    ? electricalPageCursors[tablePage] ?? null
-    : null;
+  const electricalPageCursor = electricalPageCursors[tablePage] ?? null;
   const electricalQueryRequest = useMemo(
     () => (project
       ? buildElectricalQueryRequest(
@@ -784,23 +855,32 @@ export default function ElecCalcPage() {
   const elecCalcs = electricalPage?.calculations ?? EMPTY_ELECTRICAL_CALCS;
   const pageSummary = electricalPage?.summary;
   const pageInfo = electricalPage?.page_info;
+  const nextElectricalPageCursor = pageInfo?.next_cursor;
   const stats = useElectricalStats(objects, elecCalcs);
 
   useEffect(() => {
-    const nextCursor = pageInfo?.next_cursor;
+    if (isElectricalPageFetching) return;
+    const nextCursor = nextElectricalPageCursor;
     if (!nextCursor) return;
     setElectricalPageCursors((current) => {
       const nextPage = tablePage + 1;
       const existing = current[nextPage];
       if (
         existing?.id === nextCursor.id &&
-        existing.sort_order === nextCursor.sort_order
+        existing.sort_order === nextCursor.sort_order &&
+        existing.key === nextCursor.key &&
+        existing.value === nextCursor.value &&
+        existing.value_is_null === nextCursor.value_is_null
       ) {
         return current;
       }
       return { ...current, [nextPage]: nextCursor };
     });
-  }, [pageInfo?.next_cursor?.id, pageInfo?.next_cursor?.sort_order, tablePage]);
+  }, [
+    isElectricalPageFetching,
+    nextElectricalPageCursor,
+    tablePage,
+  ]);
 
   const getSavedCableTypeForObject = useCallback((objectId: string): CableTypeKey => {
     const savedType = stats.calcByObjectId[objectId]?.cable_type;
@@ -869,24 +949,6 @@ export default function ElecCalcPage() {
     queryFn: () => listCables(effectiveSource),
     ...referenceQueryOptions,
   });
-  const commercialDataStatus = useMemo(() => {
-    if (cables.length === 0) return { label: 'Нет коммерческих данных', color: 'default' as const };
-    const withAnyCommercialData = cables.filter((c) =>
-      c.price_per_meter != null
-      || c.stock_quantity_m != null
-      || (c.stock_status != null && c.stock_status !== 'unknown')
-      || c.lead_time_days != null
-      || c.supplier_priority != null
-      || c.is_preferred,
-    ).length;
-    if (withAnyCommercialData === 0) {
-      return { label: 'Нет коммерческих данных', color: 'default' as const };
-    }
-    if (withAnyCommercialData < cables.length) {
-      return { label: 'Коммерческие данные неполные', color: 'warning' as const };
-    }
-    return { label: 'Коммерческие данные есть', color: 'success' as const };
-  }, [cables]);
   const { data: ttCables = [] } = useQuery({
     queryKey: referenceQueryKeys.ttCables,
     queryFn: getCablesTt,
@@ -894,11 +956,26 @@ export default function ElecCalcPage() {
     ...referenceQueryOptions,
   });
   const { data: resistiveCables } = useQuery({
-    queryKey: referenceQueryKeys.resistiveCables,
-    queryFn: getResistiveCables,
+    queryKey: referenceQueryKeys.resistiveCables(effectiveSource),
+    queryFn: () => getResistiveCables(effectiveSource),
     enabled: !!project,
     ...referenceQueryOptions,
   });
+  const visibleCableCatalog = useMemo<CableStatusRow[]>(() => {
+    if (visibleCableTypeControl === 'self_regulating') return cables;
+    if (visibleCableTypeControl === 'self_regulating_tt') return ttCables;
+    if (visibleCableTypeControl === 'single_core') return resistiveCables?.single_core ?? [];
+    if (visibleCableTypeControl === 'three_core') return resistiveCables?.three_core ?? [];
+    return [];
+  }, [cables, resistiveCables, ttCables, visibleCableTypeControl]);
+  const commercialDataStatus = useMemo(
+    () => commercialStatus(visibleCableCatalog),
+    [visibleCableCatalog],
+  );
+  const technicalDataStatus = useMemo(
+    () => technicalStatus(visibleCableTypeControl, visibleCableCatalog),
+    [visibleCableCatalog, visibleCableTypeControl],
+  );
 
   const { data: persistedTableColumnPreference } = useQuery({
     queryKey: ['preference', ELECTRICAL_TABLE_COLUMN_PREF_KEY],
@@ -1157,7 +1234,7 @@ export default function ElecCalcPage() {
     if (type === 'three_core') {
       return (resistiveCables?.three_core ?? []).map((c) => ({
         value: c.model,
-        label: `${c.model} · ${c.nominal_size_mm ?? '—'}`,
+        label: `${c.model} · ${c.resistance_ohm_km ?? '—'} Ом/км · ${c.nominal_size_mm ?? '—'}`,
       }));
     }
     return [];
@@ -2511,6 +2588,9 @@ export default function ElecCalcPage() {
           />
           <Tag color={commercialDataStatus.color} style={{ marginInlineEnd: 0 }}>
             {commercialDataStatus.label}
+          </Tag>
+          <Tag color={technicalDataStatus.color} style={{ marginInlineEnd: 0 }}>
+            {technicalDataStatus.label}
           </Tag>
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>Критерий:</Text>
           <Select<SelectionPolicy>

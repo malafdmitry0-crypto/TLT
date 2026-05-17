@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from decimal import Decimal
 from functools import cmp_to_key
 from math import ceil
 from typing import Any, Literal
@@ -47,6 +48,8 @@ SqlExprFactory = Callable[[], Any]
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
 CAPABILITIES_SAMPLE_LIMIT = 1000
+PYTHON_FALLBACK_MAX_ROWS = 1000
+SQL_OFFSET_FALLBACK_MAX_OFFSET = 1000
 
 
 class ElectricalQueryValidationError(ValueError):
@@ -57,6 +60,15 @@ class ElectricalQueryValidationError(ValueError):
 class ElectricalQueryRow:
     obj: ProjectObject
     calc: ElectricalCalculation | None
+
+
+@dataclass(frozen=True)
+class SqlOrderSpec:
+    key: str
+    direction: Literal["asc", "desc"]
+    value_expr: Any
+    null_rank_expr: Any
+    order_by: list[Any]
 
 
 @dataclass(frozen=True)
@@ -867,8 +879,11 @@ class ElectricalQueryService:
                 query=ElectricalQueryEcho(variant_number=data.variant_number, sort=data.sort),
             )
         if self._can_use_sql_query(data):
-            return await self._query_sql_page(data, page=page, page_size=page_size)
+            if page == 1 or self._has_keyset_cursor(data):
+                return await self._query_sql_keyset_page(data, page=page, page_size=page_size)
+            return await self._query_sql_offset_page(data, page=page, page_size=page_size)
 
+        await self._ensure_python_fallback_size(data.project_id)
         rows = await self._load_rows(data.project_id, data.variant_number)
         filtered_rows = self._apply_search(rows, data)
         filtered_rows = self._apply_filters(filtered_rows, data)
@@ -971,6 +986,9 @@ class ElectricalQueryService:
                 next_cursor=ProjectObjectsPageCursor(
                     sort_order=last_object.sort_order,
                     id=last_object.id,
+                    key="sort_order",
+                    value=last_object.sort_order,
+                    value_is_null=False,
                 )
                 if last_object is not None
                 else None,
@@ -1048,16 +1066,114 @@ class ElectricalQueryService:
         return None
 
     def _sql_order_by(self, data: ElectricalQueryRequest) -> list[Any]:
+        return self._sql_order_spec(data).order_by
+
+    def _sql_order_spec(self, data: ElectricalQueryRequest) -> SqlOrderSpec:
         if data.sort is None:
-            return [ProjectObject.sort_order.asc(), ProjectObject.id.asc()]
+            return SqlOrderSpec(
+                key="sort_order",
+                direction="asc",
+                value_expr=ProjectObject.sort_order,
+                null_rank_expr=literal(0),
+                order_by=[ProjectObject.sort_order.asc(), ProjectObject.id.asc()],
+            )
         field = self._field(data.sort.key)
         expr = self._sql_expr(field)
         if field.sort_type in {"text", "label"}:
-            order_expr = func.lower(self._sql_text_expr(field, expr))
+            order_value_expr = func.lower(self._sql_text_expr(field, expr))
         else:
-            order_expr = expr
-        ordered = order_expr.desc() if data.sort.dir == "desc" else order_expr.asc()
-        return [ordered.nulls_last(), ProjectObject.sort_order.asc(), ProjectObject.id.asc()]
+            order_value_expr = expr
+        empty_clause = self._sql_empty_clause(expr)
+        null_rank_expr = case((empty_clause, 1), else_=0)
+        value_expr = case((empty_clause, None), else_=order_value_expr)
+        ordered = value_expr.desc() if data.sort.dir == "desc" else value_expr.asc()
+        return SqlOrderSpec(
+            key=field.key,
+            direction=data.sort.dir,
+            value_expr=value_expr,
+            null_rank_expr=null_rank_expr,
+            order_by=[
+                null_rank_expr.asc(),
+                ordered,
+                ProjectObject.sort_order.asc(),
+                ProjectObject.id.asc(),
+            ],
+        )
+
+    def _has_keyset_cursor(self, data: ElectricalQueryRequest) -> bool:
+        return data.after_sort_order is not None and data.after_id is not None
+
+    def _sql_keyset_clause(self, spec: SqlOrderSpec, data: ElectricalQueryRequest) -> Any | None:
+        if not self._has_keyset_cursor(data):
+            return None
+        cursor_key = data.after_key or "sort_order"
+        if cursor_key != spec.key:
+            raise ElectricalQueryValidationError(
+                "Курсор не соответствует текущей сортировке таблицы"
+            )
+        if spec.key == "sort_order":
+            return or_(
+                ProjectObject.sort_order > data.after_sort_order,
+                and_(
+                    ProjectObject.sort_order == data.after_sort_order,
+                    ProjectObject.id > data.after_id,
+                ),
+            )
+
+        cursor_null_rank = 1 if data.after_value_is_null else 0
+        if data.after_value is None and cursor_null_rank == 0:
+            raise ElectricalQueryValidationError("Курсор сортировки не содержит значение")
+
+        same_null_rank = spec.null_rank_expr == cursor_null_rank
+        same_value = self._sql_cursor_value_equals(spec, data)
+        clauses = [spec.null_rank_expr > cursor_null_rank]
+        if cursor_null_rank == 0:
+            value_compare = (
+                spec.value_expr < data.after_value
+                if spec.direction == "desc"
+                else spec.value_expr > data.after_value
+            )
+            clauses.append(and_(same_null_rank, value_compare))
+        clauses.append(
+            and_(
+                same_null_rank,
+                same_value,
+                ProjectObject.sort_order > data.after_sort_order,
+            )
+        )
+        clauses.append(
+            and_(
+                same_null_rank,
+                same_value,
+                ProjectObject.sort_order == data.after_sort_order,
+                ProjectObject.id > data.after_id,
+            )
+        )
+        return or_(*clauses)
+
+    def _sql_cursor_value_equals(self, spec: SqlOrderSpec, data: ElectricalQueryRequest) -> Any:
+        if data.after_value_is_null:
+            return spec.null_rank_expr == 1
+        return spec.value_expr == data.after_value
+
+    async def _ensure_python_fallback_size(self, project_id: UUID) -> None:
+        count_result = await self.db.execute(
+            select(func.count())
+            .select_from(ProjectObject)
+            .where(ProjectObject.project_id == project_id)
+        )
+        total = int(count_result.scalar_one() or 0)
+        if total > PYTHON_FALLBACK_MAX_ROWS:
+            raise ElectricalQueryValidationError(
+                "Этот фильтр/сортировка недоступны для больших проектов без SQL-пути. "
+                "Уточните запрос или используйте поддерживаемые поля таблицы."
+            )
+
+    @staticmethod
+    def _cursor_value(value: Any) -> Any:
+        if isinstance(value, Decimal):
+            return float(value)
+        return value
 
     async def _load_rows(
         self,
@@ -1192,7 +1308,103 @@ class ElectricalQueryService:
                 return False
         return True
 
-    async def _query_sql_page(
+    async def _query_sql_keyset_page(
+        self,
+        data: ElectricalQueryRequest,
+        *,
+        page: int,
+        page_size: int,
+    ) -> ElectricalQueryResponse:
+        join_condition = and_(
+            ElectricalCalculation.object_id == ProjectObject.id,
+            ElectricalCalculation.project_id == data.project_id,
+            ElectricalCalculation.variant_number == data.variant_number,
+        )
+        conditions = [ProjectObject.project_id == data.project_id]
+        search_clause = self._sql_search_clause(data)
+        if search_clause is not None:
+            conditions.append(search_clause)
+        for item in data.filters:
+            clause = self._sql_filter_clause(self._field(item.key), item)
+            if clause is not None:
+                conditions.append(clause)
+
+        order_spec = self._sql_order_spec(data)
+        keyset_clause = self._sql_keyset_clause(order_spec, data)
+        if keyset_clause is not None:
+            conditions.append(keyset_clause)
+
+        count_conditions = conditions[:-1] if keyset_clause is not None else conditions
+        count_result = await self.db.execute(
+            select(func.count())
+            .select_from(ProjectObject)
+            .outerjoin(ElectricalCalculation, join_condition)
+            .where(*count_conditions)
+        )
+        filtered_count = int(count_result.scalar_one() or 0)
+
+        rows_result = await self.db.execute(
+            select(
+                ProjectObject,
+                ElectricalCalculation,
+                order_spec.value_expr.label("_cursor_value"),
+                order_spec.null_rank_expr.label("_cursor_null_rank"),
+            )
+            .outerjoin(ElectricalCalculation, join_condition)
+            .where(*conditions)
+            .order_by(*order_spec.order_by)
+            .limit(page_size + 1)
+        )
+        fetched_rows = list(rows_result.all())
+        has_next_page = len(fetched_rows) > page_size
+        fetched_page = fetched_rows[:page_size]
+        page_rows = [
+            ElectricalQueryRow(obj=obj, calc=calc)
+            for obj, calc, _cursor_value, _cursor_null_rank in fetched_page
+        ]
+        total_pages = ceil(filtered_count / page_size) if filtered_count else 0
+
+        _, _, summary, _ = await CalculationService(self.db).electrical_project_page(
+            data.project_id,
+            variant_number=data.variant_number,
+            page=1,
+            page_size=1,
+        )
+        offset = (page - 1) * page_size
+        next_cursor = None
+        if has_next_page and fetched_page:
+            last_obj, _last_calc, cursor_value, cursor_null_rank = fetched_page[-1]
+            next_cursor = ProjectObjectsPageCursor(
+                sort_order=last_obj.sort_order,
+                id=last_obj.id,
+                key=order_spec.key,
+                value=self._cursor_value(cursor_value),
+                value_is_null=bool(cursor_null_rank),
+            )
+
+        return ElectricalQueryResponse(
+            items=[self._object_summary(row.obj) for row in page_rows],
+            calculations=[
+                self._calc_summary(row.calc) for row in page_rows if row.calc is not None
+            ],
+            summary=ElectricalPageSummary(**summary),
+            page_info=ProjectObjectsPageInfo(
+                page=page,
+                page_size=page_size,
+                offset=offset,
+                total_pages=total_pages,
+                has_next_page=has_next_page,
+                has_previous_page=page > 1,
+                next_cursor=next_cursor,
+            ),
+            counts=ElectricalQueryCounts(
+                total=int(summary["total_objects"]),
+                filtered=filtered_count,
+            ),
+            query=ElectricalQueryEcho(variant_number=data.variant_number, sort=data.sort),
+        )
+
+    async def _query_sql_offset_page(
         self,
         data: ElectricalQueryRequest,
         *,
@@ -1221,6 +1433,11 @@ class ElectricalQueryService:
         )
         filtered_count = int(count_result.scalar_one() or 0)
         offset = (page - 1) * page_size
+        if offset > SQL_OFFSET_FALLBACK_MAX_OFFSET:
+            raise ElectricalQueryValidationError(
+                "Глубокая пагинация без cursor недоступна для SQL-query таблицы. "
+                "Перейдите последовательно вперёд или сбросьте страницу."
+            )
         rows_result = await self.db.execute(
             select(ProjectObject, ElectricalCalculation)
             .outerjoin(ElectricalCalculation, join_condition)

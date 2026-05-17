@@ -16,6 +16,7 @@ from app.core.dependencies import (
 from app.core.rate_limit import enforce_principal_rate_limit, job_enqueue_limiter, report_limiter
 from app.schemas.calculation import CalculationTaskResponse
 from app.schemas.report import ReportExportJobRequest, ReportPreviewResponse
+from app.services.audit_service import AuditService
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError
 from app.services.report_artifact_service import report_artifact_path
 from app.services.report_service import ReportError, ReportService
@@ -90,6 +91,14 @@ async def preview(
         _raise_project_error(exc)
     except ReportError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    await AuditService(db).try_record(
+        event_type="report.previewed",
+        category="report",
+        principal=principal,
+        project_id=project_id,
+        details={"sections": sections, "variant_number": variant_number},
+        message="Сформирован HTML-предпросмотр отчёта",
+    )
     return ReportPreviewResponse(**result)
 
 
@@ -130,6 +139,19 @@ async def export(
         _raise_project_error(exc)
     except ReportError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await AuditService(db).try_record(
+        event_type="report.exported",
+        category="report",
+        principal=principal,
+        project_id=project_id,
+        details={
+            "format": format,
+            "sections": sections,
+            "variant_number": variant_number,
+            "size_bytes": len(data),
+        },
+        message="Сформирован отчёт",
+    )
     return StreamingResponse(
         io.BytesIO(data),
         media_type=MEDIA_TYPES[format],
@@ -178,6 +200,21 @@ async def enqueue_export_job(
         )
     except Exception as exc:
         _raise_task_error(exc)
+    await AuditService(db).try_record(
+        event_type="task.report_export.queued",
+        category="task",
+        principal=principal,
+        project_id=project_id,
+        task_id=task.id,
+        result="queued",
+        details={
+            "format": format,
+            "sections": sections,
+            "variant_number": variant_number,
+            "idempotency_key_present": bool(idempotency_key),
+        },
+        message="Поставлен в очередь экспорт отчёта",
+    )
     return TaskService.to_response(task)
 
 
@@ -212,6 +249,17 @@ async def cancel_report_task(
         task = await TaskService(db).cancel_task(task_id, principal)
     except Exception as exc:
         _raise_task_error(exc)
+    await AuditService(db).try_record(
+        event_type="task.report_export.cancel_requested",
+        category="task",
+        principal=principal,
+        project_id=task.project_id,
+        task_id=task.id,
+        result="cancelled",
+        severity="warning",
+        details={"task_type": task.type, "status": task.status},
+        message="Запрошена отмена фоновой задачи отчёта",
+    )
     return TaskService.to_response(task)
 
 
@@ -241,4 +289,13 @@ async def download_report_task_result(
         fmt, "application/octet-stream"
     )
     filename = task.result_payload.get("filename") or f"report.{fmt}"
+    await AuditService(db).try_record(
+        event_type="report.artifact.downloaded",
+        category="report",
+        principal=principal,
+        project_id=task.project_id,
+        task_id=task.id,
+        details={"format": fmt, "filename": filename},
+        message="Скачан готовый артефакт отчёта",
+    )
     return FileResponse(path, media_type=media_type, filename=filename)

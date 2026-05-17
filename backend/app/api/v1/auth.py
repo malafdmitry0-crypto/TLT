@@ -1,14 +1,16 @@
 """Endpoints авторизации."""
 
 import secrets
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import CurrentPrincipal, get_current_user
 from app.core.rate_limit import client_ip, enforce_rate_limit, guest_session_limiter, login_limiter
+from app.core.security import decode_token
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.auth import (
@@ -18,6 +20,7 @@ from app.schemas.auth import (
     TokenPair,
 )
 from app.schemas.user import UserResponse
+from app.services.audit_service import AuditService
 from app.services.auth_service import AuthError, AuthService
 
 router = APIRouter()
@@ -93,7 +96,16 @@ async def create_guest_session(
     db.add(project)
     await db.commit()
     await db.refresh(project)
-    return GuestSessionResponse(session_id=session.session_id, project=project)
+    auth_response = GuestSessionResponse(session_id=session.session_id, project=project)
+    await AuditService(db).try_record(
+        event_type="auth.guest_session.created",
+        category="auth",
+        principal=CurrentPrincipal(role="guest", session_id=session.session_id),
+        project_id=project.id,
+        details={"project_id": str(project.id), "client_ip": ip},
+        message="Создана гостевая сессия и авто-проект",
+    )
+    return auth_response
 
 
 @router.post(
@@ -117,7 +129,27 @@ async def login(
     try:
         tokens = await service.login(data.email, data.password, expected_role=data.role)
     except AuthError as exc:
+        await AuditService(db).try_record(
+            event_type="auth.login.failed",
+            category="security",
+            severity="warning",
+            result="failure",
+            details={"role": data.role, "client_ip": client_ip(request)},
+            error_code="invalid_credentials",
+            message=str(exc),
+        )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+    token_payload = decode_token(tokens.access_token)
+    await AuditService(db).try_record(
+        event_type="auth.login.succeeded",
+        category="auth",
+        principal=CurrentPrincipal(
+            role=token_payload["role"],
+            user_id=UUID(str(token_payload["sub"])),
+        ),
+        details={"role": token_payload["role"], "client_ip": client_ip(request)},
+        message="Пользователь вошёл в систему",
+    )
     _set_auth_cookies(response, tokens)
     return tokens
 

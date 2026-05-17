@@ -16,6 +16,7 @@
 | `/api/v1/calc/electrical/*` | Батч-электрорасчёт, настройки подбора |
 | `/api/v1/specifications/*` | Генерация/просмотр спецификации |
 | `/api/v1/reports/{id}/{preview,export/{fmt}}` | HTML-превью и экспорт PDF/DOCX/XLSX |
+| `/api/v1/audit/client-events` | Приём frontend-событий бизнес-аудита |
 | `/api/v1/references/*` | Встроенные справочники (climate, insulation, pipe-materials, soil-conductivity, cables, resistive-cables, accessories) |
 | `/api/v1/admin/*` | Пользователи, коэффициенты (только admin) |
 | `/health` | Liveness-проба |
@@ -38,6 +39,34 @@
 - Создание проектов гостем: 10 на сессию
 - Объектов в проекте: 50 (настраивается `GUEST_MAX_OBJECTS_PER_PROJECT`)
 - Размер upload-запроса: 10 МБ на backend, nginx и Caddy
+
+## Логи и бизнес-аудит
+
+Каждый backend-запрос получает/прокидывает `X-Request-Id`; тот же идентификатор
+попадает в JSON-логи backend/worker и в `audit_events.request_id`.
+
+**`POST /audit/client-events`** принимает frontend-события текущего гостя,
+сотрудника или администратора:
+
+```json
+{
+  "events": [
+    {
+      "event_type": "frontend.window.error",
+      "severity": "error",
+      "result": "failure",
+      "project_id": "00000000-0000-0000-0000-000000000000",
+      "details": {"path": "/workspace", "message": "Render failed"},
+      "error_code": "frontend_error"
+    }
+  ]
+}
+```
+
+Ответ: `202 Accepted`, `{ "accepted": N }`. Пароли, токены, cookie, csrf и
+похожие секреты в `details`, `before_state`, `after_state` редактируются перед
+записью. Бизнес-аудит хранится в Postgres `audit_events`; технические логи всех
+контейнеров собираются локальным Loki/Grafana stack из `observability/`.
 
 ## Объекты проекта
 
@@ -74,6 +103,14 @@ Worker переносит исчерпавшие попытки задачи в 
 `WORKER_DEAD_LETTER_STREAM`; размер DLQ ограничен
 `WORKER_DEAD_LETTER_MAXLEN=1000`, а запись в DLQ логируется warning-событием с
 `task_id`, исходным stream id и причиной.
+
+Admin-only endpoints для DLQ:
+- `GET /admin/dead-letter` — список последних записей DLQ с текущим статусом
+  задачи из Postgres.
+- `GET /admin/dead-letter/{stream_id}` — детальная запись DLQ.
+- `POST /admin/dead-letter/{stream_id}/replay` — сбросить связанную terminal
+  task в `queued` и повторно поставить в worker stream.
+- `DELETE /admin/dead-letter/{stream_id}` — удалить запись DLQ без replay.
 
 ## Импорт объектов из Excel / CSV
 
@@ -140,11 +177,14 @@ UI показывает статус «Не применимо».
 встроенных ТЛТ/резистивных каталогов и sanitized строк внешней БД.
 
 **`POST /calc/electrical/query`** возвращает страницу таблицы электрорасчёта.
-Для стандартной сортировки `(sort_order, id)` ответ может содержать
-`page_info.next_cursor = {sort_order, id}`. Следующая последовательная страница
-может передать `after_sort_order` и `after_id`; backend использует keyset
+Для стандартной сортировки `(sort_order, id)` и SQL-поддерживаемых
+фильтров/сортировок ответ может содержать
+`page_info.next_cursor = {sort_order, id, key, value, value_is_null}`.
+Следующая последовательная страница передаёт `after_sort_order`, `after_id`,
+`after_key`, `after_value`, `after_value_is_null`; backend использует keyset
 pagination. При произвольном переходе на страницу без cursor сохраняется
-совместимый offset fallback.
+ограниченный offset fallback, а Python fallback для неподдерживаемых полей
+запрещён на больших проектах.
 
 **`GET /references/cables?source=commercial`** и
 **`GET /references/cables/commercial`** — публичный commercial catalog для всех

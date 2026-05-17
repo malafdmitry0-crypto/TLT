@@ -3,7 +3,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import type { GuestSessionResponse } from '@/types/auth';
 
-const apiBaseURL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1';
+export const apiBaseURL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1';
 const apiClient = axios.create({
   baseURL: apiBaseURL,
   withCredentials: true,
@@ -68,6 +68,13 @@ export function createIdempotencyKey(): string {
   return `idemp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+export function createRequestId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 export function withIdempotencyKey(config: AxiosRequestConfig = {}): AxiosRequestConfig {
   return {
     ...config,
@@ -118,6 +125,8 @@ async function refreshEmployeeSessionOnce() {
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   const sessionId = localStorage.getItem('session_id');
+  config.headers = config.headers ?? {};
+  config.headers['X-Request-Id'] = config.headers['X-Request-Id'] ?? createRequestId();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

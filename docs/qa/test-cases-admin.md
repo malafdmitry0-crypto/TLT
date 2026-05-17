@@ -132,3 +132,16 @@
 | 1 | `GET /api/v1/admin/users` с токеном admin | HTTP 200 |
 | 2 | Формат ответа | Массив объектов `UserResponse` |
 | 3 | Пароли в ответе | Отсутствуют |
+
+---
+
+## TC-ADMIN-11: Dead-letter очередь фоновых задач
+
+**Автоматизировано:** ✅ `test_admin.py::TestAdminDeadLetter::*`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | `GET /api/v1/admin/dead-letter` с токеном admin | HTTP 200, список DLQ-записей |
+| 2 | Проверить элемент списка | Есть `stream_id`, `task_id`, `task_type`, `reason`, текущий `task_status` |
+| 3 | `POST /api/v1/admin/dead-letter/{stream_id}/replay` | HTTP 200, task переведена в `enqueued`, запись DLQ удалена |
+| 4 | `GET /api/v1/admin/dead-letter` с токеном employee | HTTP 403 |

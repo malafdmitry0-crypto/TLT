@@ -13,6 +13,7 @@ from app.schemas.specification import (
     SpecificationResponse,
     SpecificationUpdateRequest,
 )
+from app.services.audit_service import AuditService
 from app.services.project_service import (
     ProjectAccessError,
     ProjectNotFoundError,
@@ -65,6 +66,14 @@ async def generate_specification(
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
     items = await SpecificationService(db).generate(project_id, variant)
+    await AuditService(db).try_record(
+        event_type="specification.generated",
+        category="specification",
+        principal=principal,
+        project_id=project_id,
+        details={"variant": variant, "item_count": len(items)},
+        message="Сгенерирована спецификация",
+    )
     return SpecificationGenerateResponse(project_id=project_id, items=items)
 
 
@@ -89,5 +98,13 @@ async def save_specification_items(
 
     items: list[SpecificationItem] = await SpecificationService(db).save_items(
         project_id, data.items, variant
+    )
+    await AuditService(db).try_record(
+        event_type="specification.items_saved",
+        category="specification",
+        principal=principal,
+        project_id=project_id,
+        details={"variant": variant, "item_count": len(items)},
+        message="Сохранены позиции спецификации",
     )
     return SpecificationGenerateResponse(project_id=project_id, items=items)

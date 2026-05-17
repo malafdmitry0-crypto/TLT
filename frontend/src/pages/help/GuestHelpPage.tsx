@@ -6,7 +6,6 @@ import {
   FolderOpenOutlined,
   ArrowLeftOutlined,
   UploadOutlined,
-  DragOutlined,
   ThunderboltOutlined,
   UnorderedListOutlined,
   FireOutlined,
@@ -43,7 +42,7 @@ export default function GuestHelpPage() {
               <li>Рассчитывать тепловые потери для <Text strong>трубопроводов</Text> и <Text strong>ёмкостей</Text></li>
               <li>Создавать проекты и добавлять объекты обогрева (до 50 на проект)</li>
               <li><Text strong>Импортировать объекты</Text> из Excel или CSV — до 100 строк за раз</li>
-              <li>Менять порядок объектов <Text strong>перетаскиванием</Text> мышью</li>
+              <li>Работать с таблицей объектов: поиск, фильтры, сортировка, выбор строк и TSV-копирование</li>
               <li>Получать автоматический подбор греющего кабеля ТЛТ</li>
               <li>Просматривать спецификацию оборудования</li>
               <li>Получать предпросмотр отчёта на экране</li>
@@ -156,11 +155,11 @@ export default function GuestHelpPage() {
           />
 
           <Title level={4}>
-            <DragOutlined style={{ marginRight: 6, color: '#1890ff' }} />
-            Изменение порядка строк
+            <UnorderedListOutlined style={{ marginRight: 6, color: '#1890ff' }} />
+            Работа с таблицей объектов
           </Title>
           <Paragraph>
-            В таблицах труб и резервуаров зажмите строку мышью и перетащите на новое место — порядок сохранится автоматически. Кнопки «Редактировать» и «Удалить» в строке продолжают работать, перетаскивание активируется только после движения мышью.
+            Используйте вкладки типов, поиск, фильтры и сортировку колонок, чтобы быстро найти нужные строки. Отмеченные строки можно копировать в TSV через Ctrl+C; порядок строк задаётся серверным `sort_order`.
           </Paragraph>
 
           <Divider />

@@ -81,13 +81,24 @@ export interface ResistiveCableEntry {
   brand: string;
   model: string;
   source: string;
+  resistance_per_meter?: number | null;
   resistance_ohm_km?: number;
+  technical_data_complete?: boolean;
+  technical_data_missing?: string[];
   conductor_section_mm2?: number;
+  conductor_cross_section?: number;
   diameter_mm?: number;
   nominal_section_length_m?: Record<'20' | '30' | '40', number | null>;
   nominal_size_mm?: string;
   mass_kg_km?: number;
   min_bend_radius_mm?: number;
+  price_per_meter?: number | null;
+  stock_quantity_m?: number | null;
+  stock_status?: string | null;
+  lead_time_days?: number | null;
+  supplier_priority?: number | null;
+  is_preferred?: boolean;
+  commercial_data_source?: string | null;
 }
 
 export interface ResistiveCablesReference {

@@ -58,7 +58,7 @@
 | Кроссбраузерность Firefox/Edge/Яндекс | Основной E2E сейчас запускается на Chromium/Chrome; остальные браузеры проверяются при приёмке |
 | Содержимое PDF/DOCX | Бинарные форматы требуют отдельного snapshot/parser подхода |
 | Истечение access/refresh token по времени | Требует управления временем или отдельной тестовой конфигурации TTL |
-| Drag-and-drop UI | Backend reorder покрыт; клиентский DnD требует стабильных браузерных e2e-сценариев |
+| Drag-and-drop UI | Backend reorder покрыт; row DnD в активном HeatCalc UI сейчас не подключён, нужен отдельный frontend backlog перед e2e |
 | Кабели полной версии | ТЛТ, ТТН/ТТВ/ТТХ, ТТ Р1 (`single_core`) и ТТ Р3 (`three_core`) покрыты unit/integration-тестами; `mineral` и `skin` остаются заглушками |
 | Pump/platform/other | Нет формул и UI, поэтому покрытие появится после требований |
 | Audit/snapshot коэффициентов | Runtime fallback для расчетных коэффициентов покрыт; отдельный audit/snapshot истории коэффициентов пока не реализован |

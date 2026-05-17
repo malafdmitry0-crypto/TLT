@@ -511,6 +511,51 @@ class TestElectricalCalculation:
         assert second_body["page_info"]["has_previous_page"] is True
         assert second_body["items"][0]["id"] != first_body["items"][0]["id"]
 
+    async def test_electrical_query_sorted_page_supports_keyset_cursor(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        await _create_pipe_object(client, project["id"], guest_session, {"name": "Beta"})
+        await _create_pipe_object(client, project["id"], guest_session, {"name": "Alpha"})
+
+        first_page = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "page": 1,
+                "page_size": 1,
+                "sort": {"key": "object_name", "dir": "asc"},
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert first_page.status_code == 200, first_page.text
+        first_body = first_page.json()
+        cursor = first_body["page_info"]["next_cursor"]
+        assert first_body["items"][0]["params"]["name"] == "Alpha"
+        assert cursor["key"] == "object_name"
+        assert cursor["value"] == "alpha"
+
+        second_page = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "page": 2,
+                "page_size": 1,
+                "sort": {"key": "object_name", "dir": "asc"},
+                "after_sort_order": cursor["sort_order"],
+                "after_id": cursor["id"],
+                "after_key": cursor["key"],
+                "after_value": cursor["value"],
+                "after_value_is_null": cursor["value_is_null"],
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert second_page.status_code == 200, second_page.text
+        second_body = second_page.json()
+        assert second_body["items"][0]["params"]["name"] == "Beta"
+        assert second_body["page_info"]["has_previous_page"] is True
+
     async def test_electrical_query_filters_not_calculated_status(
         self, client: AsyncClient, guest_session: str
     ):

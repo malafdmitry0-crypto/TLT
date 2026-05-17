@@ -33,6 +33,7 @@ from app.schemas.calculation import (
     HeatLossBatchJobRequest,
 )
 from app.schemas.report import ReportExportJobRequest, ReportExportTaskResult
+from app.services.audit_service import AuditService
 from app.services.calculation_service import BatchCancelledError, BatchProgress, CalculationService
 from app.services.project_service import ProjectService
 from app.services.report_artifact_service import write_report_artifact
@@ -553,6 +554,61 @@ class TaskService:
             recovered += 1
         return recovered
 
+    async def replay_dead_letter(
+        self,
+        stream_id: str,
+        *,
+        queue: TaskQueue,
+    ) -> tuple[BackgroundTask, bool]:
+        entry = await queue.get_dead_letter(stream_id)
+        if entry is None:
+            raise TaskNotFoundError("Dead-letter запись не найдена")
+        _entry_id, fields = entry
+        task_id_raw = fields.get("task_id")
+        task_type = fields.get("type")
+        if not task_id_raw:
+            raise ValueError("Dead-letter запись не содержит task_id")
+        try:
+            task_id = UUID(str(task_id_raw))
+        except ValueError as exc:
+            raise ValueError("Dead-letter запись содержит некорректный task_id") from exc
+
+        task = await self.db.get(BackgroundTask, task_id)
+        if task is None:
+            raise TaskNotFoundError("Задача из dead-letter записи не найдена")
+        if task_type and task.type != task_type:
+            raise ValueError("Тип задачи в dead-letter записи не совпадает с БД")
+        if task.type not in (TASK_ELECTRICAL_BATCH, TASK_HEAT_LOSS_BATCH, TASK_REPORT_EXPORT):
+            raise ValueError(f"Неизвестный тип задачи: {task.type}")
+        if task.status in ACTIVE_STATUSES:
+            raise TaskLimitError("Задача уже находится в очереди или выполняется")
+
+        now = datetime.now(UTC)
+        task.status = "queued"
+        task.result_payload = None
+        task.error_message = None
+        task.progress_current = 0
+        task.progress_phase = "queued"
+        task.cancel_requested = False
+        task.attempts = 0
+        task.enqueue_attempts = 0
+        task.arq_job_id = None
+        task.last_enqueue_error = None
+        task.next_retry_at = None
+        task.locked_by = None
+        task.lock_expires_at = None
+        task.started_at = None
+        task.finished_at = None
+        task.heartbeat_at = now
+        await self.db.commit()
+        await self.db.refresh(task)
+
+        await self.enqueue_existing_task(task, queue=queue)
+        removed = False
+        if task.last_enqueue_error is None:
+            removed = await queue.delete_dead_letter(stream_id) > 0
+        return task, removed
+
     async def _run_electrical_batch(self, task_id: UUID) -> None:
         task = await self.db.get(BackgroundTask, task_id)
         if task is None:
@@ -754,6 +810,7 @@ class TaskService:
         task.lock_expires_at = None
         task.heartbeat_at = now
         task.finished_at = now
+        await self._record_task_audit(task, "succeeded", result_payload=result_payload)
         await self.db.commit()
 
     async def _mark_failed(self, task_id: UUID, error_message: str) -> None:
@@ -769,6 +826,12 @@ class TaskService:
         task.lock_expires_at = None
         task.heartbeat_at = now
         task.finished_at = now
+        await self._record_task_audit(
+            task,
+            "failed",
+            error_code="task_failed",
+            message=task.error_message,
+        )
         await self.db.commit()
 
     async def _mark_cancelled(self, task_id: UUID) -> None:
@@ -784,7 +847,67 @@ class TaskService:
         task.lock_expires_at = None
         task.heartbeat_at = now
         task.finished_at = now
+        await self._record_task_audit(task, "cancelled")
         await self.db.commit()
+
+    async def _record_task_audit(
+        self,
+        task: BackgroundTask,
+        status: Literal["succeeded", "failed", "cancelled"],
+        *,
+        result_payload: dict[str, Any] | None = None,
+        error_code: str | None = None,
+        message: str | None = None,
+    ) -> None:
+        actor_type = "user" if task.user_id is not None else "guest"
+        actor_id = str(task.user_id or task.session_id or "")
+        audit_result = {
+            "succeeded": "success",
+            "failed": "failure",
+            "cancelled": "cancelled",
+        }[status]
+        await AuditService(self.db).record(
+            event_type=f"task.{task.type}.{status}",
+            category="task",
+            source="worker",
+            result=audit_result,
+            severity="info" if status == "succeeded" else "warning",
+            actor_type=actor_type,
+            actor_id=actor_id,
+            user_id=task.user_id,
+            session_id=task.session_id,
+            project_id=task.project_id,
+            task_id=task.id,
+            details={
+                "task_type": task.type,
+                "attempts": task.attempts,
+                "progress_current": task.progress_current,
+                "progress_total": task.progress_total,
+                **self._task_result_summary(result_payload or {}),
+            },
+            error_code=error_code,
+            message=message,
+        )
+
+    @staticmethod
+    def _task_result_summary(result_payload: dict[str, Any]) -> dict[str, Any]:
+        summary_keys = (
+            "updated",
+            "failed",
+            "calculated",
+            "skipped",
+            "heat_loss_failed",
+            "format",
+            "variant_number",
+        )
+        summary = {key: result_payload[key] for key in summary_keys if key in result_payload}
+        if isinstance(result_payload.get("errors"), list):
+            summary["errors_count"] = len(result_payload["errors"])
+        if isinstance(result_payload.get("results"), list):
+            summary["results_count"] = len(result_payload["results"])
+        if "artifact_name" in result_payload:
+            summary["artifact_name"] = result_payload["artifact_name"]
+        return summary
 
     async def _find_active_by_dedupe(self, dedupe_key: str) -> BackgroundTask | None:
         result = await self.db.execute(

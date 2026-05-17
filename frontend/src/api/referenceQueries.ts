@@ -16,7 +16,7 @@ export const referenceQueryKeys = {
   cables: (source: CableSource) => ['references', 'cables', source] as const,
   cablesTlt: ['references', 'cables-tlt'] as const,
   ttCables: ['references', 'tt-cables'] as const,
-  resistiveCables: ['references', 'resistive-cables'] as const,
+  resistiveCables: (source: CableSource) => ['references', 'resistive-cables', source] as const,
   accessories: ['references', 'accessories'] as const,
   accessoriesExtended: ['references', 'accessories-extended'] as const,
 } as const;

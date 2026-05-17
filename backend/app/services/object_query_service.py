@@ -10,7 +10,7 @@ from math import ceil
 from typing import Any, Literal
 from uuid import UUID
 
-from sqlalchemy import Float, String, and_, case, cast, func, literal, or_, select
+from sqlalchemy import Float, String, Text, and_, case, cast, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
@@ -1454,10 +1454,10 @@ class ObjectQueryService:
         expr = self._sql_expr(field) if expr is None else expr
         if field.static_options:
             return _sql_label_expr(expr, field.static_options)
-        return cast(expr, String)
+        return cast(expr, Text)
 
     def _sql_empty_clause(self, expr: Any) -> Any:
-        text_expr = cast(expr, String)
+        text_expr = cast(expr, Text)
         return or_(expr.is_(None), text_expr == "", text_expr == "—")
 
     def _sql_search_clause(self, data: ProjectObjectsQueryRequest) -> Any | None:
@@ -1465,7 +1465,7 @@ class ObjectQueryService:
         if not text:
             return None
         if not (data.search and data.search.columns):
-            return func.lower(cast(ProjectObject.params, String)).contains(_normal_text(text))
+            return func.lower(cast(ProjectObject.params, Text)).contains(_normal_text(text))
         columns = (
             data.search.columns
             if data.search and data.search.columns

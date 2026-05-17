@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   createObject,
   deleteObject,
-  reorderObjects,
   updateObject,
 } from '@/api/projects';
 import { enqueueElectricalBatchJob } from '@/api/calculations';
@@ -34,7 +33,6 @@ function notifyObjectResult(obj: ProjectObject, action: 'added' | 'updated') {
  *   - add:       добавить объект
  *   - edit:      обновить параметры объекта
  *   - remove:    удалить объект
- *   - reorder:   сменить порядок объектов (drag-and-drop)
  *   - batchCalc: поставить пакетный электрорасчёт в очередь и перейти на шаг 2
  *
  * Все мутации инвалидируют кэш объектов проекта. add/edit показывают
@@ -82,12 +80,6 @@ export function useHeatCalcMutations(
     onError: (e: Error) => message.error(e.message),
   });
 
-  const reorder = useMutation({
-    mutationFn: (order: string[]) => reorderObjects(projectId!, order),
-    onSuccess: invalidateObjects,
-    onError: (e: Error) => message.error(e.message),
-  });
-
   const remove = useMutation({
     mutationFn: (objectId: string) => deleteObject(projectId!, objectId),
     onSuccess: () => {
@@ -108,5 +100,5 @@ export function useHeatCalcMutations(
     onError: (e: Error) => message.error(e.message),
   });
 
-  return { add, edit, remove, reorder, batchCalc };
+  return { add, edit, remove, batchCalc };
 }

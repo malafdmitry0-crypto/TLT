@@ -115,7 +115,6 @@ vi.mock('@/api/projects', () => {
     createObject: vi.fn(),
     updateObject: vi.fn(),
     deleteObject: vi.fn(),
-    reorderObjects: vi.fn(),
   };
 });
 

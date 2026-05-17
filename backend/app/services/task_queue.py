@@ -129,3 +129,32 @@ class TaskQueue:
             },
         )
         return str(dead_id)
+
+    async def dead_letter_count(self) -> int:
+        return int(await self.redis.xlen(settings.WORKER_DEAD_LETTER_STREAM))
+
+    async def list_dead_letters(
+        self,
+        *,
+        count: int = 100,
+        start: str = "+",
+        end: str = "-",
+    ) -> Sequence[tuple[str, dict[str, str]]]:
+        return await self.redis.xrevrange(
+            settings.WORKER_DEAD_LETTER_STREAM,
+            max=start,
+            min=end,
+            count=count,
+        )
+
+    async def get_dead_letter(self, stream_id: str) -> tuple[str, dict[str, str]] | None:
+        entries = await self.redis.xrange(
+            settings.WORKER_DEAD_LETTER_STREAM,
+            min=stream_id,
+            max=stream_id,
+            count=1,
+        )
+        return entries[0] if entries else None
+
+    async def delete_dead_letter(self, stream_id: str) -> int:
+        return int(await self.redis.xdel(settings.WORKER_DEAD_LETTER_STREAM, stream_id))

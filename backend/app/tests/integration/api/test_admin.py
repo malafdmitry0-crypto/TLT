@@ -2,8 +2,46 @@
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.background_task import BackgroundTask
+from app.models.user import User
+from app.services.task_service import TASK_ELECTRICAL_BATCH
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+class FakeDeadLetterQueue:
+    entries: list[tuple[str, dict[str, str]]] = []
+    deleted: list[str] = []
+
+    def __init__(self) -> None:
+        self.closed = False
+
+    async def close(self) -> None:
+        self.closed = True
+
+    async def dead_letter_count(self) -> int:
+        return len(self.entries)
+
+    async def list_dead_letters(self, *, count: int = 100, start: str = "+", end: str = "-"):
+        return self.entries[:count]
+
+    async def get_dead_letter(self, stream_id: str):
+        for entry in self.entries:
+            if entry[0] == stream_id:
+                return entry
+        return None
+
+    async def delete_dead_letter(self, stream_id: str) -> int:
+        self.deleted.append(stream_id)
+        before = len(self.entries)
+        self.entries = [entry for entry in self.entries if entry[0] != stream_id]
+        type(self).entries = self.entries
+        return 1 if len(self.entries) < before else 0
+
+    async def enqueue(self, task_id, task_type: str) -> str:
+        return f"stream:{task_id}:{task_type}"
 
 
 # ─── Users ──────────────────────────────────────────────────────────────────
@@ -284,6 +322,113 @@ class TestAdminAccessories:
             headers={"Authorization": f"Bearer {admin_token}"},
         )
         assert resp.status_code == 404
+
+
+# ─── Dead-letter queue ─────────────────────────────────────────────────────
+
+
+class TestAdminDeadLetter:
+    async def _failed_task(self, db_session: AsyncSession, admin_user: User) -> BackgroundTask:
+        task = BackgroundTask(
+            type=TASK_ELECTRICAL_BATCH,
+            status="failed",
+            user_id=admin_user.id,
+            request_payload={"project_id": "00000000-0000-0000-0000-000000000001"},
+            error_message="RuntimeError: boom",
+            progress_current=3,
+            progress_total=3,
+            progress_phase="failed",
+            attempts=3,
+        )
+        db_session.add(task)
+        await db_session.commit()
+        await db_session.refresh(task)
+        return task
+
+    async def test_admin_can_list_dead_letter_entries(
+        self,
+        client: AsyncClient,
+        admin_token: str,
+        admin_user: User,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        task = await self._failed_task(db_session, admin_user)
+        FakeDeadLetterQueue.entries = [
+            (
+                "9-0",
+                {
+                    "task_id": str(task.id),
+                    "type": TASK_ELECTRICAL_BATCH,
+                    "dead_letter_reason": "worker_attempts_exhausted",
+                    "original_stream_id": "1-0",
+                },
+            )
+        ]
+        FakeDeadLetterQueue.deleted = []
+        monkeypatch.setattr("app.api.v1.admin.TaskQueue", FakeDeadLetterQueue)
+
+        resp = await client.get(
+            "/api/v1/admin/dead-letter",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["count"] == 1
+        assert body["items"][0]["stream_id"] == "9-0"
+        assert body["items"][0]["task_id"] == str(task.id)
+        assert body["items"][0]["task_status"] == "failed"
+        assert body["items"][0]["reason"] == "worker_attempts_exhausted"
+
+    async def test_admin_can_replay_dead_letter_entry(
+        self,
+        client: AsyncClient,
+        admin_token: str,
+        admin_user: User,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        task = await self._failed_task(db_session, admin_user)
+        FakeDeadLetterQueue.entries = [
+            (
+                "9-0",
+                {
+                    "task_id": str(task.id),
+                    "type": TASK_ELECTRICAL_BATCH,
+                    "dead_letter_reason": "worker_attempts_exhausted",
+                },
+            )
+        ]
+        FakeDeadLetterQueue.deleted = []
+        monkeypatch.setattr("app.api.v1.admin.TaskQueue", FakeDeadLetterQueue)
+
+        resp = await client.post(
+            "/api/v1/admin/dead-letter/9-0/replay",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        await db_session.refresh(task)
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["removed_from_dead_letter"] is True
+        assert body["task"]["id"] == str(task.id)
+        assert body["task"]["status"] == "enqueued"
+        assert task.status == "enqueued"
+        assert task.error_message is None
+        assert FakeDeadLetterQueue.deleted == ["9-0"]
+
+    async def test_employee_cannot_view_dead_letter_entries(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        resp = await client.get(
+            "/api/v1/admin/dead-letter",
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 403
 
 
 # ─── Formula check ─────────────────────────────────────────────────────────

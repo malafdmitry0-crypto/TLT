@@ -422,6 +422,125 @@ The codebase subagent is in-process and read-only. It scans bounded roots,
 skips generated/heavy directories, caps findings, redacts secret-like evidence,
 and passes heuristic issues to the main security agent for optional LLM triage.
 
+Known findings can be suppressed through `qa-agent/audit-baseline.json`:
+
+```json
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "rule:file:line",
+      "status": "accepted_risk",
+      "reason": "Local-only default, tracked separately",
+      "expiresAt": "2026-12-31"
+    }
+  ]
+}
+```
+
+Supported baseline statuses are `accepted_risk`, `false_positive`, `todo`, and
+`fixed`. Expired entries are reported as `needs_review`.
+
+Optional confirming probes:
+
+```bash
+QA_AGENT_AUDIT_PROBES=1 \
+QA_AGENT_AUDIT_PROBE_HTTP=1 \
+QA_AGENT_SECURITY_TARGET=http://127.0.0.1:3003 \
+npm run qa-agent:security
+```
+
+Probes are safe and local-only. The HTTP probe currently checks common browser
+security headers; the static probe summarizes active codebase findings for
+triage.
+
+Optional performance budgets:
+
+```bash
+QA_AGENT_PERFORMANCE_BUDGETS=1 \
+QA_AGENT_PERF_MAX_AVG_LATENCY_MS=500 \
+QA_AGENT_PERF_MAX_MAX_LATENCY_MS=2000 \
+QA_AGENT_PERF_MAX_ERROR_RATE=0.05 \
+npm run qa-agent:security
+```
+
+When enabled, the agent evaluates bounded local load results against configured
+budgets. If no load result exists yet, it runs a small local bounded probe.
+
+Optional metrics coverage audit:
+
+```bash
+QA_AGENT_METRICS_AUDIT=1 npm run qa-agent:security
+```
+
+The metrics audit is read-only and heuristic. It checks whether import,
+heat-loss, electrical, report, and worker operation groups have detectable
+metric signals.
+
+Optional audit extensions:
+
+```bash
+QA_AGENT_AUDIT_LIFECYCLE=1 \
+QA_AGENT_AUDIT_RECIPES=1 \
+QA_AGENT_REGRESSION_PLAN=1 \
+QA_AGENT_OWNERSHIP_PLAN=1 \
+QA_AGENT_SCENARIO_PACKS=1 \
+QA_AGENT_CONTRACT_DRIFT=1 \
+QA_AGENT_UI_WORKFLOWS=1 \
+QA_AGENT_BUSINESS_AUDIT=1 \
+npm run qa-agent:security
+```
+
+What these add:
+
+- lifecycle memory through `qa-agent/reports/audit-history.jsonl`;
+- confirmation recipes for known finding categories;
+- regression-test proposals by owner/framework;
+- ownership/fix-size/test-command planning;
+- reusable scenario packs such as `large-project-3000`, `guest-isolation`, and
+  `import-export-roundtrip`;
+- contract drift checks across backend schemas, frontend types, JSON field
+  configs, and import/export services;
+- UI workflow definitions with screenshot checkpoints;
+- lightweight business correctness invariant audit.
+
+Optional performance trend storage:
+
+```bash
+QA_AGENT_PERFORMANCE_BUDGETS=1 \
+QA_AGENT_PERF_TRENDS=1 \
+QA_AGENT_PERF_SCENARIO=objects-query-smoke \
+npm run qa-agent:security
+```
+
+Trend records are appended to `qa-agent/reports/perf-history.jsonl`; a run is
+marked `needs_review` if average latency regresses by more than 25% against the
+previous record for the same scenario.
+
+Audit journal:
+
+```bash
+QA_AGENT_AUDIT_JOURNAL=1 npm run qa-agent:security
+```
+
+The journal is enabled by default and appends JSONL records to
+`qa-agent/reports/audit-journal.jsonl`. It stores active findings, confirmation
+recipes, regression-test proposals, ownership plans, and a run summary. Disable
+it with `QA_AGENT_AUDIT_JOURNAL=0`; override the path with
+`QA_AGENT_AUDIT_JOURNAL_PATH=...`.
+
+Optional flakiness detector:
+
+```bash
+QA_AGENT_FLAKINESS=1 \
+QA_AGENT_FLAKINESS_TESTS=qa-agent \
+QA_AGENT_FLAKINESS_REPEATS=3 \
+npm run qa-agent:security
+```
+
+This repeats a selected existing test command and classifies it as
+`stable_pass`, `stable_fail`, `flaky`, or `timeout_sensitive`.
+
 Optional bounded local resilience/rate-limit smoke:
 
 ```bash

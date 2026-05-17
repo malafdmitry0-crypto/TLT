@@ -29,10 +29,10 @@ E2E Playwright `58` ✅. Числа синхронизируются через 
 | 4.1.1 Доступ Администратор только через конфиг (не в форме выбора) | ✅ | `frontend/src/pages/HomePage.tsx` (только Гость+Сотрудник) | matrix в `docs/analysis/personas.md` |
 | 4.1.2 Управление проектами (создание/открытие/сохранение) | ✅ | `pages/ProjectsPage.tsx`, `components/layout/ProjectMenu.tsx`, `services/project_service.py` | `e2e/tests/projects.spec.ts:4` (4.2.1) |
 | 4.1.3 Ввод/редактирование объектов с подсказками и валидацией | ✅ | `components/wizard/ObjectWizard.tsx` как встроенная плоская форма SC-03; матрица видимости VAL-65..VAL-80 | `e2e/tests/inline-form-dependencies.spec.ts`, `ObjectWizardDependencies.test.tsx` |
-| 4.1.3 Табличное представление по типам (отдельная таблица) | ✅ | `components/tables/PipeTable.tsx`, `TankTable.tsx` | `e2e/tests/heat-calculation.spec.ts:13` |
+| 4.1.3 Табличное представление по типам (отдельная таблица) | ✅ | `pages/HeatCalcPage.tsx`: режимы «Все / Трубопровод / Резервуар», registry колонок и `components/heatcalc/ColumnSettingsModal.tsx` | `HeatCalcPage.test.tsx` |
 | 4.1.3 Автоматический пересчёт при изменении параметра | ✅ | `useHeatCalcMutations.ts` + TanStack Query `invalidateQueries` | `__tests__/unit/pages/HeatCalcPage.test.tsx` |
 | 4.1.3 Подсветка незаполненных/некорректных ячеек | ✅ | `components/common/ValidationHighlight.tsx` + класс `row-invalid` | `__tests__/unit/components/ValidationHighlight.test.tsx` |
-| 4.1.3 Drag-and-drop порядка строк | ✅ | `@dnd-kit` в PipeTable/TankTable, `PUT /objects/reorder` | `app/tests/integration/api/test_objects.py` |
+| 4.1.3 Drag-and-drop порядка строк | ⚠️ | Backend `PUT /objects/reorder` валидирует полный список ID; row DnD в активном `HeatCalcPage.tsx` сейчас не подключён | `app/tests/integration/api/test_objects.py` покрывает backend |
 | 4.1.3 **Копирование/вставка диапазонов ячеек** | ✅ | `utils/clipboard.ts`, `HeatCalcPage.tsx`: выбранные строки копируются в TSV через Ctrl+C | `clipboard.test.ts`, `HeatCalcPage.test.tsx` |
 | 4.1.3 Импорт таблиц из Excel/CSV | ✅ | `components/ImportExcelButton.tsx`, `services/excel_import_service.py` | `app/tests/integration/api/test_import_excel.py` (12 тестов) |
 | 4.1.3 Экспорт таблицы объектов в Excel | ✅ | `components/ExportObjectsButton.tsx`, `GET /objects/export-excel` | manual (UI) |

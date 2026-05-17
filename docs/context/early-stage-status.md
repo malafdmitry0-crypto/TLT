@@ -18,7 +18,7 @@
 | Формулы ранней поставки из ТНП | ✅ | `heat_loss/pipe.py`, `heat_loss/tank.py`; дополнены стенкой трубы, грунтом и подземным резервуаром |
 | Интеграция справочников | ✅ | `climate.json` (539), `insulation.json`, `pipe_materials.json`, `soil_conductivity.json` |
 | Подсветка некорректных строк | ✅ | `row-invalid` + Alert-легенда |
-| Drag-and-drop сортировки | ✅ | `@dnd-kit` в Pipe/TankTable |
+| Drag-and-drop сортировки | ⚠️ | Backend `PUT /objects/reorder` покрыт; row DnD в активном `HeatCalcPage` сейчас не подключён |
 | Импорт таблиц из Excel / CSV | ✅ | `/objects/import-excel` |
 | Автоподбор ТЛТ | ✅ | `electrical/self_regulating.py` + `batch_calc_electrical` |
 | Варианты CO1..CO4 | ✅ | `variant_number` в API, сервисах, UI, спецификации |

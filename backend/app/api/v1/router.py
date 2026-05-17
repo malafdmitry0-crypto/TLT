@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     admin,
+    audit,
     auth,
     calc_jobs,
     calculations,
@@ -16,6 +17,7 @@ from app.api.v1 import (
 )
 
 api_router = APIRouter()
+api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
 api_router.include_router(objects.router, prefix="/projects", tags=["objects"])

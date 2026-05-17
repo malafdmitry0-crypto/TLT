@@ -16,6 +16,7 @@ from app.schemas.calculation import (
     HeatLossBatchJobRequest,
 )
 from app.schemas.report import ReportExportTaskResult
+from app.services.audit_service import AuditService
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError
 from app.services.task_service import (
     TaskAccessError,
@@ -70,6 +71,16 @@ async def enqueue_heat_loss_batch_job(
         )
     except Exception as exc:
         _raise_task_error(exc)
+    await AuditService(db).try_record(
+        event_type="task.heat_loss_batch.queued",
+        category="task",
+        principal=principal,
+        project_id=request.project_id,
+        task_id=task.id,
+        result="queued",
+        details={"idempotency_key_present": bool(idempotency_key), "payload": task.request_payload},
+        message="Поставлен в очередь пакетный пересчёт теплопотерь",
+    )
     return TaskService.to_response(task)
 
 
@@ -100,6 +111,16 @@ async def enqueue_electrical_batch_job(
         )
     except Exception as exc:
         _raise_task_error(exc)
+    await AuditService(db).try_record(
+        event_type="task.electrical_batch.queued",
+        category="task",
+        principal=principal,
+        project_id=request.project_id,
+        task_id=task.id,
+        result="queued",
+        details={"idempotency_key_present": bool(idempotency_key), "payload": task.request_payload},
+        message="Поставлен в очередь пакетный электрорасчёт",
+    )
     return TaskService.to_response(task)
 
 
@@ -153,4 +174,15 @@ async def cancel_calc_task(
         task = await TaskService(db).cancel_task(task_id, principal)
     except Exception as exc:
         _raise_task_error(exc)
+    await AuditService(db).try_record(
+        event_type="task.cancel_requested",
+        category="task",
+        principal=principal,
+        project_id=task.project_id,
+        task_id=task.id,
+        result="cancelled",
+        severity="warning",
+        details={"task_type": task.type, "status": task.status},
+        message="Запрошена отмена фоновой задачи расчёта",
+    )
     return TaskService.to_response(task)

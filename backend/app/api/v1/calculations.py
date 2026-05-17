@@ -26,6 +26,7 @@ from app.schemas.calculation import (
     HeatLossResponse,
     SelectionPolicy,
 )
+from app.services.audit_service import AuditService
 from app.services.calculation_service import CalculationError, CalculationService
 from app.services.electrical_query_service import (
     ElectricalQueryService,
@@ -66,6 +67,14 @@ async def calc_heat_loss(
         ) from exc
     except CalculationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await AuditService(db).try_record(
+        event_type="calculation.heat_loss.previewed",
+        category="calculation",
+        principal=principal,
+        project_id=request.project_id,
+        details={"object_type": request.object_type},
+        message="Выполнен разовый расчёт теплопотерь",
+    )
     return HeatLossResponse(object_type=request.object_type, result=result)
 
 
@@ -92,6 +101,16 @@ async def batch_recalculate(
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     updated, failed, errors = await service.batch_recalculate(project_id)
+    await AuditService(db).try_record(
+        event_type="calculation.heat_loss.batch_completed",
+        category="calculation",
+        principal=principal,
+        project_id=project_id,
+        result="success" if failed == 0 else "failure",
+        severity="info" if failed == 0 else "warning",
+        details={"updated": updated, "failed": failed, "errors": errors},
+        message="Выполнен пакетный пересчёт теплопотерь",
+    )
     return BatchCalcResponse(updated=updated, failed=failed, errors=errors)
 
 
@@ -107,7 +126,7 @@ async def calc_electrical(
 ):
     service = CalculationService(db)
     try:
-        await ProjectService(db).get_object_for_write(request.object_id, principal)
+        obj = await ProjectService(db).get_object_for_write(request.object_id, principal)
         calc = await service.calc_electrical(request)
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
@@ -115,11 +134,27 @@ async def calc_electrical(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except CalculationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return ElectricalResponse(
+    response = ElectricalResponse(
         object_id=calc.object_id,
         cable_type=calc.cable_type,
         result=calc.results or {},
     )
+    await AuditService(db).try_record(
+        event_type="calculation.electrical.completed",
+        category="calculation",
+        principal=principal,
+        project_id=obj.project_id,
+        object_id=request.object_id,
+        details={
+            "cable_type": calc.cable_type,
+            "cable_mark": calc.cable_mark,
+            "variant_number": calc.variant_number,
+            "result_category": (calc.results or {}).get("category"),
+            "error_code": (calc.results or {}).get("error_code"),
+        },
+        message="Выполнен электротехнический расчёт",
+    )
+    return response
 
 
 @router.get(
@@ -310,7 +345,7 @@ async def select_cable(
         )
     service = CalculationService(db)
     try:
-        await ProjectService(db).get_object_for_write(object_id, principal)
+        obj = await ProjectService(db).get_object_for_write(object_id, principal)
         calc = await service.select_cable_manual(
             object_id,
             cable_mark,
@@ -337,7 +372,7 @@ async def select_cable(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except CalculationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return ElectricalCalcSummary(
+    summary = ElectricalCalcSummary(
         id=calc.id,
         object_id=calc.object_id,
         cable_type=calc.cable_type,
@@ -348,6 +383,23 @@ async def select_cable(
         params=calc.params,
         results=calc.results,
     )
+    await AuditService(db).try_record(
+        event_type="calculation.electrical.cable_selected_manual",
+        category="calculation",
+        principal=principal,
+        project_id=obj.project_id,
+        object_id=object_id,
+        details={
+            "cable_mark": cable_mark,
+            "cable_source": cable_source,
+            "cable_type": calc.cable_type,
+            "variant_number": variant_number,
+            "result_category": (calc.results or {}).get("category"),
+            "error_code": (calc.results or {}).get("error_code"),
+        },
+        message="Выполнен ручной выбор кабеля",
+    )
+    return summary
 
 
 @router.post(
@@ -425,7 +477,7 @@ async def batch_calc_electrical(
         _raise_project_error(exc)
     except CalculationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return BatchElectricalResponse(
+    response = BatchElectricalResponse(
         calculated=calculated,
         skipped=skipped,
         scope="selected" if selected_object_ids else "all",
@@ -448,6 +500,25 @@ async def batch_calc_electrical(
         if include_results
         else [],
     )
+    await AuditService(db).try_record(
+        event_type="calculation.electrical.batch_completed",
+        category="calculation",
+        principal=principal,
+        project_id=project_id,
+        result="success" if not errors else "failure",
+        severity="info" if not errors else "warning",
+        details={
+            "calculated": calculated,
+            "skipped": skipped,
+            "heat_loss_failed": heat_loss_failed,
+            "errors": errors,
+            "scope": "selected" if selected_object_ids else "all",
+            "skip_manual": skip_manual,
+            "force_cable_type": force_cable_type,
+        },
+        message="Выполнен пакетный автоподбор кабеля",
+    )
+    return response
 
 
 @router.get(

@@ -31,7 +31,7 @@ Backend-правила:
 | Задача | Куда идти |
 |---|---|
 | Страница рабочего потока | `frontend/src/pages/` |
-| Таблицы объектов | `frontend/src/components/tables/` |
+| Таблица объектов SC-03 | `frontend/src/pages/HeatCalcPage.tsx`, `frontend/src/components/heatcalc/`, `frontend/src/pages/heatcalc/`, `frontend/src/utils/heatCalcTable*` |
 | Мастер добавления | `frontend/src/components/wizard/`, `objectWizardUtils.ts` |
 | API-клиент | `frontend/src/api/` |
 | Роли/доступ | `RoleGuard`, `ProtectedRoute`, `constants/roles.ts` |
@@ -65,4 +65,3 @@ Frontend-правила:
 - Гостевые лимиты и rate limit могут мешать e2e.
 - Отчёт HTML санитизируется на фронте, генерация файлов идёт на backend.
 - `docs/` и `demo-doc/` частично дублируются; актуальной считать `docs/`.
-

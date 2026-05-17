@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -27,6 +28,7 @@ from app.reference_data.loader import (
     list_tlt_cables,
     list_tt_cables,
 )
+from app.services.calculation_service import CalculationService
 
 # TTL для статичных JSON-справочников: 24 часа (изменения = пересборка образа).
 _BUILTIN_TTL = 24 * 3600
@@ -153,6 +155,56 @@ async def _commercial_cable_catalog(db: AsyncSession) -> list[dict[str, object]]
     ]
 
 
+def _resistive_section_from_model(model: object) -> float | None:
+    match = re.search(r"х\s*(\d+(?:[,.]\d+)?)\s*-", str(model))
+    if not match:
+        return None
+    return float(match.group(1).replace(",", "."))
+
+
+def _resistive_technical_payload(cable: dict[str, object]) -> dict[str, object]:
+    payload = dict(cable)
+    resistance = payload.get("resistance_ohm_km")
+    resistance_per_meter = payload.get("resistance_per_meter")
+    if resistance is None and isinstance(resistance_per_meter, int | float):
+        resistance = float(resistance_per_meter) * 1000.0
+        payload["resistance_ohm_km"] = resistance
+
+    section = (
+        payload.get("conductor_section_mm2")
+        or payload.get("conductor_cross_section")
+        or _resistive_section_from_model(payload.get("model"))
+    )
+    if section is not None:
+        payload["conductor_section_mm2"] = section
+
+    missing: list[str] = []
+    if resistance is None:
+        missing.append("resistance_ohm_km")
+    if section is None:
+        missing.append("conductor_section_mm2")
+
+    payload["technical_data_complete"] = len(missing) == 0
+    payload["technical_data_missing"] = missing
+    return payload
+
+
+def _annotate_resistive_catalog(catalog: dict[str, object]) -> dict[str, object]:
+    return {
+        **catalog,
+        "single_core": [
+            _resistive_technical_payload(dict(c))
+            for c in catalog.get("single_core", [])
+            if isinstance(c, dict)
+        ],
+        "three_core": [
+            _resistive_technical_payload(dict(c))
+            for c in catalog.get("three_core", [])
+            if isinstance(c, dict)
+        ],
+    }
+
+
 def _builtin_http_cache(name: str):
     def dependency(response: Response) -> None:
         response.headers["Cache-Control"] = f"public, max-age={_HTTP_CACHE_SECONDS}"
@@ -198,12 +250,30 @@ async def soil_conductivity(
 
 
 @router.get("/resistive-cables", summary="Справочник резистивных кабелей ТТ Р1/ТТ Р3")
-@cache.cached("references:resistive-cables", ttl=_BUILTIN_TTL)
 async def resistive_cables(
-    _: CurrentPrincipal = Depends(require_any()),
-    _cache_headers: None = Depends(_builtin_http_cache("resistive-cables")),
+    response: Response,
+    source: Literal["builtin", "commercial", "extended", "all"] = "builtin",
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
 ):
-    return list_resistive_cables()
+    if source in ("extended", "all") and principal.role not in ("employee", "admin"):
+        raise HTTPException(
+            status_code=403,
+            detail="Расширенный каталог доступен только сотрудникам",
+        )
+    if source == "builtin":
+        response.headers["Cache-Control"] = f"public, max-age={_HTTP_CACHE_SECONDS}"
+        response.headers["ETag"] = _BUILTIN_ETAGS["resistive-cables"]
+        return _annotate_resistive_catalog(list_resistive_cables())
+
+    service = CalculationService(db)
+    return _annotate_resistive_catalog(
+        {
+            "single_core": await service.load_resistive_cable_catalog("single_core", source),
+            "three_core": await service.load_resistive_cable_catalog("three_core", source),
+            "common": list_resistive_cables().get("common", {}),
+        }
+    )
 
 
 @router.get("/tt-cables", summary="Справочник саморегулирующихся кабелей ТТН/ТТВ/ТТХ")

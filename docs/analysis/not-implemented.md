@@ -139,6 +139,6 @@
 2. Зафиксировать и реализовать методики `mineral` и `skin`.
 3. Закрыть формулы и UI для `pump`, `platform`, `other`, если они входят в
    текущую поставку.
-4. Добавить audit log и snapshot расчётов.
+4. Добавить snapshot расчётов поверх уже заведённого `audit_events` business log.
 5. Заменить demo commercial seed на production-импорт цен/остатков/поставщиков
    и зафиксировать финальные freshness rules.

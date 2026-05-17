@@ -1686,6 +1686,89 @@ class TestLoadCableCatalog:
         assert custom["conductor_cross_section"] == pytest.approx(0.47)
         assert custom["price_per_meter"] == 120.0
 
+    async def test_commercial_resistive_merge_fills_missing_builtin_technical_fields(self):
+        ext = SimpleNamespace(
+            cable_type="three_core",
+            brand="ТТ Р3",
+            model="ТТ Р3 х 1,5-1,0",
+            power_per_meter=None,
+            max_temperature=130.0,
+            min_temperature=-60.0,
+            resistance_per_meter=0.011666666666666665,
+            supplier_name="Поставщик",
+            article="R3-1-5",
+            currency="RUB",
+            price_per_meter=140.0,
+            stock_quantity_m=1000.0,
+            stock_status="in_stock",
+            lead_time_days=2,
+            supplier_priority=5,
+            is_preferred=False,
+            order_multiple_m=10.0,
+            min_order_quantity_m=20.0,
+            is_discontinued=False,
+            replacement_group="ТТ Р3",
+            price_updated_at=None,
+            stock_updated_at=None,
+            commercial_data_source="test",
+            params={"conductor_section_mm2": 1.5},
+        )
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars = lambda: MagicMock(all=lambda: [ext])
+        db.execute = AsyncMock(return_value=result)
+        service = CalculationService(db)
+
+        cables = await service.load_resistive_cable_catalog("three_core", "commercial")
+        merged = next(c for c in cables if c["model"] == "ТТ Р3 х 1,5-1,0")
+
+        assert merged["source"] == "commercial"
+        assert merged["resistance_ohm_km"] == pytest.approx(11.666666666666666)
+        assert merged["conductor_section_mm2"] == pytest.approx(1.5)
+        assert merged["price_per_meter"] == pytest.approx(140.0)
+        assert merged["nominal_size_mm"] == "20,40 х 9,20"
+
+    async def test_commercial_resistive_merge_preserves_builtin_technical_fields(self):
+        ext = SimpleNamespace(
+            cable_type="single_core",
+            brand="ТТ Р1",
+            model="ТТ Р1 8000",
+            power_per_meter=None,
+            max_temperature=130.0,
+            min_temperature=-60.0,
+            resistance_per_meter=999.0,
+            supplier_name="Поставщик",
+            article="R1-8000",
+            currency="RUB",
+            price_per_meter=140.0,
+            stock_quantity_m=1000.0,
+            stock_status="in_stock",
+            lead_time_days=2,
+            supplier_priority=5,
+            is_preferred=False,
+            order_multiple_m=10.0,
+            min_order_quantity_m=20.0,
+            is_discontinued=False,
+            replacement_group="ТТ Р1",
+            price_updated_at=None,
+            stock_updated_at=None,
+            commercial_data_source="test",
+            params={"resistance_ohm_km": 999000.0, "conductor_section_mm2": 99.0},
+        )
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars = lambda: MagicMock(all=lambda: [ext])
+        db.execute = AsyncMock(return_value=result)
+        service = CalculationService(db)
+
+        cables = await service.load_resistive_cable_catalog("single_core", "commercial")
+        merged = next(c for c in cables if c["model"] == "ТТ Р1 8000")
+
+        assert merged["source"] == "commercial"
+        assert merged["resistance_ohm_km"] == pytest.approx(8000.0)
+        assert merged["conductor_section_mm2"] == pytest.approx(0.14)
+        assert merged["price_per_meter"] == pytest.approx(140.0)
+
     def test_balanced_ranking_payload_is_unapproved_by_default(self):
         service = CalculationService(AsyncMock())
         payload = service._balanced_ranking_payload(

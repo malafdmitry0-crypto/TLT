@@ -851,5 +851,5 @@ SQLAlchemy-модели наследуются от общего Base
 Формулы — в formulas/ (чистые функции, без зависимости от ORM/БД)
 Справочники — в reference_data/ (загружаются один раз при старте)
 Запрещён import *
-Логирование через logging (не print)
+Логирование через logging (не print): backend/worker пишут JSON в stdout с `request_id`, бизнес-аудит — через `AuditService` в `audit_events`
 Каждая фича начинается с теста (TDD)

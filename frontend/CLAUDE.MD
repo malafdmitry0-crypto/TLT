@@ -15,7 +15,7 @@
 | TanStack Query v5     | Серверный стейт, кэширование API         |
 | Axios                 | HTTP-клиент                              |
 | Ant Design (antd)     | UI-компоненты (таблицы, формы, лейауты)  |
-| @dnd-kit/core + sortable | Drag-and-drop строк в таблицах        |
+| @dnd-kit/core + sortable | Drag-and-drop колонок в настройках таблиц |
 | dompurify             | Санитизация HTML в превью отчёта         |
 | xlsx (SheetJS)        | Экспорт Excel (клиентский)               |
 | React Hook Form       | Формы мастера                            |
@@ -73,12 +73,8 @@ src/
 │   │       ├── TankGeometryStep.tsx
 │   │       ├── ThermalStep.tsx
 │   │       └── ConfirmStep.tsx   # авто-имя через Form.useWatch
-│   ├── tables/
-│   │   ├── CalcTable.tsx         # antd Table preset (scroll, locale)
-│   │   ├── PipeTable.tsx         # DndContext + SortableContext; колонки труб
-│   │   ├── TankTable.tsx         # DndContext + SortableContext; колонки резервуаров
-│   │   ├── DraggableRow.tsx      # tr-обёртка с useSortable
-│   │   └── ResultCell.tsx        # Значение результата либо текст ошибки
+│   ├── heatcalc/
+│   │   └── ColumnSettingsModal.tsx # настройки колонок/вида таблицы SC-03
 │   ├── electrical/               # Компоненты страницы электрорасчёта
 │   │   ├── ObjectCalcCard.tsx    # Карточка объекта (статус, параметры, ручной выбор)
 │   │   ├── CableSelector.tsx     # Дропдаун ручного выбора марки кабеля
@@ -95,7 +91,7 @@ src/
 │   ├── useAutoSave.ts            # debounce-сейвер для форм
 │   ├── useCalcTable.ts           # хелперы мутаций для таблиц расчёта
 │   ├── useElectricalStats.ts     # Агрегаты страницы электрорасчёта (чистая функция)
-│   └── useHeatCalcMutations.ts   # 4 мутации HeatCalcPage: add/edit/reorder/batchCalc
+│   └── useHeatCalcMutations.ts   # мутации HeatCalcPage: add/edit/remove/batchCalc
 ├── api/
 │   ├── client.ts                 # Axios + interceptors 401/403
 │   ├── auth.ts
@@ -171,19 +167,19 @@ src/
 - Визуализация: красная рамка + tooltip с текстом ошибки
 
 ### 4. Таблицы
-- antd `Table` как основа; `CalcTable` задаёт `scroll={{x:'max-content'}}`
-- Каждый тип объекта — отдельная таблица (PipeTable, TankTable). Осознанное
-  дублирование колонок: разные поля имеют разный смысл, принудительная
-  унификация только усложнит чтение.
-- **Drag-and-drop строк** (`@dnd-kit/core` + `@dnd-kit/sortable`):
-  - `DndContext` + `SortableContext` в PipeTable/TankTable
-  - `DraggableRow` через `components.body.row`
-  - `PointerSensor` с `activationConstraint: distance=6` — клики по Edit/Delete не мешают drag
-  - На `dragEnd` → `PUT /objects/reorder` с полным списком ID
+- SC-03 использует inline antd `Table` в `HeatCalcPage.tsx`: один компонент
+  таблицы с режимами «Все / Трубопровод / Резервуар».
+- Колонки формируются через registry и настройки видимости/ширины/порядка;
+  drag-and-drop через `@dnd-kit/*` применяется в `ColumnSettingsModal`, не для
+  строк объектов.
+- Legacy `PipeTable` / `TankTable` удалены. Не восстанавливать их как источник
+  правды: они не покрывали текущие фильтры, серверную пагинацию, inline edit и
+  настройки таблицы.
+- Row drag-and-drop в активном UI сейчас не подключён; backend endpoint
+  `PUT /objects/reorder` остаётся серверным контрактом и валидирует полный
+  список ID проекта.
 - **Строка с ошибкой валидации** (`is_valid=false`): класс `row-invalid` + легенда
   под таблицей («Красные строки — не рассчитано»)
-- **ResultCell** — общий компонент ячейки результата: показывает значение, либо
-  inline-текст ошибки + tooltip с полным описанием
 
 ### 5. Встроенная форма объекта (ObjectWizard / SC-03)
 - Форма встроена в верхнюю часть `HeatCalcPage`, не открывается модальным окном.

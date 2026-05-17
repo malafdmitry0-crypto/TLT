@@ -1,5 +1,6 @@
 """Unit tests for Redis Stream task queue wrapper."""
 
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
@@ -36,6 +37,22 @@ class FakeRedis:
     async def xautoclaim(self, stream, group, consumer, min_idle_ms, start_id, count):
         self.calls.append(("xautoclaim", (stream, group, consumer, min_idle_ms, start_id, count)))
         return ["0-0", [("1-0", {"task_id": str(uuid4())})]]
+
+    async def xlen(self, stream):
+        self.calls.append(("xlen", stream))
+        return 1
+
+    async def xrevrange(self, stream, *, max="+", min="-", count=None):
+        self.calls.append(("xrevrange", (stream, max, min, count)))
+        return [("2-0", {"task_id": str(uuid4()), "type": "electrical_batch"})]
+
+    async def xrange(self, stream, *, min="-", max="+", count=None):
+        self.calls.append(("xrange", (stream, min, max, count)))
+        return [("2-0", {"task_id": str(uuid4()), "type": "electrical_batch"})]
+
+    async def xdel(self, stream, *stream_ids):
+        self.calls.append(("xdel", (stream, stream_ids)))
+        return len(stream_ids)
 
     async def aclose(self):
         self.closed = True
@@ -98,16 +115,16 @@ async def test_task_queue_reclaims_pending_entries(monkeypatch: pytest.MonkeyPat
 
 async def test_task_queue_dead_letters_original_payload(
     monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
 ):
     fake = FakeRedis()
+    warning = MagicMock()
     monkeypatch.setattr("app.services.task_queue.Redis.from_url", FakeRedisFactory(fake))
+    monkeypatch.setattr("app.services.task_queue.logger.warning", warning)
     monkeypatch.setattr(
         "app.services.task_queue.settings.WORKER_DEAD_LETTER_STREAM",
         "tasks:dead",
     )
     monkeypatch.setattr("app.services.task_queue.settings.WORKER_DEAD_LETTER_MAXLEN", 1_000)
-    caplog.set_level("WARNING", logger="heatcalc.task_queue")
     queue = TaskQueue("redis://test")
 
     dead_id = await queue.dead_letter(
@@ -133,7 +150,33 @@ async def test_task_queue_dead_letters_original_payload(
             ),
         )
     ]
-    assert "Task moved to dead-letter stream" in caplog.text
+    warning.assert_called_once()
+    assert warning.call_args.args[0] == "Task moved to dead-letter stream"
+
+
+async def test_task_queue_reads_and_deletes_dead_letter_entries(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    fake = FakeRedis()
+    monkeypatch.setattr("app.services.task_queue.Redis.from_url", FakeRedisFactory(fake))
+    monkeypatch.setattr(
+        "app.services.task_queue.settings.WORKER_DEAD_LETTER_STREAM",
+        "tasks:dead",
+    )
+    queue = TaskQueue("redis://test")
+
+    count = await queue.dead_letter_count()
+    entries = await queue.list_dead_letters(count=10)
+    entry = await queue.get_dead_letter("2-0")
+    deleted = await queue.delete_dead_letter("2-0")
+
+    assert count == 1
+    assert entries
+    assert entry is not None
+    assert deleted == 1
+    assert [call[0] for call in fake.calls] == ["xlen", "xrevrange", "xrange", "xdel"]
+    assert fake.calls[1][1] == ("tasks:dead", "+", "-", 10)
+    assert fake.calls[3][1] == ("tasks:dead", ("2-0",))
 
 
 async def test_task_queue_ignores_existing_consumer_group(monkeypatch: pytest.MonkeyPatch):

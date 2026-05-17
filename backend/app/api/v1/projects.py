@@ -19,6 +19,7 @@ from app.schemas.project import (
     ProjectResponse,
     ProjectUpdate,
 )
+from app.services.audit_service import AuditService
 from app.services.calculation_service import CalculationService
 from app.services.project_io_service import (
     ProjectImportError,
@@ -70,9 +71,18 @@ async def create_project(
 ):
     service = ProjectService(db)
     try:
-        return await service.create_project(data, principal)
+        project = await service.create_project(data, principal)
     except ProjectLimitError as exc:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
+    await AuditService(db).try_record(
+        event_type="project.created",
+        category="project",
+        principal=principal,
+        project_id=project.id,
+        details={"name": project.name, "task_number": project.task_number},
+        message="Создан проект",
+    )
+    return project
 
 
 @router.get(
@@ -97,6 +107,13 @@ async def export_projects_csv_bulk_top(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    await AuditService(db).try_record(
+        event_type="project.export_bulk.csv",
+        category="project",
+        principal=principal,
+        details={"project_ids": [str(item) for item in parsed], "filename": filename},
+        message="Выгружен пакет проектов CSV",
+    )
     return Response(
         content=payload,
         media_type="text/csv; charset=utf-8",
@@ -122,6 +139,14 @@ async def import_project_csv_top(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    await AuditService(db).try_record(
+        event_type="project.imported.csv",
+        category="project",
+        principal=principal,
+        project_id=project.id,
+        details={"filename": file.filename, "size_bytes": len(raw)},
+        message="Импортирован проект из CSV",
+    )
     return project
 
 
@@ -136,11 +161,19 @@ async def import_projects_csv_bulk_top(
 ):
     raw = await read_upload_with_limit(file)
     try:
-        return await import_projects_bulk(db, raw, principal)
+        result = await import_projects_bulk(db, raw, principal)
     except ProjectImportError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    await AuditService(db).try_record(
+        event_type="project.import_bulk.csv",
+        category="project",
+        principal=principal,
+        details={"filename": file.filename, "size_bytes": len(raw), "result": result},
+        message="Импортирован пакет проектов CSV",
+    )
+    return result
 
 
 @router.get(
@@ -175,11 +208,26 @@ async def update_project(
 ):
     service = ProjectService(db)
     try:
-        return await service.update_project(project_id, data, principal)
+        project = await service.update_project(project_id, data, principal)
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    await AuditService(db).try_record(
+        event_type="project.updated",
+        category="project",
+        principal=principal,
+        project_id=project.id,
+        details={"changed_fields": sorted(data.model_fields_set)},
+        after_state={
+            "name": project.name,
+            "description": project.description,
+            "task_number": project.task_number,
+            "status": project.status,
+        },
+        message="Обновлён проект",
+    )
+    return project
 
 
 @router.post(
@@ -206,7 +254,16 @@ async def duplicate_project(
     calc_service = CalculationService(db)
     await calc_service.batch_recalculate(new_project.id)
     await calc_service.batch_calc_electrical(new_project.id)
-    return await service.get_project_summary(new_project.id, principal)
+    project = await service.get_project_summary(new_project.id, principal)
+    await AuditService(db).try_record(
+        event_type="project.duplicated",
+        category="project",
+        principal=principal,
+        project_id=project.id,
+        details={"source_project_id": str(project_id)},
+        message="Проект скопирован с пересчётом",
+    )
+    return project
 
 
 @router.get(
@@ -225,6 +282,14 @@ async def export_project_csv(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    await AuditService(db).try_record(
+        event_type="project.exported.csv",
+        category="project",
+        principal=principal,
+        project_id=project_id,
+        details={"filename": filename, "size_bytes": len(payload)},
+        message="Выгружен проект CSV",
+    )
     return Response(
         content=payload,
         media_type="text/csv; charset=utf-8",
@@ -249,3 +314,11 @@ async def delete_project(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    await AuditService(db).try_record(
+        event_type="project.deleted",
+        category="project",
+        principal=principal,
+        project_id=project_id,
+        severity="warning",
+        message="Удалён проект",
+    )

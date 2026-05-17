@@ -52,6 +52,27 @@ class QueueFail:
         raise RuntimeError("redis down")
 
 
+class DeadLetterQueueOk(QueueOk):
+    def __init__(self, task_id, task_type: str = TASK_ELECTRICAL_BATCH) -> None:
+        self.entry = (
+            "9-0",
+            {
+                "task_id": str(task_id),
+                "type": task_type,
+                "dead_letter_reason": "worker_attempts_exhausted",
+                "original_stream_id": "1-0",
+            },
+        )
+        self.deleted: list[str] = []
+
+    async def get_dead_letter(self, stream_id: str):
+        return self.entry if stream_id == self.entry[0] else None
+
+    async def delete_dead_letter(self, stream_id: str) -> int:
+        self.deleted.append(stream_id)
+        return 1
+
+
 def _allow_active_task_limits(service: TaskService) -> None:
     service._active_global_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
     service._active_project_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
@@ -241,6 +262,67 @@ class TestWorkerFailureRecording:
         assert task.finished_at is not None
         assert task.locked_by is None
         mock_db.commit.assert_awaited_once()
+
+
+class TestDeadLetterReplay:
+    async def test_replay_dead_letter_resets_failed_task_and_reenqueues(self, mock_db):
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_ELECTRICAL_BATCH,
+            status="failed",
+            session_id="sid",
+            request_payload={},
+            result_payload={"calculated": 1},
+            error_message="RuntimeError: boom",
+            progress_current=7,
+            progress_total=10,
+            progress_phase="failed",
+            cancel_requested=True,
+            attempts=3,
+            enqueue_attempts=1,
+            locked_by="worker-a",
+            started_at=datetime.now(UTC),
+            finished_at=datetime.now(UTC),
+        )
+        mock_db.get = AsyncMock(return_value=task)
+        queue = DeadLetterQueueOk(task.id)
+
+        replayed, removed = await TaskService(mock_db).replay_dead_letter("9-0", queue=queue)
+
+        assert replayed is task
+        assert removed is True
+        assert task.status == "enqueued"
+        assert task.result_payload is None
+        assert task.error_message is None
+        assert task.progress_current == 0
+        assert task.progress_phase == "enqueued"
+        assert task.cancel_requested is False
+        assert task.attempts == 0
+        assert task.enqueue_attempts == 1
+        assert task.locked_by is None
+        assert task.started_at is None
+        assert task.finished_at is None
+        assert task.arq_job_id is not None
+        assert queue.deleted == ["9-0"]
+        assert mock_db.commit.await_count == 2
+
+    async def test_replay_dead_letter_rejects_active_task(self, mock_db):
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_HEAT_LOSS_BATCH,
+            status="running",
+            session_id="sid",
+            request_payload={},
+            progress_current=0,
+        )
+        mock_db.get = AsyncMock(return_value=task)
+        queue = DeadLetterQueueOk(task.id, TASK_HEAT_LOSS_BATCH)
+
+        with pytest.raises(TaskLimitError, match="уже находится"):
+            await TaskService(mock_db).replay_dead_letter("9-0", queue=queue)
+
+        assert queue.deleted == []
+        mock_db.commit.assert_not_awaited()
 
 
 class TestTaskCreation:

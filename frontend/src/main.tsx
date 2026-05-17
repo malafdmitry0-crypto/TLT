@@ -6,8 +6,10 @@ import { ConfigProvider, theme } from 'antd';
 import ruRU from 'antd/locale/ru_RU';
 import App from './App';
 import './styles.css';
+import { installClientAudit } from '@/utils/clientAudit';
 
 const BUTTON_SCALE = 0.7;
+installClientAudit();
 
 const queryClient = new QueryClient({
   defaultOptions: {

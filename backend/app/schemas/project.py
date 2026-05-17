@@ -119,6 +119,9 @@ class ProjectObjectsQueryRequest(BaseModel):
 class ProjectObjectsPageCursor(BaseModel):
     sort_order: int
     id: UUID
+    key: str | None = None
+    value: Any | None = None
+    value_is_null: bool = False
 
 
 class ProjectObjectsPageInfo(BaseModel):

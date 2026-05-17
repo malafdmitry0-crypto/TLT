@@ -45,8 +45,8 @@ export default function ReferencesPage() {
     ...referenceQueryOptions,
   });
   const { data: resistive, isFetching: resistiveLoading } = useQuery({
-    queryKey: referenceQueryKeys.resistiveCables,
-    queryFn: getResistiveCables,
+    queryKey: referenceQueryKeys.resistiveCables('builtin'),
+    queryFn: () => getResistiveCables('builtin'),
     ...referenceQueryOptions,
   });
   const { data: soil = [], isFetching: soilLoading } = useQuery({

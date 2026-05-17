@@ -25,6 +25,7 @@ from app.schemas.project import (
     ProjectObjectUpdate,
     ReorderRequest,
 )
+from app.services.audit_service import AuditService
 from app.services.calculation_service import CalculationService
 from app.services.excel_import_service import build_objects_xlsx
 from app.services.object_query_service import ObjectQueryService, ObjectQueryValidationError
@@ -145,6 +146,21 @@ async def add_object(
         await calc_service.recalculate_object(obj)
         await db.commit()
         await db.refresh(obj)
+        await AuditService(db).try_record(
+            event_type="object.created",
+            category="object",
+            principal=principal,
+            project_id=project_id,
+            object_id=obj.id,
+            details={"object_type": obj.object_type, "is_valid": obj.is_valid},
+            after_state={
+                "object_type": obj.object_type,
+                "params": obj.params,
+                "results": obj.results,
+                "validation_errors": obj.validation_errors,
+            },
+            message="Создан объект проекта и выполнен первичный расчёт",
+        )
         return obj
     except ProjectLimitError as exc:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
@@ -169,13 +185,22 @@ async def reorder_objects(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        return await ProjectService(db).reorder_objects(project_id, data.order, principal)
+        objects = await ProjectService(db).reorder_objects(project_id, data.order, principal)
     except ProjectValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    await AuditService(db).try_record(
+        event_type="object.reordered",
+        category="object",
+        principal=principal,
+        project_id=project_id,
+        details={"object_ids": [str(item) for item in data.order], "count": len(objects)},
+        message="Изменён порядок объектов проекта",
+    )
+    return objects
 
 
 @router.get(
@@ -267,6 +292,20 @@ async def import_excel(
                 principal,
             )
             result["heat_loss_task"] = TaskService.to_response(task)
+        await AuditService(db).try_record(
+            event_type="object.imported",
+            category="object",
+            principal=principal,
+            project_id=project_id,
+            details={
+                "filename": file.filename,
+                "mode": mode,
+                "format": "csv" if filename.endswith(".csv") else "xlsx",
+                "created_count": len(created_object_ids),
+                "result": result,
+            },
+            message="Импортированы объекты проекта",
+        )
         return result
     except ExcelImportError as exc:
         raise HTTPException(
@@ -310,6 +349,14 @@ async def export_excel(
     # Round-trip совместимый формат: листы «Трубопроводы» / «Резервуары»
     # с теми же колонками, что ожидает `POST /objects/import-excel`.
     data = build_objects_xlsx(project.objects)
+    await AuditService(db).try_record(
+        event_type="object.exported.xlsx",
+        category="object",
+        principal=principal,
+        project_id=project_id,
+        details={"object_count": len(project.objects), "size_bytes": len(data)},
+        message="Выгружены объекты проекта XLSX",
+    )
     return StreamingResponse(
         io.BytesIO(data),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -346,6 +393,26 @@ async def update_object(
             )
         await db.commit()
         await db.refresh(obj)
+        await AuditService(db).try_record(
+            event_type="object.updated",
+            category="object",
+            principal=principal,
+            project_id=project_id,
+            object_id=object_id,
+            details={
+                "changed_fields": sorted(data.model_fields_set),
+                "params_changed": params_changed,
+                "version": obj.version,
+                "is_valid": obj.is_valid,
+            },
+            after_state={
+                "object_type": obj.object_type,
+                "params": obj.params,
+                "results": obj.results,
+                "validation_errors": obj.validation_errors,
+            },
+            message="Обновлён объект проекта и выполнен автопересчёт",
+        )
         return obj
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -372,3 +439,12 @@ async def delete_object(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    await AuditService(db).try_record(
+        event_type="object.deleted",
+        category="object",
+        principal=principal,
+        project_id=project_id,
+        object_id=object_id,
+        severity="warning",
+        message="Удалён объект проекта",
+    )

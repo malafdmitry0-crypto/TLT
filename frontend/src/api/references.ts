@@ -1,4 +1,5 @@
 import apiClient from './client';
+import type { CableSource } from './calculations';
 import type {
   AccessoryEntry,
   CableTltEntry,
@@ -45,7 +46,11 @@ export async function getSoilConductivity(): Promise<SoilConductivityEntry[]> {
   return data;
 }
 
-export async function getResistiveCables(): Promise<ResistiveCablesReference> {
-  const { data } = await apiClient.get<ResistiveCablesReference>('/references/resistive-cables');
+export async function getResistiveCables(
+  source: CableSource = 'builtin',
+): Promise<ResistiveCablesReference> {
+  const { data } = await apiClient.get<ResistiveCablesReference>('/references/resistive-cables', {
+    params: { source },
+  });
   return data;
 }

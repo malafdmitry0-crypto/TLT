@@ -544,16 +544,19 @@ class CalculationService:
         if commercial is None:
             return entry
         overlay = cls._extended_cable_catalog_entry(commercial, source="commercial")
+        technical_keys = {
+            "resistance_ohm_km",
+            "conductor_cross_section",
+            "conductor_section_mm2",
+            "diameter_mm",
+            "nominal_size_mm",
+        }
         for key, value in overlay.items():
-            if key in {
-                "model",
-                "brand",
-                "resistance_ohm_km",
-                "conductor_cross_section",
-                "conductor_section_mm2",
-                "diameter_mm",
-                "nominal_size_mm",
-            }:
+            if key in {"model", "brand"}:
+                continue
+            if key in technical_keys:
+                if entry.get(key) is None and value is not None:
+                    entry[key] = value
                 continue
             entry[key] = value
         return entry

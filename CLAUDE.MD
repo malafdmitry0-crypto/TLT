@@ -122,18 +122,14 @@
 │   │   ├── wizard/
 │   │   │   ├── ObjectWizard.tsx       ← встроенная плоская форма SC-03
 │   │   │   └── steps/                 ← legacy step-компоненты и вспомогательные части формы
-│   │   ├── tables/
-│   │   │   ├── PipeTable.tsx          ← Колонки труб + DnD + Edit/Delete
-│   │   │   ├── TankTable.tsx          ← Колонки резервуаров (осознанное дублирование с PipeTable)
-│   │   │   ├── CalcTable.tsx          ← antd Table preset
-│   │   │   ├── DraggableRow.tsx       ← tr-обёртка с useSortable
-│   │   │   └── ResultCell.tsx        ← Значение / текст ошибки
+│   │   ├── heatcalc/
+│   │   │   └── ColumnSettingsModal.tsx ← настройки колонок/вида таблицы SC-03
 │   │   └── electrical/                ← Компоненты ElecCalcPage
 │   │       ├── ObjectCalcCard.tsx     ← Карточка объекта со статусом расчёта
 │   │       ├── CableSelector.tsx      ← Дропдаун ручного выбора марки
 │   │       └── ElectricalSummary.tsx  ← Суммарные итоги (Statistic-карточки)
 │   ├── hooks/
-│   │   ├── useHeatCalcMutations.ts    ← add/edit/reorder/batchCalc + сообщения
+│   │   ├── useHeatCalcMutations.ts    ← add/edit/remove/batchCalc + сообщения
 │   │   ├── useElectricalStats.ts      ← Агрегация страницы электрорасчёта (чистая функция)
 │   │   ├── useAuth.ts                 ← login guest/employee + сброс currentProject
 │   │   └── useProject.ts
@@ -242,16 +238,18 @@ UTF-8-BOM / CP1251).
 
 ---
 
-## 5b. Drag-and-drop сортировки (ТЗ 4.1.3)
+## 5b. Таблица теплопотерь и порядок строк (ТЗ 4.1.3)
 
-`PipeTable` / `TankTable` обёрнуты в `DndContext` + `SortableContext` (библиотека
-`@dnd-kit/*`). Строки — `DraggableRow` через `components.body.row` antd-Table.
-`PointerSensor` с `activationConstraint: distance=6` — клики по кнопкам
-Edit/Delete работают, drag начинается только после 6px движения.
+Активная таблица SC-03 собрана inline в `frontend/src/pages/HeatCalcPage.tsx`:
+единый antd `Table` с режимами «Все / Трубопровод / Резервуар», серверной
+страничной выдачей, поиском, фильтрами, сортировкой, настройками колонок,
+inline-редактированием и TSV-копированием выбранных строк.
 
-На `dragEnd` вызывается `PUT /objects/reorder` с полным списком ID в новом
-порядке. Сортировка внутри каждого типа (труба среди труб, бак среди баков);
-`sort_order` — глобальный.
+Legacy-компоненты `PipeTable` / `TankTable` удалены: они не соответствовали
+текущему `HeatCalcPage` и больше не являются источником истины. Row
+drag-and-drop в активном UI сейчас не подключён. Backend endpoint
+`PUT /objects/reorder` сохранён и валидирует полный список ID проекта; статус
+UI DnD отражён как частичный в `docs/tz-compliance.md`.
 
 ---
 
@@ -350,7 +348,7 @@ GUEST_MAX_SESSIONS_PER_IP=10
 | POST | `/api/v1/projects/{id}/objects` | Добавить объект + автоматический расчёт |
 | PUT | `/api/v1/projects/{id}/objects/{oid}` | Обновить объект + пересчёт |
 | DELETE | `/api/v1/projects/{id}/objects/{oid}` | Удалить объект |
-| PUT | `/api/v1/projects/{id}/objects/reorder` | Изменить порядок объектов (drag-and-drop) |
+| PUT | `/api/v1/projects/{id}/objects/reorder` | Изменить порядок объектов полным списком ID |
 | POST | `/api/v1/projects/{id}/objects/import-excel` | Импорт объектов из Excel (.xlsx) или CSV |
 | GET | `/api/v1/projects/{id}/objects/import-template?format=xlsx\|csv` | Скачать шаблон для импорта |
 | GET | `/api/v1/projects/{id}/objects/export-excel` | Экспорт объектов в Excel (сотрудник) |
@@ -402,11 +400,14 @@ GUEST_MAX_SESSIONS_PER_IP=10
 # Разработка (hot-reload, bind-mount кода)
 docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
+# Разработка + локальный Loki/Grafana/Alloy для логов контейнеров
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.observability.yml up --build
+
 # Продакшен
 docker-compose up --build -d
 ```
 
-Сервисы: `db` (PostgreSQL 16 · порт 5432), `backend` (FastAPI · порт 8000), `frontend` (Vite dev / nginx · порт 3003).
+Сервисы: `db` (PostgreSQL 16 · порт 5432), `backend` (FastAPI · порт 8000), `frontend` (Vite dev / nginx · порт 3003). Observability-override добавляет `loki` (:3100), `grafana` (:3002) и `alloy` (:12345).
 
 ---
 
@@ -421,7 +422,7 @@ docker-compose up --build -d
 
 Текущее состояние:
 <!-- AUTO:test-counts -->
-**1079 backend** (806 unit + 273 integration) ✅ · **340 frontend vitest** ✅ · **60 e2e Playwright** ✅
+**1094 backend** (814 unit + 280 integration) ✅ · **340 frontend vitest** ✅ · **60 e2e Playwright** ✅
 <!-- /AUTO -->
 
 Цифры обновляются командой `scripts/sync-docs.py`.
