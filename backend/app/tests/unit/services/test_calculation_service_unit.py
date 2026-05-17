@@ -200,6 +200,9 @@ class TestRecalculateObject:
         assert obj.is_valid is False
         assert obj.validation_errors is not None
         assert "error" in obj.validation_errors
+        assert obj.validation_errors["category"] == "validation"
+        assert obj.validation_errors["error_code"] == "invalid_object_params"
+        assert obj.validation_errors["message"] == obj.validation_errors["error"]
         # Сообщение об ошибке содержит упоминание T_продукта
         err_msg = obj.validation_errors["error"].lower()
         assert "выше" in err_msg or "температур" in err_msg
@@ -1171,11 +1174,13 @@ class TestBatchElectricalCallbacks:
         assert calculated == 0
         assert skipped == 1
         assert heat_loss_failed == 0
-        assert errors[0]["error_code"] == "MISSING_TANK_LAYOUT"
-        assert errors[0]["suggested_actions"] == ["SET_TANK_LAYOUT"]
+        assert errors[0]["error_code"] == "unsupported_layout"
+        assert errors[0]["category"] == "unsupported"
+        assert errors[0]["suggested_actions"] == []
         created = db.add.call_args.args[0]
-        assert created.results["error_code"] == "MISSING_TANK_LAYOUT"
-        assert created.results["message"].startswith("Для электрорасчёта резервуара")
+        assert created.results["error_code"] == "unsupported_layout"
+        assert created.results["category"] == "unsupported"
+        assert created.results["message"].startswith("Электрорасчёт укладки кабеля")
         assert created.results["error_context"]["shape"] == "spherical"
         assert created.results["error_context"]["cable_type"] == "self_regulating"
 
@@ -1610,6 +1615,7 @@ class TestSaveFailedElectrical:
         assert existing.cable_mark is None
         assert existing.results["error"] == "Some error"
         assert existing.results["error_code"] == "UNKNOWN"
+        assert existing.results["category"] == "formula"
         assert existing.results["message"] == "Some error"
         assert existing.results["suggested_actions"] == [
             "CHECK_OBJECT_PARAMS",

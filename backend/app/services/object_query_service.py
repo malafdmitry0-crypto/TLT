@@ -120,6 +120,7 @@ STEAM_OPTIONS = (("yes", "Да"), ("no", "Нет"), (True, "Да"), (False, "Н�
 HEAT_LOSS_STATUS_OPTIONS = (
     ("calculated", "Рассчитан"),
     ("error", "Ошибка"),
+    ("unsupported", "Не применимо"),
     ("not_calculated", "Не рассчитан"),
 )
 CAPABILITIES_SAMPLE_LIMIT = 1000
@@ -148,6 +149,11 @@ def _placement(obj: ProjectObject) -> Any:
 def _heat_loss_status(obj: ProjectObject) -> str:
     if obj.is_valid and obj.results is not None:
         return "calculated"
+    if (
+        isinstance(obj.validation_errors, dict)
+        and obj.validation_errors.get("category") == "unsupported"
+    ):
+        return "unsupported"
     if obj.validation_errors:
         return "error"
     return "not_calculated"
@@ -283,6 +289,10 @@ def _sql_heat_loss_status() -> Any:
                 ProjectObject.results.is_not(None),
             ),
             literal("calculated"),
+        ),
+        (
+            ProjectObject.validation_errors["category"].astext == "unsupported",
+            literal("unsupported"),
         ),
         (ProjectObject.validation_errors.is_not(None), literal("error")),
         else_=literal("not_calculated"),

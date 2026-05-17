@@ -37,6 +37,7 @@ import {
   FireOutlined,
   PlusOutlined,
   ReloadOutlined,
+  MinusCircleFilled,
   SaveOutlined,
   StopOutlined,
   TableOutlined,
@@ -1063,6 +1064,15 @@ export default function HeatCalcPage() {
             <Tooltip title={heatLossErrorText(r)}>
               <Tag className="heatloss-status-icon-tag" color="error" aria-label="Ошибка">
                 <CloseCircleFilled />
+              </Tag>
+            </Tooltip>
+          );
+        }
+        if (status === 'unsupported') {
+          return (
+            <Tooltip title={heatLossErrorText(r)}>
+              <Tag className="heatloss-status-icon-tag" color="default" aria-label="Не применимо">
+                <MinusCircleFilled />
               </Tag>
             </Tooltip>
           );

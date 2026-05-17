@@ -92,6 +92,8 @@ describe('heatCalcPageUtils', () => {
   it('определяет статус теплопотерь и текст ошибки', () => {
     const calculated = makeObject({ is_valid: true, results: { total_heat_loss: 100 } });
     const failed = makeObject({ validation_errors: { error: 'Нет материала' } });
+    const structuredFailed = makeObject({ validation_errors: { error: 'raw', message: 'Понятная ошибка' } });
+    const unsupported = makeObject({ validation_errors: { category: 'unsupported', message: 'Не применимо' } });
     const rawFailed = makeObject({ validation_errors: { field: 'required' } });
 
     expect(heatLossCalcStatus(calculated)).toBe('calculated');
@@ -99,6 +101,9 @@ describe('heatCalcPageUtils', () => {
     expect(heatLossCalcStatus(failed)).toBe('error');
     expect(heatLossStatusLabel(heatLossCalcStatus(failed))).toBe('Ошибка');
     expect(heatLossErrorText(failed)).toBe('Нет материала');
+    expect(heatLossErrorText(structuredFailed)).toBe('Понятная ошибка');
+    expect(heatLossCalcStatus(unsupported)).toBe('unsupported');
+    expect(heatLossStatusLabel(heatLossCalcStatus(unsupported))).toBe('Не применимо');
     expect(heatLossErrorText(rawFailed)).toBe('{"field":"required"}');
     expect(heatLossStatusLabel(heatLossCalcStatus(makeObject()))).toBe('Не рассчитан');
   });

@@ -178,6 +178,8 @@ function fieldHelp(fieldId: string, objectType?: HeatCalcObjectType, mode?: stri
 
 function validationErrorsText(validationErrors: ProjectObject['validation_errors'] | undefined) {
   if (!validationErrors) return '';
+  const message = validationErrors['message'];
+  if (typeof message === 'string') return message;
   const error = validationErrors['error'];
   if (typeof error === 'string') return error;
   if (error != null) return String(error);

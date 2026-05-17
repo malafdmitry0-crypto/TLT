@@ -1,6 +1,9 @@
 import type { ElectricalCalcSummary } from '@/types/calculation';
 
 const ERROR_PREFIX_RE = /^[A-Za-z_][\w.]*Error:\s*/;
+const UNSUPPORTED_ERROR_CODES = new Set(['unsupported_layout']);
+
+export type CalcIssueCategory = 'validation' | 'formula' | 'unsupported' | 'external';
 
 function cleanCalcErrorText(value: string) {
   return value.replace(ERROR_PREFIX_RE, '').trim();
@@ -40,6 +43,38 @@ export function electricalCalcErrorCode(
 ): string | null {
   const code = calc?.results?.error_code;
   return typeof code === 'string' && code.trim() ? code : null;
+}
+
+export function electricalCalcCategory(
+  calc: ElectricalCalcSummary | null | undefined
+): CalcIssueCategory | null {
+  const category = calc?.results?.category;
+  if (
+    category === 'validation' ||
+    category === 'formula' ||
+    category === 'unsupported' ||
+    category === 'external'
+  ) {
+    return category;
+  }
+  return null;
+}
+
+export function electricalCalcHint(
+  calc: ElectricalCalcSummary | null | undefined
+): string | null {
+  const hint = calc?.results?.hint;
+  return typeof hint === 'string' && hint.trim() ? hint : null;
+}
+
+export function isElectricalCalcUnsupported(
+  calc: ElectricalCalcSummary | null | undefined
+): boolean {
+  const code = electricalCalcErrorCode(calc);
+  return (
+    electricalCalcCategory(calc) === 'unsupported' ||
+    !!(code && UNSUPPORTED_ERROR_CODES.has(code))
+  );
 }
 
 export function electricalCalcSuggestedActions(

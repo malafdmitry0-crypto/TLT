@@ -77,6 +77,9 @@ class TestObjectsLifecycle:
         body = resp.json()
         assert body["is_valid"] is False
         assert body["results"] is None
+        assert body["validation_errors"]["error_code"] == "missing_required_fields"
+        assert body["validation_errors"]["category"] == "validation"
+        assert body["validation_errors"]["message"] == body["validation_errors"]["error"]
         assert "Толщина стенки" in body["validation_errors"]["error"]
         assert "Материал трубы или λ трубы" in body["validation_errors"]["error"]
 

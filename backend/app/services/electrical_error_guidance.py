@@ -6,12 +6,15 @@ import re
 from typing import Any, Final, Literal, TypedDict
 
 ElectricalErrorCode = Literal[
+    "unsupported_layout",
     "MISSING_TANK_LAYOUT",
     "POWER_TOO_HIGH",
     "TEMPERATURE_TOO_HIGH",
     "RESISTIVE_SECTION_NOT_FOUND",
     "UNKNOWN",
 ]
+
+ElectricalErrorCategory = Literal["validation", "formula", "unsupported", "external"]
 
 ElectricalSuggestedAction = Literal[
     "SET_HEATING_HEIGHT",
@@ -37,7 +40,10 @@ ElectricalSuggestedAction = Literal[
 class ElectricalErrorPayload(TypedDict, total=False):
     error: str
     error_code: ElectricalErrorCode
+    category: ElectricalErrorCategory
     message: str
+    field: str | None
+    hint: str | None
     suggested_actions: list[ElectricalSuggestedAction]
     error_context: dict[str, Any]
     object_type: str
@@ -47,6 +53,7 @@ class ElectricalErrorPayload(TypedDict, total=False):
 SUGGESTED_ACTIONS_BY_ERROR_CODE: Final[
     dict[ElectricalErrorCode, list[ElectricalSuggestedAction]]
 ] = {
+    "unsupported_layout": [],
     "MISSING_TANK_LAYOUT": [
         "SET_HEATING_HEIGHT",
         "SET_LAYING_STEP",
@@ -171,6 +178,9 @@ def suggested_actions_for_electrical_error(
 ) -> list[ElectricalSuggestedAction]:
     """Return actions that are applicable to current cable/object context."""
 
+    if error_code == "unsupported_layout":
+        return []
+
     if error_code == "MISSING_TANK_LAYOUT":
         actions: list[ElectricalSuggestedAction] = []
         shape = _context_str(context, "shape")
@@ -280,6 +290,80 @@ def build_electrical_error_context(
     return context
 
 
+def _normalize_error_code_for_context(
+    error_code: ElectricalErrorCode,
+    context: dict[str, Any],
+) -> ElectricalErrorCode:
+    if error_code != "MISSING_TANK_LAYOUT":
+        return error_code
+    shape = _context_str(context, "shape")
+    if shape and shape not in _SUPPORTED_TANK_LAYOUT_SHAPES:
+        return "unsupported_layout"
+    return error_code
+
+
+def _category_for_electrical_error(error_code: ElectricalErrorCode) -> ElectricalErrorCategory:
+    if error_code == "unsupported_layout":
+        return "unsupported"
+    if error_code in ("MISSING_TANK_LAYOUT", "TEMPERATURE_TOO_HIGH"):
+        return "validation"
+    return "formula"
+
+
+def _field_for_electrical_error(
+    error_code: ElectricalErrorCode,
+    context: dict[str, Any],
+) -> str | None:
+    if error_code == "unsupported_layout":
+        return "shape"
+    if error_code == "MISSING_TANK_LAYOUT":
+        if not _context_positive_number(context, "heating_height"):
+            return "heating_height"
+        if not _context_positive_number(context, "laying_step"):
+            return "laying_step"
+        return "tank_layout"
+    if error_code == "TEMPERATURE_TOO_HIGH":
+        subject = _context_str(context, "temperature_subject")
+        if subject == "ambient":
+            return "ambient_temperature"
+        if subject == "vapor":
+            return "vapor_temperature"
+        if subject in ("product", "maintain"):
+            return "process_temperature"
+    if error_code == "RESISTIVE_SECTION_NOT_FOUND":
+        return "connection_type"
+    return None
+
+
+def _hint_for_electrical_error(error_code: ElectricalErrorCode) -> str | None:
+    if error_code == "unsupported_layout":
+        return (
+            "Теплопотери доступны, но формула укладки кабеля для сферического "
+            "резервуара не утверждена."
+        )
+    if error_code == "MISSING_TANK_LAYOUT":
+        return "Заполните высоту обогрева и шаг укладки для резервуара."
+    if error_code == "POWER_TOO_HIGH":
+        return "Подберите другой тип кабеля или снизьте требуемую удельную мощность."
+    if error_code == "TEMPERATURE_TOO_HIGH":
+        return "Проверьте температуры объекта и допустимые температуры выбранной серии кабеля."
+    if error_code == "RESISTIVE_SECTION_NOT_FOUND":
+        return "Проверьте схему подключения, напряжение и доступный каталог резистивного кабеля."
+    return "Проверьте параметры объекта и выбранный тип кабеля."
+
+
+def _message_for_electrical_error(
+    error_code: ElectricalErrorCode,
+    error_message: str,
+) -> str:
+    if error_code == "unsupported_layout":
+        return (
+            "Электрорасчёт укладки кабеля для сферического резервуара не применим: "
+            "формула укладки не определена."
+        )
+    return clean_electrical_error_message(error_message)
+
+
 def build_electrical_error_payload(
     error_message: str,
     *,
@@ -295,10 +379,14 @@ def build_electrical_error_payload(
         request_data=request_data,
     )
     _add_context_value(context, "object_type", object_type)
+    error_code = _normalize_error_code_for_context(error_code, context)
     payload: ElectricalErrorPayload = {
         "error": str(error_message),
         "error_code": error_code,
-        "message": clean_electrical_error_message(error_message),
+        "category": _category_for_electrical_error(error_code),
+        "message": _message_for_electrical_error(error_code, error_message),
+        "field": _field_for_electrical_error(error_code, context),
+        "hint": _hint_for_electrical_error(error_code),
         "suggested_actions": suggested_actions_for_electrical_error(error_code, context),
         "error_context": context,
     }

@@ -51,8 +51,17 @@
 кабеля для всех валидных объектов проекта: ТЛТ (`self_regulating`),
 ТТН/ТТВ/ТТХ (`self_regulating_tt`), ТТ Р1 (`single_core`) или ТТ Р3
 (`three_core`). **Upsert** по `(object_id, variant_number)`. При ошибке расчёта
-сохраняется запись с `results.error`, `cable_mark=null` — причина видна на UI
-после reload.
+сохраняется запись с `cable_mark=null` и structured payload:
+`results.error` (legacy/raw), `results.error_code`, `results.category`,
+`results.message`, `results.field`, `results.hint`. Допустимые категории:
+`validation`, `formula`, `unsupported`, `external`; причина видна на UI после
+reload.
+
+Если объект валиден по теплопотерям, но сценарий электрорасчёта не поддержан
+методикой, это не считается ошибкой подбора. Для сферического резервуара без
+формулы укладки кабеля сохраняется
+`results.error_code="unsupported_layout"` и `results.category="unsupported"`;
+UI показывает статус «Не применимо».
 
 Для резистивных `single_core`/`three_core` основной автоподбор использует
 `selection_mode=auto`: full-version VSDX-стратегия `U/N/M`, `p2/p3`, `L1/L2`.

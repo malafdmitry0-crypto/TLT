@@ -68,7 +68,7 @@ def test_power_too_high_does_not_suggest_threads_without_explicit_thread_context
     assert payload["suggested_actions"] == ["TRY_OTHER_CABLE_TYPE"]
 
 
-def test_missing_tank_layout_for_spherical_tank_only_suggests_layout_choice():
+def test_spherical_tank_layout_is_unsupported_not_error():
     payload = build_electrical_error_payload(
         "CalculationError: Для электрорасчёта резервуара требуется геометрия укладки кабеля: "
         "цилиндр/параллелепипед, высота обогрева и шаг укладки",
@@ -77,8 +77,11 @@ def test_missing_tank_layout_for_spherical_tank_only_suggests_layout_choice():
         request_data={"shape": "spherical"},
     )
 
-    assert payload["error_code"] == "MISSING_TANK_LAYOUT"
-    assert payload["suggested_actions"] == ["SET_TANK_LAYOUT"]
+    assert payload["error_code"] == "unsupported_layout"
+    assert payload["category"] == "unsupported"
+    assert payload["field"] == "shape"
+    assert payload["suggested_actions"] == []
+    assert "не применим" in payload["message"]
 
 
 def test_missing_tank_layout_for_supported_shape_lists_missing_dimensions():
@@ -90,6 +93,8 @@ def test_missing_tank_layout_for_supported_shape_lists_missing_dimensions():
     )
 
     assert payload["error_code"] == "MISSING_TANK_LAYOUT"
+    assert payload["category"] == "validation"
+    assert payload["field"] == "heating_height"
     assert payload["suggested_actions"] == ["SET_HEATING_HEIGHT", "SET_LAYING_STEP"]
 
 

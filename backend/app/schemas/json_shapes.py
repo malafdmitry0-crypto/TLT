@@ -87,7 +87,10 @@ class ElectricalCalcErrorDict(TypedDict):
 
     error: str  # legacy/raw причина, сохраняется для обратной совместимости
     error_code: NotRequired[str]  # стабильный код ошибки для UI/автоматизации
+    category: NotRequired[str]  # validation/formula/unsupported/external
     message: NotRequired[str]  # пользовательское сообщение без Python-префикса ошибки
+    field: NotRequired[str | None]  # поле, с которым связана причина
+    hint: NotRequired[str | None]  # краткая подсказка для UI
     suggested_actions: NotRequired[list[str]]  # коды рекомендуемых действий
     error_context: NotRequired[dict[str, object]]  # численные детали и параметры подбора
     object_type: NotRequired[str]  # для удобства отображения

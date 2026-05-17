@@ -83,6 +83,7 @@ OBJECT_TYPE_OPTIONS = (("pipe", "Труба"), ("tank", "Резервуар"))
 STATUS_OPTIONS = (
     ("calculated", "Рассчитан"),
     ("error", "Ошибка"),
+    ("unsupported", "Не применимо"),
     ("not_calculated", "Не рассчитан"),
 )
 CABLE_TYPE_OPTIONS = (
@@ -180,6 +181,10 @@ def _sql_heat_loss_status() -> Any:
             ),
             literal("calculated"),
         ),
+        (
+            ProjectObject.validation_errors["category"].astext == "unsupported",
+            literal("unsupported"),
+        ),
         (ProjectObject.validation_errors.is_not(None), literal("error")),
         else_=literal("not_calculated"),
     )
@@ -202,6 +207,7 @@ def _sql_selected_cable() -> Any:
 def _sql_electrical_status() -> Any:
     return case(
         (ElectricalCalculation.id.is_(None), literal("not_calculated")),
+        (_sql_calc_result_text("category") == "unsupported", literal("unsupported")),
         (_sql_calc_result_text("error").is_not(None), literal("error")),
         (
             and_(
@@ -289,6 +295,8 @@ def _selected_cable(row: ElectricalQueryRow) -> Any:
 def _electrical_status(row: ElectricalQueryRow) -> str:
     if row.calc is None:
         return "not_calculated"
+    if _calc_result(row, "category") == "unsupported":
+        return "unsupported"
     if _calc_error(row):
         return "error"
     if row.calc.results and (row.calc.cable_mark or _calc_result(row, "selected_cable")):
@@ -299,6 +307,11 @@ def _electrical_status(row: ElectricalQueryRow) -> str:
 def _heat_loss_status(row: ElectricalQueryRow) -> str:
     if row.obj.is_valid and row.obj.results is not None:
         return "calculated"
+    if (
+        isinstance(row.obj.validation_errors, dict)
+        and row.obj.validation_errors.get("category") == "unsupported"
+    ):
+        return "unsupported"
     if row.obj.validation_errors:
         return "error"
     return "not_calculated"
@@ -774,6 +787,9 @@ ELECTRICAL_CALC_RESULT_KEYS = frozenset(
         "message",
         "error",
         "error_code",
+        "category",
+        "field",
+        "hint",
         "suggested_actions",
         "error_context",
         "commercial",

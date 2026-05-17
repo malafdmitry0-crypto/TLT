@@ -114,6 +114,27 @@ describe('useElectricalStats', () => {
     expect(result.current.allCalced).toBe(false);
   });
 
+  it('не считает unsupported-результат ошибкой электрорасчёта', () => {
+    const objects = [makeObj('a')];
+    const calcs = [
+      makeCalc(
+        'a',
+        1,
+        {
+          error: 'raw',
+          error_code: 'unsupported_layout',
+          category: 'unsupported',
+          message: 'Не применимо',
+        },
+        null,
+      ),
+    ];
+    const { result } = renderHook(() => useElectricalStats(objects, calcs));
+    expect(result.current.calcedCount).toBe(0);
+    expect(result.current.failedCount).toBe(0);
+    expect(result.current.allCalced).toBe(false);
+  });
+
   it('allCalced = false если хоть один валидный объект не рассчитан', () => {
     const objects = [makeObj('a'), makeObj('b')];
     const calcs = [makeCalc('a', 1, { selected_cable: 'ТЛТ-25', cable_length: 10 })];

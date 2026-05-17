@@ -10,6 +10,7 @@ from time import monotonic
 from typing import Any, cast
 from uuid import UUID
 
+from pydantic import ValidationError
 from sqlalchemy import Float, and_, case, func, or_, select
 from sqlalchemy import cast as sa_cast
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -44,7 +45,10 @@ from app.schemas.json_shapes import (
 )
 from app.schemas.project import ProjectObjectsPageInfo
 from app.services.electrical_error_guidance import build_electrical_error_payload
-from app.services.project_object_params import prepare_project_object_params
+from app.services.project_object_params import (
+    ProjectObjectParamsError,
+    prepare_project_object_params,
+)
 
 # Источник каталога кабелей. Значения заданы для совместимости с текущим API;
 # внутри функций валидируется через проверку, не enum (чтобы случайная строка
@@ -58,6 +62,103 @@ class CalculationError(Exception):
 
 class BatchCancelledError(CalculationError):
     pass
+
+
+def _clean_exception_message(exc: Exception) -> str:
+    message = str(exc).strip()
+    return message or type(exc).__name__
+
+
+def _missing_fields_from_message(message: str) -> list[str]:
+    prefix = "Не заполнены обязательные поля объекта:"
+    if prefix not in message:
+        return []
+    return [
+        field.strip()
+        for field in message.split(prefix, 1)[1].split(",")
+        if field.strip()
+    ]
+
+
+def _first_validation_field(exc: ValidationError) -> str | None:
+    errors = exc.errors()
+    if not errors:
+        return None
+    loc = errors[0].get("loc")
+    if isinstance(loc, tuple) and loc:
+        return ".".join(str(part) for part in loc)
+    if isinstance(loc, list) and loc:
+        return ".".join(str(part) for part in loc)
+    return None
+
+
+def build_heat_loss_error_payload(
+    exc: Exception,
+    *,
+    object_type: str,
+) -> dict[str, Any]:
+    """Structured `project_objects.validation_errors` with legacy `error` kept."""
+
+    message = _clean_exception_message(exc)
+    lower_message = message.lower()
+    category = "validation"
+    error_code = "invalid_object_params"
+    field: str | None = None
+    hint: str | None = "Проверьте параметры объекта и повторите расчёт."
+    extra: dict[str, Any] = {}
+
+    if isinstance(exc, ProjectObjectParamsError):
+        missing_fields = _missing_fields_from_message(message)
+        if "неподдерживаемый тип объекта" in lower_message:
+            category = "unsupported"
+            error_code = "unsupported_object_type"
+            field = "object_type"
+            hint = "Для теплорасчёта поддерживаются только трубопроводы и резервуары."
+        elif missing_fields:
+            error_code = "missing_required_fields"
+            field = missing_fields[0] if len(missing_fields) == 1 else None
+            extra["missing_fields"] = missing_fields
+            hint = "Заполните обязательные поля объекта."
+    elif isinstance(exc, ValidationError):
+        error_code = "schema_validation_error"
+        field = _first_validation_field(exc)
+        hint = "Проверьте формат и диапазоны значений."
+    elif "неподдерживаемый тип объекта" in lower_message or "неизвестная форма" in lower_message:
+        category = "unsupported"
+        error_code = (
+            "unsupported_object_type" if "тип объекта" in lower_message else "unsupported_shape"
+        )
+        field = "object_type" if "тип объекта" in lower_message else "shape"
+        hint = "Выберите поддерживаемый тип или форму объекта."
+    elif any(
+        marker in lower_message
+        for marker in (
+            "требует",
+            "требуются",
+            "требуется",
+            "долж",
+            "диапазон",
+            "положитель",
+            "выше",
+            "превыш",
+            "не может",
+        )
+    ):
+        error_code = "invalid_object_params"
+    else:
+        category = "formula"
+        error_code = "heat_loss_formula_error"
+        hint = "Расчётная формула завершилась ошибкой; проверьте исходные данные."
+
+    return {
+        "error": message,
+        "error_code": error_code,
+        "category": category,
+        "message": message,
+        "field": field,
+        "hint": hint,
+        **extra,
+    }
 
 
 @dataclass(frozen=True)
@@ -206,6 +307,7 @@ class CalculationService:
             calculations = []
 
         error_text = ElectricalCalculation.results["error"].astext
+        category_text = ElectricalCalculation.results["category"].astext
         selected_cable_text = ElectricalCalculation.results["selected_cable"].astext
         successful_calc = and_(
             ElectricalCalculation.results.is_not(None),
@@ -215,7 +317,10 @@ class CalculationService:
                 selected_cable_text.is_not(None),
             ),
         )
-        failed_calc = error_text.is_not(None)
+        failed_calc = and_(
+            error_text.is_not(None),
+            func.coalesce(category_text, "") != "unsupported",
+        )
         installed_cable_length = sa_cast(
             ElectricalCalculation.results["cable_length"].astext, Float
         )
@@ -426,7 +531,8 @@ class CalculationService:
 
         Side effects:
             При ошибке устанавливает `obj.is_valid=False` и пишет причину в
-            `obj.validation_errors={"error": "..."}`.
+            `obj.validation_errors` с legacy `error` и structured fields
+            (`error_code`, `category`, `message`, `field`, `hint`).
         """
         await self.try_recalculate(obj)
         # Независимо от Ok/Err, try_recalculate мутирует obj на месте
@@ -467,10 +573,13 @@ class CalculationService:
             obj.validation_errors = None
             return Ok(obj)
         except Exception as exc:
-            message = str(exc)
+            message = _clean_exception_message(exc)
             obj.results = None
             obj.is_valid = False
-            obj.validation_errors = {"error": message}
+            obj.validation_errors = build_heat_loss_error_payload(
+                exc,
+                object_type=obj.object_type,
+            )
             return Err(message)
 
     @staticmethod

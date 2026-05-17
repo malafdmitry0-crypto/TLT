@@ -14,11 +14,17 @@ import {
   CheckCircleFilled,
   CloseCircleFilled,
   DeleteOutlined,
+  MinusCircleFilled,
 } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteObject } from '@/api/projects';
 import { OBJECT_TYPE_LABELS } from '@/constants/objectTypes';
-import { isElectricalCalcSuccess, electricalCalcError } from '@/utils/calcStatus';
+import {
+  isElectricalCalcSuccess,
+  electricalCalcError,
+  electricalCalcHint,
+  isElectricalCalcUnsupported,
+} from '@/utils/calcStatus';
 import CableSelector from './CableSelector';
 import type { CableInfo, CableSource } from '@/api/calculations';
 import type { ProjectObject } from '@/types/project';
@@ -53,6 +59,7 @@ export default function ObjectCalcCard({
   const r = calc?.results;
   const errorMsg = electricalCalcError(calc);
   const hasSuccess = isElectricalCalcSuccess(calc);
+  const isUnsupported = isElectricalCalcUnsupported(calc);
   const objectName = String(obj.params?.name ?? `${typeLabel} #${index + 1}`);
   const canManualPick = obj.is_valid;
 
@@ -77,6 +84,10 @@ export default function ObjectCalcCard({
           <Text strong>{objectName}</Text>
           {hasSuccess ? (
             <CheckCircleFilled style={{ color: '#52c41a' }} />
+          ) : isUnsupported ? (
+            <Tag color="default" icon={<MinusCircleFilled />}>
+              не применимо
+            </Tag>
           ) : errorMsg ? (
             <Tag color="error" icon={<CloseCircleFilled />}>
               ошибка
@@ -101,7 +112,24 @@ export default function ObjectCalcCard({
         </Popconfirm>
       }
     >
-      {errorMsg ? (
+      {isUnsupported ? (
+        <Alert
+          type="info"
+          showIcon
+          message="Электрорасчёт не применим"
+          description={
+            <>
+              <div style={{ marginBottom: 6 }}>
+                <Text code>{electricalCalcHint(calc) ?? errorMsg}</Text>
+              </div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Объект остаётся валидным по теплопотерям, но выбранная
+                геометрия не имеет утверждённой формулы укладки кабеля.
+              </Text>
+            </>
+          }
+        />
+      ) : errorMsg ? (
         <Alert
           type="error"
           showIcon

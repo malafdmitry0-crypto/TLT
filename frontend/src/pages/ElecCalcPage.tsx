@@ -30,6 +30,7 @@ import {
   CloseCircleFilled,
   CloseCircleOutlined,
   FilterFilled,
+  MinusCircleFilled,
   ReloadOutlined,
   StopOutlined,
   TableOutlined,
@@ -61,8 +62,10 @@ import {
   electricalCalcError,
   electricalCalcErrorCode,
   electricalCalcGuidanceContext,
+  electricalCalcHint,
   electricalCalcSuggestedActions,
   isElectricalCalcSuccess,
+  isElectricalCalcUnsupported,
 } from '@/utils/calcStatus';
 import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
@@ -1349,8 +1352,15 @@ export default function ElecCalcPage() {
       align: 'center',
       render: (_: unknown, obj) => {
         if (obj.is_valid) return <Tag color="success">ОК</Tag>;
+        if (obj.validation_errors?.category === 'unsupported') {
+          return (
+            <Tooltip title={valueText(obj.validation_errors?.message ?? obj.validation_errors)}>
+              <Tag color="default">Не применимо</Tag>
+            </Tooltip>
+          );
+        }
         return (
-          <Tooltip title={valueText(obj.validation_errors?.error ?? obj.validation_errors)}>
+          <Tooltip title={valueText(obj.validation_errors?.message ?? obj.validation_errors?.error ?? obj.validation_errors)}>
             <Tag color="error">Ошибка</Tag>
           </Tooltip>
         );
@@ -1361,6 +1371,7 @@ export default function ElecCalcPage() {
       render: (_: unknown, obj) => {
         const calc = stats.calcByObjectId[obj.id];
         const err = electricalCalcError(calc);
+        const unsupported = isElectricalCalcUnsupported(calc);
         if (isElectricalCalcSuccess(calc))
           return (
             <Tooltip title="Рассчитан">
@@ -1369,9 +1380,17 @@ export default function ElecCalcPage() {
               </Tag>
             </Tooltip>
           );
+        if (unsupported)
+          return (
+            <Tooltip title={electricalCalcHint(calc) ?? err ?? 'Не применимо'}>
+              <Tag className="electrical-status-icon-tag" color="default" aria-label="Не применимо">
+                <MinusCircleFilled />
+              </Tag>
+            </Tooltip>
+          );
         if (err)
           return (
-            <Tooltip title="Ошибка">
+            <Tooltip title={err}>
               <Tag className="electrical-status-icon-tag" color="error" aria-label="Ошибка">
                 <CloseCircleFilled />
               </Tag>
@@ -1869,12 +1888,20 @@ export default function ElecCalcPage() {
       case 'object_type':
         return OBJECT_TYPE_LABEL[obj.object_type] ?? obj.object_type;
       case 'heat_loss_status':
-        return obj.is_valid ? 'Рассчитан' : obj.validation_errors ? 'Ошибка' : 'Не рассчитан';
+        return obj.is_valid
+          ? 'Рассчитан'
+          : obj.validation_errors?.category === 'unsupported'
+            ? 'Не применимо'
+            : obj.validation_errors
+              ? 'Ошибка'
+              : 'Не рассчитан';
       case 'electrical_status':
         return isElectricalCalcSuccess(calc)
           ? 'Рассчитан'
-          : electricalCalcError(calc)
-            ? 'Ошибка'
+          : isElectricalCalcUnsupported(calc)
+            ? 'Не применимо'
+            : electricalCalcError(calc)
+              ? 'Ошибка'
             : 'Не рассчитан';
       case 'cable_type':
         return CABLE_TYPE_LABEL[getSavedCableTypeForObject(obj.id)]
@@ -2085,7 +2112,7 @@ export default function ElecCalcPage() {
     .map((obj, index) => {
       const calc = stats.calcByObjectId[obj.id];
       const error = electricalCalcError(calc);
-      if (!error) return null;
+      if (!error || isElectricalCalcUnsupported(calc)) return null;
       return {
         objectId: obj.id,
         rowNumber: (pageInfo?.offset ?? 0) + index + 1,
@@ -2114,11 +2141,16 @@ export default function ElecCalcPage() {
       const activeObject = activeIndex >= 0 ? objects[activeIndex] : null;
       if (activeObject) {
         const calc = stats.calcByObjectId[activeObject.id];
+        const error = isElectricalCalcUnsupported(calc) ? null : electricalCalcError(calc);
+        if (!error) {
+          const firstError = electricalErrorItems[0];
+          return firstError ? { ...firstError, fallback: true } : null;
+        }
         return {
           objectId: activeObject.id,
           rowNumber: (pageInfo?.offset ?? 0) + activeIndex + 1,
           objectName: objectDisplayName(activeObject),
-          error: electricalCalcError(calc) ?? null,
+          error,
           cableType: calc?.cable_type ?? null,
           errorContext: electricalCalcGuidanceContext(calc),
           errorCode: electricalCalcErrorCode(calc),
@@ -2486,12 +2518,13 @@ export default function ElecCalcPage() {
               dataSource={objects}
               onChange={handleElectricalTableChange}
               scroll={{ x: electricalTableScrollX, y: 'calc(100vh - 430px)' }}
-              rowClassName={(obj) =>
-                [
-                  electricalCalcError(stats.calcByObjectId[obj.id]) ? 'row-invalid' : '',
+              rowClassName={(obj) => {
+                const calc = stats.calcByObjectId[obj.id];
+                return [
+                  electricalCalcError(calc) && !isElectricalCalcUnsupported(calc) ? 'row-invalid' : '',
                   activeRowId === obj.id ? 'electrical-row-active' : '',
-                ].filter(Boolean).join(' ')
-              }
+                ].filter(Boolean).join(' ');
+              }}
               onRow={(obj) => ({
                 onClick: (event) => {
                   if ((event.target as HTMLElement).closest('.ant-table-selection-column')) return;
@@ -2521,7 +2554,7 @@ export default function ElecCalcPage() {
           {/* Legend / summary row */}
           <div className="legend-row-srs">
             <span>
-              ⓘ Красная строка = ошибка подбора кабеля. Отметьте строки для пересчёта выбранных или используйте «Пересчитать все».
+              ⓘ Красная строка = ошибка подбора кабеля, серый статус = не применимо. Отметьте строки для пересчёта выбранных или используйте «Пересчитать все».
             </span>
             {calculatedCount > 0 && (
               <Space size={16}>

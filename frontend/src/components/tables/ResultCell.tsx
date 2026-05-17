@@ -12,6 +12,7 @@ interface Props {
 export default function ResultCell({ value, obj }: Props) {
   if (!obj.results) {
     const errText =
+      (obj.validation_errors?.message as string | undefined) ??
       (obj.validation_errors?.error as string | undefined) ??
       'Расчёт не выполнен — проверьте параметры объекта';
     const short = errText.length > 32 ? errText.slice(0, 30) + '…' : errText;

@@ -65,15 +65,14 @@ describe('electricalErrorGuidance', () => {
     expect(guidance?.suggestedActions).toEqual(['TRY_OTHER_CABLE_TYPE']);
   });
 
-  it('only suggests layout choice for unsupported tank layout shape', () => {
+  it('does not show error guidance for unsupported tank layout', () => {
     const guidance = getElectricalErrorGuidance({
-      error: 'Для электрорасчёта резервуара требуется геометрия укладки кабеля',
-      errorCode: 'MISSING_TANK_LAYOUT',
+      error: 'Электрорасчёт укладки кабеля для сферического резервуара не применим',
+      errorCode: 'unsupported_layout',
       cableType: 'self_regulating',
       errorContext: { shape: 'spherical' },
     });
 
-    expect(guidance?.suggestedActions).toEqual(['SET_TANK_LAYOUT']);
-    expect(guidance?.suggestions).toEqual(['Выбрать геометрию укладки']);
+    expect(guidance).toBeNull();
   });
 });

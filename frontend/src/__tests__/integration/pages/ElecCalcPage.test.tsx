@@ -43,6 +43,7 @@ const apiMocks = vi.hoisted(() => {
         field('electrical_status', 'enum', ['in'], [
           { value: 'calculated', label: 'Рассчитан' },
           { value: 'error', label: 'Ошибка' },
+          { value: 'unsupported', label: 'Не применимо' },
           { value: 'not_calculated', label: 'Не рассчитан' },
         ]),
         field('cable_mark'),
@@ -165,7 +166,9 @@ function makeElectricalPage(
       calculated_count: summaryOverrides.calculated_count ?? calculated.length,
       failed_count:
         summaryOverrides.failed_count ??
-        calculations.filter((calc) => typeof calc.results?.error === 'string').length,
+        calculations.filter(
+          (calc) => typeof calc.results?.error === 'string' && calc.results?.category !== 'unsupported',
+        ).length,
       total_cable_length:
         summaryOverrides.total_cable_length ??
         calculated.reduce(
@@ -325,9 +328,11 @@ describe('ElecCalcPage (integration)', () => {
           variant_number: 1,
           results: {
             error: 'CalculationError: Для электрорасчёта резервуара требуется геометрия укладки кабеля: цилиндр/параллелепипед, высота обогрева и шаг укладки',
-            error_code: 'MISSING_TANK_LAYOUT',
-            message: 'Для электрорасчёта резервуара требуется геометрия укладки кабеля: цилиндр/параллелепипед, высота обогрева и шаг укладки',
-            suggested_actions: ['SET_HEATING_HEIGHT', 'SET_LAYING_STEP'],
+            error_code: 'unsupported_layout',
+            category: 'unsupported',
+            message: 'Электрорасчёт укладки кабеля для сферического резервуара не применим: формула укладки не определена.',
+            hint: 'Теплопотери доступны, но формула укладки кабеля для сферического резервуара не утверждена.',
+            suggested_actions: [],
           },
         },
         {
@@ -349,12 +354,10 @@ describe('ElecCalcPage (integration)', () => {
     renderPage();
 
     const errorRegion = await screen.findByLabelText('Сообщения ошибок электрорасчёта');
-    expect(errorRegion).toHaveTextContent('Ошибок: 2');
+    expect(screen.getByLabelText('Не применимо')).toBeInTheDocument();
+    expect(errorRegion).toHaveTextContent('Ошибок: 1');
     expect(errorRegion).not.toHaveTextContent('Резервуар со сферой 1');
-    expect(errorRegion).toHaveTextContent('геометрия укладки кабеля');
-    expect(errorRegion).toHaveTextContent('Нет геометрии укладки');
-    expect(errorRegion).toHaveTextContent('Задать высоту обогрева');
-    expect(errorRegion).toHaveTextContent('Задать шаг укладки');
+    expect(errorRegion).not.toHaveTextContent('геометрия укладки кабеля');
     expect(errorRegion).not.toHaveTextContent('CalculationError');
     expect(document.querySelector('.electrical-spreadsheet')?.textContent).not.toContain('Сообщение');
 

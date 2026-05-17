@@ -19,7 +19,7 @@ import {
 } from '@/utils/heatCalcTableFindability';
 
 export type HeatCalcFilterKind = 'text' | 'numberRange' | 'enum';
-export type HeatLossCalcStatus = 'calculated' | 'error' | 'not_calculated';
+export type HeatLossCalcStatus = 'calculated' | 'error' | 'unsupported' | 'not_calculated';
 
 export const DEFAULT_OBJECT_QUERY_PAGE_SIZE = 50;
 export const INAPPLICABLE_TABLE_VALUE = '—';
@@ -102,6 +102,7 @@ export function isBatchHeatLossResponse(result: unknown): result is BatchHeatLos
 
 export function heatLossCalcStatus(record: ProjectObject): HeatLossCalcStatus {
   if (record.is_valid && record.results != null) return 'calculated';
+  if (record.validation_errors?.category === 'unsupported') return 'unsupported';
   if (record.validation_errors) return 'error';
   return 'not_calculated';
 }
@@ -109,14 +110,18 @@ export function heatLossCalcStatus(record: ProjectObject): HeatLossCalcStatus {
 export function heatLossStatusLabel(status: HeatLossCalcStatus) {
   if (status === 'calculated') return 'Рассчитан';
   if (status === 'error') return 'Ошибка';
+  if (status === 'unsupported') return 'Не применимо';
   return 'Не рассчитан';
 }
 
 export function heatLossErrorText(record: ProjectObject) {
   const errors = record.validation_errors;
   if (!errors) return 'Ошибка расчёта';
-  if (typeof errors === 'object' && errors !== null && 'error' in errors) {
-    return String((errors as { error?: unknown }).error ?? 'Ошибка расчёта');
+  if (typeof errors === 'object' && errors !== null) {
+    const message = (errors as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message;
+    const error = (errors as { error?: unknown }).error;
+    if (error != null) return String(error);
   }
   return JSON.stringify(errors);
 }
