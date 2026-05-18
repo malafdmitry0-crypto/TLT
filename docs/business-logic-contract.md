@@ -78,7 +78,7 @@ limit, нужен отдельный источник/скрин и отдель
 |---|---|---|
 | `tlt_resistive_selection_algorithm_full` | Covered with formalized fallback policy | Реализован deterministic backend/QA-agent oracle по `U/N/M`, `p2/p3`, `L1/L2`. Оставшийся риск: точные заводские thermal `p3`-лимиты должны быть заполнены в БД; до этого работает fallback по `65 А`. |
 | `tlt_tt_t3_temperature_policy` | Covered | `maintain_temperature` является отдельным T3; если он отсутствует, backend использует `process_temperature` как совместимый fallback. |
-| `tlt_insulation_lambda_tm` | Covered | Backend/QA-agent считают `lambda(tm)` по ТНП. Generic семьи (`mineral_wool`, `foam_glass`, `polyurethane` и т.п.) не являются расчётными материалами; нужен конкретный код с плотностью и `insulation_temperature_basis`. |
+| `tlt_insulation_lambda_tm` | Covered | Backend/QA-agent считают `lambda(tm)` по ТНП. Generic семьи (`mineral_wool`, `foam_glass`, `polyurethane` и т.п.) не являются расчётными материалами; нужен конкретный код с плотностью и `insulation_temperature_basis`. JSON-справочник сидируется в `insulation_materials`, `/references/insulation` читает DB projection. |
 
 ## Change Rule
 

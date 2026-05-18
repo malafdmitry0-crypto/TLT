@@ -493,7 +493,6 @@ function insulationTm(processTemperature: number, basis: unknown): number {
 function resolveLambda(model: number | [number, number] | undefined, tm: number): number | undefined {
   if (typeof model === 'number') return model;
   if (!Array.isArray(model)) return undefined;
-  if (model.length === 1) return model[0];
   if (tm >= 20) return model[0] + model[1] * tm;
   return tm >= -60 ? model[0] : model[1];
 }

@@ -18,6 +18,7 @@ from app.core.dependencies import (
 )
 from app.models.accessory import AccessoryExtended
 from app.models.cable import CableExtended
+from app.models.insulation_material import InsulationMaterial
 from app.reference_data.loader import (
     list_basic_accessories,
     list_climate_cities,
@@ -141,6 +142,44 @@ def _commercial_cable_payload(
     return payload
 
 
+def _insulation_material_payload(material: InsulationMaterial) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "material": material.material,
+        "name": material.name,
+        "selectable": material.selectable,
+        "deprecated": material.deprecated,
+        "requires_material_reselection": material.requires_material_reselection,
+    }
+    optional_values: dict[str, object | None] = {
+        "conductivity": material.conductivity,
+        "density_kg_m3": material.density_kg_m3,
+        "temperature_range": material.temperature_range,
+        "conductivity_20_plus": material.conductivity_20_plus,
+        "conductivity_19_minus": material.conductivity_19_minus,
+        "material_family": material.material_family,
+        "reselection_message": material.reselection_message,
+        "source": material.source,
+    }
+    for key, value in optional_values.items():
+        if value is not None:
+            payload[key] = value
+    if material.params:
+        payload.update(material.params)
+    return payload
+
+
+async def _insulation_catalog(db: AsyncSession) -> list[dict[str, object]]:
+    result = await db.execute(
+        select(InsulationMaterial)
+        .where(InsulationMaterial.is_active.is_(True))
+        .order_by(InsulationMaterial.material.asc())
+    )
+    rows = result.scalars().all()
+    if rows:
+        return [_insulation_material_payload(row) for row in rows]
+    return list_insulation_materials()
+
+
 async def _commercial_cable_catalog(db: AsyncSession) -> list[dict[str, object]]:
     result = await db.execute(
         select(CableExtended).where(
@@ -223,12 +262,15 @@ async def climate(
 
 
 @router.get("/insulation", summary="Справочник теплоизоляции")
-@cache.cached("references:insulation", ttl=_BUILTIN_TTL)
 async def insulation(
+    response: Response,
     _: CurrentPrincipal = Depends(require_any()),
-    _cache_headers: None = Depends(_builtin_http_cache("insulation")),
+    db: AsyncSession = Depends(get_db),
 ):
-    return list_insulation_materials()
+    payload = await _insulation_catalog(db)
+    response.headers["Cache-Control"] = f"public, max-age={_HTTP_CACHE_SECONDS}"
+    response.headers["ETag"] = _etag(payload)
+    return payload
 
 
 @router.get("/pipe-materials", summary="Справочник материалов трубы и λ(T)")
@@ -286,14 +328,14 @@ async def tt_cables(
 
 
 @router.get("/internal", summary="Все встроенные внутренние справочники")
-@cache.cached("references:internal", ttl=_BUILTIN_TTL)
 async def internal_references(
+    response: Response,
     _: CurrentPrincipal = Depends(require_any()),
-    _cache_headers: None = Depends(_builtin_http_cache("internal")),
+    db: AsyncSession = Depends(get_db),
 ):
-    return {
+    payload = {
         "climate": list_climate_cities(),
-        "insulation": list_insulation_materials(),
+        "insulation": await _insulation_catalog(db),
         "pipe_materials": list_pipe_materials(),
         "soil_conductivity": list_soil_conductivity(),
         "cables": list_tlt_cables(),
@@ -301,6 +343,9 @@ async def internal_references(
         "resistive_cables": list_resistive_cables(),
         "accessories": list_basic_accessories(),
     }
+    response.headers["Cache-Control"] = f"public, max-age={_HTTP_CACHE_SECONDS}"
+    response.headers["ETag"] = _etag(payload)
+    return payload
 
 
 @router.get(

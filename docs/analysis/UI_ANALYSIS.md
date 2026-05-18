@@ -238,7 +238,7 @@ backend-формулой резервуара как `R_wall = δ / λ`.
 
 | Приоритет | Что сделать | Где |
 |---|---|---|
-| P0 | Реализовать температурозависимую λ изоляции `lambda(tm)` вместо фиксированной `conductivity` | backend loader + registry/tests |
+| P0 | Поддерживать каталог конкретных материалов изоляции в JSON и `insulation_materials`; generic названия оставлять только как draft/import warning | reference data + DB seed/tests |
 | P0 | Добавить расчётные методики MI и skin, либо явно оставить их как недоступные типы до получения формул | electrical formulas + UI |
 
 ### Средние (влияют на UX и согласованность)

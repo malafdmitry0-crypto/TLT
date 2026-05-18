@@ -7,13 +7,14 @@
 
 Порядок выполнения:
   1. users (admin2 + 5 employees)
-  2. correction_coefficients (5 ключей)
-  3. cables_extended (15 записей: 3 типа × 5 марок)
-  4. accessories_extended (10 записей)
-  5. projects (10 проектов, привязаны к employees)
-  6. project_objects — только pipe/tank, с реальным расчётом теплопотерь
-  7. electrical_calculations — для каждого pipe-объекта
-  8. specifications — для каждого проекта с электрорасчётами
+  2. correction_coefficients (расчётные и demo commercial политики)
+  3. insulation_materials (DB projection встроенного JSON-справочника)
+  4. cables_extended (встроенный технический каталог + demo commercial projection)
+  5. accessories_extended (demo accessory cost layer)
+  6. projects (10 проектов, привязаны к employees)
+  7. project_objects — только pipe/tank, с конкретными материалами изоляции
+  8. electrical_calculations — для каждого pipe-объекта
+  9. specifications — для каждого проекта с электрорасчётом
 """
 
 import asyncio
@@ -34,11 +35,16 @@ from app.models.accessory import AccessoryExtended
 from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
 from app.models.electrical_calculation import ElectricalCalculation
+from app.models.insulation_material import InsulationMaterial
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.models.user import User
-from app.reference_data.loader import list_resistive_cables, list_tlt_cables
+from app.reference_data.loader import (
+    list_insulation_materials,
+    list_resistive_cables,
+    list_tlt_cables,
+)
 from app.schemas.calculation import (
     PipeHeatLossParams,
     SelfRegulatingParams,
@@ -69,6 +75,7 @@ def _get_coefficients_dict(coeffs: list[CorrectionCoefficient]) -> dict[str, flo
 
 
 _DEMO_COMMERCIAL_SOURCES = {None, "seed", "demo_seed", "test"}
+_REFERENCE_SEED_SOURCES = {None, "builtin_json", "seed", "demo_seed", "test"}
 _SELF_REG_ACCESSORY_COST_PER_CIRCUIT = 2400.0
 _RESISTIVE_ACCESSORY_COST_PER_CIRCUIT = 3200.0
 
@@ -277,6 +284,51 @@ def _resistive_section(cable: dict[str, object]) -> float:
     if match:
         return float(match.group(1).replace(",", "."))
     raise ValueError(f"Не удалось определить сечение для {cable.get('model')}")
+
+
+def _seed_params_are_current(
+    existing_params: dict[str, object] | None,
+    expected_params: dict[str, object],
+) -> bool:
+    """Checks whether an existing demo object already matches current seed params."""
+    return existing_params == expected_params
+
+
+def _insulation_seed_row(entry: dict[str, object]) -> dict[str, object]:
+    column_keys = {
+        "material",
+        "name",
+        "conductivity",
+        "density_kg_m3",
+        "temperature_range",
+        "conductivity_20_plus",
+        "conductivity_19_minus",
+        "selectable",
+        "deprecated",
+        "requires_material_reselection",
+        "material_family",
+        "reselection_message",
+        "source",
+    }
+    params = {key: value for key, value in entry.items() if key not in column_keys}
+    return {
+        "material": str(entry["material"]),
+        "name": str(entry["name"]),
+        "conductivity": entry.get("conductivity"),
+        "density_kg_m3": entry.get("density_kg_m3"),
+        "temperature_range": entry.get("temperature_range"),
+        "conductivity_20_plus": entry.get("conductivity_20_plus"),
+        "conductivity_19_minus": entry.get("conductivity_19_minus"),
+        "selectable": entry.get("selectable") is not False,
+        "deprecated": entry.get("deprecated") is True,
+        "requires_material_reselection": entry.get("requires_material_reselection") is True,
+        "material_family": entry.get("material_family"),
+        "reselection_message": entry.get("reselection_message"),
+        "source": entry.get("source"),
+        "data_source": "builtin_json",
+        "params": params,
+        "is_active": True,
+    }
 
 
 async def seed_demo_commercial_catalog(db) -> None:
@@ -493,6 +545,52 @@ async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficie
     await db.flush()
     await cache.ainvalidate("coefficients")
     return created
+
+
+async def seed_insulation_materials(db) -> None:
+    """Syncs runtime DB insulation catalog from versioned reference JSON.
+
+    Rows seeded from JSON are managed by `data_source=builtin_json`. Production
+    rows with another source are left untouched, so real DB data can coexist
+    with the built-in catalog without being overwritten by app startup seeds.
+    """
+    from app.core.cache import cache
+
+    current_materials: set[str] = set()
+    for entry in list_insulation_materials():
+        data = _insulation_seed_row(entry)
+        material = str(data["material"])
+        current_materials.add(material)
+        result = await db.execute(
+            select(InsulationMaterial).where(InsulationMaterial.material == material)
+        )
+        existing = result.scalar_one_or_none()
+        if existing is None:
+            db.add(InsulationMaterial(**data))
+            logger.info("  + insulation material %s", material)
+            continue
+        if existing.data_source not in _REFERENCE_SEED_SOURCES:
+            logger.info(
+                "  ~ keep insulation material %s from source=%s",
+                material,
+                existing.data_source,
+            )
+            continue
+        for key, value in data.items():
+            setattr(existing, key, value)
+        logger.info("  ~ insulation material %s", material)
+
+    result = await db.execute(
+        select(InsulationMaterial).where(InsulationMaterial.data_source == "builtin_json")
+    )
+    for existing in result.scalars().all():
+        if existing.material not in current_materials and existing.is_active:
+            existing.is_active = False
+            logger.info("  - deactivate insulation material %s", existing.material)
+
+    await db.flush()
+    await cache.ainvalidate("references:insulation")
+    await cache.ainvalidate("references:internal")
 
 
 def _commercial(
@@ -998,7 +1096,8 @@ _PIPE_CONFIGS = [
             "wall_thickness": 0.006,
             "pipe_material": "carbon_steel",
             "insulation_thickness": 0.05,
-            "insulation_material": "mineral_wool",
+            "insulation_material": "mineral_wool_cylinders_100",
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -30.0,
             "process_temperature": 60.0,
             "pipe_length": 120.0,
@@ -1013,7 +1112,8 @@ _PIPE_CONFIGS = [
             "wall_thickness": 0.004,
             "pipe_material": "carbon_steel",
             "insulation_thickness": 0.04,
-            "insulation_material": "polyurethane",
+            "insulation_material": "polyurethane_products_50",
+            "insulation_temperature_basis": "indoor",
             "ambient_temperature": -25.0,
             "process_temperature": 40.0,
             "pipe_length": 85.0,
@@ -1027,7 +1127,8 @@ _PIPE_CONFIGS = [
             "wall_thickness": 0.008,
             "pipe_material": "carbon_steel",
             "insulation_thickness": 0.12,
-            "insulation_material": "foam_glass",
+            "insulation_material": "mineral_wool_cylinders_150",
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -25.0,
             "process_temperature": 55.0,
             "pipe_length": 250.0,
@@ -1042,7 +1143,8 @@ _PIPE_CONFIGS = [
             "wall_thickness": 0.003,
             "pipe_material": "stainless_304",
             "insulation_thickness": 0.03,
-            "insulation_material": "aerogel",
+            "insulation_material": "k_flex_st",
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -40.0,
             "process_temperature": 30.0,
             "pipe_length": 45.0,
@@ -1057,9 +1159,10 @@ _PIPE_CONFIGS = [
             "wall_thickness": 0.007,
             "pipe_material": "carbon_steel",
             "insulation_layers": [
-                {"thickness": 0.05, "material": "mineral_wool"},
-                {"thickness": 0.03, "material": "foam_glass"},
+                {"thickness": 0.05, "material": "mineral_wool_cylinders_100"},
+                {"thickness": 0.03, "material": "expanded_perlite_sand_150"},
             ],
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -30.0,
             "process_temperature": 60.0,
             "pipe_length": 190.0,
@@ -1074,7 +1177,8 @@ _PIPE_CONFIGS = [
             "wall_thickness": 0.005,
             "pipe_material": "carbon_steel",
             "insulation_thickness": 0.05,
-            "insulation_material": "polystyrene",
+            "insulation_material": "polystyrene_products_50",
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -30.0,
             "process_temperature": 55.0,
             "pipe_length": 65.0,
@@ -1090,7 +1194,8 @@ _PIPE_CONFIGS = [
             "wall_thickness": 0.003,
             "pipe_material": "stainless_304",
             "insulation_thickness": 0.025,
-            "insulation_material": "mineral_wool",
+            "insulation_material": "mineral_wool_cylinders_80",
+            "insulation_temperature_basis": "indoor",
             "ambient_temperature": -35.0,
             "process_temperature": 25.0,
             "pipe_length": 30.0,
@@ -1107,7 +1212,8 @@ _TANK_CONFIGS = [
             "diameter": 2.8,
             "height": 6.0,
             "insulation_thickness": 0.08,
-            "insulation_material": "mineral_wool",
+            "insulation_material": "mineral_wool_boards_120",
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -35.0,
             "process_temperature": 50.0,
             "location": "outdoor",
@@ -1121,7 +1227,8 @@ _TANK_CONFIGS = [
             "width": 2.0,
             "height": 2.0,
             "insulation_thickness": 0.06,
-            "insulation_material": "polyurethane",
+            "insulation_material": "polyurethane_products_50",
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -30.0,
             "process_temperature": 45.0,
             "location": "outdoor",
@@ -1134,7 +1241,8 @@ _TANK_CONFIGS = [
             "diameter": 2.4,
             "height": 4.5,
             "insulation_thickness": 0.07,
-            "insulation_material": "foam_glass",
+            "insulation_material": "expanded_perlite_sand_150",
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -40.0,
             "process_temperature": 60.0,
             "location": "outdoor",
@@ -1186,16 +1294,23 @@ async def seed_objects_and_calculations(
             )
             obj = result.scalar_one_or_none()
             if obj is not None:
-                # Пропускаем только если объект валиден и имеет результаты расчёта
-                if obj.is_valid and obj.results is not None:
+                params_are_current = _seed_params_are_current(obj.params, cfg["params"])
+                # Пропускаем только если объект валиден, рассчитан и уже соответствует
+                # текущему seed-контракту. Старые demo-объекты с generic материалами
+                # нужно пересоздать даже при наличии прежних результатов.
+                if obj.is_valid and obj.results is not None and params_are_current:
                     logger.info("  ~ skip valid object [%s] for '%s'", obj_type, project.name)
                     continue
-                # Иначе удаляем сломанный объект и создаём заново
+                # Иначе удаляем сломанный или устаревший объект и создаём заново
                 logger.info(
-                    "  ~ replace broken object [%s] (is_valid=%s, has_results=%s) for '%s'",
+                    (
+                        "  ~ replace stale/broken object [%s] "
+                        "(is_valid=%s, has_results=%s, params_current=%s) for '%s'"
+                    ),
                     obj_type,
                     obj.is_valid,
                     obj.results is not None,
+                    params_are_current,
                     project.name,
                 )
                 # Удаляем связанные электрорасчёты
@@ -1328,18 +1443,6 @@ async def seed_objects_and_calculations(
 async def seed_specifications(db, projects: list[Project]) -> None:
     """Генерирует спецификации для проектов, у которых есть электрорасчёты."""
     for project in projects:
-        # Удаляем старую спецификацию если она пустая или устарела
-        existing_result = await db.execute(
-            select(Specification).where(Specification.project_id == project.id)
-        )
-        existing = existing_result.scalar_one_or_none()
-        if existing is not None:
-            if existing.items:  # непустая — оставляем
-                continue
-            # Пустая — удаляем и перегенерируем
-            await db.delete(existing)
-            await db.flush()
-
         # Собираем результаты электрорасчётов
         calcs_result = await db.execute(
             select(ElectricalCalculation).where(ElectricalCalculation.project_id == project.id)
@@ -1350,18 +1453,34 @@ async def seed_specifications(db, projects: list[Project]) -> None:
 
         electrical_results = [c.results or {} for c in calcs]
         items = build_basic_specification(electrical_results)
+        items_payload = [i.model_dump() for i in items]
 
-        spec = Specification(
-            project_id=project.id,
-            variant_number=1,
-            items=[i.model_dump() for i in items],
+        existing_result = await db.execute(
+            select(Specification).where(
+                Specification.project_id == project.id,
+                Specification.variant_number == 1,
+            )
         )
-        db.add(spec)
-        logger.info(
-            "  + specification for '%s' (%d позиций)",
-            project.name,
-            len(items),
-        )
+        existing = existing_result.scalar_one_or_none()
+        if existing is None:
+            spec = Specification(
+                project_id=project.id,
+                variant_number=1,
+                items=items_payload,
+            )
+            db.add(spec)
+            logger.info(
+                "  + specification for '%s' (%d позиций)",
+                project.name,
+                len(items_payload),
+            )
+        elif existing.items != items_payload:
+            existing.items = items_payload
+            logger.info(
+                "  ~ refresh specification for '%s' (%d позиций)",
+                project.name,
+                len(items_payload),
+            )
 
     await db.flush()
 
@@ -1382,6 +1501,9 @@ async def run_seeds() -> None:
 
         logger.info("=== Seed: correction coefficients ===")
         coefficients = await seed_coefficients(db, admin_id)
+
+        logger.info("=== Seed: insulation_materials ===")
+        await seed_insulation_materials(db)
 
         logger.info("=== Seed: cables_extended ===")
         await seed_cables(db)

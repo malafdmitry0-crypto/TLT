@@ -146,8 +146,11 @@ docker compose exec db psql -U heatcalc -d postgres \
 ## Работа в локальной сети без интернета (NFR-REL-02)
 
 Все справочники (climate.json / insulation.json / cables_tlt.json /
-accessories.json) встроены в образ `backend`. Фронтенд-ассеты скомпилированы
-в `dist/` внутри образа и отдаются nginx. Внешних зависимостей в рантайме нет.
+accessories.json) встроены в образ `backend`. При запуске seed синхронизирует
+`insulation.json` в таблицу `insulation_materials`, поэтому runtime API
+`/references/insulation` работает из БД с JSON fallback. Фронтенд-ассеты
+скомпилированы в `dist/` внутри образа и отдаются nginx. Внешних зависимостей в
+рантайме нет.
 
 Для on-premise установки в закрытый контур:
 1. На машине с интернетом: `make package-save IMAGE_TAG=v1.0.0`.

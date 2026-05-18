@@ -20,7 +20,8 @@
   "params": {
     "outer_diameter": 0.108,
     "insulation_thickness": 0.05,
-    "insulation_material": "mineral_wool",
+    "insulation_material": "mineral_wool_boards_120",
+    "insulation_temperature_basis": "outdoor_winter",
     "ambient_temperature": -30,
     "process_temperature": 150,
     "pipe_length": 100
@@ -109,7 +110,7 @@
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
-| 1 | Добавить трубу с `insulation_layers: [{thickness:0.03, material:mineral_wool}, {thickness:0.03, material:foam_glass}]` | `is_valid=true` |
+| 1 | Добавить трубу с `insulation_layers: [{thickness:0.03, material:mineral_wool_boards_120}, {thickness:0.03, material:polyurethane_products_50}]` и `insulation_temperature_basis=outdoor_winter` | `is_valid=true` |
 | 2 | Сравнить с однослойной изоляцией 0.03м | Двухслойная имеет меньше потерь |
 | 3 | Добавить 4 слоя | HTTP 422 (лимит 3 слоя) |
 

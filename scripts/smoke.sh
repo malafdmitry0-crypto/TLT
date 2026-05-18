@@ -83,7 +83,7 @@ echo "[Бизнес-сценарий]"
 PID=$(_json_first_field "$(curl -s -H "X-Session-Id: $SID" $API/projects)" "id")
 [ -n "$PID" ] && ok "Гостевой авто-проект доступен" || bad "Гостевой авто-проект не найден"
 
-PAYLOAD='{"object_type":"pipe","params":{"outer_diameter":0.108,"insulation_thickness":0.05,"insulation_material":"mineral_wool","ambient_temperature":-30,"process_temperature":80,"pipe_length":50,"installation":"outdoor"}}'
+PAYLOAD='{"object_type":"pipe","params":{"outer_diameter":0.108,"insulation_thickness":0.05,"insulation_material":"mineral_wool_cylinders_100","insulation_temperature_basis":"outdoor_winter","ambient_temperature":-30,"process_temperature":80,"pipe_length":50,"location":"outdoor"}}'
 RESP=$(curl -s -X POST "$API/projects/$PID/objects" \
   -H "Content-Type: application/json" -H "X-Session-Id: $SID" -d "$PAYLOAD")
 HL=$(python3 -c "import sys,json;print(round(json.loads(sys.argv[1])['results']['heat_loss_per_meter'],2))" "$RESP" 2>/dev/null)

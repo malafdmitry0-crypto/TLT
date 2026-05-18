@@ -8,6 +8,7 @@ from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.guest_session import GuestSession
+from app.models.insulation_material import InsulationMaterial
 from app.models.project import Project, ProjectStatus
 from app.models.project_object import ObjectType, ProjectObject
 from app.models.refresh_session import RefreshSession
@@ -23,6 +24,7 @@ __all__ = [
     "UserRole",
     "UserPreference",
     "GuestSession",
+    "InsulationMaterial",
     "Project",
     "ProjectStatus",
     "ProjectObject",

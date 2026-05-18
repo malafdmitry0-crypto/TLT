@@ -11,6 +11,7 @@ async def test_all_tables_created(test_engine):
     expected = {
         "users",
         "guest_sessions",
+        "insulation_materials",
         "projects",
         "project_objects",
         "electrical_calculations",

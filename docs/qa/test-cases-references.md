@@ -20,17 +20,19 @@
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
 | 1 | `GET /api/v1/references/insulation` | HTTP 200 |
-| 2 | Проверить структуру | Массив с полями `material`, `conductivity` |
-| 3 | Проверить содержимое | Есть `mineral_wool`, `foam_polyurethane` |
+| 2 | Проверить структуру | Массив с полями `material`, `conductivity`, `temperature_range`, `selectable` |
+| 3 | Проверить содержимое | Есть конкретные коды с плотностью, например `mineral_wool_boards_120`, `polyurethane_products_50`; после `python -m app.seeds` данные приходят из таблицы `insulation_materials` |
 
 **Ожидаемые материалы:**
 
 | Код | Наименование |
 |-----|-------------|
-| `mineral_wool` | Минеральная вата |
-| `foam_polyurethane` | Пенополиуретан |
-| `foam_glass` | Пеностекло |
-| `polyurethane` | Пенополиуретан жёсткий |
+| `mineral_wool_boards_120` | Плиты минераловатные прошивные, ρ 120 |
+| `polyurethane_products_50` | Теплоизоляционные изделия из пенополиуретана, ρ 50 |
+| `polystyrene_products_50` | Теплоизоляционные изделия из пенополистирола, ρ 50 |
+| `k_flex_st` | Кайманфлекс K-Flex ST |
+
+Generic семьи (`mineral_wool`, `foam_glass`, `polyurethane` и т.п.) могут присутствовать в payload как `selectable=false`, но не должны попадать в расчётный picker.
 
 ---
 

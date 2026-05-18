@@ -74,7 +74,7 @@
 ## Справочники
 
 - [ ] `GET /references/climate` — доступен гостю, содержит «Москва»
-- [ ] `GET /references/insulation` — содержит `mineral_wool`
+- [ ] `GET /references/insulation` — содержит конкретные коды, например `mineral_wool_cylinders_100`; generic `mineral_wool` помечен как `selectable=false`
 - [ ] `GET /references/cables` — содержит «ТЛТ-25»
 - [ ] `GET /references/cables?source=commercial` — доступен гостю, содержит `source=commercial`
 - [ ] `GET /references/cables/extended` — гость получает 403, сотрудник 200

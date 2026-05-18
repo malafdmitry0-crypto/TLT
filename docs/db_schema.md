@@ -125,6 +125,37 @@
 
 ---
 
+### insulation_materials
+| Колонка                       | Тип          | Ограничения              | Описание |
+|-------------------------------|--------------|--------------------------|----------|
+| id                            | UUID         | PK                       | |
+| material                      | VARCHAR(128) | UNIQUE, NOT NULL, INDEX  | Код материала изоляции |
+| name                          | VARCHAR(512) | NOT NULL                 | Человекочитаемое название |
+| conductivity                  | FLOAT        | nullable                 | Справочная λ при базовой температуре |
+| density_kg_m3                 | JSONB        | nullable                 | Плотность, число или диапазон |
+| temperature_range             | JSONB        | nullable                 | Рабочий диапазон температур, °C |
+| conductivity_20_plus          | JSONB        | nullable                 | Формула/константа λ(tm) для `tm >= 20 °C` |
+| conductivity_19_minus         | JSONB        | nullable                 | Значения λ(tm) для холодной зоны |
+| selectable                    | BOOLEAN      | NOT NULL, default true   | Можно выбирать в расчётном UI |
+| deprecated                    | BOOLEAN      | NOT NULL, default false  | Устаревшая/generic запись |
+| requires_material_reselection | BOOLEAN      | NOT NULL, default false  | Требует уточнения конкретного материала/плотности |
+| material_family               | VARCHAR(128) | nullable                 | Семейство generic записи |
+| reselection_message           | TEXT         | nullable                 | Сообщение для импорта/валидации |
+| source                        | VARCHAR(512) | nullable                 | Источник справочных данных |
+| data_source                   | VARCHAR(32)  | NOT NULL                 | `builtin_json` / `admin` / `import` / `api` |
+| params                        | JSONB        | NOT NULL, default `{}`   | Дополнительные поля |
+| is_active                     | BOOLEAN      | NOT NULL, default true   | Активна ли запись |
+| created_at                    | TIMESTAMPTZ  | server default           | |
+| updated_at                    | TIMESTAMPTZ  | auto-update              | |
+
+`backend/app/reference_data/insulation.json` остаётся версионируемым source
+для встроенного каталога. `python -m app.seeds` синхронизирует его в
+`insulation_materials` как `data_source=builtin_json`; `/references/insulation`
+читает runtime projection из БД и использует JSON только как fallback при
+пустой таблице.
+
+---
+
 ### correction_coefficients
 | Колонка     | Тип          | Ограничения                            | Описание                     |
 |-------------|--------------|----------------------------------------|------------------------------|

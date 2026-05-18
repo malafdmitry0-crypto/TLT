@@ -43,7 +43,7 @@ C4Context
 - **SPA + REST API** — фронтенд и бэкенд разделены; это позволяет независимо масштабировать и развёртывать компоненты
 - **JWT-аутентификация** — stateless; бэкенд не хранит серверные сессии
 - **Гостевые сессии** — хранятся в БД, идентифицируются через HTTP-заголовок `X-Session-Id`
-- **JSON-справочники** — climate.json, insulation.json и др. загружаются в память при старте (LRU-кэш) для быстрого доступа без запросов к БД
+- **Справочники** — JSON остаётся версионируемым источником; теплоизоляция дополнительно сидируется в PostgreSQL (`insulation_materials`) и отдаётся через `/references/insulation` из БД
 
 ```mermaid
 C4Container
@@ -61,12 +61,12 @@ C4Container
                   "REST API. Авторизация JWT.<br/>Бизнес-логика расчётов.<br/>Генерация отчётов.")
         Container(formulas, "Расчётный движок", "Python: чистые функции",
                   "Формулы теплопотерь<br/>(труба, резервуар).<br/>Электрорасчёт.<br/>Билдер спецификации.")
-        Container(refs, "Справочники", "JSON-файлы + LRU-кэш",
-                  "climate.json, insulation.json,<br/>cables_tlt.json, accessories.json.<br/>Загружаются при старте,<br/>кэшируются в памяти.")
+        Container(refs, "Справочники", "JSON + DB projection",
+                  "climate.json, insulation.json,<br/>cables_tlt.json, accessories.json.<br/>insulation.json сидируется<br/>в insulation_materials.")
     }
 
     ContainerDb(db, "PostgreSQL 16", "Реляционная СУБД",
-                "Пользователи, проекты, объекты,<br/>расчёты, спецификации,<br/>коэффициенты, расширенные каталоги.")
+                "Пользователи, проекты, объекты,<br/>расчёты, спецификации,<br/>коэффициенты, insulation_materials,<br/>расширенные каталоги.")
 
     Rel(user, spa, "Использует", "HTTPS / браузер")
     Rel(spa, api, "REST API вызовы", "JSON / HTTPS")
