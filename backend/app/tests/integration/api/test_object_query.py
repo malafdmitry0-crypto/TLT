@@ -11,6 +11,9 @@ from app.models.project_object import ProjectObject
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+PERLITE = "expanded_perlite_sand_225"
+
 
 async def _project(client: AsyncClient, session_id: str) -> str:
     resp = await client.get("/api/v1/projects", headers={"X-Session-Id": session_id})
@@ -34,7 +37,8 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
                 "name": "Труба Север",
                 "outer_diameter": 0.06,
                 "pipe_length": 10,
-                "insulation_material": "mineral_wool",
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
                 "process_temperature": 65,
                 "ambient_temperature": -25,
                 "climate_region": "ЯНАО",
@@ -56,7 +60,8 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
                 "name": "Труба Юг",
                 "outer_diameter": 0.219,
                 "pipe_length": 25,
-                "insulation_material": "foam_glass",
+                "insulation_material": PERLITE,
+                "insulation_temperature_basis": "outdoor_winter",
                 "process_temperature": 95,
                 "ambient_temperature": -20,
                 "climate_region": "ХМАО",
@@ -79,7 +84,8 @@ async def _seed_objects(db_session: AsyncSession, project_id: str) -> list[Proje
                 "shape": "cylindrical",
                 "diameter": 2.0,
                 "height": 3.0,
-                "insulation_material": "mineral_wool",
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
                 "process_temperature": 70,
                 "ambient_temperature": -25,
             },

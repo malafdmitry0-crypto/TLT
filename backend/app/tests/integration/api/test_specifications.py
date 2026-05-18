@@ -5,6 +5,8 @@ from httpx import AsyncClient
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+
 
 class TestSpecification:
     async def test_generate_empty_specification(self, client: AsyncClient, guest_session: str):
@@ -144,7 +146,8 @@ class TestSpecAccessoryCountForAllObjects:
                 "params": {
                     "outer_diameter": 0.108,
                     "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -30,
                     "process_temperature": 80,
                     "pipe_length": 50,

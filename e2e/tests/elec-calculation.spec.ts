@@ -41,7 +41,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
     });
     await expect(page.getByText(/СО1 · тип по объектам · .*рассчитано: 1\/1/i)).toBeVisible();
     await expect(page.getByText(/ТЛТ-100/)).toBeVisible();
-    await expect(page.getByText(/6,49 кВт|6\.49 кВт/i).first()).toBeVisible();
+    await expect(page.getByText(/11,80 кВт|11\.80 кВт/i).first()).toBeVisible();
   });
 
   test('варианты СО изолированы: расчёт СО2 не подменяет статус СО1', async ({

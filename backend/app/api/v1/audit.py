@@ -26,6 +26,6 @@ async def ingest_client_events(
         accepted = await AuditService(db).record_client_events(request.events, principal)
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     return ClientAuditEventsResponse(accepted=accepted)

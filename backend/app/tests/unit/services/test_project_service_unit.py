@@ -354,7 +354,7 @@ class TestObjectsCRUD:
             params={
                 "outer_diameter": 0.1,
                 "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool",
+                "insulation_material": "mineral_wool_boards_120",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
                 "pipe_length": 10,
@@ -388,7 +388,7 @@ class TestObjectsCRUD:
 
         assert updated.params["outer_diameter"] == pytest.approx(0.1)
         assert updated.params["insulation_thickness"] == pytest.approx(0.02)
-        assert updated.params["insulation_material"] == "mineral_wool"
+        assert updated.params["insulation_material"] == "mineral_wool_boards_120"
         assert updated.version == 2
         db.commit.assert_not_awaited()
 
@@ -406,7 +406,7 @@ class TestObjectsCRUD:
             params={
                 "outer_diameter": 0.1,
                 "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool",
+                "insulation_material": "mineral_wool_boards_120",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
                 "pipe_length": 10,

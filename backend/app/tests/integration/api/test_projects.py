@@ -5,6 +5,8 @@ from httpx import AsyncClient
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+
 
 async def _guest_project(client: AsyncClient, session_id: str) -> dict:
     """Возвращает авто-проект пользователя (создаётся при POST /auth/guest)."""
@@ -113,7 +115,8 @@ class TestProjectDuplicate:
             "name": "Труба 1",
             "outer_diameter": 0.108,
             "insulation_thickness": 0.05,
-            "insulation_material": "mineral_wool",
+            "insulation_material": MINERAL_WOOL,
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -20.0,
             "process_temperature": 80.0,
             "pipe_length": 50.0,

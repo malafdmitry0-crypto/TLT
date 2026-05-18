@@ -27,6 +27,8 @@ from app.services.calculation_service import (
     CalculationService,
 )
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+
 
 def _mock_db_empty() -> AsyncMock:
     """Мок AsyncSession, возвращающий пустой список при любом execute()."""
@@ -58,7 +60,8 @@ def _minimal_pipe_params() -> dict[str, object]:
     return {
         "outer_diameter": 0.1,
         "insulation_thickness": 0.05,
-        "insulation_material": "mineral_wool",
+        "insulation_material": MINERAL_WOOL,
+        "insulation_temperature_basis": "outdoor_winter",
         "ambient_temperature": -10,
         "process_temperature": 60,
         "pipe_length": 10,
@@ -116,7 +119,8 @@ class TestCalcHeatLoss:
             {
                 "outer_diameter": 0.108,
                 "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool",
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -30,
                 "process_temperature": 80,
                 "pipe_length": 10,
@@ -135,7 +139,8 @@ class TestCalcHeatLoss:
                 "diameter": 2.0,
                 "height": 3.0,
                 "insulation_thickness": 0.08,
-                "insulation_material": "mineral_wool",
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
             },
@@ -165,7 +170,8 @@ class TestRecalculateObject:
             params={
                 "outer_diameter": 0.1,
                 "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool",
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -30,
                 "process_temperature": 80,
                 "pipe_length": 10,
@@ -190,7 +196,8 @@ class TestRecalculateObject:
             params={
                 "outer_diameter": 0.1,
                 "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool",
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": 50,
                 "process_temperature": 50,  # равно → нет перепада
                 "pipe_length": 10,
@@ -232,7 +239,8 @@ class TestRecalculateObject:
                 "shape": "spherical",
                 "diameter": 1.5,
                 "insulation_thickness": 0.06,
-                "insulation_material": "mineral_wool",
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -10,
                 "process_temperature": 60,
             },
@@ -887,7 +895,8 @@ class TestBatchRecalculate:
                 params={
                     "outer_diameter": 0.1,
                     "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -10,
                     "process_temperature": 60,
                     "pipe_length": 10,
@@ -904,7 +913,8 @@ class TestBatchRecalculate:
                 params={
                     "outer_diameter": 0.1,
                     "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": 100,
                     "process_temperature": 50,  # невалидно
                     "pipe_length": 10,

@@ -10,6 +10,9 @@ from app.services.excel_import_service import build_template_csv, build_template
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+POLYURETHANE = "polyurethane_products_50"
+
 
 async def _create_project(client: AsyncClient, session_id: str) -> str:
     resp = await client.get(
@@ -39,7 +42,8 @@ class TestExcelRoundTrip:
                 "name": "Труба 1",
                 "outer_diameter": 0.108,
                 "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool",
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20.0,
                 "process_temperature": 80.0,
                 "pipe_length": 50.0,
@@ -48,7 +52,8 @@ class TestExcelRoundTrip:
                 "name": "Труба 2",
                 "outer_diameter": 0.057,
                 "insulation_thickness": 0.04,
-                "insulation_material": "polyurethane",
+                "insulation_material": POLYURETHANE,
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -10.0,
                 "process_temperature": 60.0,
                 "pipe_length": 25.0,
@@ -133,7 +138,8 @@ class TestExcelRoundTrip:
             "name": "Magistral-1",
             "outer_diameter": 0.273,
             "insulation_thickness": 0.1,
-            "insulation_material": "polyurethane",
+            "insulation_material": POLYURETHANE,
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -42.0,
             "process_temperature": 150.0,
             "pipe_length": 200.5,
@@ -186,8 +192,8 @@ class TestExcelRoundTrip:
         assert len(objs) == 1
         p = objs[0]["params"]
         assert (
-            p["insulation_material"] == "polyurethane"
-        )  # код материала восстановлен из русского лейбла
+            p["insulation_material"] == POLYURETHANE
+        )  # concrete material code restored from exported label
         assert abs(p["outer_diameter"] - 0.273) < 1e-6
         assert abs(p["insulation_thickness"] - 0.1) < 1e-6
         assert p["pipe_length"] == 200.5

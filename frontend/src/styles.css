@@ -970,7 +970,7 @@ html, body, #root {
 .heatcalc-workspace-layout--right .form-grid-srs .form-col-srs {
   width: 100% !important;
   min-width: 0;
-  --compact-field-label-width: 72px !important;
+  --compact-field-label-width: 88px !important;
   --field-pair-min-width: 204px;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   gap: 2px;
@@ -1257,7 +1257,7 @@ html, body, #root {
   line-height: 1.15;
   margin-bottom: 0;
   padding-top: 4px;
-  overflow: hidden;
+  overflow: visible;
   white-space: normal;
 }
 
@@ -1270,10 +1270,10 @@ html, body, #root {
 .inline-object-form .ant-form-item-label > label > span {
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  max-width: 100%;
+  overflow: visible;
+  display: block;
+  hyphens: auto;
   overflow-wrap: anywhere;
   word-break: break-word;
   white-space: normal;
@@ -1341,15 +1341,19 @@ html, body, #root {
 }
 
 .inline-object-form .field-label-two-line {
-  display: inline-flex !important;
-  flex-direction: column;
+  display: block !important;
   gap: 0;
   line-height: 1.15;
+  max-width: 100%;
 }
 
 .inline-object-form .field-label-two-line > span {
   display: block;
-  white-space: nowrap;
+  max-width: 100%;
+  hyphens: auto;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
 }
 
 /* ── Контрол — якорь высоты 20px ──────────────────────────────── */

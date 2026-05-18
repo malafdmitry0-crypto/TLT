@@ -1,6 +1,11 @@
 import { chromium } from 'playwright';
 
 const url = process.env.VERIFY_URL ?? 'http://localhost:3003';
+const apiBaseUrl = (
+  process.env.VERIFY_API_BASE_URL ??
+  process.env.VITE_API_BASE_URL ??
+  'http://localhost:8000/api/v1'
+).replace(/\/$/, '');
 const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'chrome';
 const mode = process.argv.includes('--tank') ? 'tank' : 'pipe';
 const printReport = process.argv.includes('--report');
@@ -28,6 +33,30 @@ async function selectObjectType(page, label) {
     return;
   }
   await page.locator('.ant-segmented-item', { hasText: label }).click();
+}
+
+async function seedGuestWorkspace(page) {
+  const response = await page.request.post(`${apiBaseUrl}/auth/guest`);
+  if (!response.ok()) {
+    throw new Error(`Guest seed failed: ${response.status()} ${await response.text()}`);
+  }
+  const { session_id: sessionId, project } = await response.json();
+  await page.evaluate(
+    ({ sessionId, project }) => {
+      window.localStorage.setItem('role', 'guest');
+      window.localStorage.setItem('session_id', sessionId);
+      window.localStorage.setItem(
+        'tlt-current-project',
+        JSON.stringify({ state: { currentProject: project }, version: 0 }),
+      );
+    },
+    { sessionId, project },
+  );
+  await page.goto(new URL('/workspace/heat-calc', url).toString(), {
+    waitUntil: 'domcontentloaded',
+    timeout: 30000,
+  });
+  await page.waitForTimeout(500);
 }
 
 const browser = await chromium.launch({ headless: true, channel });
@@ -60,6 +89,9 @@ try {
     await guestButton.click();
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
+    if ((await page.locator('.inline-object-form').count()) === 0) {
+      await seedGuestWorkspace(page);
+    }
   }
 
   if ((await page.locator('.inline-object-form').count()) === 0) {
@@ -96,7 +128,7 @@ try {
     await page.screenshot({ path: screenshotPath, fullPage: true });
   }
 
-  const { overflowReport, layoutReport } = await page.evaluate(() => {
+  const { overflowReport, labelClippingReport, layoutReport } = await page.evaluate(() => {
     const sections = Array.from(document.querySelectorAll('.form-col-srs:not(.collapsed)'));
 
     const layoutReport = sections.map((section, sectionIndex) => {
@@ -153,7 +185,33 @@ try {
       });
     });
 
-    return { overflowReport, layoutReport };
+    const labelClippingReport = sections.flatMap((section, sectionIndex) => {
+      return Array.from(
+        section.querySelectorAll('.ant-form-item-label > label, .field-label-two-line, .field-label-two-line > span'),
+      ).flatMap((label) => {
+        const style = getComputedStyle(label);
+        const clipsOverflow = ['hidden', 'clip'].includes(style.overflow)
+          || ['hidden', 'clip'].includes(style.overflowX)
+          || ['hidden', 'clip'].includes(style.overflowY);
+        const clippedBySize =
+          label.scrollWidth > label.clientWidth + 1 ||
+          label.scrollHeight > label.clientHeight + 1;
+        if (!clipsOverflow || !clippedBySize) return [];
+
+        return [{
+          sectionIndex,
+          text: label.textContent?.replace(/\s+/g, ' ').trim().slice(0, 100) ?? '',
+          clientWidth: Math.round(label.clientWidth),
+          scrollWidth: Math.round(label.scrollWidth),
+          clientHeight: Math.round(label.clientHeight),
+          scrollHeight: Math.round(label.scrollHeight),
+          overflow: style.overflow,
+          display: style.display,
+        }];
+      });
+    });
+
+    return { overflowReport, labelClippingReport, layoutReport };
   });
 
   if (printReport) {
@@ -162,6 +220,9 @@ try {
 
   if (overflowReport.length > 0) {
     console.error(JSON.stringify(overflowReport, null, 2));
+    process.exitCode = 1;
+  } else if (labelClippingReport.length > 0) {
+    console.error(JSON.stringify(labelClippingReport, null, 2));
     process.exitCode = 1;
   } else {
     console.log('inline form visual bounds OK');

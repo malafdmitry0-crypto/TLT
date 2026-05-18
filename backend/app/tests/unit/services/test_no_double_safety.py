@@ -25,6 +25,8 @@ import pytest
 from app.schemas.calculation import SelfRegulatingResult
 from app.services.calculation_service import CalculationService
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+
 
 def _make_mock_db(pipe_object: SimpleNamespace, cable_catalog_rows: list | None = None):
     """Создаёт моковую AsyncSession, которая по запросу отдаёт один pipe-объект
@@ -66,7 +68,8 @@ def _fake_pipe_object(heat_loss_per_meter: float, pipe_length: float = 50.0):
         params={
             "outer_diameter": 0.108,
             "insulation_thickness": 0.05,
-            "insulation_material": "mineral_wool",
+            "insulation_material": MINERAL_WOOL,
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -30.0,
             "process_temperature": 80.0,
             "pipe_length": pipe_length,
@@ -147,7 +150,8 @@ async def test_heat_loss_per_meter_never_includes_safety_factor():
     pipe_params = {
         "outer_diameter": 0.108,
         "insulation_thickness": 0.05,
-        "insulation_material": "mineral_wool",
+        "insulation_material": MINERAL_WOOL,
+        "insulation_temperature_basis": "outdoor_winter",
         "ambient_temperature": -30.0,
         "process_temperature": 150.0,
         "pipe_length": 100.0,

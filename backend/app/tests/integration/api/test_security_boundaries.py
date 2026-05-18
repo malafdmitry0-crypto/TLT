@@ -9,6 +9,8 @@ from httpx import AsyncClient
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+
 
 async def _guest_project_with_object(client: AsyncClient) -> tuple[str, dict, dict]:
     sid = (await client.post("/api/v1/auth/guest")).json()["session_id"]
@@ -21,7 +23,8 @@ async def _guest_project_with_object(client: AsyncClient) -> tuple[str, dict, di
             "params": {
                 "outer_diameter": 0.108,
                 "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool",
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
                 "pipe_length": 10,

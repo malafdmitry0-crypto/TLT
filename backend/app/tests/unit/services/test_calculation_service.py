@@ -6,6 +6,8 @@ import pytest
 
 from app.services.calculation_service import CalculationError, CalculationService
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+
 
 @pytest.mark.asyncio
 async def test_calc_heat_loss_pipe_returns_dict():
@@ -17,7 +19,8 @@ async def test_calc_heat_loss_pipe_returns_dict():
         {
             "outer_diameter": 0.1,
             "insulation_thickness": 0.05,
-            "insulation_material": "mineral_wool",
+            "insulation_material": MINERAL_WOOL,
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -30,
             "process_temperature": 80,
             "pipe_length": 10,

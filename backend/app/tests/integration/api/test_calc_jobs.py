@@ -10,6 +10,8 @@ from app.services.task_service import TaskService
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+
 
 class FakeTaskQueue:
     enqueued: list[tuple[str, str]] = []
@@ -33,7 +35,8 @@ async def _create_pipe(client: AsyncClient, project_id: str, session_id: str) ->
             "params": {
                 "outer_diameter": 0.108,
                 "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool",
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
                 "pipe_length": 25,

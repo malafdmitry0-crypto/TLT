@@ -19,12 +19,16 @@ from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+LOW_LAMBDA_INSULATION = "polyurethane_products_40"
+
 
 def _pipe(**kw):
     base = dict(
         outer_diameter=0.108,
         insulation_thickness=0.05,
-        insulation_material="mineral_wool",
+        insulation_material=MINERAL_WOOL,
+        insulation_temperature_basis="outdoor_winter",
         ambient_temperature=-20.0,
         process_temperature=80.0,
         pipe_length=50.0,
@@ -39,7 +43,8 @@ def _tank(**kw):
         diameter=2.0,
         height=3.0,
         insulation_thickness=0.08,
-        insulation_material="mineral_wool",
+        insulation_material=MINERAL_WOOL,
+        insulation_temperature_basis="outdoor_winter",
         ambient_temperature=-20.0,
         process_temperature=80.0,
     )
@@ -161,9 +166,9 @@ class TestPipePhysicalInvariants:
 
     def test_higher_lambda_lowers_resistance(self):
         """Лучший проводник изоляции (выше λ) → меньше R → больше Q."""
-        # Минвата vs ППУ: λ_мв ≈ 0.045, λ_ппу ≈ 0.027 → ППУ лучше
-        mw = calc_pipe_heat_loss(_pipe(insulation_material="mineral_wool"))
-        pu = calc_pipe_heat_loss(_pipe(insulation_material="polyurethane"))
+        # Конкретные selectable-коды: ППУ имеет меньшую λ(tm), чем минвата ρ120.
+        mw = calc_pipe_heat_loss(_pipe(insulation_material=MINERAL_WOOL))
+        pu = calc_pipe_heat_loss(_pipe(insulation_material=LOW_LAMBDA_INSULATION))
         # ППУ изолирует лучше → меньше потерь
         assert pu.heat_loss_per_meter < mw.heat_loss_per_meter, "ФИЗИКА СЛОМАНА: ППУ хуже минваты?"
 

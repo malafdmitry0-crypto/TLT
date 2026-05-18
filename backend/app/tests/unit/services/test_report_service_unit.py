@@ -309,7 +309,7 @@ class TestReportRendering:
                     "diameter": 2.0,
                     "height": 3.0,
                     "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": "mineral_wool_boards_120",
                     "ambient_temperature": -25,
                     "process_temperature": 70,
                     "q_additional": 100,

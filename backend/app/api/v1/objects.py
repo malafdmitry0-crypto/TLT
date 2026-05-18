@@ -95,7 +95,7 @@ async def object_query_capabilities(
         return await ObjectQueryService(db).capabilities(project_id, object_type, principal)
     except ObjectQueryValidationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -119,7 +119,7 @@ async def query_objects(
         return await ObjectQueryService(db).query(project_id, data, principal)
     except ObjectQueryValidationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -238,7 +238,7 @@ async def import_template(
             headers={"Content-Disposition": "attachment; filename=import_template.xlsx"},
         )
     raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail=f"Неизвестный формат шаблона: {format} (допустимо: xlsx, csv)",
     )
 
@@ -272,7 +272,7 @@ async def import_excel(
     filename = (file.filename or "").lower()
     if not (filename.endswith(".xlsx") or filename.endswith(".csv")):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Ожидается файл формата .xlsx или .csv",
         )
     content = await read_upload_with_limit(file)
@@ -291,7 +291,7 @@ async def import_excel(
                 ),
                 principal,
             )
-            result["heat_loss_task"] = TaskService.to_response(task)
+            result["heat_loss_task"] = TaskService.to_response(task).model_dump(mode="json")
         await AuditService(db).try_record(
             event_type="object.imported",
             category="object",
@@ -309,7 +309,7 @@ async def import_excel(
         return result
     except ExcelImportError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

@@ -84,7 +84,7 @@ async def preview(
         if variant_number is None:
             await ProjectService(db).get_project_basic(project_id, principal)
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="variant_number is required",
             )
         result = await service.preview(

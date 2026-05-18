@@ -21,6 +21,8 @@ from app.services.project_service import ProjectService
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+
 
 @contextmanager
 def count_sql(async_engine: AsyncEngine) -> Iterator[list[str]]:
@@ -74,7 +76,8 @@ async def _seed_project(
                 "name": f"Pipe-{i:03d}",
                 "outer_diameter": 0.108,
                 "pipe_length": 50.0,
-                "insulation_material": "mineral_wool",
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
                 "process_temperature": 80.0,
                 "ambient_temperature": -20.0,
             },
@@ -92,7 +95,8 @@ async def _seed_project(
                 "shape": "cylindrical",
                 "diameter": 2.0,
                 "height": 3.0,
-                "insulation_material": "mineral_wool",
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
                 "process_temperature": 70.0,
                 "ambient_temperature": -20.0,
             },
@@ -143,7 +147,8 @@ async def _seed_valid_pipes_for_batch(
                 "name": f"Batch Pipe-{index:03d}",
                 "outer_diameter": 0.108,
                 "pipe_length": 50.0,
-                "insulation_material": "mineral_wool",
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
                 "process_temperature": 80.0,
                 "ambient_temperature": -20.0,
             },

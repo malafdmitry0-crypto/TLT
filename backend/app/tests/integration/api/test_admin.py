@@ -10,6 +10,8 @@ from app.services.task_service import TASK_ELECTRICAL_BATCH
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+
 
 class FakeDeadLetterQueue:
     entries: list[tuple[str, dict[str, str]]] = []
@@ -442,7 +444,8 @@ class TestFormulaCheck:
                 "formula_type": "pipe",
                 "params": {
                     "outer_diameter": 0.108,
-                    "insulation_layers": [{"material": "mineral_wool", "thickness": 0.05}],
+                    "insulation_layers": [{"material": MINERAL_WOOL, "thickness": 0.05}],
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -26.0,
                     "process_temperature": 80.0,
                     "pipe_length": 50.0,
@@ -467,7 +470,8 @@ class TestFormulaCheck:
                 "formula_type": "pipe",
                 "params": {
                     "outer_diameter": 0.108,
-                    "insulation_layers": [{"material": "mineral_wool", "thickness": 0.05}],
+                    "insulation_layers": [{"material": MINERAL_WOOL, "thickness": 0.05}],
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -26.0,
                     "process_temperature": 80.0,
                     "pipe_length": 50.0,
@@ -495,7 +499,8 @@ class TestFormulaCheck:
                     "diameter": 1.0,
                     "height": 2.0,
                     "insulation_thickness": 0.08,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -26.0,
                     "process_temperature": 60.0,
                     "wind_speed": 4.9,
@@ -615,7 +620,8 @@ class TestFormulaCheck:
                 "formula_type": "pipe",
                 "params": {
                     "outer_diameter": 0.108,
-                    "insulation_layers": [{"material": "mineral_wool", "thickness": 0.05}],
+                    "insulation_layers": [{"material": MINERAL_WOOL, "thickness": 0.05}],
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": 80.0,
                     "process_temperature": 20.0,
                     "pipe_length": 50.0,

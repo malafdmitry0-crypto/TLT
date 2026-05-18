@@ -11,13 +11,23 @@ from app.schemas.calculation import (
     TankHeatLossParams,
 )
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+POLYURETHANE = "polyurethane_products_40"
+MANUAL_HIGH_TEMP_LAYER = InsulationLayer(
+    thickness=0.05,
+    material="other",
+    conductivity=0.021,
+    temperature_range=(-200, 650),
+)
+
 
 class TestPipeHeatLossParams:
     def test_valid(self):
         p = PipeHeatLossParams(
             outer_diameter=0.1,
             insulation_thickness=0.05,
-            insulation_material="mineral_wool",
+            insulation_material=MINERAL_WOOL,
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-30,
             process_temperature=80,
             pipe_length=10,
@@ -29,7 +39,8 @@ class TestPipeHeatLossParams:
             PipeHeatLossParams(
                 outer_diameter=-0.1,
                 insulation_thickness=0.05,
-                insulation_material="mineral_wool",
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-30,
                 process_temperature=80,
                 pipe_length=10,
@@ -40,7 +51,8 @@ class TestPipeHeatLossParams:
             PipeHeatLossParams(
                 outer_diameter=0.1,
                 insulation_thickness=0.05,
-                insulation_material="mineral_wool",
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-30,
                 process_temperature=80,
                 pipe_length=10,
@@ -52,7 +64,8 @@ class TestPipeHeatLossParams:
             PipeHeatLossParams(
                 outer_diameter=0.1,
                 insulation_thickness=0,
-                insulation_material="mineral_wool",
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-30,
                 process_temperature=80,
                 pipe_length=10,
@@ -63,8 +76,10 @@ class TestPipeHeatLossParams:
             outer_diameter=0.0108,
             wall_thickness=0.04,
             pipe_material="carbon_steel",
-            insulation_thickness=0.001,
-            insulation_material="aerogel",
+            insulation_thickness=None,
+            insulation_material=None,
+            insulation_layers=[MANUAL_HIGH_TEMP_LAYER],
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-70,
             process_temperature=600,
             pipe_length=200_000,
@@ -81,9 +96,10 @@ class TestPipeHeatLossParams:
             PipeHeatLossParams(
                 outer_diameter=0.1,
                 insulation_thickness=0.05,
-                insulation_material="polyurethane",
+                insulation_material=POLYURETHANE,
+                insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-20,
-                process_temperature=200,
+                process_temperature=450,
                 pipe_length=10,
             )
 
@@ -91,19 +107,21 @@ class TestPipeHeatLossParams:
         p = PipeHeatLossParams(
             outer_diameter=0.1,
             insulation_thickness=0.05,
-            insulation_material="polyurethane",
+            insulation_material=POLYURETHANE,
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-20,
-            process_temperature=120,
+            process_temperature=400,
             pipe_length=10,
         )
 
-        assert p.process_temperature == 120
+        assert p.process_temperature == 400
 
     def test_local_element_counts_are_mapped_to_formula_count(self):
         p = PipeHeatLossParams(
             outer_diameter=0.1,
             insulation_thickness=0.05,
-            insulation_material="mineral_wool",
+            insulation_material=MINERAL_WOOL,
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-30,
             process_temperature=80,
             pipe_length=10,
@@ -119,7 +137,8 @@ class TestPipeHeatLossParams:
         p = PipeHeatLossParams(
             outer_diameter=0.1,
             insulation_thickness=0.05,
-            insulation_material="mineral_wool",
+            insulation_material=MINERAL_WOOL,
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-30,
             process_temperature=80,
             pipe_length=10,
@@ -149,7 +168,8 @@ class TestPipeHeatLossParams:
             "wall_thickness": 0.004,
             "pipe_material": "carbon_steel",
             "insulation_thickness": 0.05,
-            "insulation_material": "mineral_wool",
+            "insulation_material": MINERAL_WOOL,
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -20,
             "process_temperature": 80,
             "pipe_length": 10,
@@ -164,7 +184,8 @@ class TestPipeHeatLossParams:
                 outer_diameter=0.1,
                 wall_thickness=0.004,
                 insulation_thickness=0.05,
-                insulation_material="mineral_wool",
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-30,
                 process_temperature=80,
                 pipe_length=10,
@@ -176,7 +197,8 @@ class TestPipeHeatLossParams:
             wall_thickness=0.004,
             pipe_lambda=56.0,
             insulation_thickness=0.05,
-            insulation_material="mineral_wool",
+            insulation_material=MINERAL_WOOL,
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-30,
             process_temperature=80,
             pipe_length=10,
@@ -207,7 +229,8 @@ class TestPipeHeatLossParams:
             p = PipeHeatLossParams(
                 outer_diameter=0.1,
                 insulation_thickness=0.05,
-                insulation_material="mineral_wool",
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-30,
                 process_temperature=80,
                 pipe_length=10,
@@ -223,7 +246,8 @@ class TestTankHeatLossParams:
             diameter=2,
             height=3,
             insulation_thickness=0.1,
-            insulation_material="mineral_wool",
+            insulation_material=MINERAL_WOOL,
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-20,
             process_temperature=80,
         )
@@ -236,7 +260,8 @@ class TestTankHeatLossParams:
                 diameter=2,
                 height=3,
                 insulation_thickness=0.1,
-                insulation_material="mineral_wool",
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-20,
                 process_temperature=80,
                 legacy_alias=1,
@@ -248,7 +273,9 @@ class TestTankHeatLossParams:
             diameter=30.0,
             height=50.0,
             insulation_thickness=0.1,
-            insulation_material="aerogel",
+            insulation_material="other",
+            insulation_layers=[MANUAL_HIGH_TEMP_LAYER],
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-70,
             process_temperature=600,
         )
@@ -261,7 +288,9 @@ class TestTankHeatLossParams:
             width=100.0,
             height=50.0,
             insulation_thickness=0.1,
-            insulation_material="aerogel",
+            insulation_material="other",
+            insulation_layers=[MANUAL_HIGH_TEMP_LAYER],
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-70,
             process_temperature=600,
         )
@@ -275,9 +304,10 @@ class TestTankHeatLossParams:
                 diameter=2,
                 height=3,
                 insulation_thickness=0.1,
-                insulation_material="polyurethane",
+                insulation_material=POLYURETHANE,
+                insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-20,
-                process_temperature=200,
+                process_temperature=450,
             )
 
     def test_tank_reference_insulation_temperature_range_accepts_boundary(self):
@@ -286,12 +316,13 @@ class TestTankHeatLossParams:
             diameter=2,
             height=3,
             insulation_thickness=0.1,
-            insulation_material="polyurethane",
+            insulation_material=POLYURETHANE,
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-20,
-            process_temperature=120,
+            process_temperature=400,
         )
 
-        assert p.process_temperature == 120
+        assert p.process_temperature == 400
 
     def test_too_small_dimension_rejected(self):
         with pytest.raises(ValidationError):
@@ -300,7 +331,8 @@ class TestTankHeatLossParams:
                 diameter=0.099,
                 height=1.0,
                 insulation_thickness=0.1,
-                insulation_material="mineral_wool",
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-20,
                 process_temperature=80,
             )
@@ -310,7 +342,8 @@ class TestTankHeatLossParams:
             TankHeatLossParams(
                 shape="pyramid",
                 insulation_thickness=0.1,
-                insulation_material="mineral_wool",
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-20,
                 process_temperature=80,
             )
@@ -329,7 +362,8 @@ class TestTankHeatLossParams:
             "diameter": 2,
             "height": 3,
             "insulation_thickness": 0.1,
-            "insulation_material": "mineral_wool",
+            "insulation_material": MINERAL_WOOL,
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -20,
             "process_temperature": 80,
         }
@@ -354,7 +388,8 @@ class TestTankHeatLossParams:
             "length": 5,
             "width": 4,
             "insulation_thickness": 0.1,
-            "insulation_material": "mineral_wool",
+            "insulation_material": MINERAL_WOOL,
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -20,
             "process_temperature": 80,
         }
@@ -369,7 +404,8 @@ class TestTankHeatLossParams:
                 diameter=2,
                 height=3,
                 insulation_thickness=0.1,
-                insulation_material="mineral_wool",
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-20,
                 process_temperature=80,
                 ground_conductivity=row["conductivity"],

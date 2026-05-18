@@ -106,7 +106,7 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     await expect(page.getByText(pipeName)).toBeVisible();
     await expect(page.getByText('108')).toBeVisible();
     await expect(page.getByText('50,0')).toBeVisible();
-    await expect(page.getByText('Минеральная вата')).toBeVisible();
+    await expect(page.getByText(/Плиты минераловатные прошивные/i)).toBeVisible();
 
     await expect(page.getByRole('button', { name: /Электрорасчёт/i })).toHaveCount(0);
     await expect(page.getByRole('menuitem', { name: /Электротехнический расчёт/i })).toBeVisible();

@@ -7,12 +7,16 @@ from httpx import AsyncClient
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+PERLITE = "expanded_perlite_sand_225"
+
 
 PIPE_PARAMS = {
     "name": "Труба 1",
     "outer_diameter": 0.108,
     "insulation_thickness": 0.05,
-    "insulation_material": "mineral_wool",
+    "insulation_material": MINERAL_WOOL,
+    "insulation_temperature_basis": "outdoor_winter",
     "ambient_temperature": -20.0,
     "process_temperature": 80.0,
     "pipe_length": 50.0,
@@ -273,7 +277,8 @@ class TestBulkExportImport:
             "name": "Tag-X-7",
             "outer_diameter": 0.159,
             "insulation_thickness": 0.07,
-            "insulation_material": "foam_glass",
+            "insulation_material": PERLITE,
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -25.0,
             "process_temperature": 95.0,
             "pipe_length": 42.3,
@@ -435,7 +440,8 @@ class TestBulkExportImport:
             '""name"": ""Valid pipe"",'
             '""outer_diameter"": 0.108,'
             '""insulation_thickness"": 0.05,'
-            '""insulation_material"": ""mineral_wool"",'
+            f'""insulation_material"": ""{MINERAL_WOOL}"",'
+            '""insulation_temperature_basis"": ""outdoor_winter"",'
             '""ambient_temperature"": -20,'
             '""process_temperature"": 80,'
             '""pipe_length"": 50'

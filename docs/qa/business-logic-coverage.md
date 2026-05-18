@@ -47,6 +47,14 @@ UI/API workflow считается gap до полного соответств�
 | `tlt_tt_mark_suffix_policy` | Да | Нет | Да, принято `aggressive_product -> СТ`, иначе `СР` | Да через поле агрессивности | Да | Covered |
 | `tlt_insulation_lambda_tm` | Да | Да | Да, `lambda(tm)` + конкретный материал/плотность + `insulation_temperature_basis` | Да, отдельное поле режима `tm` | Да | Covered |
 
+## Audit Notes
+
+2026-05-19: backend unit/integration formula fixtures for `tlt_insulation_lambda_tm`
+use selectable concrete insulation codes (for example
+`mineral_wool_boards_120`) plus `insulation_temperature_basis`. Generic family
+codes (`mineral_wool`, `foam_glass`, `polyurethane`) remain only in reference
+data / import-reselection checks and are not accepted as calculation materials.
+
 ## Gates
 
 ```bash

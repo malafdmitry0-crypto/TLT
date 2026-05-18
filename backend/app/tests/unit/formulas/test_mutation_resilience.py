@@ -18,10 +18,14 @@ from app.schemas.calculation import PipeHeatLossParams, TankHeatLossParams
 
 # ─── База для тестов ────────────────────────────────────────────────────────
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+POLYURETHANE = "polyurethane_products_40"
+
 PIPE = PipeHeatLossParams(
     outer_diameter=0.108,
     insulation_thickness=0.05,
-    insulation_material="mineral_wool",
+    insulation_material=MINERAL_WOOL,
+    insulation_temperature_basis="outdoor_winter",
     ambient_temperature=-20.0,
     process_temperature=80.0,
     pipe_length=50.0,
@@ -32,7 +36,8 @@ TANK = TankHeatLossParams(
     diameter=2.0,
     height=3.0,
     insulation_thickness=0.08,
-    insulation_material="mineral_wool",
+    insulation_material=MINERAL_WOOL,
+    insulation_temperature_basis="outdoor_winter",
     ambient_temperature=-20.0,
     process_temperature=80.0,
 )
@@ -48,11 +53,12 @@ class TestReferenceValuesNotRegressed:
     def test_pipe_DN100_50mm_insulation_minus20_to_plus80(self):
         """Эталон: труба DN100, изоляция 50мм минвата, -20→+80°C, L=50м."""
         r = calc_pipe_heat_loss(PIPE, coefficients={"safety_factor": 1.0})
-        # Эталонные значения зафиксированы — изменение формулы их сломает.
+        # Эталонные значения зафиксированы для concrete-кода
+        # mineral_wool_boards_120 и λ(tm=40°C) из справочника.
         # Допуск 5% — на несущественные refactor (округление, минимальные правки).
-        assert r.heat_loss_per_meter == pytest.approx(40.817, rel=0.05)
-        assert r.thermal_resistance == pytest.approx(2.45, rel=0.05)
-        assert r.total_heat_loss == pytest.approx(2040.85, rel=0.05)
+        assert r.heat_loss_per_meter == pytest.approx(47.954, rel=0.05)
+        assert r.thermal_resistance == pytest.approx(2.085, rel=0.05)
+        assert r.total_heat_loss == pytest.approx(2397.7, rel=0.05)
 
     def test_pipe_with_safety_factor_1_1(self):
         """Та же труба + safety K=1.1 → total × 1.1."""
@@ -179,13 +185,13 @@ class TestMutationCoverage:
 
     def test_lambda_inverse_relation(self):
         """λ изоляции в знаменателе R. Лучший проводник (выше λ) → меньше R → больше Q."""
-        # mineral_wool λ ≈ 0.045, polyurethane λ ≈ 0.027
+        # Конкретные selectable-коды: минвата λ(tm) выше, ППУ ниже.
         mw = calc_pipe_heat_loss(
-            PIPE.model_copy(update={"insulation_material": "mineral_wool"}),
+            PIPE.model_copy(update={"insulation_material": MINERAL_WOOL}),
             coefficients={"safety_factor": 1.0},
         )
         pu = calc_pipe_heat_loss(
-            PIPE.model_copy(update={"insulation_material": "polyurethane"}),
+            PIPE.model_copy(update={"insulation_material": POLYURETHANE}),
             coefficients={"safety_factor": 1.0},
         )
         # ППУ имеет МЕНЬШЕ λ → БОЛЬШЕ R → МЕНЬШЕ Q
@@ -214,8 +220,9 @@ class TestFormulaInvariantsDocumented:
         )
         # Q примерно линейно растёт с ΔT (alpha_внеш слабо зависит от T)
         ratio = big_dt.heat_loss_per_meter / small_dt.heat_loss_per_meter
-        # ΔT удвоилось → Q примерно удвоилось (с учётом нелинейности α)
-        assert 1.7 <= ratio <= 2.3
+        # ΔT удвоилось, а λ(tm) справочной изоляции выросла при большем T3,
+        # поэтому q растёт сильнее 2×, но остаётся в ограниченном диапазоне.
+        assert 2.0 <= ratio <= 2.5
 
     def test_q_inverse_in_R(self):
         """Q = ΔT/R → больше R, меньше Q."""

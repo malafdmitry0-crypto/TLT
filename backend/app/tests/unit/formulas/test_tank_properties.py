@@ -16,6 +16,8 @@ from pydantic import ValidationError
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.schemas.calculation import TankHeatLossParams
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+
 
 def _cyl(**o) -> TankHeatLossParams:
     defaults = dict(
@@ -23,7 +25,8 @@ def _cyl(**o) -> TankHeatLossParams:
         diameter=2.0,
         height=3.0,
         insulation_thickness=0.08,
-        insulation_material="mineral_wool",
+        insulation_material=MINERAL_WOOL,
+        insulation_temperature_basis="outdoor_winter",
         ambient_temperature=-20.0,
         process_temperature=80.0,
         location="outdoor",
@@ -40,7 +43,8 @@ def _rect(**o) -> TankHeatLossParams:
         width=3.0,
         height=4.0,
         insulation_thickness=0.08,
-        insulation_material="mineral_wool",
+        insulation_material=MINERAL_WOOL,
+        insulation_temperature_basis="outdoor_winter",
         ambient_temperature=-20.0,
         process_temperature=80.0,
         location="outdoor",
@@ -55,7 +59,8 @@ def _sph(**o) -> TankHeatLossParams:
         shape="spherical",
         diameter=1.5,
         insulation_thickness=0.06,
-        insulation_material="mineral_wool",
+        insulation_material=MINERAL_WOOL,
+        insulation_temperature_basis="outdoor_winter",
         ambient_temperature=-20.0,
         process_temperature=60.0,
         location="outdoor",
@@ -198,7 +203,7 @@ class TestGoldenTankFromDocs:
         r = calc_tank_heat_loss(
             _cyl(
                 insulation_thickness=0.08,
-                insulation_material="mineral_wool",  # λ ≈ 0.045
+                insulation_material=MINERAL_WOOL,
                 ambient_temperature=-20,
                 process_temperature=80,
                 wind_speed=0,
@@ -207,8 +212,9 @@ class TestGoldenTankFromDocs:
                 wall_lambda=None,
             )
         )
-        # q ≈ 53.6 Вт/м² ±15%
-        assert r.heat_loss_per_m2 == pytest.approx(53.6, rel=0.15)
+        # Для конкретной минваты ρ120 λ(tm=40°C)≈0.0534, поэтому q выше
+        # старого generic-примера с постоянной λ=0.045.
+        assert r.heat_loss_per_m2 == pytest.approx(63.1, rel=0.10)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -225,7 +231,8 @@ class TestTankValidation:
                     shape="cylindrical",
                     height=3.0,
                     insulation_thickness=0.05,
-                    insulation_material="mineral_wool",
+                    insulation_material=MINERAL_WOOL,
+                    insulation_temperature_basis="outdoor_winter",
                     ambient_temperature=-20,
                     process_temperature=80,
                 )
@@ -238,7 +245,8 @@ class TestTankValidation:
                     shape="cylindrical",
                     diameter=2.0,
                     insulation_thickness=0.05,
-                    insulation_material="mineral_wool",
+                    insulation_material=MINERAL_WOOL,
+                    insulation_temperature_basis="outdoor_winter",
                     ambient_temperature=-20,
                     process_temperature=80,
                 )
@@ -253,7 +261,8 @@ class TestTankValidation:
                     length=5.0,
                     width=3.0,  # height отсутствует
                     insulation_thickness=0.05,
-                    insulation_material="mineral_wool",
+                    insulation_material=MINERAL_WOOL,
+                    insulation_temperature_basis="outdoor_winter",
                     ambient_temperature=-20,
                     process_temperature=80,
                 )
@@ -265,7 +274,8 @@ class TestTankValidation:
                 TankHeatLossParams(
                     shape="spherical",
                     insulation_thickness=0.05,
-                    insulation_material="mineral_wool",
+                    insulation_material=MINERAL_WOOL,
+                    insulation_temperature_basis="outdoor_winter",
                     ambient_temperature=-20,
                     process_temperature=80,
                 )
@@ -277,7 +287,8 @@ class TestTankValidation:
                 shape="pyramid",  # нет в Literal
                 diameter=1.0,
                 insulation_thickness=0.05,
-                insulation_material="mineral_wool",
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-20,
                 process_temperature=80,
             )

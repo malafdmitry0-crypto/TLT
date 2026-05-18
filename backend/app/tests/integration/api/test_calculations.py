@@ -6,6 +6,8 @@ from httpx import AsyncClient
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 CABLE_LENGTH_FACTOR = 1.1  # BR-CABLE-02
+MINERAL_WOOL = "mineral_wool_boards_120"
+POLYURETHANE = "polyurethane_products_40"
 
 
 async def _create_project(client: AsyncClient, session_id: str) -> dict:
@@ -25,7 +27,8 @@ async def _create_pipe_object(
     params = {
         "outer_diameter": 0.108,
         "insulation_thickness": 0.05,
-        "insulation_material": "mineral_wool",
+        "insulation_material": MINERAL_WOOL,
+        "insulation_temperature_basis": "outdoor_winter",
         "ambient_temperature": -30,
         "process_temperature": 150,
         "pipe_length": 50,
@@ -54,7 +57,8 @@ class TestHeatLossCalculation:
                 "data": {
                     "outer_diameter": 0.108,
                     "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -30,
                     "process_temperature": 150,
                     "pipe_length": 100,
@@ -80,7 +84,8 @@ class TestHeatLossCalculation:
                 "data": {
                     "outer_diameter": 0.108,
                     "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -30,
                     "process_temperature": 150,
                     "pipe_length": 100,
@@ -123,9 +128,10 @@ class TestHeatLossCalculation:
                 "data": {
                     "outer_diameter": 0.108,
                     "insulation_thickness": 0.05,
-                    "insulation_material": "polyurethane",
+                    "insulation_material": POLYURETHANE,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
-                    "process_temperature": 200,
+                    "process_temperature": 450,
                     "pipe_length": 100,
                 },
             },
@@ -397,7 +403,8 @@ class TestElectricalCalculation:
                     "diameter": 2.0,
                     "height": 3.0,
                     "insulation_thickness": 0.08,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
                     "safety_factor": 1.1,
@@ -702,7 +709,8 @@ class TestManualCableSelection:
                     "params": {
                         "outer_diameter": 0.108,
                         "insulation_thickness": 0.05,
-                        "insulation_material": "mineral_wool",
+                        "insulation_material": MINERAL_WOOL,
+                        "insulation_temperature_basis": "outdoor_winter",
                         "ambient_temperature": -20,
                         "process_temperature": process_temp,
                         "pipe_length": 50,
@@ -722,17 +730,17 @@ class TestManualCableSelection:
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 200
-        # Ручной выбор — берём более мощный кабель ТЛТ-50 (T_max=110, подойдёт для 80°C)
+        # Ручной выбор — берём более мощный кабель ТЛТ-60 (T_max=120, подойдёт для 80°C)
         resp = await client.post(
             "/api/v1/calc/electrical/select-cable",
-            params={"object_id": oid, "cable_mark": "ТЛТ-50"},
+            params={"object_id": oid, "cable_mark": "ТЛТ-60"},
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert body["cable_mark"] == "ТЛТ-50"
+        assert body["cable_mark"] == "ТЛТ-60"
         assert body["cable_mark_source"] == "manual"
-        assert body["results"]["selected_cable"] == "ТЛТ-50"
+        assert body["results"]["selected_cable"] == "ТЛТ-60"
         # В листе тоже одна запись (upsert не плодит дубликаты)
         listing = (
             await client.get(
@@ -742,7 +750,7 @@ class TestManualCableSelection:
             )
         ).json()
         assert len(listing) == 1
-        assert listing[0]["cable_mark"] == "ТЛТ-50"
+        assert listing[0]["cable_mark"] == "ТЛТ-60"
         assert listing[0]["cable_mark_source"] == "manual"
 
     async def test_manual_select_cable_too_weak(self, client: AsyncClient, guest_session: str):
@@ -778,7 +786,8 @@ class TestManualCableSelection:
                     "params": {
                         "outer_diameter": 0.057,
                         "insulation_thickness": 0.08,
-                        "insulation_material": "mineral_wool",
+                        "insulation_material": MINERAL_WOOL,
+                        "insulation_temperature_basis": "outdoor_winter",
                         "ambient_temperature": 20,
                         "process_temperature": 120,
                         "pipe_length": 50,
@@ -844,7 +853,8 @@ class TestManualCableSelection:
                 "params": {
                     "outer_diameter": 0.108,
                     "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
                     "pipe_length": 50,
@@ -855,7 +865,7 @@ class TestManualCableSelection:
         # Выбираем кабель вручную
         resp = await client.post(
             "/api/v1/calc/electrical/select-cable",
-            params={"object_id": oid, "cable_mark": "ТЛТ-50"},
+            params={"object_id": oid, "cable_mark": "ТЛТ-60"},
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 200
@@ -870,7 +880,7 @@ class TestManualCableSelection:
         assert len(after) == 1
         assert not after[0]["results"].get("error_code")
         assert not after[0]["results"].get("category")
-        assert after[0]["cable_mark"] == "ТЛТ-50"
+        assert after[0]["cable_mark"] == "ТЛТ-60"
 
     async def test_batch_default_preserves_manual_cable(
         self, client: AsyncClient, guest_session: str
@@ -880,7 +890,7 @@ class TestManualCableSelection:
 
         manual = await client.post(
             "/api/v1/calc/electrical/select-cable",
-            params={"object_id": oid, "cable_mark": "ТЛТ-50"},
+            params={"object_id": oid, "cable_mark": "ТЛТ-60"},
             headers={"X-Session-Id": guest_session},
         )
         assert manual.status_code == 200, manual.text
@@ -903,7 +913,7 @@ class TestManualCableSelection:
             )
         ).json()
         assert len(listing) == 1
-        assert listing[0]["cable_mark"] == "ТЛТ-50"
+        assert listing[0]["cable_mark"] == "ТЛТ-60"
         assert listing[0]["cable_mark_source"] == "manual"
 
     async def test_batch_skip_manual_true_preserves_manual_cable(
@@ -914,7 +924,7 @@ class TestManualCableSelection:
 
         manual = await client.post(
             "/api/v1/calc/electrical/select-cable",
-            params={"object_id": oid, "cable_mark": "ТЛТ-50"},
+            params={"object_id": oid, "cable_mark": "ТЛТ-60"},
             headers={"X-Session-Id": guest_session},
         )
         assert manual.status_code == 200, manual.text
@@ -937,7 +947,7 @@ class TestManualCableSelection:
             )
         ).json()
         assert len(listing) == 1
-        assert listing[0]["cable_mark"] == "ТЛТ-50"
+        assert listing[0]["cable_mark"] == "ТЛТ-60"
         assert listing[0]["cable_mark_source"] == "manual"
 
     async def test_batch_skip_manual_false_overwrites_manual_cable(
@@ -998,7 +1008,8 @@ class TestNoDoubleSafetyFactor:
                 "params": {
                     "outer_diameter": 0.108,
                     "insulation_thickness": insulation_thickness,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": ambient_temperature,
                     "process_temperature": process_temperature,
                     "pipe_length": 50,

@@ -26,13 +26,17 @@ from app.formulas.heat_loss.pipe import (
 )
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+LOW_LAMBDA_INSULATION = "polyurethane_products_40"
+
 
 def _p(**overrides) -> PipeHeatLossParams:
     """Дефолтная конфигурация трубопровода для изоляции переменной под тест."""
     defaults = dict(
         outer_diameter=0.108,
         insulation_thickness=0.05,
-        insulation_material="mineral_wool",
+        insulation_material=MINERAL_WOOL,
+        insulation_temperature_basis="outdoor_winter",
         ambient_temperature=-20.0,
         process_temperature=80.0,
         pipe_length=50.0,
@@ -81,16 +85,17 @@ class TestMetamorphicPipe:
             r1.heat_loss_per_meter, rel=1e-6
         ), "safety_factor не должен менять q_linear — только Q_total"
 
-    def test_q_proportional_to_delta_t(self):
-        """MR4: При удвоении ΔT (в пределах линейности) → удвоение q.
+    def test_q_grows_with_delta_t_and_reference_lambda_tm(self):
+        """MR4: При удвоении ΔT q растёт ожидаемо.
 
-        Проверяем сохраняя (T_proc+T_amb)/2 ≈ const, чтобы λ_из не плыла.
+        Для справочной изоляции λ зависит от tm=T_process/2 в зимнем наружном
+        режиме, поэтому отношение не обязано быть ровно 2.
         """
         # Центрируем на нуле: ΔT=40 → [-20, 20], ΔT=80 → [-40, 40]
         r1 = calc_pipe_heat_loss(_p(ambient_temperature=-20, process_temperature=20))
         r2 = calc_pipe_heat_loss(_p(ambient_temperature=-40, process_temperature=40))
-        # При λ=const было бы ровно ×2, но λ зависит от T_ср слегка → допуск 5%
-        assert r2.heat_loss_per_meter == pytest.approx(2 * r1.heat_loss_per_meter, rel=0.05)
+        ratio = r2.heat_loss_per_meter / r1.heat_loss_per_meter
+        assert 2.0 <= ratio <= 2.35
 
     # ── Монотонность ──────────────────────────────────────────────────────
 
@@ -124,22 +129,24 @@ class TestMetamorphicPipe:
         assert q_indoor < q_outdoor
 
     def test_lower_conductivity_material_reduces_loss(self):
-        """MR9: ↓λ_из → ↓q (аэрогель лучше минваты)."""
-        q_mw = calc_pipe_heat_loss(_p(insulation_material="mineral_wool")).heat_loss_per_meter
-        q_aer = calc_pipe_heat_loss(_p(insulation_material="aerogel")).heat_loss_per_meter
-        assert q_aer < q_mw
+        """MR9: ↓λ_из → ↓q (ППУ лучше минваты при тех же условиях)."""
+        q_mw = calc_pipe_heat_loss(_p(insulation_material=MINERAL_WOOL)).heat_loss_per_meter
+        q_pu = calc_pipe_heat_loss(
+            _p(insulation_material=LOW_LAMBDA_INSULATION)
+        ).heat_loss_per_meter
+        assert q_pu < q_mw
 
     # ── Композиционные инварианты ─────────────────────────────────────────
 
     def test_multi_layer_same_as_single_when_equivalent(self):
         """MR10: Слои 20+30 мм того же материала эквивалентны одному 50 мм."""
-        params_single = _p(insulation_thickness=0.05, insulation_material="mineral_wool")
+        params_single = _p(insulation_thickness=0.05, insulation_material=MINERAL_WOOL)
         params_multi = _p(
             insulation_thickness=None,
             insulation_material=None,
             insulation_layers=[
-                InsulationLayer(thickness=0.02, material="mineral_wool"),
-                InsulationLayer(thickness=0.03, material="mineral_wool"),
+                InsulationLayer(thickness=0.02, material=MINERAL_WOOL),
+                InsulationLayer(thickness=0.03, material=MINERAL_WOOL),
             ],
         )
         r_single = calc_pipe_heat_loss(params_single)
@@ -152,16 +159,16 @@ class TestMetamorphicPipe:
             insulation_thickness=None,
             insulation_material=None,
             insulation_layers=[
-                InsulationLayer(thickness=0.03, material="mineral_wool"),
-                InsulationLayer(thickness=0.02, material="mineral_wool"),
+                InsulationLayer(thickness=0.03, material=MINERAL_WOOL),
+                InsulationLayer(thickness=0.02, material=MINERAL_WOOL),
             ],
         )
         p_ba = _p(
             insulation_thickness=None,
             insulation_material=None,
             insulation_layers=[
-                InsulationLayer(thickness=0.02, material="mineral_wool"),
-                InsulationLayer(thickness=0.03, material="mineral_wool"),
+                InsulationLayer(thickness=0.02, material=MINERAL_WOOL),
+                InsulationLayer(thickness=0.03, material=MINERAL_WOOL),
             ],
         )
         assert calc_pipe_heat_loss(p_ab).heat_loss_per_meter == pytest.approx(
@@ -190,8 +197,9 @@ class TestMetamorphicPipe:
         q_high = calc_pipe_heat_loss(
             _p(ambient_temperature=20, process_temperature=70)  # ΔT=50
         ).heat_loss_per_meter
-        # Разность может быть до 10% из-за λ(T) изоляции
-        assert abs(q_low - q_high) / q_low < 0.10
+        # Разность может быть заметной из-за λ(tm) изоляции, но остаётся
+        # ограниченной для одного и того же ΔT.
+        assert abs(q_low - q_high) / q_low < 0.20
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -218,7 +226,7 @@ class TestGoldenFromFormulesMd:
             _p(
                 outer_diameter=0.108,
                 insulation_thickness=0.05,
-                insulation_material="mineral_wool",
+                insulation_material=MINERAL_WOOL,
                 ambient_temperature=-20,
                 process_temperature=80,
                 pipe_length=50,
@@ -227,12 +235,12 @@ class TestGoldenFromFormulesMd:
                 location="outdoor",
             )
         )
-        # q ≈ 40.8 Вт/м (цилиндрическая стенка, минвата λ=0.045)
-        assert r.heat_loss_per_meter == pytest.approx(40.8, rel=0.05)
+        # q ≈ 48 Вт/м для concrete-кода mineral_wool_boards_120:
+        # λ(tm=40°C)=0.045+0.00021×40≈0.0534.
+        assert r.heat_loss_per_meter == pytest.approx(47.954, rel=0.05)
         # R_из должно быть ~0.732 из формулы ln(r_out/r_in)/(2π·λ)
         # R_внеш ≈ 1/(2π·0.104·11.6) ≈ 0.132
-        # R_итого ≈ 0.864 ... НО в коде λ_минваты берётся из справочника с учётом
-        # диапазона температур; результат R ≈ 2.45
+        # R_итого фиксируется через справочную λ(tm); результат ≈2.085.
         assert r.thermal_resistance > 0
         # Q = q × L × K
         assert r.total_heat_loss == pytest.approx(r.heat_loss_per_meter * 50 * 1.1, rel=1e-3)

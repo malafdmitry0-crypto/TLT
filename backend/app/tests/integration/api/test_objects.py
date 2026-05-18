@@ -5,6 +5,9 @@ from httpx import AsyncClient
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+MINERAL_WOOL = "mineral_wool_boards_120"
+FOAM_GLASS_ALTERNATIVE = "expanded_perlite_sand_225"
+
 
 async def _project(client: AsyncClient, session_id: str) -> str:
     # У пользовательской сессии ровно один авто-проект — берём его.
@@ -26,7 +29,8 @@ class TestObjectsLifecycle:
                 "params": {
                     "outer_diameter": 0.1,
                     "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
                     "pipe_length": 10,
@@ -47,7 +51,7 @@ class TestObjectsLifecycle:
         assert body["params"]["support_count"] == 2
         assert body["params"]["num_local_elements"] == 6
         assert body["params"]["insulation_layers"] == [
-            {"thickness": 0.05, "material": "mineral_wool"}
+            {"thickness": 0.05, "material": MINERAL_WOOL}
         ]
         assert body["results"]["safety_factor"] == pytest.approx(1.1)
         assert body["results"]["heat_loss_per_meter"] > 0
@@ -63,7 +67,8 @@ class TestObjectsLifecycle:
                 "params": {
                     "outer_diameter": 0.1,
                     "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
                     "pipe_length": 10,
@@ -98,7 +103,8 @@ class TestObjectsLifecycle:
                     "wall_thickness": None,
                     "pipe_material": None,
                     "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
                     "pipe_length": 10,
@@ -142,7 +148,8 @@ class TestObjectsLifecycle:
                     "shape": shape,
                     **geometry,
                     "insulation_thickness": 0.08,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
                 },
@@ -168,7 +175,8 @@ class TestObjectsLifecycle:
                     "diameter": 12.0,
                     "height": 20.0,
                     "insulation_thickness": 0.1,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
                 },
@@ -188,7 +196,8 @@ class TestObjectsLifecycle:
                     "params": {
                         "outer_diameter": 0.1,
                         "insulation_thickness": 0.05,
-                        "insulation_material": "mineral_wool",
+                        "insulation_material": MINERAL_WOOL,
+                        "insulation_temperature_basis": "outdoor_winter",
                         "ambient_temperature": -20,
                         "process_temperature": 80,
                         "pipe_length": 10,
@@ -227,7 +236,8 @@ class TestObjectsLifecycle:
                 "params": {
                     "outer_diameter": 0.1,
                     "insulation_thickness": 0.05,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
                     "pipe_length": 10,
@@ -278,7 +288,8 @@ class TestObjectsLifecycle:
                         "name": f"Pipe-{idx}",
                         "outer_diameter": 0.1 + idx * 0.01,
                         "insulation_thickness": 0.05,
-                        "insulation_material": "mineral_wool",
+                        "insulation_material": MINERAL_WOOL,
+                        "insulation_temperature_basis": "outdoor_winter",
                         "ambient_temperature": -20,
                         "process_temperature": 80,
                         "pipe_length": 10,
@@ -307,6 +318,7 @@ class TestObjectsLifecycle:
                     "outer_diameter": 0.1,
                     "insulation_thickness": 0.05,
                     "insulation_material": "unknown_material",
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
                     "pipe_length": 10,
@@ -334,10 +346,11 @@ class TestObjectsLifecycle:
                     "pipe_material": "carbon_steel",
                     "pipe_length": 35,
                     "insulation_thickness": 0.04,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "insulation_layers": [
-                        {"thickness": 0.04, "material": "mineral_wool"},
-                        {"thickness": 0.02, "material": "foam_glass"},
+                        {"thickness": 0.04, "material": MINERAL_WOOL},
+                        {"thickness": 0.02, "material": FOAM_GLASS_ALTERNATIVE},
                         {
                             "thickness": 0.01,
                             "material": "other",
@@ -395,7 +408,8 @@ class TestObjectsLifecycle:
                     "outer_diameter": 0.099,
                     "pipe_length": 35,
                     "insulation_thickness": 0.04,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -10,
                     "process_temperature": 80,
                     "climate_city": "Славгород",
@@ -430,7 +444,8 @@ class TestObjectsLifecycle:
                     "diameter": 2.0,
                     "height": 4.0,
                     "insulation_thickness": 0.08,
-                    "insulation_material": "mineral_wool",
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -25,
                     "process_temperature": 70,
                     "placement": "underground",

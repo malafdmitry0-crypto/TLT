@@ -1,12 +1,21 @@
 """JWT-токены и хеширование паролей."""
 
 import uuid
+import warnings
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
 from jwt import InvalidTokenError
-from passlib.context import CryptContext
+
+with warnings.catch_warnings():
+    warnings.filterwarnings(
+        "ignore",
+        message="'crypt' is deprecated.*",
+        category=DeprecationWarning,
+        module="passlib.utils",
+    )
+    from passlib.context import CryptContext
 
 from app.core.config import settings
 

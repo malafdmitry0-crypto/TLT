@@ -6,7 +6,11 @@ from app.core.config import Settings
 
 
 def test_production_rejects_default_secrets():
-    settings = Settings(APP_ENV="production")
+    settings = Settings(
+        APP_ENV="production",
+        SECRET_KEY="change-me-in-production",
+        FIRST_ADMIN_PASSWORD="admin",
+    )
 
     with pytest.raises(RuntimeError, match="SECRET_KEY"):
         settings.validate_runtime_security()

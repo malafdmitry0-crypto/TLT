@@ -63,7 +63,7 @@ async def calc_heat_loss(
         _raise_project_error(exc)
     except (ValueError, ValidationError) as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     except CalculationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -275,7 +275,7 @@ async def electrical_query_capabilities(
         )
     except ElectricalQueryValidationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
     except ProjectNotFoundError as exc:
@@ -299,7 +299,7 @@ async def query_electrical(
         return await ElectricalQueryService(db).query(data, principal)
     except ElectricalQueryValidationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
     except ProjectNotFoundError as exc:
