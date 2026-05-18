@@ -79,6 +79,19 @@ def list_insulation_materials() -> list[dict[str, Any]]:
     return list(_insulation())
 
 
+def get_insulation_temperature_range(material: str) -> tuple[float, float]:
+    """Возвращает рабочий температурный диапазон материала изоляции, °C."""
+    for entry in _insulation():
+        if entry["material"] == material:
+            value = entry.get("temperature_range")
+            if not isinstance(value, Sequence) or isinstance(value, str | bytes) or len(value) < 2:
+                raise ValueError(
+                    f"Для материала изоляции '{material}' не задан температурный диапазон"
+                )
+            return float(value[0]), float(value[1])
+    raise ValueError(f"Неизвестный материал изоляции: {material}")
+
+
 def list_tlt_cables() -> list[dict[str, Any]]:
     return list(_cables_tlt())
 

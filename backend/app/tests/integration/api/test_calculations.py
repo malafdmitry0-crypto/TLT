@@ -111,6 +111,30 @@ class TestHeatLossCalculation:
         )
         assert resp.status_code == 422
 
+    async def test_insulation_material_temperature_range_returns_422(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        resp = await client.post(
+            "/api/v1/calc/heat-loss",
+            json={
+                "project_id": project["id"],
+                "object_type": "pipe",
+                "data": {
+                    "outer_diameter": 0.108,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": "polyurethane",
+                    "ambient_temperature": -20,
+                    "process_temperature": 200,
+                    "pipe_length": 100,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 422
+        assert "вне диапазона" in resp.text
+
 
 class TestElectricalCalculation:
     async def test_electrical_calc_returns_all_fields(

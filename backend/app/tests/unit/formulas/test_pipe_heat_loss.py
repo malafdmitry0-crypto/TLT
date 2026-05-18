@@ -154,6 +154,53 @@ class TestMultiLayerInsulation:
         r = calc_pipe_heat_loss(params)
         assert r.heat_loss_per_meter > 0
 
+    def test_layer_temperature_above_material_range_raises(self):
+        params = PipeHeatLossParams(
+            outer_diameter=0.108,
+            insulation_layers=[
+                InsulationLayer(thickness=0.02, material="polyurethane"),
+            ],
+            ambient_temperature=-20.0,
+            process_temperature=200.0,
+            pipe_length=100.0,
+        )
+
+        with pytest.raises(ValueError, match="вне диапазона"):
+            calc_pipe_heat_loss(params)
+
+    def test_outer_layer_is_checked_by_actual_layer_temperature(self):
+        params = PipeHeatLossParams(
+            outer_diameter=0.108,
+            insulation_layers=[
+                InsulationLayer(thickness=0.20, material="aerogel"),
+                InsulationLayer(thickness=0.02, material="polyurethane"),
+            ],
+            ambient_temperature=-20.0,
+            process_temperature=200.0,
+            pipe_length=100.0,
+        )
+
+        assert calc_pipe_heat_loss(params).heat_loss_per_meter > 0
+
+    def test_other_layer_uses_manual_temperature_range(self):
+        params = PipeHeatLossParams(
+            outer_diameter=0.108,
+            insulation_layers=[
+                InsulationLayer(
+                    thickness=0.02,
+                    material="other",
+                    conductivity=0.061,
+                    temperature_range=(-60, 100),
+                ),
+            ],
+            ambient_temperature=-20.0,
+            process_temperature=150.0,
+            pipe_length=100.0,
+        )
+
+        with pytest.raises(ValueError, match="вне диапазона"):
+            calc_pipe_heat_loss(params)
+
 
 # ---------------------------------------------------------------------------
 # Стенка трубы
@@ -428,5 +475,7 @@ class TestSchemaValidation:
             )
 
     def test_unknown_insulation_raises(self):
-        with pytest.raises(ValueError, match="Неизвестный материал"):
-            calc_pipe_heat_loss(_params(insulation_material="unobtanium"))
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="Неизвестный материал"):
+            _params(insulation_material="unobtanium")

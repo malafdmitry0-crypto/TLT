@@ -1,18 +1,20 @@
-import { Button, Checkbox, Modal, Space, Typography } from 'antd';
+import { Button, Checkbox, Modal, Segmented, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import {
   REPORT_SECTIONS,
   REPORT_SECTION_LABELS,
   type ReportSection,
 } from '@/api/reports';
+import { CALCULATION_VARIANTS } from '@/store/calculationVariantStore';
 
 const { Text } = Typography;
 
 interface Props {
   open: boolean;
   initialSections: ReportSection[];
+  initialVariant: number;
   onCancel: () => void;
-  onConfirm: (sections: ReportSection[]) => void;
+  onConfirm: (sections: ReportSection[], variantNumber: number) => void;
 }
 
 /**
@@ -23,15 +25,20 @@ interface Props {
 export default function ReportWizard({
   open,
   initialSections,
+  initialVariant,
   onCancel,
   onConfirm,
 }: Props) {
   const [selected, setSelected] = useState<ReportSection[]>(initialSections);
+  const [variant, setVariant] = useState(initialVariant);
 
   // Синхронизируем при повторном открытии
   useEffect(() => {
-    if (open) setSelected(initialSections);
-  }, [open, initialSections]);
+    if (open) {
+      setSelected(initialSections);
+      setVariant(initialVariant);
+    }
+  }, [open, initialSections, initialVariant]);
 
   const toggleAll = () =>
     setSelected(selected.length === REPORT_SECTIONS.length ? [] : [...REPORT_SECTIONS]);
@@ -41,7 +48,7 @@ export default function ReportWizard({
       title="Мастер: состав отчёта"
       open={open}
       onCancel={onCancel}
-      onOk={() => onConfirm(selected)}
+      onOk={() => onConfirm(selected, variant)}
       okText="Применить"
       cancelText="Отмена"
       okButtonProps={{ disabled: selected.length === 0 }}
@@ -52,6 +59,15 @@ export default function ReportWizard({
         только к этому проекту в текущей сессии.
       </Text>
       <Space direction="vertical" size={6} style={{ width: '100%' }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          Вариант расчёта:
+        </Text>
+        <Segmented<number>
+          size="small"
+          value={variant}
+          onChange={(v) => setVariant(Number(v))}
+          options={CALCULATION_VARIANTS.map((n) => ({ label: `СО${n}`, value: n }))}
+        />
         <Button size="small" type="link" onClick={toggleAll} style={{ padding: 0 }}>
           {selected.length === REPORT_SECTIONS.length ? 'Снять все' : 'Выбрать все'}
         </Button>

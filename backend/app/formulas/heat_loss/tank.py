@@ -13,6 +13,7 @@ R_внеш (помещение): R = 1 / 9.0
 """
 
 import math
+from dataclasses import dataclass
 from typing import Any
 
 from app.formulas.heat_loss.common import (
@@ -21,8 +22,65 @@ from app.formulas.heat_loss.common import (
     validate_positive,
     validate_temperature_range,
 )
-from app.reference_data.loader import get_insulation_conductivity
+from app.reference_data.loader import get_insulation_conductivity, get_insulation_temperature_range
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHeatLossResult
+
+
+@dataclass(frozen=True)
+class _LayerResistance:
+    layer: InsulationLayer
+    resistance: float
+
+
+def _fmt_temp(value: float) -> str:
+    return f"{value:g}"
+
+
+def _layer_temperature_range(layer: InsulationLayer) -> tuple[float, float]:
+    if layer.material == "other":
+        if layer.temperature_range is None:
+            raise ValueError(
+                "Для материала изоляции 'other' необходимо задать temperature_range слоя"
+            )
+        min_temp, max_temp = layer.temperature_range
+        return float(min_temp), float(max_temp)
+    return get_insulation_temperature_range(layer.material)
+
+
+def _validate_layer_temperature_interval(
+    layer: InsulationLayer,
+    *,
+    index: int,
+    t_hot: float,
+    t_cold: float,
+) -> None:
+    min_temp, max_temp = _layer_temperature_range(layer)
+    layer_hot_side = max(t_hot, t_cold)
+    if min_temp <= layer_hot_side <= max_temp:
+        return
+    raise ValueError(
+        f"Температура горячей стороны слоя изоляции #{index + 1} "
+        f"({_fmt_temp(layer_hot_side)} °C) вне диапазона "
+        f"материала '{layer.material}': {_fmt_temp(min_temp)}…{_fmt_temp(max_temp)} °C"
+    )
+
+
+def _validate_layer_temperatures(
+    layer_resistances: list[_LayerResistance],
+    *,
+    heat_flux: float,
+    hot_side_temperature: float,
+) -> None:
+    current_temperature = hot_side_temperature
+    for index, layer_resistance in enumerate(layer_resistances):
+        next_temperature = current_temperature - heat_flux * layer_resistance.resistance
+        _validate_layer_temperature_interval(
+            layer_resistance.layer,
+            index=index,
+            t_hot=current_temperature,
+            t_cold=next_temperature,
+        )
+        current_temperature = next_temperature
 
 
 def _surface_area(params: TankHeatLossParams) -> float:
@@ -112,6 +170,29 @@ def _resolve_layers(params: TankHeatLossParams) -> list[InsulationLayer]:
     ]
 
 
+def _r_insulation_layers(
+    layers: list[InsulationLayer],
+    t_mean: float,
+) -> tuple[float, list[_LayerResistance]]:
+    r_ins = 0.0
+    layer_resistances: list[_LayerResistance] = []
+    for i, layer in enumerate(layers):
+        validate_positive(f"Толщина изоляции слоя {i + 1}", layer.thickness)
+        lambda_ins = (
+            layer.conductivity
+            if layer.conductivity is not None
+            else get_insulation_conductivity(
+                material=layer.material,
+                temperature=t_mean,
+            )
+        )
+        validate_positive(f"Теплопроводность изоляции слоя {i + 1}", lambda_ins)
+        resistance = layer.thickness / lambda_ins
+        r_ins += resistance
+        layer_resistances.append(_LayerResistance(layer=layer, resistance=resistance))
+    return r_ins, layer_resistances
+
+
 def calc_tank_heat_loss(
     params: TankHeatLossParams,
     coefficients: dict[str, Any] | None = None,
@@ -165,18 +246,7 @@ def calc_tank_heat_loss(
     layers = _resolve_layers(params)
     if len(layers) > 3:
         raise ValueError("Максимальное количество слоёв изоляции: 3 (N_iz ≤ 3)")
-    for i, layer in enumerate(layers):
-        validate_positive(f"Толщина изоляции слоя {i + 1}", layer.thickness)
-        lambda_ins = (
-            layer.conductivity
-            if layer.conductivity is not None
-            else get_insulation_conductivity(
-                material=layer.material,
-                temperature=t_mean,
-            )
-        )
-        validate_positive(f"Теплопроводность изоляции слоя {i + 1}", lambda_ins)
-        r_ins += layer.thickness / lambda_ins
+    r_ins, layer_resistances = _r_insulation_layers(layers, t_mean)
 
     # --- 3. Внешнее сопротивление ---
     alpha = _calc_alpha(params)
@@ -202,6 +272,12 @@ def calc_tank_heat_loss(
         q_air = delta_t / (r_common + r_ext)
         r_ground = buried_height / lambda_gr
         q_ground = delta_t / (r_common + r_ground)
+        for heat_flux in (q_air, q_ground):
+            _validate_layer_temperatures(
+                layer_resistances,
+                heat_flux=heat_flux,
+                hot_side_temperature=params.process_temperature - heat_flux * r_wall,
+            )
         area = s_air + s_ground
         q_total = (q_air * s_air + q_ground * s_ground) * k * location_factor
         q_per_m2 = (q_air * s_air + q_ground * s_ground) / area
@@ -209,6 +285,11 @@ def calc_tank_heat_loss(
         # --- 4–5. Тепловой поток на м² ---
         r_total = r_common + r_ext
         q_per_m2 = delta_t / r_total
+        _validate_layer_temperatures(
+            layer_resistances,
+            heat_flux=q_per_m2,
+            hot_side_temperature=params.process_temperature - q_per_m2 * r_wall,
+        )
 
         # --- 6. Площадь ---
         area = _surface_area(params)

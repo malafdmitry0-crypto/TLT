@@ -338,7 +338,12 @@ class TestObjectsLifecycle:
                     "insulation_layers": [
                         {"thickness": 0.04, "material": "mineral_wool"},
                         {"thickness": 0.02, "material": "foam_glass"},
-                        {"thickness": 0.01, "material": "other", "conductivity": 0.061},
+                        {
+                            "thickness": 0.01,
+                            "material": "other",
+                            "conductivity": 0.061,
+                            "temperature_range": [-60, 180],
+                        },
                     ],
                     "insulation_layer_count": "3",
                     "ambient_temperature": -25,

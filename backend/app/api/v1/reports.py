@@ -69,7 +69,7 @@ async def preview(
     project_id: UUID,
     request: Request,
     sections: list[str] | None = Query(default=None),
-    variant_number: int = Query(default=1, ge=1),
+    variant_number: int = Query(..., ge=1, le=4),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -111,7 +111,7 @@ async def export(
     format: str,
     request: Request,
     sections: list[str] | None = Query(default=None),
-    variant_number: int = Query(default=1, ge=1),
+    variant_number: int = Query(..., ge=1, le=4),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -170,7 +170,7 @@ async def enqueue_export_job(
     format: str,
     request: Request,
     sections: list[str] | None = Query(default=None),
-    variant_number: int = Query(default=1, ge=1),
+    variant_number: int = Query(..., ge=1, le=4),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),

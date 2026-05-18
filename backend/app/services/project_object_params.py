@@ -1,8 +1,8 @@
 """Object-level params normalization and validation.
 
-Formula schemas are intentionally reusable and permissive. Project objects have
-stricter UI/business semantics: fields with form defaults must be persisted, and
-non-defaultable required fields must make the object invalid before formulas run.
+Formula schemas own physical/material constraints. Project objects add UI/business
+semantics: fields with form defaults must be persisted, and non-defaultable
+required fields must make the object invalid before formulas run.
 """
 
 from collections.abc import Mapping
@@ -251,6 +251,8 @@ def _validate_insulation(params: Mapping[str, Any], missing: list[str]) -> None:
         _require(layer, "material", f"Материал {label}", missing)
         if layer.get("material") == "other" and _is_missing(layer.get("conductivity")):
             missing.append(f"λ {label}")
+        if layer.get("material") == "other" and _is_missing(layer.get("temperature_range")):
+            missing.append(f"Температурный диапазон {label}")
 
 
 def _layer_count(params: Mapping[str, Any]) -> int:

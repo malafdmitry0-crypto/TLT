@@ -7,7 +7,7 @@
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
 | 1 | Создать проект с 1 объектом `pipe` | `project_id` |
-| 2 | `GET /api/v1/reports/{project_id}/preview` | HTTP 200 |
+| 2 | `GET /api/v1/reports/{project_id}/preview?variant_number=1` | HTTP 200 |
 | 3 | `body.html` содержит | `<html` тег |
 | 4 | `body.data.objects` | массив длиной 1 |
 | 5 | `body.data.project.name` | имя проекта |
@@ -20,9 +20,9 @@
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
-| 1 | `GET /api/v1/reports/{project_id}/export/xlsx` с `X-Session-Id` гостя | HTTP 403 |
-| 2 | `GET /api/v1/reports/{project_id}/export/pdf` с `X-Session-Id` гостя | HTTP 403 |
-| 3 | `GET /api/v1/reports/{project_id}/export/docx` с `X-Session-Id` гостя | HTTP 403 |
+| 1 | `GET /api/v1/reports/{project_id}/export/xlsx?variant_number=1` с `X-Session-Id` гостя | HTTP 403 |
+| 2 | `GET /api/v1/reports/{project_id}/export/pdf?variant_number=1` с `X-Session-Id` гостя | HTTP 403 |
+| 3 | `GET /api/v1/reports/{project_id}/export/docx?variant_number=1` с `X-Session-Id` гостя | HTTP 403 |
 
 ---
 
@@ -32,7 +32,7 @@
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
-| 1 | `GET /api/v1/reports/{project_id}/export/xlsx` с токеном сотрудника | HTTP 200 |
+| 1 | `GET /api/v1/reports/{project_id}/export/xlsx?variant_number=1` с токеном сотрудника | HTTP 200 |
 | 2 | `Content-Type` | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` |
 | 3 | `Content-Disposition` | `attachment; filename=report.xlsx` |
 | 4 | Тело ответа | Бинарный XLSX-файл (не пустой) |
@@ -46,7 +46,7 @@
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
-| 1 | `GET /api/v1/reports/{project_id}/export/pdf` с токеном | HTTP 200 |
+| 1 | `GET /api/v1/reports/{project_id}/export/pdf?variant_number=1` с токеном | HTTP 200 |
 | 2 | `Content-Type` | `application/pdf` |
 | 3 | Открыть файл | Корректный PDF с данными проекта |
 
@@ -58,7 +58,7 @@
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
-| 1 | `GET /api/v1/reports/{project_id}/export/docx` с токеном | HTTP 200 |
+| 1 | `GET /api/v1/reports/{project_id}/export/docx?variant_number=1` с токеном | HTTP 200 |
 | 2 | `Content-Type` | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` |
 | 3 | Открыть файл в Word | Корректная структура |
 
@@ -72,7 +72,7 @@
 |-----|----------|---------------------|
 | 1 | Создать проект, добавить объект, выполнить электрорасчёт | — |
 | 2 | Сгенерировать спецификацию | — |
-| 3 | `GET /api/v1/reports/{project_id}/preview` | HTML содержит таблицу спецификации |
+| 3 | `GET /api/v1/reports/{project_id}/preview?variant_number=1` | HTML содержит таблицу спецификации |
 | 4 | Экспортировать в XLSX | Лист «Спецификация» заполнен |
 
 ---
@@ -83,16 +83,30 @@
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
-| 1 | `GET /api/v1/reports/00000000-0000-0000-0000-000000000000/preview` | HTTP 404 |
+| 1 | `GET /api/v1/reports/00000000-0000-0000-0000-000000000000/preview?variant_number=1` | HTTP 404 |
 | 2 | Проверить тело ответа | `{"detail": "Проект не найден", ...}` |
 
 ---
 
-## TC-REP-08: Неизвестный формат экспорта
+## TC-REP-08: Отчёт формируется по явно выбранному варианту CO
+
+**Автоматизировано:** ✅ backend `test_reports.py::TestReports::test_preview_requires_explicit_variant_number` и unit `test_report_service_unit.py::TestLoadContext::test_requested_variant_picked`; frontend `ReportPage.test.tsx`.
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Подготовить проект с расчётами/спецификацией CO1 и CO2 | — |
+| 2 | Открыть страницу «Отчёт» после выбора CO2 на SC-04 или в мастере отчёта выбрать `CO2` | UI показывает выбранный вариант `CO2` |
+| 3 | `GET /api/v1/reports/{project_id}/preview` без `variant_number` | HTTP 422 |
+| 4 | `GET /api/v1/reports/{project_id}/preview?variant_number=2` | HTML и `variant_number` в ответе соответствуют CO2 |
+| 5 | Экспорт через direct/job endpoint с `variant_number=2` | В файл попадают `ElectricalCalculation` и `Specification` только CO2 |
+
+---
+
+## TC-REP-09: Неизвестный формат экспорта
 
 **Автоматизировано:** ❌ (мануальный)
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
-| 1 | `GET /api/v1/reports/{id}/export/pptx` с токеном сотрудника | HTTP 400 или 422 |
+| 1 | `GET /api/v1/reports/{id}/export/pptx?variant_number=1` с токеном сотрудника | HTTP 400 или 422 |
 | 2 | Сообщение | «Неизвестный формат» |

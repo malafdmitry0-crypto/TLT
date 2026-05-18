@@ -71,6 +71,7 @@ class TestReports:
         pid = await _project_with_object(client, guest_session)
         resp = await client.get(
             f"/api/v1/reports/{pid}/preview",
+            params={"variant_number": 1},
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 200
@@ -84,11 +85,23 @@ class TestReports:
             "electrical",
             "specification",
         ]
+        assert body["variant_number"] == 1
+
+    async def test_preview_requires_explicit_variant_number(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project_with_object(client, guest_session)
+        resp = await client.get(
+            f"/api/v1/reports/{pid}/preview",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 422
 
     async def test_guest_cannot_export(self, client: AsyncClient, guest_session: str):
         pid = await _project_with_object(client, guest_session)
         resp = await client.get(
             f"/api/v1/reports/{pid}/export/xlsx",
+            params={"variant_number": 1},
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 403
@@ -97,6 +110,7 @@ class TestReports:
         pid = await _employee_project_with_object(client, employee_token)
         resp = await client.get(
             f"/api/v1/reports/{pid}/export/xlsx",
+            params={"variant_number": 1},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
         assert resp.status_code == 200
@@ -110,6 +124,7 @@ class TestReports:
         pid = await _employee_project_with_object(client, employee_token)
         resp = await client.post(
             f"/api/v1/reports/{pid}/export/xlsx/jobs",
+            params={"variant_number": 2},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
         assert resp.status_code == 202
@@ -144,10 +159,16 @@ class TestReports:
             status="succeeded",
             project_id=UUID(pid),
             user_id=employee_user.id,
-            request_payload={"project_id": pid, "format": "xlsx", "sections": None},
+            request_payload={
+                "project_id": pid,
+                "format": "xlsx",
+                "variant_number": 1,
+                "sections": None,
+            },
             result_payload={
                 "project_id": pid,
                 "format": "xlsx",
+                "variant_number": 1,
                 "filename": "report.xlsx",
                 "media_type": ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
                 "download_url": f"/api/v1/reports/jobs/{task_id}/download",
@@ -209,6 +230,7 @@ class TestReports:
         pid = await _project_with_object(client, guest_session)
         resp = await client.get(
             f"/api/v1/reports/{pid}/preview",
+            params={"variant_number": 1},
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 200

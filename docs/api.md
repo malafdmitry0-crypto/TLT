@@ -15,7 +15,7 @@
 | `/api/v1/projects/{id}/objects` | CRUD объектов + `reorder`, `import-excel`, `import-template`, `export-excel` |
 | `/api/v1/calc/electrical/*` | Батч-электрорасчёт, настройки подбора |
 | `/api/v1/specifications/*` | Генерация/просмотр спецификации |
-| `/api/v1/reports/{id}/{preview,export/{fmt}}` | HTML-превью и экспорт PDF/DOCX/XLSX |
+| `/api/v1/reports/{id}/{preview,export/{fmt}}` | HTML-превью и экспорт PDF/DOCX/XLSX по явно выбранному CO-варианту |
 | `/api/v1/audit/client-events` | Приём frontend-событий бизнес-аудита |
 | `/api/v1/references/*` | Встроенные справочники (climate, insulation, pipe-materials, soil-conductivity, cables, resistive-cables, accessories) |
 | `/api/v1/admin/*` | Пользователи, коэффициенты (только admin) |
@@ -189,3 +189,14 @@ pagination. При произвольном переходе на страниц
 **`GET /references/cables?source=commercial`** и
 **`GET /references/cables/commercial`** — публичный commercial catalog для всех
 ролей. `source=extended|all` по-прежнему доступен только сотруднику/админу.
+
+## Отчёты
+
+**`GET /reports/{project_id}/preview?variant_number=N`** — HTML-предпросмотр
+отчёта по одному CO-варианту. `variant_number` обязателен, допустимо `1..4`.
+Backend фильтрует электрорасчёты и спецификацию по этому варианту.
+
+**`GET /reports/{project_id}/export/{pdf|docx|xlsx}?variant_number=N`** и
+**`POST /reports/{project_id}/export/{pdf|docx|xlsx}/jobs?variant_number=N`** —
+экспорт отчёта сотрудником. `variant_number` обязателен и попадает в payload
+фоновой задачи; worker формирует файл только по указанному варианту.

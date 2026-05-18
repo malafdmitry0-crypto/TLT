@@ -390,6 +390,7 @@ class TestObjectsCRUD:
         assert updated.params["insulation_thickness"] == pytest.approx(0.02)
         assert updated.params["insulation_material"] == "mineral_wool"
         assert updated.version == 2
+        db.commit.assert_not_awaited()
 
     async def test_update_object_stale_version_raises_conflict(self):
         from app.schemas.project import ProjectObjectUpdate

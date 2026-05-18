@@ -26,7 +26,7 @@ export interface ReportPreview {
   variant_number: number;
 }
 
-function reportParams(sections?: ReportSection[], variantNumber: number = 1) {
+function reportParams(variantNumber: number, sections?: ReportSection[]) {
   return {
     ...(sections && sections.length > 0 ? { sections } : {}),
     variant_number: variantNumber,
@@ -35,11 +35,11 @@ function reportParams(sections?: ReportSection[], variantNumber: number = 1) {
 
 export async function getReportPreview(
   projectId: string,
+  variantNumber: number,
   sections?: ReportSection[],
-  variantNumber: number = 1,
 ): Promise<ReportPreview> {
   const { data } = await apiClient.get<ReportPreview>(`/reports/${projectId}/preview`, {
-    params: reportParams(sections, variantNumber),
+    params: reportParams(variantNumber, sections),
     paramsSerializer: { indexes: null },
   });
   return data;
@@ -48,10 +48,10 @@ export async function getReportPreview(
 export async function exportReport(
   projectId: string,
   format: 'pdf' | 'docx' | 'xlsx',
+  variantNumber: number,
   sections?: ReportSection[],
-  variantNumber: number = 1,
 ): Promise<Blob> {
-  const task = await enqueueReportExportJob(projectId, format, sections, variantNumber);
+  const task = await enqueueReportExportJob(projectId, format, variantNumber, sections);
   const completed = await waitReportExportTask(task.id);
   if (completed.status !== 'succeeded') {
     throw new Error(completed.error_message || 'Не удалось сформировать отчёт');
@@ -65,14 +65,14 @@ export async function exportReport(
 export async function enqueueReportExportJob(
   projectId: string,
   format: 'pdf' | 'docx' | 'xlsx',
+  variantNumber: number,
   sections?: ReportSection[],
-  variantNumber: number = 1,
 ): Promise<CalculationTaskResponse> {
   const { data } = await apiClient.post<CalculationTaskResponse>(
     `/reports/${projectId}/export/${format}/jobs`,
     null,
     withIdempotencyKey({
-      params: reportParams(sections, variantNumber),
+      params: reportParams(variantNumber, sections),
       paramsSerializer: { indexes: null },
     }),
   );
@@ -106,12 +106,12 @@ async function waitReportExportTask(
 export async function exportReportDirect(
   projectId: string,
   format: 'pdf' | 'docx' | 'xlsx',
+  variantNumber: number,
   sections?: ReportSection[],
-  variantNumber: number = 1,
 ): Promise<Blob> {
   const { data } = await apiClient.get(`/reports/${projectId}/export/${format}`, {
     responseType: 'blob',
-    params: reportParams(sections, variantNumber),
+    params: reportParams(variantNumber, sections),
     paramsSerializer: { indexes: null },
   });
   return data as Blob;

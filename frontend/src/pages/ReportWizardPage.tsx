@@ -6,6 +6,7 @@ import {
   Checkbox,
   Col,
   Row,
+  Segmented,
   Space,
   Steps,
   Tag,
@@ -29,6 +30,11 @@ import {
 } from '@/api/reports';
 import { useProjectStore } from '@/store/projectStore';
 import { useAuthStore } from '@/store/authStore';
+import {
+  CALCULATION_VARIANTS,
+  normalizeCalculationVariant,
+  useCalculationVariantStore,
+} from '@/store/calculationVariantStore';
 import ReportPreview from '@/components/reports/ReportPreview';
 
 const { Title, Paragraph, Text } = Typography;
@@ -50,6 +56,14 @@ export default function ReportWizardPage() {
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
   const isEmployee = role === 'employee' || role === 'admin';
+  const storedVariant = useCalculationVariantStore((s) =>
+    project?.id ? s.variantByProject[project.id] : undefined
+  );
+  const saveVariant = useCalculationVariantStore((s) => s.setVariant);
+  const variant = normalizeCalculationVariant(storedVariant);
+  const setVariant = (nextVariant: number) => {
+    if (project?.id) saveVariant(project.id, nextVariant);
+  };
 
   const [sections, setSections] = useState<ReportSection[]>([...REPORT_SECTIONS]);
   const [format, setFormat] = useState<Format>('pdf');
@@ -57,8 +71,8 @@ export default function ReportWizardPage() {
   const [exporting, setExporting] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['report-preview-wizard', project?.id, sections.join(',')],
-    queryFn: () => getReportPreview(project!.id, sections),
+    queryKey: ['report-preview-wizard', project?.id, variant, sections.join(',')],
+    queryFn: () => getReportPreview(project!.id, variant, sections),
     enabled: !!project,
   });
 
@@ -92,7 +106,7 @@ export default function ReportWizardPage() {
     try {
       setExporting(true);
       message.loading({ content: 'Формирование отчёта...', key: 'report-export', duration: 0 });
-      const blob = await exportReport(project.id, format, sections);
+      const blob = await exportReport(project.id, format, variant, sections);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -119,6 +133,7 @@ export default function ReportWizardPage() {
             <FileTextOutlined />
             <Text strong>Мастер формирования отчёта</Text>
             <Tag color="blue">{project.name}</Tag>
+            <Tag color="geekblue">СО{variant}</Tag>
           </Space>
         }
         extra={
@@ -150,6 +165,16 @@ export default function ReportWizardPage() {
                 <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
                   Отметьте, какие разделы войдут в файл.
                 </Paragraph>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Вариант расчёта:
+                </Text>
+                <Segmented<number>
+                  size="small"
+                  value={variant}
+                  onChange={(v) => setVariant(Number(v))}
+                  options={CALCULATION_VARIANTS.map((n) => ({ label: `СО${n}`, value: n }))}
+                  style={{ display: 'flex', margin: '4px 0 10px' }}
+                />
                 <Button
                   type="link"
                   size="small"
@@ -231,6 +256,12 @@ export default function ReportWizardPage() {
                       ))
                     )}
                   </div>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Вариант:
+                  </Text>{' '}
+                  <Tag color="geekblue">СО{variant}</Tag>
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <Text type="secondary" style={{ fontSize: 12 }}>

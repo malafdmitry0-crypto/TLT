@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SpecificationPage from '@/pages/SpecificationPage';
+import { useCalculationVariantStore } from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
 import type { Project } from '@/types/project';
 
@@ -42,6 +43,7 @@ describe('SpecificationPage (integration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useProjectStore.getState().setCurrentProject(null);
+    useCalculationVariantStore.setState({ variantByProject: {} });
   });
 
   it('показывает заглушку «Проект не выбран» без проекта', () => {

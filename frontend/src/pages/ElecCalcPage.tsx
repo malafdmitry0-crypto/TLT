@@ -56,6 +56,10 @@ import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getCablesTt, getResistiveCables } from '@/api/references';
 import { useAuthStore } from '@/store/authStore';
+import {
+  normalizeCalculationVariant,
+  useCalculationVariantStore,
+} from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useElectricalStats } from '@/hooks/useElectricalStats';
 import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
@@ -696,8 +700,18 @@ export default function ElecCalcPage() {
   const location = useLocation();
   const navigationActiveJobId =
     (location.state as ElectricalNavigationState)?.activeJobId ?? null;
+  const storedVariant = useCalculationVariantStore((s) =>
+    project?.id ? s.variantByProject[project.id] : undefined
+  );
+  const saveVariant = useCalculationVariantStore((s) => s.setVariant);
+  const variant = normalizeCalculationVariant(storedVariant);
+  const setVariant = useCallback(
+    (nextVariant: number) => {
+      if (project?.id) saveVariant(project.id, nextVariant);
+    },
+    [project?.id, saveVariant],
+  );
 
-  const [variant, setVariant] = useState<number>(1);
   const [cableSource, setCableSource] = useState<CableSource>('commercial');
   const [selectionPolicy, setSelectionPolicy] = useState<SelectionPolicy>('technical_minimum');
   const [defaultCableType, setDefaultCableType] =

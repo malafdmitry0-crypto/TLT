@@ -64,7 +64,7 @@ class TestPipeHeatLossParams:
             wall_thickness=0.04,
             pipe_material="carbon_steel",
             insulation_thickness=0.001,
-            insulation_material="mineral_wool",
+            insulation_material="aerogel",
             ambient_temperature=-70,
             process_temperature=600,
             pipe_length=200_000,
@@ -75,6 +75,29 @@ class TestPipeHeatLossParams:
         )
         assert p.outer_diameter == 0.0108
         assert p.wall_thickness == 0.04
+
+    def test_reference_insulation_temperature_range_is_enforced(self):
+        with pytest.raises(ValidationError, match="вне диапазона"):
+            PipeHeatLossParams(
+                outer_diameter=0.1,
+                insulation_thickness=0.05,
+                insulation_material="polyurethane",
+                ambient_temperature=-20,
+                process_temperature=200,
+                pipe_length=10,
+            )
+
+    def test_reference_insulation_temperature_range_accepts_boundary(self):
+        p = PipeHeatLossParams(
+            outer_diameter=0.1,
+            insulation_thickness=0.05,
+            insulation_material="polyurethane",
+            ambient_temperature=-20,
+            process_temperature=120,
+            pipe_length=10,
+        )
+
+        assert p.process_temperature == 120
 
     def test_local_element_counts_are_mapped_to_formula_count(self):
         p = PipeHeatLossParams(
@@ -161,9 +184,23 @@ class TestPipeHeatLossParams:
         assert p.pipe_lambda == 56.0
 
     def test_insulation_other_lambda_limits(self):
-        assert InsulationLayer(thickness=0.05, material="other", conductivity=400.0)
+        assert InsulationLayer(
+            thickness=0.05,
+            material="other",
+            conductivity=400.0,
+            temperature_range=(-60, 180),
+        )
         with pytest.raises(ValidationError):
-            InsulationLayer(thickness=0.05, material="other", conductivity=400.1)
+            InsulationLayer(
+                thickness=0.05,
+                material="other",
+                conductivity=400.1,
+                temperature_range=(-60, 180),
+            )
+
+    def test_insulation_other_requires_manual_temperature_range(self):
+        with pytest.raises(ValidationError, match="temperature_range"):
+            InsulationLayer(thickness=0.05, material="other", conductivity=0.061)
 
     def test_reference_soil_conductivity_values_are_valid(self):
         for row in list_soil_conductivity():
@@ -211,7 +248,7 @@ class TestTankHeatLossParams:
             diameter=30.0,
             height=50.0,
             insulation_thickness=0.1,
-            insulation_material="mineral_wool",
+            insulation_material="aerogel",
             ambient_temperature=-70,
             process_temperature=600,
         )
@@ -224,12 +261,37 @@ class TestTankHeatLossParams:
             width=100.0,
             height=50.0,
             insulation_thickness=0.1,
-            insulation_material="mineral_wool",
+            insulation_material="aerogel",
             ambient_temperature=-70,
             process_temperature=600,
         )
         assert rectangular.length == 100.0
         assert rectangular.width == 100.0
+
+    def test_tank_reference_insulation_temperature_range_is_enforced(self):
+        with pytest.raises(ValidationError, match="вне диапазона"):
+            TankHeatLossParams(
+                shape="cylindrical",
+                diameter=2,
+                height=3,
+                insulation_thickness=0.1,
+                insulation_material="polyurethane",
+                ambient_temperature=-20,
+                process_temperature=200,
+            )
+
+    def test_tank_reference_insulation_temperature_range_accepts_boundary(self):
+        p = TankHeatLossParams(
+            shape="cylindrical",
+            diameter=2,
+            height=3,
+            insulation_thickness=0.1,
+            insulation_material="polyurethane",
+            ambient_temperature=-20,
+            process_temperature=120,
+        )
+
+        assert p.process_temperature == 120
 
     def test_too_small_dimension_rejected(self):
         with pytest.raises(ValidationError):

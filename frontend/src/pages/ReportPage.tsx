@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Card, Space, Tag, Typography, message } from 'antd';
+import { Button, Card, Segmented, Space, Tag, Typography, message } from 'antd';
 import {
   FileTextOutlined,
   FilePdfOutlined,
@@ -19,6 +19,11 @@ import {
 } from '@/api/reports';
 import { useProjectStore } from '@/store/projectStore';
 import { useAuthStore } from '@/store/authStore';
+import {
+  CALCULATION_VARIANTS,
+  normalizeCalculationVariant,
+  useCalculationVariantStore,
+} from '@/store/calculationVariantStore';
 import ReportPreview from '@/components/reports/ReportPreview';
 import ReportWizard from '@/components/reports/ReportWizard';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
@@ -32,10 +37,18 @@ export default function ReportPage() {
   const [sections, setSections] = useState<ReportSection[]>([...REPORT_SECTIONS]);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<'pdf' | 'docx' | 'xlsx' | null>(null);
+  const storedVariant = useCalculationVariantStore((s) =>
+    project?.id ? s.variantByProject[project.id] : undefined
+  );
+  const saveVariant = useCalculationVariantStore((s) => s.setVariant);
+  const variant = normalizeCalculationVariant(storedVariant);
+  const setVariant = (nextVariant: number) => {
+    if (project?.id) saveVariant(project.id, nextVariant);
+  };
 
   const { data, isLoading } = useQuery({
-    queryKey: ['report-preview', project?.id, sections.join(',')],
-    queryFn: () => getReportPreview(project!.id, sections),
+    queryKey: ['report-preview', project?.id, variant, sections.join(',')],
+    queryFn: () => getReportPreview(project!.id, variant, sections),
     enabled: !!project,
   });
 
@@ -53,7 +66,7 @@ export default function ReportPage() {
     try {
       setExportingFormat(fmt);
       message.loading({ content: 'Формирование отчёта...', key: 'report-export', duration: 0 });
-      const blob = await exportReport(project.id, fmt, sections);
+      const blob = await exportReport(project.id, fmt, variant, sections);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -141,6 +154,18 @@ export default function ReportPage() {
           {!isEmployee && <> Экспорт доступен только для сотрудников.</>}
         </Paragraph>
 
+        <div style={{ marginBottom: 12 }}>
+          <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>
+            Вариант отчёта:
+          </Text>
+          <Segmented<number>
+            size="small"
+            value={variant}
+            onChange={(v) => setVariant(Number(v))}
+            options={CALCULATION_VARIANTS.map((n) => ({ label: `СО${n}`, value: n }))}
+          />
+        </div>
+
         {isEmployee && (
           <div style={{ marginBottom: 12 }}>
             <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>
@@ -167,9 +192,11 @@ export default function ReportPage() {
       <ReportWizard
         open={wizardOpen}
         initialSections={sections}
+        initialVariant={variant}
         onCancel={() => setWizardOpen(false)}
-        onConfirm={(s) => {
+        onConfirm={(s, nextVariant) => {
           setSections(s);
+          setVariant(nextVariant);
           setWizardOpen(false);
         }}
       />

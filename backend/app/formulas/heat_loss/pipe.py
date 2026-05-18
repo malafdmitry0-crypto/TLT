@@ -11,6 +11,7 @@ q_total  = q_linear · L_eff · K  [Вт]
 """
 
 import math
+from dataclasses import dataclass
 from typing import Any
 
 from app.formulas.heat_loss.common import (
@@ -19,7 +20,11 @@ from app.formulas.heat_loss.common import (
     validate_positive,
     validate_temperature_range,
 )
-from app.reference_data.loader import get_insulation_conductivity, get_pipe_material_lambda
+from app.reference_data.loader import (
+    get_insulation_conductivity,
+    get_insulation_temperature_range,
+    get_pipe_material_lambda,
+)
 from app.schemas.calculation import InsulationLayer, PipeHeatLossParams, PipeHeatLossResult
 
 
@@ -76,6 +81,63 @@ def _resolve_layers(params: PipeHeatLossParams) -> list[InsulationLayer]:
     return [InsulationLayer(thickness=thickness, material=material)]
 
 
+@dataclass(frozen=True)
+class _LayerResistance:
+    layer: InsulationLayer
+    resistance: float
+
+
+def _fmt_temp(value: float) -> str:
+    return f"{value:g}"
+
+
+def _layer_temperature_range(layer: InsulationLayer) -> tuple[float, float]:
+    if layer.material == "other":
+        if layer.temperature_range is None:
+            raise ValueError(
+                "Для материала изоляции 'other' необходимо задать temperature_range слоя"
+            )
+        min_temp, max_temp = layer.temperature_range
+        return float(min_temp), float(max_temp)
+    return get_insulation_temperature_range(layer.material)
+
+
+def _validate_layer_temperature_interval(
+    layer: InsulationLayer,
+    *,
+    index: int,
+    t_hot: float,
+    t_cold: float,
+) -> None:
+    min_temp, max_temp = _layer_temperature_range(layer)
+    layer_hot_side = max(t_hot, t_cold)
+    if min_temp <= layer_hot_side <= max_temp:
+        return
+    raise ValueError(
+        f"Температура горячей стороны слоя изоляции #{index + 1} "
+        f"({_fmt_temp(layer_hot_side)} °C) вне диапазона "
+        f"материала '{layer.material}': {_fmt_temp(min_temp)}…{_fmt_temp(max_temp)} °C"
+    )
+
+
+def _validate_layer_temperatures(
+    layer_resistances: list[_LayerResistance],
+    *,
+    heat_flux: float,
+    hot_side_temperature: float,
+) -> None:
+    current_temperature = hot_side_temperature
+    for index, layer_resistance in enumerate(layer_resistances):
+        next_temperature = current_temperature - heat_flux * layer_resistance.resistance
+        _validate_layer_temperature_interval(
+            layer_resistance.layer,
+            index=index,
+            t_hot=current_temperature,
+            t_cold=next_temperature,
+        )
+        current_temperature = next_temperature
+
+
 # ---------------------------------------------------------------------------
 # Тепловые сопротивления
 # ---------------------------------------------------------------------------
@@ -108,19 +170,22 @@ def _r_insulation_layers(
     r_start: float,
     layers: list[InsulationLayer],
     t_mean: float,
-) -> tuple[float, float]:
+) -> tuple[float, float, list[_LayerResistance]]:
     """Суммарное сопротивление слоёв изоляции + итоговый наружный радиус."""
     r = r_start
     r_total = 0.0
+    layer_resistances: list[_LayerResistance] = []
     for layer in layers:
         r_out = r + layer.thickness
         if layer.conductivity is not None:
             lam = layer.conductivity
         else:
             lam = get_insulation_conductivity(layer.material, t_mean)
-        r_total += _r_cylindrical(r, r_out, lam)
+        layer_resistance = _r_cylindrical(r, r_out, lam)
+        r_total += layer_resistance
+        layer_resistances.append(_LayerResistance(layer=layer, resistance=layer_resistance))
         r = r_out
-    return r_total, r  # (сопротивление, наружный радиус изоляции)
+    return r_total, r, layer_resistances  # (сопротивление, наружный радиус, слои)
 
 
 def _r_external(r_outer: float, alpha: float) -> float:
@@ -212,7 +277,7 @@ def calc_pipe_heat_loss(
         )
 
     # --- 2. Сопротивление слоёв изоляции ---
-    r_ins, r_outer_total = _r_insulation_layers(r_outer_pipe, layers, t_mean)
+    r_ins, r_outer_total, layer_resistances = _r_insulation_layers(r_outer_pipe, layers, t_mean)
 
     # --- 3. Внешнее сопротивление ---
     merged_coeffs = merge_coefficients(coefficients)
@@ -242,6 +307,11 @@ def calc_pipe_heat_loss(
 
     # --- 4. Теплопотери на метр ---
     q_linear = delta_t / r_total
+    _validate_layer_temperatures(
+        layer_resistances,
+        heat_flux=q_linear,
+        hot_side_temperature=params.process_temperature - q_linear * r_pipe_wall,
+    )
 
     # --- 5. Эффективная длина с локальными элементами ---
     n_i = params.num_local_elements or 0

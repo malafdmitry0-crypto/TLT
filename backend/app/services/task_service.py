@@ -732,7 +732,7 @@ class TaskService:
             project_id = UUID(payload["project_id"])
             fmt = payload["format"]
             sections = payload.get("sections")
-            variant_number = int(payload.get("variant_number") or 1)
+            variant_number = int(payload["variant_number"])
             await self._update_progress(task_id, BatchProgress(current=1, total=3, phase="load"))
             if await self._should_cancel(task_id):
                 await self._mark_cancelled(task_id)
@@ -1137,6 +1137,7 @@ class TaskService:
                 result = ReportExportTaskResult(
                     project_id=UUID(str(task.result_payload["project_id"])),
                     format=task.result_payload["format"],
+                    variant_number=int(task.result_payload["variant_number"]),
                     filename=task.result_payload["filename"],
                     media_type=task.result_payload["media_type"],
                     size_bytes=int(task.result_payload.get("size_bytes", 0)),

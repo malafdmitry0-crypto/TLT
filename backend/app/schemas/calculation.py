@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.reference_data.loader import get_insulation_temperature_range
 from app.schemas.project import (
     ObjectQueryDefaultSort,
     ObjectQueryFieldCapability,
@@ -30,6 +31,59 @@ TANK_SIDE_MIN = 0.1
 TANK_SIDE_MAX = 100.0
 
 
+def _fmt_temp(value: float) -> str:
+    return f"{value:g}"
+
+
+def _validate_temperature_range_shape(
+    temperature_range: tuple[float, float],
+    *,
+    label: str,
+) -> tuple[float, float]:
+    min_temp = float(temperature_range[0])
+    max_temp = float(temperature_range[1])
+    if min_temp >= max_temp:
+        raise ValueError(f"{label}: нижняя граница должна быть меньше верхней")
+    return min_temp, max_temp
+
+
+def _validate_temperature_in_material_range(
+    *,
+    material: str,
+    process_temperature: float,
+    temperature_range: tuple[float, float],
+    label: str,
+) -> None:
+    min_temp, max_temp = _validate_temperature_range_shape(
+        temperature_range,
+        label=f"Температурный диапазон {label}",
+    )
+    if min_temp <= process_temperature <= max_temp:
+        return
+    raise ValueError(
+        f"Температура продукта {_fmt_temp(process_temperature)} °C вне диапазона "
+        f"{label} '{material}': {_fmt_temp(min_temp)}…{_fmt_temp(max_temp)} °C"
+    )
+
+
+def _validate_reference_insulation_temperature(
+    *,
+    material: str,
+    process_temperature: float,
+    label: str,
+) -> None:
+    if material == "other":
+        raise ValueError(
+            f"Для {label} 'other' задайте insulation_layers с conductivity и temperature_range"
+        )
+    _validate_temperature_in_material_range(
+        material=material,
+        process_temperature=process_temperature,
+        temperature_range=get_insulation_temperature_range(material),
+        label=label,
+    )
+
+
 class InsulationLayer(BaseModel):
     """Один слой тепловой изоляции (для многослойного расчёта)."""
 
@@ -45,6 +99,23 @@ class InsulationLayer(BaseModel):
         default=None,
         description="Температурный диапазон применения слоя, °C — справочные метаданные",
     )
+
+    @model_validator(mode="after")
+    def check_material_contract(self) -> "InsulationLayer":
+        if self.material == "other":
+            if self.conductivity is None:
+                raise ValueError("Для материала изоляции 'other' необходимо задать λ слоя")
+            if self.temperature_range is None:
+                raise ValueError(
+                    "Для материала изоляции 'other' необходимо задать temperature_range слоя"
+                )
+            _validate_temperature_range_shape(
+                self.temperature_range,
+                label="Температурный диапазон материала изоляции 'other'",
+            )
+            return self
+        get_insulation_temperature_range(self.material)
+        return self
 
 
 class PipeHeatLossParams(BaseModel):
@@ -205,6 +276,13 @@ class PipeHeatLossParams(BaseModel):
             )
         if len(multi_layers) > 3:
             raise ValueError("Максимальное количество слоёв изоляции: 3 (N_iz ≤ 3)")
+        if has_single and not has_multi:
+            assert self.insulation_material is not None
+            _validate_reference_insulation_temperature(
+                material=self.insulation_material,
+                process_temperature=self.process_temperature,
+                label="материала изоляции",
+            )
         return self
 
 
@@ -334,6 +412,12 @@ class TankHeatLossParams(BaseModel):
             raise ValueError("Температура продукта должна быть выше температуры окружающей среды")
         if self.insulation_layers and len(self.insulation_layers) > 3:
             raise ValueError("Максимальное количество слоёв изоляции: 3 (N_iz ≤ 3)")
+        if not self.insulation_layers:
+            _validate_reference_insulation_temperature(
+                material=self.insulation_material,
+                process_temperature=self.process_temperature,
+                label="материала изоляции",
+            )
         return self
 
 

@@ -237,7 +237,7 @@ describe('apiClient network retry and idempotency', () => {
 
     await enqueueElectricalBatchJob('project-1');
     await enqueueHeatLossBatchJob('project-1');
-    await enqueueReportExportJob('project-1', 'pdf', ['summary']);
+    await enqueueReportExportJob('project-1', 'pdf', 1, ['summary']);
 
     expect(adapter).toHaveBeenCalledTimes(3);
     for (const [config] of adapter.mock.calls) {

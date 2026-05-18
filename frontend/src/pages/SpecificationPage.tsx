@@ -31,6 +31,10 @@ import {
 } from '@/api/specifications';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { useAuthStore } from '@/store/authStore';
+import {
+  normalizeCalculationVariant,
+  useCalculationVariantStore,
+} from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
 import SpecTable from '@/components/specification/SpecTable';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
@@ -47,9 +51,16 @@ export default function SpecificationPage() {
   const isEmployee = role === 'employee' || role === 'admin';
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const storedVariant = useCalculationVariantStore((s) =>
+    project?.id ? s.variantByProject[project.id] : undefined
+  );
+  const saveVariant = useCalculationVariantStore((s) => s.setVariant);
+  const variant = normalizeCalculationVariant(storedVariant);
+  const setVariant = (nextVariant: number) => {
+    if (project?.id) saveVariant(project.id, nextVariant);
+  };
 
   const [groupBy, setGroupBy] = useState<GroupBy>('category');
-  const [variant, setVariant] = useState<number>(1);
   const [addOpen, setAddOpen] = useState(false);
   const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null);
   const [qty, setQty] = useState<number>(1);

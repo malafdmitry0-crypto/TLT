@@ -308,6 +308,12 @@ class ProjectService:
         data: ProjectObjectUpdate,
         principal: CurrentPrincipal,
     ) -> ProjectObject:
+        """Apply a version-checked object update without committing.
+
+        The API layer commits after recalculation and dependent invalidation so
+        the object payload, computed results, and stale markers become visible
+        atomically.
+        """
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
         obj = await self._get_object(project_id, object_id)
@@ -336,7 +342,6 @@ class ProjectService:
         if result.rowcount != 1:
             await self.db.rollback()
             raise ProjectConflictError("Объект был изменён в другой вкладке, перезагрузите.")
-        await self.db.commit()
         await self.db.refresh(obj)
         return obj
 

@@ -480,7 +480,11 @@ class TestTaskCreation:
 
         with pytest.raises(TaskLimitError, match="Очередь задач перегружена"):
             await service.create_report_export_task(
-                ReportExportJobRequest(project_id=uuid.uuid4(), format="pdf"),
+                ReportExportJobRequest(
+                    project_id=uuid.uuid4(),
+                    format="pdf",
+                    variant_number=1,
+                ),
                 employee_principal,
                 queue=QueueOk(),
             )
@@ -532,6 +536,7 @@ class TestTaskCreation:
             ReportExportJobRequest(
                 project_id=project_id,
                 format="pdf",
+                variant_number=2,
                 sections=["summary", "electrical"],
             ),
             employee_principal,
@@ -546,7 +551,7 @@ class TestTaskCreation:
         assert task.request_payload == {
             "project_id": str(project_id),
             "format": "pdf",
-            "variant_number": 1,
+            "variant_number": 2,
             "sections": ["summary", "electrical"],
         }
         assert task.arq_job_id is not None
@@ -559,7 +564,11 @@ class TestTaskCreation:
     ):
         with pytest.raises(TaskAccessError):
             await TaskService(mock_db).create_report_export_task(
-                ReportExportJobRequest(project_id=uuid.uuid4(), format="pdf"),
+                ReportExportJobRequest(
+                    project_id=uuid.uuid4(),
+                    format="pdf",
+                    variant_number=1,
+                ),
                 guest_principal,
                 queue=QueueOk(),
             )
@@ -1087,6 +1096,7 @@ class TestTaskResponse:
             result_payload={
                 "project_id": str(project_id),
                 "format": "pdf",
+                "variant_number": 1,
                 "filename": "report.pdf",
                 "media_type": "application/pdf",
                 "download_url": f"/api/v1/reports/jobs/{task_id}/download",

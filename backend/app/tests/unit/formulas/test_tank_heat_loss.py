@@ -99,6 +99,48 @@ class TestHeatLossFormula:
         assert r.heat_loss_per_m2 > 0
         assert r.total_heat_loss > 0
 
+    def test_layer_temperature_above_material_range_raises(self):
+        params = _cyl(
+            insulation_thickness=0.02,
+            insulation_material="polyurethane",
+            insulation_layers=[InsulationLayer(thickness=0.02, material="polyurethane")],
+            process_temperature=200.0,
+        )
+
+        with pytest.raises(ValueError, match="вне диапазона"):
+            calc_tank_heat_loss(params)
+
+    def test_outer_layer_is_checked_by_actual_layer_temperature(self):
+        params = _cyl(
+            insulation_thickness=0.5,
+            insulation_material="aerogel",
+            insulation_layers=[
+                InsulationLayer(thickness=0.5, material="aerogel"),
+                InsulationLayer(thickness=0.02, material="polyurethane"),
+            ],
+            process_temperature=200.0,
+        )
+
+        assert calc_tank_heat_loss(params).heat_loss_per_m2 > 0
+
+    def test_other_layer_uses_manual_temperature_range(self):
+        params = _cyl(
+            insulation_thickness=0.02,
+            insulation_material="other",
+            insulation_layers=[
+                InsulationLayer(
+                    thickness=0.02,
+                    material="other",
+                    conductivity=0.061,
+                    temperature_range=(-60, 100),
+                ),
+            ],
+            process_temperature=150.0,
+        )
+
+        with pytest.raises(ValueError, match="вне диапазона"):
+            calc_tank_heat_loss(params)
+
     def test_manual_calculation_no_wall(self):
         """Проверяем q вручную: только изоляция + внешнее (без стенки)."""
         from app.reference_data.loader import get_insulation_conductivity

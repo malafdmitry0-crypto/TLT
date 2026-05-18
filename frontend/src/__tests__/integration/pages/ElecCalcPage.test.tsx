@@ -4,6 +4,7 @@ import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ElecCalcPage from '@/pages/ElecCalcPage';
 import { useAuthStore } from '@/store/authStore';
+import { useCalculationVariantStore } from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
 import type { ElectricalCalcSummary, ElectricalPageResponse } from '@/types/calculation';
 import type { Project, ProjectObject } from '@/types/project';
@@ -228,6 +229,7 @@ describe('ElecCalcPage (integration)', () => {
     localStorage.clear();
     useAuthStore.getState().logout();
     useProjectStore.getState().setCurrentProject(null);
+    useCalculationVariantStore.setState({ variantByProject: {} });
   });
 
   it('показывает заглушку без проекта', () => {

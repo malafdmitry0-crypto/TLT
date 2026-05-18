@@ -10,7 +10,7 @@ class ReportPreviewResponse(BaseModel):
     project_id: str
     html: str
     sections: list[str]
-    variant_number: int = 1
+    variant_number: int = Field(ge=1, le=4)
 
 
 ReportFormat = Literal["pdf", "docx", "xlsx"]
@@ -20,13 +20,13 @@ class ReportExportJobRequest(BaseModel):
     project_id: UUID
     format: ReportFormat
     sections: list[str] | None = Field(default=None)
-    variant_number: int = Field(default=1, ge=1)
+    variant_number: int = Field(ge=1, le=4)
 
 
 class ReportExportTaskResult(BaseModel):
     project_id: UUID
     format: ReportFormat
-    variant_number: int = 1
+    variant_number: int = Field(ge=1, le=4)
     filename: str
     media_type: str
     size_bytes: int
