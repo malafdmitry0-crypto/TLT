@@ -253,7 +253,15 @@ export function validateHeatCalcField(
     }
     if (fieldInput.type === 'select') {
       const known = fieldInput.options?.some((item) => String(item.value) === String(value)) ?? false;
-      return known ? null : 'Выберите значение из списка';
+      if (!known) return 'Выберите значение из списка';
+      if (
+        fieldId === 'insulation_temperature_basis'
+        && value === 'indoor'
+        && context.values.placement !== 'indoor'
+      ) {
+        return 'Для наружного/подземного объекта выберите режим tm из документации';
+      }
+      return null;
     }
     return null;
   }

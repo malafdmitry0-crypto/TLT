@@ -42,6 +42,16 @@ const DN_TABLE: [number, number][] = [
   [1016.0, 1000],
 ];
 
+type InsulationTemperatureBasis =
+  | 'indoor'
+  | 'outdoor_summer'
+  | 'outdoor_winter'
+  | 'channel'
+  | 'tunnel'
+  | 'technical_subfloor'
+  | 'attic'
+  | 'basement';
+
 /** Find the nearest DN for an outer diameter in mm. */
 export function findDN(outerDiameterMm: number): number | null {
   if (!outerDiameterMm || outerDiameterMm <= 0) return null;
@@ -64,8 +74,12 @@ export function findDN(outerDiameterMm: number): number | null {
 // ---------------------------------------------------------------------------
 const MATERIAL_SHORT: Record<string, string> = {
   mineral_wool: 'МВ',
+  mineral_wool_boards_120: 'МВ120',
+  mineral_wool_boards_150: 'МВ150',
+  mineral_wool_cylinders_100: 'МВЦ100',
   glass_wool: 'СВ',
   polyurethane: 'ППУ',
+  polyurethane_products_50: 'ППУ50',
   polyurethane_foam: 'ППУ',
   foam_glass: 'ПС',
   expanded_perlite: 'Пер',
@@ -153,6 +167,7 @@ export interface PipeFormValues {
   climate_region?: string;
   climate_key?: string;
   climate_temperature_basis?: 't_0_92' | 't_0_98' | 't_abs_min';
+  insulation_temperature_basis?: InsulationTemperatureBasis;
   ambient_temperature_source?: 'manual' | 'climate';
   wind_speed_source?: 'manual' | 'climate';
   pipe_length: number;
@@ -209,6 +224,7 @@ export interface TankFormValues {
   climate_region?: string;
   climate_key?: string;
   climate_temperature_basis?: 't_0_92' | 't_0_98' | 't_abs_min';
+  insulation_temperature_basis?: InsulationTemperatureBasis;
   ambient_temperature_source?: 'manual' | 'climate';
   wind_speed_source?: 'manual' | 'climate';
   min_switch_temperature?: number;
@@ -390,6 +406,9 @@ function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormVal
   if (v.climate_temperature_basis) {
     params.climate_temperature_basis = v.climate_temperature_basis;
   }
+  if (v.insulation_temperature_basis) {
+    params.insulation_temperature_basis = v.insulation_temperature_basis;
+  }
   if (v.ambient_temperature_source) {
     params.ambient_temperature_source = v.ambient_temperature_source;
   }
@@ -519,6 +538,8 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
         : undefined),
     climate_temperature_basis:
       p.climate_temperature_basis as PipeFormValues['climate_temperature_basis'],
+    insulation_temperature_basis:
+      p.insulation_temperature_basis as PipeFormValues['insulation_temperature_basis'],
     ambient_temperature_source:
       p.ambient_temperature_source as PipeFormValues['ambient_temperature_source'],
     wind_speed_source: p.wind_speed_source as PipeFormValues['wind_speed_source'],
@@ -601,6 +622,8 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
         : undefined),
     climate_temperature_basis:
       p.climate_temperature_basis as TankFormValues['climate_temperature_basis'],
+    insulation_temperature_basis:
+      p.insulation_temperature_basis as TankFormValues['insulation_temperature_basis'],
     ambient_temperature_source:
       p.ambient_temperature_source as TankFormValues['ambient_temperature_source'],
     wind_speed_source: p.wind_speed_source as TankFormValues['wind_speed_source'],

@@ -7,6 +7,16 @@ import type {
   ProjectObjectsPageInfo,
 } from './project';
 
+export type InsulationTemperatureBasis =
+  | 'indoor'
+  | 'outdoor_summer'
+  | 'outdoor_winter'
+  | 'channel'
+  | 'tunnel'
+  | 'technical_subfloor'
+  | 'attic'
+  | 'basement';
+
 export interface InsulationLayerParams {
   thickness: number;
   material: string;
@@ -38,6 +48,7 @@ export interface PipeParams {
   climate_region?: string | null;
   climate_key?: string | null;
   climate_temperature_basis?: 't_0_92' | 't_0_98' | 't_abs_min' | null;
+  insulation_temperature_basis?: InsulationTemperatureBasis | null;
   ambient_temperature_source?: 'manual' | 'climate' | null;
   wind_speed_source?: 'manual' | 'climate' | null;
   valve_count?: number | null;
@@ -96,6 +107,7 @@ export interface TankParams {
   climate_region?: string | null;
   climate_key?: string | null;
   climate_temperature_basis?: 't_0_92' | 't_0_98' | 't_abs_min' | null;
+  insulation_temperature_basis?: InsulationTemperatureBasis | null;
   ambient_temperature_source?: 'manual' | 'climate' | null;
   wind_speed_source?: 'manual' | 'climate' | null;
   supply_voltage?: number | null;

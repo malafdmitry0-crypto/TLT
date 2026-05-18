@@ -10,9 +10,11 @@ from app.reference_data.loader import (
     clear_cache,
     get_climate_by_city,
     get_insulation_conductivity,
+    get_insulation_temperature_range,
     get_pipe_material_lambda,
     get_tlt_cable_by_mark,
     get_tt_cable_by_model,
+    is_generic_insulation_material,
     list_basic_accessories,
     list_climate_cities,
     list_insulation_materials,
@@ -198,15 +200,17 @@ class TestGetClimateByCity:
 
 
 class TestGetInsulationConductivity:
-    def test_known_material_returns_lambda(self):
-        lam = get_insulation_conductivity("mineral_wool", 20)
+    def test_known_concrete_material_returns_lambda(self):
+        lam = get_insulation_conductivity("mineral_wool_boards_120", 20)
         assert lam > 0
         assert lam < 1.0  # для изоляции λ < 1 Вт/(м·К)
 
-    def test_material_without_temperature_curve_uses_table_value(self):
-        """Если температурной кривой нет, λ берётся из базовой таблицы."""
-        assert get_insulation_conductivity("mineral_wool", -40) == pytest.approx(0.045)
-        assert get_insulation_conductivity("mineral_wool", 200) == pytest.approx(0.045)
+    def test_generic_material_requires_reselection(self):
+        assert is_generic_insulation_material("mineral_wool") is True
+        with pytest.raises(ValueError, match="Уточните конкретный материал"):
+            get_insulation_conductivity("mineral_wool", 200)
+        with pytest.raises(ValueError, match="Уточните конкретный материал"):
+            get_insulation_temperature_range("mineral_wool")
 
     def test_temperature_curve_for_warm_surface(self):
         """Для 20°C и выше применяется формула a + b * tm из справочника."""

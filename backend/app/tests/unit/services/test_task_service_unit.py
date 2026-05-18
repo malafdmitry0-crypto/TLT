@@ -200,6 +200,28 @@ class TestProgressThrottler:
 
         assert [item.current for item in persisted] == [0, 4]
 
+    async def test_drops_duplicate_and_persists_unknown_total_progress_change(self):
+        clock = ManualClock()
+        persisted: list[BatchProgress] = []
+
+        async def persist(progress: BatchProgress) -> None:
+            persisted.append(progress)
+
+        throttler = ProgressThrottler(
+            persist,
+            policy=ProgressWritePolicy(min_interval_ms=500, min_percent_delta=1.0),
+            now_func=clock,
+        )
+
+        first = BatchProgress(current=1, total=0, phase="calculate")
+        await throttler.offer(first)
+        clock.advance_ms(600)
+        await throttler.offer(first)
+        clock.advance_ms(600)
+        await throttler.offer(BatchProgress(current=2, total=0, phase="calculate"))
+
+        assert [item.current for item in persisted] == [1, 2]
+
 
 class TestWorkerFailureRecording:
     async def test_record_worker_exception_retries_when_attempts_left(

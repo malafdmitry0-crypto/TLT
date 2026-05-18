@@ -29,7 +29,8 @@ def _cyl(**o) -> TankHeatLossParams:
         "diameter": 2.0,
         "height": 3.0,
         "insulation_thickness": 0.1,
-        "insulation_material": "mineral_wool",
+        "insulation_material": "mineral_wool_boards_120",
+        "insulation_temperature_basis": "outdoor_winter",
         "ambient_temperature": -20.0,
         "process_temperature": 80.0,
     }
@@ -55,7 +56,8 @@ class TestSurfaceArea:
             width=2.0,
             height=2.0,
             insulation_thickness=0.1,
-            insulation_material="mineral_wool",
+            insulation_material="mineral_wool_boards_120",
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-20,
             process_temperature=80,
         )
@@ -68,7 +70,8 @@ class TestSurfaceArea:
             shape="spherical",
             diameter=3.0,
             insulation_thickness=0.1,
-            insulation_material="mineral_wool",
+            insulation_material="mineral_wool_boards_120",
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-20,
             process_temperature=80,
         )
@@ -81,7 +84,8 @@ class TestSurfaceArea:
                 TankHeatLossParams(
                     shape="rectangular",
                     insulation_thickness=0.1,
-                    insulation_material="mineral_wool",
+                    insulation_material="mineral_wool_boards_120",
+                    insulation_temperature_basis="outdoor_winter",
                     ambient_temperature=-20,
                     process_temperature=80,
                 )
@@ -102,9 +106,9 @@ class TestHeatLossFormula:
     def test_layer_temperature_above_material_range_raises(self):
         params = _cyl(
             insulation_thickness=0.02,
-            insulation_material="polyurethane",
-            insulation_layers=[InsulationLayer(thickness=0.02, material="polyurethane")],
-            process_temperature=200.0,
+            insulation_material="polystyrene_products_50",
+            insulation_layers=[InsulationLayer(thickness=0.02, material="polystyrene_products_50")],
+            process_temperature=500.0,
         )
 
         with pytest.raises(ValueError, match="вне диапазона"):
@@ -113,10 +117,10 @@ class TestHeatLossFormula:
     def test_outer_layer_is_checked_by_actual_layer_temperature(self):
         params = _cyl(
             insulation_thickness=0.5,
-            insulation_material="aerogel",
+            insulation_material="mineral_wool_boards_120",
             insulation_layers=[
-                InsulationLayer(thickness=0.5, material="aerogel"),
-                InsulationLayer(thickness=0.02, material="polyurethane"),
+                InsulationLayer(thickness=0.5, material="mineral_wool_boards_120"),
+                InsulationLayer(thickness=0.02, material="polystyrene_products_50"),
             ],
             process_temperature=200.0,
         )
@@ -149,7 +153,7 @@ class TestHeatLossFormula:
         # α = 11.6 + 7*0 = 11.6
         alpha = 11.6
         r_ext = 1.0 / alpha
-        lam = get_insulation_conductivity("mineral_wool", (-20 + 80) / 2)
+        lam = get_insulation_conductivity("mineral_wool_boards_120", 80 / 2)
         r_ins = 0.08 / lam
         delta_t = 80 - (-20)
         expected_q = delta_t / (r_ins + r_ext)
@@ -182,9 +186,9 @@ class TestHeatLossFormula:
             _cyl(
                 insulation_thickness=0.04,
                 insulation_layers=[
-                    InsulationLayer(thickness=0.04, material="mineral_wool"),
-                    InsulationLayer(thickness=0.02, material="polyurethane"),
-                    InsulationLayer(thickness=0.01, material="foam_glass"),
+                    InsulationLayer(thickness=0.04, material="mineral_wool_boards_120"),
+                    InsulationLayer(thickness=0.02, material="polystyrene_products_50"),
+                    InsulationLayer(thickness=0.01, material="polyurethane_products_50"),
                 ],
             )
         )
@@ -199,7 +203,7 @@ class TestHeatLossFormula:
         )
         alpha = 11.6
         r_wall = 0.008 / 50.0
-        lam = get_insulation_conductivity("mineral_wool", 30.0)
+        lam = get_insulation_conductivity("mineral_wool_boards_120", 80 / 2)
         r_ins = 0.08 / lam
         r_ext = 1.0 / alpha
         delta_t = 100.0

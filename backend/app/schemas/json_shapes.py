@@ -15,6 +15,17 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
 
+InsulationTemperatureBasisDict = Literal[
+    "indoor",
+    "outdoor_summer",
+    "outdoor_winter",
+    "channel",
+    "tunnel",
+    "technical_subfloor",
+    "attic",
+    "basement",
+]
+
 # ---------------------------------------------------------------------------
 # results-поля project_objects.results (JSONB)
 # ---------------------------------------------------------------------------
@@ -130,6 +141,7 @@ class PipeParamsDict(TypedDict, total=False):
     climate_region: str | None
     climate_key: str | None
     climate_temperature_basis: Literal["t_0_92", "t_0_98", "t_abs_min"] | None
+    insulation_temperature_basis: InsulationTemperatureBasisDict | None
     ambient_temperature_source: Literal["manual", "climate"] | None
     wind_speed_source: Literal["manual", "climate"] | None
     num_local_elements: int | None
@@ -177,6 +189,7 @@ class TankParamsDict(TypedDict, total=False):
     climate_region: str | None
     climate_key: str | None
     climate_temperature_basis: Literal["t_0_92", "t_0_98", "t_abs_min"] | None
+    insulation_temperature_basis: InsulationTemperatureBasisDict | None
     ambient_temperature_source: Literal["manual", "climate"] | None
     wind_speed_source: Literal["manual", "climate"] | None
     location: Literal["indoor", "outdoor"]

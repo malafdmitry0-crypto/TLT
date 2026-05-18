@@ -7,7 +7,12 @@
       "temperature_range": [
         -60,
         400
-      ]
+      ],
+      "selectable": false,
+      "deprecated": true,
+      "requires_material_reselection": true,
+      "material_family": "mineral_wool",
+      "reselection_message": "Уточните конкретный материал и плотность из справочника теплоизоляции"
     },
     {
       "material": "foam_glass",
@@ -16,7 +21,12 @@
       "temperature_range": [
         -260,
         430
-      ]
+      ],
+      "selectable": false,
+      "deprecated": true,
+      "requires_material_reselection": true,
+      "material_family": "foam_glass",
+      "reselection_message": "Уточните конкретный материал и плотность из справочника теплоизоляции"
     },
     {
       "material": "polyurethane",
@@ -25,7 +35,12 @@
       "temperature_range": [
         -60,
         120
-      ]
+      ],
+      "selectable": false,
+      "deprecated": true,
+      "requires_material_reselection": true,
+      "material_family": "polyurethane",
+      "reselection_message": "Уточните конкретный материал и плотность из справочника теплоизоляции"
     },
     {
       "material": "polystyrene",
@@ -34,7 +49,12 @@
       "temperature_range": [
         -60,
         75
-      ]
+      ],
+      "selectable": false,
+      "deprecated": true,
+      "requires_material_reselection": true,
+      "material_family": "polystyrene",
+      "reselection_message": "Уточните конкретный материал и плотность из справочника теплоизоляции"
     },
     {
       "material": "aerogel",
@@ -43,7 +63,12 @@
       "temperature_range": [
         -200,
         650
-      ]
+      ],
+      "selectable": false,
+      "deprecated": true,
+      "requires_material_reselection": true,
+      "material_family": "aerogel",
+      "reselection_message": "Уточните конкретный материал и плотность из справочника теплоизоляции"
     },
     {
       "material": "calcium_silicate",
@@ -52,7 +77,12 @@
       "temperature_range": [
         -30,
         650
-      ]
+      ],
+      "selectable": false,
+      "deprecated": true,
+      "requires_material_reselection": true,
+      "material_family": "calcium_silicate",
+      "reselection_message": "Уточните конкретный материал и плотность из справочника теплоизоляции"
     },
     {
       "material": "mineral_wool_boards_120",

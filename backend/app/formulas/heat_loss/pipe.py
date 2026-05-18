@@ -20,6 +20,7 @@ from app.formulas.heat_loss.common import (
     validate_positive,
     validate_temperature_range,
 )
+from app.formulas.heat_loss.insulation import resolve_insulation_tm
 from app.reference_data.loader import (
     get_insulation_conductivity,
     get_insulation_temperature_range,
@@ -169,7 +170,7 @@ def _r_wall(
 def _r_insulation_layers(
     r_start: float,
     layers: list[InsulationLayer],
-    t_mean: float,
+    insulation_tm: float,
 ) -> tuple[float, float, list[_LayerResistance]]:
     """Суммарное сопротивление слоёв изоляции + итоговый наружный радиус."""
     r = r_start
@@ -177,10 +178,12 @@ def _r_insulation_layers(
     layer_resistances: list[_LayerResistance] = []
     for layer in layers:
         r_out = r + layer.thickness
-        if layer.conductivity is not None:
+        if layer.material == "other":
+            if layer.conductivity is None:
+                raise ValueError("Для материала изоляции 'other' необходимо задать λ слоя")
             lam = layer.conductivity
         else:
-            lam = get_insulation_conductivity(layer.material, t_mean)
+            lam = get_insulation_conductivity(layer.material, insulation_tm)
         layer_resistance = _r_cylindrical(r, r_out, lam)
         r_total += layer_resistance
         layer_resistances.append(_LayerResistance(layer=layer, resistance=layer_resistance))
@@ -277,7 +280,16 @@ def calc_pipe_heat_loss(
         )
 
     # --- 2. Сопротивление слоёв изоляции ---
-    r_ins, r_outer_total, layer_resistances = _r_insulation_layers(r_outer_pipe, layers, t_mean)
+    insulation_tm = resolve_insulation_tm(
+        process_temperature=params.process_temperature,
+        basis=params.insulation_temperature_basis,
+        location=params.location,
+    )
+    r_ins, r_outer_total, layer_resistances = _r_insulation_layers(
+        r_outer_pipe,
+        layers,
+        insulation_tm,
+    )
 
     # --- 3. Внешнее сопротивление ---
     merged_coeffs = merge_coefficients(coefficients)

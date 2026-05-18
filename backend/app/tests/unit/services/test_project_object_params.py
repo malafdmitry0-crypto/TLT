@@ -16,7 +16,8 @@ def test_pipe_object_defaults_match_inline_form_defaults():
             "outer_diameter": 0.108,
             "pipe_length": 10,
             "insulation_thickness": 0.05,
-            "insulation_material": "mineral_wool",
+            "insulation_material": "mineral_wool_boards_120",
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -20,
             "process_temperature": 80,
         },
@@ -31,7 +32,9 @@ def test_pipe_object_defaults_match_inline_form_defaults():
     assert params["safety_factor_source"] == "default"
     assert params["steam_tracing"] == "no"
     assert params["num_local_elements"] == 6
-    assert params["insulation_layers"] == [{"thickness": 0.05, "material": "mineral_wool"}]
+    assert params["insulation_layers"] == [
+        {"thickness": 0.05, "material": "mineral_wool_boards_120"}
+    ]
 
 
 def test_explicit_blank_pipe_wall_is_not_silently_defaulted():
@@ -44,7 +47,8 @@ def test_explicit_blank_pipe_wall_is_not_silently_defaulted():
                 "pipe_material": "carbon_steel",
                 "pipe_length": 10,
                 "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool",
+                "insulation_material": "mineral_wool_boards_120",
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
             },
@@ -58,7 +62,8 @@ def test_climate_key_is_derived_from_region_and_city():
             "outer_diameter": 0.108,
             "pipe_length": 10,
             "insulation_thickness": 0.05,
-            "insulation_material": "mineral_wool",
+            "insulation_material": "mineral_wool_boards_120",
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -20,
             "process_temperature": 80,
             "climate_region": "ХМАО",
@@ -76,7 +81,8 @@ def test_climate_region_and_city_are_derived_from_key_when_missing():
             "outer_diameter": 0.108,
             "pipe_length": 10,
             "insulation_thickness": 0.05,
-            "insulation_material": "mineral_wool",
+            "insulation_material": "mineral_wool_boards_120",
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -20,
             "process_temperature": 80,
             "climate_key": "ХМАО|||Сургут",
@@ -96,7 +102,8 @@ def test_declared_second_insulation_layer_requires_fields():
                 "outer_diameter": 0.108,
                 "pipe_length": 10,
                 "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool",
+                "insulation_material": "mineral_wool_boards_120",
+                "insulation_temperature_basis": "outdoor_winter",
                 "insulation_layer_count": "2",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
@@ -110,7 +117,8 @@ def test_tank_shape_geometry_is_required_after_defaults():
             "tank",
             {
                 "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool",
+                "insulation_material": "mineral_wool_boards_120",
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
             },

@@ -1640,6 +1640,76 @@
       },
       "description": "Какое значение из климатического справочника использовать для T° окр. среды: 0,92, 0,98 или абсолютный минимум."
     },
+    "insulation_temperature_basis": {
+      "service_name": "insulation_temperature_basis",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Режим температуры изоляции",
+        "short": "tm изол.",
+        "compact": "tm"
+      },
+      "contexts": {
+        "table_by_key": {
+          "insulation_temperature_basis": {
+            "label": "tm изол.",
+            "full_label": "Режим температуры изоляции",
+            "tooltip": "Режим расчётной температуры tm для λ изоляции"
+          }
+        },
+        "settings_by_key": {
+          "insulation_temperature_basis": {
+            "label": "Режим температуры изоляции"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "insulation_temperature_basis",
+        "tank": "insulation_temperature_basis"
+      },
+      "input": {
+        "type": "select",
+        "required": true,
+        "options": [
+          {
+            "value": "indoor",
+            "label": "Помещение"
+          },
+          {
+            "value": "outdoor_summer",
+            "label": "Открытый воздух, лето"
+          },
+          {
+            "value": "outdoor_winter",
+            "label": "Открытый воздух, зима"
+          },
+          {
+            "value": "channel",
+            "label": "Канал"
+          },
+          {
+            "value": "tunnel",
+            "label": "Тоннель"
+          },
+          {
+            "value": "technical_subfloor",
+            "label": "Техническое подполье"
+          },
+          {
+            "value": "attic",
+            "label": "Чердак"
+          },
+          {
+            "value": "basement",
+            "label": "Подвал"
+          }
+        ]
+      },
+      "description": "Документальный режим расчётной температуры tm для λ изоляции: для помещения/лета/канала/тоннеля/подполья/чердака/подвала tm=(Tж+40)/2, для улицы зимой tm=Tж/2."
+    },
     "burial_depth": {
       "service_name": "burial_depth",
       "object_types": [
@@ -3705,6 +3775,18 @@
           "field": "climate_temperature_basis"
         },
         {
+          "key": "insulation_temperature_basis",
+          "group": "Температура и среда",
+          "defaultWidthPct": 10,
+          "minWidthPx": 86,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "insulation_temperature_basis"
+        },
+        {
           "key": "burial_depth",
           "group": "Грунт",
           "defaultWidthPct": 9.2,
@@ -4451,6 +4533,18 @@
           "field": "climate_temperature_basis"
         },
         {
+          "key": "insulation_temperature_basis",
+          "group": "Температура и среда",
+          "defaultWidthPct": 10,
+          "minWidthPx": 86,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "insulation_temperature_basis"
+        },
+        {
           "key": "burial_depth",
           "group": "Грунт",
           "defaultWidthPct": 9.2,
@@ -4788,6 +4882,7 @@
           "fields": [
             "climate_key",
             "climate_temperature_basis",
+            "insulation_temperature_basis",
             "ambient_temperature",
             "process_temperature",
             "wind_speed",
@@ -4860,6 +4955,7 @@
           "fields": [
             "climate_key",
             "climate_temperature_basis",
+            "insulation_temperature_basis",
             "ambient_temperature",
             "process_temperature",
             "wind_speed",

@@ -7,6 +7,7 @@ import io
 import json
 import re
 import zipfile
+from dataclasses import dataclass
 from typing import Any, Literal
 from uuid import UUID
 
@@ -21,6 +22,10 @@ from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
+from app.reference_data.loader import (
+    INSULATION_MATERIAL_RESELECTION_MESSAGE,
+    list_insulation_materials,
+)
 from app.services.project_object_params import normalize_project_object_params
 from app.services.project_service import (
     ProjectAccessError,
@@ -46,7 +51,7 @@ TYPE_ALIASES: dict[str, str] = {
     "tank": "tank",
 }
 
-MATERIAL_ALIASES: dict[str, str] = {
+GENERIC_MATERIAL_ALIASES: dict[str, str] = {
     "минеральная вата": "mineral_wool",
     "мин вата": "mineral_wool",
     "мин. вата": "mineral_wool",
@@ -64,6 +69,9 @@ MATERIAL_ALIASES: dict[str, str] = {
     "aerogel": "aerogel",
     "силикат кальция": "calcium_silicate",
     "calcium_silicate": "calcium_silicate",
+}
+
+SPECIAL_MATERIAL_ALIASES: dict[str, str] = {
     "другое": "other",
     "other": "other",
 }
@@ -123,6 +131,31 @@ CLIMATE_BASIS_ALIASES: dict[str, str] = {
     "t_abs_min": "t_abs_min",
 }
 
+INSULATION_TEMPERATURE_BASIS_ALIASES: dict[str, str] = {
+    "indoor": "indoor",
+    "помещение": "indoor",
+    "в помещении": "indoor",
+    "outdoor_summer": "outdoor_summer",
+    "улица лето": "outdoor_summer",
+    "открытый воздух лето": "outdoor_summer",
+    "открытый воздух, лето": "outdoor_summer",
+    "outdoor_winter": "outdoor_winter",
+    "улица зима": "outdoor_winter",
+    "открытый воздух зима": "outdoor_winter",
+    "открытый воздух, зима": "outdoor_winter",
+    "channel": "channel",
+    "канал": "channel",
+    "tunnel": "tunnel",
+    "тоннель": "tunnel",
+    "technical_subfloor": "technical_subfloor",
+    "техническое подполье": "technical_subfloor",
+    "подполье": "technical_subfloor",
+    "attic": "attic",
+    "чердак": "attic",
+    "basement": "basement",
+    "подвал": "basement",
+}
+
 SHAPE_ALIASES: dict[str, str] = {
     "цилиндр": "cylindrical",
     "цилиндрический": "cylindrical",
@@ -162,6 +195,7 @@ PIPE_HEADERS: dict[str, str] = {
     "δ, мм": "insulation_thickness_mm",
     "δ мм": "insulation_thickness_mm",
     "материал изоляции": "insulation_material",
+    "код материала изоляции": "insulation_material",
     "материал": "insulation_material",
     "т° среды": "ambient_temperature",
     "т среды": "ambient_temperature",
@@ -232,6 +266,9 @@ PIPE_HEADERS: dict[str, str] = {
     "climate_key": "climate_key",
     "обеспеченность климата": "climate_temperature_basis",
     "температура климата": "climate_temperature_basis",
+    "режим температуры изоляции": "insulation_temperature_basis",
+    "tm изоляции": "insulation_temperature_basis",
+    "tм изоляции": "insulation_temperature_basis",
     "задвижки": "valve_count",
     "фланцы": "flange_count",
     "опоры": "support_count",
@@ -263,6 +300,7 @@ TANK_HEADERS: dict[str, str] = {
     "δ, мм": "insulation_thickness_mm",
     "δ мм": "insulation_thickness_mm",
     "материал изоляции": "insulation_material",
+    "код материала изоляции": "insulation_material",
     "материал": "insulation_material",
     "т° среды": "ambient_temperature",
     "т среды": "ambient_temperature",
@@ -327,6 +365,9 @@ TANK_HEADERS: dict[str, str] = {
     "climate_key": "climate_key",
     "обеспеченность климата": "climate_temperature_basis",
     "температура климата": "climate_temperature_basis",
+    "режим температуры изоляции": "insulation_temperature_basis",
+    "tm изоляции": "insulation_temperature_basis",
+    "tм изоляции": "insulation_temperature_basis",
     "q доп., вт": "q_additional",
     "q доп, вт": "q_additional",
     "дополнительные теплопотери, вт": "q_additional",
@@ -380,11 +421,69 @@ def _to_float(v: Any) -> float | None:
         return None
 
 
-def _resolve_material(v: Any) -> str | None:
+@dataclass(frozen=True)
+class _MaterialResolution:
+    material: str | None = None
+    raw: str | None = None
+    family: str | None = None
+    needs_reselection: bool = False
+
+
+def _selectable_insulation_entries() -> list[dict[str, Any]]:
+    return [
+        entry
+        for entry in list_insulation_materials()
+        if entry.get("selectable") is not False and entry.get("deprecated") is not True
+    ]
+
+
+def _resolve_material_entry(v: Any) -> _MaterialResolution:
     key = _norm(v)
     if not key:
-        return None
-    return MATERIAL_ALIASES.get(key)
+        return _MaterialResolution()
+    raw = str(v).strip()
+    if key in SPECIAL_MATERIAL_ALIASES:
+        return _MaterialResolution(material=SPECIAL_MATERIAL_ALIASES[key], raw=raw)
+    if key in GENERIC_MATERIAL_ALIASES:
+        return _MaterialResolution(
+            raw=raw,
+            family=GENERIC_MATERIAL_ALIASES[key],
+            needs_reselection=True,
+        )
+
+    entries = _selectable_insulation_entries()
+    by_code = {str(entry["material"]).lower(): entry for entry in entries}
+    code_match = by_code.get(key)
+    if code_match is not None:
+        return _MaterialResolution(material=str(code_match["material"]), raw=raw)
+
+    name_matches = [entry for entry in entries if _norm(entry.get("name")) == key]
+    if len(name_matches) == 1:
+        return _MaterialResolution(material=str(name_matches[0]["material"]), raw=raw)
+    if len(name_matches) > 1:
+        family = str(name_matches[0].get("material_family") or name_matches[0]["material"])
+        return _MaterialResolution(raw=raw, family=family, needs_reselection=True)
+    return _MaterialResolution()
+
+
+def _resolve_material(v: Any) -> str | None:
+    return _resolve_material_entry(v).material
+
+
+def _apply_insulation_material_resolution(
+    params: dict[str, Any],
+    field: str,
+    resolution: _MaterialResolution,
+) -> None:
+    if resolution.material:
+        params[field] = resolution.material
+        return
+    if not resolution.needs_reselection:
+        return
+    params["needs_material_reselection"] = True
+    params[f"{field}_raw"] = resolution.raw
+    params[f"{field}_family"] = resolution.family
+    params[f"{field}_warning"] = INSULATION_MATERIAL_RESELECTION_MESSAGE
 
 
 def _resolve_pipe_material(v: Any) -> str | None:
@@ -472,6 +571,12 @@ def _apply_common_srs_params(params: dict[str, Any], row: dict[str, Any]) -> Non
     climate_basis = _resolve_climate_basis(row.get("climate_temperature_basis"))
     if climate_basis:
         params["climate_temperature_basis"] = climate_basis
+    insulation_temperature_basis = _resolve_alias(
+        row.get("insulation_temperature_basis"),
+        INSULATION_TEMPERATURE_BASIS_ALIASES,
+    )
+    if insulation_temperature_basis:
+        params["insulation_temperature_basis"] = insulation_temperature_basis
 
 
 def _apply_layered_insulation(params: dict[str, Any], row: dict[str, Any]) -> None:
@@ -492,10 +597,16 @@ def _apply_layered_insulation(params: dict[str, Any], row: dict[str, Any]) -> No
         layers.append(first_layer)
 
     if count >= 2:
-        material2 = _resolve_material(row.get("second_insulation_material"))
+        material2_resolution = _resolve_material_entry(row.get("second_insulation_material"))
+        material2 = material2_resolution.material
         thickness2 = _to_float(row.get("second_insulation_thickness_mm"))
         lambda2 = _to_float(row.get("second_insulation_lambda"))
-        if material2 or thickness2 is not None or lambda2 is not None:
+        if (
+            material2
+            or material2_resolution.needs_reselection
+            or thickness2 is not None
+            or lambda2 is not None
+        ):
             while len(layers) < 1:
                 layers.append({})
             layer2: dict[str, Any] = {}
@@ -503,15 +614,26 @@ def _apply_layered_insulation(params: dict[str, Any], row: dict[str, Any]) -> No
                 layer2["thickness"] = thickness2 / 1000.0
             if material2:
                 layer2["material"] = material2
+            elif material2_resolution.needs_reselection:
+                params["needs_material_reselection"] = True
+                layer2["material_raw"] = material2_resolution.raw
+                layer2["material_family"] = material2_resolution.family
+                layer2["material_warning"] = INSULATION_MATERIAL_RESELECTION_MESSAGE
             if lambda2 is not None:
                 layer2["conductivity"] = lambda2
             layers.append(layer2)
 
     if count >= 3:
-        material3 = _resolve_material(row.get("third_insulation_material"))
+        material3_resolution = _resolve_material_entry(row.get("third_insulation_material"))
+        material3 = material3_resolution.material
         thickness3 = _to_float(row.get("third_insulation_thickness_mm"))
         lambda3 = _to_float(row.get("third_insulation_lambda"))
-        if material3 or thickness3 is not None or lambda3 is not None:
+        if (
+            material3
+            or material3_resolution.needs_reselection
+            or thickness3 is not None
+            or lambda3 is not None
+        ):
             while len(layers) < 2:
                 layers.append({})
             layer3: dict[str, Any] = {}
@@ -519,6 +641,11 @@ def _apply_layered_insulation(params: dict[str, Any], row: dict[str, Any]) -> No
                 layer3["thickness"] = thickness3 / 1000.0
             if material3:
                 layer3["material"] = material3
+            elif material3_resolution.needs_reselection:
+                params["needs_material_reselection"] = True
+                layer3["material_raw"] = material3_resolution.raw
+                layer3["material_family"] = material3_resolution.family
+                layer3["material_warning"] = INSULATION_MATERIAL_RESELECTION_MESSAGE
             if lambda3 is not None:
                 layer3["conductivity"] = lambda3
             layers.append(layer3)
@@ -561,7 +688,7 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
     d_mm = _to_float(row.get("outer_diameter_mm"))
     L = _to_float(row.get("pipe_length"))
     ins_mm = _to_float(row.get("insulation_thickness_mm"))
-    material = _resolve_material(row.get("insulation_material"))
+    material_resolution = _resolve_material_entry(row.get("insulation_material"))
     t_a = _to_float(row.get("ambient_temperature"))
     t_p = _to_float(row.get("process_temperature"))
 
@@ -572,8 +699,7 @@ def _build_pipe_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
         params["pipe_length"] = L
     if ins_mm is not None:
         params["insulation_thickness"] = ins_mm / 1000.0
-    if material:
-        params["insulation_material"] = material
+    _apply_insulation_material_resolution(params, "insulation_material", material_resolution)
     if t_a is not None:
         params["ambient_temperature"] = t_a
     if t_p is not None:
@@ -613,7 +739,7 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
         return None, "Не указана или не распознана форма (цилиндр / параллелепипед / шар)"
 
     ins_mm = _to_float(row.get("insulation_thickness_mm"))
-    material = _resolve_material(row.get("insulation_material"))
+    material_resolution = _resolve_material_entry(row.get("insulation_material"))
     t_a = _to_float(row.get("ambient_temperature"))
     t_p = _to_float(row.get("process_temperature"))
 
@@ -622,8 +748,7 @@ def _build_tank_params(row: dict[str, Any]) -> tuple[dict[str, Any] | None, str 
         params["shape"] = shape
     if ins_mm is not None:
         params["insulation_thickness"] = ins_mm / 1000.0
-    if material:
-        params["insulation_material"] = material
+    _apply_insulation_material_resolution(params, "insulation_material", material_resolution)
     if t_a is not None:
         params["ambient_temperature"] = t_a
     if t_p is not None:
@@ -1142,14 +1267,29 @@ async def import_objects_from_excel(
     }
 
 
-MATERIAL_LABELS_RU: dict[str, str] = {
-    "mineral_wool": "Минеральная вата",
-    "foam_glass": "Пеностекло",
-    "polyurethane": "Пенополиуретан",
-    "polystyrene": "Пенополистирол",
-    "aerogel": "Аэрогель",
-    "calcium_silicate": "Силикат кальция",
-}
+def _material_label(material: Any) -> str:
+    if not material:
+        return ""
+    material_str = str(material)
+    for entry in list_insulation_materials():
+        if entry.get("material") == material_str:
+            return str(entry.get("name") or material_str)
+    return material_str
+
+
+def _material_status(params: dict[str, Any]) -> str:
+    if params.get("needs_material_reselection") is True:
+        return "Требует уточнения"
+    if params.get("insulation_material"):
+        return "Конкретный материал"
+    return ""
+
+
+def _material_warning(params: dict[str, Any]) -> str:
+    if params.get("needs_material_reselection") is True:
+        return INSULATION_MATERIAL_RESELECTION_MESSAGE
+    return ""
+
 
 SHAPE_LABELS_RU: dict[str, str] = {
     "cylindrical": "Цилиндр",
@@ -1188,10 +1328,14 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Длина, м",
         "Толщина изоляции, мм",
         "Материал изоляции",
+        "Код материала изоляции",
+        "Статус материала изоляции",
+        "Комментарий материала изоляции",
         "T° среды",
         "T° продукта",
         "T проп., °C",
         "Размещение",
+        "Режим температуры изоляции",
         "Климатический регион",
         "Климатический город",
         "Ключ климата",
@@ -1218,10 +1362,14 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
         "Высота, мм",
         "Толщина изоляции, мм",
         "Материал изоляции",
+        "Код материала изоляции",
+        "Статус материала изоляции",
+        "Комментарий материала изоляции",
         "T° среды",
         "T° продукта",
         "T проп., °C",
         "Размещение",
+        "Режим температуры изоляции",
         "Климатический регион",
         "Климатический город",
         "Ключ климата",
@@ -1238,8 +1386,9 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
     for obj in objects:
         params = obj.params or {}
         name = params.get("name") or ""
-        material = MATERIAL_LABELS_RU.get(
-            params.get("insulation_material", ""), params.get("insulation_material", "")
+        material_code = params.get("insulation_material", "")
+        material = _material_label(material_code) or str(
+            params.get("insulation_material_raw") or ""
         )
         if obj.object_type == "pipe":
             append_safe_row(
@@ -1250,10 +1399,14 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     params.get("pipe_length") or "",
                     _to_export_mm(params.get("insulation_thickness")),
                     material,
+                    material_code,
+                    _material_status(params),
+                    _material_warning(params),
                     params.get("ambient_temperature", ""),
                     params.get("process_temperature", ""),
                     params.get("vapor_temperature", ""),
                     params.get("placement", ""),
+                    params.get("insulation_temperature_basis", ""),
                     params.get("climate_region", ""),
                     params.get("climate_city", ""),
                     params.get("climate_key", ""),
@@ -1284,10 +1437,14 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
                     to_mm("height"),
                     to_mm("insulation_thickness"),
                     material,
+                    material_code,
+                    _material_status(params),
+                    _material_warning(params),
                     params.get("ambient_temperature", ""),
                     params.get("process_temperature", ""),
                     params.get("vapor_temperature", ""),
                     params.get("placement", ""),
+                    params.get("insulation_temperature_basis", ""),
                     params.get("climate_region", ""),
                     params.get("climate_city", ""),
                     params.get("climate_key", ""),
@@ -1325,10 +1482,14 @@ def build_template_xlsx() -> bytes:
         "Длина, м",
         "Толщина изоляции, мм",
         "Материал изоляции",
+        "Код материала изоляции",
+        "Статус материала изоляции",
+        "Комментарий материала изоляции",
         "T° среды",
         "T° продукта",
         "T проп., °C",
         "Размещение",
+        "Режим температуры изоляции",
         "Климатический регион",
         "Климатический город",
         "Ключ климата",
@@ -1350,11 +1511,15 @@ def build_template_xlsx() -> bytes:
             108,
             50,
             50,
-            "Минеральная вата",
+            "Плиты минераловатные прошивные",
+            "mineral_wool_boards_120",
+            "",
+            "",
             -20,
             80,
             "",
             "outdoor",
+            "outdoor_winter",
             "",
             "",
             "",
@@ -1373,11 +1538,15 @@ def build_template_xlsx() -> bytes:
             57,
             20,
             40,
-            "Пеностекло",
+            "Теплоизоляционные изделия из пенополиуретана",
+            "polyurethane_products_50",
+            "",
+            "",
             -30,
             60,
             "",
             "outdoor",
+            "outdoor_winter",
             "",
             "",
             "",
@@ -1404,10 +1573,14 @@ def build_template_xlsx() -> bytes:
         "Высота, мм",
         "Толщина изоляции, мм",
         "Материал изоляции",
+        "Код материала изоляции",
+        "Статус материала изоляции",
+        "Комментарий материала изоляции",
         "T° среды",
         "T° продукта",
         "T проп., °C",
         "Размещение",
+        "Режим температуры изоляции",
         "Климатический регион",
         "Климатический город",
         "Ключ климата",
@@ -1429,11 +1602,15 @@ def build_template_xlsx() -> bytes:
             "",
             3000,
             80,
-            "Минеральная вата",
+            "Плиты минераловатные прошивные",
+            "mineral_wool_boards_120",
+            "",
+            "",
             -20,
             80,
             "",
             "outdoor",
+            "outdoor_winter",
             "",
             "",
             "",
@@ -1452,11 +1629,15 @@ def build_template_xlsx() -> bytes:
             3000,
             4000,
             80,
-            "Минеральная вата",
+            "Плиты минераловатные прошивные",
+            "mineral_wool_boards_120",
+            "",
+            "",
             -20,
             80,
             "",
             "outdoor",
+            "outdoor_winter",
             "",
             "",
             "",
@@ -1475,11 +1656,15 @@ def build_template_xlsx() -> bytes:
             "",
             "",
             60,
-            "Пенополиуретан",
+            "Изделия из ППУ",
+            "polyurethane_products_50",
+            "",
+            "",
             -20,
             60,
             "",
             "outdoor",
+            "outdoor_winter",
             "",
             "",
             "",
@@ -1496,16 +1681,16 @@ def build_template_xlsx() -> bytes:
     ws_info = wb.create_sheet("Справка")
     ws_info["A1"] = "Подсказки по импорту"
     ws_info["A1"].font = Font(bold=True, size=14)
-    ws_info["A3"] = "Материалы изоляции (допустимы оба варианта):"
+    ws_info["A3"] = "Материалы изоляции: используйте конкретный код и плотность."
     ws_info["A3"].font = Font(bold=True)
     for i, mat in enumerate(
         [
-            "Минеральная вата / mineral_wool",
-            "Пеностекло / foam_glass",
-            "Пенополиуретан (ППУ) / polyurethane",
-            "Пенополистирол / polystyrene",
-            "Аэрогель / aerogel",
-            "Силикат кальция / calcium_silicate",
+            "mineral_wool_boards_120 — Плиты минераловатные прошивные, ρ 120",
+            "polyurethane_products_50 — Изделия из ППУ, ρ 50",
+            "polystyrene_products_50 — Изделия из полистирола, ρ 50",
+            "mineral_wool_cylinders_100 — Цилиндры минераловатные, ρ 100",
+            "fiberglass_mats_70 — Маты стеклянного штапельного волокна, ρ 70",
+            "k_flex_st — Кайманфлекс K-Flex ST, ρ 60-80",
         ],
         start=4,
     ):
@@ -1540,10 +1725,14 @@ def build_template_csv() -> bytes:
             "Длина, м",  # для трубы — длина в метрах
             "Толщина изоляции, мм",
             "Материал изоляции",
+            "Код материала изоляции",
+            "Статус материала изоляции",
+            "Комментарий материала изоляции",
             "T° среды",
             "T° продукта",
             "T проп., °C",
             "Размещение",
+            "Режим температуры изоляции",
             "Климатический регион",
             "Климатический город",
             "Ключ климата",
@@ -1569,11 +1758,15 @@ def build_template_csv() -> bytes:
             "",
             50,
             50,
-            "Минеральная вата",
+            "Плиты минераловатные прошивные",
+            "mineral_wool_boards_120",
+            "",
+            "",
             -20,
             80,
             "",
             "outdoor",
+            "outdoor_winter",
             "",
             "",
             "",
@@ -1598,11 +1791,15 @@ def build_template_csv() -> bytes:
             "",
             20,
             40,
-            "Пеностекло",
+            "Теплоизоляционные изделия из пенополиуретана",
+            "polyurethane_products_50",
+            "",
+            "",
             -30,
             60,
             "",
             "outdoor",
+            "outdoor_winter",
             "",
             "",
             "",
@@ -1628,11 +1825,15 @@ def build_template_csv() -> bytes:
             3000,
             "",
             80,
-            "Минеральная вата",
+            "Плиты минераловатные прошивные",
+            "mineral_wool_boards_120",
+            "",
+            "",
             -20,
             80,
             "",
             "outdoor",
+            "outdoor_winter",
             "",
             "",
             "",
@@ -1657,11 +1858,15 @@ def build_template_csv() -> bytes:
             4000,
             "",
             80,
-            "Пенополиуретан",
+            "Теплоизоляционные изделия из пенополиуретана",
+            "polyurethane_products_50",
+            "",
+            "",
             -20,
             60,
             "",
             "outdoor",
+            "outdoor_winter",
             "",
             "",
             "",
@@ -1676,7 +1881,26 @@ def build_template_csv() -> bytes:
         ]
     )
     writer.writerow(
-        ["резервуар", "Шар", "Шар", 1500, "", "", "", "", 60, "Пеностекло", -20, 50, ""]
+        [
+            "резервуар",
+            "Шар",
+            "Шар",
+            1500,
+            "",
+            "",
+            "",
+            "",
+            60,
+            "Теплоизоляционные изделия из пенополиуретана",
+            "polyurethane_products_50",
+            "",
+            "",
+            -20,
+            50,
+            "",
+            "outdoor",
+            "outdoor_winter",
+        ]
     )
     # UTF-8 BOM чтобы Excel правильно открывал файл
     return ("\ufeff" + buf.getvalue()).encode("utf-8")

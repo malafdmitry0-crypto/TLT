@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.formulas.heat_loss.insulation import InsulationTemperatureBasis
 from app.reference_data.loader import get_insulation_temperature_range
 from app.schemas.project import (
     ObjectQueryDefaultSort,
@@ -93,7 +94,7 @@ class InsulationLayer(BaseModel):
         default=None,
         gt=0,
         le=400.0,
-        description="λ слоя, Вт/(м·К) — переопределяет справочник если задано",
+        description="λ слоя, Вт/(м·К) — используется только для материала 'other'",
     )
     temperature_range: tuple[float, float] | None = Field(
         default=None,
@@ -179,6 +180,13 @@ class PipeHeatLossParams(BaseModel):
         ge=-90.0,
         le=600.0,
         description="T_zh — температура жидкости, °C",
+    )
+    insulation_temperature_basis: InsulationTemperatureBasis | None = Field(
+        default=None,
+        description=(
+            "Режим расчётной температуры tm для λ изоляции: indoor/outdoor_summer/"
+            "outdoor_winter/channel/tunnel/technical_subfloor/attic/basement"
+        ),
     )
 
     # --- Длина и конфигурация ---
@@ -351,6 +359,13 @@ class TankHeatLossParams(BaseModel):
     )
     ambient_temperature: float
     process_temperature: float
+    insulation_temperature_basis: InsulationTemperatureBasis | None = Field(
+        default=None,
+        description=(
+            "Режим расчётной температуры tm для λ изоляции: indoor/outdoor_summer/"
+            "outdoor_winter/channel/tunnel/technical_subfloor/attic/basement"
+        ),
+    )
     location: Literal["indoor", "outdoor"] = "outdoor"
     # --- Стенка резервуара ---
     wall_thickness: float | None = Field(

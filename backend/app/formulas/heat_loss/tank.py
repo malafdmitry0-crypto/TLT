@@ -22,6 +22,7 @@ from app.formulas.heat_loss.common import (
     validate_positive,
     validate_temperature_range,
 )
+from app.formulas.heat_loss.insulation import resolve_insulation_tm
 from app.reference_data.loader import get_insulation_conductivity, get_insulation_temperature_range
 from app.schemas.calculation import InsulationLayer, TankHeatLossParams, TankHeatLossResult
 
@@ -172,20 +173,21 @@ def _resolve_layers(params: TankHeatLossParams) -> list[InsulationLayer]:
 
 def _r_insulation_layers(
     layers: list[InsulationLayer],
-    t_mean: float,
+    insulation_tm: float,
 ) -> tuple[float, list[_LayerResistance]]:
     r_ins = 0.0
     layer_resistances: list[_LayerResistance] = []
     for i, layer in enumerate(layers):
         validate_positive(f"Толщина изоляции слоя {i + 1}", layer.thickness)
-        lambda_ins = (
-            layer.conductivity
-            if layer.conductivity is not None
-            else get_insulation_conductivity(
+        if layer.material == "other":
+            if layer.conductivity is None:
+                raise ValueError("Для материала изоляции 'other' необходимо задать λ слоя")
+            lambda_ins = layer.conductivity
+        else:
+            lambda_ins = get_insulation_conductivity(
                 material=layer.material,
-                temperature=t_mean,
+                temperature=insulation_tm,
             )
-        )
         validate_positive(f"Теплопроводность изоляции слоя {i + 1}", lambda_ins)
         resistance = layer.thickness / lambda_ins
         r_ins += resistance
@@ -231,7 +233,6 @@ def calc_tank_heat_loss(
     validate_positive("Толщина изоляции", params.insulation_thickness)
     validate_temperature_range(params.ambient_temperature, params.process_temperature)
 
-    t_mean = (params.ambient_temperature + params.process_temperature) / 2.0
     delta_t = params.process_temperature - params.ambient_temperature
 
     # --- 1. Сопротивление стенки резервуара ---
@@ -246,7 +247,12 @@ def calc_tank_heat_loss(
     layers = _resolve_layers(params)
     if len(layers) > 3:
         raise ValueError("Максимальное количество слоёв изоляции: 3 (N_iz ≤ 3)")
-    r_ins, layer_resistances = _r_insulation_layers(layers, t_mean)
+    insulation_tm = resolve_insulation_tm(
+        process_temperature=params.process_temperature,
+        basis=params.insulation_temperature_basis,
+        location=params.location,
+    )
+    r_ins, layer_resistances = _r_insulation_layers(layers, insulation_tm)
 
     # --- 3. Внешнее сопротивление ---
     alpha = _calc_alpha(params)

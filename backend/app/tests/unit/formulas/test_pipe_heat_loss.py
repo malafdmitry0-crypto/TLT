@@ -31,7 +31,8 @@ def _params(**overrides) -> PipeHeatLossParams:
     defaults = dict(
         outer_diameter=0.108,  # DN100
         insulation_thickness=0.05,
-        insulation_material="mineral_wool",
+        insulation_material="mineral_wool_boards_120",
+        insulation_temperature_basis="outdoor_winter",
         ambient_temperature=-30.0,
         process_temperature=150.0,
         pipe_length=100.0,
@@ -89,10 +90,11 @@ class TestMultiLayerInsulation:
     def test_single_layer_via_list(self):
         params = PipeHeatLossParams(
             outer_diameter=0.108,
-            insulation_layers=[InsulationLayer(thickness=0.05, material="mineral_wool")],
+            insulation_layers=[InsulationLayer(thickness=0.05, material="mineral_wool_boards_120")],
             ambient_temperature=-30.0,
             process_temperature=150.0,
             pipe_length=100.0,
+            insulation_temperature_basis="outdoor_winter",
         )
         r = calc_pipe_heat_loss(params)
         assert r.heat_loss_per_meter > 0
@@ -102,12 +104,13 @@ class TestMultiLayerInsulation:
         two = PipeHeatLossParams(
             outer_diameter=0.108,
             insulation_layers=[
-                InsulationLayer(thickness=0.05, material="mineral_wool"),
-                InsulationLayer(thickness=0.05, material="mineral_wool"),
+                InsulationLayer(thickness=0.05, material="mineral_wool_boards_120"),
+                InsulationLayer(thickness=0.05, material="mineral_wool_boards_120"),
             ],
             ambient_temperature=-30.0,
             process_temperature=150.0,
             pipe_length=100.0,
+            insulation_temperature_basis="outdoor_winter",
         )
         assert (
             calc_pipe_heat_loss(two).heat_loss_per_meter
@@ -118,13 +121,14 @@ class TestMultiLayerInsulation:
         params = PipeHeatLossParams(
             outer_diameter=0.108,
             insulation_layers=[
-                InsulationLayer(thickness=0.03, material="mineral_wool"),
-                InsulationLayer(thickness=0.03, material="foam_glass"),
-                InsulationLayer(thickness=0.03, material="polyurethane"),
+                InsulationLayer(thickness=0.03, material="mineral_wool_boards_120"),
+                InsulationLayer(thickness=0.03, material="polyurethane_products_50"),
+                InsulationLayer(thickness=0.03, material="polystyrene_products_50"),
             ],
             ambient_temperature=-30.0,
             process_temperature=150.0,
             pipe_length=100.0,
+            insulation_temperature_basis="outdoor_winter",
         )
         r = calc_pipe_heat_loss(params)
         assert r.heat_loss_per_meter > 0
@@ -135,21 +139,28 @@ class TestMultiLayerInsulation:
         with pytest.raises(ValidationError):
             PipeHeatLossParams(
                 outer_diameter=0.108,
-                insulation_layers=[InsulationLayer(thickness=0.03, material="mineral_wool")] * 4,
+                insulation_layers=[
+                    InsulationLayer(thickness=0.03, material="mineral_wool_boards_120")
+                ]
+                * 4,
                 ambient_temperature=-30.0,
                 process_temperature=150.0,
                 pipe_length=100.0,
+                insulation_temperature_basis="outdoor_winter",
             )
 
     def test_layer_with_explicit_conductivity(self):
         params = PipeHeatLossParams(
             outer_diameter=0.108,
             insulation_layers=[
-                InsulationLayer(thickness=0.05, material="mineral_wool", conductivity=0.040)
+                InsulationLayer(
+                    thickness=0.05, material="mineral_wool_boards_120", conductivity=0.040
+                )
             ],
             ambient_temperature=-30.0,
             process_temperature=150.0,
             pipe_length=100.0,
+            insulation_temperature_basis="outdoor_winter",
         )
         r = calc_pipe_heat_loss(params)
         assert r.heat_loss_per_meter > 0
@@ -158,11 +169,12 @@ class TestMultiLayerInsulation:
         params = PipeHeatLossParams(
             outer_diameter=0.108,
             insulation_layers=[
-                InsulationLayer(thickness=0.02, material="polyurethane"),
+                InsulationLayer(thickness=0.02, material="polystyrene_products_50"),
             ],
             ambient_temperature=-20.0,
-            process_temperature=200.0,
+            process_temperature=500.0,
             pipe_length=100.0,
+            insulation_temperature_basis="outdoor_winter",
         )
 
         with pytest.raises(ValueError, match="вне диапазона"):
@@ -172,12 +184,13 @@ class TestMultiLayerInsulation:
         params = PipeHeatLossParams(
             outer_diameter=0.108,
             insulation_layers=[
-                InsulationLayer(thickness=0.20, material="aerogel"),
-                InsulationLayer(thickness=0.02, material="polyurethane"),
+                InsulationLayer(thickness=0.20, material="mineral_wool_boards_120"),
+                InsulationLayer(thickness=0.02, material="polystyrene_products_50"),
             ],
             ambient_temperature=-20.0,
             process_temperature=200.0,
             pipe_length=100.0,
+            insulation_temperature_basis="outdoor_winter",
         )
 
         assert calc_pipe_heat_loss(params).heat_loss_per_meter > 0
@@ -196,6 +209,7 @@ class TestMultiLayerInsulation:
             ambient_temperature=-20.0,
             process_temperature=150.0,
             pipe_length=100.0,
+            insulation_temperature_basis="outdoor_winter",
         )
 
         with pytest.raises(ValueError, match="вне диапазона"):
@@ -250,7 +264,8 @@ class TestPipeWall:
             wall_thickness=0.006,
             pipe_material="carbon_steel",
             insulation_thickness=0.05,
-            insulation_material="mineral_wool",
+            insulation_material="mineral_wool_boards_120",
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-30,
             process_temperature=150,
             pipe_length=10,
@@ -265,7 +280,8 @@ class TestPipeWall:
             outer_diameter=0.0108,
             wall_thickness=0.004,
             insulation_thickness=0.03,
-            insulation_material="mineral_wool",
+            insulation_material="mineral_wool_boards_120",
+            insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-30,
             process_temperature=150,
             pipe_length=100,
@@ -428,7 +444,8 @@ class TestSchemaValidation:
             PipeHeatLossParams(
                 outer_diameter=-0.1,
                 insulation_thickness=0.05,
-                insulation_material="mineral_wool",
+                insulation_material="mineral_wool_boards_120",
+                insulation_temperature_basis="outdoor_winter",
                 ambient_temperature=-30,
                 process_temperature=150,
                 pipe_length=100,

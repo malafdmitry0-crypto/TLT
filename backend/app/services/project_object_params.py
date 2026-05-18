@@ -8,6 +8,11 @@ required fields must make the object invalid before formulas run.
 from collections.abc import Mapping
 from typing import Any
 
+from app.reference_data.loader import (
+    INSULATION_MATERIAL_RESELECTION_MESSAGE,
+    is_generic_insulation_material,
+)
+
 
 class ProjectObjectParamsError(ValueError):
     """Object params are incomplete for a project object."""
@@ -60,6 +65,7 @@ def normalize_project_object_params(
         normalized.setdefault("safety_factor_source", "default")
     _normalize_climate_key(normalized)
     _normalize_placement(normalized)
+    _normalize_insulation_temperature_basis(normalized)
     _normalize_insulation_layers(normalized)
 
     if object_type == "pipe":
@@ -143,6 +149,13 @@ def _normalize_placement(params: dict[str, Any]) -> None:
         params["location"] = "indoor" if placement == "indoor" else "outdoor"
 
 
+def _normalize_insulation_temperature_basis(params: dict[str, Any]) -> None:
+    if not _is_missing(params.get("insulation_temperature_basis")):
+        return
+    if params.get("placement") == "indoor" or params.get("location") == "indoor":
+        params["insulation_temperature_basis"] = "indoor"
+
+
 def _normalize_insulation_layers(params: dict[str, Any]) -> None:
     layers = params.get("insulation_layers")
     thickness = params.get("insulation_thickness")
@@ -222,9 +235,19 @@ def _validate_common_params(params: Mapping[str, Any], missing: list[str]) -> No
         _require(params, "burial_depth", "Глубина/высота подземной части", missing)
         _require(params, "ground_type", "Тип грунта", missing)
         _require(params, "ground_conductivity", "λ грунта", missing)
+    if params.get("placement") != "indoor" and params.get("location") != "indoor":
+        _require(
+            params,
+            "insulation_temperature_basis",
+            "Режим температуры изоляции",
+            missing,
+        )
 
 
 def _validate_insulation(params: Mapping[str, Any], missing: list[str]) -> None:
+    if params.get("needs_material_reselection") is True:
+        missing.append(INSULATION_MATERIAL_RESELECTION_MESSAGE)
+
     count = _layer_count(params)
     layers = params.get("insulation_layers")
     layer_list = layers if isinstance(layers, list) else []
@@ -240,6 +263,8 @@ def _validate_insulation(params: Mapping[str, Any], missing: list[str]) -> None:
             if index == 0:
                 _require(params, "insulation_thickness", "Толщина изоляции", missing)
                 _require(params, "insulation_material", "Материал изоляции", missing)
+                if is_generic_insulation_material(str(params.get("insulation_material") or "")):
+                    missing.append(INSULATION_MATERIAL_RESELECTION_MESSAGE)
                 if params.get("insulation_material") == "other":
                     missing.append("λ 1-го слоя изоляции")
             else:
@@ -249,6 +274,8 @@ def _validate_insulation(params: Mapping[str, Any], missing: list[str]) -> None:
 
         _require(layer, "thickness", f"Толщина {label}", missing)
         _require(layer, "material", f"Материал {label}", missing)
+        if is_generic_insulation_material(str(layer.get("material") or "")):
+            missing.append(INSULATION_MATERIAL_RESELECTION_MESSAGE)
         if layer.get("material") == "other" and _is_missing(layer.get("conductivity")):
             missing.append(f"λ {label}")
         if layer.get("material") == "other" and _is_missing(layer.get("temperature_range")):

@@ -91,6 +91,7 @@ const ENUM_FILTER_COLUMNS = new Set<HeatCalcColumnKey>([
   'climate_region',
   'climate_key',
   'climate_temperature_basis',
+  'insulation_temperature_basis',
   'ground_type',
   'steam_tracing',
   'tank_shape',
@@ -323,6 +324,18 @@ export function climateBasisLabel(value: unknown) {
   if (value == null || value === '') return '—';
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? formatNumber(numericValue, 2) : String(value);
+}
+
+export function insulationTemperatureBasisLabel(value: unknown) {
+  if (value === 'indoor') return 'Помещение';
+  if (value === 'outdoor_summer') return 'Улица, лето';
+  if (value === 'outdoor_winter') return 'Улица, зима';
+  if (value === 'channel') return 'Канал';
+  if (value === 'tunnel') return 'Тоннель';
+  if (value === 'technical_subfloor') return 'Подполье';
+  if (value === 'attic') return 'Чердак';
+  if (value === 'basement') return 'Подвал';
+  return value == null || value === '' ? '—' : String(value);
 }
 
 export function sourceText(source: unknown) {

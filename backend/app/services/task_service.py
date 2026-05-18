@@ -48,6 +48,7 @@ TASK_REPORT_EXPORT = "report_export"
 ACTIVE_STATUSES = ("queued", "enqueued", "running")
 TERMINAL_STATUSES = ("succeeded", "failed", "cancelled")
 MAX_TASK_ERROR_MESSAGE_LENGTH = 4_000
+MAX_AUDIT_MESSAGE_LENGTH = 1_000
 WorkerFailureAction = Literal["ack", "retry", "dead_letter"]
 
 
@@ -826,11 +827,15 @@ class TaskService:
         task.lock_expires_at = None
         task.heartbeat_at = now
         task.finished_at = now
+        audit_message = compact_task_error_message(
+            task.error_message,
+            max_length=MAX_AUDIT_MESSAGE_LENGTH,
+        )
         await self._record_task_audit(
             task,
             "failed",
             error_code="task_failed",
-            message=task.error_message,
+            message=audit_message,
         )
         await self.db.commit()
 

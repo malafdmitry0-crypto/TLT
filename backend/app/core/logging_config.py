@@ -121,7 +121,7 @@ def configure_logging() -> None:
                 "handlers": ["default"],
             },
             "loggers": {
-                "heatcalc": {"level": level, "handlers": ["default"], "propagate": False},
+                "heatcalc": {"level": level, "handlers": [], "propagate": True},
                 "uvicorn": {"level": level, "handlers": ["default"], "propagate": False},
                 "uvicorn.error": {"level": level, "handlers": ["default"], "propagate": False},
                 "uvicorn.access": {

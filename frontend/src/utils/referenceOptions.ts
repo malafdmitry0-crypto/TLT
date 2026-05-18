@@ -43,9 +43,12 @@ function duplicateNames(entries: InsulationEntry[]) {
 }
 
 export function buildInsulationReferenceOptions(materials: InsulationEntry[]): ReferenceOption[] {
-  const namesWithVariants = duplicateNames(materials);
+  const selectableMaterials = materials.filter(
+    (entry) => entry.selectable !== false && entry.deprecated !== true && entry.requires_material_reselection !== true,
+  );
+  const namesWithVariants = duplicateNames(selectableMaterials);
 
-  return materials.map((entry) => {
+  return selectableMaterials.map((entry) => {
     const density = formatDensity(entry.density_kg_m3);
     const conductivity = formatConductivity(entry.conductivity);
     const labelDetails = [density, conductivity].filter(Boolean);

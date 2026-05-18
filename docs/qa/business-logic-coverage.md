@@ -45,7 +45,7 @@ UI/API workflow считается gap до полного соответств�
 | `tlt_tt_t3_temperature_policy` | Да | Да | Да, T3 опционален с fallback на `process_temperature` | Да | Да | Covered |
 | `tlt_tt_thread_count_policy` | Да | Частично | Да, auto `N=ceil(Pоб/Pi)` без лимита 3 для ТТ | Нет отдельного policy control | Да | Covered |
 | `tlt_tt_mark_suffix_policy` | Да | Нет | Да, принято `aggressive_product -> СТ`, иначе `СР` | Да через поле агрессивности | Да | Covered |
-| `tlt_insulation_lambda_tm` | Да | Нет | Нет, фиксированная `conductivity` | Нет | Нет | Needs implementation |
+| `tlt_insulation_lambda_tm` | Да | Да | Да, `lambda(tm)` + конкретный материал/плотность + `insulation_temperature_basis` | Да, отдельное поле режима `tm` | Да | Covered |
 
 ## Gates
 

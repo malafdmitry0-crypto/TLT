@@ -14,8 +14,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.core.config import settings
 from app.models.project_object import ProjectObject
 from app.services.excel_import_service import (
-    MATERIAL_ALIASES,
+    GENERIC_MATERIAL_ALIASES,
     SHAPE_ALIASES,
+    SPECIAL_MATERIAL_ALIASES,
     ExcelImportError,
     _build_pipe_params,
     _build_tank_params,
@@ -24,6 +25,7 @@ from app.services.excel_import_service import (
     _norm,
     _parse_csv,
     _resolve_material,
+    _resolve_material_entry,
     _resolve_shape,
     _to_float,
     _validate_xlsx_archive,
@@ -86,7 +88,7 @@ class TestBuildObjectsXlsxSafety:
         wb = load_workbook(io.BytesIO(build_objects_xlsx([obj])), data_only=False)
         ws = wb["Трубопроводы"]
 
-        for cell_ref in ("A2", "C2", "E2", "F2", "G2", "H2"):
+        for cell_ref in ("A2", "C2", "E2", "F2", "I2", "J2", "K2"):
             cell = ws[cell_ref]
             assert cell.data_type == "s"
             assert str(cell.value).startswith("'")
@@ -240,19 +242,21 @@ class TestResolveMaterial:
     @pytest.mark.parametrize(
         "inp,expected",
         [
-            ("Минеральная вата", "mineral_wool"),
-            ("мин. вата", "mineral_wool"),
-            ("минвата", "mineral_wool"),
-            ("MINERAL_WOOL", "mineral_wool"),
-            ("Пеностекло", "foam_glass"),
-            ("ППУ", "polyurethane"),
-            ("polyurethane", "polyurethane"),
-            ("Аэрогель", "aerogel"),
-            ("силикат кальция", "calcium_silicate"),
+            ("mineral_wool_boards_120", "mineral_wool_boards_120"),
+            ("polyurethane_products_50", "polyurethane_products_50"),
+            ("k_flex_st", "k_flex_st"),
+            ("другое", "other"),
+            ("other", "other"),
         ],
     )
-    def test_known_aliases(self, inp, expected):
+    def test_concrete_codes(self, inp, expected):
         assert _resolve_material(inp) == expected
+
+    @pytest.mark.parametrize("inp", ["Минеральная вата", "мин. вата", "MINERAL_WOOL", "ППУ"])
+    def test_generic_aliases_require_reselection(self, inp):
+        resolution = _resolve_material_entry(inp)
+        assert resolution.material is None
+        assert resolution.needs_reselection is True
 
     @pytest.mark.parametrize("inp", ["", None, "некий материал"])
     def test_unknown_returns_none(self, inp):
@@ -290,7 +294,7 @@ class TestBuildPipeParams:
             "outer_diameter_mm": 108,
             "pipe_length": 50,
             "insulation_thickness_mm": 50,
-            "insulation_material": "Минеральная вата",
+            "insulation_material": "mineral_wool_boards_120",
             "ambient_temperature": -20,
             "process_temperature": 80,
         }
@@ -300,8 +304,25 @@ class TestBuildPipeParams:
         assert params["outer_diameter"] == pytest.approx(0.108)
         assert params["insulation_thickness"] == pytest.approx(0.05)
         assert params["pipe_length"] == 50
-        assert params["insulation_material"] == "mineral_wool"
+        assert params["insulation_material"] == "mineral_wool_boards_120"
         assert params["name"] == "Т1"
+
+    def test_generic_material_is_preserved_as_reselection_request(self):
+        row = {
+            "_row": 2,
+            "outer_diameter_mm": 108,
+            "pipe_length": 50,
+            "insulation_thickness_mm": 50,
+            "insulation_material": "Минеральная вата",
+            "ambient_temperature": -20,
+            "process_temperature": 80,
+        }
+        params, err = _build_pipe_params(row)
+        assert err is None
+        assert params is not None
+        assert "insulation_material" not in params
+        assert params["insulation_material_raw"] == "Минеральная вата"
+        assert params["needs_material_reselection"] is True
 
     def test_missing_required_field_keeps_partial_params(self):
         row = {"_row": 5, "outer_diameter_mm": 108, "pipe_length": 50}
@@ -334,7 +355,7 @@ class TestBuildPipeParams:
             "outer_diameter_mm": 108,
             "pipe_length": 50,
             "insulation_thickness_mm": 50,
-            "insulation_material": "mineral_wool",
+            "insulation_material": "mineral_wool_boards_120",
             "ambient_temperature": -20,
             "process_temperature": 80,
         }
@@ -347,7 +368,8 @@ class TestBuildPipeParams:
             "outer_diameter_mm": 108,
             "pipe_length": 50,
             "insulation_thickness_mm": 50,
-            "insulation_material": "mineral_wool",
+            "insulation_material": "mineral_wool_boards_120",
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -20,
             "process_temperature": 80,
             "vapor_temperature": 140,
@@ -363,7 +385,8 @@ class TestBuildPipeParams:
             "outer_diameter_mm": "108,5",
             "pipe_length": "50,0",
             "insulation_thickness_mm": 50,
-            "insulation_material": "mineral_wool",
+            "insulation_material": "mineral_wool_boards_120",
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -20,
             "process_temperature": 80,
         }
@@ -549,7 +572,7 @@ class TestAliasTables:
         from app.reference_data.loader import list_insulation_materials
 
         known = {m["material"] for m in list_insulation_materials()} | {"other"}
-        for alias, code in MATERIAL_ALIASES.items():
+        for alias, code in {**GENERIC_MATERIAL_ALIASES, **SPECIAL_MATERIAL_ALIASES}.items():
             assert code in known, f"Алиас {alias!r} → {code!r} не найден в справочнике"
 
     def test_shape_aliases_point_to_known_shapes(self):
@@ -577,7 +600,8 @@ class TestAddRowsHelper:
                 "outer_diameter_mm": 108,
                 "pipe_length": 50,
                 "insulation_thickness_mm": 50,
-                "insulation_material": "mineral_wool",
+                "insulation_material": "mineral_wool_boards_120",
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,
             }
@@ -633,7 +657,8 @@ class TestAddRowsHelper:
             "outer_diameter_mm": 108,
             "pipe_length": 50,
             "insulation_thickness_mm": 50,
-            "insulation_material": "mineral_wool",
+            "insulation_material": "mineral_wool_boards_120",
+            "insulation_temperature_basis": "outdoor_winter",
             "ambient_temperature": -20,
             "process_temperature": 80,
         }
@@ -644,7 +669,8 @@ class TestAddRowsHelper:
                 "outer_diameter": 0.108,
                 "pipe_length": 50.0,
                 "insulation_thickness": 0.05,
-                "insulation_material": "mineral_wool",
+                "insulation_material": "mineral_wool_boards_120",
+                "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20.0,
                 "process_temperature": 80.0,
             },

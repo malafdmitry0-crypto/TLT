@@ -17,7 +17,7 @@ from app.core.rate_limit import enforce_principal_rate_limit, job_enqueue_limite
 from app.schemas.calculation import CalculationTaskResponse
 from app.schemas.report import ReportExportJobRequest, ReportPreviewResponse
 from app.services.audit_service import AuditService
-from app.services.project_service import ProjectAccessError, ProjectNotFoundError
+from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 from app.services.report_artifact_service import report_artifact_path
 from app.services.report_service import ReportError, ReportService
 from app.services.task_service import (
@@ -69,7 +69,7 @@ async def preview(
     project_id: UUID,
     request: Request,
     sections: list[str] | None = Query(default=None),
-    variant_number: int = Query(..., ge=1, le=4),
+    variant_number: int | None = Query(default=None, ge=1, le=4),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -81,6 +81,12 @@ async def preview(
     )
     service = ReportService(db)
     try:
+        if variant_number is None:
+            await ProjectService(db).get_project_basic(project_id, principal)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="variant_number is required",
+            )
         result = await service.preview(
             project_id,
             sections,

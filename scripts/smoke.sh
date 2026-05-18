@@ -108,7 +108,7 @@ curl -s -X POST "$API/calc/electrical/batch?project_id=$EPID" \
 for fmt in pdf docx xlsx; do
   TMP="/tmp/smoke-report.$fmt"
   code=$(curl -s -o "$TMP" -w "%{http_code}" \
-    -H "Authorization: Bearer $ETOK" "$API/reports/$EPID/export/$fmt")
+    -H "Authorization: Bearer $ETOK" "$API/reports/$EPID/export/$fmt?variant_number=1")
   SIZE=$(wc -c < "$TMP" 2>/dev/null)
   if [ "$code" = "200" ] && [ "${SIZE:-0}" -gt 1000 ]; then
     ok "Экспорт $fmt ($SIZE байт)"

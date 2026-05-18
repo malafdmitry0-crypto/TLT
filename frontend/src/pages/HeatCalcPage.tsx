@@ -190,6 +190,7 @@ import {
   heatLossErrorText,
   heatLossStatusLabel,
   insulationEntryLabel,
+  insulationTemperatureBasisLabel,
   insulationLayerConductivity,
   insulationLayerCount,
   insulationLayerMaterial,
@@ -1252,6 +1253,10 @@ export default function HeatCalcPage() {
     climate_temperature_basis: {
       render: (_: unknown, r: ProjectObject) => climateBasisLabel(r.params?.climate_temperature_basis),
       copyValue: (r) => climateBasisLabel(r.params?.climate_temperature_basis),
+    },
+    insulation_temperature_basis: {
+      render: (_: unknown, r: ProjectObject) => insulationTemperatureBasisLabel(r.params?.insulation_temperature_basis),
+      copyValue: (r) => insulationTemperatureBasisLabel(r.params?.insulation_temperature_basis),
     },
     burial_depth: {
       render: (_: unknown, r: ProjectObject) => formatParamNumber(r, 'burial_depth', 2),

@@ -78,11 +78,12 @@ const FIXTURE_CASES: TltRawDomainCase[] = [
       wall_thickness: 0.004,
       pipe_material: 'carbon_steel',
       insulation_layers: [
-        { thickness: 0.04, material: 'mineral_wool' },
-        { thickness: 0.02, material: 'foam_glass' },
+        { thickness: 0.04, material: 'mineral_wool_boards_120' },
+        { thickness: 0.02, material: 'polyurethane_products_50' },
       ],
       ambient_temperature: -25,
       process_temperature: 80,
+      insulation_temperature_basis: 'outdoor_winter',
       pipe_length: 120,
       location: 'outdoor',
       wind_speed: 4,
@@ -101,7 +102,8 @@ const FIXTURE_CASES: TltRawDomainCase[] = [
       wall_thickness: 0.0035,
       pipe_material: 'carbon_steel',
       insulation_thickness: 0.05,
-      insulation_material: 'mineral_wool',
+      insulation_material: 'mineral_wool_boards_120',
+      insulation_temperature_basis: 'outdoor_winter',
       ambient_temperature: -30,
       process_temperature: 65,
       pipe_length: 90,
@@ -121,7 +123,8 @@ const FIXTURE_CASES: TltRawDomainCase[] = [
       wall_thickness: 0.003,
       pipe_material: 'stainless_304',
       insulation_thickness: 0.03,
-      insulation_material: 'polyurethane',
+      insulation_material: 'polyurethane_products_50',
+      insulation_temperature_basis: 'indoor',
       ambient_temperature: 5,
       process_temperature: 45,
       pipe_length: 42,
@@ -141,7 +144,8 @@ const FIXTURE_CASES: TltRawDomainCase[] = [
       wall_thickness: 0.006,
       wall_lambda: 45,
       insulation_thickness: 0.08,
-      insulation_material: 'mineral_wool',
+      insulation_material: 'mineral_wool_boards_120',
+      insulation_temperature_basis: 'outdoor_winter',
       ambient_temperature: -20,
       process_temperature: 60,
       location: 'outdoor',
@@ -162,7 +166,8 @@ const FIXTURE_CASES: TltRawDomainCase[] = [
       wall_thickness: 0.006,
       wall_lambda: 45,
       insulation_thickness: 0.06,
-      insulation_material: 'foam_glass',
+      insulation_material: 'polyurethane_products_50',
+      insulation_temperature_basis: 'outdoor_winter',
       ambient_temperature: -15,
       process_temperature: 55,
       location: 'outdoor',
@@ -182,7 +187,8 @@ const FIXTURE_CASES: TltRawDomainCase[] = [
       wall_thickness: 0.005,
       wall_lambda: 45,
       insulation_thickness: 0.07,
-      insulation_material: 'mineral_wool',
+      insulation_material: 'mineral_wool_boards_120',
+      insulation_temperature_basis: 'outdoor_winter',
       ambient_temperature: -25,
       process_temperature: 50,
       location: 'outdoor',
@@ -253,6 +259,21 @@ function normalizeLocation(value: unknown): 'indoor' | 'outdoor' {
   return value === 'indoor' ? 'indoor' : 'outdoor';
 }
 
+function normalizeInsulationTemperatureBasis(value: unknown, location: 'indoor' | 'outdoor'): string {
+  const known = new Set([
+    'indoor',
+    'outdoor_summer',
+    'outdoor_winter',
+    'channel',
+    'tunnel',
+    'technical_subfloor',
+    'attic',
+    'basement',
+  ]);
+  if (typeof value === 'string' && known.has(value)) return value;
+  return location === 'indoor' ? 'indoor' : 'outdoor_winter';
+}
+
 function normalizeInsulationLayers(
   params: Record<string, unknown>,
   warnings: string[],
@@ -264,7 +285,7 @@ function normalizeInsulationLayers(
     .slice(0, 3)
     .map((layer, index) => ({
       thickness: numberParam(layer, 'thickness', index === 0 ? 0.05 : 0.02, 0.005, 0.5, warnings),
-      material: typeof layer.material === 'string' && layer.material ? layer.material : 'mineral_wool',
+      material: typeof layer.material === 'string' && layer.material ? layer.material : 'mineral_wool_boards_120',
       ...(asFiniteNumber(layer.conductivity) !== undefined
         ? { conductivity: numberParam(layer, 'conductivity', 0.045, 0.001, 400, warnings) }
         : {}),
@@ -299,6 +320,10 @@ function normalizePipeParams(params: Record<string, unknown>, warnings: string[]
     num_local_elements: Math.round(optionalNumberParam(params, 'num_local_elements', 0, 100, warnings) ?? 0),
     local_element_equiv_length: optionalNumberParam(params, 'local_element_equiv_length', 0.1, 6.9, warnings),
   };
+  normalized.insulation_temperature_basis = normalizeInsulationTemperatureBasis(
+    params.insulation_temperature_basis,
+    normalized.location as 'indoor' | 'outdoor',
+  );
   const layers = normalizeInsulationLayers(params, warnings);
   if (layers) {
     normalized.insulation_layers = layers;
@@ -307,7 +332,7 @@ function normalizePipeParams(params: Record<string, unknown>, warnings: string[]
     normalized.insulation_material =
       typeof params.insulation_material === 'string' && params.insulation_material
         ? params.insulation_material
-        : 'mineral_wool';
+        : 'mineral_wool_boards_120';
   }
   return Object.fromEntries(Object.entries(normalized).filter(([, value]) => value !== undefined));
 }
@@ -320,17 +345,22 @@ function normalizeTankParams(params: Record<string, unknown>, warnings: string[]
       ? rawShape
       : 'cylindrical';
   if (rawShape !== undefined && rawShape !== shape) warnings.push(`defaulted unsupported shape to ${shape}`);
+  const location = normalizeLocation(params.location);
   const normalized: Record<string, unknown> = {
     shape,
     insulation_thickness: numberParam(params, 'insulation_thickness', 0.06, 0.005, 0.5, warnings),
     insulation_material:
       typeof params.insulation_material === 'string' && params.insulation_material
         ? params.insulation_material
-        : 'mineral_wool',
+        : 'mineral_wool_boards_120',
     insulation_layers: normalizeInsulationLayers(params, warnings),
     ambient_temperature: ambient,
     process_temperature: process,
-    location: normalizeLocation(params.location),
+    location,
+    insulation_temperature_basis: normalizeInsulationTemperatureBasis(
+      params.insulation_temperature_basis,
+      location,
+    ),
     wall_thickness: optionalNumberParam(params, 'wall_thickness', 0.001, 0.5, warnings) ?? 0.006,
     wall_lambda: optionalNumberParam(params, 'wall_lambda', 0.001, 400, warnings) ?? 45,
     burial_depth: optionalNumberParam(params, 'burial_depth', 0, 200, warnings),
@@ -436,17 +466,46 @@ export class LlmTltHeatLossCaseGenerator {
   }
 }
 
-const INSULATION_CONDUCTIVITY: Record<string, number> = {
-  mineral_wool: 0.045,
-  foam_glass: 0.058,
-  polyurethane: 0.028,
-  polystyrene: 0.038,
-  aerogel: 0.021,
-  calcium_silicate: 0.065,
+const INSULATION_LAMBDA_20_PLUS: Record<string, number | [number, number]> = {
+  mineral_wool_boards_120: [0.045, 0.00021],
+  mineral_wool_boards_150: [0.049, 0.0002],
+  mineral_wool_cylinders_100: [0.046, 0.00021],
+  polyurethane_products_50: [0.032, 0.00015],
+  polystyrene_products_50: [0.036, 0.00018],
+  k_flex_st: 0.036,
 };
 
-function conductivity(material: unknown): number {
-  return typeof material === 'string' ? (INSULATION_CONDUCTIVITY[material] ?? 0.045) : 0.045;
+const INSULATION_LAMBDA_19_MINUS: Record<string, number | [number, number]> = {
+  mineral_wool_boards_120: [0.044, 0.035],
+  mineral_wool_boards_150: [0.048, 0.037],
+  mineral_wool_cylinders_100: [0.045, 0.034],
+  polyurethane_products_50: [0.031, 0.025],
+  polystyrene_products_50: [0.035, 0.026],
+  k_flex_st: 0.034,
+};
+
+function insulationTm(processTemperature: number, basis: unknown): number {
+  return basis === 'outdoor_winter'
+    ? processTemperature / 2
+    : (processTemperature + 40) / 2;
+}
+
+function resolveLambda(model: number | [number, number] | undefined, tm: number): number | undefined {
+  if (typeof model === 'number') return model;
+  if (!Array.isArray(model)) return undefined;
+  if (model.length === 1) return model[0];
+  if (tm >= 20) return model[0] + model[1] * tm;
+  return tm >= -60 ? model[0] : model[1];
+}
+
+function conductivity(material: unknown, tm: number, manual?: unknown): number {
+  if (material === 'other' && asFiniteNumber(manual) !== undefined) return asFiniteNumber(manual) as number;
+  if (typeof material !== 'string') return conductivity('mineral_wool_boards_120', tm);
+  const warm = tm >= 20;
+  return resolveLambda(
+    warm ? INSULATION_LAMBDA_20_PLUS[material] : INSULATION_LAMBDA_19_MINUS[material],
+    tm,
+  ) ?? conductivity('mineral_wool_boards_120', tm);
 }
 
 function alpha(location: unknown, windSpeed: unknown): number {
@@ -460,6 +519,7 @@ function pipeResult(params: Record<string, unknown>): TltHeatLossValue {
   const length = asFiniteNumber(params.pipe_length) ?? 50;
   const process = asFiniteNumber(params.process_temperature) ?? 60;
   const ambient = asFiniteNumber(params.ambient_temperature) ?? -20;
+  const tm = insulationTm(process, params.insulation_temperature_basis);
   const wallThickness = asFiniteNumber(params.wall_thickness) ?? 0.004;
   const rOuterPipe = outerDiameter / 2;
   const rInnerPipe = Math.max(rOuterPipe - wallThickness, rOuterPipe * 0.8);
@@ -473,7 +533,7 @@ function pipeResult(params: Record<string, unknown>): TltHeatLossValue {
   for (const layer of layers) {
     const thickness = asFiniteNumber(layer.thickness) ?? 0.05;
     const rOut = r + thickness;
-    rIns += Math.log(rOut / r) / (2 * Math.PI * conductivity(layer.material));
+    rIns += Math.log(rOut / r) / (2 * Math.PI * conductivity(layer.material, tm, layer.conductivity));
     r = rOut;
   }
   const burialDepth = asFiniteNumber(params.burial_depth);
@@ -514,6 +574,7 @@ function tankArea(params: Record<string, unknown>): number {
 function tankResult(params: Record<string, unknown>): TltHeatLossValue {
   const process = asFiniteNumber(params.process_temperature) ?? 60;
   const ambient = asFiniteNumber(params.ambient_temperature) ?? -20;
+  const tm = insulationTm(process, params.insulation_temperature_basis);
   const wallThickness = asFiniteNumber(params.wall_thickness) ?? 0.006;
   const wallLambda = asFiniteNumber(params.wall_lambda) ?? 45;
   const rWall = wallThickness / wallLambda;
@@ -521,7 +582,8 @@ function tankResult(params: Record<string, unknown>): TltHeatLossValue {
     ? params.insulation_layers.filter(isRecord)
     : [{ thickness: params.insulation_thickness, material: params.insulation_material }];
   const rIns = layers.reduce(
-    (sum, layer) => sum + (asFiniteNumber(layer.thickness) ?? 0.06) / conductivity(layer.material),
+    (sum, layer) =>
+      sum + (asFiniteNumber(layer.thickness) ?? 0.06) / conductivity(layer.material, tm, layer.conductivity),
     0,
   );
   const rExternal = 1 / alpha(params.location, params.wind_speed);

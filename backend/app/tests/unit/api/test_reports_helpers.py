@@ -1,6 +1,7 @@
 """Unit-тесты helpers API отчётов."""
 
 import uuid
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -11,7 +12,7 @@ from app.api.v1.reports import _raise_project_error, _raise_task_error
 from app.core.dependencies import CurrentPrincipal
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError
 from app.services.report_service import ReportError
-from app.services.task_service import TaskAccessError, TaskNotFoundError
+from app.services.task_service import TaskAccessError, TaskLimitError, TaskNotFoundError
 
 
 def _request() -> Request:
@@ -47,6 +48,17 @@ def test_raise_task_error_reraises_unknown_errors():
 
     with pytest.raises(RuntimeError, match="boom"):
         _raise_task_error(exc)
+
+
+def test_raise_task_error_maps_task_limit_to_retryable_429():
+    exc = TaskLimitError("too many tasks")
+
+    with pytest.raises(HTTPException) as err:
+        _raise_task_error(exc)
+
+    assert err.value.status_code == 429
+    assert err.value.detail == "too many tasks"
+    assert err.value.headers == {"Retry-After": "3600"}
 
 
 @pytest.mark.parametrize(
@@ -117,6 +129,83 @@ async def test_preview_maps_report_errors(monkeypatch: pytest.MonkeyPatch):
     assert err.value.detail == "bad report"
 
 
+async def test_preview_records_audit_on_success(monkeypatch: pytest.MonkeyPatch):
+    project_id = uuid.uuid4()
+    recorded: dict = {}
+
+    async def noop_rate_limit(*args, **kwargs):
+        return None
+
+    class FakeReportService:
+        def __init__(self, db) -> None:
+            self.db = db
+
+        async def preview(self, project_id, sections, *, principal, variant_number=1):
+            return {
+                "project_id": str(project_id),
+                "html": "<html></html>",
+                "sections": sections or ["summary"],
+                "variant_number": variant_number,
+            }
+
+    class FakeAuditService:
+        def __init__(self, db) -> None:
+            self.db = db
+
+        async def try_record(self, **kwargs):
+            recorded.update(kwargs)
+
+    monkeypatch.setattr(reports_api, "enforce_principal_rate_limit", noop_rate_limit)
+    monkeypatch.setattr(reports_api, "ReportService", FakeReportService)
+    monkeypatch.setattr(reports_api, "AuditService", FakeAuditService)
+
+    response = await reports_api.preview(
+        project_id,
+        _request(),
+        sections=["summary"],
+        variant_number=2,
+        principal=CurrentPrincipal(role="guest", session_id="sid"),
+        db=object(),
+    )
+
+    assert response.project_id == str(project_id)
+    assert response.sections == ["summary"]
+    assert response.variant_number == 2
+    assert recorded["event_type"] == "report.previewed"
+    assert recorded["details"] == {"sections": ["summary"], "variant_number": 2}
+
+
+async def test_preview_requires_variant_after_project_access(monkeypatch: pytest.MonkeyPatch):
+    checked_projects: list[uuid.UUID] = []
+    project_id = uuid.uuid4()
+
+    async def noop_rate_limit(*args, **kwargs):
+        return None
+
+    class FakeProjectService:
+        def __init__(self, db) -> None:
+            self.db = db
+
+        async def get_project_basic(self, project_id, principal):
+            checked_projects.append(project_id)
+
+    monkeypatch.setattr(reports_api, "enforce_principal_rate_limit", noop_rate_limit)
+    monkeypatch.setattr(reports_api, "ProjectService", FakeProjectService)
+
+    with pytest.raises(HTTPException) as err:
+        await reports_api.preview(
+            project_id,
+            _request(),
+            sections=None,
+            variant_number=None,
+            principal=CurrentPrincipal(role="guest", session_id="sid"),
+            db=object(),
+        )
+
+    assert err.value.status_code == 422
+    assert checked_projects == [project_id]
+
+
 async def test_export_rejects_unsupported_format_before_service_creation():
     with pytest.raises(HTTPException) as err:
         await reports_api.export(
@@ -130,3 +219,47 @@ async def test_export_rejects_unsupported_format_before_service_creation():
 
     assert err.value.status_code == 400
     assert err.value.detail == "Неподдерживаемый формат: txt"
+
+
+async def test_download_report_task_rejects_unfinished_task(monkeypatch: pytest.MonkeyPatch):
+    class FakeTaskService:
+        def __init__(self, db) -> None:
+            self.db = db
+
+        async def get_task_for_principal(self, task_id, principal):
+            return SimpleNamespace(status="running", result_payload=None)
+
+    monkeypatch.setattr(reports_api, "TaskService", FakeTaskService)
+
+    with pytest.raises(HTTPException) as err:
+        await reports_api.download_report_task_result(
+            uuid.uuid4(),
+            principal=CurrentPrincipal(role="employee", user_id=uuid.uuid4()),
+            db=object(),
+        )
+
+    assert err.value.status_code == 409
+    assert err.value.detail == "Отчёт ещё не готов"
+
+
+async def test_download_report_task_rejects_missing_artifact_payload(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class FakeTaskService:
+        def __init__(self, db) -> None:
+            self.db = db
+
+        async def get_task_for_principal(self, task_id, principal):
+            return SimpleNamespace(status="succeeded", result_payload={})
+
+    monkeypatch.setattr(reports_api, "TaskService", FakeTaskService)
+
+    with pytest.raises(HTTPException) as err:
+        await reports_api.download_report_task_result(
+            uuid.uuid4(),
+            principal=CurrentPrincipal(role="employee", user_id=uuid.uuid4()),
+            db=object(),
+        )
+
+    assert err.value.status_code == 410
+    assert err.value.detail == "Артефакт отчёта не найден"

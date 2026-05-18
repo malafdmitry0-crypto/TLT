@@ -28,6 +28,11 @@ export interface InsulationEntry {
   density_kg_m3?: number | string;
   conductivity_20_plus?: number | [number, number] | { a: number; b: number } | null;
   conductivity_19_minus?: number[] | null;
+  selectable?: boolean;
+  deprecated?: boolean;
+  requires_material_reselection?: boolean;
+  reselection_message?: string;
+  material_family?: string;
   source?: string;
 }
 

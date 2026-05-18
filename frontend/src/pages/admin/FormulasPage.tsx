@@ -738,6 +738,7 @@ function PipeTab() {
       process_temperature: v.process_temperature,
       ambient_temperature: v.ambient_temperature,
       location: v.location ?? 'outdoor',
+      insulation_temperature_basis: v.insulation_temperature_basis,
     };
     assignIfPresent(p, 'wall_thickness', v.wall_thickness_mm, (x) => Number(x) / 1000);
     assignIfPresent(p, 'pipe_material', v.pipe_material);
@@ -759,7 +760,7 @@ function PipeTab() {
       </Col>
       <Col xs={24} lg={12}>
         <div style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}>Проверить расчёт</div>
-        <Form form={form} name="pipe_formula_check" layout="vertical" initialValues={{ location: 'outdoor', insulation_material_1: 'mineral_wool' }}>
+        <Form form={form} name="pipe_formula_check" layout="vertical" initialValues={{ location: 'outdoor', insulation_temperature_basis: 'outdoor_winter', insulation_material_1: 'mineral_wool_boards_120' }}>
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="outer_diameter_mm" label="Нар. диаметр трубы, мм" rules={[{ required: true }]}>
@@ -849,16 +850,30 @@ function PipeTab() {
             </Col>
           </Row>
           <Row gutter={12}>
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item name="wind_speed" label="Скорость ветра, м/с">
                 <InputNumber min={0} max={20} style={{ width: '100%' }} placeholder="5" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item name="location" label="Размещение">
                 <Select>
                   <Select.Option value="outdoor">Надземное</Select.Option>
                   <Select.Option value="indoor">В помещении</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="insulation_temperature_basis" label="tm изоляции" rules={[{ required: true }]}>
+                <Select>
+                  <Select.Option value="outdoor_winter">Улица, зима</Select.Option>
+                  <Select.Option value="outdoor_summer">Улица, лето</Select.Option>
+                  <Select.Option value="indoor">Помещение</Select.Option>
+                  <Select.Option value="channel">Канал</Select.Option>
+                  <Select.Option value="tunnel">Тоннель</Select.Option>
+                  <Select.Option value="technical_subfloor">Подполье</Select.Option>
+                  <Select.Option value="attic">Чердак</Select.Option>
+                  <Select.Option value="basement">Подвал</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -916,6 +931,7 @@ function TankTab() {
       process_temperature: v.process_temperature,
       ambient_temperature: v.ambient_temperature,
       location: v.location ?? 'outdoor',
+      insulation_temperature_basis: v.insulation_temperature_basis,
     };
     assignIfPresent(p, 'wall_thickness', v.wall_thickness_mm, (x) => Number(x) / 1000);
     assignIfPresent(p, 'wall_lambda', v.wall_lambda);
@@ -943,9 +959,9 @@ function TankTab() {
       </Col>
       <Col xs={24} lg={12}>
         <div style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}>Проверить расчёт</div>
-        <Form form={form} name="tank_formula_check" layout="vertical" initialValues={{ shape: 'cylindrical', location: 'outdoor', insulation_material_1: 'mineral_wool' }}>
+        <Form form={form} name="tank_formula_check" layout="vertical" initialValues={{ shape: 'cylindrical', location: 'outdoor', insulation_temperature_basis: 'outdoor_winter', insulation_material_1: 'mineral_wool_boards_120' }}>
           <Row gutter={12}>
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item name="shape" label="Форма" rules={[{ required: true }]}>
                 <Select>
                   <Select.Option value="cylindrical">Цилиндр</Select.Option>
@@ -954,11 +970,25 @@ function TankTab() {
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item name="location" label="Размещение">
                 <Select>
                   <Select.Option value="outdoor">Надземное</Select.Option>
                   <Select.Option value="indoor">В помещении</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="insulation_temperature_basis" label="tm изоляции" rules={[{ required: true }]}>
+                <Select>
+                  <Select.Option value="outdoor_winter">Улица, зима</Select.Option>
+                  <Select.Option value="outdoor_summer">Улица, лето</Select.Option>
+                  <Select.Option value="indoor">Помещение</Select.Option>
+                  <Select.Option value="channel">Канал</Select.Option>
+                  <Select.Option value="tunnel">Тоннель</Select.Option>
+                  <Select.Option value="technical_subfloor">Подполье</Select.Option>
+                  <Select.Option value="attic">Чердак</Select.Option>
+                  <Select.Option value="basement">Подвал</Select.Option>
                 </Select>
               </Form.Item>
             </Col>

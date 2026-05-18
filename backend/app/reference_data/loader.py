@@ -12,6 +12,10 @@ from typing import Any, cast
 
 _BASE_DIR = Path(__file__).parent
 
+INSULATION_MATERIAL_RESELECTION_MESSAGE = (
+    "Уточните конкретный материал и плотность из справочника теплоизоляции"
+)
+
 
 def _load_json(name: str) -> dict[str, Any]:
     path = _BASE_DIR / name
@@ -76,19 +80,60 @@ def get_climate_by_city(city: str) -> dict[str, Any] | None:
 
 
 def list_insulation_materials() -> list[dict[str, Any]]:
-    return list(_insulation())
+    return [_with_insulation_catalog_flags(entry) for entry in _insulation()]
+
+
+def get_insulation_material(material: str) -> dict[str, Any] | None:
+    for entry in _insulation():
+        if entry["material"] == material:
+            return _with_insulation_catalog_flags(entry)
+    return None
+
+
+def is_generic_insulation_material(material: str | None) -> bool:
+    if not material:
+        return False
+    entry = get_insulation_material(material)
+    return bool(
+        entry
+        and (
+            entry.get("requires_material_reselection") is True
+            or entry.get("deprecated") is True
+            or entry.get("selectable") is False
+        )
+    )
+
+
+def is_selectable_insulation_material(material: str | None) -> bool:
+    if not material:
+        return False
+    entry = get_insulation_material(material)
+    return bool(entry and not is_generic_insulation_material(material))
+
+
+def _with_insulation_catalog_flags(entry: dict[str, Any]) -> dict[str, Any]:
+    result = dict(entry)
+    has_reference_lambda = (
+        result.get("conductivity_20_plus") is not None
+        or result.get("conductivity_19_minus") is not None
+    )
+    result.setdefault("selectable", has_reference_lambda and result.get("deprecated") is not True)
+    result.setdefault("deprecated", False)
+    result.setdefault("requires_material_reselection", result.get("selectable") is False)
+    if result.get("requires_material_reselection") is True:
+        result.setdefault("reselection_message", INSULATION_MATERIAL_RESELECTION_MESSAGE)
+    return result
 
 
 def get_insulation_temperature_range(material: str) -> tuple[float, float]:
     """Возвращает рабочий температурный диапазон материала изоляции, °C."""
-    for entry in _insulation():
-        if entry["material"] == material:
-            value = entry.get("temperature_range")
-            if not isinstance(value, Sequence) or isinstance(value, str | bytes) or len(value) < 2:
-                raise ValueError(
-                    f"Для материала изоляции '{material}' не задан температурный диапазон"
-                )
-            return float(value[0]), float(value[1])
+    entry = get_insulation_material(material)
+    if entry is not None:
+        _ensure_selectable_insulation_material(entry)
+        value = entry.get("temperature_range")
+        if not isinstance(value, Sequence) or isinstance(value, str | bytes) or len(value) < 2:
+            raise ValueError(f"Для материала изоляции '{material}' не задан температурный диапазон")
+        return float(value[0]), float(value[1])
     raise ValueError(f"Неизвестный материал изоляции: {material}")
 
 
@@ -131,25 +176,39 @@ def get_insulation_conductivity(material: str, temperature: float) -> float:
     - conductivity_20_plus: число или [a, b] для формулы a + b * temperature
     - conductivity_19_minus: [λ(-60..19), λ(<-60)] или одиночное значение
     """
-    for m in _insulation():
-        if m["material"] == material:
-            base = float(m["conductivity"])
+    for raw in _insulation():
+        if raw["material"] == material:
+            m = _with_insulation_catalog_flags(raw)
+            _ensure_selectable_insulation_material(m)
             if temperature >= 20:
-                return _positive_or_base(
+                return _positive_reference_lambda(
                     _resolve_warm_insulation_conductivity(
                         m.get("conductivity_20_plus"), temperature
                     ),
-                    base,
+                    material,
+                    temperature,
                 )
-            return _positive_or_base(
+            return _positive_reference_lambda(
                 _resolve_cold_insulation_conductivity(m.get("conductivity_19_minus"), temperature),
-                base,
+                material,
+                temperature,
             )
     raise ValueError(f"Неизвестный материал изоляции: {material}")
 
 
-def _positive_or_base(value: float | None, base: float) -> float:
-    return value if value is not None and value > 0 else base
+def _ensure_selectable_insulation_material(entry: dict[str, Any]) -> None:
+    if entry.get("selectable") is False or entry.get("deprecated") is True:
+        material = entry.get("material", "")
+        message = entry.get("reselection_message") or INSULATION_MATERIAL_RESELECTION_MESSAGE
+        raise ValueError(f"{message}: {material}")
+
+
+def _positive_reference_lambda(value: float | None, material: str, temperature: float) -> float:
+    if value is not None and value > 0:
+        return value
+    raise ValueError(
+        f"Для материала изоляции '{material}' не задана расчётная λ(tm) при tm={temperature:g} °C"
+    )
 
 
 def _resolve_warm_insulation_conductivity(value: Any, temperature: float) -> float | None:

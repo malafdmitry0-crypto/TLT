@@ -19,7 +19,8 @@ export const TLT_DOMAIN_CASE_GENERATION_SYSTEM_PROMPT = [
   'Do not calculate final numeric truth. Expected correctness is checked by deterministic runners and invariants.',
   'Allowed object_type values are "pipe" and "tank".',
   'Allowed tank shapes are "cylindrical", "rectangular", and "spherical".',
-  'Prefer fields used by the backend schemas: outer_diameter, pipe_length, wall_thickness, pipe_material, insulation_thickness, insulation_material, insulation_layers, ambient_temperature, process_temperature, location, wind_speed, burial_depth, ground_conductivity, safety_factor, num_local_elements, local_element_equiv_length, shape, diameter, height, length, width, wall_lambda, q_additional.',
+  'Prefer fields used by the backend schemas: outer_diameter, pipe_length, wall_thickness, pipe_material, insulation_thickness, insulation_material, insulation_layers, insulation_temperature_basis, ambient_temperature, process_temperature, location, wind_speed, burial_depth, ground_conductivity, safety_factor, num_local_elements, local_element_equiv_length, shape, diameter, height, length, width, wall_lambda, q_additional.',
+  'Use concrete insulation material codes with density, for example mineral_wool_boards_120 or polyurethane_products_50. Generic family names such as mineral_wool are not valid calculation materials.',
 ].join(' ');
 
 export const VISUAL_QA_SYSTEM_PROMPT = [

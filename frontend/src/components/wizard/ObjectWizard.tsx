@@ -564,6 +564,13 @@ export default function ObjectWizard({
 
   function handleValuesChange(changed: Record<string, unknown>) {
     clearCalculationFieldErrors(Object.keys(changed));
+    if (Object.prototype.hasOwnProperty.call(changed, 'placement')) {
+      if (changed.placement === 'indoor') {
+        form.setFieldsValue({ insulation_temperature_basis: 'indoor' });
+      } else if (form.getFieldValue('insulation_temperature_basis') === 'indoor') {
+        form.setFieldsValue({ insulation_temperature_basis: undefined });
+      }
+    }
     if (Object.prototype.hasOwnProperty.call(changed, 'climate_key') && !changed.climate_key) {
       form.setFieldsValue({
         climate_city: undefined,
@@ -1158,6 +1165,21 @@ export default function ObjectWizard({
               )}
             </Form.Item>
           )}
+          <Form.Item
+            className="fixed-select-form-item helped-form-item"
+            label={fieldLabel('insulation_temperature_basis', heatCalcObjectType)}
+            name="insulation_temperature_basis"
+            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'insulation_temperature_basis')}
+          >
+            {withHelp(
+              <Select
+                data-testid="insulation-temperature-basis-select"
+                placeholder="Выберите режим"
+                options={heatCalcSelectOptions(heatCalcObjectType, 'insulation_temperature_basis')}
+              />,
+              fieldHelp('insulation_temperature_basis', heatCalcObjectType),
+            )}
+          </Form.Item>
           <Form.Item
             className="numeric-form-item temperature-number-form-item helped-form-item"
             label={fieldLabel('ambient_temperature', heatCalcObjectType)}
