@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "columns": {
     "index": {
       "labels": { "short": "#", "full": "Номер строки", "compact": "#" },
@@ -148,12 +148,12 @@
       "valueType": "input",
       "description": "Признак агрессивного продукта для выбора исполнения кабеля."
     },
-    "cable_length": {
-      "labels": { "short": "Длина расч., м", "full": "Расчётная длина кабеля, м", "compact": "L расч." },
+    "installed_cable_length": {
+      "labels": { "short": "Длина улож., м", "full": "Уложенная длина кабеля, м", "compact": "L улож." },
       "group": "Результат",
       "source": "results",
       "valueType": "computed",
-      "description": "Расчётная/уложенная длина кабеля. Используется для мощности, тока и технической проверки."
+      "description": "Каноническая расчётная/уложенная длина кабеля. Используется для мощности, тока и технической проверки."
     },
     "order_cable_length": {
       "labels": { "short": "Заказ +10%, м", "full": "Заказная длина кабеля (+10%), м", "compact": "L заказ" },
@@ -250,7 +250,7 @@
       "applied_selection_policy",
       "winding_pitch_mm",
       "number_of_threads",
-      "cable_length",
+      "installed_cable_length",
       "order_cable_length",
       "total_power",
       "current"
@@ -277,7 +277,7 @@
       { "key": "vapor_temperature", "defaultWidthPct": 10, "minWidthPx": 92 },
       { "key": "maintain_temperature", "defaultWidthPct": 8, "minWidthPx": 78 },
       { "key": "aggressive_product", "defaultWidthPct": 7, "minWidthPx": 64 },
-      { "key": "cable_length", "defaultWidthPct": 9, "minWidthPx": 70 },
+      { "key": "installed_cable_length", "defaultWidthPct": 9, "minWidthPx": 70 },
       { "key": "order_cable_length", "defaultWidthPct": 9, "minWidthPx": 70 },
       { "key": "total_power", "defaultWidthPct": 11, "minWidthPx": 90 },
       { "key": "current", "defaultWidthPct": 8, "minWidthPx": 70 },

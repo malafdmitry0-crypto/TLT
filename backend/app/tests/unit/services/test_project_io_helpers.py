@@ -10,7 +10,6 @@ from app.services.project_io_service import (
     ProjectImportError,
     _decode_csv,
     _detect_delimiter,
-    _first_project_from_bulk,
     _parse_json_or_empty,
     _parse_sections,
     _rows_to_dicts,
@@ -152,42 +151,6 @@ class TestCsvFormulaInjection:
         assert _safe_csv_cell("+SUM(1,2)") == "'+SUM(1,2)"
         assert _safe_csv_cell("plain") == "plain"
         assert _safe_csv_cell(42) == 42
-
-
-class TestFirstProjectFromBulk:
-    def test_extracts_first_project(self):
-        sections = {
-            "projects": [
-                ["project_key", "name", "task_number", "description", "status"],
-                ["p1", "Foo", "T-1", "", "draft"],
-                ["p2", "Bar", "T-2", "", "completed"],
-            ],
-            "objects": [
-                [
-                    "project_key",
-                    "type",
-                    "name",
-                    "sort_order",
-                    "params",
-                    "results",
-                    "is_valid",
-                    "validation_errors",
-                ],
-                ["p1", "pipe", "obj1", "0", "{}", "", "false", ""],
-                ["p2", "tank", "obj2", "0", "{}", "", "false", ""],
-            ],
-        }
-        result = _first_project_from_bulk(sections)
-        assert result is not None
-        meta, child = result
-        assert meta["name"] == "Foo"
-        # Только objects p1
-        assert len(child["objects"]) == 1
-        assert child["objects"][0]["type"] == "pipe"
-
-    def test_empty_returns_none(self):
-        assert _first_project_from_bulk({}) is None
-        assert _first_project_from_bulk({"projects": []}) is None
 
 
 class TestDumpProjectToWriter:
@@ -370,6 +333,7 @@ class TestApplyProjectData:
             project,
             objects_rows=[
                 {
+                    "object_key": "obj-1",
                     "type": "pipe",
                     "name": "T1",
                     "sort_order": "0",
@@ -399,6 +363,7 @@ class TestApplyProjectData:
             project,
             objects_rows=[
                 {
+                    "object_key": "obj-1",
                     "type": "pipe",
                     "name": "T1",
                     "sort_order": "0",
@@ -410,7 +375,7 @@ class TestApplyProjectData:
             ],
             electrical_rows=[
                 {
-                    "object_key": "T1",
+                    "object_key": "obj-1",
                     "variant_number": "1",
                     "cable_type": "self_regulating",
                     "cable_type_source": "manual",
@@ -504,7 +469,7 @@ class TestApplyProjectData:
         assert len(electrical) == 2
         assert [calc.object_id for calc in electrical] == [objects[0].id, objects[1].id]
 
-    async def test_duplicate_legacy_object_name_is_rejected(self):
+    async def test_missing_object_key_is_rejected(self):
         from types import SimpleNamespace
         from unittest.mock import AsyncMock, MagicMock
 
@@ -516,7 +481,7 @@ class TestApplyProjectData:
         db = AsyncMock()
         db.add = MagicMock()
         db.flush = AsyncMock()
-        with pytest.raises(ProjectImportError, match="Дублирующийся object_key"):
+        with pytest.raises(ProjectImportError, match="обязательный object_key"):
             await _apply_project_data(
                 db,
                 project,

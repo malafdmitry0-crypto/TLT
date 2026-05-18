@@ -6,6 +6,7 @@ import type { LlmClient } from '../llm/LlmClient';
 import { VISUAL_QA_SYSTEM_PROMPT } from '../llm/prompts';
 import type { LlmJudgeResult } from '../llm/types';
 import type { ReportResult } from '../reporting/types';
+import { readBinaryFileUnderRoot, resolveUnderAllowedRoot } from '../shared/paths';
 import type { Verdict } from '../shared/types';
 import { isRecord } from '../shared/types';
 
@@ -53,8 +54,8 @@ function safeSegment(value: string): string {
   return cleaned || 'root';
 }
 
-function screenshotDataUrl(filePath: string): string {
-  const data = fs.readFileSync(filePath);
+function screenshotDataUrl(outputDir: string, filePath: string): string {
+  const data = readBinaryFileUnderRoot(outputDir, filePath, 'visual QA screenshot path');
   return `data:image/png;base64,${data.toString('base64')}`;
 }
 
@@ -96,7 +97,8 @@ export async function captureVisualQaScreenshots(config: {
   const { chromium } = await import('@playwright/test');
   const browser = await chromium.launch();
   const screenshots: VisualQaScreenshot[] = [];
-  fs.mkdirSync(config.outputDir, { recursive: true });
+  const outputDir = path.resolve(config.outputDir);
+  fs.mkdirSync(outputDir, { recursive: true });
 
   try {
     for (const viewport of config.viewports) {
@@ -110,14 +112,14 @@ export async function captureVisualQaScreenshots(config: {
           await page.waitForTimeout(config.waitMs);
         }
         const id = `${safeSegment(pageUrl)}-${viewport.name}-${viewport.width}x${viewport.height}`;
-        const filePath = path.join(config.outputDir, `${id}.png`);
+        const filePath = resolveUnderAllowedRoot(outputDir, `${id}.png`, 'visual QA screenshot path');
         await page.screenshot({ path: filePath, fullPage: config.fullPage ?? false });
         screenshots.push({
           id,
           url: resolvedUrl,
           viewport,
           path: filePath,
-          dataUrl: screenshotDataUrl(filePath),
+          dataUrl: screenshotDataUrl(outputDir, filePath),
         });
       }
       await page.close();

@@ -58,26 +58,25 @@
 ```
 [SECTION];metadata
 key;value
-schema_version;1
-project_name;Усть-Луга нефтебаза
+schema_version;2
+name;Усть-Луга нефтебаза
 task_number;T-2026-001
-owner_email;ivanov@tlt.ru
-created_at;2026-04-12T10:30:00
-common_data;{"region":"Сургут","ambient_t":-44,"voltage":220,...}
+description;
+status;draft
 
 [SECTION];objects
-id;type;name;sort_order;params;results;is_valid
-1;pipe;Труба-1;0;{"outer_diameter":0.108,...};{"heat_loss_per_meter":54.3,...};true
-2;pipe;Труба-2;1;{"outer_diameter":0.159,...};{"heat_loss_per_meter":72.1,...};true
+object_key;type;name;sort_order;params;results;is_valid;validation_errors
+obj-1;pipe;Труба-1;0;{"outer_diameter":0.108,...};{"heat_loss_per_meter":54.3,...};true;
+obj-2;pipe;Труба-2;1;{"outer_diameter":0.159,...};{"heat_loss_per_meter":72.1,...};true;
 
 [SECTION];electrical
-object_id;variant_number;cable_mark;results
-1;1;ТЛТ-10;{"cable_length":55.0,"total_power":1650,"current":7.5}
-2;1;ТЛТ-15;{"cable_length":176.0,"total_power":5280,"current":24.0}
+object_key;variant_number;cable_type;cable_type_source;cable_mark;cable_mark_source;params;results
+obj-1;1;self_regulating;auto;ТЛТ-10;auto;{};{"installed_cable_length":50.0,"order_cable_length":55.0,"total_power":1650,"current":7.5}
+obj-2;1;self_regulating;auto;ТЛТ-15;auto;{};{"installed_cable_length":160.0,"order_cable_length":176.0,"total_power":5280,"current":24.0}
 
 [SECTION];specifications
-items
-[{"category":"Кабель","name":"ТЛТ-10",...}, ...]
+variant_number;items
+1;[{"category":"Кабель","name":"ТЛТ-10",...}, ...]
 ```
 
 ---

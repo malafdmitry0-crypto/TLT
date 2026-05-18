@@ -72,9 +72,9 @@ const COLUMN_DETAIL_BADGES: Record<ElectricalColumnKey, ColumnDetailBadge> = {
     tooltip: 'Марка может быть подобрана автоматически или выбрана вручную по строке',
     tone: 'applied',
   },
-  cable_length: {
-    label: 'Расчёт',
-    tooltip: 'Расчётная/уложенная длина кабеля для мощности и тока',
+  installed_cable_length: {
+    label: 'Укладка',
+    tooltip: 'Уложенная длина кабеля для мощности и тока',
     tone: 'result',
   },
   order_cable_length: {

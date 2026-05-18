@@ -68,9 +68,9 @@ interface RegisteredTableColumnCache {
 }
 
 export const HEATCALC_TABLE_COLUMNS_VERSION = getHeatCalcTableSettingsVersion();
-export const HEATCALC_TABLE_COLUMN_PREF_KEY = 'heatcalc.tableColumns.v1';
-export const HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY = 'heatcalc.tableColumns.v1.guest';
-export const HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY = 'heatcalc.tableColumns.v1.registered.cache';
+export const HEATCALC_TABLE_COLUMN_PREF_KEY = `heatcalc.tableColumns.v${HEATCALC_TABLE_COLUMNS_VERSION}`;
+export const HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY = `${HEATCALC_TABLE_COLUMN_PREF_KEY}.guest`;
+export const HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY = `${HEATCALC_TABLE_COLUMN_PREF_KEY}.registered.cache`;
 export const HEATCALC_TABLE_COLUMN_WIDTH_BASE_PX = 1000;
 export const HEATCALC_TABLE_COLUMN_MIN_WIDTH_PCT = 3;
 export const HEATCALC_TABLE_COLUMN_MAX_WIDTH_PCT = 60;
@@ -253,33 +253,6 @@ function normalizeVisibleOrder(
   return result;
 }
 
-function visibleOrderFromLegacyColumns(
-  type: HeatCalcTableColumnScope,
-  rawColumns: unknown,
-) {
-  const source = isRecord(rawColumns) ? rawColumns : {};
-  const defaultOrder = new Map(
-    HEATCALC_TABLE_COLUMN_CATALOG[type].map((column, index) => [column.key, index + 1]),
-  );
-  const keys = HEATCALC_TABLE_COLUMN_CATALOG[type]
-    .map((column) => {
-      const rawLayout = source[column.key];
-      const layout = isRecord(rawLayout) ? rawLayout : {};
-      const visible = column.required || layout.visible === true;
-      const order = Number.isFinite(Number(layout.order))
-        ? Math.round(Number(layout.order))
-        : defaultOrder.get(column.key) ?? 999;
-      return { key: column.key, visible, order };
-    })
-    .filter((column) => column.visible)
-    .sort((left, right) => {
-      if (left.order !== right.order) return left.order - right.order;
-      return (defaultOrder.get(left.key) ?? 999) - (defaultOrder.get(right.key) ?? 999);
-    })
-    .map((column) => column.key);
-  return normalizeVisibleOrder(type, keys);
-}
-
 function normalizeColumns(
   type: HeatCalcTableColumnScope,
   rawColumns: unknown,
@@ -307,133 +280,14 @@ function normalizeTypeSettingsFromStructuredValue(
   const defaults = defaultTypeSettings(type);
   const source = isRecord(rawType) ? rawType : {};
   const rawColumns = source.columns;
-  const hasColumns = isRecord(rawColumns) && Object.keys(rawColumns).length > 0;
   const visibleOrder = Array.isArray(source.visibleOrder)
     ? normalizeVisibleOrder(type, source.visibleOrder)
-    : hasColumns
-      ? visibleOrderFromLegacyColumns(type, rawColumns)
-      : defaults.visibleOrder;
+    : defaults.visibleOrder;
 
   return {
     visibleOrder,
     columns: normalizeColumns(type, rawColumns),
   };
-}
-
-function normalizeTypeSettingsFromVisibleKeys(
-  type: HeatCalcTableColumnScope,
-  keys: unknown,
-): HeatCalcTableColumnTypeSettings {
-  const fallback = defaultVisibleKeys(type);
-  return {
-    visibleOrder: normalizeVisibleOrder(type, keys, fallback),
-    columns: normalizeColumns(type, null),
-  };
-}
-
-function insertVisibleColumnAfter(
-  settings: HeatCalcTableColumnTypeSettings,
-  key: HeatCalcColumnKey,
-  afterKey: HeatCalcColumnKey,
-): HeatCalcTableColumnTypeSettings {
-  if (settings.visibleOrder.includes(key)) return settings;
-  const insertAfterIndex = settings.visibleOrder.indexOf(afterKey);
-  const visibleOrder = [...settings.visibleOrder];
-  if (insertAfterIndex >= 0) {
-    visibleOrder.splice(insertAfterIndex + 1, 0, key);
-  } else {
-    visibleOrder.push(key);
-  }
-  return {
-    ...settings,
-    visibleOrder,
-  };
-}
-
-function migrateTableColumnSettings(
-  settings: HeatCalcTableColumnSettings,
-  sourceVersion: number,
-): HeatCalcTableColumnSettings {
-  let next = settings;
-  if (sourceVersion < 5) {
-    next = {
-      ...next,
-      types: {
-        ...next.types,
-        pipe: normalizeTypeSettingsFromStructuredValue(
-          'pipe',
-          insertVisibleColumnAfter(next.types.pipe, 'placement', 'name'),
-        ),
-      },
-    };
-  }
-  if (sourceVersion < 6) {
-    const pipeSettings = next.types.pipe.visibleOrder.includes('support_count')
-      ? insertVisibleColumnAfter(next.types.pipe, 'local_element_equiv_length', 'support_count')
-      : next.types.pipe;
-    next = {
-      ...next,
-      types: {
-        ...next.types,
-        pipe: normalizeTypeSettingsFromStructuredValue('pipe', pipeSettings),
-      },
-    };
-  }
-  if (sourceVersion < 7) {
-    next = {
-      ...next,
-      types: {
-        ...next.types,
-        pipe: normalizeTypeSettingsFromStructuredValue(
-          'pipe',
-          insertVisibleColumnAfter(next.types.pipe, 'heat_loss_status', 'index'),
-        ),
-        tank: normalizeTypeSettingsFromStructuredValue(
-          'tank',
-          insertVisibleColumnAfter(next.types.tank, 'heat_loss_status', 'index'),
-        ),
-        all: normalizeTypeSettingsFromStructuredValue(
-          'all',
-          insertVisibleColumnAfter(next.types.all, 'heat_loss_status', 'index'),
-        ),
-      },
-    };
-  }
-  if (sourceVersion < 8) {
-    const pipeWithLinearHeatLoss = insertVisibleColumnAfter(
-      next.types.pipe,
-      'heat_loss_per_meter',
-      'heat_loss_status',
-    );
-    const pipeWithTotalHeatLoss = insertVisibleColumnAfter(
-      pipeWithLinearHeatLoss,
-      'total_heat_loss',
-      'heat_loss_per_meter',
-    );
-    const tankWithSpecificHeatLoss = insertVisibleColumnAfter(
-      next.types.tank,
-      'heat_loss_per_m2',
-      'heat_loss_status',
-    );
-    const tankWithTotalHeatLoss = insertVisibleColumnAfter(
-      tankWithSpecificHeatLoss,
-      'total_heat_loss',
-      'heat_loss_per_m2',
-    );
-    next = {
-      ...next,
-      types: {
-        ...next.types,
-        pipe: normalizeTypeSettingsFromStructuredValue('pipe', pipeWithTotalHeatLoss),
-        tank: normalizeTypeSettingsFromStructuredValue('tank', tankWithTotalHeatLoss),
-        all: normalizeTypeSettingsFromStructuredValue(
-          'all',
-          insertVisibleColumnAfter(next.types.all, 'total_heat_loss', 'heat_loss_status'),
-        ),
-      },
-    };
-  }
-  return next;
 }
 
 export function getAvailableTableColumnKeys(type: HeatCalcTableColumnScope) {
@@ -455,42 +309,28 @@ export function normalizeVisibleTableColumnKeys(
   type: HeatCalcTableColumnScope,
   keys: unknown,
 ): HeatCalcColumnKey[] {
-  const settings = normalizeTableColumnSettings({
-    table: {
-      [type]: keys,
-    },
-  });
-  return getVisibleTableColumnMetas(type, settings).map((column) => column.key);
+  return normalizeVisibleOrder(type, keys, defaultVisibleKeys(type));
 }
 
 export function normalizeTableColumnSettings(value: unknown): HeatCalcTableColumnSettings {
   const source = isRecord(value) ? value : {};
-  const sourceVersion = Number.isFinite(Number(source.version)) ? Number(source.version) : 0;
   const sourceTypes = isRecord(source.types) ? source.types : null;
 
-  if (sourceTypes) {
-    const pipe = isRecord(sourceTypes.pipe) ? sourceTypes.pipe : {};
-    const tank = isRecord(sourceTypes.tank) ? sourceTypes.tank : {};
-    const all = isRecord(sourceTypes.all) ? sourceTypes.all : {};
-    return migrateTableColumnSettings({
-      version: HEATCALC_TABLE_COLUMNS_VERSION,
-      types: {
-        pipe: normalizeTypeSettingsFromStructuredValue('pipe', pipe),
-        tank: normalizeTypeSettingsFromStructuredValue('tank', tank),
-        all: normalizeTypeSettingsFromStructuredValue('all', all),
-      },
-    }, sourceVersion);
+  if (source.version !== HEATCALC_TABLE_COLUMNS_VERSION || !sourceTypes) {
+    return getDefaultTableColumnSettings();
   }
 
-  const rawTable = isRecord(source.table) ? source.table : source;
-  return migrateTableColumnSettings({
+  const pipe = isRecord(sourceTypes.pipe) ? sourceTypes.pipe : {};
+  const tank = isRecord(sourceTypes.tank) ? sourceTypes.tank : {};
+  const all = isRecord(sourceTypes.all) ? sourceTypes.all : {};
+  return {
     version: HEATCALC_TABLE_COLUMNS_VERSION,
     types: {
-      pipe: normalizeTypeSettingsFromVisibleKeys('pipe', rawTable.pipe),
-      tank: normalizeTypeSettingsFromVisibleKeys('tank', rawTable.tank),
-      all: normalizeTypeSettingsFromVisibleKeys('all', rawTable.all),
+      pipe: normalizeTypeSettingsFromStructuredValue('pipe', pipe),
+      tank: normalizeTypeSettingsFromStructuredValue('tank', tank),
+      all: normalizeTypeSettingsFromStructuredValue('all', all),
     },
-  }, sourceVersion);
+  };
 }
 
 export function getTableColumnMeta(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey) {

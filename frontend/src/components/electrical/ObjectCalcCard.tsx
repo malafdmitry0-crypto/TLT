@@ -181,10 +181,10 @@ export default function ObjectCalcCard({
             {String(r.voltage ?? 220)} В
           </Descriptions.Item>
           <Descriptions.Item label="Расчётная длина кабеля">
-            {Number(r.cable_length ?? 0).toFixed(1)} м
+            {Number(r.installed_cable_length ?? 0).toFixed(1)} м
           </Descriptions.Item>
           <Descriptions.Item label="Заказная длина кабеля">
-            {Number(r.order_cable_length ?? r.cable_length ?? 0).toFixed(1)} м
+            {Number(r.order_cable_length ?? 0).toFixed(1)} м
           </Descriptions.Item>
           <Descriptions.Item label="Суммарная мощность">
             {Number(r.total_power ?? 0).toFixed(0)} Вт

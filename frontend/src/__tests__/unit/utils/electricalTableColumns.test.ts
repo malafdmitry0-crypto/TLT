@@ -30,7 +30,7 @@ describe('electricalTableColumns', () => {
       'applied_selection_policy',
       'winding_pitch_mm',
       'number_of_threads',
-      'cable_length',
+      'installed_cable_length',
       'order_cable_length',
       'total_power',
       'current',

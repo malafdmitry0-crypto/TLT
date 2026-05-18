@@ -1,7 +1,9 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
 import type { ComparisonResult } from '../comparison/types';
 import type { ReportResult } from '../reporting/types';
+import { readUtf8FileUnderRoot, resolveUnderAllowedRoot } from '../shared/paths';
 import type { CodebaseScanFinding } from './SecurityCodebaseScannerSubagent';
 
 export type AuditBaselineStatus = 'accepted_risk' | 'false_positive' | 'todo' | 'fixed';
@@ -31,9 +33,10 @@ export function emptyAuditBaseline(): AuditBaseline {
   return { version: 1, entries: [] };
 }
 
-export function loadAuditBaseline(filePath: string): AuditBaseline {
-  if (!fs.existsSync(filePath)) return emptyAuditBaseline();
-  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8')) as unknown;
+export function loadAuditBaseline(filePath: string, allowedRoot = path.dirname(filePath)): AuditBaseline {
+  const resolved = resolveUnderAllowedRoot(allowedRoot, filePath, 'audit baseline path');
+  if (!fs.existsSync(resolved)) return emptyAuditBaseline();
+  const parsed = JSON.parse(readUtf8FileUnderRoot(allowedRoot, resolved, 'audit baseline path')) as unknown;
   if (
     typeof parsed !== 'object' ||
     parsed === null ||

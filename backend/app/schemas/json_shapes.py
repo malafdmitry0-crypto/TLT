@@ -75,9 +75,9 @@ class ElectricalCalcSuccessDict(TypedDict):
     """Успешный электрорасчёт."""
 
     selected_cable: str  # марка кабеля (например "ТЛТ-25")
-    cable_length: float  # legacy alias: расчётная/уложенная длина кабеля, м
-    installed_cable_length: NotRequired[float]  # расчётная/уложенная длина кабеля, м
-    order_cable_length: NotRequired[float]  # длина для заказа с монтажным запасом, м
+    installed_cable_length: float  # расчётная/уложенная длина кабеля, м
+    order_cable_length: float  # длина для заказа с монтажным запасом, м
+    cable_length: NotRequired[float]  # вычисляемый alias на время разработки
     total_power: float  # полная мощность, Вт
     current: float  # ток нагрузки, А
     voltage: float  # напряжение питания, В

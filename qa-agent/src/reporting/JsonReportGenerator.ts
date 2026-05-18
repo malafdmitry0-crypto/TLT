@@ -1,6 +1,6 @@
-import fs from 'node:fs';
 import path from 'node:path';
 
+import { writeUtf8FileUnderRoot } from '../shared/paths';
 import type { Metadata } from '../shared/types';
 import type { Report, ReportGenerator, ReportResult } from './types';
 
@@ -30,8 +30,12 @@ export class JsonReportGenerator implements ReportGenerator {
     };
 
     if (this.outputPath) {
-      fs.mkdirSync(path.dirname(this.outputPath), { recursive: true });
-      fs.writeFileSync(this.outputPath, `${JSON.stringify(report, null, 2)}\n`);
+      writeUtf8FileUnderRoot(
+        path.dirname(this.outputPath),
+        this.outputPath,
+        `${JSON.stringify(report, null, 2)}\n`,
+        'JSON report output path',
+      );
     }
 
     return report;

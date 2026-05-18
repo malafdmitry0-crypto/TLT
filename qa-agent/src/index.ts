@@ -15,6 +15,7 @@ import { JsonReportGenerator } from './reporting/JsonReportGenerator';
 import { FormulaRegistry } from './registry/FormulaRegistry';
 import type { RequirementExtractor } from './requirements/RequirementExtractor';
 import type { Requirement } from './requirements/types';
+import { readUtf8FileUnderRoot, resolveUnderRepoRoot, writeUtf8FileUnderRoot } from './shared/paths';
 import { MockAppRunner } from './runners/MockAppRunner';
 import { EdgeCaseGenerator } from './test-generation/EdgeCaseGenerator';
 import { QaPipeline } from './pipeline/QaPipeline';
@@ -233,16 +234,18 @@ async function runControlledLlmExtraction() {
   const outputPath =
     process.env.QA_AGENT_REQUIREMENTS_OUTPUT ??
     path.join(root, 'reports', 'llm-requirements.json');
-  const rawDoc = fs.readFileSync(documentationPath, 'utf8');
-  const parsed = new MarkdownDocumentationParser().parse(rawDoc, { sourcePath: documentationPath });
+  const safeDocumentationPath = resolveUnderRepoRoot(root, documentationPath, 'LLM extraction documentation path');
+  const safeOutputPath = resolveUnderRepoRoot(root, outputPath, 'LLM extraction output path');
+  const rawDoc = readUtf8FileUnderRoot(root, safeDocumentationPath, 'LLM extraction documentation path');
+  const parsed = new MarkdownDocumentationParser().parse(rawDoc, { sourcePath: safeDocumentationPath });
   const requirements = await new LlmRequirementExtractor(new OpenAiCompatibleClient()).extract(parsed);
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(
-    outputPath,
+  writeUtf8FileUnderRoot(
+    root,
+    safeOutputPath,
     `${JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
-        documentationPath,
+        documentationPath: safeDocumentationPath,
         requirements,
       },
       null,
@@ -259,6 +262,7 @@ function intEnv(name: string, fallback: number): number {
 
 async function runTltAiCases() {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const repoRoot = path.resolve(root, '..');
   const reportPath = path.join(root, 'reports', 'qa-agent-tlt-ai-cases-report.json');
   const htmlReportPath = path.join(root, 'reports', 'qa-agent-tlt-ai-cases-report.html');
   const documentationPath =
@@ -271,8 +275,9 @@ async function runTltAiCases() {
     process.argv.includes('--llm-cases') ||
     (process.env.QA_AGENT_ENABLE_LLM === '1' && process.env.QA_AGENT_TLT_USE_LLM !== '0');
 
-  const documentation = fs.existsSync(documentationPath)
-    ? fs.readFileSync(documentationPath, 'utf8')
+  const safeDocumentationPath = resolveUnderRepoRoot(repoRoot, documentationPath, 'TLT AI cases documentation path');
+  const documentation = fs.existsSync(safeDocumentationPath)
+    ? readUtf8FileUnderRoot(repoRoot, safeDocumentationPath, 'TLT AI cases documentation path')
     : undefined;
   const rawCases = useLlm
     ? await new LlmTltHeatLossCaseGenerator(new OpenAiCompatibleClient()).generate({
@@ -497,7 +502,7 @@ async function runSecurityPentestAgent() {
       })
     : undefined;
   const baselineApplication = codebaseScan
-    ? applyAuditBaseline(codebaseScan.findings, loadAuditBaseline(baselinePath))
+    ? applyAuditBaseline(codebaseScan.findings, loadAuditBaseline(baselinePath, repoRoot))
     : undefined;
   const activeCodebaseScan =
     codebaseScan && baselineApplication
@@ -523,6 +528,7 @@ async function runSecurityPentestAgent() {
         summarizeAuditLifecycle({
           findings: activeCodebaseScan.findings,
           historyPath: lifecycleHistoryPath,
+          allowedRoot: repoRoot,
         }),
       ),
     );
@@ -573,8 +579,8 @@ async function runSecurityPentestAgent() {
         scenario: process.env.QA_AGENT_PERF_SCENARIO ?? 'bounded-local-load',
         loadResult,
       });
-      const trend = summarizePerformanceTrend({ historyPath: perfHistoryPath, record });
-      appendPerformanceTrend(perfHistoryPath, record);
+      const trend = summarizePerformanceTrend({ historyPath: perfHistoryPath, record, allowedRoot: repoRoot });
+      appendPerformanceTrend(perfHistoryPath, record, repoRoot);
       results.push(performanceTrendToReportResult(trend));
     }
   }
@@ -656,7 +662,7 @@ async function runSecurityPentestAgent() {
         businessAuditEnabled,
       },
     });
-    results.push(auditJournalToReportResult(appendAuditJournalEntries(auditJournalPath, entries)));
+    results.push(auditJournalToReportResult(appendAuditJournalEntries(auditJournalPath, entries, repoRoot)));
   }
 
   let llmReviewEnabled = false;
@@ -692,8 +698,12 @@ async function runSecurityPentestAgent() {
       codebaseFindings: activeCodebaseScan?.findings,
       reviewFindings: securityReview?.findings,
     });
-    fs.mkdirSync(path.dirname(fixHandoffPath), { recursive: true });
-    fs.writeFileSync(fixHandoffPath, `${JSON.stringify(fixHandoff, null, 2)}\n`);
+    writeUtf8FileUnderRoot(
+      repoRoot,
+      fixHandoffPath,
+      `${JSON.stringify(fixHandoff, null, 2)}\n`,
+      'audit fix handoff path',
+    );
     results.push(auditFixBranchToReportResult(fixHandoff));
   }
 

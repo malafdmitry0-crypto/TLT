@@ -53,11 +53,11 @@ interface RegisteredElectricalTableColumnCache {
   cachedAt: string;
 }
 
-export const ELECTRICAL_TABLE_COLUMNS_VERSION = 2;
-export const ELECTRICAL_TABLE_COLUMN_PREF_KEY = 'electrical.tableColumns.v2';
-export const ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY = 'electrical.tableColumns.v2.guest';
+export const ELECTRICAL_TABLE_COLUMNS_VERSION = 3;
+export const ELECTRICAL_TABLE_COLUMN_PREF_KEY = `electrical.tableColumns.v${ELECTRICAL_TABLE_COLUMNS_VERSION}`;
+export const ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY = `${ELECTRICAL_TABLE_COLUMN_PREF_KEY}.guest`;
 export const ELECTRICAL_REGISTERED_TABLE_COLUMN_CACHE_KEY =
-  'electrical.tableColumns.v2.registered.cache';
+  `${ELECTRICAL_TABLE_COLUMN_PREF_KEY}.registered.cache`;
 export const ELECTRICAL_TABLE_COLUMN_WIDTH_BASE_PX = 1000;
 export const ELECTRICAL_TABLE_COLUMN_MIN_WIDTH_PCT = 3;
 export const ELECTRICAL_TABLE_COLUMN_MAX_WIDTH_PCT = 60;

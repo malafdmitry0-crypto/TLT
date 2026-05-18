@@ -336,6 +336,21 @@ def _rows_to_dicts(rows: list[list[str]]) -> list[dict[str, str]]:
     return out
 
 
+def _section_key_values(sections: dict[str, list[list[str]]], name: str) -> dict[str, str]:
+    rows = _rows_to_dicts(sections.get(name, []))
+    return {r["key"]: r["value"] for r in rows if "key" in r}
+
+
+def _require_schema_version(sections: dict[str, list[list[str]]], name: str) -> None:
+    meta = _section_key_values(sections, name)
+    version = (meta.get("schema_version") or "").strip()
+    if version != SCHEMA_VERSION:
+        raise ProjectImportError(
+            f"Неподдерживаемая версия CSV-схемы: {version or 'не указана'}. "
+            f"Ожидается schema_version={SCHEMA_VERSION}."
+        )
+
+
 def _parse_json_or_empty(raw: str, default: Any) -> Any:
     raw = (raw or "").strip()
     if not raw:
@@ -360,7 +375,9 @@ async def _apply_project_data(
         params = _parse_json_or_empty(row.get("params", ""), {})
         if row.get("name") and "name" not in params:
             params["name"] = row["name"]
-        object_key = (row.get("object_key") or row.get("name") or f"obj{idx}").strip()
+        object_key = (row.get("object_key") or "").strip()
+        if not object_key:
+            raise ProjectImportError("В секции objects отсутствует обязательный object_key")
         if object_key in obj_by_key:
             raise ProjectImportError(
                 "Дублирующийся object_key в секции objects: "
@@ -384,7 +401,7 @@ async def _apply_project_data(
         key = row.get("object_key", "")
         obj = obj_by_key.get(key)
         if obj is None:
-            continue  # объект мог не сохраниться — пропускаем расчёт
+            continue  # расчёт ссылается на объект не из этого CSV
         cable_mark = row.get("cable_mark", "").strip() or None
         cable_mark_source = row.get("cable_mark_source", "").strip() or (
             "manual" if cable_mark else "auto"
@@ -412,56 +429,13 @@ async def _apply_project_data(
         db.add(spec)
 
 
-def _first_project_from_bulk(
-    sections: dict[str, list[list[str]]],
-) -> tuple[dict[str, str], dict[str, list[dict[str, str]]]] | None:
-    """Извлекает первый проект из bulk-формата (`[SECTION];projects`).
-
-    Возвращает (meta_как_словарь, {«objects»: rows, «electrical»: rows, «specifications»: rows}),
-    отфильтрованные по первому `project_key`. Если секции `projects` нет — `None`.
-    """
-    rows = _rows_to_dicts(sections.get("projects", []))
-    if not rows:
-        return None
-    first = rows[0]
-    key = first.get("project_key", "").strip()
-    meta: dict[str, str] = {
-        "name": first.get("name", ""),
-        "task_number": first.get("task_number", ""),
-        "description": first.get("description", ""),
-        "status": first.get("status", "draft"),
-    }
-    child: dict[str, list[dict[str, str]]] = {"objects": [], "electrical": [], "specifications": []}
-    if key:
-        for section_name in child:
-            child[section_name] = [
-                r
-                for r in _rows_to_dicts(sections.get(section_name, []))
-                if r.get("project_key", "").strip() == key
-            ]
-    return meta, child
-
-
 async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincipal) -> Project:
-    """Одиночный импорт. Принимает оба формата (single с `metadata` и bulk с `projects` —
-    тогда берётся первый проект). Для гостя замещает авто-проект; для сотрудника — создаёт новый.
-    """
+    """Одиночный импорт текущего single-формата с секцией `metadata`."""
     sections = _parse_sections(raw)
-    meta_rows = _rows_to_dicts(sections.get("metadata", []))
-    meta = {r["key"]: r["value"] for r in meta_rows if "key" in r}
-
-    # Если metadata нет — пробуем bulk-формат (первый проект)
-    bulk_child: dict[str, list[dict[str, str]]] | None = None
+    _require_schema_version(sections, "metadata")
+    meta = _section_key_values(sections, "metadata")
     if not meta.get("name"):
-        bulk = _first_project_from_bulk(sections)
-        if bulk is None:
-            raise ProjectImportError(
-                "В файле отсутствует секция [SECTION];metadata (одиночный экспорт) "
-                "или [SECTION];projects (пакетный экспорт)"
-            )
-        meta, bulk_child = bulk
-        if not meta.get("name"):
-            raise ProjectImportError("В секции [SECTION];projects пустое имя первого проекта")
+        raise ProjectImportError("В секции [SECTION];metadata пустое имя проекта")
 
     if principal.role == "guest":
         # Замещаем единственный авто-проект
@@ -492,22 +466,13 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
     db.add(project)
     await db.flush()
 
-    if bulk_child is not None:
-        await _apply_project_data(
-            db,
-            project,
-            bulk_child["objects"],
-            bulk_child["electrical"],
-            bulk_child["specifications"],
-        )
-    else:
-        await _apply_project_data(
-            db,
-            project,
-            _rows_to_dicts(sections.get("objects", [])),
-            _rows_to_dicts(sections.get("electrical", [])),
-            _rows_to_dicts(sections.get("specifications", [])),
-        )
+    await _apply_project_data(
+        db,
+        project,
+        _rows_to_dicts(sections.get("objects", [])),
+        _rows_to_dicts(sections.get("electrical", [])),
+        _rows_to_dicts(sections.get("specifications", [])),
+    )
     await db.commit()
     await db.refresh(project)
     return project
@@ -516,46 +481,23 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
 async def import_projects_bulk(
     db: AsyncSession, raw: bytes, principal: CurrentPrincipal
 ) -> dict[str, Any]:
-    """Пакетный импорт. Только для сотрудника. Конфликт по task_number → суффикс."""
+    """Пакетный импорт текущего bulk-формата. Только для сотрудника."""
     if principal.role not in ("employee", "admin"):
         raise ProjectAccessError("Пакетный импорт доступен только сотруднику")
 
     sections = _parse_sections(raw)
+    _require_schema_version(sections, "meta")
     projects_rows = _rows_to_dicts(sections.get("projects", []))
-
-    # Если `projects` нет, но есть `metadata` — это одиночный экспорт; «виртуализуем» в 1 проект.
     if not projects_rows:
-        meta_rows = _rows_to_dicts(sections.get("metadata", []))
-        meta = {r["key"]: r["value"] for r in meta_rows if "key" in r}
-        if not meta.get("name"):
-            raise ProjectImportError(
-                "Отсутствует секция [SECTION];projects (пакетный) "
-                "или [SECTION];metadata (одиночный)"
-            )
-        virtual_key = "p1"
-        projects_rows = [
-            {
-                "project_key": virtual_key,
-                "name": meta.get("name", ""),
-                "task_number": meta.get("task_number", ""),
-                "description": meta.get("description", ""),
-                "status": meta.get("status", "draft"),
-            }
-        ]
+        raise ProjectImportError("Отсутствует секция [SECTION];projects")
 
-        # Одиночные секции без `project_key` → все относятся к виртуальному проекту.
-        def by_project_key(name: str) -> dict[str, list[dict[str, str]]]:
-            rows = _rows_to_dicts(sections.get(name, []))
-            return {virtual_key: rows}
-    else:
-        # Пакетный формат — как раньше, фильтруем по project_key.
-        def by_project_key(name: str) -> dict[str, list[dict[str, str]]]:
-            grouped: dict[str, list[dict[str, str]]] = defaultdict(list)
-            for row in _rows_to_dicts(sections.get(name, [])):
-                key = row.get("project_key", "")
-                if key:
-                    grouped[key].append(row)
-            return grouped
+    def by_project_key(name: str) -> dict[str, list[dict[str, str]]]:
+        grouped: dict[str, list[dict[str, str]]] = defaultdict(list)
+        for row in _rows_to_dicts(sections.get(name, [])):
+            key = row.get("project_key", "")
+            if key:
+                grouped[key].append(row)
+        return grouped
 
     objects_by_key = by_project_key("objects")
     electrical_by_key = by_project_key("electrical")

@@ -19,7 +19,7 @@ from app.schemas.user_preference import UserPreferenceResponse, UserPreferenceUp
 
 router = APIRouter()
 
-HEATCALC_TABLE_COLUMNS_PREF_KEY = "heatcalc.tableColumns.v1"
+HEATCALC_TABLE_COLUMNS_PREF_KEY = f"heatcalc.tableColumns.v{HEATCALC_TABLE_COLUMNS_VERSION}"
 HEATCALC_TABLE_COLUMN_WIDTH_MIN = 3
 HEATCALC_TABLE_COLUMN_WIDTH_MAX = 60
 HEATCALC_TABLE_COLUMN_LAYOUT_KEYS = {"widthPct"}
@@ -46,8 +46,8 @@ HEATCALC_FIELD_INPUT_PREF_KEY = "heatcalc.fieldInputs.v1"
 HEATCALC_FIELD_INPUT_MAX_STEP = 1_000_000
 HEATCALC_FIELD_INPUT_KEYS = {"version", "fields"}
 HEATCALC_FIELD_INPUT_LAYOUT_KEYS = {"step"}
-ELECTRICAL_TABLE_COLUMNS_PREF_KEY = "electrical.tableColumns.v2"
-ELECTRICAL_TABLE_COLUMNS_VERSION = 2
+ELECTRICAL_TABLE_COLUMNS_VERSION = 3
+ELECTRICAL_TABLE_COLUMNS_PREF_KEY = f"electrical.tableColumns.v{ELECTRICAL_TABLE_COLUMNS_VERSION}"
 ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView.v1"
 ELECTRICAL_TABLE_VIEW_VERSION = 1
 ELECTRICAL_TABLE_VIEW_KEYS = {
@@ -78,7 +78,7 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
     "vapor_temperature",
     "maintain_temperature",
     "aggressive_product",
-    "cable_length",
+    "installed_cable_length",
     "order_cable_length",
     "total_power",
     "current",

@@ -129,4 +129,27 @@ describe('AppTestAgent', () => {
 
     expect(results[0]).toMatchObject({ status: 'skipped' });
   });
+
+  it('blocks traversal in generated test target paths', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-agent-traversal-'));
+    const results = writeAppTestProposals(
+      [
+        {
+          targetPath: '../backend/app/tests/unit/test_escape.py',
+          rationale: 'Traversal',
+          framework: 'pytest',
+          content: 'def test_escape(): pass',
+          riskTags: [],
+        },
+      ],
+      {
+        repoRoot: tmp,
+        outputDir: path.join(tmp, 'reports'),
+        allowRepoWrites: true,
+      },
+    );
+
+    expect(results[0]).toMatchObject({ status: 'skipped' });
+    expect(fs.existsSync(path.join(tmp, '..', 'backend/app/tests/unit/test_escape.py'))).toBe(false);
+  });
 });

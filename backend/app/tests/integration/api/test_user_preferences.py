@@ -9,6 +9,10 @@ from app.generated.heatcalc_field_contract import HEATCALC_TABLE_COLUMNS_VERSION
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+HEATCALC_TABLE_COLUMNS_PREF_KEY = f"heatcalc.tableColumns.v{HEATCALC_TABLE_COLUMNS_VERSION}"
+ELECTRICAL_TABLE_COLUMNS_VERSION = 3
+ELECTRICAL_TABLE_COLUMNS_PREF_KEY = f"electrical.tableColumns.v{ELECTRICAL_TABLE_COLUMNS_VERSION}"
+
 
 def heatcalc_table_columns_value(
     pipe_visible: list[str] | None = None,
@@ -70,7 +74,7 @@ def electrical_table_columns_value(
     visible: list[str] | None = None,
 ) -> dict[str, object]:
     return {
-        "version": 2,
+        "version": ELECTRICAL_TABLE_COLUMNS_VERSION,
         "visibleOrder": visible or ["index", "object_name", "current"],
         "columns": {
             "index": {"widthPct": 4},
@@ -100,13 +104,13 @@ class TestUserPreferencesApi:
         employee_token: str,
     ):
         resp = await client.get(
-            "/api/v1/preferences/heatcalc.tableColumns.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_COLUMNS_PREF_KEY}",
             headers={"Authorization": f"Bearer {employee_token}"},
         )
 
         assert resp.status_code == 200
         data = resp.json()
-        assert data["key"] == "heatcalc.tableColumns.v1"
+        assert data["key"] == HEATCALC_TABLE_COLUMNS_PREF_KEY
         assert data["value"] is None
         assert data["user_id"] is not None
 
@@ -119,7 +123,7 @@ class TestUserPreferencesApi:
         payload = {"value": heatcalc_table_columns_value()}
 
         first = await client.put(
-            "/api/v1/preferences/heatcalc.tableColumns.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_COLUMNS_PREF_KEY}",
             json=payload,
             headers=headers,
         )
@@ -127,14 +131,14 @@ class TestUserPreferencesApi:
         assert first.json()["value"]["types"]["pipe"]["visibleOrder"] == ["name", "pipe_dn"]
 
         update = await client.put(
-            "/api/v1/preferences/heatcalc.tableColumns.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_COLUMNS_PREF_KEY}",
             json={"value": heatcalc_table_columns_value(["name"], ["name"])},
             headers=headers,
         )
         assert update.status_code == 200, update.text
 
         read_back = await client.get(
-            "/api/v1/preferences/heatcalc.tableColumns.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_COLUMNS_PREF_KEY}",
             headers=headers,
         )
         assert read_back.status_code == 200
@@ -146,7 +150,7 @@ class TestUserPreferencesApi:
         guest_session: str,
     ):
         resp = await client.get(
-            "/api/v1/preferences/heatcalc.tableColumns.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_COLUMNS_PREF_KEY}",
             headers={"X-Session-Id": guest_session},
         )
 
@@ -159,13 +163,13 @@ class TestUserPreferencesApi:
         admin_token: str,
     ):
         await client.put(
-            "/api/v1/preferences/heatcalc.tableColumns.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_COLUMNS_PREF_KEY}",
             json={"value": heatcalc_table_columns_value(["name"], ["name"])},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
 
         resp = await client.get(
-            "/api/v1/preferences/heatcalc.tableColumns.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_COLUMNS_PREF_KEY}",
             headers={"Authorization": f"Bearer {admin_token}"},
         )
 
@@ -182,7 +186,7 @@ class TestUserPreferencesApi:
         typed_value["types"]["pipe"]["columns"]["name"]["label"] = "Плохое поле"
 
         resp = await client.put(
-            "/api/v1/preferences/heatcalc.tableColumns.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_COLUMNS_PREF_KEY}",
             json={"value": value},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
@@ -197,7 +201,7 @@ class TestUserPreferencesApi:
         headers = {"Authorization": f"Bearer {employee_token}"}
 
         resp = await client.put(
-            "/api/v1/preferences/electrical.tableColumns.v2",
+            f"/api/v1/preferences/{ELECTRICAL_TABLE_COLUMNS_PREF_KEY}",
             json={"value": electrical_table_columns_value()},
             headers=headers,
         )
@@ -206,7 +210,7 @@ class TestUserPreferencesApi:
         assert resp.json()["value"]["visibleOrder"] == ["index", "object_name", "current"]
 
         read_back = await client.get(
-            "/api/v1/preferences/electrical.tableColumns.v2",
+            f"/api/v1/preferences/{ELECTRICAL_TABLE_COLUMNS_PREF_KEY}",
             headers=headers,
         )
         assert read_back.status_code == 200
@@ -220,7 +224,7 @@ class TestUserPreferencesApi:
         value = electrical_table_columns_value(["index", "not_a_column"])
 
         resp = await client.put(
-            "/api/v1/preferences/electrical.tableColumns.v2",
+            f"/api/v1/preferences/{ELECTRICAL_TABLE_COLUMNS_PREF_KEY}",
             json={"value": value},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
@@ -384,7 +388,7 @@ class TestUserPreferencesApi:
         value = heatcalc_table_columns_value(["name", "unknown_key"], ["name"])
 
         resp = await client.put(
-            "/api/v1/preferences/heatcalc.tableColumns.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_COLUMNS_PREF_KEY}",
             json={"value": value},
             headers={"Authorization": f"Bearer {employee_token}"},
         )

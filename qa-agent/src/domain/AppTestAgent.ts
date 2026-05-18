@@ -6,6 +6,7 @@ import type { ComparisonResult } from '../comparison/types';
 import type { LlmClient } from '../llm/LlmClient';
 import { APP_TEST_PROPOSAL_SYSTEM_PROMPT } from '../llm/prompts';
 import type { ReportResult } from '../reporting/types';
+import { resolveUnderRepoRoot, writeUtf8FileUnderRoot } from '../shared/paths';
 import type { TestCase } from '../test-generation/types';
 import { isRecord } from '../shared/types';
 
@@ -317,8 +318,8 @@ function isAllowedTestPath(targetPath: string): boolean {
   );
 }
 
-function proposalPath(outputDir: string, targetPath: string): string {
-  return path.join(outputDir, `${targetPath.replaceAll(/[\\/]/g, '__')}.proposal`);
+function proposalFileName(targetPath: string): string {
+  return `${targetPath.replaceAll(/[\\/]/g, '__')}.proposal`;
 }
 
 export function writeAppTestProposals(
@@ -344,9 +345,9 @@ export function writeAppTestProposals(
     }
 
     if (!config.allowRepoWrites) {
-      const outputPath = proposalPath(config.outputDir, proposal.targetPath);
-      fs.writeFileSync(
-        outputPath,
+      const outputPath = writeUtf8FileUnderRoot(
+        config.outputDir,
+        proposalFileName(proposal.targetPath),
         [
           `# Target: ${proposal.targetPath}`,
           `# Framework: ${proposal.framework}`,
@@ -356,6 +357,7 @@ export function writeAppTestProposals(
           proposal.content,
           '',
         ].join('\n'),
+        'generated test proposal path',
       );
       results.push({
         targetPath: proposal.targetPath,
@@ -366,7 +368,7 @@ export function writeAppTestProposals(
       continue;
     }
 
-    const repoPath = path.join(config.repoRoot, proposal.targetPath);
+    const repoPath = resolveUnderRepoRoot(config.repoRoot, proposal.targetPath, 'generated test target path');
     if (fs.existsSync(repoPath) && !config.overwrite) {
       results.push({
         targetPath: proposal.targetPath,
@@ -377,8 +379,12 @@ export function writeAppTestProposals(
       });
       continue;
     }
-    fs.mkdirSync(path.dirname(repoPath), { recursive: true });
-    fs.writeFileSync(repoPath, proposal.content.endsWith('\n') ? proposal.content : `${proposal.content}\n`);
+    writeUtf8FileUnderRoot(
+      config.repoRoot,
+      repoPath,
+      proposal.content.endsWith('\n') ? proposal.content : `${proposal.content}\n`,
+      'generated test target path',
+    );
     results.push({
       targetPath: proposal.targetPath,
       writtenPath: repoPath,

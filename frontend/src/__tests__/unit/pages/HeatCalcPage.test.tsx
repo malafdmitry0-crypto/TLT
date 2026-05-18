@@ -13,6 +13,7 @@ import {
   HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY,
   HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY,
   HEATCALC_TABLE_COLUMN_PREF_KEY,
+  getDefaultTableColumnSettings,
 } from '@/utils/heatCalcTableColumns';
 import {
   HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY,
@@ -1342,7 +1343,7 @@ describe('HeatCalcPage', () => {
         HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY,
         JSON.stringify({
           userId: 'user-test-1',
-          settings: { version: 1, table: { pipe: ['name'], tank: ['name'] } },
+          settings: getDefaultTableColumnSettings(),
           cachedAt: '2026-05-08T00:00:00.000Z',
         }),
       );

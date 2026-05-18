@@ -16,7 +16,7 @@ class TestSpecBuilder:
     def test_single_cable_included(self):
         items = build_basic_specification(
             [
-                {"selected_cable": "ТЛТ-25", "cable_length": 55.0},
+                {"selected_cable": "ТЛТ-25", "order_cable_length": 55.0},
             ]
         )
         # Должен быть один кабель + базовые аксессуары
@@ -32,7 +32,7 @@ class TestSpecBuilder:
                 {
                     "selected_cable": "30ТТВ2",
                     "cable_mark": "30ТТВ2-СТ",
-                    "cable_length": 55.0,
+                    "order_cable_length": 55.0,
                 },
             ]
         )
@@ -44,9 +44,9 @@ class TestSpecBuilder:
         """Одинаковые марки суммируются по длине."""
         items = build_basic_specification(
             [
-                {"selected_cable": "ТЛТ-25", "cable_length": 10.0},
-                {"selected_cable": "ТЛТ-25", "cable_length": 15.5},
-                {"selected_cable": "ТЛТ-25", "cable_length": 4.5},
+                {"selected_cable": "ТЛТ-25", "order_cable_length": 10.0},
+                {"selected_cable": "ТЛТ-25", "order_cable_length": 15.5},
+                {"selected_cable": "ТЛТ-25", "order_cable_length": 4.5},
             ]
         )
         cables = [i for i in items if i.category == "Кабель"]
@@ -56,8 +56,8 @@ class TestSpecBuilder:
     def test_different_cables_kept_separate(self):
         items = build_basic_specification(
             [
-                {"selected_cable": "ТЛТ-25", "cable_length": 20.0},
-                {"selected_cable": "ТЛТ-50", "cable_length": 30.0},
+                {"selected_cable": "ТЛТ-25", "order_cable_length": 20.0},
+                {"selected_cable": "ТЛТ-50", "order_cable_length": 30.0},
             ]
         )
         cables = [i for i in items if i.category == "Кабель"]
@@ -69,9 +69,9 @@ class TestSpecBuilder:
         """Объекты без selected_cable не учитываются в кабелях."""
         items = build_basic_specification(
             [
-                {"selected_cable": None, "cable_length": 20.0},
-                {"selected_cable": "ТЛТ-25", "cable_length": 0},
-                {"selected_cable": "ТЛТ-25", "cable_length": 10.0},
+                {"selected_cable": None, "order_cable_length": 20.0},
+                {"selected_cable": "ТЛТ-25", "order_cable_length": 0},
+                {"selected_cable": "ТЛТ-25", "order_cable_length": 10.0},
             ]
         )
         cables = [i for i in items if i.category == "Кабель"]
@@ -82,8 +82,8 @@ class TestSpecBuilder:
         """Аксессуары умножаются на число объектов."""
         items = build_basic_specification(
             [
-                {"selected_cable": "ТЛТ-25", "cable_length": 10.0},
-                {"selected_cable": "ТЛТ-25", "cable_length": 20.0},
+                {"selected_cable": "ТЛТ-25", "order_cable_length": 10.0},
+                {"selected_cable": "ТЛТ-25", "order_cable_length": 20.0},
             ]
         )
         non_cable = [i for i in items if i.category != "Кабель"]
@@ -94,8 +94,8 @@ class TestSpecBuilder:
     def test_items_sorted_by_category_then_name(self):
         items = build_basic_specification(
             [
-                {"selected_cable": "ТЛТ-100", "cable_length": 50.0},
-                {"selected_cable": "ТЛТ-10", "cable_length": 20.0},
+                {"selected_cable": "ТЛТ-100", "order_cable_length": 50.0},
+                {"selected_cable": "ТЛТ-10", "order_cable_length": 20.0},
             ]
         )
         keys = [(i.category, i.name) for i in items]

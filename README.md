@@ -91,7 +91,7 @@ npx playwright test
 
 Текущее состояние:
 <!-- AUTO:test-counts -->
-**1102 backend** (821 unit + 281 integration) ✅ · **341 frontend vitest** ✅ · **60 e2e Playwright** ✅
+**1100 backend** (819 unit + 281 integration) ✅ · **339 frontend vitest** ✅ · **60 e2e Playwright** ✅
 <!-- /AUTO -->
 
 > Цифры синхронизируются `scripts/sync-docs.py` (правит этот блок на месте).

@@ -87,7 +87,7 @@
 
 **params:** `required_power_per_meter` (Вт/м), `cable_mark` (nullable), `supply_voltage` (В), `ambient_temperature` (°C), `pipe_length` (м), `safety_factor`
 
-**results:** `selected_cable` (марка), `cable_length` (м, ×1.1 от длины трубы), `total_power` (Вт), `current` (А), `voltage` (В)
+**results:** `selected_cable` (марка), `installed_cable_length` (уложенная длина, м), `order_cable_length` (длина для заказа с монтажным запасом, м), `total_power` (Вт), `current` (А), `voltage` (В). `cable_length` может присутствовать только как вычисляемый alias на время разработки.
 
 ---
 

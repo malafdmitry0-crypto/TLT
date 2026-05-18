@@ -56,19 +56,21 @@ describe('useElectricalStats', () => {
     const calcs = [
       makeCalc('a', 1, {
         selected_cable: 'ТЛТ-25',
-        cable_length: 10,
+        installed_cable_length: 10,
+        order_cable_length: 11,
         total_power: 250,
         current: 1.2,
       }),
       makeCalc('b', 1, {
         selected_cable: 'ТЛТ-40',
-        cable_length: 20,
+        installed_cable_length: 20,
+        order_cable_length: 22,
         total_power: 800,
         current: 3.6,
       }),
     ];
     const { result } = renderHook(() => useElectricalStats(objects, calcs));
-    expect(result.current.totalCableLength).toBe(30);
+    expect(result.current.totalCableLength).toBe(33);
     expect(result.current.totalPower).toBe(1050);
     expect(result.current.totalCurrent).toBeCloseTo(4.8, 3);
     expect(result.current.calcedCount).toBe(2);
@@ -80,7 +82,7 @@ describe('useElectricalStats', () => {
     const calcs = [
       makeCalc('a', 1, {
         selected_cable: 'ТЛТ-25',
-        cable_length: 10,
+        installed_cable_length: 10,
         order_cable_length: 11,
         total_power: 250,
         current: 1.2,
@@ -93,8 +95,8 @@ describe('useElectricalStats', () => {
   it('берёт последний вариант расчёта (с наибольшим variant_number)', () => {
     const objects = [makeObj('a')];
     const calcs = [
-      makeCalc('a', 1, { selected_cable: 'ТЛТ-10', cable_length: 5 }),
-      makeCalc('a', 2, { selected_cable: 'ТЛТ-25', cable_length: 10 }),
+      makeCalc('a', 1, { selected_cable: 'ТЛТ-10', order_cable_length: 5 }),
+      makeCalc('a', 2, { selected_cable: 'ТЛТ-25', order_cable_length: 10 }),
     ];
     const { result } = renderHook(() => useElectricalStats(objects, calcs));
     // мапа содержит последний вариант
@@ -106,7 +108,7 @@ describe('useElectricalStats', () => {
   it('не считает ошибочные расчёты в calcedCount, считает в failedCount', () => {
     const objects = [makeObj('a'), makeObj('b')];
     const calcs = [
-      makeCalc('a', 1, { selected_cable: 'ТЛТ-25', cable_length: 10 }),
+      makeCalc('a', 1, { selected_cable: 'ТЛТ-25', order_cable_length: 10 }),
       makeCalc(
         'b',
         1,
@@ -167,7 +169,7 @@ describe('useElectricalStats', () => {
 
   it('allCalced = false если хоть один валидный объект не рассчитан', () => {
     const objects = [makeObj('a'), makeObj('b')];
-    const calcs = [makeCalc('a', 1, { selected_cable: 'ТЛТ-25', cable_length: 10 })];
+    const calcs = [makeCalc('a', 1, { selected_cable: 'ТЛТ-25', order_cable_length: 10 })];
     const { result } = renderHook(() => useElectricalStats(objects, calcs));
     expect(result.current.calcedCount).toBe(1);
     expect(result.current.validObjects.length).toBe(2);

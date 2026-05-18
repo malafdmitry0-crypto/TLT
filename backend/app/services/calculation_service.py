@@ -11,7 +11,7 @@ from typing import Any, cast
 from uuid import UUID
 
 from pydantic import ValidationError
-from sqlalchemy import Float, and_, case, func, or_, select
+from sqlalchemy import Float, and_, func, or_, select
 from sqlalchemy import cast as sa_cast
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -327,16 +327,9 @@ class CalculationService:
             func.coalesce(category_text, "") != "unsupported",
             func.coalesce(category_text, "") != "stale",
         )
-        installed_cable_length = sa_cast(
-            ElectricalCalculation.results["cable_length"].astext, Float
-        )
-        legacy_order_cable_length = case(
-            (ElectricalCalculation.cable_type == "self_regulating", installed_cable_length),
-            else_=installed_cable_length * 1.1,
-        )
         order_cable_length = func.coalesce(
             sa_cast(ElectricalCalculation.results["order_cable_length"].astext, Float),
-            legacy_order_cable_length,
+            0.0,
         )
         manual_cable_mark = or_(
             ElectricalCalculation.cable_mark_source == CABLE_MARK_SOURCE_MANUAL,

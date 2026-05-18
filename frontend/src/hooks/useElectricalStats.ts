@@ -14,11 +14,7 @@ function orderCableLength(calc: ElectricalCalcSummary) {
     const explicitLength = Number(explicitRaw);
     if (Number.isFinite(explicitLength)) return explicitLength;
   }
-  const cableLength = Number(calc.results?.cable_length ?? 0);
-  if (!Number.isFinite(cableLength)) return 0;
-  return ['self_regulating_tt', 'single_core', 'three_core'].includes(calc.cable_type)
-    ? cableLength * 1.1
-    : cableLength;
+  return 0;
 }
 
 export interface ElectricalStats {

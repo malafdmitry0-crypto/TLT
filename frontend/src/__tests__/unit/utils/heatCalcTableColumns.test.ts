@@ -51,7 +51,7 @@ describe('heatCalcTableColumns', () => {
     expect(settings.types.pipe.visibleOrder).toContain('pipe_outer_diameter');
   });
 
-  it('мигрирует v1 visible keys в layout без потери обязательной колонки', () => {
+  it('сбрасывает настройки старой версии к текущему формату без миграции', () => {
     const settings = normalizeTableColumnSettings({
       version: 1,
       table: {
@@ -60,65 +60,7 @@ describe('heatCalcTableColumns', () => {
       },
     });
 
-    expect(settings.version).toBe(HEATCALC_TABLE_COLUMNS_VERSION);
-    expect(settings.types.pipe.visibleOrder).toEqual([
-      'pipe_dn',
-      'name',
-      'placement',
-      'heat_loss_status',
-      'heat_loss_per_meter',
-      'total_heat_loss',
-    ]);
-    expect(settings.types.pipe.columns.pipe_dn).toMatchObject({ widthPct: 5.8 });
-    expect(settings.types.pipe.columns.pipe_dn).not.toHaveProperty('visible');
-    expect(settings.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
-    expect(settings.types.pipe.visibleOrder).toContain('name');
-    expect(settings.types.pipe.visibleOrder).not.toContain('pipe_outer_diameter');
-  });
-
-  it('добавляет размещение трубопровода в старые сохранённые настройки', () => {
-    const settings = normalizeTableColumnSettings({
-      version: 4,
-      types: {
-        pipe: {
-          visibleOrder: ['index', 'name', 'pipe_outer_diameter'],
-          columns: {},
-        },
-      },
-    });
-
-    expect(settings.types.pipe.visibleOrder.slice(0, 6)).toEqual([
-      'index',
-      'heat_loss_status',
-      'heat_loss_per_meter',
-      'total_heat_loss',
-      'name',
-      'placement',
-    ]);
-  });
-
-  it('добавляет Lэкв после локальных элементов в старые сохранённые настройки', () => {
-    const settings = normalizeTableColumnSettings({
-      version: 5,
-      types: {
-        pipe: {
-          visibleOrder: ['index', 'name', 'valve_count', 'flange_count', 'support_count'],
-          columns: {},
-        },
-      },
-    });
-
-    expect(settings.types.pipe.visibleOrder).toEqual([
-      'index',
-      'heat_loss_status',
-      'heat_loss_per_meter',
-      'total_heat_loss',
-      'name',
-      'valve_count',
-      'flange_count',
-      'support_count',
-      'local_element_equiv_length',
-    ]);
+    expect(settings).toEqual(getDefaultTableColumnSettings());
   });
 
   it('не возвращает размещение трубопровода после ручного скрытия в новой версии', () => {

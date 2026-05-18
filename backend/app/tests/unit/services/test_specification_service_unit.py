@@ -121,7 +121,7 @@ class TestGenerate:
             cable_type="self_regulating",
             cable_mark="ТЛТ-25",
             params={},
-            results={"selected_cable": "ТЛТ-25", "cable_length": 10},
+            results={"selected_cable": "ТЛТ-25", "order_cable_length": 10},
         )
         db = AsyncMock()
         no_spec = MagicMock()
@@ -152,7 +152,7 @@ class TestGenerate:
             cable_type="self_regulating_tt",
             cable_mark="30ТТВ2-СТ",
             params={},
-            results={"selected_cable": "30ТТВ2", "cable_length": 10},
+            results={"selected_cable": "30ТТВ2", "order_cable_length": 10},
         )
         db = AsyncMock()
         no_spec = MagicMock()

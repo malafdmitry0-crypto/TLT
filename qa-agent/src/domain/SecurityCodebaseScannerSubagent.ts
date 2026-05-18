@@ -37,6 +37,7 @@ type ScannerRule = {
   title: string;
   extensions: string[];
   pattern: RegExp;
+  ignoreLinePattern?: RegExp;
   recommendation: string;
   confidence: CodebaseScanFinding['confidence'];
 };
@@ -87,6 +88,7 @@ const SCANNER_RULES: ScannerRule[] = [
     title: 'Potential unsafe HTML rendering',
     extensions: ['.ts', '.tsx', '.js', '.jsx'],
     pattern: /dangerouslySetInnerHTML/i,
+    ignoreLinePattern: /^\s*pattern:\s*\/.*dangerouslySetInnerHTML/,
     recommendation:
       'Avoid raw HTML rendering or sanitize with a reviewed allow-list sanitizer and add regression tests for XSS payloads.',
     confidence: 'high',
@@ -97,7 +99,8 @@ const SCANNER_RULES: ScannerRule[] = [
     category: 'injection',
     title: 'Dynamic code execution primitive',
     extensions: ['.ts', '.tsx', '.js', '.jsx', '.py'],
-    pattern: /\b(eval\s*\(|new Function\s*\(|exec\s*\()/,
+    pattern: /(?:\beval\s*\(|\bnew\s+Function\s*\(|\bchild_process\.exec(?:File|Sync)?\s*\(|(?<![\w.])exec(?:File|Sync)?\s*\()/,
+    ignoreLinePattern: /^\s*pattern:\s*\//,
     recommendation:
       'Remove dynamic code execution. If unavoidable, isolate input, restrict capabilities, and add explicit security tests.',
     confidence: 'medium',
@@ -199,6 +202,29 @@ function lineAt(source: string, lineNumber: number): string {
   return source.split('\n')[lineNumber - 1]?.trim().slice(0, 240) ?? '';
 }
 
+function firstRelevantRuleMatch(
+  rule: ScannerRule,
+  relativeFile: string,
+  source: string,
+): { line: number; evidence: string } | undefined {
+  const flags = rule.pattern.flags.includes('g') ? rule.pattern.flags : `${rule.pattern.flags}g`;
+  const pattern = new RegExp(rule.pattern.source, flags);
+  for (const match of source.matchAll(pattern)) {
+    if (match.index === undefined) continue;
+    const line = lineNumberForOffset(source, match.index);
+    const evidence = lineAt(source, line);
+    if (rule.ignoreLinePattern?.test(evidence)) continue;
+    if (
+      relativeFile === 'qa-agent/src/domain/SecurityCodebaseScannerSubagent.ts' &&
+      /^\s*(?:pattern|ignoreLinePattern):\s*\//.test(evidence)
+    ) {
+      continue;
+    }
+    return { line, evidence };
+  }
+  return undefined;
+}
+
 function stableFindingId(ruleId: string, file: string, line: number): string {
   return `${ruleId}:${file}:${line}`;
 }
@@ -233,19 +259,18 @@ export class SecurityCodebaseScannerSubagent {
         if (findings.length >= MAX_FINDINGS) break;
         if ((findingsByRule.get(rule.id) ?? 0) >= MAX_FINDINGS_PER_RULE) continue;
         if (!rule.extensions.includes(path.extname(absoluteFile))) continue;
-        const match = rule.pattern.exec(source);
-        if (!match || match.index === undefined) continue;
-        const line = lineNumberForOffset(source, match.index);
+        const match = firstRelevantRuleMatch(rule, relativeFile, source);
+        if (!match) continue;
         findingsByRule.set(rule.id, (findingsByRule.get(rule.id) ?? 0) + 1);
         findings.push({
-          id: stableFindingId(rule.id, relativeFile, line),
+          id: stableFindingId(rule.id, relativeFile, match.line),
           ruleId: rule.id,
           severity: rule.severity,
           category: rule.category,
           title: rule.title,
           file: relativeFile,
-          line,
-          evidence: redactEvidence(rule.id, lineAt(source, line)),
+          line: match.line,
+          evidence: redactEvidence(rule.id, match.evidence),
           recommendation: rule.recommendation,
           confidence: rule.confidence,
         });

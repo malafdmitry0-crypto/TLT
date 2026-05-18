@@ -55,6 +55,11 @@ import {
   buildAuditJournalEntries,
   readAuditJournal,
 } from '../src/domain/AuditJournal';
+import {
+  readUtf8FileUnderRoot,
+  resolveUnderAllowedRoot,
+  writeUtf8FileUnderRoot,
+} from '../src/shared/paths';
 import type { CodebaseScanFinding } from '../src/domain/SecurityCodebaseScannerSubagent';
 import type { AppTestCommand, AppTestRunResult } from '../src/domain/AppTestAgent';
 
@@ -79,6 +84,15 @@ function tmpDir(prefix: string): string {
 }
 
 describe('audit extensions', () => {
+  it('guards agent file access under explicit roots', () => {
+    const root = tmpDir('qa-paths-');
+    const written = writeUtf8FileUnderRoot(root, 'nested/report.txt', 'ok');
+
+    expect(readUtf8FileUnderRoot(root, written)).toBe('ok');
+    expect(resolveUnderAllowedRoot(root, 'nested/report.txt')).toBe(written);
+    expect(() => resolveUnderAllowedRoot(root, '../outside.txt')).toThrow(/allowed root/);
+  });
+
   it('tracks finding lifecycle history and detects regressions', () => {
     const root = tmpDir('qa-lifecycle-');
     const historyPath = path.join(root, 'history.jsonl');

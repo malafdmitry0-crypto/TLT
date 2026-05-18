@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import path from 'node:path';
 
 import type { DeterministicComparator } from '../comparison/DeterministicComparator';
 import type { DocumentationParser } from '../documentation/DocumentationParser';
@@ -9,6 +9,7 @@ import type { RequirementExtractor } from '../requirements/RequirementExtractor'
 import type { Requirement } from '../requirements/types';
 import type { AppRunner } from '../runners/AppRunner';
 import type { Metadata, Verdict } from '../shared/types';
+import { readUtf8FileUnderRoot } from '../shared/paths';
 import type { TestCaseGenerator } from '../test-generation/TestCaseGenerator';
 import type { TestCase } from '../test-generation/types';
 import type { ReportGenerator, Report, ReportResult } from '../reporting/types';
@@ -36,7 +37,11 @@ export class QaPipeline {
   ) {}
 
   async run(config: QaPipelineConfig): Promise<Report> {
-    const rawDoc = fs.readFileSync(config.documentationPath, 'utf8');
+    const rawDoc = readUtf8FileUnderRoot(
+      path.dirname(config.documentationPath),
+      config.documentationPath,
+      'pipeline documentation path',
+    );
     const parsed = this.deps.documentationParser.parse(rawDoc, {
       sourcePath: config.documentationPath,
     });

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { ReportResult } from '../reporting/types';
+import { readUtf8FileUnderRoot, resolveUnderAllowedRoot } from '../shared/paths';
 import type { AuditOwnershipItem } from './AuditOwnershipPlanner';
 import type { AuditRecipeMatch } from './AuditRecipes';
 import type { RegressionTestProposal } from './AuditRegressionPlanner';
@@ -45,22 +46,27 @@ export function createAuditRunId(date = new Date()): string {
   return `audit-${date.toISOString().replaceAll(/[-:]/g, '').replace(/\.\d{3}Z$/, 'z')}`;
 }
 
-export function appendAuditJournalEntries(journalPath: string, entries: AuditJournalEntry[]): AuditJournalSummary {
-  fs.mkdirSync(path.dirname(journalPath), { recursive: true });
+export function appendAuditJournalEntries(
+  journalPath: string,
+  entries: AuditJournalEntry[],
+  allowedRoot = path.dirname(journalPath),
+): AuditJournalSummary {
+  const resolved = resolveUnderAllowedRoot(allowedRoot, journalPath, 'audit journal path');
+  fs.mkdirSync(path.dirname(resolved), { recursive: true });
   if (entries.length > 0) {
-    fs.appendFileSync(journalPath, entries.map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+    fs.appendFileSync(resolved, entries.map((entry) => JSON.stringify(entry)).join('\n') + '\n');
   }
   return {
-    journalPath,
+    journalPath: resolved,
     writtenEntries: entries.length,
     runId: entries[0]?.runId ?? createAuditRunId(),
   };
 }
 
-export function readAuditJournal(journalPath: string): AuditJournalEntry[] {
-  if (!fs.existsSync(journalPath)) return [];
-  return fs
-    .readFileSync(journalPath, 'utf8')
+export function readAuditJournal(journalPath: string, allowedRoot = path.dirname(journalPath)): AuditJournalEntry[] {
+  const resolved = resolveUnderAllowedRoot(allowedRoot, journalPath, 'audit journal path');
+  if (!fs.existsSync(resolved)) return [];
+  return readUtf8FileUnderRoot(allowedRoot, resolved, 'audit journal path')
     .split('\n')
     .filter(Boolean)
     .flatMap((line): AuditJournalEntry[] => {

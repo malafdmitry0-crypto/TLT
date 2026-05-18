@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { ReportResult } from '../reporting/types';
+import { readUtf8FileUnderRoot, resolveUnderAllowedRoot } from '../shared/paths';
 import type { LocalLoadResult } from './SecurityPentestAgent';
 
 export type PerformanceTrendRecord = {
@@ -23,10 +24,10 @@ export type PerformanceTrendSummary = {
   avgLatencyDeltaPct?: number;
 };
 
-export function readPerformanceTrends(historyPath: string): PerformanceTrendRecord[] {
-  if (!fs.existsSync(historyPath)) return [];
-  return fs
-    .readFileSync(historyPath, 'utf8')
+export function readPerformanceTrends(historyPath: string, allowedRoot = path.dirname(historyPath)): PerformanceTrendRecord[] {
+  const resolved = resolveUnderAllowedRoot(allowedRoot, historyPath, 'performance history path');
+  if (!fs.existsSync(resolved)) return [];
+  return readUtf8FileUnderRoot(allowedRoot, resolved, 'performance history path')
     .split('\n')
     .filter(Boolean)
     .flatMap((line): PerformanceTrendRecord[] => {
@@ -60,17 +61,23 @@ export function buildPerformanceTrendRecord(args: {
   };
 }
 
-export function appendPerformanceTrend(historyPath: string, record: PerformanceTrendRecord): void {
-  fs.mkdirSync(path.dirname(historyPath), { recursive: true });
-  fs.appendFileSync(historyPath, `${JSON.stringify(record)}\n`);
+export function appendPerformanceTrend(
+  historyPath: string,
+  record: PerformanceTrendRecord,
+  allowedRoot = path.dirname(historyPath),
+): void {
+  const resolved = resolveUnderAllowedRoot(allowedRoot, historyPath, 'performance history path');
+  fs.mkdirSync(path.dirname(resolved), { recursive: true });
+  fs.appendFileSync(resolved, `${JSON.stringify(record)}\n`);
 }
 
 export function summarizePerformanceTrend(args: {
   historyPath: string;
   record: PerformanceTrendRecord;
   history?: PerformanceTrendRecord[];
+  allowedRoot?: string;
 }): PerformanceTrendSummary {
-  const history = args.history ?? readPerformanceTrends(args.historyPath);
+  const history = args.history ?? readPerformanceTrends(args.historyPath, args.allowedRoot);
   const previous = [...history].reverse().find((item) => item.scenario === args.record.scenario);
   const avgLatencyDeltaPct =
     previous && previous.avgLatencyMs > 0

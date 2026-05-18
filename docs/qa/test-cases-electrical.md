@@ -10,9 +10,9 @@
 | 1 | Создать объект `pipe` с рассчитанными теплопотерями | `object_id` |
 | 2 | `POST /api/v1/calc/electrical` с `cable_type=self_regulating`, `cable_mark=ТЛТ-25` | HTTP 200 |
 | 3 | Проверить `selected_cable` | `"ТЛТ-25"` |
-| 4 | Проверить `cable_length` | `pipe_length` — расчётная/уложенная длина без заказного запаса |
-| 5 | Проверить `order_cable_length` | `cable_length × 1.1` (запас 10% по BR-CABLE-02) |
-| 6 | Проверить `total_power` | `25 × cable_length` Вт |
+| 4 | Проверить `installed_cable_length` | `pipe_length` — расчётная/уложенная длина без заказного запаса |
+| 5 | Проверить `order_cable_length` | `installed_cable_length × 1.1` (запас 10% по BR-CABLE-02) |
+| 6 | Проверить `total_power` | `25 × installed_cable_length` Вт |
 | 7 | Проверить `current` | `total_power / 220` А |
 | 8 | Проверить `voltage` | `220` В |
 
@@ -33,7 +33,7 @@
 }
 ```
 
-> **Примечание:** `cable_length = 50 м`, `order_cable_length = 50 × 1.1 = 55 м`.
+> **Примечание:** `installed_cable_length = 50 м`, `order_cable_length = 50 × 1.1 = 55 м`.
 
 ---
 
@@ -163,7 +163,7 @@
 |-----|----------|---------------------|
 | 1 | `GET /api/v1/calc/electrical?project_id=<uuid>` | HTTP 200 |
 | 2 | Проверить структуру каждого элемента | `id`, `object_id`, `cable_type`, `cable_mark`, `variant_number`, `results` |
-| 3 | Поле `results` содержит | `selected_cable`, `cable_length`, `total_power`, `current`, `voltage` |
+| 3 | Поле `results` содержит | `selected_cable`, `installed_cable_length`, `order_cable_length`, `total_power`, `current`, `voltage` |
 | 4 | Пустой проект (без расчётов) | `[]` |
 
 ---
@@ -186,8 +186,8 @@
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
-| 1 | Расчёт с `pipe_length=100` | `cable_length = 100`, `order_cable_length = 110` |
-| 2 | Расчёт с `pipe_length=50`  | `cable_length = 50`, `order_cable_length = 55` |
+| 1 | Расчёт с `pipe_length=100` | `installed_cable_length = 100`, `order_cable_length = 110` |
+| 2 | Расчёт с `pipe_length=50`  | `installed_cable_length = 50`, `order_cable_length = 55` |
 
 ---
 

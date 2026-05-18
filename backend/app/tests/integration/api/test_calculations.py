@@ -138,7 +138,7 @@ class TestElectricalCalculation:
         assert resp.status_code == 200, resp.text
         result = resp.json()["result"]
         assert result["selected_cable"] == "ТЛТ-25"
-        assert "cable_length" in result
+        assert "installed_cable_length" in result
         assert "order_cable_length" in result
         assert "total_power" in result
         assert "current" in result
@@ -170,7 +170,7 @@ class TestElectricalCalculation:
         )
         assert resp.status_code == 200, resp.text
         result = resp.json()["result"]
-        assert result["cable_length"] == pytest.approx(pipe_length, rel=1e-3)
+        assert result["installed_cable_length"] == pytest.approx(pipe_length, rel=1e-3)
         assert result["order_cable_length"] == pytest.approx(
             pipe_length * CABLE_LENGTH_FACTOR,
             rel=1e-3,
@@ -213,7 +213,7 @@ class TestElectricalCalculation:
         assert calc["cable_mark"] == "ТЛТ-25"
         assert calc["results"] is not None
         assert "selected_cable" in calc["results"]
-        assert "cable_length" in calc["results"]
+        assert "installed_cable_length" in calc["results"]
 
     async def test_list_electrical_empty_project(self, client: AsyncClient, guest_session: str):
         """Пустой проект возвращает пустой список расчётов."""
@@ -394,7 +394,7 @@ class TestElectricalCalculation:
         body = resp.json()
         assert body["calculated"] == 1
         result = body["results"][0]["results"]
-        assert result["cable_length"] > tank["params"]["height"] * 1.1
+        assert result["installed_cable_length"] > tank["params"]["height"] * 1.1
         assert result["total_power"] >= tank["results"]["total_heat_loss"]
 
     async def test_batch_can_skip_result_payload(self, client: AsyncClient, guest_session: str):

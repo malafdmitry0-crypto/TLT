@@ -134,7 +134,7 @@ vi.mock('@/api/references', () => ({
 
 vi.mock('@/api/preferences', () => ({
   getUserPreference: vi.fn().mockResolvedValue({
-    key: 'heatcalc.tableColumns.v1',
+    key: 'heatcalc.tableColumns.v8',
     value: null,
     user_id: 'user-test-1',
   }),

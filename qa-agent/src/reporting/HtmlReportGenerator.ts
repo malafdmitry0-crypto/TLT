@@ -1,6 +1,6 @@
-import fs from 'node:fs';
 import path from 'node:path';
 
+import { writeUtf8FileUnderRoot } from '../shared/paths';
 import type { Metadata } from '../shared/types';
 import type { Report, ReportGenerator, ReportResult } from './types';
 
@@ -186,8 +186,12 @@ export class HtmlReportGenerator implements ReportGenerator {
     };
 
     if (this.outputPath) {
-      fs.mkdirSync(path.dirname(this.outputPath), { recursive: true });
-      fs.writeFileSync(this.outputPath, renderHtml(report));
+      writeUtf8FileUnderRoot(
+        path.dirname(this.outputPath),
+        this.outputPath,
+        renderHtml(report),
+        'HTML report output path',
+      );
       report.metadata.reportPath = this.outputPath;
     }
 

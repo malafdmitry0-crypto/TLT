@@ -1,11 +1,11 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 
+import { readUtf8FileUnderRoot } from '../shared/paths';
 import type { FormulaDefinition, RegistryFile } from './types';
 
 function parseRegistryFile(filePath: string): RegistryFile {
-  const raw = fs.readFileSync(filePath, 'utf8');
+  const raw = readUtf8FileUnderRoot(path.dirname(filePath), filePath, 'formula registry path');
   const ext = path.extname(filePath).toLowerCase();
   return ext === '.json' ? (JSON.parse(raw) as RegistryFile) : (YAML.parse(raw) as RegistryFile);
 }

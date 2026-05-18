@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { ReportResult } from '../reporting/types';
+import { readUtf8FileUnderRoot, resolveUnderRepoRoot } from '../shared/paths';
 
 export type ContractDriftFinding = {
   id: string;
@@ -17,14 +18,16 @@ export type ContractDriftSummary = {
   findings: ContractDriftFinding[];
 };
 
-function readIfExists(filePath: string): string {
-  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+function readIfExists(repoRoot: string, filePath: string): string {
+  const resolved = resolveUnderRepoRoot(repoRoot, filePath, 'contract drift source path');
+  return fs.existsSync(resolved) ? readUtf8FileUnderRoot(repoRoot, resolved, 'contract drift source path') : '';
 }
 
-function keysFromJson(filePath: string): string[] {
-  if (!fs.existsSync(filePath)) return [];
+function keysFromJson(repoRoot: string, filePath: string): string[] {
+  const resolved = resolveUnderRepoRoot(repoRoot, filePath, 'contract drift JSON path');
+  if (!fs.existsSync(resolved)) return [];
   try {
-    const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8')) as unknown;
+    const parsed = JSON.parse(readUtf8FileUnderRoot(repoRoot, resolved, 'contract drift JSON path')) as unknown;
     if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
       const source = parsed as Record<string, unknown>;
       if (typeof source.fields === 'object' && source.fields !== null && !Array.isArray(source.fields)) {
@@ -53,10 +56,10 @@ export function auditContractDrift(repoRoot: string): ContractDriftSummary {
     importServicePath,
     exportServicePath,
   ].filter(fs.existsSync);
-  const frontendTypes = readIfExists(frontendTypesPath);
-  const backendSchemas = readIfExists(backendSchemasPath);
-  const importExport = `${readIfExists(importServicePath)}\n${readIfExists(exportServicePath)}`;
-  const jsonFieldKeys = [...new Set([...keysFromJson(heatFieldsPath), ...keysFromJson(electricalFieldsPath)])].sort();
+  const frontendTypes = readIfExists(repoRoot, frontendTypesPath);
+  const backendSchemas = readIfExists(repoRoot, backendSchemasPath);
+  const importExport = `${readIfExists(repoRoot, importServicePath)}\n${readIfExists(repoRoot, exportServicePath)}`;
+  const jsonFieldKeys = [...new Set([...keysFromJson(repoRoot, heatFieldsPath), ...keysFromJson(repoRoot, electricalFieldsPath)])].sort();
   const findings: ContractDriftFinding[] = [];
 
   for (const key of jsonFieldKeys) {

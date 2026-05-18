@@ -43,7 +43,11 @@ class TestLoadContext:
             object_id=oid,
             variant_number=1,
             cable_mark="ТЛТ-25",
-            results={"selected_cable": "ТЛТ-25", "cable_length": 55},
+            results={
+                "selected_cable": "ТЛТ-25",
+                "installed_cable_length": 50,
+                "order_cable_length": 55,
+            },
         )
         results_stack = [
             _r(scalar_one_or_none=project),  # Project
@@ -84,7 +88,8 @@ class TestLoadContext:
                 {
                     "selected_cable": "ТЛТ-10",
                     "total_power": 1000,
-                    "cable_length": 10,
+                    "installed_cable_length": 10,
+                    "order_cable_length": 11,
                     "current": 4.5,
                 },
             ),
@@ -96,7 +101,6 @@ class TestLoadContext:
                     "category": "formula",
                     "message": "Не найден кабель",
                     "total_power": 9000,
-                    "cable_length": 90,
                     "current": 40.9,
                 },
             ),
@@ -118,7 +122,6 @@ class TestLoadContext:
                     "category": "stale",
                     "message": "Электрорасчёт требует пересчёта",
                     "total_power": 7000,
-                    "cable_length": 70,
                     "current": 31.8,
                 },
             ),
@@ -146,7 +149,7 @@ class TestLoadContext:
             "unsupported": 1,
             "stale": 1,
             "total_power": 1000.0,
-            "total_cable": 10.0,
+            "total_cable": 11.0,
             "total_current": 4.5,
         }
 
@@ -339,7 +342,8 @@ class TestReportRendering:
                     "status": "success",
                     "results": {
                         "selected_cable": "30ТТВ2",
-                        "cable_length": 55.0,
+                        "installed_cable_length": 55.0,
+                        "order_cable_length": 60.5,
                         "power_per_meter": 24.95,
                         "total_power": 1372.25,
                         "current": 6.24,
@@ -366,7 +370,8 @@ class TestReportRendering:
                     "results": {
                         "selected_cable": "ТЛТ-10",
                         "total_power": 1000,
-                        "cable_length": 10,
+                        "installed_cable_length": 10,
+                        "order_cable_length": 11,
                         "current": 4.5,
                     },
                 },
@@ -385,7 +390,6 @@ class TestReportRendering:
                         "category": "formula",
                         "message": "Не найден кабель",
                         "total_power": 9000,
-                        "cable_length": 90,
                         "current": 40.9,
                     },
                 },
@@ -421,7 +425,6 @@ class TestReportRendering:
                         "category": "stale",
                         "message": "Электрорасчёт требует пересчёта",
                         "total_power": 7000,
-                        "cable_length": 70,
                         "current": 31.8,
                     },
                 },

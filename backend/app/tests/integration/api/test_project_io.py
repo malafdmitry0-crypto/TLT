@@ -203,10 +203,10 @@ class TestBulkExportImport:
         )
         assert resp.status_code == 422
 
-    async def test_cross_format_single_in_accepts_bulk_export(
+    async def test_single_import_rejects_bulk_export(
         self, client: AsyncClient, employee_token: str
     ):
-        """Одиночный импорт принимает пакетный файл — берёт первый проект."""
+        """Одиночный импорт принимает только single-формат с [SECTION];metadata."""
         headers = {"Authorization": f"Bearer {employee_token}"}
         src = (
             await client.post(
@@ -228,15 +228,12 @@ class TestBulkExportImport:
             files={"file": ("bulk.csv", bulk.content, "text/csv")},
             headers=headers,
         )
-        assert resp.status_code == 201, resp.text
-        body = resp.json()
-        # Имя и task_number получили суффикс из-за конфликта с исходным
-        assert "Cross-A" in body["name"]
+        assert resp.status_code == 422
 
-    async def test_cross_format_bulk_in_accepts_single_export(
+    async def test_bulk_import_rejects_single_export(
         self, client: AsyncClient, employee_token: str
     ):
-        """Пакетный импорт принимает одиночный файл — обрабатывает как один проект."""
+        """Пакетный импорт принимает только bulk-формат с [SECTION];meta/projects."""
         headers = {"Authorization": f"Bearer {employee_token}"}
         src = (
             await client.post(
@@ -258,9 +255,7 @@ class TestBulkExportImport:
             files={"file": ("single.csv", single.content, "text/csv")},
             headers=headers,
         )
-        assert resp.status_code == 200, resp.text
-        body = resp.json()
-        assert body["imported"] == 1
+        assert resp.status_code == 422
 
     async def test_csv_roundtrip_preserves_params_fully(
         self, client: AsyncClient, employee_token: str
@@ -405,13 +400,17 @@ class TestBulkExportImport:
         headers = {"Authorization": f"Bearer {employee_token}"}
         # CSV вручную: 2 проекта, второй с пустым ключом
         csv = (
+            b"[SECTION];meta\n"
+            b"key;value\n"
+            b"schema_version;2\n"
+            b"\n"
             b"[SECTION];projects\n"
             b"project_key;name;task_number;description;status\n"
             b"p1;Valid;T-V;;draft\n"
             b";Invalid;T-X;;draft\n"
             b"\n"
             b"[SECTION];objects\n"
-            b"project_key;type;name;sort_order;params;results;is_valid;validation_errors\n"
+            b"project_key;object_key;type;name;sort_order;params;results;is_valid;validation_errors\n"
         )
 
         resp = await client.post(
@@ -443,6 +442,10 @@ class TestBulkExportImport:
             "}"
         )
         csv = (
+            "[SECTION];meta\n"
+            "key;value\n"
+            "schema_version;2\n"
+            "\n"
             "[SECTION];projects\n"
             "project_key;name;task_number;description;status\n"
             f"bad;Broken;{bad_task};;draft\n"

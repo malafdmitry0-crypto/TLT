@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { ReportResult } from '../reporting/types';
+import { readUtf8FileUnderRoot, resolveUnderAllowedRoot } from '../shared/paths';
 import type { Verdict } from '../shared/types';
 import type { CodebaseScanFinding } from './SecurityCodebaseScannerSubagent';
 
@@ -32,10 +33,10 @@ export type AuditLifecycleSummary = {
   regressedFindings: string[];
 };
 
-export function readAuditHistory(historyPath: string): AuditHistoryEvent[] {
-  if (!fs.existsSync(historyPath)) return [];
-  return fs
-    .readFileSync(historyPath, 'utf8')
+export function readAuditHistory(historyPath: string, allowedRoot = path.dirname(historyPath)): AuditHistoryEvent[] {
+  const resolved = resolveUnderAllowedRoot(allowedRoot, historyPath, 'audit history path');
+  if (!fs.existsSync(resolved)) return [];
+  return readUtf8FileUnderRoot(allowedRoot, resolved, 'audit history path')
     .split('\n')
     .filter(Boolean)
     .flatMap((line): AuditHistoryEvent[] => {
@@ -48,17 +49,23 @@ export function readAuditHistory(historyPath: string): AuditHistoryEvent[] {
     });
 }
 
-export function appendAuditHistoryEvent(historyPath: string, event: AuditHistoryEvent): void {
-  fs.mkdirSync(path.dirname(historyPath), { recursive: true });
-  fs.appendFileSync(historyPath, `${JSON.stringify(event)}\n`);
+export function appendAuditHistoryEvent(
+  historyPath: string,
+  event: AuditHistoryEvent,
+  allowedRoot = path.dirname(historyPath),
+): void {
+  const resolved = resolveUnderAllowedRoot(allowedRoot, historyPath, 'audit history path');
+  fs.mkdirSync(path.dirname(resolved), { recursive: true });
+  fs.appendFileSync(resolved, `${JSON.stringify(event)}\n`);
 }
 
 export function summarizeAuditLifecycle(args: {
   findings: CodebaseScanFinding[];
   historyPath: string;
   history?: AuditHistoryEvent[];
+  allowedRoot?: string;
 }): AuditLifecycleSummary {
-  const history = args.history ?? readAuditHistory(args.historyPath);
+  const history = args.history ?? readAuditHistory(args.historyPath, args.allowedRoot);
   const latestStatus = new Map<string, AuditLifecycleStatus>();
   for (const event of history) latestStatus.set(event.findingId, event.status);
   const newFindings: string[] = [];

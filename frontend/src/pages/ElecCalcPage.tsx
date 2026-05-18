@@ -408,14 +408,7 @@ function orderCableLengthValue(calc: ElectricalCalcSummary | undefined) {
     const explicitLength = Number(explicitRaw);
     if (Number.isFinite(explicitLength)) return explicitLength;
   }
-  if (calc.results.cable_length === null || calc.results.cable_length === undefined) {
-    return undefined;
-  }
-  const cableLength = Number(calc.results.cable_length);
-  if (!Number.isFinite(cableLength)) return undefined;
-  return ['self_regulating_tt', 'single_core', 'three_core'].includes(calc?.cable_type ?? '')
-    ? cableLength * 1.1
-    : cableLength;
+  return undefined;
 }
 
 function commercialValue(calc: ElectricalCalcSummary | undefined, key: string) {
@@ -454,7 +447,7 @@ function filterKindForElectricalColumn(
     }
     return 'text';
   }
-  if (['cable_length', 'order_cable_length', 'total_power', 'current', 'voltage'].includes(key)) {
+  if (['installed_cable_length', 'order_cable_length', 'total_power', 'current', 'voltage'].includes(key)) {
     return 'numberRange';
   }
   if (['electrical_status', 'object_type', 'heat_loss_status', 'cable_type'].includes(key)) {
@@ -1785,9 +1778,10 @@ export default function ElecCalcPage() {
       render: (_: unknown, obj) =>
         valueText(stats.calcByObjectId[obj.id]?.params?.aggressive_product ?? aggressiveProduct),
     },
-    cable_length: {
+    installed_cable_length: {
       align: 'right',
-      render: (_: unknown, obj) => resultNumber(stats.calcByObjectId[obj.id], 'cable_length', 1),
+      render: (_: unknown, obj) =>
+        resultNumber(stats.calcByObjectId[obj.id], 'installed_cable_length', 1),
     },
     order_cable_length: {
       align: 'right',
@@ -2092,7 +2086,7 @@ export default function ElecCalcPage() {
         return valueText(calc?.params?.[key]);
       case 'order_cable_length':
         return valueText(orderCableLengthValue(calc));
-      case 'cable_length':
+      case 'installed_cable_length':
       case 'total_power':
       case 'current':
       case 'voltage':

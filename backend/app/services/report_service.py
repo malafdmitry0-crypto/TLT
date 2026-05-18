@@ -177,7 +177,7 @@ class ReportService:
                 "unsupported": len(unsupported),
                 "stale": len(stale),
                 "total_power": cls._sum_electrical_result(valid, "total_power"),
-                "total_cable": cls._sum_electrical_result(valid, "cable_length"),
+                "total_cable": cls._sum_electrical_result(valid, "order_cable_length"),
                 "total_current": cls._sum_electrical_result(valid, "current"),
             },
         }
