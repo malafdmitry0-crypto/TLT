@@ -77,6 +77,31 @@ const SECTION_FIELD_GRID =
 const REQUIRED_FIELDS_ERROR_PREFIX = 'Не заполнены обязательные поля объекта:';
 const REQUIRED_FIELD_ERROR_MESSAGE = '';
 
+type ObjectWizardFormValues = Partial<PipeFormValues & TankFormValues & { name: string }>;
+
+const COMMON_FORM_DEFAULTS: ObjectWizardFormValues = {
+  placement: 'outdoor',
+  insulation_layer_count: '1',
+  insulation_cover_material: 'none',
+  environment: 'normal',
+  zone_classification: 'safe',
+  temperature_group: 'T1',
+  supply_voltage: 220,
+  steam_tracing: 'no',
+};
+
+const PIPE_FORM_DEFAULTS: ObjectWizardFormValues = {
+  pipe_lambda_mode: 'reference',
+  pipe_material: 'carbon_steel',
+};
+
+const TANK_FORM_DEFAULTS: ObjectWizardFormValues = {
+  shape: 'cylindrical',
+};
+
+const AUTO_OUTDOOR_INSULATION_BASIS = new Set(['outdoor_summer', 'outdoor_winter']);
+const AUTO_NON_UNDERGROUND_INSULATION_BASIS = new Set(['indoor', ...AUTO_OUTDOOR_INSULATION_BASIS]);
+
 const REQUIRED_FIELD_LABEL_TO_FORM_NAMES: Record<string, string[]> = {
   'Наружный диаметр': ['outer_diameter_mm'],
   'Длина трубопровода': ['pipe_length'],
@@ -92,6 +117,7 @@ const REQUIRED_FIELD_LABEL_TO_FORM_NAMES: Record<string, string[]> = {
   'Температура окружающей среды': ['ambient_temperature'],
   'Требуемая температура объекта': ['process_temperature'],
   'Температура продукта': ['process_temperature'],
+  'Режим температуры изоляции': ['insulation_temperature_basis'],
   'Глубина/высота подземной части': ['burial_depth'],
   'Тип грунта': ['ground_type'],
   'λ грунта': ['ground_conductivity'],
@@ -145,6 +171,7 @@ const API_FIELD_TO_FORM_NAMES: Record<string, string[]> = {
 const RANGE_MESSAGE_TO_FORM_NAMES: Array<[RegExp, string[]]> = [
   [/Температура окружающей среды/i, ['ambient_temperature']],
   [/Температура продукта|Требуемая температура объекта/i, ['process_temperature']],
+  [/Режим температуры изоляции|tm изоляции/i, ['insulation_temperature_basis']],
   [/Наружный диаметр/i, ['outer_diameter_mm']],
   [/Длина трубопровода/i, ['pipe_length']],
   [/Толщина стенки/i, ['wall_thickness_mm']],
@@ -185,6 +212,44 @@ function validationErrorsText(validationErrors: ProjectObject['validation_errors
   } catch {
     return 'Проверьте параметры объекта';
   }
+}
+
+function isEmptyFormValue(value: unknown) {
+  return value === undefined || value === null || value === '';
+}
+
+function formDefaultsForType(objectType: ObjectType): ObjectWizardFormValues {
+  return {
+    ...COMMON_FORM_DEFAULTS,
+    ...(objectType === 'pipe' ? PIPE_FORM_DEFAULTS : TANK_FORM_DEFAULTS),
+  };
+}
+
+function applyObjectWizardDefaults(
+  objectType: ObjectType,
+  values?: ObjectWizardFormValues,
+): ObjectWizardFormValues {
+  const defaults = formDefaultsForType(objectType);
+  const next: ObjectWizardFormValues = {
+    ...defaults,
+    ...(values ?? {}),
+  };
+
+  for (const [key, value] of Object.entries(defaults)) {
+    if (isEmptyFormValue(next[key as keyof ObjectWizardFormValues])) {
+      next[key as keyof ObjectWizardFormValues] = value as never;
+    }
+  }
+
+  if (isEmptyFormValue(next.insulation_temperature_basis)) {
+    if (next.placement === 'indoor') {
+      next.insulation_temperature_basis = 'indoor';
+    } else if (next.placement === 'outdoor') {
+      next.insulation_temperature_basis = 'outdoor_winter';
+    }
+  }
+
+  return next;
 }
 
 function validationRequiredFields(validationErrors: ProjectObject['validation_errors'] | undefined, message: string) {
@@ -376,8 +441,8 @@ export default function ObjectWizard({
     [initialParams, objectType],
   );
   const formInitialValues = useMemo(
-    () => initialValues ?? {},
-    [initialValues],
+    () => applyObjectWizardDefaults(objectType, initialValues),
+    [initialValues, objectType],
   );
   const calculationFieldErrors = useMemo(
     () => buildCalculationFieldErrors(validationErrors),
@@ -475,8 +540,8 @@ export default function ObjectWizard({
 
   useEffect(() => {
     form.resetFields();
-    if (initialValues) form.setFieldsValue(initialValues);
-  }, [form, initialValues]);
+    form.setFieldsValue(formInitialValues);
+  }, [form, formInitialValues]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -567,8 +632,16 @@ export default function ObjectWizard({
     if (Object.prototype.hasOwnProperty.call(changed, 'placement')) {
       if (changed.placement === 'indoor') {
         form.setFieldsValue({ insulation_temperature_basis: 'indoor' });
-      } else if (form.getFieldValue('insulation_temperature_basis') === 'indoor') {
-        form.setFieldsValue({ insulation_temperature_basis: undefined });
+      } else if (changed.placement === 'outdoor') {
+        const currentBasis = form.getFieldValue('insulation_temperature_basis');
+        if (!currentBasis || !AUTO_OUTDOOR_INSULATION_BASIS.has(String(currentBasis))) {
+          form.setFieldsValue({ insulation_temperature_basis: 'outdoor_winter' });
+        }
+      } else if (changed.placement === 'underground') {
+        const currentBasis = form.getFieldValue('insulation_temperature_basis');
+        if (!currentBasis || AUTO_NON_UNDERGROUND_INSULATION_BASIS.has(String(currentBasis))) {
+          form.setFieldsValue({ insulation_temperature_basis: undefined });
+        }
       }
     }
     if (Object.prototype.hasOwnProperty.call(changed, 'climate_key') && !changed.climate_key) {
@@ -1115,6 +1188,7 @@ export default function ObjectWizard({
           >
             {withHelp(
               <Select
+                data-testid="insulation-cover-material-select"
                 options={heatCalcSelectOptions(heatCalcObjectType, 'insulation_cover_material')}
                 placeholder="Не указано"
               />,
@@ -1166,7 +1240,7 @@ export default function ObjectWizard({
             </Form.Item>
           )}
           <Form.Item
-            className="fixed-select-form-item helped-form-item"
+            className="fixed-select-form-item insulation-temperature-basis-form-item helped-form-item"
             label={fieldLabel('insulation_temperature_basis', heatCalcObjectType)}
             name="insulation_temperature_basis"
             rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'insulation_temperature_basis')}
@@ -1174,7 +1248,7 @@ export default function ObjectWizard({
             {withHelp(
               <Select
                 data-testid="insulation-temperature-basis-select"
-                placeholder="Выберите режим"
+                placeholder="Выберите режим tm"
                 options={heatCalcSelectOptions(heatCalcObjectType, 'insulation_temperature_basis')}
               />,
               fieldHelp('insulation_temperature_basis', heatCalcObjectType),

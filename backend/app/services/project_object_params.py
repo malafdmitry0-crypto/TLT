@@ -152,8 +152,11 @@ def _normalize_placement(params: dict[str, Any]) -> None:
 def _normalize_insulation_temperature_basis(params: dict[str, Any]) -> None:
     if not _is_missing(params.get("insulation_temperature_basis")):
         return
-    if params.get("placement") == "indoor" or params.get("location") == "indoor":
+    placement = params.get("placement")
+    if placement == "indoor" or params.get("location") == "indoor":
         params["insulation_temperature_basis"] = "indoor"
+    elif placement == "outdoor":
+        params["insulation_temperature_basis"] = "outdoor_winter"
 
 
 def _normalize_insulation_layers(params: dict[str, Any]) -> None:

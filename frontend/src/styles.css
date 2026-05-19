@@ -417,6 +417,19 @@ html, body, #root {
   justify-content: flex-end;
 }
 
+.projects-list-title {
+  min-width: 0;
+}
+
+.projects-list-title .ant-typography-secondary {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.projects-page-card-actions .ant-btn {
+  height: 24px;
+}
+
 .projects-page-main .ant-table-wrapper {
   min-width: 0;
 }
@@ -568,6 +581,8 @@ html, body, #root {
 }
 
 .calc-spreadsheet {
+  --heatcalc-table-outer-border: #bfbfbf;
+  --heatcalc-table-grid-border: #d9d9d9;
   --heatcalc-table-font-size: 12px;
   --heatcalc-table-line-height: 1.22;
   --heatcalc-table-cell-padding-y: 2px;
@@ -605,15 +620,21 @@ html, body, #root {
 }
 
 .calc-spreadsheet .ant-table {
-  border: 1px solid #bfbfbf;
+  border: 1px solid var(--heatcalc-table-outer-border);
   font-size: var(--heatcalc-table-font-size);
   line-height: var(--heatcalc-table-line-height);
   font-variant-numeric: tabular-nums;
 }
 
+.calc-spreadsheet .ant-table table {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed !important;
+}
+
 .calc-spreadsheet .ant-table-thead > tr > th {
   background: #f3f6f4 !important;
-  border-color: #bfbfbf !important;
+  border-color: var(--heatcalc-table-grid-border) !important;
   color: #262626;
   font-weight: 600;
   font-size: var(--heatcalc-table-font-size);
@@ -621,14 +642,16 @@ html, body, #root {
   height: var(--heatcalc-table-header-min-height);
   padding: var(--heatcalc-table-header-padding-y) 6px !important;
   vertical-align: top;
+  box-sizing: border-box;
 }
 
 .calc-spreadsheet .ant-table-tbody > tr > td {
-  border-color: #d9d9d9 !important;
+  border-color: var(--heatcalc-table-grid-border) !important;
   font-size: var(--heatcalc-table-font-size);
   line-height: var(--heatcalc-table-line-height);
   padding: var(--heatcalc-table-cell-padding-y) 6px !important;
   background: #fff;
+  box-sizing: border-box;
 }
 
 .calc-spreadsheet .ant-table-tbody > tr:hover > td {
@@ -1872,6 +1895,23 @@ html, body, #root {
   min-width: var(--field-input-min-width, 160px);
 }
 
+.inline-object-form .insulation-temperature-basis-form-item .ant-form-item-row {
+  grid-template-columns: 112px minmax(180px, 1fr);
+}
+
+.inline-object-form .insulation-temperature-basis-form-item .ant-form-item-label {
+  width: 112px;
+}
+
+.inline-object-form .insulation-temperature-basis-form-item .ant-select {
+  min-width: 180px;
+}
+
+.inline-object-form .insulation-temperature-basis-form-item .field-label-two-line > span {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
 .inline-object-form .reduced-select-form-item .ant-form-item-row {
   grid-template-columns: var(--field-label-width, 104px) minmax(var(--field-input-min-width, 160px), 52%);
 }
@@ -2355,7 +2395,31 @@ html, body, #root {
   margin: 0 3px;
 }
 
-.electrical-actionbar > * {
+.electrical-actionbar {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  overflow-x: hidden;
+}
+
+.electrical-actionbar-row {
+  display: flex;
+  align-items: center;
+  flex: 1 1 100%;
+  gap: 5px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.electrical-actionbar-row--actions {
+  padding-top: 2px;
+  border-top: 1px solid #d6e1e8;
+}
+
+.electrical-actionbar-row > * {
   flex: 0 0 auto;
 }
 
@@ -2401,6 +2465,11 @@ html, body, #root {
   .actionbar-srs {
     flex-wrap: wrap;
     overflow-x: visible;
+  }
+
+  .electrical-actionbar {
+    flex-wrap: nowrap;
+    overflow-x: hidden;
   }
 
   .actionbar-group {
@@ -2735,9 +2804,13 @@ html, body, #root {
 }
 
 .resizable-column-title-text {
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .column-resize-handle {
@@ -2784,7 +2857,8 @@ html, body, #root {
 }
 
 .calc-spreadsheet .ant-table-cell {
-  border-right: 1px solid #d9d9d9;
+  box-sizing: border-box;
+  border-right: 1px solid var(--heatcalc-table-grid-border) !important;
 }
 
 .calc-spreadsheet .ant-table-cell .ant-typography,
@@ -2795,11 +2869,8 @@ html, body, #root {
 }
 
 .calc-spreadsheet .ant-table-column-sorters {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, auto) var(--heatcalc-table-header-actions-height);
-  align-items: start;
-  row-gap: 1px;
+  position: relative;
+  display: block;
   min-height: var(--heatcalc-table-header-content-min-height);
   overflow: visible;
   padding: 0;
@@ -2808,31 +2879,32 @@ html, body, #root {
 .calc-spreadsheet .ant-table-filter-column {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 16px;
-  grid-template-rows: minmax(0, auto) var(--heatcalc-table-header-actions-height);
-  align-items: start;
+  grid-template-rows: minmax(var(--heatcalc-table-header-content-min-height), auto);
+  align-items: center;
   column-gap: 2px;
-  row-gap: 1px;
   min-height: var(--heatcalc-table-header-content-min-height);
   overflow: visible;
 }
 
 .calc-spreadsheet .ant-table-column-title {
   min-width: 0;
+  overflow: hidden;
 }
 
 .calc-spreadsheet .ant-table-column-sorters .ant-table-column-title {
-  grid-row: 1;
+  display: block;
 }
 
 .calc-spreadsheet .ant-table-column-sorter {
-  grid-row: 2;
-  justify-self: end;
-  align-self: center;
+  position: absolute;
+  top: 50%;
+  right: 0;
   width: 14px;
   height: 14px;
   margin-inline-start: 0;
   line-height: 1;
   overflow: visible;
+  transform: translateY(-50%);
 }
 
 .calc-spreadsheet .ant-table-column-sorter-inner {
@@ -2842,29 +2914,19 @@ html, body, #root {
 }
 
 .calc-spreadsheet .ant-table-filter-column .ant-table-column-sorters {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-row: 1 / -1;
-  grid-template-columns: minmax(0, 1fr) 16px;
-  grid-template-rows: minmax(0, auto) var(--heatcalc-table-header-actions-height);
-  min-height: 0;
+  grid-column: 1;
+  grid-row: 1;
+  min-height: var(--heatcalc-table-header-content-min-height);
   padding: 0;
 }
 
 .calc-spreadsheet .ant-table-filter-column .ant-table-column-title {
-  grid-column: 1 / -1;
-  grid-row: 1;
-}
-
-.calc-spreadsheet .ant-table-filter-column .ant-table-column-sorter {
-  grid-column: 1;
-  grid-row: 2;
-  justify-self: start;
+  display: block;
 }
 
 .calc-spreadsheet .ant-table-filter-column .ant-table-filter-trigger {
   grid-column: 2;
-  grid-row: 2;
+  grid-row: 1;
   align-self: center;
   justify-self: center;
   display: flex;
@@ -2888,6 +2950,13 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.calc-spreadsheet .resizable-column-title-text {
+  display: -webkit-box;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .table-filter-icon {

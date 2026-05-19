@@ -46,7 +46,7 @@ HEATCALC_FIELD_INPUT_PREF_KEY = "heatcalc.fieldInputs.v1"
 HEATCALC_FIELD_INPUT_MAX_STEP = 1_000_000
 HEATCALC_FIELD_INPUT_KEYS = {"version", "fields"}
 HEATCALC_FIELD_INPUT_LAYOUT_KEYS = {"step"}
-ELECTRICAL_TABLE_COLUMNS_VERSION = 3
+ELECTRICAL_TABLE_COLUMNS_VERSION = 4
 ELECTRICAL_TABLE_COLUMNS_PREF_KEY = f"electrical.tableColumns.v{ELECTRICAL_TABLE_COLUMNS_VERSION}"
 ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView.v1"
 ELECTRICAL_TABLE_VIEW_VERSION = 1
@@ -64,8 +64,8 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
     "electrical_status",
     "cable_type",
     "cable_mark",
+    "cable_snapshot_status",
     "variant_number",
-    "selection_policy",
     "applied_selection_policy",
     "selection_reason",
     "winding_pitch_mm",

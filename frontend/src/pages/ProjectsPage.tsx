@@ -15,7 +15,7 @@ import {
   Typography,
   message,
 } from 'antd';
-import { FolderOutlined, PlusOutlined } from '@ant-design/icons';
+import { DownloadOutlined, FolderOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -490,21 +490,47 @@ export default function ProjectsPage() {
         <Col className="projects-page-main" flex="1" style={{ minWidth: 0 }}>
           <Card
             size="small"
-            title={<Text strong>Список проектов</Text>}
+            title={(
+              <Space className="projects-list-title" size={8}>
+                <Text strong>Список проектов</Text>
+                <Text type="secondary">
+                  {filtered.length} из {projects.length}
+                </Text>
+              </Space>
+            )}
             styles={{ body: { paddingTop: 0 } }}
             extra={
               <Space className="projects-page-card-actions">
-                <Button size="small" onClick={() => singleFileInputRef.current?.click()}>
+                <Button
+                  size="small"
+                  icon={<UploadOutlined />}
+                  aria-label="Загрузить CSV"
+                  loading={importSingleMut.isPending}
+                  onClick={() => singleFileInputRef.current?.click()}
+                >
                   Загрузить CSV
                 </Button>
                 {isEmployee && (
                   <>
-                    <Button size="small" onClick={exportBulk}>
+                    <Button
+                      size="small"
+                      icon={<DownloadOutlined />}
+                      aria-label={selectedIds.length
+                        ? `Экспорт выбранных (${selectedIds.length})`
+                        : 'Экспорт всех'}
+                      onClick={exportBulk}
+                    >
                       {selectedIds.length
                         ? `Экспорт выбранных (${selectedIds.length})`
                         : 'Экспорт всех'}
                     </Button>
-                    <Button size="small" onClick={() => bulkFileInputRef.current?.click()}>
+                    <Button
+                      size="small"
+                      icon={<UploadOutlined />}
+                      aria-label="Пакетная загрузка"
+                      loading={importBulkMut.isPending}
+                      onClick={() => bulkFileInputRef.current?.click()}
+                    >
                       Пакетная загрузка
                     </Button>
                   </>

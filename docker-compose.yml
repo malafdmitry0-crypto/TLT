@@ -140,6 +140,8 @@ services:
         condition: service_healthy
       backend:
         condition: service_healthy
+    healthcheck:
+      disable: true
     volumes:
       - report_artifacts:/var/lib/heatcalc/reports
 

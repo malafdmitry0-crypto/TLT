@@ -445,7 +445,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
         'p-1',
-        'commercial',
+        'builtin',
         1,
         'self_regulating',
         expect.objectContaining({
@@ -529,7 +529,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
         'p-1',
-        'commercial',
+        'builtin',
         1,
         'self_regulating_tt',
         expect.objectContaining({
@@ -622,7 +622,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
         'p-1',
-        'commercial',
+        'builtin',
         1,
         'self_regulating_tt',
         expect.objectContaining({
@@ -724,7 +724,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
         'p-1',
-        'commercial',
+        'builtin',
         1,
         'self_regulating',
         expect.objectContaining({
@@ -778,7 +778,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
         'p-1',
-        'commercial',
+        'builtin',
         1,
         'self_regulating',
         expect.objectContaining({
@@ -834,7 +834,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
         'p-1',
-        'commercial',
+        'builtin',
         1,
         'self_regulating',
         expect.objectContaining({
@@ -1130,15 +1130,30 @@ describe('ElecCalcPage (integration)', () => {
 
     fireEvent.click(screen.getByText('Труба-1').closest('tr') as HTMLTableRowElement);
     await waitFor(() => {
-      expect(document.querySelectorAll('.electrical-spreadsheet .ant-select-selector')).toHaveLength(2);
+      expect(document.querySelectorAll('.electrical-spreadsheet .ant-select-selector')).toHaveLength(1);
     });
     expect(document.querySelectorAll('.electrical-spreadsheet input[role="spinbutton"]')).toHaveLength(1);
+    fireEvent.click(
+      within(screen.getByText('Труба-1').closest('tr') as HTMLTableRowElement).getByRole(
+        'button',
+        { name: /ТЛТ-30/ },
+      ),
+    );
+    expect(await screen.findByText('Выбор марки кабеля')).toBeInTheDocument();
+    expect(document.querySelectorAll('.ant-modal .ant-select-selector')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
 
     fireEvent.click(screen.getByText('Труба-2').closest('tr') as HTMLTableRowElement);
     await waitFor(() => {
-      expect(document.querySelectorAll('.electrical-spreadsheet .ant-select-selector')).toHaveLength(2);
+      expect(document.querySelectorAll('.electrical-spreadsheet .ant-select-selector')).toHaveLength(1);
     });
     expect(document.querySelectorAll('.electrical-spreadsheet input[role="spinbutton"]')).toHaveLength(1);
+    expect(
+      within(screen.getByText('Труба-2').closest('tr') as HTMLTableRowElement).getByRole(
+        'button',
+        { name: /ТЛТ-40/ },
+      ),
+    ).toBeEnabled();
   });
 
   it('изменение шага навива пересчитывает текущий объект с выбранной маркой', async () => {
@@ -1191,7 +1206,7 @@ describe('ElecCalcPage (integration)', () => {
       expect(selectCableManual).toHaveBeenCalledWith(
         'o-1',
         'ТЛТ-30',
-        'commercial',
+        'builtin',
         1,
         'self_regulating',
         expect.objectContaining({ windingPitchMm: 80, numberOfThreads: 1 }),
@@ -1243,7 +1258,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
         'p-1',
-        'commercial',
+        'builtin',
         1,
         'self_regulating_tt',
         expect.objectContaining({

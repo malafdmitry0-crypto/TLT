@@ -27,9 +27,15 @@ from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project_object import ProjectObject
-from app.reference_data.loader import get_climate_by_city, list_resistive_cables, list_tlt_cables
+from app.reference_data.loader import (
+    get_climate_by_city,
+    list_resistive_cables,
+    list_tlt_cables,
+    list_tt_cables,
+)
 from app.result import Err, Ok, Result
 from app.schemas.calculation import (
+    ElectricalCalcSummary,
     ElectricalRequest,
     PipeHeatLossParams,
     ResistiveSingleCoreParams,
@@ -44,6 +50,12 @@ from app.schemas.json_shapes import (
     TankHeatLossResultDict,
 )
 from app.schemas.project import ProjectObjectsPageInfo
+from app.services.cable_snapshot import (
+    build_cable_snapshot,
+    compare_cable_snapshot,
+    lookup_cable_row,
+    lookup_cable_row_for_snapshot,
+)
 from app.services.electrical_error_guidance import build_electrical_error_payload
 from app.services.project_object_params import (
     ProjectObjectParamsError,
@@ -257,6 +269,66 @@ class BatchCancelChecker:
 class CalculationService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+
+    async def electrical_calc_summaries(
+        self, calculations: list[ElectricalCalculation]
+    ) -> list[ElectricalCalcSummary]:
+        statuses = await self.cable_snapshot_statuses(calculations)
+        return [
+            ElectricalCalcSummary(
+                id=calc.id,
+                object_id=calc.object_id,
+                cable_type=calc.cable_type,
+                cable_type_source=calc.cable_type_source,
+                cable_mark=calc.cable_mark,
+                cable_mark_source=calc.cable_mark_source,
+                cable_snapshot=calc.cable_snapshot,
+                cable_snapshot_status=statuses.get(calc.id),
+                variant_number=calc.variant_number,
+                params=calc.params,
+                results=calc.results,
+            )
+            for calc in calculations
+        ]
+
+    async def cable_snapshot_statuses(
+        self, calculations: list[ElectricalCalculation]
+    ) -> dict[UUID, dict[str, Any]]:
+        statuses: dict[UUID, dict[str, Any]] = {}
+        catalog_cache: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        for calc in calculations:
+            snapshot = calc.cable_snapshot
+            if not isinstance(snapshot, dict):
+                statuses[calc.id] = compare_cable_snapshot(None, None)
+                continue
+            cache_key = (calc.cable_type, "all")
+            if cache_key not in catalog_cache:
+                catalog_cache[cache_key] = await self._load_catalog_for_snapshot_status(
+                    calc.cable_type,
+                    "all",
+                )
+            mark = calc.cable_mark or snapshot.get("cable_mark")
+            current_row = lookup_cable_row_for_snapshot(
+                catalog_cache[cache_key],
+                mark,
+                calc.cable_type,
+                snapshot,
+            )
+            statuses[calc.id] = compare_cable_snapshot(snapshot, current_row)
+        return statuses
+
+    async def _load_catalog_for_snapshot_status(
+        self,
+        cable_type: str,
+        source: CableSource,
+    ) -> list[dict[str, Any]]:
+        if cable_type == "self_regulating":
+            return await self.load_cable_catalog(source)
+        if cable_type == "self_regulating_tt":
+            return [{**c, "source": "builtin", "cable_type": cable_type} for c in list_tt_cables()]
+        if cable_type in ("single_core", "three_core"):
+            return await self.load_resistive_cable_catalog(cable_type, source)
+        return []
 
     async def electrical_project_page(
         self,
@@ -971,6 +1043,11 @@ class CalculationService:
 
     async def calc_electrical(self, request: ElectricalRequest) -> ElectricalCalculation:
         cable_mark, result_dict = self._calculate_electrical_result(request)
+        cable_snapshot = self._build_cable_snapshot_for_result(
+            request=request,
+            cable_mark=cable_mark,
+            result_dict=result_dict,
+        )
 
         # Получаем объект, чтобы узнать project_id
         obj_result = await self.db.execute(
@@ -993,6 +1070,7 @@ class CalculationService:
             request=request,
             cable_mark=cable_mark,
             result_dict=result_dict,
+            cable_snapshot=cable_snapshot,
             existing_calc=existing.scalars().first(),
         )
         await self.db.commit()
@@ -1031,6 +1109,47 @@ class CalculationService:
         self._apply_thread_result_metadata(request.data, result_dict)
         return cable_mark, result_dict
 
+    def _build_cable_snapshot_for_result(
+        self,
+        *,
+        request: ElectricalRequest,
+        cable_mark: str | None,
+        result_dict: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        cable_row = self._snapshot_cable_row(
+            request.cable_type,
+            cable_mark,
+            request.data,
+        )
+        cable_mark_source = self._resolve_cable_mark_source(request.data)
+        return build_cable_snapshot(
+            cable_type=request.cable_type,
+            cable_mark=cable_mark,
+            cable_row=cable_row,
+            requested_catalog_source=str(request.data.get("cable_source") or "builtin"),
+            cable_mark_source=cable_mark_source,
+            result_dict=result_dict,
+        )
+
+    @staticmethod
+    def _snapshot_cable_row(
+        cable_type: str,
+        cable_mark: str | None,
+        request_data: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        if not cable_mark:
+            return None
+        if cable_type == "self_regulating_tt":
+            catalog = [
+                {**c, "source": "builtin", "cable_type": cable_type} for c in list_tt_cables()
+            ]
+            return lookup_cable_row(catalog, cable_mark, cable_type)
+        catalog_value = request_data.get("cable_catalog")
+        catalog = catalog_value if isinstance(catalog_value, list) else None
+        if catalog is None and cable_type == "self_regulating":
+            catalog = [{**c, "source": "builtin"} for c in list_tlt_cables()]
+        return lookup_cable_row(catalog, cable_mark, cable_type)
+
     def _upsert_electrical_calculation(
         self,
         *,
@@ -1038,6 +1157,7 @@ class CalculationService:
         request: ElectricalRequest,
         cable_mark: str | None,
         result_dict: dict[str, Any],
+        cable_snapshot: dict[str, Any] | None,
         existing_calc: ElectricalCalculation | None,
     ) -> ElectricalCalculation:
         calc = existing_calc
@@ -1052,6 +1172,7 @@ class CalculationService:
                 cable_type_source=cable_type_source,
                 cable_mark=cable_mark,
                 cable_mark_source=cable_mark_source,
+                cable_snapshot=cable_snapshot,
                 params=self._compact_electrical_params(request.data),
                 results=result_dict,
             )
@@ -1061,6 +1182,7 @@ class CalculationService:
             calc.cable_type_source = cable_type_source
             calc.cable_mark = cable_mark
             calc.cable_mark_source = cable_mark_source
+            calc.cable_snapshot = cable_snapshot
             calc.params = self._compact_electrical_params(request.data)
             calc.results = result_dict
         return calc
@@ -1081,6 +1203,7 @@ class CalculationService:
             row["cable_mark_source"] = self._normalize_cable_mark_source(
                 row.get("cable_mark_source")
             )
+            row.setdefault("cable_snapshot", None)
         chunk_size = self._electrical_bulk_upsert_chunk_size(rows[0])
         calcs: list[ElectricalCalculation] = []
         for chunk in _chunked_rows(rows, chunk_size):
@@ -1186,6 +1309,7 @@ class CalculationService:
                 "cable_type_source": insert_stmt.excluded.cable_type_source,
                 "cable_mark": insert_stmt.excluded.cable_mark,
                 "cable_mark_source": insert_stmt.excluded.cable_mark_source,
+                "cable_snapshot": insert_stmt.excluded.cable_snapshot,
                 "params": insert_stmt.excluded.params,
                 "results": insert_stmt.excluded.results,
                 "updated_at": func.now(),
@@ -1932,6 +2056,7 @@ class CalculationService:
             overrides=self._base_overrides_with_sources(electrical_params or {}),
             coefficients=coefficients,
         )
+        data["cable_source"] = cable_source
         data["cable_mark_source"] = CABLE_MARK_SOURCE_MANUAL
         request = ElectricalRequest(
             object_id=object_id,
@@ -2231,6 +2356,7 @@ class CalculationService:
                         overrides=overrides,
                         coefficients=electrical_coefficients,
                     )
+                    request_data["cable_source"] = cable_source
                     request_data["cable_type_source"] = cable_type_source
                     request_data["cable_mark_source"] = CABLE_MARK_SOURCE_AUTO
                     request = ElectricalRequest(
@@ -2240,6 +2366,11 @@ class CalculationService:
                         data=request_data,
                     )
                     cable_mark, result_dict = self._calculate_electrical_result(request)
+                    cable_snapshot = self._build_cable_snapshot_for_result(
+                        request=request,
+                        cable_mark=cable_mark,
+                        result_dict=result_dict,
+                    )
                     successful_rows.append(
                         {
                             "id": existing_calc.id if existing_calc is not None else uuid.uuid4(),
@@ -2250,6 +2381,7 @@ class CalculationService:
                             "cable_type_source": cable_type_source,
                             "cable_mark": cable_mark,
                             "cable_mark_source": CABLE_MARK_SOURCE_AUTO,
+                            "cable_snapshot": cable_snapshot,
                             "params": request.data,
                             "results": result_dict,
                         }
@@ -2374,6 +2506,7 @@ class CalculationService:
                 cable_type_source=normalized_source,
                 cable_mark=None,
                 cable_mark_source=normalized_mark_source,
+                cable_snapshot=None,
                 params=params,
                 results=payload,
             )
@@ -2383,6 +2516,7 @@ class CalculationService:
             row.cable_type_source = normalized_source
             row.cable_mark = None
             row.cable_mark_source = normalized_mark_source
+            row.cable_snapshot = None
             row.params = params
             row.results = payload
         return row

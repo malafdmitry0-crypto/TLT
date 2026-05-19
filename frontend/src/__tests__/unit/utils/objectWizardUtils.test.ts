@@ -123,6 +123,34 @@ describe('pipeFormToApiParams', () => {
     expect(api.num_local_elements).toBeUndefined();
   });
 
+  it('подставляет зимний режим tm изоляции для наружного объекта', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      placement: 'outdoor',
+    });
+
+    expect(api.insulation_temperature_basis).toBe('outdoor_winter');
+  });
+
+  it('не подставляет режим tm изоляции для подземного объекта', () => {
+    const api = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 50,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      placement: 'underground',
+    });
+
+    expect(api.insulation_temperature_basis).toBeUndefined();
+  });
+
   it('сохраняет name если задан', () => {
     const api = pipeFormToApiParams({
       outer_diameter_mm: 108,
@@ -409,5 +437,19 @@ describe('pipeApiParamsToForm и tankApiParamsToForm', () => {
     const form = pipeApiParamsToForm({});
     expect(form.outer_diameter_mm).toBeUndefined();
     expect(form.pipe_length).toBeUndefined();
+  });
+
+  it('подставляет зимний режим tm при открытии старого наружного объекта без этого поля', () => {
+    const form = pipeApiParamsToForm({
+      placement: 'outdoor',
+      outer_diameter: 0.108,
+      insulation_thickness: 0.05,
+      insulation_material: 'mineral_wool',
+      ambient_temperature: -20,
+      process_temperature: 80,
+      pipe_length: 50,
+    });
+
+    expect(form.insulation_temperature_basis).toBe('outdoor_winter');
   });
 });

@@ -59,6 +59,7 @@ class SpecificationService:
                 **(c.results or {}),
                 "cable_mark": c.cable_mark,
                 "cable_type": c.cable_type,
+                "cable_snapshot": c.cable_snapshot,
             }
             for c in calcs
         ]

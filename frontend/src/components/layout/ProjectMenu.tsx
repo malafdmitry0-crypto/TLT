@@ -9,7 +9,7 @@ import {
 } from '@/api/projects';
 import { useProjectStore } from '@/store/projectStore';
 import { useAuthStore } from '@/store/authStore';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const { Text } = Typography;
 
@@ -22,7 +22,9 @@ export default function ProjectMenu() {
   const currentProject = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
   const navigate = useNavigate();
+  const location = useLocation();
   const isEmployee = role === 'employee' || role === 'admin';
+  const isProjectsPage = location.pathname.startsWith('/projects');
 
   const createMut = useMutation({
     mutationFn: () =>
@@ -73,6 +75,8 @@ export default function ProjectMenu() {
     e.target.value = '';
   };
 
+  if (isProjectsPage) return null;
+
   return (
     <Space className="project-menu" size={3}>
       {currentProject && (
@@ -93,7 +97,7 @@ export default function ProjectMenu() {
         </Space>
       )}
 
-      {isEmployee && (
+      {!isProjectsPage && isEmployee && (
         <>
           <Button type="primary" onClick={() => setOpen(true)}>
             Новый проект
@@ -101,29 +105,33 @@ export default function ProjectMenu() {
           <Button onClick={() => navigate('/projects')}>Открыть</Button>
         </>
       )}
-      <Button
-        icon={<DownloadOutlined />}
-        onClick={handleExport}
-        disabled={!currentProject}
-        title="Скачать проект (CSV)"
-      >
-        Скачать
-      </Button>
-      <Button
-        icon={<UploadOutlined />}
-        onClick={handleImportClick}
-        loading={importMut.isPending}
-        title="Загрузить проект (CSV)"
-      >
-        Загрузить
-      </Button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".csv,text/csv"
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-      />
+      {!isProjectsPage && (
+        <>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={handleExport}
+            disabled={!currentProject}
+            title="Скачать проект (CSV)"
+          >
+            Скачать
+          </Button>
+          <Button
+            icon={<UploadOutlined />}
+            onClick={handleImportClick}
+            loading={importMut.isPending}
+            title="Загрузить проект (CSV)"
+          >
+            Загрузить
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+        </>
+      )}
       <Modal
         title="Создать проект"
         open={open}

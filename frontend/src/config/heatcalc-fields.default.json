@@ -1653,6 +1653,9 @@
         "compact": "tm"
       },
       "contexts": {
+        "form": {
+          "label": "Режим tm изоляции"
+        },
         "table_by_key": {
           "insulation_temperature_basis": {
             "label": "tm изол.",

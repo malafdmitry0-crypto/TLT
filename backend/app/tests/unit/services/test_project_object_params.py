@@ -37,6 +37,42 @@ def test_pipe_object_defaults_match_inline_form_defaults():
     ]
 
 
+def test_outdoor_object_defaults_insulation_temperature_basis_to_winter():
+    params = normalize_project_object_params(
+        "pipe",
+        {
+            "outer_diameter": 0.108,
+            "pipe_length": 10,
+            "insulation_thickness": 0.05,
+            "insulation_material": "mineral_wool_boards_120",
+            "ambient_temperature": -20,
+            "process_temperature": 80,
+            "placement": "outdoor",
+        },
+    )
+
+    assert params["insulation_temperature_basis"] == "outdoor_winter"
+
+
+def test_underground_object_still_requires_explicit_insulation_temperature_basis():
+    with pytest.raises(ProjectObjectParamsError, match="Режим температуры изоляции"):
+        prepare_project_object_params(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "pipe_length": 10,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool_boards_120",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "placement": "underground",
+                "burial_depth": 1.2,
+                "ground_type": "clay",
+                "ground_conductivity": 1.7,
+            },
+        )
+
+
 def test_explicit_blank_pipe_wall_is_not_silently_defaulted():
     with pytest.raises(ProjectObjectParamsError, match="Толщина стенки"):
         prepare_project_object_params(

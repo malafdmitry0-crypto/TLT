@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY,
   createElectricalTableColumnSettingsPatch,
+  getAvailableElectricalTableColumnKeys,
   getDefaultElectricalTableColumnSettings,
   getVisibleElectricalTableColumnMetas,
   normalizeElectricalTableColumnSettings,
@@ -26,7 +27,6 @@ describe('electricalTableColumns', () => {
       'object_name',
       'electrical_status',
       'cable_mark',
-      'selection_policy',
       'applied_selection_policy',
       'winding_pitch_mm',
       'number_of_threads',
@@ -47,6 +47,13 @@ describe('electricalTableColumns', () => {
 
     expect(shortTitle).toBe('Ток, А');
     expect(fullTitle).toBe('Расчётный ток, А');
+  });
+
+  it('скрывает запрошенный критерий подбора из интерфейса, но оставляет применённый', () => {
+    const availableKeys = getAvailableElectricalTableColumnKeys();
+
+    expect(availableKeys).not.toContain('selection_policy');
+    expect(availableKeys).toContain('applied_selection_policy');
   });
 
   it('нормализует неизвестные ключи и сохраняет обязательные колонки', () => {

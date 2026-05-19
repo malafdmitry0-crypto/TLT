@@ -276,32 +276,32 @@ test.describe('business flow: cable layout controls', () => {
     expect(calc?.results.connection_type).toBe('loop_1x3');
   });
 
-  test('commercial ranking выбирается из UI и сохраняет policy snapshot', async ({ page }) => {
-    await ensureCheapTlt100CommercialData(page);
+  test('коммерческая база скрыта, встроенная база остаётся доступной', async ({ page }) => {
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);
-    const pipeName = `E2E commercial ranking ${Date.now()}`;
+    const pipeName = `E2E builtin source ${Date.now()}`;
     const pipe = await createCalculatedPipe(page, pipeName, {
       ambient_temperature: -10,
       process_temperature: 40,
     });
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await page.getByLabel('Критерий подбора кабеля').click();
-    await selectDropdownOption(page, 'Дешевле');
+    await expect(page.getByText('База для пересчёта:')).toBeVisible();
+    await expect(page.getByText('Встроенная')).toBeVisible();
+    await expect(page.getByLabel('Критерий подбора кабеля')).toHaveCount(0);
+    await expect(page.getByText('Коммерческая')).toHaveCount(0);
     await recalculateAll(page);
     await expectBatchSuccess(page);
 
-    const row = await rowForObject(page, pipeName);
-    await expect(row).toContainText('ТЛТ-100');
+    await rowForObject(page, pipeName);
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const calc = calcs.find((item) => item.object_id === pipe.id);
     expect(calc?.cable_type).toBe('self_regulating');
-    expect(calc?.cable_mark).toBe('ТЛТ-100');
-    expect(calc?.results.selection_policy).toBe('lowest_cost');
-    expect(calc?.results.applied_selection_policy).toBe('lowest_cost');
-    expect(calc?.results.commercial?.commercial_data_source).toBe('e2e');
+    expect(calc?.cable_mark).toBeTruthy();
+    expect(calc?.results.selection_policy).toBe('technical_minimum');
+    expect(calc?.results.applied_selection_policy).toBe('technical_minimum');
+    expect(calc?.results.commercial ?? null).toBeNull();
   });
 
   test('новый тип кабеля работает после перехода из теплопотерь в электрорасчёт', async ({

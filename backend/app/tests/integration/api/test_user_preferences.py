@@ -10,7 +10,7 @@ from app.generated.heatcalc_field_contract import HEATCALC_TABLE_COLUMNS_VERSION
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 HEATCALC_TABLE_COLUMNS_PREF_KEY = f"heatcalc.tableColumns.v{HEATCALC_TABLE_COLUMNS_VERSION}"
-ELECTRICAL_TABLE_COLUMNS_VERSION = 3
+ELECTRICAL_TABLE_COLUMNS_VERSION = 4
 ELECTRICAL_TABLE_COLUMNS_PREF_KEY = f"electrical.tableColumns.v{ELECTRICAL_TABLE_COLUMNS_VERSION}"
 
 

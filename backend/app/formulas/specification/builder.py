@@ -32,25 +32,48 @@ def build_basic_specification(
 
     # Суммируем длины кабелей по маркам (только успешные расчёты)
     cable_totals: dict[str, float] = defaultdict(float)
+    cable_meta_by_mark: dict[str, dict[str, Any]] = {}
     for r in electrical_results:
-        cable = r.get("cable_mark") or r.get("selected_cable")
+        snapshot = r.get("cable_snapshot") if isinstance(r.get("cable_snapshot"), dict) else {}
+        cable = snapshot.get("cable_mark") or r.get("cable_mark") or r.get("selected_cable")
         commercial = r.get("commercial")
+        snapshot_commercial = (
+            snapshot.get("commercial") if isinstance(snapshot.get("commercial"), dict) else {}
+        )
+        snapshot_context = (
+            snapshot.get("commercial_context")
+            if isinstance(snapshot.get("commercial_context"), dict)
+            else {}
+        )
         commercial_order_length = (
             commercial.get("required_order_length") if isinstance(commercial, dict) else None
         )
-        length = commercial_order_length or r.get("order_cable_length")
+        length = (
+            snapshot_context.get("required_order_length")
+            or commercial_order_length
+            or r.get("order_cable_length")
+        )
         if cable and length:
-            cable_totals[str(cable)] += float(length)
+            cable_mark = str(cable)
+            cable_totals[cable_mark] += float(length)
+            cable_meta_by_mark.setdefault(cable_mark, snapshot_commercial)
 
     for cable_mark, length in sorted(cable_totals.items()):
+        meta = cable_meta_by_mark.get(cable_mark, {})
+        article = meta.get("article") or cable_mark
         items.append(
             SpecificationItem(
                 category="Кабель",
                 name=f"Греющий кабель {cable_mark}",
-                article=cable_mark,
+                article=str(article),
                 unit="м",
                 quantity=round(length, 2),
-                params={"cable_mark": cable_mark},
+                params={
+                    "cable_mark": cable_mark,
+                    "supplier_name": meta.get("supplier_name"),
+                    "price_per_meter": meta.get("price_per_meter"),
+                    "currency": meta.get("currency"),
+                },
             )
         )
 

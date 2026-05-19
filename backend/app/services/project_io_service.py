@@ -128,6 +128,7 @@ def _dump_project_to_writer(
             "cable_type_source",
             "cable_mark",
             "cable_mark_source",
+            "cable_snapshot",
             "params",
             "results",
         ]
@@ -142,6 +143,9 @@ def _dump_project_to_writer(
                 calc.cable_type_source,
                 calc.cable_mark or "",
                 calc.cable_mark_source,
+                json.dumps(getattr(calc, "cable_snapshot", None), ensure_ascii=False)
+                if getattr(calc, "cable_snapshot", None) is not None
+                else "",
                 json.dumps(calc.params or {}, ensure_ascii=False),
                 json.dumps(calc.results, ensure_ascii=False) if calc.results is not None else "",
             ]
@@ -406,6 +410,9 @@ async def _apply_project_data(
         cable_mark_source = row.get("cable_mark_source", "").strip() or (
             "manual" if cable_mark else "auto"
         )
+        cable_snapshot = _parse_json_or_empty(row.get("cable_snapshot", ""), None)
+        if isinstance(cable_snapshot, dict):
+            cable_snapshot = {**cable_snapshot, "origin": "imported_project"}
         calc = ElectricalCalculation(
             project_id=project.id,
             object_id=obj.id,
@@ -414,6 +421,7 @@ async def _apply_project_data(
             cable_type_source=row.get("cable_type_source", "").strip() or "auto",
             cable_mark=cable_mark,
             cable_mark_source=cable_mark_source,
+            cable_snapshot=cable_snapshot,
             params=_parse_json_or_empty(row.get("params", ""), {}),
             results=_parse_json_or_empty(row.get("results", ""), None),
         )

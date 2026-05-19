@@ -31,6 +31,15 @@ from app.reference_data.loader import (
 )
 from app.services.calculation_service import CalculationService
 
+ReferenceCableType = Literal[
+    "self_regulating",
+    "self_regulating_tt",
+    "single_core",
+    "three_core",
+    "mineral",
+    "skin",
+]
+
 # TTL для статичных JSON-справочников: 24 часа (изменения = пересборка образа).
 _BUILTIN_TTL = 24 * 3600
 _HTTP_CACHE_SECONDS = 3600
@@ -244,6 +253,53 @@ def _annotate_resistive_catalog(catalog: dict[str, object]) -> dict[str, object]
     }
 
 
+def _builtin_cables_for_type(cable_type: ReferenceCableType) -> list[dict[str, object]]:
+    if cable_type == "self_regulating":
+        return [{**c, "source": "builtin", "cable_type": cable_type} for c in list_tlt_cables()]
+    if cable_type == "self_regulating_tt":
+        return [{**c, "source": "builtin", "cable_type": cable_type} for c in list_tt_cables()]
+    if cable_type in ("single_core", "three_core"):
+        key = "single_core" if cable_type == "single_core" else "three_core"
+        return [
+            {
+                **_resistive_technical_payload(dict(c)),
+                "source": "builtin",
+                "cable_type": cable_type,
+            }
+            for c in list_resistive_cables().get(key, [])
+            if isinstance(c, dict)
+        ]
+    return []
+
+
+async def _cables_for_type(
+    db: AsyncSession,
+    source: Literal["builtin", "commercial", "extended", "all"],
+    cable_type: ReferenceCableType,
+) -> list[dict[str, object]]:
+    if source == "builtin":
+        return _builtin_cables_for_type(cable_type)
+
+    service = CalculationService(db)
+    if cable_type == "self_regulating":
+        return await service.load_cable_catalog(source)
+    if cable_type in ("single_core", "three_core"):
+        rows = await service.load_resistive_cable_catalog(cable_type, source)
+        return [_resistive_technical_payload(dict(row)) for row in rows]
+    if cable_type == "self_regulating_tt":
+        return _builtin_cables_for_type(cable_type) if source == "all" else []
+
+    if source == "commercial":
+        return []
+    result = await db.execute(
+        select(CableExtended).where(
+            CableExtended.is_active.is_(True),
+            CableExtended.cable_type == cable_type,
+        )
+    )
+    return [_extended_cable_payload(c) for c in result.scalars().all()]
+
+
 def _builtin_http_cache(name: str):
     def dependency(response: Response) -> None:
         response.headers["Cache-Control"] = f"public, max-age={_HTTP_CACHE_SECONDS}"
@@ -350,11 +406,12 @@ async def internal_references(
 
 @router.get(
     "/cables",
-    summary="Кабели. source=builtin|commercial|extended|all",
+    summary="Кабели выбранного типа. source=builtin|commercial|extended|all",
 )
 async def cables(
     response: Response,
     source: Literal["builtin", "commercial", "extended", "all"] = "builtin",
+    cable_type: ReferenceCableType = "self_regulating",
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -363,18 +420,12 @@ async def cables(
             status_code=403,
             detail="Расширенный каталог доступен только сотрудникам",
         )
-    builtin = [{**c, "source": "builtin"} for c in list_tlt_cables()]
     if source == "builtin":
+        builtin = _builtin_cables_for_type(cable_type)
         response.headers["Cache-Control"] = f"public, max-age={_HTTP_CACHE_SECONDS}"
-        response.headers["ETag"] = _BUILTIN_ETAGS["cables:builtin"]
+        response.headers["ETag"] = _etag(builtin)
         return builtin
-    if source == "commercial":
-        return await _commercial_cable_catalog(db)
-    result = await db.execute(select(CableExtended).where(CableExtended.is_active.is_(True)))
-    extended = [_extended_cable_payload(c) for c in result.scalars().all()]
-    if source == "extended":
-        return extended
-    return builtin + extended
+    return await _cables_for_type(db, source, cable_type)
 
 
 @router.get(

@@ -455,7 +455,7 @@ FIELDS: tuple[FieldDef, ...] = (
     FieldDef(
         "applied_selection_policy",
         "Фактически применённый критерий",
-        "Применено",
+        "Критерий",
         "enum",
         lambda row: _calc_result(row, "applied_selection_policy"),
         filter_ops=("in",),
@@ -867,9 +867,10 @@ class ElectricalQueryService:
                 page=page,
                 page_size=page_size,
             )
+            calc_summaries = await self._calc_summaries(calculations)
             return ElectricalQueryResponse(
                 items=[self._object_summary(obj) for obj in objects],
-                calculations=[self._calc_summary(calc) for calc in calculations],
+                calculations=calc_summaries,
                 summary=ElectricalPageSummary(**summary),
                 page_info=page_info,
                 counts=ElectricalQueryCounts(
@@ -900,12 +901,12 @@ class ElectricalQueryService:
             page=1,
             page_size=1,
         )
+        page_calcs = [row.calc for row in page_rows if row.calc is not None]
+        calc_summaries = await self._calc_summaries(page_calcs)
 
         return ElectricalQueryResponse(
             items=[self._object_summary(row.obj) for row in page_rows],
-            calculations=[
-                self._calc_summary(row.calc) for row in page_rows if row.calc is not None
-            ],
+            calculations=calc_summaries,
             summary=ElectricalPageSummary(**summary),
             page_info=ProjectObjectsPageInfo(
                 page=page,
@@ -971,10 +972,11 @@ class ElectricalQueryService:
         total_pages = ceil(total_objects / page_size) if total_objects else 0
         offset = (page - 1) * page_size
         last_object = objects[-1] if has_next_page and objects else None
+        calc_summaries = await self._calc_summaries(calculations)
 
         return ElectricalQueryResponse(
             items=[self._object_summary(obj) for obj in objects],
-            calculations=[self._calc_summary(calc) for calc in calculations],
+            calculations=calc_summaries,
             summary=ElectricalPageSummary(**summary),
             page_info=ProjectObjectsPageInfo(
                 page=page,
@@ -1381,12 +1383,12 @@ class ElectricalQueryService:
                 value=self._cursor_value(cursor_value),
                 value_is_null=bool(cursor_null_rank),
             )
+        page_calcs = [row.calc for row in page_rows if row.calc is not None]
+        calc_summaries = await self._calc_summaries(page_calcs)
 
         return ElectricalQueryResponse(
             items=[self._object_summary(row.obj) for row in page_rows],
-            calculations=[
-                self._calc_summary(row.calc) for row in page_rows if row.calc is not None
-            ],
+            calculations=calc_summaries,
             summary=ElectricalPageSummary(**summary),
             page_info=ProjectObjectsPageInfo(
                 page=page,
@@ -1455,12 +1457,12 @@ class ElectricalQueryService:
             page=1,
             page_size=1,
         )
+        page_calcs = [row.calc for row in page_rows if row.calc is not None]
+        calc_summaries = await self._calc_summaries(page_calcs)
 
         return ElectricalQueryResponse(
             items=[self._object_summary(row.obj) for row in page_rows],
-            calculations=[
-                self._calc_summary(row.calc) for row in page_rows if row.calc is not None
-            ],
+            calculations=calc_summaries,
             summary=ElectricalPageSummary(**summary),
             page_info=ProjectObjectsPageInfo(
                 page=page,
@@ -1601,7 +1603,18 @@ class ElectricalQueryService:
         right_label = _normal_text(_field_label(field, right_value))
         return (left_label > right_label) - (left_label < right_label)
 
-    def _calc_summary(self, calc: ElectricalCalculation | None) -> ElectricalCalcSummary:
+    async def _calc_summaries(
+        self,
+        calculations: list[ElectricalCalculation],
+    ) -> list[ElectricalCalcSummary]:
+        statuses = await CalculationService(self.db).cable_snapshot_statuses(calculations)
+        return [self._calc_summary(calc, statuses.get(calc.id)) for calc in calculations]
+
+    def _calc_summary(
+        self,
+        calc: ElectricalCalculation | None,
+        cable_snapshot_status: dict[str, Any] | None = None,
+    ) -> ElectricalCalcSummary:
         if calc is None:
             raise ElectricalQueryValidationError("Нельзя сериализовать пустой электрорасчёт")
         return ElectricalCalcSummary(
@@ -1611,6 +1624,8 @@ class ElectricalQueryService:
             cable_type_source=calc.cable_type_source,
             cable_mark=calc.cable_mark,
             cable_mark_source=calc.cable_mark_source,
+            cable_snapshot=calc.cable_snapshot,
+            cable_snapshot_status=cable_snapshot_status,
             variant_number=calc.variant_number,
             params=self._prune_dict(calc.params, ELECTRICAL_CALC_PARAM_KEYS),
             results=self._prune_dict(calc.results, ELECTRICAL_CALC_RESULT_KEYS),

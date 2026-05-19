@@ -190,20 +190,7 @@ async def list_electrical(
     )
     result = await db.execute(stmt)
     calcs = result.scalars().all()
-    return [
-        ElectricalCalcSummary(
-            id=c.id,
-            object_id=c.object_id,
-            cable_type=c.cable_type,
-            cable_type_source=c.cable_type_source,
-            cable_mark=c.cable_mark,
-            cable_mark_source=c.cable_mark_source,
-            variant_number=c.variant_number,
-            params=c.params,
-            results=c.results,
-        )
-        for c in calcs
-    ]
+    return await CalculationService(db).electrical_calc_summaries(list(calcs))
 
 
 @router.get(
@@ -235,22 +222,10 @@ async def electrical_page(
         page=page,
         page_size=page_size,
     )
+    calc_summaries = await CalculationService(db).electrical_calc_summaries(calculations)
     return ElectricalPageResponse(
         items=objects,
-        calculations=[
-            ElectricalCalcSummary(
-                id=c.id,
-                object_id=c.object_id,
-                cable_type=c.cable_type,
-                cable_type_source=c.cable_type_source,
-                cable_mark=c.cable_mark,
-                cable_mark_source=c.cable_mark_source,
-                variant_number=c.variant_number,
-                params=c.params,
-                results=c.results,
-            )
-            for c in calculations
-        ],
+        calculations=calc_summaries,
         summary=ElectricalPageSummary(**summary),
         page_info=page_info,
     )
@@ -372,17 +347,7 @@ async def select_cable(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except CalculationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    summary = ElectricalCalcSummary(
-        id=calc.id,
-        object_id=calc.object_id,
-        cable_type=calc.cable_type,
-        cable_type_source=calc.cable_type_source,
-        cable_mark=calc.cable_mark,
-        cable_mark_source=calc.cable_mark_source,
-        variant_number=calc.variant_number,
-        params=calc.params,
-        results=calc.results,
-    )
+    summary = (await service.electrical_calc_summaries([calc]))[0]
     await AuditService(db).try_record(
         event_type="calculation.electrical.cable_selected_manual",
         category="calculation",
@@ -483,22 +448,7 @@ async def batch_calc_electrical(
         scope="selected" if selected_object_ids else "all",
         heat_loss_failed=heat_loss_failed,
         errors=errors if include_errors else [],
-        results=[
-            ElectricalCalcSummary(
-                id=c.id,
-                object_id=c.object_id,
-                cable_type=c.cable_type,
-                cable_type_source=c.cable_type_source,
-                cable_mark=c.cable_mark,
-                cable_mark_source=c.cable_mark_source,
-                variant_number=c.variant_number,
-                params=c.params,
-                results=c.results,
-            )
-            for c in calcs
-        ]
-        if include_results
-        else [],
+        results=await service.electrical_calc_summaries(calcs) if include_results else [],
     )
     await AuditService(db).try_record(
         event_type="calculation.electrical.batch_completed",

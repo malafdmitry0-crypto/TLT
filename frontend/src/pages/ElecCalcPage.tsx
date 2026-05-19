@@ -14,6 +14,7 @@ import {
   Checkbox,
   Input,
   InputNumber,
+  Modal,
   Popconfirm,
   Select,
   Segmented,
@@ -166,6 +167,7 @@ const ENABLED_CABLE_TYPES: ReadonlySet<CableTypeKey> = new Set([
   'single_core',
   'three_core',
 ]);
+const SHOW_COMMERCIAL_CABLE_BASE_UI = false;
 const SELECTION_POLICY_LABEL: Record<SelectionPolicy, string> = {
   technical_minimum: 'Технический',
   lowest_cost: 'Дешевле',
@@ -184,6 +186,7 @@ const isResistiveCableType = (type: CableTypeKey) => type === 'single_core' || t
 type CatalogStatusColor = 'default' | 'success' | 'warning' | 'error';
 type CatalogStatus = { label: string; color: CatalogStatusColor };
 type CableStatusRow = {
+  source?: string | null;
   power_per_meter?: number | null;
   max_temperature?: number | null;
   min_temperature?: number | null;
@@ -202,6 +205,16 @@ type CableStatusRow = {
   supplier_priority?: number | null;
   is_preferred?: boolean;
 };
+type CableMarkSelectOption = {
+  value: string;
+  label: ReactNode;
+  searchLabel: string;
+  mark: string | null;
+  optionSource: CableMarkOptionSource;
+  cableSource?: CableSource;
+  disabled?: boolean;
+};
+type CableMarkOptionSource = CableSource | 'project';
 
 function hasCommercialData(row: CableStatusRow) {
   return row.price_per_meter != null
@@ -296,6 +309,32 @@ type ElectricalTableSettingsPreferenceMutation = {
 };
 
 const AUTO_CABLE_MARK_VALUE = '__auto__';
+const CABLE_MARK_OPTION_SEPARATOR = '::';
+
+function normalizeCableSource(value: unknown): CableSource | null {
+  return value === 'builtin'
+    || value === 'commercial'
+    || value === 'extended'
+    || value === 'all'
+    ? value
+    : null;
+}
+
+function normalizeCableMarkOptionSource(value: unknown): CableMarkOptionSource {
+  if (value === 'project') return 'project';
+  return normalizeCableSource(value) ?? 'builtin';
+}
+
+function cableMarkOptionValue(source: CableMarkOptionSource, mark: string) {
+  return `${source}${CABLE_MARK_OPTION_SEPARATOR}${encodeURIComponent(mark)}`;
+}
+
+function catalogSourceFromSnapshot(calc: ElectricalCalcSummary | undefined): CableSource | null {
+  const snapshot = calc?.cable_snapshot;
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return null;
+  return normalizeCableSource(snapshot.actual_catalog_source)
+    ?? normalizeCableSource(snapshot.requested_catalog_source);
+}
 
 function getCableMark(calc: ElectricalCalcSummary | undefined) {
   const selectedCable = calc?.results?.selected_cable;
@@ -316,6 +355,51 @@ function cableMarkSourceTag(source: CableMarkSource) {
     };
   }
   return null;
+}
+
+function cableSnapshotStatusTag(calc: ElectricalCalcSummary | undefined) {
+  if (!calc) return null;
+  const status = calc.cable_snapshot_status;
+  if (!status) return null;
+  const technicalStatus = status.technical_status;
+  const commercialStatus = status.commercial_status;
+  if (technicalStatus === 'missing' || commercialStatus === 'missing') {
+    return {
+      color: 'orange',
+      label: 'нет в базе',
+      tooltip: status.message || 'Кабель сохранён в проекте, но отсутствует в текущей базе.',
+    };
+  }
+  if (technicalStatus === 'changed') {
+    const fields = Array.isArray(status.changed_fields) ? status.changed_fields.join(', ') : '';
+    return {
+      color: 'red',
+      label: 'техн. изм.',
+      tooltip: `${status.message || 'Технические параметры кабеля изменились.'}${fields ? ` Поля: ${fields}` : ''}`,
+    };
+  }
+  if (commercialStatus === 'changed') {
+    const fields = Array.isArray(status.changed_fields) ? status.changed_fields.join(', ') : '';
+    return {
+      color: 'gold',
+      label: 'комм. изм.',
+      tooltip: `${status.message || 'Коммерческие данные кабеля изменились.'}${fields ? ` Поля: ${fields}` : ''}`,
+    };
+  }
+  if (technicalStatus === 'unknown' || commercialStatus === 'unknown') {
+    return {
+      color: 'default',
+      label: 'стар.',
+      tooltip: status.message || 'Расчёт создан без сохранённого снимка кабеля.',
+    };
+  }
+  return null;
+}
+
+function shouldShowProjectCableOption(calc: ElectricalCalcSummary | undefined) {
+  if (!calc?.cable_snapshot) return false;
+  const technicalStatus = calc.cable_snapshot_status?.technical_status;
+  return technicalStatus === 'missing' || technicalStatus === 'changed';
 }
 
 function getThreadSource(calc: ElectricalCalcSummary | undefined): ThreadSource | null {
@@ -712,7 +796,7 @@ export default function ElecCalcPage() {
     [project?.id, saveVariant],
   );
 
-  const [cableSource, setCableSource] = useState<CableSource>('commercial');
+  const [cableSource, setCableSource] = useState<CableSource>('builtin');
   const [selectionPolicy, setSelectionPolicy] = useState<SelectionPolicy>('technical_minimum');
   const [defaultCableType, setDefaultCableType] =
     useState<CableTypeKey>('self_regulating');
@@ -730,6 +814,9 @@ export default function ElecCalcPage() {
   const [tablePage, setTablePage] = useState(1);
   const [tablePageSize, setTablePageSize] = useState(ELECTRICAL_TABLE_PAGE_SIZE);
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
+  const [cableMarkModalObjectId, setCableMarkModalObjectId] = useState<string | null>(null);
+  const [cableMarkModalCableType, setCableMarkModalCableType] = useState<CableTypeKey | null>(null);
+  const [cableMarkModalValue, setCableMarkModalValue] = useState<string | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [tableColumnSettings, setTableColumnSettings] =
     useState<ElectricalTableColumnSettings>(() => {
@@ -952,8 +1039,8 @@ export default function ElecCalcPage() {
 
   const effectiveSource: CableSource = cableSource;
   const { data: cables = [] } = useQuery({
-    queryKey: referenceQueryKeys.cables(effectiveSource),
-    queryFn: () => listCables(effectiveSource),
+    queryKey: referenceQueryKeys.cables(effectiveSource, 'self_regulating'),
+    queryFn: () => listCables(effectiveSource, 'self_regulating'),
     ...referenceQueryOptions,
   });
   const { data: ttCables = [] } = useQuery({
@@ -1179,7 +1266,11 @@ export default function ElecCalcPage() {
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
-      if (res && res.skipped > 0) {
+      if (res && res.calculated === 0 && res.heat_loss_failed > 0) {
+        message.warning(
+          `СО${variant} · электрорасчёт не выполнен: у выбранных объектов не рассчитаны теплопотери (${res.heat_loss_failed}).`,
+        );
+      } else if (res && (res.skipped > 0 || res.heat_loss_failed > 0)) {
         message.warning(
           `СО${variant} · рассчитано для ${scopeLabel}: ${res.calculated}, пропущено: ${res.skipped}` +
           `${res.heat_loss_failed > 0 ? `, ошибок теплопотерь: ${res.heat_loss_failed}` : ''}.`,
@@ -1219,45 +1310,119 @@ export default function ElecCalcPage() {
     }
   }, [activeBatchScope, activeJob, project?.id, qc, variant]);
 
+  const optionWithSourceLabel = useCallback((label: string, source?: CableMarkOptionSource | null) => {
+    if (source !== 'extended' && source !== 'project') return label;
+    const tag = source === 'extended'
+      ? { color: 'blue', label: 'внеш.' }
+      : { color: 'green', label: 'проект' };
+    return (
+      <Space size={6}>
+        <span>{label}</span>
+        <Tag color={tag.color} style={{ marginInlineEnd: 0 }}>{tag.label}</Tag>
+      </Space>
+    );
+  }, []);
+  const cableMarkOption = useCallback((
+    mark: string,
+    text: string,
+    source?: string | null,
+    disabled?: boolean,
+    cableSource?: CableSource | null,
+  ): CableMarkSelectOption => ({
+    value: cableMarkOptionValue(normalizeCableMarkOptionSource(source), mark),
+    label: optionWithSourceLabel(text, normalizeCableMarkOptionSource(source)),
+    searchLabel: text,
+    mark,
+    optionSource: normalizeCableMarkOptionSource(source),
+    cableSource: cableSource ?? normalizeCableSource(source) ?? undefined,
+    disabled,
+  }), [optionWithSourceLabel]);
+  const autoCableMarkOption = useCallback((): CableMarkSelectOption => ({
+    value: AUTO_CABLE_MARK_VALUE,
+    label: 'Авто',
+    searchLabel: 'Авто',
+    mark: null,
+    optionSource: 'builtin',
+  }), []);
   const cableOptions = useMemo(
-    () => cables.map((c) => ({ value: c.model, label: `${c.model} · ${c.power_per_meter} Вт/м` })),
-    [cables],
+    () => cables.map((c) => {
+      const label = `${c.model} · ${c.power_per_meter ?? '—'} Вт/м`;
+      return cableMarkOption(c.model, label, c.source);
+    }),
+    [cableMarkOption, cables],
   );
-  const manualCableOptionsForType = useCallback((type: CableTypeKey) => {
+  const manualCableOptionsForType = useCallback((type: CableTypeKey): CableMarkSelectOption[] => {
     if (type === 'self_regulating') return cableOptions;
     if (type === 'self_regulating_tt') {
       const suffix = aggressiveProduct ? 'СТ' : 'СР';
-      return ttCables.map((c) => ({
-        value: `${c.model}-${suffix}`,
-        label: `${c.model}-${suffix} · ${c.series} · ${c.nominal_power} Вт/м`,
-      }));
+      return ttCables.map((c) => {
+        const value = `${c.model}-${suffix}`;
+        return cableMarkOption(
+          value,
+          `${value} · ${c.series} · ${c.nominal_power} Вт/м`,
+          (c as { source?: string | null }).source,
+        );
+      });
     }
     if (type === 'single_core') {
-      return (resistiveCables?.single_core ?? []).map((c) => ({
-        value: c.model,
-        label: `${c.model} · ${c.resistance_ohm_km ?? '—'} Ом/км`,
-      }));
+      return (resistiveCables?.single_core ?? []).map((c) =>
+        cableMarkOption(
+          c.model,
+          `${c.model} · ${c.resistance_ohm_km ?? '—'} Ом/км`,
+          c.source,
+        ));
     }
     if (type === 'three_core') {
-      return (resistiveCables?.three_core ?? []).map((c) => ({
-        value: c.model,
-        label: `${c.model} · ${c.resistance_ohm_km ?? '—'} Ом/км · ${c.nominal_size_mm ?? '—'}`,
-      }));
+      return (resistiveCables?.three_core ?? []).map((c) =>
+        cableMarkOption(
+          c.model,
+          `${c.model} · ${c.resistance_ohm_km ?? '—'} Ом/км · ${c.nominal_size_mm ?? '—'}`,
+          c.source,
+        ));
     }
     return [];
-  }, [aggressiveProduct, cableOptions, resistiveCables, ttCables]);
+  }, [aggressiveProduct, cableMarkOption, cableOptions, resistiveCables, ttCables]);
+  const cableMarkOptionsFor = useCallback((
+    type: CableTypeKey,
+    mark?: string,
+    calc?: ElectricalCalcSummary,
+  ) => {
+    const manualOptions = manualCableOptionsForType(type);
+    const savedSource = catalogSourceFromSnapshot(calc);
+    const matchingCatalogOption = mark
+      ? manualOptions.find((option) =>
+          option.mark === mark && (!savedSource || option.cableSource === savedSource))
+        ?? manualOptions.find((option) => option.mark === mark)
+      : undefined;
+    const projectOption = mark && shouldShowProjectCableOption(calc)
+      ? cableMarkOption(
+          mark,
+          `${mark} · сохранён в проекте`,
+          'project',
+          false,
+          savedSource ?? matchingCatalogOption?.cableSource ?? effectiveSource,
+        )
+      : null;
+    return [
+      autoCableMarkOption(),
+      ...(projectOption ? [projectOption] : []),
+      ...manualOptions,
+    ];
+  }, [autoCableMarkOption, cableMarkOption, effectiveSource, manualCableOptionsForType]);
 
   const manualCableMut = useMutation({
     mutationFn: ({
       objectId,
       mark,
       cableType,
+      cableSource,
     }: {
       objectId: string;
       mark: string;
       cableType: CableTypeKey;
+      cableSource?: CableSource;
     }) =>
-      selectCableManual(objectId, mark, effectiveSource, variant, cableType, {
+      selectCableManual(objectId, mark, cableSource ?? effectiveSource, variant, cableType, {
         supplyVoltage,
         selectionMode: isResistiveCableType(cableType) ? 'auto' : undefined,
         selectionPolicy,
@@ -1315,16 +1480,18 @@ export default function ElecCalcPage() {
       objectId,
       mark,
       cableType,
+      cableSource,
       windingPitchMm,
       numberOfThreads,
     }: {
       objectId: string;
       mark: string;
       cableType: CableTypeKey;
+      cableSource?: CableSource;
       windingPitchMm: number;
       numberOfThreads: number;
     }) =>
-      selectCableManual(objectId, mark, effectiveSource, variant, cableType, {
+      selectCableManual(objectId, mark, cableSource ?? effectiveSource, variant, cableType, {
         supplyVoltage,
         selectionMode: isResistiveCableType(cableType) ? 'manual' : undefined,
         connectionType,
@@ -1355,6 +1522,86 @@ export default function ElecCalcPage() {
   const isCableMarkPending = manualCableMut.isPending || autoCableMut.isPending;
   const layoutMutate = layoutMut.mutate;
   const isLayoutPending = layoutMut.isPending;
+  const cableMarkModalObject = cableMarkModalObjectId
+    ? objects.find((object) => object.id === cableMarkModalObjectId) ?? null
+    : null;
+  const cableMarkModalCalc = cableMarkModalObject
+    ? stats.calcByObjectId[cableMarkModalObject.id]
+    : undefined;
+  const cableMarkModalSavedType = cableMarkModalObject
+    ? getSavedCableTypeForObject(cableMarkModalObject.id)
+    : null;
+  const cableMarkModalCurrentMark = cableMarkModalCableType === cableMarkModalSavedType
+    ? getCableMark(cableMarkModalCalc)
+    : undefined;
+  const cableMarkModalOptions = cableMarkModalCableType
+    ? cableMarkOptionsFor(cableMarkModalCableType, cableMarkModalCurrentMark, cableMarkModalCalc)
+    : [];
+  const cableMarkModalOptionByValue = useMemo(
+    () => new Map(cableMarkModalOptions.map((option) => [option.value, option])),
+    [cableMarkModalOptions],
+  );
+  const cableMarkValueForCalc = useCallback((
+    type: CableTypeKey,
+    mark: string | undefined,
+    calc: ElectricalCalcSummary | undefined,
+  ) => {
+    if (!mark) return AUTO_CABLE_MARK_VALUE;
+    if (shouldShowProjectCableOption(calc)) return cableMarkOptionValue('project', mark);
+    const savedSource = catalogSourceFromSnapshot(calc);
+    const manualOptions = manualCableOptionsForType(type);
+    const matchingOption = manualOptions.find((option) =>
+      option.mark === mark && (!savedSource || option.cableSource === savedSource))
+      ?? manualOptions.find((option) => option.mark === mark);
+    return matchingOption?.value ?? cableMarkOptionValue(savedSource ?? effectiveSource, mark);
+  }, [effectiveSource, manualCableOptionsForType]);
+  const closeCableMarkModal = useCallback(() => {
+    setCableMarkModalObjectId(null);
+    setCableMarkModalCableType(null);
+    setCableMarkModalValue(null);
+  }, []);
+  const openCableMarkModal = useCallback((obj: ProjectObject) => {
+    const calc = stats.calcByObjectId[obj.id];
+    const type = getSavedCableTypeForObject(obj.id);
+    setActiveRowId(obj.id);
+    setCableMarkModalObjectId(obj.id);
+    setCableMarkModalCableType(type);
+    const mark = getCableMark(calc);
+    setCableMarkModalValue(cableMarkValueForCalc(type, mark, calc));
+  }, [cableMarkValueForCalc, getSavedCableTypeForObject, stats.calcByObjectId]);
+  const changeCableMarkModalCableType = useCallback((nextType: CableTypeKey) => {
+    setCableMarkModalCableType(nextType);
+    setCableMarkModalValue(AUTO_CABLE_MARK_VALUE);
+    setConnectionType('line_1ph');
+  }, []);
+  const applyCableMarkModal = useCallback(() => {
+    if (!cableMarkModalObject || !cableMarkModalCableType) return;
+    const selectedMark = cableMarkModalValue ?? AUTO_CABLE_MARK_VALUE;
+    if (selectedMark === AUTO_CABLE_MARK_VALUE) {
+      autoCableMutate({
+        objectId: cableMarkModalObject.id,
+        cableType: cableMarkModalCableType,
+      });
+    } else {
+      const selectedOption = cableMarkModalOptionByValue.get(selectedMark);
+      if (!selectedOption?.mark) return;
+      manualCableMutate({
+        objectId: cableMarkModalObject.id,
+        mark: selectedOption.mark,
+        cableType: cableMarkModalCableType,
+        cableSource: selectedOption.cableSource,
+      });
+    }
+    closeCableMarkModal();
+  }, [
+    autoCableMutate,
+    cableMarkModalCableType,
+    cableMarkModalObject,
+    cableMarkModalOptionByValue,
+    cableMarkModalValue,
+    closeCableMarkModal,
+    manualCableMutate,
+  ]);
 
   const updateLayoutDraft = useCallback((objectId: string, patch: CableLayoutDraft) => {
     setLayoutDrafts((prev) => ({ ...prev, [objectId]: { ...prev[objectId], ...patch } }));
@@ -1372,6 +1619,7 @@ export default function ElecCalcPage() {
       objectId: obj.id,
       mark,
       cableType: getSavedCableTypeForObject(obj.id),
+      cableSource: catalogSourceFromSnapshot(calc) ?? undefined,
       windingPitchMm: values.windingPitchMm,
       numberOfThreads: values.numberOfThreads,
     });
@@ -1487,7 +1735,15 @@ export default function ElecCalcPage() {
     heat_loss_status: {
       align: 'center',
       render: (_: unknown, obj) => {
-        if (obj.is_valid) return <Tag color="success">ОК</Tag>;
+        if (obj.is_valid) {
+          return (
+            <Tooltip title="Рассчитан">
+              <Tag className="heatloss-status-icon-tag" color="success" aria-label="Рассчитан">
+                <CheckCircleFilled />
+              </Tag>
+            </Tooltip>
+          );
+        }
         if (obj.validation_errors?.category === 'unsupported') {
           return (
             <Tooltip title={valueText(obj.validation_errors?.message ?? obj.validation_errors)}>
@@ -1572,6 +1828,7 @@ export default function ElecCalcPage() {
         const calc = stats.calcByObjectId[obj.id];
         const mark = getCableMark(calc);
         const sourceMeta = cableMarkSourceTag(getCableMarkSource(calc));
+        const snapshotMeta = cableSnapshotStatusTag(calc);
         const sourceTag = sourceMeta ? (
           <Tooltip title={sourceMeta.tooltip}>
             <Tag
@@ -1582,13 +1839,17 @@ export default function ElecCalcPage() {
             </Tag>
           </Tooltip>
         ) : null;
+        const snapshotTag = snapshotMeta ? (
+          <Tooltip title={snapshotMeta.tooltip}>
+            <Tag
+              color={snapshotMeta.color}
+              style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}
+            >
+              {snapshotMeta.label}
+            </Tag>
+          </Tooltip>
+        ) : null;
         const isActive = activeRowId === obj.id;
-        const cableType = getSavedCableTypeForObject(obj.id);
-        const manualOptions = manualCableOptionsForType(cableType);
-        const options = [
-          { value: AUTO_CABLE_MARK_VALUE, label: 'Авто' },
-          ...manualOptions,
-        ];
 
         if (!isActive) {
           return (
@@ -1596,6 +1857,7 @@ export default function ElecCalcPage() {
               <Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>
                 {mark ?? 'Авто'}
               </Text>
+              {snapshotTag}
               {sourceTag}
             </Space>
           );
@@ -1603,31 +1865,40 @@ export default function ElecCalcPage() {
 
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-            <Select
+            <Button
               size="small"
-              showSearch
-              value={mark ?? AUTO_CABLE_MARK_VALUE}
-              options={options}
               disabled={!obj.is_valid || !project}
               loading={isCableMarkPending}
               style={{ flex: 1, minWidth: 0 }}
-              onChange={(nextMark) => {
-                if (nextMark === AUTO_CABLE_MARK_VALUE) {
-                  autoCableMutate({
-                    objectId: obj.id,
-                    cableType,
-                  });
-                } else if (nextMark) {
-                  manualCableMutate({
-                    objectId: obj.id,
-                    mark: nextMark,
-                    cableType,
-                  });
-                }
-              }}
-            />
+              onClick={() => openCableMarkModal(obj)}
+            >
+              <span
+                style={{
+                  display: 'block',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {mark ?? 'Авто'}
+              </span>
+            </Button>
+            {snapshotTag}
             {sourceTag}
           </div>
+        );
+      },
+    },
+    cable_snapshot_status: {
+      render: (_: unknown, obj) => {
+        const meta = cableSnapshotStatusTag(stats.calcByObjectId[obj.id]);
+        if (!meta) return <Text type="secondary">—</Text>;
+        return (
+          <Tooltip title={meta.tooltip}>
+            <Tag color={meta.color} style={{ marginInlineEnd: 0 }}>
+              {meta.label}
+            </Tag>
+          </Tooltip>
         );
       },
     },
@@ -1737,6 +2008,7 @@ export default function ElecCalcPage() {
                 objectId: obj.id,
                 mark,
                 cableType: rowCableType,
+                cableSource: catalogSourceFromSnapshot(calc) ?? undefined,
                 windingPitchMm: values.windingPitchMm,
                 numberOfThreads: v,
               });
@@ -1866,6 +2138,7 @@ export default function ElecCalcPage() {
     maintainTemperature,
     manualCableMutate,
     manualCableOptionsForType,
+    openCableMarkModal,
     pageInfo?.offset,
     project,
     stats.calcByObjectId,
@@ -2071,8 +2344,14 @@ export default function ElecCalcPage() {
       case 'cable_mark':
         {
           const label = getCableMark(calc) ?? 'Авто';
-          return getCableMarkSource(calc) === 'manual' ? `${label} (ручной выбор)` : label;
+          const details = [
+            getCableMarkSource(calc) === 'manual' ? 'ручной выбор' : null,
+            cableSnapshotStatusTag(calc)?.label ?? null,
+          ].filter(Boolean);
+          return details.length > 0 ? `${label} (${details.join(', ')})` : label;
         }
+      case 'cable_snapshot_status':
+        return cableSnapshotStatusTag(calc)?.label ?? '—';
       case 'variant_number':
         return calc?.variant_number ?? variant;
       case 'selection_policy':
@@ -2265,6 +2544,15 @@ export default function ElecCalcPage() {
   const filteredTableCount = electricalPage?.counts?.filtered ?? totalObjects;
   const validObjectsCount = pageSummary?.valid_objects ?? stats.validObjects.length;
   const selectedObjectsCount = selectedRowKeys.length;
+  const selectedObjects = useMemo(
+    () => objects.filter((object) => selectedRowKeys.includes(object.id)),
+    [objects, selectedRowKeys],
+  );
+  const selectedValidObjectsCount = useMemo(
+    () => selectedObjects.filter((object) => object.is_valid).length,
+    [selectedObjects],
+  );
+  const selectedHeatLossFailedCount = selectedObjectsCount - selectedValidObjectsCount;
   const calculatedCount = pageSummary?.calculated_count ?? stats.calcedCount;
   const failedCount = pageSummary?.failed_count ?? stats.failedCount;
   const totalCableLength = pageSummary?.total_cable_length ?? stats.totalCableLength;
@@ -2378,6 +2666,15 @@ export default function ElecCalcPage() {
     : 'расчёт не выполнен';
   const activeJobStatus = activeJob?.status ?? null;
   const isJobActive = isActiveCalcJobStatus(activeJobStatus);
+  const selectedRecalcDisabled = selectedValidObjectsCount === 0 || isJobActive;
+  const selectedRecalcTooltip =
+    selectedObjectsCount > 0 && selectedValidObjectsCount === 0
+      ? 'Сначала рассчитайте теплопотери для выбранных объектов'
+      : undefined;
+  const selectedRecalcCountLabel =
+    selectedHeatLossFailedCount > 0
+      ? `${selectedValidObjectsCount}/${selectedObjectsCount}`
+      : String(selectedObjectsCount);
   const jobProgress = activeJob?.progress;
   const jobProgressLabel = jobProgress?.total
     ? `${jobProgress.current}/${jobProgress.total}`
@@ -2408,7 +2705,9 @@ export default function ElecCalcPage() {
   }));
   const cableSourceOptions: Array<{ label: string; value: CableSource }> = [
     { label: 'Встроенная', value: 'builtin' },
-    { label: 'Коммерческая', value: 'commercial' },
+    ...(SHOW_COMMERCIAL_CABLE_BASE_UI
+      ? [{ label: 'Коммерческая', value: 'commercial' as CableSource }]
+      : []),
     ...(isEmployee
       ? [
           { label: 'Внешняя', value: 'extended' as CableSource },
@@ -2417,11 +2716,22 @@ export default function ElecCalcPage() {
       : []),
   ];
 
-  function renderElectricalTypeControls() {
-    if (!visibleCableTypeControl) return null;
-    if (visibleCableTypeControl === 'self_regulating') return null;
-    if (visibleCableTypeControl === 'self_regulating_tt') {
-      return (
+  function renderElectricalTypeControls(
+    cableType: CableTypeKey | null = visibleCableTypeControl,
+    options: { block?: boolean } = {},
+  ) {
+    if (!cableType) return null;
+    if (cableType === 'self_regulating') return null;
+
+    const wrap = (content: ReactNode) =>
+      options.block ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          {content}
+        </div>
+      ) : content;
+
+    if (cableType === 'self_regulating_tt') {
+      return wrap(
         <>
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>T проп., °C:</Text>
           <InputNumber<number>
@@ -2445,11 +2755,11 @@ export default function ElecCalcPage() {
           >
             <span style={{ fontSize: 12 }}>агр.</span>
           </Checkbox>
-        </>
+        </>,
       );
     }
-    if (visibleCableTypeControl === 'single_core' || visibleCableTypeControl === 'three_core') {
-      const connectionOptions = visibleCableTypeControl === 'single_core'
+    if (cableType === 'single_core' || cableType === 'three_core') {
+      const connectionOptions = cableType === 'single_core'
         ? [
             { value: 'line_1ph', label: 'Линия' },
             { value: 'loop_1ph', label: 'Петля' },
@@ -2462,7 +2772,7 @@ export default function ElecCalcPage() {
             { value: 'star_3x3', label: 'Звезда 3×3' },
             { value: 'star_1x3', label: 'Звезда 1×3' },
           ];
-      return (
+      return wrap(
         <>
           <Select
             aria-label="Схема подключения"
@@ -2480,7 +2790,7 @@ export default function ElecCalcPage() {
           <InputNumber<number> size="small" min={0} step={0.1} value={heatingHeight} onChange={setHeatingHeight} style={{ width: 76 }} />
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>шаг:</Text>
           <InputNumber<number> size="small" min={0.05} max={0.5} step={0.01} value={layingStep} onChange={setLayingStep} style={{ width: 76 }} />
-        </>
+        </>,
       );
     }
     return null;
@@ -2543,127 +2853,152 @@ export default function ElecCalcPage() {
 
         {/* ActionBar */}
         <div className="actionbar-srs electrical-actionbar">
-          {[1, 2, 3, 4].map((n) => (
-            <Button
-              key={n}
-              size="small"
-              type={variant === n ? 'primary' : 'default'}
-              onClick={() => {
-                setTablePage(1);
-                setVariant(n);
-              }}
-            >
-              СО{n}
-            </Button>
-          ))}
-          <span className="sep" />
-          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>{cableTypeControlLabel}</Text>
-          <Select<CableTypeKey>
-            aria-label="Тип кабеля для пересчёта"
-            size="small"
-            value={visibleCableTypeControl ?? undefined}
-            placeholder="Несколько типов"
-            disabled={isJobActive}
-            onChange={(next) => {
-              if (selectedRowKeys.length === 0) {
-                setDefaultCableType(next);
-              } else {
-                setCableTypeDraftByObjectId((prev) => {
-                  const nextDrafts = { ...prev };
-                  for (const objectId of selectedRowKeys) {
-                    if (next === getSavedCableTypeForObject(objectId)) {
-                      delete nextDrafts[objectId];
-                    } else {
-                      nextDrafts[objectId] = next;
-                    }
-                  }
-                  return nextDrafts;
-                });
-              }
-              setConnectionType('line_1ph');
-            }}
-            options={cableTypeOptions}
-            style={{ width: 210 }}
-          />
-          {renderElectricalTypeControls()}
-          <span className="sep" />
-          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>База:</Text>
-          <Segmented<CableSource>
-            size="small"
-            value={cableSource}
-            onChange={setCableSource}
-            options={cableSourceOptions}
-          />
-          <Tag color={commercialDataStatus.color} style={{ marginInlineEnd: 0 }}>
-            {commercialDataStatus.label}
-          </Tag>
-          <Tag color={technicalDataStatus.color} style={{ marginInlineEnd: 0 }}>
-            {technicalDataStatus.label}
-          </Tag>
-          <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>Критерий:</Text>
-          <Select<SelectionPolicy>
-            aria-label="Критерий подбора кабеля"
-            size="small"
-            value={selectionPolicy}
-            onChange={setSelectionPolicy}
-            options={SELECTION_POLICY_OPTIONS}
-            style={{ width: 128 }}
-          />
-          <span className="sep" />
-          {selectedManualCableCount > 0 ? (
-            <Popconfirm
-              title="Пересчитать выбранные объекты?"
-              description={(
-                <Space direction="vertical" size={8}>
-                  <Text>
-                    Будет обработано выбранных объектов: {selectedObjectsCount}.
-                  </Text>
-                  {renderManualOverwriteControl(selectedManualCableCount)}
-                </Space>
-              )}
-              okText="Пересчитать"
-              okButtonProps={{ danger: overwriteManualChoices }}
-              cancelText="Отмена"
-              onOpenChange={(open) => {
-                if (open) setOverwriteManualChoices(false);
-              }}
-              onConfirm={() =>
-                batchMut.mutate({
-                  scope: 'selected',
-                  objectIds: selectedRowKeys,
-                  skipManual: !overwriteManualChoices,
-                })
-              }
-              disabled={selectedObjectsCount === 0 || isJobActive}
-            >
+          <div className="electrical-actionbar-row electrical-actionbar-row--setup">
+            {[1, 2, 3, 4].map((n) => (
               <Button
+                key={n}
                 size="small"
-                type="primary"
-                icon={<ReloadOutlined />}
-                loading={batchMut.isPending || isJobActive}
-                disabled={selectedObjectsCount === 0 || isJobActive}
+                type={variant === n ? 'primary' : 'default'}
+                onClick={() => {
+                  setTablePage(1);
+                  setVariant(n);
+                }}
               >
-                Пересчитать выбранные ({selectedObjectsCount})
+                СО{n}
               </Button>
-            </Popconfirm>
-          ) : (
-            <Button
+            ))}
+            <span className="sep" />
+            <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>{cableTypeControlLabel}</Text>
+            <Select<CableTypeKey>
+              aria-label="Тип кабеля для пересчёта"
               size="small"
-              type="primary"
-              icon={<ReloadOutlined />}
-              loading={batchMut.isPending || isJobActive}
-              disabled={selectedObjectsCount === 0 || isJobActive}
-              onClick={() =>
-                batchMut.mutate({
-                  scope: 'selected',
-                  objectIds: selectedRowKeys,
-                  skipManual: true,
-                })
-              }
-            >
-              Пересчитать выбранные ({selectedObjectsCount})
-            </Button>
-          )}
+              value={visibleCableTypeControl ?? undefined}
+              placeholder="Несколько типов"
+              disabled={isJobActive}
+              onChange={(next) => {
+                if (selectedRowKeys.length === 0) {
+                  setDefaultCableType(next);
+                } else {
+                  setCableTypeDraftByObjectId((prev) => {
+                    const nextDrafts = { ...prev };
+                    for (const objectId of selectedRowKeys) {
+                      if (next === getSavedCableTypeForObject(objectId)) {
+                        delete nextDrafts[objectId];
+                      } else {
+                        nextDrafts[objectId] = next;
+                      }
+                    }
+                    return nextDrafts;
+                  });
+                }
+                setConnectionType('line_1ph');
+              }}
+              options={cableTypeOptions}
+              style={{ width: 210 }}
+            />
+            {renderElectricalTypeControls()}
+            <span className="sep" />
+            <Tooltip title="Используется только при новом пересчёте или новом ручном выборе. Уже рассчитанные строки хранят снимок кабеля в проекте.">
+              <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>
+                База для пересчёта:
+              </Text>
+            </Tooltip>
+            <Segmented<CableSource>
+              size="small"
+              value={cableSource}
+              onChange={setCableSource}
+              options={cableSourceOptions}
+            />
+            {SHOW_COMMERCIAL_CABLE_BASE_UI && (
+              <>
+                <Tag color={commercialDataStatus.color} style={{ marginInlineEnd: 0 }}>
+                  {commercialDataStatus.label}
+                </Tag>
+                <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>
+                  Критерий:
+                </Text>
+                <Select<SelectionPolicy>
+                  aria-label="Критерий подбора кабеля"
+                  size="small"
+                  value={selectionPolicy}
+                  onChange={setSelectionPolicy}
+                  options={SELECTION_POLICY_OPTIONS}
+                  style={{ width: 128 }}
+                />
+              </>
+            )}
+            <Tag color={technicalDataStatus.color} style={{ marginInlineEnd: 0 }}>
+              {technicalDataStatus.label}
+            </Tag>
+          </div>
+          <div className="electrical-actionbar-row electrical-actionbar-row--actions">
+            {selectedManualCableCount > 0 ? (
+              <Popconfirm
+                title="Пересчитать выбранные объекты?"
+                description={(
+                  <Space direction="vertical" size={8}>
+                    <Text>
+                      Будет обработано выбранных объектов с рассчитанными теплопотерями: {selectedValidObjectsCount}.
+                    </Text>
+                    {selectedHeatLossFailedCount > 0 && (
+                      <Text type="secondary">
+                        Без рассчитанных теплопотерь будет пропущено: {selectedHeatLossFailedCount}.
+                      </Text>
+                    )}
+                    {renderManualOverwriteControl(selectedManualCableCount)}
+                  </Space>
+                )}
+                okText="Пересчитать"
+                okButtonProps={{ danger: overwriteManualChoices }}
+                cancelText="Отмена"
+                onOpenChange={(open) => {
+                  if (open) setOverwriteManualChoices(false);
+                }}
+                onConfirm={() =>
+                  batchMut.mutate({
+                    scope: 'selected',
+                    objectIds: selectedRowKeys,
+                    skipManual: !overwriteManualChoices,
+                  })
+                }
+                disabled={selectedRecalcDisabled}
+              >
+                <Tooltip title={selectedRecalcTooltip}>
+                  <span>
+                    <Button
+                      size="small"
+                      type="primary"
+                      icon={<ReloadOutlined />}
+                      loading={batchMut.isPending || isJobActive}
+                      disabled={selectedRecalcDisabled}
+                    >
+                      Пересчитать выбранные ({selectedRecalcCountLabel})
+                    </Button>
+                  </span>
+                </Tooltip>
+              </Popconfirm>
+            ) : (
+              <Tooltip title={selectedRecalcTooltip}>
+                <span>
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<ReloadOutlined />}
+                    loading={batchMut.isPending || isJobActive}
+                    disabled={selectedRecalcDisabled}
+                    onClick={() =>
+                      batchMut.mutate({
+                        scope: 'selected',
+                        objectIds: selectedRowKeys,
+                        skipManual: true,
+                      })
+                    }
+                  >
+                    Пересчитать выбранные ({selectedRecalcCountLabel})
+                  </Button>
+                </span>
+              </Tooltip>
+            )}
           <Popconfirm
             title={`Пересчитать все объекты СО${variant}?`}
             description={(
@@ -2732,6 +3067,7 @@ export default function ElecCalcPage() {
               </Button>
             </span>
           </Tooltip>
+          </div>
         </div>
 
         {isJobActive && (
@@ -2770,7 +3106,7 @@ export default function ElecCalcPage() {
               }}
               dataSource={objects}
               onChange={handleElectricalTableChange}
-              scroll={{ x: electricalTableScrollX, y: 'calc(100vh - 430px)' }}
+              scroll={{ x: electricalTableScrollX }}
               rowClassName={(obj) => {
                 const calc = stats.calcByObjectId[obj.id];
                 return [
@@ -2838,6 +3174,63 @@ export default function ElecCalcPage() {
 
         </Space>
       </div>
+      <Modal
+        open={!!cableMarkModalObject}
+        title="Выбор марки кабеля"
+        okText="Применить"
+        cancelText="Отмена"
+        confirmLoading={isCableMarkPending}
+        okButtonProps={{
+          disabled: !cableMarkModalObject?.is_valid || !cableMarkModalValue,
+        }}
+        onOk={applyCableMarkModal}
+        onCancel={closeCableMarkModal}
+      >
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          {cableMarkModalObject && (
+            <div>
+              <Text type="secondary">Объект</Text>
+              <div>
+                <Text strong>{objectDisplayName(cableMarkModalObject)}</Text>
+              </div>
+            </div>
+          )}
+          {cableMarkModalCableType && (
+            <div>
+              <Text type="secondary">Тип кабеля</Text>
+              <Select<CableTypeKey>
+                aria-label="Тип кабеля для выбора марки"
+                size="small"
+                value={cableMarkModalCableType}
+                disabled={isCableMarkPending}
+                onChange={changeCableMarkModalCableType}
+                options={cableTypeOptions}
+                style={{ width: '100%', marginTop: 4 }}
+              />
+            </div>
+          )}
+          {cableMarkModalCableType && renderElectricalTypeControls(cableMarkModalCableType, { block: true })}
+          <div>
+            <Text type="secondary">Марка</Text>
+            <Select
+              autoFocus
+              showSearch
+              value={cableMarkModalValue ?? AUTO_CABLE_MARK_VALUE}
+              options={cableMarkModalOptions}
+              optionFilterProp="searchLabel"
+              disabled={!cableMarkModalObject?.is_valid || !project}
+              loading={isCableMarkPending}
+              notFoundContent="Нет доступных марок"
+              style={{ width: '100%', marginTop: 4 }}
+              onChange={setCableMarkModalValue}
+            />
+          </div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            «Авто» запустит автоподбор для этой записи. Выбор конкретной марки сохранит ручной
+            подбор.
+          </Text>
+        </Space>
+      </Modal>
       {columnSettingsOpen && (
         <ElectricalColumnSettingsModal
           open={columnSettingsOpen}

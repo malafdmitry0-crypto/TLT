@@ -99,7 +99,7 @@ describe('ObjectWizard dependencies', () => {
     await mockReferences();
   });
 
-  it('не подставляет инженерные значения в новую трубу', async () => {
+  it('дефолтит однозначные select-поля новой трубы, но не подставляет числовые инженерные значения', async () => {
     renderWizard();
 
     expect(await screen.findByTestId('wall-thickness-input')).toHaveValue('');
@@ -109,10 +109,22 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.getByTestId('flange-count-input')).toHaveValue('');
     expect(screen.getByTestId('support-count-input')).toHaveValue('');
     expect(screen.getByTestId('local-element-equiv-length-input')).toHaveValue('');
-    expect(screen.queryByTestId('pipe-material-select')).not.toBeInTheDocument();
+    expect(screen.getByTestId('pipe-lambda-mode-select')).toHaveTextContent('Справ.');
+    expect(screen.getByTestId('placement-select')).toHaveTextContent('На открытом воздухе');
+    expect(screen.getByTestId('insulation-layer-count-select')).toHaveTextContent('1 слой');
+    expect(screen.getByTestId('insulation-cover-material-select')).toHaveTextContent('Не указано');
+    expect(screen.getByTestId('insulation-temperature-basis-select')).toHaveTextContent('Открытый воздух, зима');
+    expect(screen.getByTestId('environment-select')).toHaveTextContent('Нормальная');
+    expect(screen.getByTestId('zone-classification-select')).toHaveTextContent('Безопасная');
+    expect(screen.getByTestId('temperature-group-select')).toHaveTextContent('T1');
+    expect(screen.getByTestId('supply-voltage-select')).toHaveTextContent('220');
+    expect(screen.getByTestId('steam-tracing-select')).toHaveTextContent('Нет');
+    await waitFor(() => {
+      expect(screen.getByTestId('pipe-material-select')).toHaveTextContent('Сталь углеродистая');
+    });
     expect(screen.queryByTestId('pipe-lambda-input')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('wind-speed-input')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
+    expect(screen.getByTestId('wind-speed-input')).toHaveValue('');
+    expect(screen.getByTestId('alpha-vnesh-input')).toHaveValue('');
   });
 
   it('помечает обязательные числовые поля новой трубы как required', async () => {
@@ -181,14 +193,15 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.queryByTestId('heatcalc-object-diagnostic')).not.toBeInTheDocument();
   });
 
-  it('не подставляет форму и размеры в новый резервуар', async () => {
+  it('дефолтит форму нового резервуара, но не подставляет размеры', async () => {
     renderWizard({ objectType: 'tank' });
 
     expect(await screen.findByTestId('tank-shape-select')).toBeVisible();
+    expect(screen.getByTestId('tank-shape-select')).toHaveTextContent('Цилиндрическая');
     expect(screen.getByTestId('max-ambient-temperature-input')).toHaveValue('');
     expect(screen.getByTestId('max-process-temperature-input')).toHaveValue('');
-    expect(screen.queryByTestId('tank-diameter-input')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('tank-height-input')).not.toBeInTheDocument();
+    expect(screen.getByTestId('tank-diameter-input')).toHaveValue('');
+    expect(screen.getByTestId('tank-height-input')).toHaveValue('');
     expect(screen.getByTestId('q-additional-input')).toHaveValue('');
   });
 

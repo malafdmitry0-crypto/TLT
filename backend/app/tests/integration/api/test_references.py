@@ -192,3 +192,55 @@ class TestReferences:
             headers={"Authorization": f"Bearer {employee_token}"},
         )
         assert r2.status_code == 200
+
+    async def test_cables_endpoint_filters_extended_catalog_by_requested_type(
+        self, client: AsyncClient, employee_token: str, db_session: AsyncSession
+    ):
+        db_session.add_all(
+            [
+                CableExtended(
+                    cable_type="self_regulating",
+                    brand="EXT-SR",
+                    model="EXT-SR-TEST",
+                    power_per_meter=42.0,
+                    min_temperature=-60.0,
+                    max_temperature=120.0,
+                    is_active=True,
+                ),
+                CableExtended(
+                    cable_type="single_core",
+                    brand="EXT-R1",
+                    model="EXT-R1-TEST",
+                    resistance_per_meter=0.02,
+                    min_temperature=-60.0,
+                    max_temperature=130.0,
+                    params={"conductor_section_mm2": 1.5},
+                    is_active=True,
+                ),
+            ]
+        )
+        await db_session.commit()
+
+        resp = await client.get(
+            "/api/v1/references/cables",
+            params={"source": "extended", "cable_type": "self_regulating"},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 200
+        rows = resp.json()
+        assert any(row["model"] == "EXT-SR-TEST" for row in rows)
+        assert all(row.get("cable_type") == "self_regulating" for row in rows)
+        assert all(row["model"] != "EXT-R1-TEST" for row in rows)
+
+        single_core_resp = await client.get(
+            "/api/v1/references/cables",
+            params={"source": "extended", "cable_type": "single_core"},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert single_core_resp.status_code == 200
+        single_core_rows = single_core_resp.json()
+        assert any(row["model"] == "EXT-R1-TEST" for row in single_core_rows)
+        assert all(row.get("cable_type") == "single_core" for row in single_core_rows)
+        assert all(row["model"] != "EXT-SR-TEST" for row in single_core_rows)

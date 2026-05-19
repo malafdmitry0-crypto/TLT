@@ -12,11 +12,11 @@ vi.mock('@/api/projects', () => ({
   importProjectCsv: vi.fn(),
 }));
 
-function renderMenu() {
+function renderMenu(initialEntries: string[] = ['/']) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <TestMemoryRouter>
+      <TestMemoryRouter initialEntries={initialEntries}>
         <ProjectMenu />
       </TestMemoryRouter>
     </QueryClientProvider>
@@ -63,5 +63,26 @@ describe('ProjectMenu', () => {
     renderMenu();
     expect(screen.getByRole('button', { name: 'Новый проект' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Открыть' })).toBeInTheDocument();
+  });
+
+  it('на странице проектов не дублирует глобальные действия проекта', () => {
+    useAuthStore.setState({
+      role: 'employee',
+      user: {
+        id: 'u1',
+        email: 'e@t.ru',
+        full_name: null,
+        role: 'employee',
+        is_active: true,
+      },
+      sessionId: null,
+      accessToken: 'tok',
+      refreshToken: 'tok',
+    });
+    renderMenu(['/projects']);
+    expect(screen.queryByRole('button', { name: 'Новый проект' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Открыть' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Скачать/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Загрузить/i })).not.toBeInTheDocument();
   });
 });

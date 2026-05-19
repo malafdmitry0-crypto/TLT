@@ -123,6 +123,22 @@ function numberOrZero(value: unknown): number {
   return hasExplicitNumberValue(value) ? Number(value) : 0;
 }
 
+function defaultInsulationTemperatureBasisForPlacement(
+  placement: unknown,
+): InsulationTemperatureBasis | undefined {
+  if (placement === 'indoor') return 'indoor';
+  if (placement === 'outdoor') return 'outdoor_winter';
+  return undefined;
+}
+
+function insulationTemperatureBasisOrDefault(
+  value: unknown,
+  placement: unknown,
+): InsulationTemperatureBasis | undefined {
+  if (value) return value as InsulationTemperatureBasis;
+  return defaultInsulationTemperatureBasisForPlacement(placement);
+}
+
 // ---------------------------------------------------------------------------
 // Auto-name generators
 // ---------------------------------------------------------------------------
@@ -406,8 +422,12 @@ function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormVal
   if (v.climate_temperature_basis) {
     params.climate_temperature_basis = v.climate_temperature_basis;
   }
-  if (v.insulation_temperature_basis) {
-    params.insulation_temperature_basis = v.insulation_temperature_basis;
+  const insulationTemperatureBasis = insulationTemperatureBasisOrDefault(
+    v.insulation_temperature_basis,
+    placement,
+  );
+  if (insulationTemperatureBasis) {
+    params.insulation_temperature_basis = insulationTemperatureBasis;
   }
   if (v.ambient_temperature_source) {
     params.ambient_temperature_source = v.ambient_temperature_source;
@@ -482,6 +502,9 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
   const firstRange = apiTemperatureRange(layers[0]);
   const secondRange = apiTemperatureRange(layers[1]);
   const thirdRange = apiTemperatureRange(layers[2]);
+  const placement =
+    (p.placement as PipeFormValues['placement']) ??
+    (p.burial_depth != null ? 'underground' : p.location as PipeFormValues['placement']);
   return {
     outer_diameter_mm: p.outer_diameter != null ? Number(p.outer_diameter) * 1000 : undefined,
     wall_thickness_mm: p.wall_thickness != null ? Number(p.wall_thickness) * 1000 : undefined,
@@ -521,9 +544,7 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     environment: p.environment as PipeFormValues['environment'],
     zone_classification: p.zone_classification as PipeFormValues['zone_classification'],
     temperature_group: p.temperature_group as PipeFormValues['temperature_group'],
-    placement:
-      (p.placement as PipeFormValues['placement']) ??
-      (p.burial_depth != null ? 'underground' : p.location as PipeFormValues['placement']),
+    placement,
     burial_depth: p.burial_depth as number | undefined,
     ground_type: p.ground_type as string | undefined,
     ground_conductivity: p.ground_conductivity as number | undefined,
@@ -538,8 +559,10 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
         : undefined),
     climate_temperature_basis:
       p.climate_temperature_basis as PipeFormValues['climate_temperature_basis'],
-    insulation_temperature_basis:
-      p.insulation_temperature_basis as PipeFormValues['insulation_temperature_basis'],
+    insulation_temperature_basis: insulationTemperatureBasisOrDefault(
+      p.insulation_temperature_basis,
+      placement,
+    ),
     ambient_temperature_source:
       p.ambient_temperature_source as PipeFormValues['ambient_temperature_source'],
     wind_speed_source: p.wind_speed_source as PipeFormValues['wind_speed_source'],
@@ -564,6 +587,9 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
   const firstRange = apiTemperatureRange(layers[0]);
   const secondRange = apiTemperatureRange(layers[1]);
   const thirdRange = apiTemperatureRange(layers[2]);
+  const placement =
+    (p.placement as TankFormValues['placement']) ??
+    (p.burial_depth != null ? 'underground' : p.location as TankFormValues['placement']);
   return {
     shape: (p.shape as TankFormValues['shape']) ?? 'cylindrical',
     diameter_mm: p.diameter != null ? Number(p.diameter) * 1000 : undefined,
@@ -605,9 +631,7 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     environment: p.environment as TankFormValues['environment'],
     zone_classification: p.zone_classification as TankFormValues['zone_classification'],
     temperature_group: p.temperature_group as TankFormValues['temperature_group'],
-    placement:
-      (p.placement as TankFormValues['placement']) ??
-      (p.burial_depth != null ? 'underground' : p.location as TankFormValues['placement']),
+    placement,
     burial_depth: p.burial_depth as number | undefined,
     ground_type: p.ground_type as string | undefined,
     ground_conductivity: p.ground_conductivity as number | undefined,
@@ -622,8 +646,10 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
         : undefined),
     climate_temperature_basis:
       p.climate_temperature_basis as TankFormValues['climate_temperature_basis'],
-    insulation_temperature_basis:
-      p.insulation_temperature_basis as TankFormValues['insulation_temperature_basis'],
+    insulation_temperature_basis: insulationTemperatureBasisOrDefault(
+      p.insulation_temperature_basis,
+      placement,
+    ),
     ambient_temperature_source:
       p.ambient_temperature_source as TankFormValues['ambient_temperature_source'],
     wind_speed_source: p.wind_speed_source as TankFormValues['wind_speed_source'],

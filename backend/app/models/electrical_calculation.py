@@ -46,5 +46,6 @@ class ElectricalCalculation(Base, TimestampMixin):
     cable_type_source: Mapped[str] = mapped_column(String(32), default="auto", nullable=False)
     cable_mark: Mapped[str | None] = mapped_column(String(128), nullable=True)
     cable_mark_source: Mapped[str] = mapped_column(String(32), default="auto", nullable=False)
+    cable_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     params: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     results: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)

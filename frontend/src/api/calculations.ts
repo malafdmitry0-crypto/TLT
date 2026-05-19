@@ -267,10 +267,14 @@ export async function selectCableManual(
 export interface CableInfo {
   brand: string;
   model: string;
-  power_per_meter: number;
-  max_temperature: number;
-  min_temperature: number;
+  cable_type?: CableType | string;
+  power_per_meter?: number | null;
+  max_temperature?: number | null;
+  min_temperature?: number | null;
+  resistance_ohm_km?: number | null;
   resistance_per_meter?: number | null;
+  conductor_section_mm2?: number | null;
+  conductor_cross_section?: number | null;
   price_per_meter?: number | null;
   stock_quantity_m?: number | null;
   stock_status?: 'in_stock' | 'limited' | 'on_order' | 'unknown' | string | null;
@@ -290,9 +294,12 @@ export interface CableInfo {
   source?: CableSource;
 }
 
-export async function listCables(source: CableSource = 'builtin'): Promise<CableInfo[]> {
+export async function listCables(
+  source: CableSource = 'builtin',
+  cableType: CableType = 'self_regulating',
+): Promise<CableInfo[]> {
   const { data } = await apiClient.get<CableInfo[]>('/references/cables', {
-    params: { source },
+    params: { source, cable_type: cableType },
   });
   return data;
 }

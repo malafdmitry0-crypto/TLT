@@ -4,12 +4,10 @@ import {
   ThunderboltOutlined,
   UnorderedListOutlined,
   FileTextOutlined,
-  FolderOutlined,
   CheckCircleFilled,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/routes/routes';
-import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useQuery } from '@tanstack/react-query';
 import { getObjectsSummary } from '@/api/projects';
@@ -38,7 +36,6 @@ function StepLabel({
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const role = useAuthStore((s) => s.role);
   const project = useProjectStore((s) => s.currentProject);
 
   const { data: summary } = useQuery({
@@ -89,16 +86,6 @@ export default function Sidebar() {
       label: 'Отчёт',
       icon: <FileTextOutlined />,
     },
-    ...(role === 'employee'
-      ? [
-          { type: 'divider' as const },
-          {
-            key: ROUTES.projects,
-            label: 'Проекты',
-            icon: <FolderOutlined />,
-          },
-        ]
-      : []),
   ];
 
   return (

@@ -140,6 +140,7 @@ class ReportService:
         results = raw_results if isinstance(raw_results, dict) else {}
         return {
             "cable_mark": calc.cable_mark,
+            "cable_snapshot": calc.cable_snapshot,
             "results": results,
             "status": cls._electrical_status(calc.cable_mark, results),
         }

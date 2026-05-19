@@ -677,6 +677,7 @@ class TaskService:
                     "cable_type_source": calc.cable_type_source,
                     "cable_mark": calc.cable_mark,
                     "cable_mark_source": calc.cable_mark_source,
+                    "cable_snapshot": calc.cable_snapshot,
                     "variant_number": calc.variant_number,
                     "results": calc.results,
                 }

@@ -919,6 +919,8 @@ class ElectricalCalcSummary(BaseModel):
     cable_type_source: str = "auto"
     cable_mark: str | None
     cable_mark_source: str = "auto"
+    cable_snapshot: dict[str, Any] | None = None
+    cable_snapshot_status: dict[str, Any] | None = None
     variant_number: int
     params: dict[str, Any] | None = None
     results: dict[str, Any] | None

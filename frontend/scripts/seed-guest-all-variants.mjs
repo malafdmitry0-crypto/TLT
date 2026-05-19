@@ -94,6 +94,81 @@ function layer(thickness, material, conductivity) {
   return [{ thickness, material, ...(conductivity ? { conductivity } : {}) }];
 }
 
+const deprecatedInsulationMaterialMap = {
+  mineral_wool: { material: 'mineral_wool_boards_120' },
+  polyurethane: { material: 'polyurethane_products_40' },
+  polystyrene: { material: 'polystyrene_products_50' },
+  foam_glass: { material: 'other', conductivity: 0.058 },
+  aerogel: { material: 'other', conductivity: 0.021 },
+  calcium_silicate: { material: 'other', conductivity: 0.065 },
+};
+
+const genericInsulationTemperatureRange = [-260, 650];
+
+function normalizeInsulationLayer(input) {
+  if (!input || typeof input !== 'object') return input;
+  const replacement = deprecatedInsulationMaterialMap[input.material];
+  const next = replacement
+    ? {
+        ...input,
+        material: replacement.material,
+        ...(input.conductivity || !replacement.conductivity
+          ? {}
+          : { conductivity: replacement.conductivity }),
+      }
+    : { ...input };
+  if (next.material === 'other' && !next.temperature_range) {
+    next.temperature_range = genericInsulationTemperatureRange;
+  }
+  return next;
+}
+
+function normalizeSeedParams(params) {
+  const next = { ...params };
+  if (!next.insulation_temperature_basis) {
+    if (next.placement === 'indoor' || next.location === 'indoor') {
+      next.insulation_temperature_basis = 'indoor';
+    } else if (next.placement === 'underground') {
+      next.insulation_temperature_basis = 'channel';
+    } else {
+      next.insulation_temperature_basis = 'outdoor_winter';
+    }
+  }
+  const layers = Array.isArray(next.insulation_layers)
+    ? next.insulation_layers.map(normalizeInsulationLayer)
+    : [];
+  if (layers.length > 0) {
+    next.insulation_layers = layers;
+    const firstLayer = layers[0];
+    if (firstLayer?.material) {
+      next.insulation_material = firstLayer.material;
+    }
+    if (firstLayer?.material === 'other' && firstLayer.conductivity && !next.first_insulation_lambda) {
+      next.first_insulation_lambda = firstLayer.conductivity;
+    }
+    return next;
+  }
+
+  const replacement = deprecatedInsulationMaterialMap[next.insulation_material];
+  if (replacement) {
+    next.insulation_material = replacement.material;
+    if (replacement.material === 'other' && replacement.conductivity && !next.first_insulation_lambda) {
+      next.first_insulation_lambda = replacement.conductivity;
+    }
+    if (replacement.material === 'other') {
+      next.insulation_layers = [
+        {
+          thickness: next.insulation_thickness,
+          material: 'other',
+          conductivity: next.first_insulation_lambda,
+          temperature_range: genericInsulationTemperatureRange,
+        },
+      ];
+    }
+  }
+  return next;
+}
+
 function common(overrides = {}) {
   return {
     ambient_temperature: -20,
@@ -1268,7 +1343,7 @@ async function main() {
       await apiFetch(api, 'POST', `/projects/${project.id}/objects`, {
         object_type: item.object_type,
         sort_order: index,
-        params: item.params,
+        params: normalizeSeedParams(item.params),
       });
       if ((index + 1) % 25 === 0 || index + 1 === seedObjects.length) {
         console.error(`Created ${index + 1}/${seedObjects.length} objects`);
