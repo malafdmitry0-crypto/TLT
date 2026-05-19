@@ -158,6 +158,7 @@ interface ElectricalColumnSettingsModalProps {
   onSettingsLabelFormatChange: (format: ElectricalTableLabelFormat) => void;
   onResetFontSize: () => void;
   onResetLabelFormats: () => void;
+  recalculationSettings?: ReactNode;
 }
 
 function columnNatureBadge(column: ElectricalResolvedColumnMeta) {
@@ -388,6 +389,7 @@ export default function ElectricalColumnSettingsModal({
   onSettingsLabelFormatChange,
   onResetFontSize,
   onResetLabelFormats,
+  recalculationSettings,
 }: ElectricalColumnSettingsModalProps) {
   const columns = getAllElectricalTableColumnMetas(settings, viewSettings.settingsLabelFormat);
   const visibleColumns = columns.filter((column) => column.visible);
@@ -416,47 +418,67 @@ export default function ElectricalColumnSettingsModal({
       onCancel={onCancel}
       destroyOnHidden
     >
-      <Tabs
-        defaultActiveKey="columns"
-        items={[
-          {
-            key: 'columns',
-            label: 'Настройки колонок',
-            children: (
-              <Space direction="vertical" size={10} style={{ width: '100%' }}>
-                <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <Text type="secondary">
-                    Показано колонок: {visibleCount}/{columns.length}
-                  </Text>
-                  <Space>
-                    <Button size="small" onClick={onSelectAllColumns}>Все поля</Button>
-                    <Button size="small" onClick={onResetColumns}>Сбросить</Button>
+      <div className="column-settings-modal">
+        {recalculationSettings}
+        <Tabs
+          className="column-settings-tabs"
+          defaultActiveKey="columns"
+          items={[
+            {
+              key: 'columns',
+              label: 'Настройки колонок',
+              children: (
+                <Space direction="vertical" size={10} style={{ width: '100%' }}>
+                  <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Text type="secondary">
+                      Показано колонок: {visibleCount}/{columns.length}
+                    </Text>
+                    <Space>
+                      <Button size="small" onClick={onSelectAllColumns}>Все поля</Button>
+                      <Button size="small" onClick={onResetColumns}>Сбросить</Button>
+                    </Space>
                   </Space>
-                </Space>
-                <div className="column-layout-list" role="list" aria-label="Настройки таблицы электрорасчёта">
-                  <div className="column-layout-header" aria-hidden="true">
-                    <span />
-                    <span>Вид</span>
-                    <span>№</span>
-                    <span>Поле</span>
-                    <span>Шаг</span>
-                    <span />
-                    <span />
-                    <span>Ширина</span>
-                    <span />
-                    <span />
-                  </div>
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext
-                      items={visibleColumns.map((column) => column.key)}
-                      strategy={verticalListSortingStrategy}
+                  <div className="column-layout-list" role="list" aria-label="Настройки таблицы электрорасчёта">
+                    <div className="column-layout-header" aria-hidden="true">
+                      <span />
+                      <span>Вид</span>
+                      <span>№</span>
+                      <span>Поле</span>
+                      <span>Шаг</span>
+                      <span />
+                      <span />
+                      <span>Ширина</span>
+                      <span />
+                      <span />
+                    </div>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
                     >
-                      {visibleColumns.map((column) => (
-                        <SortableColumnSettingsRow
+                      <SortableContext
+                        items={visibleColumns.map((column) => column.key)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {visibleColumns.map((column) => (
+                          <SortableColumnSettingsRow
+                            key={column.key}
+                            column={column}
+                            rowCount={visibleColumns.length}
+                            onVisibleChange={onVisibleChange}
+                            onOrderChange={onOrderChange}
+                            onWidthChange={onWidthChange}
+                            onResetWidth={onResetWidth}
+                          />
+                        ))}
+                      </SortableContext>
+                      {hiddenColumns.length > 0 && (
+                        <div className="column-layout-section" aria-hidden="true">
+                          Скрытые поля
+                        </div>
+                      )}
+                      {hiddenColumns.map((column) => (
+                        <ColumnSettingsRow
                           key={column.key}
                           column={column}
                           rowCount={visibleColumns.length}
@@ -466,85 +488,69 @@ export default function ElectricalColumnSettingsModal({
                           onResetWidth={onResetWidth}
                         />
                       ))}
-                    </SortableContext>
-                    {hiddenColumns.length > 0 && (
-                      <div className="column-layout-section" aria-hidden="true">
-                        Скрытые поля
-                      </div>
-                    )}
-                    {hiddenColumns.map((column) => (
-                      <ColumnSettingsRow
-                        key={column.key}
-                        column={column}
-                        rowCount={visibleColumns.length}
-                        onVisibleChange={onVisibleChange}
-                        onOrderChange={onOrderChange}
-                        onWidthChange={onWidthChange}
-                        onResetWidth={onResetWidth}
-                      />
-                    ))}
-                  </DndContext>
-                </div>
-              </Space>
-            ),
-          },
-          {
-            key: 'other',
-            label: 'Остальное',
-            children: (
-              <div className="column-settings-modal column-settings-modal--other">
-                <div className="table-view-settings-panel">
-                  <Text className="table-view-settings-label">Размер текста таблицы</Text>
-                  <Segmented<ElectricalTableFontSize>
-                    aria-label="Размер текста таблицы"
-                    value={viewSettings.fontSize}
-                    onChange={onFontSizeChange}
-                    options={ELECTRICAL_TABLE_FONT_SIZE_OPTIONS.map((option) => ({
-                      value: option.key,
-                      label: (
-                        <Tooltip title={`${option.fontSizePx}px`}>
-                          <span>{option.label}</span>
-                        </Tooltip>
-                      ),
-                    }))}
-                  />
-                  <Button size="small" onClick={onResetFontSize}>
-                    Сбросить размер
-                  </Button>
-                </div>
-                <div className="table-view-settings-panel table-label-format-settings-panel">
-                  <Text className="table-view-settings-label">Формат названий</Text>
-                  <Space size={8} wrap>
-                    <Text type="secondary">Таблица</Text>
-                    <Segmented<ElectricalTableLabelFormat>
-                      aria-label="Формат названий в таблице"
-                      value={viewSettings.tableLabelFormat}
-                      onChange={onTableLabelFormatChange}
-                      options={ELECTRICAL_TABLE_LABEL_FORMAT_OPTIONS.map((option) => ({
+                    </DndContext>
+                  </div>
+                </Space>
+              ),
+            },
+            {
+              key: 'other',
+              label: 'Остальное',
+              children: (
+                <div className="column-settings-modal column-settings-modal--other">
+                  <div className="table-view-settings-panel">
+                    <Text className="table-view-settings-label">Размер текста таблицы</Text>
+                    <Segmented<ElectricalTableFontSize>
+                      aria-label="Размер текста таблицы"
+                      value={viewSettings.fontSize}
+                      onChange={onFontSizeChange}
+                      options={ELECTRICAL_TABLE_FONT_SIZE_OPTIONS.map((option) => ({
                         value: option.key,
-                        label: option.label,
+                        label: (
+                          <Tooltip title={`${option.fontSizePx}px`}>
+                            <span>{option.label}</span>
+                          </Tooltip>
+                        ),
                       }))}
                     />
-                    <Text type="secondary">Настройки</Text>
-                    <Segmented<ElectricalTableLabelFormat>
-                      aria-label="Формат названий в настройках"
-                      value={viewSettings.settingsLabelFormat}
-                      onChange={onSettingsLabelFormatChange}
-                      options={ELECTRICAL_TABLE_LABEL_FORMAT_OPTIONS.map((option) => ({
-                        value: option.key,
-                        label: option.label,
-                      }))}
-                    />
-                    <Button size="small" onClick={onResetLabelFormats}>
-                      Сбросить названия
+                    <Button size="small" onClick={onResetFontSize}>
+                      Сбросить размер
                     </Button>
-                  </Space>
+                  </div>
+                  <div className="table-view-settings-panel table-label-format-settings-panel">
+                    <Text className="table-view-settings-label">Формат названий</Text>
+                    <Space size={8} wrap>
+                      <Text type="secondary">Таблица</Text>
+                      <Segmented<ElectricalTableLabelFormat>
+                        aria-label="Формат названий в таблице"
+                        value={viewSettings.tableLabelFormat}
+                        onChange={onTableLabelFormatChange}
+                        options={ELECTRICAL_TABLE_LABEL_FORMAT_OPTIONS.map((option) => ({
+                          value: option.key,
+                          label: option.label,
+                        }))}
+                      />
+                      <Text type="secondary">Настройки</Text>
+                      <Segmented<ElectricalTableLabelFormat>
+                        aria-label="Формат названий в настройках"
+                        value={viewSettings.settingsLabelFormat}
+                        onChange={onSettingsLabelFormatChange}
+                        options={ELECTRICAL_TABLE_LABEL_FORMAT_OPTIONS.map((option) => ({
+                          value: option.key,
+                          label: option.label,
+                        }))}
+                      />
+                      <Button size="small" onClick={onResetLabelFormats}>
+                        Сбросить названия
+                      </Button>
+                    </Space>
+                  </div>
                 </div>
-              </div>
-            ),
-          },
-        ]}
-      />
+              ),
+            },
+          ]}
+        />
+      </div>
     </Modal>
   );
 }

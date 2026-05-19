@@ -74,7 +74,7 @@ def _get_coefficients_dict(coeffs: list[CorrectionCoefficient]) -> dict[str, flo
     return {c.key: c.value for c in coeffs}
 
 
-_DEMO_COMMERCIAL_SOURCES = {None, "seed", "demo_seed", "test"}
+_DEMO_COMMERCIAL_SOURCES = {None, "seed", "demo_seed", "test", "e2e"}
 _REFERENCE_SEED_SOURCES = {None, "builtin_json", "seed", "demo_seed", "test"}
 _SELF_REG_ACCESSORY_COST_PER_CIRCUIT = 2400.0
 _RESISTIVE_ACCESSORY_COST_PER_CIRCUIT = 3200.0
@@ -131,16 +131,13 @@ def _commercial_seed_is_allowed(existing: CableExtended) -> bool:
 
 def _apply_demo_commercial(existing: CableExtended, data: dict[str, object]) -> None:
     """Updates seed/demo-managed rows, but leaves real production data alone."""
-    technical_keys = (
-        "power_per_meter",
-        "max_temperature",
-        "min_temperature",
-        "resistance_per_meter",
-        "is_active",
-    )
     if _commercial_seed_is_allowed(existing):
         update_keys = (
-            *technical_keys,
+            "power_per_meter",
+            "max_temperature",
+            "min_temperature",
+            "resistance_per_meter",
+            "is_active",
             "params",
             "supplier_name",
             "article",
@@ -160,7 +157,7 @@ def _apply_demo_commercial(existing: CableExtended, data: dict[str, object]) -> 
             "commercial_data_source",
         )
     else:
-        update_keys = technical_keys
+        update_keys = ()
     for key in update_keys:
         if key in data:
             setattr(existing, key, data[key])
@@ -690,6 +687,74 @@ async def seed_cables(db) -> None:
                 order_multiple_m=1.0,
             ),
         ),
+        # external-only self_regulating — уникальные внешние позиции для UX/source-тестов
+        dict(
+            cable_type="self_regulating",
+            brand="ВНШ-СР",
+            model="ВНШ-СР-18",
+            power_per_meter=18.0,
+            max_temperature=90.0,
+            min_temperature=-55.0,
+            resistance_per_meter=None,
+            params={
+                "voltage": 220,
+                "protection": "IP68",
+                "external_seed_kind": "unique_technical",
+            },
+            **_commercial(
+                price_per_meter=515.0,
+                stock_quantity_m=640.0,
+                lead_time_days=4,
+                supplier_priority=18,
+                order_multiple_m=1.0,
+                supplier_name="Demo External Cable Supply",
+            ),
+        ),
+        dict(
+            cable_type="self_regulating",
+            brand="ВНШ-СР",
+            model="ВНШ-СР-33",
+            power_per_meter=33.0,
+            max_temperature=110.0,
+            min_temperature=-55.0,
+            resistance_per_meter=None,
+            params={
+                "voltage": 220,
+                "protection": "IP68",
+                "external_seed_kind": "unique_technical",
+            },
+            **_commercial(
+                price_per_meter=690.0,
+                stock_quantity_m=520.0,
+                lead_time_days=5,
+                supplier_priority=19,
+                order_multiple_m=1.0,
+                supplier_name="Demo External Cable Supply",
+            ),
+        ),
+        dict(
+            cable_type="self_regulating",
+            brand="ВНШ-СР",
+            model="ВНШ-СР-125HT",
+            power_per_meter=125.0,
+            max_temperature=180.0,
+            min_temperature=-60.0,
+            resistance_per_meter=None,
+            params={
+                "voltage": 220,
+                "protection": "IP68",
+                "external_seed_kind": "unique_technical",
+                "max_pipe_temp": 160,
+            },
+            **_commercial(
+                price_per_meter=1480.0,
+                stock_quantity_m=260.0,
+                lead_time_days=9,
+                supplier_priority=24,
+                order_multiple_m=1.0,
+                supplier_name="Demo External Cable Supply",
+            ),
+        ),
         # single_core — одножильные резистивные
         dict(
             cable_type="single_core",
@@ -741,6 +806,53 @@ async def seed_cables(db) -> None:
                 lead_time_days=4,
                 supplier_priority=25,
                 order_multiple_m=10.0,
+            ),
+        ),
+        # external-only single_core — уникальные внешние позиции для UX/source-тестов
+        dict(
+            cable_type="single_core",
+            brand="ВНШ-Р1",
+            model="ВНШ-Р1-1.8/230",
+            power_per_meter=18.0,
+            max_temperature=130.0,
+            min_temperature=-60.0,
+            resistance_per_meter=0.018,
+            params={
+                "voltage": 230,
+                "conductor_section_mm2": 1.8,
+                "diameter_mm": 4.6,
+                "external_seed_kind": "unique_technical",
+            },
+            **_commercial(
+                price_per_meter=295.0,
+                stock_quantity_m=1400.0,
+                lead_time_days=3,
+                supplier_priority=22,
+                order_multiple_m=10.0,
+                supplier_name="Demo External Cable Supply",
+            ),
+        ),
+        dict(
+            cable_type="single_core",
+            brand="ВНШ-Р1",
+            model="ВНШ-Р1-3.2/400",
+            power_per_meter=36.0,
+            max_temperature=155.0,
+            min_temperature=-60.0,
+            resistance_per_meter=0.032,
+            params={
+                "voltage": 400,
+                "conductor_section_mm2": 3.2,
+                "diameter_mm": 5.4,
+                "external_seed_kind": "unique_technical",
+            },
+            **_commercial(
+                price_per_meter=365.0,
+                stock_quantity_m=960.0,
+                lead_time_days=5,
+                supplier_priority=27,
+                order_multiple_m=10.0,
+                supplier_name="Demo External Cable Supply",
             ),
         ),
         # three_core — трёхжильные резистивные
@@ -795,6 +907,55 @@ async def seed_cables(db) -> None:
                 order_multiple_m=10.0,
             ),
         ),
+        # external-only three_core — уникальные внешние позиции для UX/source-тестов
+        dict(
+            cable_type="three_core",
+            brand="ВНШ-Р3",
+            model="ВНШ-Р3-4.0-55",
+            power_per_meter=55.0,
+            max_temperature=140.0,
+            min_temperature=-60.0,
+            resistance_per_meter=0.0066,
+            params={
+                "voltage": 400,
+                "conductor_section_mm2": 4.0,
+                "nominal_size_mm": "3×4.0",
+                "diameter_mm": 9.8,
+                "external_seed_kind": "unique_technical",
+            },
+            **_commercial(
+                price_per_meter=620.0,
+                stock_quantity_m=720.0,
+                lead_time_days=7,
+                supplier_priority=38,
+                order_multiple_m=10.0,
+                supplier_name="Demo External Cable Supply",
+            ),
+        ),
+        dict(
+            cable_type="three_core",
+            brand="ВНШ-Р3",
+            model="ВНШ-Р3-6.0-78",
+            power_per_meter=78.0,
+            max_temperature=155.0,
+            min_temperature=-60.0,
+            resistance_per_meter=0.0044,
+            params={
+                "voltage": 400,
+                "conductor_section_mm2": 6.0,
+                "nominal_size_mm": "3×6.0",
+                "diameter_mm": 11.6,
+                "external_seed_kind": "unique_technical",
+            },
+            **_commercial(
+                price_per_meter=790.0,
+                stock_quantity_m=520.0,
+                lead_time_days=10,
+                supplier_priority=43,
+                order_multiple_m=10.0,
+                supplier_name="Demo External Cable Supply",
+            ),
+        ),
         # mineral — кабели с минеральной изоляцией
         dict(
             cable_type="mineral",
@@ -847,6 +1008,30 @@ async def seed_cables(db) -> None:
                 order_multiple_m=5.0,
             ),
         ),
+        # external-only mineral — уникальные внешние позиции для UX/source-тестов
+        dict(
+            cable_type="mineral",
+            brand="ВНШ-МИ",
+            model="ВНШ-МИ-2Ж-3.0/400",
+            power_per_meter=52.0,
+            max_temperature=320.0,
+            min_temperature=-70.0,
+            resistance_per_meter=None,
+            params={
+                "voltage": 400,
+                "max_pipe_temp": 280,
+                "nominal_size_mm": "2×3.0",
+                "external_seed_kind": "unique_technical",
+            },
+            **_commercial(
+                price_per_meter=2150.0,
+                stock_quantity_m=120.0,
+                lead_time_days=18,
+                supplier_priority=68,
+                order_multiple_m=5.0,
+                supplier_name="Demo External Cable Supply",
+            ),
+        ),
         # skin — кабели скин-эффекта
         dict(
             cable_type="skin",
@@ -897,6 +1082,29 @@ async def seed_cables(db) -> None:
                 lead_time_days=45,
                 supplier_priority=90,
                 order_multiple_m=50.0,
+            ),
+        ),
+        # external-only skin — уникальные внешние позиции для UX/source-тестов
+        dict(
+            cable_type="skin",
+            brand="ВНШ-СК",
+            model="ВНШ-СК-75-5",
+            power_per_meter=75.0,
+            max_temperature=160.0,
+            min_temperature=-70.0,
+            resistance_per_meter=None,
+            params={
+                "voltage": 500,
+                "max_length": 6500,
+                "external_seed_kind": "unique_technical",
+            },
+            **_commercial(
+                price_per_meter=3450.0,
+                stock_quantity_m=70.0,
+                lead_time_days=40,
+                supplier_priority=88,
+                order_multiple_m=50.0,
+                supplier_name="Demo External Cable Supply",
             ),
         ),
     ]

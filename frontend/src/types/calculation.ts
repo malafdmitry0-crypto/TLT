@@ -213,6 +213,7 @@ export interface ElectricalPageResponse {
 export interface ElectricalQueryRequest {
   project_id: string;
   variant_number?: number;
+  cable_source?: 'builtin' | 'commercial' | 'extended' | 'all';
   page?: number;
   page_size?: number;
   after_sort_order?: number | null;

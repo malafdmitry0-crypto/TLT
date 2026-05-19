@@ -2575,6 +2575,10 @@ html, body, #root {
   background: #f8fafc;
 }
 
+.electrical-recalculation-settings-panel {
+  flex-wrap: wrap;
+}
+
 .calculation-details-settings-panel {
   align-items: stretch;
   flex-direction: column;

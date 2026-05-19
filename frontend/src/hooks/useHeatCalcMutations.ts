@@ -1,13 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
-import { useNavigate } from 'react-router-dom';
 import {
   createObject,
   deleteObject,
   updateObject,
 } from '@/api/projects';
-import { enqueueElectricalBatchJob } from '@/api/calculations';
-import { ROUTES } from '@/routes/routes';
 import type { CreateObjectRequest, ProjectObject } from '@/types/project';
 
 /**
@@ -33,7 +30,6 @@ function notifyObjectResult(obj: ProjectObject, action: 'added' | 'updated') {
  *   - add:       добавить объект
  *   - edit:      обновить параметры объекта
  *   - remove:    удалить объект
- *   - batchCalc: поставить пакетный электрорасчёт в очередь и перейти на шаг 2
  *
  * Все мутации инвалидируют кэш объектов проекта. add/edit показывают
  * осмысленное сообщение (success либо warning с причиной ошибки валидации).
@@ -45,7 +41,6 @@ export function useHeatCalcMutations(
   onRemoveSuccess?: () => void,
 ) {
   const qc = useQueryClient();
-  const navigate = useNavigate();
 
   const invalidateObjects = () => {
     qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'query'] });
@@ -90,15 +85,5 @@ export function useHeatCalcMutations(
     onError: (e: Error) => message.error(e.message),
   });
 
-  const batchCalc = useMutation({
-    mutationFn: () => enqueueElectricalBatchJob(projectId!),
-    onSuccess: (task) => {
-      qc.invalidateQueries({ queryKey: ['calc-job', task.id] });
-      message.info('Электрорасчёт поставлен в очередь');
-      navigate(ROUTES.elecCalc, { state: { activeJobId: task.id } });
-    },
-    onError: (e: Error) => message.error(e.message),
-  });
-
-  return { add, edit, remove, batchCalc };
+  return { add, edit, remove };
 }

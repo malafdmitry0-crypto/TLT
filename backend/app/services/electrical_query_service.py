@@ -867,7 +867,7 @@ class ElectricalQueryService:
                 page=page,
                 page_size=page_size,
             )
-            calc_summaries = await self._calc_summaries(calculations)
+            calc_summaries = await self._calc_summaries(calculations, data.cable_source)
             return ElectricalQueryResponse(
                 items=[self._object_summary(obj) for obj in objects],
                 calculations=calc_summaries,
@@ -902,7 +902,7 @@ class ElectricalQueryService:
             page_size=1,
         )
         page_calcs = [row.calc for row in page_rows if row.calc is not None]
-        calc_summaries = await self._calc_summaries(page_calcs)
+        calc_summaries = await self._calc_summaries(page_calcs, data.cable_source)
 
         return ElectricalQueryResponse(
             items=[self._object_summary(row.obj) for row in page_rows],
@@ -972,7 +972,7 @@ class ElectricalQueryService:
         total_pages = ceil(total_objects / page_size) if total_objects else 0
         offset = (page - 1) * page_size
         last_object = objects[-1] if has_next_page and objects else None
-        calc_summaries = await self._calc_summaries(calculations)
+        calc_summaries = await self._calc_summaries(calculations, data.cable_source)
 
         return ElectricalQueryResponse(
             items=[self._object_summary(obj) for obj in objects],
@@ -1384,7 +1384,7 @@ class ElectricalQueryService:
                 value_is_null=bool(cursor_null_rank),
             )
         page_calcs = [row.calc for row in page_rows if row.calc is not None]
-        calc_summaries = await self._calc_summaries(page_calcs)
+        calc_summaries = await self._calc_summaries(page_calcs, data.cable_source)
 
         return ElectricalQueryResponse(
             items=[self._object_summary(row.obj) for row in page_rows],
@@ -1458,7 +1458,7 @@ class ElectricalQueryService:
             page_size=1,
         )
         page_calcs = [row.calc for row in page_rows if row.calc is not None]
-        calc_summaries = await self._calc_summaries(page_calcs)
+        calc_summaries = await self._calc_summaries(page_calcs, data.cable_source)
 
         return ElectricalQueryResponse(
             items=[self._object_summary(row.obj) for row in page_rows],
@@ -1606,8 +1606,12 @@ class ElectricalQueryService:
     async def _calc_summaries(
         self,
         calculations: list[ElectricalCalculation],
+        catalog_source: str = "builtin",
     ) -> list[ElectricalCalcSummary]:
-        statuses = await CalculationService(self.db).cable_snapshot_statuses(calculations)
+        statuses = await CalculationService(self.db).cable_snapshot_statuses(
+            calculations,
+            catalog_source,
+        )
         return [self._calc_summary(calc, statuses.get(calc.id)) for calc in calculations]
 
     def _calc_summary(

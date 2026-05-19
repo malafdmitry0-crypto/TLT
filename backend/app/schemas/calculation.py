@@ -895,6 +895,7 @@ ElectricalCableType = Literal[
     "mineral",
     "skin",
 ]
+ElectricalCableSource = Literal["builtin", "commercial", "extended", "all"]
 
 
 class ElectricalRequest(BaseModel):
@@ -955,6 +956,7 @@ class ElectricalQueryRequest(BaseModel):
 
     project_id: UUID
     variant_number: int = 1
+    cable_source: ElectricalCableSource = "builtin"
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=50, ge=1, le=200)
     after_sort_order: int | None = None

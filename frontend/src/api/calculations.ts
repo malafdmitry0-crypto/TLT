@@ -292,6 +292,7 @@ export interface CableInfo {
   commercial_data_source?: string | null;
   voltage?: number;
   source?: CableSource;
+  params?: Record<string, unknown> | null;
 }
 
 export async function listCables(

@@ -115,6 +115,61 @@ class TestSpecBuilder:
         assert len(cables) == 1
         assert cables[0].quantity == 10.0
 
+    def test_stale_result_with_saved_cable_is_not_ordered(self):
+        """Stale-расчёт хранит старые cable fields, но не должен попадать в заказ."""
+        results = [
+            {"selected_cable": "ТЛТ-25", "order_cable_length": 10},
+            {
+                "selected_cable": "ТЛТ-100",
+                "cable_mark": "ТЛТ-100",
+                "order_cable_length": 999,
+                "error_code": "stale_electrical_calculation",
+                "category": "stale",
+                "message": "Электрорасчёт устарел",
+                "stale": True,
+            },
+        ]
+        items = build_basic_specification(results, total_objects_count=2)
+        cables = [i for i in items if i.category == "Кабель"]
+        assert len(cables) == 1
+        assert cables[0].article == "ТЛТ-25"
+        assert cables[0].quantity == 10.0
+
+    def test_structured_issue_with_snapshot_cable_is_not_ordered(self):
+        """Даже snapshot с маркой не делает failed/stale результат пригодным для BoM."""
+        results = [
+            {
+                "selected_cable": "ТЛТ-100",
+                "order_cable_length": 100,
+                "cable_snapshot": {
+                    "cable_mark": "ТЛТ-100",
+                    "commercial_context": {"required_order_length": 100},
+                },
+                "error_code": "POWER_TOO_HIGH",
+                "category": "formula",
+                "message": "Кабель не подобран",
+            },
+        ]
+        items = build_basic_specification(results, total_objects_count=1)
+        assert [i for i in items if i.category == "Кабель"] == []
+        assert [i for i in items if i.category != "Кабель"]
+
+    def test_snapshot_only_successful_result_is_ordered(self):
+        """Валидный snapshot остаётся источником марки и коммерческой длины."""
+        results = [
+            {
+                "cable_snapshot": {
+                    "cable_mark": "ТЛТ-40",
+                    "commercial_context": {"required_order_length": 44},
+                }
+            },
+        ]
+        items = build_basic_specification(results, total_objects_count=1)
+        cables = [i for i in items if i.category == "Кабель"]
+        assert len(cables) == 1
+        assert cables[0].article == "ТЛТ-40"
+        assert cables[0].quantity == 44.0
+
     def test_tt_cable_uses_full_order_mark_with_suffix(self):
         """Для агрессивной среды в спецификацию должна попасть марка -СТ, не база."""
         results = [

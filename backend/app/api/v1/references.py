@@ -29,7 +29,11 @@ from app.reference_data.loader import (
     list_tlt_cables,
     list_tt_cables,
 )
-from app.services.calculation_service import CalculationService
+from app.services.calculation_service import (
+    RESISTIVE_DEFAULT_MAX_TEMPERATURE,
+    RESISTIVE_DEFAULT_MIN_TEMPERATURE,
+    CalculationService,
+)
 
 ReferenceCableType = Literal[
     "self_regulating",
@@ -212,6 +216,8 @@ def _resistive_section_from_model(model: object) -> float | None:
 
 def _resistive_technical_payload(cable: dict[str, object]) -> dict[str, object]:
     payload = dict(cable)
+    payload.setdefault("max_temperature", RESISTIVE_DEFAULT_MAX_TEMPERATURE)
+    payload.setdefault("min_temperature", RESISTIVE_DEFAULT_MIN_TEMPERATURE)
     resistance = payload.get("resistance_ohm_km")
     resistance_per_meter = payload.get("resistance_per_meter")
     if resistance is None and isinstance(resistance_per_meter, int | float):

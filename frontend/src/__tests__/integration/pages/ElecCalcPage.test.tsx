@@ -108,6 +108,11 @@ vi.mock('@/api/references', () => ({
   getResistiveCables: vi.fn().mockResolvedValue({ single_core: [], three_core: [], common: {} }),
 }));
 
+vi.mock('@/api/preferences', () => ({
+  getUserPreference: vi.fn().mockResolvedValue({ key: 'test', value: null, user_id: 'u-1' }),
+  updateUserPreference: vi.fn().mockResolvedValue({ key: 'test', value: null, user_id: 'u-1' }),
+}));
+
 const mockProject: Project = {
   id: 'p-1',
   name: 'Электро',
@@ -904,7 +909,7 @@ describe('ElecCalcPage (integration)', () => {
       expect(document.querySelector('.electrical-spreadsheet')?.textContent).toContain('Ток, А');
     });
 
-    await user.click(screen.getByRole('button', { name: /Настройки отображения/i }));
+    await user.click(screen.getByRole('button', { name: 'Настройки' }));
     await user.click(screen.getByRole('checkbox', { name: /Показать Расчётный ток/i }));
     await user.click(screen.getByRole('button', { name: 'Сохранить' }));
 
@@ -948,7 +953,7 @@ describe('ElecCalcPage (integration)', () => {
       expect(document.querySelector('.electrical-spreadsheet')?.textContent).toContain('Ток, А');
     });
 
-    await user.click(screen.getByRole('button', { name: /Настройки отображения/i }));
+    await user.click(screen.getByRole('button', { name: 'Настройки' }));
     const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы электрорасчёта' });
     await openElectricalTableSettingsOtherTab(user, dialog);
     await user.click(within(dialog).getByText('Компактный'));
@@ -968,6 +973,27 @@ describe('ElecCalcPage (integration)', () => {
       tableLabelFormat: 'full',
       settingsLabelFormat: 'full',
     });
+  });
+
+  it('показывает базу пересчёта внутри настроек электрорасчёта', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Настройки' })).toBeInTheDocument();
+    });
+    expect(screen.queryByText('База для пересчёта:')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Настройки' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы электрорасчёта' });
+
+    expect(within(dialog).getByText('База для пересчёта:')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('База для пересчёта')).toBeInTheDocument();
+    expect(within(dialog).getByText('Встроенная')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Внешняя')).not.toBeInTheDocument();
   });
 
   it('сохраняет resize колонки прямо из заголовка таблицы электрорасчёта', async () => {
@@ -1154,6 +1180,150 @@ describe('ElecCalcPage (integration)', () => {
         { name: /ТЛТ-40/ },
       ),
     ).toBeEnabled();
+  });
+
+  it('показывает лейбл внешнего кабеля только в смешанном источнике', async () => {
+    const { getElectricalPage, listCables } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    useAuthStore.getState().setEmployee(
+      { id: 'u-1', email: 'employee@test.local', full_name: null, role: 'employee', is_active: true },
+      { access: 'token' },
+    );
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject()], [
+        {
+          id: 'c-1',
+          object_id: 'o-1',
+          cable_type: 'self_regulating',
+          cable_mark: 'ВНШ-СР-18',
+          variant_number: 1,
+          results: {
+            selected_cable: 'ВНШ-СР-18',
+            winding_pitch: 0,
+            num_circuits: 1,
+            installed_cable_length: 10,
+            order_cable_length: 11,
+            total_power: 180,
+            current: 0.8,
+            voltage: 220,
+          },
+        },
+      ]),
+    );
+    (listCables as ReturnType<typeof vi.fn>).mockImplementation((source: string) => {
+      if (source === 'builtin') {
+        return Promise.resolve([
+          {
+            brand: 'ТЛТ',
+            model: 'ТЛТ-75',
+            source: 'builtin',
+            cable_type: 'self_regulating',
+            power_per_meter: 75,
+            max_temperature: 65,
+            min_temperature: -60,
+            voltage: 220,
+          },
+        ]);
+      }
+      if (source === 'extended') {
+        return Promise.resolve([
+          {
+            brand: 'ВНШ-СР',
+            model: 'ВНШ-СР-18',
+            source: 'extended',
+            cable_type: 'self_regulating',
+            power_per_meter: 18,
+            max_temperature: 90,
+            min_temperature: -55,
+            params: { voltage: 220 },
+          },
+        ]);
+      }
+      return Promise.resolve([
+        {
+          brand: 'ТЛТ',
+          model: 'ТЛТ-75',
+          source: 'builtin',
+          cable_type: 'self_regulating',
+          power_per_meter: 75,
+          max_temperature: 65,
+          min_temperature: -60,
+          voltage: 220,
+        },
+        {
+          brand: 'ТЛТ',
+          model: 'ТЛТ-75',
+          source: 'extended',
+          cable_type: 'self_regulating',
+          power_per_meter: 75,
+          max_temperature: 65,
+          min_temperature: -60,
+          params: { voltage: 220 },
+        },
+        {
+          brand: 'ВНШ-СР',
+          model: 'ВНШ-СР-18',
+          source: 'extended',
+          cable_type: 'self_regulating',
+          power_per_meter: 18,
+          max_temperature: 90,
+          min_temperature: -55,
+          params: { voltage: 220 },
+        },
+      ]);
+    });
+
+    useProjectStore.getState().setCurrentProject(mockProject);
+    const firstRender = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Труба-1')).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'Настройки' }));
+    const externalSourceDialog = await screen.findByRole('dialog', { name: 'Настройки таблицы электрорасчёта' });
+    await user.click(within(externalSourceDialog).getByText('Внешняя'));
+    await user.click(within(externalSourceDialog).getByRole('button', { name: 'Сохранить' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Настройки таблицы электрорасчёта' })).not.toBeInTheDocument();
+    });
+    const row = screen.getAllByText('Труба-1')[0].closest('tr') as HTMLTableRowElement;
+    fireEvent.click(row);
+    await user.click(
+      within(row).getByRole(
+        'button',
+        { name: /ВНШ-СР-18/ },
+      ),
+    );
+
+    expect(await screen.findByText('Выбор марки кабеля')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getAllByText(/ВНШ-СР-18/).length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByText('внеш.')).not.toBeInTheDocument();
+
+    firstRender.unmount();
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Труба-1')).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'Настройки' }));
+    const allSourceDialog = await screen.findByRole('dialog', { name: 'Настройки таблицы электрорасчёта' });
+    await user.click(within(allSourceDialog).getByText('Все'));
+    await user.click(within(allSourceDialog).getByRole('button', { name: 'Сохранить' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Настройки таблицы электрорасчёта' })).not.toBeInTheDocument();
+    });
+    const nextRow = screen.getAllByText('Труба-1')[0].closest('tr') as HTMLTableRowElement;
+    fireEvent.click(nextRow);
+    await user.click(
+      within(nextRow).getByRole(
+        'button',
+        { name: /ВНШ-СР-18/ },
+      ),
+    );
+
+    expect(await screen.findByText('внеш.')).toBeInTheDocument();
   });
 
   it('изменение шага навива пересчитывает текущий объект с выбранной маркой', async () => {

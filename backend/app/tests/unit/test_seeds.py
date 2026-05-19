@@ -102,7 +102,41 @@ def test_demo_seed_does_not_overwrite_real_commercial_source():
     assert existing.article == "REAL-1"
     assert existing.commercial_data_source == "erp"
     assert existing.params["commercial"]["accessory_cost_per_circuit"] == pytest.approx(999.0)
-    assert existing.power_per_meter == pytest.approx(demo["power_per_meter"])
+    assert existing.power_per_meter == pytest.approx(10.0)
+
+
+def test_demo_seed_refreshes_local_e2e_seed_rows():
+    existing = SimpleNamespace(
+        power_per_meter=100.0,
+        max_temperature=190.0,
+        min_temperature=-60.0,
+        resistance_per_meter=None,
+        supplier_name="E2E supplier",
+        article="E2E-TLT-100",
+        currency="RUB",
+        price_per_meter=1.0,
+        stock_quantity_m=100000.0,
+        stock_status="in_stock",
+        lead_time_days=1,
+        supplier_priority=1,
+        is_preferred=True,
+        order_multiple_m=1.0,
+        min_order_quantity_m=0.0,
+        is_discontinued=False,
+        replacement_group=None,
+        price_updated_at=None,
+        stock_updated_at=None,
+        commercial_data_source="e2e",
+        params=None,
+        is_active=True,
+    )
+    demo = _tlt_demo_cable(list_tlt_cables()[-1], 9, datetime.now(UTC))
+
+    _apply_demo_commercial(existing, demo)
+
+    assert existing.commercial_data_source == "demo_seed"
+    assert existing.max_temperature == pytest.approx(demo["max_temperature"])
+    assert existing.params["voltage"] == 220
 
 
 def test_demo_generators_cover_builtin_commercial_catalogs():

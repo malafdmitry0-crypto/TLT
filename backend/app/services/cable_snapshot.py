@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -11,17 +12,17 @@ from typing import Any
 TECHNICAL_KEYS = (
     "model",
     "brand",
-    "cable_type",
     "series",
     "power_per_meter",
     "nominal_power",
+    "q1",
+    "q2",
+    "voltage",
     "min_temperature",
     "max_temperature",
     "max_product_temp",
     "max_vapor_temp",
-    "resistance_per_meter",
     "resistance_ohm_km",
-    "conductor_cross_section",
     "conductor_section_mm2",
     "diameter_mm",
     "nominal_size_mm",
@@ -69,9 +70,13 @@ SELECTION_KEYS = (
     "winding_pitch",
 )
 
+COPPER_RESISTANCE_OHM_MM2_KM = 17.5
+
 
 def json_ready(value: Any) -> Any:
     if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, int | float) and not isinstance(value, bool):
         return float(value)
     if isinstance(value, datetime):
         return value.isoformat()
@@ -86,10 +91,64 @@ def _compact(data: dict[str, Any]) -> dict[str, Any]:
     return {key: json_ready(value) for key, value in data.items() if value is not None}
 
 
+def _finite_float(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int | float | Decimal):
+        return float(value)
+    if isinstance(value, str) and value.strip():
+        try:
+            return float(value.replace(",", "."))
+        except ValueError:
+            return None
+    return None
+
+
+def _conductor_section_from_model(model: Any) -> float | None:
+    match = re.search(r"[хx×]\s*(\d+(?:[,.]\d+)?)\s*[-–]", str(model or ""))
+    if not match:
+        return None
+    return _finite_float(match.group(1))
+
+
+def _conductor_section(row: dict[str, Any], nested: dict[str, Any]) -> Any:
+    return (
+        row.get("conductor_section_mm2")
+        or row.get("conductor_cross_section")
+        or nested.get("conductor_section_mm2")
+        or nested.get("conductor_cross_section")
+        or nested.get("cross_section")
+        or _conductor_section_from_model(row.get("model"))
+    )
+
+
 def _pick(row: dict[str, Any] | None, keys: tuple[str, ...]) -> dict[str, Any]:
     if not isinstance(row, dict):
         return {}
-    return _compact({key: row.get(key) for key in keys})
+    params = row.get("params")
+    nested = params if isinstance(params, dict) else {}
+    picked: dict[str, Any] = {}
+    for key in keys:
+        if key == "resistance_ohm_km":
+            resistance = row.get("resistance_ohm_km", nested.get("resistance_ohm_km"))
+            if resistance is None:
+                resistance_per_meter = row.get(
+                    "resistance_per_meter",
+                    nested.get("resistance_per_meter"),
+                )
+                if resistance_per_meter is not None:
+                    resistance = float(resistance_per_meter) * 1000.0
+            if resistance is None:
+                conductor_section = _finite_float(_conductor_section(row, nested))
+                if conductor_section is not None and conductor_section > 0:
+                    resistance = COPPER_RESISTANCE_OHM_MM2_KM / conductor_section
+            picked[key] = resistance
+            continue
+        if key == "conductor_section_mm2":
+            picked[key] = _conductor_section(row, nested)
+            continue
+        picked[key] = row.get(key) if row.get(key) is not None else nested.get(key)
+    return _compact(picked)
 
 
 def stable_hash(data: dict[str, Any]) -> str:

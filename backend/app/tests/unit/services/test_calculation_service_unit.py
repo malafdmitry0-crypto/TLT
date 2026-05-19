@@ -1615,6 +1615,44 @@ class TestLoadCableCatalog:
         sources = {c["source"] for c in cables}
         assert sources == {"builtin", "extended"}
 
+    async def test_all_normalizes_legacy_external_self_reg_duplicate(self):
+        ext = SimpleNamespace(
+            cable_type="self_regulating",
+            brand="ТЛТ",
+            model="ТЛТ-100",
+            power_per_meter=100.0,
+            max_temperature=150.0,
+            min_temperature=-60.0,
+            resistance_per_meter=None,
+            supplier_name="E2E supplier",
+            article="E2E-TLT-100",
+            currency="RUB",
+            price_per_meter=1.0,
+            stock_quantity_m=100000.0,
+            stock_status="in_stock",
+            lead_time_days=1,
+            supplier_priority=1,
+            is_preferred=True,
+            order_multiple_m=1.0,
+            min_order_quantity_m=0.0,
+            is_discontinued=False,
+            replacement_group=None,
+            price_updated_at=None,
+            stock_updated_at=None,
+            commercial_data_source="e2e",
+            params=None,
+        )
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars = lambda: MagicMock(all=lambda: [ext])
+        db.execute = AsyncMock(return_value=result)
+        service = CalculationService(db)
+
+        cables = await service.load_cable_catalog("all")
+        duplicate = next(c for c in cables if c["source"] == "extended" and c["model"] == "ТЛТ-100")
+
+        assert duplicate["voltage"] == 220
+
     async def test_commercial_merges_db_fields_over_builtin(self):
         ext = SimpleNamespace(
             cable_type="self_regulating",
@@ -1695,6 +1733,15 @@ class TestLoadCableCatalog:
         assert custom["resistance_ohm_km"] == pytest.approx(80.0)
         assert custom["conductor_cross_section"] == pytest.approx(0.47)
         assert custom["price_per_meter"] == 120.0
+
+    async def test_resistive_builtin_catalog_has_default_temperature_fields(self):
+        service = CalculationService(AsyncMock())
+
+        cables = await service.load_resistive_cable_catalog("single_core", "builtin")
+        row = next(c for c in cables if c["model"] == "ТТ Р1 8000")
+
+        assert row["max_temperature"] == pytest.approx(130.0)
+        assert row["min_temperature"] == pytest.approx(-60.0)
 
     async def test_commercial_resistive_merge_fills_missing_builtin_technical_fields(self):
         ext = SimpleNamespace(

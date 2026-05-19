@@ -69,6 +69,8 @@ CableSource = str  # "builtin" | "commercial" | "extended" | "all"
 
 STALE_ELECTRICAL_ERROR_CODE = "STALE_HEAT_LOSS"
 STALE_ELECTRICAL_MESSAGE = "Теплопотери объекта изменились. Пересчитайте электрорасчёт."
+RESISTIVE_DEFAULT_MAX_TEMPERATURE = 130.0
+RESISTIVE_DEFAULT_MIN_TEMPERATURE = -60.0
 
 
 class CalculationError(Exception):
@@ -271,9 +273,11 @@ class CalculationService:
         self.db = db
 
     async def electrical_calc_summaries(
-        self, calculations: list[ElectricalCalculation]
+        self,
+        calculations: list[ElectricalCalculation],
+        catalog_source: CableSource = "builtin",
     ) -> list[ElectricalCalcSummary]:
-        statuses = await self.cable_snapshot_statuses(calculations)
+        statuses = await self.cable_snapshot_statuses(calculations, catalog_source)
         return [
             ElectricalCalcSummary(
                 id=calc.id,
@@ -292,20 +296,27 @@ class CalculationService:
         ]
 
     async def cable_snapshot_statuses(
-        self, calculations: list[ElectricalCalculation]
+        self,
+        calculations: list[ElectricalCalculation],
+        catalog_source: CableSource = "builtin",
     ) -> dict[UUID, dict[str, Any]]:
         statuses: dict[UUID, dict[str, Any]] = {}
         catalog_cache: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        source = (
+            catalog_source
+            if catalog_source in ("builtin", "commercial", "extended", "all")
+            else "builtin"
+        )
         for calc in calculations:
             snapshot = calc.cable_snapshot
             if not isinstance(snapshot, dict):
                 statuses[calc.id] = compare_cable_snapshot(None, None)
                 continue
-            cache_key = (calc.cable_type, "all")
+            cache_key = (calc.cable_type, source)
             if cache_key not in catalog_cache:
                 catalog_cache[cache_key] = await self._load_catalog_for_snapshot_status(
                     calc.cable_type,
-                    "all",
+                    source,
                 )
             mark = calc.cable_mark or snapshot.get("cable_mark")
             current_row = lookup_cable_row_for_snapshot(
@@ -476,31 +487,60 @@ class CalculationService:
 
     @staticmethod
     def _extended_cable_catalog_entry(
-        c: CableExtended, *, source: str = "extended"
+        c: CableExtended,
+        *,
+        source: str = "extended",
+        technical_defaults: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         raw_params = getattr(c, "params", None)
         params = raw_params if isinstance(raw_params, dict) else {}
         resistance_ohm_km = params.get("resistance_ohm_km")
         if resistance_ohm_km is None and c.resistance_per_meter is not None:
             resistance_ohm_km = float(c.resistance_per_meter) * 1000.0
+        defaults = technical_defaults or {}
+        if resistance_ohm_km is None:
+            resistance_ohm_km = defaults.get("resistance_ohm_km")
+        power_per_meter = c.power_per_meter
+        if power_per_meter is None:
+            power_per_meter = defaults.get("power_per_meter")
+        voltage = params.get("voltage")
+        if voltage is None:
+            voltage = defaults.get("voltage")
+        max_temperature = c.max_temperature
+        if max_temperature is None:
+            max_temperature = defaults.get("max_temperature")
+        min_temperature = c.min_temperature
+        if min_temperature is None:
+            min_temperature = defaults.get("min_temperature")
+        conductor_section = (
+            params.get("conductor_section_mm2")
+            or params.get("conductor_cross_section")
+            or params.get("cross_section")
+            or defaults.get("conductor_section_mm2")
+            or defaults.get("conductor_cross_section")
+            or defaults.get("cross_section")
+        )
+        diameter_mm = params.get("diameter_mm")
+        if diameter_mm is None:
+            diameter_mm = defaults.get("diameter_mm")
+        nominal_size_mm = params.get("nominal_size_mm")
+        if nominal_size_mm is None:
+            nominal_size_mm = defaults.get("nominal_size_mm")
         return {
             "source": source,
             "cable_type": c.cable_type,
-            "brand": c.brand,
+            "brand": c.brand or defaults.get("brand"),
             "model": c.model,
-            "power_per_meter": c.power_per_meter,
-            "max_temperature": c.max_temperature,
-            "min_temperature": c.min_temperature,
+            "power_per_meter": power_per_meter,
+            "max_temperature": max_temperature,
+            "min_temperature": min_temperature,
+            "voltage": voltage,
             "resistance_per_meter": c.resistance_per_meter,
             "resistance_ohm_km": resistance_ohm_km,
-            "conductor_cross_section": params.get("conductor_cross_section")
-            or params.get("conductor_section_mm2")
-            or params.get("cross_section"),
-            "conductor_section_mm2": params.get("conductor_section_mm2")
-            or params.get("conductor_cross_section")
-            or params.get("cross_section"),
-            "diameter_mm": params.get("diameter_mm"),
-            "nominal_size_mm": params.get("nominal_size_mm"),
+            "conductor_cross_section": conductor_section,
+            "conductor_section_mm2": conductor_section,
+            "diameter_mm": diameter_mm,
+            "nominal_size_mm": nominal_size_mm,
             "supplier_name": getattr(c, "supplier_name", None),
             "article": getattr(c, "article", None),
             "currency": getattr(c, "currency", None),
@@ -548,7 +588,11 @@ class CalculationService:
         }
         if commercial is None:
             return entry
-        overlay = cls._extended_cable_catalog_entry(commercial, source="commercial")
+        overlay = cls._extended_cable_catalog_entry(
+            commercial,
+            source="commercial",
+            technical_defaults=base,
+        )
         for key, value in overlay.items():
             if key in {"model", "power_per_meter", "max_temperature", "min_temperature"}:
                 continue
@@ -566,6 +610,7 @@ class CalculationService:
         if source not in ("builtin", "commercial", "extended", "all"):
             source = "builtin"
         builtin = [{**c, "source": "builtin"} for c in list_tlt_cables()]
+        builtin_by_model = {str(c["model"]): c for c in builtin}
         if source == "builtin":
             return builtin
         result = await self.db.execute(
@@ -580,10 +625,36 @@ class CalculationService:
             return [
                 self._merge_commercial_cable_entry(c, by_model.get(c["model"])) for c in builtin
             ]
-        extended = [self._extended_cable_catalog_entry(c) for c in rows]
+        extended = [
+            self._extended_cable_catalog_entry(
+                c,
+                technical_defaults=builtin_by_model.get(c.model),
+            )
+            for c in rows
+        ]
         if source == "extended":
             return extended
         return builtin + extended
+
+    @staticmethod
+    def _builtin_resistive_catalog(cable_type: str) -> list[dict[str, Any]]:
+        key = "single_core" if cable_type == "single_core" else "three_core"
+        return [
+            {
+                **c,
+                "source": "builtin",
+                "cable_type": cable_type,
+                "max_temperature": c.get(
+                    "max_temperature",
+                    RESISTIVE_DEFAULT_MAX_TEMPERATURE,
+                ),
+                "min_temperature": c.get(
+                    "min_temperature",
+                    RESISTIVE_DEFAULT_MIN_TEMPERATURE,
+                ),
+            }
+            for c in list_resistive_cables().get(key, [])
+        ]
 
     @classmethod
     def _merge_commercial_resistive_entry(
@@ -608,8 +679,16 @@ class CalculationService:
         }
         if commercial is None:
             return entry
-        overlay = cls._extended_cable_catalog_entry(commercial, source="commercial")
+        overlay = cls._extended_cable_catalog_entry(
+            commercial,
+            source="commercial",
+            technical_defaults=base,
+        )
         technical_keys = {
+            "power_per_meter",
+            "max_temperature",
+            "min_temperature",
+            "voltage",
             "resistance_ohm_km",
             "conductor_cross_section",
             "conductor_section_mm2",
@@ -633,11 +712,8 @@ class CalculationService:
     ) -> list[dict[str, Any]]:
         if source not in ("builtin", "commercial", "extended", "all"):
             source = "builtin"
-        key = "single_core" if cable_type == "single_core" else "three_core"
-        builtin = [
-            {**c, "source": "builtin", "cable_type": cable_type}
-            for c in list_resistive_cables().get(key, [])
-        ]
+        builtin = self._builtin_resistive_catalog(cable_type)
+        builtin_by_model = {str(c["model"]): c for c in builtin}
         if source == "builtin":
             return builtin
         result = await self.db.execute(
@@ -659,7 +735,13 @@ class CalculationService:
                 if c.model not in builtin_models
             )
             return merged
-        extended = [self._extended_cable_catalog_entry(c) for c in rows]
+        extended = [
+            self._extended_cable_catalog_entry(
+                c,
+                technical_defaults=builtin_by_model.get(c.model),
+            )
+            for c in rows
+        ]
         if source == "extended":
             return extended
         return builtin + extended

@@ -169,6 +169,39 @@ class TestGenerate:
         assert len(cables) == 1
         assert cables[0].article == "30ТТВ2-СТ"
 
+    async def test_generate_excludes_stale_cable_from_auto_items(self):
+        from app.models.electrical_calculation import ElectricalCalculation
+
+        calc = ElectricalCalculation(
+            project_id=uuid.uuid4(),
+            object_id=uuid.uuid4(),
+            variant_number=1,
+            cable_type="self_regulating",
+            cable_mark="ТЛТ-100",
+            params={},
+            results={
+                "selected_cable": "ТЛТ-100",
+                "order_cable_length": 100,
+                "error_code": "stale_electrical_calculation",
+                "category": "stale",
+                "message": "Электрорасчёт устарел",
+                "stale": True,
+            },
+        )
+        db = AsyncMock()
+        no_spec = MagicMock()
+        no_spec.scalars = lambda: MagicMock(first=lambda: None, all=lambda: [])
+        calc_result = MagicMock()
+        calc_result.scalars = lambda: MagicMock(first=lambda: calc, all=lambda: [calc])
+        db.execute = AsyncMock(side_effect=[no_spec, calc_result])
+        db.scalar = AsyncMock(return_value=1)
+        db.commit = AsyncMock()
+        db.add = MagicMock()
+
+        items = await SpecificationService(db).generate(uuid.uuid4())
+        assert [i for i in items if i.category == "Кабель"] == []
+        assert [i for i in items if i.category != "Кабель"]
+
 
 class TestSaveItems:
     async def test_creates_new_when_no_existing(self):

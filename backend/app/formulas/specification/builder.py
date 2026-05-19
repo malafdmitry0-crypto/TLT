@@ -11,15 +11,32 @@ from app.reference_data.loader import list_basic_accessories
 from app.schemas.specification import SpecificationItem
 
 
+def _is_successful_electrical_result(result: dict[str, Any]) -> bool:
+    """True only for electrical results that may drive cable BoM lines."""
+    if (
+        result.get("error_code")
+        or result.get("category")
+        or result.get("message")
+        or result.get("stale") is True
+    ):
+        return False
+    snapshot = (
+        result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
+    )
+    return bool(
+        snapshot.get("cable_mark") or result.get("cable_mark") or result.get("selected_cable")
+    )
+
+
 def build_basic_specification(
     electrical_results: list[dict[str, Any]],
     total_objects_count: int | None = None,
 ) -> list[SpecificationItem]:
     """Построить спецификацию из результатов электротехнического расчёта.
 
-    electrical_results: список результатов расчёта по объектам, каждый содержит
-    поля selected_cable и order_cable_length. Фейлы (без selected_cable)
-    игнорируются при подсчёте кабельных позиций.
+    electrical_results: список результатов расчёта по объектам. Кабельные
+    позиции строятся только по успешным результатам: есть выбранная марка и нет
+    structured issue fields (`error_code`, `category`, `message`, `stale`).
 
     total_objects_count: общее число объектов в проекте. Аксессуары (УЗО,
     муфты, термостаты и т.д.) заказываются на **каждый заявленный объект**,
@@ -34,6 +51,9 @@ def build_basic_specification(
     cable_totals: dict[str, float] = defaultdict(float)
     cable_meta_by_mark: dict[str, dict[str, Any]] = {}
     for r in electrical_results:
+        if not _is_successful_electrical_result(r):
+            continue
+
         snapshot = r.get("cable_snapshot") if isinstance(r.get("cable_snapshot"), dict) else {}
         cable = snapshot.get("cable_mark") or r.get("cable_mark") or r.get("selected_cable")
         commercial = r.get("commercial")

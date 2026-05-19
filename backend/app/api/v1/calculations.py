@@ -166,11 +166,16 @@ async def calc_electrical(
 async def list_electrical(
     project_id: UUID,
     variant_number: int | None = None,
+    cable_source: str = "builtin",
     page: int = Query(1, ge=1),
     page_size: int = Query(200, ge=1, le=200),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
+    if cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
+        raise HTTPException(
+            status_code=403, detail="Расширенный каталог доступен только сотрудникам"
+        )
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
     except (ProjectNotFoundError, ProjectAccessError) as exc:
@@ -190,7 +195,7 @@ async def list_electrical(
     )
     result = await db.execute(stmt)
     calcs = result.scalars().all()
-    return await CalculationService(db).electrical_calc_summaries(list(calcs))
+    return await CalculationService(db).electrical_calc_summaries(list(calcs), cable_source)
 
 
 @router.get(
@@ -202,11 +207,16 @@ async def list_electrical(
 async def electrical_page(
     project_id: UUID,
     variant_number: int = 1,
+    cable_source: str = "builtin",
     page: int = 1,
     page_size: int = 50,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
+    if cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
+        raise HTTPException(
+            status_code=403, detail="Расширенный каталог доступен только сотрудникам"
+        )
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
     except ProjectNotFoundError as exc:
@@ -222,7 +232,10 @@ async def electrical_page(
         page=page,
         page_size=page_size,
     )
-    calc_summaries = await CalculationService(db).electrical_calc_summaries(calculations)
+    calc_summaries = await CalculationService(db).electrical_calc_summaries(
+        calculations,
+        cable_source,
+    )
     return ElectricalPageResponse(
         items=objects,
         calculations=calc_summaries,
@@ -270,6 +283,10 @@ async def query_electrical(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
+    if data.cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
+        raise HTTPException(
+            status_code=403, detail="Расширенный каталог доступен только сотрудникам"
+        )
     try:
         return await ElectricalQueryService(db).query(data, principal)
     except ElectricalQueryValidationError as exc:
@@ -347,7 +364,7 @@ async def select_cable(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except CalculationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    summary = (await service.electrical_calc_summaries([calc]))[0]
+    summary = (await service.electrical_calc_summaries([calc], cable_source))[0]
     await AuditService(db).try_record(
         event_type="calculation.electrical.cable_selected_manual",
         category="calculation",
@@ -448,7 +465,9 @@ async def batch_calc_electrical(
         scope="selected" if selected_object_ids else "all",
         heat_loss_failed=heat_loss_failed,
         errors=errors if include_errors else [],
-        results=await service.electrical_calc_summaries(calcs) if include_results else [],
+        results=await service.electrical_calc_summaries(calcs, cable_source)
+        if include_results
+        else [],
     )
     await AuditService(db).try_record(
         event_type="calculation.electrical.batch_completed",

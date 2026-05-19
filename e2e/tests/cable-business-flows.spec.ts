@@ -286,10 +286,14 @@ test.describe('business flow: cable layout controls', () => {
     });
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    await expect(page.getByText('База для пересчёта:')).toBeVisible();
-    await expect(page.getByText('Встроенная')).toBeVisible();
+    await expect(page.getByText('База для пересчёта:')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Настройки' }).click();
+    const settingsDialog = page.getByRole('dialog', { name: 'Настройки таблицы электрорасчёта' });
+    await expect(settingsDialog.getByText('База для пересчёта:')).toBeVisible();
+    await expect(settingsDialog.getByText('Встроенная')).toBeVisible();
     await expect(page.getByLabel('Критерий подбора кабеля')).toHaveCount(0);
-    await expect(page.getByText('Коммерческая')).toHaveCount(0);
+    await expect(settingsDialog.getByText('Коммерческая')).toHaveCount(0);
+    await settingsDialog.getByRole('button', { name: 'Отмена' }).click();
     await recalculateAll(page);
     await expectBatchSuccess(page);
 
