@@ -15,6 +15,7 @@
 | [demo-release.md](demo-release.md) | Собрать демо-поставку для заказчика |
 | [add-formula.md](add-formula.md) | Добавить новую расчётную формулу (тепло/электрика) |
 | [formula-validation-agent.md](formula-validation-agent.md) | Агентная проверка формул и расчётных алгоритмов |
+| [agent-proof-modes.md](agent-proof-modes.md) | Режимы запуска агентов: audit-only, fix-focused, ui-proof, release-gate |
 | [deep-business-logic-qa.md](deep-business-logic-qa.md) | Глубокое тестирование бизнес-логики: MCP, smoke, backend, Playwright |
 | [add-role-or-permission.md](add-role-or-permission.md) | Расширить RBAC-матрицу |
 | [debug-pdf-export.md](debug-pdf-export.md) | Отладить экспорт отчёта в PDF/DOCX/XLSX |

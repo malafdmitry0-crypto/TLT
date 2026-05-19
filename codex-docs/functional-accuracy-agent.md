@@ -82,6 +82,42 @@ rg -n "ключевой термин|endpoint|field_name|use case id" docs backe
 | Логи бизнес-логики | Есть структурные поля actor/session, project/object, action, result category, `error_code`, correlation id, duration; секреты не попадают в лог |
 | Масштаб данных | Для поиска/таблиц/импорта/массовых расчетов есть DB/performance evidence при риске full scan, N+1 или длинной очереди |
 
+## Режимы проверки
+
+| Режим | Смысл | Что нельзя делать |
+|---|---|---|
+| `/audit-only` | Найти и доказать проблемы без правок | Вносить фиксы или менять тесты |
+| `/fix-focused` | Исправить один подтверждённый дефект | Уходить в широкий refactor или unrelated test maintenance |
+| `/ui-proof` | Исправить UI/layout с визуальным evidence | Закрывать задачу без before/after screenshot и verifier |
+| `/release-gate` | Предрелизно прогнать gates | Подменять блокеры residual risk, если они в scope |
+
+Для широких prompt'ов агент сначала должен сузить scope и назвать, какое
+немедленное доказательство нужно получить. Если пользователь жалуется на
+конкретный симптом, этот симптом является главным scope до явного изменения
+задачи.
+
+## UI/Product Evidence
+
+UI-задача считается доказанной только если есть:
+
+- before screenshot или существующий артефакт с дефектом;
+- DOM/CSS/root cause с конкретным selector/component/file;
+- after screenshot на целевом viewport;
+- программная проверка clipping/overflow/overlap/readability или объяснение,
+  почему существующий layout gate покрывает ровно этот дефект;
+- для workflow UI — подтверждение payload/API/DB side effect, если экран
+  меняет данные.
+
+Если Playwright/браузер не запускается, это `blocked/needs verification`.
+Нельзя писать `pass` и переносить in-scope визуальное evidence в residual risk.
+
+## Golden Values
+
+Агент не имеет права "подгонять" expected values под текущий код. При изменении
+golden/metamorphic ожиданий нужно указать источник новой правды: документ,
+формула, справочник, каталог, независимый oracle или ручной расчёт. Если
+источник не найден, finding остаётся открытым.
+
 ## Алгоритм агента
 
 1. Сформулируй scope одной фразой.
@@ -180,3 +216,7 @@ Residual risk:
   проверяться backend-тестом.
 - Для расчетов не принимать тест, который просто повторяет формулу из кода.
 - Для данных, которые сохраняются, всегда проверять reload/read-back сценарий.
+- Для UI/layout не принимать результат без screenshot evidence и проверки
+  clipping/overflow/overlap.
+- Для in-scope проверки не использовать `residual risk` как замену failed или
+  blocked status.

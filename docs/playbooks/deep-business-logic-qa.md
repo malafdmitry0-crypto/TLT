@@ -54,6 +54,18 @@ MCP используется как независимый канал инспе
 8. После сценария проверить DB-инварианты через `db-invariants` или `mcp`.
 9. В отчете указать evidence и residual risk.
 
+## Правило in-scope evidence
+
+Если проверка входит в scope, её нельзя заменить residual risk. Например:
+
+- UI/layout scope требует Playwright/screenshot/verifier. Если browser
+  automation не работает, итог — `blocked`, а не `pass`.
+- Формула требует golden/metamorphic/boundary evidence. Если есть только
+  повторение текущего кода, итог — `needs verification`.
+- Отчёт требует controlled dataset и проверку бизнес-сумм. Если проверен только
+  HTML status 200, итог — finding.
+- RBAC требует прямого backend/API теста. UI guard не закрывает security scope.
+
 ## Риски, которые должны быть покрыты
 
 - Гость не видит и не меняет данные другого гостя.
