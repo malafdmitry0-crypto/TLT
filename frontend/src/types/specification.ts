@@ -14,6 +14,10 @@ export interface Specification {
   project_id: string;
   variant_number: number;
   items: SpecificationItem[];
+  is_stale?: boolean;
+  stale_reason?: string | null;
+  stale_at?: string | null;
+  stale_details?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }

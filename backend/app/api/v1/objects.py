@@ -37,6 +37,7 @@ from app.services.project_service import (
     ProjectService,
     ProjectValidationError,
 )
+from app.services.specification_service import SpecificationService
 
 router = APIRouter()
 
@@ -144,6 +145,12 @@ async def add_object(
         obj = await project_service.add_object(project_id, data, principal)
         calc_service = CalculationService(db)
         await calc_service.recalculate_object(obj)
+        await SpecificationService(db).mark_project_specifications_stale(
+            project_id,
+            "object_created",
+            object_ids=[obj.id],
+            operation="create",
+        )
         await db.commit()
         await db.refresh(obj)
         await AuditService(db).try_record(
@@ -283,6 +290,13 @@ async def import_excel(
             result = await import_objects_from_excel(db, project_id, principal, content, mode=mode)
         created_object_ids = result.pop("created_object_ids", [])
         if created_object_ids:
+            await SpecificationService(db).mark_project_specifications_stale(
+                project_id,
+                "objects_imported",
+                object_ids=created_object_ids,
+                operation=f"import_{mode}",
+                commit=True,
+            )
             task = await TaskService(db).create_heat_loss_batch_task(
                 HeatLossBatchJobRequest(
                     project_id=project_id,
@@ -391,6 +405,12 @@ async def update_object(
                 [object_id],
                 reason="object_params_updated",
             )
+            await SpecificationService(db).mark_project_specifications_stale(
+                project_id,
+                "object_params_updated",
+                object_ids=[object_id],
+                operation="update",
+            )
         await db.commit()
         await db.refresh(obj)
         await AuditService(db).try_record(
@@ -435,6 +455,13 @@ async def delete_object(
 ) -> None:
     try:
         await ProjectService(db).delete_object(project_id, object_id, principal)
+        await SpecificationService(db).mark_project_specifications_stale(
+            project_id,
+            "object_deleted",
+            object_ids=[object_id],
+            operation="delete",
+        )
+        await db.commit()
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:

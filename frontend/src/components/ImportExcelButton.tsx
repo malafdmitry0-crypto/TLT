@@ -37,6 +37,7 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
     if (!activeTask || isActiveCalcJobStatus(activeTask.status)) return;
     qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'query'] });
     qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
+    qc.invalidateQueries({ queryKey: ['spec', projectId] });
     if (activeTask.status === 'succeeded') {
       const batchResult = activeTask.result;
       if (batchResult && 'updated' in batchResult && 'failed' in batchResult) {
@@ -61,6 +62,7 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
       setResult(res);
       qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'query'] });
       qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
+      qc.invalidateQueries({ queryKey: ['spec', projectId] });
       if (res.heat_loss_task) {
         setActiveTaskId(res.heat_loss_task.id);
         qc.invalidateQueries({ queryKey: ['calc-job', res.heat_loss_task.id] });

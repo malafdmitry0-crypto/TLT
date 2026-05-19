@@ -45,6 +45,7 @@ export function useHeatCalcMutations(
   const invalidateObjects = () => {
     qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'query'] });
     qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
+    qc.invalidateQueries({ queryKey: ['spec', projectId] });
   };
 
   const add = useMutation({

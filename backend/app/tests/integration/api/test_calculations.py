@@ -408,7 +408,20 @@ class TestElectricalCalculation:
         assert target_calcs[0]["object_id"] == source_obj["id"]
         assert target_calcs[0]["variant_number"] == 2
         assert target_calcs[0]["cable_mark"] == "ТЛТ-25"
-        assert target_calcs[0]["results"]["selected_cable"] == "ТЛТ-25"
+        target_results = target_calcs[0]["results"]
+        assert target_results["status"] == "needs_recalculate"
+        assert target_results["category"] == "stale"
+        assert target_results["error_code"] == "COPIED_VARIANT_NEEDS_RECALCULATE"
+        assert target_results["stale"] is True
+        assert target_results["stale_reason"] == "variant_copied"
+        assert target_results["source_variant_number"] == 1
+        assert target_results["target_variant_number"] == 2
+        assert "selected_cable" not in target_results
+        assert "total_power" not in target_results
+        assert "current" not in target_results
+        assert "cable_length" not in target_results
+        assert "installed_cable_length" not in target_results
+        assert "order_cable_length" not in target_results
 
         source = await client.get(
             "/api/v1/calc/electrical",
@@ -425,7 +438,7 @@ class TestElectricalCalculation:
             headers={"X-Session-Id": guest_session},
         )
         assert spec.status_code == 200, spec.text
-        assert any(item["category"] == "Кабель" for item in spec.json()["items"])
+        assert not any(item["category"] == "Кабель" for item in spec.json()["items"])
 
     async def test_copy_electrical_variant_conflict_and_overwrite_replaces_target(
         self, client: AsyncClient, guest_session: str
@@ -498,6 +511,64 @@ class TestElectricalCalculation:
         assert len(target_calcs) == 1
         assert target_calcs[0]["object_id"] == source_obj["id"]
         assert target_calcs[0]["cable_mark"] == "ТЛТ-25"
+        target_results = target_calcs[0]["results"]
+        assert target_results["error_code"] == "COPIED_VARIANT_NEEDS_RECALCULATE"
+        assert target_results["category"] == "stale"
+        assert "selected_cable" not in target_results
+
+    async def test_copy_electrical_variant_from_stale_source_does_not_copy_stale_payload(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        project = await _create_project(client, guest_session)
+        source_obj = await _create_pipe_object(client, project["id"], guest_session)
+        await _calc_pipe_electrical(
+            client,
+            source_obj["id"],
+            guest_session,
+            variant_number=1,
+            cable_mark="ТЛТ-25",
+        )
+        result = await db_session.execute(
+            select(ElectricalCalculation).where(
+                ElectricalCalculation.object_id == source_obj["id"],
+                ElectricalCalculation.variant_number == 1,
+            )
+        )
+        source_calc = result.scalar_one()
+        source_calc.results = {
+            "category": "stale",
+            "error_code": "STALE_HEAT_LOSS",
+            "stale": True,
+            "selected_cable": "ТЛТ-OLD",
+            "total_power": 1234,
+            "current": 56,
+            "order_cable_length": 789,
+        }
+        await db_session.commit()
+
+        copy_resp = await client.post(
+            "/api/v1/calc/electrical/variants/copy",
+            json={
+                "project_id": project["id"],
+                "source_variant_number": 1,
+                "target_variant_number": 2,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert copy_resp.status_code == 200, copy_resp.text
+
+        target = await client.get(
+            "/api/v1/calc/electrical",
+            params={"project_id": project["id"], "variant_number": 2},
+            headers={"X-Session-Id": guest_session},
+        )
+        target_results = target.json()[0]["results"]
+        assert target_results["error_code"] == "COPIED_VARIANT_NEEDS_RECALCULATE"
+        assert target_results["stale_reason"] == "variant_copied"
+        assert "selected_cable" not in target_results
+        assert "total_power" not in target_results
+        assert "current" not in target_results
+        assert "order_cable_length" not in target_results
 
     async def test_copy_electrical_variant_empty_source_returns_422(
         self, client: AsyncClient, guest_session: str

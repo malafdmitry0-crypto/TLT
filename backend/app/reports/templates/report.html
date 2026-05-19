@@ -286,6 +286,9 @@
   {# ─────────── Спецификация ─────────── #}
   {% if 'specification' in enabled %}
   <h2>Спецификация</h2>
+  {% if specification.get('is_stale') %}
+  <p class="section-empty">Спецификация устарела после изменения объектов. Сформируйте её заново перед закупкой.</p>
+  {% endif %}
   {% if specification['items'] %}
   <table>
     <thead>

@@ -73,6 +73,13 @@ class ReportService:
             objects = list(objects_result.scalars().all())
 
         spec_items = []
+        specification_context = {
+            "items": spec_items,
+            "is_stale": False,
+            "stale_reason": None,
+            "stale_at": None,
+            "stale_details": None,
+        }
         if "specification" in enabled_sections:
             spec_result = await self.db.execute(
                 select(Specification).where(
@@ -81,7 +88,19 @@ class ReportService:
                 )
             )
             spec = spec_result.scalars().first()
-            spec_items = spec.items if spec else []
+            if spec:
+                spec_items = spec.items or []
+                specification_context = {
+                    "items": spec_items,
+                    "is_stale": bool(getattr(spec, "is_stale", False)),
+                    "stale_reason": getattr(spec, "stale_reason", None),
+                    "stale_at": (
+                        stale_at.isoformat()
+                        if (stale_at := getattr(spec, "stale_at", None))
+                        else None
+                    ),
+                    "stale_details": getattr(spec, "stale_details", None),
+                }
 
         latest_by_object: dict[str, ElectricalCalculation] = {}
         if {"summary", "electrical"}.intersection(enabled_sections):
@@ -107,9 +126,7 @@ class ReportService:
             },
             "objects": object_payloads,
             "electrical": electrical_context,
-            "specification": {
-                "items": spec_items,
-            },
+            "specification": specification_context,
             "sections": enabled_sections,
             "variant_number": variant_number,
         }

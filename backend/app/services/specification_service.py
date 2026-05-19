@@ -1,5 +1,7 @@
 """Сервис спецификаций."""
 
+from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -88,11 +90,13 @@ class SpecificationService:
         # Заменяем существующую спецификацию (или создаём новую)
         if existing_spec is not None:
             existing_spec.items = [i.model_dump() for i in items]
+            self._reset_stale(existing_spec)
         else:
             spec = Specification(
                 project_id=project_id,
                 variant_number=variant_number,
                 items=[i.model_dump() for i in items],
+                is_stale=False,
             )
             self.db.add(spec)
 
@@ -122,9 +126,58 @@ class SpecificationService:
                 project_id=project_id,
                 variant_number=variant_number,
                 items=payload,
+                is_stale=False,
             )
             self.db.add(spec)
         else:
             spec.items = payload
+            self._reset_stale(spec)
         await self.db.commit()
         return items
+
+    async def mark_project_specifications_stale(
+        self,
+        project_id: UUID,
+        reason: str,
+        *,
+        object_ids: list[UUID] | set[UUID] | tuple[UUID, ...] | None = None,
+        operation: str | None = None,
+        commit: bool = False,
+    ) -> int:
+        """Помечает сохранённые спецификации проекта как требующие регенерации.
+
+        Старые позиции остаются в БД для просмотра и сохранения ручных строк, но
+        больше не должны восприниматься как актуальный BoM для закупки.
+        """
+        result = await self.db.execute(
+            select(Specification).where(Specification.project_id == project_id)
+        )
+        specs = list(result.scalars().all())
+        if not specs:
+            return 0
+
+        now = datetime.now(UTC)
+        details: dict[str, Any] = {"reason": reason}
+        if operation:
+            details["operation"] = operation
+        if object_ids:
+            details["object_ids"] = [str(item) for item in dict.fromkeys(object_ids)]
+
+        for spec in specs:
+            spec.is_stale = True
+            spec.stale_reason = reason
+            spec.stale_at = now
+            spec.stale_details = details
+
+        if commit:
+            await self.db.commit()
+        else:
+            await self.db.flush()
+        return len(specs)
+
+    @staticmethod
+    def _reset_stale(spec: Specification) -> None:
+        spec.is_stale = False
+        spec.stale_reason = None
+        spec.stale_at = None
+        spec.stale_details = None

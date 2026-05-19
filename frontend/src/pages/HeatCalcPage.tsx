@@ -1729,6 +1729,7 @@ export default function HeatCalcPage() {
 
     queryClient.invalidateQueries({ queryKey: ['project', project.id, 'objects', 'query'] });
     queryClient.invalidateQueries({ queryKey: ['project', project.id, 'objects', 'summary'] });
+    queryClient.invalidateQueries({ queryKey: ['spec', project.id] });
 
     if (Object.keys(failed).length > 0 || invalidRows.length > 0) {
       antdMessage.error('Часть строк не сохранена');

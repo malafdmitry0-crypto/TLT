@@ -71,6 +71,10 @@ CableSource = str  # "builtin" | "commercial" | "extended" | "all"
 
 STALE_ELECTRICAL_ERROR_CODE = "STALE_HEAT_LOSS"
 STALE_ELECTRICAL_MESSAGE = "Теплопотери объекта изменились. Пересчитайте электрорасчёт."
+COPIED_VARIANT_NEEDS_RECALCULATE_ERROR_CODE = "COPIED_VARIANT_NEEDS_RECALCULATE"
+COPIED_VARIANT_NEEDS_RECALCULATE_MESSAGE = (
+    "Вариант скопирован. Выполните электрорасчёт для актуальных результатов."
+)
 RESISTIVE_DEFAULT_MAX_TEMPERATURE = 130.0
 RESISTIVE_DEFAULT_MIN_TEMPERATURE = -60.0
 
@@ -1447,6 +1451,23 @@ class CalculationService:
         returned_by_object_id = {calc.object_id: calc for calc in result.scalars().all()}
         return [returned_by_object_id[row["object_id"]] for row in rows]
 
+    @staticmethod
+    def _copied_variant_needs_recalculate_payload(
+        source_variant_number: int,
+        target_variant_number: int,
+    ) -> dict[str, Any]:
+        return {
+            "status": "needs_recalculate",
+            "category": "stale",
+            "error_code": COPIED_VARIANT_NEEDS_RECALCULATE_ERROR_CODE,
+            "message": COPIED_VARIANT_NEEDS_RECALCULATE_MESSAGE,
+            "hint": "Нажмите «Пересчитать выбранные» или «Пересчитать все» вручную.",
+            "stale": True,
+            "stale_reason": "variant_copied",
+            "source_variant_number": source_variant_number,
+            "target_variant_number": target_variant_number,
+        }
+
     async def copy_electrical_variant(
         self,
         project_id: UUID,
@@ -1526,7 +1547,10 @@ class CalculationService:
                     "cable_mark_source": row.cable_mark_source,
                     "cable_snapshot": copy.deepcopy(row.cable_snapshot),
                     "params": copy.deepcopy(row.params or {}),
-                    "results": copy.deepcopy(row.results),
+                    "results": self._copied_variant_needs_recalculate_payload(
+                        source_variant_number,
+                        target_variant_number,
+                    ),
                 }
                 for row in source_rows
             ]

@@ -100,6 +100,7 @@ export default function SpecificationPage() {
     () => (spec?.items as SpecificationItem[]) ?? [],
     [spec]
   );
+  const isSpecStale = spec?.is_stale === true;
 
   if (!project) {
     return (
@@ -208,6 +209,11 @@ export default function SpecificationPage() {
                 <Text style={{ fontSize: 11, display: 'block' }}>
                   Позиций: <strong>{items.length}</strong>
                 </Text>
+                {isSpecStale && (
+                  <Text style={{ fontSize: 11, color: '#d46b08', display: 'block' }}>
+                    Статус: <strong>устарела</strong>
+                  </Text>
+                )}
                 <Text style={{ fontSize: 11, display: 'block' }}>
                   Категорий: <strong>{categoriesCount}</strong>
                 </Text>
@@ -229,6 +235,28 @@ export default function SpecificationPage() {
             title={<Text strong>Окно спецификаций</Text>}
             styles={{ body: { paddingTop: 8 } }}
           >
+            {isSpecStale && (
+              <Alert
+                className="specification-empty-alert"
+                type="warning"
+                showIcon
+                message="Спецификация устарела"
+                description="После изменения объектов старые позиции нельзя использовать для закупки. Сформируйте спецификацию заново."
+                style={{ marginBottom: 16 }}
+                action={
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<ReloadOutlined />}
+                    loading={mut.isPending}
+                    onClick={() => mut.mutate()}
+                  >
+                    Сформировать заново
+                  </Button>
+                }
+              />
+            )}
+
             {!hasItems && (
               <Alert
                 className="specification-empty-alert"
@@ -253,6 +281,7 @@ export default function SpecificationPage() {
               items={items}
               groupBy={groupBy}
               canDelete={isEmployee && hasItems}
+              isStale={isSpecStale}
               onDelete={handleDelete}
             />
 

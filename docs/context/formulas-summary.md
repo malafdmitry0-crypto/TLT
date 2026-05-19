@@ -264,7 +264,7 @@ select first candidate where p2 <= p3 and p2 * N * M covers p1
 |---|---|---|
 | `safety_factor` | 1,1 | Множитель K для Q (трубы **и** резервуары) |
 | `wind_factor` | 1,0 | Множитель `α_внеш` для надземных труб; применяется после расчёта `11.6 + 7√v` и ограничивается `52` |
-| `location_indoor` / `location_outdoor` | 0,9 / 1,0 | Legacy seeded keys; сейчас не применяются, потому что full-version климатическая политика задаёт `K/T` отдельно |
+| `location_indoor` / `location_outdoor` | 0,9 / 1,0 | Множители итогового `Q` для труб и резервуаров через `location_key(params.location)`; `location_outdoor=1.0` по умолчанию не меняет результат |
 
 ## Реализация
 

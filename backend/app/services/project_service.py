@@ -298,7 +298,7 @@ class ProjectService:
             params=normalize_project_object_params(data.object_type, data.params),
         )
         self.db.add(obj)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(obj)
         return obj
 
@@ -356,7 +356,7 @@ class ProjectService:
         self._check_owner(project, principal)
         obj = await self._get_object(project_id, object_id)
         await self.db.delete(obj)
-        await self.db.commit()
+        await self.db.flush()
 
     async def reorder_objects(
         self,

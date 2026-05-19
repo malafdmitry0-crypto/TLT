@@ -109,4 +109,37 @@ describe('SpecificationPage (integration)', () => {
     // При наличии items — кнопка «Пересчитать»
     expect(screen.getByRole('button', { name: /Пересчитать/i })).toBeInTheDocument();
   });
+
+  it('показывает предупреждение для устаревшей спецификации', async () => {
+    const { getSpecification } = await import('@/api/specifications');
+    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 's-1',
+      project_id: 'p-1',
+      variant_number: 1,
+      is_stale: true,
+      stale_reason: 'object_params_updated',
+      stale_at: '2026-01-01T00:00:00Z',
+      stale_details: { object_ids: ['o-1'] },
+      items: [
+        {
+          category: 'Кабель',
+          name: 'Старая позиция',
+          article: 'OLD',
+          unit: 'м',
+          quantity: 12,
+          params: {},
+        },
+      ],
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Спецификация устарела')).toBeInTheDocument();
+      expect(screen.getByText('Старая позиция')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /Сформировать заново/i })).toBeInTheDocument();
+  });
 });

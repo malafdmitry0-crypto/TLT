@@ -26,6 +26,10 @@ class SpecificationResponse(BaseModel):
     project_id: UUID
     variant_number: int
     items: list[dict[str, Any]]
+    is_stale: bool
+    stale_reason: str | None = None
+    stale_at: datetime | None = None
+    stale_details: dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
 

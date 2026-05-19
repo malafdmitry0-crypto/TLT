@@ -7,6 +7,7 @@ interface Props {
   groupBy?: 'none' | 'category' | 'unit';
   onDelete?: (index: number) => void;
   canDelete?: boolean;
+  isStale?: boolean;
 }
 
 type Row = SpecificationItem & { __index: number };
@@ -16,6 +17,7 @@ export default function SpecTable({
   groupBy = 'none',
   onDelete,
   canDelete = false,
+  isStale = false,
 }: Props) {
   const rows: Row[] = items.map((it, idx) => ({ ...it, __index: idx }));
 
@@ -83,6 +85,7 @@ export default function SpecTable({
         dataSource={rows}
         pagination={false}
         size="small"
+        rowClassName={isStale ? 'specification-stale-row' : undefined}
         columns={[...baseColumns, ...actionColumn]}
       />
     );
@@ -136,6 +139,7 @@ export default function SpecTable({
             pagination={false}
             size="small"
             showHeader
+            rowClassName={isStale ? 'specification-stale-row' : undefined}
             columns={[...innerColumns, ...actionColumn]}
           />
         </div>

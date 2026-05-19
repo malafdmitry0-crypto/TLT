@@ -57,12 +57,13 @@ export default function WorkspacePage() {
   const elecCalcCount = summary?.objects_with_successful_electrical_calculation ?? 0;
   const failedCalcCount = summary?.failed_electrical_calculations ?? 0;
   const hasSpec = (spec?.items?.length ?? 0) > 0;
+  const hasActualSpec = hasSpec && spec?.is_stale !== true;
 
   // Текущий шаг (0-based)
   const currentStep =
     totalObjects === 0 ? 0
     : elecCalcCount < totalObjects ? 1
-    : !hasSpec ? 2
+    : !hasActualSpec ? 2
     : 3;
 
   const steps = [
@@ -94,10 +95,10 @@ export default function WorkspacePage() {
     },
     {
       title: 'Спецификация',
-      description: hasSpec ? 'Сформирована ✓' : 'Не сформирована',
+      description: spec?.is_stale ? 'Устарела' : hasSpec ? 'Сформирована ✓' : 'Не сформирована',
       icon: <UnorderedListOutlined />,
       route: ROUTES.specification,
-      done: hasSpec,
+      done: hasActualSpec,
     },
     {
       title: 'Отчёт',

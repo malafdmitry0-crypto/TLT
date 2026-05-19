@@ -39,6 +39,11 @@ def generate_docx(context: dict[str, Any]) -> bytes:
 
     if "specification" in enabled:
         doc.add_heading("Спецификация", level=2)
+        if context.get("specification", {}).get("is_stale"):
+            doc.add_paragraph(
+                "Спецификация устарела после изменения объектов. "
+                "Сформируйте её заново перед закупкой."
+            )
     items = context.get("specification", {}).get("items", []) if "specification" in enabled else []
     if items:
         table = doc.add_table(rows=1, cols=5)
