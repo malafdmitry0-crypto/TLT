@@ -1496,6 +1496,54 @@ class TestBatchElectricalCallbacks:
         assert rows[0]["cable_type_source"] == "manual"
         assert rows[0]["cable_mark_source"] == "auto"
 
+    async def test_batch_electrical_three_core_builtin_uses_explicit_catalog_fields(self):
+        project_id = uuid.uuid4()
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=project_id,
+            object_type="pipe",
+            sort_order=0,
+            params={
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 10,
+            },
+            results={"heat_loss_per_meter": 30, "total_heat_loss": 300},
+            is_valid=True,
+        )
+        count_result = MagicMock()
+        count_result.one = lambda: (1, 1)
+        objects_result = MagicMock()
+        objects_result.scalars = lambda: MagicMock(all=lambda: [obj])
+        existing_result = MagicMock()
+        existing_result.scalars = lambda: MagicMock(all=lambda: [])
+        db = AsyncMock()
+        db.execute = AsyncMock(side_effect=[count_result, objects_result, existing_result])
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        service.load_cable_catalog = AsyncMock(return_value=[])  # type: ignore[method-assign]
+        service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
+        service._bulk_upsert_electrical_calculations = AsyncMock(  # type: ignore[method-assign]
+            return_value=[]
+        )
+
+        calculated, skipped, heat_loss_failed, errors, _ = await service.batch_calc_electrical(
+            project_id,
+            cable_type="three_core",
+            cable_source="builtin",
+            return_calcs=False,
+        )
+
+        assert calculated == 1
+        assert skipped == 0
+        assert heat_loss_failed == 0
+        assert errors == []
+        rows = service._bulk_upsert_electrical_calculations.await_args.args[0]
+        assert rows[0]["cable_type"] == "three_core"
+        assert rows[0]["cable_mark"].startswith("ТТ Р3")
+        assert rows[0]["results"]["resistance_ohm_km"] > 0
+
     async def test_batch_electrical_cancel_stops_before_commit(self):
         project_id = uuid.uuid4()
         obj = SimpleNamespace(
@@ -1737,11 +1785,14 @@ class TestLoadCableCatalog:
     async def test_resistive_builtin_catalog_has_default_temperature_fields(self):
         service = CalculationService(AsyncMock())
 
-        cables = await service.load_resistive_cable_catalog("single_core", "builtin")
-        row = next(c for c in cables if c["model"] == "ТТ Р1 8000")
+        cables = await service.load_resistive_cable_catalog("three_core", "builtin")
+        row = next(c for c in cables if c["model"] == "ТТ Р3 х 1,5-1,0")
 
         assert row["max_temperature"] == pytest.approx(130.0)
         assert row["min_temperature"] == pytest.approx(-60.0)
+        assert row["resistance_ohm_km"] == pytest.approx(11.666666666666666)
+        assert row["conductor_section_mm2"] == pytest.approx(1.5)
+        assert row["conductor_cross_section"] == pytest.approx(1.5)
 
     async def test_commercial_resistive_merge_fills_missing_builtin_technical_fields(self):
         ext = SimpleNamespace(

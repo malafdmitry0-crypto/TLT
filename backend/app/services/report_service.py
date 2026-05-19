@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
+from app.electrical_result_status import electrical_result_status, is_successful_electrical_result
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project import Project
 from app.models.project_object import ProjectObject
@@ -140,7 +141,7 @@ class ReportService:
         results = raw_results if isinstance(raw_results, dict) else {}
         return {
             "cable_mark": calc.cable_mark,
-            "cable_snapshot": calc.cable_snapshot,
+            "cable_snapshot": getattr(calc, "cable_snapshot", None),
             "results": results,
             "status": cls._electrical_status(calc.cable_mark, results),
         }
@@ -185,25 +186,14 @@ class ReportService:
 
     @classmethod
     def _electrical_status(cls, cable_mark: str | None, results: dict) -> str:
-        if cls._is_successful_electrical_calculation(cable_mark, results):
-            return "success"
-        category = results.get("category")
-        if category == "unsupported":
-            return "unsupported"
-        if category == "stale":
-            return "stale"
-        return "failed"
+        return electrical_result_status(cable_mark, results)
 
     @staticmethod
     def _is_successful_electrical_calculation(
         cable_mark: str | None,
         results: dict | None,
     ) -> bool:
-        if not results:
-            return False
-        if results.get("error_code") or results.get("category"):
-            return False
-        return bool(results.get("selected_cable") or cable_mark)
+        return is_successful_electrical_result(cable_mark, results)
 
     @classmethod
     def _sum_electrical_result(cls, objects: list[dict], key: str) -> float:

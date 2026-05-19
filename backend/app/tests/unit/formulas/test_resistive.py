@@ -348,12 +348,24 @@ class TestThreeCoreConnections:
             pipe_length=100.0,
             process_temperature=60.0,
             supply_voltage=380.0,
+            selection_mode="auto",
             connection_type="line_1ph",
         )
         result = calc_resistive_three_core(params)
         assert result.selected_cable.startswith("ТТ Р3")
         assert result.conductor_cross_section > 0
+        assert result.resistance_ohm_km > 0
         assert result.total_power > 0
+
+    def test_three_core_parses_section_from_model_as_fallback(self):
+        """Явные поля приоритетны, но legacy-каталог с маркой ТТ Р3 ещё считается."""
+        result = calc_resistive_three_core(
+            _tc(cable_catalog=[{"model": "ТТ Р3 х 1,5-1,0"}])
+        )
+
+        assert result.selected_cable == "ТТ Р3 х 1,5-1,0"
+        assert result.conductor_cross_section == pytest.approx(1.5)
+        assert result.resistance_ohm_km == pytest.approx(11.666666666666666)
 
     def test_auto_vsdx_three_core_selects_u_n_m_by_passport_resistance(self):
         catalog = [

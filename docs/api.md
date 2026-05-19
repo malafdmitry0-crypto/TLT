@@ -26,6 +26,17 @@
 - **Гость**: заголовок `X-Session-Id: <session_id>` (выдаётся `POST /auth/guest`)
 - **Сотрудник / Админ**: заголовок `Authorization: Bearer <JWT>` (JWT от `POST /auth/login`)
 
+## Доступ к проектам
+
+- **Гость** видит и открывает только проекты своей `session_id`.
+- **Сотрудник** видит и открывает проекты зарегистрированных пользователей
+  (`user_id IS NOT NULL`), включая проекты других сотрудников, но не видит и
+  не открывает гостевые проекты подрядчиков (`user_id IS NULL`,
+  `session_id IS NOT NULL`).
+- Изменение и удаление чужого проекта для сотрудника запрещено; такие операции
+  доступны владельцу проекта или администратору.
+- **Администратор** видит все проекты для сопровождения.
+
 ## Rate limits
 
 - `/auth/guest`: 10 сессий / IP / час (sliding window, Redis или in-memory)
@@ -149,6 +160,12 @@ Admin-only endpoints для DLQ:
 `validation`, `formula`, `unsupported`, `external`; причина видна на UI после
 reload.
 
+Успешность сохранённого электрорасчёта определяется единым правилом:
+есть выбранный кабель (`cable_mark` или `results.selected_cable`) и нет
+`results.error_code`, `results.category`, `results.stale=true`. Само поле
+`results.message` не является признаком ошибки: оно может быть служебным
+пояснением успешного расчёта.
+
 `skip_manual` по умолчанию равен `true`: массовый автоподбор не перезаписывает
 строки, где марка кабеля выбрана вручную (`cable_mark_source=manual` или
 legacy `params.cable_mark`). Для осознанной перезаписи ручных марок клиент
@@ -160,6 +177,11 @@ legacy `params.cable_mark`). Для осознанной перезаписи р
 формулы укладки кабеля сохраняется
 `results.error_code="unsupported_layout"` и `results.category="unsupported"`;
 UI показывает статус «Не применимо».
+
+Для ТЛТ (`self_regulating`) ток и `results.voltage` считаются по паспортному
+напряжению выбранной строки каталога кабеля (`voltage`; встроенная линейка ТЛТ —
+220 В). `supply_voltage` из объекта или CO не переопределяет паспорт кабеля и
+используется только как fallback для кастомного каталога без `voltage`.
 
 Для резистивных `single_core`/`three_core` основной автоподбор использует
 `selection_mode=auto`: full-version VSDX-стратегия `U/N/M`, `p2/p3`, `L1/L2`.
@@ -175,6 +197,28 @@ UI показывает статус «Не применимо».
 утверждения весов это controlled fallback. Источник `cable_source=commercial`
 доступен всем ролям и строится как public commercial projection поверх
 встроенных ТЛТ/резистивных каталогов и sanitized строк внешней БД.
+
+**`POST /calc/electrical/variants/copy`** — создать целевой CO-вариант на
+основании другого CO без нового автоподбора. Backend копирует сохранённые строки
+`electrical_calculations` из `source_variant_number` в `target_variant_number`,
+включая `params`, `results`, `cable_snapshot`, manual/auto source fields,
+ошибочные, `unsupported` и `stale` результаты. Объекты без строки в source CO
+остаются «не рассчитаны» в target CO.
+
+Запрос:
+`{project_id, source_variant_number, target_variant_number, overwrite=false,
+regenerate_specification=true}`.
+
+Ответ:
+`{project_id, source_variant_number, target_variant_number, copied_count,
+project_objects_count, deleted_target_count, overwrite_applied,
+specification_regenerated}`.
+
+Если target CO содержит хотя бы одну строку электрорасчёта, вызов без
+`overwrite=true` возвращает `409` с `detail.code="target_not_empty"`. При
+`overwrite=true` target CO полностью заменяется копией source CO, без merge.
+Пустой source CO возвращает `422` с `detail.code="source_empty"`, одинаковые
+source/target — `422` с `detail.code="same_variant"`.
 
 **`POST /calc/electrical/query`** возвращает страницу таблицы электрорасчёта.
 Для стандартной сортировки `(sort_order, id)` и SQL-поддерживаемых

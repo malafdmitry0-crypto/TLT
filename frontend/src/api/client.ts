@@ -9,6 +9,18 @@ const apiClient = axios.create({
   withCredentials: true,
 });
 
+export type ApiErrorDetail = string | { msg: string }[] | {
+  code?: string;
+  message?: string;
+  [key: string]: unknown;
+};
+
+export type ApiError = Error & {
+  status?: number;
+  code?: string;
+  detail?: ApiErrorDetail;
+};
+
 type RetryableConfig = NonNullable<AxiosError['config']> & {
   _authRetry?: boolean;
   _guestRetry?: boolean;
@@ -144,7 +156,7 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   (r) => r,
-  async (error: AxiosError<{ detail?: string | { msg: string }[] }>) => {
+  async (error: AxiosError<{ detail?: ApiErrorDetail }>) => {
     const originalConfig = error.config as RetryableConfig | undefined;
     if (error.response?.status === 401) {
       const url = originalConfig?.url ?? '';
@@ -219,11 +231,19 @@ apiClient.interceptors.response.use(
     } else if (Array.isArray(detail) && detail.length > 0) {
       // Pydantic validation error: массив объектов с полем msg
       humanMessage = detail.map((d) => d.msg).join('; ');
+    } else if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+      humanMessage = typeof detail.message === 'string' ? detail.message : error.message;
     } else {
       humanMessage = error.message;
     }
 
-    return Promise.reject(new Error(humanMessage));
+    const apiError = new Error(humanMessage) as ApiError;
+    apiError.status = error.response?.status;
+    apiError.detail = detail;
+    if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+      apiError.code = typeof detail.code === 'string' ? detail.code : undefined;
+    }
+    return Promise.reject(apiError);
   }
 );
 

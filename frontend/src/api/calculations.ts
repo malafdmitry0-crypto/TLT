@@ -137,6 +137,25 @@ export interface ElectricalBatchOptions {
   }>;
 }
 
+export interface CopyElectricalVariantRequest {
+  project_id: string;
+  source_variant_number: number;
+  target_variant_number: number;
+  overwrite?: boolean;
+  regenerate_specification?: boolean;
+}
+
+export interface CopyElectricalVariantResponse {
+  project_id: string;
+  source_variant_number: number;
+  target_variant_number: number;
+  copied_count: number;
+  project_objects_count: number;
+  deleted_target_count: number;
+  overwrite_applied: boolean;
+  specification_regenerated: boolean;
+}
+
 function electricalParams(
   cableType: CableType,
   options: ElectricalBatchOptions = {},
@@ -215,6 +234,20 @@ export async function enqueueHeatLossBatchJob(
     {
       project_id: projectId,
       include_errors: includeErrors,
+    },
+    withIdempotencyKey(),
+  );
+  return data;
+}
+
+export async function copyElectricalVariant(
+  payload: CopyElectricalVariantRequest,
+): Promise<CopyElectricalVariantResponse> {
+  const { data } = await apiClient.post<CopyElectricalVariantResponse>(
+    '/calc/electrical/variants/copy',
+    {
+      regenerate_specification: true,
+      ...payload,
     },
     withIdempotencyKey(),
   );

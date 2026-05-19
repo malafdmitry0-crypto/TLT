@@ -27,10 +27,10 @@ def _principal(role="guest", session_id=None, user_id=None):
 class TestAccessChecks:
     """Приватные хелперы _check_access / _check_owner — безопасность."""
 
-    def test_employee_cannot_access_foreign_project(self):
+    def test_employee_cannot_access_guest_project(self):
         service = ProjectService(AsyncMock())
-        project = SimpleNamespace(session_id=str(uuid.uuid4()), user_id=uuid.uuid4())
-        with pytest.raises(ProjectAccessError, match="чужому"):
+        project = SimpleNamespace(session_id=str(uuid.uuid4()), user_id=None)
+        with pytest.raises(ProjectAccessError, match="гостевому"):
             service._check_access(project, _principal(role="employee"))
 
     def test_employee_can_access_own_project(self):
@@ -38,6 +38,11 @@ class TestAccessChecks:
         user_id = uuid.uuid4()
         project = SimpleNamespace(session_id=None, user_id=user_id)
         service._check_access(project, _principal(role="employee", user_id=user_id))
+
+    def test_employee_can_access_other_registered_project(self):
+        service = ProjectService(AsyncMock())
+        project = SimpleNamespace(session_id=None, user_id=uuid.uuid4())
+        service._check_access(project, _principal(role="employee", user_id=uuid.uuid4()))
 
     def test_admin_can_access_any_project(self):
         service = ProjectService(AsyncMock())
@@ -476,7 +481,14 @@ class TestObjectsSummary:
                 ),
                 _rows_with(
                     [
-                        (pipe_ok_id, None, {"selected_cable": {"mark": "HTM"}}),
+                        (
+                            pipe_ok_id,
+                            None,
+                            {
+                                "selected_cable": {"mark": "HTM"},
+                                "message": "Служебное пояснение успешного подбора",
+                            },
+                        ),
                         (tank_ok_id, "HTM", {"total_power": 1200}),
                         (
                             pipe_bad_id,

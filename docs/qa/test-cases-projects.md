@@ -26,14 +26,18 @@
 
 ---
 
-## TC-PROJ-03: Сотрудник видит все проекты
+## TC-PROJ-03: Сотрудник не видит гостевые проекты подрядчиков
 
-**Автоматизировано:** ✅ `test_projects.py::TestProjectsCRUD::test_employee_can_see_all_projects`
+**Автоматизировано:** ✅ `test_projects.py::TestProjectsCRUD::test_employee_sees_staff_projects_but_not_guest_projects`, `test_projects.py::TestProjectsCRUD::test_employee_can_open_coworker_project_by_id`, `test_projects.py::TestProjectsCRUD::test_employee_cannot_open_guest_project_by_id`, `test_projects.py::TestProjectsCRUD::test_employee_cannot_export_guest_project_by_id`
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
 | 1 | Создать проект от гостя | Проект существует |
-| 2 | `GET /api/v1/projects` с токеном сотрудника | Список ≥ 1, включает гостевой проект |
+| 2 | Создать проект от другого сотрудника | Проект существует |
+| 3 | `GET /api/v1/projects` с токеном сотрудника | Список включает проект другого сотрудника и не включает гостевой проект |
+| 4 | `GET /api/v1/projects/{coworker_project_id}` с токеном сотрудника | HTTP 200 |
+| 5 | `GET /api/v1/projects/{guest_project_id}` с токеном сотрудника | HTTP 403 |
+| 6 | `GET /api/v1/projects/{guest_project_id}/export-csv` с токеном сотрудника | HTTP 403 |
 
 ---
 

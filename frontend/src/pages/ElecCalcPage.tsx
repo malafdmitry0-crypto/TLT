@@ -12,6 +12,7 @@ import {
   Button,
   Card,
   Checkbox,
+  Dropdown,
   Input,
   InputNumber,
   Modal,
@@ -30,6 +31,7 @@ import {
   CheckCircleFilled,
   CloseCircleFilled,
   CloseCircleOutlined,
+  CopyOutlined,
   FilterFilled,
   MinusCircleFilled,
   ReloadOutlined,
@@ -44,6 +46,7 @@ import type { ColumnsType } from 'antd/es/table';
 import {
   batchCalcElectrical,
   cancelCalcTask,
+  copyElectricalVariant,
   enqueueElectricalBatchJob,
   getElectricalQueryCapabilities,
   getCalcTask,
@@ -51,8 +54,10 @@ import {
   queryElectrical,
   selectCableManual,
   type CableSource,
+  type CopyElectricalVariantResponse,
   type SelectionPolicy,
 } from '@/api/calculations';
+import type { ApiError } from '@/api/client';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getCablesTt, getResistiveCables } from '@/api/references';
@@ -155,6 +160,14 @@ type CableTypeKey =
 
 function isBatchElectricalResponse(result: unknown): result is BatchElectricalResponse {
   return typeof result === 'object' && result !== null && 'calculated' in result;
+}
+
+function isApiError(error: unknown): error is ApiError {
+  return error instanceof Error;
+}
+
+function isTargetVariantNotEmptyError(error: unknown): error is ApiError {
+  return isApiError(error) && error.status === 409 && error.code === 'target_not_empty';
 }
 
 const CABLE_TYPE_LABEL: Record<CableTypeKey, string> = {
@@ -266,6 +279,10 @@ type ElectricalBatchMutationArgs = {
   scope: ElectricalBatchScope;
   objectIds?: string[];
   skipManual?: boolean;
+};
+type CopyElectricalVariantMutationArgs = {
+  targetVariant: number;
+  overwrite?: boolean;
 };
 const EMPTY_OBJECTS: ProjectObject[] = [];
 const EMPTY_ELECTRICAL_CALCS: ElectricalCalcSummary[] = [];
@@ -1284,6 +1301,53 @@ export default function ElecCalcPage() {
       );
     },
     onError: (e: Error) => message.error(e.message),
+  });
+
+  const copyVariantMut = useMutation({
+    mutationFn: ({ targetVariant, overwrite = false }: CopyElectricalVariantMutationArgs) =>
+      copyElectricalVariant({
+        project_id: project!.id,
+        source_variant_number: variant,
+        target_variant_number: targetVariant,
+        overwrite,
+        regenerate_specification: true,
+      }),
+    onSuccess: (res: CopyElectricalVariantResponse) => {
+      setTablePage(1);
+      setElectricalPageCursors({ 1: null });
+      setSelectedRowKeys([]);
+      setCableTypeDraftByObjectId({});
+      setVariant(res.target_variant_number);
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
+      qc.invalidateQueries({ queryKey: ['spec', project?.id, res.target_variant_number] });
+      qc.invalidateQueries({ queryKey: ['report-preview', project?.id, res.target_variant_number] });
+      message.success(
+        `СО${res.target_variant_number} создан на основании СО${res.source_variant_number}: ` +
+        `скопировано ${res.copied_count}`,
+      );
+      if (res.copied_count < res.project_objects_count) {
+        message.info(
+          `В проекте объектов: ${res.project_objects_count}, скопировано расчётов: ${res.copied_count}. ` +
+          `Остальные в СО${res.target_variant_number} не рассчитаны.`,
+        );
+      }
+    },
+    onError: (error: Error, variables) => {
+      if (isTargetVariantNotEmptyError(error) && !variables.overwrite) {
+        Modal.confirm({
+          title: `СО${variables.targetVariant} уже содержит расчёты`,
+          content: `Заменить СО${variables.targetVariant} копией СО${variant}? ` +
+            `Все текущие расчёты СО${variables.targetVariant} будут удалены.`,
+          okText: 'Заменить',
+          okButtonProps: { danger: true },
+          cancelText: 'Отмена',
+          onOk: () => copyVariantMut.mutate({ ...variables, overwrite: true }),
+        });
+        return;
+      }
+      message.error(error.message);
+    },
   });
 
   const cancelJobMut = useMutation({
@@ -2809,6 +2873,41 @@ export default function ElecCalcPage() {
         ]
       : []),
   ];
+  const sourceVariantCalculationCount =
+    pageSummary?.electrical_calculations_total ?? elecCalcs.length;
+  const projectObjectsForCopyCount = pageSummary?.total_objects ?? objects.length;
+  const copyVariantMenuItems = [1, 2, 3, 4]
+    .filter((targetVariant) => targetVariant !== variant)
+    .map((targetVariant) => ({
+      key: String(targetVariant),
+      label: `Скопировать СО${variant} в СО${targetVariant}`,
+      disabled: copyVariantMut.isPending || isJobActive,
+    }));
+
+  function showCopyVariantConfirm(targetVariant: number) {
+    Modal.confirm({
+      title: `Создать СО${targetVariant} на основании СО${variant}?`,
+      content: (
+        <Space direction="vertical" size={6}>
+          <Text>
+            Скопируются {sourceVariantCalculationCount} объектов с расчётами в СО{variant}.
+          </Text>
+          {sourceVariantCalculationCount < projectObjectsForCopyCount && (
+            <Text type="secondary">
+              В проекте объектов: {projectObjectsForCopyCount}. Остальные в СО{targetVariant}
+              {' '}останутся не рассчитаны.
+            </Text>
+          )}
+          <Text type="secondary">
+            Копирование не запускает новый подбор кабеля.
+          </Text>
+        </Space>
+      ),
+      okText: 'Создать',
+      cancelText: 'Отмена',
+      onOk: () => copyVariantMut.mutate({ targetVariant }),
+    });
+  }
 
   function renderElectricalTypeControls(
     cableType: CableTypeKey | null = visibleCableTypeControl,
@@ -3004,6 +3103,23 @@ export default function ElecCalcPage() {
                 СО{n}
               </Button>
             ))}
+            <Dropdown
+              trigger={['click']}
+              disabled={copyVariantMut.isPending || isJobActive}
+              menu={{
+                items: copyVariantMenuItems,
+                onClick: ({ key }) => showCopyVariantConfirm(Number(key)),
+              }}
+            >
+              <Button
+                size="small"
+                icon={<CopyOutlined />}
+                loading={copyVariantMut.isPending}
+                disabled={copyVariantMut.isPending || isJobActive}
+              >
+                Создать на основании
+              </Button>
+            </Dropdown>
             <span className="sep" />
             <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>{cableTypeControlLabel}</Text>
             <Select<CableTypeKey>

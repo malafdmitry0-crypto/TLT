@@ -57,7 +57,7 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
 | Единицы формы: геометрия в мм, API в метрах | `frontend/src/utils/objectWizardUtils.ts`, `CLAUDE.MD` |
 | Расчёты выполняются на backend, не на frontend | `backend/app/services/calculation_service.py` |
 | Гость работает только со своими session projects | `backend/app/services/project_service.py`, тесты security |
-| Сотрудник видит все проекты, редактирует по правилам сервиса | `backend/app/tests/integration/api/test_projects.py` |
+| Гость видит только свои session projects; сотрудник видит user-owned проекты других сотрудников и не видит гостевые; админ видит все | `backend/app/services/project_service.py`, `backend/app/tests/integration/api/test_projects.py` |
 | Админ управляет пользователями, коэффициентами, внешней БД | `frontend/src/pages/admin/`, `backend/app/api/v1/admin.py` |
 | Спецификация зависит от variant_number | `backend/app/models/specification.py`, `frontend/src/api/specifications.ts` |
 | Отчёт принимает набор секций | `frontend/src/components/reports/ReportWizard.tsx`, `backend/app/reports/` |

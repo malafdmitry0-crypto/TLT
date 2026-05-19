@@ -245,7 +245,7 @@ class TestGuestCannotAccessEmployeeFeatures:
 
 
 class TestEmployeeCannotEditOthersProjects:
-    """Сотрудник не должен видеть или менять чужие проекты."""
+    """Сотрудник может читать user-owned проекты, но не должен менять чужие."""
 
     async def test_employee_cannot_edit_admin_project(
         self, client: AsyncClient, employee_token: str, admin_token: str

@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.dependencies import CurrentPrincipal
+from app.electrical_result_status import is_successful_electrical_result
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project import Project
 from app.models.project_object import ProjectObject
@@ -53,7 +54,7 @@ class ProjectService:
         if principal.role == "guest":
             stmt = stmt.where(Project.session_id == principal.session_id)
         elif principal.role == "employee":
-            stmt = stmt.where(Project.user_id == principal.user_id)
+            stmt = stmt.where(Project.user_id.is_not(None))
         # admin видит все проекты для администрирования и поддержки.
         stmt = stmt.order_by(Project.updated_at.desc())
         rows = await self.db.execute(stmt)
@@ -444,9 +445,9 @@ class ProjectService:
         if principal.role == "admin":
             return
         if principal.role == "employee":
-            if project.user_id == principal.user_id:
+            if project.user_id is not None:
                 return
-            raise ProjectAccessError("Нет доступа к чужому проекту")
+            raise ProjectAccessError("Нет доступа к гостевому проекту")
         if principal.role == "guest":
             if project.session_id != principal.session_id:
                 raise ProjectAccessError("Нет доступа к чужому проекту")
@@ -471,8 +472,4 @@ class ProjectService:
         cable_mark: str | None,
         results: dict[str, object] | None,
     ) -> bool:
-        if not results:
-            return False
-        if results.get("error_code") or results.get("category"):
-            return False
-        return bool(results.get("selected_cable") or cable_mark)
+        return is_successful_electrical_result(cable_mark, results)

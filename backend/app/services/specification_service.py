@@ -27,7 +27,13 @@ class SpecificationService:
         )
         return result.scalars().first()
 
-    async def generate(self, project_id: UUID, variant_number: int = 1) -> list[SpecificationItem]:
+    async def generate(
+        self,
+        project_id: UUID,
+        variant_number: int = 1,
+        *,
+        commit: bool = True,
+    ) -> list[SpecificationItem]:
         # Сохраняем ручные позиции (source='manual'), если они есть в текущей спецификации
         existing_q = await self.db.execute(
             select(Specification).where(
@@ -90,7 +96,10 @@ class SpecificationService:
             )
             self.db.add(spec)
 
-        await self.db.commit()
+        if commit:
+            await self.db.commit()
+        else:
+            await self.db.flush()
         return items
 
     async def save_items(

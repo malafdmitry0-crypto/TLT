@@ -95,7 +95,7 @@
 |-----|----------|---------------------|
 | 1 | Логин как admin | `access_token` с `role=admin` |
 | 2 | `GET /api/v1/admin/users` | HTTP 200, список пользователей |
-| 3 | `GET /api/v1/projects` | HTTP 200, все проекты системы |
+| 3 | `GET /api/v1/projects` | HTTP 200, все проекты системы (admin-only полный обзор) |
 
 ---
 

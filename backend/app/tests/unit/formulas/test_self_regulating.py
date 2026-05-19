@@ -96,6 +96,29 @@ class TestSelfRegulating:
         r = calc_self_regulating(_params(supply_voltage=220))
         assert r.voltage == 220
 
+    def test_catalog_voltage_overrides_request_voltage_for_tlt(self):
+        r = calc_self_regulating(_params(supply_voltage=380))
+        assert r.voltage == 220
+        assert r.current == pytest.approx(r.total_power / 220, rel=1e-4)
+
+    def test_request_voltage_is_fallback_for_custom_catalog_without_voltage(self):
+        catalog = [
+            {
+                "brand": "custom",
+                "model": "Кастом-25",
+                "power_per_meter": 25,
+                "max_temperature": 120,
+                "min_temperature": -60,
+            }
+        ]
+
+        r = calc_self_regulating(
+            _params(cable_mark="Кастом-25", supply_voltage=380, cable_catalog=catalog)
+        )
+
+        assert r.voltage == 380
+        assert r.current == pytest.approx(r.total_power / 380, rel=1e-3)
+
     def test_current_equals_power_over_voltage(self):
         r = calc_self_regulating(_params())
         assert r.current == pytest.approx(r.total_power / r.voltage, rel=1e-4)

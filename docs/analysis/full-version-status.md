@@ -17,7 +17,7 @@
 |---|---|---|
 | FR-FULL-01 | JWT-авторизация сотрудника/админа (access 30 мин, refresh 7 дн) | `auth.py`, `core/security.py` |
 | FR-FULL-02 | Проводник проектов с фильтрами (тип, год, № задачи) | `pages/ProjectsPage.tsx` |
-| FR-FULL-03 | Просмотр/редактирование чужих проектов по матрице | `ProjectService._check_access`, `_check_owner` |
+| FR-FULL-03 | Проводник проектов сотрудников без раскрытия гостевых проектов подрядчиков | `ProjectService.list_projects`, `_check_access`, `_check_owner` |
 | FR-FULL-07 | Расширенная БД кабелей/аксессуаров | `models/{cable,accessory}.py` (CableExtended/AccessoryExtended) + `pages/admin/DatabasePage.tsx` |
 | FR-FULL-08 | Варианты обогрева СО1..СО4 | `variant_number` сквозной: API + service + UI |
 | FR-FULL-09 | Расширенная спецификация (группировка/сортировка/материалы из БД) | `components/specification/SpecTable.tsx` |

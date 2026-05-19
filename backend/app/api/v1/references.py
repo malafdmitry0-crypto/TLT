@@ -208,7 +208,7 @@ async def _commercial_cable_catalog(db: AsyncSession) -> list[dict[str, object]]
 
 
 def _resistive_section_from_model(model: object) -> float | None:
-    match = re.search(r"х\s*(\d+(?:[,.]\d+)?)\s*-", str(model))
+    match = re.search(r"[хx×]\s*(\d+(?:[,.]\d+)?)\s*-", str(model))
     if not match:
         return None
     return float(match.group(1).replace(",", "."))

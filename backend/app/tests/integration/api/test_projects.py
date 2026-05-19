@@ -1,5 +1,7 @@
 """Integration-тесты CRUD проектов."""
 
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
 
@@ -15,6 +17,23 @@ async def _guest_project(client: AsyncClient, session_id: str) -> dict:
         headers={"X-Session-Id": session_id},
     )
     return resp.json()[0]
+
+
+async def _create_employee_token(client: AsyncClient, admin_token: str) -> str:
+    email = f"employee-{uuid4().hex}@test.com"
+    password = "emp12345"
+    resp = await client.post(
+        "/api/v1/admin/users",
+        json={"email": email, "password": password, "role": "employee"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 201, resp.text
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": password},
+    )
+    assert login.status_code == 200, login.text
+    return login.json()["access_token"]
 
 
 class TestProjectsCRUD:
@@ -49,15 +68,23 @@ class TestProjectsCRUD:
         assert all(p["session_id"] == guest_session for p in projects)
         assert len(projects) == 1
 
-    async def test_employee_sees_only_own_projects(
-        self, client: AsyncClient, guest_session: str, employee_token: str
+    async def test_employee_sees_staff_projects_but_not_guest_projects(
+        self, client: AsyncClient, guest_session: str, employee_token: str, admin_token: str
     ):
         guest_project = await _guest_project(client, guest_session)
+        coworker_token = await _create_employee_token(client, admin_token)
         own_project = (
             await client.post(
                 "/api/v1/projects",
                 json={"name": "Свой проект"},
                 headers={"Authorization": f"Bearer {employee_token}"},
+            )
+        ).json()
+        coworker_project = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "Проект коллеги"},
+                headers={"Authorization": f"Bearer {coworker_token}"},
             )
         ).json()
         resp = await client.get(
@@ -67,7 +94,54 @@ class TestProjectsCRUD:
         assert resp.status_code == 200
         ids = {p["id"] for p in resp.json()}
         assert own_project["id"] in ids
+        assert coworker_project["id"] in ids
         assert guest_project["id"] not in ids
+
+    async def test_employee_can_open_coworker_project_by_id(
+        self, client: AsyncClient, employee_token: str, admin_token: str
+    ):
+        coworker_token = await _create_employee_token(client, admin_token)
+        coworker_project = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "Проект коллеги"},
+                headers={"Authorization": f"Bearer {coworker_token}"},
+            )
+        ).json()
+
+        resp = await client.get(
+            f"/api/v1/projects/{coworker_project['id']}",
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["id"] == coworker_project["id"]
+
+    async def test_employee_cannot_open_guest_project_by_id(
+        self, client: AsyncClient, guest_session: str, employee_token: str
+    ):
+        """BR-AUTH-04: гостевые проекты подрядчиков не раскрываются сотруднику по прямому URL."""
+        guest_project = await _guest_project(client, guest_session)
+
+        resp = await client.get(
+            f"/api/v1/projects/{guest_project['id']}",
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 403
+
+    async def test_employee_cannot_export_guest_project_by_id(
+        self, client: AsyncClient, guest_session: str, employee_token: str
+    ):
+        """Экспорт CSV не должен становиться обходом приватности гостевого проекта."""
+        guest_project = await _guest_project(client, guest_session)
+
+        resp = await client.get(
+            f"/api/v1/projects/{guest_project['id']}/export-csv",
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 403
 
     async def test_update_project(self, client: AsyncClient, guest_session: str):
         created = await _guest_project(client, guest_session)
@@ -222,10 +296,10 @@ class TestProjectAccessAndEdges:
         )
         assert resp.status_code == 404
 
-    async def test_employee_does_not_see_others_via_visibility_filter(
+    async def test_employee_sees_registered_projects_via_visibility_filter(
         self, client: AsyncClient, employee_token: str, admin_token: str
     ):
-        """Сотрудник видит только свои проекты."""
+        """Сотрудник видит user-owned проекты, но guest-owned скрываются отдельными тестами."""
         before = (
             await client.get(
                 "/api/v1/projects",
@@ -245,8 +319,8 @@ class TestProjectAccessAndEdges:
                 headers={"Authorization": f"Bearer {employee_token}"},
             )
         ).json()
-        assert len(after) == len(before)
-        assert foreign["id"] not in {p["id"] for p in after}
+        assert len(after) == len(before) + 1
+        assert foreign["id"] in {p["id"] for p in after}
 
     async def test_admin_sees_all_projects(
         self, client: AsyncClient, employee_token: str, admin_token: str

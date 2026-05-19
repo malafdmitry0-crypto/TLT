@@ -14,6 +14,7 @@ from sqlalchemy import Float, String, and_, case, cast, func, literal, or_, sele
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
+from app.electrical_result_status import FAILED_ELECTRICAL_CATEGORIES
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project_object import ProjectObject
 from app.schemas.calculation import (
@@ -204,7 +205,16 @@ def _sql_heat_loss_status() -> Any:
 
 
 def _sql_calc_error() -> Any:
-    return _sql_calc_result_text("message")
+    return case(
+        (
+            or_(
+                _sql_calc_result_text("error_code").is_not(None),
+                _sql_calc_result_text("category").in_(tuple(FAILED_ELECTRICAL_CATEGORIES)),
+            ),
+            _sql_calc_result_text("message"),
+        ),
+        else_=None,
+    )
 
 
 def _sql_selected_cable() -> Any:
@@ -215,21 +225,27 @@ def _sql_selected_cable() -> Any:
 
 
 def _sql_electrical_status() -> Any:
+    stale_text = _sql_calc_result_text("stale")
     return case(
         (ElectricalCalculation.id.is_(None), literal("not_calculated")),
         (_sql_calc_result_text("category") == "unsupported", literal("unsupported")),
-        (_sql_calc_result_text("category") == "stale", literal("not_calculated")),
+        (
+            or_(_sql_calc_result_text("category") == "stale", stale_text == "true"),
+            literal("not_calculated"),
+        ),
         (
             or_(
                 _sql_calc_result_text("error_code").is_not(None),
-                _sql_calc_result_text("category").in_(("validation", "formula", "external")),
-                _sql_calc_result_text("message").is_not(None),
+                _sql_calc_result_text("category").in_(tuple(FAILED_ELECTRICAL_CATEGORIES)),
             ),
             literal("error"),
         ),
         (
             and_(
                 ElectricalCalculation.results.is_not(None),
+                _sql_calc_result_text("error_code").is_(None),
+                _sql_calc_result_text("category").is_(None),
+                func.coalesce(stale_text, "") != "true",
                 or_(
                     ElectricalCalculation.cable_mark.is_not(None),
                     _sql_calc_result_text("selected_cable").is_not(None),
@@ -301,11 +317,11 @@ def _object_name(row: ElectricalQueryRow) -> str:
 
 def _calc_error(row: ElectricalQueryRow) -> str | None:
     category = _calc_result(row, "category")
-    if category == "stale":
+    if category == "stale" or _calc_result(row, "stale") is True:
         return None
     error_code = _calc_result(row, "error_code")
     message = _calc_result(row, "message")
-    if category in {"validation", "formula", "external"} or error_code or message:
+    if category in FAILED_ELECTRICAL_CATEGORIES or error_code:
         return str(message) if message else None
     return None
 
@@ -321,7 +337,7 @@ def _electrical_status(row: ElectricalQueryRow) -> str:
         return "not_calculated"
     if _calc_result(row, "category") == "unsupported":
         return "unsupported"
-    if _calc_result(row, "category") == "stale":
+    if _calc_result(row, "category") == "stale" or _calc_result(row, "stale") is True:
         return "not_calculated"
     if _calc_error(row):
         return "error"

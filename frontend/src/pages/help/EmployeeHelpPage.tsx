@@ -23,7 +23,7 @@ export default function EmployeeHelpPage() {
     { key: 3, feature: 'Импорт объектов из Excel / CSV', access: true },
     { key: 4, feature: 'Поиск, фильтры и сортировка таблицы объектов', access: true },
     { key: 5, feature: 'Создание и управление своими проектами', access: true },
-    { key: 6, feature: 'Просмотр всех проектов (чужих)', access: true },
+    { key: 6, feature: 'Гостевые проекты подрядчиков без передачи', access: false },
     { key: 7, feature: 'Экспорт отчёта в PDF / Word / Excel', access: true },
     { key: 8, feature: 'Экспорт объектов в Excel', access: true },
     { key: 9, feature: 'Управление пользователями', access: false },
@@ -45,7 +45,8 @@ export default function EmployeeHelpPage() {
             <Tag color="green">Полный доступ</Tag>
           </div>
           <Paragraph type="secondary">
-            Вход по логину и паролю. Проекты сохраняются между сессиями и привязаны к вашей учётной записи.
+            Вход по логину и паролю. В проводнике видны проекты сотрудников,
+            гостевые проекты подрядчиков скрыты.
           </Paragraph>
 
           <Divider />
@@ -174,8 +175,8 @@ export default function EmployeeHelpPage() {
           <Title level={4}>Управление проектами</Title>
           <Paragraph>
             <ul>
-              <li><Text strong>Список проектов</Text> — кнопка «Открыть» в шапке</li>
-              <li><Text strong>Просмотр чужих проектов</Text> — видны все проекты сотрудников и гостевых сессий</li>
+              <li><Text strong>Список проектов</Text> — кнопка «Открыть» в шапке, доступны проекты сотрудников</li>
+              <li><Text strong>Приватность гостевых проектов</Text> — проекты гостевых сессий подрядчиков не видны сотруднику без отдельного процесса передачи</li>
               <li><Text strong>Удаление</Text> — только своих проектов</li>
             </ul>
           </Paragraph>

@@ -148,19 +148,31 @@ class TestListFunctions:
         cables = list_resistive_cables()["three_core"]
 
         assert cables[0]["model"] == "ТТ Р3 х 1,5-1,0"
+        assert cables[0]["resistance_ohm_km"] == pytest.approx(11.666666666666666)
+        assert cables[0]["conductor_section_mm2"] == pytest.approx(1.5)
         assert cables[0]["nominal_size_mm"] == "20,40 х 9,20"
         assert cables[0]["mass_kg_km"] == pytest.approx(281.51)
         assert cables[0]["min_bend_radius_mm"] == 40
 
         assert cables[9]["model"] == "ТТ Р3 х 16,0-1,0"
+        assert cables[9]["resistance_ohm_km"] == pytest.approx(1.09375)
+        assert cables[9]["conductor_section_mm2"] == pytest.approx(16.0)
         assert cables[9]["nominal_size_mm"] == "34,40 х 14,80"
         assert cables[9]["mass_kg_km"] == pytest.approx(1009.91)
         assert cables[9]["min_bend_radius_mm"] == 100
 
         assert cables[-1]["model"] == "ТТ Р3 х 6,0-0,6"
+        assert cables[-1]["resistance_ohm_km"] == pytest.approx(2.9166666666666665)
+        assert cables[-1]["conductor_section_mm2"] == pytest.approx(6.0)
         assert cables[-1]["nominal_size_mm"] == "19,55 х 9,35"
         assert cables[-1]["mass_kg_km"] == pytest.approx(384.93)
         assert cables[-1]["min_bend_radius_mm"] == 50
+
+    def test_resistive_three_core_has_explicit_technical_fields(self):
+        cables = list_resistive_cables()["three_core"]
+
+        assert all(c.get("resistance_ohm_km") is not None for c in cables)
+        assert all(c.get("conductor_section_mm2") is not None for c in cables)
 
     def test_tlt_cables_full_range(self):
         cables = list_tlt_cables()

@@ -87,6 +87,7 @@ class TestLoadContext:
                 "ТЛТ-10",
                 {
                     "selected_cable": "ТЛТ-10",
+                    "message": "Служебное пояснение успешного подбора",
                     "total_power": 1000,
                     "installed_cable_length": 10,
                     "order_cable_length": 11,

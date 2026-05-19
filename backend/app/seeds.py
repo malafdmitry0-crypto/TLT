@@ -764,7 +764,7 @@ async def seed_cables(db) -> None:
             max_temperature=80.0,
             min_temperature=-55.0,
             resistance_per_meter=22.0,
-            params={"voltage": 220, "cross_section": 1.5},
+            params={"voltage": 220, "conductor_section_mm2": 1.5},
             **_commercial(
                 price_per_meter=210.0,
                 stock_quantity_m=2000.0,
@@ -782,7 +782,7 @@ async def seed_cables(db) -> None:
             max_temperature=80.0,
             min_temperature=-55.0,
             resistance_per_meter=11.0,
-            params={"voltage": 220, "cross_section": 2.5},
+            params={"voltage": 220, "conductor_section_mm2": 2.5},
             **_commercial(
                 price_per_meter=260.0,
                 stock_quantity_m=1600.0,
@@ -799,7 +799,7 @@ async def seed_cables(db) -> None:
             max_temperature=80.0,
             min_temperature=-55.0,
             resistance_per_meter=14.2,
-            params={"voltage": 380, "cross_section": 2.5},
+            params={"voltage": 380, "conductor_section_mm2": 2.5},
             **_commercial(
                 price_per_meter=290.0,
                 stock_quantity_m=1100.0,
@@ -864,7 +864,7 @@ async def seed_cables(db) -> None:
             max_temperature=90.0,
             min_temperature=-60.0,
             resistance_per_meter=18.0,
-            params={"voltage": 220, "cross_section": 1.0},
+            params={"voltage": 220, "conductor_section_mm2": 1.0},
             **_commercial(
                 price_per_meter=340.0,
                 stock_quantity_m=900.0,
@@ -881,7 +881,7 @@ async def seed_cables(db) -> None:
             max_temperature=90.0,
             min_temperature=-60.0,
             resistance_per_meter=12.5,
-            params={"voltage": 220, "cross_section": 1.5},
+            params={"voltage": 220, "conductor_section_mm2": 1.5},
             **_commercial(
                 price_per_meter=390.0,
                 stock_quantity_m=850.0,
@@ -898,7 +898,7 @@ async def seed_cables(db) -> None:
             max_temperature=90.0,
             min_temperature=-60.0,
             resistance_per_meter=7.4,
-            params={"voltage": 380, "cross_section": 2.5},
+            params={"voltage": 380, "conductor_section_mm2": 2.5},
             **_commercial(
                 price_per_meter=480.0,
                 stock_quantity_m=600.0,

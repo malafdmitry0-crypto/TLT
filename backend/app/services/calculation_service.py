@@ -1,6 +1,7 @@
 """Сервис расчётов: теплопотери + электротехнический расчёт."""
 
 import asyncio
+import copy
 import math
 import uuid
 from collections.abc import Awaitable, Callable
@@ -11,13 +12,14 @@ from typing import Any, cast
 from uuid import UUID
 
 from pydantic import ValidationError
-from sqlalchemy import Float, and_, func, or_, select
+from sqlalchemy import Float, and_, delete, func, or_, select
 from sqlalchemy import cast as sa_cast
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
 from app.core.database import use_fast_commit_for_current_transaction
+from app.electrical_result_status import FAILED_ELECTRICAL_CATEGORIES
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.resistive import calc_resistive_single_core, calc_resistive_three_core
 from app.formulas.electrical.self_regulating import calc_self_regulating, calc_self_regulating_tt
@@ -79,6 +81,22 @@ class CalculationError(Exception):
 
 class BatchCancelledError(CalculationError):
     pass
+
+
+class ElectricalVariantCopyError(CalculationError):
+    def __init__(
+        self,
+        *,
+        code: str,
+        message: str,
+        status_code: int = 422,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.status_code = status_code
+        self.details = details or {}
 
 
 def _clean_exception_message(exc: Exception) -> str:
@@ -183,6 +201,18 @@ class BatchProgress:
     skipped: int = 0
     heat_loss_failed: int = 0
     object_id: UUID | None = None
+
+
+@dataclass(frozen=True)
+class ElectricalVariantCopyResult:
+    project_id: UUID
+    source_variant_number: int
+    target_variant_number: int
+    copied_count: int
+    project_objects_count: int
+    deleted_target_count: int
+    overwrite_applied: bool
+    specification_regenerated: bool
 
 
 ProgressCallback = Callable[[BatchProgress], Awaitable[None] | None]
@@ -390,12 +420,13 @@ class CalculationService:
 
         error_code_text = ElectricalCalculation.results["error_code"].astext
         category_text = ElectricalCalculation.results["category"].astext
-        message_text = ElectricalCalculation.results["message"].astext
+        stale_text = ElectricalCalculation.results["stale"].astext
         selected_cable_text = ElectricalCalculation.results["selected_cable"].astext
         successful_calc = and_(
             ElectricalCalculation.results.is_not(None),
             error_code_text.is_(None),
             category_text.is_(None),
+            func.coalesce(stale_text, "") != "true",
             or_(
                 ElectricalCalculation.cable_mark.is_not(None),
                 selected_cable_text.is_not(None),
@@ -404,11 +435,11 @@ class CalculationService:
         failed_calc = and_(
             or_(
                 error_code_text.is_not(None),
-                category_text.in_(("validation", "formula", "external")),
-                message_text.is_not(None),
+                category_text.in_(tuple(FAILED_ELECTRICAL_CATEGORIES)),
             ),
             func.coalesce(category_text, "") != "unsupported",
             func.coalesce(category_text, "") != "stale",
+            func.coalesce(stale_text, "") != "true",
         )
         order_cable_length = func.coalesce(
             sa_cast(ElectricalCalculation.results["order_cable_length"].astext, Float),
@@ -644,6 +675,10 @@ class CalculationService:
                 **c,
                 "source": "builtin",
                 "cable_type": cable_type,
+                "conductor_cross_section": c.get(
+                    "conductor_cross_section",
+                    c.get("conductor_section_mm2"),
+                ),
                 "max_temperature": c.get(
                     "max_temperature",
                     RESISTIVE_DEFAULT_MAX_TEMPERATURE,
@@ -1168,6 +1203,7 @@ class CalculationService:
             result_obj = calc_self_regulating(params_sr)
             cable_mark = result_obj.selected_cable
             result_dict = result_obj.model_dump()
+            request.data["supply_voltage"] = result_dict["voltage"]
         elif cable_type == "self_regulating_tt":
             params_tt = SelfRegulatingTTParams(**request.data)
             result_tt = calc_self_regulating_tt(params_tt)
@@ -1410,6 +1446,116 @@ class CalculationService:
         result = await self.db.execute(orm_stmt)
         returned_by_object_id = {calc.object_id: calc for calc in result.scalars().all()}
         return [returned_by_object_id[row["object_id"]] for row in rows]
+
+    async def copy_electrical_variant(
+        self,
+        project_id: UUID,
+        *,
+        source_variant_number: int,
+        target_variant_number: int,
+        overwrite: bool = False,
+        regenerate_specification: bool = True,
+    ) -> ElectricalVariantCopyResult:
+        """Копирует сохранённые строки электрорасчёта между CO-вариантами."""
+        if source_variant_number == target_variant_number:
+            raise ElectricalVariantCopyError(
+                code="same_variant",
+                message="Source and target variants must differ.",
+            )
+
+        source_result = await self.db.execute(
+            select(ElectricalCalculation)
+            .join(ProjectObject, ProjectObject.id == ElectricalCalculation.object_id)
+            .where(
+                ElectricalCalculation.project_id == project_id,
+                ElectricalCalculation.variant_number == source_variant_number,
+            )
+            .order_by(ProjectObject.sort_order, ProjectObject.id)
+        )
+        source_rows = list(source_result.scalars().all())
+        if not source_rows:
+            raise ElectricalVariantCopyError(
+                code="source_empty",
+                message=f"В СО{source_variant_number} нет расчётов для копирования.",
+            )
+
+        project_objects_count = int(
+            await self.db.scalar(
+                select(func.count(ProjectObject.id)).where(ProjectObject.project_id == project_id)
+            )
+            or 0
+        )
+        target_count = int(
+            await self.db.scalar(
+                select(func.count(ElectricalCalculation.id)).where(
+                    ElectricalCalculation.project_id == project_id,
+                    ElectricalCalculation.variant_number == target_variant_number,
+                )
+            )
+            or 0
+        )
+        if target_count > 0 and not overwrite:
+            raise ElectricalVariantCopyError(
+                code="target_not_empty",
+                message=f"СО{target_variant_number} уже содержит расчёты. Подтвердите замену.",
+                status_code=409,
+                details={
+                    "target_variant_number": target_variant_number,
+                    "target_count": target_count,
+                },
+            )
+
+        try:
+            if overwrite and target_count > 0:
+                await self.db.execute(
+                    delete(ElectricalCalculation).where(
+                        ElectricalCalculation.project_id == project_id,
+                        ElectricalCalculation.variant_number == target_variant_number,
+                    )
+                )
+
+            rows = [
+                {
+                    "id": uuid.uuid4(),
+                    "project_id": row.project_id,
+                    "object_id": row.object_id,
+                    "variant_number": target_variant_number,
+                    "cable_type": row.cable_type,
+                    "cable_type_source": row.cable_type_source,
+                    "cable_mark": row.cable_mark,
+                    "cable_mark_source": row.cable_mark_source,
+                    "cable_snapshot": copy.deepcopy(row.cable_snapshot),
+                    "params": copy.deepcopy(row.params or {}),
+                    "results": copy.deepcopy(row.results),
+                }
+                for row in source_rows
+            ]
+            await self._bulk_upsert_electrical_calculations(rows, return_calcs=False)
+
+            if regenerate_specification:
+                from app.services.specification_service import SpecificationService
+
+                await SpecificationService(self.db).generate(
+                    project_id,
+                    target_variant_number,
+                    commit=False,
+                )
+
+            await self.db.commit()
+        except Exception:
+            await self.db.rollback()
+            raise
+
+        return ElectricalVariantCopyResult(
+            project_id=project_id,
+            source_variant_number=source_variant_number,
+            target_variant_number=target_variant_number,
+            copied_count=len(source_rows),
+            project_objects_count=project_objects_count,
+            deleted_target_count=target_count if overwrite else 0,
+            overwrite_applied=overwrite,
+            specification_regenerated=regenerate_specification,
+        )
 
     @staticmethod
     def _num(value: Any, default: float | None = None) -> float | None:

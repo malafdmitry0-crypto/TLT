@@ -36,7 +36,10 @@ import type {
 const { Paragraph, Text } = Typography;
 const { TextArea } = Input;
 
-type CableFormValues = Partial<Omit<CableExtendedPayload, 'params'>> & { params_json?: string };
+type CableFormValues = Partial<Omit<CableExtendedPayload, 'params'>> & {
+  params_json?: string;
+  conductor_section_mm2?: number | null;
+};
 type AccessoryFormValues = Partial<Omit<AccessoryExtendedPayload, 'params'>> & {
   params_json?: string;
 };
@@ -61,7 +64,27 @@ function formatParamsJson(value: Record<string, unknown> | null | undefined) {
   return value ? JSON.stringify(value, null, 2) : '';
 }
 
+function numberParam(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value.replace(',', '.'));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function cableConductorSection(params: Record<string, unknown> | null | undefined): number | null {
+  return numberParam(params?.conductor_section_mm2 ?? params?.conductor_cross_section);
+}
+
 function normalizeCablePayload(values: CableFormValues): Partial<CableExtendedPayload> {
+  const parsedParams = parseParamsJson(values.params_json) ?? {};
+  const conductorSection = emptyToNull(values.conductor_section_mm2);
+  if (conductorSection !== null) {
+    parsedParams.conductor_section_mm2 = conductorSection;
+  }
+  const params = Object.keys(parsedParams).length > 0 ? parsedParams : null;
+
   return {
     cable_type: values.cable_type ?? 'self_regulating',
     brand: String(values.brand ?? '').trim(),
@@ -86,7 +109,7 @@ function normalizeCablePayload(values: CableFormValues): Partial<CableExtendedPa
     price_updated_at: emptyToNull(values.price_updated_at) as string | null,
     stock_updated_at: emptyToNull(values.stock_updated_at) as string | null,
     commercial_data_source: emptyToNull(values.commercial_data_source) as string | null,
-    params: parseParamsJson(values.params_json),
+    params,
     is_active: values.is_active ?? true,
   };
 }
@@ -171,7 +194,11 @@ export default function DatabasePage() {
     setEditingCable(row ?? null);
     cableForm.setFieldsValue(
       row
-        ? { ...row, params_json: formatParamsJson(row.params) }
+        ? {
+            ...row,
+            conductor_section_mm2: cableConductorSection(row.params),
+            params_json: formatParamsJson(row.params),
+          }
         : {
             cable_type: 'self_regulating',
             currency: 'RUB',
@@ -206,6 +233,13 @@ export default function DatabasePage() {
       { title: 'Бренд', dataIndex: 'brand', width: 120 },
       { title: 'Вт/м', dataIndex: 'power_per_meter', width: 90 },
       { title: 'Ом/м', dataIndex: 'resistance_per_meter', width: 90 },
+      {
+        title: 'Сечение',
+        dataIndex: ['params', 'conductor_section_mm2'],
+        width: 90,
+        render: (_: unknown, row: CableExtended) =>
+          cableConductorSection(row.params)?.toString() ?? '—',
+      },
       { title: 'Поставщик', dataIndex: 'supplier_name', width: 150 },
       { title: 'Артикул', dataIndex: 'article', width: 130 },
       { title: 'Цена/м', dataIndex: 'price_per_meter', width: 100 },
@@ -345,9 +379,11 @@ export default function DatabasePage() {
         width={920}
       >
         <Paragraph type="secondary">
-          Для резистивного кабеля технические поля можно держать в params:
-          <Text code>resistance_ohm_km</Text>, <Text code>conductor_section_mm2</Text>,
-          <Text code>diameter_mm</Text>. Аксессуарная оценка: <Text code>accessory_total_cost</Text>.
+          Для резистивного кабеля сопротивление хранится как <Text code>Ом/м</Text>,
+          а сечение жилы сохраняется в params как <Text code>conductor_section_mm2</Text>.
+          Дополнительные технические поля: <Text code>diameter_mm</Text>,
+          <Text code>nominal_size_mm</Text>. Аксессуарная оценка:
+          {' '}<Text code>accessory_total_cost</Text>.
         </Paragraph>
         <Form form={cableForm} layout="vertical" onFinish={(values) => cableSave.mutate(values)}>
           <Space align="start" wrap>
@@ -374,6 +410,9 @@ export default function DatabasePage() {
             </Form.Item>
             <Form.Item name="resistance_per_meter" label="Ом/м">
               <InputNumber min={0} step={0.001} style={{ width: 110 }} />
+            </Form.Item>
+            <Form.Item name="conductor_section_mm2" label="Сечение, мм²">
+              <InputNumber min={0} step={0.1} style={{ width: 120 }} />
             </Form.Item>
             <Form.Item name="min_temperature" label="T min">
               <InputNumber style={{ width: 100 }} />

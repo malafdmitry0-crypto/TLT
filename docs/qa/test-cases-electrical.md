@@ -3,7 +3,9 @@
 ## TC-ELEC-01: Расчёт саморегулирующегося кабеля с явным указанием марки
 
 **Автоматизировано:** ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_valid_selection`  
-**Автоматизировано:** ✅ (integration) `test_calculations.py::TestElectricalCalculation::test_electrical_calc_returns_all_fields`
+**Автоматизировано:** ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_catalog_voltage_overrides_request_voltage_for_tlt`  
+**Автоматизировано:** ✅ (integration) `test_calculations.py::TestElectricalCalculation::test_electrical_calc_returns_all_fields`  
+**Автоматизировано:** ✅ (integration) `test_calculations.py::TestElectricalCalculation::test_tlt_uses_catalog_voltage_for_current`
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
@@ -13,7 +15,7 @@
 | 4 | Проверить `installed_cable_length` | `pipe_length` — расчётная/уложенная длина без заказного запаса |
 | 5 | Проверить `order_cable_length` | `installed_cable_length × 1.1` (запас 10% по BR-CABLE-02) |
 | 6 | Проверить `total_power` | `25 × installed_cable_length` Вт |
-| 7 | Проверить `current` | `total_power / 220` А |
+| 7 | Проверить `current` | `total_power / 220` А, где 220 В взято из паспорта выбранного ТЛТ |
 | 8 | Проверить `voltage` | `220` В |
 
 **Тело запроса:**
@@ -34,6 +36,11 @@
 ```
 
 > **Примечание:** `installed_cable_length = 50 м`, `order_cable_length = 50 × 1.1 = 55 м`.
+
+Если в запросе/объекте ошибочно задано `supply_voltage=380`, для встроенного
+ТЛТ результат всё равно должен вернуть `voltage=220`, а `current` должен
+считаться как `total_power / 220`. Сохранённые `params.supply_voltage` также
+нормализуются до фактически применённого паспортного напряжения.
 
 ---
 
@@ -95,6 +102,19 @@
 | 2 | Запустить `POST /api/v1/calc/electrical/batch` без `skip_manual` | Ручная марка сохранена, объект попал в `skipped` |
 | 3 | Запустить batch с `skip_manual=true` | Ручная марка сохранена |
 | 4 | Запустить batch с `skip_manual=false` / включить чекбокс «Перезаписать ручные выборы» | Марка заменена автоподбором, `cable_mark_source=auto` |
+
+---
+
+## TC-ELEC-03D: Служебный message не делает успешный электрорасчёт ошибкой
+
+**Автоматизировано:** ✅ (unit) `test_spec_builder.py::TestSpecBuilder::test_successful_result_with_service_message_is_ordered`<br>
+**Автоматизировано:** ✅ (integration) `test_calculations.py::TestElectricalCalculation::test_electrical_page_message_only_result_stays_successful`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | У успешного результата есть `selected_cable`, `order_cable_length` и служебный `results.message` | Статус остаётся успешным |
+| 2 | Открыть страницу электрорасчёта / query-фильтр `electrical_status=calculated` | Строка считается рассчитанной, `failed_count=0` |
+| 3 | Сгенерировать спецификацию | Кабель попадает в BoM |
 
 ---
 
@@ -165,6 +185,21 @@
 | 2 | Проверить структуру каждого элемента | `id`, `object_id`, `cable_type`, `cable_mark`, `variant_number`, `results` |
 | 3 | Поле `results` содержит | `selected_cable`, `installed_cable_length`, `order_cable_length`, `total_power`, `current`, `voltage` |
 | 4 | Пустой проект (без расчётов) | `[]` |
+
+---
+
+## TC-ELEC-09A: Создать CO на основании другого CO
+
+**Автоматизировано:** ✅ (integration)
+`test_calculations.py::TestElectricalCalculation::test_copy_electrical_variant_creates_target_without_recalculation`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Рассчитать `CO1` для части объектов проекта | В `CO1` есть строки `electrical_calculations` |
+| 2 | `POST /api/v1/calc/electrical/variants/copy` с `source_variant_number=1`, `target_variant_number=2` | HTTP 200, `copied_count=N`, новый подбор кабеля не запускается |
+| 3 | Открыть `CO2` | В `CO2` скопированы только объекты со строками в `CO1`; остальные «не рассчитаны» |
+| 4 | Повторить copy в непустой `CO2` без `overwrite` | HTTP 409 `target_not_empty` |
+| 5 | Повторить с `overwrite=true` | `CO2` полностью заменён копией `CO1`, без хвостов от старого target |
 
 ---
 

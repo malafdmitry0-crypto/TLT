@@ -14,6 +14,8 @@ from app.models.electrical_calculation import ElectricalCalculation
 from app.schemas.calculation import (
     BatchCalcResponse,
     BatchElectricalResponse,
+    CopyElectricalVariantRequest,
+    CopyElectricalVariantResponse,
     ElectricalCalcSummary,
     ElectricalPageResponse,
     ElectricalPageSummary,
@@ -27,7 +29,11 @@ from app.schemas.calculation import (
     SelectionPolicy,
 )
 from app.services.audit_service import AuditService
-from app.services.calculation_service import CalculationError, CalculationService
+from app.services.calculation_service import (
+    CalculationError,
+    CalculationService,
+    ElectricalVariantCopyError,
+)
 from app.services.electrical_query_service import (
     ElectricalQueryService,
     ElectricalQueryValidationError,
@@ -298,6 +304,65 @@ async def query_electrical(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.post(
+    "/electrical/variants/copy",
+    response_model=CopyElectricalVariantResponse,
+    summary="Создать CO-вариант электрорасчёта на основании другого CO",
+)
+async def copy_electrical_variant(
+    data: CopyElectricalVariantRequest,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await ProjectService(db).get_project_for_write(data.project_id, principal)
+        result = await CalculationService(db).copy_electrical_variant(
+            data.project_id,
+            source_variant_number=data.source_variant_number,
+            target_variant_number=data.target_variant_number,
+            overwrite=data.overwrite,
+            regenerate_specification=data.regenerate_specification,
+        )
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
+    except ElectricalVariantCopyError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={
+                "code": exc.code,
+                "message": exc.message,
+                **exc.details,
+            },
+        ) from exc
+
+    await AuditService(db).try_record(
+        event_type="calculation.electrical.variant_copied",
+        category="calculation",
+        principal=principal,
+        project_id=data.project_id,
+        details={
+            "source_variant_number": result.source_variant_number,
+            "target_variant_number": result.target_variant_number,
+            "copied_count": result.copied_count,
+            "project_objects_count": result.project_objects_count,
+            "deleted_target_count": result.deleted_target_count,
+            "overwrite": data.overwrite,
+            "regenerate_specification": data.regenerate_specification,
+        },
+        message="CO-вариант электрорасчёта создан на основании другого CO",
+    )
+    return CopyElectricalVariantResponse(
+        project_id=result.project_id,
+        source_variant_number=result.source_variant_number,
+        target_variant_number=result.target_variant_number,
+        copied_count=result.copied_count,
+        project_objects_count=result.project_objects_count,
+        deleted_target_count=result.deleted_target_count,
+        overwrite_applied=result.overwrite_applied,
+        specification_regenerated=result.specification_regenerated,
+    )
 
 
 @router.post(

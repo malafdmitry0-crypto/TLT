@@ -1,7 +1,11 @@
 import axios, { AxiosError } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import apiClient, { withIdempotencyKey } from '@/api/client';
-import { enqueueElectricalBatchJob, enqueueHeatLossBatchJob } from '@/api/calculations';
+import {
+  copyElectricalVariant,
+  enqueueElectricalBatchJob,
+  enqueueHeatLossBatchJob,
+} from '@/api/calculations';
 import { enqueueReportExportJob } from '@/api/reports';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
@@ -46,7 +50,7 @@ function unauthorized(config: unknown, detail = 'Unauthorized') {
   );
 }
 
-function httpError(config: unknown, status = 502, detail = 'Bad Gateway') {
+function httpError(config: unknown, status = 502, detail: unknown = 'Bad Gateway') {
   return new AxiosError(
     `Request failed with status code ${status}`,
     'ERR_BAD_RESPONSE',
@@ -57,7 +61,7 @@ function httpError(config: unknown, status = 502, detail = 'Bad Gateway') {
       data: { detail },
       headers: {},
       status,
-      statusText: detail,
+      statusText: typeof detail === 'string' ? detail : 'Error',
     },
   );
 }
@@ -225,6 +229,22 @@ describe('apiClient network retry and idempotency', () => {
     expect(adapter).toHaveBeenCalledTimes(1);
   });
 
+  it('сохраняет structured error code из detail object', async () => {
+    const adapter = vi.fn(async (config) => {
+      throw httpError(config, 409, {
+        code: 'target_not_empty',
+        message: 'СО2 уже содержит расчёты',
+      });
+    });
+    apiClient.defaults.adapter = adapter;
+
+    await expect(apiClient.post('/calc/electrical/variants/copy', {})).rejects.toMatchObject({
+      message: 'СО2 уже содержит расчёты',
+      status: 409,
+      code: 'target_not_empty',
+    });
+  });
+
   it('добавляет Idempotency-Key к async job мутациям', async () => {
     const adapter = vi.fn(async (config) => ({
       config,
@@ -238,8 +258,13 @@ describe('apiClient network retry and idempotency', () => {
     await enqueueElectricalBatchJob('project-1');
     await enqueueHeatLossBatchJob('project-1');
     await enqueueReportExportJob('project-1', 'pdf', 1, ['summary']);
+    await copyElectricalVariant({
+      project_id: 'project-1',
+      source_variant_number: 1,
+      target_variant_number: 2,
+    });
 
-    expect(adapter).toHaveBeenCalledTimes(3);
+    expect(adapter).toHaveBeenCalledTimes(4);
     for (const [config] of adapter.mock.calls) {
       expect(getHeader(config.headers, 'Idempotency-Key')).toEqual(expect.any(String));
     }

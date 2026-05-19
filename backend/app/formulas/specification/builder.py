@@ -7,25 +7,14 @@
 from collections import defaultdict
 from typing import Any
 
+from app.electrical_result_status import is_successful_electrical_result
 from app.reference_data.loader import list_basic_accessories
 from app.schemas.specification import SpecificationItem
 
 
 def _is_successful_electrical_result(result: dict[str, Any]) -> bool:
     """True only for electrical results that may drive cable BoM lines."""
-    if (
-        result.get("error_code")
-        or result.get("category")
-        or result.get("message")
-        or result.get("stale") is True
-    ):
-        return False
-    snapshot = (
-        result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
-    )
-    return bool(
-        snapshot.get("cable_mark") or result.get("cable_mark") or result.get("selected_cable")
-    )
+    return is_successful_electrical_result(None, result)
 
 
 def build_basic_specification(
@@ -36,7 +25,7 @@ def build_basic_specification(
 
     electrical_results: список результатов расчёта по объектам. Кабельные
     позиции строятся только по успешным результатам: есть выбранная марка и нет
-    structured issue fields (`error_code`, `category`, `message`, `stale`).
+    structured issue fields (`error_code`, `category`, `stale`).
 
     total_objects_count: общее число объектов в проекте. Аксессуары (УЗО,
     муфты, термостаты и т.д.) заказываются на **каждый заявленный объект**,

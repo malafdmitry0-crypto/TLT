@@ -115,6 +115,23 @@ class TestSpecBuilder:
         assert len(cables) == 1
         assert cables[0].quantity == 10.0
 
+    def test_successful_result_with_service_message_is_ordered(self):
+        """Служебный message без error_code/category не делает расчёт failed."""
+        results = [
+            {
+                "selected_cable": "ТЛТ-25",
+                "order_cable_length": 10,
+                "message": "Использована коммерческая политика balanced",
+            },
+        ]
+
+        items = build_basic_specification(results, total_objects_count=1)
+
+        cables = [i for i in items if i.category == "Кабель"]
+        assert len(cables) == 1
+        assert cables[0].article == "ТЛТ-25"
+        assert cables[0].quantity == 10.0
+
     def test_stale_result_with_saved_cable_is_not_ordered(self):
         """Stale-расчёт хранит старые cable fields, но не должен попадать в заказ."""
         results = [

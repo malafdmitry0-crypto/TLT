@@ -110,8 +110,10 @@ class TestReferences:
         assert len(data["single_core"]) >= 30
         assert len(data["three_core"]) >= 18
         r3 = next(c for c in data["three_core"] if c["model"] == "ТТ Р3 х 1,5-1,0")
-        assert r3["technical_data_complete"] is False
-        assert "resistance_ohm_km" in r3["technical_data_missing"]
+        assert r3["technical_data_complete"] is True
+        assert r3["technical_data_missing"] == []
+        assert r3["resistance_ohm_km"] == pytest.approx(11.666666666666666)
+        assert r3["conductor_section_mm2"] == pytest.approx(1.5)
 
     async def test_resistive_commercial_cables_include_technical_status(
         self, client: AsyncClient, guest_session: str, db_session: AsyncSession

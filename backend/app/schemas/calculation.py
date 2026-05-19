@@ -1019,6 +1019,29 @@ class BatchElectricalResponse(BaseModel):
     results: list[ElectricalCalcSummary] = Field(default_factory=list)
 
 
+class CopyElectricalVariantRequest(BaseModel):
+    """Запрос копирования одного CO-варианта электрорасчёта в другой."""
+
+    project_id: UUID
+    source_variant_number: int = Field(ge=1, le=4)
+    target_variant_number: int = Field(ge=1, le=4)
+    overwrite: bool = False
+    regenerate_specification: bool = True
+
+
+class CopyElectricalVariantResponse(BaseModel):
+    """Результат копирования CO-варианта электрорасчёта."""
+
+    project_id: UUID
+    source_variant_number: int
+    target_variant_number: int
+    copied_count: int
+    project_objects_count: int
+    deleted_target_count: int
+    overwrite_applied: bool
+    specification_regenerated: bool
+
+
 TaskStatus = Literal["queued", "enqueued", "running", "succeeded", "failed", "cancelled"]
 
 

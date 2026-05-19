@@ -94,16 +94,24 @@ def _resolve_base_length(params: Any) -> float:
     return params.pipe_length + getattr(params, "add_length", 0.0)
 
 
+def _section_from_model(model: object) -> float | None:
+    match = re.search(r"[хx×]\s*(\d+(?:[,.]\d+)?)\s*-", str(model))
+    if not match:
+        return None
+    return float(match.group(1).replace(",", "."))
+
+
 def _normalize_cable(c: dict[str, Any]) -> dict[str, Any]:
     """Приводит запись каталога к единому ключу conductor_cross_section."""
     if "conductor_cross_section" not in c and "conductor_section_mm2" in c:
         c = {**c, "conductor_cross_section": c["conductor_section_mm2"]}
-    if "conductor_cross_section" not in c and c.get("cable_type") == "resistive_three_core":
-        match = re.search(r"х\s*(\d+(?:[,.]\d+)?)\s*-", str(c.get("model", "")))
-        if match:
+    if "conductor_cross_section" not in c:
+        section = _section_from_model(c.get("model"))
+        if section is not None:
             c = {
                 **c,
-                "conductor_cross_section": float(match.group(1).replace(",", ".")),
+                "conductor_section_mm2": section,
+                "conductor_cross_section": section,
             }
     return c
 
@@ -148,7 +156,10 @@ def _resistance_ohm_km(cable: dict[str, Any]) -> float:
         return float(value)
     section = cable.get("conductor_cross_section")
     if section is None or float(section) <= 0:
-        raise ValueError(f"Для кабеля {cable.get('model', '')} не задано resistance_ohm_km")
+        raise ValueError(
+            f"Для кабеля {cable.get('model', '')} не заполнены технические данные: "
+            "resistance_ohm_km, conductor_section_mm2"
+        )
     return RHO * 1000.0 / float(section)
 
 

@@ -55,6 +55,17 @@ def _commercial_snapshot(
     )
 
 
+def _catalog_voltage(cable: CableRow) -> float | None:
+    voltage = cable.get("voltage")
+    if voltage is None:
+        return None
+    try:
+        parsed = float(voltage)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
 def _balanced_config(params: SelfRegulatingParams) -> BalancedRankingConfig | None:
     if not params.balanced_weights:
         return None
@@ -106,11 +117,13 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
         4. cable_length = pipe_length × коэффициент укладки
         5. order_cable_length = cable_length × 1.1 (запас 10% на муфты/петли, BR-CABLE-02)
         6. total_power = P_cable × cable_length
-        6. current = total_power / supply_voltage (P = U·I; cos φ ≈ 1 для резистивной нагрузки)
+        7. current = total_power / U_catalog (для ТЛТ напряжение задано паспортом кабеля)
 
     Args:
         params: требуемая мощность, температуры, марка (или None для автоподбора),
-            safety_factor, supply_voltage, опциональный cable_catalog.
+            safety_factor, supply_voltage, опциональный cable_catalog. Для ТЛТ
+            supply_voltage является fallback для кастомных каталогов без поля voltage;
+            штатный каталог ТЛТ задаёт напряжение в строке кабеля.
 
     Returns:
         SelfRegulatingResult: марка кабеля, длина, полная мощность, ток, напряжение.
@@ -231,7 +244,8 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
     cable_length = params.pipe_length * layout_factor
     order_cable_length = cable_order_length(cable_length)
     total_power = cable["power_per_meter"] * cable_length
-    current = total_power / params.supply_voltage
+    applied_voltage = _catalog_voltage(cable) or params.supply_voltage
+    current = total_power / applied_voltage
 
     return SelfRegulatingResult(
         selected_cable=cable["model"],
@@ -240,7 +254,7 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
         order_cable_length=round(order_cable_length, 3),
         total_power=round(total_power, 3),
         current=round(current, 3),
-        voltage=params.supply_voltage,
+        voltage=applied_voltage,
         winding_pitch=round(params.winding_pitch or 0.0, 3),
         winding_coefficient=round(params.winding_coefficient, 6),
         num_circuits=applied_threads,

@@ -2,6 +2,10 @@
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.electrical_calculation import ElectricalCalculation
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -43,6 +47,35 @@ async def _create_pipe_object(
         headers={"X-Session-Id": session_id},
     )
     assert resp.status_code in (200, 201), resp.text
+    return resp.json()
+
+
+async def _calc_pipe_electrical(
+    client: AsyncClient,
+    object_id: str,
+    session_id: str,
+    *,
+    variant_number: int = 1,
+    cable_mark: str = "ТЛТ-25",
+) -> dict:
+    resp = await client.post(
+        "/api/v1/calc/electrical",
+        json={
+            "object_id": object_id,
+            "cable_type": "self_regulating",
+            "variant_number": variant_number,
+            "data": {
+                "required_power_per_meter": 20,
+                "cable_mark": cable_mark,
+                "supply_voltage": 220,
+                "ambient_temperature": -30,
+                "pipe_length": 50,
+                "safety_factor": 1.1,
+            },
+        },
+        headers={"X-Session-Id": session_id},
+    )
+    assert resp.status_code == 200, resp.text
     return resp.json()
 
 
@@ -174,6 +207,45 @@ class TestElectricalCalculation:
         assert "current" in result
         assert "voltage" in result
 
+    async def test_tlt_uses_catalog_voltage_for_current(
+        self, client: AsyncClient, guest_session: str
+    ):
+        """Для ТЛТ паспортное напряжение кабеля важнее общего supply_voltage CO."""
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical",
+            json={
+                "object_id": obj["id"],
+                "cable_type": "self_regulating",
+                "data": {
+                    "required_power_per_meter": 20,
+                    "cable_mark": "ТЛТ-25",
+                    "supply_voltage": 380,
+                    "ambient_temperature": -30,
+                    "pipe_length": 50,
+                    "safety_factor": 1.1,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        result = resp.json()["result"]
+        assert result["voltage"] == 220
+        assert result["current"] == pytest.approx(result["total_power"] / 220, rel=1e-4)
+
+        list_resp = await client.get(
+            "/api/v1/calc/electrical",
+            params={"project_id": project["id"]},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert list_resp.status_code == 200, list_resp.text
+        calc = list_resp.json()[0]
+        assert calc["params"]["supply_voltage"] == 220
+        assert calc["results"]["voltage"] == 220
+
     async def test_order_cable_length_includes_10_percent_factor(
         self, client: AsyncClient, guest_session: str
     ):
@@ -292,6 +364,179 @@ class TestElectricalCalculation:
         calcs = resp.json()
         assert len(calcs) == 2
         assert [calc["variant_number"] for calc in calcs] == [3, 4]
+
+    async def test_copy_electrical_variant_creates_target_without_recalculation(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        source_obj = await _create_pipe_object(client, project["id"], guest_session)
+        await _create_pipe_object(client, project["id"], guest_session, {"name": "No source calc"})
+        await _calc_pipe_electrical(
+            client,
+            source_obj["id"],
+            guest_session,
+            variant_number=1,
+            cable_mark="ТЛТ-25",
+        )
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/variants/copy",
+            json={
+                "project_id": project["id"],
+                "source_variant_number": 1,
+                "target_variant_number": 2,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["copied_count"] == 1
+        assert body["project_objects_count"] == 2
+        assert body["deleted_target_count"] == 0
+        assert body["overwrite_applied"] is False
+        assert body["specification_regenerated"] is True
+
+        target = await client.get(
+            "/api/v1/calc/electrical",
+            params={"project_id": project["id"], "variant_number": 2},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert target.status_code == 200, target.text
+        target_calcs = target.json()
+        assert len(target_calcs) == 1
+        assert target_calcs[0]["object_id"] == source_obj["id"]
+        assert target_calcs[0]["variant_number"] == 2
+        assert target_calcs[0]["cable_mark"] == "ТЛТ-25"
+        assert target_calcs[0]["results"]["selected_cable"] == "ТЛТ-25"
+
+        source = await client.get(
+            "/api/v1/calc/electrical",
+            params={"project_id": project["id"], "variant_number": 1},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert source.status_code == 200, source.text
+        assert len(source.json()) == 1
+        assert source.json()[0]["cable_mark"] == "ТЛТ-25"
+
+        spec = await client.get(
+            f"/api/v1/specifications/{project['id']}",
+            params={"variant": 2},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert spec.status_code == 200, spec.text
+        assert any(item["category"] == "Кабель" for item in spec.json()["items"])
+
+    async def test_copy_electrical_variant_conflict_and_overwrite_replaces_target(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        source_obj = await _create_pipe_object(client, project["id"], guest_session)
+        target_tail_obj = await _create_pipe_object(
+            client,
+            project["id"],
+            guest_session,
+            {"name": "Target tail"},
+        )
+        await _calc_pipe_electrical(
+            client,
+            source_obj["id"],
+            guest_session,
+            variant_number=1,
+            cable_mark="ТЛТ-25",
+        )
+        await _calc_pipe_electrical(
+            client,
+            source_obj["id"],
+            guest_session,
+            variant_number=2,
+            cable_mark="ТЛТ-40",
+        )
+        await _calc_pipe_electrical(
+            client,
+            target_tail_obj["id"],
+            guest_session,
+            variant_number=2,
+            cable_mark="ТЛТ-40",
+        )
+
+        conflict = await client.post(
+            "/api/v1/calc/electrical/variants/copy",
+            json={
+                "project_id": project["id"],
+                "source_variant_number": 1,
+                "target_variant_number": 2,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert conflict.status_code == 409
+        assert conflict.json()["detail"]["code"] == "target_not_empty"
+        assert conflict.json()["detail"]["target_count"] == 2
+
+        overwrite = await client.post(
+            "/api/v1/calc/electrical/variants/copy",
+            json={
+                "project_id": project["id"],
+                "source_variant_number": 1,
+                "target_variant_number": 2,
+                "overwrite": True,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert overwrite.status_code == 200, overwrite.text
+        assert overwrite.json()["copied_count"] == 1
+        assert overwrite.json()["deleted_target_count"] == 2
+        assert overwrite.json()["overwrite_applied"] is True
+
+        target = await client.get(
+            "/api/v1/calc/electrical",
+            params={"project_id": project["id"], "variant_number": 2},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert target.status_code == 200, target.text
+        target_calcs = target.json()
+        assert len(target_calcs) == 1
+        assert target_calcs[0]["object_id"] == source_obj["id"]
+        assert target_calcs[0]["cable_mark"] == "ТЛТ-25"
+
+    async def test_copy_electrical_variant_empty_source_returns_422(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        await _create_pipe_object(client, project["id"], guest_session)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/variants/copy",
+            json={
+                "project_id": project["id"],
+                "source_variant_number": 1,
+                "target_variant_number": 2,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 422
+        assert resp.json()["detail"]["code"] == "source_empty"
+
+    async def test_copy_electrical_variant_same_source_and_target_returns_422(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        await _calc_pipe_electrical(client, obj["id"], guest_session, variant_number=1)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/variants/copy",
+            json={
+                "project_id": project["id"],
+                "source_variant_number": 1,
+                "target_variant_number": 1,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 422
+        assert resp.json()["detail"]["code"] == "same_variant"
 
     async def test_unsupported_cable_type_returns_400(
         self, client: AsyncClient, guest_session: str
@@ -489,6 +734,63 @@ class TestElectricalCalculation:
             "has_next_page": True,
             "has_previous_page": False,
         }
+
+    async def test_electrical_page_message_only_result_stays_successful(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        guest_session: str,
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        await _calc_pipe_electrical(client, obj["id"], guest_session)
+
+        calc = (
+            await db_session.execute(
+                select(ElectricalCalculation).where(ElectricalCalculation.object_id == obj["id"])
+            )
+        ).scalar_one()
+        calc.results = {
+            **calc.results,
+            "message": "Служебное пояснение успешного подбора",
+        }
+        await db_session.commit()
+
+        resp = await client.get(
+            "/api/v1/calc/electrical/page",
+            params={"project_id": project["id"], "page": 1, "page_size": 10},
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["summary"]["calculated_count"] == 1
+        assert body["summary"]["failed_count"] == 0
+        assert body["summary"]["total_power"] == pytest.approx(calc.results["total_power"])
+
+        query_resp = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "filters": [
+                    {"key": "electrical_status", "op": "in", "values": ["calculated"]}
+                ],
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert query_resp.status_code == 200, query_resp.text
+        assert query_resp.json()["counts"]["filtered"] == 1
+
+        error_query_resp = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={
+                "project_id": project["id"],
+                "filters": [{"key": "electrical_status", "op": "in", "values": ["error"]}],
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert error_query_resp.status_code == 200, error_query_resp.text
+        assert error_query_resp.json()["counts"]["filtered"] == 0
 
     async def test_electrical_query_capabilities_include_result_fields(
         self, client: AsyncClient, guest_session: str

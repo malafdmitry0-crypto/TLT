@@ -216,7 +216,7 @@ class TestCurrentCalculation:
         )
         assert r.current == pytest.approx(r.total_power / 220.0, rel=0.01)
 
-    def test_current_for_380v(self):
+    def test_tlt_current_uses_catalog_voltage_not_request_voltage(self):
         r = calc_self_regulating(
             _params(
                 required_power_per_meter=20,
@@ -224,7 +224,8 @@ class TestCurrentCalculation:
                 supply_voltage=380,
             )
         )
-        assert r.current == pytest.approx(r.total_power / 380.0, rel=0.01)
+        assert r.voltage == 220.0
+        assert r.current == pytest.approx(r.total_power / 220.0, rel=0.01)
 
 
 class TestAutoSelectionMinimality:

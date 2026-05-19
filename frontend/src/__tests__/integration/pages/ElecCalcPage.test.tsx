@@ -65,7 +65,9 @@ vi.mock('@/api/projects', () => ({
 }));
 
 vi.mock('@/api/calculations', () => ({
+  batchCalcElectrical: vi.fn(),
   cancelCalcTask: vi.fn(),
+  copyElectricalVariant: vi.fn(),
   enqueueElectricalBatchJob: vi.fn(),
   getCalcTask: vi.fn().mockResolvedValue({
     id: 'task-1',
@@ -464,6 +466,100 @@ describe('ElecCalcPage (integration)', () => {
     });
     const options = (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mock.calls[0][4];
     expect(options.objectOverrides).toBeUndefined();
+  });
+
+  it('создаёт СО на основании текущего без запуска batch-пересчёта', async () => {
+    const {
+      copyElectricalVariant,
+      enqueueElectricalBatchJob,
+      getElectricalPage,
+    } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage(
+      [makeObject()],
+      [
+        {
+          id: 'calc-1',
+          object_id: 'o-1',
+          cable_type: 'self_regulating',
+          cable_type_source: 'auto',
+          cable_mark: 'ТЛТ-25',
+          cable_mark_source: 'auto',
+          cable_snapshot: null,
+          cable_snapshot_status: null,
+          variant_number: 1,
+          params: {},
+          results: { selected_cable: 'ТЛТ-25', order_cable_length: 10 },
+        },
+      ],
+      { total_objects: 2, electrical_calculations_total: 1 },
+    ));
+    (copyElectricalVariant as ReturnType<typeof vi.fn>).mockResolvedValue({
+      project_id: 'p-1',
+      source_variant_number: 1,
+      target_variant_number: 2,
+      copied_count: 1,
+      project_objects_count: 2,
+      deleted_target_count: 0,
+      overwrite_applied: false,
+      specification_regenerated: true,
+    });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /Создать на основании/i }));
+    await user.click(await screen.findByText('Скопировать СО1 в СО2'));
+    await user.click(await screen.findByRole('button', { name: 'Создать' }));
+
+    await waitFor(() => {
+      expect(copyElectricalVariant).toHaveBeenCalledWith({
+        project_id: 'p-1',
+        source_variant_number: 1,
+        target_variant_number: 2,
+        overwrite: false,
+        regenerate_specification: true,
+      });
+    });
+    expect(enqueueElectricalBatchJob).not.toHaveBeenCalled();
+  });
+
+  it('при занятом target просит подтверждение и повторяет copy с overwrite=true', async () => {
+    const { copyElectricalVariant, getElectricalPage } = await import('@/api/calculations');
+    const targetNotEmpty = Object.assign(new Error('СО2 уже содержит расчёты'), {
+      status: 409,
+      code: 'target_not_empty',
+    });
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
+    (copyElectricalVariant as ReturnType<typeof vi.fn>)
+      .mockRejectedValueOnce(targetNotEmpty)
+      .mockResolvedValueOnce({
+        project_id: 'p-1',
+        source_variant_number: 1,
+        target_variant_number: 2,
+        copied_count: 1,
+        project_objects_count: 1,
+        deleted_target_count: 1,
+        overwrite_applied: true,
+        specification_regenerated: true,
+      });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /Создать на основании/i }));
+    await user.click(await screen.findByText('Скопировать СО1 в СО2'));
+    await user.click(await screen.findByRole('button', { name: 'Создать' }));
+    await user.click(await screen.findByRole('button', { name: 'Заменить' }));
+
+    await waitFor(() => {
+      expect(copyElectricalVariant).toHaveBeenCalledTimes(2);
+    });
+    expect((copyElectricalVariant as ReturnType<typeof vi.fn>).mock.calls[1][0]).toMatchObject({
+      project_id: 'p-1',
+      source_variant_number: 1,
+      target_variant_number: 2,
+      overwrite: true,
+    });
   });
 
   it('селектор типа кабеля содержит ТТН/ТТВ/ТТХ, single_core, three_core как доступные', async () => {
