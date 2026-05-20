@@ -1,8 +1,10 @@
 """Integration-тесты расчётов."""
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.electrical_calculation import ElectricalCalculation
@@ -886,6 +888,66 @@ class TestElectricalCalculation:
         assert fields["current"]["filter"]["ops"] == ["range"]
         assert fields["total_power"]["sort"]["enabled"] is True
         assert fields["electrical_status"]["options"]["items"]
+
+    async def test_electrical_query_does_not_create_calculation_rows(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        guest_session: str,
+    ):
+        project = await _create_project(client, guest_session)
+        await _create_pipe_object(client, project["id"], guest_session)
+
+        before_count = (
+            await db_session.execute(
+                select(func.count(ElectricalCalculation.id)).where(
+                    ElectricalCalculation.project_id == UUID(project["id"])
+                )
+            )
+        ).scalar_one()
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/query",
+            json={"project_id": project["id"], "page": 1, "page_size": 50},
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["calculations"] == []
+        after_count = (
+            await db_session.execute(
+                select(func.count(ElectricalCalculation.id)).where(
+                    ElectricalCalculation.project_id == UUID(project["id"])
+                )
+            )
+        ).scalar_one()
+        assert before_count == 0
+        assert after_count == before_count
+
+    async def test_heat_loss_batch_does_not_create_electrical_calculation_rows(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        guest_session: str,
+    ):
+        project = await _create_project(client, guest_session)
+        await _create_pipe_object(client, project["id"], guest_session)
+
+        resp = await client.post(
+            "/api/v1/calc/heat-loss/batch",
+            params={"project_id": project["id"]},
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        count = (
+            await db_session.execute(
+                select(func.count(ElectricalCalculation.id)).where(
+                    ElectricalCalculation.project_id == UUID(project["id"])
+                )
+            )
+        ).scalar_one()
+        assert count == 0
 
     async def test_electrical_query_default_page_supports_keyset_cursor(
         self, client: AsyncClient, guest_session: str

@@ -19,6 +19,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
 from app.core.database import use_fast_commit_for_current_transaction
+from app.electrical_input_validation import (
+    PROCESS_TEMPERATURE_REQUIRED_CABLE_TYPES,
+    ProcessTemperatureInputError,
+    ensure_process_temperature,
+    required_process_temperature,
+)
 from app.electrical_result_status import FAILED_ELECTRICAL_CATEGORIES
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.resistive import calc_resistive_single_core, calc_resistive_three_core
@@ -1217,21 +1223,12 @@ class CalculationService:
             result_dict=result_dict,
         )
 
-        # Upsert по (object_id, variant_number) — чтобы повторный пересчёт
-        # обновлял существующую строку и «затирал» предыдущую ошибку.
-        existing = await self.db.execute(
-            select(ElectricalCalculation).where(
-                ElectricalCalculation.object_id == obj.id,
-                ElectricalCalculation.variant_number == request.variant_number,
-            )
-        )
-        calc = self._upsert_electrical_calculation(
+        calc = await self._upsert_electrical_calculation(
             obj=obj,
             request=request,
             cable_mark=cable_mark,
             result_dict=result_dict,
             cable_snapshot=cable_snapshot,
-            existing_calc=existing.scalars().first(),
         )
         await self.db.commit()
         await self.db.refresh(calc)
@@ -1242,18 +1239,13 @@ class CalculationService:
         request: ElectricalRequest,
         obj: ProjectObject,
     ) -> None:
-        if request.cable_type != "self_regulating":
+        if request.cable_type not in PROCESS_TEMPERATURE_REQUIRED_CABLE_TYPES:
             return
-        process_temperature = self._num(request.data.get("process_temperature"))
-        if process_temperature is None:
-            obj_params = obj.params if isinstance(obj.params, dict) else {}
-            process_temperature = self._num(obj_params.get("process_temperature"))
-            if process_temperature is not None:
-                request.data["process_temperature"] = process_temperature
-        if process_temperature is None:
-            raise CalculationError(
-                "Для ТЛТ требуется температура продукта для проверки T_max кабеля"
-            )
+        obj_params = obj.params if isinstance(obj.params, dict) else {}
+        try:
+            ensure_process_temperature(request.data, obj_params)
+        except ProcessTemperatureInputError as exc:
+            raise CalculationError(str(exc)) from exc
 
     def _calculate_electrical_result(
         self, request: ElectricalRequest
@@ -1329,7 +1321,7 @@ class CalculationService:
             catalog = [{**c, "source": "builtin"} for c in list_tlt_cables()]
         return lookup_cable_row(catalog, cable_mark, cable_type)
 
-    def _upsert_electrical_calculation(
+    async def _upsert_electrical_calculation(
         self,
         *,
         obj: ProjectObject,
@@ -1337,34 +1329,27 @@ class CalculationService:
         cable_mark: str | None,
         result_dict: dict[str, Any],
         cable_snapshot: dict[str, Any] | None,
-        existing_calc: ElectricalCalculation | None,
     ) -> ElectricalCalculation:
-        calc = existing_calc
         cable_type_source = self._normalize_cable_type_source(request.data.get("cable_type_source"))
         cable_mark_source = self._resolve_cable_mark_source(request.data)
-        if calc is None:
-            calc = ElectricalCalculation(
-                project_id=obj.project_id,
-                object_id=obj.id,
-                variant_number=request.variant_number,
-                cable_type=request.cable_type,
-                cable_type_source=cable_type_source,
-                cable_mark=cable_mark,
-                cable_mark_source=cable_mark_source,
-                cable_snapshot=cable_snapshot,
-                params=self._compact_electrical_params(request.data),
-                results=result_dict,
-            )
-            self.db.add(calc)
-        else:
-            calc.cable_type = request.cable_type
-            calc.cable_type_source = cable_type_source
-            calc.cable_mark = cable_mark
-            calc.cable_mark_source = cable_mark_source
-            calc.cable_snapshot = cable_snapshot
-            calc.params = self._compact_electrical_params(request.data)
-            calc.results = result_dict
-        return calc
+        rows = await self._bulk_upsert_electrical_calculations(
+            [
+                {
+                    "project_id": obj.project_id,
+                    "object_id": obj.id,
+                    "variant_number": request.variant_number,
+                    "cable_type": request.cable_type,
+                    "cable_type_source": cable_type_source,
+                    "cable_mark": cable_mark,
+                    "cable_mark_source": cable_mark_source,
+                    "cable_snapshot": cable_snapshot,
+                    "params": self._compact_electrical_params(request.data),
+                    "results": result_dict,
+                }
+            ],
+            return_calcs=True,
+        )
+        return rows[0]
 
     async def _bulk_upsert_electrical_calculations(
         self,
@@ -1665,6 +1650,16 @@ class CalculationService:
         if value is None or value == "":
             return default
         return float(value)
+
+    @staticmethod
+    def _required_process_temperature(
+        data: dict[str, Any] | None,
+        fallback: dict[str, Any] | None = None,
+    ) -> float:
+        try:
+            return required_process_temperature(data, fallback)
+        except ProcessTemperatureInputError as exc:
+            raise CalculationError(str(exc)) from exc
 
     @staticmethod
     def _positive(value: Any, message: str) -> float:
@@ -2183,7 +2178,6 @@ class CalculationService:
 
         params = obj.params or {}
         results = obj.results or {}
-        process_temperature = self._num(params.get("process_temperature"))
         supply_voltage = self._num(
             overrides.get("supply_voltage") or params.get("supply_voltage"),
             220.0,
@@ -2209,22 +2203,21 @@ class CalculationService:
         )
 
         if cable_type == "self_regulating":
+            required_power_per_meter = self._required_power_per_meter(
+                obj, cable_type, overrides, safety_factor or 1.1
+            )
+            process_temperature = self._required_process_temperature(None, params)
             thread_payload = self._number_of_threads_payload(
                 overrides,
                 params,
                 1 if cable_mark is not None else None,
             )
             return {
-                "required_power_per_meter": self._required_power_per_meter(
-                    obj, cable_type, overrides, safety_factor or 1.1
-                ),
+                "required_power_per_meter": required_power_per_meter,
                 "cable_mark": cable_mark,
                 "supply_voltage": supply_voltage,
                 "ambient_temperature": float(params.get("ambient_temperature", -20.0)),
-                "process_temperature": self._required_num(
-                    process_temperature,
-                    "Для ТЛТ требуется температура продукта для проверки T_max кабеля",
-                ),
+                "process_temperature": process_temperature,
                 "pipe_length": pipe_length,
                 "safety_factor": safety_factor,
                 "cable_catalog": tlt_catalog,
@@ -2240,6 +2233,10 @@ class CalculationService:
             }
 
         if cable_type == "self_regulating_tt":
+            required_power_per_meter = self._required_power_per_meter(
+                obj, cable_type, overrides, safety_factor or 1.1
+            )
+            process_temperature = self._required_process_temperature(None, params)
             thread_payload = self._number_of_threads_payload(overrides, params, None)
             aggressive_product = (
                 overrides.get("aggressive_product")
@@ -2248,14 +2245,9 @@ class CalculationService:
                 else params.get("aggressive_product", False)
             )
             data = {
-                "required_power_per_meter": self._required_power_per_meter(
-                    obj, cable_type, overrides, safety_factor or 1.1
-                ),
+                "required_power_per_meter": required_power_per_meter,
                 "pipe_length": pipe_length,
-                "process_temperature": self._required_num(
-                    process_temperature,
-                    "Для ТТН/ТТВ/ТТХ требуется температура продукта",
-                ),
+                "process_temperature": process_temperature,
                 "maintain_temperature": maintain_temperature,
                 "supply_voltage": supply_voltage,
                 "safety_factor": safety_factor,
@@ -2270,15 +2262,14 @@ class CalculationService:
             return data
 
         if cable_type in ("single_core", "three_core"):
+            required_heat_loss = self._positive_heat_loss(results.get("total_heat_loss"))
+            process_temperature = self._required_process_temperature(None, params)
             thread_payload = self._number_of_threads_payload(overrides, params, 1)
             data = {
-                "required_heat_loss": self._positive_heat_loss(results.get("total_heat_loss")),
+                "required_heat_loss": required_heat_loss,
                 "pipe_length": pipe_length,
                 "add_length": self._num(overrides.get("add_length"), 0.0),
-                "process_temperature": self._required_num(
-                    process_temperature,
-                    "Для резистивного кабеля требуется температура продукта",
-                ),
+                "process_temperature": process_temperature,
                 "supply_voltage": supply_voltage,
                 "maintain_temperature": maintain_temperature,
                 "connection_type": overrides.get("connection_type")
@@ -2741,12 +2732,11 @@ class CalculationService:
                             ),
                         }
                     )
-                    self._upsert_failed_electrical(
+                    await self._upsert_failed_electrical(
                         obj,
                         err_msg,
                         variant_number,
                         object_cable_type,
-                        existing_calc=existing_by_object_id.get(obj.id),
                         cable_type_source=cable_type_source,
                         request_data=error_request_data,
                     )
@@ -2799,14 +2789,13 @@ class CalculationService:
 
         return calculated, skipped, heat_loss_failed, errors, calcs
 
-    def _upsert_failed_electrical(
+    async def _upsert_failed_electrical(
         self,
         obj: ProjectObject,
         error_message: str,
         variant_number: int,
         cable_type: str,
         *,
-        existing_calc: ElectricalCalculation | None,
         cable_type_source: str | None = None,
         cable_mark_source: str | None = None,
         request_data: dict[str, Any] | None = None,
@@ -2830,30 +2819,24 @@ class CalculationService:
             cable_type=cable_type,
             request_data=error_request_data,
         )
-        row = existing_calc
-        if row is None:
-            row = ElectricalCalculation(
-                project_id=obj.project_id,
-                object_id=obj.id,
-                variant_number=variant_number,
-                cable_type=cable_type,
-                cable_type_source=normalized_source,
-                cable_mark=None,
-                cable_mark_source=normalized_mark_source,
-                cable_snapshot=None,
-                params=params,
-                results=payload,
-            )
-            self.db.add(row)
-        else:
-            row.cable_type = cable_type
-            row.cable_type_source = normalized_source
-            row.cable_mark = None
-            row.cable_mark_source = normalized_mark_source
-            row.cable_snapshot = None
-            row.params = params
-            row.results = payload
-        return row
+        rows = await self._bulk_upsert_electrical_calculations(
+            [
+                {
+                    "project_id": obj.project_id,
+                    "object_id": obj.id,
+                    "variant_number": variant_number,
+                    "cable_type": cable_type,
+                    "cable_type_source": normalized_source,
+                    "cable_mark": None,
+                    "cable_mark_source": normalized_mark_source,
+                    "cable_snapshot": None,
+                    "params": params,
+                    "results": payload,
+                }
+            ],
+            return_calcs=True,
+        )
+        return rows[0]
 
     async def _save_failed_electrical(
         self,
@@ -2863,18 +2846,11 @@ class CalculationService:
         cable_type: str = "self_regulating",
     ) -> None:
         """Сохраняет или обновляет запись ElectricalCalculation с ошибкой."""
-        existing = await self.db.execute(
-            select(ElectricalCalculation).where(
-                ElectricalCalculation.object_id == obj.id,
-                ElectricalCalculation.variant_number == variant_number,
-            )
-        )
-        self._upsert_failed_electrical(
+        await self._upsert_failed_electrical(
             obj,
             error_message,
             variant_number,
             cable_type,
-            existing_calc=existing.scalars().first(),
         )
         await self.db.commit()
 

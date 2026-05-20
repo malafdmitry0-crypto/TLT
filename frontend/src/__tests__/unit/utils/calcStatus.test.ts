@@ -47,4 +47,17 @@ describe('calcStatus', () => {
     expect(isElectricalCalcStale(stale)).toBe(true);
     expect(electricalCalcCategory(stale)).toBe('stale');
   });
+
+  it('treats service message on successful result as non-error metadata', () => {
+    const successful = {
+      ...calc({
+        selected_cable: 'ТЛТ-30',
+        message: 'Служебное пояснение успешного подбора',
+      }),
+      cable_mark: 'ТЛТ-30',
+    };
+
+    expect(isElectricalCalcSuccess(successful)).toBe(true);
+    expect(electricalCalcError(successful)).toBeNull();
+  });
 });

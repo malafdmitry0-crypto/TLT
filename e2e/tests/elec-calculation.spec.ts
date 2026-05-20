@@ -6,6 +6,7 @@ const ALL_ELECTRICAL_COLUMN_KEYS = [
   'index',
   'object_name',
   'electrical_status',
+  'cable_type',
   'cable_mark',
   'applied_selection_policy',
   'winding_pitch_mm',
@@ -32,6 +33,8 @@ const ALL_ELECTRICAL_COLUMN_KEYS = [
   'heat_loss_per_m2',
   'total_heat_loss',
 ] as const;
+
+type ElectricalColumnKey = typeof ALL_ELECTRICAL_COLUMN_KEYS[number];
 
 async function recalculateAll(page: Page, variant = 1) {
   await page.getByRole('button', { name: new RegExp(`Пересчитать все СО${variant}`, 'i') }).click();
@@ -111,6 +114,14 @@ async function expectElectricalHeaderControlsInline(page: Page) {
 }
 
 async function showAllElectricalColumns(page: Page) {
+  await showElectricalColumns(page, [...ALL_ELECTRICAL_COLUMN_KEYS], { reload: true });
+}
+
+async function showElectricalColumns(
+  page: Page,
+  keys: ElectricalColumnKey[],
+  options: { reload?: boolean } = {},
+) {
   await page.evaluate((keys) => {
     const columns = Object.fromEntries(keys.map((key) => [key, { widthPct: 8 }]));
     localStorage.setItem('electrical.tableColumns.v4.guest', JSON.stringify({
@@ -124,8 +135,20 @@ async function showAllElectricalColumns(page: Page) {
       tableLabelFormat: 'short',
       settingsLabelFormat: 'full',
     }));
-  }, ALL_ELECTRICAL_COLUMN_KEYS);
-  await page.reload();
+  }, keys);
+  if (options.reload) {
+    await page.reload();
+  }
+}
+
+async function electricalRowCellText(page: Page, rowText: string, cellIndex: number) {
+  return page
+    .locator('.electrical-spreadsheet .ant-table-tbody tr:not(.ant-table-measure-row)')
+    .filter({ hasText: rowText })
+    .first()
+    .locator('td')
+    .nth(cellIndex)
+    .innerText();
 }
 
 async function scrollElectricalTableHorizontally(page: Page, scrollLeft: number) {
@@ -151,6 +174,37 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await expect(page.getByRole('button').filter({ hasText: /^СО4$/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /Пересчитать все СО1/i })).toBeDisabled();
     await expect(page.getByText(/нет объектов/i)).toBeVisible();
+  });
+
+  test('не показывает тип кабеля в строке до запуска электрорасчёта', async ({
+    page,
+  }) => {
+    await loginAsGuest(page);
+    const pipeName = `E2E no cable type before calc ${Date.now()}`;
+    await createCalculatedPipe(page, pipeName);
+    await showElectricalColumns(page, [
+      'index',
+      'object_name',
+      'electrical_status',
+      'cable_type',
+      'cable_mark',
+    ]);
+
+    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
+    const row = page.getByRole('row').filter({ hasText: pipeName }).first();
+    await expect(row).toBeVisible();
+    await expect(row.locator('.electrical-status-icon-tag[aria-label="Не рассчитан"]')).toBeVisible();
+    await expect.poll(async () => (await electricalRowCellText(page, pipeName, 4)).trim()).toBe('—');
+    await expect(row.getByText(/Саморегулирующийся/i)).toHaveCount(0);
+
+    await recalculateAll(page);
+
+    await expect(page.getByText(/СО1 — расчёт выполнен для всех объектов: 1/i)).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect.poll(async () => await electricalRowCellText(page, pipeName, 4)).toContain(
+      'Саморегулиру',
+    );
   });
 
   test('после расчёта объекта показывает марку кабеля, длину, мощность и ток', async ({

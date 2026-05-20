@@ -1,3 +1,4 @@
+from app.electrical_input_validation import PROCESS_TEMPERATURE_REQUIRED_MESSAGE
 from app.services.electrical_error_guidance import (
     build_electrical_error_context,
     build_electrical_error_payload,
@@ -104,6 +105,21 @@ def test_missing_tank_layout_with_complete_geometry_falls_back_to_layout_choice(
         "MISSING_TANK_LAYOUT",
         {"shape": "rectangular", "heating_height": 1.2, "laying_step": 0.1},
     ) == ["SET_TANK_LAYOUT"]
+
+
+def test_missing_process_temperature_payload_points_to_process_temperature():
+    payload = build_electrical_error_payload(
+        f"CalculationError: {PROCESS_TEMPERATURE_REQUIRED_MESSAGE}",
+        object_type="pipe",
+        cable_type="single_core",
+        request_data={"pipe_length": 10},
+    )
+
+    assert payload["error_code"] == "MISSING_PROCESS_TEMPERATURE"
+    assert payload["category"] == "validation"
+    assert payload["field"] == "process_temperature"
+    assert payload["suggested_actions"] == ["CHECK_PROCESS_TEMPERATURE"]
+    assert payload["message"] == PROCESS_TEMPERATURE_REQUIRED_MESSAGE
 
 
 def test_temperature_actions_follow_detected_subject():

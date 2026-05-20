@@ -361,6 +361,20 @@ function getCableMark(calc: ElectricalCalcSummary | undefined) {
   return calc?.cable_mark ?? (typeof selectedCable === 'string' ? selectedCable : undefined);
 }
 
+function currentElectricalCalc(calc: ElectricalCalcSummary | undefined) {
+  if (!calc?.results) return undefined;
+  const results = calc.results as Record<string, unknown>;
+  if (
+    results.error_code
+    || results.category
+    || results.stale === true
+    || results.stale === 'true'
+  ) {
+    return undefined;
+  }
+  return getCableMark(calc) ? calc : undefined;
+}
+
 function getCableMarkSource(calc: ElectricalCalcSummary | undefined): CableMarkSource {
   const value = calc?.cable_mark_source ?? calc?.params?.cable_mark_source;
   return value === 'manual' ? 'manual' : 'auto';
@@ -1000,12 +1014,17 @@ export default function ElecCalcPage() {
     tablePage,
   ]);
 
-  const getSavedCableTypeForObject = useCallback((objectId: string): CableTypeKey => {
+  const getCalculatedCableTypeForObject = useCallback((objectId: string): CableTypeKey | null => {
     const savedType = stats.calcByObjectId[objectId]?.cable_type;
-    return (savedType && savedType in CABLE_TYPE_LABEL
-      ? savedType
-      : 'self_regulating') as CableTypeKey;
+    return savedType && savedType in CABLE_TYPE_LABEL
+      ? savedType as CableTypeKey
+      : null;
   }, [stats.calcByObjectId]);
+  const getSavedCableTypeForObject = useCallback(
+    (objectId: string): CableTypeKey =>
+      getCalculatedCableTypeForObject(objectId) ?? 'self_regulating',
+    [getCalculatedCableTypeForObject],
+  );
 
   const getDraftCableTypeForObject = useCallback((objectId: string): CableTypeKey =>
     cableTypeDraftByObjectId[objectId] ?? getSavedCableTypeForObject(objectId),
@@ -1723,12 +1742,13 @@ export default function ElecCalcPage() {
   }, []);
   const openCableMarkModal = useCallback((obj: ProjectObject) => {
     const calc = stats.calcByObjectId[obj.id];
+    const currentCalc = currentElectricalCalc(calc);
     const type = getSavedCableTypeForObject(obj.id);
     setActiveRowId(obj.id);
     setCableMarkModalObjectId(obj.id);
     setCableMarkModalCableType(type);
-    const mark = getCableMark(calc);
-    setCableMarkModalValue(cableMarkValueForCalc(type, mark, calc));
+    const mark = getCableMark(currentCalc);
+    setCableMarkModalValue(cableMarkValueForCalc(type, mark, currentCalc));
   }, [cableMarkValueForCalc, getSavedCableTypeForObject, stats.calcByObjectId]);
   const changeCableMarkModalCableType = useCallback((nextType: CableTypeKey) => {
     setCableMarkModalCableType(nextType);
@@ -1919,7 +1939,9 @@ export default function ElecCalcPage() {
               obj.validation_errors,
             )}
           >
-            <Tag color="error">Ошибка</Tag>
+            <Tag className="heatloss-status-icon-tag" color="error" aria-label="Ошибка">
+              <CloseCircleFilled />
+            </Tag>
           </Tooltip>
         );
       },
@@ -1976,7 +1998,10 @@ export default function ElecCalcPage() {
     },
     cable_type: {
       render: (_: unknown, obj) => {
-        const type = getSavedCableTypeForObject(obj.id);
+        const type = getCalculatedCableTypeForObject(obj.id);
+        if (!type) {
+          return <Text style={{ fontSize: 12 }} type="secondary">—</Text>;
+        }
         return (
           <Text style={{ fontSize: 12 }}>
             {CABLE_TYPE_LABEL[type] ?? valueText(type)}
@@ -1987,9 +2012,10 @@ export default function ElecCalcPage() {
     cable_mark: {
       render: (_: unknown, obj) => {
         const calc = stats.calcByObjectId[obj.id];
-        const mark = getCableMark(calc);
-        const sourceMeta = cableMarkSourceTag(getCableMarkSource(calc));
-        const snapshotMeta = cableSnapshotStatusTag(calc);
+        const currentCalc = currentElectricalCalc(calc);
+        const mark = getCableMark(currentCalc);
+        const sourceMeta = cableMarkSourceTag(getCableMarkSource(currentCalc));
+        const snapshotMeta = cableSnapshotStatusTag(currentCalc);
         const sourceTag = sourceMeta ? (
           <Tooltip title={sourceMeta.tooltip}>
             <Tag
@@ -2016,7 +2042,7 @@ export default function ElecCalcPage() {
           return (
             <Space size={4} wrap={false}>
               <Text style={{ fontSize: 12 }} type={mark ? undefined : 'secondary'}>
-                {mark ?? 'Авто'}
+                {mark ?? '—'}
               </Text>
               {snapshotTag}
               {sourceTag}
@@ -2041,7 +2067,7 @@ export default function ElecCalcPage() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                {mark ?? 'Авто'}
+                {mark ?? 'Выбрать'}
               </span>
             </Button>
             {snapshotTag}
@@ -2052,7 +2078,7 @@ export default function ElecCalcPage() {
     },
     cable_snapshot_status: {
       render: (_: unknown, obj) => {
-        const meta = cableSnapshotStatusTag(stats.calcByObjectId[obj.id]);
+        const meta = cableSnapshotStatusTag(currentElectricalCalc(stats.calcByObjectId[obj.id]));
         if (!meta) return <Text type="secondary">—</Text>;
         return (
           <Tooltip title={meta.tooltip}>
@@ -2069,11 +2095,11 @@ export default function ElecCalcPage() {
     },
     selection_policy: {
       render: (_: unknown, obj) =>
-        selectionPolicyText(stats.calcByObjectId[obj.id]?.results?.selection_policy),
+        selectionPolicyText(currentElectricalCalc(stats.calcByObjectId[obj.id])?.results?.selection_policy),
     },
     applied_selection_policy: {
       render: (_: unknown, obj) => {
-        const calc = stats.calcByObjectId[obj.id];
+        const calc = currentElectricalCalc(stats.calcByObjectId[obj.id]);
         const requested = calc?.results?.selection_policy;
         const applied = calc?.results?.applied_selection_policy;
         const label = selectionPolicyText(applied);
@@ -2084,7 +2110,7 @@ export default function ElecCalcPage() {
     selection_reason: {
       ellipsis: true,
       render: (_: unknown, obj) => {
-        const reason = stats.calcByObjectId[obj.id]?.results?.selection_reason;
+        const reason = currentElectricalCalc(stats.calcByObjectId[obj.id])?.results?.selection_reason;
         return (
           <Tooltip title={valueText(reason)}>
             <Text style={{ fontSize: 12 }} ellipsis>
@@ -2097,7 +2123,7 @@ export default function ElecCalcPage() {
     winding_pitch_mm: {
       align: 'right',
       render: (_: unknown, obj) => {
-        const calc = stats.calcByObjectId[obj.id];
+        const calc = currentElectricalCalc(stats.calcByObjectId[obj.id]);
         const mark = getCableMark(calc);
         const values = calcLayoutValues(calc, layoutDrafts[obj.id]);
         const isActive = activeRowId === obj.id;
@@ -2128,7 +2154,7 @@ export default function ElecCalcPage() {
     number_of_threads: {
       align: 'right',
       render: (_: unknown, obj) => {
-        const calc = stats.calcByObjectId[obj.id];
+        const calc = currentElectricalCalc(stats.calcByObjectId[obj.id]);
         const mark = getCableMark(calc);
         const values = calcLayoutValues(calc, layoutDrafts[obj.id]);
         const isActive = activeRowId === obj.id;
@@ -2228,48 +2254,48 @@ export default function ElecCalcPage() {
     installed_cable_length: {
       align: 'right',
       render: (_: unknown, obj) =>
-        resultNumber(stats.calcByObjectId[obj.id], 'installed_cable_length', 1),
+        resultNumber(currentElectricalCalc(stats.calcByObjectId[obj.id]), 'installed_cable_length', 1),
     },
     order_cable_length: {
       align: 'right',
       render: (_: unknown, obj) =>
-        numberText(orderCableLengthValue(stats.calcByObjectId[obj.id]), 1),
+        numberText(orderCableLengthValue(currentElectricalCalc(stats.calcByObjectId[obj.id])), 1),
     },
     total_power: {
       align: 'right',
       render: (_: unknown, obj) =>
-        powerText(stats.calcByObjectId[obj.id]?.results?.total_power),
+        powerText(currentElectricalCalc(stats.calcByObjectId[obj.id])?.results?.total_power),
     },
     current: {
       align: 'right',
-      render: (_: unknown, obj) => resultNumber(stats.calcByObjectId[obj.id], 'current', 2),
+      render: (_: unknown, obj) => resultNumber(currentElectricalCalc(stats.calcByObjectId[obj.id]), 'current', 2),
     },
     voltage: {
       align: 'right',
-      render: (_: unknown, obj) => resultNumber(stats.calcByObjectId[obj.id], 'voltage', 0),
+      render: (_: unknown, obj) => resultNumber(currentElectricalCalc(stats.calcByObjectId[obj.id]), 'voltage', 0),
     },
     price_per_meter: {
       align: 'right',
-      render: (_: unknown, obj) => commercialNumber(stats.calcByObjectId[obj.id], 'price_per_meter', 2),
+      render: (_: unknown, obj) => commercialNumber(currentElectricalCalc(stats.calcByObjectId[obj.id]), 'price_per_meter', 2),
     },
     required_order_length: {
       align: 'right',
       render: (_: unknown, obj) =>
-        commercialNumber(stats.calcByObjectId[obj.id], 'required_order_length', 1),
+        commercialNumber(currentElectricalCalc(stats.calcByObjectId[obj.id]), 'required_order_length', 1),
     },
     total_cost: {
       align: 'right',
-      render: (_: unknown, obj) => commercialNumber(stats.calcByObjectId[obj.id], 'total_cost', 2),
+      render: (_: unknown, obj) => commercialNumber(currentElectricalCalc(stats.calcByObjectId[obj.id]), 'total_cost', 2),
     },
     stock_status: {
       render: (_: unknown, obj) => {
-        const value = commercialValue(stats.calcByObjectId[obj.id], 'stock_status');
+        const value = commercialValue(currentElectricalCalc(stats.calcByObjectId[obj.id]), 'stock_status');
         return typeof value === 'string' ? STOCK_STATUS_LABEL[value] ?? value : '—';
       },
     },
     lead_time_days: {
       align: 'right',
-      render: (_: unknown, obj) => commercialNumber(stats.calcByObjectId[obj.id], 'lead_time_days', 0),
+      render: (_: unknown, obj) => commercialNumber(currentElectricalCalc(stats.calcByObjectId[obj.id]), 'lead_time_days', 0),
     },
     heat_loss_per_meter: {
       align: 'right',
@@ -2288,6 +2314,7 @@ export default function ElecCalcPage() {
     aggressiveProduct,
     commitLayout,
     connectionType,
+    getCalculatedCableTypeForObject,
     getSavedCableTypeForObject,
     heatingHeight,
     isCableMarkPending,
@@ -2471,6 +2498,7 @@ export default function ElecCalcPage() {
     index: number,
   ) => {
     const calc = stats.calcByObjectId[obj.id];
+    const currentCalc = currentElectricalCalc(calc);
     switch (key) {
       case 'index':
         return (pageInfo?.offset ?? 0) + index + 1;
@@ -2497,33 +2525,35 @@ export default function ElecCalcPage() {
               ? 'Ошибка'
             : 'Не рассчитан';
       case 'cable_type':
-        return CABLE_TYPE_LABEL[getSavedCableTypeForObject(obj.id)]
-          ?? getSavedCableTypeForObject(obj.id);
+        {
+          const type = getCalculatedCableTypeForObject(obj.id);
+          return type ? CABLE_TYPE_LABEL[type] ?? type : '—';
+        }
       case 'cable_mark':
         {
-          const label = getCableMark(calc) ?? 'Авто';
+          const label = getCableMark(currentCalc) ?? '—';
           const details = [
-            getCableMarkSource(calc) === 'manual' ? 'ручной выбор' : null,
-            cableSnapshotStatusTag(calc)?.label ?? null,
+            getCableMarkSource(currentCalc) === 'manual' ? 'ручной выбор' : null,
+            cableSnapshotStatusTag(currentCalc)?.label ?? null,
           ].filter(Boolean);
           return details.length > 0 ? `${label} (${details.join(', ')})` : label;
         }
       case 'cable_snapshot_status':
-        return cableSnapshotStatusTag(calc)?.label ?? '—';
+        return cableSnapshotStatusTag(currentCalc)?.label ?? '—';
       case 'variant_number':
         return calc?.variant_number ?? variant;
       case 'selection_policy':
-        return selectionPolicyText(calc?.results?.selection_policy);
+        return selectionPolicyText(currentCalc?.results?.selection_policy);
       case 'applied_selection_policy':
-        return selectionPolicyText(calc?.results?.applied_selection_policy);
+        return selectionPolicyText(currentCalc?.results?.applied_selection_policy);
       case 'selection_reason':
-        return valueText(calc?.results?.selection_reason);
+        return valueText(currentCalc?.results?.selection_reason);
       case 'winding_pitch_mm':
-        return valueText(calc?.results?.winding_pitch);
+        return valueText(currentCalc?.results?.winding_pitch);
       case 'number_of_threads':
         {
-          const source = threadSourceTag(getThreadSource(calc));
-          const value = valueText(calc?.results?.num_circuits);
+          const source = threadSourceTag(getThreadSource(currentCalc));
+          const value = valueText(currentCalc?.results?.num_circuits);
           return source ? `${value} (${source.label})` : value;
         }
       case 'laying_step':
@@ -2536,20 +2566,20 @@ export default function ElecCalcPage() {
       case 'aggressive_product':
         return valueText(calc?.params?.[key]);
       case 'order_cable_length':
-        return valueText(orderCableLengthValue(calc));
+        return valueText(orderCableLengthValue(currentCalc));
       case 'installed_cable_length':
       case 'total_power':
       case 'current':
       case 'voltage':
-        return valueText(calc?.results?.[key]);
+        return valueText(currentCalc?.results?.[key]);
       case 'price_per_meter':
       case 'required_order_length':
       case 'total_cost':
       case 'lead_time_days':
-        return valueText(commercialValue(calc, key));
+        return valueText(commercialValue(currentCalc, key));
       case 'stock_status':
         {
-          const value = commercialValue(calc, key);
+          const value = commercialValue(currentCalc, key);
           return typeof value === 'string' ? STOCK_STATUS_LABEL[value] ?? value : '—';
         }
       case 'heat_loss_per_meter':
@@ -2559,7 +2589,7 @@ export default function ElecCalcPage() {
       default:
         return '';
     }
-  }, [getSavedCableTypeForObject, pageInfo?.offset, stats.calcByObjectId, variant]);
+  }, [getCalculatedCableTypeForObject, pageInfo?.offset, stats.calcByObjectId, variant]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -3331,6 +3361,7 @@ export default function ElecCalcPage() {
                 const calc = stats.calcByObjectId[obj.id];
                 return [
                   electricalCalcError(calc) && !isElectricalCalcUnsupported(calc)
+                    && !isElectricalCalcStale(calc)
                     ? 'row-invalid'
                     : '',
                   activeRowId === obj.id ? 'electrical-row-active' : '',

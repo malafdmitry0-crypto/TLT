@@ -24,7 +24,8 @@ export function isElectricalCalcSuccess(
   if (
     (r as Record<string, unknown>).error_code ||
     (r as Record<string, unknown>).category ||
-    (r as Record<string, unknown>).message
+    (r as Record<string, unknown>).stale === true ||
+    (r as Record<string, unknown>).stale === 'true'
   ) {
     return false;
   }
@@ -34,6 +35,7 @@ export function isElectricalCalcSuccess(
 export function electricalCalcError(
   calc: ElectricalCalcSummary | null | undefined
 ): string | null {
+  if (isElectricalCalcSuccess(calc)) return null;
   const message = calc?.results?.message;
   if (typeof message === 'string' && message.trim()) {
     return cleanCalcErrorText(message);

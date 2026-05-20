@@ -5,9 +5,16 @@ from __future__ import annotations
 import re
 from typing import Any, Final, Literal, TypedDict
 
+from app.electrical_input_validation import (
+    PROCESS_TEMPERATURE_NUMBER_MESSAGE,
+    PROCESS_TEMPERATURE_REQUIRED_MESSAGE,
+)
+
 ElectricalErrorCode = Literal[
     "unsupported_layout",
     "MISSING_TANK_LAYOUT",
+    "MISSING_PROCESS_TEMPERATURE",
+    "INVALID_PROCESS_TEMPERATURE",
     "POWER_TOO_HIGH",
     "TEMPERATURE_TOO_HIGH",
     "RESISTIVE_SECTION_NOT_FOUND",
@@ -58,6 +65,12 @@ SUGGESTED_ACTIONS_BY_ERROR_CODE: Final[
         "SET_LAYING_STEP",
         "SET_TANK_LAYOUT",
     ],
+    "MISSING_PROCESS_TEMPERATURE": [
+        "CHECK_PROCESS_TEMPERATURE",
+    ],
+    "INVALID_PROCESS_TEMPERATURE": [
+        "CHECK_PROCESS_TEMPERATURE",
+    ],
     "POWER_TOO_HIGH": [
         "TRY_OTHER_CABLE_TYPE",
     ],
@@ -95,6 +108,12 @@ def classify_electrical_error(error_message: str) -> ElectricalErrorCode:
 
     if not text:
         return "UNKNOWN"
+
+    if PROCESS_TEMPERATURE_REQUIRED_MESSAGE.lower() in text:
+        return "MISSING_PROCESS_TEMPERATURE"
+
+    if PROCESS_TEMPERATURE_NUMBER_MESSAGE.lower() in text:
+        return "INVALID_PROCESS_TEMPERATURE"
 
     if ("геометр" in text and "уклад" in text) or (
         "высота обогрева" in text and "шаг укладки" in text
@@ -190,6 +209,9 @@ def suggested_actions_for_electrical_error(
         if not _context_positive_number(context, "laying_step"):
             _append_unique(actions, "SET_LAYING_STEP")
         return actions or ["SET_TANK_LAYOUT"]
+
+    if error_code in ("MISSING_PROCESS_TEMPERATURE", "INVALID_PROCESS_TEMPERATURE"):
+        return ["CHECK_PROCESS_TEMPERATURE"]
 
     if error_code == "POWER_TOO_HIGH":
         return ["TRY_OTHER_CABLE_TYPE"]
@@ -304,7 +326,12 @@ def _normalize_error_code_for_context(
 def _category_for_electrical_error(error_code: ElectricalErrorCode) -> ElectricalErrorCategory:
     if error_code == "unsupported_layout":
         return "unsupported"
-    if error_code in ("MISSING_TANK_LAYOUT", "TEMPERATURE_TOO_HIGH"):
+    if error_code in (
+        "MISSING_TANK_LAYOUT",
+        "MISSING_PROCESS_TEMPERATURE",
+        "INVALID_PROCESS_TEMPERATURE",
+        "TEMPERATURE_TOO_HIGH",
+    ):
         return "validation"
     return "formula"
 
@@ -321,6 +348,8 @@ def _field_for_electrical_error(
         if not _context_positive_number(context, "laying_step"):
             return "laying_step"
         return "tank_layout"
+    if error_code in ("MISSING_PROCESS_TEMPERATURE", "INVALID_PROCESS_TEMPERATURE"):
+        return "process_temperature"
     if error_code == "TEMPERATURE_TOO_HIGH":
         subject = _context_str(context, "temperature_subject")
         if subject == "ambient":
@@ -342,6 +371,10 @@ def _hint_for_electrical_error(error_code: ElectricalErrorCode) -> str | None:
         )
     if error_code == "MISSING_TANK_LAYOUT":
         return "Заполните высоту обогрева и шаг укладки для резервуара."
+    if error_code == "MISSING_PROCESS_TEMPERATURE":
+        return "Заполните температуру продукта в параметрах объекта или payload электрорасчёта."
+    if error_code == "INVALID_PROCESS_TEMPERATURE":
+        return "Введите температуру продукта числом в градусах Цельсия."
     if error_code == "POWER_TOO_HIGH":
         return "Подберите другой тип кабеля или снизьте требуемую удельную мощность."
     if error_code == "TEMPERATURE_TOO_HIGH":

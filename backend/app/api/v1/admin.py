@@ -12,6 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_admin
+from app.electrical_input_validation import (
+    PROCESS_TEMPERATURE_REQUIRED_FORMULA_TYPES,
+    ProcessTemperatureInputError,
+    ensure_process_temperature,
+)
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.resistive import calc_resistive_single_core, calc_resistive_three_core
 from app.formulas.electrical.self_regulating import calc_self_regulating, calc_self_regulating_tt
@@ -596,26 +601,29 @@ async def formula_check(
     Возвращает результат в виде словаря. При невалидных параметрах — 422.
     """
     try:
+        params_data = dict(data.params)
+        if data.formula_type in PROCESS_TEMPERATURE_REQUIRED_FORMULA_TYPES:
+            ensure_process_temperature(params_data)
         if data.formula_type == "pipe":
-            params = PipeHeatLossParams(**data.params)
+            params = PipeHeatLossParams(**params_data)
             result = calc_pipe_heat_loss(params).model_dump()
         elif data.formula_type == "tank":
-            params = TankHeatLossParams(**data.params)
+            params = TankHeatLossParams(**params_data)
             result = calc_tank_heat_loss(params).model_dump()
         elif data.formula_type == "electrical":
-            params = SelfRegulatingParams(**data.params)
+            params = SelfRegulatingParams(**params_data)
             result = calc_self_regulating(params).model_dump()
         elif data.formula_type == "electrical_tt":
-            params = SelfRegulatingTTParams(**data.params)
+            params = SelfRegulatingTTParams(**params_data)
             result = calc_self_regulating_tt(params).model_dump()
         elif data.formula_type == "resistive_single":
-            params = ResistiveSingleCoreParams(**data.params)
+            params = ResistiveSingleCoreParams(**params_data)
             result = calc_resistive_single_core(params).model_dump()
         elif data.formula_type == "resistive_three":
-            params = ResistiveThreeCoreParams(**data.params)
+            params = ResistiveThreeCoreParams(**params_data)
             result = calc_resistive_three_core(params).model_dump()
         elif data.formula_type == "tank_cable_geometry":
-            params = TankCableGeometryCheckParams(**data.params)
+            params = TankCableGeometryCheckParams(**params_data)
             cable_length = compute_tank_cable_length(**params.model_dump())
             result = {"cable_length": round(cable_length, 3)}
         else:
@@ -632,6 +640,8 @@ async def formula_check(
         # exc.errors() содержит ctx["error"] = ValueError — не сериализуется напрямую
         msgs = "; ".join(e.get("msg", "") for e in exc.errors())
         raise HTTPException(status_code=422, detail=msgs) from exc
+    except ProcessTemperatureInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except HTTPException:
         raise
     except Exception as exc:

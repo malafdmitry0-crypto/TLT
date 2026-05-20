@@ -50,16 +50,20 @@
 
 ---
 
-## TC-ELEC-01A: Для ТЛТ обязательна температура продукта
+## TC-ELEC-01A: Для электрорасчёта обязательна температура продукта
 
 **Автоматизировано:** ✅ (unit) `test_calculation_schemas.py::TestSelfRegulatingParams::test_process_temperature_required_for_tmax_check`<br>
 **Автоматизировано:** ✅ (unit) `test_calculation_service_unit.py::TestCableLayoutMapping::test_direct_tlt_request_fills_process_temperature_from_object`<br>
-**Автоматизировано:** ✅ (unit) `test_calculation_service_unit.py::TestCableLayoutMapping::test_direct_tlt_request_requires_process_temperature_when_object_missing_it`
+**Автоматизировано:** ✅ (unit) `test_calculation_service_unit.py::TestCableLayoutMapping::test_direct_tlt_request_requires_process_temperature_when_object_missing_it`<br>
+**Автоматизировано:** ✅ (unit) `test_calculation_service_unit.py::TestCableLayoutMapping::test_direct_electrical_request_fills_process_temperature_for_all_supported_types`<br>
+**Автоматизировано:** ✅ (unit) `test_calculation_service_unit.py::TestCableLayoutMapping::test_direct_electrical_request_requires_process_temperature_for_all_supported_types`<br>
+**Автоматизировано:** ✅ (integration) `test_admin.py::TestFormulaCheck::test_electrical_formula_check_requires_process_temperature`
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
-| 1 | `POST /api/v1/calc/electrical` для `self_regulating` без `process_temperature`, но объект содержит `params.process_temperature` | Backend заполняет `process_temperature` из объекта и проверяет `T_max` |
-| 2 | Тот же запрос, но у объекта нет температуры продукта | HTTP 400 или 422 с сообщением про обязательную температуру продукта |
+| 1 | `POST /api/v1/calc/electrical` для `self_regulating`, `self_regulating_tt`, `single_core` или `three_core` без `process_temperature`, но объект содержит `params.process_temperature` | Backend заполняет `process_temperature` из объекта и запускает расчёт |
+| 2 | Тот же запрос, но у объекта нет температуры продукта | HTTP 400 или 422 с сообщением `Для электрорасчёта требуется температура продукта` |
+| 3 | Admin formula-check для электрических формул без `process_temperature` | HTTP 422 с тем же сообщением |
 
 ---
 

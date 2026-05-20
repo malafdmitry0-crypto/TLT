@@ -4,6 +4,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.electrical_input_validation import PROCESS_TEMPERATURE_REQUIRED_MESSAGE
 from app.models.background_task import BackgroundTask
 from app.models.user import User
 from app.services.task_service import TASK_ELECTRICAL_BATCH
@@ -592,6 +593,59 @@ class TestFormulaCheck:
         data = resp.json()
         assert data["selected_cable"]
         assert data["required_cross_section"] > 0
+
+    @pytest.mark.parametrize(
+        ("formula_type", "params"),
+        [
+            (
+                "electrical",
+                {
+                    "required_power_per_meter": 20.0,
+                    "pipe_length": 50.0,
+                    "ambient_temperature": -26.0,
+                },
+            ),
+            (
+                "electrical_tt",
+                {
+                    "required_power_per_meter": 20.0,
+                    "pipe_length": 50.0,
+                    "maintain_temperature": 50.0,
+                },
+            ),
+            (
+                "resistive_single",
+                {
+                    "required_heat_loss": 1000.0,
+                    "pipe_length": 50.0,
+                    "connection_type": "line_1ph",
+                },
+            ),
+            (
+                "resistive_three",
+                {
+                    "required_heat_loss": 1000.0,
+                    "pipe_length": 50.0,
+                    "connection_type": "line_1ph",
+                },
+            ),
+        ],
+    )
+    async def test_electrical_formula_check_requires_process_temperature(
+        self,
+        client: AsyncClient,
+        admin_token: str,
+        formula_type: str,
+        params: dict[str, object],
+    ):
+        resp = await client.post(
+            "/api/v1/admin/formula-check",
+            json={"formula_type": formula_type, "params": params},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+        assert resp.status_code == 422
+        assert resp.json()["detail"] == PROCESS_TEMPERATURE_REQUIRED_MESSAGE
 
     async def test_tank_cable_geometry_formula_check_success(
         self, client: AsyncClient, admin_token: str

@@ -5,6 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.formulas.specification.builder import build_basic_specification
@@ -27,7 +28,7 @@ class SpecificationService:
                 Specification.variant_number == variant_number,
             )
         )
-        return result.scalars().first()
+        return result.scalars().one_or_none()
 
     async def generate(
         self,
@@ -87,18 +88,11 @@ class SpecificationService:
 
         items = list(auto_items) + manual_items
 
-        # Заменяем существующую спецификацию (или создаём новую)
-        if existing_spec is not None:
-            existing_spec.items = [i.model_dump() for i in items]
-            self._reset_stale(existing_spec)
-        else:
-            spec = Specification(
-                project_id=project_id,
-                variant_number=variant_number,
-                items=[i.model_dump() for i in items],
-                is_stale=False,
-            )
-            self.db.add(spec)
+        await self._upsert_specification(
+            project_id=project_id,
+            variant_number=variant_number,
+            items_payload=[i.model_dump() for i in items],
+        )
 
         if commit:
             await self.db.commit()
@@ -113,25 +107,12 @@ class SpecificationService:
         variant_number: int = 1,
     ) -> list[SpecificationItem]:
         """Полностью замещает items спецификации варианта (или создаёт её)."""
-        existing = await self.db.execute(
-            select(Specification).where(
-                Specification.project_id == project_id,
-                Specification.variant_number == variant_number,
-            )
-        )
-        spec = existing.scalars().first()
         payload = [i.model_dump() for i in items]
-        if spec is None:
-            spec = Specification(
-                project_id=project_id,
-                variant_number=variant_number,
-                items=payload,
-                is_stale=False,
-            )
-            self.db.add(spec)
-        else:
-            spec.items = payload
-            self._reset_stale(spec)
+        await self._upsert_specification(
+            project_id=project_id,
+            variant_number=variant_number,
+            items_payload=payload,
+        )
         await self.db.commit()
         return items
 
@@ -175,9 +156,37 @@ class SpecificationService:
             await self.db.flush()
         return len(specs)
 
-    @staticmethod
-    def _reset_stale(spec: Specification) -> None:
-        spec.is_stale = False
-        spec.stale_reason = None
-        spec.stale_at = None
-        spec.stale_details = None
+    async def _upsert_specification(
+        self,
+        *,
+        project_id: UUID,
+        variant_number: int,
+        items_payload: list[dict[str, Any]],
+    ) -> Specification:
+        insert_stmt = pg_insert(Specification).values(
+            project_id=project_id,
+            variant_number=variant_number,
+            items=items_payload,
+            is_stale=False,
+            stale_reason=None,
+            stale_at=None,
+            stale_details=None,
+        )
+        upsert_stmt = insert_stmt.on_conflict_do_update(
+            index_elements=["project_id", "variant_number"],
+            set_={
+                "items": insert_stmt.excluded["items"],
+                "is_stale": False,
+                "stale_reason": None,
+                "stale_at": None,
+                "stale_details": None,
+                "updated_at": func.now(),
+            },
+        ).returning(Specification)
+        orm_stmt = (
+            select(Specification)
+            .from_statement(upsert_stmt)
+            .execution_options(populate_existing=True)
+        )
+        result = await self.db.execute(orm_stmt)
+        return result.scalar_one()

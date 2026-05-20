@@ -323,6 +323,122 @@ describe('ElecCalcPage (integration)', () => {
     });
   });
 
+  it('показывает ошибку теплопотерь круглым icon-tag, а не текстовым badge', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    localStorage.setItem(ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      visibleOrder: ['index', 'object_name', 'heat_loss_status', 'electrical_status'],
+    }));
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([
+        makeObject({
+          params: { name: 'Резервуар с ошибкой теплопотерь' },
+          is_valid: false,
+          validation_errors: {
+            category: 'validation',
+            message: 'Не заполнена геометрия резервуара',
+          },
+        }),
+      ]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+
+    renderPage();
+
+    const row = await screen.findByRole('row', { name: /Резервуар с ошибкой теплопотерь/ });
+    expect(within(row).getByLabelText('Ошибка')).toBeInTheDocument();
+    expect(within(row).queryByText(/^Ошибка$/)).not.toBeInTheDocument();
+  });
+
+  it('при открытии вкладки не подставляет марку и не запускает электрорасчёт без явного действия', async () => {
+    const {
+      batchCalcElectrical,
+      enqueueElectricalBatchJob,
+      getElectricalPage,
+      selectCableManual,
+    } = await import('@/api/calculations');
+    localStorage.setItem(ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      visibleOrder: [
+        'index',
+        'object_name',
+        'electrical_status',
+        'cable_type',
+        'cable_mark',
+        'installed_cable_length',
+        'total_power',
+        'current',
+      ],
+    }));
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject({ params: { name: 'Труба без электрорасчёта' } })]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+
+    renderPage();
+
+    const row = await screen.findByRole('row', { name: /Труба без электрорасчёта/ });
+    expect(row).not.toHaveTextContent('Авто');
+    expect(row).not.toHaveTextContent('Саморегулирующийся');
+    expect(row).toHaveTextContent('—');
+    expect(batchCalcElectrical).not.toHaveBeenCalled();
+    expect(enqueueElectricalBatchJob).not.toHaveBeenCalled();
+    expect(selectCableManual).not.toHaveBeenCalled();
+  });
+
+  it('для stale электрорасчёта не показывает старую марку и старые результаты как актуальные', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    localStorage.setItem(ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      visibleOrder: [
+        'index',
+        'object_name',
+        'electrical_status',
+        'cable_mark',
+        'winding_pitch_mm',
+        'number_of_threads',
+        'installed_cable_length',
+        'order_cable_length',
+        'total_power',
+        'current',
+      ],
+    }));
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject({ params: { name: 'Труба со старым расчётом' } })], [
+        {
+          id: 'calc-stale',
+          object_id: 'o-1',
+          cable_type: 'self_regulating',
+          cable_mark: 'ТЛТ-30',
+          cable_mark_source: 'auto',
+          variant_number: 1,
+          results: {
+            selected_cable: 'ТЛТ-30',
+            category: 'stale',
+            error_code: 'stale_electrical_calculation',
+            message: 'Теплопотери объекта изменились. Пересчитайте электрорасчёт.',
+            stale: true,
+            winding_pitch: 0,
+            num_circuits: 2,
+            installed_cable_length: 10,
+            order_cable_length: 11,
+            total_power: 600,
+            current: 2.7,
+          },
+        },
+      ]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+
+    renderPage();
+
+    const row = await screen.findByRole('row', { name: /Труба со старым расчётом/ });
+    expect(screen.getByLabelText('Требуется пересчёт')).toBeInTheDocument();
+    expect(row).not.toHaveTextContent('ТЛТ-30');
+    expect(row).not.toHaveTextContent('600');
+    expect(row).not.toHaveTextContent('2.7');
+  });
+
   it('показывает сообщения ошибок в отдельной области, а не колонкой таблицы', async () => {
     const { getElectricalPage } = await import('@/api/calculations');
     const user = (await import('@testing-library/user-event')).default.setup();
