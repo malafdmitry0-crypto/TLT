@@ -41,6 +41,26 @@ async function recalculateAll(page: Page, variant = 1) {
   await page.getByRole('button', { name: /Да, пересчитать все/i }).click();
 }
 
+async function expectElectricalActionbarSingleLine(page: Page) {
+  await expect(page.locator('.electrical-actionbar')).toBeVisible();
+
+  const issues = await page.locator('.electrical-actionbar').evaluate((actionbar) => {
+    const setup = actionbar.querySelector<HTMLElement>('.electrical-actionbar-row--setup');
+    const actions = actionbar.querySelector<HTMLElement>('.electrical-actionbar-row--actions');
+    if (!setup || !actions) return ['actionbar rows are missing'];
+
+    const setupRect = setup.getBoundingClientRect();
+    const actionsRect = actions.getBoundingClientRect();
+    const rowTopDelta = Math.abs(setupRect.top - actionsRect.top);
+
+    return rowTopDelta > 2
+      ? [`actionbar rows are stacked (${Math.round(rowTopDelta)}px vertical delta)`]
+      : [];
+  });
+
+  expect(issues).toEqual([]);
+}
+
 async function expectElectricalHeaderControlsInline(page: Page) {
   await expect(page.locator('.electrical-spreadsheet .ant-table-filter-trigger').first()).toBeVisible();
 
@@ -169,6 +189,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
     await expect(page).toHaveURL(/\/workspace\/elec-calc/);
 
+    await expectElectricalActionbarSingleLine(page);
     await expect(page.getByText(/СО1 · тип по объектам · расчёт не выполнен/i)).toBeVisible();
     await expect(page.getByRole('button').filter({ hasText: /^СО1$/ })).toBeVisible();
     await expect(page.getByRole('button').filter({ hasText: /^СО4$/ })).toBeVisible();
