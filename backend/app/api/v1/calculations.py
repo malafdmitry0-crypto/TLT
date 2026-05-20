@@ -347,9 +347,13 @@ async def copy_electrical_variant(
             "target_variant_number": result.target_variant_number,
             "copied_count": result.copied_count,
             "project_objects_count": result.project_objects_count,
+            "not_copied_uncalculated_count": result.not_copied_uncalculated_count,
             "deleted_target_count": result.deleted_target_count,
             "overwrite": data.overwrite,
             "regenerate_specification": data.regenerate_specification,
+            "validated_count": result.validated_count,
+            "validation_failed_count": result.validation_failed_count,
+            "preserved_without_validation_count": result.preserved_without_validation_count,
         },
         message="CO-вариант электрорасчёта создан на основании другого CO",
     )
@@ -359,9 +363,13 @@ async def copy_electrical_variant(
         target_variant_number=result.target_variant_number,
         copied_count=result.copied_count,
         project_objects_count=result.project_objects_count,
+        not_copied_uncalculated_count=result.not_copied_uncalculated_count,
         deleted_target_count=result.deleted_target_count,
         overwrite_applied=result.overwrite_applied,
         specification_regenerated=result.specification_regenerated,
+        validated_count=result.validated_count,
+        validation_failed_count=result.validation_failed_count,
+        preserved_without_validation_count=result.preserved_without_validation_count,
     )
 
 

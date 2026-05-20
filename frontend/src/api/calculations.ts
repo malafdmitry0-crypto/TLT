@@ -151,9 +151,13 @@ export interface CopyElectricalVariantResponse {
   target_variant_number: number;
   copied_count: number;
   project_objects_count: number;
+  not_copied_uncalculated_count?: number;
   deleted_target_count: number;
   overwrite_applied: boolean;
   specification_regenerated: boolean;
+  validated_count?: number;
+  validation_failed_count?: number;
+  preserved_without_validation_count?: number;
 }
 
 function electricalParams(

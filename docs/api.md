@@ -228,11 +228,17 @@ Commercial projection встроенной линейки сохраняет т�
 встроенных ТЛТ/резистивных каталогов и sanitized строк внешней БД.
 
 **`POST /calc/electrical/variants/copy`** — создать целевой CO-вариант на
-основании другого CO без нового автоподбора. Backend копирует сохранённые строки
-`electrical_calculations` из `source_variant_number` в `target_variant_number`,
-включая `params`, `results`, `cable_snapshot`, manual/auto source fields,
-ошибочные, `unsupported` и `stale` результаты. Объекты без строки в source CO
-остаются «не рассчитаны» в target CO.
+основании другого CO без нового автоподбора. Backend берёт только сохранённые
+строки `electrical_calculations` из `source_variant_number`; объекты без строки
+в source CO остаются «не рассчитаны» в target CO. Для строк с выбранной маркой
+кабеля выполняется проверочный расчёт именно этой марки на текущих данных
+объекта: система не выбирает более оптимальный кабель и не меняет валидный,
+но не минимальный выбор инженера. Критерий и причина подбора из source CO
+сохраняются, даже если техническая проверка выполняется как exact-check
+выбранной марки. Если скопированная марка уже не проходит текущие условия,
+в target CO сохраняется structured error с
+`copy_validation.autoselection_used=false`. Ошибочные/unsupported строки без
+выбранной марки копируются как диагностическое состояние без проверки.
 
 Запрос:
 `{project_id, source_variant_number, target_variant_number, overwrite=false,
@@ -240,8 +246,9 @@ regenerate_specification=true}`.
 
 Ответ:
 `{project_id, source_variant_number, target_variant_number, copied_count,
-project_objects_count, deleted_target_count, overwrite_applied,
-specification_regenerated}`.
+project_objects_count, not_copied_uncalculated_count, deleted_target_count,
+overwrite_applied, specification_regenerated, validated_count,
+validation_failed_count, preserved_without_validation_count}`.
 
 Если target CO содержит хотя бы одну строку электрорасчёта, вызов без
 `overwrite=true` возвращает `409` с `detail.code="target_not_empty"`. При

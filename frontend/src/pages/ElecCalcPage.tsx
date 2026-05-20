@@ -1343,8 +1343,14 @@ export default function ElecCalcPage() {
       qc.invalidateQueries({ queryKey: ['report-preview', project?.id, res.target_variant_number] });
       message.success(
         `СО${res.target_variant_number} создан на основании СО${res.source_variant_number}: ` +
-        `скопировано ${res.copied_count}`,
+        `скопировано ${res.copied_count}, успешно проверено ${res.validated_count ?? 0}`,
       );
+      if ((res.validation_failed_count ?? 0) > 0) {
+        message.warning(
+          `В СО${res.target_variant_number} есть ошибки проверки скопированного выбора: ` +
+          `${res.validation_failed_count}. Новый кабель автоматически не подбирался.`,
+        );
+      }
       if (res.copied_count < res.project_objects_count) {
         message.info(
           `В проекте объектов: ${res.project_objects_count}, скопировано расчётов: ${res.copied_count}. ` +
@@ -2929,7 +2935,8 @@ export default function ElecCalcPage() {
             </Text>
           )}
           <Text type="secondary">
-            Копирование не запускает новый подбор кабеля.
+            Система проверит скопированные марки на текущих данных, но не заменит их более
+            оптимальным кабелем.
           </Text>
         </Space>
       ),

@@ -79,12 +79,15 @@ CableSource = str  # "builtin" | "commercial" | "extended" | "all"
 
 STALE_ELECTRICAL_ERROR_CODE = "STALE_HEAT_LOSS"
 STALE_ELECTRICAL_MESSAGE = "Теплопотери объекта изменились. Пересчитайте электрорасчёт."
-COPIED_VARIANT_NEEDS_RECALCULATE_ERROR_CODE = "COPIED_VARIANT_NEEDS_RECALCULATE"
-COPIED_VARIANT_NEEDS_RECALCULATE_MESSAGE = (
-    "Вариант скопирован. Выполните электрорасчёт для актуальных результатов."
-)
 RESISTIVE_DEFAULT_MAX_TEMPERATURE = 130.0
 RESISTIVE_DEFAULT_MIN_TEMPERATURE = -60.0
+COPY_SELECTION_METADATA_KEYS = (
+    "selection_policy",
+    "applied_selection_policy",
+    "selection_reason",
+    "candidate_count",
+    "warnings",
+)
 
 
 class CalculationError(Exception):
@@ -222,9 +225,13 @@ class ElectricalVariantCopyResult:
     target_variant_number: int
     copied_count: int
     project_objects_count: int
+    not_copied_uncalculated_count: int
     deleted_target_count: int
     overwrite_applied: bool
     specification_regenerated: bool
+    validated_count: int
+    validation_failed_count: int
+    preserved_without_validation_count: int
 
 
 ProgressCallback = Callable[[BatchProgress], Awaitable[None] | None]
@@ -1516,20 +1523,202 @@ class CalculationService:
         return [returned_by_object_id[row["object_id"]] for row in rows]
 
     @staticmethod
-    def _copied_variant_needs_recalculate_payload(
+    def _copied_variant_source_cable_mark(calc: ElectricalCalculation) -> str | None:
+        results = calc.results if isinstance(calc.results, dict) else {}
+        snapshot = calc.cable_snapshot if isinstance(calc.cable_snapshot, dict) else {}
+        for value in (
+            calc.cable_mark,
+            results.get("cable_mark"),
+            results.get("selected_cable"),
+            snapshot.get("cable_mark"),
+        ):
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return None
+
+    @staticmethod
+    def _copied_variant_cable_source(calc: ElectricalCalculation) -> CableSource:
+        params = calc.params if isinstance(calc.params, dict) else {}
+        snapshot = calc.cable_snapshot if isinstance(calc.cable_snapshot, dict) else {}
+        value = params.get("cable_source") or snapshot.get("requested_catalog_source")
+        if isinstance(value, str) and value in {"builtin", "commercial", "extended", "all"}:
+            return value
+        return "builtin"
+
+    @staticmethod
+    def _copy_validation_metadata(
+        *,
+        status: str,
         source_variant_number: int,
         target_variant_number: int,
+        source_cable_mark: str | None,
     ) -> dict[str, Any]:
         return {
-            "status": "needs_recalculate",
-            "category": "stale",
-            "error_code": COPIED_VARIANT_NEEDS_RECALCULATE_ERROR_CODE,
-            "message": COPIED_VARIANT_NEEDS_RECALCULATE_MESSAGE,
-            "hint": "Нажмите «Пересчитать выбранные» или «Пересчитать все» вручную.",
-            "stale": True,
-            "stale_reason": "variant_copied",
+            "status": status,
+            "mode": "exact_cable_check",
             "source_variant_number": source_variant_number,
             "target_variant_number": target_variant_number,
+            "source_cable_mark": source_cable_mark,
+            "autoselection_used": False,
+        }
+
+    @staticmethod
+    def _preserve_copy_selection_metadata(
+        source_calc: ElectricalCalculation,
+        target_results: dict[str, Any],
+    ) -> None:
+        source_results = source_calc.results if isinstance(source_calc.results, dict) else {}
+        for key in COPY_SELECTION_METADATA_KEYS:
+            if key in source_results:
+                target_results[key] = copy.deepcopy(source_results[key])
+
+    def _copy_validation_overrides_from_source(
+        self,
+        calc: ElectricalCalculation,
+    ) -> dict[str, Any]:
+        overrides = copy.deepcopy(calc.params or {})
+        results = calc.results if isinstance(calc.results, dict) else {}
+
+        for key in (
+            "supply_voltage",
+            "connection_type",
+            "winding_pitch",
+            "winding_coefficient",
+            "selection_policy",
+            "selection_mode",
+            "add_length",
+            "heating_height",
+            "laying_step",
+            "maintain_temperature",
+            "vapor_temperature",
+            "aggressive_product",
+        ):
+            if overrides.get(key) is None and results.get(key) is not None:
+                overrides[key] = results.get(key)
+
+        if overrides.get("number_of_threads") is None and results.get("num_circuits") is not None:
+            overrides["number_of_threads"] = results.get("num_circuits")
+            overrides["number_of_threads_source"] = THREAD_SOURCE_PREVIOUS_RESULT
+
+        if overrides.get("supply_voltage") is None and results.get("voltage") is not None:
+            overrides["supply_voltage"] = results.get("voltage")
+
+        return self._base_overrides_with_sources(overrides)
+
+    async def _copy_validation_request_data(
+        self,
+        *,
+        obj: ProjectObject,
+        calc: ElectricalCalculation,
+        cable_mark: str,
+        tlt_catalogs: dict[CableSource, list[dict[str, Any]]],
+        resistive_catalogs: dict[tuple[str, CableSource], list[dict[str, Any]]],
+        coefficients: dict[str, float],
+    ) -> dict[str, Any]:
+        cable_source = self._copied_variant_cable_source(calc)
+        if cable_source not in tlt_catalogs:
+            tlt_catalogs[cable_source] = await self.load_cable_catalog(cable_source)
+
+        resistive_catalog = None
+        if calc.cable_type in ("single_core", "three_core"):
+            catalog_key = (calc.cable_type, cable_source)
+            if catalog_key not in resistive_catalogs:
+                resistive_catalogs[catalog_key] = await self.load_resistive_cable_catalog(
+                    calc.cable_type,
+                    cable_source,
+                )
+            resistive_catalog = resistive_catalogs[catalog_key]
+
+        data = self._build_electrical_data(
+            obj=obj,
+            cable_type=calc.cable_type,
+            cable_mark=cable_mark,
+            tlt_catalog=tlt_catalogs[cable_source],
+            resistive_catalog=resistive_catalog,
+            overrides=self._copy_validation_overrides_from_source(calc),
+            coefficients=coefficients,
+        )
+        data["cable_source"] = cable_source
+        data["cable_type_source"] = self._normalize_cable_type_source(calc.cable_type_source)
+        data["cable_mark_source"] = self._normalize_cable_mark_source(calc.cable_mark_source)
+        return data
+
+    def _copied_variant_preserved_row(
+        self,
+        *,
+        calc: ElectricalCalculation,
+        target_variant_number: int,
+        source_variant_number: int,
+    ) -> dict[str, Any]:
+        results = copy.deepcopy(calc.results or {})
+        results["copy_validation"] = self._copy_validation_metadata(
+            status="preserved_without_selected_cable",
+            source_variant_number=source_variant_number,
+            target_variant_number=target_variant_number,
+            source_cable_mark=None,
+        )
+        return {
+            "id": uuid.uuid4(),
+            "project_id": calc.project_id,
+            "object_id": calc.object_id,
+            "variant_number": target_variant_number,
+            "cable_type": calc.cable_type,
+            "cable_type_source": calc.cable_type_source,
+            "cable_mark": calc.cable_mark,
+            "cable_mark_source": calc.cable_mark_source,
+            "cable_snapshot": copy.deepcopy(calc.cable_snapshot),
+            "params": copy.deepcopy(calc.params or {}),
+            "results": results,
+        }
+
+    def _copied_variant_validation_failure_row(
+        self,
+        *,
+        obj: ProjectObject,
+        calc: ElectricalCalculation,
+        target_variant_number: int,
+        source_variant_number: int,
+        cable_mark: str,
+        error: Exception,
+        request_data: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        error_message = f"{type(error).__name__}: {error}"
+        error_request_data = dict(obj.params or {})
+        if request_data:
+            error_request_data.update(request_data)
+        payload: dict[str, Any] = dict(
+            build_electrical_error_payload(
+                error_message,
+                object_type=obj.object_type,
+                object_name=(obj.params or {}).get("name"),
+                cable_type=calc.cable_type,
+                request_data=error_request_data,
+            )
+        )
+        payload["copy_validation"] = self._copy_validation_metadata(
+            status="failed",
+            source_variant_number=source_variant_number,
+            target_variant_number=target_variant_number,
+            source_cable_mark=cable_mark,
+        )
+        params = copy.deepcopy(calc.params or {})
+        if request_data:
+            params.update(self._compact_electrical_params(request_data))
+        params["cable_mark"] = cable_mark
+        params["cable_type_source"] = self._normalize_cable_type_source(calc.cable_type_source)
+        params["cable_mark_source"] = self._normalize_cable_mark_source(calc.cable_mark_source)
+        return {
+            "id": uuid.uuid4(),
+            "project_id": calc.project_id,
+            "object_id": calc.object_id,
+            "variant_number": target_variant_number,
+            "cable_type": calc.cable_type,
+            "cable_type_source": calc.cable_type_source,
+            "cable_mark": cable_mark,
+            "cable_mark_source": calc.cable_mark_source,
+            "cable_snapshot": copy.deepcopy(calc.cable_snapshot),
+            "params": params,
+            "results": payload,
         }
 
     async def copy_electrical_variant(
@@ -1549,7 +1738,7 @@ class CalculationService:
             )
 
         source_result = await self.db.execute(
-            select(ElectricalCalculation)
+            select(ElectricalCalculation, ProjectObject)
             .join(ProjectObject, ProjectObject.id == ElectricalCalculation.object_id)
             .where(
                 ElectricalCalculation.project_id == project_id,
@@ -1557,8 +1746,8 @@ class CalculationService:
             )
             .order_by(ProjectObject.sort_order, ProjectObject.id)
         )
-        source_rows = list(source_result.scalars().all())
-        if not source_rows:
+        source_entries = list(source_result.all())
+        if not source_entries:
             raise ElectricalVariantCopyError(
                 code="source_empty",
                 message=f"В СО{source_variant_number} нет расчётов для копирования.",
@@ -1599,25 +1788,92 @@ class CalculationService:
                     )
                 )
 
-            rows = [
-                {
-                    "id": uuid.uuid4(),
-                    "project_id": row.project_id,
-                    "object_id": row.object_id,
-                    "variant_number": target_variant_number,
-                    "cable_type": row.cable_type,
-                    "cable_type_source": row.cable_type_source,
-                    "cable_mark": row.cable_mark,
-                    "cable_mark_source": row.cable_mark_source,
-                    "cable_snapshot": copy.deepcopy(row.cable_snapshot),
-                    "params": copy.deepcopy(row.params or {}),
-                    "results": self._copied_variant_needs_recalculate_payload(
-                        source_variant_number,
-                        target_variant_number,
-                    ),
-                }
-                for row in source_rows
-            ]
+            coefficients = await self.get_coefficients()
+            tlt_catalogs: dict[CableSource, list[dict[str, Any]]] = {}
+            resistive_catalogs: dict[tuple[str, CableSource], list[dict[str, Any]]] = {}
+            rows: list[dict[str, Any]] = []
+            validated_count = 0
+            validation_failed_count = 0
+            preserved_without_validation_count = 0
+
+            for calc, obj in source_entries:
+                copied_cable_mark = self._copied_variant_source_cable_mark(calc)
+                if copied_cable_mark is None:
+                    rows.append(
+                        self._copied_variant_preserved_row(
+                            calc=calc,
+                            target_variant_number=target_variant_number,
+                            source_variant_number=source_variant_number,
+                        )
+                    )
+                    preserved_without_validation_count += 1
+                    continue
+
+                request_data: dict[str, Any] | None = None
+                try:
+                    request_data = await self._copy_validation_request_data(
+                        obj=obj,
+                        calc=calc,
+                        cable_mark=copied_cable_mark,
+                        tlt_catalogs=tlt_catalogs,
+                        resistive_catalogs=resistive_catalogs,
+                        coefficients=coefficients,
+                    )
+                    request = ElectricalRequest(
+                        object_id=obj.id,
+                        cable_type=cast(Any, calc.cable_type),
+                        variant_number=target_variant_number,
+                        data=request_data,
+                    )
+                    validated_cable_mark, result_dict = self._calculate_electrical_result(request)
+                    if validated_cable_mark != copied_cable_mark:
+                        raise CalculationError(
+                            "Проверка скопированного выбора вернула другую марку кабеля: "
+                            f"{validated_cable_mark or '—'} вместо {copied_cable_mark}. "
+                            "Автоподбор при создании на основании запрещён."
+                        )
+                    self._preserve_copy_selection_metadata(calc, result_dict)
+                    result_dict["copy_validation"] = self._copy_validation_metadata(
+                        status="validated",
+                        source_variant_number=source_variant_number,
+                        target_variant_number=target_variant_number,
+                        source_cable_mark=copied_cable_mark,
+                    )
+                    cable_snapshot = self._build_cable_snapshot_for_result(
+                        request=request,
+                        cable_mark=validated_cable_mark,
+                        result_dict=result_dict,
+                    )
+                    rows.append(
+                        {
+                            "id": uuid.uuid4(),
+                            "project_id": calc.project_id,
+                            "object_id": calc.object_id,
+                            "variant_number": target_variant_number,
+                            "cable_type": calc.cable_type,
+                            "cable_type_source": calc.cable_type_source,
+                            "cable_mark": validated_cable_mark,
+                            "cable_mark_source": calc.cable_mark_source,
+                            "cable_snapshot": cable_snapshot,
+                            "params": self._compact_electrical_params(request.data),
+                            "results": result_dict,
+                        }
+                    )
+                    validated_count += 1
+                except Exception as exc:
+                    rows.append(
+                        self._copied_variant_validation_failure_row(
+                            obj=obj,
+                            calc=calc,
+                            target_variant_number=target_variant_number,
+                            source_variant_number=source_variant_number,
+                            cable_mark=copied_cable_mark,
+                            error=exc,
+                            request_data=request_data,
+                        )
+                    )
+                    validation_failed_count += 1
+
             await self._bulk_upsert_electrical_calculations(rows, return_calcs=False)
 
             if regenerate_specification:
@@ -1638,11 +1894,15 @@ class CalculationService:
             project_id=project_id,
             source_variant_number=source_variant_number,
             target_variant_number=target_variant_number,
-            copied_count=len(source_rows),
+            copied_count=len(source_entries),
             project_objects_count=project_objects_count,
+            not_copied_uncalculated_count=max(0, project_objects_count - len(source_entries)),
             deleted_target_count=target_count if overwrite else 0,
             overwrite_applied=overwrite,
             specification_regenerated=regenerate_specification,
+            validated_count=validated_count,
+            validation_failed_count=validation_failed_count,
+            preserved_without_validation_count=preserved_without_validation_count,
         )
 
     @staticmethod

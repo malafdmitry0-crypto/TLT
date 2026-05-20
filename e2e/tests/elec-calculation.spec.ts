@@ -261,6 +261,42 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await expect(page.getByRole('row').filter({ hasText: pipeName }).first()).toBeVisible();
   });
 
+  test('создаёт СО на основании рассчитанного СО1 без Network Error', async ({ page }) => {
+    await loginAsGuest(page);
+    const pipeName = `E2E copy variant pipe ${Date.now()}`;
+    await createCalculatedPipe(page, pipeName);
+    await showElectricalColumns(page, [
+      'index',
+      'object_name',
+      'electrical_status',
+      'cable_mark',
+      'applied_selection_policy',
+      'selection_reason',
+    ]);
+
+    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
+    await recalculateAll(page);
+    await expect(page.getByText(/СО1 — расчёт выполнен для всех объектов: 1/i)).toBeVisible({
+      timeout: 20_000,
+    });
+
+    await page.getByRole('button', { name: /Создать на основании/i }).click();
+    await page.getByText('Скопировать СО1 в СО2').click();
+    const copyResponse = page.waitForResponse((response) =>
+      response.url().includes('/api/v1/calc/electrical/variants/copy'),
+    );
+    await page.getByRole('button', { name: 'Создать', exact: true }).click();
+
+    await expect.poll(async () => (await copyResponse).status()).toBe(200);
+    await expect(page.getByText(/Network Error/i)).toHaveCount(0);
+    await expect(page.getByRole('button').filter({ hasText: /^СО2$/ })).toHaveClass(/ant-btn-primary/);
+    await expect(page.getByText(/СО2 · тип по объектам · .*рассчитано: 1\/1/i)).toBeVisible();
+    const targetRow = page.getByRole('row').filter({ hasText: pipeName }).first();
+    await expect(targetRow).toBeVisible();
+    await expect(targetRow.getByText('Технический')).toBeVisible();
+    await expect(targetRow.getByText('Ручной')).toHaveCount(0);
+  });
+
   test('основное меню связывает электрорасчёт со страницами теплопотерь и спецификации', async ({
     page,
   }) => {

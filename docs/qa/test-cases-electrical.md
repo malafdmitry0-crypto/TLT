@@ -212,15 +212,22 @@
 ## TC-ELEC-09A: Создать CO на основании другого CO
 
 **Автоматизировано:** ✅ (integration)
-`test_calculations.py::TestElectricalCalculation::test_copy_electrical_variant_creates_target_without_recalculation`
+`test_calculations.py::TestElectricalCalculation::test_copy_electrical_variant_validates_exact_copied_choice_without_autopick`<br>
+**Автоматизировано:** ✅ (integration)
+`test_calculations.py::TestElectricalCalculation::test_copy_electrical_variant_keeps_non_optimal_valid_manual_choice`<br>
+**Автоматизировано:** ✅ (integration)
+`test_calculations.py::TestElectricalCalculation::test_copy_electrical_variant_invalid_copied_choice_saves_error_without_autopick`
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
 | 1 | Рассчитать `CO1` для части объектов проекта | В `CO1` есть строки `electrical_calculations` |
-| 2 | `POST /api/v1/calc/electrical/variants/copy` с `source_variant_number=1`, `target_variant_number=2` | HTTP 200, `copied_count=N`, новый подбор кабеля не запускается |
+| 2 | `POST /api/v1/calc/electrical/variants/copy` с `source_variant_number=1`, `target_variant_number=2` | HTTP 200, `copied_count=N`, новый подбор кабеля не запускается; выбранная марка проверяется как exact choice |
 | 3 | Открыть `CO2` | В `CO2` скопированы только объекты со строками в `CO1`; остальные «не рассчитаны» |
 | 4 | Повторить copy в непустой `CO2` без `overwrite` | HTTP 409 `target_not_empty` |
 | 5 | Повторить с `overwrite=true` | `CO2` полностью заменён копией `CO1`, без хвостов от старого target |
+| 6 | В `CO1` выбран валидный, но не минимальный кабель | В `CO2` сохранена та же марка; система не заменяет её оптимальным автоподбором |
+| 7 | В `CO1` критерий подбора `technical_minimum` / commercial ranking | В `CO2` сохранён тот же `applied_selection_policy` и `selection_reason`, не `manual_selection` |
+| 8 | Скопированная марка больше не проходит текущие условия объекта | В `CO2` сохраняется structured error с `copy_validation.autoselection_used=false`, другая марка не подбирается |
 
 ---
 
