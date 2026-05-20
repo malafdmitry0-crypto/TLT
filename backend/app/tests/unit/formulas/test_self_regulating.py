@@ -14,6 +14,7 @@ def _params(**o) -> SelfRegulatingParams:
         "cable_mark": "ТЛТ-25",
         "supply_voltage": 220,
         "ambient_temperature": -30,
+        "process_temperature": 80,
         "pipe_length": 50,
         "safety_factor": 1.1,
     }
@@ -78,6 +79,7 @@ class TestSelfRegulating:
                 required_power_per_meter=0,
                 cable_mark="ТЛТ-25",
                 ambient_temperature=-30,
+                process_temperature=80,
                 pipe_length=50,
             )
 
@@ -129,6 +131,7 @@ class TestSelfRegulating:
             _params(
                 cable_mark="ТЛТ-15",
                 required_power_per_meter=20,
+                process_temperature=60,
                 winding_coefficient=1.0,
                 number_of_threads=2,
             )

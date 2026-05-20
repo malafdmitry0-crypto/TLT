@@ -7,7 +7,10 @@ from app.reference_data.loader import list_soil_conductivity
 from app.schemas.calculation import (
     InsulationLayer,
     PipeHeatLossParams,
+    ResistiveSingleCoreParams,
+    ResistiveThreeCoreParams,
     SelfRegulatingParams,
+    SelfRegulatingTTParams,
     TankHeatLossParams,
 )
 
@@ -419,6 +422,7 @@ class TestSelfRegulatingParams:
             required_power_per_meter=20,
             cable_mark="ТЛТ-25",
             ambient_temperature=-20,
+            process_temperature=80,
             pipe_length=10,
         )
         assert p.safety_factor == 1.1
@@ -429,6 +433,39 @@ class TestSelfRegulatingParams:
                 required_power_per_meter=20,
                 cable_mark="ТЛТ-25",
                 ambient_temperature=-20,
+                process_temperature=80,
                 pipe_length=10,
                 safety_factor=0.5,
             )
+
+    def test_process_temperature_required_for_tmax_check(self):
+        with pytest.raises(ValidationError):
+            SelfRegulatingParams(
+                required_power_per_meter=20,
+                cable_mark="ТЛТ-25",
+                ambient_temperature=-20,
+                pipe_length=10,
+            )
+
+
+class TestElectricalTankLayingStepLimits:
+    def test_tank_laying_step_bounds_match_application_range(self):
+        valid = dict(
+            required_power_per_meter=20,
+            pipe_length=10,
+            process_temperature=80,
+            heating_height=2,
+        )
+        assert SelfRegulatingTTParams(**valid, laying_step=0.05).laying_step == 0.05
+        assert SelfRegulatingTTParams(**valid, laying_step=0.5).laying_step == 0.5
+        with pytest.raises(ValidationError):
+            SelfRegulatingTTParams(**valid, laying_step=0.04)
+        with pytest.raises(ValidationError):
+            SelfRegulatingTTParams(**valid, laying_step=0.51)
+
+    def test_resistive_tank_laying_step_bounds_match_application_range(self):
+        base = dict(required_heat_loss=5000, pipe_length=10, process_temperature=80)
+        with pytest.raises(ValidationError):
+            ResistiveSingleCoreParams(**base, laying_step=0.04)
+        with pytest.raises(ValidationError):
+            ResistiveThreeCoreParams(**base, laying_step=0.51)

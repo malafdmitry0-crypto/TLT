@@ -78,7 +78,7 @@ P_треб_на_м = (total_heat_loss / K) / L_баз
 
 ```
 min_temperature <= ambient_temperature
-max_temperature >= process_temperature       если process_temperature задана
+max_temperature >= process_temperature
 power_per_meter × k_навива × N >= P_треб
 ```
 
@@ -100,7 +100,7 @@ power_per_meter × k_навива × N >= P_треб
 ```
 power_per_meter × k_навива × N >= P_треб
 ambient_temperature >= min_temperature
-process_temperature <= max_temperature       если process_temperature задана
+process_temperature <= max_temperature
 ```
 
 Если нитки при ручной марке не заданы, используется `N = 1` как значение по
@@ -115,9 +115,14 @@ P_общ = power_per_meter × L_каб
 I = P_общ / U_кабеля
 ```
 
+Для ТЛТ `process_temperature` обязателен, так как без него нельзя проверить
+паспортный предел `max_temperature` кабеля.
+
 Для ТЛТ `U_кабеля` берётся из выбранной строки каталога (`voltage`; во
 встроенной линейке 220 В). `supply_voltage` из объекта/СО используется только
-как fallback для кастомного каталога без паспортного напряжения.
+как fallback для кастомного каталога без паспортного напряжения. Commercial
+projection поверх встроенной линейки сохраняет паспортные технические поля
+ТЛТ, включая `voltage`, и накладывает только коммерческие данные.
 
 В результатах нужно различать запрошенное и фактически применённое количество
 ниток:
@@ -229,7 +234,8 @@ select first candidate where p2 <= p3 and p2 * N * M covers p1
 
 `Imax`, `max_linear_power_w_m`, `start/high/min voltage` и `max_parallel_schemes`
 могут приходить из `correction_coefficients`; пока БД не заполнена, backend
-использует fallback `Imax=65 A`, `start=220 В`, `high=380 В`, `M<=20`.
+использует fallback `Imax=65 A`, `start=220 В`, `high=380 В`,
+`min_adjusted=40 В`, `voltage_step=5 В`, `M<=20`.
 
 Справочник ТТ Р1 сверяется с последними пользовательскими скринами:
 `docs/tnp/internal-references/resistive-cable-r1.md`. Для ТТ Р1 зафиксированы

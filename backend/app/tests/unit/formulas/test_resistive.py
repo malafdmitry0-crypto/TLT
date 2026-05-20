@@ -359,9 +359,7 @@ class TestThreeCoreConnections:
 
     def test_three_core_parses_section_from_model_as_fallback(self):
         """Явные поля приоритетны, но legacy-каталог с маркой ТТ Р3 ещё считается."""
-        result = calc_resistive_three_core(
-            _tc(cable_catalog=[{"model": "ТТ Р3 х 1,5-1,0"}])
-        )
+        result = calc_resistive_three_core(_tc(cable_catalog=[{"model": "ТТ Р3 х 1,5-1,0"}]))
 
         assert result.selected_cable == "ТТ Р3 х 1,5-1,0"
         assert result.conductor_cross_section == pytest.approx(1.5)

@@ -9,9 +9,13 @@ MINERAL_WOOL = "mineral_wool_boards_120"
 
 
 class TestSpecification:
-    async def _create_project_with_pipe(self, client: AsyncClient, headers: dict[str, str]) -> tuple[dict, dict]:
+    async def _create_project_with_pipe(
+        self, client: AsyncClient, headers: dict[str, str]
+    ) -> tuple[dict, dict]:
         project = (
-            await client.post("/api/v1/projects", json={"name": "Spec stale project"}, headers=headers)
+            await client.post(
+                "/api/v1/projects", json={"name": "Spec stale project"}, headers=headers
+            )
         ).json()
         obj_resp = await client.post(
             f"/api/v1/projects/{project['id']}/objects",
@@ -32,7 +36,9 @@ class TestSpecification:
         assert obj_resp.status_code in (200, 201), obj_resp.text
         return project, obj_resp.json()
 
-    async def _save_manual_spec(self, client: AsyncClient, project_id: str, headers: dict[str, str]) -> None:
+    async def _save_manual_spec(
+        self, client: AsyncClient, project_id: str, headers: dict[str, str]
+    ) -> None:
         resp = await client.put(
             f"/api/v1/specifications/{project_id}/items",
             json={
@@ -187,9 +193,7 @@ class TestSpecification:
         )
         assert update_resp.status_code == 200, update_resp.text
 
-        spec = (
-            await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)
-        ).json()
+        spec = (await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)).json()
         assert spec["is_stale"] is True
         assert spec["stale_reason"] == "object_params_updated"
         assert spec["stale_details"]["object_ids"] == [obj["id"]]
@@ -207,6 +211,27 @@ class TestSpecification:
         assert fresh["stale_reason"] is None
         assert any(item["name"] == "Ручная позиция" for item in fresh["items"])
 
+    async def test_heat_loss_batch_marks_saved_specification_stale(
+        self, client: AsyncClient, employee_token: str
+    ):
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        project, _obj = await self._create_project_with_pipe(client, headers)
+        await self._save_manual_spec(client, project["id"], headers)
+
+        batch_resp = await client.post(
+            "/api/v1/calc/heat-loss/batch",
+            params={"project_id": project["id"]},
+            headers=headers,
+        )
+        assert batch_resp.status_code == 200, batch_resp.text
+        assert batch_resp.json()["updated"] == 1
+
+        spec = (await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)).json()
+        assert spec["is_stale"] is True
+        assert spec["stale_reason"] == "heat_loss_batch_recalculate"
+        assert spec["stale_details"]["operation"] == "batch_recalculate"
+        assert spec["items"][0]["name"] == "Ручная позиция"
+
     async def test_delete_object_marks_saved_specification_stale(
         self, client: AsyncClient, employee_token: str
     ):
@@ -220,9 +245,7 @@ class TestSpecification:
         )
         assert delete_resp.status_code == 204, delete_resp.text
 
-        spec = (
-            await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)
-        ).json()
+        spec = (await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)).json()
         assert spec["is_stale"] is True
         assert spec["stale_reason"] == "object_deleted"
         assert spec["stale_details"]["object_ids"] == [obj["id"]]
@@ -255,9 +278,7 @@ class TestSpecification:
             headers=headers,
         )
         assert resp.status_code == 200, resp.text
-        spec = (
-            await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)
-        ).json()
+        spec = (await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)).json()
         assert spec["is_stale"] is False
         assert spec["stale_reason"] is None
         assert spec["items"][0]["name"] == "Новая ручная позиция"

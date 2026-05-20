@@ -133,6 +133,69 @@ class TestSingleExportImport:
         assert objs[0]["object_type"] == "pipe"
         assert objs[0]["params"]["outer_diameter"] == 0.108
 
+    async def test_import_normalizes_manual_cable_source_before_batch(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = (
+            await client.get("/api/v1/projects", headers={"X-Session-Id": guest_session})
+        ).json()[0]["id"]
+        await _add_pipe(client, pid, {"X-Session-Id": guest_session})
+        objects = (
+            await client.get(
+                f"/api/v1/projects/{pid}/objects",
+                headers={"X-Session-Id": guest_session},
+            )
+        ).json()
+        manual = await client.post(
+            "/api/v1/calc/electrical/select-cable",
+            params={"object_id": objects[0]["id"], "cable_mark": "ТЛТ-60"},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert manual.status_code == 200, manual.text
+
+        exp = await client.get(
+            f"/api/v1/projects/{pid}/export-csv",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert exp.status_code == 200
+        text = exp.content.decode("utf-8-sig")
+        assert ";ТЛТ-60;manual;" in text
+        modified = text.replace(";ТЛТ-60;manual;", ";ТЛТ-60;Manuel;", 1)
+
+        other = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+        imported = await client.post(
+            "/api/v1/projects/import-csv",
+            files={
+                "file": (
+                    "manual.csv",
+                    ("\ufeff" + modified).encode("utf-8"),
+                    "text/csv",
+                )
+            },
+            headers={"X-Session-Id": other},
+        )
+        assert imported.status_code == 201, imported.text
+        imported_project_id = imported.json()["id"]
+
+        batch = await client.post(
+            "/api/v1/calc/electrical/batch",
+            params={"project_id": imported_project_id},
+            headers={"X-Session-Id": other},
+        )
+        assert batch.status_code == 200, batch.text
+        assert batch.json()["calculated"] == 0
+        assert batch.json()["skipped"] == 1
+
+        listing = (
+            await client.get(
+                "/api/v1/calc/electrical",
+                params={"project_id": imported_project_id},
+                headers={"X-Session-Id": other},
+            )
+        ).json()
+        assert listing[0]["cable_mark"] == "ТЛТ-60"
+        assert listing[0]["cable_mark_source"] == "manual"
+
 
 class TestBulkExportImport:
     async def test_guest_cannot_bulk_export(self, client: AsyncClient, guest_session: str):

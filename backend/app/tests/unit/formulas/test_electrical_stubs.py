@@ -17,6 +17,7 @@ def _params() -> SelfRegulatingParams:
         cable_mark=None,
         supply_voltage=220.0,
         ambient_temperature=-20.0,
+        process_temperature=80.0,
         pipe_length=50.0,
         safety_factor=1.1,
     )

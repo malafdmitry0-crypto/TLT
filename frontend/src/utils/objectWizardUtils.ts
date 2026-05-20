@@ -51,6 +51,7 @@ type InsulationTemperatureBasis =
   | 'technical_subfloor'
   | 'attic'
   | 'basement';
+type SafetyFactorSource = 'default' | 'manual' | 'climate_policy';
 
 /** Find the nearest DN for an outer diameter in mm. */
 export function findDN(outerDiameterMm: number): number | null {
@@ -190,6 +191,7 @@ export interface PipeFormValues {
   min_switch_temperature?: number;
   supply_voltage?: number;
   safety_factor?: number;
+  safety_factor_source?: SafetyFactorSource;
   steam_tracing?: 'yes' | 'no';
   vapor_temperature?: number;
   valve_count?: number;
@@ -246,6 +248,7 @@ export interface TankFormValues {
   min_switch_temperature?: number;
   supply_voltage?: number;
   safety_factor?: number;
+  safety_factor_source?: SafetyFactorSource;
   steam_tracing?: 'yes' | 'no';
   vapor_temperature?: number;
   q_additional?: number;
@@ -442,6 +445,7 @@ function applyCommonObjectParams(params: Record<string, unknown>, v: PipeFormVal
   if (v.min_switch_temperature != null) params.min_switch_temperature = v.min_switch_temperature;
   if (v.supply_voltage != null) params.supply_voltage = v.supply_voltage;
   if (v.safety_factor != null) params.safety_factor = v.safety_factor;
+  if (v.safety_factor_source) params.safety_factor_source = v.safety_factor_source;
   if (v.steam_tracing) params.steam_tracing = v.steam_tracing;
   if (v.vapor_temperature != null) params.vapor_temperature = v.vapor_temperature;
 }
@@ -570,6 +574,7 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     min_switch_temperature: p.min_switch_temperature as number | undefined,
     supply_voltage: p.supply_voltage as number | undefined,
     safety_factor: p.safety_factor as number | undefined,
+    safety_factor_source: p.safety_factor_source as SafetyFactorSource | undefined,
     steam_tracing: p.steam_tracing as PipeFormValues['steam_tracing'],
     vapor_temperature: p.vapor_temperature as number | undefined,
     valve_count: p.valve_count as number | undefined,
@@ -656,6 +661,7 @@ export function tankApiParamsToForm(p: Record<string, unknown>): Partial<TankFor
     min_switch_temperature: p.min_switch_temperature as number | undefined,
     supply_voltage: p.supply_voltage as number | undefined,
     safety_factor: p.safety_factor as number | undefined,
+    safety_factor_source: p.safety_factor_source as SafetyFactorSource | undefined,
     steam_tracing: p.steam_tracing as TankFormValues['steam_tracing'],
     vapor_temperature: p.vapor_temperature as number | undefined,
     q_additional: p.q_additional as number | undefined,

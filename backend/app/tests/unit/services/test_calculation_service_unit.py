@@ -20,6 +20,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.schemas.calculation import ElectricalRequest
 from app.services.calculation_service import (
     BatchCancelChecker,
     BatchCancelledError,
@@ -93,6 +94,7 @@ def _bulk_upsert_result(rows: list[dict[str, object]]) -> MagicMock:
 
 def _disable_stale_mark(service: CalculationService) -> None:
     service.mark_electrical_calculations_stale = AsyncMock(return_value=0)  # type: ignore[method-assign]
+    service.mark_project_specifications_stale = AsyncMock(return_value=0)  # type: ignore[method-assign]
 
 
 class ManualClock:
@@ -349,6 +351,22 @@ class TestClimatePolicy:
         assert normalized["climate_temperature_basis"] == "t_abs_min"
         assert normalized["climate_policy_rule"] == "pipe_diameter_lt_100"
 
+    def test_backend_preserves_manual_ambient_temperature_with_climate_city(self):
+        normalized = CalculationService._apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "ambient_temperature": -40,
+                "ambient_temperature_source": "manual",
+                "climate_city": "Славгород",
+            },
+        )
+
+        assert normalized["ambient_temperature"] == pytest.approx(-40.0)
+        assert normalized["ambient_temperature_source"] == "manual"
+        assert normalized["climate_temperature_basis"] == "t_0_92"
+        assert normalized["climate_policy_rule"] == "pipe_diameter_ge_100"
+
     def test_backend_treats_default_safety_factor_as_overridable(self):
         normalized = CalculationService._apply_climate_policy(
             "pipe",
@@ -378,6 +396,21 @@ class TestClimatePolicy:
 
         assert normalized["safety_factor"] == pytest.approx(1.2)
         assert normalized["safety_factor_source"] == "manual"
+
+    def test_backend_preserves_manual_safety_factor_equal_to_default_without_source(self):
+        normalized = CalculationService._apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.099,
+                "ambient_temperature": -10,
+                "climate_city": "Славгород",
+                "safety_factor": 1.1,
+            },
+        )
+
+        assert normalized["safety_factor"] == pytest.approx(1.1)
+        assert normalized["safety_factor_source"] == "manual"
+        assert normalized["climate_policy_rule"] == "pipe_diameter_lt_100"
 
     def test_backend_drops_frontend_climate_basis_when_climate_not_applied(self):
         normalized = CalculationService._apply_climate_policy(
@@ -695,6 +728,67 @@ class TestCableLayoutMapping:
                 overrides={},
             )
 
+    def test_tlt_electrical_requires_process_temperature_for_tmax_check(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(
+            object_type="pipe",
+            params={
+                "outer_diameter": 0.108,
+                "ambient_temperature": -20,
+                "pipe_length": 100,
+                "safety_factor": 1.1,
+            },
+            results={
+                "heat_loss_per_meter": 30,
+                "total_heat_loss": 3000,
+                "effective_length": 100,
+            },
+            is_valid=True,
+        )
+
+        with pytest.raises(CalculationError, match="температура продукта"):
+            service._build_electrical_data(
+                obj=obj,
+                cable_type="self_regulating",
+                cable_mark=None,
+                tlt_catalog=[],
+                overrides={},
+            )
+
+    def test_direct_tlt_request_fills_process_temperature_from_object(self):
+        service = CalculationService(_mock_db_empty())
+        object_id = uuid.uuid4()
+        request = ElectricalRequest(
+            object_id=object_id,
+            cable_type="self_regulating",
+            data={
+                "required_power_per_meter": 20,
+                "ambient_temperature": -20,
+                "pipe_length": 10,
+            },
+        )
+        obj = SimpleNamespace(params={"process_temperature": 80})
+
+        service._hydrate_electrical_request_from_object(request, obj)
+
+        assert request.data["process_temperature"] == pytest.approx(80.0)
+
+    def test_direct_tlt_request_requires_process_temperature_when_object_missing_it(self):
+        service = CalculationService(_mock_db_empty())
+        request = ElectricalRequest(
+            object_id=uuid.uuid4(),
+            cable_type="self_regulating",
+            data={
+                "required_power_per_meter": 20,
+                "ambient_temperature": -20,
+                "pipe_length": 10,
+            },
+        )
+        obj = SimpleNamespace(params={})
+
+        with pytest.raises(CalculationError, match="температура продукта"):
+            service._hydrate_electrical_request_from_object(request, obj)
+
     def test_resistive_electrical_data_uses_db_policy_coefficients_with_fallbacks(self):
         service = CalculationService(_mock_db_empty())
         obj = SimpleNamespace(
@@ -732,6 +826,39 @@ class TestCableLayoutMapping:
         assert data["max_parallel_schemes"] == 7
         assert data["max_linear_power_w_m"] == pytest.approx(45.0)
         assert data["high_voltage"] == pytest.approx(380.0)
+        assert data["min_adjusted_voltage"] == pytest.approx(40.0)
+        assert data["voltage_step"] == pytest.approx(5.0)
+
+
+class TestCableSourceNormalization:
+    def test_source_normalizers_accept_case_and_whitespace(self):
+        assert CalculationService._normalize_cable_type_source(" Manual ") == "manual"
+        assert CalculationService._normalize_cable_type_source("BULK") == "bulk"
+        assert CalculationService._normalize_cable_mark_source(" Manual ") == "manual"
+        assert (
+            CalculationService._resolve_cable_mark_source(
+                {"cable_mark": "ТЛТ-60", "cable_mark_source": "Manual"}
+            )
+            == "manual"
+        )
+
+    def test_skip_manual_is_conservative_for_unknown_source_with_saved_mark(self):
+        calc = SimpleNamespace(
+            cable_mark="ТЛТ-60",
+            cable_mark_source="manuel",
+            params={},
+        )
+
+        assert CalculationService._is_manual_cable_selection(calc) is True
+
+    def test_skip_manual_does_not_treat_known_auto_mark_as_manual(self):
+        calc = SimpleNamespace(
+            cable_mark="ТЛТ-60",
+            cable_mark_source="AUTO",
+            params={},
+        )
+
+        assert CalculationService._is_manual_cable_selection(calc) is False
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1726,6 +1853,7 @@ class TestLoadCableCatalog:
             price_updated_at=None,
             stock_updated_at=None,
             commercial_data_source="test",
+            params={"voltage": 380},
         )
         db = AsyncMock()
         result = MagicMock()
@@ -1738,6 +1866,7 @@ class TestLoadCableCatalog:
 
         assert tlt25["source"] == "commercial"
         assert tlt25["power_per_meter"] == 25
+        assert tlt25["voltage"] == 220
         assert tlt25["price_per_meter"] == 460.0
         assert tlt25["supplier_name"] == "Поставщик"
 

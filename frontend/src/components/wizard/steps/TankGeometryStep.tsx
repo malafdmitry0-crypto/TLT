@@ -34,6 +34,11 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps('tank', fieldId, { fieldInputSettings, form });
+  const shape = Form.useWatch('shape', form) as string | undefined;
+  const needDiameter = shape === 'cylindrical' || shape === 'spherical';
+  const needHeight = shape === 'cylindrical' || shape === 'rectangular';
+  const needLength = shape === 'rectangular';
+  const needWidth = shape === 'rectangular';
 
   return (
     <>
@@ -53,94 +58,77 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
         )}
       </Form.Item>
 
-      <Form.Item
-        noStyle
-        shouldUpdate={(prev, cur) => prev.shape !== cur.shape}
-      >
-        {({ getFieldValue }) => {
-          const shape: string | undefined = getFieldValue('shape');
-          const needDiameter = shape === 'cylindrical' || shape === 'spherical';
-          const needHeight = shape === 'cylindrical' || shape === 'rectangular';
-          const needLength = shape === 'rectangular';
-          const needWidth = shape === 'rectangular';
+      {needDiameter && (
+        <Form.Item
+          className="numeric-form-item tank-size-form-item helped-form-item"
+          label={fieldLabel('diameter_mm')}
+          name="diameter_mm"
+          rules={heatCalcFormFieldRules(form, 'tank', 'diameter_mm')}
+        >
+          {withHelp(
+            <UnitInputNumber
+              data-testid="tank-diameter-input"
+              {...numberInputProps('diameter_mm')}
+              unit="мм"
+            />,
+            fieldHelp('diameter_mm'),
+          )}
+        </Form.Item>
+      )}
 
-          return (
-            <>
-              {needDiameter && (
-                <Form.Item
-                  className="numeric-form-item tank-size-form-item helped-form-item"
-                  label={fieldLabel('diameter_mm')}
-                  name="diameter_mm"
-                  rules={heatCalcFormFieldRules(form, 'tank', 'diameter_mm')}
-                >
-                  {withHelp(
-                    <UnitInputNumber
-                      data-testid="tank-diameter-input"
-                      {...numberInputProps('diameter_mm')}
-                    unit="мм"
-                    />,
-                    fieldHelp('diameter_mm'),
-                  )}
-                </Form.Item>
-              )}
+      {needHeight && (
+        <Form.Item
+          className="numeric-form-item tank-size-form-item helped-form-item"
+          label={fieldLabel('height_mm')}
+          name="height_mm"
+          rules={heatCalcFormFieldRules(form, 'tank', 'height_mm')}
+        >
+          {withHelp(
+            <UnitInputNumber
+              data-testid="tank-height-input"
+              {...numberInputProps('height_mm')}
+              unit="мм"
+            />,
+            fieldHelp('height_mm'),
+          )}
+        </Form.Item>
+      )}
 
-              {needHeight && (
-                <Form.Item
-                  className="numeric-form-item tank-size-form-item helped-form-item"
-                  label={fieldLabel('height_mm')}
-                  name="height_mm"
-                  rules={heatCalcFormFieldRules(form, 'tank', 'height_mm')}
-                >
-                  {withHelp(
-                    <UnitInputNumber
-                      data-testid="tank-height-input"
-                      {...numberInputProps('height_mm')}
-                    unit="мм"
-                    />,
-                    fieldHelp('height_mm'),
-                  )}
-                </Form.Item>
-              )}
+      {needLength && (
+        <Form.Item
+          className="numeric-form-item tank-size-form-item helped-form-item"
+          label={fieldLabel('length_mm')}
+          name="length_mm"
+          rules={heatCalcFormFieldRules(form, 'tank', 'length_mm')}
+        >
+          {withHelp(
+            <UnitInputNumber
+              data-testid="tank-length-input"
+              {...numberInputProps('length_mm')}
+              unit="мм"
+            />,
+            fieldHelp('length_mm'),
+          )}
+        </Form.Item>
+      )}
 
-              {needLength && (
-                <Form.Item
-                  className="numeric-form-item tank-size-form-item helped-form-item"
-                  label={fieldLabel('length_mm')}
-                  name="length_mm"
-                  rules={heatCalcFormFieldRules(form, 'tank', 'length_mm')}
-                >
-                  {withHelp(
-                    <UnitInputNumber
-                      data-testid="tank-length-input"
-                      {...numberInputProps('length_mm')}
-                    unit="мм"
-                    />,
-                    fieldHelp('length_mm'),
-                  )}
-                </Form.Item>
-              )}
-
-              {needWidth && (
-                <Form.Item
-                  className="numeric-form-item tank-size-form-item helped-form-item"
-                  label={fieldLabel('width_mm')}
-                  name="width_mm"
-                  rules={heatCalcFormFieldRules(form, 'tank', 'width_mm')}
-                >
-                  {withHelp(
-                    <UnitInputNumber
-                      data-testid="tank-width-input"
-                      {...numberInputProps('width_mm')}
-                    unit="мм"
-                    />,
-                    fieldHelp('width_mm'),
-                  )}
-                </Form.Item>
-              )}
-            </>
-          );
-        }}
-      </Form.Item>
+      {needWidth && (
+        <Form.Item
+          className="numeric-form-item tank-size-form-item helped-form-item"
+          label={fieldLabel('width_mm')}
+          name="width_mm"
+          rules={heatCalcFormFieldRules(form, 'tank', 'width_mm')}
+        >
+          {withHelp(
+            <UnitInputNumber
+              data-testid="tank-width-input"
+              {...numberInputProps('width_mm')}
+              unit="мм"
+            />,
+            fieldHelp('width_mm'),
+          )}
+        </Form.Item>
+      )}
 
       <Form.Item
         className="numeric-form-item tank-size-form-item helped-form-item"

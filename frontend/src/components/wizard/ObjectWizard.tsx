@@ -42,6 +42,10 @@ import {
   getHeatCalcFieldLabel,
 } from '@/domain/heatCalcFields';
 import {
+  isHeatCalcFieldRequired,
+  isHeatCalcFieldVisible,
+} from '@/domain/heatCalcFieldRules';
+import {
   buildInsulationReferenceOptions,
   buildPipeMaterialReferenceOptions,
   buildSoilReferenceOptions,
@@ -449,6 +453,8 @@ export default function ObjectWizard({
     [validationErrors],
   );
   const calculationFieldErrorNamesRef = useRef<string[]>([]);
+  const localRequiredFieldErrorNamesRef = useRef<string[]>([]);
+  const requiredFieldSyncTimerRef = useRef<number | null>(null);
   const values = Form.useWatch([], form);
   const watchedValues = values as Record<string, unknown> | undefined;
   const watchedValue = (name: string, fallback?: unknown) => {
@@ -466,6 +472,12 @@ export default function ObjectWizard({
   useEffect(() => {
     formSectionWeightsRef.current = resolvedFormSectionWeights;
   }, [resolvedFormSectionWeights]);
+
+  useEffect(() => () => {
+    if (requiredFieldSyncTimerRef.current != null) {
+      window.clearTimeout(requiredFieldSyncTimerRef.current);
+    }
+  }, []);
 
   const insulationLayerCount = watchedString('insulation_layer_count');
   const placement = watchedString('placement');
@@ -541,6 +553,7 @@ export default function ObjectWizard({
   useEffect(() => {
     form.resetFields();
     form.setFieldsValue(formInitialValues);
+    localRequiredFieldErrorNamesRef.current = [];
   }, [form, formInitialValues]);
 
   useEffect(() => {
@@ -551,15 +564,29 @@ export default function ObjectWizard({
       }
 
       const nextFieldEntries = Object.entries(calculationFieldErrors);
+      const nextFieldNames = nextFieldEntries.map(([fieldName]) => fieldName);
+      const nextRequiredFieldNames = nextFieldEntries
+        .filter(([, message]) => message === REQUIRED_FIELD_ERROR_MESSAGE)
+        .map(([fieldName]) => fieldName);
+      const staleLocalFieldNames = localRequiredFieldErrorNamesRef.current.filter((fieldName) => (
+        !nextRequiredFieldNames.includes(fieldName)
+        && !nextFieldNames.includes(fieldName)
+      ));
+      if (staleLocalFieldNames.length > 0) {
+        form.setFields(staleLocalFieldNames.map((fieldName) => ({ name: fieldName, errors: [] })));
+      }
       if (nextFieldEntries.length > 0) {
         form.setFields(nextFieldEntries.map(([fieldName, message]) => ({
           name: fieldName,
           errors: [message],
         })));
-        calculationFieldErrorNamesRef.current = nextFieldEntries.map(([fieldName]) => fieldName);
+        calculationFieldErrorNamesRef.current = nextFieldNames;
+        localRequiredFieldErrorNamesRef.current = nextRequiredFieldNames;
+        scheduleMissingRequiredFieldSync();
         scrollToFirstError();
       } else {
         calculationFieldErrorNamesRef.current = [];
+        localRequiredFieldErrorNamesRef.current = [];
       }
     }, 0);
     return () => window.clearTimeout(timer);
@@ -659,6 +686,40 @@ export default function ObjectWizard({
     if (Object.prototype.hasOwnProperty.call(changed, 'wind_speed')) {
       form.setFieldsValue({ wind_speed_source: 'manual' });
     }
+    if (Object.prototype.hasOwnProperty.call(changed, 'safety_factor')) {
+      form.setFieldsValue({
+        safety_factor_source: changed.safety_factor == null ? undefined : 'manual',
+      });
+    }
+    scheduleMissingRequiredFieldSync();
+  }
+
+  function scheduleMissingRequiredFieldSync() {
+    if (requiredFieldSyncTimerRef.current != null) {
+      window.clearTimeout(requiredFieldSyncTimerRef.current);
+    }
+    requiredFieldSyncTimerRef.current = window.setTimeout(() => {
+      requiredFieldSyncTimerRef.current = null;
+      syncMissingRequiredFieldErrors();
+    }, 0);
+  }
+
+  function syncMissingRequiredFieldErrors() {
+    const trackedFieldNames = localRequiredFieldErrorNamesRef.current;
+    if (trackedFieldNames.length === 0) return;
+    const values = form.getFieldsValue(true) as Record<string, unknown>;
+    const context = { objectType: heatCalcObjectType, values };
+    const nextFieldNames = trackedFieldNames.filter((fieldName) => (
+      isHeatCalcFieldVisible(fieldName, context)
+        && isHeatCalcFieldRequired(fieldName, context)
+        && isEmptyFormValue(values[fieldName])
+    ));
+    const fieldNamesToClear = trackedFieldNames.filter((fieldName) => !nextFieldNames.includes(fieldName));
+    const fieldUpdates = [
+      ...fieldNamesToClear.map((fieldName) => ({ name: fieldName, errors: [] })),
+      ...nextFieldNames.map((fieldName) => ({ name: fieldName, errors: [REQUIRED_FIELD_ERROR_MESSAGE] })),
+    ];
+    if (fieldUpdates.length > 0) form.setFields(fieldUpdates);
   }
 
   function clearCalculationFieldErrors(changedFieldNames?: string[]) {
@@ -839,6 +900,9 @@ export default function ObjectWizard({
         <Input type="hidden" />
       </Form.Item>
       <Form.Item name="wind_speed_source" hidden noStyle>
+        <Input type="hidden" />
+      </Form.Item>
+      <Form.Item name="safety_factor_source" hidden noStyle>
         <Input type="hidden" />
       </Form.Item>
       <div className="form-grid-srs" ref={formGridRef}>

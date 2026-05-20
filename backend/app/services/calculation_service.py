@@ -37,6 +37,8 @@ from app.reference_data.loader import (
 )
 from app.result import Err, Ok, Result
 from app.schemas.calculation import (
+    RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE,
+    RESISTIVE_DEFAULT_VOLTAGE_STEP,
     ElectricalCalcSummary,
     ElectricalRequest,
     PipeHeatLossParams,
@@ -629,7 +631,13 @@ class CalculationService:
             technical_defaults=base,
         )
         for key, value in overlay.items():
-            if key in {"model", "power_per_meter", "max_temperature", "min_temperature"}:
+            if key in {
+                "model",
+                "power_per_meter",
+                "max_temperature",
+                "min_temperature",
+                "voltage",
+            }:
                 continue
             entry[key] = value
         return entry
@@ -887,6 +895,23 @@ class CalculationService:
             await self.db.flush()
         return stale_count
 
+    async def mark_project_specifications_stale(
+        self,
+        project_id: UUID,
+        reason: str,
+        *,
+        object_ids: list[UUID] | set[UUID] | tuple[UUID, ...] | None = None,
+        operation: str | None = None,
+    ) -> int:
+        from app.services.specification_service import SpecificationService
+
+        return await SpecificationService(self.db).mark_project_specifications_stale(
+            project_id,
+            reason,
+            object_ids=object_ids,
+            operation=operation,
+        )
+
     async def try_recalculate(
         self,
         obj: ProjectObject,
@@ -958,11 +983,9 @@ class CalculationService:
         climate = cls._climate_entry(normalized)
         safety_factor = cls._num(normalized.get("safety_factor"))
         safety_factor_source = normalized.get("safety_factor_source")
-        safety_factor_is_default_value = safety_factor_source is None and safety_factor == 1.1
-        explicit_safety_factor = (
-            safety_factor is not None
-            and safety_factor_source not in ("default", "climate_policy")
-            and not safety_factor_is_default_value
+        explicit_safety_factor = safety_factor is not None and safety_factor_source not in (
+            "default",
+            "climate_policy",
         )
         safety_factor_from_policy = False
 
@@ -994,9 +1017,14 @@ class CalculationService:
             return normalized
 
         climate_temperature = cls._climate_temperature(climate, basis)
+        manual_ambient_temperature = (
+            normalized.get("ambient_temperature_source") == "manual"
+            and cls._num(normalized.get("ambient_temperature")) is not None
+        )
         if climate_temperature is not None:
-            normalized["ambient_temperature"] = climate_temperature
-            normalized["ambient_temperature_source"] = "climate"
+            if not manual_ambient_temperature:
+                normalized["ambient_temperature"] = climate_temperature
+                normalized["ambient_temperature_source"] = "climate"
             normalized["climate_temperature_basis"] = basis
         else:
             normalized.pop("climate_temperature_basis", None)
@@ -1089,6 +1117,7 @@ class CalculationService:
 
         coefficients = await self.get_coefficients() if total_count > 0 else {}
         processed = 0
+        processed_object_ids: list[UUID] = []
         last_sort_order: int | None = None
         last_id: UUID | None = None
 
@@ -1129,15 +1158,24 @@ class CalculationService:
                     await asyncio.sleep(0)
 
             await cancel_checker.check(processed, force=True)
+            chunk_object_ids = [obj.id for obj in objects]
+            processed_object_ids.extend(chunk_object_ids)
             await self.mark_electrical_calculations_stale(
                 project_id,
-                [obj.id for obj in objects],
+                chunk_object_ids,
                 reason="heat_loss_batch_recalculate",
             )
             await self.db.flush()
             await asyncio.sleep(0)
 
         await cancel_checker.check(processed, force=True)
+        if processed_object_ids:
+            await self.mark_project_specifications_stale(
+                project_id,
+                "heat_loss_batch_recalculate",
+                object_ids=processed_object_ids if object_ids is not None else None,
+                operation="batch_recalculate",
+            )
         await emit_progress(
             BatchProgress(
                 current=processed,
@@ -1163,13 +1201,6 @@ class CalculationService:
         return updated, failed, errors
 
     async def calc_electrical(self, request: ElectricalRequest) -> ElectricalCalculation:
-        cable_mark, result_dict = self._calculate_electrical_result(request)
-        cable_snapshot = self._build_cable_snapshot_for_result(
-            request=request,
-            cable_mark=cable_mark,
-            result_dict=result_dict,
-        )
-
         # Получаем объект, чтобы узнать project_id
         obj_result = await self.db.execute(
             select(ProjectObject).where(ProjectObject.id == request.object_id)
@@ -1177,6 +1208,14 @@ class CalculationService:
         obj = obj_result.scalar_one_or_none()
         if obj is None:
             raise CalculationError("Объект не найден")
+
+        self._hydrate_electrical_request_from_object(request, obj)
+        cable_mark, result_dict = self._calculate_electrical_result(request)
+        cable_snapshot = self._build_cable_snapshot_for_result(
+            request=request,
+            cable_mark=cable_mark,
+            result_dict=result_dict,
+        )
 
         # Upsert по (object_id, variant_number) — чтобы повторный пересчёт
         # обновлял существующую строку и «затирал» предыдущую ошибку.
@@ -1197,6 +1236,24 @@ class CalculationService:
         await self.db.commit()
         await self.db.refresh(calc)
         return calc
+
+    def _hydrate_electrical_request_from_object(
+        self,
+        request: ElectricalRequest,
+        obj: ProjectObject,
+    ) -> None:
+        if request.cable_type != "self_regulating":
+            return
+        process_temperature = self._num(request.data.get("process_temperature"))
+        if process_temperature is None:
+            obj_params = obj.params if isinstance(obj.params, dict) else {}
+            process_temperature = self._num(obj_params.get("process_temperature"))
+            if process_temperature is not None:
+                request.data["process_temperature"] = process_temperature
+        if process_temperature is None:
+            raise CalculationError(
+                "Для ТЛТ требуется температура продукта для проверки T_max кабеля"
+            )
 
     def _calculate_electrical_result(
         self, request: ElectricalRequest
@@ -1345,8 +1402,10 @@ class CalculationService:
 
     @staticmethod
     def _normalize_cable_type_source(value: Any) -> str:
-        if isinstance(value, str) and value in VALID_CABLE_TYPE_SOURCES:
-            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in VALID_CABLE_TYPE_SOURCES:
+                return normalized
         return CABLE_TYPE_SOURCE_AUTO
 
     @staticmethod
@@ -1364,20 +1423,38 @@ class CalculationService:
 
     @staticmethod
     def _is_manual_cable_selection(calc: ElectricalCalculation) -> bool:
-        if getattr(calc, "cable_mark_source", None) == CABLE_MARK_SOURCE_MANUAL:
+        source = getattr(calc, "cable_mark_source", None)
+        normalized_source = CalculationService._normalize_cable_mark_source(source)
+        if normalized_source == CABLE_MARK_SOURCE_MANUAL:
             return True
+        source_is_known_auto = (
+            isinstance(source, str) and source.strip().lower() == CABLE_MARK_SOURCE_AUTO
+        )
         params = getattr(calc, "params", None)
-        if not isinstance(params, dict):
-            return False
-        if params.get("cable_mark_source") == CABLE_MARK_SOURCE_MANUAL:
-            return True
-        cable_mark = params.get("cable_mark")
-        return isinstance(cable_mark, str) and cable_mark.strip() != ""
+        if isinstance(params, dict):
+            params_source = params.get("cable_mark_source")
+            params_normalized_source = CalculationService._normalize_cable_mark_source(
+                params_source
+            )
+            if params_normalized_source == CABLE_MARK_SOURCE_MANUAL:
+                return True
+            if (
+                isinstance(params_source, str)
+                and params_source.strip().lower() == CABLE_MARK_SOURCE_AUTO
+            ):
+                source_is_known_auto = True
+            cable_mark = params.get("cable_mark")
+            if isinstance(cable_mark, str) and cable_mark.strip() != "":
+                return True
+        cable_mark = getattr(calc, "cable_mark", None)
+        return isinstance(cable_mark, str) and cable_mark.strip() != "" and not source_is_known_auto
 
     @staticmethod
     def _normalize_cable_mark_source(value: Any) -> str:
-        if isinstance(value, str) and value in VALID_CABLE_MARK_SOURCES:
-            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in VALID_CABLE_MARK_SOURCES:
+                return normalized
         return CABLE_MARK_SOURCE_AUTO
 
     @staticmethod
@@ -1389,8 +1466,10 @@ class CalculationService:
     @staticmethod
     def _resolve_cable_mark_source(data: dict[str, Any]) -> str:
         source = data.get("cable_mark_source")
-        if source in VALID_CABLE_MARK_SOURCES:
-            return str(source)
+        if isinstance(source, str):
+            normalized = source.strip().lower()
+            if normalized in VALID_CABLE_MARK_SOURCES:
+                return normalized
         return CABLE_MARK_SOURCE_MANUAL if data.get("cable_mark") else CABLE_MARK_SOURCE_AUTO
 
     @staticmethod
@@ -1672,7 +1751,7 @@ class CalculationService:
             ),
             "min_adjusted_voltage": self._pick_numeric_policy(
                 key="min_adjusted_voltage",
-                fallback=1.0,
+                fallback=RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE,
                 overrides=overrides,
                 params=params,
                 coefficients=coefficients,
@@ -1680,7 +1759,7 @@ class CalculationService:
             ),
             "voltage_step": self._pick_numeric_policy(
                 key="voltage_step",
-                fallback=1.0,
+                fallback=RESISTIVE_DEFAULT_VOLTAGE_STEP,
                 overrides=overrides,
                 params=params,
                 coefficients=coefficients,
@@ -2142,7 +2221,10 @@ class CalculationService:
                 "cable_mark": cable_mark,
                 "supply_voltage": supply_voltage,
                 "ambient_temperature": float(params.get("ambient_temperature", -20.0)),
-                "process_temperature": process_temperature,
+                "process_temperature": self._required_num(
+                    process_temperature,
+                    "Для ТЛТ требуется температура продукта для проверки T_max кабеля",
+                ),
                 "pipe_length": pipe_length,
                 "safety_factor": safety_factor,
                 "cable_catalog": tlt_catalog,

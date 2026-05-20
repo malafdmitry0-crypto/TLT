@@ -522,6 +522,7 @@ class TestFormulaCheck:
                     "required_power_per_meter": 42.0,
                     "pipe_length": 50.0,
                     "ambient_temperature": -26.0,
+                    "process_temperature": 60.0,
                 },
             },
             headers={"Authorization": f"Bearer {admin_token}"},

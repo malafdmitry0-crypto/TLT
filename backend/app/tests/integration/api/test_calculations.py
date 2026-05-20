@@ -34,7 +34,7 @@ async def _create_pipe_object(
         "insulation_material": MINERAL_WOOL,
         "insulation_temperature_basis": "outdoor_winter",
         "ambient_temperature": -30,
-        "process_temperature": 150,
+        "process_temperature": 80,
         "pipe_length": 50,
     }
     params.update(params_override or {})
@@ -206,6 +206,14 @@ class TestElectricalCalculation:
         assert "total_power" in result
         assert "current" in result
         assert "voltage" in result
+
+        list_resp = await client.get(
+            "/api/v1/calc/electrical",
+            params={"project_id": project["id"]},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert list_resp.status_code == 200, list_resp.text
+        assert list_resp.json()[0]["params"]["process_temperature"] == 80
 
     async def test_tlt_uses_catalog_voltage_for_current(
         self, client: AsyncClient, guest_session: str
@@ -843,9 +851,7 @@ class TestElectricalCalculation:
             "/api/v1/calc/electrical/query",
             json={
                 "project_id": project["id"],
-                "filters": [
-                    {"key": "electrical_status", "op": "in", "values": ["calculated"]}
-                ],
+                "filters": [{"key": "electrical_status", "op": "in", "values": ["calculated"]}],
             },
             headers={"X-Session-Id": guest_session},
         )

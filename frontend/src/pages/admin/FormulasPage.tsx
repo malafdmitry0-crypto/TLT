@@ -1132,8 +1132,8 @@ function ElecTab() {
       pipe_length: v.pipe_length,
       ambient_temperature: v.ambient_temperature,
       supply_voltage: v.supply_voltage ?? 220,
+      process_temperature: v.process_temperature,
     };
-    assignIfPresent(p, 'process_temperature', v.process_temperature);
     assignIfPresent(p, 'cable_mark', v.cable_mark);
     assignIfPresent(p, 'safety_factor', v.safety_factor);
     assignIfPresent(p, 'winding_coefficient', v.winding_coefficient);
@@ -1152,7 +1152,7 @@ function ElecTab() {
       </Col>
       <Col xs={24} lg={12}>
         <div style={{ fontWeight: 600, marginBottom: 10, color: '#333' }}>Подобрать кабель</div>
-        <Form form={form} name="tlt_formula_check" layout="vertical" initialValues={{ supply_voltage: 220, safety_factor: 1.1, winding_coefficient: 1, number_of_threads: 1 }}>
+        <Form form={form} name="tlt_formula_check" layout="vertical" initialValues={{ supply_voltage: 220, process_temperature: 80, safety_factor: 1.1, winding_coefficient: 1, number_of_threads: 1 }}>
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="required_power_per_meter" label="Требуемая мощность, Вт/м" rules={[{ required: true }]}>
@@ -1172,7 +1172,7 @@ function ElecTab() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="process_temperature" label="T продукта, °C (необяз.)">
+              <Form.Item name="process_temperature" label="T продукта, °C" rules={[{ required: true }]}>
                 <InputNumber min={-90} max={600} style={{ width: '100%' }} placeholder="80" />
               </Form.Item>
             </Col>

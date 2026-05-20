@@ -136,6 +136,61 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.getByTestId('valve-count-input')).not.toHaveAttribute('aria-required');
   });
 
+  it('не подсвечивает пустые обязательные поля новой трубы до backend-ошибки', async () => {
+    renderWizard();
+
+    const outerDiameter = await screen.findByTestId('outer-diameter-input');
+    const pipeLength = screen.getByTestId('pipe-length-input');
+    const name = screen.getByTestId('object-name-input');
+
+    expect(outerDiameter.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+    expect(pipeLength.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+    expect(name.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+    expect(screen.queryByText('Укажите значение')).not.toBeInTheDocument();
+    expect(screen.queryByText('Выберите значение')).not.toBeInTheDocument();
+  });
+
+  it('нажатие сохранить не подсвечивает пустые поля до backend-ошибки', async () => {
+    const user = userEvent.setup();
+    renderWizard();
+
+    const pipeLength = await screen.findByTestId('pipe-length-input');
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+
+    expect(pipeLength.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+  });
+
+  it('пересчитывает локальную подсветку обязательного поля после backend-ошибки', async () => {
+    const user = userEvent.setup();
+    renderWizard({
+      initialParams: {
+        ...basePipeParams,
+        pipe_length: undefined,
+      },
+      validationErrors: {
+        message: 'Не заполнены обязательные поля объекта: Длина трубопровода',
+      },
+    });
+
+    const pipeLength = await screen.findByTestId('pipe-length-input');
+    await waitFor(() => {
+      expect(pipeLength.closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    });
+
+    await user.type(pipeLength, '12');
+
+    await waitFor(() => {
+      expect(pipeLength.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+    });
+    expect(pipeLength).toHaveAttribute('aria-required', 'true');
+
+    await user.clear(pipeLength);
+
+    await waitFor(() => {
+      expect(pipeLength.closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    });
+  });
+
   it('подсвечивает незаполненные обязательные поля без верхней диагностики', async () => {
     renderWizard({
       initialParams: {
@@ -156,6 +211,82 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.queryByText('Расчёт не выполнен')).not.toBeInTheDocument();
     expect(screen.queryByText('Заполните обязательные поля')).not.toBeInTheDocument();
     expect(screen.queryByText('Выберите значение')).not.toBeInTheDocument();
+  });
+
+  it('подсвечивает наружный диаметр, когда backend-ошибка пришла после открытия формы', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const props = {
+      objectType: 'pipe' as const,
+      onClose: vi.fn(),
+      onSubmit: vi.fn(),
+    };
+    const view = render(
+      <QueryClientProvider client={client}>
+        <ObjectWizard {...props} />
+      </QueryClientProvider>,
+    );
+
+    const outerDiameter = await screen.findByTestId('outer-diameter-input');
+    expect(outerDiameter.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+
+    view.rerender(
+      <QueryClientProvider client={client}>
+        <ObjectWizard
+          {...props}
+          initialParams={{
+            ...basePipeParams,
+            outer_diameter: undefined,
+          }}
+          validationErrors={{
+            message: 'Не заполнены обязательные поля объекта: Наружный диаметр',
+            missing_fields: ['Наружный диаметр'],
+          }}
+        />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('outer-diameter-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    });
+  });
+
+  it('подсвечивает весь набор пустых обязательных полей из backend validationErrors', async () => {
+    renderWizard({
+      initialParams: {
+        ...basePipeParams,
+        outer_diameter: undefined,
+        pipe_length: undefined,
+        wall_thickness: undefined,
+        insulation_thickness: undefined,
+        insulation_material: undefined,
+        ambient_temperature: undefined,
+        process_temperature: undefined,
+      },
+      validationErrors: {
+        message: 'Не заполнены обязательные поля объекта: Наружный диаметр, Длина трубопровода, Толщина стенки, Температура окружающей среды, Требуемая температура объекта, Толщина 1-го слоя изоляции, Материал 1-го слоя изоляции',
+        missing_fields: [
+          'Наружный диаметр',
+          'Длина трубопровода',
+          'Толщина стенки',
+          'Температура окружающей среды',
+          'Требуемая температура объекта',
+          'Толщина 1-го слоя изоляции',
+          'Материал 1-го слоя изоляции',
+        ],
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('outer-diameter-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    });
+    expect(screen.getByTestId('pipe-length-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    expect(screen.getByTestId('wall-thickness-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    expect(screen.getByTestId('ambient-temperature-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    expect(screen.getByTestId('process-temperature-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    expect(screen.getByTestId('insulation-thickness-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    expect(screen.getByTestId('insulation-material-select').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
   });
 
   it('подсвечивает незаполненные поля второго слоя без текста обязательности', async () => {
@@ -205,6 +336,54 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.getByTestId('q-additional-input')).toHaveValue('');
   });
 
+  it('подсвечивает размеры резервуара, когда backend-ошибка пришла после открытия формы', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const props = {
+      objectType: 'tank' as const,
+      onClose: vi.fn(),
+      onSubmit: vi.fn(),
+    };
+    const view = render(
+      <QueryClientProvider client={client}>
+        <ObjectWizard {...props} />
+      </QueryClientProvider>,
+    );
+
+    const diameter = await screen.findByTestId('tank-diameter-input');
+    const height = screen.getByTestId('tank-height-input');
+    expect(diameter.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+    expect(height.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+
+    view.rerender(
+      <QueryClientProvider client={client}>
+        <ObjectWizard
+          {...props}
+          initialParams={{
+            shape: 'cylindrical',
+            placement: 'outdoor',
+            diameter: undefined,
+            height: undefined,
+            insulation_thickness: undefined,
+            insulation_material: undefined,
+            ambient_temperature: undefined,
+            process_temperature: undefined,
+          }}
+          validationErrors={{
+            message: 'Не заполнены обязательные поля объекта: Диаметр резервуара, Высота резервуара',
+            missing_fields: ['Диаметр резервуара', 'Высота резервуара'],
+          }}
+        />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tank-diameter-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    });
+    expect(screen.getByTestId('tank-height-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+  });
+
   it('показывает расчётную климатическую обеспеченность и источники, когда выбран климат', async () => {
     renderWizard({
       initialParams: {
@@ -247,6 +426,29 @@ describe('ObjectWizard dependencies', () => {
     const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
     expect(payload.climate_key).toBe('Москва|||Москва');
     expect(payload.climate_temperature_basis).toBe('t_0_92');
+  });
+
+  it('помечает ручную правку Kзап как manual даже при значении 1.1', async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    renderWizard({
+      onSubmit,
+      initialParams: {
+        ...basePipeParams,
+        safety_factor: 1.12,
+        safety_factor_source: 'climate_policy',
+      },
+    });
+
+    const input = await screen.findByTestId('safety-factor-input');
+    await user.clear(input);
+    await user.type(input, '1.1');
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.safety_factor).toBe(1.1);
+    expect(payload.safety_factor_source).toBe('manual');
   });
 
   it('открывает длинный справочник в модальном окне и подставляет выбранный материал', async () => {

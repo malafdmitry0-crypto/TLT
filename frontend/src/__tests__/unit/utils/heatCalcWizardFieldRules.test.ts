@@ -25,6 +25,12 @@ describe('heatCalcFormFieldRules', () => {
     expect(rules.some((rule) => 'required' in rule && rule.required === true)).toBe(false);
   });
 
+  it('не считает наименование обязательным расчётным полем', () => {
+    const rules = heatCalcFormFieldRules(formWithValues({}), 'pipe', 'name');
+
+    expect(rules.some((rule) => 'required' in rule && rule.required === true)).toBe(false);
+  });
+
   it('учитывает контекст формы для обязательных размеров резервуара', () => {
     const rectangularRules = heatCalcFormFieldRules(
       formWithValues({ shape: 'rectangular' }),

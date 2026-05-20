@@ -37,6 +37,8 @@ logger = logging.getLogger("heatcalc.project_io")
 
 SCHEMA_VERSION = "2"
 DELIMITER = ";"  # экспорт всегда `;`; импорт определяет сам
+VALID_CABLE_TYPE_SOURCES = {"auto", "manual", "bulk"}
+VALID_CABLE_MARK_SOURCES = {"auto", "manual"}
 
 
 class ProjectImportError(Exception):
@@ -365,6 +367,13 @@ def _parse_json_or_empty(raw: str, default: Any) -> Any:
         raise ProjectImportError(f"Некорректный JSON: {exc}") from exc
 
 
+def _normalize_source(value: str | None, valid_values: set[str]) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    return normalized if normalized in valid_values else None
+
+
 async def _apply_project_data(
     db: AsyncSession,
     project: Project,
@@ -407,8 +416,16 @@ async def _apply_project_data(
         if obj is None:
             continue  # расчёт ссылается на объект не из этого CSV
         cable_mark = row.get("cable_mark", "").strip() or None
-        cable_mark_source = row.get("cable_mark_source", "").strip() or (
-            "manual" if cable_mark else "auto"
+        cable_mark_source = _normalize_source(
+            row.get("cable_mark_source"),
+            VALID_CABLE_MARK_SOURCES,
+        ) or ("manual" if cable_mark else "auto")
+        cable_type_source = (
+            _normalize_source(
+                row.get("cable_type_source"),
+                VALID_CABLE_TYPE_SOURCES,
+            )
+            or "auto"
         )
         cable_snapshot = _parse_json_or_empty(row.get("cable_snapshot", ""), None)
         if isinstance(cable_snapshot, dict):
@@ -418,7 +435,7 @@ async def _apply_project_data(
             object_id=obj.id,
             variant_number=int(row.get("variant_number", "1") or "1"),
             cable_type=row.get("cable_type", "").strip() or "self_regulating",
-            cable_type_source=row.get("cable_type_source", "").strip() or "auto",
+            cable_type_source=cable_type_source,
             cable_mark=cable_mark,
             cable_mark_source=cable_mark_source,
             cable_snapshot=cable_snapshot,

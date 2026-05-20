@@ -46,6 +46,8 @@ from app.reference_data.loader import (
     list_tlt_cables,
 )
 from app.schemas.calculation import (
+    RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE,
+    RESISTIVE_DEFAULT_VOLTAGE_STEP,
     PipeHeatLossParams,
     SelfRegulatingParams,
     TankHeatLossParams,
@@ -494,13 +496,19 @@ async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficie
         ),
         dict(
             key="resistive_min_adjusted_voltage_v",
-            value=1.0,
-            description="Demo/test minimum adjusted voltage for resistive auto-selection.",
+            value=RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE,
+            description=(
+                "Safety floor for resistive auto-selection voltage step-down, V. "
+                "Override only with an engineering-reviewed policy."
+            ),
         ),
         dict(
             key="resistive_voltage_step_v",
-            value=1.0,
-            description="Demo/test voltage decrement step for resistive auto-selection.",
+            value=RESISTIVE_DEFAULT_VOLTAGE_STEP,
+            description=(
+                "Safety fallback voltage decrement step for resistive auto-selection, V. "
+                "Override with 1 V only after engineering review."
+            ),
         ),
         dict(
             key="resistive_max_current_a",
@@ -1601,6 +1609,7 @@ async def seed_objects_and_calculations(
             )
             pipe_length = pipe_obj.params.get("pipe_length", 100.0)
             ambient_temperature = pipe_obj.params.get("ambient_temperature", -30.0)
+            process_temperature = pipe_obj.params.get("process_temperature", 80.0)
 
             if heat_loss_per_meter <= 0:
                 logger.warning("  ! skip elec calc for object %s: heat_loss=0", pipe_obj.id)
@@ -1612,6 +1621,7 @@ async def seed_objects_and_calculations(
                     cable_mark=None,  # автоподбор
                     supply_voltage=220.0,
                     ambient_temperature=ambient_temperature,
+                    process_temperature=process_temperature,
                     pipe_length=pipe_length,
                     safety_factor=1.0,  # коэффициент уже применён в теплопотерях
                 )

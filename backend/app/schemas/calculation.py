@@ -30,6 +30,8 @@ TANK_HEIGHT_MIN = 0.1
 TANK_HEIGHT_MAX = 50.0
 TANK_SIDE_MIN = 0.1
 TANK_SIDE_MAX = 100.0
+RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE = 40.0
+RESISTIVE_DEFAULT_VOLTAGE_STEP = 5.0
 
 
 def _fmt_temp(value: float) -> str:
@@ -497,10 +499,7 @@ class SelfRegulatingParams(BaseModel):
     cable_mark: str | None = Field(default=None, description="Марка кабеля; null — автоподбор")
     supply_voltage: float = Field(default=220.0, gt=0)
     ambient_temperature: float
-    process_temperature: float | None = Field(
-        default=None,
-        description="Температура продукта для проверки T_max кабеля",
-    )
+    process_temperature: float = Field(description="Температура продукта для проверки T_max кабеля")
     pipe_length: float = Field(gt=0)
     safety_factor: float = Field(default=1.1, ge=1.0, le=2.0)
     winding_coefficient: float = Field(
@@ -685,11 +684,15 @@ class ResistiveSingleCoreParams(BaseModel):
     )
     high_voltage: float = Field(default=380.0, gt=0, description="U для повышенной схемы/звезды")
     min_adjusted_voltage: float = Field(
-        default=1.0,
+        default=RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE,
         gt=0,
         description="Минимальное U при шаговом снижении, если первый вариант перегрет",
     )
-    voltage_step: float = Field(default=1.0, gt=0, description="Шаг снижения U в auto")
+    voltage_step: float = Field(
+        default=RESISTIVE_DEFAULT_VOLTAGE_STEP,
+        gt=0,
+        description="Шаг снижения U в auto",
+    )
     maintain_temperature: float | None = Field(
         default=None,
         description="T1/температура поддержания для VSDX-подбора; fallback — process_temperature",
@@ -725,7 +728,10 @@ class ResistiveSingleCoreParams(BaseModel):
         default=None, gt=0, description="h_укл — высота зоны обогрева, м"
     )
     laying_step: float | None = Field(
-        default=None, ge=0.05, le=0.5, description="w_step — шаг укладки, м"
+        default=None,
+        ge=0.05,
+        le=0.5,
+        description="w_step — шаг укладки, м",
     )
 
 
@@ -813,11 +819,15 @@ class ResistiveThreeCoreParams(BaseModel):
     )
     high_voltage: float = Field(default=380.0, gt=0, description="U для повышенной схемы/звезды")
     min_adjusted_voltage: float = Field(
-        default=1.0,
+        default=RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE,
         gt=0,
         description="Минимальное U при шаговом снижении, если первый вариант перегрет",
     )
-    voltage_step: float = Field(default=1.0, gt=0, description="Шаг снижения U в auto")
+    voltage_step: float = Field(
+        default=RESISTIVE_DEFAULT_VOLTAGE_STEP,
+        gt=0,
+        description="Шаг снижения U в auto",
+    )
     maintain_temperature: float | None = Field(
         default=None,
         description="T1/температура поддержания для VSDX-подбора; fallback — process_temperature",
@@ -847,7 +857,10 @@ class ResistiveThreeCoreParams(BaseModel):
         default=None, gt=0, description="h_укл — высота зоны обогрева, м"
     )
     laying_step: float | None = Field(
-        default=None, ge=0.05, le=0.5, description="w_step — шаг укладки, м"
+        default=None,
+        ge=0.05,
+        le=0.5,
+        description="w_step — шаг укладки, м",
     )
 
 

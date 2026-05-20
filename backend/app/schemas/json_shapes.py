@@ -144,6 +144,7 @@ class PipeParamsDict(TypedDict, total=False):
     insulation_temperature_basis: InsulationTemperatureBasisDict | None
     ambient_temperature_source: Literal["manual", "climate"] | None
     wind_speed_source: Literal["manual", "climate"] | None
+    safety_factor_source: Literal["default", "manual", "climate_policy"] | None
     num_local_elements: int | None
     local_element_equiv_length: float | None
     valve_count: int | None
@@ -192,6 +193,7 @@ class TankParamsDict(TypedDict, total=False):
     insulation_temperature_basis: InsulationTemperatureBasisDict | None
     ambient_temperature_source: Literal["manual", "climate"] | None
     wind_speed_source: Literal["manual", "climate"] | None
+    safety_factor_source: Literal["default", "manual", "climate_policy"] | None
     location: Literal["indoor", "outdoor"]
     wall_thickness: float | None
     wall_lambda: float | None

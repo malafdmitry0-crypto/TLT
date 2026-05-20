@@ -187,6 +187,7 @@ describe('pipeFormToApiParams', () => {
       climate_city: 'Сургут',
       climate_temperature_basis: 't_0_92',
       safety_factor: 1.2,
+      safety_factor_source: 'manual',
       supply_voltage: 380,
       vapor_temperature: 140,
       valve_count: 1,
@@ -206,6 +207,7 @@ describe('pipeFormToApiParams', () => {
     expect(api.climate_key).toBe('ХМАО|||Сургут');
     expect(api.climate_temperature_basis).toBe('t_0_92');
     expect(api.safety_factor).toBe(1.2);
+    expect(api.safety_factor_source).toBe('manual');
     expect(api.supply_voltage).toBe(380);
     expect(api.vapor_temperature).toBe(140);
     expect(api.insulation_cover_material).toBe('none');

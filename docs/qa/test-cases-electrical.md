@@ -29,6 +29,7 @@
     "cable_mark": "ТЛТ-25",
     "supply_voltage": 220,
     "ambient_temperature": -30,
+    "process_temperature": 80,
     "pipe_length": 50,
     "safety_factor": 1.1
   }
@@ -41,6 +42,24 @@
 ТЛТ результат всё равно должен вернуть `voltage=220`, а `current` должен
 считаться как `total_power / 220`. Сохранённые `params.supply_voltage` также
 нормализуются до фактически применённого паспортного напряжения.
+
+Если `cable_source=commercial`, commercial projection не должна заменять
+паспортное напряжение встроенной строки ТЛТ значением из внешней БД. Например,
+при внешней строке `ТЛТ-25` с `params.voltage=380` результат commercial-каталога
+для `ТЛТ-25` всё равно содержит `voltage=220`.
+
+---
+
+## TC-ELEC-01A: Для ТЛТ обязательна температура продукта
+
+**Автоматизировано:** ✅ (unit) `test_calculation_schemas.py::TestSelfRegulatingParams::test_process_temperature_required_for_tmax_check`<br>
+**Автоматизировано:** ✅ (unit) `test_calculation_service_unit.py::TestCableLayoutMapping::test_direct_tlt_request_fills_process_temperature_from_object`<br>
+**Автоматизировано:** ✅ (unit) `test_calculation_service_unit.py::TestCableLayoutMapping::test_direct_tlt_request_requires_process_temperature_when_object_missing_it`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | `POST /api/v1/calc/electrical` для `self_regulating` без `process_temperature`, но объект содержит `params.process_temperature` | Backend заполняет `process_temperature` из объекта и проверяет `T_max` |
+| 2 | Тот же запрос, но у объекта нет температуры продукта | HTTP 400 или 422 с сообщением про обязательную температуру продукта |
 
 ---
 
@@ -115,8 +134,6 @@
 | 1 | У успешного результата есть `selected_cable`, `order_cable_length` и служебный `results.message` | Статус остаётся успешным |
 | 2 | Открыть страницу электрорасчёта / query-фильтр `electrical_status=calculated` | Строка считается рассчитанной, `failed_count=0` |
 | 3 | Сгенерировать спецификацию | Кабель попадает в BoM |
-
----
 
 ## TC-ELEC-04: Требуемая мощность превышает максимум каталога
 
