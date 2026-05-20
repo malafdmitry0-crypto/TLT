@@ -2615,6 +2615,88 @@ html, body, #root {
   font-weight: 600;
 }
 
+.cable-picker-fields-panel {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.cable-picker-fields-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cable-picker-fields-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+  gap: 6px 10px;
+}
+
+.cable-picker-characteristics {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid #dce5ec;
+  border-radius: 4px;
+  background: #fbfcfd;
+}
+
+.cable-picker-characteristics table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.cable-picker-characteristics th,
+.cable-picker-characteristics td {
+  border-bottom: 1px solid #e6edf2;
+  border-right: 1px solid #e6edf2;
+  padding: 5px 7px;
+  vertical-align: top;
+}
+
+.cable-picker-characteristics tr:last-child th,
+.cable-picker-characteristics tr:last-child td {
+  border-bottom: 0;
+}
+
+.cable-picker-characteristics th {
+  width: 72px;
+  background: #eef3f6;
+  color: #40566a;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.cable-picker-characteristics td {
+  min-width: 112px;
+}
+
+.cable-picker-characteristics-label,
+.cable-picker-characteristics-value {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cable-picker-characteristics-label {
+  color: #6a7c8f;
+  font-size: 10px;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.cable-picker-characteristics-value {
+  margin-top: 2px;
+  color: #1f2933;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.18;
+  white-space: nowrap;
+}
+
 .column-settings-list {
   max-height: min(62vh, 620px);
   overflow: auto;

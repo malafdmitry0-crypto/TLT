@@ -1179,12 +1179,44 @@ describe('ElecCalcPage (integration)', () => {
     const stored = JSON.parse(
       localStorage.getItem(ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}',
     );
-    expect(stored).toEqual({
-      version: 1,
+    expect(stored).toMatchObject({
+      version: 2,
       fontSize: 'compact',
       tableLabelFormat: 'full',
       settingsLabelFormat: 'full',
+      cablePickerObjectFields: expect.any(Array),
+      cablePickerCableFields: expect.any(Array),
     });
+  });
+
+  it('сохраняет состав строк характеристик в модалке выбора марки', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Настройки' })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'Настройки' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Настройки таблицы электрорасчёта' });
+    await user.click(within(dialog).getByRole('tab', { name: 'Выбор кабеля' }));
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Источник' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
+
+    const stored = JSON.parse(
+      localStorage.getItem(ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}',
+    );
+    expect(stored.cablePickerCableFields).not.toContain('source');
+    expect(stored.cablePickerObjectFields).toContain('object_type');
+
+    const row = await screen.findByRole('row', { name: /Труба-1/ });
+    fireEvent.click(row);
+    await user.click(within(row).getByRole('button', { name: 'Выбрать' }));
+    const pickerDialog = await screen.findByRole('dialog', { name: 'Выбор марки кабеля' });
+    const table = within(pickerDialog).getByRole('table', { name: 'Характеристики объекта и кабеля' });
+    expect(table).not.toHaveTextContent('Источник');
   });
 
   it('показывает базу пересчёта внутри настроек электрорасчёта', async () => {
@@ -1525,6 +1557,72 @@ describe('ElecCalcPage (integration)', () => {
       expect(selectCableManual).toHaveBeenCalled();
       expect(screen.queryByRole('dialog', { name: 'Выбор марки кабеля' })).not.toBeInTheDocument();
     });
+  });
+
+  it('показывает характеристики объекта и выбранного кабеля в модалке выбора марки', async () => {
+    const { getElectricalPage, listCables } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    (listCables as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        brand: 'ТЛТ',
+        model: 'ТЛТ-30',
+        source: 'builtin',
+        cable_type: 'self_regulating',
+        power_per_meter: 30,
+        max_temperature: 65,
+        min_temperature: -60,
+        voltage: 220,
+      },
+    ]);
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([
+        makeObject({
+          params: {
+            name: 'Труба-1',
+            outer_diameter: 0.108,
+            pipe_length: 50,
+            placement: 'outdoor',
+            ambient_temperature: -30,
+            process_temperature: 80,
+          },
+          results: { heat_loss_per_meter: 100, total_heat_loss: 5000 },
+        }),
+      ], [
+        {
+          id: 'c-1',
+          object_id: 'o-1',
+          cable_type: 'self_regulating',
+          cable_mark: 'ТЛТ-30',
+          variant_number: 1,
+          results: {
+            selected_cable: 'ТЛТ-30',
+            installed_cable_length: 50,
+            order_cable_length: 55,
+            total_power: 1500,
+            current: 6.8,
+            voltage: 220,
+          },
+        },
+      ]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    const row = await screen.findByRole('row', { name: /Труба-1/ });
+    fireEvent.click(row);
+    await user.click(within(row).getByRole('button', { name: /ТЛТ-30/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Выбор марки кабеля' });
+    const table = within(dialog).getByRole('table', { name: 'Характеристики объекта и кабеля' });
+
+    expect(table).toHaveTextContent('Диаметр');
+    expect(table).toHaveTextContent('108 мм');
+    expect(table).toHaveTextContent('50,0 м');
+    expect(table).toHaveTextContent('100,00 Вт/м');
+    expect(table).toHaveTextContent('5,00 кВт');
+    expect(table).toHaveTextContent('Встроенная');
+    expect(table).toHaveTextContent('30,00 Вт/м');
+    expect(table).toHaveTextContent('220 В');
+    expect(table).toHaveTextContent('-60 °C…65 °C');
   });
 
   it('показывает лейбл внешнего кабеля только в смешанном источнике', async () => {

@@ -46,15 +46,46 @@ HEATCALC_FIELD_INPUT_PREF_KEY = "heatcalc.fieldInputs.v1"
 HEATCALC_FIELD_INPUT_MAX_STEP = 1_000_000
 HEATCALC_FIELD_INPUT_KEYS = {"version", "fields"}
 HEATCALC_FIELD_INPUT_LAYOUT_KEYS = {"step"}
-ELECTRICAL_TABLE_COLUMNS_VERSION = 4
+ELECTRICAL_TABLE_COLUMNS_VERSION = 5
 ELECTRICAL_TABLE_COLUMNS_PREF_KEY = f"electrical.tableColumns.v{ELECTRICAL_TABLE_COLUMNS_VERSION}"
-ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView.v1"
-ELECTRICAL_TABLE_VIEW_VERSION = 1
+ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView.v2"
+ELECTRICAL_TABLE_VIEW_VERSION = 2
 ELECTRICAL_TABLE_VIEW_KEYS = {
     "version",
     "fontSize",
     "tableLabelFormat",
     "settingsLabelFormat",
+    "cablePickerObjectFields",
+    "cablePickerCableFields",
+}
+ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_KEYS = {
+    "object_type",
+    "placement",
+    "outer_diameter",
+    "pipe_length",
+    "tank_geometry",
+    "insulation",
+    "ambient_temperature",
+    "process_temperature",
+    "heat_loss_specific",
+    "total_heat_loss",
+}
+ELECTRICAL_CABLE_PICKER_CABLE_FIELD_KEYS = {
+    "source",
+    "brand",
+    "series",
+    "power_per_meter",
+    "nominal_power",
+    "resistance_ohm_km",
+    "voltage",
+    "temperature_range",
+    "max_product_temp",
+    "max_vapor_temp",
+    "conductor_section_mm2",
+    "diameter_mm",
+    "nominal_size_mm",
+    "stock_status",
+    "price_per_meter",
 }
 ELECTRICAL_TABLE_COLUMN_KEYS = {
     "index",
@@ -65,7 +96,6 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
     "cable_type",
     "cable_mark",
     "cable_snapshot_status",
-    "variant_number",
     "applied_selection_policy",
     "selection_reason",
     "winding_pitch_mm",
@@ -95,6 +125,7 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
 }
 ELECTRICAL_TABLE_COLUMN_PAYLOAD_KEYS = {"version", "visibleOrder", "columns"}
 ELECTRICAL_TABLE_COLUMN_LAYOUT_KEYS = {"widthPct"}
+ELECTRICAL_VERSIONED_PREF_PREFIXES = ("electrical.tableColumns.", "electrical.tableView.")
 
 PreferenceKey = Annotated[
     str,
@@ -104,6 +135,14 @@ PreferenceKey = Annotated[
 
 def _preference_validation_error(message: str) -> None:
     raise HTTPException(status_code=422, detail=message)
+
+
+def _validate_preference_key(key: str) -> None:
+    if key.startswith(ELECTRICAL_VERSIONED_PREF_PREFIXES) and key not in {
+        ELECTRICAL_TABLE_COLUMNS_PREF_KEY,
+        ELECTRICAL_TABLE_VIEW_PREF_KEY,
+    }:
+        _preference_validation_error("Unsupported electrical preference key")
 
 
 def _validate_heatcalc_table_columns(value: dict[str, object]) -> None:
@@ -251,9 +290,7 @@ def _validate_heatcalc_table_view(value: dict[str, object]) -> None:
 
 def _validate_electrical_table_view(value: dict[str, object]) -> None:
     if set(value) - ELECTRICAL_TABLE_VIEW_KEYS:
-        _preference_validation_error(
-            "Electrical table view payload can contain only version, fontSize, tableLabelFormat and settingsLabelFormat"
-        )
+        _preference_validation_error("Electrical table view payload contains unsupported keys")
     if value.get("version") != ELECTRICAL_TABLE_VIEW_VERSION:
         _preference_validation_error("Unsupported electrical table view settings version")
     if value.get("fontSize") not in HEATCALC_TABLE_VIEW_FONT_SIZES:
@@ -262,6 +299,34 @@ def _validate_electrical_table_view(value: dict[str, object]) -> None:
         _preference_validation_error("Electrical table view tableLabelFormat is unsupported")
     if value.get("settingsLabelFormat") not in TABLE_VIEW_LABEL_FORMATS:
         _preference_validation_error("Electrical table view settingsLabelFormat is unsupported")
+    object_fields = value.get("cablePickerObjectFields")
+    if not isinstance(object_fields, list) or not all(
+        isinstance(key, str) for key in object_fields
+    ):
+        _preference_validation_error(
+            "Electrical table view cablePickerObjectFields must be a string array"
+        )
+    if not object_fields or len(object_fields) != len(set(object_fields)):
+        _preference_validation_error(
+            "Electrical table view cablePickerObjectFields must be a non-empty unique array"
+        )
+    if any(key not in ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_KEYS for key in object_fields):
+        _preference_validation_error(
+            "Electrical table view cablePickerObjectFields contains unknown key"
+        )
+    cable_fields = value.get("cablePickerCableFields")
+    if not isinstance(cable_fields, list) or not all(isinstance(key, str) for key in cable_fields):
+        _preference_validation_error(
+            "Electrical table view cablePickerCableFields must be a string array"
+        )
+    if not cable_fields or len(cable_fields) != len(set(cable_fields)):
+        _preference_validation_error(
+            "Electrical table view cablePickerCableFields must be a non-empty unique array"
+        )
+    if any(key not in ELECTRICAL_CABLE_PICKER_CABLE_FIELD_KEYS for key in cable_fields):
+        _preference_validation_error(
+            "Electrical table view cablePickerCableFields contains unknown key"
+        )
 
 
 def _validate_heatcalc_field_inputs(value: dict[str, object]) -> None:
@@ -299,6 +364,7 @@ def _validate_heatcalc_field_inputs(value: dict[str, object]) -> None:
 
 
 def _validate_preference_value(key: str, value: dict[str, object]) -> None:
+    _validate_preference_key(key)
     if key == HEATCALC_TABLE_COLUMNS_PREF_KEY:
         _validate_heatcalc_table_columns(value)
     if key == ELECTRICAL_TABLE_COLUMNS_PREF_KEY:
@@ -321,6 +387,7 @@ async def get_preference(
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
 ) -> UserPreferenceResponse:
+    _validate_preference_key(key)
     result = await db.execute(
         select(UserPreference).where(
             UserPreference.user_id == principal.user_id,

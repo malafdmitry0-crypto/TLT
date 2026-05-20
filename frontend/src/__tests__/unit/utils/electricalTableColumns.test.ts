@@ -56,6 +56,10 @@ describe('electricalTableColumns', () => {
     expect(availableKeys).toContain('applied_selection_policy');
   });
 
+  it('не отдаёт служебный номер СО как пользовательскую колонку', () => {
+    expect(getAvailableElectricalTableColumnKeys()).not.toContain('variant_number');
+  });
+
   it('нормализует неизвестные ключи и сохраняет обязательные колонки', () => {
     const settings = normalizeElectricalTableColumnSettings({
       version: 1,

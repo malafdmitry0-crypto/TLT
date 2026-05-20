@@ -57,13 +57,6 @@
       "valueType": "computed",
       "description": "Показывает, совпадает ли сохранённый в проекте снимок кабеля с текущей базой."
     },
-    "variant_number": {
-      "labels": { "short": "СО", "full": "Вариант СО", "compact": "СО" },
-      "group": "Кабель",
-      "source": "electrical_calculations",
-      "valueType": "service",
-      "description": "Номер варианта системы обогрева."
-    },
     "selection_policy": {
       "labels": { "short": "Критерий", "full": "Запрошенный критерий подбора", "compact": "Крит." },
       "group": "Коммерческий подбор",
@@ -270,7 +263,6 @@
       { "key": "cable_type", "defaultWidthPct": 13, "minWidthPx": 120 },
       { "key": "cable_mark", "defaultWidthPct": 18, "minWidthPx": 140 },
       { "key": "cable_snapshot_status", "defaultWidthPct": 10, "minWidthPx": 90 },
-      { "key": "variant_number", "defaultWidthPct": 5, "minWidthPx": 52 },
       { "key": "applied_selection_policy", "defaultWidthPct": 10, "minWidthPx": 90 },
       { "key": "selection_reason", "defaultWidthPct": 18, "minWidthPx": 160, "ellipsis": true },
       { "key": "winding_pitch_mm", "defaultWidthPct": 12, "minWidthPx": 90 },

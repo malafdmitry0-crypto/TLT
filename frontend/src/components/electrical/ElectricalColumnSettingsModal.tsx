@@ -27,14 +27,25 @@ import {
   type ElectricalTableColumnSettings,
 } from '@/utils/electricalTableColumns';
 import {
+  ELECTRICAL_CABLE_PICKER_CABLE_FIELD_OPTIONS,
+  ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_OPTIONS,
   ELECTRICAL_TABLE_FONT_SIZE_OPTIONS,
   ELECTRICAL_TABLE_LABEL_FORMAT_OPTIONS,
+  type ElectricalCablePickerCableFieldKey,
+  type ElectricalCablePickerObjectFieldKey,
   type ElectricalTableFontSize,
   type ElectricalTableLabelFormat,
   type ElectricalTableViewSettings,
 } from '@/utils/electricalTableViewSettings';
 
 const { Text } = Typography;
+
+const CABLE_PICKER_OBJECT_FIELD_KEY_SET = new Set(
+  ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_OPTIONS.map((option) => option.key),
+);
+const CABLE_PICKER_CABLE_FIELD_KEY_SET = new Set(
+  ELECTRICAL_CABLE_PICKER_CABLE_FIELD_OPTIONS.map((option) => option.key),
+);
 
 interface ColumnNatureBadge {
   label: string;
@@ -158,6 +169,9 @@ interface ElectricalColumnSettingsModalProps {
   onSettingsLabelFormatChange: (format: ElectricalTableLabelFormat) => void;
   onResetFontSize: () => void;
   onResetLabelFormats: () => void;
+  onCablePickerObjectFieldsChange: (fields: ElectricalCablePickerObjectFieldKey[]) => void;
+  onCablePickerCableFieldsChange: (fields: ElectricalCablePickerCableFieldKey[]) => void;
+  onResetCablePickerFields: () => void;
   recalculationSettings?: ReactNode;
 }
 
@@ -389,6 +403,9 @@ export default function ElectricalColumnSettingsModal({
   onSettingsLabelFormatChange,
   onResetFontSize,
   onResetLabelFormats,
+  onCablePickerObjectFieldsChange,
+  onCablePickerCableFieldsChange,
+  onResetCablePickerFields,
   recalculationSettings,
 }: ElectricalColumnSettingsModalProps) {
   const columns = getAllElectricalTableColumnMetas(settings, viewSettings.settingsLabelFormat);
@@ -491,6 +508,69 @@ export default function ElectricalColumnSettingsModal({
                     </DndContext>
                   </div>
                 </Space>
+              ),
+            },
+            {
+              key: 'cable-picker',
+              label: 'Выбор кабеля',
+              children: (
+                <div className="column-settings-modal column-settings-modal--other">
+                  <div className="table-view-settings-panel cable-picker-fields-panel">
+                    <div className="cable-picker-fields-header">
+                      <Text className="table-view-settings-label">Строка объекта</Text>
+                      <Text type="secondary">
+                        Поля, которые показываются в модалке выбора марки.
+                      </Text>
+                    </div>
+                    <Checkbox.Group
+                      className="cable-picker-fields-group"
+                      value={viewSettings.cablePickerObjectFields}
+                      options={ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_OPTIONS.map((option) => ({
+                        label: option.label,
+                        value: option.key,
+                      }))}
+                      onChange={(values) => {
+                        const selected = values.filter(
+                          (value): value is ElectricalCablePickerObjectFieldKey =>
+                            typeof value === 'string'
+                            && CABLE_PICKER_OBJECT_FIELD_KEY_SET
+                              .has(value as ElectricalCablePickerObjectFieldKey),
+                        );
+                        onCablePickerObjectFieldsChange(selected);
+                      }}
+                    />
+                  </div>
+                  <div className="table-view-settings-panel cable-picker-fields-panel">
+                    <div className="cable-picker-fields-header">
+                      <Text className="table-view-settings-label">Строка кабеля</Text>
+                      <Text type="secondary">
+                        Поля выбранной марки или сохранённого snapshot-а.
+                      </Text>
+                    </div>
+                    <Checkbox.Group
+                      className="cable-picker-fields-group"
+                      value={viewSettings.cablePickerCableFields}
+                      options={ELECTRICAL_CABLE_PICKER_CABLE_FIELD_OPTIONS.map((option) => ({
+                        label: option.label,
+                        value: option.key,
+                      }))}
+                      onChange={(values) => {
+                        const selected = values.filter(
+                          (value): value is ElectricalCablePickerCableFieldKey =>
+                            typeof value === 'string'
+                            && CABLE_PICKER_CABLE_FIELD_KEY_SET
+                              .has(value as ElectricalCablePickerCableFieldKey),
+                        );
+                        onCablePickerCableFieldsChange(selected);
+                      }}
+                    />
+                  </div>
+                  <Space>
+                    <Button size="small" onClick={onResetCablePickerFields}>
+                      Сбросить поля выбора
+                    </Button>
+                  </Space>
+                </div>
               ),
             },
             {

@@ -1,6 +1,6 @@
 # Покрытие автоматическими тестами
 
-**Дата актуализации:** 2026-05-17
+**Дата актуализации:** 2026-05-20
 **Источник чисел:** блок `AUTO:test-counts` в `README.md`, обновляется
 командой `scripts/sync-docs.py`.
 
@@ -8,9 +8,9 @@
 
 | Уровень | Тестов | Статус |
 |---|---:|:---:|
-| Backend pytest | 977 | ✅ |
-| Frontend Vitest / RTL | 310 | ✅ |
-| E2E Playwright | 58 | ✅ |
+| Backend pytest | 1191 | ✅ |
+| Frontend Vitest / RTL | 372 | ✅ |
+| E2E Playwright | 64 | ✅ |
 
 ## Что покрыто backend-тестами
 

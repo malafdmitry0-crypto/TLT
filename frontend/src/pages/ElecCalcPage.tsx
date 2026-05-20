@@ -85,6 +85,7 @@ import { getElectricalErrorGuidance } from '@/utils/electricalErrorGuidance';
 import { formatNumber, formatPower } from '@/utils/formatters';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
+import CablePickerCharacteristics from '@/components/electrical/CablePickerCharacteristics';
 import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalColumnSettingsModal';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject, ProjectObjectsPageCursor } from '@/types/project';
@@ -117,6 +118,8 @@ import {
   type ElectricalTableColumnSettings,
 } from '@/utils/electricalTableColumns';
 import {
+  DEFAULT_ELECTRICAL_CABLE_PICKER_CABLE_FIELDS,
+  DEFAULT_ELECTRICAL_CABLE_PICKER_OBJECT_FIELDS,
   ELECTRICAL_TABLE_VIEW_PREF_KEY,
   clearRegisteredElectricalTableViewCache,
   getDefaultElectricalTableViewSettings,
@@ -126,6 +129,8 @@ import {
   resolveElectricalTableFontSize,
   writeGuestElectricalTableViewSettings,
   writeRegisteredElectricalTableViewCache,
+  type ElectricalCablePickerCableFieldKey,
+  type ElectricalCablePickerObjectFieldKey,
   type ElectricalTableFontSize,
   type ElectricalTableLabelFormat,
   type ElectricalTableViewSettings,
@@ -521,6 +526,29 @@ function powerText(value: unknown) {
 
 function resultNumber(calc: ElectricalCalcSummary | undefined, key: string, digits = 2) {
   return numberText(calc?.results?.[key], digits);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function cableSnapshotRow(calc: ElectricalCalcSummary | undefined): CableStatusRow | null {
+  const snapshot = calc?.cable_snapshot;
+  if (!isRecord(snapshot)) return null;
+  const technical = isRecord(snapshot.technical) ? snapshot.technical : {};
+  const commercial = isRecord(snapshot.commercial) ? snapshot.commercial : {};
+  const model = typeof snapshot.cable_mark === 'string' ? snapshot.cable_mark : technical.model;
+  return {
+    ...technical,
+    ...commercial,
+    model: typeof model === 'string' ? model : null,
+    cable_type: typeof snapshot.cable_type === 'string' ? snapshot.cable_type : null,
+    source: typeof snapshot.actual_catalog_source === 'string'
+      ? snapshot.actual_catalog_source
+      : typeof snapshot.requested_catalog_source === 'string'
+        ? snapshot.requested_catalog_source
+        : 'project',
+  };
 }
 
 function orderCableLengthValue(calc: ElectricalCalcSummary | undefined) {
@@ -1727,6 +1755,57 @@ export default function ElecCalcPage() {
     () => new Map(cableMarkModalOptions.map((option) => [option.value, option])),
     [cableMarkModalOptions],
   );
+  const cableMarkModalSelectedOption = cableMarkModalOptionByValue.get(
+    cableMarkModalValue ?? AUTO_CABLE_MARK_VALUE,
+  );
+  const cableMarkModalSelectedCable = useMemo<CableStatusRow | null>(() => {
+    if (!cableMarkModalCableType || !cableMarkModalSelectedOption?.mark) return null;
+    const snapshotRow = cableSnapshotRow(cableMarkModalCalc);
+    if (cableMarkModalSelectedOption.optionSource === 'project') return snapshotRow;
+    const selectedSource = cableMarkModalSelectedOption.cableSource;
+    const matchesMark = (row: CableStatusRow) => {
+      if (!row.model) return false;
+      if (row.model === cableMarkModalSelectedOption.mark) return true;
+      return cableMarkModalCableType === 'self_regulating_tt'
+        && cableMarkModalSelectedOption.mark?.startsWith(`${row.model}-`);
+    };
+    const matchesSource = (row: CableStatusRow) =>
+      !selectedSource || normalizeCableSource(row.source) === selectedSource;
+    const rows = (() => {
+      if (cableMarkModalCableType === 'self_regulating') {
+        return visibleCableRowsForSource(cables, builtinCables, effectiveSource);
+      }
+      if (cableMarkModalCableType === 'self_regulating_tt') return ttCables;
+      if (cableMarkModalCableType === 'single_core') {
+        return visibleCableRowsForSource(
+          resistiveCables?.single_core ?? [],
+          builtinResistiveCables?.single_core ?? [],
+          effectiveSource,
+        );
+      }
+      if (cableMarkModalCableType === 'three_core') {
+        return visibleCableRowsForSource(
+          resistiveCables?.three_core ?? [],
+          builtinResistiveCables?.three_core ?? [],
+          effectiveSource,
+        );
+      }
+      return [];
+    })() as CableStatusRow[];
+    return rows.find((row) => matchesMark(row) && matchesSource(row))
+      ?? rows.find(matchesMark)
+      ?? (snapshotRow?.model === cableMarkModalSelectedOption.mark ? snapshotRow : null);
+  }, [
+    builtinCables,
+    builtinResistiveCables,
+    cableMarkModalCableType,
+    cableMarkModalCalc,
+    cableMarkModalSelectedOption,
+    cables,
+    effectiveSource,
+    resistiveCables,
+    ttCables,
+  ]);
   const cableMarkValueForCalc = useCallback((
     type: CableTypeKey,
     mark: string | undefined,
@@ -1815,16 +1894,20 @@ export default function ElecCalcPage() {
     });
   }, [getSavedCableTypeForObject, layoutDrafts, layoutMutate, stats.calcByObjectId]);
 
+  const normalizedTableViewSettings = useMemo(
+    () => normalizeElectricalTableViewSettings(tableViewSettings),
+    [tableViewSettings],
+  );
   const visibleElectricalColumnMetas = useMemo(
     () => getVisibleElectricalTableColumnMetas(
       tableColumnSettings,
-      normalizeElectricalTableViewSettings(tableViewSettings).tableLabelFormat,
+      normalizedTableViewSettings.tableLabelFormat,
     ),
-    [tableColumnSettings, tableViewSettings],
+    [normalizedTableViewSettings.tableLabelFormat, tableColumnSettings],
   );
   const resolvedTableFontSize = useMemo(
-    () => resolveElectricalTableFontSize(normalizeElectricalTableViewSettings(tableViewSettings)),
-    [tableViewSettings],
+    () => resolveElectricalTableFontSize(normalizedTableViewSettings),
+    [normalizedTableViewSettings],
   );
   const visibleElectricalColumnKeys = useMemo(
     () => visibleElectricalColumnMetas.map((meta) => meta.key),
@@ -2098,10 +2181,6 @@ export default function ElecCalcPage() {
         );
       },
     },
-    variant_number: {
-      align: 'right',
-      render: (_: unknown, obj) => stats.calcByObjectId[obj.id]?.variant_number ?? variant,
-    },
     selection_policy: {
       render: (_: unknown, obj) =>
         selectionPolicyText(currentElectricalCalc(stats.calcByObjectId[obj.id])?.results?.selection_policy),
@@ -2339,7 +2418,6 @@ export default function ElecCalcPage() {
     supplyVoltage,
     updateLayoutDraft,
     vaporTemperature,
-    variant,
     windingCoefficient,
   ]);
 
@@ -2549,8 +2627,6 @@ export default function ElecCalcPage() {
         }
       case 'cable_snapshot_status':
         return cableSnapshotStatusTag(currentCalc)?.label ?? '—';
-      case 'variant_number':
-        return calc?.variant_number ?? variant;
       case 'selection_policy':
         return selectionPolicyText(currentCalc?.results?.selection_policy);
       case 'applied_selection_policy':
@@ -2598,7 +2674,7 @@ export default function ElecCalcPage() {
       default:
         return '';
     }
-  }, [getCalculatedCableTypeForObject, pageInfo?.offset, stats.calcByObjectId, variant]);
+  }, [getCalculatedCableTypeForObject, pageInfo?.offset, stats.calcByObjectId]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -2713,6 +2789,34 @@ export default function ElecCalcPage() {
         ...settings,
         tableLabelFormat: defaultView.tableLabelFormat,
         settingsLabelFormat: defaultView.settingsLabelFormat,
+      }),
+    );
+  }
+
+  function updateDraftCablePickerObjectFields(fields: ElectricalCablePickerObjectFieldKey[]) {
+    setDraftTableViewSettings((settings) =>
+      normalizeElectricalTableViewSettings({
+        ...settings,
+        cablePickerObjectFields: fields,
+      }),
+    );
+  }
+
+  function updateDraftCablePickerCableFields(fields: ElectricalCablePickerCableFieldKey[]) {
+    setDraftTableViewSettings((settings) =>
+      normalizeElectricalTableViewSettings({
+        ...settings,
+        cablePickerCableFields: fields,
+      }),
+    );
+  }
+
+  function resetDraftCablePickerFields() {
+    setDraftTableViewSettings((settings) =>
+      normalizeElectricalTableViewSettings({
+        ...settings,
+        cablePickerObjectFields: DEFAULT_ELECTRICAL_CABLE_PICKER_OBJECT_FIELDS,
+        cablePickerCableFields: DEFAULT_ELECTRICAL_CABLE_PICKER_CABLE_FIELDS,
       }),
     );
   }
@@ -3437,6 +3541,7 @@ export default function ElecCalcPage() {
       </div>
       <Modal
         open={!!cableMarkModalObject}
+        width={860}
         title="Выбор марки кабеля"
         okText="Применить"
         cancelText="Отмена"
@@ -3455,6 +3560,14 @@ export default function ElecCalcPage() {
                 <Text strong>{objectDisplayName(cableMarkModalObject)}</Text>
               </div>
             </div>
+          )}
+          {cableMarkModalObject && (
+            <CablePickerCharacteristics
+              object={cableMarkModalObject}
+              cable={cableMarkModalSelectedCable}
+              option={cableMarkModalSelectedOption}
+              settings={normalizedTableViewSettings}
+            />
           )}
           {cableMarkModalCableType && (
             <div>
@@ -3514,6 +3627,9 @@ export default function ElecCalcPage() {
           onSettingsLabelFormatChange={updateDraftSettingsLabelFormat}
           onResetFontSize={resetDraftTableFontSize}
           onResetLabelFormats={resetDraftLabelFormats}
+          onCablePickerObjectFieldsChange={updateDraftCablePickerObjectFields}
+          onCablePickerCableFieldsChange={updateDraftCablePickerCableFields}
+          onResetCablePickerFields={resetDraftCablePickerFields}
           recalculationSettings={renderRecalculationSettings()}
         />
       )}

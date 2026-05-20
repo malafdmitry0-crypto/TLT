@@ -53,7 +53,7 @@ interface RegisteredElectricalTableColumnCache {
   cachedAt: string;
 }
 
-export const ELECTRICAL_TABLE_COLUMNS_VERSION = 4;
+export const ELECTRICAL_TABLE_COLUMNS_VERSION = 5;
 export const ELECTRICAL_TABLE_COLUMN_PREF_KEY = `electrical.tableColumns.v${ELECTRICAL_TABLE_COLUMNS_VERSION}`;
 export const ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY = `${ELECTRICAL_TABLE_COLUMN_PREF_KEY}.guest`;
 export const ELECTRICAL_REGISTERED_TABLE_COLUMN_CACHE_KEY =

@@ -12,7 +12,8 @@
 | `docs/srs/05-functional-nonfunctional.md` | Функциональные и нефункциональные требования |
 | `docs/srs/06-test-program.md` | Программа испытаний |
 | `docs/srs/07-report-requirements.md` | Требования к отчёту |
-| `docs/tz-compliance.md` | Сверка с ТЗ |
+| `docs/tz-compliance.md` | Сверка с ТЗ и сводка % готовности |
+| `docs/analysis/open-business-decisions.md` | Реестр открытых Q (отчёт, SEC, кабели, объекты) |
 | `TO_DO.md` | Рабочий статус пробелов и отложенных задач |
 | `docs/analysis/` | Бизнес-правила, персоны, story map, диаграммы |
 | `docs/qa/` | Чек-листы и ручные тест-кейсы |
