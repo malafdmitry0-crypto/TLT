@@ -77,7 +77,7 @@
 | id             | UUID         | PK                                              |                                       |
 | project_id     | UUID         | FK → projects.id ON DELETE CASCADE, INDEX       | Проект                                |
 | object_id      | UUID         | FK → project_objects.id ON DELETE CASCADE, INDEX | Объект проекта                       |
-| variant_number | INTEGER      | NOT NULL, default 1                             | Номер варианта расчёта для объекта    |
+| variant_number | INTEGER      | NOT NULL, default 1, CHECK 1..4                 | Номер варианта расчёта для объекта    |
 | cable_type     | VARCHAR(64)  | NOT NULL                                        | `self_regulating` / `mineral` / …    |
 | cable_mark     | VARCHAR(128) | nullable                                        | Марка кабеля (null = автоподбор)      |
 | params         | JSONB        | NOT NULL                                        | Входные параметры электрорасчёта      |
@@ -88,6 +88,41 @@
 **params:** `required_power_per_meter` (Вт/м), `cable_mark` (nullable), `supply_voltage` (В), `ambient_temperature` (°C), `pipe_length` (м), `safety_factor`
 
 **results:** `selected_cable` (марка), `installed_cable_length` (уложенная длина, м), `order_cable_length` (длина для заказа с монтажным запасом, м), `total_power` (Вт), `current` (А), `voltage` (В). `cable_length` может присутствовать только как вычисляемый alias на время разработки.
+
+---
+
+### electrical_candidates
+| Колонка          | Тип          | Ограничения                                     | Описание |
+|------------------|--------------|-------------------------------------------------|----------|
+| id               | UUID         | PK                                              | Кандидат подбора |
+| project_id       | UUID         | FK → projects.id ON DELETE CASCADE             | Проект |
+| object_id        | UUID         | FK → project_objects.id ON DELETE CASCADE       | Объект проекта |
+| variant_number   | INTEGER      | NOT NULL, CHECK 1..4                            | СО-вариант |
+| cable_type       | VARCHAR(64)  | NOT NULL                                        | Тип кабеля |
+| cable_source     | VARCHAR(32)  | NOT NULL, default `builtin`                     | База справочника |
+| cable_mark       | VARCHAR(128) | nullable                                        | Марка кандидата |
+| mode             | VARCHAR(16)  | CHECK `auto` / `manual`                         | Как создан кандидат |
+| status           | VARCHAR(32)  | CHECK `applicable` / `error` / `not_applicable` / `excluded` / `stale` | Статус кандидата |
+| priority         | INTEGER      | NOT NULL, default 0                             | Инженерный приоритет |
+| is_recommended   | BOOLEAN      | NOT NULL, default false                         | Пометка «приоритетный» |
+| is_pinned        | BOOLEAN      | NOT NULL, default false                         | Закреплён инженером |
+| is_applied       | BOOLEAN      | NOT NULL, default false                         | Применён в основной электрорасчёт |
+| reason_code      | VARCHAR(128) | nullable                                        | Машинная причина диагностики |
+| reason_message   | TEXT         | nullable                                        | Человекочитаемая причина |
+| engineer_comment | TEXT         | nullable                                        | Комментарий инженера |
+| params           | JSONB        | NOT NULL                                        | Payload расчёта кандидата |
+| results          | JSONB        | nullable                                        | Результат проверки/расчёта |
+| cable_snapshot   | JSONB        | nullable                                        | Снимок строки каталога |
+| warnings         | JSONB        | NOT NULL, default []                            | Предупреждения |
+| risk_flags       | JSONB        | NOT NULL, default []                            | Риск-флаги для UI |
+| candidate_meta   | JSONB        | NOT NULL, default {}                            | Служебные метаданные |
+| created_at       | TIMESTAMPTZ  | server default now()                            | |
+| updated_at       | TIMESTAMPTZ  | auto-update                                     | |
+
+**Индексы:** `ix_electrical_candidates_project_object_variant` по
+`(project_id, object_id, variant_number)`. Частичный UNIQUE
+`ux_electrical_candidates_applied_object_variant` гарантирует, что для одного
+`(object_id, variant_number)` применён только один кандидат.
 
 ---
 

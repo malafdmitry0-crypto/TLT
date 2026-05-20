@@ -1,4 +1,11 @@
-import { type CSSProperties, type ReactNode } from 'react';
+import {
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Button, Checkbox, InputNumber, Modal, Segmented, Space, Tabs, Tag, Tooltip, Typography } from 'antd';
 import { HolderOutlined, ReloadOutlined } from '@ant-design/icons';
 import {
@@ -27,12 +34,8 @@ import {
   type ElectricalTableColumnSettings,
 } from '@/utils/electricalTableColumns';
 import {
-  ELECTRICAL_CABLE_PICKER_CABLE_FIELD_OPTIONS,
-  ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_OPTIONS,
   ELECTRICAL_TABLE_FONT_SIZE_OPTIONS,
   ELECTRICAL_TABLE_LABEL_FORMAT_OPTIONS,
-  type ElectricalCablePickerCableFieldKey,
-  type ElectricalCablePickerObjectFieldKey,
   type ElectricalTableFontSize,
   type ElectricalTableLabelFormat,
   type ElectricalTableViewSettings,
@@ -40,12 +43,15 @@ import {
 
 const { Text } = Typography;
 
-const CABLE_PICKER_OBJECT_FIELD_KEY_SET = new Set(
-  ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_OPTIONS.map((option) => option.key),
-);
-const CABLE_PICKER_CABLE_FIELD_KEY_SET = new Set(
-  ELECTRICAL_CABLE_PICKER_CABLE_FIELD_OPTIONS.map((option) => option.key),
-);
+interface DragOffset {
+  x: number;
+  y: number;
+}
+
+interface DragState extends DragOffset {
+  startX: number;
+  startY: number;
+}
 
 interface ColumnNatureBadge {
   label: string;
@@ -169,9 +175,6 @@ interface ElectricalColumnSettingsModalProps {
   onSettingsLabelFormatChange: (format: ElectricalTableLabelFormat) => void;
   onResetFontSize: () => void;
   onResetLabelFormats: () => void;
-  onCablePickerObjectFieldsChange: (fields: ElectricalCablePickerObjectFieldKey[]) => void;
-  onCablePickerCableFieldsChange: (fields: ElectricalCablePickerCableFieldKey[]) => void;
-  onResetCablePickerFields: () => void;
   recalculationSettings?: ReactNode;
 }
 
@@ -403,9 +406,6 @@ export default function ElectricalColumnSettingsModal({
   onSettingsLabelFormatChange,
   onResetFontSize,
   onResetLabelFormats,
-  onCablePickerObjectFieldsChange,
-  onCablePickerCableFieldsChange,
-  onResetCablePickerFields,
   recalculationSettings,
 }: ElectricalColumnSettingsModalProps) {
   const columns = getAllElectricalTableColumnMetas(settings, viewSettings.settingsLabelFormat);
@@ -416,6 +416,52 @@ export default function ElectricalColumnSettingsModal({
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+  const [dragOffset, setDragOffset] = useState<DragOffset>({ x: 0, y: 0 });
+  const dragStateRef = useRef<DragState | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      dragStateRef.current = null;
+      setDragOffset({ x: 0, y: 0 });
+    }
+  }, [open]);
+
+  useEffect(() => {
+    function handleDocumentMouseMove(event: MouseEvent) {
+      const dragState = dragStateRef.current;
+      if (!dragState) return;
+      setDragOffset({
+        x: dragState.x + event.clientX - dragState.startX,
+        y: dragState.y + event.clientY - dragState.startY,
+      });
+    }
+
+    function handleDocumentMouseUp() {
+      dragStateRef.current = null;
+    }
+
+    document.addEventListener('mousemove', handleDocumentMouseMove);
+    document.addEventListener('mouseup', handleDocumentMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleDocumentMouseMove);
+      document.removeEventListener('mouseup', handleDocumentMouseUp);
+    };
+  }, []);
+
+  const draggableWindowStyle: CSSProperties = {
+    transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
+  };
+
+  function handleWindowDragStart(event: ReactMouseEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    dragStateRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      x: dragOffset.x,
+      y: dragOffset.y,
+    };
+  }
 
   function handleDragEnd(event: DragEndEvent) {
     const activeKey = String(event.active.id);
@@ -423,20 +469,35 @@ export default function ElectricalColumnSettingsModal({
     if (overKey && activeKey !== overKey) onColumnReorder(activeKey, overKey);
   }
 
+  const modalTitle = (
+    <div
+      className="electrical-column-settings-title"
+      onMouseDown={handleWindowDragStart}
+    >
+      Настройки таблицы электрорасчёта
+    </div>
+  );
+
   return (
     <Modal
       open={open}
       width={1040}
-      title="Настройки таблицы электрорасчёта"
+      className="electrical-column-settings-dialog"
+      style={{ top: 24 }}
+      title={modalTitle}
       okText="Сохранить"
       cancelText="Отмена"
       confirmLoading={confirmLoading}
       onOk={onOk}
       onCancel={onCancel}
       destroyOnHidden
+      modalRender={(modal) => (
+        <div className="electrical-column-settings-window" style={draggableWindowStyle}>
+          {modal}
+        </div>
+      )}
     >
       <div className="column-settings-modal">
-        {recalculationSettings}
         <Tabs
           className="column-settings-tabs"
           defaultActiveKey="columns"
@@ -511,73 +572,11 @@ export default function ElectricalColumnSettingsModal({
               ),
             },
             {
-              key: 'cable-picker',
-              label: 'Выбор кабеля',
-              children: (
-                <div className="column-settings-modal column-settings-modal--other">
-                  <div className="table-view-settings-panel cable-picker-fields-panel">
-                    <div className="cable-picker-fields-header">
-                      <Text className="table-view-settings-label">Строка объекта</Text>
-                      <Text type="secondary">
-                        Поля, которые показываются в модалке выбора марки.
-                      </Text>
-                    </div>
-                    <Checkbox.Group
-                      className="cable-picker-fields-group"
-                      value={viewSettings.cablePickerObjectFields}
-                      options={ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_OPTIONS.map((option) => ({
-                        label: option.label,
-                        value: option.key,
-                      }))}
-                      onChange={(values) => {
-                        const selected = values.filter(
-                          (value): value is ElectricalCablePickerObjectFieldKey =>
-                            typeof value === 'string'
-                            && CABLE_PICKER_OBJECT_FIELD_KEY_SET
-                              .has(value as ElectricalCablePickerObjectFieldKey),
-                        );
-                        onCablePickerObjectFieldsChange(selected);
-                      }}
-                    />
-                  </div>
-                  <div className="table-view-settings-panel cable-picker-fields-panel">
-                    <div className="cable-picker-fields-header">
-                      <Text className="table-view-settings-label">Строка кабеля</Text>
-                      <Text type="secondary">
-                        Поля выбранной марки или сохранённого snapshot-а.
-                      </Text>
-                    </div>
-                    <Checkbox.Group
-                      className="cable-picker-fields-group"
-                      value={viewSettings.cablePickerCableFields}
-                      options={ELECTRICAL_CABLE_PICKER_CABLE_FIELD_OPTIONS.map((option) => ({
-                        label: option.label,
-                        value: option.key,
-                      }))}
-                      onChange={(values) => {
-                        const selected = values.filter(
-                          (value): value is ElectricalCablePickerCableFieldKey =>
-                            typeof value === 'string'
-                            && CABLE_PICKER_CABLE_FIELD_KEY_SET
-                              .has(value as ElectricalCablePickerCableFieldKey),
-                        );
-                        onCablePickerCableFieldsChange(selected);
-                      }}
-                    />
-                  </div>
-                  <Space>
-                    <Button size="small" onClick={onResetCablePickerFields}>
-                      Сбросить поля выбора
-                    </Button>
-                  </Space>
-                </div>
-              ),
-            },
-            {
               key: 'other',
               label: 'Остальное',
               children: (
                 <div className="column-settings-modal column-settings-modal--other">
+                  {recalculationSettings}
                   <div className="table-view-settings-panel">
                     <Text className="table-view-settings-label">Размер текста таблицы</Text>
                     <Segmented<ElectricalTableFontSize>

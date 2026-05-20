@@ -69,7 +69,7 @@ describe('electricalTableColumns', () => {
       },
     });
 
-    expect(settings.visibleOrder).toEqual(['current', 'index', 'object_name']);
+    expect(settings.visibleOrder).toEqual(['current', 'index', 'object_name', 'cable_mark']);
     expect(settings.columns.current.widthPct).toBe(60);
   });
 
@@ -86,6 +86,7 @@ describe('electricalTableColumns', () => {
       'electrical_status',
     );
     expect(readGuestElectricalTableColumnSettings().visibleOrder).not.toContain('current');
+    expect(readGuestElectricalTableColumnSettings().visibleOrder).toContain('cable_mark');
   });
 
   it('умеет включить все колонки одним патчем', () => {
@@ -94,6 +95,26 @@ describe('electricalTableColumns', () => {
       ['index', 'object_name', 'current', 'voltage'],
     );
 
-    expect(settings.visibleOrder).toEqual(['index', 'object_name', 'current', 'voltage']);
+    expect(settings.visibleOrder).toEqual([
+      'index',
+      'object_name',
+      'current',
+      'voltage',
+      'cable_mark',
+    ]);
+  });
+
+  it('не позволяет скрыть обязательную марку кабеля', () => {
+    const settings = setElectricalTableColumnVisibility(
+      getDefaultElectricalTableColumnSettings(),
+      'cable_mark',
+      false,
+    );
+
+    expect(settings.visibleOrder).toContain('cable_mark');
+    expect(
+      getVisibleElectricalTableColumnMetas(settings).find((column) => column.key === 'cable_mark')
+        ?.required,
+    ).toBe(true);
   });
 });

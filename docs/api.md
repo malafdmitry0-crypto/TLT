@@ -185,6 +185,19 @@ legacy `params.cable_mark`). Для осознанной перезаписи р
 у строки есть марка кабеля, но source неизвестен, строка считается ручной для
 защиты от случайной перезаписи.
 
+**`POST /calc/electrical/select-cable/variants`** — атомарно применяет выбор
+марки кабеля или режим `Авто` к одному объекту в нескольких CO-вариантах.
+Запрос передаётся JSON body:
+`{object_id, cable_mark|null, cable_source="builtin", variant_numbers=[1..4],
+cable_type, selection_mode?, supply_voltage?, connection_type?, winding_coefficient?,
+winding_pitch?, number_of_threads?, heating_height?, laying_step?,
+maintain_temperature?, vapor_temperature?, aggressive_product?,
+selection_policy?}`. Если `cable_mark=null`, backend запускает автоподбор для
+каждого отмеченного CO; если задана строка — выполняет exact-check выбранной
+марки и сохраняет `cable_mark_source=manual`. Все отмеченные CO сохраняются в
+одной транзакции: при ошибке любого варианта ни один вариант из запроса не
+коммитится.
+
 Если объект валиден по теплопотерям, но сценарий электрорасчёта не поддержан
 методикой, это не считается ошибкой подбора. Для сферического резервуара без
 формулы укладки кабеля сохраняется
@@ -226,6 +239,30 @@ Commercial projection встроенной линейки сохраняет т�
 утверждения весов это controlled fallback. Источник `cable_source=commercial`
 доступен всем ролям и строится как public commercial projection поверх
 встроенных ТЛТ/резистивных каталогов и sanitized строк внешней БД.
+
+**`GET /calc/electrical/candidates?project_id=&object_id=&variant_number=`** —
+список сохранённых вариантов подбора кабеля для объекта в конкретном СО.
+Кандидаты хранятся отдельно от `electrical_calculations`: открытие модалки
+«Подбор» не запускает расчёт и не меняет основной электрорасчёт.
+
+**`POST /calc/electrical/candidates`** — создать кандидат без применения:
+`{project_id, object_id, variant_number, cable_type, cable_source, mode,
+cable_mark?, electrical_params}`. `mode=auto` запускает один явный расчёт по
+кнопке без `cable_mark`; `mode=manual` проверяет указанную марку. Endpoint не
+обещает multi-candidate генерацию: если для типа кабеля нет поддержанной
+формулы/генератора, сохраняется диагностический кандидат
+`status=not_applicable`, `reason_code=no_candidate_generator`, без фиктивных
+рекомендаций. Успешный кандидат имеет `status=applicable` и может быть помечен
+инженером как приоритетный/закреплённый/исключённый.
+
+**`PATCH /calc/electrical/candidates/{id}`** — изменить инженерские пометки:
+`priority`, `is_recommended`, `is_pinned`, `status=excluded|applicable`,
+`engineer_comment`.
+
+**`POST /calc/electrical/candidates/{id}/apply`** — применить кандидат в
+основной электрорасчёт выбранного объекта и СО. Backend пересчитывает текущие
+данные объекта через существующий manual-flow и помечает единственный кандидат
+на `(object_id, variant_number)` как `is_applied=true`.
 
 **`POST /calc/electrical/variants/copy`** — создать целевой CO-вариант на
 основании другого CO без нового автоподбора. Backend берёт только сохранённые

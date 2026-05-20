@@ -14,6 +14,9 @@ Frontend vitest `372` ✅ · E2E Playwright `64` ✅. Счётчики в `READM
 **Открытые решения заказчика (блокеры подписания):**
 [docs/analysis/open-business-decisions.md](analysis/open-business-decisions.md).
 
+**Отчёт по сильным и слабым сторонам бизнес-логики:**
+[docs/analysis/business-logic-strengths-weaknesses.md](analysis/business-logic-strengths-weaknesses.md).
+
 ## Условные обозначения
 
 | Знак | Значение |

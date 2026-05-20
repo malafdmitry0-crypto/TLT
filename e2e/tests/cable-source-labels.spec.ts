@@ -73,16 +73,23 @@ async function openCableMarkModal(page: Page, objectName: string) {
   await expect(row).toBeVisible();
   await row.click();
   await row.getByRole('button', { name: /Авто|ТЛТ|ТТ|ВНШ|КМСО/i }).first().click();
-  return page.getByRole('dialog', { name: 'Выбор марки кабеля' });
+  return page.getByRole('dialog', { name: /Выбор марки кабеля/ });
 }
 
 async function setCableSource(page: Page, label: string) {
   await page.getByRole('button', { name: 'Настройки' }).click();
   const dialog = page.getByRole('dialog', { name: 'Настройки таблицы электрорасчёта' });
   await expect(dialog).toBeVisible();
+  await dialog.getByRole('tab', { name: 'Остальное' }).click();
   await dialog.getByLabel('База для пересчёта').getByText(label, { exact: true }).click();
   await dialog.getByRole('button', { name: 'Сохранить' }).click();
   await expect(dialog).toBeHidden();
+}
+
+async function expectCableCharacteristicsLists(dialog: Locator) {
+  await expect(dialog.getByRole('group', { name: 'Характеристики: объект' })).toBeVisible();
+  await expect(dialog.getByRole('group', { name: 'Характеристики: кабель' })).toBeVisible();
+  await expect(dialog.getByRole('table', { name: 'Характеристики объекта и кабеля' })).toHaveCount(0);
 }
 
 async function setModalCableType(dialog: Locator, page: Page, optionText: string) {
@@ -134,6 +141,7 @@ test.describe('cable source labels', () => {
 
     const dialog = await openCableMarkModal(page, pipeName);
     await expect(dialog).toBeVisible();
+    await expectCableCharacteristicsLists(dialog);
 
     let dropdown = await searchMark(dialog, page, 'ТЛТ-75');
     await expectOptionExternalLabel(dropdown, /ТЛТ-75.*75 Вт\/м/, false, 1);
@@ -178,6 +186,7 @@ test.describe('cable source labels', () => {
 
     const dialog = await openCableMarkModal(page, pipeName);
     await expect(dialog).toBeVisible();
+    await expectCableCharacteristicsLists(dialog);
 
     let dropdown = await searchMark(dialog, page, 'ВНШ-СР');
     await expect(dropdown.locator('.ant-tag').filter({ hasText: 'внеш.' })).toHaveCount(0);

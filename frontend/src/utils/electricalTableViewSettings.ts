@@ -2,46 +2,14 @@ import defaultConfig from '@/config/heatcalc-table-view.default.json';
 
 export type ElectricalTableFontSize = 'compact' | 'standard' | 'comfortable' | 'large';
 export type ElectricalTableLabelFormat = 'full' | 'short' | 'compact';
-export type ElectricalCablePickerObjectFieldKey =
-  | 'object_type'
-  | 'placement'
-  | 'outer_diameter'
-  | 'pipe_length'
-  | 'tank_geometry'
-  | 'insulation'
-  | 'ambient_temperature'
-  | 'process_temperature'
-  | 'heat_loss_specific'
-  | 'total_heat_loss';
-export type ElectricalCablePickerCableFieldKey =
-  | 'source'
-  | 'brand'
-  | 'series'
-  | 'power_per_meter'
-  | 'nominal_power'
-  | 'resistance_ohm_km'
-  | 'voltage'
-  | 'temperature_range'
-  | 'max_product_temp'
-  | 'max_vapor_temp'
-  | 'conductor_section_mm2'
-  | 'diameter_mm'
-  | 'nominal_size_mm'
-  | 'stock_status'
-  | 'price_per_meter';
-
-export interface ElectricalCablePickerFieldOption<TKey extends string> {
-  key: TKey;
-  label: string;
-}
+export type ElectricalCalculationCableSource = 'builtin' | 'extended' | 'all';
 
 export interface ElectricalTableViewSettings {
   version: number;
   fontSize: ElectricalTableFontSize;
   tableLabelFormat: ElectricalTableLabelFormat;
   settingsLabelFormat: ElectricalTableLabelFormat;
-  cablePickerObjectFields: ElectricalCablePickerObjectFieldKey[];
-  cablePickerCableFields: ElectricalCablePickerCableFieldKey[];
+  calculationCableSource: ElectricalCalculationCableSource;
 }
 
 export interface ElectricalResolvedTableFontSize {
@@ -58,63 +26,11 @@ interface RegisteredElectricalTableViewCache {
   cachedAt: string;
 }
 
-export const ELECTRICAL_TABLE_VIEW_VERSION = 2;
-export const ELECTRICAL_TABLE_VIEW_PREF_KEY = 'electrical.tableView.v2';
-export const ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY = 'electrical.tableView.v2.guest';
+export const ELECTRICAL_TABLE_VIEW_VERSION = 3;
+export const ELECTRICAL_TABLE_VIEW_PREF_KEY = 'electrical.tableView.v3';
+export const ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY = 'electrical.tableView.v3.guest';
 export const ELECTRICAL_REGISTERED_TABLE_VIEW_CACHE_KEY =
-  'electrical.tableView.v2.registered.cache';
-
-export const ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_OPTIONS: Array<
-  ElectricalCablePickerFieldOption<ElectricalCablePickerObjectFieldKey>
-> = [
-  { key: 'object_type', label: 'Тип объекта' },
-  { key: 'placement', label: 'Размещение' },
-  { key: 'outer_diameter', label: 'Диаметр' },
-  { key: 'pipe_length', label: 'Длина' },
-  { key: 'tank_geometry', label: 'Геометрия резервуара' },
-  { key: 'insulation', label: 'Изоляция' },
-  { key: 'ambient_temperature', label: 'T окр.' },
-  { key: 'process_temperature', label: 'T объекта' },
-  { key: 'heat_loss_specific', label: 'Уд. теплопотери' },
-  { key: 'total_heat_loss', label: 'Суммарные теплопотери' },
-];
-
-export const ELECTRICAL_CABLE_PICKER_CABLE_FIELD_OPTIONS: Array<
-  ElectricalCablePickerFieldOption<ElectricalCablePickerCableFieldKey>
-> = [
-  { key: 'source', label: 'Источник' },
-  { key: 'brand', label: 'Бренд' },
-  { key: 'series', label: 'Серия' },
-  { key: 'power_per_meter', label: 'Мощность' },
-  { key: 'nominal_power', label: 'Номинал' },
-  { key: 'resistance_ohm_km', label: 'Сопротивление' },
-  { key: 'voltage', label: 'U' },
-  { key: 'temperature_range', label: 'Диапазон T' },
-  { key: 'max_product_temp', label: 'Макс. T продукта' },
-  { key: 'max_vapor_temp', label: 'Макс. T проп.' },
-  { key: 'conductor_section_mm2', label: 'Сечение' },
-  { key: 'diameter_mm', label: 'Диаметр кабеля' },
-  { key: 'nominal_size_mm', label: 'Габарит' },
-  { key: 'stock_status', label: 'Склад' },
-  { key: 'price_per_meter', label: 'Цена/м' },
-];
-
-export const DEFAULT_ELECTRICAL_CABLE_PICKER_OBJECT_FIELDS: ElectricalCablePickerObjectFieldKey[] = [
-  'object_type',
-  'outer_diameter',
-  'pipe_length',
-  'heat_loss_specific',
-  'total_heat_loss',
-];
-
-export const DEFAULT_ELECTRICAL_CABLE_PICKER_CABLE_FIELDS: ElectricalCablePickerCableFieldKey[] = [
-  'source',
-  'power_per_meter',
-  'nominal_power',
-  'resistance_ohm_km',
-  'voltage',
-  'temperature_range',
-];
+  'electrical.tableView.v3.registered.cache';
 
 export const ELECTRICAL_TABLE_LABEL_FORMAT_OPTIONS: Array<{
   key: ElectricalTableLabelFormat;
@@ -186,16 +102,10 @@ function normalizeLabelFormat(
     : fallback;
 }
 
-function normalizePickerFields<TKey extends string>(
+export function normalizeElectricalCalculationCableSource(
   value: unknown,
-  options: Array<ElectricalCablePickerFieldOption<TKey>>,
-  fallback: TKey[],
-): TKey[] {
-  if (!Array.isArray(value)) return [...fallback];
-  const allowed = new Set(options.map((option) => option.key));
-  const normalized = value.filter((key): key is TKey =>
-    typeof key === 'string' && allowed.has(key as TKey));
-  return normalized.length > 0 ? [...new Set(normalized)] : [...fallback];
+): ElectricalCalculationCableSource {
+  return value === 'extended' || value === 'all' ? value : 'builtin';
 }
 
 export function getDefaultElectricalTableViewSettings(): ElectricalTableViewSettings {
@@ -204,8 +114,7 @@ export function getDefaultElectricalTableViewSettings(): ElectricalTableViewSett
     fontSize: defaultFontSize(),
     tableLabelFormat: 'short',
     settingsLabelFormat: 'full',
-    cablePickerObjectFields: [...DEFAULT_ELECTRICAL_CABLE_PICKER_OBJECT_FIELDS],
-    cablePickerCableFields: [...DEFAULT_ELECTRICAL_CABLE_PICKER_CABLE_FIELDS],
+    calculationCableSource: 'builtin',
   };
 }
 
@@ -218,15 +127,8 @@ export function normalizeElectricalTableViewSettings(
     fontSize: normalizeFontSize(source.fontSize),
     tableLabelFormat: normalizeLabelFormat(source.tableLabelFormat, 'short'),
     settingsLabelFormat: normalizeLabelFormat(source.settingsLabelFormat, 'full'),
-    cablePickerObjectFields: normalizePickerFields(
-      source.cablePickerObjectFields,
-      ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_OPTIONS,
-      DEFAULT_ELECTRICAL_CABLE_PICKER_OBJECT_FIELDS,
-    ),
-    cablePickerCableFields: normalizePickerFields(
-      source.cablePickerCableFields,
-      ELECTRICAL_CABLE_PICKER_CABLE_FIELD_OPTIONS,
-      DEFAULT_ELECTRICAL_CABLE_PICKER_CABLE_FIELDS,
+    calculationCableSource: normalizeElectricalCalculationCableSource(
+      source.calculationCableSource,
     ),
   };
 }

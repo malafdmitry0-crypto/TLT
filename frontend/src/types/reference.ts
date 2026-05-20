@@ -85,7 +85,7 @@ export interface ResistiveCableEntry {
   cable_type: string;
   brand: string;
   model: string;
-  source: string;
+  source?: 'builtin' | 'commercial' | 'extended' | 'all';
   resistance_per_meter?: number | null;
   resistance_ohm_km?: number;
   technical_data_complete?: boolean;

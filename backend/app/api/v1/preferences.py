@@ -48,16 +48,18 @@ HEATCALC_FIELD_INPUT_KEYS = {"version", "fields"}
 HEATCALC_FIELD_INPUT_LAYOUT_KEYS = {"step"}
 ELECTRICAL_TABLE_COLUMNS_VERSION = 5
 ELECTRICAL_TABLE_COLUMNS_PREF_KEY = f"electrical.tableColumns.v{ELECTRICAL_TABLE_COLUMNS_VERSION}"
-ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView.v2"
-ELECTRICAL_TABLE_VIEW_VERSION = 2
+ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView.v3"
+ELECTRICAL_TABLE_VIEW_VERSION = 3
 ELECTRICAL_TABLE_VIEW_KEYS = {
     "version",
     "fontSize",
     "tableLabelFormat",
     "settingsLabelFormat",
+    "calculationCableSource",
     "cablePickerObjectFields",
     "cablePickerCableFields",
 }
+ELECTRICAL_CALCULATION_CABLE_SOURCES = {"builtin", "extended", "all"}
 ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_KEYS = {
     "object_type",
     "placement",
@@ -71,7 +73,6 @@ ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_KEYS = {
     "total_heat_loss",
 }
 ELECTRICAL_CABLE_PICKER_CABLE_FIELD_KEYS = {
-    "source",
     "brand",
     "series",
     "power_per_meter",
@@ -123,6 +124,7 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
     "total_heat_loss",
     "message",
 }
+ELECTRICAL_TABLE_COLUMN_REQUIRED_KEYS = {"index", "object_name", "cable_mark"}
 ELECTRICAL_TABLE_COLUMN_PAYLOAD_KEYS = {"version", "visibleOrder", "columns"}
 ELECTRICAL_TABLE_COLUMN_LAYOUT_KEYS = {"widthPct"}
 ELECTRICAL_VERSIONED_PREF_PREFIXES = ("electrical.tableColumns.", "electrical.tableView.")
@@ -222,6 +224,11 @@ def _validate_electrical_table_columns(value: dict[str, object]) -> None:
         )
     if any(key not in ELECTRICAL_TABLE_COLUMN_KEYS for key in visible_order):
         _preference_validation_error("Electrical table columns visibleOrder contains unknown key")
+    if missing_required := ELECTRICAL_TABLE_COLUMN_REQUIRED_KEYS - set(visible_order):
+        _preference_validation_error(
+            "Electrical table columns visibleOrder missing required key: "
+            + ", ".join(sorted(missing_required))
+        )
 
     columns = value.get("columns")
     if not isinstance(columns, dict):
@@ -299,6 +306,8 @@ def _validate_electrical_table_view(value: dict[str, object]) -> None:
         _preference_validation_error("Electrical table view tableLabelFormat is unsupported")
     if value.get("settingsLabelFormat") not in TABLE_VIEW_LABEL_FORMATS:
         _preference_validation_error("Electrical table view settingsLabelFormat is unsupported")
+    if value.get("calculationCableSource") not in ELECTRICAL_CALCULATION_CABLE_SOURCES:
+        _preference_validation_error("Electrical table view calculationCableSource is unsupported")
     object_fields = value.get("cablePickerObjectFields")
     if not isinstance(object_fields, list) or not all(
         isinstance(key, str) for key in object_fields

@@ -261,7 +261,7 @@
       { "key": "heat_loss_status", "defaultWidthPct": 10, "minWidthPx": 90 },
       { "key": "electrical_status", "defaultWidthPct": 5.6, "minWidthPx": 56 },
       { "key": "cable_type", "defaultWidthPct": 13, "minWidthPx": 120 },
-      { "key": "cable_mark", "defaultWidthPct": 18, "minWidthPx": 140 },
+      { "key": "cable_mark", "defaultWidthPct": 18, "minWidthPx": 140, "required": true },
       { "key": "cable_snapshot_status", "defaultWidthPct": 10, "minWidthPx": 90 },
       { "key": "applied_selection_policy", "defaultWidthPct": 10, "minWidthPx": 90 },
       { "key": "selection_reason", "defaultWidthPct": 18, "minWidthPx": 160, "ellipsis": true },

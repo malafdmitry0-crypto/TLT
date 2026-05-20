@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_candidate import ElectricalCandidate
 from app.models.project_object import ProjectObject
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -338,6 +339,134 @@ class TestElectricalCalculation:
         )
         assert resp.status_code == 200, resp.text
         assert resp.json() == []
+
+    async def test_electrical_candidate_auto_does_not_apply_until_explicit_choice(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/candidates",
+            json={
+                "project_id": project["id"],
+                "object_id": obj["id"],
+                "variant_number": 2,
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "auto",
+                "electrical_params": {"selection_policy": "technical_minimum"},
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 200, resp.text
+        candidate = resp.json()
+        assert candidate["status"] == "applicable"
+        assert candidate["mode"] == "auto"
+        assert candidate["cable_mark"]
+        assert candidate["is_applied"] is False
+
+        calc_count = (
+            await db_session.execute(
+                select(func.count(ElectricalCalculation.id)).where(
+                    ElectricalCalculation.object_id == UUID(obj["id"]),
+                    ElectricalCalculation.variant_number == 2,
+                )
+            )
+        ).scalar_one()
+        assert calc_count == 0
+
+        apply_resp = await client.post(
+            f"/api/v1/calc/electrical/candidates/{candidate['id']}/apply",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert apply_resp.status_code == 200, apply_resp.text
+        payload = apply_resp.json()
+        assert payload["candidate"]["is_applied"] is True
+        assert payload["calculation"]["cable_mark"] == candidate["cable_mark"]
+
+        applied_count = (
+            await db_session.execute(
+                select(func.count(ElectricalCandidate.id)).where(
+                    ElectricalCandidate.object_id == UUID(obj["id"]),
+                    ElectricalCandidate.variant_number == 2,
+                    ElectricalCandidate.is_applied.is_(True),
+                )
+            )
+        ).scalar_one()
+        assert applied_count == 1
+
+    async def test_electrical_candidate_unsupported_type_is_diagnostic_not_fake_recommendation(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/candidates",
+            json={
+                "project_id": project["id"],
+                "object_id": obj["id"],
+                "variant_number": 1,
+                "cable_type": "mineral",
+                "cable_source": "builtin",
+                "mode": "auto",
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        candidate = resp.json()
+        assert candidate["status"] == "not_applicable"
+        assert candidate["reason_code"] == "no_candidate_generator"
+        assert candidate["cable_mark"] is None
+        assert candidate["is_recommended"] is False
+
+    async def test_electrical_candidate_manual_uses_engineer_mark_before_apply(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/candidates",
+            json={
+                "project_id": project["id"],
+                "object_id": obj["id"],
+                "variant_number": 3,
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "ТЛТ-75",
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        candidate = resp.json()
+        assert candidate["status"] == "applicable"
+        assert candidate["mode"] == "manual"
+        assert candidate["cable_mark"] == "ТЛТ-75"
+        assert candidate["is_applied"] is False
+
+        calc_count = (
+            await db_session.execute(
+                select(func.count(ElectricalCalculation.id)).where(
+                    ElectricalCalculation.object_id == UUID(obj["id"]),
+                    ElectricalCalculation.variant_number == 3,
+                )
+            )
+        ).scalar_one()
+        assert calc_count == 0
+
+        apply_resp = await client.post(
+            f"/api/v1/calc/electrical/candidates/{candidate['id']}/apply",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert apply_resp.status_code == 200, apply_resp.text
+        payload = apply_resp.json()
+        assert payload["candidate"]["is_applied"] is True
+        assert payload["calculation"]["cable_mark"] == "ТЛТ-75"
 
     async def test_list_electrical_legacy_endpoint_is_paginated(
         self, client: AsyncClient, guest_session: str
@@ -1349,6 +1478,36 @@ class TestManualCableSelection:
         assert len(listing) == 1
         assert listing[0]["cable_mark"] == "ТЛТ-60"
         assert listing[0]["cable_mark_source"] == "manual"
+
+    async def test_manual_select_variants_ok_upserts_selected_variants(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid, oid = await self._create_pipe_project(client, guest_session)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical/select-cable/variants",
+            json={
+                "object_id": oid,
+                "cable_mark": "ТЛТ-60",
+                "variant_numbers": [2, 4],
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert [item["variant_number"] for item in body] == [2, 4]
+        assert all(item["cable_mark"] == "ТЛТ-60" for item in body)
+        assert all(item["cable_mark_source"] == "manual" for item in body)
+
+        listing = (
+            await client.get(
+                "/api/v1/calc/electrical",
+                params={"project_id": pid},
+                headers={"X-Session-Id": guest_session},
+            )
+        ).json()
+        assert sorted(item["variant_number"] for item in listing) == [2, 4]
 
     async def test_manual_select_cable_too_weak(self, client: AsyncClient, guest_session: str):
         """Слишком слабый кабель → 422 с текстом «не обеспечивает»."""

@@ -16,7 +16,12 @@ from app.schemas.calculation import (
     BatchElectricalResponse,
     CopyElectricalVariantRequest,
     CopyElectricalVariantResponse,
+    ElectricalCableSelectionVariantsRequest,
     ElectricalCalcSummary,
+    ElectricalCandidateApplyResponse,
+    ElectricalCandidateCreateRequest,
+    ElectricalCandidateResponse,
+    ElectricalCandidateUpdateRequest,
     ElectricalPageResponse,
     ElectricalPageSummary,
     ElectricalQueryCapabilitiesResponse,
@@ -373,6 +378,149 @@ async def copy_electrical_variant(
     )
 
 
+@router.get(
+    "/electrical/candidates",
+    response_model=list[ElectricalCandidateResponse],
+    summary="Список кандидатов подбора кабеля для объекта и CO-варианта",
+)
+async def list_electrical_candidates(
+    project_id: UUID,
+    object_id: UUID | None = None,
+    variant_number: int | None = Query(default=None, ge=1, le=4),
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await ProjectService(db).get_project_basic(project_id, principal)
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
+    return await CalculationService(db).list_electrical_candidates(
+        project_id,
+        object_id=object_id,
+        variant_number=variant_number,
+    )
+
+
+@router.post(
+    "/electrical/candidates",
+    response_model=ElectricalCandidateResponse,
+    summary="Создать кандидат подбора кабеля без применения в расчёт",
+)
+async def create_electrical_candidate(
+    data: ElectricalCandidateCreateRequest,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    if data.cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
+        raise HTTPException(
+            status_code=403, detail="Расширенный каталог доступен только сотрудникам"
+        )
+    service = CalculationService(db)
+    try:
+        obj = await ProjectService(db).get_object_for_write(data.object_id, principal)
+        if obj.project_id != data.project_id:
+            raise HTTPException(status_code=404, detail="Объект не найден в проекте")
+        candidate = await service.create_electrical_candidate(
+            project_id=data.project_id,
+            object_id=data.object_id,
+            variant_number=data.variant_number,
+            cable_type=data.cable_type,
+            cable_source=data.cable_source,
+            mode=data.mode,
+            cable_mark=data.cable_mark,
+            electrical_params=data.electrical_params,
+        )
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
+    except (ValueError, ValidationError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except CalculationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    await AuditService(db).try_record(
+        event_type="calculation.electrical.candidate_created",
+        category="calculation",
+        principal=principal,
+        project_id=data.project_id,
+        object_id=data.object_id,
+        result="success" if candidate.status == "applicable" else "failure",
+        severity="info" if candidate.status == "applicable" else "warning",
+        details={
+            "candidate_id": str(candidate.id),
+            "variant_number": candidate.variant_number,
+            "cable_type": candidate.cable_type,
+            "cable_mark": candidate.cable_mark,
+            "mode": candidate.mode,
+            "status": candidate.status,
+            "reason_code": candidate.reason_code,
+        },
+        message="Создан кандидат подбора кабеля",
+    )
+    return candidate
+
+
+@router.patch(
+    "/electrical/candidates/{candidate_id}",
+    response_model=ElectricalCandidateResponse,
+    summary="Изменить инженерские пометки кандидата подбора",
+)
+async def update_electrical_candidate(
+    candidate_id: UUID,
+    data: ElectricalCandidateUpdateRequest,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    service = CalculationService(db)
+    try:
+        candidate = await service.get_electrical_candidate(candidate_id)
+        await ProjectService(db).get_project_for_write(candidate.project_id, principal)
+        return await service.update_electrical_candidate(
+            candidate_id,
+            **data.model_dump(exclude_unset=True),
+        )
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
+    except CalculationError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post(
+    "/electrical/candidates/{candidate_id}/apply",
+    response_model=ElectricalCandidateApplyResponse,
+    summary="Применить кандидат подбора в основной электрорасчёт",
+)
+async def apply_electrical_candidate(
+    candidate_id: UUID,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    service = CalculationService(db)
+    try:
+        candidate = await service.get_electrical_candidate(candidate_id)
+        await ProjectService(db).get_project_for_write(candidate.project_id, principal)
+        applied_candidate, calc = await service.apply_electrical_candidate(candidate_id)
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
+    except CalculationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    summary = (await service.electrical_calc_summaries([calc], applied_candidate.cable_source))[0]
+    await AuditService(db).try_record(
+        event_type="calculation.electrical.candidate_applied",
+        category="calculation",
+        principal=principal,
+        project_id=applied_candidate.project_id,
+        object_id=applied_candidate.object_id,
+        details={
+            "candidate_id": str(applied_candidate.id),
+            "variant_number": applied_candidate.variant_number,
+            "cable_type": applied_candidate.cable_type,
+            "cable_mark": applied_candidate.cable_mark,
+        },
+        message="Кандидат подбора применён в электрорасчёт",
+    )
+    return ElectricalCandidateApplyResponse(candidate=applied_candidate, calculation=summary)
+
+
 @router.post(
     "/electrical/select-cable",
     response_model=ElectricalCalcSummary,
@@ -455,6 +603,69 @@ async def select_cable(
         message="Выполнен ручной выбор кабеля",
     )
     return summary
+
+
+@router.post(
+    "/electrical/select-cable/variants",
+    response_model=list[ElectricalCalcSummary],
+    summary="Атомарный выбор кабеля для объекта в нескольких СО",
+)
+async def select_cable_variants(
+    data: ElectricalCableSelectionVariantsRequest,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    """Одной транзакцией применяет выбор марки или «Авто» к нескольким СО.
+
+    Если хотя бы один вариант не проходит расчёт, ни один из отмеченных СО не
+    сохраняется.
+    """
+    if data.cable_source in ("extended", "all") and principal.role not in ("employee", "admin"):
+        raise HTTPException(
+            status_code=403, detail="Расширенный каталог доступен только сотрудникам"
+        )
+    service = CalculationService(db)
+    try:
+        obj = await ProjectService(db).get_object_for_write(data.object_id, principal)
+        calcs = await service.select_cable_for_variants(
+            data.object_id,
+            data.cable_mark,
+            data.cable_source,
+            data.variant_numbers,
+            data.cable_type,
+            data.electrical_params(),
+        )
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
+    except (ValueError, ValidationError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except CalculationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    summaries = await service.electrical_calc_summaries(calcs, data.cable_source)
+    await AuditService(db).try_record(
+        event_type="calculation.electrical.cable_selected_variants",
+        category="calculation",
+        principal=principal,
+        project_id=obj.project_id,
+        object_id=data.object_id,
+        details={
+            "cable_mark": data.cable_mark,
+            "cable_source": data.cable_source,
+            "cable_type": data.cable_type,
+            "variant_numbers": data.variant_numbers,
+            "atomic": True,
+            "result_categories": [
+                (calc.results or {}).get("category")
+                for calc in calcs
+            ],
+            "error_codes": [
+                (calc.results or {}).get("error_code")
+                for calc in calcs
+            ],
+        },
+        message="Выполнен атомарный выбор кабеля для нескольких СО",
+    )
+    return summaries
 
 
 @router.post(

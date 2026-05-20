@@ -12,7 +12,7 @@ from typing import Any, cast
 from uuid import UUID
 
 from pydantic import ValidationError
-from sqlalchemy import Float, and_, delete, func, or_, select
+from sqlalchemy import Float, and_, delete, func, or_, select, update
 from sqlalchemy import cast as sa_cast
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,6 +34,7 @@ from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
 from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_candidate import ElectricalCandidate
 from app.models.project_object import ProjectObject
 from app.reference_data.loader import (
     get_climate_by_city,
@@ -268,6 +269,12 @@ VALID_THREAD_SOURCES = {
     THREAD_SOURCE_DEFAULT,
     THREAD_SOURCE_PREVIOUS_RESULT,
 }
+ELECTRICAL_CANDIDATE_STATUS_APPLICABLE = "applicable"
+ELECTRICAL_CANDIDATE_STATUS_ERROR = "error"
+ELECTRICAL_CANDIDATE_STATUS_NOT_APPLICABLE = "not_applicable"
+ELECTRICAL_CANDIDATE_STATUS_EXCLUDED = "excluded"
+ELECTRICAL_CANDIDATE_STATUS_STALE = "stale"
+ELECTRICAL_CANDIDATE_NO_GENERATOR_CODE = "no_candidate_generator"
 
 
 async def _maybe_await(value: Awaitable[Any] | Any) -> Any:
@@ -904,6 +911,23 @@ class CalculationService:
                 "hint": "Нажмите «Пересчитать выбранные» или «Пересчитать все» вручную.",
             }
             stale_count += 1
+        candidate_result = await self.db.execute(
+            select(ElectricalCandidate).where(
+                ElectricalCandidate.project_id == project_id,
+                ElectricalCandidate.object_id.in_(unique_ids),
+                ElectricalCandidate.status != ELECTRICAL_CANDIDATE_STATUS_STALE,
+            )
+        )
+        for candidate in candidate_result.scalars().all():
+            candidate.status = ELECTRICAL_CANDIDATE_STATUS_STALE
+            candidate.is_applied = False
+            candidate.reason_code = STALE_ELECTRICAL_ERROR_CODE
+            candidate.reason_message = STALE_ELECTRICAL_MESSAGE
+            candidate.risk_flags = [
+                *list(candidate.risk_flags or []),
+                {"code": STALE_ELECTRICAL_ERROR_CODE, "message": STALE_ELECTRICAL_MESSAGE},
+            ]
+            stale_count += 1
         if stale_count:
             await self.db.flush()
         return stale_count
@@ -1213,7 +1237,12 @@ class CalculationService:
         )
         return updated, failed, errors
 
-    async def calc_electrical(self, request: ElectricalRequest) -> ElectricalCalculation:
+    async def calc_electrical(
+        self,
+        request: ElectricalRequest,
+        *,
+        commit: bool = True,
+    ) -> ElectricalCalculation:
         # Получаем объект, чтобы узнать project_id
         obj_result = await self.db.execute(
             select(ProjectObject).where(ProjectObject.id == request.object_id)
@@ -1237,6 +1266,8 @@ class CalculationService:
             result_dict=result_dict,
             cable_snapshot=cable_snapshot,
         )
+        if not commit:
+            return calc
         await self.db.commit()
         await self.db.refresh(calc)
         return calc
@@ -2606,25 +2637,299 @@ class CalculationService:
                 merged[key] = value
         return merged
 
-    async def select_cable_manual(
+    async def list_electrical_candidates(
         self,
+        project_id: UUID,
+        *,
+        object_id: UUID | None = None,
+        variant_number: int | None = None,
+    ) -> list[ElectricalCandidate]:
+        filters = [ElectricalCandidate.project_id == project_id]
+        if object_id is not None:
+            filters.append(ElectricalCandidate.object_id == object_id)
+        if variant_number is not None:
+            filters.append(ElectricalCandidate.variant_number == variant_number)
+        result = await self.db.execute(
+            select(ElectricalCandidate)
+            .where(*filters)
+            .order_by(
+                ElectricalCandidate.object_id,
+                ElectricalCandidate.variant_number,
+                ElectricalCandidate.is_applied.desc(),
+                ElectricalCandidate.is_recommended.desc(),
+                ElectricalCandidate.priority.desc(),
+                ElectricalCandidate.created_at.desc(),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def _load_candidate_object(self, project_id: UUID, object_id: UUID) -> ProjectObject:
+        result = await self.db.execute(
+            select(ProjectObject).where(
+                ProjectObject.project_id == project_id,
+                ProjectObject.id == object_id,
+            )
+        )
+        obj = result.scalar_one_or_none()
+        if obj is None:
+            raise CalculationError("Объект не найден в проекте")
+        return obj
+
+    @staticmethod
+    def _candidate_warnings(result_dict: dict[str, Any] | None) -> list[Any]:
+        if not isinstance(result_dict, dict):
+            return []
+        warnings = result_dict.get("warnings")
+        return list(warnings) if isinstance(warnings, list) else []
+
+    @staticmethod
+    def _candidate_risk_flags(result_dict: dict[str, Any] | None) -> list[Any]:
+        if not isinstance(result_dict, dict):
+            return []
+        flags: list[Any] = []
+        commercial = result_dict.get("commercial")
+        if isinstance(commercial, dict) and commercial.get("is_discontinued"):
+            flags.append({"code": "discontinued", "message": "Кабель снят с поставки"})
+        if result_dict.get("applied_selection_policy") == "technical_minimum_fallback":
+            flags.append({
+                "code": "ranking_fallback",
+                "message": "Коммерческое ранжирование заменено техническим fallback",
+            })
+        return flags
+
+    def _candidate_not_applicable(
+        self,
+        *,
+        project_id: UUID,
         object_id: UUID,
-        cable_mark: str,
-        cable_source: CableSource = "builtin",
+        variant_number: int,
+        cable_type: str,
+        cable_source: CableSource,
+        mode: str,
+        cable_mark: str | None,
+    ) -> ElectricalCandidate:
+        return ElectricalCandidate(
+            project_id=project_id,
+            object_id=object_id,
+            variant_number=variant_number,
+            cable_type=cable_type,
+            cable_source=cable_source,
+            cable_mark=cable_mark,
+            mode=mode,
+            status=ELECTRICAL_CANDIDATE_STATUS_NOT_APPLICABLE,
+            priority=0,
+            is_recommended=False,
+            is_pinned=False,
+            is_applied=False,
+            reason_code=ELECTRICAL_CANDIDATE_NO_GENERATOR_CODE,
+            reason_message=(
+                f"Для типа кабеля «{cable_type}» нет расчётной формулы кандидата. "
+                "Авторасчёт не создаёт фиктивные рекомендации."
+            ),
+            params={},
+            results=None,
+            cable_snapshot=None,
+            warnings=[],
+            risk_flags=[{"code": ELECTRICAL_CANDIDATE_NO_GENERATOR_CODE}],
+            candidate_meta={"autoselection_used": mode == "auto", "candidate_count": 0},
+        )
+
+    async def create_electrical_candidate(
+        self,
+        *,
+        project_id: UUID,
+        object_id: UUID,
         variant_number: int = 1,
         cable_type: str = "self_regulating",
+        cable_source: CableSource = "builtin",
+        mode: str = "auto",
+        cable_mark: str | None = None,
         electrical_params: dict[str, Any] | None = None,
-    ) -> ElectricalCalculation:
-        """Ручной выбор кабеля: берёт параметры из объекта, пересчитывает, upsert."""
-        obj_result = await self.db.execute(
-            select(ProjectObject).where(ProjectObject.id == object_id)
-        )
-        obj = obj_result.scalar_one_or_none()
-        if obj is None:
-            raise CalculationError("Объект не найден")
-        if not obj.is_valid or not obj.results:
-            raise CalculationError("Теплопотери объекта не рассчитаны — невозможно выбрать кабель")
+    ) -> ElectricalCandidate:
+        """Считает и сохраняет кандидат кабеля, не применяя его в ElectricalCalculation."""
+        if variant_number < 1 or variant_number > 4:
+            raise CalculationError("variant_number должен быть от 1 до 4")
+        if mode not in {"auto", "manual"}:
+            raise CalculationError("mode должен быть auto или manual")
+        if mode == "manual" and not cable_mark:
+            raise CalculationError("Для ручного кандидата укажите cable_mark")
+        if mode == "auto" and cable_mark:
+            raise CalculationError("Авторасчёт кандидата запускается без cable_mark")
 
+        obj = await self._load_candidate_object(project_id, object_id)
+        if cable_type in {"mineral", "skin"}:
+            candidate = self._candidate_not_applicable(
+                project_id=project_id,
+                object_id=object_id,
+                variant_number=variant_number,
+                cable_type=cable_type,
+                cable_source=cable_source,
+                mode=mode,
+                cable_mark=cable_mark,
+            )
+            self.db.add(candidate)
+            await self.db.commit()
+            await self.db.refresh(candidate)
+            return candidate
+
+        request_data: dict[str, Any] = {}
+        selected_mark: str | None = cable_mark
+        result_dict: dict[str, Any] | None = None
+        cable_snapshot: dict[str, Any] | None = None
+        status = ELECTRICAL_CANDIDATE_STATUS_APPLICABLE
+        reason_code: str | None = None
+        reason_message: str | None = None
+        try:
+            catalog = await self.load_cable_catalog(cable_source)
+            resistive_catalog = (
+                await self.load_resistive_cable_catalog(cable_type, cable_source)
+                if cable_type in ("single_core", "three_core")
+                else None
+            )
+            coefficients = await self.get_coefficients()
+            overrides = self._base_overrides_with_sources(electrical_params or {})
+            request_data = self._build_electrical_data(
+                obj=obj,
+                cable_type=cable_type,
+                cable_mark=cable_mark,
+                tlt_catalog=catalog,
+                resistive_catalog=resistive_catalog,
+                overrides=overrides,
+                coefficients=coefficients,
+            )
+            request_data["cable_source"] = cable_source
+            request_data["cable_type_source"] = CABLE_TYPE_SOURCE_MANUAL
+            request_data["cable_mark_source"] = (
+                CABLE_MARK_SOURCE_MANUAL if cable_mark else CABLE_MARK_SOURCE_AUTO
+            )
+            request = ElectricalRequest(
+                object_id=object_id,
+                cable_type=cast(Any, cable_type),
+                variant_number=variant_number,
+                data=request_data,
+            )
+            self._hydrate_electrical_request_from_object(request, obj)
+            selected_mark, result_dict = self._calculate_electrical_result(request)
+            cable_snapshot = self._build_cable_snapshot_for_result(
+                request=request,
+                cable_mark=selected_mark,
+                result_dict=result_dict,
+            )
+        except Exception as exc:
+            status = ELECTRICAL_CANDIDATE_STATUS_ERROR
+            reason_code = "candidate_calculation_failed"
+            reason_message = _clean_exception_message(exc)
+
+        candidate = ElectricalCandidate(
+            project_id=project_id,
+            object_id=object_id,
+            variant_number=variant_number,
+            cable_type=cable_type,
+            cable_source=cable_source,
+            cable_mark=selected_mark,
+            mode=mode,
+            status=status,
+            priority=0,
+            is_recommended=mode == "auto" and status == ELECTRICAL_CANDIDATE_STATUS_APPLICABLE,
+            is_pinned=False,
+            is_applied=False,
+            reason_code=reason_code,
+            reason_message=reason_message,
+            params=self._compact_electrical_params(request_data),
+            results=result_dict,
+            cable_snapshot=cable_snapshot,
+            warnings=self._candidate_warnings(result_dict),
+            risk_flags=self._candidate_risk_flags(result_dict),
+            candidate_meta={
+                "autoselection_used": mode == "auto",
+                "candidate_count": result_dict.get("candidate_count") if result_dict else 0,
+            },
+        )
+        self.db.add(candidate)
+        await self.db.commit()
+        await self.db.refresh(candidate)
+        return candidate
+
+    async def update_electrical_candidate(
+        self,
+        candidate_id: UUID,
+        *,
+        priority: int | None = None,
+        is_recommended: bool | None = None,
+        is_pinned: bool | None = None,
+        status: str | None = None,
+        engineer_comment: str | None = None,
+    ) -> ElectricalCandidate:
+        candidate = await self.get_electrical_candidate(candidate_id)
+        if priority is not None:
+            candidate.priority = priority
+        if is_recommended is not None:
+            candidate.is_recommended = is_recommended
+        if is_pinned is not None:
+            candidate.is_pinned = is_pinned
+        if status is not None:
+            candidate.status = status
+            if status == ELECTRICAL_CANDIDATE_STATUS_EXCLUDED:
+                candidate.is_applied = False
+        if engineer_comment is not None:
+            candidate.engineer_comment = engineer_comment
+        await self.db.commit()
+        await self.db.refresh(candidate)
+        return candidate
+
+    async def get_electrical_candidate(self, candidate_id: UUID) -> ElectricalCandidate:
+        result = await self.db.execute(
+            select(ElectricalCandidate).where(ElectricalCandidate.id == candidate_id)
+        )
+        candidate = result.scalar_one_or_none()
+        if candidate is None:
+            raise CalculationError("Кандидат подбора не найден")
+        return candidate
+
+    async def apply_electrical_candidate(
+        self,
+        candidate_id: UUID,
+    ) -> tuple[ElectricalCandidate, ElectricalCalculation]:
+        candidate = await self.get_electrical_candidate(candidate_id)
+        if candidate.status != ELECTRICAL_CANDIDATE_STATUS_APPLICABLE:
+            raise CalculationError("Можно применить только применимый кандидат")
+        if not candidate.cable_mark:
+            raise CalculationError("У кандидата нет выбранной марки кабеля")
+
+        calc = await self.select_cable_manual(
+            candidate.object_id,
+            candidate.cable_mark,
+            candidate.cable_source,
+            candidate.variant_number,
+            candidate.cable_type,
+            candidate.params,
+        )
+        await self.db.execute(
+            update(ElectricalCandidate)
+            .where(
+                ElectricalCandidate.object_id == candidate.object_id,
+                ElectricalCandidate.variant_number == candidate.variant_number,
+            )
+            .values(is_applied=False)
+        )
+        candidate.is_applied = True
+        candidate.status = ELECTRICAL_CANDIDATE_STATUS_APPLICABLE
+        await self.db.commit()
+        await self.db.refresh(candidate)
+        return candidate, calc
+
+    async def _select_cable_for_object(
+        self,
+        obj: ProjectObject,
+        *,
+        cable_mark: str | None,
+        cable_source: CableSource,
+        variant_number: int,
+        cable_type: str,
+        electrical_params: dict[str, Any] | None,
+        commit: bool,
+    ) -> ElectricalCalculation:
+        """Выбор/автоподбор кабеля для одной пары объект+СО."""
         catalog = await self.load_cable_catalog(cable_source)
         resistive_catalog = (
             await self.load_resistive_cable_catalog(cable_type, cable_source)
@@ -2642,14 +2947,97 @@ class CalculationService:
             coefficients=coefficients,
         )
         data["cable_source"] = cable_source
-        data["cable_mark_source"] = CABLE_MARK_SOURCE_MANUAL
+        data["cable_mark_source"] = (
+            CABLE_MARK_SOURCE_MANUAL if cable_mark else CABLE_MARK_SOURCE_AUTO
+        )
         request = ElectricalRequest(
-            object_id=object_id,
+            object_id=obj.id,
             cable_type=cast(Any, cable_type),
             variant_number=variant_number,
             data=data,
         )
-        return await self.calc_electrical(request)
+        return await self.calc_electrical(request, commit=commit)
+
+    async def _load_selectable_object(self, object_id: UUID) -> ProjectObject:
+        obj_result = await self.db.execute(
+            select(ProjectObject).where(ProjectObject.id == object_id)
+        )
+        obj = obj_result.scalar_one_or_none()
+        if obj is None:
+            raise CalculationError("Объект не найден")
+        if not obj.is_valid or not obj.results:
+            raise CalculationError("Теплопотери объекта не рассчитаны — невозможно выбрать кабель")
+        return obj
+
+    @staticmethod
+    def _normalize_selection_variant_numbers(variant_numbers: list[int]) -> list[int]:
+        normalized = list(dict.fromkeys(int(value) for value in variant_numbers))
+        if not normalized:
+            raise CalculationError("Нужно выбрать хотя бы одно СО")
+        invalid = [value for value in normalized if value < 1 or value > 4]
+        if invalid:
+            raise CalculationError("variant_numbers должны быть от 1 до 4")
+        return normalized
+
+    async def select_cable_for_variants(
+        self,
+        object_id: UUID,
+        cable_mark: str | None,
+        cable_source: CableSource = "builtin",
+        variant_numbers: list[int] | None = None,
+        cable_type: str = "self_regulating",
+        electrical_params: dict[str, Any] | None = None,
+    ) -> list[ElectricalCalculation]:
+        """Атомарно применяет ручной выбор или автоподбор к нескольким СО."""
+        obj = await self._load_selectable_object(object_id)
+        variants = self._normalize_selection_variant_numbers(variant_numbers or [1])
+        normalized_mark = cable_mark.strip() if isinstance(cable_mark, str) else None
+        if normalized_mark == "":
+            normalized_mark = None
+        calcs: list[ElectricalCalculation] = []
+        try:
+            for variant_number in variants:
+                calcs.append(
+                    await self._select_cable_for_object(
+                        obj,
+                        cable_mark=normalized_mark,
+                        cable_source=cable_source,
+                        variant_number=variant_number,
+                        cable_type=cable_type,
+                        electrical_params=electrical_params,
+                        commit=False,
+                    )
+                )
+            await self.db.commit()
+        except Exception:
+            await self.db.rollback()
+            raise
+        for calc in calcs:
+            await self.db.refresh(calc)
+        return calcs
+
+    async def select_cable_manual(
+        self,
+        object_id: UUID,
+        cable_mark: str,
+        cable_source: CableSource = "builtin",
+        variant_number: int = 1,
+        cable_type: str = "self_regulating",
+        electrical_params: dict[str, Any] | None = None,
+        *,
+        commit: bool = True,
+    ) -> ElectricalCalculation:
+        """Ручной выбор кабеля: берёт параметры из объекта, пересчитывает, upsert."""
+        obj = await self._load_selectable_object(object_id)
+        return await self._select_cable_for_object(
+            obj,
+            cable_mark=cable_mark,
+            cable_source=cable_source,
+            variant_number=variant_number,
+            cable_type=cable_type,
+            electrical_params=electrical_params,
+            commit=commit,
+        )
 
     async def _electrical_batch_counts(
         self,

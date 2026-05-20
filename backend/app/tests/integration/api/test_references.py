@@ -114,6 +114,9 @@ class TestReferences:
         assert r3["technical_data_missing"] == []
         assert r3["resistance_ohm_km"] == pytest.approx(11.666666666666666)
         assert r3["conductor_section_mm2"] == pytest.approx(1.5)
+        assert "source" not in r3
+        assert all("source" not in row for row in data["single_core"])
+        assert all("source" not in row for row in data["three_core"])
 
     async def test_resistive_commercial_cables_include_technical_status(
         self, client: AsyncClient, guest_session: str, db_session: AsyncSession

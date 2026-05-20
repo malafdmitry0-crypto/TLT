@@ -2240,6 +2240,80 @@ class TestSelectCableManual:
         with pytest.raises(CalculationError, match="не найден"):
             await service.select_cable_manual(uuid.uuid4(), "ТЛТ-25")
 
+    async def test_select_cable_for_variants_commits_once(self):
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            object_type="pipe",
+            params=_minimal_pipe_params(),
+            results={"heat_loss_per_meter": 20},
+            is_valid=True,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none = lambda: obj
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=result)
+        db.commit = AsyncMock()
+        db.refresh = AsyncMock()
+        db.rollback = AsyncMock()
+        calcs = [
+            SimpleNamespace(variant_number=1),
+            SimpleNamespace(variant_number=3),
+        ]
+        service = CalculationService(db)
+        service._select_cable_for_object = AsyncMock(side_effect=calcs)  # type: ignore[method-assign]
+
+        result_calcs = await service.select_cable_for_variants(
+            obj.id,
+            "ТЛТ-30",
+            variant_numbers=[1, 3],
+        )
+
+        assert result_calcs == calcs
+        db.commit.assert_awaited_once()
+        assert db.refresh.await_count == 2
+        db.rollback.assert_not_awaited()
+        assert [
+            call.kwargs["variant_number"]
+            for call in service._select_cable_for_object.await_args_list
+        ] == [1, 3]
+        assert all(
+            call.kwargs["commit"] is False
+            for call in service._select_cable_for_object.await_args_list
+        )
+
+    async def test_select_cable_for_variants_rolls_back_on_partial_failure(self):
+        obj = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            object_type="pipe",
+            params=_minimal_pipe_params(),
+            results={"heat_loss_per_meter": 20},
+            is_valid=True,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none = lambda: obj
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=result)
+        db.commit = AsyncMock()
+        db.refresh = AsyncMock()
+        db.rollback = AsyncMock()
+        service = CalculationService(db)
+        service._select_cable_for_object = AsyncMock(  # type: ignore[method-assign]
+            side_effect=[SimpleNamespace(variant_number=1), CalculationError("boom")]
+        )
+
+        with pytest.raises(CalculationError, match="boom"):
+            await service.select_cable_for_variants(
+                obj.id,
+                "ТЛТ-30",
+                variant_numbers=[1, 3],
+            )
+
+        db.commit.assert_not_awaited()
+        db.refresh.assert_not_awaited()
+        db.rollback.assert_awaited_once()
+
     async def test_invalid_object_raises(self):
         """Если is_valid=False или results пусты — нельзя выбрать кабель."""
         db = AsyncMock()

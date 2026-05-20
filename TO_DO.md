@@ -44,6 +44,7 @@
 | Документ | Назначение |
 |---|---|
 | `docs/analysis/current-status-and-missing-info.md` | Срез готовности и пробелов |
+| `docs/analysis/business-logic-strengths-weaknesses.md` | SWOT расчётной бизнес-логики |
 | `docs/tz-compliance.md` | Сверка с ТЗ |
 | `docs/analysis/open-business-decisions.md` | Реестр Q-решений и SEC |
 | `docs/qa/automation-coverage.md` | Карта тестового покрытия |

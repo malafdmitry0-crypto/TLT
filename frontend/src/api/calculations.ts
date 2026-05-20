@@ -3,6 +3,9 @@ import type {
   BatchElectricalResponse,
   BatchHeatLossResponse,
   CalculationTaskResponse,
+  ElectricalCandidate,
+  ElectricalCandidateApplyResponse,
+  ElectricalCandidateCreateRequest,
   ElectricalCalcSummary,
   ElectricalPageResponse,
   ElectricalQueryCapabilities,
@@ -95,6 +98,57 @@ export async function queryElectrical(
   const { data } = await apiClient.post<ElectricalQueryResponse>(
     '/calc/electrical/query',
     payload,
+  );
+  return data;
+}
+
+export async function listElectricalCandidates(
+  projectId: string,
+  objectId: string,
+  variantNumber: number,
+): Promise<ElectricalCandidate[]> {
+  const { data } = await apiClient.get<ElectricalCandidate[]>('/calc/electrical/candidates', {
+    params: {
+      project_id: projectId,
+      object_id: objectId,
+      variant_number: variantNumber,
+    },
+  });
+  return data;
+}
+
+export async function createElectricalCandidate(
+  payload: ElectricalCandidateCreateRequest,
+): Promise<ElectricalCandidate> {
+  const { data } = await apiClient.post<ElectricalCandidate>(
+    '/calc/electrical/candidates',
+    payload,
+    withIdempotencyKey(),
+  );
+  return data;
+}
+
+export async function updateElectricalCandidate(
+  candidateId: string,
+  payload: Partial<Pick<
+    ElectricalCandidate,
+    'priority' | 'is_recommended' | 'is_pinned' | 'status' | 'engineer_comment'
+  >>,
+): Promise<ElectricalCandidate> {
+  const { data } = await apiClient.patch<ElectricalCandidate>(
+    `/calc/electrical/candidates/${candidateId}`,
+    payload,
+  );
+  return data;
+}
+
+export async function applyElectricalCandidate(
+  candidateId: string,
+): Promise<ElectricalCandidateApplyResponse> {
+  const { data } = await apiClient.post<ElectricalCandidateApplyResponse>(
+    `/calc/electrical/candidates/${candidateId}/apply`,
+    null,
+    withIdempotencyKey(),
   );
   return data;
 }
@@ -297,6 +351,39 @@ export async function selectCableManual(
         ...electricalParams(cableType, options),
       },
     }
+  );
+  return data;
+}
+
+export async function selectCableForVariants(
+  objectId: string,
+  cableMark: string | null,
+  cableSource: CableSource = 'builtin',
+  variantNumbers: number[] = [1],
+  cableType: CableType = 'self_regulating',
+  options: ElectricalBatchOptions = {},
+): Promise<ElectricalCalcSummary[]> {
+  const { data } = await apiClient.post<ElectricalCalcSummary[]>(
+    '/calc/electrical/select-cable/variants',
+    {
+      object_id: objectId,
+      cable_mark: cableMark,
+      cable_source: cableSource,
+      variant_numbers: variantNumbers,
+      cable_type: cableType,
+      selection_mode: options.selectionMode ?? null,
+      supply_voltage: options.supplyVoltage ?? null,
+      connection_type: options.connectionType ?? null,
+      winding_coefficient: options.windingCoefficient ?? null,
+      winding_pitch: options.windingPitchMm ?? null,
+      number_of_threads: options.numberOfThreads ?? null,
+      heating_height: options.heatingHeight ?? null,
+      laying_step: options.layingStep ?? null,
+      maintain_temperature: options.maintainTemperature ?? null,
+      vapor_temperature: options.vaporTemperature ?? null,
+      aggressive_product: options.aggressiveProduct ?? false,
+      selection_policy: options.selectionPolicy ?? 'technical_minimum',
+    },
   );
   return data;
 }

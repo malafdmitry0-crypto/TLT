@@ -3,7 +3,7 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import ForeignKey, Index, Integer, String
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,6 +13,10 @@ from app.models.base import Base, TimestampMixin
 class ElectricalCalculation(Base, TimestampMixin):
     __tablename__ = "electrical_calculations"
     __table_args__ = (
+        CheckConstraint(
+            "variant_number >= 1 AND variant_number <= 4",
+            name="ck_electrical_calculations_variant_number",
+        ),
         Index(
             "ix_electrical_calculations_project_variant",
             "project_id",

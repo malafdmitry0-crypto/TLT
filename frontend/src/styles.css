@@ -2548,6 +2548,86 @@ html, body, #root {
   gap: 10px;
 }
 
+.electrical-column-settings-dialog {
+  padding-bottom: 24px;
+}
+
+.electrical-column-settings-dialog .ant-modal-content {
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+}
+
+.electrical-column-settings-dialog .ant-modal-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.electrical-column-settings-title {
+  width: 100%;
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+
+.electrical-column-settings-window {
+  will-change: transform;
+}
+
+.electrical-cable-picker-dialog {
+  padding-bottom: 24px;
+}
+
+.electrical-cable-picker-dialog .ant-modal-content {
+  max-height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+}
+
+.electrical-cable-picker-dialog .ant-modal-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.electrical-cable-picker-dialog .ant-modal-title {
+  font-size: 14px;
+  line-height: 1.15;
+}
+
+.electrical-cable-picker-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  padding-right: 58px;
+}
+
+.electrical-cable-picker-title-text {
+  flex: 0 0 auto;
+  font-size: 14px;
+  line-height: 1.15;
+}
+
+.electrical-cable-picker-title-for {
+  flex: 0 0 auto;
+  color: #1f2933;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.electrical-cable-picker-title-object {
+  min-width: 0;
+  color: #1f2933;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
 .column-settings-tabs .ant-tabs-nav {
   margin-bottom: 10px;
 }
@@ -2634,67 +2714,85 @@ html, body, #root {
 }
 
 .cable-picker-characteristics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
   max-width: 100%;
-  overflow-x: auto;
-  border: 1px solid #dce5ec;
-  border-radius: 4px;
-  background: #fbfcfd;
 }
 
-.cable-picker-characteristics table {
-  width: 100%;
-  min-width: 640px;
-  border-collapse: collapse;
-  table-layout: fixed;
+.cable-picker-characteristics--single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.cable-picker-characteristics th,
-.cable-picker-characteristics td {
-  border-bottom: 1px solid #e6edf2;
-  border-right: 1px solid #e6edf2;
-  padding: 5px 7px;
-  vertical-align: top;
+.cable-picker-characteristics-section {
+  min-width: 0;
 }
 
-.cable-picker-characteristics tr:last-child th,
-.cable-picker-characteristics tr:last-child td {
+.cable-picker-characteristics-title {
+  margin: 0 0 3px;
+  color: #536577;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.cable-picker-characteristics-columns {
+  display: grid;
+  grid-template-columns: repeat(var(--cable-picker-characteristics-column-count, 2), minmax(0, 1fr));
+  gap: 0 8px;
+  min-width: 0;
+}
+
+.cable-picker-characteristics-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.cable-picker-characteristics-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 45%) minmax(0, 1fr);
+  gap: 3px;
+  min-width: 0;
+  padding: 0;
+  border-bottom: 1px solid #e8eef3;
+}
+
+.cable-picker-characteristics-row:last-child {
   border-bottom: 0;
 }
 
-.cable-picker-characteristics th {
-  width: 72px;
-  background: #eef3f6;
-  color: #40566a;
-  font-size: 11px;
-  font-weight: 700;
-  text-align: left;
-}
-
-.cable-picker-characteristics td {
-  min-width: 112px;
-}
-
-.cable-picker-characteristics-label,
-.cable-picker-characteristics-value {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .cable-picker-characteristics-label {
+  display: inline-flex;
+  min-width: 0;
+  gap: 0;
   color: #6a7c8f;
-  font-size: 10px;
-  line-height: 1.15;
-  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.08;
 }
 
 .cable-picker-characteristics-value {
-  margin-top: 2px;
+  min-width: 0;
+  margin: 0;
   color: #1f2933;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  line-height: 1.18;
-  white-space: nowrap;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .cable-picker-characteristics {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .cable-picker-characteristics-columns {
+    grid-template-columns: 1fr;
+  }
 }
 
 .column-settings-list {
@@ -3197,6 +3295,49 @@ html, body, #root {
 .electrical-spreadsheet .ant-select-selector,
 .electrical-spreadsheet .ant-input-number {
   border-radius: 0;
+}
+
+.electrical-spreadsheet .electrical-cable-mark-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.electrical-spreadsheet .electrical-cable-mark-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 90px;
+}
+
+.electrical-spreadsheet .electrical-cable-mark-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.electrical-spreadsheet .electrical-cable-mark-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.electrical-spreadsheet .electrical-cable-mark-action {
+  height: 22px;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 20px;
+}
+
+.electrical-cable-sizing-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .electrical-spreadsheet .electrical-status-icon-tag {

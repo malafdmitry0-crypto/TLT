@@ -7,7 +7,8 @@
 
 Документ собран по `docs/srs.md`, `docs/srs/*`, `docs/tz-compliance.md`,
 `docs/context/*`, `formules.md`, `coefficients.MD`, `TO_DO.md`,
-`codex-docs/*`, [docs/analysis/open-business-decisions.md](open-business-decisions.md)
+`codex-docs/*`, [open-business-decisions.md](open-business-decisions.md),
+[business-logic-strengths-weaknesses.md](business-logic-strengths-weaknesses.md)
 и текущей структуре кода.
 
 ## 1. Что сделано

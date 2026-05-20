@@ -14,6 +14,7 @@
 | `docs/srs/07-report-requirements.md` | Требования к отчёту |
 | `docs/tz-compliance.md` | Сверка с ТЗ и сводка % готовности |
 | `docs/analysis/open-business-decisions.md` | Реестр открытых Q (отчёт, SEC, кабели, объекты) |
+| `docs/analysis/business-logic-strengths-weaknesses.md` | SWOT расчётной бизнес-логики |
 | `TO_DO.md` | Рабочий статус пробелов и отложенных задач |
 | `docs/analysis/` | Бизнес-правила, персоны, story map, диаграммы |
 | `docs/qa/` | Чек-листы и ручные тест-кейсы |

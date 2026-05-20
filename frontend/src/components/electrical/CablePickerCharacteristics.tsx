@@ -1,31 +1,21 @@
 import type { ProjectObject } from '@/types/project';
-import type {
-  ElectricalCablePickerCableFieldKey,
-  ElectricalCablePickerObjectFieldKey,
-  ElectricalTableViewSettings,
-} from '@/utils/electricalTableViewSettings';
-import {
-  ELECTRICAL_CABLE_PICKER_CABLE_FIELD_OPTIONS,
-  ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_OPTIONS,
-} from '@/utils/electricalTableViewSettings';
 import type { CableCatalogRow } from '@/utils/cableCatalogSourceLabels';
 import { formatNumber, formatPower } from '@/utils/formatters';
+import type { CSSProperties } from 'react';
 
 type CablePickerCableRow = CableCatalogRow & {
   price_per_meter?: number | null;
   stock_status?: string | null;
 };
 
-type CablePickerOption = {
-  mark?: string | null;
-  optionSource?: string | null;
-};
-
 interface CablePickerCharacteristicsProps {
   object: ProjectObject;
   cable: CablePickerCableRow | null;
-  option?: CablePickerOption;
-  settings: ElectricalTableViewSettings;
+  cableType?: string | null;
+  showObject?: boolean;
+  showCable?: boolean;
+  objectColumnCount?: number;
+  cableColumnCount?: number;
 }
 
 const OBJECT_TYPE_LABEL: Record<string, string> = {
@@ -40,13 +30,16 @@ const STOCK_STATUS_LABEL: Record<string, string> = {
   unknown: 'Неизвестно',
 };
 
-const CABLE_PICKER_OBJECT_FIELD_LABELS = new Map(
-  ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_OPTIONS.map((option) => [option.key, option.label]),
-);
-
-const CABLE_PICKER_CABLE_FIELD_LABELS = new Map(
-  ELECTRICAL_CABLE_PICKER_CABLE_FIELD_OPTIONS.map((option) => [option.key, option.label]),
-);
+const CABLE_TYPE_LABEL: Record<string, string> = {
+  self_regulating: 'Саморегулирующийся',
+  self_regulating_tt: 'ТТН/ТТВ/ТТХ',
+  single_core: 'Одножильный',
+  three_core: 'Трёхжильный',
+  mineral: 'Минеральная изоляция',
+  skin: 'Скин-система',
+  resistive_single_core: 'Одножильный',
+  resistive_three_core: 'Трёхжильный',
+};
 
 const PLACEMENT_LABEL: Record<string, string> = {
   indoor: 'В помещении',
@@ -54,12 +47,181 @@ const PLACEMENT_LABEL: Record<string, string> = {
   underground: 'Подземно',
 };
 
-const CABLE_SOURCE_LABEL: Record<string, string> = {
-  builtin: 'Встроенная',
-  commercial: 'Коммерческая',
-  extended: 'Внешняя',
-  all: 'Все',
-  project: 'Проект',
+const OBJECT_FIELD_LABELS: Record<string, string> = {
+  object_type: 'Тип объекта',
+  placement: 'Размещение',
+  outer_diameter: 'Диаметр',
+  pipe_length: 'Длина',
+  tank_geometry: 'Геометрия резервуара',
+  insulation: 'Изоляция',
+  ambient_temperature: 'T окр.',
+  process_temperature: 'T объекта',
+  heat_loss_specific: 'Уд. теплопотери',
+  total_heat_loss: 'Суммарные теплопотери',
+};
+
+const PIPE_OBJECT_FIELD_ORDER = [
+  'object_type',
+  'outer_diameter',
+  'pipe_length',
+  'heat_loss_specific',
+  'total_heat_loss',
+  'placement',
+  'insulation',
+  'ambient_temperature',
+  'process_temperature',
+];
+
+const TANK_OBJECT_FIELD_ORDER = [
+  'object_type',
+  'tank_geometry',
+  'heat_loss_specific',
+  'total_heat_loss',
+  'placement',
+  'insulation',
+  'ambient_temperature',
+  'process_temperature',
+];
+
+const CABLE_FIELD_LABELS: Record<string, string> = {
+  article: 'Артикул',
+  brand: 'Бренд',
+  cable_type: 'Тип кабеля',
+  commercial_data_source: 'Данные',
+  conductor_cross_section: 'Сечение',
+  conductor_section_mm2: 'Сечение',
+  currency: 'Валюта',
+  diameter_mm: 'Диаметр кабеля',
+  is_discontinued: 'Снят с пр-ва',
+  is_preferred: 'Приоритетный',
+  lead_time_days: 'Срок',
+  mass_kg_km: 'Масса',
+  max_length: 'Макс. длина',
+  max_pipe_temp: 'Макс. T трубы',
+  max_product_temp: 'Макс. T продукта',
+  max_temperature: 'Макс. T',
+  max_vapor_temp: 'Макс. T проп.',
+  min_bend_radius_mm: 'Мин. радиус изгиба',
+  min_order_quantity_m: 'Мин. заказ',
+  min_temperature: 'Мин. T',
+  model: 'Марка',
+  nominal_power: 'Номинал',
+  nominal_section_length_m: 'Длина по сечению',
+  nominal_size_mm: 'Габарит',
+  order_multiple_m: 'Кратность заказа',
+  power_per_meter: 'Мощность',
+  price_per_meter: 'Цена/м',
+  price_updated_at: 'Цена обновлена',
+  protection: 'Защита',
+  q1: 'Q1',
+  q2: 'Q2',
+  resistance_ohm_km: 'Сопротивление',
+  resistance_per_meter: 'Сопротивление, Ом/м',
+  series: 'Серия',
+  stock_quantity_m: 'Остаток',
+  stock_status: 'Склад',
+  stock_updated_at: 'Склад обновлён',
+  supplier_name: 'Поставщик',
+  supplier_priority: 'Приоритет поставщика',
+  voltage: 'U',
+};
+
+const SKIPPED_CABLE_FIELD_KEYS = new Set([
+  'article',
+  'commercial_data_source',
+  'currency',
+  'id',
+  'is_discontinued',
+  'is_preferred',
+  'lead_time_days',
+  'min_order_quantity_m',
+  'order_multiple_m',
+  'params',
+  'price_per_meter',
+  'price_updated_at',
+  'source',
+  'stock_quantity_m',
+  'stock_status',
+  'stock_updated_at',
+  'supplier_name',
+  'supplier_priority',
+  'external_seed_kind',
+  'technical_data_complete',
+  'technical_data_missing',
+]);
+
+const COMMON_CABLE_FIELD_ORDER = [
+  'cable_type',
+  'model',
+  'brand',
+  'series',
+  'voltage',
+];
+
+const CABLE_FIELD_ORDER_BY_TYPE: Record<string, string[]> = {
+  self_regulating: [
+    ...COMMON_CABLE_FIELD_ORDER,
+    'power_per_meter',
+    'temperature_range',
+    'min_temperature',
+    'max_temperature',
+    'max_product_temp',
+    'max_vapor_temp',
+    'max_pipe_temp',
+    'protection',
+  ],
+  self_regulating_tt: [
+    ...COMMON_CABLE_FIELD_ORDER,
+    'nominal_power',
+    'q1',
+    'q2',
+    'max_product_temp',
+    'max_vapor_temp',
+  ],
+  single_core: [
+    ...COMMON_CABLE_FIELD_ORDER,
+    'power_per_meter',
+    'resistance_ohm_km',
+    'resistance_per_meter',
+    'conductor_section_mm2',
+    'diameter_mm',
+    'nominal_section_length_m',
+    'mass_kg_km',
+    'min_bend_radius_mm',
+    'temperature_range',
+    'min_temperature',
+    'max_temperature',
+  ],
+  three_core: [
+    ...COMMON_CABLE_FIELD_ORDER,
+    'power_per_meter',
+    'resistance_ohm_km',
+    'resistance_per_meter',
+    'conductor_section_mm2',
+    'nominal_size_mm',
+    'diameter_mm',
+    'mass_kg_km',
+    'min_bend_radius_mm',
+    'temperature_range',
+    'min_temperature',
+    'max_temperature',
+  ],
+  mineral: [
+    ...COMMON_CABLE_FIELD_ORDER,
+    'power_per_meter',
+    'min_temperature',
+    'max_temperature',
+    'conductor_section_mm2',
+    'nominal_size_mm',
+    'diameter_mm',
+  ],
+  skin: [
+    ...COMMON_CABLE_FIELD_ORDER,
+    'power_per_meter',
+    'min_temperature',
+    'max_temperature',
+    'max_length',
+  ],
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -70,6 +232,10 @@ function valueText(value: unknown) {
   if (value === null || value === undefined || value === '') return '—';
   if (typeof value === 'boolean') return value ? 'Да' : 'Нет';
   return String(value);
+}
+
+function hasValue(value: unknown) {
+  return value !== null && value !== undefined && value !== '';
 }
 
 function finiteNumber(value: unknown): number | null {
@@ -109,7 +275,7 @@ function powerText(value: unknown) {
 
 function objectValue(
   object: ProjectObject,
-  field: ElectricalCablePickerObjectFieldKey,
+  field: string,
 ) {
   const params = object.params ?? {};
   const results = object.results ?? {};
@@ -152,6 +318,17 @@ function objectValue(
   }
 }
 
+function buildObjectFields(object: ProjectObject) {
+  const fields = object.object_type === 'tank'
+    ? TANK_OBJECT_FIELD_ORDER
+    : PIPE_OBJECT_FIELD_ORDER;
+  return fields.map((field) => ({
+    key: field,
+    label: OBJECT_FIELD_LABELS[field] ?? field,
+    value: objectValue(object, field),
+  }));
+}
+
 function cableRawValue(row: CablePickerCableRow | null, key: string) {
   if (!row) return undefined;
   const direct = (row as Record<string, unknown>)[key];
@@ -161,14 +338,16 @@ function cableRawValue(row: CablePickerCableRow | null, key: string) {
 
 function cableValue(
   row: CablePickerCableRow | null,
-  option: CablePickerOption | undefined,
-  field: ElectricalCablePickerCableFieldKey,
+  field: string,
+  cableType?: string | null,
 ) {
   switch (field) {
-    case 'source':
-      if (!row && !option?.mark) return '—';
-      if (option?.optionSource === 'project') return CABLE_SOURCE_LABEL.project;
-      return CABLE_SOURCE_LABEL[String(row?.source ?? option?.optionSource ?? '')] ?? valueText(row?.source);
+    case 'model':
+      return valueText(cableRawValue(row, 'model'));
+    case 'cable_type': {
+      const raw = firstValue(cableRawValue(row, 'cable_type'), cableType);
+      return CABLE_TYPE_LABEL[String(raw)] ?? valueText(raw);
+    }
     case 'brand':
       return valueText(cableRawValue(row, 'brand'));
     case 'series':
@@ -185,8 +364,14 @@ function cableValue(
       );
       return formatUnitValue(value, 'Ом/км', 4);
     }
+    case 'resistance_per_meter':
+      return formatUnitValue(cableRawValue(row, 'resistance_per_meter'), 'Ом/м', 6);
     case 'voltage':
       return formatUnitValue(cableRawValue(row, 'voltage'), 'В', 0);
+    case 'min_temperature':
+      return formatTemperatureValue(cableRawValue(row, 'min_temperature'));
+    case 'max_temperature':
+      return formatTemperatureValue(cableRawValue(row, 'max_temperature'));
     case 'temperature_range': {
       const min = formatTemperatureValue(cableRawValue(row, 'min_temperature'));
       const max = formatTemperatureValue(cableRawValue(row, 'max_temperature'));
@@ -196,6 +381,12 @@ function cableValue(
       return formatTemperatureValue(cableRawValue(row, 'max_product_temp'));
     case 'max_vapor_temp':
       return formatTemperatureValue(cableRawValue(row, 'max_vapor_temp'));
+    case 'max_pipe_temp':
+      return formatTemperatureValue(cableRawValue(row, 'max_pipe_temp'));
+    case 'q1':
+      return formatUnitValue(cableRawValue(row, 'q1'), 'Вт/(м·°C)', 3);
+    case 'q2':
+      return formatUnitValue(cableRawValue(row, 'q2'), 'Вт/м', 2);
     case 'conductor_section_mm2':
       return formatUnitValue(
         firstValue(
@@ -205,58 +396,176 @@ function cableValue(
         'мм²',
         2,
       );
+    case 'conductor_cross_section':
+      return formatUnitValue(cableRawValue(row, 'conductor_cross_section'), 'мм²', 2);
     case 'diameter_mm':
       return formatUnitValue(cableRawValue(row, 'diameter_mm'), 'мм', 1);
+    case 'mass_kg_km':
+      return formatUnitValue(cableRawValue(row, 'mass_kg_km'), 'кг/км', 1);
+    case 'min_bend_radius_mm':
+      return formatUnitValue(cableRawValue(row, 'min_bend_radius_mm'), 'мм', 1);
+    case 'max_length':
+      return formatUnitValue(cableRawValue(row, 'max_length'), 'м', 0);
     case 'nominal_size_mm':
       return valueText(cableRawValue(row, 'nominal_size_mm'));
+    case 'nominal_section_length_m':
+      return formatRecordValue(cableRawValue(row, 'nominal_section_length_m'), 'м');
     case 'stock_status':
       return STOCK_STATUS_LABEL[String(cableRawValue(row, 'stock_status') ?? '')]
         ?? valueText(cableRawValue(row, 'stock_status'));
+    case 'stock_quantity_m':
+      return formatUnitValue(cableRawValue(row, 'stock_quantity_m'), 'м', 1);
+    case 'lead_time_days':
+      return formatUnitValue(cableRawValue(row, 'lead_time_days'), 'дн.', 0);
+    case 'order_multiple_m':
+      return formatUnitValue(cableRawValue(row, 'order_multiple_m'), 'м', 1);
+    case 'min_order_quantity_m':
+      return formatUnitValue(cableRawValue(row, 'min_order_quantity_m'), 'м', 1);
+    case 'supplier_priority':
+      return valueText(cableRawValue(row, 'supplier_priority'));
+    case 'supplier_name':
+      return valueText(cableRawValue(row, 'supplier_name'));
+    case 'article':
+      return valueText(cableRawValue(row, 'article'));
+    case 'currency':
+      return valueText(cableRawValue(row, 'currency'));
+    case 'is_preferred':
+      return valueText(cableRawValue(row, 'is_preferred'));
+    case 'is_discontinued':
+      return valueText(cableRawValue(row, 'is_discontinued'));
+    case 'protection':
+      return valueText(cableRawValue(row, 'protection'));
     case 'price_per_meter':
       return formatUnitValue(cableRawValue(row, 'price_per_meter'), '₽/м', 2);
     default:
-      return '—';
+      return formatUnknownCableValue(cableRawValue(row, field));
   }
+}
+
+function formatRecordValue(value: unknown, unit?: string) {
+  if (!isRecord(value)) return valueText(value);
+  const pairs = Object.entries(value)
+    .filter(([, entryValue]) => hasValue(entryValue))
+    .map(([key, entryValue]) => `${key}: ${valueText(entryValue)}${unit ? ` ${unit}` : ''}`);
+  return pairs.length > 0 ? pairs.join(', ') : '—';
+}
+
+function formatUnknownCableValue(value: unknown) {
+  if (Array.isArray(value)) return value.length > 0 ? value.map(valueText).join(', ') : '—';
+  if (isRecord(value)) return formatRecordValue(value);
+  return valueText(value);
+}
+
+function humanizeCableFieldLabel(key: string) {
+  if (CABLE_FIELD_LABELS[key]) return CABLE_FIELD_LABELS[key];
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function cableFieldOrder(cableType?: string | null) {
+  return [
+    ...(cableType ? CABLE_FIELD_ORDER_BY_TYPE[cableType] ?? [] : COMMON_CABLE_FIELD_ORDER),
+  ];
+}
+
+function allCableFieldKeys(row: CablePickerCableRow | null) {
+  const keys = new Set<string>();
+  if (row) {
+    Object.keys(row).forEach((key) => keys.add(key));
+    if (isRecord(row.params)) Object.keys(row.params).forEach((key) => keys.add(key));
+  }
+  return keys;
+}
+
+function buildCableFields(row: CablePickerCableRow | null, cableType?: string | null) {
+  const orderedKeys = cableFieldOrder(cableType);
+  const addedKeys = new Set<string>();
+  const items: Array<{ key: string; label: string; value: string }> = [];
+
+  const addField = (key: string, force: boolean) => {
+    if (addedKeys.has(key) || SKIPPED_CABLE_FIELD_KEYS.has(key)) return;
+    const value = cableValue(row, key, cableType);
+    if (!force && value === '—') return;
+    addedKeys.add(key);
+    items.push({
+      key,
+      label: CABLE_FIELD_LABELS[key] ?? humanizeCableFieldLabel(key),
+      value,
+    });
+  };
+
+  orderedKeys.forEach((key) => addField(key, true));
+  allCableFieldKeys(row).forEach((key) => addField(key, false));
+  return items;
+}
+
+function splitIntoColumns<T>(items: T[], columnCount: number) {
+  const size = Math.ceil(items.length / columnCount);
+  return Array.from({ length: columnCount }, (_, index) =>
+    items.slice(index * size, index * size + size),
+  ).filter((column) => column.length > 0);
 }
 
 export default function CablePickerCharacteristics({
   object,
   cable,
-  option,
-  settings,
+  cableType,
+  showObject = true,
+  showCable = true,
+  objectColumnCount = 2,
+  cableColumnCount = 2,
 }: CablePickerCharacteristicsProps) {
+  const objectFields = buildObjectFields(object);
+  const cableFields = buildCableFields(cable, cableType);
+  const visibleSectionCount = Number(showObject) + Number(showCable);
+  const ariaLabel = showObject && showCable
+    ? 'Характеристики объекта и кабеля'
+    : showObject
+      ? 'Характеристики объекта'
+      : 'Характеристики кабеля';
+
+  const renderList = (
+    title: string,
+    items: Array<{ key: string; label: string; value: string }>,
+    columnCount: number,
+  ) => (
+    <section
+      className="cable-picker-characteristics-section"
+      role="group"
+      aria-label={`Характеристики: ${title.toLowerCase()}`}
+    >
+      <h3 className="cable-picker-characteristics-title">{title}</h3>
+      <div
+        className="cable-picker-characteristics-columns"
+        style={{
+          '--cable-picker-characteristics-column-count': columnCount,
+        } as CSSProperties}
+      >
+        {splitIntoColumns(items, columnCount).map((column, index) => (
+          <dl key={`${title}-${index}`} className="cable-picker-characteristics-list">
+            {column.map((item) => (
+              <div key={item.key} className="cable-picker-characteristics-row">
+                <dt className="cable-picker-characteristics-label">
+                  <span>{item.label}</span>
+                  <span aria-hidden="true">:</span>
+                </dt>
+                <dd className="cable-picker-characteristics-value">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ))}
+      </div>
+    </section>
+  );
+
   return (
-    <div className="cable-picker-characteristics">
-      <table aria-label="Характеристики объекта и кабеля">
-        <tbody>
-          <tr>
-            <th scope="row">Объект</th>
-            {settings.cablePickerObjectFields.map((field) => (
-              <td key={field}>
-                <span className="cable-picker-characteristics-label">
-                  {CABLE_PICKER_OBJECT_FIELD_LABELS.get(field) ?? field}
-                </span>
-                <span className="cable-picker-characteristics-value">
-                  {objectValue(object, field)}
-                </span>
-              </td>
-            ))}
-          </tr>
-          <tr>
-            <th scope="row">Кабель</th>
-            {settings.cablePickerCableFields.map((field) => (
-              <td key={field}>
-                <span className="cable-picker-characteristics-label">
-                  {CABLE_PICKER_CABLE_FIELD_LABELS.get(field) ?? field}
-                </span>
-                <span className="cable-picker-characteristics-value">
-                  {cableValue(cable, option, field)}
-                </span>
-              </td>
-            ))}
-          </tr>
-        </tbody>
-      </table>
+    <div
+      className={`cable-picker-characteristics${visibleSectionCount === 1 ? ' cable-picker-characteristics--single' : ''}`}
+      aria-label={ariaLabel}
+    >
+      {showObject && renderList('Объект', objectFields, objectColumnCount)}
+      {showCable && renderList('Кабель', cableFields, cableColumnCount)}
     </div>
   );
 }

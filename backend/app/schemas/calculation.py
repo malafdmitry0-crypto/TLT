@@ -940,6 +940,131 @@ class ElectricalCalcSummary(BaseModel):
     results: dict[str, Any] | None
 
 
+class ElectricalCableSelectionVariantsRequest(BaseModel):
+    """Атомарное применение выбора кабеля к нескольким СО одного объекта."""
+
+    object_id: UUID
+    cable_mark: str | None = None
+    cable_source: ElectricalCableSource = "builtin"
+    variant_numbers: list[int] = Field(default_factory=lambda: [1], min_length=1, max_length=4)
+    cable_type: ElectricalCableType = "self_regulating"
+    selection_mode: Literal["auto", "manual"] | None = None
+    supply_voltage: float | None = None
+    connection_type: str | None = None
+    winding_coefficient: float | None = None
+    winding_pitch: float | None = None
+    number_of_threads: int | None = None
+    heating_height: float | None = None
+    laying_step: float | None = None
+    maintain_temperature: float | None = None
+    vapor_temperature: float | None = None
+    aggressive_product: bool = False
+    selection_policy: SelectionPolicy = "technical_minimum"
+
+    @model_validator(mode="after")
+    def normalize_variants_and_mark(self) -> "ElectricalCableSelectionVariantsRequest":
+        normalized_variants = list(dict.fromkeys(int(value) for value in self.variant_numbers))
+        invalid = [value for value in normalized_variants if value < 1 or value > 4]
+        if invalid:
+            raise ValueError("variant_numbers должны быть от 1 до 4")
+        if not normalized_variants:
+            raise ValueError("Нужно выбрать хотя бы одно СО")
+        self.variant_numbers = normalized_variants
+        if isinstance(self.cable_mark, str):
+            mark = self.cable_mark.strip()
+            self.cable_mark = mark or None
+        return self
+
+    def electrical_params(self) -> dict[str, Any]:
+        return {
+            "selection_mode": self.selection_mode,
+            "supply_voltage": self.supply_voltage,
+            "connection_type": self.connection_type,
+            "winding_coefficient": self.winding_coefficient,
+            "winding_pitch": self.winding_pitch,
+            "number_of_threads": self.number_of_threads,
+            "heating_height": self.heating_height,
+            "laying_step": self.laying_step,
+            "maintain_temperature": self.maintain_temperature,
+            "vapor_temperature": self.vapor_temperature,
+            "aggressive_product": self.aggressive_product,
+            "selection_policy": self.selection_policy,
+        }
+
+
+ElectricalCandidateMode = Literal["auto", "manual"]
+ElectricalCandidateStatus = Literal["applicable", "error", "not_applicable", "excluded", "stale"]
+
+
+class ElectricalCandidateCreateRequest(BaseModel):
+    """Создание кандидата подбора кабеля без применения в основной расчёт."""
+
+    project_id: UUID
+    object_id: UUID
+    variant_number: int = Field(default=1, ge=1, le=4)
+    cable_type: ElectricalCableType = "self_regulating"
+    cable_source: ElectricalCableSource = "builtin"
+    mode: ElectricalCandidateMode = "auto"
+    cable_mark: str | None = None
+    electrical_params: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def check_manual_mark(self) -> "ElectricalCandidateCreateRequest":
+        if self.mode == "manual" and not self.cable_mark:
+            raise ValueError("Для ручного варианта подбора укажите cable_mark")
+        if self.mode == "auto" and self.cable_mark:
+            raise ValueError("Авторасчёт кандидата запускается без cable_mark")
+        return self
+
+
+class ElectricalCandidateUpdateRequest(BaseModel):
+    """Редактирование инженерских пометок кандидата."""
+
+    priority: int | None = Field(default=None, ge=0, le=100)
+    is_recommended: bool | None = None
+    is_pinned: bool | None = None
+    status: Literal["applicable", "excluded"] | None = None
+    engineer_comment: str | None = Field(default=None, max_length=2000)
+
+
+class ElectricalCandidateResponse(BaseModel):
+    """Кандидат кабеля для модалки SC-04 «Подбор»."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    project_id: UUID
+    object_id: UUID
+    variant_number: int
+    cable_type: str
+    cable_source: str
+    cable_mark: str | None
+    mode: str
+    status: str
+    priority: int
+    is_recommended: bool
+    is_pinned: bool
+    is_applied: bool
+    reason_code: str | None = None
+    reason_message: str | None = None
+    engineer_comment: str | None = None
+    params: dict[str, Any] = Field(default_factory=dict)
+    results: dict[str, Any] | None = None
+    cable_snapshot: dict[str, Any] | None = None
+    warnings: list[Any] = Field(default_factory=list)
+    risk_flags: list[Any] = Field(default_factory=list)
+    candidate_meta: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+
+class ElectricalCandidateApplyResponse(BaseModel):
+    """Результат применения кандидата в основной электрорасчёт."""
+
+    candidate: ElectricalCandidateResponse
+    calculation: ElectricalCalcSummary
+
+
 class ElectricalPageSummary(BaseModel):
     """Агрегаты страницы электрорасчёта без передачи всех строк в браузер."""
 

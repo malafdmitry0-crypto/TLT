@@ -190,6 +190,57 @@ export interface ElectricalCalcSummary {
   updated_at?: string;
 }
 
+export type ElectricalCandidateMode = 'auto' | 'manual';
+export type ElectricalCandidateStatus =
+  | 'applicable'
+  | 'error'
+  | 'not_applicable'
+  | 'excluded'
+  | 'stale';
+
+export interface ElectricalCandidate {
+  id: string;
+  project_id: string;
+  object_id: string;
+  variant_number: number;
+  cable_type: string;
+  cable_source: string;
+  cable_mark: string | null;
+  mode: ElectricalCandidateMode | string;
+  status: ElectricalCandidateStatus | string;
+  priority: number;
+  is_recommended: boolean;
+  is_pinned: boolean;
+  is_applied: boolean;
+  reason_code?: string | null;
+  reason_message?: string | null;
+  engineer_comment?: string | null;
+  params: Record<string, unknown>;
+  results: Record<string, unknown> | null;
+  cable_snapshot?: Record<string, unknown> | null;
+  warnings: unknown[];
+  risk_flags: unknown[];
+  candidate_meta: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ElectricalCandidateCreateRequest {
+  project_id: string;
+  object_id: string;
+  variant_number: number;
+  cable_type: ElectricalRequest['cable_type'];
+  cable_source?: 'builtin' | 'commercial' | 'extended' | 'all';
+  mode: ElectricalCandidateMode;
+  cable_mark?: string | null;
+  electrical_params?: Record<string, unknown>;
+}
+
+export interface ElectricalCandidateApplyResponse {
+  candidate: ElectricalCandidate;
+  calculation: ElectricalCalcSummary;
+}
+
 export interface ElectricalPageSummary {
   total_objects: number;
   valid_objects: number;
