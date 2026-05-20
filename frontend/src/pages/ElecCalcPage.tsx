@@ -1768,6 +1768,8 @@ export default function ElecCalcPage() {
       autoCableMutate({
         objectId: cableMarkModalObject.id,
         cableType: cableMarkModalCableType,
+      }, {
+        onSuccess: closeCableMarkModal,
       });
     } else {
       const selectedOption = cableMarkModalOptionByValue.get(selectedMark);
@@ -1777,9 +1779,10 @@ export default function ElecCalcPage() {
         mark: selectedOption.mark,
         cableType: cableMarkModalCableType,
         cableSource: selectedOption.cableSource,
+      }, {
+        onSuccess: closeCableMarkModal,
       });
     }
-    closeCableMarkModal();
   }, [
     autoCableMutate,
     cableMarkModalCableType,

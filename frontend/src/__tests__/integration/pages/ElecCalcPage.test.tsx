@@ -1394,6 +1394,139 @@ describe('ElecCalcPage (integration)', () => {
     ).toBeEnabled();
   });
 
+  it('не закрывает модалку выбора марки при ошибке ручного применения', async () => {
+    const { getElectricalPage, listCables, selectCableManual } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    (listCables as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        brand: 'ТЛТ',
+        model: 'ТЛТ-30',
+        source: 'builtin',
+        cable_type: 'self_regulating',
+        power_per_meter: 30,
+        max_temperature: 65,
+        min_temperature: -60,
+        voltage: 220,
+      },
+    ]);
+    (selectCableManual as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('manual failed'));
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject()], [
+        {
+          id: 'c-1',
+          object_id: 'o-1',
+          cable_type: 'self_regulating',
+          cable_mark: 'ТЛТ-30',
+          variant_number: 1,
+          results: {
+            selected_cable: 'ТЛТ-30',
+            winding_pitch: 0,
+            num_circuits: 1,
+            installed_cable_length: 10,
+            order_cable_length: 11,
+            total_power: 300,
+            current: 1.4,
+            voltage: 220,
+          },
+        },
+      ]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    const row = await screen.findByRole('row', { name: /Труба-1/ });
+    fireEvent.click(row);
+    await user.click(within(row).getByRole('button', { name: /ТЛТ-30/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Выбор марки кабеля' });
+    await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+    await waitFor(() => {
+      expect(selectCableManual).toHaveBeenCalled();
+    });
+    expect(screen.getByRole('dialog', { name: 'Выбор марки кабеля' })).toBeInTheDocument();
+    expect(within(dialog).getByText(/ТЛТ-30/)).toBeInTheDocument();
+  });
+
+  it('не закрывает модалку выбора марки при ошибке автоподбора', async () => {
+    const { batchCalcElectrical, getElectricalPage } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    (batchCalcElectrical as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('auto failed'));
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    const row = await screen.findByRole('row', { name: /Труба-1/ });
+    fireEvent.click(row);
+    await user.click(within(row).getByRole('button', { name: 'Выбрать' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Выбор марки кабеля' });
+    await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+    await waitFor(() => {
+      expect(batchCalcElectrical).toHaveBeenCalled();
+    });
+    expect(screen.getByRole('dialog', { name: 'Выбор марки кабеля' })).toBeInTheDocument();
+    expect(within(dialog).getByText('Авто')).toBeInTheDocument();
+  });
+
+  it('закрывает модалку выбора марки после успешного применения', async () => {
+    const { getElectricalPage, listCables, selectCableManual } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    (listCables as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        brand: 'ТЛТ',
+        model: 'ТЛТ-30',
+        source: 'builtin',
+        cable_type: 'self_regulating',
+        power_per_meter: 30,
+        max_temperature: 65,
+        min_temperature: -60,
+        voltage: 220,
+      },
+    ]);
+    (selectCableManual as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'c-1',
+      object_id: 'o-1',
+      cable_type: 'self_regulating',
+      cable_mark: 'ТЛТ-30',
+      variant_number: 1,
+      results: { selected_cable: 'ТЛТ-30' },
+    });
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject()], [
+        {
+          id: 'c-1',
+          object_id: 'o-1',
+          cable_type: 'self_regulating',
+          cable_mark: 'ТЛТ-30',
+          variant_number: 1,
+          results: {
+            selected_cable: 'ТЛТ-30',
+            winding_pitch: 0,
+            num_circuits: 1,
+            installed_cable_length: 10,
+            order_cable_length: 11,
+            total_power: 300,
+            current: 1.4,
+            voltage: 220,
+          },
+        },
+      ]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    const row = await screen.findByRole('row', { name: /Труба-1/ });
+    fireEvent.click(row);
+    await user.click(within(row).getByRole('button', { name: /ТЛТ-30/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Выбор марки кабеля' });
+    await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+    await waitFor(() => {
+      expect(selectCableManual).toHaveBeenCalled();
+      expect(screen.queryByRole('dialog', { name: 'Выбор марки кабеля' })).not.toBeInTheDocument();
+    });
+  });
+
   it('показывает лейбл внешнего кабеля только в смешанном источнике', async () => {
     const { getElectricalPage, listCables } = await import('@/api/calculations');
     const user = (await import('@testing-library/user-event')).default.setup();
