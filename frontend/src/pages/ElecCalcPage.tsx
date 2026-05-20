@@ -29,15 +29,19 @@ import {
 } from 'antd';
 import {
   CheckCircleFilled,
+  CheckOutlined,
   CloseCircleFilled,
   CloseCircleOutlined,
   CopyOutlined,
   FilterFilled,
   MinusCircleFilled,
   ReloadOutlined,
+  StarFilled,
+  StarOutlined,
   StopOutlined,
   TableOutlined,
   ThunderboltOutlined,
+  UndoOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -101,6 +105,7 @@ import type {
   ElectricalQueryRequest,
 } from '@/types/calculation';
 import {
+  ELECTRICAL_TABLE_COLUMN_CATALOG,
   ELECTRICAL_TABLE_COLUMN_PREF_KEY,
   clampElectricalTableColumnWidthPct,
   clearRegisteredElectricalTableColumnCache,
@@ -120,6 +125,7 @@ import {
   setElectricalTableColumnWidthPct,
   writeGuestElectricalTableColumnSettings,
   writeRegisteredElectricalTableColumnCache,
+  type ElectricalColumnMeta,
   type ElectricalColumnKey,
   type ElectricalTableColumnSettings,
 } from '@/utils/electricalTableColumns';
@@ -222,6 +228,25 @@ const CANDIDATE_STATUS_COLOR: Record<string, string> = {
   excluded: 'warning',
   stale: 'warning',
 };
+const CANDIDATE_FIELD_EXCLUDED_KEYS = new Set([
+  'index',
+  'object_name',
+  'object_type',
+  'heat_loss_status',
+  'electrical_status',
+  'cable_snapshot_status',
+]);
+const CANDIDATE_ELECTRICAL_COLUMN_METAS = ELECTRICAL_TABLE_COLUMN_CATALOG
+  .filter((column) =>
+    !CANDIDATE_FIELD_EXCLUDED_KEYS.has(column.key) &&
+    (
+      column.source === 'electrical_calculations' ||
+      column.source === 'params' ||
+      column.source === 'results' ||
+      column.source === 'results.commercial'
+    ),
+  );
+const CANDIDATE_FIXED_COLUMNS_WIDTH = 54 + 96 + 84 + 86;
 const isResistiveCableType = (type: CableTypeKey) => type === 'single_core' || type === 'three_core';
 type CatalogStatusColor = 'default' | 'success' | 'warning' | 'error';
 type CatalogStatus = { label: string; color: CatalogStatusColor };
@@ -383,17 +408,179 @@ function getCableMark(calc: ElectricalCalcSummary | undefined) {
   return calc?.cable_mark ?? (typeof selectedCable === 'string' ? selectedCable : undefined);
 }
 
-function candidateResultNumber(candidate: ElectricalCandidate, key: string) {
-  const value = candidate.results?.[key];
-  return typeof value === 'number' ? value : null;
+function candidateOrderCableLengthValue(candidate: ElectricalCandidate) {
+  const explicitRaw = candidate.results?.order_cable_length;
+  if (explicitRaw === null || explicitRaw === undefined || explicitRaw === '') return undefined;
+  const explicitLength = Number(explicitRaw);
+  return Number.isFinite(explicitLength) ? explicitLength : undefined;
+}
+
+function candidateCommercialValue(candidate: ElectricalCandidate, key: string) {
+  const commercial = candidate.results?.commercial;
+  if (typeof commercial !== 'object' || commercial === null || Array.isArray(commercial)) return undefined;
+  return (commercial as Record<string, unknown>)[key];
+}
+
+function candidateThreadSource(candidate: ElectricalCandidate): ThreadSource | null {
+  const value = candidate.results?.number_of_threads_source ?? candidate.params?.number_of_threads_source;
+  return value === 'auto'
+    || value === 'manual'
+    || value === 'default'
+    || value === 'previous_result'
+    ? value
+    : null;
+}
+
+function candidateColumnWidth(column: ElectricalColumnMeta) {
+  const configured: Record<string, number> = {
+    cable_mark: 190,
+    cable_snapshot_status: 120,
+    selection_policy: 130,
+    applied_selection_policy: 150,
+    selection_reason: 320,
+    winding_pitch_mm: 120,
+    number_of_threads: 110,
+    installed_cable_length: 130,
+    order_cable_length: 130,
+    total_power: 120,
+    current: 100,
+    voltage: 110,
+    price_per_meter: 120,
+    required_order_length: 140,
+    total_cost: 120,
+    stock_status: 120,
+    lead_time_days: 110,
+  };
+  return configured[column.key] ?? Math.max(column.minWidthPx, Math.min(column.width, 150));
 }
 
 function candidateStatusTag(candidate: ElectricalCandidate) {
+  const label = CANDIDATE_STATUS_LABEL[candidate.status] ?? candidate.status;
+  const color = CANDIDATE_STATUS_COLOR[candidate.status] ?? 'default';
+  const icon = candidate.status === 'applicable'
+    ? <CheckCircleFilled />
+    : candidate.status === 'error'
+      ? <CloseCircleFilled />
+      : candidate.status === 'stale'
+        ? '↻'
+        : candidate.status === 'not_applicable' || candidate.status === 'excluded'
+          ? <MinusCircleFilled />
+          : '—';
   return (
-    <Tag color={CANDIDATE_STATUS_COLOR[candidate.status] ?? 'default'} style={{ marginInlineEnd: 0 }}>
-      {CANDIDATE_STATUS_LABEL[candidate.status] ?? candidate.status}
-    </Tag>
+    <Tooltip title={label}>
+      <Tag
+        aria-label={label}
+        className="electrical-status-icon-tag"
+        color={color}
+      >
+        {icon}
+      </Tag>
+    </Tooltip>
   );
+}
+
+function renderCandidateElectricalField(
+  key: ElectricalColumnKey,
+  candidate: ElectricalCandidate,
+) {
+  switch (key) {
+    case 'cable_type':
+      return CABLE_TYPE_LABEL[candidate.cable_type as CableTypeKey] ?? candidate.cable_type;
+    case 'cable_mark':
+      return (
+        <Space size={4} wrap={false}>
+          <Text strong={candidate.is_recommended} ellipsis style={{ maxWidth: 130 }}>
+            {candidate.cable_mark ?? '—'}
+          </Text>
+          {candidate.is_recommended && <Tag color="blue" style={{ marginInlineEnd: 0 }}>приор.</Tag>}
+          {candidate.is_pinned && <Tag color="purple" style={{ marginInlineEnd: 0 }}>закреп.</Tag>}
+        </Space>
+      );
+    case 'cable_snapshot_status':
+      return candidate.cable_snapshot ? (
+        <Tag color="success" style={{ marginInlineEnd: 0 }}>снимок</Tag>
+      ) : '—';
+    case 'selection_policy':
+      return selectionPolicyText(candidate.results?.selection_policy);
+    case 'applied_selection_policy':
+      return selectionPolicyText(candidate.results?.applied_selection_policy);
+    case 'selection_reason': {
+      const reason = candidate.reason_message ?? candidate.results?.selection_reason;
+      return (
+        <Tooltip title={valueText(reason)}>
+          <Text
+            type={candidate.reason_message ? 'danger' : 'secondary'}
+            ellipsis
+            style={{ maxWidth: 300 }}
+          >
+            {valueText(reason)}
+          </Text>
+        </Tooltip>
+      );
+    }
+    case 'winding_pitch_mm':
+      return numberText(candidate.results?.winding_pitch, 0);
+    case 'number_of_threads': {
+      const sourceMeta = threadSourceTag(candidateThreadSource(candidate));
+      return (
+        <Space size={4} wrap={false}>
+          <Text>{numberText(candidate.results?.num_circuits, 0)}</Text>
+          {sourceMeta && (
+            <Tooltip title={sourceMeta.tooltip}>
+              <Tag
+                color={sourceMeta.color}
+                style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}
+              >
+                {sourceMeta.label}
+              </Tag>
+            </Tooltip>
+          )}
+        </Space>
+      );
+    }
+    case 'laying_step':
+      return numberText(candidate.params?.laying_step, 2);
+    case 'heating_height':
+      return numberText(candidate.params?.heating_height, 1);
+    case 'connection_type': {
+      const value = candidate.params?.connection_type;
+      return CONNECTION_TYPE_LABEL[String(value)] ?? valueText(value);
+    }
+    case 'supply_voltage':
+      return numberText(candidate.params?.supply_voltage, 0);
+    case 'winding_coefficient':
+      return numberText(candidate.params?.winding_coefficient, 2);
+    case 'vapor_temperature':
+      return numberText(candidate.params?.vapor_temperature, 1);
+    case 'maintain_temperature':
+      return numberText(candidate.params?.maintain_temperature, 1);
+    case 'aggressive_product':
+      return valueText(candidate.params?.aggressive_product);
+    case 'installed_cable_length':
+      return numberText(candidate.results?.installed_cable_length, 1);
+    case 'order_cable_length':
+      return numberText(candidateOrderCableLengthValue(candidate), 1);
+    case 'total_power':
+      return powerText(candidate.results?.total_power);
+    case 'current':
+      return numberText(candidate.results?.current, 2);
+    case 'voltage':
+      return numberText(candidate.results?.voltage, 0);
+    case 'price_per_meter':
+      return numberText(candidateCommercialValue(candidate, 'price_per_meter'), 2);
+    case 'required_order_length':
+      return numberText(candidateCommercialValue(candidate, 'required_order_length'), 1);
+    case 'total_cost':
+      return numberText(candidateCommercialValue(candidate, 'total_cost'), 2);
+    case 'stock_status': {
+      const value = candidateCommercialValue(candidate, 'stock_status');
+      return typeof value === 'string' ? STOCK_STATUS_LABEL[value] ?? value : '—';
+    }
+    case 'lead_time_days':
+      return numberText(candidateCommercialValue(candidate, 'lead_time_days'), 0);
+    default:
+      return valueText(candidate.results?.[key] ?? candidate.params?.[key]);
+  }
 }
 
 function currentElectricalCalc(calc: ElectricalCalcSummary | undefined) {
@@ -1840,6 +2027,10 @@ export default function ElecCalcPage() {
       listElectricalCandidates(project!.id, cableSizingModalObjectId!, variant),
     enabled: !!project && !!cableSizingModalObjectId,
   });
+  const appliedCableSizingCandidate = useMemo(
+    () => cableSizingCandidates.find((candidate) => candidate.is_applied) ?? null,
+    [cableSizingCandidates],
+  );
   const cableMarkModalCalc = cableMarkModalObject
     ? stats.calcByObjectId[cableMarkModalObject.id]
     : undefined;
@@ -3232,101 +3423,165 @@ export default function ElecCalcPage() {
     );
   }
 
+  function renderSelectedCableSummary() {
+    const appliedCandidate = appliedCableSizingCandidate;
+    const calc = cableSizingModalCalc;
+    const mark = appliedCandidate?.cable_mark ?? getCableMark(calc);
+    const cableType = (appliedCandidate?.cable_type ?? calc?.cable_type ?? cableSizingCableType) as CableTypeKey;
+    const results = appliedCandidate?.results ?? calc?.results;
+    const orderLength = appliedCandidate
+      ? candidateOrderCableLengthValue(appliedCandidate)
+      : orderCableLengthValue(calc);
+
+    if (!mark) {
+      return (
+        <div className="electrical-selected-cable-summary">
+          <Text strong>Выбранный кабель:</Text>
+          <Text type="secondary">Кабель не выбран</Text>
+        </div>
+      );
+    }
+
+    return (
+      <div className="electrical-selected-cable-summary">
+        <Text strong>Выбранный кабель:</Text>
+        <Tag color="blue" className="electrical-selected-cable-summary__mark">
+          {mark}
+        </Tag>
+        <Text type="secondary">{CABLE_TYPE_LABEL[cableType] ?? valueText(cableType)}</Text>
+        <Text type="secondary">
+          P: <strong>{powerText(results?.total_power)}</strong>
+        </Text>
+        <Text type="secondary">
+          Заказ: <strong>{numberText(orderLength, 1)} м</strong>
+        </Text>
+        <Text type="secondary">
+          I: <strong>{numberText(results?.current, 2)} А</strong>
+        </Text>
+      </div>
+    );
+  }
+
   const cableSizingCandidateColumns: ColumnsType<ElectricalCandidate> = [
     {
-      title: 'Статус',
-      dataIndex: 'status',
-      width: 96,
-      render: (_value, candidate) => candidateStatusTag(candidate),
-    },
-    {
-      title: 'Марка',
-      dataIndex: 'cable_mark',
-      width: 190,
+      title: 'Выбор',
+      key: 'selected',
+      width: 54,
+      fixed: 'left',
+      align: 'center',
       render: (_value, candidate) => (
-        <Space size={4} wrap>
-          <Text strong={candidate.is_recommended}>{candidate.cable_mark ?? '—'}</Text>
-          {candidate.is_recommended && <Tag color="blue">приор.</Tag>}
-          {candidate.is_pinned && <Tag color="purple">закреп.</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: 'Режим',
-      dataIndex: 'mode',
-      width: 86,
-      render: (value) => (value === 'auto' ? 'Авто' : 'Ручной'),
-    },
-    {
-      title: 'P',
-      width: 90,
-      render: (_value, candidate) => {
-        const power = candidateResultNumber(candidate, 'total_power');
-        return power == null ? '—' : formatPower(power);
-      },
-    },
-    {
-      title: 'Длина',
-      width: 90,
-      render: (_value, candidate) => {
-        const length = candidateResultNumber(candidate, 'order_cable_length');
-        return length == null ? '—' : `${formatNumber(length, 1)} м`;
-      },
-    },
-    {
-      title: 'Причина',
-      dataIndex: 'reason_message',
-      render: (_value, candidate) => (
-        <Text type={candidate.reason_message ? 'danger' : 'secondary'}>
-          {candidate.reason_message ?? candidate.results?.selection_reason?.toString() ?? '—'}
-        </Text>
+        <Checkbox
+          aria-label={`Выбрать кандидат ${candidate.cable_mark ?? candidate.id}`}
+          checked={candidate.is_applied}
+          disabled={candidate.status !== 'applicable' || candidate.is_applied || applyCandidateMut.isPending}
+          onChange={(event) => {
+            if (!event.target.checked) return;
+            applyCandidateMut.mutate(candidate.id);
+          }}
+        />
       ),
     },
     {
       title: 'Действия',
       key: 'actions',
-      width: 210,
-      render: (_value, candidate) => (
-        <Space size={4} wrap>
-          <Button
-            size="small"
-            type={candidate.is_applied ? 'default' : 'primary'}
-            disabled={candidate.status !== 'applicable' || candidate.is_applied}
-            loading={applyCandidateMut.isPending}
-            onClick={() => applyCandidateMut.mutate(candidate.id)}
-          >
-            {candidate.is_applied ? 'Выбран' : 'Выбрать'}
-          </Button>
-          <Button
-            size="small"
-            disabled={updateCandidateMut.isPending}
-            onClick={() => updateCandidateMut.mutate({
-              candidateId: candidate.id,
-              patch: {
-                is_recommended: !candidate.is_recommended,
-                priority: candidate.is_recommended ? 0 : 10,
-              },
-            })}
-          >
-            Приоритет
-          </Button>
-          <Button
-            size="small"
-            danger={candidate.status !== 'excluded'}
-            disabled={candidate.is_applied || updateCandidateMut.isPending}
-            onClick={() => updateCandidateMut.mutate({
-              candidateId: candidate.id,
-              patch: {
-                status: candidate.status === 'excluded' ? 'applicable' : 'excluded',
-              },
-            })}
-          >
-            {candidate.status === 'excluded' ? 'Вернуть' : 'Искл.'}
-          </Button>
-        </Space>
-      ),
+      width: 96,
+      fixed: 'left',
+      render: (_value, candidate) => {
+        const applyTooltip = candidate.is_applied
+          ? 'Уже выбран'
+          : candidate.status !== 'applicable'
+            ? candidate.reason_message ?? 'Недоступно для выбора'
+            : 'Выбрать';
+        const priorityTooltip = candidate.is_recommended
+          ? 'Снять приоритет'
+          : 'Сделать приоритетным';
+        const excluded = candidate.status === 'excluded';
+        const exclusionTooltip = excluded ? 'Вернуть вариант' : 'Исключить вариант';
+
+        return (
+          <Space size={2} wrap={false} className="electrical-candidate-actions">
+            <Tooltip title={applyTooltip}>
+              <Button
+                aria-label={applyTooltip}
+                className="electrical-candidate-action-button"
+                size="small"
+                type={candidate.is_applied ? 'default' : 'primary'}
+                icon={<CheckOutlined />}
+                disabled={candidate.status !== 'applicable' || candidate.is_applied}
+                loading={applyCandidateMut.isPending}
+                onClick={() => applyCandidateMut.mutate(candidate.id)}
+              />
+            </Tooltip>
+            <Tooltip title={priorityTooltip}>
+              <Button
+                aria-label={priorityTooltip}
+                className="electrical-candidate-action-button"
+                size="small"
+                type={candidate.is_recommended ? 'primary' : 'default'}
+                icon={candidate.is_recommended ? <StarFilled /> : <StarOutlined />}
+                disabled={updateCandidateMut.isPending}
+                onClick={() => updateCandidateMut.mutate({
+                  candidateId: candidate.id,
+                  patch: {
+                    is_recommended: !candidate.is_recommended,
+                    priority: candidate.is_recommended ? 0 : 10,
+                  },
+                })}
+              />
+            </Tooltip>
+            <Tooltip title={exclusionTooltip}>
+              <Button
+                aria-label={exclusionTooltip}
+                className="electrical-candidate-action-button"
+                size="small"
+                danger={!excluded}
+                icon={excluded ? <UndoOutlined /> : <StopOutlined />}
+                disabled={updateCandidateMut.isPending}
+                onClick={() => updateCandidateMut.mutate({
+                  candidateId: candidate.id,
+                  patch: {
+                    status: excluded ? 'applicable' : 'excluded',
+                  },
+                })}
+              />
+            </Tooltip>
+          </Space>
+        );
+      },
     },
+    {
+      title: 'Статус',
+      dataIndex: 'status',
+      width: 84,
+      fixed: 'left',
+      render: (_value, candidate) => candidateStatusTag(candidate),
+    },
+    {
+      title: 'Режим',
+      dataIndex: 'mode',
+      width: 86,
+      fixed: 'left',
+      render: (value) => (value === 'auto' ? 'Авто' : 'Ручной'),
+    },
+    ...CANDIDATE_ELECTRICAL_COLUMN_METAS.map((column) => ({
+      title: column.title,
+      key: column.key,
+      dataIndex: column.key,
+      width: candidateColumnWidth(column),
+      ellipsis: column.ellipsis || column.key === 'selection_reason',
+      align: column.key === 'cable_mark' || column.key === 'selection_reason'
+        ? ('left' as const)
+        : undefined,
+      render: (_value: unknown, candidate: ElectricalCandidate) =>
+        renderCandidateElectricalField(column.key, candidate),
+    })),
   ];
+  const cableSizingCandidateTableScrollX =
+    CANDIDATE_FIXED_COLUMNS_WIDTH +
+    CANDIDATE_ELECTRICAL_COLUMN_METAS.reduce(
+      (sum, column) => sum + candidateColumnWidth(column),
+      0,
+    );
 
   return (
     <>
@@ -3767,13 +4022,14 @@ export default function ElecCalcPage() {
       </Modal>
       <Modal
         open={!!cableSizingModalObject}
-        width="min(94vw, 1180px)"
+        width="100vw"
+        style={{ top: 0, maxWidth: 'none', paddingBottom: 0 }}
         className="electrical-cable-picker-dialog electrical-cable-sizing-dialog"
         title={cableSizingModalObject ? `Подбор кабеля для ${objectDisplayName(cableSizingModalObject)}` : 'Подбор'}
         footer={null}
         onCancel={closeCableSizingModal}
       >
-        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <div className="electrical-cable-sizing-body">
           {cableSizingModalObject && (
             <CablePickerCharacteristics
               object={cableSizingModalObject}
@@ -3841,14 +4097,16 @@ export default function ElecCalcPage() {
             </Button>
           </div>
           {renderElectricalTypeControls(cableSizingCableType, { block: true })}
+          {renderSelectedCableSummary()}
           <Table<ElectricalCandidate>
+            className="electrical-cable-sizing-table"
             size="small"
             rowKey="id"
             loading={isCableSizingCandidatesFetching}
             dataSource={cableSizingCandidates}
             columns={cableSizingCandidateColumns}
             pagination={false}
-            scroll={{ x: 960 }}
+            scroll={{ x: cableSizingCandidateTableScrollX, y: 'calc(100vh - 332px)' }}
             locale={{
               emptyText: 'Вариантов пока нет. Запустите авторасчёт или ручной расчёт.',
             }}
@@ -3874,7 +4132,7 @@ export default function ElecCalcPage() {
               });
             }}
           />
-        </Space>
+        </div>
       </Modal>
       {columnSettingsOpen && (
         <ElectricalColumnSettingsModal

@@ -1002,6 +1002,12 @@ describe('ElecCalcPage (integration)', () => {
         .getPropertyValue('--cable-picker-characteristics-column-count'),
       ).toBe('4');
     expect(within(sizingDialog).getByRole('radio', { name: 'Авторасчёт' })).toBeChecked();
+    expect(within(sizingDialog).getAllByText('Выбор').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getAllByText('Действия').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getAllByText('Статус').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getAllByText('Мощность, Вт').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getAllByText('Ток, А').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getAllByText('U расч., В').length).toBeGreaterThan(0);
     await waitFor(() => {
       expect(listElectricalCandidates).toHaveBeenCalledWith('p-1', 'o-1', 1);
     });
@@ -1021,6 +1027,122 @@ describe('ElecCalcPage (integration)', () => {
       }));
     });
     expect(within(sizingDialog).queryByRole('button', { name: 'Применить' })).not.toBeInTheDocument();
+  });
+
+  it('показывает выбранный кабель и компактные действия кандидатов', async () => {
+    const {
+      applyElectricalCandidate,
+      getElectricalPage,
+      listElectricalCandidates,
+      updateElectricalCandidate,
+    } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const baseCandidate = {
+      project_id: 'p-1',
+      object_id: 'o-1',
+      variant_number: 1,
+      cable_source: 'builtin',
+      priority: 0,
+      is_pinned: false,
+      reason_code: null,
+      reason_message: null,
+      engineer_comment: null,
+      params: {},
+      cable_snapshot: null,
+      warnings: [],
+      risk_flags: [],
+      candidate_meta: {},
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    };
+    (listElectricalCandidates as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        ...baseCandidate,
+        id: 'cand-applied',
+        cable_type: 'self_regulating',
+        cable_mark: 'ТЛТ-10',
+        mode: 'manual',
+        status: 'applicable',
+        is_recommended: true,
+        is_applied: true,
+        results: {
+          total_power: 1000,
+          order_cable_length: 55,
+          current: 4.55,
+        },
+      },
+      {
+        ...baseCandidate,
+        id: 'cand-next',
+        cable_type: 'self_regulating',
+        cable_mark: 'ТЛТ-20',
+        mode: 'auto',
+        status: 'applicable',
+        is_recommended: false,
+        is_applied: false,
+        results: {
+          total_power: 1200,
+          order_cable_length: 60,
+          current: 5.45,
+        },
+      },
+    ]);
+    (applyElectricalCandidate as ReturnType<typeof vi.fn>).mockResolvedValue({});
+    (updateElectricalCandidate as ReturnType<typeof vi.fn>).mockResolvedValue({});
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject({ params: { name: 'Труба-1' } })], [
+        {
+          id: 'c-1',
+          object_id: 'o-1',
+          cable_type: 'self_regulating',
+          cable_mark: 'ТЛТ-10',
+          cable_mark_source: 'manual',
+          variant_number: 1,
+          results: {
+            selected_cable: 'ТЛТ-10',
+            total_power: 1000,
+            order_cable_length: 55,
+            current: 4.55,
+          },
+        },
+      ]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    localStorage.setItem(ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      visibleOrder: ['index', 'object_name', 'cable_mark'],
+      columns: { cable_mark: { widthPct: 22 } },
+    }));
+    renderPage();
+
+    const row = await screen.findByRole('row', { name: /Труба-1/ });
+    fireEvent.click(row);
+    await user.click(within(row).getByRole('button', { name: 'Подбор' }));
+    const sizingDialog = await screen.findByRole('dialog', { name: /Подбор кабеля для/ });
+
+    expect(within(sizingDialog).getByText('Выбранный кабель:')).toBeInTheDocument();
+    expect(within(sizingDialog).getAllByText('ТЛТ-10').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getAllByText('Ручной').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).queryByText('Статус кабеля')).not.toBeInTheDocument();
+    expect(within(sizingDialog).queryByText('снимок')).not.toBeInTheDocument();
+    expect(within(sizingDialog).queryByText('Готов')).not.toBeInTheDocument();
+    expect(within(sizingDialog).getAllByLabelText('Готов')).toHaveLength(2);
+    expect(within(sizingDialog).getByRole('button', { name: 'Уже выбран' })).toBeDisabled();
+
+    await user.click(within(sizingDialog).getByRole('button', { name: 'Выбрать' }));
+    expect(applyElectricalCandidate).toHaveBeenCalledWith('cand-next');
+
+    await user.click(within(sizingDialog).getByRole('button', { name: 'Сделать приоритетным' }));
+    expect(updateElectricalCandidate).toHaveBeenCalledWith(
+      'cand-next',
+      expect.objectContaining({ is_recommended: true, priority: 10 }),
+    );
+
+    await user.click(within(sizingDialog).getAllByRole('button', { name: 'Исключить вариант' })[0]);
+    expect(updateElectricalCandidate).toHaveBeenCalledWith(
+      'cand-applied',
+      expect.objectContaining({ status: 'excluded' }),
+    );
   });
 
   it('сохраняет ручные кабели по умолчанию при полном массовом пересчёте', async () => {
