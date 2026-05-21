@@ -94,7 +94,7 @@ const CANDIDATE_COLUMN_PRIORITY_INDEX = new Map<string, number>(
 
 const CANDIDATE_COLUMN_WIDTH_PCT_BY_KEY: Record<string, number> = {
   marked: 6.8,
-  actions: 12.8,
+  actions: 9.6,
   mode: 8.6,
   cable_mark: 19,
   selection_policy: 13,
@@ -157,11 +157,11 @@ const SERVICE_CANDIDATE_COLUMNS: ElectricalCandidateColumnMeta[] = [
     valueType: 'service',
     width: electricalTableColumnWidthPctToPx(CANDIDATE_COLUMN_WIDTH_PCT_BY_KEY.actions),
     defaultWidthPct: CANDIDATE_COLUMN_WIDTH_PCT_BY_KEY.actions,
-    minWidthPx: 116,
+    minWidthPx: 88,
     required: true,
     ellipsis: false,
     fixed: 'left',
-    helpText: 'Применить вариант, добавить в избранное, положить в папку или исключить вариант из подбора.',
+    helpText: 'Применить вариант, положить в папку или исключить вариант из подбора.',
   },
   {
     key: 'mode',

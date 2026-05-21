@@ -237,7 +237,9 @@ test.describe('electrical candidate selection', () => {
     await expectAppliedCandidateIds(page, projectId, sessionId, pipe.id, [first.candidate.id]);
     await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, 'ТЛТ-10');
 
-    await dialog.getByTestId(`candidate-favorite-${second.candidate.id}`).click();
+    await expect(dialog.getByTestId(`candidate-favorite-${second.candidate.id}`)).toHaveCount(0);
+    await dialog.getByTestId(`candidate-folder-${second.candidate.id}`).click();
+    await page.getByRole('menuitem', { name: 'Избранное' }).click();
     await expectAppliedCandidateIds(page, projectId, sessionId, pipe.id, [first.candidate.id]);
     await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, 'ТЛТ-10');
     await dialog.getByRole('button', { name: /Избранное/ }).click();

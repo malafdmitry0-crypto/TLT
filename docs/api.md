@@ -308,6 +308,8 @@ cable_mark?, electrical_params}`. Ответ:
 Папки — это быстрые фильтры видимости поверх `electrical_candidates`, а не
 отдельное хранилище вариантов. Системные папки `Все` и `Избранное` UI строит
 сам: `Все` показывает весь список, `Избранное` фильтрует по `is_pinned`.
+Добавление/удаление из `Избранного` выполняется через меню папки строки и
+технически остаётся `PATCH /calc/electrical/candidates/{id}` с `is_pinned`.
 
 **`POST /calc/electrical/candidate-folders`** — создать пользовательскую папку:
 `{project_id, object_id, variant_number, name, color?}`. Scope первого релиза:

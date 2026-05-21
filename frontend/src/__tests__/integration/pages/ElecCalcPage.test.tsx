@@ -1422,7 +1422,9 @@ describe('ElecCalcPage (integration)', () => {
     expect(within(sizingDialog).getByTestId('candidate-apply-cand-next')).toBeEnabled();
     expect(within(sizingDialog).getByTestId('candidate-apply-cand-next')).toHaveAttribute('aria-pressed', 'false');
 
-    await user.click(within(sizingDialog).getByTestId('candidate-favorite-cand-next'));
+    expect(within(sizingDialog).queryByTestId('candidate-favorite-cand-next')).not.toBeInTheDocument();
+    await user.click(within(sizingDialog).getByTestId('candidate-folder-cand-next'));
+    await user.click(await screen.findByRole('menuitem', { name: 'Избранное' }));
     expect(updateElectricalCandidate).toHaveBeenCalledWith(
       'cand-next',
       expect.objectContaining({ is_pinned: true }),

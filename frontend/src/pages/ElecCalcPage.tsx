@@ -42,8 +42,6 @@ import {
   MoreOutlined,
   PlusOutlined,
   ReloadOutlined,
-  StarFilled,
-  StarOutlined,
   StopOutlined,
   TableOutlined,
   ThunderboltOutlined,
@@ -4187,7 +4185,18 @@ export default function ElecCalcPage() {
   }
 
   function candidateFolderMenuItems(candidate: ElectricalCandidate) {
-    return cableSizingCandidateFolders.length > 0
+    const favoriteItem = {
+      key: 'favorite',
+      label: `${candidate.is_pinned ? '✓ ' : ''}Избранное`,
+      disabled: updateCandidateMut.isPending,
+      onClick: () => updateCandidateMut.mutate({
+        candidateId: candidate.id,
+        patch: {
+          is_pinned: !candidate.is_pinned,
+        },
+      }),
+    };
+    const customFolderItems = cableSizingCandidateFolders.length > 0
       ? cableSizingCandidateFolders.map((folder) => {
           const checked = folder.candidate_ids.includes(candidate.id);
           return {
@@ -4201,6 +4210,11 @@ export default function ElecCalcPage() {
           };
         })
       : [{ key: 'empty', label: 'Создайте папку', disabled: true }];
+    return [
+      favoriteItem,
+      { key: 'folders-divider', type: 'divider' as const },
+      ...customFolderItems,
+    ];
   }
 
   const cableSizingCandidateColumns: ColumnsType<ElectricalCandidate> =
@@ -4278,9 +4292,6 @@ export default function ElecCalcPage() {
               : candidate.status !== 'applicable'
                 ? candidate.reason_message ?? 'Недоступно для выбора'
                 : 'Выбрать';
-            const favoriteTooltip = candidate.is_pinned
-              ? 'Убрать из избранного'
-              : 'Добавить в избранное';
             const excluded = candidate.status === 'excluded';
             const exclusionTooltip = excluded ? 'Вернуть вариант' : 'Исключить вариант';
 
@@ -4305,23 +4316,6 @@ export default function ElecCalcPage() {
                         applyCandidateMut.mutate(candidate.id);
                       }
                     }}
-                  />
-                </Tooltip>
-                <Tooltip title={favoriteTooltip}>
-                  <Button
-                    aria-label={favoriteTooltip}
-                    data-testid={`candidate-favorite-${candidate.id}`}
-                    className="electrical-candidate-action-button"
-                    size="small"
-                    type={candidate.is_pinned ? 'primary' : 'default'}
-                    icon={candidate.is_pinned ? <StarFilled /> : <StarOutlined />}
-                    disabled={updateCandidateMut.isPending}
-                    onClick={() => updateCandidateMut.mutate({
-                      candidateId: candidate.id,
-                      patch: {
-                        is_pinned: !candidate.is_pinned,
-                      },
-                    })}
                   />
                 </Tooltip>
                 <Dropdown
