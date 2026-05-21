@@ -35,6 +35,18 @@ def _resolve(results: dict[str, Any] | None, params: dict[str, Any] | None, key:
     return None
 
 
+def _resolve_param_first(
+    results: dict[str, Any] | None,
+    params: dict[str, Any] | None,
+    key: str,
+) -> Any:
+    if isinstance(params, dict) and params.get(key) is not None:
+        return params[key]
+    if isinstance(results, dict) and results.get(key) is not None:
+        return results[key]
+    return None
+
+
 def _normalize_string(value: Any) -> str | None:
     if value is None:
         return None
@@ -100,12 +112,39 @@ def normalize_laying_step(
     return _normalize_number(laying, decimals=3)
 
 
-def normalize_voltage(results: dict[str, Any] | None, params: dict[str, Any] | None) -> float | int | None:
+def normalize_voltage(
+    results: dict[str, Any] | None, params: dict[str, Any] | None
+) -> float | int | None:
     for key in ("voltage", "supply_voltage"):
         value = _resolve(results, params, key)
         if value is not None:
             return _normalize_number(value, decimals=3)
     return None
+
+
+def normalize_variant_voltage(
+    results: dict[str, Any] | None,
+    params: dict[str, Any] | None,
+) -> float | int | None:
+    for key in ("supply_voltage", "voltage"):
+        value = _resolve_param_first(results, params, key)
+        if value is not None:
+            return _normalize_number(value, decimals=3)
+    return None
+
+
+def normalize_variant_laying_step(
+    results: dict[str, Any] | None,
+    params: dict[str, Any] | None,
+) -> float | None:
+    pitch_mm = normalize_winding_pitch(_resolve_param_first(results, params, "winding_pitch"))
+    if pitch_mm > 0:
+        laying = _resolve_param_first(results, params, "laying_step")
+        if laying is not None:
+            return _normalize_number(laying, decimals=3)
+        return round(pitch_mm / 1000.0, 3)
+    laying = _resolve_param_first(results, params, "laying_step")
+    return _normalize_number(laying, decimals=3)
 
 
 def normalize_threads(results: dict[str, Any] | None, params: dict[str, Any] | None) -> int | None:
@@ -239,9 +278,9 @@ def _variant_payload(
             cable_mark=mark,
         ),
         "resolved_mark": mark,
-        "voltage": normalize_voltage(results, params),
+        "voltage": normalize_variant_voltage(results, params),
         "winding_coefficient": _normalize_number(
-            _resolve(results, params, "winding_coefficient"),
+            _resolve_param_first(results, params, "winding_coefficient"),
             decimals=6,
         ),
     }
@@ -253,15 +292,15 @@ def _variant_payload(
         payload.update(
             {
                 "heating_height": _normalize_number(
-                    _resolve(results, params, "heating_height"),
+                    _resolve_param_first(results, params, "heating_height"),
                     decimals=3,
                 ),
-                "laying_step_resolved": normalize_laying_step(results, params),
+                "laying_step_resolved": normalize_variant_laying_step(results, params),
             }
         )
     else:
         payload["winding_pitch"] = normalize_winding_pitch(
-            _resolve(results, params, "winding_pitch")
+            _resolve_param_first(results, params, "winding_pitch")
         )
 
     if cable_type == "self_regulating_tt":
@@ -284,6 +323,9 @@ def _variant_payload(
                 "scheme_count": scheme["scheme_count"],
                 "scheme_threads": scheme["scheme_threads"],
                 "connection_type": _normalize_string(_resolve(results, params, "connection_type")),
+                "requested_connection_type": _normalize_string(
+                    _resolve_param_first(results, params, "connection_type")
+                ),
             }
         )
     return payload
@@ -427,7 +469,9 @@ def merge_duplicate_candidate_fields(keeper: Any, other: Any) -> None:
     keeper.is_recommended = bool(getattr(keeper, "is_recommended", False)) or bool(
         getattr(other, "is_recommended", False)
     )
-    keeper.is_pinned = bool(getattr(keeper, "is_pinned", False)) or bool(getattr(other, "is_pinned", False))
+    keeper.is_pinned = bool(getattr(keeper, "is_pinned", False)) or bool(
+        getattr(other, "is_pinned", False)
+    )
     keeper.engineer_comment = merge_engineer_comments(
         getattr(keeper, "engineer_comment", None),
         getattr(other, "engineer_comment", None),

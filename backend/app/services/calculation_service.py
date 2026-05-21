@@ -2929,7 +2929,8 @@ class CalculationService:
             )
             return await self._persist_electrical_candidate(candidate)
 
-        request_data: dict[str, Any] = {}
+        overrides = self._base_overrides_with_sources(electrical_params or {})
+        request_data: dict[str, Any] = dict(overrides)
         selected_mark: str | None = cable_mark
         result_dict: dict[str, Any] | None = None
         cable_snapshot: dict[str, Any] | None = None
@@ -2944,7 +2945,6 @@ class CalculationService:
                 else None
             )
             coefficients = await self.get_coefficients()
-            overrides = self._base_overrides_with_sources(electrical_params or {})
             request_data = self._build_electrical_data(
                 obj=obj,
                 cable_type=cable_type,

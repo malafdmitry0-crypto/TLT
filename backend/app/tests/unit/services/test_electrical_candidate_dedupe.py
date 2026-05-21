@@ -192,6 +192,74 @@ def test_resistive_connection_type_changes_key():
     assert line != star
 
 
+def test_resistive_requested_connection_type_changes_key_when_auto_result_is_same():
+    results = {
+        "selected_cable": "ТТ Р1-1.5",
+        "num_circuits": 2,
+        "scheme_count": 1,
+        "scheme_threads": 2,
+        "winding_pitch": 0,
+        "winding_coefficient": 1,
+        "voltage": 220,
+        "connection_type": "line_1ph",
+    }
+    line_requested = build_dedupe_key(
+        object_type="pipe",
+        cable_type="single_core",
+        cable_source="builtin",
+        cable_mark="ТТ Р1-1.5",
+        results=results,
+        params={"connection_type": "line_1ph"},
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    star_requested = build_dedupe_key(
+        object_type="pipe",
+        cable_type="single_core",
+        cable_source="builtin",
+        cable_mark="ТТ Р1-1.5",
+        results=results,
+        params={"connection_type": "star_3ph"},
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    assert line_requested != star_requested
+
+
+def test_resistive_requested_voltage_changes_key_when_auto_result_voltage_is_same():
+    results = {
+        "selected_cable": "ТТ Р1-1.5",
+        "num_circuits": 2,
+        "scheme_count": 1,
+        "scheme_threads": 2,
+        "winding_pitch": 0,
+        "winding_coefficient": 1,
+        "voltage": 220,
+        "connection_type": "line_1ph",
+    }
+    voltage_220 = build_dedupe_key(
+        object_type="pipe",
+        cable_type="single_core",
+        cable_source="builtin",
+        cable_mark="ТТ Р1-1.5",
+        results=results,
+        params={"supply_voltage": 220},
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    voltage_230 = build_dedupe_key(
+        object_type="pipe",
+        cable_type="single_core",
+        cable_source="builtin",
+        cable_mark="ТТ Р1-1.5",
+        results=results,
+        params={"supply_voltage": 230},
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    assert voltage_220 != voltage_230
+
+
 def test_apply_upsert_clears_is_applied_when_status_not_applicable():
     existing = ElectricalCandidate(
         project_id=uuid.uuid4(),

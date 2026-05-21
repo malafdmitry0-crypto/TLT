@@ -228,6 +228,110 @@ test.describe('electrical candidate selection', () => {
     expect(candidates).toHaveLength(1);
   });
 
+  test('ошибочный авторасчёт дедуплицируется только при тех же параметрах', async ({ page }) => {
+    await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
+    const pipeName = `E2E candidate error dedupe ${Date.now()}`;
+    const pipe = await createCalculatedPipe(page, pipeName, {
+      pipe_length: 3,
+      insulation_thickness: 0.15,
+      ambient_temperature: 29,
+      process_temperature: 30,
+    });
+
+    const first = await createCandidate(page, projectId, sessionId, pipe.id, {
+      mode: 'auto',
+      electrical_params: { number_of_threads: 0 },
+    });
+    const repeat = await createCandidate(page, projectId, sessionId, pipe.id, {
+      mode: 'auto',
+      electrical_params: { number_of_threads: 0 },
+    });
+    const differentParams = await createCandidate(page, projectId, sessionId, pipe.id, {
+      mode: 'auto',
+      electrical_params: { number_of_threads: 101 },
+    });
+
+    expect(first.action).toBe('created');
+    expect(first.candidate.status).toBe('error');
+    expect(repeat.action).toBe('updated');
+    expect(repeat.candidate.status).toBe('error');
+    expect(repeat.candidate.id).toBe(first.candidate.id);
+    expect(differentParams.action).toBe('created');
+    expect(differentParams.candidate.status).toBe('error');
+    expect(differentParams.candidate.id).not.toBe(first.candidate.id);
+
+    const candidates = await listCandidates(page, projectId, sessionId, pipe.id);
+    expect(candidates.map((candidate) => candidate.id).sort()).toEqual(
+      [first.candidate.id, differentParams.candidate.id].sort(),
+    );
+    await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, null);
+  });
+
+  test('изменение параметров резистивного авторасчёта создаёт отдельный кандидат', async ({ page }) => {
+    await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
+    const pipeName = `E2E resistive controls ${Date.now()}`;
+    const pipe = await createCalculatedPipe(page, pipeName, {
+      outer_diameter: 0.108,
+      pipe_length: 12,
+      insulation_thickness: 0.03,
+      ambient_temperature: 1,
+      process_temperature: 65,
+    });
+
+    const baseParams = {
+      supply_voltage: 220,
+      connection_type: 'line_1ph',
+      winding_coefficient: 1,
+    };
+    const base = await createCandidate(page, projectId, sessionId, pipe.id, {
+      cable_type: 'single_core',
+      mode: 'auto',
+      electrical_params: baseParams,
+    });
+    const same = await createCandidate(page, projectId, sessionId, pipe.id, {
+      cable_type: 'single_core',
+      mode: 'auto',
+      electrical_params: baseParams,
+    });
+    const differentConnection = await createCandidate(page, projectId, sessionId, pipe.id, {
+      cable_type: 'single_core',
+      mode: 'auto',
+      electrical_params: { ...baseParams, connection_type: 'star_3ph' },
+    });
+    const differentVoltage = await createCandidate(page, projectId, sessionId, pipe.id, {
+      cable_type: 'single_core',
+      mode: 'auto',
+      electrical_params: { ...baseParams, supply_voltage: 230 },
+    });
+    const differentWinding = await createCandidate(page, projectId, sessionId, pipe.id, {
+      cable_type: 'single_core',
+      mode: 'auto',
+      electrical_params: { ...baseParams, winding_coefficient: 1.05 },
+    });
+
+    expect(base.action).toBe('created');
+    expect(base.candidate.status).toBe('applicable');
+    expect(same.action).toBe('updated');
+    expect(same.candidate.id).toBe(base.candidate.id);
+    expect(differentConnection.action).toBe('created');
+    expect(differentVoltage.action).toBe('created');
+    expect(differentWinding.action).toBe('created');
+
+    const uniqueIds = new Set([
+      base.candidate.id,
+      differentConnection.candidate.id,
+      differentVoltage.candidate.id,
+      differentWinding.candidate.id,
+    ]);
+    expect(uniqueIds.size).toBe(4);
+
+    const candidates = await listCandidates(page, projectId, sessionId, pipe.id);
+    expect(candidates.map((candidate) => candidate.id).sort()).toEqual([...uniqueIds].sort());
+    await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, null);
+  });
+
   test('уникальность вариантов ограничена таблицей candidates, основной электрорасчёт остаётся одной строкой', async ({ page }) => {
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);
