@@ -350,10 +350,11 @@ def build_identity_payload(
         results=results,
         params=params,
     )
+    # Error with a resolved mark is still an engineering variant attempt (manual cable check).
     use_diagnostic = (
         cable_type in UNSUPPORTED_CABLE_TYPES
         or mark is None
-        or status in {"error", "not_applicable"}
+        or status == "not_applicable"
     )
     if use_diagnostic:
         controls: dict[str, Any] = {}

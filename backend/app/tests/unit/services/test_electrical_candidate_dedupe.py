@@ -201,6 +201,60 @@ def test_diagnostic_candidates_dedupe_by_reason_and_controls():
     assert key_a == key_b
 
 
+def test_error_candidates_with_different_marks_have_different_keys():
+    params = {"supply_voltage": 220, "number_of_threads": 1, "winding_pitch": 0}
+    key_one = build_dedupe_key(
+        object_type="pipe",
+        cable_type="self_regulating",
+        cable_source="builtin",
+        cable_mark="ТЛТ-10",
+        results=None,
+        params=params,
+        cable_snapshot=None,
+        reason_code="candidate_calculation_failed",
+        status="error",
+    )
+    key_two = build_dedupe_key(
+        object_type="pipe",
+        cable_type="self_regulating",
+        cable_source="builtin",
+        cable_mark="ТЛТ-20",
+        results=None,
+        params=params,
+        cable_snapshot=None,
+        reason_code="candidate_calculation_failed",
+        status="error",
+    )
+    assert key_one != key_two
+
+
+def test_error_candidates_with_same_mark_share_key():
+    params = {"supply_voltage": 220, "number_of_threads": 1, "winding_pitch": 0}
+    key_one = build_dedupe_key(
+        object_type="pipe",
+        cable_type="self_regulating",
+        cable_source="builtin",
+        cable_mark="ТЛТ-10",
+        results=None,
+        params=params,
+        cable_snapshot=None,
+        reason_code="candidate_calculation_failed",
+        status="error",
+    )
+    key_two = build_dedupe_key(
+        object_type="pipe",
+        cable_type="self_regulating",
+        cable_source="builtin",
+        cable_mark="ТЛТ-10",
+        results=None,
+        params=params,
+        cable_snapshot=None,
+        reason_code="candidate_calculation_failed",
+        status="error",
+    )
+    assert key_one == key_two
+
+
 def test_resistive_connection_type_changes_key():
     base = {
         "selected_cable": "ТТ Р1-1.5",

@@ -1,0 +1,381 @@
+import { describe, it, expect, vi } from 'vitest';
+import { screen, waitFor, within } from '@testing-library/react';
+import { useProjectStore } from '@/store/projectStore';
+import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
+import { HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY } from '@/utils/heatCalcTableColumns';
+import {
+  HEATCALC_PAGE_TEST_TIMEOUT,
+  makeObject,
+  makeTank,
+  mockProject,
+  openColumnFilter,
+  openTableSettingsDialog,
+  renderPage,
+  setupHeatCalcPageTest,
+} from './HeatCalcPage.test-utils';
+
+describe('HeatCalcPage basics', () => {
+  setupHeatCalcPageTest();
+
+  describe('Кнопка «Сформировать отчёт»', () => {
+    it('отсутствует на странице при наличии проекта', () => {
+      useProjectStore.getState().setCurrentProject(mockProject);
+      renderPage();
+      expect(screen.queryByText(/Сформировать отчёт/i)).not.toBeInTheDocument();
+    });
+
+    it('отсутствует на странице без проекта', () => {
+      renderPage();
+      expect(screen.queryByText(/Сформировать отчёт/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Кнопка «Электрорасчёт»', () => {
+    it('отсутствует на странице расчёта теплопотерь', () => {
+      useProjectStore.getState().setCurrentProject(mockProject);
+      renderPage();
+      expect(screen.queryByRole('button', { name: /электрорасчёт/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Навигация таблицы', () => {
+    it('не показывает внутренние вкладки исходных данных и результатов', () => {
+      useProjectStore.getState().setCurrentProject(mockProject);
+      renderPage();
+      expect(screen.queryByRole('button', { name: 'Исходные данные' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Результаты расчёта' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Тип кабеля:')).not.toBeInTheDocument();
+    });
+  });
+
+
+  describe('Переключатель типа объектов', () => {
+    it('по умолчанию показывает только трубопроводы', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject(),
+        makeTank(),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Труба DN100')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Резервуар прямоугольный')).not.toBeInTheDocument();
+      expect(screen.getAllByText('DN').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('L, м').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('q, Вт/м').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Q, Вт').length).toBeGreaterThan(0);
+      expect(screen.getByText('50,0')).toBeInTheDocument();
+    });
+
+    it('при переключении на резервуар показывает только резервуары и форму добавления резервуара', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject(),
+        makeTank(),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+      expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
+      await user.click(await within(typeToolbar).findByRole('button', { name: /Резервуар:/ }));
+      expect(within(typeToolbar).getByRole('button', { name: /Резервуар:/ })).toHaveAttribute('aria-pressed', 'true');
+
+      await waitFor(() => {
+        expect(screen.getByText('Резервуар прямоугольный')).toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
+      });
+      expect(useWorkspaceHeaderStore.getState().context).toBeNull();
+      expect(screen.queryByText('Труба DN100')).not.toBeInTheDocument();
+      expect(screen.getAllByText('Форма').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Габариты').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Размещение').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('q, Вт/м²').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Q, Вт').length).toBeGreaterThan(0);
+      expect(screen.getByText('35,0')).toBeInTheDocument();
+      expect(screen.queryByText('DN')).not.toBeInTheDocument();
+      expect(screen.queryByText('L, м')).not.toBeInTheDocument();
+      expect(screen.queryByText('Зад.')).not.toBeInTheDocument();
+      expect(document.body.textContent).toMatch(/3\s*000.*2\s*000.*1\s*500 мм/);
+      expect(screen.getByText('Форма и геометрия резервуара')).toBeInTheDocument();
+
+      await user.click(screen.getByText('Резервуар прямоугольный'));
+      await waitFor(() => {
+        expect(within(typeToolbar).getByText('Режим: изменение')).toBeInTheDocument();
+      });
+
+      await user.click(within(typeToolbar).getByRole('button', { name: /Трубопровод:/ }));
+      expect(within(typeToolbar).getByRole('button', { name: /Трубопровод:/ })).toHaveAttribute('aria-pressed', 'true');
+      await waitFor(() => {
+        expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
+      });
+      expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
+    it('режим «Все» показывает трубопроводы и резервуары в одной таблице', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject(),
+        makeTank(),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+      await user.click(await within(typeToolbar).findByRole('button', { name: /Все:/ }));
+
+      expect(within(typeToolbar).getByRole('button', { name: /Все:/ })).toHaveAttribute('aria-pressed', 'true');
+      expect(await screen.findByText('Труба DN100')).toBeInTheDocument();
+      expect(await screen.findByText('Резервуар прямоугольный')).toBeInTheDocument();
+      expect(screen.getAllByText('Тип').length).toBeGreaterThan(0);
+    });
+
+    it('режим «Все» поддерживает сортировку и фильтры в колонках', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject({ id: 'pipe-beta', sort_order: 0, params: { ...makeObject().params, name: 'Бета труба' } }),
+        makeTank({ id: 'tank-alpha', sort_order: 1, params: { ...makeTank().params, name: 'Альфа резервуар' } }),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+      await user.click(await within(typeToolbar).findByRole('button', { name: /Все:/ }));
+      expect(await screen.findByText('Бета труба')).toBeInTheDocument();
+      expect(await screen.findByText('Альфа резервуар')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('columnheader', { name: /Наименование/ }));
+      await waitFor(() => {
+        const rows = [...document.querySelectorAll('.calc-spreadsheet .ant-table-tbody > tr[data-row-key]')];
+        expect(rows[0]).toHaveTextContent('Альфа резервуар');
+        expect(rows[1]).toHaveTextContent('Бета труба');
+      });
+
+      await openColumnFilter(user, 'Наименование');
+      await user.type(await screen.findByLabelText('Поиск: Наименование'), 'альфа');
+      await user.click(screen.getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(screen.queryByText('Бета труба')).not.toBeInTheDocument();
+      });
+      expect(screen.getByText('Альфа резервуар')).toBeInTheDocument();
+      expect(screen.getByText('1/2')).toBeInTheDocument();
+      expect(within(typeToolbar).getByRole('button', { name: /Все:\s*1\/2/ })).toBeInTheDocument();
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
+    it('настройки таблицы для режима «Все» сохраняются отдельно от труб и резервуаров', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject(),
+        makeTank(),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+      await user.click(await within(typeToolbar).findByRole('button', { name: /Все:/ }));
+      expect(await screen.findByText('Труба DN100')).toBeInTheDocument();
+      expect(await screen.findByText('Резервуар прямоугольный')).toBeInTheDocument();
+
+      const dialog = await openTableSettingsDialog(user);
+      expect(within(dialog).getByText('Все')).toBeInTheDocument();
+      await user.click(within(dialog).getByRole('checkbox', { name: 'Температура поддержания' }));
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(screen.queryAllByRole('columnheader').map((header) => header.textContent)).not.toContain('Т подд.');
+      });
+      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY) ?? '{}');
+      expect(saved.types.all.visibleOrder).not.toContain('process_temperature');
+      expect(saved.types.pipe.visibleOrder).toContain('process_temperature');
+      expect(saved.types.tank.visibleOrder).toContain('process_temperature');
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
+    it('режим «Все» позволяет включить поля труб и резервуаров и показывает прочерки для чужого типа', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
+        makeObject(),
+        makeTank(),
+      ]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+      await user.click(await within(typeToolbar).findByRole('button', { name: /Все:/ }));
+      expect(await screen.findByText('Труба DN100')).toBeInTheDocument();
+      expect(await screen.findByText('Резервуар прямоугольный')).toBeInTheDocument();
+      expect(screen.queryAllByRole('columnheader').map((header) => header.textContent)).not.toContain('DN');
+      expect(screen.queryAllByRole('columnheader').map((header) => header.textContent)).not.toContain('Форма');
+
+      const dialog = await openTableSettingsDialog(user);
+      expect(within(dialog).getByRole('checkbox', { name: 'DN' })).not.toBeChecked();
+      expect(within(dialog).getByRole('checkbox', { name: 'Форма резервуара' })).not.toBeChecked();
+      await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
+      await user.click(within(dialog).getByRole('checkbox', { name: 'Форма резервуара' }));
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      const table = document.querySelector<HTMLElement>('.calc-spreadsheet');
+      expect(table).not.toBeNull();
+      await waitFor(() => {
+        const headerTexts = Array.from(table!.querySelectorAll('thead th'))
+          .map((header) => header.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+        expect(headerTexts).toContain('DN');
+        expect(headerTexts).toContain('Форма');
+      });
+      const headerTexts = Array.from(table!.querySelectorAll('thead th'))
+        .map((header) => header.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+      const dnIndex = headerTexts.findIndex((text) => text === 'DN');
+      const shapeIndex = headerTexts.findIndex((text) => text === 'Форма');
+      expect(dnIndex).toBeGreaterThan(-1);
+      expect(shapeIndex).toBeGreaterThan(-1);
+
+      const pipeRow = screen.getByText('Труба DN100').closest('tr');
+      const tankRow = screen.getByText('Резервуар прямоугольный').closest('tr');
+      expect(pipeRow).not.toBeNull();
+      expect(tankRow).not.toBeNull();
+      const pipeCells = Array.from(pipeRow!.querySelectorAll('td'))
+        .map((cell) => cell.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+      const tankCells = Array.from(tankRow!.querySelectorAll('td'))
+        .map((cell) => cell.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+
+      expect(pipeCells[dnIndex]).toBe('DN100');
+      expect(pipeCells[shapeIndex]).toBe('—');
+      expect(tankCells[dnIndex]).toBe('—');
+      expect(tankCells[shapeIndex]).toBe('Прямоуг.');
+
+      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY) ?? '{}');
+      expect(saved.types.all.visibleOrder).toEqual(expect.arrayContaining(['pipe_dn', 'tank_shape']));
+      expect(saved.types.pipe.visibleOrder).toContain('pipe_dn');
+      expect(saved.types.tank.visibleOrder).toContain('tank_shape');
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
+    it('кнопка «Добавить» сбрасывает форму активного типа без dropdown', async () => {
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      const formActionsToolbar = screen.getByRole('toolbar', { name: 'Действия блока заполнения' });
+      const addButton = within(formActionsToolbar).getByRole('button', { name: 'Добавить' });
+      expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      await user.type(screen.getByTestId('object-name-input'), 'Черновик трубы');
+      await user.click(addButton);
+      await waitFor(() => {
+        expect(screen.getByTestId('object-name-input')).toHaveValue('');
+      });
+
+      await user.click(screen.getByRole('button', { name: /Резервуар:/ }));
+      await user.click(addButton);
+
+      expect(await screen.findByText('Форма и геометрия резервуара')).toBeInTheDocument();
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
+    it('основные действия toolbar доступны по имени при icon-only отображении', async () => {
+      useProjectStore.getState().setCurrentProject(mockProject);
+      renderPage();
+
+      const addButton = screen.getByRole('button', { name: 'Добавить' });
+      const tableFieldsButton = screen.getByRole('button', { name: 'Настройки отображения' });
+      const saveButton = screen.getByRole('button', { name: 'Сохранить' });
+      const deleteButton = screen.getByRole('button', { name: 'Удалить выбранные' });
+      const importButton = screen.getByRole('button', { name: 'Импорт XLSX/CSV' });
+
+      const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+      const formActionsToolbar = screen.getByRole('toolbar', { name: 'Действия блока заполнения' });
+      const tableActionsToolbar = screen.getByRole('toolbar', { name: 'Действия таблицы объектов' });
+      const paramsBlock = screen.getByLabelText('Блок заполнения параметров');
+      expect(typeToolbar.compareDocumentPosition(paramsBlock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(paramsBlock.compareDocumentPosition(formActionsToolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(formActionsToolbar.compareDocumentPosition(tableActionsToolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(formActionsToolbar.parentElement).toBe(tableActionsToolbar.parentElement);
+      expect(formActionsToolbar.parentElement).toHaveClass('actionbar-actions-row');
+      expect(within(typeToolbar).getByRole('button', { name: /Трубопровод:/ })).toHaveAttribute('aria-pressed', 'true');
+      expect(within(typeToolbar).getByRole('button', { name: /Резервуар:/ })).toHaveAttribute('aria-pressed', 'false');
+      expect(within(typeToolbar).getByRole('button', { name: /Все:/ })).toHaveAttribute('aria-pressed', 'false');
+      expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
+      expect(within(typeToolbar).getByRole('checkbox', { name: 'Показать блок заполнения параметров' })).toBeChecked();
+      expect(within(formActionsToolbar).getByRole('button', { name: 'Добавить' })).toBe(addButton);
+      expect(within(formActionsToolbar).getByRole('button', { name: 'Сохранить' })).toBe(saveButton);
+      expect(within(formActionsToolbar).getByRole('button', { name: 'Удалить выбранные' })).toBe(deleteButton);
+      expect(deleteButton).toBeDisabled();
+      expect(deleteButton.textContent).toContain('Удалить');
+      expect(saveButton.compareDocumentPosition(deleteButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(within(formActionsToolbar).queryByRole('button', { name: 'Сбросить' })).not.toBeInTheDocument();
+      expect(within(tableActionsToolbar).getByRole('button', { name: 'Настройки отображения' })).toBe(tableFieldsButton);
+      expect(within(tableActionsToolbar).getByRole('button', { name: 'Добавить копии выбранных' })).toBeDisabled();
+      expect(within(tableActionsToolbar).queryByRole('button', { name: 'Удалить выбранные' })).not.toBeInTheDocument();
+      expect(within(tableActionsToolbar).getByRole('button', { name: 'Импорт XLSX/CSV' })).toBe(importButton);
+      expect(within(tableActionsToolbar).queryByRole('button', { name: 'Трубопровод' })).not.toBeInTheDocument();
+      expect(within(tableActionsToolbar).queryByRole('button', { name: 'Резервуар' })).not.toBeInTheDocument();
+      expect(within(tableActionsToolbar).queryByText(/Режим:/)).not.toBeInTheDocument();
+      expect(within(tableActionsToolbar).queryByRole('checkbox', { name: 'Показать блок заполнения параметров' })).not.toBeInTheDocument();
+      expect(within(tableActionsToolbar).queryByText(/Все рассчитаны/)).not.toBeInTheDocument();
+      expect(useWorkspaceHeaderStore.getState().context).toBeNull();
+      expect(tableFieldsButton.textContent).toContain('Настройки отображения');
+      expect(addButton).toHaveClass('action-add-button');
+      expect(addButton.textContent).toContain('Добавить');
+      expect(saveButton).toHaveClass('action-save-button');
+      expect(saveButton).not.toBeDisabled();
+      expect(importButton.textContent).toContain('Импорт');
+      expect(within(typeToolbar).getByRole('button', { name: /Трубопровод:\s*0/ })).toBeInTheDocument();
+      expect(within(typeToolbar).getByRole('button', { name: /Резервуар:\s*0/ })).toBeInTheDocument();
+      expect(within(typeToolbar).getByRole('button', { name: /Все:\s*0/ })).toBeInTheDocument();
+      expect(screen.queryByLabelText('Количество объектов')).not.toBeInTheDocument();
+      expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Сбросить' })).not.toBeInTheDocument();
+    });
+
+    it('скрывает блок вручную, убирает режим и сбрасывает заполненные параметры', async () => {
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+      const paramsBlock = () =>
+        document.querySelector<HTMLElement>('[aria-label="Блок заполнения параметров"]');
+
+      const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+      const visibilityToggle = within(typeToolbar).getByRole('checkbox', {
+        name: 'Показать блок заполнения параметров',
+      });
+      expect(visibilityToggle).toBeChecked();
+      expect(paramsBlock()).toBeVisible();
+      expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      await user.type(screen.getByTestId('object-name-input'), 'Черновик трубы');
+      expect(screen.getByTestId('object-name-input')).toHaveValue('Черновик трубы');
+
+      await user.click(visibilityToggle);
+      expect(visibilityToggle).not.toBeChecked();
+      expect(paramsBlock()).not.toBeVisible();
+      expect(screen.queryByRole('toolbar', { name: 'Действия блока заполнения' })).not.toBeInTheDocument();
+      expect(within(typeToolbar).queryByText(/Режим:/)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('object-name-input')).not.toBeInTheDocument();
+
+      expect(screen.queryByRole('button', { name: 'Добавить' })).not.toBeInTheDocument();
+      expect(within(typeToolbar).queryByText(/Режим:/)).not.toBeInTheDocument();
+      expect(paramsBlock()).not.toBeVisible();
+
+      await user.click(visibilityToggle);
+      expect(visibilityToggle).toBeChecked();
+      expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      expect(screen.getByRole('toolbar', { name: 'Действия блока заполнения' })).toBeInTheDocument();
+      expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
+      expect(screen.getByTestId('object-name-input')).toHaveValue('');
+      expect(paramsBlock()).toBeVisible();
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+  });
+});

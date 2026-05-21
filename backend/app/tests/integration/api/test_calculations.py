@@ -793,6 +793,296 @@ class TestElectricalCandidateDedupe:
         assert updated["id"] == candidate["id"]
         assert updated["status"] == "excluded"
 
+    async def test_same_mark_different_winding_coefficient_creates_two_rows(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        first, _ = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "ТЛТ-75",
+                "electrical_params": {"winding_coefficient": 1.0},
+            },
+        )
+        second, action = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "ТЛТ-75",
+                "electrical_params": {"winding_coefficient": 1.2},
+            },
+        )
+        assert action == "created"
+        assert first["id"] != second["id"]
+        assert await self._count_candidates(db_session, obj["id"], 1) == 2
+
+    async def test_resistive_connection_type_creates_two_rows(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        line, _ = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {
+                "cable_type": "single_core",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "ТТ Р1 8000",
+                "electrical_params": {
+                    "connection_type": "line_1ph",
+                    "supply_voltage": 220,
+                },
+            },
+        )
+        star, action = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {
+                "cable_type": "single_core",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "ТТ Р1 8000",
+                "electrical_params": {
+                    "connection_type": "star_3ph",
+                    "supply_voltage": 380,
+                },
+            },
+        )
+        assert action == "created"
+        assert line["id"] != star["id"]
+        assert await self._count_candidates(db_session, obj["id"], 1) == 2
+
+    async def test_stale_candidate_becomes_applicable_on_successful_recalc(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        candidate, _ = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "ТЛТ-75",
+                "electrical_params": {"number_of_threads": 1, "winding_pitch": 0},
+            },
+        )
+        stale_row = (
+            await db_session.execute(
+                select(ElectricalCandidate).where(ElectricalCandidate.id == UUID(candidate["id"]))
+            )
+        ).scalar_one()
+        stale_row.status = "stale"
+        await db_session.commit()
+
+        updated, action = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "ТЛТ-75",
+                "electrical_params": {"number_of_threads": 1, "winding_pitch": 0},
+            },
+        )
+        assert action == "updated"
+        assert updated["id"] == candidate["id"]
+        assert updated["status"] == "applicable"
+
+    async def test_is_applied_cleared_when_identical_variant_recalculates_to_error(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        candidate, _ = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "ТЛТ-75",
+                "electrical_params": {"number_of_threads": 1, "winding_pitch": 0},
+            },
+        )
+        apply_resp = await client.post(
+            f"/api/v1/calc/electrical/candidates/{candidate['id']}/apply",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert apply_resp.status_code == 200, apply_resp.text
+        assert apply_resp.json()["candidate"]["is_applied"] is True
+
+        update_resp = await client.put(
+            f"/api/v1/projects/{project['id']}/objects/{obj['id']}",
+            json={"params": {**obj["params"], "process_temperature": 500}},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert update_resp.status_code == 200, update_resp.text
+
+        row = (
+            await db_session.execute(
+                select(ElectricalCandidate).where(ElectricalCandidate.id == UUID(candidate["id"]))
+            )
+        ).scalar_one()
+        row.status = "applicable"
+        row.is_applied = True
+        await db_session.commit()
+
+        updated, action = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "ТЛТ-75",
+                "electrical_params": {"number_of_threads": 1, "winding_pitch": 0},
+            },
+        )
+        assert action == "updated"
+        assert updated["id"] == candidate["id"]
+        assert updated["status"] == "error"
+        assert updated["is_applied"] is False
+
+    async def test_mineral_diagnostic_candidate_does_not_duplicate(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        first, action_first = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {"cable_type": "mineral", "cable_source": "builtin", "mode": "auto"},
+        )
+        second, action_second = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {"cable_type": "mineral", "cable_source": "builtin", "mode": "auto"},
+        )
+        assert action_first == "created"
+        assert action_second == "updated"
+        assert first["id"] == second["id"]
+        assert await self._count_candidates(db_session, obj["id"], 1) == 1
+
+    async def test_error_candidates_with_different_marks_create_two_rows(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        first, _ = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "НЕСУЩЕСТВУЮЩИЙ-КАБЕЛЬ-1",
+            },
+        )
+        second, action = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "НЕСУЩЕСТВУЮЩИЙ-КАБЕЛЬ-2",
+            },
+        )
+        assert first["status"] == "error"
+        assert second["status"] == "error"
+        assert action == "created"
+        assert first["id"] != second["id"]
+        assert await self._count_candidates(db_session, obj["id"], 1) == 2
+
+    async def test_cable_source_all_deduplicates_by_resolved_catalog_identity(
+        self, client: AsyncClient, employee_token: str, db_session: AsyncSession
+    ):
+        project_resp = await client.post(
+            "/api/v1/projects",
+            json={"name": "Dedupe all source"},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+        assert project_resp.status_code == 201, project_resp.text
+        project = project_resp.json()
+        obj_resp = await client.post(
+            f"/api/v1/projects/{project['id']}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.108,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -30,
+                    "process_temperature": 80,
+                    "pipe_length": 50,
+                },
+            },
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+        assert obj_resp.status_code in (200, 201), obj_resp.text
+        obj = obj_resp.json()
+
+        async def post_all(mode: str):
+            resp = await client.post(
+                "/api/v1/calc/electrical/candidates",
+                json={
+                    "project_id": project["id"],
+                    "object_id": obj["id"],
+                    "variant_number": 1,
+                    "cable_type": "self_regulating",
+                    "cable_source": "all",
+                    "mode": mode,
+                },
+                headers={"Authorization": f"Bearer {employee_token}"},
+            )
+            assert resp.status_code == 200, resp.text
+            return _candidate_upsert_payload(resp)
+
+        first, action_first = await post_all("auto")
+        second, action_second = await post_all("auto")
+        assert action_first == "created"
+        assert action_second == "updated"
+        assert first["id"] == second["id"]
+        assert first["dedupe_key"] == second["dedupe_key"]
+        assert await self._count_candidates(db_session, obj["id"], 1) == 1
+
 
 class TestElectricalCalculationContinued:
     async def test_copy_electrical_variant_validates_exact_copied_choice_without_autopick(
