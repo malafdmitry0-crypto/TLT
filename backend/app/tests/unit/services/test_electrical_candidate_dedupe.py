@@ -119,6 +119,48 @@ def test_different_winding_pitch_produces_different_keys():
     assert straight != coiled
 
 
+def test_self_regulating_requested_controls_change_key_when_auto_result_is_same():
+    results = {
+        "selected_cable": "ТЛТ-10",
+        "num_circuits": 1,
+        "winding_pitch": 0,
+        "winding_coefficient": 1,
+        "voltage": 220,
+    }
+    base = build_dedupe_key(
+        object_type="pipe",
+        cable_type="self_regulating",
+        cable_source="builtin",
+        cable_mark="ТЛТ-10",
+        results=results,
+        params={"supply_voltage": 220, "winding_coefficient": 1},
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    changed_voltage = build_dedupe_key(
+        object_type="pipe",
+        cable_type="self_regulating",
+        cable_source="builtin",
+        cable_mark="ТЛТ-10",
+        results=results,
+        params={"supply_voltage": 230, "winding_coefficient": 1},
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    changed_winding = build_dedupe_key(
+        object_type="pipe",
+        cable_type="self_regulating",
+        cable_source="builtin",
+        cable_mark="ТЛТ-10",
+        results=results,
+        params={"supply_voltage": 220, "winding_coefficient": 1.05},
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    assert base != changed_voltage
+    assert base != changed_winding
+
+
 def test_cable_source_all_uses_actual_catalog_source():
     identity = catalog_identity(
         cable_snapshot={
@@ -258,6 +300,40 @@ def test_resistive_requested_voltage_changes_key_when_auto_result_voltage_is_sam
         status="applicable",
     )
     assert voltage_220 != voltage_230
+
+
+def test_three_core_requested_connection_type_changes_key_when_auto_result_is_same():
+    results = {
+        "selected_cable": "ТТ Р3 х 1,5-1,0",
+        "num_circuits": 3,
+        "scheme_count": 1,
+        "scheme_threads": 3,
+        "winding_pitch": 0,
+        "winding_coefficient": 1,
+        "voltage": 220,
+        "connection_type": "line_1ph",
+    }
+    line_requested = build_dedupe_key(
+        object_type="pipe",
+        cable_type="three_core",
+        cable_source="builtin",
+        cable_mark="ТТ Р3 х 1,5-1,0",
+        results=results,
+        params={"connection_type": "line_1ph"},
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    star_requested = build_dedupe_key(
+        object_type="pipe",
+        cable_type="three_core",
+        cable_source="builtin",
+        cable_mark="ТТ Р3 х 1,5-1,0",
+        results=results,
+        params={"connection_type": "star_3x3"},
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    assert line_requested != star_requested
 
 
 def test_apply_upsert_clears_is_applied_when_status_not_applicable():
@@ -472,6 +548,75 @@ def test_tt_maintain_temperature_falls_back_to_process_temperature():
         status="applicable",
     )
     assert explicit == fallback
+
+
+def test_tt_requested_temperature_controls_change_key_when_auto_result_is_same():
+    results = {
+        "cable_mark": "10ТТН2-СР",
+        "num_circuits": 1,
+        "winding_pitch": 0,
+        "winding_coefficient": 1.1,
+        "voltage": 220,
+    }
+    base = build_dedupe_key(
+        object_type="pipe",
+        cable_type="self_regulating_tt",
+        cable_source="builtin",
+        cable_mark="10ТТН2-СР",
+        results=results,
+        params={
+            "maintain_temperature": 5,
+            "vapor_temperature": 80,
+            "aggressive_product": False,
+        },
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    changed_maintain = build_dedupe_key(
+        object_type="pipe",
+        cable_type="self_regulating_tt",
+        cable_source="builtin",
+        cable_mark="10ТТН2-СР",
+        results=results,
+        params={
+            "maintain_temperature": 10,
+            "vapor_temperature": 80,
+            "aggressive_product": False,
+        },
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    changed_vapor = build_dedupe_key(
+        object_type="pipe",
+        cable_type="self_regulating_tt",
+        cable_source="builtin",
+        cable_mark="10ТТН2-СР",
+        results=results,
+        params={
+            "maintain_temperature": 5,
+            "vapor_temperature": 90,
+            "aggressive_product": False,
+        },
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    changed_aggressive = build_dedupe_key(
+        object_type="pipe",
+        cable_type="self_regulating_tt",
+        cable_source="builtin",
+        cable_mark="10ТТН2-СР",
+        results=results,
+        params={
+            "maintain_temperature": 5,
+            "vapor_temperature": 80,
+            "aggressive_product": True,
+        },
+        cable_snapshot={"actual_catalog_source": "builtin"},
+        status="applicable",
+    )
+    assert base != changed_maintain
+    assert base != changed_vapor
+    assert base != changed_aggressive
 
 
 def test_tt_tank_winding_coefficient_changes_key():

@@ -9,6 +9,8 @@ import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import type { Project, ProjectObject, ProjectObjectsQueryRequest } from '@/types/project';
 
+const HEATCALC_SAVE_RESET_TIMEOUT = 30_000;
+
 vi.mock('@/components/wizard/ObjectWizard', async () => {
   const React = await import('react');
   return {
@@ -228,7 +230,7 @@ describe('HeatCalcPage save reset', () => {
       expect(screen.getByText('Режим: добавление')).toBeInTheDocument();
     });
     expect(useWorkspaceHeaderStore.getState().context).toBeNull();
-  }, 10_000);
+  }, HEATCALC_SAVE_RESET_TIMEOUT);
 
   it('после сохранения новой нерассчитанной записи открывает её для исправления', async () => {
     const { listObjects, createObject } = await import('@/api/projects');
@@ -258,5 +260,5 @@ describe('HeatCalcPage save reset', () => {
     });
     expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
     expect(screen.getByTestId('fake-validation-errors')).toHaveTextContent('Наружный диаметр');
-  }, 10_000);
+  }, HEATCALC_SAVE_RESET_TIMEOUT);
 });

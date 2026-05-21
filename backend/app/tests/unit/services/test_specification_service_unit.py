@@ -16,17 +16,26 @@ def _mock_db_with(scalar_first=None, scalars_all=None):
     if scalar_first is not None:
         scalars_mock = MagicMock()
         scalars_mock.first = lambda: scalar_first
+        scalars_mock.one_or_none = lambda: scalar_first
         scalars_mock.all = lambda: [scalar_first] if scalar_first else []
         result.scalars = lambda: scalars_mock
     else:
         scalars_mock = MagicMock()
         scalars_mock.first = lambda: None
+        scalars_mock.one_or_none = lambda: None
         scalars_mock.all = lambda: scalars_all or []
         result.scalars = lambda: scalars_mock
+    result.scalar_one = lambda: scalar_first or SimpleNamespace(items=[])
     db.execute = AsyncMock(return_value=result)
     db.commit = AsyncMock()
     db.add = MagicMock()
     return db
+
+
+def _upsert_result(spec=None):
+    result = MagicMock()
+    result.scalar_one = lambda: spec or SimpleNamespace(items=[])
+    return result
 
 
 class TestGetSpecification:
@@ -44,20 +53,21 @@ class TestGetSpecification:
 
 class TestGenerate:
     async def test_creates_new_spec_when_none_exists(self):
-        # Двойной execute: первый — спецификация, второй — electrical
+        # Три execute: текущая спецификация, electrical, атомарный upsert.
         db = AsyncMock()
         no_spec_result = MagicMock()
         no_spec_result.scalars = lambda: MagicMock(first=lambda: None, all=lambda: [])
         no_calc_result = MagicMock()
         no_calc_result.scalars = lambda: MagicMock(first=lambda: None, all=lambda: [])
-        db.execute = AsyncMock(side_effect=[no_spec_result, no_calc_result])
+        db.execute = AsyncMock(side_effect=[no_spec_result, no_calc_result, _upsert_result()])
         db.scalar = AsyncMock(return_value=0)  # total_objects_count
         db.commit = AsyncMock()
         db.add = MagicMock()
 
         items = await SpecificationService(db).generate(uuid.uuid4())
         assert items == []
-        db.add.assert_called_once()
+        db.add.assert_not_called()
+        assert db.execute.await_count == 3
         db.commit.assert_awaited_once()
 
     async def test_replaces_existing_spec(self):
@@ -67,14 +77,15 @@ class TestGenerate:
         spec_result.scalars = lambda: MagicMock(first=lambda: existing, all=lambda: [])
         no_calc_result = MagicMock()
         no_calc_result.scalars = lambda: MagicMock(first=lambda: None, all=lambda: [])
-        db.execute = AsyncMock(side_effect=[spec_result, no_calc_result])
+        db.execute = AsyncMock(side_effect=[spec_result, no_calc_result, _upsert_result(existing)])
         db.scalar = AsyncMock(return_value=0)
         db.commit = AsyncMock()
         db.add = MagicMock()
 
         await SpecificationService(db).generate(uuid.uuid4())
-        # add НЕ вызывается (используется existing)
+        # add НЕ вызывается: сохранение идёт через атомарный upsert.
         db.add.assert_not_called()
+        assert db.execute.await_count == 3
 
     async def test_preserves_manual_items_skips_broken(self):
         # Manual item с битым форматом (отсутствует обязательное `name`) — пропускается
@@ -96,7 +107,7 @@ class TestGenerate:
         spec_result.scalars = lambda: MagicMock(first=lambda: existing, all=lambda: [])
         no_calc = MagicMock()
         no_calc.scalars = lambda: MagicMock(first=lambda: None, all=lambda: [])
-        db.execute = AsyncMock(side_effect=[spec_result, no_calc])
+        db.execute = AsyncMock(side_effect=[spec_result, no_calc, _upsert_result(existing)])
         db.scalar = AsyncMock(return_value=0)
         db.commit = AsyncMock()
         db.add = MagicMock()
@@ -128,7 +139,7 @@ class TestGenerate:
         no_spec.scalars = lambda: MagicMock(first=lambda: None, all=lambda: [])
         calc_result = MagicMock()
         calc_result.scalars = lambda: MagicMock(first=lambda: calc, all=lambda: [calc, calc, calc])
-        db.execute = AsyncMock(side_effect=[no_spec, calc_result])
+        db.execute = AsyncMock(side_effect=[no_spec, calc_result, _upsert_result()])
         db.scalar = AsyncMock(return_value=5)  # 5 объектов в проекте
         db.commit = AsyncMock()
         db.add = MagicMock()
@@ -159,7 +170,7 @@ class TestGenerate:
         no_spec.scalars = lambda: MagicMock(first=lambda: None, all=lambda: [])
         calc_result = MagicMock()
         calc_result.scalars = lambda: MagicMock(first=lambda: calc, all=lambda: [calc])
-        db.execute = AsyncMock(side_effect=[no_spec, calc_result])
+        db.execute = AsyncMock(side_effect=[no_spec, calc_result, _upsert_result()])
         db.scalar = AsyncMock(return_value=1)
         db.commit = AsyncMock()
         db.add = MagicMock()
@@ -193,7 +204,7 @@ class TestGenerate:
         no_spec.scalars = lambda: MagicMock(first=lambda: None, all=lambda: [])
         calc_result = MagicMock()
         calc_result.scalars = lambda: MagicMock(first=lambda: calc, all=lambda: [calc])
-        db.execute = AsyncMock(side_effect=[no_spec, calc_result])
+        db.execute = AsyncMock(side_effect=[no_spec, calc_result, _upsert_result()])
         db.scalar = AsyncMock(return_value=1)
         db.commit = AsyncMock()
         db.add = MagicMock()
@@ -209,15 +220,16 @@ class TestSaveItems:
         items = [SpecificationItem(category="a", name="A", unit="шт", quantity=1)]
         result = await SpecificationService(db).save_items(uuid.uuid4(), items)
         assert result == items
-        db.add.assert_called_once()
+        db.add.assert_not_called()
+        db.execute.assert_awaited_once()
         db.commit.assert_awaited_once()
 
     async def test_replaces_when_existing(self):
-        existing = SimpleNamespace(items=[{"old": True}])
-        db = _mock_db_with(scalar_first=existing)
+        db = _mock_db_with()
         items = [SpecificationItem(category="b", name="B", unit="шт", quantity=2)]
-        await SpecificationService(db).save_items(uuid.uuid4(), items, variant_number=2)
-        # add НЕ вызывается; existing.items замещается
+        result = await SpecificationService(db).save_items(uuid.uuid4(), items, variant_number=2)
+        assert result == items
+        # add НЕ вызывается: replace тоже выполняется через upsert.
         db.add.assert_not_called()
-        assert existing.items[0]["name"] == "B"
+        db.execute.assert_awaited_once()
         db.commit.assert_awaited_once()

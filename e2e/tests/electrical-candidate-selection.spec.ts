@@ -135,6 +135,51 @@ async function expectElectricalCalcMark(
   }).toEqual(cableMark === null ? [] : [cableMark]);
 }
 
+async function expectAutoCandidateParamVariants(
+  page: Page,
+  projectId: string,
+  sessionId: string,
+  objectId: string,
+  cableType: string,
+  baseParams: Record<string, unknown>,
+  variants: Array<Record<string, unknown>>,
+) {
+  const base = await createCandidate(page, projectId, sessionId, objectId, {
+    cable_type: cableType,
+    mode: 'auto',
+    electrical_params: baseParams,
+  });
+  const same = await createCandidate(page, projectId, sessionId, objectId, {
+    cable_type: cableType,
+    mode: 'auto',
+    electrical_params: baseParams,
+  });
+  const changed = [];
+  for (const variantParams of variants) {
+    changed.push(await createCandidate(page, projectId, sessionId, objectId, {
+      cable_type: cableType,
+      mode: 'auto',
+      electrical_params: { ...baseParams, ...variantParams },
+    }));
+  }
+
+  expect(base.action).toBe('created');
+  expect(base.candidate.status).toBe('applicable');
+  expect(same.action).toBe('updated');
+  expect(same.candidate.id).toBe(base.candidate.id);
+  for (const item of changed) {
+    expect(item.action).toBe('created');
+    expect(item.candidate.status).toBe('applicable');
+  }
+
+  const uniqueIds = new Set([base.candidate.id, ...changed.map((item) => item.candidate.id)]);
+  expect(uniqueIds.size).toBe(1 + variants.length);
+
+  const candidates = await listCandidates(page, projectId, sessionId, objectId);
+  expect(candidates.map((candidate) => candidate.id).sort()).toEqual([...uniqueIds].sort());
+  await expectElectricalCalcMark(page, projectId, sessionId, objectId, null);
+}
+
 async function openCandidateDialog(page: Page, pipeName: string) {
   await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
   const row = page.getByRole('row').filter({ hasText: pipeName }).first();
@@ -268,6 +313,66 @@ test.describe('electrical candidate selection', () => {
     await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, null);
   });
 
+  test('изменение параметров ТЛТ-авторасчёта создаёт отдельный кандидат', async ({ page }) => {
+    await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
+    const pipeName = `E2E TLT controls ${Date.now()}`;
+    const pipe = await createCalculatedPipe(page, pipeName, {
+      outer_diameter: 0.108,
+      pipe_length: 12,
+      insulation_thickness: 0.03,
+      ambient_temperature: 1,
+      process_temperature: 65,
+    });
+
+    await expectAutoCandidateParamVariants(
+      page,
+      projectId,
+      sessionId,
+      pipe.id,
+      'self_regulating',
+      { supply_voltage: 220, winding_coefficient: 1, number_of_threads: 1 },
+      [
+        { number_of_threads: 2 },
+        { winding_coefficient: 1.05 },
+        { winding_pitch: 500 },
+      ],
+    );
+  });
+
+  test('изменение параметров ТТН/ТТВ/ТТХ-авторасчёта создаёт отдельный кандидат', async ({ page }) => {
+    await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
+    const pipeName = `E2E TT controls ${Date.now()}`;
+    const pipe = await createCalculatedPipe(page, pipeName, {
+      outer_diameter: 0.108,
+      pipe_length: 12,
+      insulation_thickness: 0.03,
+      ambient_temperature: 1,
+      process_temperature: 65,
+    });
+
+    await expectAutoCandidateParamVariants(
+      page,
+      projectId,
+      sessionId,
+      pipe.id,
+      'self_regulating_tt',
+      {
+        supply_voltage: 220,
+        winding_coefficient: 1.1,
+        maintain_temperature: 5,
+        vapor_temperature: 80,
+        aggressive_product: false,
+      },
+      [
+        { maintain_temperature: 10 },
+        { vapor_temperature: 90 },
+        { aggressive_product: true },
+      ],
+    );
+  });
+
   test('изменение параметров резистивного авторасчёта создаёт отдельный кандидат', async ({ page }) => {
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);
@@ -280,56 +385,46 @@ test.describe('electrical candidate selection', () => {
       process_temperature: 65,
     });
 
-    const baseParams = {
-      supply_voltage: 220,
-      connection_type: 'line_1ph',
-      winding_coefficient: 1,
-    };
-    const base = await createCandidate(page, projectId, sessionId, pipe.id, {
-      cable_type: 'single_core',
-      mode: 'auto',
-      electrical_params: baseParams,
-    });
-    const same = await createCandidate(page, projectId, sessionId, pipe.id, {
-      cable_type: 'single_core',
-      mode: 'auto',
-      electrical_params: baseParams,
-    });
-    const differentConnection = await createCandidate(page, projectId, sessionId, pipe.id, {
-      cable_type: 'single_core',
-      mode: 'auto',
-      electrical_params: { ...baseParams, connection_type: 'star_3ph' },
-    });
-    const differentVoltage = await createCandidate(page, projectId, sessionId, pipe.id, {
-      cable_type: 'single_core',
-      mode: 'auto',
-      electrical_params: { ...baseParams, supply_voltage: 230 },
-    });
-    const differentWinding = await createCandidate(page, projectId, sessionId, pipe.id, {
-      cable_type: 'single_core',
-      mode: 'auto',
-      electrical_params: { ...baseParams, winding_coefficient: 1.05 },
+    await expectAutoCandidateParamVariants(
+      page,
+      projectId,
+      sessionId,
+      pipe.id,
+      'single_core',
+      { supply_voltage: 220, connection_type: 'line_1ph', winding_coefficient: 1 },
+      [
+        { connection_type: 'star_3ph' },
+        { supply_voltage: 230 },
+        { winding_coefficient: 1.05 },
+      ],
+    );
+  });
+
+  test('изменение параметров ТТ Р3-авторасчёта создаёт отдельный кандидат', async ({ page }) => {
+    await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
+    const pipeName = `E2E R3 controls ${Date.now()}`;
+    const pipe = await createCalculatedPipe(page, pipeName, {
+      outer_diameter: 0.108,
+      pipe_length: 12,
+      insulation_thickness: 0.03,
+      ambient_temperature: 1,
+      process_temperature: 65,
     });
 
-    expect(base.action).toBe('created');
-    expect(base.candidate.status).toBe('applicable');
-    expect(same.action).toBe('updated');
-    expect(same.candidate.id).toBe(base.candidate.id);
-    expect(differentConnection.action).toBe('created');
-    expect(differentVoltage.action).toBe('created');
-    expect(differentWinding.action).toBe('created');
-
-    const uniqueIds = new Set([
-      base.candidate.id,
-      differentConnection.candidate.id,
-      differentVoltage.candidate.id,
-      differentWinding.candidate.id,
-    ]);
-    expect(uniqueIds.size).toBe(4);
-
-    const candidates = await listCandidates(page, projectId, sessionId, pipe.id);
-    expect(candidates.map((candidate) => candidate.id).sort()).toEqual([...uniqueIds].sort());
-    await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, null);
+    await expectAutoCandidateParamVariants(
+      page,
+      projectId,
+      sessionId,
+      pipe.id,
+      'three_core',
+      { supply_voltage: 220, connection_type: 'line_1ph', winding_coefficient: 1 },
+      [
+        { connection_type: 'star_3x3' },
+        { supply_voltage: 230 },
+        { winding_coefficient: 1.05 },
+      ],
+    );
   });
 
   test('уникальность вариантов ограничена таблицей candidates, основной электрорасчёт остаётся одной строкой', async ({ page }) => {

@@ -977,7 +977,7 @@ class TestElectricalStale:
             },
         )
         db = _mock_db_empty()
-        db.execute = AsyncMock(return_value=_objects_result([calc]))
+        db.execute = AsyncMock(side_effect=[_objects_result([calc]), _objects_result([])])
         db.flush = AsyncMock()
 
         count = await CalculationService(db).mark_electrical_calculations_stale(

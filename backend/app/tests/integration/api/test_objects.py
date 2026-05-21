@@ -415,7 +415,7 @@ class TestObjectsLifecycle:
                     "climate_city": "Славгород",
                     "climate_region": "Могилёвская область",
                     "climate_temperature_basis": "t_0_92",
-                    "ambient_temperature_source": "manual",
+                    "ambient_temperature_source": "climate",
                 },
             },
             headers={"X-Session-Id": guest_session},

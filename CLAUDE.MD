@@ -429,7 +429,7 @@ docker-compose up --build -d
 
 Текущее состояние:
 <!-- AUTO:test-counts -->
-**1226 backend** (902 unit + 324 integration) ✅ · **388 frontend vitest** ✅ · **70 e2e Playwright** ✅
+**1229 backend** (905 unit + 324 integration) ✅ · **388 frontend vitest** ✅ · **73 e2e Playwright** ✅
 <!-- /AUTO -->
 
 Цифры обновляются командой `scripts/sync-docs.py`.
