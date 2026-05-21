@@ -1039,6 +1039,7 @@ class ElectricalCandidateResponse(BaseModel):
     cable_type: str
     cable_source: str
     cable_mark: str | None
+    dedupe_key: str
     mode: str
     status: str
     priority: int
@@ -1056,6 +1057,13 @@ class ElectricalCandidateResponse(BaseModel):
     candidate_meta: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
+
+
+class ElectricalCandidateUpsertResponse(BaseModel):
+    """Результат создания или обновления кандидата (идентичный инженерный вариант)."""
+
+    candidate: ElectricalCandidateResponse
+    action: Literal["created", "updated"]
 
 
 class ElectricalCandidateApplyResponse(BaseModel):

@@ -6,11 +6,15 @@ import ElecCalcPage from '@/pages/ElecCalcPage';
 import { useAuthStore } from '@/store/authStore';
 import { useCalculationVariantStore } from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
-import type { ElectricalCalcSummary, ElectricalPageResponse } from '@/types/calculation';
+import type { ElectricalCalcSummary, ElectricalCandidate, ElectricalPageResponse } from '@/types/calculation';
 import type { Project, ProjectObject } from '@/types/project';
 import { getCalcJobRefetchInterval } from '@/utils/calcJobPolling';
 import { ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY } from '@/utils/electricalTableColumns';
-import { ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY } from '@/utils/electricalTableViewSettings';
+import {
+  ELECTRICAL_CABLE_PICKER_CABLE_FIELDS,
+  ELECTRICAL_CABLE_PICKER_OBJECT_FIELDS,
+  ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY,
+} from '@/utils/electricalTableViewSettings';
 
 const apiMocks = vi.hoisted(() => {
   const field = (
@@ -96,6 +100,7 @@ vi.mock('@/api/calculations', () => ({
   listCables: vi.fn().mockResolvedValue([]),
   selectCableForVariants: vi.fn(),
   selectCableManual: vi.fn(),
+  unapplyElectricalCandidate: vi.fn(),
   updateElectricalCandidate: vi.fn(),
 }));
 
@@ -917,30 +922,34 @@ describe('ElecCalcPage (integration)', () => {
     const user = (await import('@testing-library/user-event')).default.setup();
     (listElectricalCandidates as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     (createElectricalCandidate as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: 'cand-1',
-      project_id: 'p-1',
-      object_id: 'o-1',
-      variant_number: 1,
-      cable_type: 'three_core',
-      cable_source: 'builtin',
-      cable_mark: 'ТТ Р3 x 0,5-0,6',
-      mode: 'auto',
-      status: 'applicable',
-      priority: 0,
-      is_recommended: true,
-      is_pinned: false,
-      is_applied: false,
-      reason_code: null,
-      reason_message: null,
-      engineer_comment: null,
-      params: {},
-      results: { total_power: 1000, order_cable_length: 55 },
-      cable_snapshot: null,
-      warnings: [],
-      risk_flags: [],
-      candidate_meta: {},
-      created_at: '2026-01-01T00:00:00Z',
-      updated_at: '2026-01-01T00:00:00Z',
+      action: 'created',
+      candidate: {
+        id: 'cand-1',
+        project_id: 'p-1',
+        object_id: 'o-1',
+        variant_number: 1,
+        cable_type: 'three_core',
+        cable_source: 'builtin',
+        cable_mark: 'ТТ Р3 x 0,5-0,6',
+        dedupe_key: 'v1:test',
+        mode: 'auto',
+        status: 'applicable',
+        priority: 0,
+        is_recommended: true,
+        is_pinned: false,
+        is_applied: false,
+        reason_code: null,
+        reason_message: null,
+        engineer_comment: null,
+        params: {},
+        results: { total_power: 1000, order_cable_length: 55 },
+        cable_snapshot: null,
+        warnings: [],
+        risk_flags: [],
+        candidate_meta: {},
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      },
     });
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
       makeElectricalPage([makeObject({ params: { name: 'Труба-1' } })], [
@@ -1002,9 +1011,12 @@ describe('ElecCalcPage (integration)', () => {
         .getPropertyValue('--cable-picker-characteristics-column-count'),
       ).toBe('4');
     expect(within(sizingDialog).getByRole('radio', { name: 'Авторасчёт' })).toBeChecked();
-    expect(within(sizingDialog).getAllByText('Выбор').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getAllByText('Пометка').length).toBeGreaterThan(0);
     expect(within(sizingDialog).getAllByText('Действия').length).toBeGreaterThan(0);
-    expect(within(sizingDialog).getAllByText('Статус').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).queryByRole('columnheader', { name: 'Статус' })).not.toBeInTheDocument();
+    expect(within(sizingDialog).getAllByText('T3, °C').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getAllByText('T проп., °C').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getAllByText('Агр.').length).toBeGreaterThan(0);
     expect(within(sizingDialog).getAllByText('Мощность, Вт').length).toBeGreaterThan(0);
     expect(within(sizingDialog).getAllByText('Ток, А').length).toBeGreaterThan(0);
     expect(within(sizingDialog).getAllByText('U расч., В').length).toBeGreaterThan(0);
@@ -1029,7 +1041,177 @@ describe('ElecCalcPage (integration)', () => {
     expect(within(sizingDialog).queryByRole('button', { name: 'Применить' })).not.toBeInTheDocument();
   });
 
-  it('показывает выбранный кабель и компактные действия кандидатов', async () => {
+  it('показывает «Вариант обновлён» при повторном идентичном авторасчёте', async () => {
+    const {
+      createElectricalCandidate,
+      getElectricalPage,
+      listElectricalCandidates,
+    } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const candidate = {
+      id: 'cand-1',
+      project_id: 'p-1',
+      object_id: 'o-1',
+      variant_number: 1,
+      cable_type: 'self_regulating',
+      cable_source: 'builtin',
+      cable_mark: 'ТЛТ-10',
+      dedupe_key: 'v1:same',
+      mode: 'auto',
+      status: 'applicable',
+      priority: 0,
+      is_recommended: true,
+      is_pinned: false,
+      is_applied: false,
+      reason_code: null,
+      reason_message: null,
+      engineer_comment: null,
+      params: {},
+      results: { total_power: 1000, order_cable_length: 55 },
+      cable_snapshot: null,
+      warnings: [],
+      risk_flags: [],
+      candidate_meta: {},
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    };
+    (listElectricalCandidates as ReturnType<typeof vi.fn>).mockResolvedValue([candidate]);
+    (createElectricalCandidate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      action: 'updated',
+      candidate,
+    });
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject({ params: { name: 'Труба-1' } })]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    const row = await screen.findByRole('row', { name: /Труба-1/ });
+    await user.click(row);
+    await user.click(within(row).getByRole('button', { name: 'Подбор' }));
+    const sizingDialog = await screen.findByRole('dialog', { name: /Подбор кабеля для/ });
+    await user.click(within(sizingDialog).getByRole('button', { name: 'Запустить авторасчёт' }));
+    expect(await screen.findByText('Вариант обновлён')).toBeInTheDocument();
+  });
+
+  it('показывает две строки для одной марки с разным числом ниток', async () => {
+    const { getElectricalPage, listElectricalCandidates } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const base = {
+      project_id: 'p-1',
+      object_id: 'o-1',
+      variant_number: 1,
+      cable_type: 'self_regulating',
+      cable_source: 'builtin',
+      cable_mark: 'ТЛТ-75',
+      mode: 'manual',
+      status: 'applicable',
+      priority: 0,
+      is_recommended: false,
+      is_pinned: false,
+      is_applied: false,
+      reason_code: null,
+      reason_message: null,
+      engineer_comment: null,
+      params: {},
+      results: { num_circuits: 1 },
+      cable_snapshot: null,
+      warnings: [],
+      risk_flags: [],
+      candidate_meta: {},
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    };
+    (listElectricalCandidates as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { ...base, id: 'cand-1', dedupe_key: 'v1:one', results: { num_circuits: 1 } },
+      { ...base, id: 'cand-2', dedupe_key: 'v1:two', results: { num_circuits: 2 } },
+    ]);
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject({ params: { name: 'Труба-1' } })]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    const row = await screen.findByRole('row', { name: /Труба-1/ });
+    await user.click(row);
+    await user.click(within(row).getByRole('button', { name: 'Подбор' }));
+    const sizingDialog = await screen.findByRole('dialog', { name: /Подбор кабеля для/ });
+    expect(within(sizingDialog).getAllByText('ТЛТ-75').length).toBe(2);
+  });
+
+  it('показывает TT-поля, которые различают визуально похожие варианты', async () => {
+    const { getElectricalPage, listElectricalCandidates } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const base = {
+      project_id: 'p-1',
+      object_id: 'o-1',
+      variant_number: 1,
+      cable_type: 'self_regulating_tt',
+      cable_source: 'builtin',
+      cable_mark: '10ТТН2-СР',
+      mode: 'manual',
+      status: 'applicable',
+      priority: 0,
+      is_recommended: false,
+      is_pinned: false,
+      is_applied: false,
+      reason_code: null,
+      reason_message: null,
+      engineer_comment: null,
+      results: { num_circuits: 1, winding_pitch: 0, voltage: 220 },
+      cable_snapshot: null,
+      warnings: [],
+      risk_flags: [],
+      candidate_meta: {},
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    };
+    (listElectricalCandidates as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        ...base,
+        id: 'tt-fallback',
+        dedupe_key: 'v1:tt-fallback',
+        params: { process_temperature: 0.6, aggressive_product: false },
+      },
+      {
+        ...base,
+        id: 'tt-maintain',
+        dedupe_key: 'v1:tt-maintain',
+        params: { process_temperature: 0.6, maintain_temperature: -2, aggressive_product: false },
+      },
+      {
+        ...base,
+        id: 'tt-vapor-aggressive',
+        dedupe_key: 'v1:tt-vapor-aggressive',
+        params: {
+          process_temperature: 0.6,
+          maintain_temperature: -2,
+          vapor_temperature: -4,
+          aggressive_product: true,
+        },
+      },
+    ]);
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject({ params: { name: 'Труба-1' } })]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    const row = await screen.findByRole('row', { name: /Труба-1/ });
+    await user.click(row);
+    await user.click(within(row).getByRole('button', { name: 'Подбор' }));
+    const sizingDialog = await screen.findByRole('dialog', { name: /Подбор кабеля для/ });
+
+    expect(within(sizingDialog).getAllByText('T3, °C').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getAllByText('T проп., °C').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getAllByText('Агр.').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getByTestId('candidate-row-tt-fallback')).toHaveTextContent('0,6');
+    expect(within(sizingDialog).getByTestId('candidate-row-tt-maintain')).toHaveTextContent('-2');
+    expect(within(sizingDialog).getByTestId('candidate-row-tt-vapor-aggressive')).toHaveTextContent('-4');
+    expect(within(sizingDialog).getByTestId('candidate-row-tt-vapor-aggressive')).toHaveTextContent('Да');
+  });
+
+  it('показывает выбранный кабель, пометки и компактные действия кандидатов', async () => {
     const {
       applyElectricalCandidate,
       getElectricalPage,
@@ -1042,6 +1224,7 @@ describe('ElecCalcPage (integration)', () => {
       object_id: 'o-1',
       variant_number: 1,
       cable_source: 'builtin',
+      dedupe_key: 'v1:base',
       priority: 0,
       is_pinned: false,
       reason_code: null,
@@ -1055,9 +1238,13 @@ describe('ElecCalcPage (integration)', () => {
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
     };
-    (listElectricalCandidates as ReturnType<typeof vi.fn>).mockResolvedValue([
-      {
-        ...baseCandidate,
+    const makeCandidate = (candidate: Partial<ElectricalCandidate> & { id: string }): ElectricalCandidate => ({
+      ...baseCandidate,
+      dedupe_key: `v1:${candidate.id}`,
+      ...candidate,
+    } as ElectricalCandidate);
+    let candidates: ElectricalCandidate[] = [
+      makeCandidate({
         id: 'cand-applied',
         cable_type: 'self_regulating',
         cable_mark: 'ТЛТ-10',
@@ -1070,9 +1257,8 @@ describe('ElecCalcPage (integration)', () => {
           order_cable_length: 55,
           current: 4.55,
         },
-      },
-      {
-        ...baseCandidate,
+      }),
+      makeCandidate({
         id: 'cand-next',
         cable_type: 'self_regulating',
         cable_mark: 'ТЛТ-20',
@@ -1085,10 +1271,68 @@ describe('ElecCalcPage (integration)', () => {
           order_cable_length: 60,
           current: 5.45,
         },
+      }),
+      makeCandidate({
+        id: 'cand-duplicate',
+        cable_type: 'self_regulating',
+        cable_mark: 'ТЛТ-20',
+        mode: 'manual',
+        status: 'applicable',
+        is_recommended: false,
+        is_applied: false,
+        results: {
+          total_power: 1300,
+          order_cable_length: 62,
+          current: 5.91,
+        },
+      }),
+      makeCandidate({
+        id: 'cand-error',
+        cable_type: 'self_regulating',
+        cable_mark: 'ТЛТ-5',
+        mode: 'manual',
+        status: 'error',
+        reason_message: 'Кабель не обеспечивает требуемую мощность',
+        is_recommended: false,
+        is_applied: false,
+        results: null,
+      }),
+    ];
+    (listElectricalCandidates as ReturnType<typeof vi.fn>).mockImplementation(async () => candidates);
+    (applyElectricalCandidate as ReturnType<typeof vi.fn>).mockImplementation(async (candidateId: string) => ({
+      candidate: (() => {
+        const selected = candidates.find((candidate) => candidate.id === candidateId)!;
+        candidates = candidates.map((candidate) => ({
+          ...candidate,
+          is_applied: candidate.id === candidateId,
+        }));
+        return { ...selected, is_applied: true };
+      })(),
+      calculation: (() => {
+        const selected = candidates.find((candidate) => candidate.id === candidateId)!;
+        return {
+          id: 'c-1',
+          object_id: 'o-1',
+          cable_type: selected.cable_type,
+          cable_mark: selected.cable_mark,
+          cable_mark_source: 'manual',
+          variant_number: 1,
+          results: {
+            selected_cable: selected.cable_mark,
+          },
+        };
+      })(),
+    }));
+    (updateElectricalCandidate as ReturnType<typeof vi.fn>).mockImplementation(
+      async (candidateId: string, patch: Record<string, unknown>) => {
+        candidates = candidates.map((candidate) => (
+          candidate.id === candidateId
+            ? { ...candidate, ...patch }
+            : candidate
+        ));
+        return candidates.find((candidate) => candidate.id === candidateId);
       },
-    ]);
-    (applyElectricalCandidate as ReturnType<typeof vi.fn>).mockResolvedValue({});
-    (updateElectricalCandidate as ReturnType<typeof vi.fn>).mockResolvedValue({});
+    );
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
       makeElectricalPage([makeObject({ params: { name: 'Труба-1' } })], [
         {
@@ -1125,24 +1369,67 @@ describe('ElecCalcPage (integration)', () => {
     expect(within(sizingDialog).getAllByText('Ручной').length).toBeGreaterThan(0);
     expect(within(sizingDialog).queryByText('Статус кабеля')).not.toBeInTheDocument();
     expect(within(sizingDialog).queryByText('снимок')).not.toBeInTheDocument();
+    expect(within(sizingDialog).queryByRole('columnheader', { name: 'Статус' })).not.toBeInTheDocument();
     expect(within(sizingDialog).queryByText('Готов')).not.toBeInTheDocument();
-    expect(within(sizingDialog).getAllByLabelText('Готов')).toHaveLength(2);
-    expect(within(sizingDialog).getByRole('button', { name: 'Уже выбран' })).toBeDisabled();
+    expect(within(sizingDialog).queryByLabelText('Готов')).not.toBeInTheDocument();
+    expect(within(sizingDialog).getAllByText('Пометка').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getByTestId('candidate-row-cand-applied')).not.toHaveClass(
+      'electrical-cable-sizing-table__row--error',
+    );
+    expect(within(sizingDialog).getByTestId('candidate-row-cand-next')).not.toHaveClass(
+      'electrical-cable-sizing-table__row--error',
+    );
+    expect(within(sizingDialog).getByTestId('candidate-row-cand-error')).toHaveClass(
+      'electrical-cable-sizing-table__row--error',
+    );
 
-    await user.click(within(sizingDialog).getByRole('button', { name: 'Выбрать' }));
-    expect(applyElectricalCandidate).toHaveBeenCalledWith('cand-next');
+    const markerCheckbox = within(sizingDialog).getByLabelText('Пометить кандидат ТЛТ-10');
+    expect(markerCheckbox).toBeEnabled();
+    expect(markerCheckbox).not.toBeChecked();
+    await user.click(markerCheckbox);
+    expect(markerCheckbox).toBeChecked();
+    expect(applyElectricalCandidate).not.toHaveBeenCalled();
+    expect(within(sizingDialog).getAllByText('ТЛТ-10').length).toBeGreaterThan(0);
+    expect(within(sizingDialog).getByTestId('candidate-apply-cand-applied')).toBeEnabled();
+    expect(within(sizingDialog).getByTestId('candidate-apply-cand-applied')).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sizingDialog).getByTestId('candidate-apply-cand-applied')).toHaveAccessibleName(
+      'Уже выбран кандидат ТЛТ-10',
+    );
+    expect(within(sizingDialog).getByTestId('candidate-apply-cand-next')).toBeEnabled();
+    expect(within(sizingDialog).getByTestId('candidate-apply-cand-next')).toHaveAttribute('aria-pressed', 'false');
+    expect(within(sizingDialog).getByTestId('candidate-apply-cand-duplicate')).toBeEnabled();
+    expect(within(sizingDialog).getByTestId('candidate-apply-cand-duplicate')).toHaveAttribute('aria-pressed', 'false');
 
-    await user.click(within(sizingDialog).getByRole('button', { name: 'Сделать приоритетным' }));
+    await user.click(within(sizingDialog).getByTestId('candidate-apply-cand-duplicate'));
+    expect(applyElectricalCandidate).toHaveBeenCalledWith('cand-duplicate');
+    await waitFor(() => {
+      expect(candidates.filter((candidate) => candidate.is_applied).map((candidate) => candidate.id)).toEqual([
+        'cand-duplicate',
+      ]);
+    });
+    await waitFor(() => {
+      expect(within(sizingDialog).getByTestId('candidate-apply-cand-duplicate')).toHaveAttribute('aria-pressed', 'true');
+    });
+    expect(within(sizingDialog).getByTestId('candidate-apply-cand-applied')).toBeEnabled();
+    expect(within(sizingDialog).getByTestId('candidate-apply-cand-applied')).toHaveAttribute('aria-pressed', 'false');
+    expect(within(sizingDialog).getByTestId('candidate-apply-cand-next')).toBeEnabled();
+    expect(within(sizingDialog).getByTestId('candidate-apply-cand-next')).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(within(sizingDialog).getByTestId('candidate-priority-cand-next'));
     expect(updateElectricalCandidate).toHaveBeenCalledWith(
       'cand-next',
       expect.objectContaining({ is_recommended: true, priority: 10 }),
     );
+    expect(candidates.filter((candidate) => candidate.is_applied).map((candidate) => candidate.id)).toEqual([
+      'cand-duplicate',
+    ]);
 
-    await user.click(within(sizingDialog).getAllByRole('button', { name: 'Исключить вариант' })[0]);
+    await user.click(within(sizingDialog).getByTestId('candidate-exclude-cand-next'));
     expect(updateElectricalCandidate).toHaveBeenCalledWith(
-      'cand-applied',
+      'cand-next',
       expect.objectContaining({ status: 'excluded' }),
     );
+    expect(applyElectricalCandidate).toHaveBeenCalledTimes(1);
   });
 
   it('сохраняет ручные кабели по умолчанию при полном массовом пересчёте', async () => {
@@ -1436,6 +1723,8 @@ describe('ElecCalcPage (integration)', () => {
       tableLabelFormat: 'full',
       settingsLabelFormat: 'full',
       calculationCableSource: 'builtin',
+      cablePickerObjectFields: [...ELECTRICAL_CABLE_PICKER_OBJECT_FIELDS],
+      cablePickerCableFields: [...ELECTRICAL_CABLE_PICKER_CABLE_FIELDS],
     });
   });
 

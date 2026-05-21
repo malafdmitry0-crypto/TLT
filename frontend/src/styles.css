@@ -3333,6 +3333,19 @@ html, body, #root {
   line-height: 20px;
 }
 
+.electrical-selection-reason-cell {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  color: inherit;
+  font-size: var(--heatcalc-table-font-size, 12px);
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .electrical-cable-sizing-controls {
   display: flex;
   flex-wrap: wrap;
@@ -3421,6 +3434,11 @@ html, body, #root {
   line-height: 1.15;
 }
 
+.electrical-cable-sizing-table .ant-table-tbody > tr.electrical-cable-sizing-table__row--error > td,
+.electrical-cable-sizing-table .ant-table-tbody > tr.electrical-cable-sizing-table__row--error:hover > td {
+  background: #fff1f0;
+}
+
 .electrical-cable-sizing-table .ant-table-cell {
   white-space: normal;
 }
@@ -3458,6 +3476,10 @@ html, body, #root {
   align-items: center;
   justify-content: center;
   margin-inline-end: 0;
+}
+
+.electrical-candidate-action-button[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
 }
 
 .electrical-cable-sizing-table .ant-tag {

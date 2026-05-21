@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type HTMLAttributes,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
@@ -102,6 +103,7 @@ import type {
   BatchElectricalResponse,
   ElectricalCandidate,
   ElectricalCalcSummary,
+  ElectricalQueryResponse,
   ElectricalQueryRequest,
 } from '@/types/calculation';
 import {
@@ -214,20 +216,6 @@ const SELECTION_POLICY_OPTIONS = (Object.keys(SELECTION_POLICY_LABEL) as Selecti
     label: SELECTION_POLICY_LABEL[value],
   }),
 );
-const CANDIDATE_STATUS_LABEL: Record<string, string> = {
-  applicable: 'Готов',
-  error: 'Ошибка',
-  not_applicable: 'Не применимо',
-  excluded: 'Исключён',
-  stale: 'Устарел',
-};
-const CANDIDATE_STATUS_COLOR: Record<string, string> = {
-  applicable: 'success',
-  error: 'error',
-  not_applicable: 'default',
-  excluded: 'warning',
-  stale: 'warning',
-};
 const CANDIDATE_FIELD_EXCLUDED_KEYS = new Set([
   'index',
   'object_name',
@@ -236,6 +224,25 @@ const CANDIDATE_FIELD_EXCLUDED_KEYS = new Set([
   'electrical_status',
   'cable_snapshot_status',
 ]);
+const CANDIDATE_COLUMN_PRIORITY = [
+  'cable_type',
+  'cable_mark',
+  'maintain_temperature',
+  'vapor_temperature',
+  'aggressive_product',
+  'applied_selection_policy',
+  'selection_reason',
+  'winding_pitch_mm',
+  'number_of_threads',
+  'laying_step',
+  'heating_height',
+  'connection_type',
+  'supply_voltage',
+  'winding_coefficient',
+] as const;
+const CANDIDATE_COLUMN_PRIORITY_INDEX = new Map<string, number>(
+  CANDIDATE_COLUMN_PRIORITY.map((key, index) => [key, index]),
+);
 const CANDIDATE_ELECTRICAL_COLUMN_METAS = ELECTRICAL_TABLE_COLUMN_CATALOG
   .filter((column) =>
     !CANDIDATE_FIELD_EXCLUDED_KEYS.has(column.key) &&
@@ -245,8 +252,15 @@ const CANDIDATE_ELECTRICAL_COLUMN_METAS = ELECTRICAL_TABLE_COLUMN_CATALOG
       column.source === 'results' ||
       column.source === 'results.commercial'
     ),
-  );
-const CANDIDATE_FIXED_COLUMNS_WIDTH = 54 + 96 + 84 + 86;
+  )
+  .sort((left, right) => {
+    const leftPriority = CANDIDATE_COLUMN_PRIORITY_INDEX.get(left.key) ?? Number.MAX_SAFE_INTEGER;
+    const rightPriority = CANDIDATE_COLUMN_PRIORITY_INDEX.get(right.key) ?? Number.MAX_SAFE_INTEGER;
+    if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+    return 0;
+  });
+const CANDIDATE_MARK_COLUMN_WIDTH = 68;
+const CANDIDATE_FIXED_COLUMNS_WIDTH = CANDIDATE_MARK_COLUMN_WIDTH + 96 + 86;
 const isResistiveCableType = (type: CableTypeKey) => type === 'single_core' || type === 'three_core';
 type CatalogStatusColor = 'default' | 'success' | 'warning' | 'error';
 type CatalogStatus = { label: string; color: CatalogStatusColor };
@@ -445,6 +459,10 @@ function candidateColumnWidth(column: ElectricalColumnMeta) {
     total_power: 120,
     current: 100,
     voltage: 110,
+    maintain_temperature: 84,
+    vapor_temperature: 104,
+    aggressive_product: 72,
+    winding_coefficient: 86,
     price_per_meter: 120,
     required_order_length: 140,
     total_cost: 120,
@@ -452,31 +470,6 @@ function candidateColumnWidth(column: ElectricalColumnMeta) {
     lead_time_days: 110,
   };
   return configured[column.key] ?? Math.max(column.minWidthPx, Math.min(column.width, 150));
-}
-
-function candidateStatusTag(candidate: ElectricalCandidate) {
-  const label = CANDIDATE_STATUS_LABEL[candidate.status] ?? candidate.status;
-  const color = CANDIDATE_STATUS_COLOR[candidate.status] ?? 'default';
-  const icon = candidate.status === 'applicable'
-    ? <CheckCircleFilled />
-    : candidate.status === 'error'
-      ? <CloseCircleFilled />
-      : candidate.status === 'stale'
-        ? '↻'
-        : candidate.status === 'not_applicable' || candidate.status === 'excluded'
-          ? <MinusCircleFilled />
-          : '—';
-  return (
-    <Tooltip title={label}>
-      <Tag
-        aria-label={label}
-        className="electrical-status-icon-tag"
-        color={color}
-      >
-        {icon}
-      </Tag>
-    </Tooltip>
-  );
 }
 
 function renderCandidateElectricalField(
@@ -509,9 +502,8 @@ function renderCandidateElectricalField(
       return (
         <Tooltip title={valueText(reason)}>
           <Text
+            className="electrical-selection-reason-cell"
             type={candidate.reason_message ? 'danger' : 'secondary'}
-            ellipsis
-            style={{ maxWidth: 300 }}
           >
             {valueText(reason)}
           </Text>
@@ -553,7 +545,7 @@ function renderCandidateElectricalField(
     case 'vapor_temperature':
       return numberText(candidate.params?.vapor_temperature, 1);
     case 'maintain_temperature':
-      return numberText(candidate.params?.maintain_temperature, 1);
+      return numberText(candidate.params?.maintain_temperature ?? candidate.params?.process_temperature, 1);
     case 'aggressive_product':
       return valueText(candidate.params?.aggressive_product);
     case 'installed_cable_length':
@@ -1091,6 +1083,7 @@ export default function ElecCalcPage() {
   const [cableSizingMode, setCableSizingMode] = useState<'auto' | 'manual'>('auto');
   const [cableSizingCableType, setCableSizingCableType] = useState<CableTypeKey>('self_regulating');
   const [cableSizingManualMark, setCableSizingManualMark] = useState<string | null>(null);
+  const [markedCableSizingCandidateIds, setMarkedCableSizingCandidateIds] = useState<string[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [tableColumnSettings, setTableColumnSettings] =
     useState<ElectricalTableColumnSettings>(() => {
@@ -1861,6 +1854,56 @@ export default function ElecCalcPage() {
     vaporTemperature,
     windingCoefficient,
   ]);
+  const cableSizingCandidatesQueryKey = useMemo(() => [
+    'project',
+    project?.id,
+    'electrical-candidates',
+    cableSizingModalObjectId,
+    variant,
+  ] as const, [cableSizingModalObjectId, project?.id, variant]);
+  const setCableSizingCandidateApplied = useCallback((
+    candidateId: string | null,
+    appliedCandidate?: ElectricalCandidate,
+  ) => {
+    qc.setQueryData<ElectricalCandidate[]>(
+      cableSizingCandidatesQueryKey,
+      (current) => {
+        const next = current?.map((candidate) => {
+          const isApplied = candidateId !== null && candidate.id === candidateId;
+          return {
+            ...candidate,
+            ...(isApplied && appliedCandidate ? appliedCandidate : {}),
+            is_applied: isApplied,
+          };
+        });
+        if (!next || !appliedCandidate || next.some((candidate) => candidate.id === appliedCandidate.id)) {
+          return next;
+        }
+        return [{ ...appliedCandidate, is_applied: true }, ...next];
+      },
+    );
+  }, [cableSizingCandidatesQueryKey, qc]);
+  const setElectricalQueryCalculation = useCallback((calculation: ElectricalCalcSummary) => {
+    if (!project?.id) return;
+    qc.setQueriesData<ElectricalQueryResponse>(
+      { queryKey: ['project', project.id, 'electrical-query'] },
+      (current) => {
+        if (!current) return current;
+        const replaced = current.calculations.some((calc) =>
+          calc.object_id === calculation.object_id &&
+          calc.variant_number === calculation.variant_number,
+        );
+        const calculations = replaced
+          ? current.calculations.map((calc) =>
+              calc.object_id === calculation.object_id &&
+              calc.variant_number === calculation.variant_number
+                ? calculation
+                : calc)
+          : [...current.calculations, calculation];
+        return { ...current, calculations };
+      },
+    );
+  }, [project?.id, qc]);
   const invalidateCableSizingCandidates = useCallback(() => {
     qc.invalidateQueries({
       queryKey: ['project', project?.id, 'electrical-candidates', cableSizingModalObjectId],
@@ -1878,13 +1921,14 @@ export default function ElecCalcPage() {
         cable_mark: mode === 'manual' ? mark ?? null : null,
         electrical_params: cableSizingCandidateParams,
       }),
-    onSuccess: (candidate) => {
+    onSuccess: ({ candidate, action }) => {
       invalidateCableSizingCandidates();
-      message[candidate.status === 'applicable' ? 'success' : 'warning'](
-        candidate.status === 'applicable'
-          ? 'Вариант подбора рассчитан'
-          : candidate.reason_message || 'Вариант подбора сохранён с диагностикой',
-      );
+      const statusMessage = candidate.status === 'applicable'
+        ? action === 'updated'
+          ? 'Вариант обновлён'
+          : 'Вариант добавлен'
+        : candidate.reason_message || 'Вариант подбора сохранён с диагностикой';
+      message[candidate.status === 'applicable' ? 'success' : 'warning'](statusMessage);
     },
     onError: (error: Error) => message.error(error.message),
   });
@@ -1904,16 +1948,26 @@ export default function ElecCalcPage() {
   });
   const applyCandidateMut = useMutation({
     mutationFn: (candidateId: string) => applyElectricalCandidate(candidateId),
-    onSuccess: () => {
+    onMutate: async (candidateId) => {
+      await qc.cancelQueries({ queryKey: cableSizingCandidatesQueryKey });
+      const previous = qc.getQueryData<ElectricalCandidate[]>(cableSizingCandidatesQueryKey);
+      setCableSizingCandidateApplied(candidateId);
+      return { previous };
+    },
+    onSuccess: ({ candidate, calculation }) => {
+      setCableSizingCandidateApplied(String(candidate.id), candidate);
+      setElectricalQueryCalculation(calculation);
       invalidateCableSizingCandidates();
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
       qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
       message.success('Кандидат применён в электрорасчёт');
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: Error, _candidateId, context) => {
+      if (context?.previous) qc.setQueryData(cableSizingCandidatesQueryKey, context.previous);
+      message.error(error.message);
+    },
   });
-
   const manualCableMut = useMutation({
     mutationFn: async ({
       objectId,
@@ -2016,13 +2070,7 @@ export default function ElecCalcPage() {
     data: cableSizingCandidates = [],
     isFetching: isCableSizingCandidatesFetching,
   } = useQuery({
-    queryKey: [
-      'project',
-      project?.id,
-      'electrical-candidates',
-      cableSizingModalObjectId,
-      variant,
-    ],
+    queryKey: cableSizingCandidatesQueryKey,
     queryFn: () =>
       listElectricalCandidates(project!.id, cableSizingModalObjectId!, variant),
     enabled: !!project && !!cableSizingModalObjectId,
@@ -2146,6 +2194,7 @@ export default function ElecCalcPage() {
     setCableSizingModalObjectId(null);
     setCableSizingMode('auto');
     setCableSizingManualMark(null);
+    setMarkedCableSizingCandidateIds([]);
   }, []);
   const openCableMarkModal = useCallback((obj: ProjectObject) => {
     const calc = stats.calcByObjectId[obj.id];
@@ -2164,6 +2213,7 @@ export default function ElecCalcPage() {
     setActiveRowId(obj.id);
     setCableSizingCableType(type);
     setCableSizingManualMark(getCableMark(calc) ?? null);
+    setMarkedCableSizingCandidateIds([]);
     setCableSizingModalObjectId(obj.id);
   }, [getSavedCableTypeForObject, stats.calcByObjectId]);
   const changeCableMarkModalCableType = useCallback((nextType: CableTypeKey) => {
@@ -2497,14 +2547,13 @@ export default function ElecCalcPage() {
       },
     },
     selection_reason: {
-      ellipsis: true,
       render: (_: unknown, obj) => {
         const reason = currentElectricalCalc(stats.calcByObjectId[obj.id])?.results?.selection_reason;
         return (
           <Tooltip title={valueText(reason)}>
-            <Text style={{ fontSize: 12 }} ellipsis>
+            <span className="electrical-selection-reason-cell">
               {valueText(reason)}
-            </Text>
+            </span>
           </Tooltip>
         );
       },
@@ -2787,7 +2836,9 @@ export default function ElecCalcPage() {
         columnKey: column.key,
         width: Math.max(column.width, column.minWidthPx),
         align: renderer?.align,
-        ellipsis: column.ellipsis || renderer?.ellipsis,
+        ellipsis: column.key === 'selection_reason'
+          ? false
+          : column.ellipsis || renderer?.ellipsis,
         render: renderer?.render ?? (() => '—'),
         sorter: sortEnabled,
         sortOrder: sortEnabled && tableViewState.sort?.columnKey === column.key
@@ -3462,22 +3513,35 @@ export default function ElecCalcPage() {
     );
   }
 
+  function toggleCableSizingCandidateMark(candidateId: string, checked: boolean) {
+    setMarkedCableSizingCandidateIds((current) => {
+      if (checked) {
+        return current.includes(candidateId) ? current : [...current, candidateId];
+      }
+      return current.filter((id) => id !== candidateId);
+    });
+  }
+
+  function cableSizingCandidateRowClassName(candidate: ElectricalCandidate) {
+    if (candidate.status === 'error') {
+      return 'electrical-cable-sizing-table__row--error';
+    }
+    return '';
+  }
+
   const cableSizingCandidateColumns: ColumnsType<ElectricalCandidate> = [
     {
-      title: 'Выбор',
-      key: 'selected',
-      width: 54,
+      title: 'Пометка',
+      key: 'marked',
+      width: CANDIDATE_MARK_COLUMN_WIDTH,
       fixed: 'left',
       align: 'center',
       render: (_value, candidate) => (
         <Checkbox
-          aria-label={`Выбрать кандидат ${candidate.cable_mark ?? candidate.id}`}
-          checked={candidate.is_applied}
-          disabled={candidate.status !== 'applicable' || candidate.is_applied || applyCandidateMut.isPending}
-          onChange={(event) => {
-            if (!event.target.checked) return;
-            applyCandidateMut.mutate(candidate.id);
-          }}
+          aria-label={`Пометить кандидат ${candidate.cable_mark ?? candidate.id}`}
+          data-testid={`candidate-mark-${candidate.id}`}
+          checked={markedCableSizingCandidateIds.includes(candidate.id)}
+          onChange={(event) => toggleCableSizingCandidateMark(candidate.id, event.target.checked)}
         />
       ),
     },
@@ -3487,6 +3551,7 @@ export default function ElecCalcPage() {
       width: 96,
       fixed: 'left',
       render: (_value, candidate) => {
+        const candidateName = candidate.cable_mark ?? candidate.id;
         const applyTooltip = candidate.is_applied
           ? 'Уже выбран'
           : candidate.status !== 'applicable'
@@ -3502,19 +3567,29 @@ export default function ElecCalcPage() {
           <Space size={2} wrap={false} className="electrical-candidate-actions">
             <Tooltip title={applyTooltip}>
               <Button
-                aria-label={applyTooltip}
+                aria-label={`${applyTooltip} кандидат ${candidateName}`}
+                aria-pressed={candidate.is_applied}
+                data-testid={`candidate-apply-${candidate.id}`}
                 className="electrical-candidate-action-button"
                 size="small"
-                type={candidate.is_applied ? 'default' : 'primary'}
+                type={candidate.is_applied ? 'primary' : 'default'}
                 icon={<CheckOutlined />}
-                disabled={candidate.status !== 'applicable' || candidate.is_applied}
-                loading={applyCandidateMut.isPending}
-                onClick={() => applyCandidateMut.mutate(candidate.id)}
+                disabled={
+                  candidate.status !== 'applicable' ||
+                  applyCandidateMut.isPending
+                }
+                loading={applyCandidateMut.isPending && applyCandidateMut.variables === candidate.id}
+                onClick={() => {
+                  if (!candidate.is_applied) {
+                    applyCandidateMut.mutate(candidate.id);
+                  }
+                }}
               />
             </Tooltip>
             <Tooltip title={priorityTooltip}>
               <Button
                 aria-label={priorityTooltip}
+                data-testid={`candidate-priority-${candidate.id}`}
                 className="electrical-candidate-action-button"
                 size="small"
                 type={candidate.is_recommended ? 'primary' : 'default'}
@@ -3532,6 +3607,7 @@ export default function ElecCalcPage() {
             <Tooltip title={exclusionTooltip}>
               <Button
                 aria-label={exclusionTooltip}
+                data-testid={`candidate-exclude-${candidate.id}`}
                 className="electrical-candidate-action-button"
                 size="small"
                 danger={!excluded}
@@ -3550,13 +3626,6 @@ export default function ElecCalcPage() {
       },
     },
     {
-      title: 'Статус',
-      dataIndex: 'status',
-      width: 84,
-      fixed: 'left',
-      render: (_value, candidate) => candidateStatusTag(candidate),
-    },
-    {
       title: 'Режим',
       dataIndex: 'mode',
       width: 86,
@@ -3568,7 +3637,7 @@ export default function ElecCalcPage() {
       key: column.key,
       dataIndex: column.key,
       width: candidateColumnWidth(column),
-      ellipsis: column.ellipsis || column.key === 'selection_reason',
+      ellipsis: column.key === 'selection_reason' ? false : column.ellipsis,
       align: column.key === 'cable_mark' || column.key === 'selection_reason'
         ? ('left' as const)
         : undefined,
@@ -4102,6 +4171,10 @@ export default function ElecCalcPage() {
             className="electrical-cable-sizing-table"
             size="small"
             rowKey="id"
+            onRow={(candidate) => ({
+              'data-testid': `candidate-row-${candidate.id}`,
+            }) as HTMLAttributes<HTMLElement>}
+            rowClassName={cableSizingCandidateRowClassName}
             loading={isCableSizingCandidatesFetching}
             dataSource={cableSizingCandidates}
             columns={cableSizingCandidateColumns}

@@ -245,15 +245,42 @@ Commercial projection встроенной линейки сохраняет т�
 Кандидаты хранятся отдельно от `electrical_calculations`: открытие модалки
 «Подбор» не запускает расчёт и не меняет основной электрорасчёт.
 
-**`POST /calc/electrical/candidates`** — создать кандидат без применения:
+**`POST /calc/electrical/candidates`** — создать или обновить кандидат без
+применения (upsert по инженерному варианту, не журнал запусков):
 `{project_id, object_id, variant_number, cable_type, cable_source, mode,
-cable_mark?, electrical_params}`. `mode=auto` запускает один явный расчёт по
-кнопке без `cable_mark`; `mode=manual` проверяет указанную марку. Endpoint не
-обещает multi-candidate генерацию: если для типа кабеля нет поддержанной
-формулы/генератора, сохраняется диагностический кандидат
-`status=not_applicable`, `reason_code=no_candidate_generator`, без фиктивных
-рекомендаций. Успешный кандидат имеет `status=applicable` и может быть помечен
-инженером как приоритетный/закреплённый/исключённый.
+cable_mark?, electrical_params}`. Ответ:
+`{candidate, action}` где `action` — `created` или `updated`. Повторный расчёт с
+той же маркой и той же конфигурацией применения (нитки, навива, схема,
+напряжение, укладка и т.п.) не создаёт новую строку; `mode`, `selection_policy`,
+`selection_reason` и `number_of_threads_source` на уникальность не влияют.
+Идентичность кабеля при `cable_source=all` определяется
+`cable_snapshot.fingerprint.technical_hash`, затем `catalog_entry_id`, затем
+`actual_catalog_source + mark`, а не значением `all`. `mode=auto` запускает
+один явный расчёт по кнопке без `cable_mark`; `mode=manual` проверяет указанную
+марку. Endpoint не обещает multi-candidate генерацию: если для типа кабеля нет
+поддержанной формулы/генератора,
+сохраняется диагностический кандидат `status=not_applicable`,
+`reason_code=no_candidate_generator`, без фиктивных рекомендаций. Успешный
+кандидат имеет `status=applicable` и может быть помечен инженером как
+приоритетный/закреплённый/исключённый. Статус `excluded` при повторном
+идентичном расчёте сохраняется.
+
+`dedupe_key` строится по матрице `cable_type × object_type`:
+
+| Тип кабеля | Объект | Поля инженерной уникальности |
+|---|---|---|
+| `self_regulating` | труба | `technical/catalog identity`, марка, напряжение, нормализованные нитки, `winding_pitch`, `winding_coefficient` |
+| `self_regulating` | резервуар | `technical/catalog identity`, марка, напряжение, нитки, `heating_height`, resolved `laying_step`, `winding_coefficient` |
+| `self_regulating_tt` | труба | поля трубы + resolved `maintain_temperature`, `vapor_temperature`, `aggressive_product` |
+| `self_regulating_tt` | резервуар | поля резервуара + resolved `maintain_temperature`, `vapor_temperature`, `aggressive_product` |
+| `single_core` / `three_core` | труба | `technical/catalog identity`, марка, напряжение, `scheme_count`, `scheme_threads`, `connection_type`, `winding_pitch`, `winding_coefficient` |
+| `single_core` / `three_core` | резервуар | `technical/catalog identity`, марка, напряжение, `scheme_count`, `scheme_threads`, `connection_type`, `heating_height`, resolved `laying_step`, `winding_coefficient` |
+| `mineral` / `skin` | любой | только diagnostic fingerprint; применимый variant не создаётся до появления методики |
+
+Для резервуаров `winding_pitch` сам по себе не является отдельной
+идентичностью, если он только alias для `laying_step = winding_pitch / 1000`.
+Для резистивных кабелей схема первична: `num_circuits` — производное и не
+заменяет `scheme_count + scheme_threads`.
 
 **`PATCH /calc/electrical/candidates/{id}`** — изменить инженерские пометки:
 `priority`, `is_recommended`, `is_pinned`, `status=excluded|applicable`,

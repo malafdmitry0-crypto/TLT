@@ -6,6 +6,7 @@ import math
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from inspect import isawaitable
 from time import monotonic
 from typing import Any, cast
@@ -15,6 +16,7 @@ from pydantic import ValidationError
 from sqlalchemy import Float, and_, delete, func, or_, select, update
 from sqlalchemy import cast as sa_cast
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
@@ -67,6 +69,7 @@ from app.services.cable_snapshot import (
     lookup_cable_row,
     lookup_cable_row_for_snapshot,
 )
+from app.services.electrical_candidate_dedupe import build_dedupe_key, build_identity_payload
 from app.services.electrical_error_guidance import build_electrical_error_payload
 from app.services.project_object_params import (
     ProjectObjectParamsError,
@@ -2691,10 +2694,12 @@ class CalculationService:
         if isinstance(commercial, dict) and commercial.get("is_discontinued"):
             flags.append({"code": "discontinued", "message": "Кабель снят с поставки"})
         if result_dict.get("applied_selection_policy") == "technical_minimum_fallback":
-            flags.append({
-                "code": "ranking_fallback",
-                "message": "Коммерческое ранжирование заменено техническим fallback",
-            })
+            flags.append(
+                {
+                    "code": "ranking_fallback",
+                    "message": "Коммерческое ранжирование заменено техническим fallback",
+                }
+            )
         return flags
 
     def _candidate_not_applicable(
@@ -2702,12 +2707,35 @@ class CalculationService:
         *,
         project_id: UUID,
         object_id: UUID,
+        object_type: str,
         variant_number: int,
         cable_type: str,
         cable_source: CableSource,
         mode: str,
         cable_mark: str | None,
     ) -> ElectricalCandidate:
+        fingerprint_payload = build_identity_payload(
+            object_type=object_type,
+            cable_type=cable_type,
+            cable_source=cable_source,
+            cable_mark=cable_mark,
+            results=None,
+            params={},
+            cable_snapshot=None,
+            reason_code=ELECTRICAL_CANDIDATE_NO_GENERATOR_CODE,
+            status=ELECTRICAL_CANDIDATE_STATUS_NOT_APPLICABLE,
+        )
+        dedupe_key = build_dedupe_key(
+            object_type=object_type,
+            cable_type=cable_type,
+            cable_source=cable_source,
+            cable_mark=cable_mark,
+            results=None,
+            params={},
+            cable_snapshot=None,
+            reason_code=ELECTRICAL_CANDIDATE_NO_GENERATOR_CODE,
+            status=ELECTRICAL_CANDIDATE_STATUS_NOT_APPLICABLE,
+        )
         return ElectricalCandidate(
             project_id=project_id,
             object_id=object_id,
@@ -2715,6 +2743,7 @@ class CalculationService:
             cable_type=cable_type,
             cable_source=cable_source,
             cable_mark=cable_mark,
+            dedupe_key=dedupe_key,
             mode=mode,
             status=ELECTRICAL_CANDIDATE_STATUS_NOT_APPLICABLE,
             priority=0,
@@ -2731,8 +2760,137 @@ class CalculationService:
             cable_snapshot=None,
             warnings=[],
             risk_flags=[{"code": ELECTRICAL_CANDIDATE_NO_GENERATOR_CODE}],
-            candidate_meta={"autoselection_used": mode == "auto", "candidate_count": 0},
+            candidate_meta={
+                "autoselection_used": mode == "auto",
+                "candidate_count": 0,
+                "fingerprint_payload": fingerprint_payload,
+                "last_mode": mode,
+                "last_calculated_at": datetime.now(UTC).isoformat(),
+            },
         )
+
+    async def _find_electrical_candidate_by_dedupe(
+        self,
+        *,
+        object_id: UUID,
+        variant_number: int,
+        dedupe_key: str,
+    ) -> ElectricalCandidate | None:
+        result = await self.db.execute(
+            select(ElectricalCandidate).where(
+                ElectricalCandidate.object_id == object_id,
+                ElectricalCandidate.variant_number == variant_number,
+                ElectricalCandidate.dedupe_key == dedupe_key,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    def _apply_candidate_upsert(
+        existing: ElectricalCandidate,
+        *,
+        params: dict[str, Any],
+        results: dict[str, Any] | None,
+        cable_snapshot: dict[str, Any] | None,
+        warnings: list[Any],
+        risk_flags: list[Any],
+        reason_code: str | None,
+        reason_message: str | None,
+        cable_mark: str | None,
+        mode: str,
+        new_status: str,
+        candidate_meta: dict[str, Any],
+        upsert_action: str = "updated",
+    ) -> None:
+        existing.params = params
+        existing.results = results
+        existing.cable_snapshot = cable_snapshot
+        existing.warnings = warnings
+        existing.risk_flags = risk_flags
+        existing.reason_code = reason_code
+        existing.reason_message = reason_message
+        existing.cable_mark = cable_mark
+        existing.mode = mode
+        merged_meta = dict(existing.candidate_meta or {})
+        merged_meta.update(candidate_meta)
+        merged_meta["last_mode"] = mode
+        merged_meta["last_upsert_action"] = upsert_action
+        existing.candidate_meta = merged_meta
+
+        if existing.status != ELECTRICAL_CANDIDATE_STATUS_EXCLUDED:
+            if new_status == ELECTRICAL_CANDIDATE_STATUS_APPLICABLE:
+                existing.status = ELECTRICAL_CANDIDATE_STATUS_APPLICABLE
+            else:
+                existing.status = new_status
+
+        if existing.is_applied and new_status != ELECTRICAL_CANDIDATE_STATUS_APPLICABLE:
+            existing.is_applied = False
+
+    async def _persist_electrical_candidate(
+        self,
+        candidate: ElectricalCandidate,
+    ) -> tuple[ElectricalCandidate, str]:
+        existing = await self._find_electrical_candidate_by_dedupe(
+            object_id=candidate.object_id,
+            variant_number=candidate.variant_number,
+            dedupe_key=candidate.dedupe_key,
+        )
+        if existing is not None:
+            self._apply_candidate_upsert(
+                existing,
+                params=candidate.params,
+                results=candidate.results,
+                cable_snapshot=candidate.cable_snapshot,
+                warnings=candidate.warnings,
+                risk_flags=candidate.risk_flags,
+                reason_code=candidate.reason_code,
+                reason_message=candidate.reason_message,
+                cable_mark=candidate.cable_mark,
+                mode=candidate.mode,
+                new_status=candidate.status,
+                candidate_meta=candidate.candidate_meta,
+                upsert_action="updated",
+            )
+            await self.db.commit()
+            await self.db.refresh(existing)
+            return existing, "updated"
+
+        self.db.add(candidate)
+        try:
+            candidate.candidate_meta = {
+                **(candidate.candidate_meta or {}),
+                "last_upsert_action": "created",
+            }
+            await self.db.commit()
+            await self.db.refresh(candidate)
+            return candidate, "created"
+        except IntegrityError:
+            await self.db.rollback()
+            existing = await self._find_electrical_candidate_by_dedupe(
+                object_id=candidate.object_id,
+                variant_number=candidate.variant_number,
+                dedupe_key=candidate.dedupe_key,
+            )
+            if existing is None:
+                raise
+            self._apply_candidate_upsert(
+                existing,
+                params=candidate.params,
+                results=candidate.results,
+                cable_snapshot=candidate.cable_snapshot,
+                warnings=candidate.warnings,
+                risk_flags=candidate.risk_flags,
+                reason_code=candidate.reason_code,
+                reason_message=candidate.reason_message,
+                cable_mark=candidate.cable_mark,
+                mode=candidate.mode,
+                new_status=candidate.status,
+                candidate_meta=candidate.candidate_meta,
+                upsert_action="updated",
+            )
+            await self.db.commit()
+            await self.db.refresh(existing)
+            return existing, "updated"
 
     async def create_electrical_candidate(
         self,
@@ -2745,8 +2903,8 @@ class CalculationService:
         mode: str = "auto",
         cable_mark: str | None = None,
         electrical_params: dict[str, Any] | None = None,
-    ) -> ElectricalCandidate:
-        """Считает и сохраняет кандидат кабеля, не применяя его в ElectricalCalculation."""
+    ) -> tuple[ElectricalCandidate, str]:
+        """Считает и upsert-ит кандидат кабеля, не применяя его в ElectricalCalculation."""
         if variant_number < 1 or variant_number > 4:
             raise CalculationError("variant_number должен быть от 1 до 4")
         if mode not in {"auto", "manual"}:
@@ -2757,20 +2915,19 @@ class CalculationService:
             raise CalculationError("Авторасчёт кандидата запускается без cable_mark")
 
         obj = await self._load_candidate_object(project_id, object_id)
+        object_type = str(getattr(obj.object_type, "value", obj.object_type))
         if cable_type in {"mineral", "skin"}:
             candidate = self._candidate_not_applicable(
                 project_id=project_id,
                 object_id=object_id,
+                object_type=object_type,
                 variant_number=variant_number,
                 cable_type=cable_type,
                 cable_source=cable_source,
                 mode=mode,
                 cable_mark=cable_mark,
             )
-            self.db.add(candidate)
-            await self.db.commit()
-            await self.db.refresh(candidate)
-            return candidate
+            return await self._persist_electrical_candidate(candidate)
 
         request_data: dict[str, Any] = {}
         selected_mark: str | None = cable_mark
@@ -2820,6 +2977,29 @@ class CalculationService:
             reason_code = "candidate_calculation_failed"
             reason_message = _clean_exception_message(exc)
 
+        compact_params = self._compact_electrical_params(request_data)
+        fingerprint_payload = build_identity_payload(
+            object_type=object_type,
+            cable_type=cable_type,
+            cable_source=cable_source,
+            cable_mark=selected_mark,
+            results=result_dict,
+            params=compact_params,
+            cable_snapshot=cable_snapshot,
+            reason_code=reason_code,
+            status=status,
+        )
+        dedupe_key = build_dedupe_key(
+            object_type=object_type,
+            cable_type=cable_type,
+            cable_source=cable_source,
+            cable_mark=selected_mark,
+            results=result_dict,
+            params=compact_params,
+            cable_snapshot=cable_snapshot,
+            reason_code=reason_code,
+            status=status,
+        )
         candidate = ElectricalCandidate(
             project_id=project_id,
             object_id=object_id,
@@ -2827,6 +3007,7 @@ class CalculationService:
             cable_type=cable_type,
             cable_source=cable_source,
             cable_mark=selected_mark,
+            dedupe_key=dedupe_key,
             mode=mode,
             status=status,
             priority=0,
@@ -2835,7 +3016,7 @@ class CalculationService:
             is_applied=False,
             reason_code=reason_code,
             reason_message=reason_message,
-            params=self._compact_electrical_params(request_data),
+            params=compact_params,
             results=result_dict,
             cable_snapshot=cable_snapshot,
             warnings=self._candidate_warnings(result_dict),
@@ -2843,12 +3024,12 @@ class CalculationService:
             candidate_meta={
                 "autoselection_used": mode == "auto",
                 "candidate_count": result_dict.get("candidate_count") if result_dict else 0,
+                "fingerprint_payload": fingerprint_payload,
+                "last_mode": mode,
+                "last_calculated_at": datetime.now(UTC).isoformat(),
             },
         )
-        self.db.add(candidate)
-        await self.db.commit()
-        await self.db.refresh(candidate)
-        return candidate
+        return await self._persist_electrical_candidate(candidate)
 
     async def update_electrical_candidate(
         self,
@@ -2917,6 +3098,28 @@ class CalculationService:
         await self.db.commit()
         await self.db.refresh(candidate)
         return candidate, calc
+
+    async def unapply_electrical_candidate(self, candidate_id: UUID) -> ElectricalCandidate:
+        candidate = await self.get_electrical_candidate(candidate_id)
+        if not candidate.is_applied:
+            return candidate
+
+        candidate.is_applied = False
+        await self.db.execute(
+            delete(ElectricalCalculation).where(
+                ElectricalCalculation.object_id == candidate.object_id,
+                ElectricalCalculation.variant_number == candidate.variant_number,
+            )
+        )
+        await self.mark_project_specifications_stale(
+            candidate.project_id,
+            "electrical_candidate_unapplied",
+            object_ids=[candidate.object_id],
+            operation="candidate_unapply",
+        )
+        await self.db.commit()
+        await self.db.refresh(candidate)
+        return candidate
 
     async def _select_cable_for_object(
         self,

@@ -206,6 +206,7 @@ export interface ElectricalCandidate {
   cable_type: string;
   cable_source: string;
   cable_mark: string | null;
+  dedupe_key: string;
   mode: ElectricalCandidateMode | string;
   status: ElectricalCandidateStatus | string;
   priority: number;
@@ -234,6 +235,11 @@ export interface ElectricalCandidateCreateRequest {
   mode: ElectricalCandidateMode;
   cable_mark?: string | null;
   electrical_params?: Record<string, unknown>;
+}
+
+export interface ElectricalCandidateUpsertResponse {
+  candidate: ElectricalCandidate;
+  action: 'created' | 'updated';
 }
 
 export interface ElectricalCandidateApplyResponse {

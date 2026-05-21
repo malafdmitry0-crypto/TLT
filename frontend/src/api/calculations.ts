@@ -6,6 +6,7 @@ import type {
   ElectricalCandidate,
   ElectricalCandidateApplyResponse,
   ElectricalCandidateCreateRequest,
+  ElectricalCandidateUpsertResponse,
   ElectricalCalcSummary,
   ElectricalPageResponse,
   ElectricalQueryCapabilities,
@@ -119,8 +120,8 @@ export async function listElectricalCandidates(
 
 export async function createElectricalCandidate(
   payload: ElectricalCandidateCreateRequest,
-): Promise<ElectricalCandidate> {
-  const { data } = await apiClient.post<ElectricalCandidate>(
+): Promise<ElectricalCandidateUpsertResponse> {
+  const { data } = await apiClient.post<ElectricalCandidateUpsertResponse>(
     '/calc/electrical/candidates',
     payload,
     withIdempotencyKey(),
@@ -149,6 +150,13 @@ export async function applyElectricalCandidate(
     `/calc/electrical/candidates/${candidateId}/apply`,
     null,
     withIdempotencyKey(),
+  );
+  return data;
+}
+
+export async function unapplyElectricalCandidate(candidateId: string): Promise<ElectricalCandidate> {
+  const { data } = await apiClient.delete<ElectricalCandidate>(
+    `/calc/electrical/candidates/${candidateId}/apply`,
   );
   return data;
 }

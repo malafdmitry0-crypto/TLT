@@ -101,6 +101,7 @@
 | cable_type       | VARCHAR(64)  | NOT NULL                                        | Тип кабеля |
 | cable_source     | VARCHAR(32)  | NOT NULL, default `builtin`                     | База справочника |
 | cable_mark       | VARCHAR(128) | nullable                                        | Марка кандидата |
+| dedupe_key       | VARCHAR(128) | NOT NULL                                        | Стабильный ключ инженерного варианта применения (`v1:<sha256>`) |
 | mode             | VARCHAR(16)  | CHECK `auto` / `manual`                         | Как создан кандидат |
 | status           | VARCHAR(32)  | CHECK `applicable` / `error` / `not_applicable` / `excluded` / `stale` | Статус кандидата |
 | priority         | INTEGER      | NOT NULL, default 0                             | Инженерный приоритет |
@@ -120,9 +121,18 @@
 | updated_at       | TIMESTAMPTZ  | auto-update                                     | |
 
 **Индексы:** `ix_electrical_candidates_project_object_variant` по
-`(project_id, object_id, variant_number)`. Частичный UNIQUE
+`(project_id, object_id, variant_number)`. UNIQUE
+`ux_electrical_candidates_object_variant_dedupe` по
+`(object_id, variant_number, dedupe_key)` — одна строка на уникальный инженерный
+вариант применения кабеля. Частичный UNIQUE
 `ux_electrical_candidates_applied_object_variant` гарантирует, что для одного
 `(object_id, variant_number)` применён только один кандидат.
+
+`dedupe_key` относится только к таблице вариантов `electrical_candidates`.
+Основная таблица `electrical_calculations` остаётся upsert-таблицей одного
+расчёта на `(object_id, variant_number)`. В `candidate_meta.fingerprint_payload`
+хранится диагностический payload ключа: `object_type`, `cable_type`,
+technical/catalog identity и type-specific поля из матрицы уникальности.
 
 ---
 
