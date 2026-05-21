@@ -37,6 +37,10 @@ from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_candidate import ElectricalCandidate
+from app.models.electrical_candidate_folder import (
+    ElectricalCandidateFolder,
+    ElectricalCandidateFolderItem,
+)
 from app.models.project_object import ProjectObject
 from app.reference_data.loader import (
     get_climate_by_city,
@@ -2665,6 +2669,211 @@ class CalculationService:
             )
         )
         return list(result.scalars().all())
+
+    @staticmethod
+    def _normalize_candidate_folder_name(name: str) -> str:
+        normalized = " ".join(name.strip().split())
+        if not normalized:
+            raise CalculationError("Название папки не должно быть пустым")
+        if normalized.lower() in {"все", "избранное"}:
+            raise CalculationError("Это системная папка, задайте другое название")
+        if len(normalized) > 64:
+            raise CalculationError("Название папки должно быть не длиннее 64 символов")
+        return normalized
+
+    async def _candidate_folder_payload(
+        self,
+        folder: ElectricalCandidateFolder,
+    ) -> dict[str, Any]:
+        item_result = await self.db.execute(
+            select(ElectricalCandidateFolderItem.candidate_id).where(
+                ElectricalCandidateFolderItem.folder_id == folder.id
+            )
+        )
+        return {
+            "id": folder.id,
+            "project_id": folder.project_id,
+            "object_id": folder.object_id,
+            "variant_number": folder.variant_number,
+            "name": folder.name,
+            "color": folder.color,
+            "sort_order": folder.sort_order,
+            "candidate_ids": list(item_result.scalars().all()),
+            "created_at": folder.created_at,
+            "updated_at": folder.updated_at,
+        }
+
+    async def list_electrical_candidate_folders(
+        self,
+        project_id: UUID,
+        *,
+        object_id: UUID,
+        variant_number: int,
+    ) -> list[dict[str, Any]]:
+        result = await self.db.execute(
+            select(ElectricalCandidateFolder)
+            .where(
+                ElectricalCandidateFolder.project_id == project_id,
+                ElectricalCandidateFolder.object_id == object_id,
+                ElectricalCandidateFolder.variant_number == variant_number,
+            )
+            .order_by(
+                ElectricalCandidateFolder.sort_order,
+                ElectricalCandidateFolder.created_at,
+            )
+        )
+        folders = list(result.scalars().all())
+        item_result = await self.db.execute(
+            select(
+                ElectricalCandidateFolderItem.folder_id,
+                ElectricalCandidateFolderItem.candidate_id,
+            ).where(
+                ElectricalCandidateFolderItem.folder_id.in_([folder.id for folder in folders])
+            )
+        ) if folders else None
+        folder_items: dict[UUID, list[UUID]] = {folder.id: [] for folder in folders}
+        if item_result is not None:
+            for folder_id, candidate_id in item_result.all():
+                folder_items.setdefault(folder_id, []).append(candidate_id)
+        return [
+            {
+                "id": folder.id,
+                "project_id": folder.project_id,
+                "object_id": folder.object_id,
+                "variant_number": folder.variant_number,
+                "name": folder.name,
+                "color": folder.color,
+                "sort_order": folder.sort_order,
+                "candidate_ids": folder_items.get(folder.id, []),
+                "created_at": folder.created_at,
+                "updated_at": folder.updated_at,
+            }
+            for folder in folders
+        ]
+
+    async def create_electrical_candidate_folder(
+        self,
+        *,
+        project_id: UUID,
+        object_id: UUID,
+        variant_number: int,
+        name: str,
+        color: str | None,
+        created_by_user_id: UUID | None,
+        created_by_session_id: str | None,
+    ) -> dict[str, Any]:
+        if variant_number < 1 or variant_number > 4:
+            raise CalculationError("variant_number должен быть от 1 до 4")
+        await self._load_candidate_object(project_id, object_id)
+        max_sort_result = await self.db.execute(
+            select(func.max(ElectricalCandidateFolder.sort_order)).where(
+                ElectricalCandidateFolder.project_id == project_id,
+                ElectricalCandidateFolder.object_id == object_id,
+                ElectricalCandidateFolder.variant_number == variant_number,
+            )
+        )
+        next_sort = int(max_sort_result.scalar() or 0) + 10
+        folder = ElectricalCandidateFolder(
+            project_id=project_id,
+            object_id=object_id,
+            variant_number=variant_number,
+            name=self._normalize_candidate_folder_name(name),
+            color=color,
+            sort_order=next_sort,
+            created_by_user_id=created_by_user_id,
+            created_by_session_id=created_by_session_id,
+        )
+        self.db.add(folder)
+        try:
+            await self.db.commit()
+        except IntegrityError as exc:
+            await self.db.rollback()
+            raise CalculationError("Папка с таким названием уже существует") from exc
+        await self.db.refresh(folder)
+        return await self._candidate_folder_payload(folder)
+
+    async def get_electrical_candidate_folder(
+        self,
+        folder_id: UUID,
+    ) -> ElectricalCandidateFolder:
+        result = await self.db.execute(
+            select(ElectricalCandidateFolder).where(ElectricalCandidateFolder.id == folder_id)
+        )
+        folder = result.scalar_one_or_none()
+        if folder is None:
+            raise CalculationError("Папка вариантов не найдена")
+        return folder
+
+    async def update_electrical_candidate_folder(
+        self,
+        folder_id: UUID,
+        **updates: Any,
+    ) -> dict[str, Any]:
+        folder = await self.get_electrical_candidate_folder(folder_id)
+        if "name" in updates and updates["name"] is not None:
+            folder.name = self._normalize_candidate_folder_name(str(updates["name"]))
+        if "color" in updates:
+            folder.color = updates["color"]
+        if "sort_order" in updates and updates["sort_order"] is not None:
+            folder.sort_order = int(updates["sort_order"])
+        try:
+            await self.db.commit()
+        except IntegrityError as exc:
+            await self.db.rollback()
+            raise CalculationError("Папка с таким названием уже существует") from exc
+        await self.db.refresh(folder)
+        return await self._candidate_folder_payload(folder)
+
+    async def delete_electrical_candidate_folder(self, folder_id: UUID) -> None:
+        folder = await self.get_electrical_candidate_folder(folder_id)
+        await self.db.delete(folder)
+        await self.db.commit()
+
+    async def add_electrical_candidate_to_folder(
+        self,
+        *,
+        folder_id: UUID,
+        candidate_id: UUID,
+    ) -> dict[str, Any]:
+        folder = await self.get_electrical_candidate_folder(folder_id)
+        candidate = await self.get_electrical_candidate(candidate_id)
+        if (
+            candidate.project_id != folder.project_id
+            or candidate.object_id != folder.object_id
+            or candidate.variant_number != folder.variant_number
+        ):
+            raise CalculationError("Кандидат не относится к этой папке")
+        stmt = (
+            pg_insert(ElectricalCandidateFolderItem)
+            .values(folder_id=folder_id, candidate_id=candidate_id)
+            .on_conflict_do_nothing(
+                index_elements=[
+                    ElectricalCandidateFolderItem.folder_id,
+                    ElectricalCandidateFolderItem.candidate_id,
+                ]
+            )
+        )
+        await self.db.execute(stmt)
+        await self.db.commit()
+        await self.db.refresh(folder)
+        return await self._candidate_folder_payload(folder)
+
+    async def remove_electrical_candidate_from_folder(
+        self,
+        *,
+        folder_id: UUID,
+        candidate_id: UUID,
+    ) -> dict[str, Any]:
+        folder = await self.get_electrical_candidate_folder(folder_id)
+        await self.db.execute(
+            delete(ElectricalCandidateFolderItem).where(
+                ElectricalCandidateFolderItem.folder_id == folder_id,
+                ElectricalCandidateFolderItem.candidate_id == candidate_id,
+            )
+        )
+        await self.db.commit()
+        await self.db.refresh(folder)
+        return await self._candidate_folder_payload(folder)
 
     async def _load_candidate_object(self, project_id: UUID, object_id: UUID) -> ProjectObject:
         result = await self.db.execute(

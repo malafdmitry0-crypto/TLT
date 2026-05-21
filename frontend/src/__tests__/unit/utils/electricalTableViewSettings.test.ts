@@ -1,8 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  ELECTRICAL_CABLE_PICKER_CABLE_FIELDS,
-  ELECTRICAL_CABLE_PICKER_OBJECT_FIELDS,
   ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY,
   getDefaultElectricalTableViewSettings,
   normalizeElectricalTableViewSettings,
@@ -15,9 +13,9 @@ describe('electricalTableViewSettings', () => {
     localStorage.clear();
   });
 
-  it('keeps fixed cable picker field arrays in normalized payloads', () => {
+  it('normalizes only table view controls', () => {
     expect(normalizeElectricalTableViewSettings({
-      version: 3,
+      version: 1,
       fontSize: 'compact',
       tableLabelFormat: 'full',
       settingsLabelFormat: 'compact',
@@ -25,37 +23,33 @@ describe('electricalTableViewSettings', () => {
       cablePickerObjectFields: null,
       cablePickerCableFields: ['source'],
     })).toEqual({
-      version: 3,
+      version: 4,
       fontSize: 'compact',
       tableLabelFormat: 'full',
       settingsLabelFormat: 'compact',
       calculationCableSource: 'extended',
-      cablePickerObjectFields: [...ELECTRICAL_CABLE_PICKER_OBJECT_FIELDS],
-      cablePickerCableFields: [...ELECTRICAL_CABLE_PICKER_CABLE_FIELDS],
     });
   });
 
-  it('writes guest settings with backend-required fixed field arrays', () => {
+  it('writes guest settings without cable picker field arrays', () => {
     writeGuestElectricalTableViewSettings({
       ...getDefaultElectricalTableViewSettings(),
       fontSize: 'comfortable',
       tableLabelFormat: 'full',
       settingsLabelFormat: 'short',
       calculationCableSource: 'all',
-      cablePickerObjectFields: [],
-      cablePickerCableFields: [],
     });
 
     const stored = JSON.parse(localStorage.getItem(ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
     expect(stored).toMatchObject({
-      version: 3,
+      version: 4,
       fontSize: 'comfortable',
       tableLabelFormat: 'full',
       settingsLabelFormat: 'short',
       calculationCableSource: 'all',
-      cablePickerObjectFields: [...ELECTRICAL_CABLE_PICKER_OBJECT_FIELDS],
-      cablePickerCableFields: [...ELECTRICAL_CABLE_PICKER_CABLE_FIELDS],
     });
+    expect(stored).not.toHaveProperty('cablePickerObjectFields');
+    expect(stored).not.toHaveProperty('cablePickerCableFields');
     expect(readGuestElectricalTableViewSettings()).toEqual(stored);
   });
 });

@@ -26,6 +26,23 @@
 - **Гость**: заголовок `X-Session-Id: <session_id>` (выдаётся `POST /auth/guest`)
 - **Сотрудник / Админ**: заголовок `Authorization: Bearer <JWT>` (JWT от `POST /auth/login`)
 
+## Пользовательские UI-настройки
+
+**`GET/PUT /preferences/{key}`** доступен сотрудникам и администраторам для
+сохранения пользовательских настроек интерфейса. Гости используют только
+localStorage в браузере. Поддержанные electrical-ключи:
+
+- `electrical.tableColumns.v5` — видимость, порядок и ширина основной таблицы
+  электрорасчёта;
+- `electrical.tableView.v4` — размер шрифта, формат заголовков и база
+  пересчёта;
+- `electrical.candidateTableColumns.v1` — видимость, порядок и ширина таблицы
+  кандидатов в модалке `Подбор`.
+
+Backend валидирует версии, список известных колонок, обязательные колонки и
+диапазон `widthPct=3..60`. Настройки таблицы кандидатов не переиспользуют state
+основной таблицы.
+
 ## Доступ к проектам
 
 - **Гость** видит и открывает только проекты своей `session_id`.
@@ -285,6 +302,32 @@ cable_mark?, electrical_params}`. Ответ:
 **`PATCH /calc/electrical/candidates/{id}`** — изменить инженерские пометки:
 `priority`, `is_recommended`, `is_pinned`, `status=excluded|applicable`,
 `engineer_comment`.
+
+**`GET /calc/electrical/candidate-folders?project_id=&object_id=&variant_number=`** —
+список пользовательских папок модалки «Подбор» для одного объекта и CO.
+Папки — это быстрые фильтры видимости поверх `electrical_candidates`, а не
+отдельное хранилище вариантов. Системные папки `Все` и `Избранное` UI строит
+сам: `Все` показывает весь список, `Избранное` фильтрует по `is_pinned`.
+
+**`POST /calc/electrical/candidate-folders`** — создать пользовательскую папку:
+`{project_id, object_id, variant_number, name, color?}`. Scope первого релиза:
+`project_id + object_id + variant_number`; папка относится только к текущей
+модалке конкретного объекта/CO.
+
+**`PATCH /calc/electrical/candidate-folders/{id}`** — переименовать папку,
+изменить `color` или `sort_order`.
+
+**`DELETE /calc/electrical/candidate-folders/{id}`** — удалить папку и её связи
+с кандидатами. Сами `electrical_candidates` не удаляются.
+
+**`POST /calc/electrical/candidate-folders/{id}/items`** —
+добавить кандидат в пользовательскую папку: `{candidate_id}`. Один кандидат
+может быть в нескольких пользовательских папках. Повторное добавление
+идемпотентно.
+
+**`DELETE /calc/electrical/candidate-folders/{id}/items/{candidate_id}`** —
+убрать кандидат из пользовательской папки. Основной электрорасчёт и статус
+кандидата не меняются.
 
 **`POST /calc/electrical/candidates/{id}/apply`** — применить кандидат в
 основной электрорасчёт выбранного объекта и СО. Backend пересчитывает текущие

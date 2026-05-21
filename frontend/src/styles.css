@@ -2815,6 +2815,15 @@ html, body, #root {
   gap: 6px;
 }
 
+.column-layout-list--candidate {
+  min-width: 840px;
+}
+
+.column-layout-header--candidate,
+.column-layout-row--candidate {
+  grid-template-columns: 28px 42px 64px minmax(240px, 1fr) 96px 20px 34px;
+}
+
 .column-layout-header {
   position: sticky;
   top: 0;
@@ -3411,6 +3420,41 @@ html, body, #root {
   max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.electrical-candidate-folders {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 2px 0;
+}
+
+.electrical-candidate-folders__scroll {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.electrical-candidate-folder-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.electrical-candidate-folder-count {
+  margin-left: 4px;
+  opacity: 0.72;
+}
+
+.electrical-candidate-folder-menu.ant-btn-sm {
+  width: 24px;
+  min-width: 24px;
+  padding: 0;
 }
 
 .electrical-cable-sizing-table {

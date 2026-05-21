@@ -184,7 +184,8 @@ async function openCandidateDialog(page: Page, pipeName: string) {
   await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
   const row = page.getByRole('row').filter({ hasText: pipeName }).first();
   await expect(row).toBeVisible();
-  await row.click();
+  await row.getByRole('cell', { name: pipeName }).click();
+  await expect(row).toHaveClass(/electrical-row-active/);
   await row.getByRole('button', { name: 'Подбор' }).click();
 
   const dialog = page.getByRole('dialog', { name: /Подбор кабеля/ });
@@ -193,7 +194,7 @@ async function openCandidateDialog(page: Page, pipeName: string) {
 }
 
 test.describe('electrical candidate selection', () => {
-  test('пометка, приоритет и запрет не меняют выбранный кандидат', async ({ page }) => {
+  test('пометка, избранное и запрет не меняют выбранный кандидат', async ({ page }) => {
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E candidate marker ${Date.now()}`;
@@ -236,9 +237,13 @@ test.describe('electrical candidate selection', () => {
     await expectAppliedCandidateIds(page, projectId, sessionId, pipe.id, [first.candidate.id]);
     await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, 'ТЛТ-10');
 
-    await dialog.getByTestId(`candidate-priority-${second.candidate.id}`).click();
+    await dialog.getByTestId(`candidate-favorite-${second.candidate.id}`).click();
     await expectAppliedCandidateIds(page, projectId, sessionId, pipe.id, [first.candidate.id]);
     await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, 'ТЛТ-10');
+    await dialog.getByRole('button', { name: /Избранное/ }).click();
+    await expect(dialog.getByTestId(`candidate-row-${second.candidate.id}`)).toBeVisible();
+    await expect(dialog.getByTestId(`candidate-row-${first.candidate.id}`)).toHaveCount(0);
+    await dialog.getByRole('button', { name: /Все/ }).click();
 
     await dialog.getByTestId(`candidate-exclude-${second.candidate.id}`).click();
     await expect(dialog.getByTestId(`candidate-row-${second.candidate.id}`)).not.toHaveClass(
@@ -246,6 +251,36 @@ test.describe('electrical candidate selection', () => {
     );
     await expectAppliedCandidateIds(page, projectId, sessionId, pipe.id, [first.candidate.id]);
     await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, 'ТЛТ-10');
+  });
+
+  test('пользовательская папка фильтрует варианты и не меняет основной расчёт', async ({ page }) => {
+    await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
+    const pipeName = `E2E candidate folder ${Date.now()}`;
+    const pipe = await createCalculatedPipe(page, pipeName, {
+      pipe_length: 3,
+      insulation_thickness: 0.15,
+      ambient_temperature: 29,
+      process_temperature: 30,
+    });
+    const first = await createManualCandidate(page, projectId, sessionId, pipe.id, 'ТЛТ-10');
+    const second = await createManualCandidate(page, projectId, sessionId, pipe.id, 'ТЛТ-20');
+
+    const dialog = await openCandidateDialog(page, pipeName);
+    await dialog.getByRole('button', { name: /Папка/ }).click();
+    const folderDialog = page.getByRole('dialog', { name: 'Новая папка' });
+    await folderDialog.getByLabel('Название папки вариантов').fill('Согласовать');
+    await folderDialog.getByRole('button', { name: 'Создать' }).click();
+    await expect(dialog.getByRole('button', { name: /^Согласовать\s+0$/ })).toBeVisible();
+
+    await dialog.getByRole('button', { name: /Все/ }).click();
+    await dialog.getByTestId(`candidate-folder-${second.candidate.id}`).click();
+    await page.getByRole('menuitem', { name: 'Согласовать' }).click();
+    await dialog.getByRole('button', { name: /^Согласовать\s+1$/ }).click();
+
+    await expect(dialog.getByTestId(`candidate-row-${second.candidate.id}`)).toBeVisible();
+    await expect(dialog.getByTestId(`candidate-row-${first.candidate.id}`)).toHaveCount(0);
+    await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, null);
   });
 
   test('повторный идентичный авторасчёт не создаёт дубль', async ({ page }) => {

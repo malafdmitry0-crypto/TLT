@@ -1073,6 +1073,47 @@ class ElectricalCandidateApplyResponse(BaseModel):
     calculation: ElectricalCalcSummary
 
 
+class ElectricalCandidateFolderCreateRequest(BaseModel):
+    """Создание пользовательской папки вариантов подбора."""
+
+    project_id: UUID
+    object_id: UUID
+    variant_number: int = Field(default=1, ge=1, le=4)
+    name: str = Field(min_length=1, max_length=64)
+    color: str | None = Field(default=None, max_length=32)
+
+
+class ElectricalCandidateFolderUpdateRequest(BaseModel):
+    """Редактирование пользовательской папки вариантов подбора."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=64)
+    color: str | None = Field(default=None, max_length=32)
+    sort_order: int | None = Field(default=None, ge=0)
+
+
+class ElectricalCandidateFolderResponse(BaseModel):
+    """Пользовательская папка вариантов подбора."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    project_id: UUID
+    object_id: UUID
+    variant_number: int
+    name: str
+    color: str | None = None
+    sort_order: int
+    candidate_ids: list[UUID] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+
+class ElectricalCandidateFolderItemRequest(BaseModel):
+    """Добавление кандидата в пользовательскую папку."""
+
+    candidate_id: UUID
+
+
 class ElectricalPageSummary(BaseModel):
     """Агрегаты страницы электрорасчёта без передачи всех строк в браузер."""
 

@@ -247,6 +247,33 @@ export interface ElectricalCandidateApplyResponse {
   calculation: ElectricalCalcSummary;
 }
 
+export interface ElectricalCandidateFolder {
+  id: string;
+  project_id: string;
+  object_id: string;
+  variant_number: number;
+  name: string;
+  color?: string | null;
+  sort_order: number;
+  candidate_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ElectricalCandidateFolderCreateRequest {
+  project_id: string;
+  object_id: string;
+  variant_number: number;
+  name: string;
+  color?: string | null;
+}
+
+export interface ElectricalCandidateFolderUpdateRequest {
+  name?: string | null;
+  color?: string | null;
+  sort_order?: number | null;
+}
+
 export interface ElectricalPageSummary {
   total_objects: number;
   valid_objects: number;

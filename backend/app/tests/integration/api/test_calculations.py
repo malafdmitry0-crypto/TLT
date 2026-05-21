@@ -636,6 +636,20 @@ class TestElectricalCandidateDedupe:
         assert resp.status_code == 200, resp.text
         return _candidate_upsert_payload(resp)
 
+    async def _create_candidate_folder(self, client, session_id, project_id, object_id, name: str):
+        resp = await client.post(
+            "/api/v1/calc/electrical/candidate-folders",
+            json={
+                "project_id": project_id,
+                "object_id": object_id,
+                "variant_number": 1,
+                "name": name,
+            },
+            headers={"X-Session-Id": session_id},
+        )
+        assert resp.status_code == 200, resp.text
+        return resp.json()
+
     async def test_duplicate_post_updates_single_row(
         self, client: AsyncClient, guest_session: str, db_session: AsyncSession
     ):
@@ -659,6 +673,160 @@ class TestElectricalCandidateDedupe:
         assert action_second == "updated"
         assert first["id"] == second["id"]
         assert await self._count_candidates(db_session, obj["id"], 1) == 1
+
+    async def test_candidate_custom_folder_persists_membership_and_filters_only_candidates(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        first, _ = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "ТЛТ-75",
+                "electrical_params": {"number_of_threads": 1},
+            },
+        )
+        second, _ = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "ТЛТ-75",
+                "electrical_params": {"number_of_threads": 2},
+            },
+        )
+        folder = await self._create_candidate_folder(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            "Согласовать",
+        )
+
+        add_resp = await client.post(
+            f"/api/v1/calc/electrical/candidate-folders/{folder['id']}/items",
+            json={"candidate_id": first["id"]},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert add_resp.status_code == 200, add_resp.text
+        assert add_resp.json()["candidate_ids"] == [first["id"]]
+
+        duplicate_add = await client.post(
+            f"/api/v1/calc/electrical/candidate-folders/{folder['id']}/items",
+            json={"candidate_id": first["id"]},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert duplicate_add.status_code == 200, duplicate_add.text
+        assert duplicate_add.json()["candidate_ids"] == [first["id"]]
+
+        list_resp = await client.get(
+            "/api/v1/calc/electrical/candidate-folders",
+            params={
+                "project_id": project["id"],
+                "object_id": obj["id"],
+                "variant_number": 1,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert list_resp.status_code == 200, list_resp.text
+        assert list_resp.json()[0]["candidate_ids"] == [first["id"]]
+
+        # Папка не применяет кандидат и не пишет в основную таблицу расчётов.
+        calcs = await client.get(
+            "/api/v1/calc/electrical",
+            params={"project_id": project["id"], "variant_number": 1},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert calcs.status_code == 200, calcs.text
+        assert calcs.json() == []
+
+        remove_resp = await client.delete(
+            f"/api/v1/calc/electrical/candidate-folders/{folder['id']}/items/{first['id']}",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert remove_resp.status_code == 200, remove_resp.text
+        assert remove_resp.json()["candidate_ids"] == []
+
+        add_second = await client.post(
+            f"/api/v1/calc/electrical/candidate-folders/{folder['id']}/items",
+            json={"candidate_id": second["id"]},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert add_second.status_code == 200, add_second.text
+        delete_resp = await client.delete(
+            f"/api/v1/calc/electrical/candidate-folders/{folder['id']}",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert delete_resp.status_code == 204, delete_resp.text
+        candidates = await client.get(
+            "/api/v1/calc/electrical/candidates",
+            params={
+                "project_id": project["id"],
+                "object_id": obj["id"],
+                "variant_number": 1,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert candidates.status_code == 200, candidates.text
+        assert {candidate["id"] for candidate in candidates.json()} == {first["id"], second["id"]}
+
+    async def test_candidate_folder_membership_survives_identical_upsert(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+        first, _ = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {"cable_type": "self_regulating", "cable_source": "builtin", "mode": "auto"},
+        )
+        folder = await self._create_candidate_folder(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            "В работе",
+        )
+        add_resp = await client.post(
+            f"/api/v1/calc/electrical/candidate-folders/{folder['id']}/items",
+            json={"candidate_id": first["id"]},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert add_resp.status_code == 200, add_resp.text
+
+        second, action = await self._post_candidate(
+            client,
+            guest_session,
+            project["id"],
+            obj["id"],
+            {"cable_type": "self_regulating", "cable_source": "builtin", "mode": "auto"},
+        )
+        assert action == "updated"
+        assert second["id"] == first["id"]
+
+        list_resp = await client.get(
+            "/api/v1/calc/electrical/candidate-folders",
+            params={
+                "project_id": project["id"],
+                "object_id": obj["id"],
+                "variant_number": 1,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert list_resp.status_code == 200, list_resp.text
+        assert list_resp.json()[0]["candidate_ids"] == [first["id"]]
 
     async def test_auto_and_manual_same_configuration_do_not_duplicate(
         self, client: AsyncClient, guest_session: str, db_session: AsyncSession

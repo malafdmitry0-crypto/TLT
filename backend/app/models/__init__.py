@@ -8,6 +8,10 @@ from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_candidate import ElectricalCandidate
+from app.models.electrical_candidate_folder import (
+    ElectricalCandidateFolder,
+    ElectricalCandidateFolderItem,
+)
 from app.models.guest_session import GuestSession
 from app.models.insulation_material import InsulationMaterial
 from app.models.project import Project, ProjectStatus
@@ -33,6 +37,8 @@ __all__ = [
     "RefreshSession",
     "ElectricalCalculation",
     "ElectricalCandidate",
+    "ElectricalCandidateFolder",
+    "ElectricalCandidateFolderItem",
     "Specification",
     "CorrectionCoefficient",
     "CableExtended",

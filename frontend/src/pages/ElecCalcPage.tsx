@@ -34,8 +34,13 @@ import {
   CloseCircleFilled,
   CloseCircleOutlined,
   CopyOutlined,
+  DeleteOutlined,
+  EditOutlined,
   FilterFilled,
+  FolderOutlined,
   MinusCircleFilled,
+  MoreOutlined,
+  PlusOutlined,
   ReloadOutlined,
   StarFilled,
   StarOutlined,
@@ -50,16 +55,22 @@ import type { ColumnsType } from 'antd/es/table';
 
 import {
   applyElectricalCandidate,
+  addElectricalCandidateToFolder,
   cancelCalcTask,
   copyElectricalVariant,
   createElectricalCandidate,
+  createElectricalCandidateFolder,
+  deleteElectricalCandidateFolder,
   enqueueElectricalBatchJob,
+  listElectricalCandidateFolders,
   listElectricalCandidates,
   getElectricalQueryCapabilities,
   getCalcTask,
   listCables,
   queryElectrical,
   selectCableForVariants,
+  removeElectricalCandidateFromFolder,
+  updateElectricalCandidateFolder,
   updateElectricalCandidate,
   type CableSource,
   type CopyElectricalVariantResponse,
@@ -96,18 +107,19 @@ import { formatNumber, formatPower } from '@/utils/formatters';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import CablePickerCharacteristics from '@/components/electrical/CablePickerCharacteristics';
+import ElectricalCandidateColumnSettingsModal from '@/components/electrical/ElectricalCandidateColumnSettingsModal';
 import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalColumnSettingsModal';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject, ProjectObjectsPageCursor } from '@/types/project';
 import type {
   BatchElectricalResponse,
   ElectricalCandidate,
+  ElectricalCandidateFolder,
   ElectricalCalcSummary,
   ElectricalQueryResponse,
   ElectricalQueryRequest,
 } from '@/types/calculation';
 import {
-  ELECTRICAL_TABLE_COLUMN_CATALOG,
   ELECTRICAL_TABLE_COLUMN_PREF_KEY,
   clampElectricalTableColumnWidthPct,
   clearRegisteredElectricalTableColumnCache,
@@ -127,10 +139,30 @@ import {
   setElectricalTableColumnWidthPct,
   writeGuestElectricalTableColumnSettings,
   writeRegisteredElectricalTableColumnCache,
-  type ElectricalColumnMeta,
   type ElectricalColumnKey,
   type ElectricalTableColumnSettings,
 } from '@/utils/electricalTableColumns';
+import {
+  ELECTRICAL_CANDIDATE_TABLE_COLUMN_PREF_KEY,
+  clearRegisteredElectricalCandidateTableColumnCache,
+  createElectricalCandidateTableColumnSettingsPatch,
+  getAvailableElectricalCandidateTableColumnKeys,
+  getDefaultElectricalCandidateTableColumnSettings,
+  getVisibleElectricalCandidateTableColumnMetas,
+  moveElectricalCandidateTableColumnToOrder,
+  normalizeElectricalCandidateTableColumnSettings,
+  readGuestElectricalCandidateTableColumnSettings,
+  readRegisteredElectricalCandidateTableColumnCache,
+  reorderElectricalCandidateTableColumn,
+  resetElectricalCandidateTableColumnSettings,
+  resetElectricalCandidateTableColumnWidth,
+  setElectricalCandidateTableColumnVisibility,
+  setElectricalCandidateTableColumnWidthPct,
+  writeGuestElectricalCandidateTableColumnSettings,
+  writeRegisteredElectricalCandidateTableColumnCache,
+  type ElectricalCandidateColumnKey,
+  type ElectricalCandidateTableColumnSettings,
+} from '@/utils/electricalCandidateTableColumns';
 import {
   ELECTRICAL_TABLE_VIEW_PREF_KEY,
   clearRegisteredElectricalTableViewCache,
@@ -152,11 +184,14 @@ import {
   visibleCableRowsForSource,
 } from '@/utils/cableCatalogSourceLabels';
 import {
+  applyColumnFilters,
+  applyTableSort,
   createEmptyTableViewState,
   hasActiveTableViewState,
   isColumnFilterActive,
   removeHiddenTableViewState,
   type HeatCalcColumnFilter,
+  type HeatCalcColumnValueAccessors,
   type HeatCalcTableViewState,
 } from '@/utils/heatCalcTableFindability';
 import type {
@@ -216,51 +251,11 @@ const SELECTION_POLICY_OPTIONS = (Object.keys(SELECTION_POLICY_LABEL) as Selecti
     label: SELECTION_POLICY_LABEL[value],
   }),
 );
-const CANDIDATE_FIELD_EXCLUDED_KEYS = new Set([
-  'index',
-  'object_name',
-  'object_type',
-  'heat_loss_status',
-  'electrical_status',
-  'cable_snapshot_status',
-]);
-const CANDIDATE_COLUMN_PRIORITY = [
-  'cable_type',
-  'cable_mark',
-  'maintain_temperature',
-  'vapor_temperature',
-  'aggressive_product',
-  'applied_selection_policy',
-  'selection_reason',
-  'winding_pitch_mm',
-  'number_of_threads',
-  'laying_step',
-  'heating_height',
-  'connection_type',
-  'supply_voltage',
-  'winding_coefficient',
-] as const;
-const CANDIDATE_COLUMN_PRIORITY_INDEX = new Map<string, number>(
-  CANDIDATE_COLUMN_PRIORITY.map((key, index) => [key, index]),
-);
-const CANDIDATE_ELECTRICAL_COLUMN_METAS = ELECTRICAL_TABLE_COLUMN_CATALOG
-  .filter((column) =>
-    !CANDIDATE_FIELD_EXCLUDED_KEYS.has(column.key) &&
-    (
-      column.source === 'electrical_calculations' ||
-      column.source === 'params' ||
-      column.source === 'results' ||
-      column.source === 'results.commercial'
-    ),
-  )
-  .sort((left, right) => {
-    const leftPriority = CANDIDATE_COLUMN_PRIORITY_INDEX.get(left.key) ?? Number.MAX_SAFE_INTEGER;
-    const rightPriority = CANDIDATE_COLUMN_PRIORITY_INDEX.get(right.key) ?? Number.MAX_SAFE_INTEGER;
-    if (leftPriority !== rightPriority) return leftPriority - rightPriority;
-    return 0;
-  });
-const CANDIDATE_MARK_COLUMN_WIDTH = 68;
-const CANDIDATE_FIXED_COLUMNS_WIDTH = CANDIDATE_MARK_COLUMN_WIDTH + 96 + 86;
+type CandidateFolderKey = 'all' | 'favorite' | `custom:${string}`;
+type CandidateFolderModalMode = 'create' | 'rename';
+const candidateCustomFolderKey = (folderId: string): CandidateFolderKey => `custom:${folderId}`;
+const candidateCustomFolderId = (key: CandidateFolderKey): string | null =>
+  key.startsWith('custom:') ? key.slice('custom:'.length) : null;
 const isResistiveCableType = (type: CableTypeKey) => type === 'single_core' || type === 'three_core';
 type CatalogStatusColor = 'default' | 'success' | 'warning' | 'error';
 type CatalogStatus = { label: string; color: CatalogStatusColor };
@@ -361,6 +356,46 @@ type ElectricalTableColumnPreferenceMutation = {
   showMessage?: boolean;
 };
 
+type ElectricalCandidateTableColumnPreferenceMutation = {
+  settings: ElectricalCandidateTableColumnSettings;
+  closeModal?: boolean;
+  showMessage?: boolean;
+};
+
+const CANDIDATE_NUMERIC_FILTER_KEYS = new Set<ElectricalCandidateColumnKey>([
+  'winding_pitch_mm',
+  'number_of_threads',
+  'laying_step',
+  'heating_height',
+  'supply_voltage',
+  'winding_coefficient',
+  'vapor_temperature',
+  'maintain_temperature',
+  'installed_cable_length',
+  'order_cable_length',
+  'total_power',
+  'current',
+  'voltage',
+  'price_per_meter',
+  'required_order_length',
+  'total_cost',
+  'lead_time_days',
+]);
+
+const CANDIDATE_ENUM_FILTER_KEYS = new Set<ElectricalCandidateColumnKey>([
+  'mode',
+  'cable_type',
+  'connection_type',
+  'selection_policy',
+  'applied_selection_policy',
+  'stock_status',
+]);
+
+const CANDIDATE_BOOLEAN_FILTER_KEYS = new Set<ElectricalCandidateColumnKey>([
+  'marked',
+  'aggressive_product',
+]);
+
 type ElectricalTableSettingsPreferenceMutation = {
   columnSettings: ElectricalTableColumnSettings;
   viewSettings: ElectricalTableViewSettings;
@@ -445,31 +480,75 @@ function candidateThreadSource(candidate: ElectricalCandidate): ThreadSource | n
     : null;
 }
 
-function candidateColumnWidth(column: ElectricalColumnMeta) {
-  const configured: Record<string, number> = {
-    cable_mark: 190,
-    cable_snapshot_status: 120,
-    selection_policy: 130,
-    applied_selection_policy: 150,
-    selection_reason: 320,
-    winding_pitch_mm: 120,
-    number_of_threads: 110,
-    installed_cable_length: 130,
-    order_cable_length: 130,
-    total_power: 120,
-    current: 100,
-    voltage: 110,
-    maintain_temperature: 84,
-    vapor_temperature: 104,
-    aggressive_product: 72,
-    winding_coefficient: 86,
-    price_per_meter: 120,
-    required_order_length: 140,
-    total_cost: 120,
-    stock_status: 120,
-    lead_time_days: 110,
-  };
-  return configured[column.key] ?? Math.max(column.minWidthPx, Math.min(column.width, 150));
+function candidateElectricalFieldValue(
+  key: ElectricalCandidateColumnKey,
+  candidate: ElectricalCandidate,
+  marked = false,
+) {
+  switch (key) {
+    case 'marked':
+      return marked;
+    case 'mode':
+      return candidate.mode === 'auto' ? 'Авто' : 'Ручной';
+    case 'cable_type':
+      return CABLE_TYPE_LABEL[candidate.cable_type as CableTypeKey] ?? candidate.cable_type;
+    case 'cable_mark':
+      return candidate.cable_mark;
+    case 'selection_policy':
+      return selectionPolicyText(candidate.results?.selection_policy);
+    case 'applied_selection_policy':
+      return selectionPolicyText(candidate.results?.applied_selection_policy);
+    case 'selection_reason':
+      return candidate.reason_message ?? candidate.results?.selection_reason;
+    case 'winding_pitch_mm':
+      return candidate.results?.winding_pitch;
+    case 'number_of_threads':
+      return candidate.results?.num_circuits;
+    case 'laying_step':
+      return candidate.params?.laying_step;
+    case 'heating_height':
+      return candidate.params?.heating_height;
+    case 'connection_type': {
+      const value = candidate.params?.connection_type;
+      return CONNECTION_TYPE_LABEL[String(value)] ?? value;
+    }
+    case 'supply_voltage':
+      return candidate.params?.supply_voltage;
+    case 'winding_coefficient':
+      return candidate.params?.winding_coefficient;
+    case 'vapor_temperature':
+      return candidate.params?.vapor_temperature;
+    case 'maintain_temperature':
+      return candidate.params?.maintain_temperature ?? candidate.params?.process_temperature;
+    case 'aggressive_product':
+      return typeof candidate.params?.aggressive_product === 'boolean'
+        ? candidate.params.aggressive_product
+        : undefined;
+    case 'installed_cable_length':
+      return candidate.results?.installed_cable_length;
+    case 'order_cable_length':
+      return candidateOrderCableLengthValue(candidate);
+    case 'total_power':
+      return candidate.results?.total_power;
+    case 'current':
+      return candidate.results?.current;
+    case 'voltage':
+      return candidate.results?.voltage;
+    case 'price_per_meter':
+      return candidateCommercialValue(candidate, 'price_per_meter');
+    case 'required_order_length':
+      return candidateCommercialValue(candidate, 'required_order_length');
+    case 'total_cost':
+      return candidateCommercialValue(candidate, 'total_cost');
+    case 'stock_status': {
+      const value = candidateCommercialValue(candidate, 'stock_status');
+      return typeof value === 'string' ? STOCK_STATUS_LABEL[value] ?? value : undefined;
+    }
+    case 'lead_time_days':
+      return candidateCommercialValue(candidate, 'lead_time_days');
+    default:
+      return candidate.results?.[key] ?? candidate.params?.[key];
+  }
 }
 
 function renderCandidateElectricalField(
@@ -486,7 +565,7 @@ function renderCandidateElectricalField(
             {candidate.cable_mark ?? '—'}
           </Text>
           {candidate.is_recommended && <Tag color="blue" style={{ marginInlineEnd: 0 }}>приор.</Tag>}
-          {candidate.is_pinned && <Tag color="purple" style={{ marginInlineEnd: 0 }}>закреп.</Tag>}
+          {candidate.is_pinned && <Tag color="purple" style={{ marginInlineEnd: 0 }}>избр.</Tag>}
         </Space>
       );
     case 'cable_snapshot_status':
@@ -804,6 +883,13 @@ function filterKindForElectricalColumn(
   return 'text';
 }
 
+function filterKindForCandidateColumn(key: ElectricalCandidateColumnKey): ElectricalFilterKind {
+  if (CANDIDATE_BOOLEAN_FILTER_KEYS.has(key)) return 'boolean';
+  if (CANDIDATE_NUMERIC_FILTER_KEYS.has(key)) return 'numberRange';
+  if (CANDIDATE_ENUM_FILTER_KEYS.has(key)) return 'enum';
+  return 'text';
+}
+
 function backendFilterFromElectricalColumnFilter(
   key: ElectricalColumnKey,
   filter: HeatCalcColumnFilter,
@@ -1084,6 +1170,14 @@ export default function ElecCalcPage() {
   const [cableSizingCableType, setCableSizingCableType] = useState<CableTypeKey>('self_regulating');
   const [cableSizingManualMark, setCableSizingManualMark] = useState<string | null>(null);
   const [markedCableSizingCandidateIds, setMarkedCableSizingCandidateIds] = useState<string[]>([]);
+  const [activeCandidateFolderKey, setActiveCandidateFolderKey] =
+    useState<CandidateFolderKey>('all');
+  const [candidateFolderModalMode, setCandidateFolderModalMode] =
+    useState<CandidateFolderModalMode>('create');
+  const [candidateFolderModalOpen, setCandidateFolderModalOpen] = useState(false);
+  const [candidateFolderName, setCandidateFolderName] = useState('');
+  const [editingCandidateFolder, setEditingCandidateFolder] =
+    useState<ElectricalCandidateFolder | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [tableColumnSettings, setTableColumnSettings] =
     useState<ElectricalTableColumnSettings>(() => {
@@ -1093,6 +1187,15 @@ export default function ElecCalcPage() {
         return cached ?? getDefaultElectricalTableColumnSettings();
       }
       return readGuestElectricalTableColumnSettings();
+    });
+  const [candidateTableColumnSettings, setCandidateTableColumnSettings] =
+    useState<ElectricalCandidateTableColumnSettings>(() => {
+      const auth = useAuthStore.getState();
+      const cached = readRegisteredElectricalCandidateTableColumnCache(auth.user?.id ?? null);
+      if (auth.role === 'employee' || auth.role === 'admin') {
+        return cached ?? getDefaultElectricalCandidateTableColumnSettings();
+      }
+      return readGuestElectricalCandidateTableColumnSettings();
     });
   const [tableViewSettings, setTableViewSettings] =
     useState<ElectricalTableViewSettings>(() => {
@@ -1107,13 +1210,19 @@ export default function ElecCalcPage() {
     ? tableViewSettings.calculationCableSource
     : 'builtin';
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
+  const [candidateColumnSettingsOpen, setCandidateColumnSettingsOpen] = useState(false);
   const [draftTableColumnSettings, setDraftTableColumnSettings] =
     useState<ElectricalTableColumnSettings>(() => tableColumnSettings);
+  const [draftCandidateTableColumnSettings, setDraftCandidateTableColumnSettings] =
+    useState<ElectricalCandidateTableColumnSettings>(() => candidateTableColumnSettings);
   const [draftTableViewSettings, setDraftTableViewSettings] =
     useState<ElectricalTableViewSettings>(() => tableViewSettings);
   const tableColumnSettingsRef = useRef(tableColumnSettings);
+  const candidateTableColumnSettingsRef = useRef(candidateTableColumnSettings);
   const tableViewSettingsRef = useRef(tableViewSettings);
   const [tableViewState, setTableViewState] =
+    useState<HeatCalcTableViewState>(() => createEmptyTableViewState());
+  const [candidateTableViewState, setCandidateTableViewState] =
     useState<HeatCalcTableViewState>(() => createEmptyTableViewState());
   const [electricalPageCursors, setElectricalPageCursors] =
     useState<Record<number, ProjectObjectsPageCursor | null>>({ 1: null });
@@ -1139,6 +1248,10 @@ export default function ElecCalcPage() {
   }, [tableColumnSettings]);
 
   useEffect(() => {
+    candidateTableColumnSettingsRef.current = candidateTableColumnSettings;
+  }, [candidateTableColumnSettings]);
+
+  useEffect(() => {
     tableViewSettingsRef.current = tableViewSettings;
   }, [tableViewSettings]);
 
@@ -1149,6 +1262,10 @@ export default function ElecCalcPage() {
   useEffect(() => {
     setActiveRowId(null);
   }, [project?.id, variant, tablePage, tablePageSize]);
+
+  useEffect(() => {
+    setCandidateTableViewState(createEmptyTableViewState());
+  }, [cableSizingModalObjectId]);
 
   useEffect(() => {
     setElectricalPageCursors({ 1: null });
@@ -1397,6 +1514,16 @@ export default function ElecCalcPage() {
     staleTime: 30_000,
   });
 
+  const { data: persistedCandidateTableColumnPreference } = useQuery({
+    queryKey: ['preference', ELECTRICAL_CANDIDATE_TABLE_COLUMN_PREF_KEY],
+    queryFn: () =>
+      getUserPreference<ElectricalCandidateTableColumnSettings>(
+        ELECTRICAL_CANDIDATE_TABLE_COLUMN_PREF_KEY,
+      ),
+    enabled: isRegisteredUser,
+    staleTime: 30_000,
+  });
+
   const { data: persistedTableViewPreference } = useQuery({
     queryKey: ['preference', ELECTRICAL_TABLE_VIEW_PREF_KEY],
     queryFn: () =>
@@ -1422,6 +1549,28 @@ export default function ElecCalcPage() {
     },
     onError: (error) => {
       message.error(error instanceof Error ? error.message : 'Не удалось сохранить настройки таблицы');
+    },
+  });
+
+  const updateCandidateTableColumnPreference = useMutation({
+    mutationFn: ({ settings }: ElectricalCandidateTableColumnPreferenceMutation) =>
+      updateUserPreference<ElectricalCandidateTableColumnSettings>(
+        ELECTRICAL_CANDIDATE_TABLE_COLUMN_PREF_KEY,
+        normalizeElectricalCandidateTableColumnSettings(settings),
+      ),
+    onSuccess: (preference, variables) => {
+      const normalized = normalizeElectricalCandidateTableColumnSettings(preference.value);
+      setCandidateTableColumnSettings(normalized);
+      if (preference.user_id) {
+        writeRegisteredElectricalCandidateTableColumnCache(preference.user_id, normalized);
+      }
+      if (variables.closeModal) setCandidateColumnSettingsOpen(false);
+      if (variables.showMessage !== false) message.success('Настройки таблицы подбора сохранены');
+    },
+    onError: (error) => {
+      message.error(
+        error instanceof Error ? error.message : 'Не удалось сохранить настройки таблицы подбора',
+      );
     },
   });
 
@@ -1466,11 +1615,16 @@ export default function ElecCalcPage() {
         readRegisteredElectricalTableColumnCache(registeredUserId) ??
           getDefaultElectricalTableColumnSettings(),
       );
+      setCandidateTableColumnSettings(
+        readRegisteredElectricalCandidateTableColumnCache(registeredUserId) ??
+          getDefaultElectricalCandidateTableColumnSettings(),
+      );
       tableViewSettingsRef.current = registeredViewSettings;
       setTableViewSettings(registeredViewSettings);
       return;
     }
     setTableColumnSettings(readGuestElectricalTableColumnSettings());
+    setCandidateTableColumnSettings(readGuestElectricalCandidateTableColumnSettings());
     const guestViewSettings = readGuestElectricalTableViewSettings();
     tableViewSettingsRef.current = guestViewSettings;
     setTableViewSettings(guestViewSettings);
@@ -1496,6 +1650,27 @@ export default function ElecCalcPage() {
     );
     setTableColumnSettings(getDefaultElectricalTableColumnSettings());
   }, [isRegisteredUser, persistedTableColumnPreference, registeredUserId]);
+
+  useEffect(() => {
+    if (!isRegisteredUser || !persistedCandidateTableColumnPreference) return;
+    if (persistedCandidateTableColumnPreference.value) {
+      const normalized = normalizeElectricalCandidateTableColumnSettings(
+        persistedCandidateTableColumnPreference.value,
+      );
+      setCandidateTableColumnSettings(normalized);
+      if (persistedCandidateTableColumnPreference.user_id) {
+        writeRegisteredElectricalCandidateTableColumnCache(
+          persistedCandidateTableColumnPreference.user_id,
+          normalized,
+        );
+      }
+      return;
+    }
+    clearRegisteredElectricalCandidateTableColumnCache(
+      registeredUserId ?? persistedCandidateTableColumnPreference.user_id,
+    );
+    setCandidateTableColumnSettings(getDefaultElectricalCandidateTableColumnSettings());
+  }, [isRegisteredUser, persistedCandidateTableColumnPreference, registeredUserId]);
 
   useEffect(() => {
     if (!isRegisteredUser || !persistedTableViewPreference) return;
@@ -1861,6 +2036,13 @@ export default function ElecCalcPage() {
     cableSizingModalObjectId,
     variant,
   ] as const, [cableSizingModalObjectId, project?.id, variant]);
+  const cableSizingCandidateFoldersQueryKey = useMemo(() => [
+    'project',
+    project?.id,
+    'electrical-candidate-folders',
+    cableSizingModalObjectId,
+    variant,
+  ] as const, [cableSizingModalObjectId, project?.id, variant]);
   const setCableSizingCandidateApplied = useCallback((
     candidateId: string | null,
     appliedCandidate?: ElectricalCandidate,
@@ -1909,6 +2091,11 @@ export default function ElecCalcPage() {
       queryKey: ['project', project?.id, 'electrical-candidates', cableSizingModalObjectId],
     });
   }, [cableSizingModalObjectId, project?.id, qc]);
+  const invalidateCableSizingCandidateFolders = useCallback(() => {
+    qc.invalidateQueries({
+      queryKey: cableSizingCandidateFoldersQueryKey,
+    });
+  }, [cableSizingCandidateFoldersQueryKey, qc]);
   const createCandidateMut = useMutation({
     mutationFn: ({ mode, mark }: { mode: 'auto' | 'manual'; mark?: string | null }) =>
       createElectricalCandidate({
@@ -1944,6 +2131,60 @@ export default function ElecCalcPage() {
       >>;
     }) => updateElectricalCandidate(candidateId, patch),
     onSuccess: invalidateCableSizingCandidates,
+    onError: (error: Error) => message.error(error.message),
+  });
+  const createCandidateFolderMut = useMutation({
+    mutationFn: () => createElectricalCandidateFolder({
+      project_id: project!.id,
+      object_id: cableSizingModalObjectId!,
+      variant_number: variant,
+      name: candidateFolderName.trim(),
+    }),
+    onSuccess: (folder) => {
+      invalidateCableSizingCandidateFolders();
+      setActiveCandidateFolderKey(candidateCustomFolderKey(folder.id));
+      setCandidateFolderModalOpen(false);
+      setCandidateFolderName('');
+      message.success('Папка создана');
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+  const updateCandidateFolderMut = useMutation({
+    mutationFn: ({ folderId, name }: { folderId: string; name: string }) =>
+      updateElectricalCandidateFolder(folderId, { name }),
+    onSuccess: () => {
+      invalidateCableSizingCandidateFolders();
+      setCandidateFolderModalOpen(false);
+      setCandidateFolderName('');
+      setEditingCandidateFolder(null);
+      message.success('Папка переименована');
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+  const deleteCandidateFolderMut = useMutation({
+    mutationFn: deleteElectricalCandidateFolder,
+    onSuccess: (_result, folderId) => {
+      invalidateCableSizingCandidateFolders();
+      if (activeCandidateFolderKey === candidateCustomFolderKey(folderId)) {
+        setActiveCandidateFolderKey('all');
+      }
+      message.success('Папка удалена');
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+  const toggleCandidateFolderItemMut = useMutation({
+    mutationFn: ({
+      folderId,
+      candidateId,
+      checked,
+    }: {
+      folderId: string;
+      candidateId: string;
+      checked: boolean;
+    }) => checked
+      ? addElectricalCandidateToFolder(folderId, candidateId)
+      : removeElectricalCandidateFromFolder(folderId, candidateId),
+    onSuccess: invalidateCableSizingCandidateFolders,
     onError: (error: Error) => message.error(error.message),
   });
   const applyCandidateMut = useMutation({
@@ -2075,6 +2316,12 @@ export default function ElecCalcPage() {
       listElectricalCandidates(project!.id, cableSizingModalObjectId!, variant),
     enabled: !!project && !!cableSizingModalObjectId,
   });
+  const { data: cableSizingCandidateFolders = [] } = useQuery({
+    queryKey: cableSizingCandidateFoldersQueryKey,
+    queryFn: () =>
+      listElectricalCandidateFolders(project!.id, cableSizingModalObjectId!, variant),
+    enabled: !!project && !!cableSizingModalObjectId,
+  });
   const appliedCableSizingCandidate = useMemo(
     () => cableSizingCandidates.find((candidate) => candidate.is_applied) ?? null,
     [cableSizingCandidates],
@@ -2195,6 +2442,11 @@ export default function ElecCalcPage() {
     setCableSizingMode('auto');
     setCableSizingManualMark(null);
     setMarkedCableSizingCandidateIds([]);
+    setActiveCandidateFolderKey('all');
+    setCandidateFolderModalOpen(false);
+    setEditingCandidateFolder(null);
+    setCandidateFolderName('');
+    setCandidateColumnSettingsOpen(false);
   }, []);
   const openCableMarkModal = useCallback((obj: ProjectObject) => {
     const calc = stats.calcByObjectId[obj.id];
@@ -2214,6 +2466,7 @@ export default function ElecCalcPage() {
     setCableSizingCableType(type);
     setCableSizingManualMark(getCableMark(calc) ?? null);
     setMarkedCableSizingCandidateIds([]);
+    setActiveCandidateFolderKey('all');
     setCableSizingModalObjectId(obj.id);
   }, [getSavedCableTypeForObject, stats.calcByObjectId]);
   const changeCableMarkModalCableType = useCallback((nextType: CableTypeKey) => {
@@ -2271,6 +2524,13 @@ export default function ElecCalcPage() {
     ),
     [normalizedTableViewSettings.tableLabelFormat, tableColumnSettings],
   );
+  const visibleCandidateColumnMetas = useMemo(
+    () => getVisibleElectricalCandidateTableColumnMetas(
+      candidateTableColumnSettings,
+      normalizedTableViewSettings.tableLabelFormat,
+    ),
+    [candidateTableColumnSettings, normalizedTableViewSettings.tableLabelFormat],
+  );
   const resolvedTableFontSize = useMemo(
     () => resolveElectricalTableFontSize(normalizedTableViewSettings),
     [normalizedTableViewSettings],
@@ -2278,6 +2538,10 @@ export default function ElecCalcPage() {
   const visibleElectricalColumnKeys = useMemo(
     () => visibleElectricalColumnMetas.map((meta) => meta.key),
     [visibleElectricalColumnMetas],
+  );
+  const visibleCandidateColumnKeys = useMemo(
+    () => visibleCandidateColumnMetas.map((meta) => meta.key),
+    [visibleCandidateColumnMetas],
   );
   const fieldCapabilityByKey = useMemo(
     () => new Map(electricalQueryCapabilities?.fields.map((field) => [field.key, field]) ?? []),
@@ -2295,6 +2559,89 @@ export default function ElecCalcPage() {
     return result;
   }, [electricalQueryCapabilities]);
   const currentTableViewActive = hasActiveTableViewState(tableViewState);
+  const candidateTableViewActive = hasActiveTableViewState(candidateTableViewState);
+  const candidateColumnValueAccessors = useMemo<HeatCalcColumnValueAccessors<ElectricalCandidate>>(() => {
+    const markedIds = new Set(markedCableSizingCandidateIds);
+    const accessors: HeatCalcColumnValueAccessors<ElectricalCandidate> = {};
+    for (const column of visibleCandidateColumnMetas) {
+      if (column.key === 'actions') continue;
+      accessors[column.key] = (candidate) =>
+        candidateElectricalFieldValue(column.key, candidate, markedIds.has(candidate.id));
+    }
+    return accessors;
+  }, [markedCableSizingCandidateIds, visibleCandidateColumnMetas]);
+  const activeCustomCandidateFolderId = candidateCustomFolderId(activeCandidateFolderKey);
+  const activeCustomCandidateFolder = useMemo(
+    () => activeCustomCandidateFolderId
+      ? cableSizingCandidateFolders.find((folder) => folder.id === activeCustomCandidateFolderId) ?? null
+      : null,
+    [activeCustomCandidateFolderId, cableSizingCandidateFolders],
+  );
+  const cableSizingCandidatesByActiveFolder = useMemo(() => {
+    if (activeCandidateFolderKey === 'favorite') {
+      return cableSizingCandidates.filter((candidate) => candidate.is_pinned);
+    }
+    if (activeCustomCandidateFolder) {
+      const ids = new Set(activeCustomCandidateFolder.candidate_ids);
+      return cableSizingCandidates.filter((candidate) => ids.has(candidate.id));
+    }
+    return cableSizingCandidates;
+  }, [activeCandidateFolderKey, activeCustomCandidateFolder, cableSizingCandidates]);
+  const candidateFolderCounts = useMemo(() => {
+    const allIds = new Set(cableSizingCandidates.map((candidate) => candidate.id));
+    return {
+      all: cableSizingCandidates.length,
+      favorite: cableSizingCandidates.filter((candidate) => candidate.is_pinned).length,
+      custom: new Map(
+        cableSizingCandidateFolders.map((folder) => [
+          folder.id,
+          folder.candidate_ids.filter((candidateId) => allIds.has(candidateId)).length,
+        ]),
+      ),
+    };
+  }, [cableSizingCandidateFolders, cableSizingCandidates]);
+  useEffect(() => {
+    if (activeCustomCandidateFolderId && !activeCustomCandidateFolder) {
+      setActiveCandidateFolderKey('all');
+    }
+  }, [activeCustomCandidateFolder, activeCustomCandidateFolderId]);
+  const cableSizingCandidateTableRows = useMemo(
+    () => cableSizingCandidatesByActiveFolder.map((record, sourceIndex) => ({ record, sourceIndex })),
+    [cableSizingCandidatesByActiveFolder],
+  );
+  const displayedCableSizingCandidates = useMemo(() => {
+    const sortedRows = applyTableSort(
+      applyColumnFilters(
+        cableSizingCandidateTableRows,
+        candidateTableViewState.filters,
+        candidateColumnValueAccessors,
+      ),
+      candidateTableViewState.sort,
+      candidateColumnValueAccessors,
+    );
+    const appliedRows = sortedRows.filter((row) => row.record.is_applied);
+    const otherRows = sortedRows.filter((row) => !row.record.is_applied);
+    return [...appliedRows, ...otherRows].map((row) => row.record);
+  }, [cableSizingCandidateTableRows, candidateColumnValueAccessors, candidateTableViewState]);
+  const candidateEnumOptionsByColumn = useMemo(() => {
+    const result: Record<string, Array<{ value: string; label: string }>> = {};
+    for (const column of visibleCandidateColumnMetas) {
+      if (filterKindForCandidateColumn(column.key) !== 'enum') continue;
+      const accessor = candidateColumnValueAccessors[column.key];
+      if (!accessor) continue;
+      const values = new Map<string, string>();
+      cableSizingCandidates.forEach((candidate, index) => {
+        const value = accessor(candidate, index);
+        if (value === null || value === undefined || value === '' || value === '—') return;
+        const text = String(value);
+        values.set(text, text);
+      });
+      result[column.key] = [...values.values()]
+        .sort((left, right) => left.localeCompare(right, 'ru', { numeric: true, sensitivity: 'base' }))
+        .map((value) => ({ value, label: value }));
+    }
+    return result;
+  }, [cableSizingCandidates, candidateColumnValueAccessors, visibleCandidateColumnMetas]);
 
   useEffect(() => {
     setTableViewState((current) => {
@@ -2308,6 +2655,19 @@ export default function ElecCalcPage() {
       return cleaned;
     });
   }, [visibleElectricalColumnKeys]);
+
+  useEffect(() => {
+    setCandidateTableViewState((current) => {
+      const cleaned = removeHiddenTableViewState(current, visibleCandidateColumnKeys);
+      if (
+        cleaned.sort === current.sort
+        && Object.keys(cleaned.filters).length === Object.keys(current.filters).length
+      ) {
+        return current;
+      }
+      return cleaned;
+    });
+  }, [visibleCandidateColumnKeys]);
 
   const setColumnFilter = useCallback((columnKey: ElectricalColumnKey, filter?: HeatCalcColumnFilter) => {
     setTablePage(1);
@@ -2334,6 +2694,32 @@ export default function ElecCalcPage() {
     setTableViewState(createEmptyTableViewState());
   }, []);
 
+  const setCandidateColumnFilter = useCallback((
+    columnKey: ElectricalCandidateColumnKey,
+    filter?: HeatCalcColumnFilter,
+  ) => {
+    setCandidateTableViewState((current) => {
+      const nextFilters = { ...current.filters };
+      if (filter && isColumnFilterActive(filter)) {
+        nextFilters[columnKey] = filter;
+      } else {
+        delete nextFilters[columnKey];
+      }
+      return {
+        ...current,
+        filters: nextFilters,
+      };
+    });
+  }, []);
+
+  const resetCandidateColumnFilter = useCallback((columnKey: ElectricalCandidateColumnKey) => {
+    setCandidateColumnFilter(columnKey, undefined);
+  }, [setCandidateColumnFilter]);
+
+  const resetCandidateTableViewState = useCallback(() => {
+    setCandidateTableViewState(createEmptyTableViewState());
+  }, []);
+
   const handleElectricalTableChange = useCallback<NonNullable<TableProps<ProjectObject>['onChange']>>((pagination, _filters, sorter, extra) => {
     const nextPage = extra.action === 'sort' ? 1 : pagination.current ?? 1;
     setTablePage(nextPage);
@@ -2348,6 +2734,24 @@ export default function ElecCalcPage() {
         : null;
     const order = nextSorter?.order;
     setTableViewState((current) => ({
+      ...current,
+      sort: columnKey && order
+        ? { columnKey, direction: order === 'ascend' ? 'asc' : 'desc' }
+        : undefined,
+    }));
+  }, []);
+
+  const handleCandidateTableChange = useCallback<NonNullable<TableProps<ElectricalCandidate>['onChange']>>((_pagination, _filters, sorter) => {
+    const nextSorter = Array.isArray(sorter)
+      ? sorter.find((item) => item.order)
+      : sorter;
+    const columnKey = typeof nextSorter?.columnKey === 'string'
+      ? nextSorter.columnKey
+      : typeof nextSorter?.column?.key === 'string'
+        ? nextSorter.column.key
+        : null;
+    const order = nextSorter?.order;
+    setCandidateTableViewState((current) => ({
       ...current,
       sort: columnKey && order
         ? { columnKey, direction: order === 'ascend' ? 'asc' : 'desc' }
@@ -2743,6 +3147,26 @@ export default function ElecCalcPage() {
     if (options.showMessage !== false) message.success('Настройки таблицы сохранены');
   }, [isRegisteredUser, registeredUserId, updateTableColumnPreference]);
 
+  const persistCandidateTableColumnSettings = useCallback((
+    settings: ElectricalCandidateTableColumnSettings,
+    options: { closeModal?: boolean; showMessage?: boolean } = {},
+  ) => {
+    const normalized = normalizeElectricalCandidateTableColumnSettings(settings);
+    setCandidateTableColumnSettings(normalized);
+    if (isRegisteredUser) {
+      clearRegisteredElectricalCandidateTableColumnCache(registeredUserId);
+      updateCandidateTableColumnPreference.mutate({
+        settings: normalized,
+        closeModal: options.closeModal,
+        showMessage: options.showMessage,
+      });
+      return;
+    }
+    writeGuestElectricalCandidateTableColumnSettings(normalized);
+    if (options.closeModal) setCandidateColumnSettingsOpen(false);
+    if (options.showMessage !== false) message.success('Настройки таблицы подбора сохранены');
+  }, [isRegisteredUser, registeredUserId, updateCandidateTableColumnPreference]);
+
   const persistTableSettings = useCallback((
     columnSettings: ElectricalTableColumnSettings,
     viewSettings: ElectricalTableViewSettings,
@@ -2775,6 +3199,18 @@ export default function ElecCalcPage() {
     );
     persistTableColumnSettings(nextSettings, { showMessage: false });
   }, [persistTableColumnSettings]);
+
+  const applyCandidateColumnWidth = useCallback((
+    key: ElectricalCandidateColumnKey,
+    widthPct: number,
+  ) => {
+    const nextSettings = setElectricalCandidateTableColumnWidthPct(
+      candidateTableColumnSettingsRef.current,
+      key,
+      clampElectricalTableColumnWidthPct(widthPct),
+    );
+    persistCandidateTableColumnSettings(nextSettings, { showMessage: false });
+  }, [persistCandidateTableColumnSettings]);
 
   const startColumnResize = useCallback((
     meta: { key: ElectricalColumnKey; width: number; widthPct: number },
@@ -2815,6 +3251,46 @@ export default function ElecCalcPage() {
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
   }, [applyColumnWidth]);
+
+  const startCandidateColumnResize = useCallback((
+    meta: { key: ElectricalCandidateColumnKey; width: number; widthPct: number },
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth = meta.width;
+    let latestWidthPct = meta.widthPct;
+    let frameId: number | null = null;
+
+    function flushDraftWidth() {
+      frameId = null;
+      setCandidateTableColumnSettings((settings) =>
+        setElectricalCandidateTableColumnWidthPct(settings, meta.key, latestWidthPct),
+      );
+    }
+
+    function handlePointerMove(pointerEvent: PointerEvent) {
+      const nextWidthPx = Math.max(30, startWidth + pointerEvent.clientX - startX);
+      latestWidthPct = electricalTableColumnWidthPxToPct(nextWidthPx);
+      if (frameId == null) {
+        frameId = window.requestAnimationFrame(flushDraftWidth);
+      }
+    }
+
+    function handlePointerUp() {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      if (frameId != null) {
+        window.cancelAnimationFrame(frameId);
+        frameId = null;
+      }
+      applyCandidateColumnWidth(meta.key, latestWidthPct);
+    }
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }, [applyCandidateColumnWidth]);
 
   const electricalColumns = useMemo<ColumnsType<ProjectObject>>(() =>
     visibleElectricalColumnMetas.map((column) => {
@@ -3028,6 +3504,13 @@ export default function ElecCalcPage() {
     setColumnSettingsOpen(true);
   }
 
+  function openCandidateColumnSettings() {
+    setDraftCandidateTableColumnSettings(
+      normalizeElectricalCandidateTableColumnSettings(candidateTableColumnSettings),
+    );
+    setCandidateColumnSettingsOpen(true);
+  }
+
   const cablePickerModalTitle = (
     <div className="electrical-cable-picker-title">
       <span className="electrical-cable-picker-title-text">Выбор марки кабеля</span>
@@ -3140,6 +3623,62 @@ export default function ElecCalcPage() {
     const normalized = normalizeElectricalTableColumnSettings(draftTableColumnSettings);
     const normalizedView = normalizeElectricalTableViewSettings(draftTableViewSettings);
     persistTableSettings(normalized, normalizedView);
+  }
+
+  function updateDraftCandidateColumn(key: ElectricalCandidateColumnKey, checked: boolean) {
+    setDraftCandidateTableColumnSettings((settings) =>
+      setElectricalCandidateTableColumnVisibility(settings, key, checked),
+    );
+  }
+
+  function updateDraftCandidateColumnOrder(key: ElectricalCandidateColumnKey, order: number) {
+    setDraftCandidateTableColumnSettings((settings) =>
+      moveElectricalCandidateTableColumnToOrder(settings, key, order),
+    );
+  }
+
+  function reorderDraftCandidateColumn(
+    activeKey: ElectricalCandidateColumnKey,
+    overKey: ElectricalCandidateColumnKey,
+  ) {
+    setDraftCandidateTableColumnSettings((settings) =>
+      reorderElectricalCandidateTableColumn(settings, activeKey, overKey),
+    );
+  }
+
+  function updateDraftCandidateColumnWidth(
+    key: ElectricalCandidateColumnKey,
+    widthPct: number,
+  ) {
+    setDraftCandidateTableColumnSettings((settings) =>
+      setElectricalCandidateTableColumnWidthPct(settings, key, widthPct),
+    );
+  }
+
+  function resetDraftCandidateColumnWidth(key: ElectricalCandidateColumnKey) {
+    setDraftCandidateTableColumnSettings((settings) =>
+      resetElectricalCandidateTableColumnWidth(settings, key),
+    );
+  }
+
+  function resetDraftCandidateColumns() {
+    setDraftCandidateTableColumnSettings(resetElectricalCandidateTableColumnSettings());
+  }
+
+  function selectAllDraftCandidateColumns() {
+    setDraftCandidateTableColumnSettings((settings) =>
+      createElectricalCandidateTableColumnSettingsPatch(
+        settings,
+        getAvailableElectricalCandidateTableColumnKeys(),
+      ),
+    );
+  }
+
+  function applyCandidateColumnSettings() {
+    const normalized = normalizeElectricalCandidateTableColumnSettings(
+      draftCandidateTableColumnSettings,
+    );
+    persistCandidateTableColumnSettings(normalized, { closeModal: true });
   }
 
   const totalObjects = pageSummary?.total_objects ?? objects.length;
@@ -3529,128 +4068,320 @@ export default function ElecCalcPage() {
     return '';
   }
 
-  const cableSizingCandidateColumns: ColumnsType<ElectricalCandidate> = [
-    {
-      title: 'Пометка',
-      key: 'marked',
-      width: CANDIDATE_MARK_COLUMN_WIDTH,
-      fixed: 'left',
-      align: 'center',
-      render: (_value, candidate) => (
-        <Checkbox
-          aria-label={`Пометить кандидат ${candidate.cable_mark ?? candidate.id}`}
-          data-testid={`candidate-mark-${candidate.id}`}
-          checked={markedCableSizingCandidateIds.includes(candidate.id)}
-          onChange={(event) => toggleCableSizingCandidateMark(candidate.id, event.target.checked)}
-        />
-      ),
-    },
-    {
-      title: 'Действия',
-      key: 'actions',
-      width: 96,
-      fixed: 'left',
-      render: (_value, candidate) => {
-        const candidateName = candidate.cable_mark ?? candidate.id;
-        const applyTooltip = candidate.is_applied
-          ? 'Уже выбран'
-          : candidate.status !== 'applicable'
-            ? candidate.reason_message ?? 'Недоступно для выбора'
-            : 'Выбрать';
-        const priorityTooltip = candidate.is_recommended
-          ? 'Снять приоритет'
-          : 'Сделать приоритетным';
-        const excluded = candidate.status === 'excluded';
-        const exclusionTooltip = excluded ? 'Вернуть вариант' : 'Исключить вариант';
+  function openCreateCandidateFolderModal() {
+    setCandidateFolderModalMode('create');
+    setEditingCandidateFolder(null);
+    setCandidateFolderName('');
+    setCandidateFolderModalOpen(true);
+  }
 
-        return (
-          <Space size={2} wrap={false} className="electrical-candidate-actions">
-            <Tooltip title={applyTooltip}>
-              <Button
-                aria-label={`${applyTooltip} кандидат ${candidateName}`}
-                aria-pressed={candidate.is_applied}
-                data-testid={`candidate-apply-${candidate.id}`}
-                className="electrical-candidate-action-button"
-                size="small"
-                type={candidate.is_applied ? 'primary' : 'default'}
-                icon={<CheckOutlined />}
-                disabled={
-                  candidate.status !== 'applicable' ||
-                  applyCandidateMut.isPending
-                }
-                loading={applyCandidateMut.isPending && applyCandidateMut.variables === candidate.id}
-                onClick={() => {
-                  if (!candidate.is_applied) {
-                    applyCandidateMut.mutate(candidate.id);
-                  }
-                }}
-              />
-            </Tooltip>
-            <Tooltip title={priorityTooltip}>
-              <Button
-                aria-label={priorityTooltip}
-                data-testid={`candidate-priority-${candidate.id}`}
-                className="electrical-candidate-action-button"
-                size="small"
-                type={candidate.is_recommended ? 'primary' : 'default'}
-                icon={candidate.is_recommended ? <StarFilled /> : <StarOutlined />}
-                disabled={updateCandidateMut.isPending}
-                onClick={() => updateCandidateMut.mutate({
-                  candidateId: candidate.id,
-                  patch: {
-                    is_recommended: !candidate.is_recommended,
-                    priority: candidate.is_recommended ? 0 : 10,
-                  },
-                })}
-              />
-            </Tooltip>
-            <Tooltip title={exclusionTooltip}>
-              <Button
-                aria-label={exclusionTooltip}
-                data-testid={`candidate-exclude-${candidate.id}`}
-                className="electrical-candidate-action-button"
-                size="small"
-                danger={!excluded}
-                icon={excluded ? <UndoOutlined /> : <StopOutlined />}
-                disabled={updateCandidateMut.isPending}
-                onClick={() => updateCandidateMut.mutate({
-                  candidateId: candidate.id,
-                  patch: {
-                    status: excluded ? 'applicable' : 'excluded',
-                  },
-                })}
-              />
-            </Tooltip>
-          </Space>
-        );
-      },
-    },
-    {
-      title: 'Режим',
-      dataIndex: 'mode',
-      width: 86,
-      fixed: 'left',
-      render: (value) => (value === 'auto' ? 'Авто' : 'Ручной'),
-    },
-    ...CANDIDATE_ELECTRICAL_COLUMN_METAS.map((column) => ({
-      title: column.title,
-      key: column.key,
-      dataIndex: column.key,
-      width: candidateColumnWidth(column),
-      ellipsis: column.key === 'selection_reason' ? false : column.ellipsis,
-      align: column.key === 'cable_mark' || column.key === 'selection_reason'
-        ? ('left' as const)
-        : undefined,
-      render: (_value: unknown, candidate: ElectricalCandidate) =>
-        renderCandidateElectricalField(column.key, candidate),
-    })),
-  ];
-  const cableSizingCandidateTableScrollX =
-    CANDIDATE_FIXED_COLUMNS_WIDTH +
-    CANDIDATE_ELECTRICAL_COLUMN_METAS.reduce(
-      (sum, column) => sum + candidateColumnWidth(column),
-      0,
+  function openRenameCandidateFolderModal(folder: ElectricalCandidateFolder) {
+    setCandidateFolderModalMode('rename');
+    setEditingCandidateFolder(folder);
+    setCandidateFolderName(folder.name);
+    setCandidateFolderModalOpen(true);
+  }
+
+  function submitCandidateFolderModal() {
+    const name = candidateFolderName.trim();
+    if (!name) {
+      message.warning('Введите название папки');
+      return;
+    }
+    if (candidateFolderModalMode === 'rename' && editingCandidateFolder) {
+      updateCandidateFolderMut.mutate({ folderId: editingCandidateFolder.id, name });
+      return;
+    }
+    createCandidateFolderMut.mutate();
+  }
+
+  function showDeleteCandidateFolderConfirm(folder: ElectricalCandidateFolder) {
+    Modal.confirm({
+      title: `Удалить папку «${folder.name}»?`,
+      content: 'Варианты останутся в списке. Удалится только фильтр-папка.',
+      okText: 'Удалить',
+      okType: 'danger',
+      cancelText: 'Отмена',
+      onOk: () => deleteCandidateFolderMut.mutate(folder.id),
+    });
+  }
+
+  function candidateFolderEmptyText() {
+    if (activeCandidateFolderKey === 'favorite') return 'В избранном пока нет вариантов';
+    if (activeCustomCandidateFolder) return 'В этой папке пока нет вариантов';
+    return 'Вариантов пока нет. Запустите авторасчёт или ручной расчёт.';
+  }
+
+  function renderCandidateFolderButton(
+    key: CandidateFolderKey,
+    label: string,
+    count: number,
+  ) {
+    return (
+      <Button
+        key={key}
+        size="small"
+        type={activeCandidateFolderKey === key ? 'primary' : 'default'}
+        onClick={() => setActiveCandidateFolderKey(key)}
+      >
+        {label} <span className="electrical-candidate-folder-count">{count}</span>
+      </Button>
     );
+  }
+
+  function renderCandidateFolderTabs() {
+    return (
+      <div className="electrical-candidate-folders" aria-label="Папки вариантов подбора">
+        <div className="electrical-candidate-folders__scroll">
+          {renderCandidateFolderButton('all', 'Все', candidateFolderCounts.all)}
+          {renderCandidateFolderButton('favorite', 'Избранное', candidateFolderCounts.favorite)}
+          {cableSizingCandidateFolders.map((folder) => {
+            const key = candidateCustomFolderKey(folder.id);
+            return (
+              <span key={folder.id} className="electrical-candidate-folder-tab">
+                {renderCandidateFolderButton(
+                  key,
+                  folder.name,
+                  candidateFolderCounts.custom.get(folder.id) ?? 0,
+                )}
+                <Dropdown
+                  trigger={['click']}
+                  menu={{
+                    items: [
+                      {
+                        key: 'rename',
+                        icon: <EditOutlined />,
+                        label: 'Переименовать',
+                        onClick: () => openRenameCandidateFolderModal(folder),
+                      },
+                      {
+                        key: 'delete',
+                        icon: <DeleteOutlined />,
+                        danger: true,
+                        label: 'Удалить',
+                        onClick: () => showDeleteCandidateFolderConfirm(folder),
+                      },
+                    ],
+                  }}
+                >
+                  <Button
+                    size="small"
+                    className="electrical-candidate-folder-menu"
+                    icon={<MoreOutlined />}
+                    aria-label={`Действия с папкой ${folder.name}`}
+                  />
+                </Dropdown>
+              </span>
+            );
+          })}
+        </div>
+        <Button
+          size="small"
+          icon={<PlusOutlined />}
+          onClick={openCreateCandidateFolderModal}
+        >
+          Папка
+        </Button>
+      </div>
+    );
+  }
+
+  function candidateFolderMenuItems(candidate: ElectricalCandidate) {
+    return cableSizingCandidateFolders.length > 0
+      ? cableSizingCandidateFolders.map((folder) => {
+          const checked = folder.candidate_ids.includes(candidate.id);
+          return {
+            key: folder.id,
+            label: `${checked ? '✓ ' : ''}${folder.name}`,
+            onClick: () => toggleCandidateFolderItemMut.mutate({
+              folderId: folder.id,
+              candidateId: candidate.id,
+              checked: !checked,
+            }),
+          };
+        })
+      : [{ key: 'empty', label: 'Создайте папку', disabled: true }];
+  }
+
+  const cableSizingCandidateColumns: ColumnsType<ElectricalCandidate> =
+    visibleCandidateColumnMetas.map((column) => {
+      const filterEnabled = column.key !== 'actions';
+      const sortEnabled = column.key !== 'actions';
+      const activeFilter = candidateTableViewState.filters[column.key];
+      const filterKind = filterKindForCandidateColumn(column.key);
+      const columnTitle = (
+        <ResizableColumnTitle
+          title={column.title}
+          label={column.label}
+          onResizeStart={(event) => startCandidateColumnResize(column, event)}
+        />
+      );
+      const baseColumn = {
+        title: columnTitle,
+        key: column.key,
+        columnKey: column.key,
+        width: Math.max(column.width, column.minWidthPx),
+        fixed: column.fixed,
+        sorter: sortEnabled,
+        sortOrder: sortEnabled && candidateTableViewState.sort?.columnKey === column.key
+          ? candidateTableViewState.sort.direction === 'asc'
+            ? 'ascend' as const
+            : 'descend' as const
+          : null,
+        showSorterTooltip: false,
+        filtered: isColumnFilterActive(activeFilter),
+        filterIcon: filterEnabled ? () => (
+          <span
+            role="button"
+            aria-label={`Фильтр ${column.label}`}
+            className="table-filter-trigger"
+            style={{ pointerEvents: 'auto' }}
+          >
+            <FilterFilled
+              className={isColumnFilterActive(activeFilter) ? 'table-filter-icon active' : 'table-filter-icon'}
+            />
+          </span>
+        ) : undefined,
+        filterDropdown: filterEnabled ? ({ close }: { close: () => void }) => (
+          <ColumnFilterDropdown
+            title={column.label}
+            kind={filterKind}
+            filter={activeFilter}
+            enumOptions={candidateEnumOptionsByColumn[column.key] ?? []}
+            onApply={(filter) => setCandidateColumnFilter(column.key, filter)}
+            onReset={() => resetCandidateColumnFilter(column.key)}
+            onClose={close}
+          />
+        ) : undefined,
+      };
+      if (column.key === 'marked') {
+        return {
+          ...baseColumn,
+          align: 'center' as const,
+          render: (_value, candidate) => (
+            <Checkbox
+              aria-label={`Пометить кандидат ${candidate.cable_mark ?? candidate.id}`}
+              data-testid={`candidate-mark-${candidate.id}`}
+              checked={markedCableSizingCandidateIds.includes(candidate.id)}
+              onChange={(event) => toggleCableSizingCandidateMark(candidate.id, event.target.checked)}
+            />
+          ),
+        };
+      }
+      if (column.key === 'actions') {
+        return {
+          ...baseColumn,
+          render: (_value, candidate) => {
+            const candidateName = candidate.cable_mark ?? candidate.id;
+            const applyTooltip = candidate.is_applied
+              ? 'Уже выбран'
+              : candidate.status !== 'applicable'
+                ? candidate.reason_message ?? 'Недоступно для выбора'
+                : 'Выбрать';
+            const favoriteTooltip = candidate.is_pinned
+              ? 'Убрать из избранного'
+              : 'Добавить в избранное';
+            const excluded = candidate.status === 'excluded';
+            const exclusionTooltip = excluded ? 'Вернуть вариант' : 'Исключить вариант';
+
+            return (
+              <Space size={2} wrap={false} className="electrical-candidate-actions">
+                <Tooltip title={applyTooltip}>
+                  <Button
+                    aria-label={`${applyTooltip} кандидат ${candidateName}`}
+                    aria-pressed={candidate.is_applied}
+                    data-testid={`candidate-apply-${candidate.id}`}
+                    className="electrical-candidate-action-button"
+                    size="small"
+                    type={candidate.is_applied ? 'primary' : 'default'}
+                    icon={<CheckOutlined />}
+                    disabled={
+                      candidate.status !== 'applicable' ||
+                      applyCandidateMut.isPending
+                    }
+                    loading={applyCandidateMut.isPending && applyCandidateMut.variables === candidate.id}
+                    onClick={() => {
+                      if (!candidate.is_applied) {
+                        applyCandidateMut.mutate(candidate.id);
+                      }
+                    }}
+                  />
+                </Tooltip>
+                <Tooltip title={favoriteTooltip}>
+                  <Button
+                    aria-label={favoriteTooltip}
+                    data-testid={`candidate-favorite-${candidate.id}`}
+                    className="electrical-candidate-action-button"
+                    size="small"
+                    type={candidate.is_pinned ? 'primary' : 'default'}
+                    icon={candidate.is_pinned ? <StarFilled /> : <StarOutlined />}
+                    disabled={updateCandidateMut.isPending}
+                    onClick={() => updateCandidateMut.mutate({
+                      candidateId: candidate.id,
+                      patch: {
+                        is_pinned: !candidate.is_pinned,
+                      },
+                    })}
+                  />
+                </Tooltip>
+                <Dropdown
+                  trigger={['click']}
+                  menu={{ items: candidateFolderMenuItems(candidate) }}
+                >
+                  <Button
+                    aria-label={`Добавить кандидат ${candidateName} в папку`}
+                    data-testid={`candidate-folder-${candidate.id}`}
+                    className="electrical-candidate-action-button"
+                    size="small"
+                    icon={<FolderOutlined />}
+                    disabled={toggleCandidateFolderItemMut.isPending}
+                  />
+                </Dropdown>
+                <Tooltip title={exclusionTooltip}>
+                  <Button
+                    aria-label={exclusionTooltip}
+                    data-testid={`candidate-exclude-${candidate.id}`}
+                    className="electrical-candidate-action-button"
+                    size="small"
+                    danger={!excluded}
+                    icon={excluded ? <UndoOutlined /> : <StopOutlined />}
+                    disabled={updateCandidateMut.isPending}
+                    onClick={() => updateCandidateMut.mutate({
+                      candidateId: candidate.id,
+                      patch: {
+                        status: excluded ? 'applicable' : 'excluded',
+                      },
+                    })}
+                  />
+                </Tooltip>
+              </Space>
+            );
+          },
+        };
+      }
+      if (column.key === 'mode') {
+        return {
+          ...baseColumn,
+          dataIndex: 'mode',
+          render: (value) => (value === 'auto' ? 'Авто' : 'Ручной'),
+        };
+      }
+      return {
+        ...baseColumn,
+        dataIndex: column.key,
+        ellipsis: column.key === 'selection_reason' ? false : column.ellipsis,
+        align: column.align,
+        render: (_value: unknown, candidate: ElectricalCandidate) =>
+          renderCandidateElectricalField(column.key, candidate),
+      };
+    });
+  const cableSizingCandidateTableScrollX = Math.max(
+    920,
+    visibleCandidateColumnMetas.reduce(
+      (sum, column) => sum + Math.max(column.width, column.minWidthPx),
+      0,
+    ),
+  );
 
   return (
     <>
@@ -4164,9 +4895,27 @@ export default function ElecCalcPage() {
             >
               {cableSizingMode === 'auto' ? 'Запустить авторасчёт' : 'Рассчитать вариант'}
             </Button>
+            <Button
+              size="small"
+              icon={<TableOutlined />}
+              aria-label="Настройки таблицы"
+              onClick={() => openCandidateColumnSettings()}
+            >
+              Настройки таблицы
+            </Button>
+            <Button
+              size="small"
+              icon={<CloseCircleOutlined />}
+              aria-label="Сбросить фильтры таблицы кандидатов"
+              disabled={!candidateTableViewActive}
+              onClick={resetCandidateTableViewState}
+            >
+              Сбросить фильтры
+            </Button>
           </div>
           {renderElectricalTypeControls(cableSizingCableType, { block: true })}
           {renderSelectedCableSummary()}
+          {renderCandidateFolderTabs()}
           <Table<ElectricalCandidate>
             className="electrical-cable-sizing-table"
             size="small"
@@ -4176,12 +4925,13 @@ export default function ElecCalcPage() {
             }) as HTMLAttributes<HTMLElement>}
             rowClassName={cableSizingCandidateRowClassName}
             loading={isCableSizingCandidatesFetching}
-            dataSource={cableSizingCandidates}
+            dataSource={displayedCableSizingCandidates}
             columns={cableSizingCandidateColumns}
+            onChange={handleCandidateTableChange}
             pagination={false}
             scroll={{ x: cableSizingCandidateTableScrollX, y: 'calc(100vh - 332px)' }}
             locale={{
-              emptyText: 'Вариантов пока нет. Запустите авторасчёт или ручной расчёт.',
+              emptyText: candidateFolderEmptyText(),
             }}
           />
           <Input.TextArea
@@ -4207,6 +4957,47 @@ export default function ElecCalcPage() {
           />
         </div>
       </Modal>
+      <Modal
+        open={candidateFolderModalOpen}
+        title={candidateFolderModalMode === 'rename' ? 'Переименовать папку' : 'Новая папка'}
+        okText={candidateFolderModalMode === 'rename' ? 'Сохранить' : 'Создать'}
+        cancelText="Отмена"
+        confirmLoading={createCandidateFolderMut.isPending || updateCandidateFolderMut.isPending}
+        okButtonProps={{ disabled: candidateFolderName.trim().length === 0 }}
+        onOk={submitCandidateFolderModal}
+        onCancel={() => {
+          setCandidateFolderModalOpen(false);
+          setEditingCandidateFolder(null);
+          setCandidateFolderName('');
+        }}
+      >
+        <Input
+          autoFocus
+          maxLength={64}
+          value={candidateFolderName}
+          placeholder="Название папки"
+          aria-label="Название папки вариантов"
+          onChange={(event) => setCandidateFolderName(event.target.value)}
+          onPressEnter={submitCandidateFolderModal}
+        />
+      </Modal>
+      {candidateColumnSettingsOpen && (
+        <ElectricalCandidateColumnSettingsModal
+          open={candidateColumnSettingsOpen}
+          settings={draftCandidateTableColumnSettings}
+          settingsLabelFormat={normalizedTableViewSettings.settingsLabelFormat}
+          confirmLoading={updateCandidateTableColumnPreference.isPending}
+          onOk={applyCandidateColumnSettings}
+          onCancel={() => setCandidateColumnSettingsOpen(false)}
+          onSelectAllColumns={selectAllDraftCandidateColumns}
+          onResetColumns={resetDraftCandidateColumns}
+          onVisibleChange={updateDraftCandidateColumn}
+          onOrderChange={updateDraftCandidateColumnOrder}
+          onColumnReorder={reorderDraftCandidateColumn}
+          onWidthChange={updateDraftCandidateColumnWidth}
+          onResetWidth={resetDraftCandidateColumnWidth}
+        />
+      )}
       {columnSettingsOpen && (
         <ElectricalColumnSettingsModal
           open={columnSettingsOpen}

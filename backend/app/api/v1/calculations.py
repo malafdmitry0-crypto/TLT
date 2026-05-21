@@ -20,6 +20,10 @@ from app.schemas.calculation import (
     ElectricalCalcSummary,
     ElectricalCandidateApplyResponse,
     ElectricalCandidateCreateRequest,
+    ElectricalCandidateFolderCreateRequest,
+    ElectricalCandidateFolderItemRequest,
+    ElectricalCandidateFolderResponse,
+    ElectricalCandidateFolderUpdateRequest,
     ElectricalCandidateResponse,
     ElectricalCandidateUpdateRequest,
     ElectricalCandidateUpsertResponse,
@@ -493,6 +497,154 @@ async def update_electrical_candidate(
         _raise_project_error(exc)
     except CalculationError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get(
+    "/electrical/candidate-folders",
+    response_model=list[ElectricalCandidateFolderResponse],
+    summary="Пользовательские папки кандидатов подбора для объекта и CO-варианта",
+)
+async def list_electrical_candidate_folders(
+    project_id: UUID,
+    object_id: UUID,
+    variant_number: int = Query(default=1, ge=1, le=4),
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await ProjectService(db).get_project_basic(project_id, principal)
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
+    return await CalculationService(db).list_electrical_candidate_folders(
+        project_id,
+        object_id=object_id,
+        variant_number=variant_number,
+    )
+
+
+@router.post(
+    "/electrical/candidate-folders",
+    response_model=ElectricalCandidateFolderResponse,
+    summary="Создать пользовательскую папку кандидатов подбора",
+)
+async def create_electrical_candidate_folder(
+    data: ElectricalCandidateFolderCreateRequest,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        obj = await ProjectService(db).get_object_for_write(data.object_id, principal)
+        if obj.project_id != data.project_id:
+            raise HTTPException(status_code=404, detail="Объект не найден в проекте")
+        return await CalculationService(db).create_electrical_candidate_folder(
+            project_id=data.project_id,
+            object_id=data.object_id,
+            variant_number=data.variant_number,
+            name=data.name,
+            color=data.color,
+            created_by_user_id=principal.user_id,
+            created_by_session_id=principal.session_id,
+        )
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
+    except CalculationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.patch(
+    "/electrical/candidate-folders/{folder_id}",
+    response_model=ElectricalCandidateFolderResponse,
+    summary="Изменить пользовательскую папку кандидатов подбора",
+)
+async def update_electrical_candidate_folder(
+    folder_id: UUID,
+    data: ElectricalCandidateFolderUpdateRequest,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    service = CalculationService(db)
+    try:
+        folder = await service.get_electrical_candidate_folder(folder_id)
+        await ProjectService(db).get_project_for_write(folder.project_id, principal)
+        return await service.update_electrical_candidate_folder(
+            folder_id,
+            **data.model_dump(exclude_unset=True),
+        )
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
+    except CalculationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete(
+    "/electrical/candidate-folders/{folder_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Удалить пользовательскую папку кандидатов подбора",
+)
+async def delete_electrical_candidate_folder(
+    folder_id: UUID,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    service = CalculationService(db)
+    try:
+        folder = await service.get_electrical_candidate_folder(folder_id)
+        await ProjectService(db).get_project_for_write(folder.project_id, principal)
+        await service.delete_electrical_candidate_folder(folder_id)
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
+    except CalculationError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post(
+    "/electrical/candidate-folders/{folder_id}/items",
+    response_model=ElectricalCandidateFolderResponse,
+    summary="Добавить кандидат в пользовательскую папку",
+)
+async def add_electrical_candidate_folder_item(
+    folder_id: UUID,
+    data: ElectricalCandidateFolderItemRequest,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    service = CalculationService(db)
+    try:
+        folder = await service.get_electrical_candidate_folder(folder_id)
+        await ProjectService(db).get_project_for_write(folder.project_id, principal)
+        return await service.add_electrical_candidate_to_folder(
+            folder_id=folder_id,
+            candidate_id=data.candidate_id,
+        )
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
+    except CalculationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete(
+    "/electrical/candidate-folders/{folder_id}/items/{candidate_id}",
+    response_model=ElectricalCandidateFolderResponse,
+    summary="Убрать кандидат из пользовательской папки",
+)
+async def remove_electrical_candidate_folder_item(
+    folder_id: UUID,
+    candidate_id: UUID,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    service = CalculationService(db)
+    try:
+        folder = await service.get_electrical_candidate_folder(folder_id)
+        await ProjectService(db).get_project_for_write(folder.project_id, principal)
+        return await service.remove_electrical_candidate_from_folder(
+            folder_id=folder_id,
+            candidate_id=candidate_id,
+        )
+    except (ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_project_error(exc)
+    except CalculationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post(

@@ -48,46 +48,16 @@ HEATCALC_FIELD_INPUT_KEYS = {"version", "fields"}
 HEATCALC_FIELD_INPUT_LAYOUT_KEYS = {"step"}
 ELECTRICAL_TABLE_COLUMNS_VERSION = 5
 ELECTRICAL_TABLE_COLUMNS_PREF_KEY = f"electrical.tableColumns.v{ELECTRICAL_TABLE_COLUMNS_VERSION}"
-ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView.v3"
-ELECTRICAL_TABLE_VIEW_VERSION = 3
+ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView.v4"
+ELECTRICAL_TABLE_VIEW_VERSION = 4
 ELECTRICAL_TABLE_VIEW_KEYS = {
     "version",
     "fontSize",
     "tableLabelFormat",
     "settingsLabelFormat",
     "calculationCableSource",
-    "cablePickerObjectFields",
-    "cablePickerCableFields",
 }
 ELECTRICAL_CALCULATION_CABLE_SOURCES = {"builtin", "extended", "all"}
-ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_KEYS = {
-    "object_type",
-    "placement",
-    "outer_diameter",
-    "pipe_length",
-    "tank_geometry",
-    "insulation",
-    "ambient_temperature",
-    "process_temperature",
-    "heat_loss_specific",
-    "total_heat_loss",
-}
-ELECTRICAL_CABLE_PICKER_CABLE_FIELD_KEYS = {
-    "brand",
-    "series",
-    "power_per_meter",
-    "nominal_power",
-    "resistance_ohm_km",
-    "voltage",
-    "temperature_range",
-    "max_product_temp",
-    "max_vapor_temp",
-    "conductor_section_mm2",
-    "diameter_mm",
-    "nominal_size_mm",
-    "stock_status",
-    "price_per_meter",
-}
 ELECTRICAL_TABLE_COLUMN_KEYS = {
     "index",
     "object_name",
@@ -127,7 +97,28 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
 ELECTRICAL_TABLE_COLUMN_REQUIRED_KEYS = {"index", "object_name", "cable_mark"}
 ELECTRICAL_TABLE_COLUMN_PAYLOAD_KEYS = {"version", "visibleOrder", "columns"}
 ELECTRICAL_TABLE_COLUMN_LAYOUT_KEYS = {"widthPct"}
-ELECTRICAL_VERSIONED_PREF_PREFIXES = ("electrical.tableColumns.", "electrical.tableView.")
+ELECTRICAL_CANDIDATE_TABLE_COLUMNS_VERSION = 1
+ELECTRICAL_CANDIDATE_TABLE_COLUMNS_PREF_KEY = (
+    f"electrical.candidateTableColumns.v{ELECTRICAL_CANDIDATE_TABLE_COLUMNS_VERSION}"
+)
+ELECTRICAL_CANDIDATE_TABLE_COLUMN_KEYS = (
+    ELECTRICAL_TABLE_COLUMN_KEYS
+    - {
+        "index",
+        "object_name",
+        "object_type",
+        "heat_loss_status",
+        "electrical_status",
+        "cable_snapshot_status",
+        "message",
+    }
+) | {"marked", "actions", "mode"}
+ELECTRICAL_CANDIDATE_TABLE_COLUMN_REQUIRED_KEYS = {"actions", "cable_mark"}
+ELECTRICAL_VERSIONED_PREF_PREFIXES = (
+    "electrical.tableColumns.",
+    "electrical.tableView.",
+    "electrical.candidateTableColumns.",
+)
 
 PreferenceKey = Annotated[
     str,
@@ -143,6 +134,7 @@ def _validate_preference_key(key: str) -> None:
     if key.startswith(ELECTRICAL_VERSIONED_PREF_PREFIXES) and key not in {
         ELECTRICAL_TABLE_COLUMNS_PREF_KEY,
         ELECTRICAL_TABLE_VIEW_PREF_KEY,
+        ELECTRICAL_CANDIDATE_TABLE_COLUMNS_PREF_KEY,
     }:
         _preference_validation_error("Unsupported electrical preference key")
 
@@ -250,6 +242,75 @@ def _validate_electrical_table_columns(value: dict[str, object]) -> None:
             _preference_validation_error("Electrical table column widthPct is out of range")
 
 
+def _validate_electrical_candidate_table_columns(value: dict[str, object]) -> None:
+    if set(value) - ELECTRICAL_TABLE_COLUMN_PAYLOAD_KEYS:
+        _preference_validation_error(
+            "Electrical candidate table columns payload can contain only version, "
+            "visibleOrder and columns"
+        )
+    if value.get("version") != ELECTRICAL_CANDIDATE_TABLE_COLUMNS_VERSION:
+        _preference_validation_error(
+            "Unsupported electrical candidate table column settings version"
+        )
+
+    visible_order = value.get("visibleOrder")
+    if not isinstance(visible_order, list) or not all(
+        isinstance(key, str) for key in visible_order
+    ):
+        _preference_validation_error(
+            "Electrical candidate table columns visibleOrder must be a string array"
+        )
+    if len(visible_order) != len(set(visible_order)):
+        _preference_validation_error(
+            "Electrical candidate table columns visibleOrder contains duplicate keys"
+        )
+    if any(key not in ELECTRICAL_CANDIDATE_TABLE_COLUMN_KEYS for key in visible_order):
+        _preference_validation_error(
+            "Electrical candidate table columns visibleOrder contains unknown key"
+        )
+    if missing_required := ELECTRICAL_CANDIDATE_TABLE_COLUMN_REQUIRED_KEYS - set(
+        visible_order
+    ):
+        _preference_validation_error(
+            "Electrical candidate table columns visibleOrder missing required key: "
+            + ", ".join(sorted(missing_required))
+        )
+
+    columns = value.get("columns")
+    if not isinstance(columns, dict):
+        _preference_validation_error(
+            "Electrical candidate table columns payload requires columns"
+        )
+    if any(
+        not isinstance(key, str) or key not in ELECTRICAL_CANDIDATE_TABLE_COLUMN_KEYS
+        for key in columns
+    ):
+        _preference_validation_error(
+            "Electrical candidate table columns payload contains unknown column key"
+        )
+
+    for layout in columns.values():
+        if not isinstance(layout, dict):
+            _preference_validation_error(
+                "Electrical candidate table column layout must be an object"
+            )
+        if set(layout) - ELECTRICAL_TABLE_COLUMN_LAYOUT_KEYS:
+            _preference_validation_error(
+                "Electrical candidate table column layout can contain only widthPct"
+            )
+        if "widthPct" not in layout:
+            continue
+        width_pct = layout["widthPct"]
+        if isinstance(width_pct, bool) or not isinstance(width_pct, int | float):
+            _preference_validation_error(
+                "Electrical candidate table column widthPct must be numeric"
+            )
+        if not HEATCALC_TABLE_COLUMN_WIDTH_MIN <= width_pct <= HEATCALC_TABLE_COLUMN_WIDTH_MAX:
+            _preference_validation_error(
+                "Electrical candidate table column widthPct is out of range"
+            )
+
+
 def _validate_heatcalc_table_view(value: dict[str, object]) -> None:
     if set(value) - HEATCALC_TABLE_VIEW_KEYS:
         _preference_validation_error("HeatCalc table view payload contains unsupported keys")
@@ -308,34 +369,6 @@ def _validate_electrical_table_view(value: dict[str, object]) -> None:
         _preference_validation_error("Electrical table view settingsLabelFormat is unsupported")
     if value.get("calculationCableSource") not in ELECTRICAL_CALCULATION_CABLE_SOURCES:
         _preference_validation_error("Electrical table view calculationCableSource is unsupported")
-    object_fields = value.get("cablePickerObjectFields")
-    if not isinstance(object_fields, list) or not all(
-        isinstance(key, str) for key in object_fields
-    ):
-        _preference_validation_error(
-            "Electrical table view cablePickerObjectFields must be a string array"
-        )
-    if not object_fields or len(object_fields) != len(set(object_fields)):
-        _preference_validation_error(
-            "Electrical table view cablePickerObjectFields must be a non-empty unique array"
-        )
-    if any(key not in ELECTRICAL_CABLE_PICKER_OBJECT_FIELD_KEYS for key in object_fields):
-        _preference_validation_error(
-            "Electrical table view cablePickerObjectFields contains unknown key"
-        )
-    cable_fields = value.get("cablePickerCableFields")
-    if not isinstance(cable_fields, list) or not all(isinstance(key, str) for key in cable_fields):
-        _preference_validation_error(
-            "Electrical table view cablePickerCableFields must be a string array"
-        )
-    if not cable_fields or len(cable_fields) != len(set(cable_fields)):
-        _preference_validation_error(
-            "Electrical table view cablePickerCableFields must be a non-empty unique array"
-        )
-    if any(key not in ELECTRICAL_CABLE_PICKER_CABLE_FIELD_KEYS for key in cable_fields):
-        _preference_validation_error(
-            "Electrical table view cablePickerCableFields contains unknown key"
-        )
 
 
 def _validate_heatcalc_field_inputs(value: dict[str, object]) -> None:
@@ -382,6 +415,8 @@ def _validate_preference_value(key: str, value: dict[str, object]) -> None:
         _validate_heatcalc_table_view(value)
     if key == ELECTRICAL_TABLE_VIEW_PREF_KEY:
         _validate_electrical_table_view(value)
+    if key == ELECTRICAL_CANDIDATE_TABLE_COLUMNS_PREF_KEY:
+        _validate_electrical_candidate_table_columns(value)
     if key == HEATCALC_FIELD_INPUT_PREF_KEY:
         _validate_heatcalc_field_inputs(value)
 

@@ -134,6 +134,39 @@
 хранится диагностический payload ключа: `object_type`, `cable_type`,
 technical/catalog identity и type-specific поля из матрицы уникальности.
 
+### electrical_candidate_folders
+| Колонка               | Тип          | Ограничения                                | Описание |
+|-----------------------|--------------|--------------------------------------------|----------|
+| id                    | UUID         | PK                                         | Пользовательская папка вариантов |
+| project_id            | UUID         | FK → projects.id ON DELETE CASCADE         | Проект |
+| object_id             | UUID         | FK → project_objects.id ON DELETE CASCADE  | Объект проекта |
+| variant_number        | INTEGER      | NOT NULL, CHECK 1..4                       | CO-вариант |
+| name                  | VARCHAR(64)  | NOT NULL                                   | Название папки |
+| color                 | VARCHAR(32)  | nullable                                   | Цветовая метка UI |
+| sort_order            | INTEGER      | NOT NULL, default 0                        | Порядок показа |
+| created_by_user_id    | UUID         | FK → users.id ON DELETE SET NULL, nullable | Создатель-сотрудник |
+| created_by_session_id | VARCHAR(64)  | FK → guest_sessions.session_id, nullable   | Создатель-гость |
+| created_at            | TIMESTAMPTZ  | server default now()                       | |
+| updated_at            | TIMESTAMPTZ  | auto-update                                | |
+
+UNIQUE `uq_electrical_candidate_folders_scope_name` по
+`(project_id, object_id, variant_number, name)` не даёт создать две папки с
+одинаковым названием в одной модалке. Папки — это фильтры видимости, не
+хранилище расчётов: `Все` и `Избранное` системные и не требуют строк в этой
+таблице.
+
+### electrical_candidate_folder_items
+| Колонка      | Тип         | Ограничения                                           | Описание |
+|--------------|-------------|-------------------------------------------------------|----------|
+| folder_id    | UUID        | PK, FK → electrical_candidate_folders.id ON DELETE CASCADE | Папка |
+| candidate_id | UUID        | PK, FK → electrical_candidates.id ON DELETE CASCADE   | Кандидат |
+| created_at   | TIMESTAMPTZ | server default now()                                  | |
+| updated_at   | TIMESTAMPTZ | auto-update                                           | |
+
+Составной PK `(folder_id, candidate_id)` делает добавление кандидата в папку
+идемпотентным. Один кандидат может быть в нескольких пользовательских папках.
+Удаление папки удаляет только связи; удаление кандидата каскадно чистит связи.
+
 ---
 
 ### cables_extended
