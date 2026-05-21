@@ -237,6 +237,16 @@ test.describe('electrical candidate selection', () => {
     await expectAppliedCandidateIds(page, projectId, sessionId, pipe.id, [first.candidate.id]);
     await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, 'ТЛТ-10');
 
+    await dialog.getByTestId(`candidate-mark-${first.candidate.id}`).click();
+    await expect(dialog.getByTestId('candidate-compare-bar')).toContainText('Сравнение: 2 вариантов');
+    await expect(dialog.getByTestId(`candidate-row-${first.candidate.id}`)).toHaveClass(
+      /electrical-cable-sizing-table__row--compared/,
+    );
+    await expect(dialog.getByTestId(`candidate-diff-${first.candidate.id}-cable_mark`)).toBeVisible();
+    await expect(dialog.getByTestId(`candidate-diff-${second.candidate.id}-cable_mark`)).toBeVisible();
+    await dialog.getByRole('button', { name: 'Сбросить сравнение' }).click();
+    await expect(dialog.getByTestId('candidate-compare-bar')).toHaveCount(0);
+
     await expect(dialog.getByTestId(`candidate-favorite-${second.candidate.id}`)).toHaveCount(0);
     await dialog.getByTestId(`candidate-folder-${second.candidate.id}`).click();
     await page.getByRole('menuitem', { name: 'Избранное' }).click();

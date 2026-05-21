@@ -1390,13 +1390,30 @@ describe('ElecCalcPage (integration)', () => {
       'electrical-cable-sizing-table__row--error',
     );
 
-    const markerCheckbox = within(sizingDialog).getByLabelText('Пометить кандидат ТЛТ-10');
+    const markerCheckbox = within(sizingDialog).getByTestId('candidate-mark-cand-next');
     expect(markerCheckbox).toBeEnabled();
     expect(markerCheckbox).not.toBeChecked();
     await user.click(markerCheckbox);
     expect(markerCheckbox).toBeChecked();
     expect(applyElectricalCandidate).not.toHaveBeenCalled();
     expect(within(sizingDialog).getAllByText('ТЛТ-10').length).toBeGreaterThan(0);
+    await user.click(within(sizingDialog).getByTestId('candidate-mark-cand-applied'));
+    expect(within(sizingDialog).getByTestId('candidate-compare-bar')).toHaveTextContent('Сравнение: 2 вариантов');
+    expect(within(sizingDialog).getByTestId('candidate-compare-bar')).toHaveTextContent(
+      'Отличий в видимых колонках:',
+    );
+    expect(within(sizingDialog).getByTestId('candidate-row-cand-applied')).toHaveClass(
+      'electrical-cable-sizing-table__row--compared',
+    );
+    expect(within(sizingDialog).getByTestId('candidate-diff-cand-applied-cable_mark')).toHaveClass(
+      'electrical-candidate-cell--diff',
+    );
+    expect(within(sizingDialog).getByTestId('candidate-diff-cand-next-cable_mark')).toHaveClass(
+      'electrical-candidate-cell--diff',
+    );
+    await user.click(within(sizingDialog).getByRole('button', { name: 'Сбросить сравнение' }));
+    expect(within(sizingDialog).queryByTestId('candidate-compare-bar')).not.toBeInTheDocument();
+    expect(within(sizingDialog).queryByTestId('candidate-diff-cand-applied-cable_mark')).not.toBeInTheDocument();
     expect(within(sizingDialog).getByTestId('candidate-apply-cand-applied')).toBeEnabled();
     expect(within(sizingDialog).getByTestId('candidate-apply-cand-applied')).toHaveAttribute('aria-pressed', 'true');
     expect(within(sizingDialog).getByTestId('candidate-apply-cand-applied')).toHaveAccessibleName(

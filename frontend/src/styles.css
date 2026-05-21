@@ -3457,6 +3457,28 @@ html, body, #root {
   padding: 0;
 }
 
+.electrical-candidate-compare-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 3px 8px;
+  border: 1px solid #d6e6f2;
+  border-radius: 4px;
+  background: #f7fbff;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.electrical-candidate-compare-bar .ant-typography {
+  font-size: 11px;
+}
+
+.electrical-candidate-compare-bar .ant-btn-sm {
+  margin-left: auto;
+}
+
 .electrical-cable-sizing-table {
   min-height: 0;
   font-size: 11px;
@@ -3481,6 +3503,16 @@ html, body, #root {
 .electrical-cable-sizing-table .ant-table-tbody > tr.electrical-cable-sizing-table__row--error > td,
 .electrical-cable-sizing-table .ant-table-tbody > tr.electrical-cable-sizing-table__row--error:hover > td {
   background: #fff1f0;
+}
+
+.electrical-cable-sizing-table .ant-table-tbody > tr.electrical-cable-sizing-table__row--compared > td {
+  box-shadow: inset 0 1px 0 rgba(31, 78, 105, 0.1), inset 0 -1px 0 rgba(31, 78, 105, 0.1);
+}
+
+.electrical-cable-sizing-table .ant-table-tbody > tr > td.electrical-candidate-cell--diff,
+.electrical-cable-sizing-table .ant-table-tbody > tr:hover > td.electrical-candidate-cell--diff {
+  background: #fff7d6;
+  box-shadow: inset 0 0 0 1px rgba(214, 157, 32, 0.42);
 }
 
 .electrical-cable-sizing-table .ant-table-cell {

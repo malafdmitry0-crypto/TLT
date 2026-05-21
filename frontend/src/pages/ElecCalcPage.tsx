@@ -549,6 +549,98 @@ function candidateElectricalFieldValue(
   }
 }
 
+const CANDIDATE_COMPARE_SERVICE_COLUMN_KEYS = new Set<ElectricalCandidateColumnKey>([
+  'marked',
+  'actions',
+]);
+const CANDIDATE_COMPARE_EMPTY_VALUE = '__empty__';
+
+function isCandidateCompareColumn(key: ElectricalCandidateColumnKey) {
+  return !CANDIDATE_COMPARE_SERVICE_COLUMN_KEYS.has(key);
+}
+
+function normalizeCandidateCompareText(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === '—') return CANDIDATE_COMPARE_EMPTY_VALUE;
+  return trimmed.toLocaleLowerCase('ru');
+}
+
+function candidateCompareDisplayValue(
+  key: ElectricalCandidateColumnKey,
+  candidate: ElectricalCandidate,
+) {
+  switch (key) {
+    case 'marked':
+    case 'actions':
+      return CANDIDATE_COMPARE_EMPTY_VALUE;
+    case 'mode':
+      return candidate.mode === 'auto' ? 'Авто' : 'Ручной';
+    case 'cable_type':
+      return CABLE_TYPE_LABEL[candidate.cable_type as CableTypeKey] ?? candidate.cable_type;
+    case 'cable_mark':
+      return valueText(candidate.cable_mark);
+    case 'selection_policy':
+      return selectionPolicyText(candidate.results?.selection_policy);
+    case 'applied_selection_policy':
+      return selectionPolicyText(candidate.results?.applied_selection_policy);
+    case 'selection_reason':
+      return valueText(candidate.reason_message ?? candidate.results?.selection_reason);
+    case 'winding_pitch_mm':
+      return numberText(candidate.results?.winding_pitch, 0);
+    case 'number_of_threads':
+      return numberText(candidate.results?.num_circuits, 0);
+    case 'laying_step':
+      return numberText(candidate.params?.laying_step, 2);
+    case 'heating_height':
+      return numberText(candidate.params?.heating_height, 1);
+    case 'connection_type': {
+      const value = candidate.params?.connection_type;
+      return CONNECTION_TYPE_LABEL[String(value)] ?? valueText(value);
+    }
+    case 'supply_voltage':
+      return numberText(candidate.params?.supply_voltage, 0);
+    case 'winding_coefficient':
+      return numberText(candidate.params?.winding_coefficient, 2);
+    case 'vapor_temperature':
+      return numberText(candidate.params?.vapor_temperature, 1);
+    case 'maintain_temperature':
+      return numberText(candidate.params?.maintain_temperature ?? candidate.params?.process_temperature, 1);
+    case 'aggressive_product':
+      return valueText(candidate.params?.aggressive_product);
+    case 'installed_cable_length':
+      return numberText(candidate.results?.installed_cable_length, 1);
+    case 'order_cable_length':
+      return numberText(candidateOrderCableLengthValue(candidate), 1);
+    case 'total_power':
+      return powerText(candidate.results?.total_power);
+    case 'current':
+      return numberText(candidate.results?.current, 2);
+    case 'voltage':
+      return numberText(candidate.results?.voltage, 0);
+    case 'price_per_meter':
+      return numberText(candidateCommercialValue(candidate, 'price_per_meter'), 2);
+    case 'required_order_length':
+      return numberText(candidateCommercialValue(candidate, 'required_order_length'), 1);
+    case 'total_cost':
+      return numberText(candidateCommercialValue(candidate, 'total_cost'), 2);
+    case 'stock_status': {
+      const value = candidateCommercialValue(candidate, 'stock_status');
+      return typeof value === 'string' ? STOCK_STATUS_LABEL[value] ?? value : '—';
+    }
+    case 'lead_time_days':
+      return numberText(candidateCommercialValue(candidate, 'lead_time_days'), 0);
+    default:
+      return valueText(candidate.results?.[key] ?? candidate.params?.[key]);
+  }
+}
+
+function candidateCompareValue(
+  key: ElectricalCandidateColumnKey,
+  candidate: ElectricalCandidate,
+) {
+  return normalizeCandidateCompareText(candidateCompareDisplayValue(key, candidate));
+}
+
 function renderCandidateElectricalField(
   key: ElectricalColumnKey,
   candidate: ElectricalCandidate,
@@ -1170,6 +1262,7 @@ export default function ElecCalcPage() {
   const [markedCableSizingCandidateIds, setMarkedCableSizingCandidateIds] = useState<string[]>([]);
   const [activeCandidateFolderKey, setActiveCandidateFolderKey] =
     useState<CandidateFolderKey>('all');
+  const previousActiveCandidateFolderKeyRef = useRef<CandidateFolderKey>('all');
   const [candidateFolderModalMode, setCandidateFolderModalMode] =
     useState<CandidateFolderModalMode>('create');
   const [candidateFolderModalOpen, setCandidateFolderModalOpen] = useState(false);
@@ -2558,16 +2651,19 @@ export default function ElecCalcPage() {
   }, [electricalQueryCapabilities]);
   const currentTableViewActive = hasActiveTableViewState(tableViewState);
   const candidateTableViewActive = hasActiveTableViewState(candidateTableViewState);
+  const markedCableSizingCandidateSet = useMemo(
+    () => new Set(markedCableSizingCandidateIds),
+    [markedCableSizingCandidateIds],
+  );
   const candidateColumnValueAccessors = useMemo<HeatCalcColumnValueAccessors<ElectricalCandidate>>(() => {
-    const markedIds = new Set(markedCableSizingCandidateIds);
     const accessors: HeatCalcColumnValueAccessors<ElectricalCandidate> = {};
     for (const column of visibleCandidateColumnMetas) {
       if (column.key === 'actions') continue;
       accessors[column.key] = (candidate) =>
-        candidateElectricalFieldValue(column.key, candidate, markedIds.has(candidate.id));
+        candidateElectricalFieldValue(column.key, candidate, markedCableSizingCandidateSet.has(candidate.id));
     }
     return accessors;
-  }, [markedCableSizingCandidateIds, visibleCandidateColumnMetas]);
+  }, [markedCableSizingCandidateSet, visibleCandidateColumnMetas]);
   const activeCustomCandidateFolderId = candidateCustomFolderId(activeCandidateFolderKey);
   const activeCustomCandidateFolder = useMemo(
     () => activeCustomCandidateFolderId
@@ -2603,6 +2699,11 @@ export default function ElecCalcPage() {
       setActiveCandidateFolderKey('all');
     }
   }, [activeCustomCandidateFolder, activeCustomCandidateFolderId]);
+  useEffect(() => {
+    if (previousActiveCandidateFolderKeyRef.current === activeCandidateFolderKey) return;
+    previousActiveCandidateFolderKeyRef.current = activeCandidateFolderKey;
+    setMarkedCableSizingCandidateIds([]);
+  }, [activeCandidateFolderKey]);
   const cableSizingCandidateTableRows = useMemo(
     () => cableSizingCandidatesByActiveFolder.map((record, sourceIndex) => ({ record, sourceIndex })),
     [cableSizingCandidatesByActiveFolder],
@@ -2621,6 +2722,34 @@ export default function ElecCalcPage() {
     const otherRows = sortedRows.filter((row) => !row.record.is_applied);
     return [...appliedRows, ...otherRows].map((row) => row.record);
   }, [cableSizingCandidateTableRows, candidateColumnValueAccessors, candidateTableViewState]);
+  const displayedMarkedCableSizingCandidates = useMemo(
+    () => displayedCableSizingCandidates.filter((candidate) =>
+      markedCableSizingCandidateSet.has(candidate.id),
+    ),
+    [displayedCableSizingCandidates, markedCableSizingCandidateSet],
+  );
+  const cableSizingCandidateCompareActive = displayedMarkedCableSizingCandidates.length >= 2;
+  const candidateCompareDiffColumnKeys = useMemo(() => {
+    const diffKeys = new Set<ElectricalCandidateColumnKey>();
+    if (!cableSizingCandidateCompareActive) return diffKeys;
+
+    for (const column of visibleCandidateColumnMetas) {
+      if (!isCandidateCompareColumn(column.key)) continue;
+      const values = new Set(
+        displayedMarkedCableSizingCandidates.map((candidate) =>
+          candidateCompareValue(column.key, candidate),
+        ),
+      );
+      if (values.size > 1) {
+        diffKeys.add(column.key);
+      }
+    }
+    return diffKeys;
+  }, [
+    cableSizingCandidateCompareActive,
+    displayedMarkedCableSizingCandidates,
+    visibleCandidateColumnMetas,
+  ]);
   const candidateEnumOptionsByColumn = useMemo(() => {
     const result: Record<string, Array<{ value: string; label: string }>> = {};
     for (const column of visibleCandidateColumnMetas) {
@@ -4060,10 +4189,49 @@ export default function ElecCalcPage() {
   }
 
   function cableSizingCandidateRowClassName(candidate: ElectricalCandidate) {
-    if (candidate.status === 'error') {
-      return 'electrical-cable-sizing-table__row--error';
-    }
-    return '';
+    return [
+      candidate.status === 'error' ? 'electrical-cable-sizing-table__row--error' : '',
+      cableSizingCandidateCompareActive && markedCableSizingCandidateSet.has(candidate.id)
+        ? 'electrical-cable-sizing-table__row--compared'
+        : '',
+    ].filter(Boolean).join(' ');
+  }
+
+  function isCandidateCompareDiffCell(
+    candidate: ElectricalCandidate,
+    columnKey: ElectricalCandidateColumnKey,
+  ) {
+    return (
+      cableSizingCandidateCompareActive
+      && markedCableSizingCandidateSet.has(candidate.id)
+      && candidateCompareDiffColumnKeys.has(columnKey)
+    );
+  }
+
+  function renderCandidateCompareBar() {
+    if (!cableSizingCandidateCompareActive) return null;
+    const diffCount = candidateCompareDiffColumnKeys.size;
+    return (
+      <div
+        className="electrical-candidate-compare-bar"
+        data-testid="candidate-compare-bar"
+        role="status"
+        aria-live="polite"
+      >
+        <Text strong>Сравнение: {displayedMarkedCableSizingCandidates.length} вариантов</Text>
+        <Text type="secondary">
+          {diffCount > 0
+            ? `Отличий в видимых колонках: ${diffCount}`
+            : 'В видимых колонках отличий нет'}
+        </Text>
+        <Button
+          size="small"
+          onClick={() => setMarkedCableSizingCandidateIds([])}
+        >
+          Сбросить сравнение
+        </Button>
+      </div>
+    );
   }
 
   function openCreateCandidateFolderModal() {
@@ -4267,6 +4435,14 @@ export default function ElecCalcPage() {
             onClose={close}
           />
         ) : undefined,
+        onCell: (candidate: ElectricalCandidate) => {
+          const isDiff = isCandidateCompareDiffCell(candidate, column.key);
+          return {
+            className: isDiff ? 'electrical-candidate-cell--diff' : undefined,
+            title: isDiff ? 'Отличается в выбранных вариантах' : undefined,
+            'data-testid': isDiff ? `candidate-diff-${candidate.id}-${column.key}` : undefined,
+          } as HTMLAttributes<HTMLElement>;
+        },
       };
       if (column.key === 'marked') {
         return {
@@ -4910,6 +5086,7 @@ export default function ElecCalcPage() {
           {renderElectricalTypeControls(cableSizingCableType, { block: true })}
           {renderSelectedCableSummary()}
           {renderCandidateFolderTabs()}
+          {renderCandidateCompareBar()}
           <Table<ElectricalCandidate>
             className="electrical-cable-sizing-table"
             size="small"
