@@ -64,7 +64,7 @@ import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollR
 import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
 import type { ProjectObject, ProjectObjectsQueryResponse } from '@/types/project';
 import { formatNumber } from '@/utils/formatters';
-import { buildTsv, copyToClipboard } from '@/utils/clipboard';
+import { buildTsv, copyToClipboard, readFromClipboard } from '@/utils/clipboard';
 import { findDN } from '@/utils/objectWizardUtils';
 import {
   getHeatCalcFieldDefinition,
@@ -186,9 +186,13 @@ import {
   EXCEL_NEW_ROW_PREFIX,
   formatExcelCellDisplay,
   formatExcelDraftCellDisplay,
+  getExcelContextMenuDisabledState,
   getExcelSelectionOrigin,
   getExcelEditableColumnMetas,
+  getExcelInsertAfterRowIndex,
+  getExcelSelectedCellPositions,
   getExcelSelectedRowIndexes,
+  getExcelSelectionRangeOrActiveCell,
   isExcelCellActive,
   isExcelCellInRange,
   isExcelDraftRowBlank,
@@ -319,6 +323,13 @@ type ActiveInlineCell = {
   columnKey: string;
 } | null;
 type TableEditingMode = 'normal' | 'excel';
+type ExcelLocalProjectObject = ProjectObject & {
+  __excelInsertAfterObjectId?: string | null;
+};
+type ExcelContextMenuState = {
+  x: number;
+  y: number;
+} | null;
 type PendingInlineDisableSettings = {
   columnSettings: HeatCalcTableColumnSettings;
   viewSettings: HeatCalcTableViewSettings;
@@ -492,7 +503,8 @@ export default function HeatCalcPage() {
   const [selectedExcelCell, setSelectedExcelCell] = useState<ActiveInlineCell>(null);
   const [excelSelectionRange, setExcelSelectionRange] = useState<ExcelSelectionRange | null>(null);
   const [draftRowsById, setDraftRowsById] = useState<DraftRowsById>({});
-  const [excelLocalRows, setExcelLocalRows] = useState<ProjectObject[]>([]);
+  const [excelLocalRows, setExcelLocalRows] = useState<ExcelLocalProjectObject[]>([]);
+  const [excelContextMenu, setExcelContextMenu] = useState<ExcelContextMenuState>(null);
   const excelNewRowSeqRef = useRef(0);
   const lastExcelCellPointerDownRef = useRef<{
     rowIndex: number;
@@ -1610,11 +1622,14 @@ export default function HeatCalcPage() {
     ),
     [allIndexedTableRows, allTableViewState, tableValueAccessors],
   );
-  const activeExcelLocalRows = useMemo(
+  const activeExcelLocalRows = useMemo<ExcelLocalProjectObject[]>(
     () => excelLocalRows.filter((row) => row.object_type === activeTableObjectType),
     [activeTableObjectType, excelLocalRows],
   );
-  const createExcelLocalRows = useCallback((count: number): ProjectObject[] => {
+  const createExcelLocalRows = useCallback((
+    count: number,
+    insertAfterObjectId: string | null = null,
+  ): ExcelLocalProjectObject[] => {
     const now = new Date().toISOString();
     return Array.from({ length: Math.max(0, count) }, () => {
       const seq = excelNewRowSeqRef.current;
@@ -1631,11 +1646,12 @@ export default function HeatCalcPage() {
         validation_errors: null,
         created_at: now,
         updated_at: now,
+        __excelInsertAfterObjectId: insertAfterObjectId,
       };
     });
   }, [activeTableObjectType, project?.id, projectObjectCount]);
-  const appendExcelLocalRows = useCallback((count: number) => {
-    const rows = createExcelLocalRows(count);
+  const appendExcelLocalRows = useCallback((count: number, insertAfterObjectId: string | null = null) => {
+    const rows = createExcelLocalRows(count, insertAfterObjectId);
     if (rows.length > 0) setExcelLocalRows((current) => [...current, ...rows]);
     return rows;
   }, [createExcelLocalRows]);
@@ -1661,12 +1677,26 @@ export default function HeatCalcPage() {
       : objectQueryResult?.items ?? []),
     [isAllObjectScope, objectQueryResult, visibleAllTableRows],
   );
-  const visibleTableObjects = useMemo(
-    () => (excelModeEnabled
-      ? [...baseVisibleTableObjects, ...activeExcelLocalRows]
-      : baseVisibleTableObjects),
-    [activeExcelLocalRows, baseVisibleTableObjects, excelModeEnabled],
-  );
+  const visibleTableObjects = useMemo(() => {
+    if (!excelModeEnabled) return baseVisibleTableObjects;
+
+    const rowsByAnchor = new Map<string | null, ExcelLocalProjectObject[]>();
+    activeExcelLocalRows.forEach((row) => {
+      const anchorId = row.__excelInsertAfterObjectId ?? null;
+      const rows = rowsByAnchor.get(anchorId) ?? [];
+      rows.push(row);
+      rowsByAnchor.set(anchorId, rows);
+    });
+
+    const rows: ProjectObject[] = [];
+    const pushRow = (row: ProjectObject) => {
+      rows.push(row);
+      rowsByAnchor.get(row.id)?.forEach(pushRow);
+    };
+    baseVisibleTableObjects.forEach(pushRow);
+    rowsByAnchor.get(null)?.forEach(pushRow);
+    return rows;
+  }, [activeExcelLocalRows, baseVisibleTableObjects, excelModeEnabled]);
   const visibleTableRows = useMemo(
     () => (isAllObjectScope
       ? visibleAllTableRows
@@ -2016,7 +2046,10 @@ export default function HeatCalcPage() {
           ? await createObject(project.id, {
             object_type: row.objectType,
             params,
-            sort_order: projectObjectCount + index,
+            sort_order: (() => {
+              const rowIndex = visibleTableObjects.findIndex((object) => object.id === row.objectId);
+              return rowIndex >= 0 ? rowIndex : projectObjectCount + index;
+            })(),
           })
           : await updateObject(project.id, row.objectId, {
             version: row.baseVersion,
@@ -2076,7 +2109,15 @@ export default function HeatCalcPage() {
     }
     antdMessage.success(`Сохранено строк: ${saved.length}`);
     return { ok: true, saved };
-  }, [draftRowsById, isSavableDraftRow, project, projectObjectCount, queryClient, updateObjectInCurrentQuery]);
+  }, [
+    draftRowsById,
+    isSavableDraftRow,
+    project,
+    projectObjectCount,
+    queryClient,
+    updateObjectInCurrentQuery,
+    visibleTableObjects,
+  ]);
 
   const commitInlineCell = useCallback((
     record: ProjectObject,
@@ -2304,6 +2345,177 @@ export default function HeatCalcPage() {
     return formatExcelCellDisplay(config, getInlineCellFormValue(record, columnKey, draftRow));
   }, []);
 
+  const closeExcelContextMenu = useCallback(() => {
+    setExcelContextMenu(null);
+  }, []);
+
+  const copyExcelSelection = useCallback(async () => {
+    const range = getExcelSelectionRangeOrActiveCell(excelSelectionRange, selectedExcelPosition);
+    if (!excelModeEnabled || !range) return false;
+    const tsv = buildExcelSelectionTsv(range, (rowIndex, columnIndex) => {
+      const row = visibleTableRows[rowIndex];
+      const meta = sourceColumnMetas[columnIndex];
+      if (!row || !meta) return '';
+      const draftRow = draftRowsById[row.record.id];
+      return excelCellDisplayValue(row.record, meta.key, draftRow);
+    });
+    await copyToClipboard(tsv);
+    antdMessage.success('Скопировано');
+    return true;
+  }, [
+    draftRowsById,
+    excelCellDisplayValue,
+    excelModeEnabled,
+    excelSelectionRange,
+    selectedExcelPosition,
+    sourceColumnMetas,
+    visibleTableRows,
+  ]);
+
+  const clearExcelSelection = useCallback(() => {
+    const cells = getExcelSelectedCellPositions(
+      excelSelectionRange,
+      selectedExcelPosition,
+      visibleTableObjects.length,
+      sourceColumnMetas.length,
+    );
+    if (!excelModeEnabled || cells.length === 0) return false;
+
+    let changedCells = 0;
+    setDraftRowsById((current) => {
+      let nextDraftRows: DraftRowsById = { ...current };
+      cells.forEach(({ rowIndex, columnIndex }) => {
+        const record = visibleTableObjects[rowIndex];
+        const meta = sourceColumnMetas[columnIndex];
+        if (!record || !meta) return;
+        if (record.object_type !== 'pipe' && record.object_type !== 'tank') return;
+        const config = getInlineEditFieldConfig(record.object_type, meta.key);
+        if (!config) return;
+        const parsed = parseExcelCellValue(config, '');
+        const draftRow = applyInlineCellDraft(nextDraftRows[record.id] ?? null, record, meta.key, parsed.value);
+        if (!draftRow) return;
+        changedCells += 1;
+        if (
+          isDraftRowEmpty(draftRow)
+          || (isExcelNewRowId(record.id)
+            && isExcelDraftRowBlank(draftRow)
+            && Object.keys(draftRow.errors).length === 0)
+        ) {
+          const rest = { ...nextDraftRows };
+          delete rest[record.id];
+          nextDraftRows = rest;
+        } else {
+          nextDraftRows = {
+            ...nextDraftRows,
+            [record.id]: draftRow,
+          };
+        }
+      });
+      return nextDraftRows;
+    });
+    if (changedCells > 0) {
+      antdMessage.success(`Очищено ячеек: ${changedCells}`);
+    }
+    return changedCells > 0;
+  }, [
+    excelModeEnabled,
+    excelSelectionRange,
+    selectedExcelPosition,
+    sourceColumnMetas,
+    visibleTableObjects,
+  ]);
+
+  const cutExcelSelection = useCallback(async () => {
+    const copied = await copyExcelSelection();
+    if (!copied) return;
+    clearExcelSelection();
+  }, [clearExcelSelection, copyExcelSelection]);
+
+  const addExcelRowsBelowSelection = useCallback((count: number) => {
+    const afterRowIndex = getExcelInsertAfterRowIndex(
+      excelSelectionRange,
+      selectedExcelPosition,
+      visibleTableObjects.length,
+    );
+    const insertAfterObjectId = afterRowIndex == null ? null : visibleTableObjects[afterRowIndex]?.id ?? null;
+    const rows = appendExcelLocalRows(count, insertAfterObjectId);
+    if (rows.length > 0) {
+      window.setTimeout(() => {
+        const firstRowIndex = visibleTableObjects.findIndex((object) => object.id === insertAfterObjectId) + 1;
+        selectExcelCellByPosition(firstRowIndex > 0 ? firstRowIndex : visibleTableObjects.length, 0);
+      }, 0);
+    }
+  }, [
+    appendExcelLocalRows,
+    excelSelectionRange,
+    selectedExcelPosition,
+    selectExcelCellByPosition,
+    visibleTableObjects,
+  ]);
+
+  const resetSelectedExcelRows = useCallback(() => {
+    const ids = selectedExcelRows.map(({ record }) => record.id);
+    if (ids.length === 0) return;
+    discardDraftRows(ids);
+    setExcelLocalRows((current) => current.filter((row) => {
+      if (!ids.includes(row.id)) return true;
+      return !isExcelDraftRowBlank(draftRowsById[row.id]);
+    }));
+    antdMessage.success(ids.length > 1 ? 'Изменения строк сброшены' : 'Изменения строки сброшены');
+  }, [discardDraftRows, draftRowsById, selectedExcelRows]);
+
+  const openExcelContextMenu = useCallback((event: ReactMouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const width = 240;
+    const height = 330;
+    setExcelContextMenu({
+      x: Math.max(8, Math.min(event.clientX, window.innerWidth - width)),
+      y: Math.max(8, Math.min(event.clientY, window.innerHeight - height)),
+    });
+  }, []);
+
+  const openExcelCellContextMenu = useCallback((
+    rowIndex: number,
+    columnIndex: number,
+    event: ReactMouseEvent<HTMLElement>,
+  ) => {
+    if (!excelModeEnabled) return;
+    if (!isExcelCellInRange(excelSelectionRange, rowIndex, columnIndex)) {
+      setExcelRangeSelection(
+        { rowIndex, columnIndex },
+        { rowIndex, columnIndex },
+        { rowIndex, columnIndex },
+      );
+    }
+    openExcelContextMenu(event);
+  }, [excelModeEnabled, excelSelectionRange, openExcelContextMenu, setExcelRangeSelection]);
+
+  const openExcelRowContextMenu = useCallback((
+    rowIndex: number,
+    event: ReactMouseEvent<HTMLElement>,
+  ) => {
+    if (!excelModeEnabled || editableExcelColumnKeys.length === 0) return;
+    const normalizedRange = excelSelectionRange ? normalizeExcelSelectionRange(excelSelectionRange) : null;
+    const rowAlreadySelected = !!normalizedRange
+      && rowIndex >= normalizedRange.top
+      && rowIndex <= normalizedRange.bottom;
+    if (!rowAlreadySelected) {
+      setExcelRangeSelection(
+        { rowIndex, columnIndex: 0 },
+        { rowIndex, columnIndex: editableExcelColumnKeys.length - 1 },
+        { rowIndex, columnIndex: 0 },
+      );
+    }
+    openExcelContextMenu(event);
+  }, [
+    editableExcelColumnKeys.length,
+    excelModeEnabled,
+    excelSelectionRange,
+    openExcelContextMenu,
+    setExcelRangeSelection,
+  ]);
+
   const applyExcelPaste = useCallback((text: string) => {
     const origin = getExcelSelectionOrigin(excelSelectionRange, selectedExcelPosition);
     if (!excelModeEnabled || !origin) return;
@@ -2401,6 +2613,19 @@ export default function HeatCalcPage() {
     sourceColumnMetas,
     visibleTableObjects,
   ]);
+
+  const pasteExcelFromClipboard = useCallback(async () => {
+    try {
+      const text = await readFromClipboard();
+      if (!text) {
+        antdMessage.info('Буфер обмена пуст');
+        return;
+      }
+      applyExcelPaste(text);
+    } catch (error) {
+      antdMessage.error(error instanceof Error ? error.message : 'Не удалось прочитать буфер обмена');
+    }
+  }, [applyExcelPaste]);
 
   useEffect(() => {
     if (isAllObjectScope) {
@@ -2972,6 +3197,7 @@ export default function HeatCalcPage() {
               onSelect={() => selectExcelCellByPosition(index, columnIndex)}
               onSelectionPointerDown={(event) => beginExcelCellSelection(index, columnIndex, event)}
               onSelectionPointerEnter={() => extendExcelCellSelection(index, columnIndex)}
+              onContextMenu={(event) => openExcelCellContextMenu(index, columnIndex, event)}
               onStartEdit={() => startInlineCellEdit(record, meta.key)}
               onCommit={(nextValue) => commitInlineCell(record, meta.key, nextValue)}
               onCancel={() => setActiveInlineCell(null)}
@@ -3012,7 +3238,12 @@ export default function HeatCalcPage() {
           />
         ) : undefined,
         onCell: !isAllObjectScope && tableCellEditingEnabled && getInlineEditFieldConfig(activeTableObjectType, meta.key)
-          ? () => ({ className: 'editable-cell-host editable-cell-enabled' })
+          ? (_record, rowIndex) => ({
+            className: 'editable-cell-host editable-cell-enabled',
+            onContextMenu: excelModeEnabled && rowIndex != null
+              ? (event: ReactMouseEvent<HTMLElement>) => openExcelCellContextMenu(rowIndex, columnIndex, event)
+              : undefined,
+          })
           : undefined,
       };
     }),
@@ -3036,6 +3267,7 @@ export default function HeatCalcPage() {
       excelModeEnabled,
       isSavableDraftRow,
       isAllObjectScope,
+      openExcelCellContextMenu,
       resetColumnFilter,
       selectExcelCellByPosition,
       selectedExcelPosition,
@@ -3102,13 +3334,30 @@ export default function HeatCalcPage() {
             onPointerDown={(event) => {
               event.preventDefault();
               event.stopPropagation();
+              if (event.button === 2) {
+                openExcelRowContextMenu(index, event as unknown as ReactMouseEvent<HTMLElement>);
+                return;
+              }
               beginExcelRowSelection(index, event);
+            }}
+            onMouseDown={(event) => {
+              if (event.button !== 2) return;
+              event.preventDefault();
+              event.stopPropagation();
+              openExcelRowContextMenu(index, event);
+            }}
+            onAuxClick={(event) => {
+              if (event.button !== 2) return;
+              event.preventDefault();
+              event.stopPropagation();
+              openExcelRowContextMenu(index, event);
             }}
             onPointerEnter={() => extendExcelRowSelection(index)}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
             }}
+            onContextMenu={(event) => openExcelRowContextMenu(index, event)}
           >
             {sourceIndex + 1}
           </button>
@@ -3122,6 +3371,7 @@ export default function HeatCalcPage() {
     excelSelectionRange,
     extendExcelRowSelection,
     isSavableDraftRow,
+    openExcelRowContextMenu,
     selectAllExcelCells,
     selectedExcelPosition,
     visibleTableObjects.length,
@@ -3191,17 +3441,7 @@ export default function HeatCalcPage() {
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
         e.preventDefault();
-        const range = excelSelectionRange ?? createExcelSelectionRange(selectedExcelPosition);
-        const tsv = buildExcelSelectionTsv(range, (rowIndex, columnIndex) => {
-          const row = visibleTableRows[rowIndex];
-          const meta = sourceColumnMetas[columnIndex];
-          if (!row || !meta) return '';
-          const draftRow = draftRowsById[row.record.id];
-          return excelCellDisplayValue(row.record, meta.key, draftRow);
-        });
-        copyToClipboard(tsv).then(() => {
-          antdMessage.success('Скопировано');
-        });
+        void copyExcelSelection();
         return;
       }
 
@@ -3215,6 +3455,10 @@ export default function HeatCalcPage() {
 
       if (e.key === 'Escape') {
         e.preventDefault();
+        if (excelContextMenu) {
+          closeExcelContextMenu();
+          return;
+        }
         setActiveInlineCell(null);
         setExcelSelectionRange(createExcelSelectionRange(selectedExcelPosition));
         return;
@@ -3259,19 +3503,52 @@ export default function HeatCalcPage() {
     };
   }, [
     applyExcelPaste,
-    draftRowsById,
+    closeExcelContextMenu,
+    copyExcelSelection,
     editableExcelColumnKeys,
-    excelCellDisplayValue,
+    excelContextMenu,
     excelSelectionRange,
     excelModeEnabled,
     moveExcelSelection,
     selectAllExcelCells,
     selectedExcelPosition,
-    sourceColumnMetas,
     startInlineCellEdit,
     visibleTableObjects,
-    visibleTableRows,
   ]);
+
+  useEffect(() => {
+    if (!excelModeEnabled) {
+      closeExcelContextMenu();
+    }
+  }, [closeExcelContextMenu, excelModeEnabled]);
+
+  useEffect(() => {
+    if (!excelContextMenu) return undefined;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (event.target instanceof Element && event.target.closest('.excel-context-menu')) return;
+      closeExcelContextMenu();
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      closeExcelContextMenu();
+    }
+
+    function handleScroll() {
+      closeExcelContextMenu();
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleScroll, true);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [closeExcelContextMenu, excelContextMenu]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -3322,6 +3599,7 @@ export default function HeatCalcPage() {
     setActiveInlineCell(null);
     setSelectedExcelCell(null);
     setExcelSelectionRange(null);
+    closeExcelContextMenu();
   }
 
   function updateDraftColumn(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey, checked: boolean) {
@@ -3564,48 +3842,48 @@ export default function HeatCalcPage() {
         {formBlockVisible && (
           <div className="actionbar-form-actions-row" role="toolbar" aria-label="Действия блока заполнения">
             <div className="actionbar-group actionbar-form-actions-group">
-              <Button
-                type="primary"
-                className="action-add-button"
-                icon={<PlusOutlined />}
-                aria-label="Добавить"
-                onClick={() => openAddWizard()}
-              >
-                Добавить
-              </Button>
+              <Tooltip title="Добавить">
+                <Button
+                  type="primary"
+                  className="action-icon-button action-add-button add"
+                  icon={<PlusOutlined />}
+                  aria-label="Добавить"
+                  onClick={() => openAddWizard()}
+                />
+              </Tooltip>
 
               <Tooltip title={toolbarSaveTooltip}>
                 <span className="action-tooltip-wrap">
                   <Button
-                    className="action-save-button save"
+                    className="action-icon-button action-save-button save"
                     icon={<SaveOutlined />}
                     aria-label="Сохранить"
                     disabled={toolbarSaveDisabled}
                     loading={toolbarSaveLoading}
                     onClick={handleToolbarSave}
-                  >
-                    Сохранить
-                  </Button>
+                  />
                 </span>
               </Tooltip>
-              <Popconfirm
-                title={deleteTargetCount > 1 ? `Удалить выбранные строки: ${deleteTargetCount}?` : 'Удалить выбранную строку?'}
-                okText="Удалить"
-                cancelText="Отмена"
-                disabled={deleteTargetCount === 0}
-                onConfirm={removeSelectedObjects}
-              >
-                <Button
-                  danger
-                  className="action-secondary-button"
-                  icon={<DeleteOutlined />}
-                  aria-label="Удалить выбранные"
-                  loading={remove.isPending}
-                  disabled={deleteTargetCount === 0}
-                >
-                  Удалить
-                </Button>
-              </Popconfirm>
+              <Tooltip title={deleteTargetCount === 0 ? 'Выберите строки для удаления' : 'Удалить выбранные'}>
+                <span className="action-tooltip-wrap">
+                  <Popconfirm
+                    title={deleteTargetCount > 1 ? `Удалить выбранные строки: ${deleteTargetCount}?` : 'Удалить выбранную строку?'}
+                    okText="Удалить"
+                    cancelText="Отмена"
+                    disabled={deleteTargetCount === 0}
+                    onConfirm={removeSelectedObjects}
+                  >
+                    <Button
+                      danger
+                      className="action-icon-button action-secondary-button"
+                      icon={<DeleteOutlined />}
+                      aria-label="Удалить выбранные"
+                      loading={remove.isPending}
+                      disabled={deleteTargetCount === 0}
+                    />
+                  </Popconfirm>
+                </span>
+              </Tooltip>
             </div>
           </div>
         )}
@@ -3621,80 +3899,49 @@ export default function HeatCalcPage() {
               ]}
               onChange={handleTableEditingModeChange}
             />
-            {excelModeEnabled ? (
-              <Tooltip title="Расчётные, служебные и readonly-колонки временно скрыты. Настройки таблицы не меняются.">
-                <Typography.Text className="excel-mode-hint" type="secondary">
-                  Только заполняемые поля
-                </Typography.Text>
-              </Tooltip>
-            ) : null}
-            {excelModeEnabled ? (
-              <>
-                <Button
-                  size="small"
-                  className="action-secondary-button"
-                  icon={<PlusOutlined />}
-                  aria-label="Добавить строку в Excel-режиме"
-                  onClick={() => appendExcelLocalRows(1)}
-                >
-                  Строка
-                </Button>
-                <Button
-                  size="small"
-                  className="action-secondary-button"
-                  icon={<PlusOutlined />}
-                  aria-label="Добавить 10 строк в Excel-режиме"
-                  onClick={() => appendExcelLocalRows(10)}
-                >
-                  10 строк
-                </Button>
-              </>
-            ) : null}
             <Tooltip title={heatLossRecalcTooltip}>
               <span className="action-tooltip-wrap">
                 <Button
-                  className="action-secondary-button"
+                  className="action-icon-button action-secondary-button"
                   icon={<ReloadOutlined />}
                   aria-label="Пересчитать теплопотери"
                   loading={heatLossBatchMut.isPending || isHeatLossJobActive}
                   disabled={heatLossRecalcDisabled || heatLossBatchMut.isPending}
                   onClick={() => heatLossBatchMut.mutate()}
-                >
-                  Пересчитать теплопотери
-                </Button>
+                />
               </span>
             </Tooltip>
             {isHeatLossJobActive && activeHeatLossJobId && (
-              <Button
-                danger
-                className="action-secondary-button"
-                icon={<StopOutlined />}
-                aria-label="Отменить пересчёт теплопотерь"
-                loading={cancelHeatLossJobMut.isPending}
-                onClick={() => cancelHeatLossJobMut.mutate()}
-              >
-                Отменить
-              </Button>
+              <Tooltip title="Отменить пересчёт теплопотерь">
+                <Button
+                  danger
+                  className="action-icon-button action-secondary-button"
+                  icon={<StopOutlined />}
+                  aria-label="Отменить пересчёт теплопотерь"
+                  loading={cancelHeatLossJobMut.isPending}
+                  onClick={() => cancelHeatLossJobMut.mutate()}
+                />
+              </Tooltip>
             )}
-            <Button
-              className="action-secondary-button"
-              icon={<TableOutlined />}
-              aria-label="Настройки отображения"
-              onClick={openColumnSettings}
-            >
-              Настройки отображения
-            </Button>
+            <Tooltip title="Настройки отображения">
+              <span className="action-tooltip-wrap">
+                <Button
+                  className="action-icon-button action-secondary-button"
+                  icon={<TableOutlined />}
+                  aria-label="Настройки отображения"
+                  onClick={openColumnSettings}
+                />
+              </span>
+            </Tooltip>
             <Tooltip title={currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
               <span className="action-tooltip-wrap">
                 <Button
-                  className="action-secondary-button"
+                  className="action-icon-button action-secondary-button"
                   icon={<CloseCircleOutlined />}
                   aria-label="Сбросить фильтры таблицы"
                   disabled={!currentTableViewActive}
                   onClick={resetCurrentTableViewState}
-                >
-                  Сбросить фильтры
-                </Button>
+                />
               </span>
             </Tooltip>
             {draftControlsVisible && (
@@ -3720,15 +3967,13 @@ export default function HeatCalcPage() {
             >
               <span className="action-tooltip-wrap">
                 <Button
-                  className="action-secondary-button"
+                  className="action-icon-button action-secondary-button"
                   icon={<CopyOutlined />}
                   aria-label="Добавить копии выбранных"
                   disabled={selectedObjectCount === 0 || add.isPending}
                   loading={add.isPending}
                   onClick={duplicateSelectedObjects}
-                >
-                  Добавить копии выбранных
-                </Button>
+                />
               </span>
             </Tooltip>
             <ImportExcelButton
@@ -3797,6 +4042,79 @@ export default function HeatCalcPage() {
             </Text>
           ) : null}
         </div>
+      </div>
+    );
+  }
+
+  function renderExcelContextMenu() {
+    if (!excelModeEnabled || !excelContextMenu) return null;
+    const hasSelection = !!getExcelSelectionRangeOrActiveCell(excelSelectionRange, selectedExcelPosition);
+    const dirtySelectedRowCount = selectedExcelRows.filter(({ record }) => (
+      isSavableDraftRow(draftRowsById[record.id])
+    )).length;
+    const disabled = getExcelContextMenuDisabledState({
+      hasSelection,
+      selectedRowCount: selectedExcelRows.length,
+      dirtySelectedRowCount,
+      clipboardReadAvailable: typeof navigator !== 'undefined' && !!navigator.clipboard?.readText,
+    });
+
+    const runCommand = (command: () => unknown | Promise<unknown>) => {
+      void Promise.resolve(command()).finally(closeExcelContextMenu);
+    };
+    const confirmDeleteRows = () => {
+      if (selectedExcelRows.length === 0) return;
+      closeExcelContextMenu();
+      Modal.confirm({
+        title: selectedExcelRows.length > 1
+          ? `Удалить выбранные строки: ${selectedExcelRows.length}?`
+          : 'Удалить выбранную строку?',
+        okText: 'Удалить',
+        cancelText: 'Отмена',
+        okButtonProps: { danger: true },
+        onOk: removeSelectedObjects,
+      });
+    };
+    const menuItem = (
+      label: string,
+      icon: ReactNode,
+      disabledItem: boolean,
+      onClick: () => unknown | Promise<unknown>,
+    ) => (
+      <button
+        key={label}
+        type="button"
+        role="menuitem"
+        className="excel-context-menu-item"
+        disabled={disabledItem}
+        onClick={() => runCommand(onClick)}
+      >
+        <span className="excel-context-menu-icon" aria-hidden="true">{icon}</span>
+        <span>{label}</span>
+      </button>
+    );
+
+    return (
+      <div
+        className="excel-context-menu"
+        role="menu"
+        aria-label="Действия Excel-режима"
+        style={{ left: excelContextMenu.x, top: excelContextMenu.y }}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+      >
+        {menuItem('Копировать', <CopyOutlined />, disabled.copy, copyExcelSelection)}
+        {menuItem('Вырезать', <CopyOutlined />, disabled.cut, cutExcelSelection)}
+        {menuItem('Вставить', <CopyOutlined />, disabled.paste, pasteExcelFromClipboard)}
+        {menuItem('Очистить содержимое', <CloseCircleOutlined />, disabled.clear, clearExcelSelection)}
+        <div className="excel-context-menu-separator" role="separator" />
+        {menuItem('Добавить строку ниже', <PlusOutlined />, !hasSelection, () => addExcelRowsBelowSelection(1))}
+        {menuItem('Добавить 10 строк ниже', <PlusOutlined />, !hasSelection, () => addExcelRowsBelowSelection(10))}
+        <div className="excel-context-menu-separator" role="separator" />
+        {menuItem('Удалить выбранные строки', <DeleteOutlined />, disabled.deleteRows, confirmDeleteRows)}
+        {menuItem('Сбросить выбранные строки', <CloseCircleOutlined />, disabled.resetRows, resetSelectedExcelRows)}
       </div>
     );
   }
@@ -3904,6 +4222,51 @@ export default function HeatCalcPage() {
                 if (excelModeEnabled) return;
                 openEditWizard(record);
               },
+              onMouseDown: (event) => {
+                if (!excelModeEnabled || event.button !== 2 || editableExcelColumnKeys.length === 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const rowIndex = visibleTableObjects.findIndex((object) => object.id === record.id);
+                if (rowIndex < 0) return;
+                if (selectedExcelPosition?.rowIndex !== rowIndex) {
+                  setExcelRangeSelection(
+                    { rowIndex, columnIndex: 0 },
+                    { rowIndex, columnIndex: 0 },
+                    { rowIndex, columnIndex: 0 },
+                  );
+                }
+                openExcelContextMenu(event);
+              },
+              onAuxClick: (event) => {
+                if (!excelModeEnabled || event.button !== 2 || editableExcelColumnKeys.length === 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const rowIndex = visibleTableObjects.findIndex((object) => object.id === record.id);
+                if (rowIndex < 0) return;
+                if (selectedExcelPosition?.rowIndex !== rowIndex) {
+                  setExcelRangeSelection(
+                    { rowIndex, columnIndex: 0 },
+                    { rowIndex, columnIndex: 0 },
+                    { rowIndex, columnIndex: 0 },
+                  );
+                }
+                openExcelContextMenu(event);
+              },
+              onContextMenu: (event) => {
+                if (!excelModeEnabled || editableExcelColumnKeys.length === 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const rowIndex = visibleTableObjects.findIndex((object) => object.id === record.id);
+                if (rowIndex < 0) return;
+                if (selectedExcelPosition?.rowIndex !== rowIndex) {
+                  setExcelRangeSelection(
+                    { rowIndex, columnIndex: 0 },
+                    { rowIndex, columnIndex: 0 },
+                    { rowIndex, columnIndex: 0 },
+                  );
+                }
+                openExcelContextMenu(event);
+              },
             })}
             locale={{
               emptyText: (
@@ -3933,6 +4296,8 @@ export default function HeatCalcPage() {
       </div>
       {formPlacement === 'bottom' && formPanel}
       </Space>
+
+      {renderExcelContextMenu()}
 
       {columnSettingsOpen && (
         <Suspense fallback={null}>

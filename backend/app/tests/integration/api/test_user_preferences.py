@@ -50,7 +50,10 @@ def heatcalc_table_columns_value(
 
 
 def heatcalc_table_view_value(
-    font_size: str = "standard", form_placement: str = "top", side_form_width_pct: float = 34
+    font_size: str = "standard",
+    form_placement: str = "top",
+    side_form_width_pct: float = 34,
+    form_section_weights: list[float] | None = None,
 ) -> dict[str, object]:
     return {
         "version": 1,
@@ -58,6 +61,9 @@ def heatcalc_table_view_value(
         "inlineEditingEnabled": False,
         "formPlacement": form_placement,
         "sideFormWidthPct": side_form_width_pct,
+        "formSectionWeights": (
+            form_section_weights if form_section_weights is not None else [1.655, 1.35, 1.2]
+        ),
     }
 
 
@@ -502,6 +508,38 @@ class TestUserPreferencesApi:
         )
 
         assert resp.status_code == 422
+
+    async def test_heatcalc_table_view_accepts_legacy_four_section_weights(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        legacy_value = heatcalc_table_view_value(
+            form_section_weights=[1.095, 1.35, 1.2, 0.56]
+        )
+
+        resp = await client.put(
+            "/api/v1/preferences/heatcalc.tableView.v1",
+            json={"value": legacy_value},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["value"]["formSectionWeights"] == [1.095, 1.35, 1.2, 0.56]
+
+    async def test_heatcalc_table_view_rejects_invalid_section_weights_count(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        resp = await client.put(
+            "/api/v1/preferences/heatcalc.tableView.v1",
+            json={"value": heatcalc_table_view_value(form_section_weights=[1.2, 1.3])},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 422
+        assert "formSectionWeights" in resp.text
 
     async def test_employee_can_upsert_heatcalc_field_input_preference(
         self,

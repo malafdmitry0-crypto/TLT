@@ -52,6 +52,27 @@ type InsulationTemperatureBasis =
   | 'attic'
   | 'basement';
 type SafetyFactorSource = 'default' | 'manual' | 'climate_policy';
+export type ObjectWizardFormValues = Partial<PipeFormValues & TankFormValues & { name: string }>;
+
+export const COMMON_OBJECT_FORM_DEFAULTS: ObjectWizardFormValues = {
+  placement: 'outdoor',
+  insulation_layer_count: '1',
+  insulation_cover_material: 'none',
+  environment: 'normal',
+  zone_classification: 'safe',
+  temperature_group: 'T1',
+  supply_voltage: 220,
+  steam_tracing: 'no',
+};
+
+export const PIPE_OBJECT_FORM_DEFAULTS: ObjectWizardFormValues = {
+  pipe_lambda_mode: 'reference',
+  pipe_material: 'carbon_steel',
+};
+
+export const TANK_OBJECT_FORM_DEFAULTS: ObjectWizardFormValues = {
+  shape: 'cylindrical',
+};
 
 /** Find the nearest DN for an outer diameter in mm. */
 export function findDN(outerDiameterMm: number): number | null {
@@ -138,6 +159,40 @@ function insulationTemperatureBasisOrDefault(
 ): InsulationTemperatureBasis | undefined {
   if (value) return value as InsulationTemperatureBasis;
   return defaultInsulationTemperatureBasisForPlacement(placement);
+}
+
+function isEmptyFormValue(value: unknown) {
+  return value === undefined || value === null || value === '';
+}
+
+export function formDefaultsForObjectType(objectType: 'pipe' | 'tank'): ObjectWizardFormValues {
+  return {
+    ...COMMON_OBJECT_FORM_DEFAULTS,
+    ...(objectType === 'pipe' ? PIPE_OBJECT_FORM_DEFAULTS : TANK_OBJECT_FORM_DEFAULTS),
+  };
+}
+
+export function applyObjectFormDefaults(
+  objectType: 'pipe' | 'tank',
+  values?: ObjectWizardFormValues,
+): ObjectWizardFormValues {
+  const defaults = formDefaultsForObjectType(objectType);
+  const next: ObjectWizardFormValues = {
+    ...defaults,
+    ...(values ?? {}),
+  };
+
+  for (const [key, value] of Object.entries(defaults)) {
+    if (isEmptyFormValue(next[key as keyof ObjectWizardFormValues])) {
+      next[key as keyof ObjectWizardFormValues] = value as never;
+    }
+  }
+
+  if (isEmptyFormValue(next.insulation_temperature_basis)) {
+    next.insulation_temperature_basis = defaultInsulationTemperatureBasisForPlacement(next.placement);
+  }
+
+  return next;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import { beforeEach, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HeatCalcPage from '@/pages/HeatCalcPage';
@@ -274,13 +274,13 @@ export async function openColumnFilter(user: { click: (element: Element) => Prom
 }
 
 export async function openTableSettingsDialog(user: { click: (element: Element) => Promise<unknown> }) {
-  await user.click(
-    await screen.findByRole(
-      'button',
-      { name: 'Настройки отображения' },
-      { timeout: HEATCALC_PAGE_TEST_TIMEOUT },
-    ),
+  void user;
+  const settingsButton = await screen.findByRole(
+    'button',
+    { name: 'Настройки отображения' },
+    { timeout: HEATCALC_PAGE_TEST_TIMEOUT },
   );
+  fireEvent.click(settingsButton);
   return screen.findByRole(
     'dialog',
     { name: /Настройки таблицы/ },

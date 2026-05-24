@@ -5,7 +5,6 @@ import {
   type DraftRowState,
   type InlineEditFieldConfig,
 } from '@/utils/heatCalcInlineEdit';
-import { formatNumber } from '@/utils/formatters';
 
 export interface ParsedExcelCell {
   value: unknown;
@@ -57,6 +56,15 @@ export interface ExcelTableErrorItem {
   rowNumber: number;
   objectName?: string;
   messages: ExcelTableErrorMessage[];
+}
+
+export interface ExcelContextMenuDisabledState {
+  copy: boolean;
+  cut: boolean;
+  paste: boolean;
+  clear: boolean;
+  deleteRows: boolean;
+  resetRows: boolean;
 }
 
 export const EXCEL_NEW_ROW_PREFIX = 'new:';
@@ -118,6 +126,66 @@ export function normalizeExcelSelectionRange(
     bottom: Math.max(range.anchor.rowIndex, range.focus.rowIndex),
     left: Math.min(range.anchor.columnIndex, range.focus.columnIndex),
     right: Math.max(range.anchor.columnIndex, range.focus.columnIndex),
+  };
+}
+
+export function getExcelSelectionRangeOrActiveCell(
+  range: ExcelSelectionRange | null | undefined,
+  activeCell: ExcelCellPosition | null | undefined,
+) {
+  return range ?? (activeCell ? createExcelSelectionRange(activeCell) : null);
+}
+
+export function getExcelSelectedCellPositions(
+  range: ExcelSelectionRange | null | undefined,
+  activeCell: ExcelCellPosition | null | undefined,
+  rowCount: number,
+  columnCount: number,
+): ExcelCellPosition[] {
+  const selectedRange = getExcelSelectionRangeOrActiveCell(range, activeCell);
+  if (!selectedRange || rowCount <= 0 || columnCount <= 0) return [];
+  const normalized = normalizeExcelSelectionRange(selectedRange);
+  const top = Math.max(0, normalized.top);
+  const bottom = Math.min(rowCount - 1, normalized.bottom);
+  const left = Math.max(0, normalized.left);
+  const right = Math.min(columnCount - 1, normalized.right);
+  if (top > bottom || left > right) return [];
+
+  const cells: ExcelCellPosition[] = [];
+  for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
+    for (let columnIndex = left; columnIndex <= right; columnIndex += 1) {
+      cells.push({ rowIndex, columnIndex });
+    }
+  }
+  return cells;
+}
+
+export function getExcelInsertAfterRowIndex(
+  range: ExcelSelectionRange | null | undefined,
+  activeCell: ExcelCellPosition | null | undefined,
+  rowCount: number,
+) {
+  if (rowCount <= 0) return null;
+  const selectedRange = getExcelSelectionRangeOrActiveCell(range, activeCell);
+  if (!selectedRange) return null;
+  const normalized = normalizeExcelSelectionRange(selectedRange);
+  return Math.min(Math.max(normalized.bottom, 0), rowCount - 1);
+}
+
+export function getExcelContextMenuDisabledState(options: {
+  hasSelection: boolean;
+  selectedRowCount: number;
+  dirtySelectedRowCount: number;
+  clipboardReadAvailable: boolean;
+}): ExcelContextMenuDisabledState {
+  const selectionDisabled = !options.hasSelection;
+  return {
+    copy: selectionDisabled,
+    cut: selectionDisabled,
+    clear: selectionDisabled,
+    paste: selectionDisabled || !options.clipboardReadAvailable,
+    deleteRows: options.selectedRowCount === 0,
+    resetRows: options.dirtySelectedRowCount === 0,
   };
 }
 
@@ -404,10 +472,17 @@ export function formatExcelDraftCellDisplay(
   config: InlineEditFieldConfig,
   draftRow: DraftRowState | undefined,
 ) {
-  if (!draftRow || !Object.prototype.hasOwnProperty.call(draftRow.dirtyFields, config.fieldId)) {
+  if (!draftRow || isExcelDraftRowBlank(draftRow)) {
     return '';
   }
   return formatExcelCellDisplay(config, draftRow.draftFormValues[config.fieldId]);
+}
+
+function formatExcelNumber(value: number, maxDigits: number) {
+  return value.toLocaleString('ru-RU', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxDigits,
+  });
 }
 
 export function formatExcelCellDisplay(
@@ -421,7 +496,7 @@ export function formatExcelCellDisplay(
   if (config.editor === 'number') {
     const numberValue = Number(value);
     if (!Number.isFinite(numberValue)) return '';
-    return formatNumber(numberValue, config.field.displayDigits ?? 0);
+    return formatExcelNumber(numberValue, config.field.displayDigits ?? 0);
   }
   return String(value);
 }

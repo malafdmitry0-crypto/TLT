@@ -181,7 +181,7 @@ describe('HeatCalcPage settings', () => {
         inlineEditingEnabled: false,
         formPlacement: 'top',
         sideFormWidthPct: 34,
-        formSectionWeights: [1.095, 1.35, 1.2, 0.56],
+        formSectionWeights: [1.655, 1.35, 1.2],
       });
       expect(saved).not.toHaveProperty('fontSizePx');
     }, HEATCALC_PAGE_TEST_TIMEOUT);

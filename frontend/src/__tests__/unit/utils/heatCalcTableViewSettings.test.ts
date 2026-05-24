@@ -25,7 +25,7 @@ describe('heatCalcTableViewSettings', () => {
       inlineEditingEnabled: false,
       formPlacement: 'top',
       sideFormWidthPct: 34,
-      formSectionWeights: [1.095, 1.35, 1.2, 0.56],
+      formSectionWeights: [1.655, 1.35, 1.2],
     });
     expect(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY)).toBeNull();
   });
@@ -41,7 +41,7 @@ describe('heatCalcTableViewSettings', () => {
       inlineEditingEnabled: true,
       formPlacement: 'left',
       sideFormWidthPct: 42.25,
-      formSectionWeights: [1.2, 1.4, 1.1, 0.6],
+      formSectionWeights: [1.2, 1.4, 1.1],
     })).toEqual({
       version: 1,
       fontSize: 'large',
@@ -50,7 +50,13 @@ describe('heatCalcTableViewSettings', () => {
       inlineEditingEnabled: true,
       formPlacement: 'left',
       sideFormWidthPct: 42.3,
+      formSectionWeights: [1.2, 1.4, 1.1],
+    });
+    expect(normalizeTableViewSettings({
+      version: 1,
       formSectionWeights: [1.2, 1.4, 1.1, 0.6],
+    })).toMatchObject({
+      formSectionWeights: [1.8, 1.4, 1.1],
     });
     expect(normalizeTableViewSettings({ version: 1, fontSize: 'huge' })).toEqual(
       getDefaultTableViewSettings(),
@@ -70,7 +76,7 @@ describe('heatCalcTableViewSettings', () => {
       inlineEditingEnabled: false,
       formPlacement: 'bottom',
       sideFormWidthPct: 44,
-      formSectionWeights: [1, 1.5, 1.1, 0.6],
+      formSectionWeights: [1, 1.5, 1.1],
     });
 
     expect(JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}')).toEqual({
@@ -81,7 +87,7 @@ describe('heatCalcTableViewSettings', () => {
       inlineEditingEnabled: false,
       formPlacement: 'bottom',
       sideFormWidthPct: 44,
-      formSectionWeights: [1, 1.5, 1.1, 0.6],
+      formSectionWeights: [1, 1.5, 1.1],
     });
   });
 
@@ -94,7 +100,7 @@ describe('heatCalcTableViewSettings', () => {
       inlineEditingEnabled: false,
       formPlacement: 'right',
       sideFormWidthPct: 52,
-      formSectionWeights: [1, 1.4, 1.2, 0.7],
+      formSectionWeights: [1, 1.4, 1.2],
     });
 
     expect(readRegisteredTableViewCache('user-1')).toEqual({
@@ -105,7 +111,7 @@ describe('heatCalcTableViewSettings', () => {
       inlineEditingEnabled: false,
       formPlacement: 'right',
       sideFormWidthPct: 52,
-      formSectionWeights: [1, 1.4, 1.2, 0.7],
+      formSectionWeights: [1, 1.4, 1.2],
     });
     expect(readRegisteredTableViewCache('user-2')).toBeNull();
     expect(JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY) ?? '{}')).toHaveProperty(
@@ -122,7 +128,7 @@ describe('heatCalcTableViewSettings', () => {
       inlineEditingEnabled: false,
       formPlacement: 'top',
       sideFormWidthPct: 34,
-      formSectionWeights: [1.095, 1.35, 1.2, 0.56],
+      formSectionWeights: [1.655, 1.35, 1.2],
     })).toMatchObject({
       key: 'large',
       label: 'Крупный',

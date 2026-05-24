@@ -1,7 +1,6 @@
-import { Form, Typography } from 'antd';
+import { Form } from 'antd';
 import type { ReactElement } from 'react';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
-import { findDN } from '@/utils/objectWizardUtils';
 import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
@@ -13,8 +12,6 @@ import {
 } from '@/domain/heatCalcFields';
 import HelpedControl from '../HelpedControl';
 import FieldLabel from '../FieldLabel';
-
-const { Text } = Typography;
 
 function withHelp(control: ReactElement, hint: string) {
   return <HelpedControl hint={hint}>{control}</HelpedControl>;
@@ -36,8 +33,6 @@ export default function PipeGeometryStep({ fieldInputSettings }: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps('pipe', fieldId, { fieldInputSettings, form });
-  const outerDiameterMm = Form.useWatch('outer_diameter_mm', form) as number | undefined;
-  const dn = outerDiameterMm ? findDN(outerDiameterMm) : null;
 
   return (
     <>
@@ -46,17 +41,6 @@ export default function PipeGeometryStep({ fieldInputSettings }: Props) {
         label={fieldLabel('outer_diameter_mm')}
         name="outer_diameter_mm"
         rules={heatCalcFormFieldRules(form, 'pipe', 'outer_diameter_mm')}
-        extra={
-          dn != null ? (
-            <Text type="secondary" style={{ fontSize: 9, whiteSpace: 'nowrap' }}>
-              Соответствует DN{dn}
-            </Text>
-          ) : outerDiameterMm ? (
-            <Text type="secondary" style={{ fontSize: 9, whiteSpace: 'nowrap' }}>
-              Нестандартный размер
-            </Text>
-          ) : null
-        }
       >
         {withHelp(
           <UnitInputNumber
@@ -78,7 +62,7 @@ export default function PipeGeometryStep({ fieldInputSettings }: Props) {
           <UnitInputNumber
             data-testid="pipe-length-input"
             {...numberInputProps('pipe_length')}
-                    unit="м"
+            unit="м"
           />,
           fieldHelp('pipe_length'),
         )}

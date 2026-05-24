@@ -129,15 +129,13 @@ export default function ImportExcelButton({ projectId, existingObjectCount }: Pr
       <Space className="import-actions-compact" size={2} wrap>
         <Tooltip title="Импорт XLSX/CSV">
           <Button
-            className="action-secondary-button import-upload-button"
+            className="action-icon-button action-secondary-button import-upload-button"
             icon={<UploadOutlined />}
             aria-label="Импорт XLSX/CSV"
             size="small"
             loading={importMut.isPending}
             onClick={onPick}
-          >
-            Импорт
-          </Button>
+          />
         </Tooltip>
         <Tooltip title="Скачать шаблон XLSX">
           <Button

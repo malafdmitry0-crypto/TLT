@@ -84,6 +84,10 @@ describe('HeatCalcPage basics', () => {
 
       const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
       expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      expect(screen.queryByText('Электропараметры и арматура')).not.toBeInTheDocument();
+      expect([...document.querySelectorAll('.form-grid-srs .form-col-srs > h4')].map((title) =>
+        title.textContent?.replace(/\s+/g, ' ').trim(),
+      )).toEqual(['Геометрия трубы', 'Теплоизоляция', 'Температура и среда']);
       expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       await user.click(await within(typeToolbar).findByRole('button', { name: /Резервуар:/ }));
       expect(within(typeToolbar).getByRole('button', { name: /Резервуар:/ })).toHaveAttribute('aria-pressed', 'true');
@@ -107,6 +111,10 @@ describe('HeatCalcPage basics', () => {
       expect(screen.queryByText('Зад.')).not.toBeInTheDocument();
       expect(document.body.textContent).toMatch(/3\s*000.*2\s*000.*1\s*500 мм/);
       expect(screen.getByText('Форма и геометрия резервуара')).toBeInTheDocument();
+      expect(screen.queryByText('Электропараметры и арматура')).not.toBeInTheDocument();
+      expect([...document.querySelectorAll('.form-grid-srs .form-col-srs > h4')].map((title) =>
+        title.textContent?.replace(/\s+/g, ' ').trim(),
+      )).toEqual(['Форма и геометрия резервуара', 'Теплоизоляция', 'Температура и среда']);
 
       await user.click(screen.getByText('Резервуар прямоугольный'));
       await waitFor(() => {
@@ -314,7 +322,8 @@ describe('HeatCalcPage basics', () => {
       expect(within(formActionsToolbar).getByRole('button', { name: 'Сохранить' })).toBe(saveButton);
       expect(within(formActionsToolbar).getByRole('button', { name: 'Удалить выбранные' })).toBe(deleteButton);
       expect(deleteButton).toBeDisabled();
-      expect(deleteButton.textContent).toContain('Удалить');
+      expect(deleteButton).toHaveClass('action-icon-button');
+      expect(deleteButton).toHaveTextContent(/^$/);
       expect(saveButton.compareDocumentPosition(deleteButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(within(formActionsToolbar).queryByRole('button', { name: 'Сбросить' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).getByRole('button', { name: 'Настройки отображения' })).toBe(tableFieldsButton);
@@ -327,12 +336,17 @@ describe('HeatCalcPage basics', () => {
       expect(within(tableActionsToolbar).queryByRole('checkbox', { name: 'Показать блок заполнения параметров' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).queryByText(/Все рассчитаны/)).not.toBeInTheDocument();
       expect(useWorkspaceHeaderStore.getState().context).toBeNull();
-      expect(tableFieldsButton.textContent).toContain('Настройки отображения');
+      expect(tableFieldsButton).toHaveClass('action-icon-button');
+      expect(tableFieldsButton).toHaveTextContent(/^$/);
       expect(addButton).toHaveClass('action-add-button');
-      expect(addButton.textContent).toContain('Добавить');
+      expect(addButton).toHaveClass('action-icon-button');
+      expect(addButton).toHaveTextContent(/^$/);
       expect(saveButton).toHaveClass('action-save-button');
+      expect(saveButton).toHaveClass('action-icon-button');
+      expect(saveButton).toHaveTextContent(/^$/);
       expect(saveButton).not.toBeDisabled();
-      expect(importButton.textContent).toContain('Импорт');
+      expect(importButton).toHaveClass('action-icon-button');
+      expect(importButton).toHaveTextContent(/^$/);
       expect(within(typeToolbar).getByRole('button', { name: /Трубопровод:\s*0/ })).toBeInTheDocument();
       expect(within(typeToolbar).getByRole('button', { name: /Резервуар:\s*0/ })).toBeInTheDocument();
       expect(within(typeToolbar).getByRole('button', { name: /Все:\s*0/ })).toBeInTheDocument();

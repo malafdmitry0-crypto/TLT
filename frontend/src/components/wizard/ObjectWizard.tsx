@@ -24,6 +24,7 @@ import type { ClimateEntry } from '@/types/reference';
 import {
   generatePipeName,
   generateTankName,
+  applyObjectFormDefaults,
   pipeFormToApiParams,
   tankFormToApiParams,
   pipeApiParamsToForm,
@@ -85,33 +86,13 @@ interface Props {
 
 const SECTION_RESIZE_HANDLE_WIDTH = 4;
 const SECTION_GRID_GAP_WIDTH = 2;
-const SECTION_FIELD_PAIR_MIN_WIDTHS = [206, 206, 220, 180];
+const SECTION_FIELD_PAIR_MIN_WIDTHS = [206, 206, 220];
+const SECTION_RESIZE_HANDLE_COUNT = SECTION_FIELD_PAIR_MIN_WIDTHS.length - 1;
+const SECTION_GRID_GAP_COUNT = SECTION_FIELD_PAIR_MIN_WIDTHS.length + SECTION_RESIZE_HANDLE_COUNT - 1;
 const SECTION_FIELD_GRID =
   'repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr))';
 const REQUIRED_FIELDS_ERROR_PREFIX = 'Не заполнены обязательные поля объекта:';
 const REQUIRED_FIELD_ERROR_MESSAGE = '';
-
-type ObjectWizardFormValues = Partial<PipeFormValues & TankFormValues & { name: string }>;
-
-const COMMON_FORM_DEFAULTS: ObjectWizardFormValues = {
-  placement: 'outdoor',
-  insulation_layer_count: '1',
-  insulation_cover_material: 'none',
-  environment: 'normal',
-  zone_classification: 'safe',
-  temperature_group: 'T1',
-  supply_voltage: 220,
-  steam_tracing: 'no',
-};
-
-const PIPE_FORM_DEFAULTS: ObjectWizardFormValues = {
-  pipe_lambda_mode: 'reference',
-  pipe_material: 'carbon_steel',
-};
-
-const TANK_FORM_DEFAULTS: ObjectWizardFormValues = {
-  shape: 'cylindrical',
-};
 
 const AUTO_OUTDOOR_INSULATION_BASIS = new Set(['outdoor_summer', 'outdoor_winter']);
 const AUTO_NON_UNDERGROUND_INSULATION_BASIS = new Set(['indoor', ...AUTO_OUTDOOR_INSULATION_BASIS]);
@@ -230,40 +211,6 @@ function validationErrorsText(validationErrors: ProjectObject['validation_errors
 
 function isEmptyFormValue(value: unknown) {
   return value === undefined || value === null || value === '';
-}
-
-function formDefaultsForType(objectType: ObjectType): ObjectWizardFormValues {
-  return {
-    ...COMMON_FORM_DEFAULTS,
-    ...(objectType === 'pipe' ? PIPE_FORM_DEFAULTS : TANK_FORM_DEFAULTS),
-  };
-}
-
-function applyObjectWizardDefaults(
-  objectType: ObjectType,
-  values?: ObjectWizardFormValues,
-): ObjectWizardFormValues {
-  const defaults = formDefaultsForType(objectType);
-  const next: ObjectWizardFormValues = {
-    ...defaults,
-    ...(values ?? {}),
-  };
-
-  for (const [key, value] of Object.entries(defaults)) {
-    if (isEmptyFormValue(next[key as keyof ObjectWizardFormValues])) {
-      next[key as keyof ObjectWizardFormValues] = value as never;
-    }
-  }
-
-  if (isEmptyFormValue(next.insulation_temperature_basis)) {
-    if (next.placement === 'indoor') {
-      next.insulation_temperature_basis = 'indoor';
-    } else if (next.placement === 'outdoor') {
-      next.insulation_temperature_basis = 'outdoor_winter';
-    }
-  }
-
-  return next;
 }
 
 function validationRequiredFields(validationErrors: ProjectObject['validation_errors'] | undefined, message: string) {
@@ -570,8 +517,8 @@ export default function ObjectWizard({
     [initialFormValues, initialParams, objectType],
   );
   const formInitialValues = useMemo(
-    () => applyObjectWizardDefaults(objectType, initialValues),
-    [initialValues, objectType],
+    () => applyObjectFormDefaults(heatCalcObjectType, initialValues),
+    [heatCalcObjectType, initialValues],
   );
   const calculationFieldErrors = useMemo(
     () => ({
@@ -931,7 +878,9 @@ export default function ObjectWizard({
     const startWeights = formSectionWeightsRef.current;
     const availableWidth = Math.max(
       1,
-      rect.width - SECTION_RESIZE_HANDLE_WIDTH * 3 - SECTION_GRID_GAP_WIDTH * 6,
+      rect.width
+        - SECTION_RESIZE_HANDLE_WIDTH * SECTION_RESIZE_HANDLE_COUNT
+        - SECTION_GRID_GAP_WIDTH * SECTION_GRID_GAP_COUNT,
     );
     document.body.classList.add('heatcalc-form-section-resizing');
 
@@ -1006,7 +955,8 @@ export default function ObjectWizard({
       (total, weight) => total + weight,
       0,
     );
-    const availableWidth = `100% - ${SECTION_RESIZE_HANDLE_WIDTH * 3 + SECTION_GRID_GAP_WIDTH * 6}px`;
+    const availableWidth =
+      `100% - ${SECTION_RESIZE_HANDLE_WIDTH * SECTION_RESIZE_HANDLE_COUNT + SECTION_GRID_GAP_WIDTH * SECTION_GRID_GAP_COUNT}px`;
     const share = expandedWeight > 0 ? resolvedFormSectionWeights[idx] / expandedWeight : 1;
 
     const style = {
@@ -1023,6 +973,167 @@ export default function ObjectWizard({
 
   function renderSectionTitle(title: string, step: number) {
     return <h4 data-step={step}><span>{title}</span></h4>;
+  }
+
+  function renderElectricalAndFittingsFields() {
+    return (
+      <>
+        <Form.Item
+          className="numeric-form-item temperature-number-form-item helped-form-item"
+          label={fieldLabel('min_switch_temperature', heatCalcObjectType)}
+          name="min_switch_temperature"
+          rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'min_switch_temperature')}
+        >
+          {withHelp(
+            <UnitInputNumber
+              data-testid="min-switch-temperature-input"
+              {...numberInputProps('min_switch_temperature')}
+              unit="°C"
+            />,
+            fieldHelp('min_switch_temperature', heatCalcObjectType),
+          )}
+        </Form.Item>
+        <Form.Item
+          className="compact-select-form-item helped-form-item"
+          label={fieldLabel('supply_voltage', heatCalcObjectType)}
+          name="supply_voltage"
+        >
+          {withHelp(
+            <Select
+              data-testid="supply-voltage-select"
+              options={heatCalcSelectOptions(heatCalcObjectType, 'supply_voltage')}
+              placeholder="Выберите"
+            />,
+            fieldHelp('supply_voltage', heatCalcObjectType),
+          )}
+        </Form.Item>
+        <Form.Item
+          className="numeric-form-item coefficient-form-item helped-form-item"
+          label={fieldLabel('safety_factor', heatCalcObjectType)}
+          name="safety_factor"
+          rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'safety_factor')}
+        >
+          {withHelp(
+            <InputNumber
+              data-testid="safety-factor-input"
+              {...numberInputProps('safety_factor')}
+            />,
+            fieldHelp('safety_factor', heatCalcObjectType),
+          )}
+        </Form.Item>
+        {objectType === 'tank' && (
+          <Form.Item
+            className="numeric-form-item coefficient-form-item helped-form-item"
+            label={fieldLabel('q_additional', heatCalcObjectType)}
+            name="q_additional"
+            preserve={false}
+            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'q_additional')}
+          >
+            {withHelp(
+              <UnitInputNumber
+                data-testid="q-additional-input"
+                {...numberInputProps('q_additional')}
+                unit="Вт"
+              />,
+              fieldHelp('q_additional', heatCalcObjectType),
+            )}
+          </Form.Item>
+        )}
+        <Form.Item
+          className="compact-select-form-item helped-form-item"
+          label={fieldLabel('steam_tracing', heatCalcObjectType)}
+          name="steam_tracing"
+        >
+          {withHelp(
+            <Select
+              data-testid="steam-tracing-select"
+              options={heatCalcSelectOptions(heatCalcObjectType, 'steam_tracing')}
+              placeholder="Выберите"
+            />,
+            fieldHelp('steam_tracing', heatCalcObjectType),
+          )}
+        </Form.Item>
+        <Form.Item
+          className="numeric-form-item temperature-number-form-item helped-form-item"
+          label={fieldLabel('vapor_temperature', heatCalcObjectType)}
+          name="vapor_temperature"
+          rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'vapor_temperature')}
+        >
+          {withHelp(
+            <UnitInputNumber
+              data-testid="vapor-temperature-input"
+              {...numberInputProps('vapor_temperature')}
+              unit="°C"
+            />,
+            fieldHelp('vapor_temperature', heatCalcObjectType),
+          )}
+        </Form.Item>
+        {objectType === 'pipe' && (
+          <>
+            <Form.Item
+              className="numeric-form-item fitting-count-form-item helped-form-item"
+              label={fieldLabel('valve_count', heatCalcObjectType)}
+              name="valve_count"
+              rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'valve_count')}
+            >
+              {withHelp(
+                <UnitInputNumber
+                  data-testid="valve-count-input"
+                  {...numberInputProps('valve_count')}
+                  unit="шт"
+                />,
+                fieldHelp('valve_count', heatCalcObjectType),
+              )}
+            </Form.Item>
+            <Form.Item
+              className="numeric-form-item fitting-count-form-item helped-form-item"
+              label={fieldLabel('flange_count', heatCalcObjectType)}
+              name="flange_count"
+              rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'flange_count')}
+            >
+              {withHelp(
+                <UnitInputNumber
+                  data-testid="flange-count-input"
+                  {...numberInputProps('flange_count')}
+                  unit="шт"
+                />,
+                fieldHelp('flange_count', heatCalcObjectType),
+              )}
+            </Form.Item>
+            <Form.Item
+              className="numeric-form-item fitting-count-form-item helped-form-item"
+              label={fieldLabel('support_count', heatCalcObjectType)}
+              name="support_count"
+              rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'support_count')}
+            >
+              {withHelp(
+                <UnitInputNumber
+                  data-testid="support-count-input"
+                  {...numberInputProps('support_count')}
+                  unit="шт"
+                />,
+                fieldHelp('support_count', heatCalcObjectType),
+              )}
+            </Form.Item>
+            <Form.Item
+              className="numeric-form-item coefficient-form-item helped-form-item"
+              label={fieldLabel('local_element_equiv_length', heatCalcObjectType)}
+              name="local_element_equiv_length"
+              rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'local_element_equiv_length')}
+            >
+              {withHelp(
+                <UnitInputNumber
+                  data-testid="local-element-equiv-length-input"
+                  {...numberInputProps('local_element_equiv_length')}
+                  unit="м"
+                />,
+                fieldHelp('local_element_equiv_length', heatCalcObjectType),
+              )}
+            </Form.Item>
+          </>
+        )}
+      </>
+    );
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -1072,7 +1183,7 @@ export default function ObjectWizard({
 
         {/* ── Геометрия ──────────────────────────────────────────────── */}
         <div
-          className="form-col-srs"
+          className="form-col-srs form-col-srs--primary"
           style={sectionStyle(0)}
         >
           {renderSectionTitle(objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара', 1)}
@@ -1236,6 +1347,7 @@ export default function ObjectWizard({
               </Form.Item>
             </>
           )}
+          {renderElectricalAndFittingsFields()}
         </div>
 
         {renderSectionResizeHandle(0)}
@@ -1638,170 +1750,6 @@ export default function ObjectWizard({
           </Form.Item>
         </div>
 
-        {renderSectionResizeHandle(2)}
-
-        {/* ── Электропараметры и арматура ───────────────────────────── */}
-        <div
-          className="form-col-srs"
-          style={sectionStyle(3)}
-        >
-          {renderSectionTitle('Электропараметры и арматура', 4)}
-          <Form.Item
-            className="numeric-form-item temperature-number-form-item helped-form-item"
-            label={fieldLabel('min_switch_temperature', heatCalcObjectType)}
-            name="min_switch_temperature"
-            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'min_switch_temperature')}
-          >
-            {withHelp(
-              <UnitInputNumber
-                data-testid="min-switch-temperature-input"
-                {...numberInputProps('min_switch_temperature')}
-                    unit="°C"
-              />,
-              fieldHelp('min_switch_temperature', heatCalcObjectType),
-            )}
-          </Form.Item>
-          <Form.Item
-            className="compact-select-form-item helped-form-item"
-            label={fieldLabel('supply_voltage', heatCalcObjectType)}
-            name="supply_voltage"
-          >
-            {withHelp(
-              <Select
-                data-testid="supply-voltage-select"
-                options={heatCalcSelectOptions(heatCalcObjectType, 'supply_voltage')}
-                placeholder="Выберите"
-              />,
-              fieldHelp('supply_voltage', heatCalcObjectType),
-            )}
-          </Form.Item>
-          <Form.Item
-            className="numeric-form-item coefficient-form-item helped-form-item"
-            label={fieldLabel('safety_factor', heatCalcObjectType)}
-            name="safety_factor"
-            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'safety_factor')}
-          >
-            {withHelp(
-              <InputNumber
-                data-testid="safety-factor-input"
-                {...numberInputProps('safety_factor')}
-              />,
-              fieldHelp('safety_factor', heatCalcObjectType),
-            )}
-          </Form.Item>
-          {objectType === 'tank' && (
-            <Form.Item
-              className="numeric-form-item coefficient-form-item helped-form-item"
-              label={fieldLabel('q_additional', heatCalcObjectType)}
-              name="q_additional"
-              preserve={false}
-              rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'q_additional')}
-            >
-              {withHelp(
-                <UnitInputNumber
-                  data-testid="q-additional-input"
-                  {...numberInputProps('q_additional')}
-                    unit="Вт"
-                />,
-                fieldHelp('q_additional', heatCalcObjectType),
-              )}
-            </Form.Item>
-          )}
-          <Form.Item
-            className="compact-select-form-item helped-form-item"
-            label={fieldLabel('steam_tracing', heatCalcObjectType)}
-            name="steam_tracing"
-          >
-            {withHelp(
-              <Select
-                data-testid="steam-tracing-select"
-                options={heatCalcSelectOptions(heatCalcObjectType, 'steam_tracing')}
-                placeholder="Выберите"
-              />,
-              fieldHelp('steam_tracing', heatCalcObjectType),
-            )}
-          </Form.Item>
-          <Form.Item
-            className="numeric-form-item temperature-number-form-item helped-form-item"
-            label={fieldLabel('vapor_temperature', heatCalcObjectType)}
-            name="vapor_temperature"
-            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'vapor_temperature')}
-          >
-            {withHelp(
-              <UnitInputNumber
-                data-testid="vapor-temperature-input"
-                {...numberInputProps('vapor_temperature')}
-                unit="°C"
-              />,
-              fieldHelp('vapor_temperature', heatCalcObjectType),
-            )}
-          </Form.Item>
-          {objectType === 'pipe' && (
-            <>
-              <Form.Item
-                className="numeric-form-item fitting-count-form-item helped-form-item"
-                label={fieldLabel('valve_count', heatCalcObjectType)}
-                name="valve_count"
-                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'valve_count')}
-              >
-                {withHelp(
-                  <UnitInputNumber
-                    data-testid="valve-count-input"
-                    {...numberInputProps('valve_count')}
-                    unit="шт"
-                  />,
-                  fieldHelp('valve_count', heatCalcObjectType),
-                )}
-              </Form.Item>
-              <Form.Item
-                className="numeric-form-item fitting-count-form-item helped-form-item"
-                label={fieldLabel('flange_count', heatCalcObjectType)}
-                name="flange_count"
-                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'flange_count')}
-              >
-                {withHelp(
-                  <UnitInputNumber
-                    data-testid="flange-count-input"
-                    {...numberInputProps('flange_count')}
-                    unit="шт"
-                  />,
-                  fieldHelp('flange_count', heatCalcObjectType),
-                )}
-              </Form.Item>
-              <Form.Item
-                className="numeric-form-item fitting-count-form-item helped-form-item"
-                label={fieldLabel('support_count', heatCalcObjectType)}
-                name="support_count"
-                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'support_count')}
-              >
-                {withHelp(
-                  <UnitInputNumber
-                    data-testid="support-count-input"
-                    {...numberInputProps('support_count')}
-                    unit="шт"
-                  />,
-                  fieldHelp('support_count', heatCalcObjectType),
-                )}
-              </Form.Item>
-              <Form.Item
-                className="numeric-form-item coefficient-form-item helped-form-item"
-                label={fieldLabel('local_element_equiv_length', heatCalcObjectType)}
-                name="local_element_equiv_length"
-                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'local_element_equiv_length')}
-              >
-                {withHelp(
-                  <UnitInputNumber
-                    data-testid="local-element-equiv-length-input"
-                    {...numberInputProps('local_element_equiv_length')}
-                    unit="м"
-                  />,
-                  fieldHelp('local_element_equiv_length', heatCalcObjectType),
-                )}
-              </Form.Item>
-            </>
-          )}
-        </div>
-
       </div>
       <div className="hidden-submit">
         <Button id="inline-object-save" type="primary" onClick={handleFinish} loading={submitting}>
@@ -1817,7 +1765,7 @@ function scrollToFirstError() {
   setTimeout(() => {
     const el = document.querySelector<HTMLElement>('.inline-object-form .ant-form-item-has-error');
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
       el.querySelector<HTMLElement>('input, select, textarea, .reference-picker-control')?.focus();
     }
   }, 0);

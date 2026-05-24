@@ -5,7 +5,10 @@ import {
   createExcelSelectionRange,
   formatExcelCellDisplay,
   formatExcelDraftCellDisplay,
+  getExcelContextMenuDisabledState,
   getExcelEditableColumnMetas,
+  getExcelInsertAfterRowIndex,
+  getExcelSelectedCellPositions,
   getExcelSelectedRowIndexes,
   getExcelSelectionOrigin,
   isExcelCellInRange,
@@ -203,6 +206,73 @@ describe('heatCalcExcelMode', () => {
     )).toEqual([2, 3, 4]);
   });
 
+  it('возвращает все редактируемые ячейки выделенного прямоугольника', () => {
+    expect(getExcelSelectedCellPositions(
+      createExcelSelectionRange(
+        { rowIndex: 1, columnIndex: 2 },
+        { rowIndex: 2, columnIndex: 3 },
+      ),
+      null,
+      10,
+      5,
+    )).toEqual([
+      { rowIndex: 1, columnIndex: 2 },
+      { rowIndex: 1, columnIndex: 3 },
+      { rowIndex: 2, columnIndex: 2 },
+      { rowIndex: 2, columnIndex: 3 },
+    ]);
+  });
+
+  it('берёт активную ячейку как выделение для контекстных команд', () => {
+    expect(getExcelSelectedCellPositions(
+      null,
+      { rowIndex: 2, columnIndex: 1 },
+      10,
+      5,
+    )).toEqual([{ rowIndex: 2, columnIndex: 1 }]);
+  });
+
+  it('возвращает нижнюю строку выделения для добавления строк ниже', () => {
+    expect(getExcelInsertAfterRowIndex(
+      createExcelSelectionRange(
+        { rowIndex: 4, columnIndex: 0 },
+        { rowIndex: 2, columnIndex: 2 },
+      ),
+      null,
+      10,
+    )).toBe(4);
+    expect(getExcelInsertAfterRowIndex(null, { rowIndex: 3, columnIndex: 0 }, 10)).toBe(3);
+  });
+
+  it('считает disabled-состояния контекстного меню Excel', () => {
+    expect(getExcelContextMenuDisabledState({
+      hasSelection: false,
+      selectedRowCount: 0,
+      dirtySelectedRowCount: 0,
+      clipboardReadAvailable: true,
+    })).toMatchObject({
+      copy: true,
+      cut: true,
+      clear: true,
+      paste: true,
+      deleteRows: true,
+      resetRows: true,
+    });
+    expect(getExcelContextMenuDisabledState({
+      hasSelection: true,
+      selectedRowCount: 2,
+      dirtySelectedRowCount: 1,
+      clipboardReadAvailable: false,
+    })).toMatchObject({
+      copy: false,
+      cut: false,
+      clear: false,
+      paste: true,
+      deleteRows: false,
+      resetRows: false,
+    });
+  });
+
   it('ограничивает выделенные строки границами таблицы', () => {
     expect(getExcelSelectedRowIndexes(
       createExcelSelectionRange(
@@ -234,16 +304,20 @@ describe('heatCalcExcelMode', () => {
     expect(missingExcelRowsForPaste(8, 5, 10)).toBe(3);
   });
 
-  it('показывает во временной Excel-строке только реально введённые значения', () => {
+  it('оставляет полностью пустую временную Excel-строку пустой', () => {
     const config = fieldConfig('text');
     expect(formatExcelDraftCellDisplay(config, undefined)).toBe('');
     expect(formatExcelDraftCellDisplay(config, draftRow({
       draftFormValues: { x: 'Труба 1' },
       dirtyFields: {},
     }))).toBe('');
+  });
+
+  it('показывает дефолты формы во временной Excel-строке после ввода любой ячейки', () => {
+    const config = fieldConfig('text');
     expect(formatExcelDraftCellDisplay(config, draftRow({
-      draftFormValues: { x: 'Труба 1' },
-      dirtyFields: { x: 'Труба 1' },
+      draftFormValues: { x: 'Труба 1', y: 108 },
+      dirtyFields: { y: 108 },
     }))).toBe('Труба 1');
   });
 
@@ -258,6 +332,7 @@ describe('heatCalcExcelMode', () => {
     expect(formatExcelCellDisplay(numberFieldConfig(1), null)).toBe('');
     expect(formatExcelCellDisplay(numberFieldConfig(1), undefined)).toBe('');
     expect(formatExcelCellDisplay(numberFieldConfig(1), '')).toBe('');
+    expect(formatExcelCellDisplay(numberFieldConfig(1), 123)).toBe('123');
     expect(formatExcelCellDisplay(numberFieldConfig(1), 10.5)).toBe('10,5');
     expect(formatExcelCellDisplay(fieldConfig('select'), '')).toBe('');
   });

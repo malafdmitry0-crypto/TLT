@@ -15,6 +15,7 @@ import {
 } from '@/domain/heatCalcFieldRules';
 import type { ProjectObject, HeatCalcObjectType } from '@/types/project';
 import {
+  applyObjectFormDefaults,
   pipeApiParamsToForm,
   pipeFormToApiParams,
   tankApiParamsToForm,
@@ -93,18 +94,10 @@ export function getInlineEditFieldConfigByFieldId(
 
 function baseFormValuesFromRecord(record: ProjectObject): Record<string, unknown> {
   if (record.object_type === 'pipe') {
-    return {
-      pipe_lambda_mode: 'reference',
-      insulation_layer_count: '1',
-      ...pipeApiParamsToForm(record.params),
-    };
+    return applyObjectFormDefaults('pipe', pipeApiParamsToForm(record.params));
   }
   if (record.object_type === 'tank') {
-    return {
-      shape: 'cylindrical',
-      insulation_layer_count: '1',
-      ...tankApiParamsToForm(record.params),
-    };
+    return applyObjectFormDefaults('tank', tankApiParamsToForm(record.params));
   }
   return { ...record.params };
 }

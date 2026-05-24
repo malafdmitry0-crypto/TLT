@@ -16,6 +16,7 @@ export interface EditableTableCellProps {
   onSelect?: () => void;
   onSelectionPointerDown?: (event: React.PointerEvent<HTMLButtonElement>) => void;
   onSelectionPointerEnter?: (event: React.PointerEvent<HTMLButtonElement>) => void;
+  onContextMenu?: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onStartEdit: () => void;
   onCommit: (value: unknown) => string | null;
   onCancel: () => void;
@@ -44,6 +45,7 @@ export default function EditableTableCell({
   onSelect,
   onSelectionPointerDown,
   onSelectionPointerEnter,
+  onContextMenu,
   onStartEdit,
   onCommit,
   onCancel,
@@ -84,6 +86,10 @@ export default function EditableTableCell({
           event.preventDefault();
           event.stopPropagation();
           event.currentTarget.focus({ preventScroll: true });
+          if (event.button === 2) {
+            onContextMenu?.(event as unknown as React.MouseEvent<HTMLButtonElement>);
+            return;
+          }
           const now = Date.now();
           const repeatedClick = now - lastExcelPointerDownAtRef.current < 450;
           lastExcelPointerDownAtRef.current = now;
@@ -93,6 +99,18 @@ export default function EditableTableCell({
             return;
           }
           onSelectionPointerDown?.(event);
+        }}
+        onMouseDown={(event) => {
+          if (!excelMode || event.button !== 2) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onContextMenu?.(event);
+        }}
+        onAuxClick={(event) => {
+          if (!excelMode || event.button !== 2) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onContextMenu?.(event);
         }}
         onPointerEnter={(event) => {
           if (!excelMode) return;
@@ -118,6 +136,12 @@ export default function EditableTableCell({
           event.stopPropagation();
           onSelect?.();
           onStartEdit();
+        }}
+        onContextMenu={(event) => {
+          if (!excelMode) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onContextMenu?.(event);
         }}
       >
         {children}

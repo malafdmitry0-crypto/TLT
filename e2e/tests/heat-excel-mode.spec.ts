@@ -1,6 +1,11 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 
-import { createCalculatedPipe, loginAsGuest } from './helpers/workspace';
+import {
+  API_BASE,
+  createCalculatedPipe,
+  currentGuestContext,
+  loginAsGuest,
+} from './helpers/workspace';
 
 async function openExcelCellEditor(row: Locator, cellName: string) {
   await row.getByRole('button', { name: cellName, exact: true }).click();
@@ -132,7 +137,7 @@ test.describe('Excel-режим таблицы теплопотерь', () => {
 
     const row = page.getByRole('row').filter({ hasText: pipeName }).first();
     await expect(row).toBeVisible();
-    await row.getByRole('button', { name: '50,0', exact: true }).click();
+    await row.getByRole('button', { name: '50', exact: true }).first().click();
 
     await page.evaluate((text) => {
       const data = new DataTransfer();
@@ -192,5 +197,110 @@ test.describe('Excel-режим таблицы теплопотерь', () => {
     await expect(page.getByText('climate_city')).toHaveCount(0);
     await expect(page.getByText('climate_region')).toHaveCount(0);
     await expect(page.getByText('ambient_temperature_source')).toHaveCount(0);
+  });
+
+  test('новая Excel-строка сохраняется с теми же дефолтами, что и форма', async ({ page }) => {
+    await loginAsGuest(page);
+    const pipeName = `E2E excel defaults ${Date.now()}`;
+
+    await createCalculatedPipe(page, `seed ${Date.now()}`);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByText('Excel-режим').click();
+
+    const bodyRows = page.locator('.ant-table-tbody tr.ant-table-row');
+    await expect(bodyRows.last()).toBeVisible();
+    await bodyRows.last().locator('.editable-cell-display').first().click();
+
+    await page.evaluate((text) => {
+      const data = new DataTransfer();
+      data.setData('text/plain', text);
+      document.dispatchEvent(new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: data,
+      }));
+    }, `${pipeName}\t108\t10\t50\t80\t-30\t4\t-20\t220\t1.1\t`);
+
+    const newRow = page.getByRole('row').filter({ hasText: pipeName }).first();
+    await expect(newRow).toBeVisible();
+    await newRow.locator('.editable-cell-display').first().click();
+    await selectSearchOption(page, 'insulation-material-select', 'Песок', /Песок перлитовый/);
+
+    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect(page.getByText('Несохранено: 1')).toHaveCount(0);
+
+    await expect(page.getByText('Материал трубы или λ трубы')).toHaveCount(0);
+    await expect(page.getByText('Размещение объекта')).toHaveCount(0);
+    await expect(page.getByText('Режим температуры изоляции')).toHaveCount(0);
+
+    const { projectId, sessionId } = await currentGuestContext(page);
+    const response = await page.request.get(`${API_BASE}/api/v1/projects/${projectId}/objects`, {
+      headers: { 'X-Session-Id': sessionId },
+    });
+    expect(response.status()).toBe(200);
+    const objects = await response.json();
+    const savedObject = objects.find((object: { params?: Record<string, unknown> }) =>
+      object.params?.name === pipeName,
+    );
+
+    expect(savedObject?.params).toMatchObject({
+      pipe_material: 'carbon_steel',
+      placement: 'outdoor',
+      insulation_temperature_basis: 'outdoor_winter',
+      insulation_layer_count: '1',
+      insulation_cover_material: 'none',
+      environment: 'normal',
+      zone_classification: 'safe',
+      temperature_group: 'T1',
+      supply_voltage: 220,
+      steam_tracing: 'no',
+    });
+  });
+
+  test('контекстное меню Excel-режима очищает ячейки и добавляет строки ниже выделения', async ({ page }) => {
+    await loginAsGuest(page);
+    const pipeName = `E2E excel menu ${Date.now()}`;
+
+    await createCalculatedPipe(page, pipeName);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByText('Excel-режим').click();
+
+    const bodyRows = page.locator('.ant-table-tbody tr.ant-table-row');
+    const initialRowCount = await bodyRows.count();
+    const row = page.getByRole('row').filter({ hasText: pipeName }).first();
+    await expect(row).toBeVisible();
+
+    await row.getByRole('button', { name: '108', exact: true }).click({ button: 'right' });
+    await expect(page.getByRole('menu', { name: 'Действия Excel-режима' })).toBeVisible();
+    await page.getByRole('menuitem', { name: 'Очистить содержимое' }).click();
+    await expect(page.getByText('Несохранено: 1')).toBeVisible();
+    await expect(row.locator('.editable-cell-display.dirty').first()).toBeVisible();
+
+    await row.getByRole('button', { name: pipeName, exact: true }).click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Добавить строку ниже' }).click();
+    await expect(bodyRows).toHaveCount(initialRowCount + 1);
+  });
+
+  test('контекстное меню Excel-режима вставляет данные из буфера', async ({ page }) => {
+    await loginAsGuest(page);
+    const pipeName = `E2E excel menu paste ${Date.now()}`;
+    const seedName = `seed menu paste ${Date.now()}`;
+
+    await createCalculatedPipe(page, seedName);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.getByText('Excel-режим').click();
+
+    await page.evaluate((text) => navigator.clipboard.writeText(text),
+      `${pipeName}\t108\t10\t50\t80\t-30\t4\t-20\t220\t1.1\t`);
+
+    const seedRow = page.getByRole('row').filter({ hasText: seedName }).first();
+    await expect(seedRow).toBeVisible();
+    await seedRow.getByRole('button', { name: seedName, exact: true }).click({ button: 'right' });
+    await expect(page.getByRole('menu', { name: 'Действия Excel-режима' })).toBeVisible();
+    await page.getByRole('menuitem', { name: 'Вставить' }).click();
+
+    await expect(page.getByRole('row').filter({ hasText: pipeName }).first()).toBeVisible();
+    await expect(page.getByText('Несохранено: 1')).toBeVisible();
   });
 });

@@ -8,6 +8,7 @@ const apiBaseUrl = (
 ).replace(/\/$/, '');
 const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'chrome';
 const mode = process.argv.includes('--tank') ? 'tank' : 'pipe';
+const excelMode = process.argv.includes('--excel');
 const printReport = process.argv.includes('--report');
 const screenshotPath = process.argv.find((arg) => arg.startsWith('--screenshot='))?.split('=')[1];
 const viewportWidth = Number(process.argv.find((arg) => arg.startsWith('--width='))?.split('=')[1] ?? 2048);
@@ -59,6 +60,33 @@ async function seedGuestWorkspace(page) {
   await page.waitForTimeout(500);
 }
 
+async function verifyToolbarTooltips(page) {
+  const checks = [
+    ['Добавить', 'Добавить'],
+    ['Настройки отображения', 'Настройки отображения'],
+    ['Импорт XLSX/CSV', 'Импорт XLSX/CSV'],
+  ];
+  const failures = [];
+
+  for (const [buttonName, tooltipText] of checks) {
+    const button = page.getByRole('button', { name: buttonName, exact: true }).first();
+    if ((await button.count()) === 0) {
+      failures.push({ buttonName, reason: 'button not found' });
+      continue;
+    }
+    await button.hover();
+    await page.waitForTimeout(250);
+    const tooltip = page.locator('.ant-tooltip').filter({ hasText: tooltipText });
+    if ((await tooltip.count()) === 0) {
+      failures.push({ buttonName, tooltipText, reason: 'tooltip not found' });
+    }
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(100);
+  }
+
+  return failures;
+}
+
 const browser = await chromium.launch({ headless: true, channel });
 const page = await browser.newPage({
   viewport: { width: viewportWidth, height: 900 },
@@ -75,7 +103,7 @@ if (placement) {
       inlineEditingEnabled: false,
       formPlacement,
       sideFormWidthPct: 34,
-      formSectionWeights: [1.095, 1.35, 1.2, 0.56],
+      formSectionWeights: [1.655, 1.35, 1.2],
     }));
   }, placement);
 }
@@ -107,9 +135,17 @@ try {
     }
     await addButton.click();
     await page.waitForSelector('.inline-object-form', { timeout: 5000 });
+  } else {
+    await selectObjectType(page, mode === 'tank' ? 'Резервуар' : 'Трубопровод');
+    await page.waitForTimeout(400);
   }
 
   await page.waitForTimeout(700);
+
+  if (excelMode) {
+    await page.getByText('Excel-режим').click();
+    await page.waitForTimeout(300);
+  }
 
   if (mode === 'pipe') {
     const layerSelect = page.locator('.layer-count-form-item .ant-select').first();
@@ -128,8 +164,29 @@ try {
     await page.screenshot({ path: screenshotPath, fullPage: true });
   }
 
-  const { overflowReport, labelClippingReport, layoutReport } = await page.evaluate(() => {
+  const tooltipReport = excelMode ? await verifyToolbarTooltips(page) : [];
+
+  const {
+    actionbarOverflowReport,
+    overflowReport,
+    labelClippingReport,
+    compactSpacingReport,
+    layoutReport,
+  } = await page.evaluate((shouldCheckActionbar) => {
     const sections = Array.from(document.querySelectorAll('.form-col-srs:not(.collapsed)'));
+    const actionbarOverflowReport = shouldCheckActionbar
+      ? Array.from(document.querySelectorAll('.actionbar-srs')).flatMap((bar, index) => {
+        const overflow = bar.scrollWidth - bar.clientWidth;
+        if (overflow <= 1) return [];
+        return [{
+          index,
+          clientWidth: Math.round(bar.clientWidth),
+          scrollWidth: Math.round(bar.scrollWidth),
+          overflow: Math.round(overflow),
+          text: bar.textContent?.replace(/\s+/g, ' ').trim().slice(0, 160) ?? '',
+        }];
+      })
+      : [];
 
     const layoutReport = sections.map((section, sectionIndex) => {
       const sectionRect = section.getBoundingClientRect();
@@ -211,18 +268,70 @@ try {
       });
     });
 
-    return { overflowReport, labelClippingReport, layoutReport };
-  });
+    const compactSpacingReport = sections.flatMap((section, sectionIndex) => {
+      if (sectionIndex !== 0) return [];
+      const sectionRect = section.getBoundingClientRect();
+      const rows = new Map();
+      Array.from(
+        section.querySelectorAll(
+          ':scope > .fit-label-form-item, :scope > .numeric-form-item, :scope > .compact-select-form-item, :scope > .medium-select-form-item',
+        ),
+      ).forEach((item) => {
+        if (getComputedStyle(item).display === 'none') return;
+        const itemRect = item.getBoundingClientRect();
+        const control = item.querySelector(
+          '.ant-input, .ant-select, .unit-input-number, .ant-input-number-group-wrapper, .ant-input-number',
+        );
+        const controlRect = control?.getBoundingClientRect();
+        if (!controlRect) return;
+        const key = Math.round((itemRect.top - sectionRect.top) / 4) * 4;
+        const row = rows.get(key) ?? [];
+        row.push({
+          text: item.textContent?.replace(/\s+/g, ' ').trim().slice(0, 80) ?? '',
+          itemLeft: itemRect.left - sectionRect.left,
+          controlRight: controlRect.right - sectionRect.left,
+        });
+        rows.set(key, row);
+      });
+
+      return Array.from(rows.entries()).flatMap(([rowTop, row]) => {
+        const sorted = row.sort((a, b) => a.itemLeft - b.itemLeft);
+        return sorted.slice(1).flatMap((item, index) => {
+          const previous = sorted[index];
+          const gap = item.itemLeft - previous.controlRight;
+          if (gap <= 96) return [];
+          return [{
+            sectionIndex,
+            rowTop,
+            gap: Math.round(gap),
+            previous: previous.text,
+            next: item.text,
+          }];
+        });
+      });
+    });
+
+    return { actionbarOverflowReport, overflowReport, labelClippingReport, compactSpacingReport, layoutReport };
+  }, excelMode);
 
   if (printReport) {
     console.log(JSON.stringify(layoutReport, null, 2));
   }
 
-  if (overflowReport.length > 0) {
+  if (tooltipReport.length > 0) {
+    console.error(JSON.stringify(tooltipReport, null, 2));
+    process.exitCode = 1;
+  } else if (actionbarOverflowReport.length > 0) {
+    console.error(JSON.stringify(actionbarOverflowReport, null, 2));
+    process.exitCode = 1;
+  } else if (overflowReport.length > 0) {
     console.error(JSON.stringify(overflowReport, null, 2));
     process.exitCode = 1;
   } else if (labelClippingReport.length > 0) {
     console.error(JSON.stringify(labelClippingReport, null, 2));
+    process.exitCode = 1;
+  } else if (compactSpacingReport.length > 0) {
+    console.error(JSON.stringify(compactSpacingReport, null, 2));
     process.exitCode = 1;
   } else {
     console.log('inline form visual bounds OK');

@@ -40,6 +40,7 @@ TABLE_VIEW_LABEL_FORMATS = {"full", "short", "compact"}
 HEATCALC_TABLE_VIEW_FORM_PLACEMENTS = {"top", "bottom", "left", "right"}
 HEATCALC_TABLE_VIEW_SIDE_FORM_WIDTH_MIN = 22
 HEATCALC_TABLE_VIEW_SIDE_FORM_WIDTH_MAX = 62
+HEATCALC_FORM_SECTION_WEIGHT_COUNTS = {3, 4}
 HEATCALC_FORM_SECTION_WEIGHT_MIN = 0.35
 HEATCALC_FORM_SECTION_WEIGHT_MAX = 3
 HEATCALC_FIELD_INPUT_PREF_KEY = "heatcalc.fieldInputs.v1"
@@ -341,9 +342,10 @@ def _validate_heatcalc_table_view(value: dict[str, object]) -> None:
             _preference_validation_error("HeatCalc table view sideFormWidthPct is out of range")
     if "formSectionWeights" in value:
         weights = value["formSectionWeights"]
-        if not isinstance(weights, list) or len(weights) != 4:
+        if not isinstance(weights, list) or len(weights) not in HEATCALC_FORM_SECTION_WEIGHT_COUNTS:
             _preference_validation_error(
-                "HeatCalc table view formSectionWeights must be a 4-item array"
+                "HeatCalc table view formSectionWeights must be a 3-item array "
+                "or legacy 4-item array"
             )
         for weight in weights:
             if isinstance(weight, bool) or not isinstance(weight, int | float):

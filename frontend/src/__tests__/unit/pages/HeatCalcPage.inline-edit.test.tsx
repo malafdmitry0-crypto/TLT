@@ -297,8 +297,9 @@ describe('HeatCalcPage inline edit', () => {
 
       expect(updateObject).not.toHaveBeenCalled();
       expect(await screen.findByText('Ошибки в таблице')).toBeInTheDocument();
-      expect(screen.getByText(/Температура поддержания: Требуемая температура объекта должна быть выше температуры среды/))
-        .toBeInTheDocument();
+      expect(screen.getAllByText(
+        /Температура поддержания: Требуемая температура объекта должна быть выше температуры среды/,
+      ).length).toBeGreaterThan(0);
       expect(screen.queryByText('Исправьте ошибки в строке перед сохранением')).not.toBeInTheDocument();
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
@@ -435,7 +436,7 @@ describe('HeatCalcPage inline edit', () => {
         inlineEditingEnabled: false,
         formPlacement: 'top',
         sideFormWidthPct: 34,
-        formSectionWeights: [1.095, 1.35, 1.2, 0.56],
+        formSectionWeights: [1.655, 1.35, 1.2],
       });
       const fieldInputPayload = (updateUserPreference as ReturnType<typeof vi.fn>).mock.calls.find(
         ([key]) => key === HEATCALC_FIELD_INPUT_PREF_KEY,

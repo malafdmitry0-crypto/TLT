@@ -166,6 +166,34 @@ describe('heatCalcInlineEdit', () => {
     expect(() => buildDraftRowParams(draft!, { enforceRequired: true })).toThrow('Исправьте ошибки');
   });
 
+  it('подставляет Excel-строке те же дефолты, что и форме объекта', () => {
+    const record = makePipe();
+    record.id = 'new:pipe:1';
+    record.params = {};
+
+    let draft = applyInlineFieldDraft(null, record, 'name', 'Новая строка');
+    draft = applyInlineFieldDraft(draft, record, 'outer_diameter_mm', 108);
+    draft = applyInlineFieldDraft(draft, record, 'pipe_length', 10);
+    draft = applyInlineFieldDraft(draft, record, 'wall_thickness_mm', 4);
+    draft = applyInlineFieldDraft(draft, record, 'insulation_thickness_mm', 50);
+    draft = applyInlineFieldDraft(draft, record, 'insulation_material', 'mineral_wool');
+    draft = applyInlineFieldDraft(draft, record, 'ambient_temperature', -30);
+    draft = applyInlineFieldDraft(draft, record, 'process_temperature', 80);
+
+    const params = buildDraftRowParams(draft!);
+    expect(params.name).toBe('Новая строка');
+    expect(params.pipe_material).toBe('carbon_steel');
+    expect(params.placement).toBe('outdoor');
+    expect(params.insulation_temperature_basis).toBe('outdoor_winter');
+    expect(params.insulation_layer_count).toBe('1');
+    expect(params.insulation_cover_material).toBe('none');
+    expect(params.environment).toBe('normal');
+    expect(params.zone_classification).toBe('safe');
+    expect(params.temperature_group).toBe('T1');
+    expect(params.supply_voltage).toBe(220);
+    expect(params.steam_tracing).toBe('no');
+  });
+
   it('очищает устаревшую ошибку ячейки, если текущее значение уже валидно', () => {
     const record = makePipe();
     const draft = applyInlineCellDraft(null, record, 'pipe_outer_diameter', 114)!;

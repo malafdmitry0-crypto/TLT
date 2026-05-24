@@ -36,10 +36,10 @@ export const HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY = 'heatcalc.tableView.v1.r
 export const HEATCALC_SIDE_FORM_WIDTH_DEFAULT = 34;
 export const HEATCALC_SIDE_FORM_WIDTH_MIN = 22;
 export const HEATCALC_SIDE_FORM_WIDTH_MAX = 62;
-export const HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT = [1.095, 1.35, 1.2, 0.56] as const;
+export const HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT = [1.655, 1.35, 1.2] as const;
 export const HEATCALC_FORM_SECTION_WEIGHT_MIN = 0.35;
 export const HEATCALC_FORM_SECTION_WEIGHT_MAX = 3;
-export type HeatCalcFormSectionWeights = [number, number, number, number];
+export type HeatCalcFormSectionWeights = [number, number, number];
 export const HEATCALC_FORM_PLACEMENT_OPTIONS: Array<{ key: HeatCalcFormPlacement; label: string }> = [
   { key: 'top', label: 'Вверху' },
   { key: 'bottom', label: 'Внизу' },
@@ -124,10 +124,18 @@ function normalizeSideFormWidthPct(value: unknown): number {
 }
 
 export function normalizeFormSectionWeights(value: unknown): HeatCalcFormSectionWeights {
-  if (!Array.isArray(value) || value.length !== HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT.length) {
+  if (!Array.isArray(value)) {
     return [...HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT] as HeatCalcFormSectionWeights;
   }
-  const normalized = value.map((item) => {
+  const rawWeights = value.length === HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT.length
+    ? value
+    : value.length === 4
+      ? [Number(value[0]) + Number(value[3]), value[1], value[2]]
+      : null;
+  if (!rawWeights) {
+    return [...HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT] as HeatCalcFormSectionWeights;
+  }
+  const normalized = rawWeights.map((item) => {
     const numeric = Number(item);
     if (!Number.isFinite(numeric)) return null;
     const clamped = Math.min(
