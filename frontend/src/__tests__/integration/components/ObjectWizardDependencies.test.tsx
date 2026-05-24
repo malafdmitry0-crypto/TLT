@@ -127,6 +127,47 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.getByTestId('alpha-vnesh-input')).toHaveValue('');
   });
 
+  it('показывает ошибки Excel-черновика прямо в форме параметров', async () => {
+    renderWizard({
+      initialFormValues: {
+        name: 'Труба из Excel',
+        outer_diameter_mm: 'abc',
+        pipe_length: 12,
+        wall_thickness_mm: 4,
+        pipe_lambda_mode: 'reference',
+        pipe_material: 'carbon_steel',
+        placement: 'outdoor',
+        insulation_layer_count: '1',
+        insulation_material: 'mineral_wool',
+        insulation_thickness_mm: 50,
+        insulation_temperature_basis: 'outdoor_winter',
+        ambient_temperature: -30,
+        process_temperature: 80,
+      },
+      fieldErrors: {
+        pipe_outer_diameter: 'Введите число',
+      },
+    });
+
+    expect(await screen.findByText('Введите число')).toBeInTheDocument();
+    expect(screen.getByTestId('outer-diameter-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+  });
+
+  it('подсвечивает поле по structured validation_errors.field с backend/API ключом', async () => {
+    renderWizard({
+      initialParams: basePipeParams,
+      validationErrors: {
+        error_code: 'schema_validation_error',
+        category: 'validation',
+        field: 'outer_diameter',
+        message: 'Введите число',
+      },
+    });
+
+    expect(await screen.findByText('Введите число')).toBeInTheDocument();
+    expect(screen.getByTestId('outer-diameter-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+  });
+
   it('помечает обязательные числовые поля новой трубы как required', async () => {
     renderWizard();
 

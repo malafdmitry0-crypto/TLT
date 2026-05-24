@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -38,7 +39,9 @@ import {
   heatCalcTextInputProps,
 } from '@/utils/heatCalcWizardFieldRules';
 import {
+  getHeatCalcFieldByColumn,
   getHeatCalcFieldDescription,
+  getHeatCalcFieldDefinition,
   getHeatCalcFieldLabel,
 } from '@/domain/heatCalcFields';
 import {
@@ -65,12 +68,19 @@ interface Props {
   submitting?: boolean;
   /** Pass existing params to enable edit mode */
   initialParams?: Record<string, unknown>;
+  /** Pass already converted form values when editing an unsaved table draft. */
+  initialFormValues?: Record<string, unknown>;
   validationErrors?: ProjectObject['validation_errors'];
+  fieldErrors?: Record<string, string>;
   fieldInputSettings?: HeatCalcFieldInputSettings;
   formSectionWeights?: HeatCalcFormSectionWeights;
   sectionResizeEnabled?: boolean;
   onFormSectionWeightsChange?: (weights: HeatCalcFormSectionWeights) => void;
   onFormSectionWeightsCommit?: (weights: HeatCalcFormSectionWeights) => void;
+  onDraftValuesChange?: (
+    changedValues: Record<string, unknown>,
+    allValues: Record<string, unknown>,
+  ) => void;
 }
 
 const SECTION_RESIZE_HANDLE_WIDTH = 4;
@@ -302,9 +312,13 @@ function insulationLayerFieldNamesFromMessage(message: string) {
   });
 }
 
+function messageHasApiFieldName(message: string, apiName: string) {
+  return message.split(/\s+/).includes(apiName);
+}
+
 function fieldNamesFromValidationMessage(message: string) {
   const fromApiNames = Object.entries(API_FIELD_TO_FORM_NAMES)
-    .filter(([apiName]) => new RegExp(`(^|\\n|\\s)${apiName}(\\n|\\s|$)`).test(message))
+    .filter(([apiName]) => messageHasApiFieldName(message, apiName))
     .flatMap(([, formNames]) => formNames);
   const fromRangeMessages = RANGE_MESSAGE_TO_FORM_NAMES
     .filter(([pattern]) => pattern.test(message))
@@ -316,16 +330,107 @@ function fieldNamesFromValidationMessage(message: string) {
   ]);
 }
 
+function formFieldNamesFromErrorKey(fieldKey: string, objectType: HeatCalcObjectType) {
+  const normalizedKey = fieldKey.trim();
+  if (!normalizedKey || normalizedKey === '_row') return [];
+  if (API_FIELD_TO_FORM_NAMES[normalizedKey]) return API_FIELD_TO_FORM_NAMES[normalizedKey];
+  if (getHeatCalcFieldDefinition(normalizedKey, objectType)) return [normalizedKey];
+  const byColumn = getHeatCalcFieldByColumn(objectType, normalizedKey);
+  if (byColumn) return [byColumn.id];
+  const withoutParamsPrefix = normalizedKey.replace(/^params[.\s]+/, '');
+  if (withoutParamsPrefix !== normalizedKey) return formFieldNamesFromErrorKey(withoutParamsPrefix, objectType);
+  return fieldNamesFromValidationMessage(normalizedKey);
+}
+
+function normalizeFieldErrorsForForm(
+  fieldErrors: Record<string, unknown> | undefined,
+  objectType: HeatCalcObjectType,
+) {
+  if (!fieldErrors) return {};
+  const result: Record<string, string> = {};
+  Object.entries(fieldErrors).forEach(([fieldKey, message]) => {
+    const text = typeof message === 'string' && message.trim()
+      ? message
+      : 'Проверьте значение';
+    formFieldNamesFromErrorKey(fieldKey, objectType).forEach((fieldName) => {
+      result[fieldName] = text;
+    });
+  });
+  return result;
+}
+
+function uniqueMessages(messages: string[]) {
+  const seen = new Set<string>();
+  return messages.filter((message) => {
+    const normalized = message.trim();
+    if (!normalized || seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
+}
+
+function fieldErrorSummaryMessages(
+  fieldErrors: Record<string, unknown> | undefined,
+  objectType: HeatCalcObjectType,
+) {
+  const normalized = normalizeFieldErrorsForForm(fieldErrors, objectType);
+  return Object.entries(normalized).map(([fieldName, message]) => {
+    const label = getHeatCalcFieldLabel(fieldName, {
+      context: 'settings',
+      objectType,
+      variant: 'full',
+    });
+    return `${label}: ${message}`;
+  });
+}
+
+function validationErrorSummaryMessages(
+  validationErrors: ProjectObject['validation_errors'] | undefined,
+  objectType: HeatCalcObjectType,
+) {
+  const message = validationErrorsText(validationErrors).trim();
+  if (!message) return [];
+  const field = validationErrors?.['field'];
+  const fields = validationErrors?.['fields'];
+  const fieldMessages = [
+    ...(typeof field === 'string' && field.trim()
+      ? fieldErrorSummaryMessages({ [field]: message }, objectType)
+      : []),
+    ...(fields && typeof fields === 'object' && !Array.isArray(fields)
+      ? fieldErrorSummaryMessages(fields as Record<string, unknown>, objectType)
+      : []),
+  ];
+  return fieldMessages.length > 0 ? fieldMessages : [message];
+}
+
 function buildCalculationFieldErrors(
   validationErrors: ProjectObject['validation_errors'] | undefined,
+  objectType: HeatCalcObjectType,
 ): Record<string, string> {
   const message = validationErrorsText(validationErrors).trim();
-  if (!message) return {};
+  const structuredErrors: Record<string, string> = {};
+  const field = validationErrors?.['field'];
+  if (typeof field === 'string' && field.trim()) {
+    Object.assign(structuredErrors, normalizeFieldErrorsForForm({
+      [field]: message || 'Проверьте значение',
+    }, objectType));
+  }
+  const fields = validationErrors?.['fields'];
+  if (fields && typeof fields === 'object' && !Array.isArray(fields)) {
+    Object.assign(structuredErrors, normalizeFieldErrorsForForm(fields as Record<string, unknown>, objectType));
+  }
+  if (!message) return structuredErrors;
   const requiredFieldNames = requiredFieldNamesFromLabels(validationRequiredFields(validationErrors, message));
   if (requiredFieldNames.length > 0) {
-    return Object.fromEntries(requiredFieldNames.map((fieldName) => [fieldName, REQUIRED_FIELD_ERROR_MESSAGE]));
+    return {
+      ...structuredErrors,
+      ...Object.fromEntries(requiredFieldNames.map((fieldName) => [fieldName, REQUIRED_FIELD_ERROR_MESSAGE])),
+    };
   }
-  return Object.fromEntries(fieldNamesFromValidationMessage(message).map((fieldName) => [fieldName, message]));
+  return {
+    ...structuredErrors,
+    ...Object.fromEntries(fieldNamesFromValidationMessage(message).map((fieldName) => [fieldName, message])),
+  };
 }
 
 type ClimateBasis = 't_0_92' | 't_0_98' | 't_abs_min';
@@ -393,6 +498,21 @@ function sourceTag(source: unknown) {
   return null;
 }
 
+function equivalentFormValue(left: unknown, right: unknown) {
+  if (typeof left === 'number' || typeof right === 'number') {
+    const leftNumber = Number(left);
+    const rightNumber = Number(right);
+    if (!Number.isFinite(leftNumber) && !Number.isFinite(rightNumber)) return true;
+    return Math.abs(leftNumber - rightNumber) < 1e-9;
+  }
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+
+function formAlreadyHasValues(form: FormInstance, values: Record<string, unknown>) {
+  const current = form.getFieldsValue(true) as Record<string, unknown>;
+  return Object.entries(values).every(([key, value]) => equivalentFormValue(current[key], value));
+}
+
 function FieldSourceTag({
   form,
   name,
@@ -412,12 +532,15 @@ export default function ObjectWizard({
   onSubmit,
   submitting = false,
   initialParams,
+  initialFormValues,
   validationErrors,
+  fieldErrors,
   fieldInputSettings,
   formSectionWeights,
   sectionResizeEnabled = false,
   onFormSectionWeightsChange,
   onFormSectionWeightsCommit,
+  onDraftValuesChange,
 }: Props) {
   const [form] = Form.useForm();
   const formGridRef = useRef<HTMLDivElement | null>(null);
@@ -435,22 +558,34 @@ export default function ObjectWizard({
     fieldInputSettings,
     form,
   });
-  const isEditMode = !!initialParams;
+  const isEditMode = !!initialParams || !!initialFormValues;
   const initialValues = useMemo(() =>
-    initialParams != null
+    initialFormValues != null
+      ? initialFormValues
+      : initialParams != null
       ? objectType === 'pipe'
         ? pipeApiParamsToForm(initialParams)
         : tankApiParamsToForm(initialParams)
       : undefined,
-    [initialParams, objectType],
+    [initialFormValues, initialParams, objectType],
   );
   const formInitialValues = useMemo(
     () => applyObjectWizardDefaults(objectType, initialValues),
     [initialValues, objectType],
   );
   const calculationFieldErrors = useMemo(
-    () => buildCalculationFieldErrors(validationErrors),
-    [validationErrors],
+    () => ({
+      ...buildCalculationFieldErrors(validationErrors, heatCalcObjectType),
+      ...normalizeFieldErrorsForForm(fieldErrors, heatCalcObjectType),
+    }),
+    [fieldErrors, heatCalcObjectType, validationErrors],
+  );
+  const formErrorSummaryMessages = useMemo(
+    () => uniqueMessages([
+      ...validationErrorSummaryMessages(validationErrors, heatCalcObjectType),
+      ...fieldErrorSummaryMessages(fieldErrors, heatCalcObjectType),
+    ]),
+    [fieldErrors, heatCalcObjectType, validationErrors],
   );
   const calculationFieldErrorNamesRef = useRef<string[]>([]);
   const localRequiredFieldErrorNamesRef = useRef<string[]>([]);
@@ -551,10 +686,40 @@ export default function ObjectWizard({
   const thirdInsulationIsOther = thirdInsulationMaterial === 'other';
 
   useEffect(() => {
-    form.resetFields();
-    form.setFieldsValue(formInitialValues);
+    if (!formAlreadyHasValues(form, formInitialValues as Record<string, unknown>)) {
+      form.resetFields();
+      form.setFieldsValue(formInitialValues);
+    }
     localRequiredFieldErrorNamesRef.current = [];
   }, [form, formInitialValues]);
+
+  const syncMissingRequiredFieldErrors = useCallback(() => {
+    const trackedFieldNames = localRequiredFieldErrorNamesRef.current;
+    if (trackedFieldNames.length === 0) return;
+    const values = form.getFieldsValue(true) as Record<string, unknown>;
+    const context = { objectType: heatCalcObjectType, values };
+    const nextFieldNames = trackedFieldNames.filter((fieldName) => (
+      isHeatCalcFieldVisible(fieldName, context)
+        && isHeatCalcFieldRequired(fieldName, context)
+        && isEmptyFormValue(values[fieldName])
+    ));
+    const fieldNamesToClear = trackedFieldNames.filter((fieldName) => !nextFieldNames.includes(fieldName));
+    const fieldUpdates = [
+      ...fieldNamesToClear.map((fieldName) => ({ name: fieldName, errors: [] })),
+      ...nextFieldNames.map((fieldName) => ({ name: fieldName, errors: [REQUIRED_FIELD_ERROR_MESSAGE] })),
+    ];
+    if (fieldUpdates.length > 0) form.setFields(fieldUpdates);
+  }, [form, heatCalcObjectType]);
+
+  const scheduleMissingRequiredFieldSync = useCallback(() => {
+    if (requiredFieldSyncTimerRef.current != null) {
+      window.clearTimeout(requiredFieldSyncTimerRef.current);
+    }
+    requiredFieldSyncTimerRef.current = window.setTimeout(() => {
+      requiredFieldSyncTimerRef.current = null;
+      syncMissingRequiredFieldErrors();
+    }, 0);
+  }, [syncMissingRequiredFieldErrors]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -590,13 +755,13 @@ export default function ObjectWizard({
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [calculationFieldErrors, form]);
+  }, [calculationFieldErrors, form, scheduleMissingRequiredFieldSync]);
 
   useEffect(() => {
     if (!selectedClimate) return;
     const tAmbient = climateBasis ? climateTemperature(selectedClimate, climateBasis) : null;
     const wind = climateWind(selectedClimate);
-    form.setFieldsValue({
+    const nextValues = {
       climate_city: selectedClimate.city ?? selectedClimate.region,
       climate_region: selectedClimate.region,
       climate_temperature_basis: climateBasis,
@@ -612,15 +777,19 @@ export default function ObjectWizard({
             wind_speed_source: 'climate',
           }
         : {}),
-    });
-  }, [climateBasis, form, selectedClimate]);
+    };
+    form.setFieldsValue(nextValues);
+    onDraftValuesChange?.(nextValues, form.getFieldsValue(true) as Record<string, unknown>);
+  }, [climateBasis, form, onDraftValuesChange, selectedClimate]);
 
   useEffect(() => {
     if (!selectedGroundType) return;
     const selectedSoil = soilOptions.find((option) => option.value === selectedGroundType)?.entry;
     if (!selectedSoil) return;
-    form.setFieldsValue({ ground_conductivity: selectedSoil.conductivity });
-  }, [form, selectedGroundType, soilOptions]);
+    const nextValues = { ground_conductivity: selectedSoil.conductivity };
+    form.setFieldsValue(nextValues);
+    onDraftValuesChange?.(nextValues, form.getFieldsValue(true) as Record<string, unknown>);
+  }, [form, onDraftValuesChange, selectedGroundType, soilOptions]);
 
   useEffect(() => {
     if (!values) return;
@@ -655,24 +824,30 @@ export default function ObjectWizard({
   }
 
   function handleValuesChange(changed: Record<string, unknown>) {
+    const syncedChanges: Record<string, unknown> = { ...changed };
+    function setSyncedFields(values: Record<string, unknown>) {
+      form.setFieldsValue(values);
+      Object.assign(syncedChanges, values);
+    }
+
     clearCalculationFieldErrors(Object.keys(changed));
     if (Object.prototype.hasOwnProperty.call(changed, 'placement')) {
       if (changed.placement === 'indoor') {
-        form.setFieldsValue({ insulation_temperature_basis: 'indoor' });
+        setSyncedFields({ insulation_temperature_basis: 'indoor' });
       } else if (changed.placement === 'outdoor') {
         const currentBasis = form.getFieldValue('insulation_temperature_basis');
         if (!currentBasis || !AUTO_OUTDOOR_INSULATION_BASIS.has(String(currentBasis))) {
-          form.setFieldsValue({ insulation_temperature_basis: 'outdoor_winter' });
+          setSyncedFields({ insulation_temperature_basis: 'outdoor_winter' });
         }
       } else if (changed.placement === 'underground') {
         const currentBasis = form.getFieldValue('insulation_temperature_basis');
         if (!currentBasis || AUTO_NON_UNDERGROUND_INSULATION_BASIS.has(String(currentBasis))) {
-          form.setFieldsValue({ insulation_temperature_basis: undefined });
+          setSyncedFields({ insulation_temperature_basis: undefined });
         }
       }
     }
     if (Object.prototype.hasOwnProperty.call(changed, 'climate_key') && !changed.climate_key) {
-      form.setFieldsValue({
+      setSyncedFields({
         climate_city: undefined,
         climate_region: undefined,
         climate_temperature_basis: undefined,
@@ -681,45 +856,18 @@ export default function ObjectWizard({
       });
     }
     if (Object.prototype.hasOwnProperty.call(changed, 'ambient_temperature')) {
-      form.setFieldsValue({ ambient_temperature_source: 'manual' });
+      setSyncedFields({ ambient_temperature_source: 'manual' });
     }
     if (Object.prototype.hasOwnProperty.call(changed, 'wind_speed')) {
-      form.setFieldsValue({ wind_speed_source: 'manual' });
+      setSyncedFields({ wind_speed_source: 'manual' });
     }
     if (Object.prototype.hasOwnProperty.call(changed, 'safety_factor')) {
-      form.setFieldsValue({
+      setSyncedFields({
         safety_factor_source: changed.safety_factor == null ? undefined : 'manual',
       });
     }
     scheduleMissingRequiredFieldSync();
-  }
-
-  function scheduleMissingRequiredFieldSync() {
-    if (requiredFieldSyncTimerRef.current != null) {
-      window.clearTimeout(requiredFieldSyncTimerRef.current);
-    }
-    requiredFieldSyncTimerRef.current = window.setTimeout(() => {
-      requiredFieldSyncTimerRef.current = null;
-      syncMissingRequiredFieldErrors();
-    }, 0);
-  }
-
-  function syncMissingRequiredFieldErrors() {
-    const trackedFieldNames = localRequiredFieldErrorNamesRef.current;
-    if (trackedFieldNames.length === 0) return;
-    const values = form.getFieldsValue(true) as Record<string, unknown>;
-    const context = { objectType: heatCalcObjectType, values };
-    const nextFieldNames = trackedFieldNames.filter((fieldName) => (
-      isHeatCalcFieldVisible(fieldName, context)
-        && isHeatCalcFieldRequired(fieldName, context)
-        && isEmptyFormValue(values[fieldName])
-    ));
-    const fieldNamesToClear = trackedFieldNames.filter((fieldName) => !nextFieldNames.includes(fieldName));
-    const fieldUpdates = [
-      ...fieldNamesToClear.map((fieldName) => ({ name: fieldName, errors: [] })),
-      ...nextFieldNames.map((fieldName) => ({ name: fieldName, errors: [REQUIRED_FIELD_ERROR_MESSAGE] })),
-    ];
-    if (fieldUpdates.length > 0) form.setFields(fieldUpdates);
+    onDraftValuesChange?.(syncedChanges, form.getFieldsValue(true) as Record<string, unknown>);
   }
 
   function clearCalculationFieldErrors(changedFieldNames?: string[]) {
@@ -905,6 +1053,21 @@ export default function ObjectWizard({
       <Form.Item name="safety_factor_source" hidden noStyle>
         <Input type="hidden" />
       </Form.Item>
+      {formErrorSummaryMessages.length > 0 ? (
+        <div className="object-form-errors-panel" role="status" aria-label="Ошибки выбранной строки">
+          <div className="object-form-errors-title">Ошибки выбранной строки</div>
+          <div className="object-form-errors-list">
+            {formErrorSummaryMessages.slice(0, 6).map((message) => (
+              <div key={message} className="object-form-errors-item">{message}</div>
+            ))}
+            {formErrorSummaryMessages.length > 6 ? (
+              <div className="object-form-errors-more">
+                Ещё ошибок: {formErrorSummaryMessages.length - 6}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       <div className="form-grid-srs" ref={formGridRef}>
 
         {/* ── Геометрия ──────────────────────────────────────────────── */}

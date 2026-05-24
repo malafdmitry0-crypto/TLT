@@ -18,6 +18,7 @@ import {
   Checkbox,
   Modal,
   Popconfirm,
+  Segmented,
   Space,
   Table,
   Tag,
@@ -54,7 +55,7 @@ import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
-import { getObjectQueryCapabilities, getObjectsSummary, listObjects, queryObjects, updateObject } from '@/api/projects';
+import { createObject, getObjectQueryCapabilities, getObjectsSummary, listObjects, queryObjects, updateObject } from '@/api/projects';
 import { cancelCalcTask, enqueueHeatLossBatchJob, getCalcTask } from '@/api/calculations';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
@@ -66,11 +67,17 @@ import { formatNumber } from '@/utils/formatters';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 import { findDN } from '@/utils/objectWizardUtils';
 import {
+  getHeatCalcFieldDefinition,
+  getHeatCalcFieldLabel,
+  getHeatCalcFormFieldIds,
+} from '@/domain/heatCalcFields';
+import {
   HEATCALC_TABLE_COLUMN_PREF_KEY,
   HEATCALC_TABLE_COLUMN_CATALOG,
   clampTableColumnWidthPct,
   clearRegisteredTableColumnCache,
   createTableColumnSettingsPatch,
+  getAllTableColumnMetas,
   getAvailableTableColumnKeys,
   getDefaultTableColumnSettings,
   getVisibleTableColumnMetas,
@@ -160,15 +167,41 @@ import {
 } from '@/utils/heatCalcFieldInputSettings';
 import {
   applyInlineCellDraft,
+  applyFormFieldDraft,
   buildDraftDisplayRecord,
   buildDraftRowParams,
-  getInlineEditFieldConfig,
+  DraftRowValidationError,
+  getDraftRowValidationErrors,
   getInlineCellFormValue,
+  getInlineEditFieldConfig,
   isDraftRowDirty,
   isDraftRowEmpty,
   type DraftRowState,
   type DraftRowsById,
 } from '@/utils/heatCalcInlineEdit';
+import {
+  buildExcelSelectionTsv,
+  buildExcelTableErrorItems,
+  createExcelSelectionRange,
+  EXCEL_NEW_ROW_PREFIX,
+  formatExcelCellDisplay,
+  formatExcelDraftCellDisplay,
+  getExcelSelectionOrigin,
+  getExcelEditableColumnMetas,
+  getExcelSelectedRowIndexes,
+  isExcelCellActive,
+  isExcelCellInRange,
+  isExcelDraftRowBlank,
+  isExcelNewRowId,
+  missingExcelRowsForPaste,
+  normalizeExcelSelectionRange,
+  parseExcelCellValue,
+  parseSpreadsheetText,
+  type ExcelCellPosition,
+  type ExcelErrorFieldInfo,
+  type ExcelSelectionRange,
+  type ExcelTableErrorItem,
+} from '@/utils/heatCalcExcelMode';
 import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
 import ColumnFilterDropdown from '@/pages/heatcalc/HeatCalcColumnFilterDropdown';
 import {
@@ -221,6 +254,19 @@ type TableColumnRenderSpec = Pick<ColumnType<ProjectObject>, 'render' | 'ellipsi
   copyValue: (record: ProjectObject, index: number) => string;
 };
 
+function draftRowFingerprint(row: DraftRowState | null | undefined) {
+  if (!row) return '';
+  return JSON.stringify({
+    draftFormValues: row.draftFormValues,
+    dirtyFields: row.dirtyFields,
+    errors: row.errors,
+  });
+}
+
+function canOpenObjectWizard(record: ProjectObject): record is ProjectObject & { object_type: HeatCalcObjectType } {
+  return record.object_type === 'pipe' || record.object_type === 'tank';
+}
+
 function escapeTableRowKey(value: string) {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
     return CSS.escape(value);
@@ -272,6 +318,7 @@ type ActiveInlineCell = {
   objectId: string;
   columnKey: string;
 } | null;
+type TableEditingMode = 'normal' | 'excel';
 type PendingInlineDisableSettings = {
   columnSettings: HeatCalcTableColumnSettings;
   viewSettings: HeatCalcTableViewSettings;
@@ -303,13 +350,41 @@ function ResizableColumnTitle({
   title,
   label,
   onResizeStart,
+  selectable = false,
+  selected = false,
+  selectionActive = false,
+  onSelectionPointerDown,
+  onSelectionPointerEnter,
 }: {
   title: string;
   label: string;
   onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  selectable?: boolean;
+  selected?: boolean;
+  selectionActive?: boolean;
+  onSelectionPointerDown?: (event: ReactPointerEvent<HTMLSpanElement>) => void;
+  onSelectionPointerEnter?: (event: ReactPointerEvent<HTMLSpanElement>) => void;
 }) {
+  const className = [
+    'resizable-column-title',
+    selectable ? 'excel-column-title' : null,
+    selected ? 'selected' : null,
+    selectionActive ? 'active-selection' : null,
+  ].filter(Boolean).join(' ');
   return (
-    <span className="resizable-column-title">
+    <span
+      className={className}
+      onPointerDown={(event) => {
+        if (!selectable) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onSelectionPointerDown?.(event);
+      }}
+      onPointerEnter={(event) => {
+        if (!selectable) return;
+        onSelectionPointerEnter?.(event);
+      }}
+    >
       <span className="resizable-column-title-text">{title}</span>
       <button
         type="button"
@@ -376,6 +451,7 @@ export default function HeatCalcPage() {
   });
   const tableViewSettingsRef = useRef(tableViewSettings);
   const sideWorkspaceRef = useRef<HTMLDivElement | null>(null);
+  const excelSelectionDragRef = useRef<{ mode: 'cells' | 'rows' | 'columns'; anchor: ExcelCellPosition } | null>(null);
   const sideResizeStateRef = useRef<{
     placement: Extract<HeatCalcFormPlacement, 'left' | 'right'>;
     rect: DOMRect;
@@ -411,8 +487,22 @@ export default function HeatCalcPage() {
     useState<HeatCalcCalculationDetailsSettings>(() => calculationDetailsSettings);
   const [draftFieldInputSettings, setDraftFieldInputSettings] =
     useState<HeatCalcFieldInputSettings>(() => fieldInputSettings);
+  const [tableEditingMode, setTableEditingMode] = useState<TableEditingMode>('normal');
   const [activeInlineCell, setActiveInlineCell] = useState<ActiveInlineCell>(null);
+  const [selectedExcelCell, setSelectedExcelCell] = useState<ActiveInlineCell>(null);
+  const [excelSelectionRange, setExcelSelectionRange] = useState<ExcelSelectionRange | null>(null);
   const [draftRowsById, setDraftRowsById] = useState<DraftRowsById>({});
+  const [excelLocalRows, setExcelLocalRows] = useState<ProjectObject[]>([]);
+  const excelNewRowSeqRef = useRef(0);
+  const lastExcelCellPointerDownRef = useRef<{
+    rowIndex: number;
+    columnIndex: number;
+    at: number;
+  } | null>(null);
+  const excelBaselineRowsInitializedRef = useRef<Record<HeatCalcObjectType, boolean>>({
+    pipe: false,
+    tank: false,
+  });
   const [pendingInlineDisableSettings, setPendingInlineDisableSettings] =
     useState<PendingInlineDisableSettings | null>(null);
   const [pendingWizardObject, setPendingWizardObject] = useState<ProjectObject | null>(null);
@@ -427,6 +517,16 @@ export default function HeatCalcPage() {
   useEffect(() => {
     tableViewSettingsRef.current = tableViewSettings;
   }, [tableViewSettings]);
+
+  useEffect(() => {
+    excelNewRowSeqRef.current = 0;
+    excelBaselineRowsInitializedRef.current = { pipe: false, tank: false };
+    setExcelLocalRows([]);
+    setSelectedExcelCell(null);
+    setExcelSelectionRange(null);
+    setActiveInlineCell(null);
+    setDraftRowsById({});
+  }, [project?.id]);
 
   useEffect(() => {
     setWorkspaceHeaderContext(null);
@@ -479,6 +579,7 @@ export default function HeatCalcPage() {
   const activeTableColumnScope: HeatCalcTableColumnScope = isAllObjectScope ? 'all' : activeTableObjectType;
   const activeTableViewState = isAllObjectScope ? allTableViewState : tableViewStateByType[activeTableObjectType];
   const activeTablePage = tablePageByScope[activeObjectScope];
+  const excelModeEnabled = tableEditingMode === 'excel' && !isAllObjectScope;
 
   const { data: objectQueryCapabilities } = useQuery({
     queryKey: ['project', project?.id, 'objects', 'query-capabilities', activeTableObjectType],
@@ -906,16 +1007,16 @@ export default function HeatCalcPage() {
     clearWizard();
   }
 
-  function openEditWizard(obj: ProjectObject) {
+  const openEditWizard = useCallback((obj: ProjectObject) => {
     // Редактировать можно только те типы, которые умеем: трубы и резервуары.
     // Другие типы (pump/platform/other) пока не имеют форм мастера.
-    if (obj.object_type !== 'pipe' && obj.object_type !== 'tank') return;
-    if (inlineEditingEnabled && isDraftRowDirty(draftRowsById[obj.id])) {
+    if (!canOpenObjectWizard(obj)) return;
+    if (!excelModeEnabled && isDraftRowDirty(draftRowsById[obj.id])) {
       setPendingWizardObject(obj);
       return;
     }
     setWizardState({ type: obj.object_type, editingObject: obj });
-  }
+  }, [draftRowsById, excelModeEnabled]);
 
   function handleWizardSubmit(params: Record<string, unknown>) {
     if (wizardState?.editingObject) {
@@ -926,7 +1027,39 @@ export default function HeatCalcPage() {
         params,
       };
       setWizardState({ type: currentState.type, editingObject: optimisticObject });
-      edit.mutate({ objectId: editingObject.id, version: editingObject.version, params });
+      if (isExcelNewRowId(editingObject.id)) {
+        add.mutate({
+          object_type: currentState.type,
+          params,
+          sort_order: projectObjectCount,
+        }, {
+          onSuccess: (createdObject) => {
+            setExcelLocalRows((current) => current.filter((row) => row.id !== editingObject.id));
+            setDraftRowsById((current) => {
+              const next = { ...current };
+              delete next[editingObject.id];
+              return next;
+            });
+            if (createdObject.object_type === 'pipe' || createdObject.object_type === 'tank') {
+              setWizardState({ type: createdObject.object_type, editingObject: createdObject });
+            }
+          },
+        });
+        return;
+      }
+      edit.mutate(
+        { objectId: editingObject.id, version: editingObject.version, params },
+        {
+          onSuccess: () => {
+            setDraftRowsById((current) => {
+              if (!current[editingObject.id]) return current;
+              const next = { ...current };
+              delete next[editingObject.id];
+              return next;
+            });
+          },
+        },
+      );
     } else if (wizardState) {
       add.mutate({
         object_type: wizardState.type,
@@ -1410,13 +1543,27 @@ export default function HeatCalcPage() {
     () => normalizeTableViewSettings(tableViewSettings),
     [tableViewSettings],
   );
-  const sourceColumnMetas = useMemo(
+  const configuredColumnMetas = useMemo(
     () => getVisibleTableColumnMetas(
       activeTableColumnScope,
       tableColumnSettings,
       normalizedTableView.tableLabelFormat,
     ),
     [activeTableColumnScope, normalizedTableView.tableLabelFormat, tableColumnSettings],
+  );
+  const allConfiguredColumnMetas = useMemo(
+    () => getAllTableColumnMetas(
+      activeTableColumnScope,
+      tableColumnSettings,
+      normalizedTableView.tableLabelFormat,
+    ),
+    [activeTableColumnScope, normalizedTableView.tableLabelFormat, tableColumnSettings],
+  );
+  const sourceColumnMetas = useMemo(
+    () => (excelModeEnabled
+      ? getExcelEditableColumnMetas(activeTableObjectType, allConfiguredColumnMetas)
+      : configuredColumnMetas),
+    [activeTableObjectType, allConfiguredColumnMetas, configuredColumnMetas, excelModeEnabled],
   );
   const resolvedTableFontSize = useMemo(
     () => resolveTableFontSize(normalizedTableView),
@@ -1429,8 +1576,8 @@ export default function HeatCalcPage() {
     [objectQueryCapabilities],
   );
   const visibleTableColumnKeys = useMemo(
-    () => sourceColumnMetas.map((meta) => meta.key),
-    [sourceColumnMetas],
+    () => configuredColumnMetas.map((meta) => meta.key),
+    [configuredColumnMetas],
   );
   const tableValueAccessors = useMemo<HeatCalcColumnValueAccessors<ProjectObject>>(() => {
     const accessors: HeatCalcColumnValueAccessors<ProjectObject> = {};
@@ -1463,16 +1610,62 @@ export default function HeatCalcPage() {
     ),
     [allIndexedTableRows, allTableViewState, tableValueAccessors],
   );
+  const activeExcelLocalRows = useMemo(
+    () => excelLocalRows.filter((row) => row.object_type === activeTableObjectType),
+    [activeTableObjectType, excelLocalRows],
+  );
+  const createExcelLocalRows = useCallback((count: number): ProjectObject[] => {
+    const now = new Date().toISOString();
+    return Array.from({ length: Math.max(0, count) }, () => {
+      const seq = excelNewRowSeqRef.current;
+      excelNewRowSeqRef.current += 1;
+      return {
+        id: `${EXCEL_NEW_ROW_PREFIX}${activeTableObjectType}:${seq}`,
+        project_id: project?.id ?? '',
+        object_type: activeTableObjectType,
+        sort_order: projectObjectCount + seq,
+        version: 0,
+        params: {},
+        results: null,
+        is_valid: false,
+        validation_errors: null,
+        created_at: now,
+        updated_at: now,
+      };
+    });
+  }, [activeTableObjectType, project?.id, projectObjectCount]);
+  const appendExcelLocalRows = useCallback((count: number) => {
+    const rows = createExcelLocalRows(count);
+    if (rows.length > 0) setExcelLocalRows((current) => [...current, ...rows]);
+    return rows;
+  }, [createExcelLocalRows]);
+
+  useEffect(() => {
+    if (!excelModeEnabled) return;
+    if (excelBaselineRowsInitializedRef.current[activeTableObjectType]) return;
+    excelBaselineRowsInitializedRef.current = {
+      ...excelBaselineRowsInitializedRef.current,
+      [activeTableObjectType]: true,
+    };
+    if (activeExcelLocalRows.length === 0) appendExcelLocalRows(5);
+  }, [activeExcelLocalRows.length, activeTableObjectType, appendExcelLocalRows, excelModeEnabled]);
+
   const allTableOffset = isAllObjectScope ? (activeTablePage - 1) * DEFAULT_OBJECT_QUERY_PAGE_SIZE : 0;
   const visibleAllTableRows = useMemo(
     () => allFilteredSortedTableRows.slice(allTableOffset, allTableOffset + DEFAULT_OBJECT_QUERY_PAGE_SIZE),
     [allFilteredSortedTableRows, allTableOffset],
   );
-  const visibleTableObjects = useMemo(
+  const baseVisibleTableObjects = useMemo(
     () => (isAllObjectScope
       ? visibleAllTableRows.map(({ record }) => record)
       : objectQueryResult?.items ?? []),
     [isAllObjectScope, objectQueryResult, visibleAllTableRows],
+  );
+  const visibleTableObjects = useMemo(
+    () => (excelModeEnabled
+      ? [...baseVisibleTableObjects, ...activeExcelLocalRows]
+      : baseVisibleTableObjects),
+    [activeExcelLocalRows, baseVisibleTableObjects, excelModeEnabled],
   );
   const visibleTableRows = useMemo(
     () => (isAllObjectScope
@@ -1483,18 +1676,88 @@ export default function HeatCalcPage() {
         }))),
     [isAllObjectScope, objectQueryResult, visibleAllTableRows, visibleTableObjects],
   );
+  const wizardBaseObject = useMemo(() => {
+    const editingObject = wizardState?.editingObject;
+    if (!editingObject) return null;
+    return visibleTableObjects.find((object) => object.id === editingObject.id)
+      ?? allProjectObjects.find((object) => object.id === editingObject.id)
+      ?? editingObject;
+  }, [allProjectObjects, visibleTableObjects, wizardState?.editingObject]);
+  const wizardFormObject = useMemo(() => {
+    if (!wizardBaseObject) return null;
+    return buildDraftDisplayRecord(draftRowsById[wizardBaseObject.id], wizardBaseObject);
+  }, [draftRowsById, wizardBaseObject]);
+  const wizardDraftFieldErrors = useMemo(() => {
+    if (!wizardBaseObject) return undefined;
+    const draftRow = draftRowsById[wizardBaseObject.id];
+    return draftRow ? getDraftRowValidationErrors(draftRow) : undefined;
+  }, [draftRowsById, wizardBaseObject]);
+  const handleWizardDraftValuesChange = useCallback((
+    changedValues: Record<string, unknown>,
+    allValues: Record<string, unknown>,
+  ) => {
+    if (!wizardBaseObject || !canOpenObjectWizard(wizardBaseObject)) return;
+    const fieldIds = Object.keys(changedValues);
+    if (fieldIds.length === 0) return;
+
+    setDraftRowsById((current) => {
+      let nextRow: DraftRowState | null = current[wizardBaseObject.id] ?? null;
+      const before = draftRowFingerprint(nextRow);
+      fieldIds.forEach((fieldId) => {
+        const value = Object.prototype.hasOwnProperty.call(allValues, fieldId)
+          ? allValues[fieldId]
+          : changedValues[fieldId];
+        nextRow = applyFormFieldDraft(nextRow, wizardBaseObject, fieldId, value);
+      });
+      if (!nextRow) return current;
+      const after = draftRowFingerprint(nextRow);
+      if (before === after) return current;
+
+      const next = { ...current };
+      if (
+        isDraftRowEmpty(nextRow)
+        || (isExcelNewRowId(wizardBaseObject.id)
+          && isExcelDraftRowBlank(nextRow)
+          && Object.keys(nextRow.errors).length === 0)
+      ) {
+        delete next[wizardBaseObject.id];
+      } else {
+        next[wizardBaseObject.id] = nextRow;
+      }
+      return next;
+    });
+  }, [wizardBaseObject]);
   const selectedVisibleRows = useMemo(
     () => visibleTableRows.filter(({ record }) => selectedRowKeys.includes(record.id)),
     [selectedRowKeys, visibleTableRows],
   );
+  const selectedExcelRowIndex = useMemo(() => {
+    if (!selectedExcelCell) return null;
+    const rowIndex = visibleTableObjects.findIndex((object) => object.id === selectedExcelCell.objectId);
+    return rowIndex >= 0 ? rowIndex : null;
+  }, [selectedExcelCell, visibleTableObjects]);
+  const selectedExcelRows = useMemo(() => {
+    if (!excelModeEnabled) return [];
+    const indexes = getExcelSelectedRowIndexes(
+      excelSelectionRange,
+      selectedExcelRowIndex == null ? null : { rowIndex: selectedExcelRowIndex, columnIndex: 0 },
+      visibleTableRows.length,
+    );
+    return indexes
+      .map((index) => visibleTableRows[index])
+      .filter((row): row is HeatCalcIndexedTableRow<ProjectObject> => row != null);
+  }, [excelModeEnabled, excelSelectionRange, selectedExcelRowIndex, visibleTableRows]);
+  const tableDeleteRows = excelModeEnabled ? selectedExcelRows : selectedVisibleRows;
   const selectedObjectCount = selectedVisibleRows.length;
+  const deleteTargetCount = tableDeleteRows.length;
   const currentTableViewActive = hasActiveTableViewState(activeTableViewState);
   const activeTypeTotalCount = isAllObjectScope
     ? projectObjectCount
     : objectQueryResult?.counts.by_type[activeTableObjectType] ?? totalCount;
   const filteredTableCount = isAllObjectScope
     ? allFilteredSortedTableRows.length
-    : objectQueryResult?.counts.filtered ?? visibleTableObjects.length;
+    : (objectQueryResult?.counts.filtered ?? baseVisibleTableObjects.length) +
+      (excelModeEnabled ? activeExcelLocalRows.length : 0);
   const typeButtonCountText = useCallback((
     scope: ActiveObjectScope,
     total: number,
@@ -1534,21 +1797,26 @@ export default function HeatCalcPage() {
     return result;
   }, [allIndexedTableRows, fieldCapabilityByKey, isAllObjectScope, sourceColumnMetas, tableValueAccessors]);
   const inlineEditingEnabled = normalizedTableView.inlineEditingEnabled;
+  const tableCellEditingEnabled = inlineEditingEnabled || excelModeEnabled;
+  const isSavableDraftRow = useCallback((row: DraftRowState | undefined) => (
+    isDraftRowDirty(row)
+    && !(row && isExcelNewRowId(row.objectId) && isExcelDraftRowBlank(row))
+  ), []);
   const dirtyDraftRows = useMemo(
-    () => Object.values(draftRowsById).filter(isDraftRowDirty),
-    [draftRowsById],
+    () => Object.values(draftRowsById).filter(isSavableDraftRow),
+    [draftRowsById, isSavableDraftRow],
   );
   const dirtyDraftRowCount = dirtyDraftRows.length;
   const selectedDirtyRowIds = useMemo(
-    () => selectedRowKeys.filter((key) => isDraftRowDirty(draftRowsById[key])),
-    [draftRowsById, selectedRowKeys],
+    () => selectedRowKeys.filter((key) => isSavableDraftRow(draftRowsById[key])),
+    [draftRowsById, isSavableDraftRow, selectedRowKeys],
   );
   const saveTargetIds = selectedDirtyRowIds.length > 0
     ? selectedDirtyRowIds
     : dirtyDraftRows.map((row) => row.objectId);
   const saveTargetCount = saveTargetIds.length;
   const selectedDirtyTarget = selectedDirtyRowIds.length > 0;
-  const draftControlsVisible = inlineEditingEnabled || dirtyDraftRowCount > 0;
+  const draftControlsVisible = tableCellEditingEnabled || dirtyDraftRowCount > 0;
   const draftDiscardLabel = selectedDirtyTarget
     ? `Сбросить выбранные (${saveTargetCount})`
     : `Сбросить все (${saveTargetCount})`;
@@ -1634,16 +1902,43 @@ export default function HeatCalcPage() {
     allFilteredSortedTableRows.length,
     objectQueryResult?.counts.filtered,
     objectQueryResult?.page_info.page_size,
+    openEditWizard,
     projectObjectCount,
     selectedVisibleRows,
   ]);
 
   const removeSelectedObjects = useCallback(() => {
-    selectedVisibleRows.forEach(({ record }) => {
+    const localIds = new Set(
+      tableDeleteRows
+        .map(({ record }) => record.id)
+        .filter(isExcelNewRowId),
+    );
+    if (localIds.size > 0) {
+      setExcelLocalRows((current) => current.filter((row) => !localIds.has(row.id)));
+      setDraftRowsById((current) => {
+        const next = { ...current };
+        localIds.forEach((id) => {
+          delete next[id];
+        });
+        return next;
+      });
+    }
+
+    const persistedRows = tableDeleteRows.filter(({ record }) => !isExcelNewRowId(record.id));
+    persistedRows.forEach(({ record }) => {
       remove.mutate(record.id);
     });
+
+    if (excelModeEnabled) {
+      setSelectedExcelCell(null);
+      setExcelSelectionRange(null);
+      setActiveInlineCell(null);
+    }
     setSelectedRowKeys([]);
-  }, [remove, selectedVisibleRows]);
+    if (localIds.size > 0 && persistedRows.length === 0) {
+      antdMessage.success(localIds.size > 1 ? 'Строки удалены' : 'Строка удалена');
+    }
+  }, [excelModeEnabled, remove, tableDeleteRows]);
 
   const updateObjectInCurrentQuery = useCallback((savedObject: ProjectObject) => {
     queryClient.setQueryData<ProjectObjectsQueryResponse | undefined>(objectQueryKey, (current) => {
@@ -1671,11 +1966,29 @@ export default function HeatCalcPage() {
     if (!project) return { ok: false, saved: [] as ProjectObject[] };
     const targetRows = (rowIds ?? Object.keys(draftRowsById))
       .map((id) => draftRowsById[id])
-      .filter((row): row is DraftRowState => isDraftRowDirty(row));
+      .filter((row): row is DraftRowState => isSavableDraftRow(row));
 
     if (targetRows.length === 0) return { ok: true, saved: [] as ProjectObject[] };
-    const invalidRows = targetRows.filter((row) => Object.keys(row.errors).length > 0);
-    const validRows = targetRows.filter((row) => Object.keys(row.errors).length === 0);
+    const validationByRowId = Object.fromEntries(
+      targetRows.map((row) => [row.objectId, getDraftRowValidationErrors(row)]),
+    ) as Record<string, Record<string, string>>;
+    const invalidRows = targetRows.filter((row) => Object.keys(validationByRowId[row.objectId] ?? {}).length > 0);
+    const validRows = targetRows.filter((row) => Object.keys(validationByRowId[row.objectId] ?? {}).length === 0);
+    if (invalidRows.length > 0) {
+      setDraftRowsById((current) => {
+        const next = { ...current };
+        invalidRows.forEach((row) => {
+          if (next[row.objectId]) {
+            next[row.objectId] = {
+              ...next[row.objectId],
+              saving: false,
+              errors: validationByRowId[row.objectId] ?? {},
+            };
+          }
+        });
+        return next;
+      });
+    }
     if (validRows.length === 0) {
       antdMessage.error('Исправьте ошибки в строках перед сохранением');
       return { ok: false, saved: [] as ProjectObject[] };
@@ -1691,26 +2004,43 @@ export default function HeatCalcPage() {
     });
 
     const saved: ProjectObject[] = [];
+    const savedDraftIds = new Set<string>();
     const failed: Record<string, string> = {};
+    const failedValidation: Record<string, Record<string, string>> = {};
 
-    await Promise.all(validRows.map(async (row) => {
+    await Promise.all(validRows.map(async (row, index) => {
       try {
+        const isNewRow = isExcelNewRowId(row.objectId);
         const params = buildDraftRowParams(row);
-        const savedObject = await updateObject(project.id, row.objectId, {
-          version: row.baseVersion,
-          params,
-        });
+        const savedObject = isNewRow
+          ? await createObject(project.id, {
+            object_type: row.objectType,
+            params,
+            sort_order: projectObjectCount + index,
+          })
+          : await updateObject(project.id, row.objectId, {
+            version: row.baseVersion,
+            params,
+          });
         saved.push(savedObject);
-        updateObjectInCurrentQuery(savedObject);
+        savedDraftIds.add(row.objectId);
+        if (!isNewRow) updateObjectInCurrentQuery(savedObject);
       } catch (error) {
-        failed[row.objectId] = error instanceof Error ? error.message : 'Не удалось сохранить строку';
+        if (error instanceof DraftRowValidationError) {
+          failedValidation[row.objectId] = error.errors;
+        } else {
+          failed[row.objectId] = error instanceof Error ? error.message : 'Не удалось сохранить строку';
+        }
       }
     }));
 
+    if (savedDraftIds.size > 0) {
+      setExcelLocalRows((current) => current.filter((row) => !savedDraftIds.has(row.id)));
+    }
     setDraftRowsById((current) => {
       const next = { ...current };
-      saved.forEach((item) => {
-        delete next[item.id];
+      savedDraftIds.forEach((id) => {
+        delete next[id];
       });
       Object.entries(failed).forEach(([id, message]) => {
         if (next[id]) {
@@ -1724,6 +2054,15 @@ export default function HeatCalcPage() {
           };
         }
       });
+      Object.entries(failedValidation).forEach(([id, errors]) => {
+        if (next[id]) {
+          next[id] = {
+            ...next[id],
+            saving: false,
+            errors,
+          };
+        }
+      });
       return next;
     });
 
@@ -1731,13 +2070,13 @@ export default function HeatCalcPage() {
     queryClient.invalidateQueries({ queryKey: ['project', project.id, 'objects', 'summary'] });
     queryClient.invalidateQueries({ queryKey: ['spec', project.id] });
 
-    if (Object.keys(failed).length > 0 || invalidRows.length > 0) {
+    if (Object.keys(failed).length > 0 || Object.keys(failedValidation).length > 0 || invalidRows.length > 0) {
       antdMessage.error('Часть строк не сохранена');
       return { ok: false, saved };
     }
     antdMessage.success(`Сохранено строк: ${saved.length}`);
     return { ok: true, saved };
-  }, [draftRowsById, project, queryClient, updateObjectInCurrentQuery]);
+  }, [draftRowsById, isSavableDraftRow, project, projectObjectCount, queryClient, updateObjectInCurrentQuery]);
 
   const commitInlineCell = useCallback((
     record: ProjectObject,
@@ -1754,21 +2093,314 @@ export default function HeatCalcPage() {
       if (!nextRow) return current;
       commitError = nextRow.errors[config.fieldId] ?? null;
       const next = { ...current };
-      if (isDraftRowEmpty(nextRow)) {
+      if (
+        isDraftRowEmpty(nextRow)
+        || (isExcelNewRowId(record.id)
+          && isExcelDraftRowBlank(nextRow)
+          && Object.keys(nextRow.errors).length === 0)
+      ) {
         delete next[record.id];
       } else {
         next[record.id] = nextRow;
       }
       return next;
     });
-    if (!commitError) setActiveInlineCell(null);
+    if (!commitError) {
+      setActiveInlineCell(null);
+    }
     return commitError;
   }, []);
 
   const startInlineCellEdit = useCallback((record: ProjectObject, columnKey: string) => {
-    if (!inlineEditingEnabled) return;
+    if (!tableCellEditingEnabled) return;
+    if (excelModeEnabled) {
+      setSelectedExcelCell({ objectId: record.id, columnKey });
+      if (canOpenObjectWizard(record)) {
+        setWizardState({ type: record.object_type, editingObject: record });
+      }
+    }
     setActiveInlineCell({ objectId: record.id, columnKey });
-  }, [inlineEditingEnabled]);
+  }, [excelModeEnabled, tableCellEditingEnabled]);
+
+  const editableExcelColumnKeys = useMemo(
+    () => (!isAllObjectScope
+      ? sourceColumnMetas
+        .filter((meta) => getInlineEditFieldConfig(activeTableObjectType, meta.key))
+        .map((meta) => meta.key)
+      : []),
+    [activeTableObjectType, isAllObjectScope, sourceColumnMetas],
+  );
+  const excelFieldInfoById = useMemo<Record<string, ExcelErrorFieldInfo>>(() => {
+    const result: Record<string, ExcelErrorFieldInfo> = {};
+    if (isAllObjectScope) return result;
+    sourceColumnMetas.forEach((meta) => {
+      const config = getInlineEditFieldConfig(activeTableObjectType, meta.key);
+      if (!config) return;
+      result[config.fieldId] = {
+        fieldId: config.fieldId,
+        columnKey: meta.key,
+        label: config.field.label,
+      };
+    });
+    getHeatCalcFormFieldIds(activeTableObjectType).forEach((fieldId) => {
+      if (result[fieldId]) return;
+      const field = getHeatCalcFieldDefinition(fieldId, activeTableObjectType);
+      const columnKey = field?.tableColumnKeys[activeTableObjectType];
+      result[fieldId] = {
+        fieldId,
+        columnKey: columnKey && editableExcelColumnKeys.includes(columnKey) ? columnKey : undefined,
+        label: getHeatCalcFieldLabel(fieldId, {
+          context: 'settings',
+          objectType: activeTableObjectType,
+          tableKey: columnKey,
+          variant: 'full',
+        }),
+      };
+    });
+    return result;
+  }, [activeTableObjectType, editableExcelColumnKeys, isAllObjectScope, sourceColumnMetas]);
+
+  const selectedExcelPosition = useMemo<ExcelCellPosition | null>(() => {
+    if (!selectedExcelCell) return null;
+    const rowIndex = visibleTableObjects.findIndex((object) => object.id === selectedExcelCell.objectId);
+    const columnIndex = editableExcelColumnKeys.indexOf(selectedExcelCell.columnKey);
+    return rowIndex >= 0 && columnIndex >= 0 ? { rowIndex, columnIndex } : null;
+  }, [editableExcelColumnKeys, selectedExcelCell, visibleTableObjects]);
+
+  const selectExcelCellByPosition = useCallback((
+    rowIndex: number,
+    editableColumnIndex: number,
+    extend = false,
+  ) => {
+    if (!excelModeEnabled || visibleTableObjects.length === 0 || editableExcelColumnKeys.length === 0) return;
+    const nextRowIndex = Math.min(Math.max(rowIndex, 0), visibleTableObjects.length - 1);
+    const nextColumnIndex = Math.min(Math.max(editableColumnIndex, 0), editableExcelColumnKeys.length - 1);
+    const record = visibleTableObjects[nextRowIndex];
+    const columnKey = editableExcelColumnKeys[nextColumnIndex];
+    if (!record || !columnKey) return;
+    const focus = { rowIndex: nextRowIndex, columnIndex: nextColumnIndex };
+    setSelectedExcelCell({ objectId: record.id, columnKey });
+    if (canOpenObjectWizard(record)) {
+      setWizardState({ type: record.object_type, editingObject: record });
+    }
+    setExcelSelectionRange((current) => (
+      extend && current
+        ? { anchor: current.anchor, focus }
+        : createExcelSelectionRange(focus)
+    ));
+    setActiveInlineCell(null);
+  }, [editableExcelColumnKeys, excelModeEnabled, visibleTableObjects]);
+
+  const setExcelRangeSelection = useCallback((
+    anchor: ExcelCellPosition,
+    focus: ExcelCellPosition,
+    active: ExcelCellPosition = focus,
+  ) => {
+    if (!excelModeEnabled || visibleTableObjects.length === 0 || editableExcelColumnKeys.length === 0) return;
+    const activeRowIndex = Math.min(Math.max(active.rowIndex, 0), visibleTableObjects.length - 1);
+    const activeColumnIndex = Math.min(Math.max(active.columnIndex, 0), editableExcelColumnKeys.length - 1);
+    const record = visibleTableObjects[activeRowIndex];
+    const columnKey = editableExcelColumnKeys[activeColumnIndex];
+    if (!record || !columnKey) return;
+    setSelectedExcelCell({ objectId: record.id, columnKey });
+    if (canOpenObjectWizard(record)) {
+      setWizardState({ type: record.object_type, editingObject: record });
+    }
+    setExcelSelectionRange(createExcelSelectionRange(anchor, focus));
+    setActiveInlineCell(null);
+  }, [editableExcelColumnKeys, excelModeEnabled, visibleTableObjects]);
+
+  const excelTableErrors = useMemo(
+    () => (excelModeEnabled
+      ? buildExcelTableErrorItems(
+        visibleTableRows.map(({ record }, rowIndex) => ({
+          rowId: record.id,
+          rowIndex,
+          objectName: typeof record.params?.name === 'string' ? record.params.name : undefined,
+          draftRow: draftRowsById[record.id],
+          backendError: draftRowsById[record.id] || isExcelNewRowId(record.id) || !record.validation_errors
+            ? null
+            : heatLossErrorText(record),
+          backendValidationErrors: draftRowsById[record.id] || isExcelNewRowId(record.id)
+            ? null
+            : record.validation_errors,
+          templateRow: isExcelNewRowId(record.id),
+        })),
+        excelFieldInfoById,
+      )
+      : []),
+    [draftRowsById, excelFieldInfoById, excelModeEnabled, visibleTableRows],
+  );
+
+  const focusExcelTableError = useCallback((item: ExcelTableErrorItem) => {
+    if (!excelModeEnabled || editableExcelColumnKeys.length === 0) return;
+    const columnKey = item.messages.find((message) => message.columnKey)?.columnKey;
+    const columnIndex = columnKey ? editableExcelColumnKeys.indexOf(columnKey) : -1;
+    const safeRowIndex = Math.min(Math.max(item.rowIndex, 0), visibleTableObjects.length - 1);
+    const record = visibleTableObjects[safeRowIndex];
+    if (!record) return;
+    if (columnIndex >= 0) {
+      selectExcelCellByPosition(safeRowIndex, columnIndex);
+    } else {
+      setExcelRangeSelection(
+        { rowIndex: safeRowIndex, columnIndex: 0 },
+        { rowIndex: safeRowIndex, columnIndex: editableExcelColumnKeys.length - 1 },
+        { rowIndex: safeRowIndex, columnIndex: 0 },
+      );
+    }
+    window.setTimeout(() => scrollTableRowIntoView(record.id), 0);
+  }, [
+    editableExcelColumnKeys,
+    excelModeEnabled,
+    selectExcelCellByPosition,
+    setExcelRangeSelection,
+    visibleTableObjects,
+  ]);
+
+  const moveExcelSelection = useCallback((
+    rowDelta: number,
+    columnDelta: number,
+    wrap = false,
+    extend = false,
+  ) => {
+    if (!excelModeEnabled || !selectedExcelPosition) return;
+    let nextRowIndex = selectedExcelPosition.rowIndex + rowDelta;
+    let nextColumnIndex = selectedExcelPosition.columnIndex + columnDelta;
+    if (wrap) {
+      if (nextColumnIndex >= editableExcelColumnKeys.length) {
+        nextColumnIndex = 0;
+        nextRowIndex += 1;
+      } else if (nextColumnIndex < 0) {
+        nextColumnIndex = editableExcelColumnKeys.length - 1;
+        nextRowIndex -= 1;
+      }
+    }
+    selectExcelCellByPosition(nextRowIndex, nextColumnIndex, extend);
+  }, [
+    editableExcelColumnKeys.length,
+    excelModeEnabled,
+    selectedExcelPosition,
+    selectExcelCellByPosition,
+  ]);
+
+  const selectAllExcelCells = useCallback(() => {
+    if (!excelModeEnabled || visibleTableObjects.length === 0 || editableExcelColumnKeys.length === 0) return;
+    setExcelRangeSelection(
+      { rowIndex: 0, columnIndex: 0 },
+      { rowIndex: visibleTableObjects.length - 1, columnIndex: editableExcelColumnKeys.length - 1 },
+      { rowIndex: 0, columnIndex: 0 },
+    );
+  }, [editableExcelColumnKeys.length, excelModeEnabled, setExcelRangeSelection, visibleTableObjects.length]);
+
+  const excelCellDisplayValue = useCallback((
+    record: ProjectObject,
+    columnKey: string,
+    draftRow: DraftRowState | undefined,
+  ) => {
+    if (record.object_type !== 'pipe' && record.object_type !== 'tank') return '';
+    const config = getInlineEditFieldConfig(record.object_type, columnKey);
+    if (!config) return '';
+    if (isExcelNewRowId(record.id)) return formatExcelDraftCellDisplay(config, draftRow);
+    return formatExcelCellDisplay(config, getInlineCellFormValue(record, columnKey, draftRow));
+  }, []);
+
+  const applyExcelPaste = useCallback((text: string) => {
+    const origin = getExcelSelectionOrigin(excelSelectionRange, selectedExcelPosition);
+    if (!excelModeEnabled || !origin) return;
+    const rows = parseSpreadsheetText(text);
+    if (rows.length === 0) return;
+    const startRowIndex = origin.rowIndex;
+    const startColumnIndex = origin.columnIndex;
+    if (startRowIndex < 0 || startColumnIndex < 0) return;
+    const appendedRows = appendExcelLocalRows(
+      missingExcelRowsForPaste(startRowIndex, rows.length, visibleTableObjects.length),
+    );
+    const targetObjects = appendedRows.length > 0
+      ? [...visibleTableObjects, ...appendedRows]
+      : visibleTableObjects;
+
+    const affectedIds = new Set<string>();
+    let changedCells = 0;
+    let skippedCells = 0;
+    let invalidCells = 0;
+
+    let nextDraftRows: DraftRowsById = { ...draftRowsById };
+    rows.forEach((row, rowOffset) => {
+      const record = targetObjects[startRowIndex + rowOffset];
+      if (!record) {
+        skippedCells += row.length;
+        return;
+      }
+      row.forEach((rawValue, columnOffset) => {
+        const meta = sourceColumnMetas[startColumnIndex + columnOffset];
+        if (!meta) {
+          skippedCells += 1;
+          return;
+        }
+        if (record.object_type !== 'pipe' && record.object_type !== 'tank') {
+          skippedCells += 1;
+          return;
+        }
+        const config = getInlineEditFieldConfig(record.object_type, meta.key);
+        if (!config) {
+          skippedCells += 1;
+          return;
+        }
+        const parsed = parseExcelCellValue(config, rawValue);
+        const draftRow = applyInlineCellDraft(nextDraftRows[record.id] ?? null, record, meta.key, parsed.value);
+        if (!draftRow) {
+          skippedCells += 1;
+          return;
+        }
+        const rowWithPasteError = parsed.error
+          ? {
+            ...draftRow,
+            errors: {
+              ...draftRow.errors,
+              [config.fieldId]: parsed.error,
+            },
+          }
+          : draftRow;
+        if (Object.keys(rowWithPasteError.errors).length > 0) invalidCells += 1;
+        if (
+          isDraftRowEmpty(rowWithPasteError)
+          || (isExcelNewRowId(record.id)
+            && isExcelDraftRowBlank(rowWithPasteError)
+            && Object.keys(rowWithPasteError.errors).length === 0)
+        ) {
+          const rest = { ...nextDraftRows };
+          delete rest[record.id];
+          nextDraftRows = rest;
+        } else {
+          nextDraftRows = {
+            ...nextDraftRows,
+            [record.id]: rowWithPasteError,
+          };
+          affectedIds.add(record.id);
+        }
+        changedCells += 1;
+      });
+    });
+    setDraftRowsById(nextDraftRows);
+
+    const summary = `Вставлено ячеек: ${changedCells}` +
+      `${skippedCells > 0 ? `, пропущено: ${skippedCells}` : ''}`;
+    if (invalidCells > 0) {
+      antdMessage.error(`${summary}. Исправьте ошибки перед сохранением.`);
+      return;
+    }
+    if (affectedIds.size > 0) {
+      antdMessage.success(`${summary}. Сохраните изменения кнопкой «Сохранить».`);
+    }
+  }, [
+    appendExcelLocalRows,
+    draftRowsById,
+    excelModeEnabled,
+    excelSelectionRange,
+    selectedExcelPosition,
+    sourceColumnMetas,
+    visibleTableObjects,
+  ]);
 
   useEffect(() => {
     if (isAllObjectScope) {
@@ -1819,9 +2451,11 @@ export default function HeatCalcPage() {
   }, [activeObjectScope, activeTableObjectType, pendingTableFocusObject, visibleTableObjects]);
 
   useEffect(() => {
-    if (inlineEditingEnabled || dirtyDraftRowCount > 0) return;
+    if (tableCellEditingEnabled || dirtyDraftRowCount > 0) return;
     setActiveInlineCell(null);
-  }, [dirtyDraftRowCount, inlineEditingEnabled]);
+    setSelectedExcelCell(null);
+    setExcelSelectionRange(null);
+  }, [dirtyDraftRowCount, tableCellEditingEnabled]);
 
   useEffect(() => {
     if (dirtyDraftRowCount === 0) return undefined;
@@ -2192,14 +2826,105 @@ export default function HeatCalcPage() {
     window.addEventListener('pointerup', handlePointerUp);
   }, [applyColumnWidth]);
 
+  const beginExcelCellSelection = useCallback((
+    rowIndex: number,
+    columnIndex: number,
+    event: ReactPointerEvent<HTMLElement>,
+  ) => {
+    if (!excelModeEnabled) return;
+    const now = Date.now();
+    const previous = lastExcelCellPointerDownRef.current;
+    const repeatedCellClick = !!previous
+      && previous.rowIndex === rowIndex
+      && previous.columnIndex === columnIndex
+      && now - previous.at < 450;
+    lastExcelCellPointerDownRef.current = { rowIndex, columnIndex, at: now };
+    excelSelectionDragRef.current = {
+      mode: 'cells',
+      anchor: event.shiftKey && excelSelectionRange ? excelSelectionRange.anchor : { rowIndex, columnIndex },
+    };
+    selectExcelCellByPosition(rowIndex, columnIndex, event.shiftKey);
+    if (repeatedCellClick) {
+      const record = visibleTableObjects[rowIndex];
+      const columnKey = editableExcelColumnKeys[columnIndex];
+      if (record && columnKey) setActiveInlineCell({ objectId: record.id, columnKey });
+    }
+  }, [
+    editableExcelColumnKeys,
+    excelModeEnabled,
+    excelSelectionRange,
+    selectExcelCellByPosition,
+    visibleTableObjects,
+  ]);
+
+  const extendExcelCellSelection = useCallback((rowIndex: number, columnIndex: number) => {
+    const drag = excelSelectionDragRef.current;
+    if (!excelModeEnabled || !drag || drag.mode !== 'cells') return;
+    setExcelRangeSelection(drag.anchor, { rowIndex, columnIndex }, { rowIndex, columnIndex });
+  }, [excelModeEnabled, setExcelRangeSelection]);
+
+  const beginExcelRowSelection = useCallback((rowIndex: number, event: ReactPointerEvent<HTMLElement>) => {
+    if (!excelModeEnabled || editableExcelColumnKeys.length === 0) return;
+    const anchor = event.shiftKey && excelSelectionRange
+      ? { rowIndex: excelSelectionRange.anchor.rowIndex, columnIndex: 0 }
+      : { rowIndex, columnIndex: 0 };
+    excelSelectionDragRef.current = { mode: 'rows', anchor };
+    setExcelRangeSelection(
+      anchor,
+      { rowIndex, columnIndex: editableExcelColumnKeys.length - 1 },
+      { rowIndex, columnIndex: 0 },
+    );
+  }, [editableExcelColumnKeys.length, excelModeEnabled, excelSelectionRange, setExcelRangeSelection]);
+
+  const extendExcelRowSelection = useCallback((rowIndex: number) => {
+    const drag = excelSelectionDragRef.current;
+    if (!excelModeEnabled || !drag || drag.mode !== 'rows' || editableExcelColumnKeys.length === 0) return;
+    setExcelRangeSelection(
+      drag.anchor,
+      { rowIndex, columnIndex: editableExcelColumnKeys.length - 1 },
+      { rowIndex, columnIndex: 0 },
+    );
+  }, [editableExcelColumnKeys.length, excelModeEnabled, setExcelRangeSelection]);
+
+  const beginExcelColumnSelection = useCallback((columnIndex: number, event: ReactPointerEvent<HTMLElement>) => {
+    if (!excelModeEnabled || visibleTableObjects.length === 0) return;
+    const anchor = event.shiftKey && excelSelectionRange
+      ? { rowIndex: 0, columnIndex: excelSelectionRange.anchor.columnIndex }
+      : { rowIndex: 0, columnIndex };
+    excelSelectionDragRef.current = { mode: 'columns', anchor };
+    setExcelRangeSelection(
+      anchor,
+      { rowIndex: visibleTableObjects.length - 1, columnIndex },
+      { rowIndex: 0, columnIndex },
+    );
+  }, [excelModeEnabled, excelSelectionRange, setExcelRangeSelection, visibleTableObjects.length]);
+
+  const extendExcelColumnSelection = useCallback((columnIndex: number) => {
+    const drag = excelSelectionDragRef.current;
+    if (!excelModeEnabled || !drag || drag.mode !== 'columns' || visibleTableObjects.length === 0) return;
+    setExcelRangeSelection(
+      drag.anchor,
+      { rowIndex: visibleTableObjects.length - 1, columnIndex },
+      { rowIndex: 0, columnIndex },
+    );
+  }, [excelModeEnabled, setExcelRangeSelection, visibleTableObjects.length]);
+
   const sourceColumns: ColumnsType<ProjectObject> = useMemo(
-    () => sourceColumnMetas.map((meta) => {
+    () => sourceColumnMetas.map((meta, columnIndex) => {
       const renderer = columnRenderers[meta.key];
       const capability = fieldCapabilityByKey.get(meta.key);
-      const filterEnabled = meta.filterable !== false && (isAllObjectScope || (capability?.filter.enabled ?? true));
-      const sortEnabled = meta.sortable !== false && (isAllObjectScope || (capability?.sort.enabled ?? true));
+      const filterEnabled = !excelModeEnabled
+        && meta.filterable !== false
+        && (isAllObjectScope || (capability?.filter.enabled ?? true));
+      const sortEnabled = !excelModeEnabled
+        && meta.sortable !== false
+        && (isAllObjectScope || (capability?.sort.enabled ?? true));
       const filterKind = filterKindForColumn(meta.key, capability);
       const activeFilter = activeTableViewState.filters[meta.key];
+      const normalizedExcelRange = excelSelectionRange ? normalizeExcelSelectionRange(excelSelectionRange) : null;
+      const columnSelected = !!normalizedExcelRange
+        && columnIndex >= normalizedExcelRange.left
+        && columnIndex <= normalizedExcelRange.right;
       return {
         key: meta.key,
         title: (
@@ -2207,6 +2932,11 @@ export default function HeatCalcPage() {
             title={meta.title}
             label={meta.label}
             onResizeStart={(event) => startColumnResize(activeTableColumnScope, meta, event)}
+            selectable={excelModeEnabled}
+            selected={columnSelected}
+            selectionActive={selectedExcelPosition?.columnIndex === columnIndex}
+            onSelectionPointerDown={(event) => beginExcelColumnSelection(columnIndex, event)}
+            onSelectionPointerEnter={() => extendExcelColumnSelection(columnIndex)}
           />
         ),
         columnKey: meta.key,
@@ -2218,20 +2948,30 @@ export default function HeatCalcPage() {
             return <Text type="secondary">{INAPPLICABLE_TABLE_VALUE}</Text>;
           }
           const draftRow = draftRowsById[record.id];
-          const displayRecord = buildDraftDisplayRecord(draftRow, record);
-          const content = renderer.render?.(value, displayRecord, index) as ReactNode;
-          const config = !isAllObjectScope && inlineEditingEnabled && (record.object_type === 'pipe' || record.object_type === 'tank')
+          const config = !isAllObjectScope && tableCellEditingEnabled && (record.object_type === 'pipe' || record.object_type === 'tank')
             ? getInlineEditFieldConfig(record.object_type, meta.key)
             : null;
+          const content = config && excelModeEnabled
+            ? excelCellDisplayValue(record, meta.key, draftRow)
+            : (() => {
+              const displayRecord = buildDraftDisplayRecord(draftRow, record);
+              return renderer.render?.(value, displayRecord, index) as ReactNode;
+            })();
           if (!config) return content;
           return (
             <EditableTableCell
               active={activeInlineCell?.objectId === record.id && activeInlineCell.columnKey === meta.key}
-              dirty={isDraftRowDirty(draftRow) && Object.prototype.hasOwnProperty.call(draftRow.dirtyFields, config.fieldId)}
+              selected={isExcelCellInRange(excelSelectionRange, index, columnIndex)}
+              selectionActive={isExcelCellActive(selectedExcelPosition, index, columnIndex)}
+              excelMode={excelModeEnabled}
+              dirty={isSavableDraftRow(draftRow) && Object.prototype.hasOwnProperty.call(draftRow?.dirtyFields ?? {}, config.fieldId)}
               error={draftRow?.errors[config.fieldId]}
               field={config.field}
               step={resolveHeatCalcFieldStep(config.objectType, config.fieldId, fieldInputSettings)}
               value={getInlineCellFormValue(record, meta.key, draftRow)}
+              onSelect={() => selectExcelCellByPosition(index, columnIndex)}
+              onSelectionPointerDown={(event) => beginExcelCellSelection(index, columnIndex, event)}
+              onSelectionPointerEnter={() => extendExcelCellSelection(index, columnIndex)}
               onStartEdit={() => startInlineCellEdit(record, meta.key)}
               onCommit={(nextValue) => commitInlineCell(record, meta.key, nextValue)}
               onCancel={() => setActiveInlineCell(null)}
@@ -2271,7 +3011,7 @@ export default function HeatCalcPage() {
             onClose={close}
           />
         ) : undefined,
-        onCell: !isAllObjectScope && inlineEditingEnabled && getInlineEditFieldConfig(activeTableObjectType, meta.key)
+        onCell: !isAllObjectScope && tableCellEditingEnabled && getInlineEditFieldConfig(activeTableObjectType, meta.key)
           ? () => ({ className: 'editable-cell-host editable-cell-enabled' })
           : undefined,
       };
@@ -2281,32 +3021,262 @@ export default function HeatCalcPage() {
       activeTableColumnScope,
       activeTableViewState,
       activeTableObjectType,
+      beginExcelCellSelection,
+      beginExcelColumnSelection,
       columnRenderers,
       commitInlineCell,
       draftRowsById,
       enumOptionsByColumn,
+      excelCellDisplayValue,
+      excelSelectionRange,
+      extendExcelCellSelection,
+      extendExcelColumnSelection,
       fieldCapabilityByKey,
       fieldInputSettings,
-      inlineEditingEnabled,
+      excelModeEnabled,
+      isSavableDraftRow,
       isAllObjectScope,
       resetColumnFilter,
+      selectExcelCellByPosition,
+      selectedExcelPosition,
       setColumnFilter,
       sourceColumnMetas,
       startInlineCellEdit,
       startColumnResize,
+      tableCellEditingEnabled,
     ],
   );
+  const excelRowHeaderColumn = useMemo<ColumnType<ProjectObject> | null>(() => {
+    if (!excelModeEnabled) return null;
+    const normalizedExcelRange = excelSelectionRange ? normalizeExcelSelectionRange(excelSelectionRange) : null;
+    return {
+      key: '__excel_row_header__',
+      title: (
+        <button
+          type="button"
+          className={[
+            'excel-row-header-button',
+            normalizedExcelRange
+              && normalizedExcelRange.top === 0
+              && normalizedExcelRange.bottom === Math.max(visibleTableObjects.length - 1, 0)
+              ? 'selected'
+              : null,
+          ].filter(Boolean).join(' ')}
+          aria-label="Выделить все заполняемые ячейки"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            selectAllExcelCells();
+          }}
+        >
+          ↖
+        </button>
+      ),
+      width: 42,
+      className: 'excel-row-header-cell',
+      render: (_: unknown, _record: ProjectObject, index: number) => {
+        const sourceIndex = visibleTableRows[index]?.sourceIndex ?? index;
+        const record = visibleTableRows[index]?.record;
+        const draftRow = record ? draftRowsById[record.id] : undefined;
+        const rowDirty = isSavableDraftRow(draftRow);
+        const draftErrorCount = Object.keys(draftRow?.errors ?? {}).length;
+        const rowHasError = draftErrorCount > 0 || (record ? heatLossCalcStatus(record) === 'error' : false);
+        const rowSelected = !!normalizedExcelRange
+          && index >= normalizedExcelRange.top
+          && index <= normalizedExcelRange.bottom;
+        const rowTitleParts = [`Строка ${sourceIndex + 1}`];
+        if (rowHasError) rowTitleParts.push('есть ошибки');
+        if (rowDirty) rowTitleParts.push('есть несохранённые изменения');
+        return (
+          <button
+            type="button"
+            className={[
+              'excel-row-header-button',
+              rowSelected ? 'selected' : null,
+              selectedExcelPosition?.rowIndex === index ? 'active-selection' : null,
+              rowDirty ? 'dirty' : null,
+              rowHasError ? 'has-error' : null,
+            ].filter(Boolean).join(' ')}
+            aria-label={`Выделить строку ${sourceIndex + 1}`}
+            title={rowTitleParts.join(' · ')}
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              beginExcelRowSelection(index, event);
+            }}
+            onPointerEnter={() => extendExcelRowSelection(index)}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+          >
+            {sourceIndex + 1}
+          </button>
+        );
+      },
+    };
+  }, [
+    beginExcelRowSelection,
+    draftRowsById,
+    excelModeEnabled,
+    excelSelectionRange,
+    extendExcelRowSelection,
+    isSavableDraftRow,
+    selectAllExcelCells,
+    selectedExcelPosition,
+    visibleTableObjects.length,
+    visibleTableRows,
+  ]);
+  const tableColumns: ColumnsType<ProjectObject> = useMemo(
+    () => (excelModeEnabled && excelRowHeaderColumn
+      ? [excelRowHeaderColumn, ...sourceColumns]
+      : sourceColumns),
+    [excelModeEnabled, excelRowHeaderColumn, sourceColumns],
+  );
   const tableScrollX = useMemo(
-    () => Math.max(640, sourceColumnMetas.reduce((sum, column) => sum + column.width, 36)),
-    [sourceColumnMetas],
+    () => Math.max(640, sourceColumnMetas.reduce(
+      (sum, column) => sum + column.width,
+      excelModeEnabled ? 42 : 36,
+    )),
+    [excelModeEnabled, sourceColumnMetas],
   );
   const tableScrollY = formPlacement === 'left' || formPlacement === 'right'
     ? 'max(320px, calc(100vh - 190px))'
     : 'max(320px, calc(100vh - 430px))';
 
   useEffect(() => {
+    if (tableEditingMode !== 'excel' || activeObjectScope !== 'all') return;
+    setTableEditingMode('normal');
+    setSelectedExcelCell(null);
+    setExcelSelectionRange(null);
+    setActiveInlineCell(null);
+  }, [activeObjectScope, tableEditingMode]);
+
+  useEffect(() => {
+    if (!selectedExcelCell) return;
+    if (
+      !visibleTableObjects.some((object) => object.id === selectedExcelCell.objectId)
+      || !editableExcelColumnKeys.includes(selectedExcelCell.columnKey)
+    ) {
+      setSelectedExcelCell(null);
+      setExcelSelectionRange(null);
+      setActiveInlineCell(null);
+    }
+  }, [editableExcelColumnKeys, selectedExcelCell, visibleTableObjects]);
+
+  useEffect(() => {
+    function clearExcelSelectionDrag() {
+      excelSelectionDragRef.current = null;
+    }
+
+    window.addEventListener('pointerup', clearExcelSelectionDrag);
+    window.addEventListener('pointercancel', clearExcelSelectionDrag);
+    return () => {
+      window.removeEventListener('pointerup', clearExcelSelectionDrag);
+      window.removeEventListener('pointercancel', clearExcelSelectionDrag);
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!excelModeEnabled || !selectedExcelPosition) return;
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        selectAllExcelCells();
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        const range = excelSelectionRange ?? createExcelSelectionRange(selectedExcelPosition);
+        const tsv = buildExcelSelectionTsv(range, (rowIndex, columnIndex) => {
+          const row = visibleTableRows[rowIndex];
+          const meta = sourceColumnMetas[columnIndex];
+          if (!row || !meta) return '';
+          const draftRow = draftRowsById[row.record.id];
+          return excelCellDisplayValue(row.record, meta.key, draftRow);
+        });
+        copyToClipboard(tsv).then(() => {
+          antdMessage.success('Скопировано');
+        });
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const record = visibleTableObjects[selectedExcelPosition.rowIndex];
+        const columnKey = editableExcelColumnKeys[selectedExcelPosition.columnIndex];
+        if (record && columnKey) startInlineCellEdit(record, columnKey);
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setActiveInlineCell(null);
+        setExcelSelectionRange(createExcelSelectionRange(selectedExcelPosition));
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        moveExcelSelection(0, e.shiftKey ? -1 : 1, true, false);
+        return;
+      }
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        moveExcelSelection(0, 1, false, e.shiftKey);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        moveExcelSelection(0, -1, false, e.shiftKey);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        moveExcelSelection(1, 0, false, e.shiftKey);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        moveExcelSelection(-1, 0, false, e.shiftKey);
+      }
+    }
+
+    function handlePaste(e: ClipboardEvent) {
+      if (!excelModeEnabled || !selectedExcelPosition) return;
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
+      const text = e.clipboardData?.getData('text/plain') ?? '';
+      if (!text) return;
+      e.preventDefault();
+      applyExcelPaste(text);
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('paste', handlePaste);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [
+    applyExcelPaste,
+    draftRowsById,
+    editableExcelColumnKeys,
+    excelCellDisplayValue,
+    excelSelectionRange,
+    excelModeEnabled,
+    moveExcelSelection,
+    selectAllExcelCells,
+    selectedExcelPosition,
+    sourceColumnMetas,
+    startInlineCellEdit,
+    visibleTableObjects,
+    visibleTableRows,
+  ]);
+
+  useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (!(e.ctrlKey || e.metaKey) || e.key !== 'c') return;
+      if (excelModeEnabled) return;
       if (selectedRowKeys.length === 0) return;
       const active = document.activeElement;
       if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
@@ -2330,7 +3300,7 @@ export default function HeatCalcPage() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [columnRenderers, isAllObjectScope, selectedRowKeys, sourceColumnMetas, visibleTableRows]);
+  }, [columnRenderers, excelModeEnabled, isAllObjectScope, selectedRowKeys, sourceColumnMetas, visibleTableRows]);
 
   function openColumnSettings() {
     setColumnSettingsType(activeTableColumnScope);
@@ -2339,6 +3309,19 @@ export default function HeatCalcPage() {
     setDraftCalculationDetailsSettings(normalizeCalculationDetailsSettings(calculationDetailsSettings));
     setDraftFieldInputSettings(normalizeFieldInputSettings(fieldInputSettings));
     setColumnSettingsOpen(true);
+  }
+
+  function handleTableEditingModeChange(value: string | number) {
+    const nextMode: TableEditingMode = value === 'excel' ? 'excel' : 'normal';
+    if (nextMode === 'excel' && isAllObjectScope) {
+      setActiveObjectScope('pipe');
+      antdMessage.info('Excel-режим включён для таблицы трубопроводов');
+    }
+    setTableEditingMode(nextMode);
+    if (nextMode === 'excel') setSelectedRowKeys([]);
+    setActiveInlineCell(null);
+    setSelectedExcelCell(null);
+    setExcelSelectionRange(null);
   }
 
   function updateDraftColumn(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey, checked: boolean) {
@@ -2501,13 +3484,18 @@ export default function HeatCalcPage() {
                 onClose={closeWizard}
                 onSubmit={handleWizardSubmit}
                 submitting={add.isPending || edit.isPending}
-                initialParams={wizardState.editingObject?.params}
-                validationErrors={wizardState.editingObject?.validation_errors}
+                initialParams={wizardFormObject?.params}
+                initialFormValues={excelModeEnabled && wizardBaseObject
+                  ? draftRowsById[wizardBaseObject.id]?.draftFormValues
+                  : undefined}
+                validationErrors={wizardFormObject?.validation_errors}
+                fieldErrors={excelModeEnabled ? wizardDraftFieldErrors : undefined}
                 fieldInputSettings={fieldInputSettings}
                 formSectionWeights={tableViewSettings.formSectionWeights}
                 sectionResizeEnabled={formPlacement === 'top' || formPlacement === 'bottom'}
                 onFormSectionWeightsChange={applyFormSectionWeights}
                 onFormSectionWeightsCommit={commitFormSectionWeights}
+                onDraftValuesChange={excelModeEnabled ? handleWizardDraftValuesChange : undefined}
               />
             </Suspense>
           ) : null}
@@ -2601,10 +3589,10 @@ export default function HeatCalcPage() {
                 </span>
               </Tooltip>
               <Popconfirm
-                title={selectedObjectCount > 1 ? 'Удалить выбранные объекты?' : 'Удалить выбранный объект?'}
+                title={deleteTargetCount > 1 ? `Удалить выбранные строки: ${deleteTargetCount}?` : 'Удалить выбранную строку?'}
                 okText="Удалить"
                 cancelText="Отмена"
-                disabled={selectedObjectCount === 0}
+                disabled={deleteTargetCount === 0}
                 onConfirm={removeSelectedObjects}
               >
                 <Button
@@ -2613,7 +3601,7 @@ export default function HeatCalcPage() {
                   icon={<DeleteOutlined />}
                   aria-label="Удалить выбранные"
                   loading={remove.isPending}
-                  disabled={selectedObjectCount === 0}
+                  disabled={deleteTargetCount === 0}
                 >
                   Удалить
                 </Button>
@@ -2624,6 +3612,44 @@ export default function HeatCalcPage() {
 
         <div className="actionbar-table-actions-row" role="toolbar" aria-label="Действия таблицы объектов">
           <div className="actionbar-group actionbar-table-actions-group">
+            <Segmented
+              size="small"
+              value={tableEditingMode}
+              options={[
+                { label: 'Обычный режим', value: 'normal' },
+                { label: 'Excel-режим', value: 'excel' },
+              ]}
+              onChange={handleTableEditingModeChange}
+            />
+            {excelModeEnabled ? (
+              <Tooltip title="Расчётные, служебные и readonly-колонки временно скрыты. Настройки таблицы не меняются.">
+                <Typography.Text className="excel-mode-hint" type="secondary">
+                  Только заполняемые поля
+                </Typography.Text>
+              </Tooltip>
+            ) : null}
+            {excelModeEnabled ? (
+              <>
+                <Button
+                  size="small"
+                  className="action-secondary-button"
+                  icon={<PlusOutlined />}
+                  aria-label="Добавить строку в Excel-режиме"
+                  onClick={() => appendExcelLocalRows(1)}
+                >
+                  Строка
+                </Button>
+                <Button
+                  size="small"
+                  className="action-secondary-button"
+                  icon={<PlusOutlined />}
+                  aria-label="Добавить 10 строк в Excel-режиме"
+                  onClick={() => appendExcelLocalRows(10)}
+                >
+                  10 строк
+                </Button>
+              </>
+            ) : null}
             <Tooltip title={heatLossRecalcTooltip}>
               <span className="action-tooltip-wrap">
                 <Button
@@ -2735,6 +3761,46 @@ export default function HeatCalcPage() {
     );
   }
 
+  function renderExcelErrorsPanel() {
+    if (!excelModeEnabled || excelTableErrors.length === 0) return null;
+    return (
+      <div className="excel-errors-panel" role="status" aria-label="Ошибки в Excel-таблице">
+        <div className="excel-errors-panel-header">
+          <Text strong>Ошибки в таблице</Text>
+          <Tag color="error">{excelTableErrors.length}</Tag>
+        </div>
+        <div className="excel-errors-list">
+          {excelTableErrors.slice(0, 6).map((item) => {
+            const visibleMessages = item.messages.slice(0, 3);
+            const hiddenCount = Math.max(0, item.messages.length - visibleMessages.length);
+            return (
+              <button
+                key={item.rowId}
+                type="button"
+                className="excel-errors-row"
+                onClick={() => focusExcelTableError(item)}
+              >
+                <span className="excel-errors-row-title">
+                  Строка {item.rowNumber}
+                  {item.objectName ? `: ${item.objectName}` : ''}
+                </span>
+                <span className="excel-errors-row-message">
+                  {visibleMessages.map((message) => message.text).join('; ')}
+                  {hiddenCount > 0 ? `; ещё ${hiddenCount}` : ''}
+                </span>
+              </button>
+            );
+          })}
+          {excelTableErrors.length > 6 ? (
+            <Text type="secondary" className="excel-errors-more">
+              Ещё строк с ошибками: {excelTableErrors.length - 6}
+            </Text>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
   const isSideFormPlacement = formPlacement === 'left' || formPlacement === 'right';
   const sideResizeVisible = isSideFormPlacement && formBlockVisible;
   const workspaceLayoutStyle = isSideFormPlacement
@@ -2790,10 +3856,11 @@ export default function HeatCalcPage() {
             {isSideFormPlacement && renderActionsBar()}
             {isSideFormPlacement && renderHeatLossJobAlert()}
             {renderAssumptionsPanel()}
+            {renderExcelErrorsPanel()}
 
             <Card size="small" className="workspace-table-card srs-table-wrap">
           <Table<ProjectObject>
-            className={`calc-spreadsheet calc-spreadsheet--${resolvedTableFontSize.key}`}
+            className={`calc-spreadsheet calc-spreadsheet--${resolvedTableFontSize.key}${excelModeEnabled ? ' calc-spreadsheet--excel-mode' : ''}`}
             rowKey="id"
             size="small"
             pagination={{
@@ -2805,13 +3872,13 @@ export default function HeatCalcPage() {
               size: 'small',
             }}
             dataSource={visibleTableObjects}
-            columns={sourceColumns}
+            columns={tableColumns}
             onChange={handleSourceTableChange}
             scroll={{
               x: tableScrollX,
               y: tableScrollY,
             }}
-            rowSelection={{
+            rowSelection={excelModeEnabled ? undefined : {
               type: 'checkbox',
               selectedRowKeys,
               onChange: (keys) => setSelectedRowKeys(keys as string[]),
@@ -2821,13 +3888,20 @@ export default function HeatCalcPage() {
               const classes = [];
               if (heatLossCalcStatus(r) === 'error') classes.push('row-invalid');
               if (r.id === selectedRowId) classes.push('row-selected');
-              if (isDraftRowDirty(draftRowsById[r.id])) classes.push('row-dirty');
+              if (excelModeEnabled && Object.keys(draftRowsById[r.id]?.errors ?? {}).length > 0) {
+                classes.push('row-excel-error');
+              }
+              if (isSavableDraftRow(draftRowsById[r.id])) {
+                classes.push(excelModeEnabled ? 'row-excel-dirty' : 'row-dirty');
+              }
+              if (isExcelNewRowId(r.id)) classes.push('row-excel-new');
               return classes.join(' ');
             }}
             onRow={(record) => ({
               onClick: (e) => {
                 // Ignore clicks on checkbox cell
                 if ((e.target as HTMLElement).closest('.ant-table-selection-column')) return;
+                if (excelModeEnabled) return;
                 openEditWizard(record);
               },
             })}

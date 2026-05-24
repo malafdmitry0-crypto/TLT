@@ -1,4 +1,11 @@
-import { getHeatCalcFieldByColumn, type HeatCalcFieldDefinition } from '@/domain/heatCalcFields';
+import {
+  getHeatCalcFieldByColumn,
+  getHeatCalcFieldConfig,
+  getHeatCalcFieldDefinition,
+  getHeatCalcFieldInputConfig,
+  getHeatCalcFormFieldIds,
+  type HeatCalcFieldDefinition,
+} from '@/domain/heatCalcFields';
 import {
   applyHeatCalcFieldValue,
   isHeatCalcFieldVisible,
@@ -40,6 +47,16 @@ export interface DraftRowState {
 
 export type DraftRowsById = Record<string, DraftRowState>;
 
+export class DraftRowValidationError extends Error {
+  readonly errors: Record<string, string>;
+
+  constructor(errors: Record<string, string>) {
+    super('Исправьте ошибки в строке перед сохранением');
+    this.name = 'DraftRowValidationError';
+    this.errors = errors;
+  }
+}
+
 function isHeatCalcObjectType(value: string): value is HeatCalcObjectType {
   return value === 'pipe' || value === 'tank';
 }
@@ -52,6 +69,21 @@ export function getInlineEditFieldConfig(
   if (!field) return null;
   return {
     columnKey,
+    objectType,
+    fieldId: field.id,
+    field,
+    editor: field.editor,
+  };
+}
+
+export function getInlineEditFieldConfigByFieldId(
+  objectType: HeatCalcObjectType,
+  fieldId: string,
+): InlineEditFieldConfig | null {
+  const field = getHeatCalcFieldDefinition(fieldId, objectType);
+  if (!field) return null;
+  return {
+    columnKey: field.tableColumnKeys[objectType] ?? fieldId,
     objectType,
     fieldId: field.id,
     field,
@@ -124,6 +156,26 @@ function omitErrors(errors: Record<string, string>, fieldIds: string[]) {
   ) as Record<string, string>;
 }
 
+function normalizeDraftErrorFieldId(objectType: HeatCalcObjectType, fieldId: string) {
+  if (fieldId === '_row') return fieldId;
+  const normalized = fieldId.trim();
+  if (getHeatCalcFieldDefinition(normalized, objectType)) return normalized;
+  const byColumn = getHeatCalcFieldByColumn(objectType, normalized);
+  if (byColumn) return byColumn.id;
+  const withoutParamsPrefix = normalized.replace(/^params[.\s]+/, '');
+  if (withoutParamsPrefix !== normalized) return normalizeDraftErrorFieldId(objectType, withoutParamsPrefix);
+  return normalized;
+}
+
+function hasMeaningfulDraftValue(value: unknown) {
+  if (value == null) return false;
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    return normalized !== '' && normalized !== '—' && normalized !== '–' && normalized !== '-';
+  }
+  return true;
+}
+
 function sanitizeConvertedParams(value: unknown): unknown {
   if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
   if (Array.isArray(value)) {
@@ -161,6 +213,66 @@ export function applyInlineCellDraft(
   if (!isHeatCalcObjectType(record.object_type)) return null;
   const config = getInlineEditFieldConfig(record.object_type, columnKey);
   if (!config) return draftRow;
+  return applyInlineDraftValue(draftRow, record, config, value);
+}
+
+export function applyInlineFieldDraft(
+  draftRow: DraftRowState | null,
+  record: ProjectObject,
+  fieldId: string,
+  value: unknown,
+): DraftRowState | null {
+  if (!isHeatCalcObjectType(record.object_type)) return null;
+  const config = getInlineEditFieldConfigByFieldId(record.object_type, fieldId);
+  if (!config) return draftRow;
+  return applyInlineDraftValue(draftRow, record, config, value);
+}
+
+export function applyFormFieldDraft(
+  draftRow: DraftRowState | null,
+  record: ProjectObject,
+  fieldId: string,
+  value: unknown,
+): DraftRowState | null {
+  if (!isHeatCalcObjectType(record.object_type)) return null;
+  const currentRow = draftRow ?? createDraftRow(record);
+  if (!currentRow) return null;
+
+  const fieldConfig = getHeatCalcFieldConfig(fieldId);
+  if (!fieldConfig) return currentRow;
+
+  const fieldContext = {
+    objectType: currentRow.objectType,
+    values: currentRow.draftFormValues,
+  };
+  const normalizedValue = normalizeHeatCalcFieldValue(fieldId, value, fieldContext);
+  const nextDraftValues = applyHeatCalcFieldValue(fieldId, normalizedValue, {
+    objectType: currentRow.objectType,
+    values: currentRow.draftFormValues,
+  });
+  const nextValidationErrors = validateHeatCalcFormValues({
+    objectType: currentRow.objectType,
+    values: nextDraftValues,
+  }, {
+    enforceRequired: false,
+  });
+  const nextRow = {
+    ...currentRow,
+    draftFormValues: nextDraftValues,
+    errors: nextValidationErrors,
+  };
+  return {
+    ...nextRow,
+    dirtyFields: computeDirtyFields(nextRow),
+  };
+}
+
+function applyInlineDraftValue(
+  draftRow: DraftRowState | null,
+  record: ProjectObject,
+  config: InlineEditFieldConfig,
+  value: unknown,
+): DraftRowState | null {
   const currentRow = draftRow ?? createDraftRow(record);
   if (!currentRow) return null;
 
@@ -208,10 +320,16 @@ export function applyInlineCellDraft(
     objectType: currentRow.objectType,
     values: currentRow.draftFormValues,
   });
+  const nextValidationErrors = validateHeatCalcFormValues({
+    objectType: currentRow.objectType,
+    values: nextDraftValues,
+  }, {
+    enforceRequired: false,
+  });
   const nextRow = {
     ...currentRow,
     draftFormValues: nextDraftValues,
-    errors: omitErrors(currentRow.errors, [config.fieldId, '_row']),
+    errors: nextValidationErrors,
   };
   return {
     ...nextRow,
@@ -219,19 +337,56 @@ export function applyInlineCellDraft(
   };
 }
 
-export function buildDraftRowParams(draftRow: DraftRowState): Record<string, unknown> {
-  const errors = validateHeatCalcFormValues({
-    objectType: draftRow.objectType,
-    values: draftRow.draftFormValues,
-  }, {
-    enforceRequired: false,
-  });
-  if (Object.keys({ ...draftRow.errors, ...errors }).length > 0) {
-    throw new Error('Исправьте ошибки в строке перед сохранением');
+export function buildDraftRowParams(
+  draftRow: DraftRowState,
+  options: { enforceRequired?: boolean } = {},
+): Record<string, unknown> {
+  const errors = getDraftRowValidationErrors(draftRow, options);
+  if (Object.keys(errors).length > 0) {
+    throw new DraftRowValidationError(errors);
   }
   return {
     ...draftRow.sourceParams,
     ...convertFormValuesToParams(draftRow.objectType, draftRow.draftFormValues),
+  };
+}
+
+export function getDraftRowValidationErrors(
+  draftRow: DraftRowState,
+  options: { enforceRequired?: boolean } = {},
+): Record<string, string> {
+  const errors = validateHeatCalcFormValues({
+    objectType: draftRow.objectType,
+    values: draftRow.draftFormValues,
+  }, {
+    enforceRequired: options.enforceRequired ?? false,
+  });
+  const normalizedStoredErrors: Record<string, string> = {};
+  const formFieldIds = getHeatCalcFormFieldIds(draftRow.objectType);
+  for (const [rawFieldId, message] of Object.entries(draftRow.errors)) {
+    if (!message) continue;
+    if (rawFieldId === '_row') {
+      normalizedStoredErrors._row = message;
+      continue;
+    }
+    const fieldId = normalizeDraftErrorFieldId(draftRow.objectType, rawFieldId);
+    if (getHeatCalcFieldInputConfig(fieldId, draftRow.objectType)?.type === 'computed') {
+      continue;
+    }
+    if (
+      !getHeatCalcFieldDefinition(fieldId, draftRow.objectType)
+      && !formFieldIds.includes(fieldId)
+    ) {
+      continue;
+    }
+    if (errors[fieldId]) continue;
+    const currentValue = draftRow.draftFormValues[fieldId];
+    if (hasMeaningfulDraftValue(currentValue)) continue;
+    normalizedStoredErrors[fieldId] = message;
+  }
+  return {
+    ...normalizedStoredErrors,
+    ...errors,
   };
 }
 

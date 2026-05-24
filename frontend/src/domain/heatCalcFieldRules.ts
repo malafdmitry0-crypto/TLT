@@ -16,6 +16,16 @@ export interface HeatCalcFieldValidationOptions {
 
 function numericValue(value: unknown) {
   if (value == null || value === '') return null;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === '—' || trimmed === '–' || trimmed === '-') return null;
+    const normalized = trimmed
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+/g, '')
+      .replace(',', '.');
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : Number.NaN;
+  }
   const numberValue = Number(value);
   return Number.isFinite(numberValue) ? numberValue : Number.NaN;
 }
@@ -228,6 +238,7 @@ export function validateHeatCalcField(
 ): string | null {
   const fieldInput = input(fieldId, context);
   if (!fieldInput || !fieldExistsForContext(fieldId, context)) return 'Поле недоступно для редактирования';
+  if (fieldInput.type === 'computed') return null;
   if (!isHeatCalcFieldVisible(fieldId, context)) return 'Поле скрыто для текущих параметров объекта';
   const enforceRequired = options.enforceRequired !== false;
 

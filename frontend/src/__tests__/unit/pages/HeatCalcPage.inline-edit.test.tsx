@@ -233,6 +233,75 @@ describe('HeatCalcPage inline edit', () => {
       });
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
+    it('в Excel-режиме не автосохраняет ячейку и подсвечивает только изменённую ячейку', async () => {
+      const { listObjects, updateObject } = await import('@/api/projects');
+      const source = makeObject();
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
+      (updateObject as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeObject({ params: { ...source.params, process_temperature: 70 } }),
+      );
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await user.click(screen.getByText('Excel-режим'));
+
+      const row = (await screen.findByText('Труба DN100')).closest('tr');
+      expect(row).toBeInstanceOf(HTMLElement);
+      const processCell = within(row as HTMLElement).getByRole('button', { name: '60' });
+      await user.dblClick(processCell);
+      const editor = await within(row as HTMLElement).findByDisplayValue('60.0');
+      fireEvent.change(editor, { target: { value: '70' } });
+      fireEvent.keyDown(editor, { key: 'Enter' });
+
+      expect(updateObject).not.toHaveBeenCalled();
+      const dirtyCell = await within(row as HTMLElement).findByRole('button', { name: '70' });
+      expect(dirtyCell).toHaveClass('dirty');
+      expect(row).toHaveClass('row-excel-dirty');
+      expect(row).not.toHaveClass('row-dirty');
+      expect(await screen.findByText('Несохранено: 1')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+      await waitFor(() => {
+        expect(updateObject).toHaveBeenCalledWith(
+          'proj-test-1',
+          source.id,
+          expect.objectContaining({
+            params: expect.objectContaining({ process_temperature: 70 }),
+          }),
+        );
+      });
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
+    it('в Excel-режиме показывает конкретную ошибку поля при сохранении', async () => {
+      const { listObjects, updateObject } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await user.click(screen.getByText('Excel-режим'));
+
+      const row = (await screen.findByText('Труба DN100')).closest('tr');
+      expect(row).toBeInstanceOf(HTMLElement);
+      await user.dblClick(within(row as HTMLElement).getByRole('button', { name: '60' }));
+      const editor = await within(row as HTMLElement).findByDisplayValue('60.0');
+      fireEvent.change(editor, { target: { value: '-30' } });
+      fireEvent.keyDown(editor, { key: 'Enter' });
+
+      await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+      expect(updateObject).not.toHaveBeenCalled();
+      expect(await screen.findByText('Ошибки в таблице')).toBeInTheDocument();
+      expect(screen.getByText(/Температура поддержания: Требуемая температура объекта должна быть выше температуры среды/))
+        .toBeInTheDocument();
+      expect(screen.queryByText('Исправьте ошибки в строке перед сохранением')).not.toBeInTheDocument();
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
     it('для зарегистрированного пользователя без записи очищает кеш и возвращает дефолтный JSON', async () => {
       const { listObjects } = await import('@/api/projects');
       const { getUserPreference } = await import('@/api/preferences');
