@@ -204,7 +204,6 @@ import {
   type ExcelCellPosition,
   type ExcelErrorFieldInfo,
   type ExcelSelectionRange,
-  type ExcelTableErrorItem,
 } from '@/utils/heatCalcExcelMode';
 import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
 import ColumnFilterDropdown from '@/pages/heatcalc/HeatCalcColumnFilterDropdown';
@@ -269,6 +268,16 @@ function draftRowFingerprint(row: DraftRowState | null | undefined) {
 
 function canOpenObjectWizard(record: ProjectObject): record is ProjectObject & { object_type: HeatCalcObjectType } {
   return record.object_type === 'pipe' || record.object_type === 'tank';
+}
+
+function uniqueErrorMessages(messages: string[]) {
+  const seen = new Set<string>();
+  return messages.filter((message) => {
+    const normalized = message.trim();
+    if (!normalized || seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
 }
 
 function escapeTableRowKey(value: string) {
@@ -2273,30 +2282,19 @@ export default function HeatCalcPage() {
     [draftRowsById, excelFieldInfoById, excelModeEnabled, visibleTableRows],
   );
 
-  const focusExcelTableError = useCallback((item: ExcelTableErrorItem) => {
-    if (!excelModeEnabled || editableExcelColumnKeys.length === 0) return;
-    const columnKey = item.messages.find((message) => message.columnKey)?.columnKey;
-    const columnIndex = columnKey ? editableExcelColumnKeys.indexOf(columnKey) : -1;
-    const safeRowIndex = Math.min(Math.max(item.rowIndex, 0), visibleTableObjects.length - 1);
-    const record = visibleTableObjects[safeRowIndex];
-    if (!record) return;
-    if (columnIndex >= 0) {
-      selectExcelCellByPosition(safeRowIndex, columnIndex);
-    } else {
-      setExcelRangeSelection(
-        { rowIndex: safeRowIndex, columnIndex: 0 },
-        { rowIndex: safeRowIndex, columnIndex: editableExcelColumnKeys.length - 1 },
-        { rowIndex: safeRowIndex, columnIndex: 0 },
-      );
+  const selectedRowErrorMessages = useMemo(() => {
+    if (!wizardFormObject) return [];
+    if (excelModeEnabled) {
+      const selectedError = excelTableErrors.find((item) => item.rowId === wizardFormObject.id);
+      return uniqueErrorMessages(selectedError?.messages.map((message) => message.text) ?? []);
     }
-    window.setTimeout(() => scrollTableRowIntoView(record.id), 0);
-  }, [
-    editableExcelColumnKeys,
-    excelModeEnabled,
-    selectExcelCellByPosition,
-    setExcelRangeSelection,
-    visibleTableObjects,
-  ]);
+    const hasBackendValidationErrors = !!wizardFormObject.validation_errors
+      && Object.keys(wizardFormObject.validation_errors).length > 0;
+    const message = heatLossCalcStatus(wizardFormObject) === 'error' || hasBackendValidationErrors
+      ? heatLossErrorText(wizardFormObject)
+      : '';
+    return uniqueErrorMessages([message]);
+  }, [excelModeEnabled, excelTableErrors, wizardFormObject]);
 
   const moveExcelSelection = useCallback((
     rowDelta: number,
@@ -4006,41 +4004,24 @@ export default function HeatCalcPage() {
     );
   }
 
-  function renderExcelErrorsPanel() {
-    if (!excelModeEnabled || excelTableErrors.length === 0) return null;
+  function renderSelectedRowErrorsOverlay() {
+    if (selectedRowErrorMessages.length === 0) return null;
+    const visibleMessages = selectedRowErrorMessages.slice(0, 4);
+    const hiddenCount = Math.max(0, selectedRowErrorMessages.length - visibleMessages.length);
+    const messageText = [
+      visibleMessages.join('; '),
+      hiddenCount > 0 ? `ещё ${hiddenCount}` : '',
+    ].filter(Boolean).join('; ');
     return (
-      <div className="excel-errors-panel" role="status" aria-label="Ошибки в Excel-таблице">
-        <div className="excel-errors-panel-header">
-          <Text strong>Ошибки в таблице</Text>
-          <Tag color="error">{excelTableErrors.length}</Tag>
-        </div>
-        <div className="excel-errors-list">
-          {excelTableErrors.slice(0, 6).map((item) => {
-            const visibleMessages = item.messages.slice(0, 3);
-            const hiddenCount = Math.max(0, item.messages.length - visibleMessages.length);
-            return (
-              <button
-                key={item.rowId}
-                type="button"
-                className="excel-errors-row"
-                onClick={() => focusExcelTableError(item)}
-              >
-                <span className="excel-errors-row-title">
-                  Строка {item.rowNumber}
-                  {item.objectName ? `: ${item.objectName}` : ''}
-                </span>
-                <span className="excel-errors-row-message">
-                  {visibleMessages.map((message) => message.text).join('; ')}
-                  {hiddenCount > 0 ? `; ещё ${hiddenCount}` : ''}
-                </span>
-              </button>
-            );
-          })}
-          {excelTableErrors.length > 6 ? (
-            <Text type="secondary" className="excel-errors-more">
-              Ещё строк с ошибками: {excelTableErrors.length - 6}
-            </Text>
-          ) : null}
+      <div
+        className="heatcalc-row-errors-overlay"
+        role="status"
+        aria-label="Ошибки выбранной строки"
+        data-testid="heatcalc-row-errors-overlay"
+      >
+        <div className="heatcalc-row-errors-title">Ошибки выбранной строки</div>
+        <div className="heatcalc-row-errors-message" title={messageText}>
+          {messageText}
         </div>
       </div>
     );
@@ -4154,29 +4135,30 @@ export default function HeatCalcPage() {
 
   return (
     <>
-      <Space direction="vertical" size={5} style={{ width: '100%' }}>
-        {!isSideFormPlacement && renderTypeBar()}
+      <div className="heatcalc-workspace-shell">
+        {renderSelectedRowErrorsOverlay()}
+        <Space direction="vertical" size={5} style={{ width: '100%' }}>
+          {!isSideFormPlacement && renderTypeBar()}
 
-        {formPlacement === 'top' && formPanel}
+          {formPlacement === 'top' && formPanel}
 
-        {!isSideFormPlacement && renderActionsBar()}
-        {!isSideFormPlacement && renderHeatLossJobAlert()}
+          {!isSideFormPlacement && renderActionsBar()}
+          {!isSideFormPlacement && renderHeatLossJobAlert()}
 
-        <div
-          ref={sideWorkspaceRef}
-          className={`heatcalc-workspace-layout heatcalc-workspace-layout--${formPlacement}`}
-          style={workspaceLayoutStyle}
-        >
-          {formPlacement === 'left' && formPanel}
-          {formPlacement === 'left' && renderSideResizeHandle()}
-          <div className="heatcalc-table-pane">
-            {isSideFormPlacement && renderTypeBar()}
-            {isSideFormPlacement && renderActionsBar()}
-            {isSideFormPlacement && renderHeatLossJobAlert()}
-            {renderAssumptionsPanel()}
-            {renderExcelErrorsPanel()}
+          <div
+            ref={sideWorkspaceRef}
+            className={`heatcalc-workspace-layout heatcalc-workspace-layout--${formPlacement}`}
+            style={workspaceLayoutStyle}
+          >
+            {formPlacement === 'left' && formPanel}
+            {formPlacement === 'left' && renderSideResizeHandle()}
+            <div className="heatcalc-table-pane">
+              {isSideFormPlacement && renderTypeBar()}
+              {isSideFormPlacement && renderActionsBar()}
+              {isSideFormPlacement && renderHeatLossJobAlert()}
+              {renderAssumptionsPanel()}
 
-            <Card size="small" className="workspace-table-card srs-table-wrap">
+              <Card size="small" className="workspace-table-card srs-table-wrap">
           <Table<ProjectObject>
             className={`calc-spreadsheet calc-spreadsheet--${resolvedTableFontSize.key}${excelModeEnabled ? ' calc-spreadsheet--excel-mode' : ''}`}
             rowKey="id"
@@ -4289,13 +4271,14 @@ export default function HeatCalcPage() {
               ),
             }}
             />
-          </Card>
-        </div>
-        {formPlacement === 'right' && renderSideResizeHandle()}
-        {formPlacement === 'right' && formPanel}
+              </Card>
+            </div>
+            {formPlacement === 'right' && renderSideResizeHandle()}
+            {formPlacement === 'right' && formPanel}
+          </div>
+          {formPlacement === 'bottom' && formPanel}
+        </Space>
       </div>
-      {formPlacement === 'bottom' && formPanel}
-      </Space>
 
       {renderExcelContextMenu()}
 

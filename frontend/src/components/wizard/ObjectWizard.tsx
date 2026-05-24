@@ -306,50 +306,6 @@ function normalizeFieldErrorsForForm(
   return result;
 }
 
-function uniqueMessages(messages: string[]) {
-  const seen = new Set<string>();
-  return messages.filter((message) => {
-    const normalized = message.trim();
-    if (!normalized || seen.has(normalized)) return false;
-    seen.add(normalized);
-    return true;
-  });
-}
-
-function fieldErrorSummaryMessages(
-  fieldErrors: Record<string, unknown> | undefined,
-  objectType: HeatCalcObjectType,
-) {
-  const normalized = normalizeFieldErrorsForForm(fieldErrors, objectType);
-  return Object.entries(normalized).map(([fieldName, message]) => {
-    const label = getHeatCalcFieldLabel(fieldName, {
-      context: 'settings',
-      objectType,
-      variant: 'full',
-    });
-    return `${label}: ${message}`;
-  });
-}
-
-function validationErrorSummaryMessages(
-  validationErrors: ProjectObject['validation_errors'] | undefined,
-  objectType: HeatCalcObjectType,
-) {
-  const message = validationErrorsText(validationErrors).trim();
-  if (!message) return [];
-  const field = validationErrors?.['field'];
-  const fields = validationErrors?.['fields'];
-  const fieldMessages = [
-    ...(typeof field === 'string' && field.trim()
-      ? fieldErrorSummaryMessages({ [field]: message }, objectType)
-      : []),
-    ...(fields && typeof fields === 'object' && !Array.isArray(fields)
-      ? fieldErrorSummaryMessages(fields as Record<string, unknown>, objectType)
-      : []),
-  ];
-  return fieldMessages.length > 0 ? fieldMessages : [message];
-}
-
 function buildCalculationFieldErrors(
   validationErrors: ProjectObject['validation_errors'] | undefined,
   objectType: HeatCalcObjectType,
@@ -527,13 +483,6 @@ export default function ObjectWizard({
     }),
     [fieldErrors, heatCalcObjectType, validationErrors],
   );
-  const formErrorSummaryMessages = useMemo(
-    () => uniqueMessages([
-      ...validationErrorSummaryMessages(validationErrors, heatCalcObjectType),
-      ...fieldErrorSummaryMessages(fieldErrors, heatCalcObjectType),
-    ]),
-    [fieldErrors, heatCalcObjectType, validationErrors],
-  );
   const calculationFieldErrorNamesRef = useRef<string[]>([]);
   const localRequiredFieldErrorNamesRef = useRef<string[]>([]);
   const requiredFieldSyncTimerRef = useRef<number | null>(null);
@@ -688,9 +637,9 @@ export default function ObjectWizard({
         form.setFields(staleLocalFieldNames.map((fieldName) => ({ name: fieldName, errors: [] })));
       }
       if (nextFieldEntries.length > 0) {
-        form.setFields(nextFieldEntries.map(([fieldName, message]) => ({
+        form.setFields(nextFieldEntries.map(([fieldName]) => ({
           name: fieldName,
-          errors: [message],
+          errors: [REQUIRED_FIELD_ERROR_MESSAGE],
         })));
         calculationFieldErrorNamesRef.current = nextFieldNames;
         localRequiredFieldErrorNamesRef.current = nextRequiredFieldNames;
@@ -1164,21 +1113,6 @@ export default function ObjectWizard({
       <Form.Item name="safety_factor_source" hidden noStyle>
         <Input type="hidden" />
       </Form.Item>
-      {formErrorSummaryMessages.length > 0 ? (
-        <div className="object-form-errors-panel" role="status" aria-label="Ошибки выбранной строки">
-          <div className="object-form-errors-title">Ошибки выбранной строки</div>
-          <div className="object-form-errors-list">
-            {formErrorSummaryMessages.slice(0, 6).map((message) => (
-              <div key={message} className="object-form-errors-item">{message}</div>
-            ))}
-            {formErrorSummaryMessages.length > 6 ? (
-              <div className="object-form-errors-more">
-                Ещё ошибок: {formErrorSummaryMessages.length - 6}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
       <div className="form-grid-srs" ref={formGridRef}>
 
         {/* ── Геометрия ──────────────────────────────────────────────── */}

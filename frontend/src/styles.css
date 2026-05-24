@@ -540,34 +540,6 @@ html, body, #root {
   --inline-control-height: 24px;
 }
 
-.object-form-errors-panel {
-  display: grid;
-  gap: 4px;
-  margin: 0 0 6px;
-  padding: 6px 8px;
-  border: 1px solid #ffccc7;
-  border-left: 4px solid #ff4d4f;
-  border-radius: 6px;
-  background: #fff1f0;
-  color: #5c0011;
-  font-size: 11px;
-  line-height: 1.25;
-}
-
-.object-form-errors-title {
-  font-weight: 700;
-}
-
-.object-form-errors-list {
-  display: grid;
-  gap: 2px;
-}
-
-.object-form-errors-item,
-.object-form-errors-more {
-  color: #6f1d1b;
-}
-
 .heatcalc-object-diagnostic {
   display: flex;
   align-items: flex-start;
@@ -814,65 +786,6 @@ html, body, #root {
 
 .excel-mode-hint {
   white-space: nowrap;
-}
-
-.excel-errors-panel {
-  display: grid;
-  gap: 6px;
-  margin: 0 0 6px;
-  padding: 8px 10px;
-  border: 1px solid #ffccc7;
-  border-left: 4px solid #ff4d4f;
-  border-radius: 6px;
-  background: #fff1f0;
-}
-
-.excel-errors-panel-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.excel-errors-list {
-  display: grid;
-  gap: 4px;
-}
-
-.excel-errors-row {
-  display: grid;
-  grid-template-columns: minmax(130px, max-content) minmax(0, 1fr);
-  gap: 8px;
-  width: 100%;
-  padding: 3px 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.excel-errors-row:hover,
-.excel-errors-row:focus-visible {
-  color: #a8071a;
-  outline: none;
-}
-
-.excel-errors-row-title {
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.excel-errors-row-message {
-  min-width: 0;
-  overflow: hidden;
-  color: #595959;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.excel-errors-more {
-  font-size: 12px;
 }
 
 .excel-context-menu {
@@ -1126,6 +1039,50 @@ html, body, #root {
   position: relative;
 }
 
+.heatcalc-workspace-shell {
+  position: relative;
+  min-width: 0;
+}
+
+.heatcalc-row-errors-overlay {
+  position: absolute;
+  top: 2px;
+  right: 8px;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  width: min(920px, calc(100% - 560px));
+  min-width: 420px;
+  max-height: 52px;
+  box-sizing: border-box;
+  padding: 5px 10px;
+  border: 1px solid #ffccc7;
+  border-left: 4px solid #ff4d4f;
+  border-radius: 6px;
+  background: rgb(255 241 240 / 96%);
+  box-shadow: 0 8px 20px rgb(92 0 17 / 12%);
+  color: #5c0011;
+  font-size: 12px;
+  line-height: 1.25;
+  pointer-events: none;
+}
+
+.heatcalc-row-errors-title {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.heatcalc-row-errors-message {
+  min-width: 0;
+  overflow: hidden;
+  color: #6f1d1b;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .heatcalc-workspace-layout {
   --heatcalc-side-form-width: 34%;
   display: flex;
@@ -1313,6 +1270,15 @@ html, body, #root {
     max-height: none;
     overflow: visible;
   }
+
+  .heatcalc-row-errors-overlay {
+    left: 6px;
+    right: 6px;
+    width: auto;
+    min-width: 0;
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
 }
 
 .inline-form-caption {
@@ -1446,6 +1412,26 @@ html, body, #root {
   grid-template-columns: var(--compact-field-label-width, 74px) max-content;
 }
 
+.heatcalc-form-pane--top .inline-form-srs {
+  --heatcalc-top-form-height: clamp(260px, 31.5vh, 292px);
+}
+
+.heatcalc-form-pane--top .form-grid-srs {
+  height: var(--heatcalc-top-form-height);
+  min-height: var(--heatcalc-top-form-height);
+  max-height: var(--heatcalc-top-form-height);
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.heatcalc-form-pane--top .form-grid-srs > .form-col-srs {
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
 @media (max-width: 1180px) {
   .form-grid-srs {
     flex-direction: column;
@@ -1463,6 +1449,18 @@ html, body, #root {
   .form-grid-srs .form-col-srs--primary {
     display: flex;
     flex-wrap: wrap;
+  }
+
+  .heatcalc-form-pane--top .form-grid-srs {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .heatcalc-form-pane--top .form-grid-srs > .form-col-srs {
+    height: auto;
+    overflow: hidden;
   }
 
   .form-col-resize-handle {

@@ -296,10 +296,11 @@ describe('HeatCalcPage inline edit', () => {
       await user.click(screen.getByRole('button', { name: 'Сохранить' }));
 
       expect(updateObject).not.toHaveBeenCalled();
-      expect(await screen.findByText('Ошибки в таблице')).toBeInTheDocument();
-      expect(screen.getAllByText(
+      expect(screen.queryByLabelText('Ошибки в Excel-таблице')).not.toBeInTheDocument();
+      const selectedRowErrors = await screen.findByLabelText('Ошибки выбранной строки');
+      expect(selectedRowErrors).toHaveTextContent(
         /Температура поддержания: Требуемая температура объекта должна быть выше температуры среды/,
-      ).length).toBeGreaterThan(0);
+      );
       expect(screen.queryByText('Исправьте ошибки в строке перед сохранением')).not.toBeInTheDocument();
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 

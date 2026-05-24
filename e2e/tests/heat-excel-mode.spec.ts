@@ -89,10 +89,7 @@ test.describe('Excel-режим таблицы теплопотерь', () => {
     await editor.press('Enter');
     await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
 
-    const tableErrors = page.getByLabel('Ошибки в Excel-таблице');
-    await expect(tableErrors).toBeVisible();
-    await expect(tableErrors)
-      .toContainText('Температура поддержания: Требуемая температура объекта должна быть выше температуры среды');
+    await expect(page.getByLabel('Ошибки в Excel-таблице')).toHaveCount(0);
     await expect(page.getByLabel('Ошибки выбранной строки'))
       .toContainText('Температура поддержания: Требуемая температура объекта должна быть выше температуры среды');
     await expect(page.getByTestId('process-temperature-input').locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " ant-form-item ")][1]'))
@@ -149,9 +146,8 @@ test.describe('Excel-режим таблицы теплопотерь', () => {
       }));
     }, 'abc');
 
-    const tableErrors = page.getByLabel('Ошибки в Excel-таблице');
-    await expect(tableErrors).toBeVisible();
-    await expect(tableErrors).toContainText(/(Длина|L).*Введите число/);
+    await expect(page.getByLabel('Ошибки в Excel-таблице')).toHaveCount(0);
+    await expect(page.getByLabel('Ошибки выбранной строки')).toContainText(/(Длина|L).*Введите число/);
   });
 
   test('Excel-ячейки и панель параметров используют один черновик строки', async ({ page }) => {
