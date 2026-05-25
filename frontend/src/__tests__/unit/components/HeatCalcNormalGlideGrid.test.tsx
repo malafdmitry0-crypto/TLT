@@ -98,7 +98,10 @@ describe('HeatCalcNormalGlideGrid', () => {
     render(
       <HeatCalcNormalGlideGrid
         rows={rows}
-        gridColumns={[{ key: 'name', title: 'Name', width: 180 }]}
+        gridColumns={[
+          { key: 'index', title: '№', width: 72 },
+          { key: 'name', title: 'Name', width: 180, sortable: true, filterable: true },
+        ]}
         tableScrollX={640}
         tableScrollY="360px"
         fontSizeKey="compact"
@@ -107,7 +110,7 @@ describe('HeatCalcNormalGlideGrid', () => {
           filters: { name: { kind: 'text', value: 'Pipe' } },
           sort: { columnKey: 'name', direction: 'asc' },
         }}
-        pagination={false}
+        pagination={{ current: 3, pageSize: 50, total: 200 }}
         emptyContent={null}
         rowClassName={(record) => (record.id === 'row-1' ? 'row-invalid row-dirty' : '')}
         getCellState={(record) => ({
@@ -124,8 +127,13 @@ describe('HeatCalcNormalGlideGrid', () => {
       />,
     );
 
-    expect((normalGlideMock.props?.columns as Array<{ title: string; hasMenu?: boolean }>)[0])
-      .toMatchObject({ title: 'Name ↑ •' });
+    expect(normalGlideMock.props?.rowMarkers).toBe('clickable-number');
+    expect(normalGlideMock.props?.rowMarkerStartIndex).toBe(101);
+    expect(normalGlideMock.props?.rowMarkerWidth).toBe(52);
+    expect(normalGlideMock.props?.columns).toEqual([
+      expect.objectContaining({ id: 'name', title: 'Name', hasMenu: false, style: 'highlight' }),
+    ]);
+    expect(normalGlideMock.props?.drawHeader).toEqual(expect.any(Function));
     const getCellContent = normalGlideMock.props?.getCellContent as ((cell: [number, number]) => unknown);
     const onCellClicked = normalGlideMock.props?.onCellClicked as (
       cell: [number, number],
@@ -196,5 +204,79 @@ describe('HeatCalcNormalGlideGrid', () => {
     }));
     fireEvent.click(await screen.findByTestId('normal-glide-filter-apply'));
     expect(onSetColumnFilter).toHaveBeenCalledWith('name', { kind: 'text', value: 'Pipe' });
+  });
+
+  it('draws persistent sort and filter controls in Glide headers', () => {
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[{
+          key: 'name',
+          title: 'Name',
+          width: 180,
+          sortable: true,
+          filterable: true,
+          filterKind: 'text',
+        }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        selectedRowKeys={[]}
+        tableViewState={{
+          filters: { name: { kind: 'text', value: 'Pipe' } },
+          sort: { columnKey: 'name', direction: 'desc' },
+        }}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={(record) => ({
+          displayValue: String(record.params?.name ?? ''),
+          editable: false,
+        })}
+        onOpenEditWizard={vi.fn()}
+        onSelectedRowKeysChange={vi.fn()}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+      />,
+    );
+
+    const drawHeader = normalGlideMock.props?.drawHeader as (
+      args: {
+        ctx: Record<string, unknown>;
+        columnIndex: number;
+        theme: { bgHeader: string };
+        rect: { x: number; y: number; width: number; height: number };
+      },
+      drawContent: () => void,
+    ) => void;
+    const drawContent = vi.fn();
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      fillRect: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      closePath: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
+      set fillStyle(_value: string) {},
+      set strokeStyle(_value: string) {},
+      set lineWidth(_value: number) {},
+    };
+
+    drawHeader({
+      ctx,
+      columnIndex: 0,
+      theme: { bgHeader: '#f3f6f4' },
+      rect: { x: 10, y: 20, width: 180, height: 38 },
+    }, drawContent);
+
+    expect(drawContent).toHaveBeenCalled();
+    expect(ctx.fillRect).toHaveBeenCalled();
+    expect(ctx.fill).toHaveBeenCalled();
+    expect(ctx.stroke).toHaveBeenCalled();
   });
 });

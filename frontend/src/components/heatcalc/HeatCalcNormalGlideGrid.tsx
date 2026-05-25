@@ -14,6 +14,7 @@ import {
   DataEditor,
   GridCellKind,
   type CellClickedEventArgs,
+  type DrawHeaderCallback,
   type GridCell,
   type GridColumn,
   type GridSelection,
@@ -36,6 +37,13 @@ import {
 
 const { Text } = Typography;
 const NORMAL_ROW_MARKER_WIDTH = 52;
+const NORMAL_GLIDE_HIDDEN_COLUMN_KEYS = new Set(['index']);
+const NORMAL_HEADER_FILTER_HIT_WIDTH = 28;
+const NORMAL_HEADER_CONTROL_PADDING = 6;
+const NORMAL_HEADER_CONTROL_BG = '#f3f6f4';
+const NORMAL_HEADER_CONTROL_MUTED = '#7a8b99';
+const NORMAL_HEADER_CONTROL_FAINT = '#b8c2cc';
+const NORMAL_HEADER_CONTROL_ACTIVE = '#1a5276';
 
 interface HeatCalcNormalGlideGridProps {
   rows: ProjectObject[];
@@ -104,14 +112,12 @@ function buildRowSelection(rows: ProjectObject[], selectedRowKeys: string[]): Gr
   };
 }
 
-function columnTitle(column: HeatCalcGlideGridColumn, tableViewState: HeatCalcTableViewState) {
-  const sort = tableViewState.sort?.columnKey === column.key
-    ? tableViewState.sort.direction === 'asc'
-      ? ' ↑'
-      : ' ↓'
-    : '';
-  const filtered = isColumnFilterActive(tableViewState.filters[column.key]) ? ' •' : '';
-  return `${column.title}${sort}${filtered}`;
+function normalRowMarkerStartIndex(pagination: TableProps<ProjectObject>['pagination']) {
+  const pageConfig = paginationConfig(pagination);
+  const current = Number(pageConfig?.current ?? 1);
+  const pageSize = Number(pageConfig?.pageSize ?? 0);
+  if (!Number.isFinite(current) || current < 1 || !Number.isFinite(pageSize) || pageSize < 1) return 1;
+  return (current - 1) * pageSize + 1;
 }
 
 function nextSortDirection(
@@ -121,6 +127,77 @@ function nextSortDirection(
   if (tableViewState.sort?.columnKey !== columnKey) return 'asc';
   if (tableViewState.sort.direction === 'asc') return 'desc';
   return undefined;
+}
+
+function headerControlWidth(column: HeatCalcGlideGridColumn) {
+  if (!column.sortable && !column.filterable) return 0;
+  return NORMAL_HEADER_CONTROL_PADDING
+    + (column.sortable ? 18 : 0)
+    + (column.filterable ? 22 : 0);
+}
+
+function drawTriangle(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  direction: 'up' | 'down',
+  color: string,
+) {
+  ctx.beginPath();
+  if (direction === 'up') {
+    ctx.moveTo(centerX, centerY - 4);
+    ctx.lineTo(centerX - 4, centerY + 2);
+    ctx.lineTo(centerX + 4, centerY + 2);
+  } else {
+    ctx.moveTo(centerX, centerY + 4);
+    ctx.lineTo(centerX - 4, centerY - 2);
+    ctx.lineTo(centerX + 4, centerY - 2);
+  }
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawSortIndicator(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  direction?: 'asc' | 'desc',
+) {
+  drawTriangle(
+    ctx,
+    centerX,
+    centerY - 4,
+    'up',
+    direction === 'asc' ? NORMAL_HEADER_CONTROL_ACTIVE : NORMAL_HEADER_CONTROL_FAINT,
+  );
+  drawTriangle(
+    ctx,
+    centerX,
+    centerY + 4,
+    'down',
+    direction === 'desc' ? NORMAL_HEADER_CONTROL_ACTIVE : NORMAL_HEADER_CONTROL_FAINT,
+  );
+}
+
+function drawFilterIndicator(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  active: boolean,
+) {
+  const color = active ? NORMAL_HEADER_CONTROL_ACTIVE : NORMAL_HEADER_CONTROL_MUTED;
+  ctx.beginPath();
+  ctx.moveTo(centerX - 6, centerY - 6);
+  ctx.lineTo(centerX + 6, centerY - 6);
+  ctx.lineTo(centerX + 2, centerY - 1);
+  ctx.lineTo(centerX + 2, centerY + 5);
+  ctx.lineTo(centerX - 2, centerY + 5);
+  ctx.lineTo(centerX - 2, centerY - 1);
+  ctx.closePath();
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = color;
+  ctx.stroke();
 }
 
 function HeatCalcNormalGlideGrid({
@@ -144,15 +221,28 @@ function HeatCalcNormalGlideGrid({
 }: HeatCalcNormalGlideGridProps) {
   const [filterPopup, setFilterPopup] = useState<FilterPopupState | null>(null);
   const filterPopupRef = useRef<HTMLDivElement | null>(null);
+  const visibleGridColumns = useMemo(
+    () => gridColumns.filter((column) => !NORMAL_GLIDE_HIDDEN_COLUMN_KEYS.has(column.key)),
+    [gridColumns],
+  );
+  const hiddenColumnWidth = useMemo(
+    () => gridColumns.reduce(
+      (sum, column) => (NORMAL_GLIDE_HIDDEN_COLUMN_KEYS.has(column.key) ? sum + column.width : sum),
+      0,
+    ),
+    [gridColumns],
+  );
+  const rowMarkerStartIndex = useMemo(() => normalRowMarkerStartIndex(pagination), [pagination]);
+  const normalTableScrollX = Math.max(640, tableScrollX - hiddenColumnWidth);
   const editorColumns = useMemo<GridColumn[]>(
-    () => gridColumns.map((column) => ({
+    () => visibleGridColumns.map((column) => ({
       id: column.key,
-      title: columnTitle(column, tableViewState) || column.key,
+      title: column.title || column.key,
       width: column.width,
-      hasMenu: column.filterable,
+      hasMenu: false,
       style: isColumnFilterActive(tableViewState.filters[column.key]) ? 'highlight' : 'normal',
     })),
-    [gridColumns, tableViewState],
+    [tableViewState, visibleGridColumns],
   );
   const gridSelection = useMemo(
     () => buildRowSelection(rows, selectedRowKeys),
@@ -160,7 +250,7 @@ function HeatCalcNormalGlideGrid({
   );
   const getCellContent = useCallback((cell: Item): GridCell => {
     const [columnIndex, rowIndex] = cell;
-    const column = gridColumns[columnIndex];
+    const column = visibleGridColumns[columnIndex];
     const record = rows[rowIndex];
     if (!column || !record) return blankCell();
     const state = getCellState(record, column.key, rowIndex);
@@ -180,7 +270,7 @@ function HeatCalcNormalGlideGrid({
       contentAlign: state.align ?? column.align ?? (state.editor === 'number' ? 'right' : 'left'),
       themeOverride: bgCell ? { bgCell } : undefined,
     };
-  }, [getCellState, gridColumns, rowClassName, rows]);
+  }, [getCellState, rowClassName, rows, visibleGridColumns]);
   const handleGridSelectionChange = useCallback((nextSelection: GridSelection) => {
     const keys = nextSelection.rows
       .toArray()
@@ -195,7 +285,7 @@ function HeatCalcNormalGlideGrid({
     if (record) onOpenEditWizard(record);
   }, [onOpenEditWizard, rows]);
   const openFilterPopup = useCallback((columnIndex: number, event: HeaderClickedEventArgs) => {
-    const column = gridColumns[columnIndex];
+    const column = visibleGridColumns[columnIndex];
     if (!column?.filterable) return;
     event.preventDefault();
     setFilterPopup({
@@ -203,11 +293,11 @@ function HeatCalcNormalGlideGrid({
       left: event.bounds.x,
       top: event.bounds.y + event.bounds.height,
     });
-  }, [gridColumns]);
+  }, [visibleGridColumns]);
   const handleHeaderClicked = useCallback((columnIndex: number, event: HeaderClickedEventArgs) => {
-    const column = gridColumns[columnIndex];
+    const column = visibleGridColumns[columnIndex];
     if (!column) return;
-    if (column.filterable && event.localEventX >= Math.max(0, event.bounds.width - 28)) {
+    if (column.filterable && event.localEventX >= Math.max(0, event.bounds.width - NORMAL_HEADER_FILTER_HIT_WIDTH)) {
       openFilterPopup(columnIndex, event);
       return;
     }
@@ -215,8 +305,38 @@ function HeatCalcNormalGlideGrid({
     event.preventDefault();
     setFilterPopup(null);
     onSetSort(column.key, nextSortDirection(tableViewState, column.key));
-  }, [gridColumns, onSetSort, openFilterPopup, tableViewState]);
-  const activeFilterColumn = filterPopup ? gridColumns[filterPopup.columnIndex] : undefined;
+  }, [onSetSort, openFilterPopup, tableViewState, visibleGridColumns]);
+  const drawHeader = useCallback<DrawHeaderCallback>((args, drawContent) => {
+    drawContent();
+    const column = visibleGridColumns[args.columnIndex];
+    if (!column) return;
+    const controlWidth = headerControlWidth(column);
+    if (controlWidth <= 0) return;
+
+    const { ctx, rect } = args;
+    const right = rect.x + rect.width;
+    const controlLeft = Math.max(rect.x + 1, right - controlWidth);
+    const centerY = rect.y + rect.height / 2;
+    const sortDirection = tableViewState.sort?.columnKey === column.key
+      ? tableViewState.sort.direction
+      : undefined;
+    const filterActive = isColumnFilterActive(tableViewState.filters[column.key]);
+
+    ctx.save();
+    ctx.fillStyle = args.theme.bgHeader ?? NORMAL_HEADER_CONTROL_BG;
+    ctx.fillRect(controlLeft, rect.y + 1, Math.max(0, right - controlLeft - 1), Math.max(0, rect.height - 2));
+
+    let cursorX = right - 12;
+    if (column.filterable) {
+      drawFilterIndicator(ctx, cursorX, centerY, filterActive);
+      cursorX -= 22;
+    }
+    if (column.sortable) {
+      drawSortIndicator(ctx, cursorX, centerY, sortDirection);
+    }
+    ctx.restore();
+  }, [tableViewState, visibleGridColumns]);
+  const activeFilterColumn = filterPopup ? visibleGridColumns[filterPopup.columnIndex] : undefined;
   const filterPopupStyle = useMemo<CSSProperties | undefined>(() => {
     if (!filterPopup) return undefined;
     return {
@@ -262,21 +382,20 @@ function HeatCalcNormalGlideGrid({
     <div className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide`}>
       <DataEditor
         className="heatcalc-glide-editor"
-        width={tableScrollX + NORMAL_ROW_MARKER_WIDTH}
+        width={normalTableScrollX + NORMAL_ROW_MARKER_WIDTH}
         height={tableScrollY}
         columns={editorColumns}
         rows={rows.length}
-        rowMarkers={{
-          kind: 'checkbox-visible',
-          checkboxStyle: 'square',
-          width: NORMAL_ROW_MARKER_WIDTH,
-        }}
+        rowMarkers="clickable-number"
+        rowMarkerWidth={NORMAL_ROW_MARKER_WIDTH}
+        rowMarkerStartIndex={rowMarkerStartIndex}
         rowHeight={30}
         headerHeight={38}
         smoothScrollX
         smoothScrollY
         verticalBorder
         getCellContent={getCellContent}
+        drawHeader={drawHeader}
         gridSelection={gridSelection}
         onGridSelectionChange={handleGridSelectionChange}
         onCellClicked={handleCellClicked}

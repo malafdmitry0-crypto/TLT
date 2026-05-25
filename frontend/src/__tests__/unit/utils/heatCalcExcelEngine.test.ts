@@ -52,8 +52,8 @@ describe('heatCalcExcelEngine', () => {
 });
 
 describe('heatCalc normal table engine', () => {
-  it('keeps AntD table as the default normal-mode engine', () => {
-    expect(resolveHeatCalcNormalTableEngine({ search: '', storage: storageWith(null) })).toBe('table');
+  it('uses Glide as the default normal-mode engine', () => {
+    expect(resolveHeatCalcNormalTableEngine({ search: '', storage: storageWith(null) })).toBe('glide');
   });
 
   it('enables normal Glide grid from the query string', () => {
@@ -63,17 +63,24 @@ describe('heatCalc normal table engine', () => {
     })).toBe('glide');
   });
 
+  it('allows the AntD table fallback from the query string', () => {
+    expect(resolveHeatCalcNormalTableEngine({
+      search: '?normalTableEngine=table',
+      storage: storageWith(null, 'glide'),
+    })).toBe('table');
+  });
+
   it('falls back to localStorage for the normal table engine', () => {
     expect(resolveHeatCalcNormalTableEngine({
       search: '?project=1',
-      storage: storageWith(null, 'glide'),
-    })).toBe('glide');
+      storage: storageWith(null, 'table'),
+    })).toBe('table');
   });
 
   it('ignores unknown normal table engine values', () => {
     expect(resolveHeatCalcNormalTableEngine({
       search: '?normalTableEngine=canvas',
       storage: storageWith(null, 'unknown'),
-    })).toBe('table');
+    })).toBe('glide');
   });
 });

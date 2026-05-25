@@ -4,7 +4,7 @@ export const HEATCALC_NORMAL_TABLE_ENGINE_STORAGE_KEY = 'heatcalc.normalTableEng
 export type HeatCalcExcelEngine = 'table' | 'glide';
 export type HeatCalcNormalTableEngine = 'table' | 'glide';
 export const DEFAULT_HEATCALC_EXCEL_ENGINE: HeatCalcExcelEngine = 'glide';
-export const DEFAULT_HEATCALC_NORMAL_TABLE_ENGINE: HeatCalcNormalTableEngine = 'table';
+export const DEFAULT_HEATCALC_NORMAL_TABLE_ENGINE: HeatCalcNormalTableEngine = 'glide';
 
 function normalizeHeatCalcExcelEngine(value: string | null | undefined): HeatCalcExcelEngine | null {
   if (value === 'glide') return 'glide';
