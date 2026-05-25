@@ -1,9 +1,8 @@
-import { useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
 
 import type { ProjectObject } from '@/types/project';
 import { copyToClipboard, readFromClipboard } from '@/utils/clipboard';
 import type { HeatCalcResolvedColumnMeta } from '@/utils/heatCalcTableColumns';
-import type { HeatCalcIndexedTableRow } from '@/utils/heatCalcTableFindability';
 import {
   applyInlineCellDraft,
   getInlineEditFieldConfig,
@@ -26,12 +25,11 @@ import { applyExcelDraftRowPatch, type ExcelLocalProjectObject } from '@/utils/h
 interface UseHeatCalcExcelClipboardOptions {
   excelModeEnabled: boolean;
   rows: ProjectObject[];
-  visibleRows: HeatCalcIndexedTableRow<ProjectObject>[];
   sourceColumnMetas: HeatCalcResolvedColumnMeta[];
   draftRowsById: DraftRowsById;
   setDraftRowsById: Dispatch<SetStateAction<DraftRowsById>>;
   selectionRange: ExcelSelectionRange | null;
-  selectedPosition: ExcelCellPosition | null;
+  activeCell: ExcelCellPosition | null;
   appendLocalRows: (count: number, insertAfterObjectId?: string | null) => ExcelLocalProjectObject[];
   cellDisplayValue: (
     record: ProjectObject,
@@ -46,63 +44,65 @@ interface UseHeatCalcExcelClipboardOptions {
 export function useHeatCalcExcelClipboard({
   excelModeEnabled,
   rows,
-  visibleRows,
   sourceColumnMetas,
   draftRowsById,
   setDraftRowsById,
   selectionRange,
-  selectedPosition,
+  activeCell,
   appendLocalRows,
   cellDisplayValue,
   notifySuccess,
   notifyError,
   notifyInfo,
 }: UseHeatCalcExcelClipboardOptions) {
+  const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
+  const rowsById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows]);
+  const columnKeys = useMemo(() => sourceColumnMetas.map((meta) => meta.key), [sourceColumnMetas]);
+
   const copySelection = useCallback(async () => {
-    const range = getExcelSelectionRangeOrActiveCell(selectionRange, selectedPosition);
+    const range = getExcelSelectionRangeOrActiveCell(selectionRange, activeCell);
     if (!excelModeEnabled || !range) return false;
-    const tsv = buildExcelSelectionTsv(range, (rowIndex, columnIndex) => {
-      const row = visibleRows[rowIndex];
-      const meta = sourceColumnMetas[columnIndex];
-      if (!row || !meta) return '';
-      const draftRow = draftRowsById[row.record.id];
-      return cellDisplayValue(row.record, meta.key, draftRow);
+    const tsv = buildExcelSelectionTsv(range, rowIds, columnKeys, (rowId, columnKey) => {
+      const row = rowsById.get(rowId);
+      if (!row) return '';
+      const draftRow = draftRowsById[row.id];
+      return cellDisplayValue(row, columnKey, draftRow);
     });
     await copyToClipboard(tsv);
     notifySuccess('Скопировано');
     return true;
   }, [
     cellDisplayValue,
+    columnKeys,
     draftRowsById,
     excelModeEnabled,
     notifySuccess,
-    selectedPosition,
+    activeCell,
+    rowsById,
+    rowIds,
     selectionRange,
-    sourceColumnMetas,
-    visibleRows,
   ]);
 
   const clearSelection = useCallback(() => {
     const cells = getExcelSelectedCellPositions(
       selectionRange,
-      selectedPosition,
-      rows.length,
-      sourceColumnMetas.length,
+      activeCell,
+      rowIds,
+      columnKeys,
     );
     if (!excelModeEnabled || cells.length === 0) return false;
 
     let changedCells = 0;
     setDraftRowsById((current) => {
       let nextDraftRows: DraftRowsById = { ...current };
-      cells.forEach(({ rowIndex, columnIndex }) => {
-        const record = rows[rowIndex];
-        const meta = sourceColumnMetas[columnIndex];
-        if (!record || !meta) return;
+      cells.forEach(({ rowId, columnKey }) => {
+        const record = rowsById.get(rowId);
+        if (!record) return;
         if (record.object_type !== 'pipe' && record.object_type !== 'tank') return;
-        const config = getInlineEditFieldConfig(record.object_type, meta.key);
+        const config = getInlineEditFieldConfig(record.object_type, columnKey);
         if (!config) return;
         const parsed = parseExcelCellValue(config, '');
-        const draftRow = applyInlineCellDraft(nextDraftRows[record.id] ?? null, record, meta.key, parsed.value);
+        const draftRow = applyInlineCellDraft(nextDraftRows[record.id] ?? null, record, columnKey, parsed.value);
         if (!draftRow) return;
         changedCells += 1;
         nextDraftRows = applyExcelDraftRowPatch(nextDraftRows, record.id, draftRow);
@@ -112,13 +112,14 @@ export function useHeatCalcExcelClipboard({
     if (changedCells > 0) notifySuccess(`Очищено ячеек: ${changedCells}`);
     return changedCells > 0;
   }, [
+    activeCell,
+    columnKeys,
     excelModeEnabled,
     notifySuccess,
-    rows,
-    selectedPosition,
+    rowsById,
+    rowIds,
     selectionRange,
     setDraftRowsById,
-    sourceColumnMetas,
   ]);
 
   const cutSelection = useCallback(async () => {
@@ -128,12 +129,12 @@ export function useHeatCalcExcelClipboard({
   }, [clearSelection, copySelection]);
 
   const applyPaste = useCallback((text: string) => {
-    const origin = getExcelSelectionOrigin(selectionRange, selectedPosition);
+    const origin = getExcelSelectionOrigin(selectionRange, activeCell, rowIds, columnKeys);
     if (!excelModeEnabled || !origin) return;
     const pastedRows = parseSpreadsheetText(text);
     if (pastedRows.length === 0) return;
-    const startRowIndex = origin.rowIndex;
-    const startColumnIndex = origin.columnIndex;
+    const startRowIndex = rowIds.indexOf(origin.rowId);
+    const startColumnIndex = columnKeys.indexOf(origin.columnKey);
     if (startRowIndex < 0 || startColumnIndex < 0) return;
     const appendedRows = appendLocalRows(
       missingExcelRowsForPaste(startRowIndex, pastedRows.length, rows.length),
@@ -153,8 +154,8 @@ export function useHeatCalcExcelClipboard({
         return;
       }
       row.forEach((rawValue, columnOffset) => {
-        const meta = sourceColumnMetas[startColumnIndex + columnOffset];
-        if (!meta) {
+        const columnKey = columnKeys[startColumnIndex + columnOffset];
+        if (!columnKey) {
           skippedCells += 1;
           return;
         }
@@ -162,13 +163,13 @@ export function useHeatCalcExcelClipboard({
           skippedCells += 1;
           return;
         }
-        const config = getInlineEditFieldConfig(record.object_type, meta.key);
+        const config = getInlineEditFieldConfig(record.object_type, columnKey);
         if (!config) {
           skippedCells += 1;
           return;
         }
         const parsed = parseExcelCellValue(config, rawValue);
-        const draftRow = applyInlineCellDraft(nextDraftRows[record.id] ?? null, record, meta.key, parsed.value);
+        const draftRow = applyInlineCellDraft(nextDraftRows[record.id] ?? null, record, columnKey, parsed.value);
         if (!draftRow) {
           skippedCells += 1;
           return;
@@ -202,15 +203,16 @@ export function useHeatCalcExcelClipboard({
     }
   }, [
     appendLocalRows,
+    activeCell,
+    columnKeys,
     draftRowsById,
     excelModeEnabled,
     notifyError,
     notifySuccess,
     rows,
-    selectedPosition,
+    rowIds,
     selectionRange,
     setDraftRowsById,
-    sourceColumnMetas,
   ]);
 
   const pasteFromClipboard = useCallback(async () => {

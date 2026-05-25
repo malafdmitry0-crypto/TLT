@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 
 import type { ProjectObject } from '@/types/project';
-import type { ExcelCellPosition } from '@/utils/heatCalcExcelMode';
+import type { HeatCalcExcelCellCoordinates } from '@/hooks/useHeatCalcExcelSelection';
 
 interface UseHeatCalcExcelKeyboardOptions {
   excelModeEnabled: boolean;
-  selectedPosition: ExcelCellPosition | null;
+  selectedPosition: HeatCalcExcelCellCoordinates | null;
   rows: ProjectObject[];
   editableColumnKeys: string[];
   contextMenuOpen: boolean;

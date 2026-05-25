@@ -65,6 +65,7 @@ import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollR
 import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
 import { useHeatCalcExcelClipboard } from '@/hooks/useHeatCalcExcelClipboard';
 import { useHeatCalcExcelKeyboard } from '@/hooks/useHeatCalcExcelKeyboard';
+import { useHeatCalcExcelRowsModel } from '@/hooks/useHeatCalcExcelRowsModel';
 import {
   useHeatCalcExcelSelection,
   type HeatCalcExcelCellRef,
@@ -194,7 +195,6 @@ import {
   getExcelContextMenuDisabledState,
   getExcelEditableColumnMetas,
   getExcelInsertAfterRowIndex,
-  getExcelSelectedRowIndexes,
   getExcelSelectionRangeOrActiveCell,
   isExcelCellActive,
   isExcelCellInRange,
@@ -206,9 +206,7 @@ import {
 import {
   applyExcelDraftRowPatch,
   buildExcelLocalRows,
-  getActiveExcelLocalRows,
   isSavableExcelDraftRow,
-  mergeExcelLocalRows,
   pruneExcelLocalRowsByIds,
   removeDraftRowsByIds,
   removeExcelRowsFromModel,
@@ -799,7 +797,7 @@ export default function HeatCalcPage() {
   const { data: allProjectObjects = [] } = useQuery({
     queryKey: ['project', project?.id, 'objects', 'query', 'all'],
     queryFn: () => listObjects(project!.id),
-    enabled: !!project && isAllObjectScope,
+    enabled: !!project && (isAllObjectScope || excelModeEnabled),
   });
   const insulationLabelByCode = useMemo(
     () => new Map(insulationMaterials.map((m) => [m.material, insulationEntryLabel(m)])),
@@ -1600,6 +1598,14 @@ export default function HeatCalcPage() {
       : configuredColumnMetas),
     [activeTableObjectType, allConfiguredColumnMetas, configuredColumnMetas, excelModeEnabled],
   );
+  const editableExcelColumnKeys = useMemo(
+    () => (!isAllObjectScope
+      ? sourceColumnMetas
+        .filter((meta) => getInlineEditFieldConfig(activeTableObjectType, meta.key))
+        .map((meta) => meta.key)
+      : []),
+    [activeTableObjectType, isAllObjectScope, sourceColumnMetas],
+  );
   const resolvedTableFontSize = useMemo(
     () => resolveTableFontSize(normalizedTableView),
     [normalizedTableView],
@@ -1645,10 +1651,6 @@ export default function HeatCalcPage() {
     ),
     [allIndexedTableRows, allTableViewState, tableValueAccessors],
   );
-  const activeExcelLocalRows = useMemo<ExcelLocalProjectObject[]>(
-    () => getActiveExcelLocalRows(excelLocalRows, activeTableObjectType),
-    [activeTableObjectType, excelLocalRows],
-  );
   const createExcelLocalRows = useCallback((
     count: number,
     insertAfterObjectId: string | null = null,
@@ -1669,6 +1671,25 @@ export default function HeatCalcPage() {
     if (rows.length > 0) setExcelLocalRows((current) => [...current, ...rows]);
     return rows;
   }, [createExcelLocalRows]);
+  const {
+    activeLocalRows: activeExcelLocalRows,
+    baseRows: excelBaseRows,
+    rows: excelRows,
+    indexedRows: excelTableRows,
+    rowIds: excelRowIds,
+    activeCell: activeExcelCellPosition,
+    selectedRows: selectedExcelRows,
+  } = useHeatCalcExcelRowsModel({
+    excelModeEnabled,
+    allProjectObjects,
+    activeObjectType: activeTableObjectType,
+    tableViewState: activeTableViewState,
+    tableValueAccessors,
+    localRows: excelLocalRows,
+    selectedCell: selectedExcelCell,
+    selectionRange: excelSelectionRange,
+    editableColumnKeys: editableExcelColumnKeys,
+  });
 
   useEffect(() => {
     if (!excelModeEnabled) return;
@@ -1686,23 +1707,31 @@ export default function HeatCalcPage() {
     [allFilteredSortedTableRows, allTableOffset],
   );
   const baseVisibleTableObjects = useMemo(
-    () => (isAllObjectScope
-      ? visibleAllTableRows.map(({ record }) => record)
-      : objectQueryResult?.items ?? []),
-    [isAllObjectScope, objectQueryResult, visibleAllTableRows],
+    () => {
+      if (excelModeEnabled) return excelBaseRows;
+      return isAllObjectScope
+        ? visibleAllTableRows.map(({ record }) => record)
+        : objectQueryResult?.items ?? [];
+    },
+    [excelBaseRows, excelModeEnabled, isAllObjectScope, objectQueryResult, visibleAllTableRows],
   );
   const visibleTableObjects = useMemo(() => {
     if (!excelModeEnabled) return baseVisibleTableObjects;
-    return mergeExcelLocalRows(baseVisibleTableObjects, activeExcelLocalRows);
-  }, [activeExcelLocalRows, baseVisibleTableObjects, excelModeEnabled]);
+    return excelRows;
+  }, [baseVisibleTableObjects, excelModeEnabled, excelRows]);
   const visibleTableRows = useMemo(
-    () => (isAllObjectScope
-      ? visibleAllTableRows
-      : visibleTableObjects.map((record, index) => ({
-          record,
-          sourceIndex: (objectQueryResult?.page_info.offset ?? 0) + index,
-        }))),
-    [isAllObjectScope, objectQueryResult, visibleAllTableRows, visibleTableObjects],
+    () => {
+      if (excelModeEnabled) {
+        return excelTableRows;
+      }
+      return isAllObjectScope
+        ? visibleAllTableRows
+        : visibleTableObjects.map((record, index) => ({
+            record,
+            sourceIndex: (objectQueryResult?.page_info.offset ?? 0) + index,
+          }));
+    },
+    [excelModeEnabled, excelTableRows, isAllObjectScope, objectQueryResult, visibleAllTableRows, visibleTableObjects],
   );
   const wizardBaseObject = useMemo(() => {
     const editingObject = wizardState?.editingObject;
@@ -1747,22 +1776,6 @@ export default function HeatCalcPage() {
     () => visibleTableRows.filter(({ record }) => selectedRowKeys.includes(record.id)),
     [selectedRowKeys, visibleTableRows],
   );
-  const selectedExcelRowIndex = useMemo(() => {
-    if (!selectedExcelCell) return null;
-    const rowIndex = visibleTableObjects.findIndex((object) => object.id === selectedExcelCell.objectId);
-    return rowIndex >= 0 ? rowIndex : null;
-  }, [selectedExcelCell, visibleTableObjects]);
-  const selectedExcelRows = useMemo(() => {
-    if (!excelModeEnabled) return [];
-    const indexes = getExcelSelectedRowIndexes(
-      excelSelectionRange,
-      selectedExcelRowIndex == null ? null : { rowIndex: selectedExcelRowIndex, columnIndex: 0 },
-      visibleTableRows.length,
-    );
-    return indexes
-      .map((index) => visibleTableRows[index])
-      .filter((row): row is HeatCalcIndexedTableRow<ProjectObject> => row != null);
-  }, [excelModeEnabled, excelSelectionRange, selectedExcelRowIndex, visibleTableRows]);
   const tableDeleteRows = excelModeEnabled ? selectedExcelRows : selectedVisibleRows;
   const selectedObjectCount = selectedVisibleRows.length;
   const deleteTargetCount = tableDeleteRows.length;
@@ -1772,8 +1785,9 @@ export default function HeatCalcPage() {
     : objectQueryResult?.counts.by_type[activeTableObjectType] ?? totalCount;
   const filteredTableCount = isAllObjectScope
     ? allFilteredSortedTableRows.length
-    : (objectQueryResult?.counts.filtered ?? baseVisibleTableObjects.length) +
-      (excelModeEnabled ? activeExcelLocalRows.length : 0);
+    : excelModeEnabled
+      ? visibleTableObjects.length
+      : objectQueryResult?.counts.filtered ?? baseVisibleTableObjects.length;
   const typeButtonCountText = useCallback((
     scope: ActiveObjectScope,
     total: number,
@@ -2124,14 +2138,6 @@ export default function HeatCalcPage() {
     setActiveInlineCell({ objectId: record.id, columnKey });
   }, [excelModeEnabled, tableCellEditingEnabled]);
 
-  const editableExcelColumnKeys = useMemo(
-    () => (!isAllObjectScope
-      ? sourceColumnMetas
-        .filter((meta) => getInlineEditFieldConfig(activeTableObjectType, meta.key))
-        .map((meta) => meta.key)
-      : []),
-    [activeTableObjectType, isAllObjectScope, sourceColumnMetas],
-  );
   const excelFieldInfoById = useMemo<Record<string, ExcelErrorFieldInfo>>(() => {
     const result: Record<string, ExcelErrorFieldInfo> = {};
     if (isAllObjectScope) return result;
@@ -2290,12 +2296,11 @@ export default function HeatCalcPage() {
   } = useHeatCalcExcelClipboard({
     excelModeEnabled,
     rows: visibleTableObjects,
-    visibleRows: visibleTableRows,
     sourceColumnMetas,
     draftRowsById,
     setDraftRowsById,
     selectionRange: excelSelectionRange,
-    selectedPosition: selectedExcelPosition,
+    activeCell: activeExcelCellPosition,
     appendLocalRows: appendExcelLocalRows,
     cellDisplayValue: excelCellDisplayValue,
     notifySuccess: notifyExcelSuccess,
@@ -2306,8 +2311,9 @@ export default function HeatCalcPage() {
   const addExcelRowsBelowSelection = useCallback((count: number) => {
     const afterRowIndex = getExcelInsertAfterRowIndex(
       excelSelectionRange,
-      selectedExcelPosition,
-      visibleTableObjects.length,
+      activeExcelCellPosition,
+      excelRowIds,
+      editableExcelColumnKeys,
     );
     const insertAfterObjectId = afterRowIndex == null ? null : visibleTableObjects[afterRowIndex]?.id ?? null;
     const rows = appendExcelLocalRows(count, insertAfterObjectId);
@@ -2319,8 +2325,10 @@ export default function HeatCalcPage() {
     }
   }, [
     appendExcelLocalRows,
+    activeExcelCellPosition,
+    editableExcelColumnKeys,
     excelSelectionRange,
-    selectedExcelPosition,
+    excelRowIds,
     selectExcelCellByPosition,
     visibleTableObjects,
   ]);
@@ -2773,7 +2781,9 @@ export default function HeatCalcPage() {
         && (isAllObjectScope || (capability?.sort.enabled ?? true));
       const filterKind = filterKindForColumn(meta.key, capability);
       const activeFilter = activeTableViewState.filters[meta.key];
-      const normalizedExcelRange = excelSelectionRange ? normalizeExcelSelectionRange(excelSelectionRange) : null;
+      const normalizedExcelRange = excelSelectionRange
+        ? normalizeExcelSelectionRange(excelSelectionRange, excelRowIds, editableExcelColumnKeys)
+        : null;
       const columnSelected = !!normalizedExcelRange
         && columnIndex >= normalizedExcelRange.left
         && columnIndex <= normalizedExcelRange.right;
@@ -2820,8 +2830,8 @@ export default function HeatCalcPage() {
           return (
             <EditableTableCell
               active={activeInlineCell?.objectId === record.id && activeInlineCell.columnKey === meta.key}
-              selected={isExcelCellInRange(excelSelectionRange, index, columnIndex)}
-              selectionActive={isExcelCellActive(selectedExcelPosition, index, columnIndex)}
+              selected={isExcelCellInRange(excelSelectionRange, record.id, meta.key, excelRowIds, editableExcelColumnKeys)}
+              selectionActive={isExcelCellActive(activeExcelCellPosition, record.id, meta.key)}
               excelMode={excelModeEnabled}
               dirty={isSavableDraftRow(draftRow) && Object.prototype.hasOwnProperty.call(draftRow?.dirtyFields ?? {}, config.fieldId)}
               error={draftRow?.errors[config.fieldId]}
@@ -2887,6 +2897,7 @@ export default function HeatCalcPage() {
       activeTableColumnScope,
       activeTableViewState,
       activeTableObjectType,
+      activeExcelCellPosition,
       beginExcelCellSelection,
       beginExcelColumnSelection,
       columnRenderers,
@@ -2894,6 +2905,8 @@ export default function HeatCalcPage() {
       draftRowsById,
       enumOptionsByColumn,
       excelCellDisplayValue,
+      editableExcelColumnKeys,
+      excelRowIds,
       excelSelectionRange,
       extendExcelCellSelection,
       extendExcelColumnSelection,
@@ -2915,7 +2928,9 @@ export default function HeatCalcPage() {
   );
   const excelRowHeaderColumn = useMemo<ColumnType<ProjectObject> | null>(() => {
     if (!excelModeEnabled) return null;
-    const normalizedExcelRange = excelSelectionRange ? normalizeExcelSelectionRange(excelSelectionRange) : null;
+    const normalizedExcelRange = excelSelectionRange
+      ? normalizeExcelSelectionRange(excelSelectionRange, excelRowIds, editableExcelColumnKeys)
+      : null;
     return {
       key: '__excel_row_header__',
       title: (
@@ -3003,6 +3018,8 @@ export default function HeatCalcPage() {
     beginExcelRowSelection,
     draftRowsById,
     excelModeEnabled,
+    editableExcelColumnKeys,
+    excelRowIds,
     excelSelectionRange,
     extendExcelRowSelection,
     isSavableDraftRow,
@@ -3563,7 +3580,7 @@ export default function HeatCalcPage() {
 
   function renderExcelContextMenu() {
     if (!excelModeEnabled || !excelContextMenu) return null;
-    const hasSelection = !!getExcelSelectionRangeOrActiveCell(excelSelectionRange, selectedExcelPosition);
+    const hasSelection = !!getExcelSelectionRangeOrActiveCell(excelSelectionRange, activeExcelCellPosition);
     const dirtySelectedRowCount = selectedExcelRows.filter(({ record }) => (
       isSavableDraftRow(draftRowsById[record.id])
     )).length;
@@ -3667,7 +3684,7 @@ export default function HeatCalcPage() {
     }
     if (isExcelNewRowId(record.id)) classes.push('row-excel-new');
     return classes.join(' ');
-  }, [draftRowsById, excelModeEnabled, selectedRowId]);
+  }, [draftRowsById, excelModeEnabled, isSavableDraftRow, selectedRowId]);
 
   const handleExcelPageChange = useCallback((nextPage: number) => {
     setTablePageByScope((current) => ({ ...current, [activeObjectScope]: nextPage }));
