@@ -122,6 +122,72 @@ class TestObjectsLifecycle:
         assert "Толщина стенки" in body["validation_errors"]["message"]
         assert "Материал трубы или λ трубы" in body["validation_errors"]["message"]
 
+    async def test_non_indoor_pipe_with_indoor_tm_is_invalid(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.013,
+                    "wall_thickness": 0.0011,
+                    "pipe_material": "stainless_304",
+                    "pipe_length": 6,
+                    "insulation_thickness": 0.02,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "indoor",
+                    "ambient_temperature": 0,
+                    "process_temperature": 1,
+                    "placement": "underground",
+                    "burial_depth": 0.4,
+                    "ground_type": "sand_1600_w238",
+                    "ground_conductivity": 2.02,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["is_valid"] is False
+        assert body["results"] is None
+        assert body["validation_errors"]["error_code"] == "invalid_object_params"
+        assert body["validation_errors"]["field"] == "insulation_temperature_basis"
+        assert "Режим tm" in body["validation_errors"]["message"]
+
+    async def test_outdoor_pipe_with_attic_tm_is_invalid(
+        self, client: AsyncClient, guest_session: str
+    ):
+        pid = await _project(client, guest_session)
+        resp = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.108,
+                    "wall_thickness": 0.004,
+                    "pipe_material": "carbon_steel",
+                    "pipe_length": 50,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "attic",
+                    "ambient_temperature": -30,
+                    "process_temperature": 80,
+                    "placement": "outdoor",
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["is_valid"] is False
+        assert body["results"] is None
+        assert body["validation_errors"]["field"] == "insulation_temperature_basis"
+        assert "Режим tm" in body["validation_errors"]["message"]
+
     @pytest.mark.parametrize(
         ("shape", "geometry"),
         [
@@ -445,7 +511,7 @@ class TestObjectsLifecycle:
                     "height": 4.0,
                     "insulation_thickness": 0.08,
                     "insulation_material": MINERAL_WOOL,
-                    "insulation_temperature_basis": "outdoor_winter",
+                    "insulation_temperature_basis": "channel",
                     "ambient_temperature": -25,
                     "process_temperature": 70,
                     "placement": "underground",

@@ -57,6 +57,13 @@ async function selectOption(page: Page, testId: string, optionText: string) {
   });
 }
 
+async function openAntSelectDropdown(page: Page, testId: string) {
+  await page.getByTestId(testId).click();
+  const dropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last();
+  await expect(dropdown).toBeVisible();
+  return dropdown;
+}
+
 async function selectSearchOption(page: Page, testId: string, search: string, option: RegExp) {
   await page.getByTestId(testId).click();
   const referenceSearch = page.locator('.reference-picker-modal:visible .reference-picker-search input').last();
@@ -110,7 +117,86 @@ async function fetchProjectObjects(page: Page) {
     headers: { 'X-Session-Id': sessionId },
   });
   expect(response.ok()).toBeTruthy();
-  return response.json() as Promise<Array<{ params: Record<string, unknown> }>>;
+  return response.json() as Promise<Array<{
+    is_valid: boolean;
+    params: Record<string, unknown>;
+    validation_errors?: Record<string, unknown> | null;
+  }>>;
+}
+
+async function createInvalidDeclaredThreeLayerPipe(page: Page, name: string) {
+  const { projectId, sessionId } = await currentGuestContext(page);
+  const response = await page.request.post(`${API_BASE}/api/v1/projects/${projectId}/objects`, {
+    headers: { 'X-Session-Id': sessionId },
+    data: {
+      object_type: 'pipe',
+      params: {
+        name,
+        outer_diameter: 0.013,
+        wall_thickness: 0.001,
+        pipe_material: 'stainless_304',
+        pipe_length: 5,
+        insulation_thickness: 0.02,
+        insulation_material: 'mineral_wool_boards_120',
+        insulation_layer_count: '3',
+        placement: 'underground',
+        burial_depth: 0.4,
+        ground_type: 'sand_1480_w5',
+        ground_conductivity: 1.11,
+        ambient_temperature: 0,
+        process_temperature: 1,
+        insulation_temperature_basis: 'channel',
+        min_switch_temperature: -20,
+        supply_voltage: 220,
+        safety_factor: 1.12,
+        steam_tracing: 'no',
+        valve_count: 2,
+        flange_count: 2,
+        support_count: 2,
+        local_element_equiv_length: 1.5,
+      },
+    },
+  });
+  expect(response.status()).toBe(201);
+  return response.json();
+}
+
+async function createUndergroundPipeWithIndoorTm(page: Page, name: string) {
+  const { projectId, sessionId } = await currentGuestContext(page);
+  const response = await page.request.post(`${API_BASE}/api/v1/projects/${projectId}/objects`, {
+    headers: { 'X-Session-Id': sessionId },
+    data: {
+      object_type: 'pipe',
+      params: {
+        name,
+        outer_diameter: 0.013,
+        wall_thickness: 0.0011,
+        pipe_material: 'stainless_304',
+        pipe_length: 6,
+        insulation_thickness: 0.02,
+        insulation_material: 'mineral_wool_boards_120',
+        insulation_layer_count: '1',
+        placement: 'underground',
+        burial_depth: 0.4,
+        ground_type: 'sand_1600_w238',
+        ground_conductivity: 2.02,
+        ambient_temperature: 0,
+        process_temperature: 1,
+        insulation_temperature_basis: 'indoor',
+        min_switch_temperature: -20,
+        supply_voltage: 220,
+        safety_factor: 1.12,
+        steam_tracing: 'yes',
+        vapor_temperature: 0.7,
+        valve_count: 2,
+        flange_count: 2,
+        support_count: 2,
+        local_element_equiv_length: 1.5,
+      },
+    },
+  });
+  expect(response.status()).toBe(201);
+  return response.json();
 }
 
 test.describe('inline form dependencies', () => {
@@ -210,6 +296,85 @@ test.describe('inline form dependencies', () => {
     await selectOption(page, 'insulation-layer-count-select', '1 слой');
     await expect(page.getByTestId('second-insulation-material-select')).toHaveCount(0);
     await expect(page.getByTestId('third-insulation-material-select')).toHaveCount(0);
+  });
+
+  test('режим tm изоляции показывает только варианты для размещения', async ({ page }) => {
+    await loginAsGuest(page);
+    await openPipeForm(page);
+
+    let dropdown = await openAntSelectDropdown(page, 'insulation-temperature-basis-select');
+    await expect(dropdown.getByText('Открытый воздух, лето', { exact: true })).toBeVisible();
+    await expect(dropdown.getByText('Открытый воздух, зима', { exact: true })).toBeVisible();
+    await expect(dropdown.getByText('Чердак', { exact: true })).toHaveCount(0);
+    await expect(dropdown.getByText('Канал', { exact: true })).toHaveCount(0);
+    await page.keyboard.press('Escape');
+
+    await selectOption(page, 'placement-select', 'Подземно');
+    await expect(page.getByTestId('insulation-temperature-basis-select')).toHaveText('Канал');
+    dropdown = await openAntSelectDropdown(page, 'insulation-temperature-basis-select');
+    await expect(dropdown.getByText('Канал', { exact: true })).toBeVisible();
+    await expect(dropdown.getByText('Тоннель', { exact: true })).toBeVisible();
+    await expect(dropdown.getByText('Техническое подполье', { exact: true })).toBeVisible();
+    await expect(dropdown.getByText('Чердак', { exact: true })).toHaveCount(0);
+    await expect(dropdown.getByText('Открытый воздух, зима', { exact: true })).toHaveCount(0);
+    await page.keyboard.press('Escape');
+
+    await selectOption(page, 'placement-select', 'В помещении');
+    await expect(page.getByTestId('insulation-temperature-basis-select')).toHaveText('Помещение');
+    dropdown = await openAntSelectDropdown(page, 'insulation-temperature-basis-select');
+    await expect(dropdown.getByText('Помещение', { exact: true })).toBeVisible();
+    await expect(dropdown.getByText('Чердак', { exact: true })).toBeVisible();
+    await expect(dropdown.getByText('Подвал', { exact: true })).toBeVisible();
+    await expect(dropdown.getByText('Канал', { exact: true })).toHaveCount(0);
+    await expect(dropdown.getByText('Открытый воздух, зима', { exact: true })).toHaveCount(0);
+  });
+
+  test('уменьшение количества слоёв очищает ошибки и payload скрытых слоёв', async ({ page }) => {
+    await loginAsGuest(page);
+    const objectName = `E2E stale layers ${Date.now()}`;
+    await createInvalidDeclaredThreeLayerPipe(page, objectName);
+    await page.reload({ waitUntil: 'networkidle' });
+
+    await page.getByRole('row').filter({ hasText: objectName }).first().click();
+    await expect(page.getByLabel('Ошибки выбранной строки')).toContainText('2-го слоя');
+
+    await selectOption(page, 'insulation-layer-count-select', '1 слой');
+    await expect(page.getByLabel('Ошибки выбранной строки')).toHaveCount(0);
+    await expect(page.getByTestId('second-insulation-material-select')).toHaveCount(0);
+    await expect(page.getByTestId('third-insulation-material-select')).toHaveCount(0);
+
+    await page.getByRole('toolbar', { name: 'Действия блока заполнения' }).getByRole('button', { name: 'Сохранить' }).click();
+    await expect(page.getByLabel('Ошибки выбранной строки')).toHaveCount(0);
+
+    const objects = await fetchProjectObjects(page);
+    const updated = objects.find((obj) => obj.params.name === objectName);
+    expect(updated).toBeTruthy();
+    expect(updated!.is_valid).toBe(true);
+    expect(updated!.validation_errors ?? null).toBeNull();
+    expect(updated!.params.insulation_layer_count).toBe('1');
+    expect(updated!.params.insulation_layers).toEqual([
+      expect.objectContaining({ thickness: 0.02, material: 'mineral_wool_boards_120' }),
+    ]);
+  });
+
+  test('ошибка режима tm выбранной строки подсвечивает select в форме', async ({ page }) => {
+    await loginAsGuest(page);
+    const objectName = `E2E indoor tm underground ${Date.now()}`;
+    await createUndergroundPipeWithIndoorTm(page, objectName);
+    await page.reload({ waitUntil: 'networkidle' });
+
+    await page.getByRole('row').filter({ hasText: objectName }).first().click();
+    await fillInput(page, 'pipe-length-input', '6.5');
+
+    await expect(page.getByLabel('Ошибки выбранной строки')).toContainText(
+      'Режим температуры изоляции',
+    );
+    await expect(page.getByLabel('Ошибки выбранной строки')).toContainText(
+      'Режим tm изоляции не соответствует размещению объекта',
+    );
+    await expect(page.getByTestId('insulation-temperature-basis-select').locator(
+      'xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " ant-form-item ")][1]',
+    )).toHaveClass(/ant-form-item-has-error/);
   });
 
   test('матрица резервуара: форма объекта и подземное размещение меняют обязательные поля', async ({ page }) => {

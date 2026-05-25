@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { getHeatCalcFieldByColumn } from '@/domain/heatCalcFields';
-import { validateHeatCalcField } from '@/domain/heatCalcFieldRules';
+import {
+  applyHeatCalcFieldValue,
+  validateHeatCalcField,
+} from '@/domain/heatCalcFieldRules';
 import {
   applyFormFieldDraft,
   applyInlineCellDraft,
@@ -43,6 +46,40 @@ function makePipe(): ProjectObject {
     validation_errors: null,
     created_at: '2026-05-10T00:00:00Z',
     updated_at: '2026-05-10T00:00:00Z',
+  };
+}
+
+function makeInvalidDeclaredThreeLayerPipe(): ProjectObject {
+  const record = makePipe();
+  return {
+    ...record,
+    params: {
+      ...record.params,
+      insulation_layer_count: '3',
+      insulation_layers: [
+        { thickness: 0.05, material: 'mineral_wool' },
+      ],
+    },
+    is_valid: false,
+    validation_errors: {
+      message: 'Не заполнены обязательные поля объекта: Толщина 2-го слоя изоляции, Материал 2-го слоя изоляции, Толщина 3-го слоя изоляции, Материал 3-го слоя изоляции',
+    },
+  };
+}
+
+function makeValidThreeLayerPipe(): ProjectObject {
+  const record = makePipe();
+  return {
+    ...record,
+    params: {
+      ...record.params,
+      insulation_layer_count: '3',
+      insulation_layers: [
+        { thickness: 0.05, material: 'mineral_wool' },
+        { thickness: 0.02, material: 'polyurethane_foam' },
+        { thickness: 0.01, material: 'foam_glass' },
+      ],
+    },
   };
 }
 
@@ -97,6 +134,57 @@ describe('heatCalcInlineEdit', () => {
       { value: 220, label: '220' },
       { value: 380, label: '380' },
     ]);
+  });
+
+  it('фильтрует режимы tm изоляции по размещению объекта', () => {
+    expect(
+      heatCalcSelectOptions('pipe', 'insulation_temperature_basis', { placement: 'outdoor' }),
+    ).toEqual([
+      { value: 'outdoor_summer', label: 'Открытый воздух, лето' },
+      { value: 'outdoor_winter', label: 'Открытый воздух, зима' },
+    ]);
+    expect(
+      heatCalcSelectOptions('pipe', 'insulation_temperature_basis', { placement: 'underground' }),
+    ).toEqual([
+      { value: 'channel', label: 'Канал' },
+      { value: 'tunnel', label: 'Тоннель' },
+      { value: 'technical_subfloor', label: 'Техническое подполье' },
+    ]);
+    expect(
+      heatCalcSelectOptions('pipe', 'insulation_temperature_basis', { placement: 'indoor' }),
+    ).toEqual([
+      { value: 'indoor', label: 'Помещение' },
+      { value: 'attic', label: 'Чердак' },
+      { value: 'basement', label: 'Подвал' },
+    ]);
+  });
+
+  it('валидирует режим tm изоляции относительно размещения объекта', () => {
+    expect(validateHeatCalcField('insulation_temperature_basis', 'attic', {
+      objectType: 'pipe',
+      values: { placement: 'outdoor', insulation_temperature_basis: 'attic' },
+    })).toBe('Режим tm изоляции не соответствует размещению объекта');
+    expect(validateHeatCalcField('insulation_temperature_basis', 'outdoor_winter', {
+      objectType: 'pipe',
+      values: { placement: 'outdoor', insulation_temperature_basis: 'outdoor_winter' },
+    })).toBeNull();
+    expect(validateHeatCalcField('insulation_temperature_basis', 'channel', {
+      objectType: 'pipe',
+      values: { placement: 'underground', insulation_temperature_basis: 'channel' },
+    })).toBeNull();
+  });
+
+  it('дефолтит режим tm при смене размещения Excel-строки', () => {
+    const values = applyHeatCalcFieldValue('placement', 'outdoor', {
+      objectType: 'pipe',
+      values: {
+        placement: 'underground',
+        insulation_temperature_basis: 'channel',
+      },
+    });
+
+    expect(values.placement).toBe('outdoor');
+    expect(values.insulation_temperature_basis).toBe('outdoor_winter');
   });
 
   it('stores diameter draft in form units and converts to backend units on save', () => {
@@ -222,6 +310,44 @@ describe('heatCalcInlineEdit', () => {
 
     expect(getDraftRowValidationErrors(staleDraft)).toEqual({});
     expect(buildDraftRowParams(staleDraft).pipe_length).toBe(55);
+  });
+
+  it('не сохраняет ошибки скрытых слоёв после уменьшения количества слоёв до одного', () => {
+    const record = makeInvalidDeclaredThreeLayerPipe();
+    const draft = applyFormFieldDraft(null, record, 'insulation_layer_count', '1')!;
+    const staleDraft = {
+      ...draft,
+      errors: {
+        second_insulation_thickness_mm: 'Укажите значение',
+        second_insulation_material: 'Выберите значение',
+        third_insulation_thickness_mm: 'Укажите значение',
+        third_insulation_material: 'Выберите значение',
+      },
+    };
+
+    expect(getDraftRowValidationErrors(staleDraft, { enforceRequired: true })).toEqual({});
+    const params = buildDraftRowParams(staleDraft, { enforceRequired: true });
+    expect(params.insulation_layer_count).toBe('1');
+    expect(params.insulation_layers).toEqual([
+      { thickness: 0.05, material: 'mineral_wool' },
+    ]);
+  });
+
+  it('при переключении 3 -> 2 очищает только поля третьего слоя', () => {
+    const record = makeValidThreeLayerPipe();
+    const draft = applyFormFieldDraft(null, record, 'insulation_layer_count', '2')!;
+
+    expect(draft.draftFormValues.second_insulation_thickness_mm).toBe(20);
+    expect(draft.draftFormValues.second_insulation_material).toBe('polyurethane_foam');
+    expect(draft.draftFormValues.third_insulation_thickness_mm).toBeUndefined();
+    expect(draft.draftFormValues.third_insulation_material).toBeUndefined();
+
+    const params = buildDraftRowParams(draft, { enforceRequired: true });
+    expect(params.insulation_layer_count).toBe('2');
+    expect(params.insulation_layers).toEqual([
+      { thickness: 0.05, material: 'mineral_wool' },
+      { thickness: 0.02, material: 'polyurethane_foam' },
+    ]);
   });
 
   it('сохраняет parse-ошибку ячейки, если значение стало пустым из-за нечислового ввода', () => {

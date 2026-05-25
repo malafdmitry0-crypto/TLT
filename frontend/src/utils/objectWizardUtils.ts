@@ -149,6 +149,7 @@ function defaultInsulationTemperatureBasisForPlacement(
   placement: unknown,
 ): InsulationTemperatureBasis | undefined {
   if (placement === 'indoor') return 'indoor';
+  if (placement === 'underground') return 'channel';
   if (placement === 'outdoor') return 'outdoor_winter';
   return undefined;
 }

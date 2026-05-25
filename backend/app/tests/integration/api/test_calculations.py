@@ -160,6 +160,88 @@ class TestHeatLossCalculation:
         )
         assert resp.status_code == 422
 
+    async def test_non_indoor_pipe_with_indoor_tm_returns_422(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        resp = await client.post(
+            "/api/v1/calc/heat-loss",
+            json={
+                "project_id": project["id"],
+                "object_type": "pipe",
+                "data": {
+                    "outer_diameter": 0.108,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "indoor",
+                    "ambient_temperature": -30,
+                    "process_temperature": 150,
+                    "pipe_length": 100,
+                    "location": "outdoor",
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 422
+        assert "Режим tm" in resp.text
+
+    async def test_outdoor_pipe_with_attic_tm_returns_422(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        resp = await client.post(
+            "/api/v1/calc/heat-loss",
+            json={
+                "project_id": project["id"],
+                "object_type": "pipe",
+                "data": {
+                    "outer_diameter": 0.108,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "attic",
+                    "ambient_temperature": -30,
+                    "process_temperature": 150,
+                    "pipe_length": 100,
+                    "location": "outdoor",
+                    "placement": "outdoor",
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 422
+        assert "Режим tm" in resp.text
+
+    async def test_underground_pipe_with_channel_tm_returns_result(
+        self, client: AsyncClient, guest_session: str
+    ):
+        project = await _create_project(client, guest_session)
+        resp = await client.post(
+            "/api/v1/calc/heat-loss",
+            json={
+                "project_id": project["id"],
+                "object_type": "pipe",
+                "data": {
+                    "outer_diameter": 0.108,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "channel",
+                    "ambient_temperature": -30,
+                    "process_temperature": 150,
+                    "pipe_length": 100,
+                    "location": "outdoor",
+                    "placement": "underground",
+                    "burial_depth": 1.2,
+                    "ground_conductivity": 1.5,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["result"]["total_heat_loss"] > 0
+
     async def test_insulation_material_temperature_range_returns_422(
         self, client: AsyncClient, guest_session: str
     ):

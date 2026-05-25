@@ -119,6 +119,67 @@ class TestPipeHeatLossParams:
 
         assert p.process_temperature == 400
 
+    @pytest.mark.parametrize("basis", ["indoor", "attic", "basement", "channel"])
+    def test_outdoor_location_rejects_non_outdoor_insulation_temperature_basis(self, basis):
+        with pytest.raises(ValidationError, match="Режим tm"):
+            PipeHeatLossParams(
+                outer_diameter=0.1,
+                insulation_thickness=0.05,
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis=basis,
+                ambient_temperature=-20,
+                process_temperature=80,
+                pipe_length=10,
+                location="outdoor",
+            )
+
+    def test_underground_placement_accepts_channel_insulation_temperature_basis(self):
+        p = PipeHeatLossParams(
+            outer_diameter=0.1,
+            insulation_thickness=0.05,
+            insulation_material=MINERAL_WOOL,
+            insulation_temperature_basis="channel",
+            ambient_temperature=-20,
+            process_temperature=80,
+            pipe_length=10,
+            location="outdoor",
+            placement="underground",
+            burial_depth=1.2,
+        )
+
+        assert p.insulation_temperature_basis == "channel"
+
+    def test_underground_placement_rejects_attic_insulation_temperature_basis(self):
+        with pytest.raises(ValidationError, match="Режим tm"):
+            PipeHeatLossParams(
+                outer_diameter=0.1,
+                insulation_thickness=0.05,
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis="attic",
+                ambient_temperature=-20,
+                process_temperature=80,
+                pipe_length=10,
+                location="outdoor",
+                placement="underground",
+                burial_depth=1.2,
+            )
+
+    @pytest.mark.parametrize("basis", ["attic", "basement"])
+    def test_indoor_location_accepts_building_insulation_temperature_basis(self, basis):
+        p = PipeHeatLossParams(
+            outer_diameter=0.1,
+            insulation_thickness=0.05,
+            insulation_material=MINERAL_WOOL,
+            insulation_temperature_basis=basis,
+            ambient_temperature=20,
+            process_temperature=80,
+            pipe_length=10,
+            location="indoor",
+            placement="indoor",
+        )
+
+        assert p.insulation_temperature_basis == basis
+
     def test_local_element_counts_are_mapped_to_formula_count(self):
         p = PipeHeatLossParams(
             outer_diameter=0.1,
@@ -326,6 +387,71 @@ class TestTankHeatLossParams:
         )
 
         assert p.process_temperature == 400
+
+    @pytest.mark.parametrize("basis", ["indoor", "attic", "basement", "channel"])
+    def test_outdoor_location_rejects_non_outdoor_insulation_temperature_basis(self, basis):
+        with pytest.raises(ValidationError, match="Режим tm"):
+            TankHeatLossParams(
+                shape="cylindrical",
+                diameter=2,
+                height=3,
+                insulation_thickness=0.1,
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis=basis,
+                ambient_temperature=-20,
+                process_temperature=80,
+                location="outdoor",
+            )
+
+    def test_underground_placement_accepts_channel_insulation_temperature_basis(self):
+        p = TankHeatLossParams(
+            shape="cylindrical",
+            diameter=2,
+            height=3,
+            insulation_thickness=0.1,
+            insulation_material=MINERAL_WOOL,
+            insulation_temperature_basis="channel",
+            ambient_temperature=-20,
+            process_temperature=80,
+            location="outdoor",
+            placement="underground",
+            burial_depth=1.2,
+        )
+
+        assert p.insulation_temperature_basis == "channel"
+
+    def test_underground_placement_rejects_attic_insulation_temperature_basis(self):
+        with pytest.raises(ValidationError, match="Режим tm"):
+            TankHeatLossParams(
+                shape="cylindrical",
+                diameter=2,
+                height=3,
+                insulation_thickness=0.1,
+                insulation_material=MINERAL_WOOL,
+                insulation_temperature_basis="attic",
+                ambient_temperature=-20,
+                process_temperature=80,
+                location="outdoor",
+                placement="underground",
+                burial_depth=1.2,
+            )
+
+    @pytest.mark.parametrize("basis", ["attic", "basement"])
+    def test_indoor_location_accepts_building_insulation_temperature_basis(self, basis):
+        p = TankHeatLossParams(
+            shape="cylindrical",
+            diameter=2,
+            height=3,
+            insulation_thickness=0.1,
+            insulation_material=MINERAL_WOOL,
+            insulation_temperature_basis=basis,
+            ambient_temperature=20,
+            process_temperature=80,
+            location="indoor",
+            placement="indoor",
+        )
+
+        assert p.insulation_temperature_basis == basis
 
     def test_too_small_dimension_rejected(self):
         with pytest.raises(ValidationError):

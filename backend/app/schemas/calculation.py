@@ -6,7 +6,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.formulas.heat_loss.insulation import InsulationTemperatureBasis
+from app.formulas.heat_loss.insulation import (
+    InsulationTemperatureBasis,
+    validate_insulation_temperature_basis_for_placement,
+)
 from app.reference_data.loader import get_insulation_temperature_range
 from app.schemas.project import (
     ObjectQueryDefaultSort,
@@ -84,6 +87,19 @@ def _validate_reference_insulation_temperature(
         process_temperature=process_temperature,
         temperature_range=get_insulation_temperature_range(material),
         label=label,
+    )
+
+
+def _validate_insulation_temperature_basis_for_location(
+    *,
+    basis: InsulationTemperatureBasis | None,
+    location: str | None,
+    placement: str | None,
+) -> None:
+    validate_insulation_temperature_basis_for_placement(
+        basis=basis,
+        location=location,
+        placement=placement,
     )
 
 
@@ -257,9 +273,15 @@ class PipeHeatLossParams(BaseModel):
         description="K — коэффициент запаса",
     )
     location: Literal["indoor", "outdoor"] = "outdoor"
+    placement: Literal["indoor", "outdoor", "underground"] | None = None
 
     @model_validator(mode="after")
     def check_insulation_provided(self) -> "PipeHeatLossParams":
+        _validate_insulation_temperature_basis_for_location(
+            basis=self.insulation_temperature_basis,
+            location=self.location,
+            placement=self.placement,
+        )
         if self.num_local_elements is None:
             local_count = sum(
                 value or 0 for value in (self.valve_count, self.flange_count, self.support_count)
@@ -418,9 +440,15 @@ class TankHeatLossParams(BaseModel):
         ge=0,
         description="Q_доп — дополнительные теплопотери (днище, фланцы и пр.), Вт",
     )
+    placement: Literal["indoor", "outdoor", "underground"] | None = None
 
     @model_validator(mode="after")
     def check_ranges_and_layers(self) -> "TankHeatLossParams":
+        _validate_insulation_temperature_basis_for_location(
+            basis=self.insulation_temperature_basis,
+            location=self.location,
+            placement=self.placement,
+        )
         if not (-70.0 <= self.ambient_temperature <= 70.0):
             raise ValueError("Температура окружающей среды должна быть в диапазоне −70…+70 °C")
         if not (-90.0 <= self.process_temperature <= 600.0):

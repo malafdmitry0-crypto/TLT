@@ -137,7 +137,7 @@ describe('pipeFormToApiParams', () => {
     expect(api.insulation_temperature_basis).toBe('outdoor_winter');
   });
 
-  it('не подставляет режим tm изоляции для подземного объекта', () => {
+  it('подставляет режим tm канала для подземного объекта', () => {
     const api = pipeFormToApiParams({
       outer_diameter_mm: 108,
       pipe_length: 50,
@@ -148,7 +148,7 @@ describe('pipeFormToApiParams', () => {
       placement: 'underground',
     });
 
-    expect(api.insulation_temperature_basis).toBeUndefined();
+    expect(api.insulation_temperature_basis).toBe('channel');
   });
 
   it('сохраняет name если задан', () => {
@@ -314,6 +314,43 @@ describe('pipeFormToApiParams', () => {
     expect(api.insulation_layers).toEqual([
       { thickness: 0.04, material: 'other', conductivity: 0.037, temperature_range: [-60, 120] },
       { thickness: 0.02, material: 'other', conductivity: 0.052, temperature_range: [-30, 90] },
+    ]);
+  });
+
+  it('не отправляет данные скрытых слоёв при уменьшенном количестве слоёв', () => {
+    const oneLayer = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 40,
+      insulation_material: 'mineral_wool',
+      insulation_layer_count: '1',
+      second_insulation_thickness_mm: 20,
+      second_insulation_material: 'polyurethane_foam',
+      third_insulation_thickness_mm: 10,
+      third_insulation_material: 'foam_glass',
+      ambient_temperature: -20,
+      process_temperature: 80,
+    });
+    const twoLayers = pipeFormToApiParams({
+      outer_diameter_mm: 108,
+      pipe_length: 50,
+      insulation_thickness_mm: 40,
+      insulation_material: 'mineral_wool',
+      insulation_layer_count: '2',
+      second_insulation_thickness_mm: 20,
+      second_insulation_material: 'polyurethane_foam',
+      third_insulation_thickness_mm: 10,
+      third_insulation_material: 'foam_glass',
+      ambient_temperature: -20,
+      process_temperature: 80,
+    });
+
+    expect(oneLayer.insulation_layers).toEqual([
+      { thickness: 0.04, material: 'mineral_wool' },
+    ]);
+    expect(twoLayers.insulation_layers).toEqual([
+      { thickness: 0.04, material: 'mineral_wool' },
+      { thickness: 0.02, material: 'polyurethane_foam' },
     ]);
   });
 });

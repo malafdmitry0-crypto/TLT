@@ -8,6 +8,9 @@ required fields must make the object invalid before formulas run.
 from collections.abc import Mapping
 from typing import Any
 
+from app.formulas.heat_loss.insulation import (
+    validate_insulation_temperature_basis_for_placement,
+)
 from app.reference_data.loader import (
     INSULATION_MATERIAL_RESELECTION_MESSAGE,
     is_generic_insulation_material,
@@ -245,6 +248,14 @@ def _validate_common_params(params: Mapping[str, Any], missing: list[str]) -> No
             "Режим температуры изоляции",
             missing,
         )
+    try:
+        validate_insulation_temperature_basis_for_placement(
+            basis=params.get("insulation_temperature_basis"),
+            location=params.get("location"),
+            placement=params.get("placement"),
+        )
+    except ValueError as exc:
+        raise ProjectObjectParamsError(str(exc)) from exc
 
 
 def _validate_insulation(params: Mapping[str, Any], missing: list[str]) -> None:

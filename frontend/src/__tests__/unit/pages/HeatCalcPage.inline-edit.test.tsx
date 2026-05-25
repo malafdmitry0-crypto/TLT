@@ -304,6 +304,44 @@ describe('HeatCalcPage inline edit', () => {
       expect(screen.queryByText('Исправьте ошибки в строке перед сохранением')).not.toBeInTheDocument();
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
+    it('в обычном режиме подсвечивает поле, указанное в ошибке draft-валидации выбранной строки', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const source = makeObject({
+        params: {
+          ...makeObject().params,
+          name: 'Подземная труба с indoor tm',
+          placement: 'underground',
+          burial_depth: 0.4,
+          ground_type: 'sand_1480_w5',
+          ground_conductivity: 1.11,
+          insulation_temperature_basis: 'indoor',
+        },
+      });
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await user.click(await screen.findByText('Подземная труба с indoor tm'));
+      const lengthInput = await screen.findByTestId('pipe-length-input');
+      const basisSelect = screen.getByTestId('insulation-temperature-basis-select');
+      expect(basisSelect.closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+
+      await user.clear(lengthInput);
+      await user.type(lengthInput, '26');
+
+      const selectedRowErrors = await screen.findByLabelText('Ошибки выбранной строки');
+      expect(selectedRowErrors).toHaveTextContent(
+        'Режим температуры изоляции: Режим tm изоляции не соответствует размещению объекта',
+      );
+      await waitFor(() => {
+        expect(screen.getByTestId('insulation-temperature-basis-select').closest('.ant-form-item'))
+          .toHaveClass('ant-form-item-has-error');
+      });
+      expect(screen.getByText('Режим tm изоляции не соответствует размещению объекта')).toBeInTheDocument();
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
     it('для зарегистрированного пользователя без записи очищает кеш и возвращает дефолтный JSON', async () => {
       const { listObjects } = await import('@/api/projects');
       const { getUserPreference } = await import('@/api/preferences');

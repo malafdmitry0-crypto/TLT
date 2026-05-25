@@ -5,6 +5,7 @@ import {
   type HeatCalcFieldOption,
 } from '@/domain/heatCalcFields';
 import {
+  allowedInsulationTemperatureBasisValues,
   isHeatCalcFieldRequired,
   normalizeHeatCalcFieldValue,
   validateHeatCalcField,
@@ -116,6 +117,10 @@ export function heatCalcTextInputProps(objectType: HeatCalcObjectType, fieldId: 
 export function heatCalcSelectOptions(
   objectType: HeatCalcObjectType,
   fieldId: string,
+  values?: Record<string, unknown>,
 ): HeatCalcFieldOption[] {
-  return getHeatCalcFieldInputConfig(fieldId, objectType)?.options ?? [];
+  const options = getHeatCalcFieldInputConfig(fieldId, objectType)?.options ?? [];
+  if (fieldId !== 'insulation_temperature_basis' || !values) return options;
+  const allowedValues = allowedInsulationTemperatureBasisValues(values.placement);
+  return options.filter((option) => allowedValues.includes(String(option.value)));
 }

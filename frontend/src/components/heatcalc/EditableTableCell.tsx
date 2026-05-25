@@ -10,6 +10,7 @@ export interface EditableTableCellProps {
   dirty?: boolean;
   error?: string;
   field: HeatCalcFieldDefinition;
+  options?: HeatCalcFieldDefinition['options'];
   step?: number;
   value: unknown;
   children: ReactNode;
@@ -39,6 +40,7 @@ export default function EditableTableCell({
   dirty = false,
   error,
   field,
+  options,
   step,
   value,
   children,
@@ -185,7 +187,7 @@ export default function EditableTableCell({
           size="small"
           open
           value={draftValue as string | number | undefined}
-          options={field.options}
+          options={options ?? field.options}
           onChange={(nextValue) => {
             setDraftValue(nextValue);
             setLocalError(null);

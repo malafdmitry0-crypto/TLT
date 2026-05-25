@@ -48,7 +48,7 @@
 
 **Материалы изоляции:** для расчёта нужен конкретный код материала с плотностью, например `mineral_wool_boards_120`, `polyurethane_products_50`, `polystyrene_products_50`, `k_flex_st`. Generic названия вроде “Минеральная вата” импортируются как draft с требованием уточнить материал и плотность.
 
-**Режим температуры изоляции:** `indoor`, `outdoor_summer`, `outdoor_winter`, `channel`, `tunnel`, `technical_subfloor`, `attic`, `basement`. По нему backend считает `lambda(tm)` из ТНП.
+**Режим температуры изоляции:** `indoor`, `outdoor_summer`, `outdoor_winter`, `channel`, `tunnel`, `technical_subfloor`, `attic`, `basement`. По нему backend считает `lambda(tm)` из ТНП. Для расчётных объектов режим должен соответствовать размещению: `outdoor` допускает только `outdoor_summer/outdoor_winter`, `underground` — `channel/tunnel/technical_subfloor`, `indoor` — `indoor/attic/basement`.
 
 **Формы резервуара:** Цилиндр / Параллелепипед / Шар (либо `cylindrical` / `rectangular` / `spherical`).
 

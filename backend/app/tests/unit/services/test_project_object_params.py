@@ -73,6 +73,121 @@ def test_underground_object_still_requires_explicit_insulation_temperature_basis
         )
 
 
+def test_non_indoor_object_rejects_indoor_insulation_temperature_basis():
+    with pytest.raises(ProjectObjectParamsError, match="Режим tm"):
+        prepare_project_object_params(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "pipe_length": 10,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool_boards_120",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "placement": "underground",
+                "burial_depth": 1.2,
+                "ground_type": "clay",
+                "ground_conductivity": 1.7,
+                "insulation_temperature_basis": "indoor",
+            },
+        )
+
+
+def test_outdoor_object_rejects_attic_insulation_temperature_basis():
+    with pytest.raises(ProjectObjectParamsError, match="Режим tm"):
+        prepare_project_object_params(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "pipe_length": 10,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool_boards_120",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "placement": "outdoor",
+                "insulation_temperature_basis": "attic",
+            },
+        )
+
+
+def test_underground_object_accepts_channel_insulation_temperature_basis():
+    params = prepare_project_object_params(
+        "pipe",
+        {
+            "outer_diameter": 0.108,
+            "pipe_length": 10,
+            "insulation_thickness": 0.05,
+            "insulation_material": "mineral_wool_boards_120",
+            "ambient_temperature": -20,
+            "process_temperature": 80,
+            "placement": "underground",
+            "burial_depth": 1.2,
+            "ground_type": "clay",
+            "ground_conductivity": 1.7,
+            "insulation_temperature_basis": "channel",
+        },
+    )
+
+    assert params["insulation_temperature_basis"] == "channel"
+
+
+def test_underground_object_rejects_attic_insulation_temperature_basis():
+    with pytest.raises(ProjectObjectParamsError, match="Режим tm"):
+        prepare_project_object_params(
+            "pipe",
+            {
+                "outer_diameter": 0.108,
+                "pipe_length": 10,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool_boards_120",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "placement": "underground",
+                "burial_depth": 1.2,
+                "ground_type": "clay",
+                "ground_conductivity": 1.7,
+                "insulation_temperature_basis": "attic",
+            },
+        )
+
+
+def test_indoor_object_accepts_indoor_insulation_temperature_basis():
+    params = prepare_project_object_params(
+        "pipe",
+        {
+            "outer_diameter": 0.108,
+            "pipe_length": 10,
+            "insulation_thickness": 0.05,
+            "insulation_material": "mineral_wool_boards_120",
+            "ambient_temperature": 20,
+            "process_temperature": 80,
+            "placement": "indoor",
+            "insulation_temperature_basis": "indoor",
+        },
+    )
+
+    assert params["insulation_temperature_basis"] == "indoor"
+
+
+@pytest.mark.parametrize("basis", ["attic", "basement"])
+def test_indoor_object_accepts_building_insulation_temperature_basis(basis):
+    params = prepare_project_object_params(
+        "pipe",
+        {
+            "outer_diameter": 0.108,
+            "pipe_length": 10,
+            "insulation_thickness": 0.05,
+            "insulation_material": "mineral_wool_boards_120",
+            "ambient_temperature": 20,
+            "process_temperature": 80,
+            "placement": "indoor",
+            "insulation_temperature_basis": basis,
+        },
+    )
+
+    assert params["insulation_temperature_basis"] == basis
+
+
 def test_explicit_blank_pipe_wall_is_not_silently_defaulted():
     with pytest.raises(ProjectObjectParamsError, match="Толщина стенки"):
         prepare_project_object_params(

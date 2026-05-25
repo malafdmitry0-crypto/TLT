@@ -174,11 +174,13 @@ import {
   getDraftRowValidationErrors,
   getInlineCellFormValue,
   getInlineEditFieldConfig,
+  getInlineRowFormValues,
   isDraftRowDirty,
   isDraftRowEmpty,
   type DraftRowState,
   type DraftRowsById,
 } from '@/utils/heatCalcInlineEdit';
+import { heatCalcSelectOptions } from '@/utils/heatCalcWizardFieldRules';
 import {
   buildExcelSelectionTsv,
   buildExcelTableErrorItems,
@@ -277,6 +279,21 @@ function uniqueErrorMessages(messages: string[]) {
     if (!normalized || seen.has(normalized)) return false;
     seen.add(normalized);
     return true;
+  });
+}
+
+function draftErrorMessages(
+  objectType: HeatCalcObjectType,
+  errors: Record<string, string>,
+) {
+  return Object.entries(errors).map(([fieldId, message]) => {
+    if (fieldId === '_row') return message;
+    const label = getHeatCalcFieldLabel(fieldId, {
+      context: 'settings',
+      objectType,
+      variant: 'full',
+    });
+    return `${label}: ${message}`;
   });
 }
 
@@ -2284,6 +2301,15 @@ export default function HeatCalcPage() {
 
   const selectedRowErrorMessages = useMemo(() => {
     if (!wizardFormObject) return [];
+    if (wizardBaseObject) {
+      const draftRow = draftRowsById[wizardBaseObject.id];
+      if (draftRow) {
+        return uniqueErrorMessages(draftErrorMessages(
+          draftRow.objectType,
+          getDraftRowValidationErrors(draftRow, { enforceRequired: true }),
+        ));
+      }
+    }
     if (excelModeEnabled) {
       const selectedError = excelTableErrors.find((item) => item.rowId === wizardFormObject.id);
       return uniqueErrorMessages(selectedError?.messages.map((message) => message.text) ?? []);
@@ -2294,7 +2320,7 @@ export default function HeatCalcPage() {
       ? heatLossErrorText(wizardFormObject)
       : '';
     return uniqueErrorMessages([message]);
-  }, [excelModeEnabled, excelTableErrors, wizardFormObject]);
+  }, [draftRowsById, excelModeEnabled, excelTableErrors, wizardBaseObject, wizardFormObject]);
 
   const moveExcelSelection = useCallback((
     rowDelta: number,
@@ -3181,6 +3207,13 @@ export default function HeatCalcPage() {
               return renderer.render?.(value, displayRecord, index) as ReactNode;
             })();
           if (!config) return content;
+          const fieldOptions = config.field.editor === 'select'
+            ? heatCalcSelectOptions(
+              config.objectType,
+              config.fieldId,
+              getInlineRowFormValues(record, draftRow),
+            )
+            : undefined;
           return (
             <EditableTableCell
               active={activeInlineCell?.objectId === record.id && activeInlineCell.columnKey === meta.key}
@@ -3190,6 +3223,7 @@ export default function HeatCalcPage() {
               dirty={isSavableDraftRow(draftRow) && Object.prototype.hasOwnProperty.call(draftRow?.dirtyFields ?? {}, config.fieldId)}
               error={draftRow?.errors[config.fieldId]}
               field={config.field}
+              options={fieldOptions}
               step={resolveHeatCalcFieldStep(config.objectType, config.fieldId, fieldInputSettings)}
               value={getInlineCellFormValue(record, meta.key, draftRow)}
               onSelect={() => selectExcelCellByPosition(index, columnIndex)}
@@ -3760,18 +3794,18 @@ export default function HeatCalcPage() {
                 onClose={closeWizard}
                 onSubmit={handleWizardSubmit}
                 submitting={add.isPending || edit.isPending}
-                initialParams={wizardFormObject?.params}
+                initialParams={(excelModeEnabled ? wizardFormObject : wizardBaseObject)?.params}
                 initialFormValues={excelModeEnabled && wizardBaseObject
                   ? draftRowsById[wizardBaseObject.id]?.draftFormValues
                   : undefined}
                 validationErrors={wizardFormObject?.validation_errors}
-                fieldErrors={excelModeEnabled ? wizardDraftFieldErrors : undefined}
+                fieldErrors={wizardDraftFieldErrors}
                 fieldInputSettings={fieldInputSettings}
                 formSectionWeights={tableViewSettings.formSectionWeights}
                 sectionResizeEnabled={formPlacement === 'top' || formPlacement === 'bottom'}
                 onFormSectionWeightsChange={applyFormSectionWeights}
                 onFormSectionWeightsCommit={commitFormSectionWeights}
-                onDraftValuesChange={excelModeEnabled ? handleWizardDraftValuesChange : undefined}
+                onDraftValuesChange={wizardBaseObject ? handleWizardDraftValuesChange : undefined}
               />
             </Suspense>
           ) : null}

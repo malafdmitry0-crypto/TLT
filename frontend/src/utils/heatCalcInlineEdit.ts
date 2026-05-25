@@ -372,6 +372,12 @@ export function getDraftRowValidationErrors(
     ) {
       continue;
     }
+    if (!isHeatCalcFieldVisible(fieldId, {
+      objectType: draftRow.objectType,
+      values: draftRow.draftFormValues,
+    })) {
+      continue;
+    }
     if (errors[fieldId]) continue;
     const currentValue = draftRow.draftFormValues[fieldId];
     if (hasMeaningfulDraftValue(currentValue)) continue;
@@ -408,6 +414,14 @@ export function getInlineCellFormValue(
   if (!config) return undefined;
   const values = draftRow?.draftFormValues ?? baseFormValuesFromRecord(record);
   return values[config.fieldId];
+}
+
+export function getInlineRowFormValues(
+  record: ProjectObject,
+  draftRow?: DraftRowState,
+): Record<string, unknown> {
+  if (!isHeatCalcObjectType(record.object_type)) return { ...record.params };
+  return draftRow?.draftFormValues ?? baseFormValuesFromRecord(record);
 }
 
 export function isDraftRowDirty(draftRow: DraftRowState | undefined) {

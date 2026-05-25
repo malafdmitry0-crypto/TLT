@@ -168,6 +168,9 @@ def build_heat_loss_error_payload(
             error_code = "unsupported_object_type"
             field = "object_type"
             hint = "Для теплорасчёта поддерживаются только трубопроводы и резервуары."
+        elif "режим tm" in lower_message or "режим температуры изоляции" in lower_message:
+            field = "insulation_temperature_basis"
+            hint = "Выберите режим tm, соответствующий размещению объекта."
         elif missing_fields:
             error_code = "missing_required_fields"
             field = missing_fields[0] if len(missing_fields) == 1 else None

@@ -46,6 +46,8 @@ import {
   getHeatCalcFieldLabel,
 } from '@/domain/heatCalcFields';
 import {
+  defaultInsulationTemperatureBasisForPlacement,
+  isInsulationTemperatureBasisAllowedForPlacement,
   isHeatCalcFieldRequired,
   isHeatCalcFieldVisible,
 } from '@/domain/heatCalcFieldRules';
@@ -93,9 +95,6 @@ const SECTION_FIELD_GRID =
   'repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr))';
 const REQUIRED_FIELDS_ERROR_PREFIX = 'Не заполнены обязательные поля объекта:';
 const REQUIRED_FIELD_ERROR_MESSAGE = '';
-
-const AUTO_OUTDOOR_INSULATION_BASIS = new Set(['outdoor_summer', 'outdoor_winter']);
-const AUTO_NON_UNDERGROUND_INSULATION_BASIS = new Set(['indoor', ...AUTO_OUTDOOR_INSULATION_BASIS]);
 
 const REQUIRED_FIELD_LABEL_TO_FORM_NAMES: Record<string, string[]> = {
   'Наружный диаметр': ['outer_diameter_mm'],
@@ -161,6 +160,7 @@ const API_FIELD_TO_FORM_NAMES: Record<string, string[]> = {
   local_element_equiv_length: ['local_element_equiv_length'],
   q_additional: ['q_additional'],
   insulation_layer_count: ['insulation_layer_count'],
+  insulation_temperature_basis: ['insulation_temperature_basis'],
 };
 
 const RANGE_MESSAGE_TO_FORM_NAMES: Array<[RegExp, string[]]> = [
@@ -637,9 +637,9 @@ export default function ObjectWizard({
         form.setFields(staleLocalFieldNames.map((fieldName) => ({ name: fieldName, errors: [] })));
       }
       if (nextFieldEntries.length > 0) {
-        form.setFields(nextFieldEntries.map(([fieldName]) => ({
+        form.setFields(nextFieldEntries.map(([fieldName, message]) => ({
           name: fieldName,
-          errors: [REQUIRED_FIELD_ERROR_MESSAGE],
+          errors: [message],
         })));
         calculationFieldErrorNamesRef.current = nextFieldNames;
         localRequiredFieldErrorNamesRef.current = nextRequiredFieldNames;
@@ -728,18 +728,16 @@ export default function ObjectWizard({
 
     clearCalculationFieldErrors(Object.keys(changed));
     if (Object.prototype.hasOwnProperty.call(changed, 'placement')) {
-      if (changed.placement === 'indoor') {
-        setSyncedFields({ insulation_temperature_basis: 'indoor' });
-      } else if (changed.placement === 'outdoor') {
-        const currentBasis = form.getFieldValue('insulation_temperature_basis');
-        if (!currentBasis || !AUTO_OUTDOOR_INSULATION_BASIS.has(String(currentBasis))) {
-          setSyncedFields({ insulation_temperature_basis: 'outdoor_winter' });
-        }
-      } else if (changed.placement === 'underground') {
-        const currentBasis = form.getFieldValue('insulation_temperature_basis');
-        if (!currentBasis || AUTO_NON_UNDERGROUND_INSULATION_BASIS.has(String(currentBasis))) {
-          setSyncedFields({ insulation_temperature_basis: undefined });
-        }
+      const currentBasis = form.getFieldValue('insulation_temperature_basis');
+      if (
+        !currentBasis
+        || !isInsulationTemperatureBasisAllowedForPlacement(currentBasis, changed.placement)
+      ) {
+        setSyncedFields({
+          insulation_temperature_basis: defaultInsulationTemperatureBasisForPlacement(
+            changed.placement,
+          ),
+        });
       }
     }
     if (Object.prototype.hasOwnProperty.call(changed, 'climate_key') && !changed.climate_key) {
@@ -1522,7 +1520,11 @@ export default function ObjectWizard({
               <Select
                 data-testid="insulation-temperature-basis-select"
                 placeholder="Выберите режим tm"
-                options={heatCalcSelectOptions(heatCalcObjectType, 'insulation_temperature_basis')}
+                options={heatCalcSelectOptions(
+                  heatCalcObjectType,
+                  'insulation_temperature_basis',
+                  watchedValues,
+                )}
               />,
               fieldHelp('insulation_temperature_basis', heatCalcObjectType),
             )}

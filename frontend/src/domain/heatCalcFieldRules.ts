@@ -67,6 +67,37 @@ function isCustomGroundType(value: unknown) {
   return normalized === 'custom' || normalized === 'other';
 }
 
+const INSULATION_TEMPERATURE_BASIS_BY_PLACEMENT: Record<string, readonly string[]> = {
+  indoor: ['indoor', 'attic', 'basement'],
+  outdoor: ['outdoor_summer', 'outdoor_winter'],
+  underground: ['channel', 'tunnel', 'technical_subfloor'],
+};
+
+const INSULATION_TEMPERATURE_BASIS_ERROR =
+  'Режим tm изоляции не соответствует размещению объекта';
+
+export function allowedInsulationTemperatureBasisValues(placement: unknown): readonly string[] {
+  const normalized = stringValue(placement).trim();
+  return INSULATION_TEMPERATURE_BASIS_BY_PLACEMENT[normalized]
+    ?? INSULATION_TEMPERATURE_BASIS_BY_PLACEMENT.outdoor;
+}
+
+export function isInsulationTemperatureBasisAllowedForPlacement(
+  basis: unknown,
+  placement: unknown,
+): boolean {
+  if (basis == null || basis === '') return true;
+  return allowedInsulationTemperatureBasisValues(placement).includes(String(basis));
+}
+
+export function defaultInsulationTemperatureBasisForPlacement(placement: unknown): string | undefined {
+  const normalized = stringValue(placement).trim();
+  if (normalized === 'indoor') return 'indoor';
+  if (normalized === 'underground') return 'channel';
+  if (normalized === 'outdoor') return 'outdoor_winter';
+  return undefined;
+}
+
 const RANGE_FIELDS = {
   first_insulation_temperature_range: {
     material: 'insulation_material',
@@ -104,6 +135,22 @@ const THIRD_LAYER_FIELDS = new Set([
   'third_insulation_lambda',
   'third_insulation_temperature_range',
 ]);
+
+const SECOND_LAYER_VALUE_FIELDS = [
+  'second_insulation_material',
+  'second_insulation_thickness_mm',
+  'second_insulation_lambda',
+  'second_insulation_temperature_min',
+  'second_insulation_temperature_max',
+];
+
+const THIRD_LAYER_VALUE_FIELDS = [
+  'third_insulation_material',
+  'third_insulation_thickness_mm',
+  'third_insulation_lambda',
+  'third_insulation_temperature_min',
+  'third_insulation_temperature_max',
+];
 
 function isRangeField(fieldId: string): fieldId is RangeFieldId {
   return Object.prototype.hasOwnProperty.call(RANGE_FIELDS, fieldId);
@@ -267,10 +314,9 @@ export function validateHeatCalcField(
       if (!known) return 'Выберите значение из списка';
       if (
         fieldId === 'insulation_temperature_basis'
-        && value === 'indoor'
-        && context.values.placement !== 'indoor'
+        && !isInsulationTemperatureBasisAllowedForPlacement(value, context.values.placement)
       ) {
-        return 'Для наружного/подземного объекта выберите режим tm из документации';
+        return INSULATION_TEMPERATURE_BASIS_ERROR;
       }
       return null;
     }
@@ -325,6 +371,37 @@ export function applyHeatCalcFieldValue(
     ...context.values,
     [fieldId]: normalizeHeatCalcFieldValue(fieldId, value, context),
   };
+  if (fieldId === 'insulation_layer_count') {
+    const count = layerCount({ ...context, values: nextValues });
+    if (count < 3) {
+      THIRD_LAYER_VALUE_FIELDS.forEach((fieldName) => {
+        delete nextValues[fieldName];
+      });
+    }
+    if (count < 2) {
+      SECOND_LAYER_VALUE_FIELDS.forEach((fieldName) => {
+        delete nextValues[fieldName];
+      });
+    }
+  }
+  if (
+    fieldId === 'placement'
+    && (
+      nextValues.insulation_temperature_basis == null
+      || nextValues.insulation_temperature_basis === ''
+      || !isInsulationTemperatureBasisAllowedForPlacement(
+        nextValues.insulation_temperature_basis,
+        nextValues.placement,
+      )
+    )
+  ) {
+    const defaultBasis = defaultInsulationTemperatureBasisForPlacement(nextValues.placement);
+    if (defaultBasis) {
+      nextValues.insulation_temperature_basis = defaultBasis;
+    } else {
+      delete nextValues.insulation_temperature_basis;
+    }
+  }
   if (fieldId === 'ambient_temperature') {
     nextValues.ambient_temperature_source = 'manual';
   }

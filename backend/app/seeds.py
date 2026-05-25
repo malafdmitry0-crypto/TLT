@@ -1344,7 +1344,7 @@ _PIPE_CONFIGS = [
             "pipe_material": "carbon_steel",
             "insulation_thickness": 0.12,
             "insulation_material": "mineral_wool_cylinders_150",
-            "insulation_temperature_basis": "outdoor_winter",
+            "insulation_temperature_basis": "channel",
             "ambient_temperature": -25.0,
             "process_temperature": 55.0,
             "pipe_length": 250.0,

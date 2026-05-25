@@ -113,6 +113,20 @@
 | 1 | Добавить трубу с `insulation_layers: [{thickness:0.03, material:mineral_wool_boards_120}, {thickness:0.03, material:polyurethane_products_50}]` и `insulation_temperature_basis=outdoor_winter` | `is_valid=true` |
 | 2 | Сравнить с однослойной изоляцией 0.03м | Двухслойная имеет меньше потерь |
 | 3 | Добавить 4 слоя | HTTP 422 (лимит 3 слоя) |
+| 4 | В UI выбрать 3 слоя, оставить 2-й/3-й слой незаполненными, затем вернуть `1 слой` и сохранить | Поля и ошибки 2-го/3-го слоя очищены; в `params.insulation_layers` сохранён один слой |
+
+---
+
+## TC-OBJ-07A: Режим tm изоляции соответствует размещению объекта
+
+**Автоматизировано:** ✅ `test_calculations.py::TestHeatLossCalculation::test_non_indoor_pipe_with_indoor_tm_returns_422`, `test_objects.py::TestObjectsLifecycle::test_non_indoor_pipe_with_indoor_tm_is_invalid`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Для наружной трубы указать `insulation_temperature_basis=attic` или `indoor` | Прямой `/calc/heat-loss` возвращает HTTP 422 с ошибкой по режиму `tm`; объект проекта сохраняется только как невалидная строка (`is_valid=false`, `results=null`) |
+| 2 | Для подземной трубы указать `insulation_temperature_basis=channel` | Объект проходит подготовку параметров и может быть рассчитан |
+| 3 | Для подземной трубы указать `insulation_temperature_basis=attic` | Строка невалидна, ошибка относится к `insulation_temperature_basis` |
+| 4 | Для объекта в помещении указать `insulation_temperature_basis=indoor`, `attic` или `basement` | Объект проходит подготовку параметров и может быть рассчитан |
 
 ---
 
