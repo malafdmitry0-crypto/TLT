@@ -1189,7 +1189,10 @@ class TestElectricalCandidateDedupe:
 
         update_resp = await client.put(
             f"/api/v1/projects/{project['id']}/objects/{obj['id']}",
-            json={"params": {**obj["params"], "process_temperature": 500}},
+            json={
+                "version": obj["version"],
+                "params": {**obj["params"], "process_temperature": 500},
+            },
             headers={"X-Session-Id": guest_session},
         )
         assert update_resp.status_code == 200, update_resp.text

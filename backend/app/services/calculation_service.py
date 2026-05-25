@@ -1333,19 +1333,34 @@ class CalculationService:
         *,
         request: ElectricalRequest,
         cable_mark: str | None,
-        result_dict: dict[str, Any],
+        result_dict: dict[str, Any] | None,
     ) -> dict[str, Any] | None:
-        cable_row = self._snapshot_cable_row(
-            request.cable_type,
-            cable_mark,
-            request.data,
-        )
-        cable_mark_source = self._resolve_cable_mark_source(request.data)
-        return build_cable_snapshot(
+        return self._build_cable_snapshot_from_data(
             cable_type=request.cable_type,
             cable_mark=cable_mark,
+            request_data=request.data,
+            result_dict=result_dict,
+        )
+
+    def _build_cable_snapshot_from_data(
+        self,
+        *,
+        cable_type: str,
+        cable_mark: str | None,
+        request_data: dict[str, Any],
+        result_dict: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        cable_row = self._snapshot_cable_row(
+            cable_type,
+            cable_mark,
+            request_data,
+        )
+        cable_mark_source = self._resolve_cable_mark_source(request_data)
+        return build_cable_snapshot(
+            cable_type=cable_type,
+            cable_mark=cable_mark,
             cable_row=cable_row,
-            requested_catalog_source=str(request.data.get("cable_source") or "builtin"),
+            requested_catalog_source=str(request_data.get("cable_source") or "builtin"),
             cable_mark_source=cable_mark_source,
             result_dict=result_dict,
         )
@@ -2604,6 +2619,55 @@ class CalculationService:
 
         return {}
 
+    def _candidate_identity_fallback_data(
+        self,
+        *,
+        obj: ProjectObject,
+        cable_type: str,
+        cable_mark: str | None,
+        cable_source: CableSource,
+        tlt_catalog: list[dict[str, Any]],
+        resistive_catalog: list[dict[str, Any]] | None,
+        overrides: dict[str, Any],
+    ) -> dict[str, Any]:
+        params = obj.params or {}
+        data: dict[str, Any] = dict(overrides)
+        data["cable_mark"] = cable_mark
+        data["cable_source"] = cable_source
+        data["supply_voltage"] = self._num(
+            overrides.get("supply_voltage") or params.get("supply_voltage"),
+            220.0,
+        )
+        data["winding_pitch"] = self._winding_pitch_mm(overrides, params)
+        if cable_type == "self_regulating":
+            data["cable_catalog"] = tlt_catalog
+            data["winding_coefficient"] = self._winding_coefficient(
+                obj, overrides, params, 1.0
+            )
+            data.update(
+                self._number_of_threads_payload(
+                    overrides,
+                    params,
+                    1 if cable_mark is not None else None,
+                )
+            )
+        elif cable_type == "self_regulating_tt":
+            data["winding_coefficient"] = self._winding_coefficient(
+                obj, overrides, params, 1.1
+            )
+            data.update(self._number_of_threads_payload(overrides, params, None))
+        elif cable_type in ("single_core", "three_core"):
+            data["winding_coefficient"] = self._winding_coefficient(
+                obj, overrides, params, 1.0
+            )
+            data["cable_catalog"] = (
+                self._resistive_manual_catalog(cable_type, cable_mark, resistive_catalog)
+                if cable_mark is not None
+                else resistive_catalog
+            )
+            data.update(self._number_of_threads_payload(overrides, params, 1))
+        return data
+
     def _layout_overrides_from_existing(self, calc: ElectricalCalculation | None) -> dict[str, Any]:
         if calc is None or not calc.results:
             return {}
@@ -3143,6 +3207,7 @@ class CalculationService:
 
         overrides = self._base_overrides_with_sources(electrical_params or {})
         request_data: dict[str, Any] = dict(overrides)
+        request: ElectricalRequest | None = None
         selected_mark: str | None = cable_mark
         result_dict: dict[str, Any] | None = None
         cable_snapshot: dict[str, Any] | None = None
@@ -3155,6 +3220,15 @@ class CalculationService:
                 await self.load_resistive_cable_catalog(cable_type, cable_source)
                 if cable_type in ("single_core", "three_core")
                 else None
+            )
+            request_data = self._candidate_identity_fallback_data(
+                obj=obj,
+                cable_type=cable_type,
+                cable_mark=cable_mark,
+                cable_source=cable_source,
+                tlt_catalog=catalog,
+                resistive_catalog=resistive_catalog,
+                overrides=overrides,
             )
             coefficients = await self.get_coefficients()
             request_data = self._build_electrical_data(
@@ -3185,6 +3259,19 @@ class CalculationService:
                 result_dict=result_dict,
             )
         except Exception as exc:
+            if request is not None and selected_mark:
+                cable_snapshot = self._build_cable_snapshot_for_result(
+                    request=request,
+                    cable_mark=selected_mark,
+                    result_dict=None,
+                )
+            elif selected_mark:
+                cable_snapshot = self._build_cable_snapshot_from_data(
+                    cable_type=cable_type,
+                    cable_mark=selected_mark,
+                    request_data=request_data,
+                    result_dict=None,
+                )
             status = ELECTRICAL_CANDIDATE_STATUS_ERROR
             reason_code = "candidate_calculation_failed"
             reason_message = _clean_exception_message(exc)

@@ -1,4 +1,5 @@
 import type { HeatCalcObjectType } from '@/types/project';
+import { formatNumber } from '@/utils/formatters';
 import {
   getInlineEditFieldConfig,
   getDraftRowValidationErrors,
@@ -479,10 +480,7 @@ export function formatExcelDraftCellDisplay(
 }
 
 function formatExcelNumber(value: number, maxDigits: number) {
-  return value.toLocaleString('ru-RU', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: maxDigits,
-  });
+  return formatNumber(value, maxDigits);
 }
 
 export function formatExcelCellDisplay(

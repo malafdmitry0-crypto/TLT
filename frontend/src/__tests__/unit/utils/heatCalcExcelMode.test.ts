@@ -332,8 +332,10 @@ describe('heatCalcExcelMode', () => {
     expect(formatExcelCellDisplay(numberFieldConfig(1), null)).toBe('');
     expect(formatExcelCellDisplay(numberFieldConfig(1), undefined)).toBe('');
     expect(formatExcelCellDisplay(numberFieldConfig(1), '')).toBe('');
-    expect(formatExcelCellDisplay(numberFieldConfig(1), 123)).toBe('123');
+    expect(formatExcelCellDisplay(numberFieldConfig(1), 123)).toBe('123,0');
     expect(formatExcelCellDisplay(numberFieldConfig(1), 10.5)).toBe('10,5');
+    expect(formatExcelCellDisplay(numberFieldConfig(2), 1.1)).toBe('1,10');
+    expect(formatExcelCellDisplay(numberFieldConfig(0), 123)).toBe('123');
     expect(formatExcelCellDisplay(fieldConfig('select'), '')).toBe('');
   });
 

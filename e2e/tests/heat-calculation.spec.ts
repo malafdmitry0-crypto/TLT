@@ -112,6 +112,27 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     await expect(page.getByRole('menuitem', { name: /Электротехнический расчёт/i })).toBeVisible();
   });
 
+  test('Excel-режим показывает числовые разряды как обычная таблица', async ({ page }) => {
+    await loginAsGuest(page);
+    const pipeName = `E2E heat excel digits ${Date.now()}`;
+    await createCalculatedPipe(page, pipeName, {
+      pipe_length: 5,
+      wall_thickness: 0.001,
+      safety_factor: 1.1,
+    });
+    await page.reload({ waitUntil: 'networkidle' });
+
+    await page.getByText('Excel-режим', { exact: true }).click();
+
+    const row = page.getByRole('row').filter({ hasText: pipeName }).first();
+    await expect(row).toBeVisible();
+    await expect(row.getByText('5,0', { exact: true })).toBeVisible();
+    await page.locator('.ant-table-body').evaluate((element) => {
+      element.scrollLeft = element.scrollWidth;
+    });
+    await expect(row.getByText('1,10', { exact: true })).toBeVisible();
+  });
+
   test('со страницы теплопотерь открывается электрорасчёт и запускается ручной пересчёт', async ({
     page,
   }) => {

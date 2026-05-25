@@ -124,6 +124,24 @@ async function fetchProjectObjects(page: Page) {
   }>>;
 }
 
+async function saveSelectedObjectAndWait(page: Page) {
+  const updateResponse = page.waitForResponse((response) => {
+    if (response.request().method() !== 'PUT') return false;
+    return /\/api\/v1\/projects\/[^/]+\/objects\/[^/]+$/.test(new URL(response.url()).pathname);
+  });
+  await page
+    .getByRole('toolbar', { name: 'Действия блока заполнения' })
+    .getByRole('button', { name: 'Сохранить' })
+    .click();
+  const response = await updateResponse;
+  expect(response.ok()).toBeTruthy();
+  return response.json() as Promise<{
+    is_valid: boolean;
+    params: Record<string, unknown>;
+    validation_errors?: Record<string, unknown> | null;
+  }>;
+}
+
 async function createInvalidDeclaredThreeLayerPipe(page: Page, name: string) {
   const { projectId, sessionId } = await currentGuestContext(page);
   const response = await page.request.post(`${API_BASE}/api/v1/projects/${projectId}/objects`, {
@@ -215,7 +233,7 @@ test.describe('inline form dependencies', () => {
 
     const updatedName = `${originalName} updated`;
     await page.getByTestId('object-name-input').fill(updatedName);
-    await page.getByRole('toolbar', { name: 'Действия блока заполнения' }).getByRole('button', { name: 'Сохранить' }).click();
+    await saveSelectedObjectAndWait(page);
 
     await expect(page.locator('.inline-object-form')).toBeVisible();
     await expect(page.getByTestId('object-name-input')).toHaveValue(updatedName);
@@ -343,9 +361,12 @@ test.describe('inline form dependencies', () => {
     await expect(page.getByTestId('second-insulation-material-select')).toHaveCount(0);
     await expect(page.getByTestId('third-insulation-material-select')).toHaveCount(0);
 
-    await page.getByRole('toolbar', { name: 'Действия блока заполнения' }).getByRole('button', { name: 'Сохранить' }).click();
+    const saved = await saveSelectedObjectAndWait(page);
     await expect(page.getByLabel('Ошибки выбранной строки')).toHaveCount(0);
 
+    expect(saved.is_valid).toBe(true);
+    expect(saved.validation_errors ?? null).toBeNull();
+    expect(saved.params.insulation_layer_count).toBe('1');
     const objects = await fetchProjectObjects(page);
     const updated = objects.find((obj) => obj.params.name === objectName);
     expect(updated).toBeTruthy();
