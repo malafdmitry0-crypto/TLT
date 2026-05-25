@@ -6,15 +6,23 @@ import HeatCalcExcelGrid from '@/components/heatcalc/HeatCalcExcelGrid';
 import type { HeatCalcExcelCellCoordinates } from '@/hooks/useHeatCalcExcelSelection';
 import type { ProjectObject } from '@/types/project';
 import type { ExcelCellPosition, ExcelSelectionRange } from '@/utils/heatCalcExcelMode';
-import { resolveHeatCalcExcelEngine } from '@/utils/heatCalcExcelEngine';
+import {
+  resolveHeatCalcExcelEngine,
+  resolveHeatCalcNormalTableEngine,
+} from '@/utils/heatCalcExcelEngine';
 import type {
   HeatCalcGlideGridCellState,
   HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
+import type {
+  HeatCalcColumnFilter,
+  HeatCalcTableViewState,
+} from '@/utils/heatCalcTableFindability';
 import type { HeatCalcObjectType } from '@/utils/heatCalcTableColumns';
 
 const { Text } = Typography;
 const HeatCalcGlideGrid = lazy(() => import('@/components/heatcalc/HeatCalcGlideGrid'));
+const HeatCalcNormalGlideGrid = lazy(() => import('@/components/heatcalc/HeatCalcNormalGlideGrid'));
 
 type ActiveObjectScope = HeatCalcObjectType | 'all';
 
@@ -29,6 +37,7 @@ interface HeatCalcObjectsTableCardProps {
   fontSizeKey: string;
   glideColumns: HeatCalcGlideGridColumn[];
   normalPagination: TableProps<ProjectObject>['pagination'];
+  activeTableViewState: HeatCalcTableViewState;
   selectedExcelPosition: HeatCalcExcelCellCoordinates | null;
   selectedExcelRowIndex: number | null;
   selectedRowKeys: string[];
@@ -51,6 +60,15 @@ interface HeatCalcObjectsTableCardProps {
     rowIndex: number,
   ) => HeatCalcGlideGridCellState;
   onGlideCellStartEdit: (record: ProjectObject, columnKey: string) => void;
+  onNormalGlideCellState: (
+    record: ProjectObject,
+    columnKey: string,
+    rowIndex: number,
+  ) => HeatCalcGlideGridCellState;
+  onNormalSetColumnFilter: (columnKey: string, filter?: HeatCalcColumnFilter) => void;
+  onNormalResetColumnFilter: (columnKey: string) => void;
+  onNormalSetSort: (columnKey: string, direction?: 'asc' | 'desc') => void;
+  onNormalPageChange: (page: number) => void;
   onOpenEditWizard: (record: ProjectObject) => void;
   onResetCurrentTableViewState: () => void;
   onSelectedRowKeysChange: (keys: string[]) => void;
@@ -124,6 +142,7 @@ export default function HeatCalcObjectsTableCard({
   fontSizeKey,
   glideColumns,
   normalPagination,
+  activeTableViewState,
   selectedExcelPosition,
   selectedExcelRowIndex,
   selectedRowKeys,
@@ -135,6 +154,11 @@ export default function HeatCalcObjectsTableCard({
   onGlideCellCommit,
   onGlideCellState,
   onGlideCellStartEdit,
+  onNormalGlideCellState,
+  onNormalSetColumnFilter,
+  onNormalResetColumnFilter,
+  onNormalSetSort,
+  onNormalPageChange,
   onOpenEditWizard,
   onResetCurrentTableViewState,
   onSelectedRowKeysChange,
@@ -142,6 +166,7 @@ export default function HeatCalcObjectsTableCard({
   rowClassName,
 }: HeatCalcObjectsTableCardProps) {
   const excelEngine = excelModeEnabled ? resolveHeatCalcExcelEngine() : 'table';
+  const normalEngine = excelModeEnabled ? 'table' : resolveHeatCalcNormalTableEngine();
   const excelEmptyContent = excelModeEnabled
     ? getExcelEmptyContent({
       activeObjectScope,
@@ -165,6 +190,12 @@ export default function HeatCalcObjectsTableCard({
       onReachScrollEnd={onExcelReachScrollEnd}
     />
   ) : null;
+  const normalEmptyContent = getNormalEmptyContent({
+    activeObjectScope,
+    activeTypeTotalCount,
+    currentTableViewActive,
+    onResetCurrentTableViewState,
+  });
 
   return (
     <Card size="small" className="workspace-table-card srs-table-wrap">
@@ -192,6 +223,28 @@ export default function HeatCalcObjectsTableCard({
         </Suspense>
       ) : excelModeEnabled ? (
         tableGrid
+      ) : normalEngine === 'glide' ? (
+        <Suspense fallback={null}>
+          <HeatCalcNormalGlideGrid
+            rows={dataSource}
+            gridColumns={glideColumns}
+            tableScrollX={tableScrollX}
+            tableScrollY={tableScrollY}
+            fontSizeKey={fontSizeKey}
+            selectedRowKeys={selectedRowKeys}
+            tableViewState={activeTableViewState}
+            pagination={normalPagination}
+            emptyContent={normalEmptyContent}
+            rowClassName={rowClassName}
+            getCellState={onNormalGlideCellState}
+            onOpenEditWizard={onOpenEditWizard}
+            onSelectedRowKeysChange={onSelectedRowKeysChange}
+            onSetColumnFilter={onNormalSetColumnFilter}
+            onResetColumnFilter={onNormalResetColumnFilter}
+            onSetSort={onNormalSetSort}
+            onPageChange={onNormalPageChange}
+          />
+        </Suspense>
       ) : (
         <Table<ProjectObject>
           className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey}`}
@@ -219,12 +272,7 @@ export default function HeatCalcObjectsTableCard({
             },
           })}
           locale={{
-            emptyText: getNormalEmptyContent({
-              activeObjectScope,
-              activeTypeTotalCount,
-              currentTableViewActive,
-              onResetCurrentTableViewState,
-            }),
+            emptyText: normalEmptyContent,
           }}
         />
       )}

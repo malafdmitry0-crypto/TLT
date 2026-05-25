@@ -17,8 +17,13 @@ export type HeatCalcGlideEditorKind = 'text' | 'number' | 'select';
 export interface HeatCalcGlideGridColumn {
   key: string;
   title: string;
+  label?: string;
   width: number;
   align?: HeatCalcGlideCellAlign;
+  sortable?: boolean;
+  filterable?: boolean;
+  filterKind?: 'text' | 'numberRange' | 'enum';
+  enumOptions?: { label: string; value: string }[];
 }
 
 export interface HeatCalcGlideGridCellState {

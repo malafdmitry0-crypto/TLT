@@ -848,6 +848,23 @@ html, body, #root {
   width: 100%;
 }
 
+.heatcalc-normal-glide-pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  border-top: 1px solid var(--heatcalc-table-outer-border);
+  background: #fff;
+}
+
+.heatcalc-normal-glide-filter-popup {
+  position: fixed;
+  z-index: 1100;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 12%);
+}
+
 .heatcalc-glide-engine-badge {
   position: absolute;
   right: 8px;

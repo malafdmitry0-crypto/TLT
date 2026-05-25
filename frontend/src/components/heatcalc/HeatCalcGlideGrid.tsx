@@ -100,6 +100,16 @@ function contentAlign(
   return state.editor === 'number' ? 'right' : 'left';
 }
 
+function isErrorRowClassName(className: string) {
+  return className.includes('row-invalid')
+    || className.includes('row-excel-error')
+    || className.includes('row-error');
+}
+
+function isDirtyRowClassName(className: string) {
+  return className.includes('row-excel-dirty') || className.includes('row-dirty');
+}
+
 function HeatCalcGlideGrid({
   rows,
   tableScrollX,
@@ -156,9 +166,10 @@ function HeatCalcGlideGrid({
     const modelCell = getModelCell(columnIndex, rowIndex);
     if (!modelCell) return blankCell();
     const text = modelCell.state.displayValue;
-    const bgCell = modelCell.state.error
+    const rowClasses = rowClassName(modelCell.record);
+    const bgCell = modelCell.state.error || isErrorRowClassName(rowClasses)
       ? '#fff1f0'
-      : modelCell.state.dirty
+      : modelCell.state.dirty || isDirtyRowClassName(rowClasses)
         ? '#fffbe6'
         : undefined;
     return {
@@ -171,7 +182,7 @@ function HeatCalcGlideGrid({
       contentAlign: contentAlign(modelCell.column, modelCell.state),
       themeOverride: bgCell ? { bgCell } : undefined,
     };
-  }, [getModelCell]);
+  }, [getModelCell, rowClassName]);
   const openEditorForCell = useCallback((cell: Item) => {
     const modelCell = getModelCell(cell[0], cell[1]);
     if (!modelCell?.state.editable) return;
@@ -301,10 +312,10 @@ function HeatCalcGlideGrid({
           const record = rows[rowIndex];
           if (!record) return undefined;
           const className = rowClassName(record);
-          if (className.includes('row-excel-error') || className.includes('row-error')) {
+          if (isErrorRowClassName(className)) {
             return { bgCell: '#fff1f0' };
           }
-          if (className.includes('row-excel-dirty') || className.includes('row-dirty')) {
+          if (isDirtyRowClassName(className)) {
             return { bgCell: '#fffbe6' };
           }
           return undefined;

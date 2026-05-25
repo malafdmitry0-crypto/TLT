@@ -250,7 +250,8 @@
 
 **Автоматизировано:** Frontend unit ✅ `HeatCalcExcelGrid.test.tsx` для DOM-count<br>
 **Perf/manual default Glide engine:** `npm --prefix frontend run perf:heat-excel-virtual -- --url=http://localhost:3003 --rows=1000,3000`<br>
-**Perf/manual table fallback:** `npm --prefix frontend run perf:heat-excel-virtual -- --url=http://localhost:3003 --rows=1000,3000 --engine=table`
+**Perf/manual table fallback:** `npm --prefix frontend run perf:heat-excel-virtual -- --url=http://localhost:3003 --rows=1000,3000 --engine=table`<br>
+**Normal mode Glide flag:** `?normalTableEngine=glide` или `localStorage.heatcalc.normalTableEngine = "glide"`; дефолт обычного режима остаётся AntD Table. В Glide normal header click переключает сортировку, header menu / правый клик по заголовку открывает тот же фильтр, что и AntD Table.
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|

@@ -1745,6 +1745,10 @@ export default function HeatCalcPage() {
     },
     [excelModeEnabled, excelTableRows, isAllObjectScope, objectQueryResult, visibleAllTableRows, visibleTableObjects],
   );
+  const visibleSourceIndexById = useMemo(
+    () => new Map(visibleTableRows.map(({ record, sourceIndex }) => [record.id, sourceIndex])),
+    [visibleTableRows],
+  );
   const wizardBaseObject = useMemo(() => {
     const editingObject = wizardState?.editingObject;
     if (!editingObject) return null;
@@ -2298,13 +2302,34 @@ export default function HeatCalcPage() {
   }, []);
 
   const glideGridColumns = useMemo<HeatCalcGlideGridColumn[]>(
-    () => sourceColumnMetas.map((meta) => ({
-      key: meta.key,
-      title: meta.title,
-      width: meta.width,
-      align: normalizeGlideCellAlign(columnRenderers[meta.key]?.align),
-    })),
-    [columnRenderers, sourceColumnMetas],
+    () => sourceColumnMetas.map((meta) => {
+      const capability = fieldCapabilityByKey.get(meta.key);
+      const filterEnabled = !excelModeEnabled
+        && meta.filterable !== false
+        && (isAllObjectScope || (capability?.filter.enabled ?? true));
+      const sortEnabled = !excelModeEnabled
+        && meta.sortable !== false
+        && (isAllObjectScope || (capability?.sort.enabled ?? true));
+      return {
+        key: meta.key,
+        title: meta.title,
+        label: meta.label,
+        width: meta.width,
+        align: normalizeGlideCellAlign(columnRenderers[meta.key]?.align),
+        sortable: sortEnabled,
+        filterable: filterEnabled,
+        filterKind: filterKindForColumn(meta.key, capability),
+        enumOptions: enumOptionsByColumn[meta.key] ?? [],
+      };
+    }),
+    [
+      columnRenderers,
+      enumOptionsByColumn,
+      excelModeEnabled,
+      fieldCapabilityByKey,
+      isAllObjectScope,
+      sourceColumnMetas,
+    ],
   );
 
   const getGlideGridCellState = useCallback((
@@ -2354,6 +2379,38 @@ export default function HeatCalcPage() {
     isAllObjectScope,
     isSavableDraftRow,
     tableCellEditingEnabled,
+  ]);
+
+  const getNormalGlideGridCellState = useCallback((
+    record: ProjectObject,
+    columnKey: string,
+    rowIndex: number,
+  ): HeatCalcGlideGridCellState => {
+    const draftRow = draftRowsById[record.id];
+    const renderer = columnRenderers[columnKey];
+    const rendererAlign = normalizeGlideCellAlign(renderer?.align);
+    if (isAllObjectScope && !isColumnApplicableToObjectType(columnKey, record.object_type)) {
+      return {
+        displayValue: INAPPLICABLE_TABLE_VALUE,
+        editable: false,
+        align: rendererAlign,
+      };
+    }
+
+    const displayRecord = buildDraftDisplayRecord(draftRow, record);
+    const sourceIndex = visibleSourceIndexById.get(record.id) ?? rowIndex;
+    return {
+      displayValue: String(renderer?.copyValue(displayRecord, sourceIndex) ?? ''),
+      editable: false,
+      dirty: isSavableDraftRow(draftRow),
+      align: rendererAlign,
+    };
+  }, [
+    columnRenderers,
+    draftRowsById,
+    isAllObjectScope,
+    isSavableDraftRow,
+    visibleSourceIndexById,
   ]);
 
   const notifyExcelSuccess = useCallback((message: string) => {
@@ -2581,6 +2638,27 @@ export default function HeatCalcPage() {
         sort: columnKey && order
           ? { columnKey, direction: order === 'ascend' ? 'asc' : 'desc' }
           : undefined,
+      },
+    }));
+  }, [activeObjectScope, activeTableObjectType, isAllObjectScope]);
+
+  const handleNormalTableSortChange = useCallback((
+    columnKey: HeatCalcColumnKey,
+    direction?: 'asc' | 'desc',
+  ) => {
+    setTablePageByScope((current) => ({ ...current, [activeObjectScope]: 1 }));
+    if (isAllObjectScope) {
+      setAllTableViewState((current) => ({
+        ...current,
+        sort: direction ? { columnKey, direction } : undefined,
+      }));
+      return;
+    }
+    setTableViewStateByType((current) => ({
+      ...current,
+      [activeTableObjectType]: {
+        ...current[activeTableObjectType],
+        sort: direction ? { columnKey, direction } : undefined,
       },
     }));
   }, [activeObjectScope, activeTableObjectType, isAllObjectScope]);
@@ -3475,6 +3553,9 @@ export default function HeatCalcPage() {
     objectQueryResult?.page_info.page,
     objectQueryResult?.page_info.page_size,
   ]);
+  const handleNormalTablePageChange = useCallback((page: number) => {
+    setTablePageByScope((current) => ({ ...current, [activeObjectScope]: page }));
+  }, [activeObjectScope]);
 
   const formPanel = renderFormPanel();
 
@@ -3524,6 +3605,7 @@ export default function HeatCalcPage() {
                 fontSizeKey={resolvedTableFontSize.key}
                 glideColumns={glideGridColumns}
                 normalPagination={normalTablePagination}
+                activeTableViewState={activeTableViewState}
                 selectedExcelPosition={selectedExcelPosition}
                 selectedExcelRowIndex={selectedExcelPosition?.rowIndex ?? null}
                 selectedRowKeys={selectedRowKeys}
@@ -3535,6 +3617,11 @@ export default function HeatCalcPage() {
                 onGlideCellCommit={commitInlineCell}
                 onGlideCellState={getGlideGridCellState}
                 onGlideCellStartEdit={startInlineCellEdit}
+                onNormalGlideCellState={getNormalGlideGridCellState}
+                onNormalSetColumnFilter={setColumnFilter}
+                onNormalResetColumnFilter={resetColumnFilter}
+                onNormalSetSort={handleNormalTableSortChange}
+                onNormalPageChange={handleNormalTablePageChange}
                 onOpenEditWizard={openEditWizard}
                 onResetCurrentTableViewState={resetCurrentTableViewState}
                 onSelectedRowKeysChange={setSelectedRowKeys}
