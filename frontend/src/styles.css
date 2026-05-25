@@ -724,6 +724,10 @@ html, body, #root {
 
 .calc-spreadsheet--excel-mode .editable-cell-display {
   cursor: cell;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .calc-spreadsheet--excel-mode .editable-cell-display.selected {
@@ -744,6 +748,71 @@ html, body, #root {
 .calc-spreadsheet--excel-mode .excel-row-header-cell {
   padding: 0 !important;
   background: #f8fafc;
+}
+
+.calc-spreadsheet--virtual .ant-table {
+  border: 1px solid var(--heatcalc-table-outer-border);
+  overflow: hidden;
+}
+
+.excel-virtual-table-body {
+  overflow: auto;
+}
+
+.excel-virtual-table-body table {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed !important;
+}
+
+.excel-virtual-table-body .ant-table-thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+.excel-virtual-table-body .ant-table-tbody > tr > td,
+.excel-virtual-table-body .ant-table-thead > tr > th {
+  border-right: 1px solid var(--heatcalc-table-grid-border) !important;
+}
+
+.excel-virtual-table-body .ant-table-cell-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.excel-virtual-table-body .ant-table-cell-ellipsis > * {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.excel-virtual-table-body .ant-table-tbody > tr:hover > td {
+  background: #f0f7ff !important;
+  cursor: pointer;
+}
+
+.excel-virtual-spacer > td {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  pointer-events: none;
+}
+
+.excel-virtual-empty {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  border: 1px solid var(--heatcalc-table-outer-border);
+  background: #fff;
+}
+
+.excel-virtual-pagination {
+  margin: 12px 0 0;
 }
 
 .excel-row-header-button {

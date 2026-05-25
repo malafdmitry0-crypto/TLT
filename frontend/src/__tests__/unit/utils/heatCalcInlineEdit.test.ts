@@ -361,6 +361,7 @@ describe('heatCalcInlineEdit', () => {
     };
 
     expect(getDraftRowValidationErrors(parseErrorDraft).vapor_temperature).toBe('Введите число');
+    expect(getDraftRowValidationErrors(parseErrorDraft, { enforceRequired: true }).vapor_temperature).toBe('Введите число');
     expect(() => buildDraftRowParams(parseErrorDraft)).toThrow('Исправьте ошибки');
   });
 

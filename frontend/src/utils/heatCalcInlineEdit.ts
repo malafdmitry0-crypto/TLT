@@ -378,14 +378,13 @@ export function getDraftRowValidationErrors(
     })) {
       continue;
     }
-    if (errors[fieldId]) continue;
     const currentValue = draftRow.draftFormValues[fieldId];
     if (hasMeaningfulDraftValue(currentValue)) continue;
     normalizedStoredErrors[fieldId] = message;
   }
   return {
-    ...normalizedStoredErrors,
     ...errors,
+    ...normalizedStoredErrors,
   };
 }
 

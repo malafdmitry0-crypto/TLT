@@ -134,7 +134,7 @@ test.describe('Excel-режим таблицы теплопотерь', () => {
 
     const row = page.getByRole('row').filter({ hasText: pipeName }).first();
     await expect(row).toBeVisible();
-    await row.getByRole('button', { name: '50', exact: true }).first().click();
+    await row.getByRole('button', { name: '50,0', exact: true }).first().click();
 
     await page.evaluate((text) => {
       const data = new DataTransfer();
