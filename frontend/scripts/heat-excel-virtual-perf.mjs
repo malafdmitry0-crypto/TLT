@@ -286,6 +286,42 @@ async function runForRowCount(browser, rowCount) {
     if (flatCellChrome.boxShadow !== 'none' || flatCellChrome.backgroundColor !== 'rgba(0, 0, 0, 0)') {
       throw new Error(`Excel cells should use flat grid chrome, got ${JSON.stringify(flatCellChrome)}`);
     }
+    const selectionStart = await page.locator('.excel-virtual-row').nth(1).locator('.editable-cell-display').first().boundingBox();
+    const selectionEnd = await page.locator('.excel-virtual-row').nth(8).locator('.editable-cell-display').first().boundingBox();
+    if (!selectionStart || !selectionEnd) {
+      throw new Error(`Excel selection probe failed at ${rowCount}: missing cell bounds`);
+    }
+    await page.mouse.move(selectionStart.x + 8, selectionStart.y + selectionStart.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(selectionEnd.x + selectionEnd.width - 8, selectionEnd.y + selectionEnd.height / 2, { steps: 16 });
+    await page.mouse.up();
+    await afterFrame(page);
+    const selectionChrome = await page.evaluate(() => {
+      const selected = [...document.querySelectorAll('.excel-virtual-row .editable-cell-display.selected')];
+      const active = document.querySelector('.excel-virtual-row .editable-cell-display.active-selection');
+      const activeStyle = active ? getComputedStyle(active) : null;
+      const activeOverlayStyle = active ? getComputedStyle(active, '::after') : null;
+      return {
+        selectedCount: selected.length,
+        selectedWithShadow: selected.filter((element) => getComputedStyle(element).boxShadow !== 'none').length,
+        selectedWithNativeTextSelect: selected.filter((element) => getComputedStyle(element).userSelect !== 'none').length,
+        nativeSelectionTextLength: window.getSelection()?.toString().length ?? 0,
+        activeBoxShadow: activeStyle?.boxShadow ?? '',
+        activeOverlayBorderTopWidth: activeOverlayStyle?.borderTopWidth ?? '',
+        activeOverlayPointerEvents: activeOverlayStyle?.pointerEvents ?? '',
+      };
+    });
+    if (
+      selectionChrome.selectedCount < 2
+      || selectionChrome.selectedWithShadow > 0
+      || selectionChrome.selectedWithNativeTextSelect > 0
+      || selectionChrome.nativeSelectionTextLength > 0
+      || selectionChrome.activeBoxShadow !== 'none'
+      || selectionChrome.activeOverlayBorderTopWidth !== '2px'
+      || selectionChrome.activeOverlayPointerEvents !== 'none'
+    ) {
+      throw new Error(`Excel selection chrome should avoid per-cell shadows/native text selection, got ${JSON.stringify(selectionChrome)}`);
+    }
 
     await measure('scroll-to-bottom', async () => {
       await page.locator('.excel-virtual-table-body').evaluate((element) => {

@@ -723,6 +723,7 @@ html, body, #root {
 }
 
 .calc-spreadsheet--excel-mode .editable-cell-display {
+  position: relative;
   cursor: cell;
   display: block;
   overflow: hidden;
@@ -731,6 +732,8 @@ html, body, #root {
   background: transparent;
   box-shadow: none;
   text-overflow: ellipsis;
+  user-select: none;
+  -webkit-user-select: none;
   white-space: nowrap;
 }
 
@@ -742,16 +745,24 @@ html, body, #root {
 .calc-spreadsheet--excel-mode .editable-cell-display.selected {
   border-color: transparent;
   background: #eef7ff;
-  box-shadow: inset 0 0 0 1px rgb(46 134 193 / 12%);
+  box-shadow: none;
   outline: none;
 }
 
 .calc-spreadsheet--excel-mode .editable-cell-display.active-selection {
-  border-color: #1a5276;
-  box-shadow:
-    inset 0 0 0 2px #1a5276,
-    0 0 0 1px #1a5276;
+  border-color: transparent;
+  box-shadow: none;
   outline: none;
+}
+
+.calc-spreadsheet--excel-mode .editable-cell-display.active-selection::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  border: 2px solid #1a5276;
+  pointer-events: none;
 }
 
 .calc-spreadsheet--excel-mode .excel-row-header-cell {
@@ -955,22 +966,28 @@ html, body, #root {
 
 .calc-spreadsheet--excel-mode .editable-cell-display.selected:not(.error) {
   background: #eef7ff;
+  box-shadow: none;
 }
 
 .calc-spreadsheet--excel-mode .editable-cell-display.selected.dirty:not(.error) {
   background: linear-gradient(135deg, #fff7d6 0 18%, #eef7ff 18% 100%);
+  box-shadow: none;
 }
 
 .calc-spreadsheet--excel-mode .editable-cell-display.selected.error {
   border-color: #d9363e;
   background: #fff1f0;
+  box-shadow: none;
 }
 
 .calc-spreadsheet--excel-mode .editable-cell-display.active-selection {
-  border-color: #1a5276;
-  box-shadow:
-    inset 0 0 0 2px #1a5276,
-    0 0 0 1px #1a5276;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.calc-spreadsheet--excel-mode .row-selected > .editable-cell-enabled .editable-cell-display.selected,
+.calc-spreadsheet--excel-mode .row-dirty > .editable-cell-enabled .editable-cell-display.selected {
+  box-shadow: none;
 }
 
 .editable-cell-editor-wrap {

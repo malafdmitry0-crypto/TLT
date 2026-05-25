@@ -129,6 +129,41 @@ describe('EditableTableCell', () => {
     expect(getComputedStyle(display).backgroundColor).toBe('rgba(0, 0, 0, 0)');
   });
 
+  it('renders Excel range selection without per-cell shadow chrome', () => {
+    render(
+      <div className="calc-spreadsheet calc-spreadsheet--excel-mode">
+        <table>
+          <tbody>
+            <tr>
+              <td className="editable-cell-host editable-cell-enabled">
+                <EditableTableCell
+                  active={false}
+                  excelMode
+                  selected
+                  selectionActive
+                  field={numericField}
+                  value={108}
+                  onStartEdit={vi.fn()}
+                  onCommit={() => null}
+                  onCancel={vi.fn()}
+                >
+                  108
+                </EditableTableCell>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>,
+    );
+
+    const display = screen.getByRole('button', { name: '108' });
+    const style = getComputedStyle(display);
+    expect(display).toHaveClass('selected');
+    expect(display).toHaveClass('active-selection');
+    expect(style.boxShadow).toBe('none');
+    expect(style.userSelect).toBe('none');
+  });
+
   it('shows active editor error state and message', () => {
     const { container } = render(
       <EditableTableCell
