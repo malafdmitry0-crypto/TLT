@@ -7,21 +7,10 @@ import {
   type ReactNode,
   type TdHTMLAttributes,
 } from 'react';
-import { Pagination } from 'antd';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ColumnType } from 'antd/es/table';
 
 import type { ProjectObject } from '@/types/project';
-
-export interface HeatCalcExcelGridPagination {
-  current: number;
-  pageSize: number;
-  total: number;
-  showSizeChanger?: boolean;
-  hideOnSinglePage?: boolean;
-  size?: 'default' | 'small';
-  onChange: (page: number, pageSize: number) => void;
-}
 
 interface HeatCalcExcelGridProps {
   rows: ProjectObject[];
@@ -33,7 +22,6 @@ interface HeatCalcExcelGridProps {
   emptyContent: ReactNode;
   rowClassName: (record: ProjectObject) => string;
   onRowSecondaryAction: (record: ProjectObject, event: MouseEvent<HTMLElement>) => void;
-  pagination?: HeatCalcExcelGridPagination;
   overscan?: number;
   rowEstimatePx?: number;
 }
@@ -48,7 +36,6 @@ function HeatCalcExcelGrid({
   emptyContent,
   rowClassName,
   onRowSecondaryAction,
-  pagination,
   overscan = 12,
   rowEstimatePx = 30,
 }: HeatCalcExcelGridProps) {
@@ -88,19 +75,6 @@ function HeatCalcExcelGrid({
     ? Math.max(0, virtualTotalSize - lastVirtualRow.end)
     : 0;
   const className = `calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--excel-mode calc-spreadsheet--virtual`;
-  const paginationNode = pagination && (!pagination.hideOnSinglePage || pagination.total > pagination.pageSize)
-    ? (
-        <Pagination
-          className="ant-table-pagination ant-table-pagination-right excel-virtual-pagination"
-          current={pagination.current}
-          pageSize={pagination.pageSize}
-          total={pagination.total}
-          showSizeChanger={pagination.showSizeChanger}
-          size={pagination.size}
-          onChange={pagination.onChange}
-        />
-      )
-    : null;
 
   if (rows.length === 0) {
     return (
@@ -108,7 +82,6 @@ function HeatCalcExcelGrid({
         <div className="excel-virtual-empty">
           {emptyContent}
         </div>
-        {paginationNode}
       </div>
     );
   }
@@ -226,7 +199,6 @@ function HeatCalcExcelGrid({
           </div>
         </div>
       </div>
-      {paginationNode}
     </div>
   );
 }

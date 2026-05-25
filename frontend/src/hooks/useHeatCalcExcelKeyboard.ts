@@ -14,7 +14,7 @@ interface UseHeatCalcExcelKeyboardOptions {
   moveSelection: (rowDelta: number, columnDelta: number, wrap?: boolean, extend?: boolean) => void;
   selectAllCells: () => void;
   copySelection: () => Promise<boolean>;
-  applyPaste: (text: string) => void;
+  applyPaste: (text: string) => void | Promise<void>;
   startInlineCellEdit: (record: ProjectObject, columnKey: string) => void;
 }
 
@@ -98,7 +98,7 @@ export function useHeatCalcExcelKeyboard({
       const text = event.clipboardData?.getData('text/plain') ?? '';
       if (!text) return;
       event.preventDefault();
-      applyPaste(text);
+      void applyPaste(text);
     }
 
     document.addEventListener('keydown', handleKeyDown);

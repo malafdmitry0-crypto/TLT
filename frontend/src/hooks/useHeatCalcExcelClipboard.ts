@@ -22,6 +22,9 @@ import {
 } from '@/utils/heatCalcExcelMode';
 import { applyExcelDraftRowPatch, type ExcelLocalProjectObject } from '@/utils/heatCalcExcelRows';
 
+const LARGE_PASTE_ROW_THRESHOLD = 500;
+const LARGE_PASTE_CHUNK_ROWS = 100;
+
 interface UseHeatCalcExcelClipboardOptions {
   excelModeEnabled: boolean;
   rows: ProjectObject[];
@@ -39,6 +42,20 @@ interface UseHeatCalcExcelClipboardOptions {
   notifySuccess: (message: string) => void;
   notifyError: (message: string) => void;
   notifyInfo: (message: string) => void;
+}
+
+function waitForPasteChunk() {
+  if (typeof window === 'undefined') return Promise.resolve();
+  const win = window as Window & {
+    requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+  };
+  return new Promise<void>((resolve) => {
+    if (win.requestIdleCallback) {
+      win.requestIdleCallback(() => resolve(), { timeout: 50 });
+      return;
+    }
+    win.setTimeout(resolve, 0);
+  });
 }
 
 export function useHeatCalcExcelClipboard({
@@ -128,11 +145,15 @@ export function useHeatCalcExcelClipboard({
     clearSelection();
   }, [clearSelection, copySelection]);
 
-  const applyPaste = useCallback((text: string) => {
+  const applyPaste = useCallback(async (text: string) => {
     const origin = getExcelSelectionOrigin(selectionRange, activeCell, rowIds, columnKeys);
     if (!excelModeEnabled || !origin) return;
     const pastedRows = parseSpreadsheetText(text);
     if (pastedRows.length === 0) return;
+    const largePaste = pastedRows.length > LARGE_PASTE_ROW_THRESHOLD;
+    if (largePaste) {
+      notifyInfo(`Обрабатывается вставка: ${pastedRows.length} строк`);
+    }
     const startRowIndex = rowIds.indexOf(origin.rowId);
     const startColumnIndex = columnKeys.indexOf(origin.columnKey);
     if (startRowIndex < 0 || startColumnIndex < 0) return;
@@ -147,11 +168,15 @@ export function useHeatCalcExcelClipboard({
     let invalidCells = 0;
 
     let nextDraftRows: DraftRowsById = { ...draftRowsById };
-    pastedRows.forEach((row, rowOffset) => {
+    for (let rowOffset = 0; rowOffset < pastedRows.length; rowOffset += 1) {
+      if (largePaste && rowOffset > 0 && rowOffset % LARGE_PASTE_CHUNK_ROWS === 0) {
+        await waitForPasteChunk();
+      }
+      const row = pastedRows[rowOffset] ?? [];
       const record = targetObjects[startRowIndex + rowOffset];
       if (!record) {
         skippedCells += row.length;
-        return;
+        continue;
       }
       row.forEach((rawValue, columnOffset) => {
         const columnKey = columnKeys[startColumnIndex + columnOffset];
@@ -189,7 +214,7 @@ export function useHeatCalcExcelClipboard({
         nextDraftRows = patchedDraftRows;
         changedCells += 1;
       });
-    });
+    }
     setDraftRowsById(nextDraftRows);
 
     const summary = `Вставлено ячеек: ${changedCells}` +
@@ -208,6 +233,7 @@ export function useHeatCalcExcelClipboard({
     draftRowsById,
     excelModeEnabled,
     notifyError,
+    notifyInfo,
     notifySuccess,
     rows,
     rowIds,
@@ -222,7 +248,7 @@ export function useHeatCalcExcelClipboard({
         notifyInfo('Буфер обмена пуст');
         return;
       }
-      applyPaste(text);
+      await applyPaste(text);
     } catch (error) {
       notifyError(error instanceof Error ? error.message : 'Не удалось прочитать буфер обмена');
     }

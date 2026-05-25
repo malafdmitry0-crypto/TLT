@@ -1,7 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import EditableTableCell from '@/components/heatcalc/EditableTableCell';
+import EditableTableCell, {
+  areEditableTableCellPropsEqual,
+  type EditableTableCellProps,
+} from '@/components/heatcalc/EditableTableCell';
 import type { HeatCalcFieldDefinition } from '@/domain/heatCalcFields';
 import '@/styles.css';
 
@@ -163,5 +166,38 @@ describe('EditableTableCell', () => {
     expect(getComputedStyle(wrap!).maxWidth).toBe('100%');
     expect(getComputedStyle(editor!).minWidth).toMatch(/^0(px)?$/);
     expect(getComputedStyle(editor!).maxWidth).toBe('100%');
+  });
+
+  it('skips rerender when only event callbacks change for the same Excel cell', () => {
+    const baseProps: EditableTableCellProps = {
+      rowId: 'row-1',
+      columnKey: 'pipe_length',
+      rowIndex: 10,
+      columnIndex: 3,
+      active: false,
+      selected: false,
+      selectionActive: false,
+      excelMode: true,
+      dirty: false,
+      field: numericField,
+      value: 25,
+      children: '25',
+      onStartEdit: vi.fn(),
+      onCommit: vi.fn(() => null),
+      onCancel: vi.fn(),
+    };
+
+    expect(areEditableTableCellPropsEqual(baseProps, {
+      ...baseProps,
+      onStartEdit: vi.fn(),
+      onCommit: vi.fn(() => null),
+      onCancel: vi.fn(),
+    })).toBe(true);
+
+    expect(areEditableTableCellPropsEqual(baseProps, {
+      ...baseProps,
+      value: 26,
+      children: '26',
+    })).toBe(false);
   });
 });

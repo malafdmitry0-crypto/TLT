@@ -3307,28 +3307,6 @@ export default function HeatCalcPage() {
     return classes.join(' ');
   }, [draftRowsById, excelModeEnabled, isSavableDraftRow, selectedRowId]);
 
-  const handleExcelPageChange = useCallback((nextPage: number) => {
-    setTablePageByScope((current) => ({ ...current, [activeObjectScope]: nextPage }));
-  }, [activeObjectScope]);
-
-  const excelGridPagination = useMemo(() => ({
-    current: isAllObjectScope ? activeTablePage : objectQueryResult?.page_info.page ?? activeTablePage,
-    pageSize: isAllObjectScope
-      ? DEFAULT_OBJECT_QUERY_PAGE_SIZE
-      : objectQueryResult?.page_info.page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE,
-    total: filteredTableCount,
-    showSizeChanger: false,
-    hideOnSinglePage: true,
-    size: 'small' as const,
-    onChange: handleExcelPageChange,
-  }), [
-    activeTablePage,
-    filteredTableCount,
-    handleExcelPageChange,
-    isAllObjectScope,
-    objectQueryResult?.page_info.page,
-    objectQueryResult?.page_info.page_size,
-  ]);
   const normalTablePagination = useMemo<TableProps<ProjectObject>['pagination']>(() => ({
     current: isAllObjectScope ? activeTablePage : objectQueryResult?.page_info.page ?? activeTablePage,
     pageSize: isAllObjectScope
@@ -3390,7 +3368,6 @@ export default function HeatCalcPage() {
                 currentTableViewActive={currentTableViewActive}
                 dataSource={visibleTableObjects}
                 excelModeEnabled={excelModeEnabled}
-                excelPagination={excelGridPagination}
                 fontSizeKey={resolvedTableFontSize.key}
                 normalPagination={normalTablePagination}
                 selectedExcelRowIndex={selectedExcelPosition?.rowIndex ?? null}

@@ -220,6 +220,10 @@ export function useHeatCalcTableColumns({
             : undefined;
           return (
             <EditableTableCell
+              rowId={record.id}
+              columnKey={meta.key}
+              rowIndex={index}
+              columnIndex={columnIndex}
               active={activeInlineCell?.objectId === record.id && activeInlineCell.columnKey === meta.key}
               selected={isExcelCellInRange(excelSelectionRange, record.id, meta.key, excelRowIds, editableExcelColumnKeys)}
               selectionActive={isExcelCellActive(activeExcelCellPosition, record.id, meta.key)}

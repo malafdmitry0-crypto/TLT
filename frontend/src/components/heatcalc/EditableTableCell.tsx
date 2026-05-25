@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Input, InputNumber, Select } from 'antd';
 import type { HeatCalcFieldDefinition } from '@/domain/heatCalcFields';
 
 export interface EditableTableCellProps {
+  rowId?: string;
+  columnKey?: string;
+  rowIndex?: number;
+  columnIndex?: number;
   active: boolean;
   selected?: boolean;
   selectionActive?: boolean;
@@ -32,7 +36,7 @@ function normalizeNumberValue(value: unknown) {
   return Number.isFinite(numberValue) ? numberValue : null;
 }
 
-export default function EditableTableCell({
+function EditableTableCell({
   active,
   selected = false,
   selectionActive = false,
@@ -242,3 +246,39 @@ export default function EditableTableCell({
     </div>
   );
 }
+
+function areOptionsEqual(
+  previous: HeatCalcFieldDefinition['options'] | undefined,
+  next: HeatCalcFieldDefinition['options'] | undefined,
+) {
+  if (previous === next) return true;
+  if (!previous || !next || previous.length !== next.length) return false;
+  return previous.every((option, index) => {
+    const nextOption = next[index];
+    return option.label === nextOption?.label && option.value === nextOption?.value;
+  });
+}
+
+// eslint-disable-next-line react-refresh/only-export-components -- unit tests cover the memo comparator.
+export function areEditableTableCellPropsEqual(
+  previous: EditableTableCellProps,
+  next: EditableTableCellProps,
+) {
+  return previous.rowId === next.rowId
+    && previous.columnKey === next.columnKey
+    && previous.rowIndex === next.rowIndex
+    && previous.columnIndex === next.columnIndex
+    && previous.active === next.active
+    && previous.selected === next.selected
+    && previous.selectionActive === next.selectionActive
+    && previous.excelMode === next.excelMode
+    && previous.dirty === next.dirty
+    && previous.error === next.error
+    && previous.field === next.field
+    && areOptionsEqual(previous.options, next.options)
+    && previous.step === next.step
+    && previous.value === next.value
+    && previous.children === next.children;
+}
+
+export default memo(EditableTableCell, areEditableTableCellPropsEqual);

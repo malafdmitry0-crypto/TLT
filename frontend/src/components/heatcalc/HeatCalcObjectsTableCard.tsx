@@ -2,9 +2,7 @@ import { Button, Card, Table, Typography, type TableProps } from 'antd';
 import type { Key, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import type { ColumnType } from 'antd/es/table';
 
-import HeatCalcExcelGrid, {
-  type HeatCalcExcelGridPagination,
-} from '@/components/heatcalc/HeatCalcExcelGrid';
+import HeatCalcExcelGrid from '@/components/heatcalc/HeatCalcExcelGrid';
 import type { ProjectObject } from '@/types/project';
 import type { HeatCalcObjectType } from '@/utils/heatCalcTableColumns';
 
@@ -19,7 +17,6 @@ interface HeatCalcObjectsTableCardProps {
   currentTableViewActive: boolean;
   dataSource: ProjectObject[];
   excelModeEnabled: boolean;
-  excelPagination: HeatCalcExcelGridPagination;
   fontSizeKey: string;
   normalPagination: TableProps<ProjectObject>['pagination'];
   selectedExcelRowIndex: number | null;
@@ -99,7 +96,6 @@ export default function HeatCalcObjectsTableCard({
   currentTableViewActive,
   dataSource,
   excelModeEnabled,
-  excelPagination,
   fontSizeKey,
   normalPagination,
   selectedExcelRowIndex,
@@ -131,7 +127,6 @@ export default function HeatCalcObjectsTableCard({
           })}
           rowClassName={rowClassName}
           onRowSecondaryAction={onExcelRowSecondaryAction}
-          pagination={excelPagination}
         />
       ) : (
         <Table<ProjectObject>
