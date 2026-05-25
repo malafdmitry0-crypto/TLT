@@ -99,6 +99,36 @@ describe('EditableTableCell', () => {
     expect(container.querySelector('.editable-cell-display.error')).toBe(display);
   });
 
+  it('renders inactive Excel-mode cells as flat grid cells without input-like chrome', () => {
+    render(
+      <div className="calc-spreadsheet calc-spreadsheet--excel-mode">
+        <table>
+          <tbody>
+            <tr>
+              <td className="editable-cell-host editable-cell-enabled">
+                <EditableTableCell
+                  active={false}
+                  excelMode
+                  field={numericField}
+                  value={108}
+                  onStartEdit={vi.fn()}
+                  onCommit={() => null}
+                  onCancel={vi.fn()}
+                >
+                  108
+                </EditableTableCell>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>,
+    );
+
+    const display = screen.getByRole('button', { name: '108' });
+    expect(getComputedStyle(display).boxShadow).toBe('none');
+    expect(getComputedStyle(display).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+  });
+
   it('shows active editor error state and message', () => {
     const { container } = render(
       <EditableTableCell

@@ -53,7 +53,7 @@ export function useHeatCalcExcelKeyboard({
         return;
       }
 
-      if (event.key === 'Enter') {
+      if (event.key === 'Enter' || event.key === 'F2') {
         event.preventDefault();
         const record = rows[selectedPosition.rowIndex];
         const columnKey = editableColumnKeys[selectedPosition.columnIndex];

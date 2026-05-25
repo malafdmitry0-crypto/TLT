@@ -276,6 +276,16 @@ async function runForRowCount(browser, rowCount) {
     if (initialDomRows > maxDomRows || initialDomRows >= rowCount) {
       throw new Error(`DOM row budget failed at ${rowCount}: rendered ${initialDomRows}`);
     }
+    const flatCellChrome = await page.locator('.excel-virtual-row .editable-cell-display').first().evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        backgroundColor: style.backgroundColor,
+        boxShadow: style.boxShadow,
+      };
+    });
+    if (flatCellChrome.boxShadow !== 'none' || flatCellChrome.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+      throw new Error(`Excel cells should use flat grid chrome, got ${JSON.stringify(flatCellChrome)}`);
+    }
 
     await measure('scroll-to-bottom', async () => {
       await page.locator('.excel-virtual-table-body').evaluate((element) => {

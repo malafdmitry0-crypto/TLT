@@ -726,8 +726,17 @@ html, body, #root {
   cursor: cell;
   display: block;
   overflow: hidden;
+  min-height: 24px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.calc-spreadsheet--excel-mode .editable-cell-enabled .editable-cell-display {
+  background: transparent;
+  box-shadow: none;
 }
 
 .calc-spreadsheet--excel-mode .editable-cell-display.selected {
@@ -774,6 +783,10 @@ html, body, #root {
 .excel-virtual-table-body .ant-table-tbody > tr > td,
 .excel-virtual-table-body .ant-table-thead > tr > th {
   border-right: 1px solid var(--heatcalc-table-grid-border) !important;
+}
+
+.excel-virtual-table-body .ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--heatcalc-table-grid-border) !important;
 }
 
 .excel-virtual-table-body .ant-table-cell-ellipsis {

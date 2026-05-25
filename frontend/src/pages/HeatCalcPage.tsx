@@ -1054,6 +1054,14 @@ export default function HeatCalcPage() {
   const selectedResults = selectedObject?.results as Record<string, unknown> | undefined;
   const selectedParams = selectedObject?.params as Record<string, unknown> | undefined;
 
+  const syncWizardWithRecord = useCallback((record: ProjectObject) => {
+    if (!canOpenObjectWizard(record)) return;
+    setWizardState((current) => {
+      if (current?.editingObject?.id === record.id) return current;
+      return { type: record.object_type, editingObject: record };
+    });
+  }, []);
+
   function resultValue(key: string, digits = 3) {
     const value = Number(selectedResults?.[key]);
     return Number.isFinite(value) ? formatNumber(value, digits) : '—';
@@ -2092,12 +2100,10 @@ export default function HeatCalcPage() {
     if (!tableCellEditingEnabled) return;
     if (excelModeEnabled) {
       setSelectedExcelCell({ objectId: record.id, columnKey });
-      if (canOpenObjectWizard(record)) {
-        setWizardState({ type: record.object_type, editingObject: record });
-      }
+      syncWizardWithRecord(record);
     }
     setActiveInlineCell({ objectId: record.id, columnKey });
-  }, [excelModeEnabled, tableCellEditingEnabled]);
+  }, [excelModeEnabled, syncWizardWithRecord, tableCellEditingEnabled]);
 
   const excelFieldInfoById = useMemo<Record<string, ExcelErrorFieldInfo>>(() => {
     const result: Record<string, ExcelErrorFieldInfo> = {};
@@ -2145,10 +2151,8 @@ export default function HeatCalcPage() {
   }, []);
 
   const handleExcelRecordSelected = useCallback((record: ProjectObject) => {
-    if (canOpenObjectWizard(record)) {
-      setWizardState({ type: record.object_type, editingObject: record });
-    }
-  }, []);
+    syncWizardWithRecord(record);
+  }, [syncWizardWithRecord]);
 
   const {
     selectedPosition: selectedExcelPosition,
@@ -2175,6 +2179,7 @@ export default function HeatCalcPage() {
     selectionRange: excelSelectionRange,
     setSelectionRange: setExcelSelectionRange,
     setActiveInlineCell,
+    focusedRowId: selectedRowId ?? null,
     onSelectRecord: handleExcelRecordSelected,
     openContextMenu: openExcelContextMenu,
   });

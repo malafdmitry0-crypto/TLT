@@ -32,6 +32,7 @@ interface UseHeatCalcExcelSelectionOptions {
   selectionRange: ExcelSelectionRange | null;
   setSelectionRange: Dispatch<SetStateAction<ExcelSelectionRange | null>>;
   setActiveInlineCell: Dispatch<SetStateAction<HeatCalcExcelCellRef>>;
+  focusedRowId?: string | null;
   onSelectRecord?: (record: ProjectObject) => void;
   openContextMenu?: (event: ReactMouseEvent<HTMLElement>) => void;
 }
@@ -50,6 +51,7 @@ export function useHeatCalcExcelSelection({
   selectionRange,
   setSelectionRange,
   setActiveInlineCell,
+  focusedRowId,
   onSelectRecord,
   openContextMenu,
 }: UseHeatCalcExcelSelectionOptions) {
@@ -76,6 +78,11 @@ export function useHeatCalcExcelSelection({
     setActiveInlineCell(null);
   }, [setActiveInlineCell, setSelectedCell, setSelectionRange]);
 
+  const focusRecordIfNeeded = useCallback((record: ProjectObject) => {
+    if (!onSelectRecord || record.id === focusedRowId) return;
+    onSelectRecord(record);
+  }, [focusedRowId, onSelectRecord]);
+
   const selectCellByPosition = useCallback((
     rowIndex: number,
     editableColumnIndex: number,
@@ -89,7 +96,7 @@ export function useHeatCalcExcelSelection({
     if (!record || !columnKey) return;
     const focus = { rowId: record.id, columnKey };
     setSelectedCell({ objectId: record.id, columnKey });
-    onSelectRecord?.(record);
+    focusRecordIfNeeded(record);
     setSelectionRange((current) => (
       extend && current
         ? { anchor: current.anchor, focus }
@@ -99,7 +106,7 @@ export function useHeatCalcExcelSelection({
   }, [
     editableColumnKeys,
     excelModeEnabled,
-    onSelectRecord,
+    focusRecordIfNeeded,
     rows,
     setActiveInlineCell,
     setSelectedCell,
@@ -119,13 +126,13 @@ export function useHeatCalcExcelSelection({
     const columnKey = editableColumnKeys[activeColumnIndex];
     if (!record || !columnKey) return;
     setSelectedCell({ objectId: record.id, columnKey });
-    onSelectRecord?.(record);
+    focusRecordIfNeeded(record);
     setSelectionRange(createExcelSelectionRange(anchor, focus));
     setActiveInlineCell(null);
   }, [
     editableColumnKeys,
     excelModeEnabled,
-    onSelectRecord,
+    focusRecordIfNeeded,
     rowIds,
     rows,
     setActiveInlineCell,
