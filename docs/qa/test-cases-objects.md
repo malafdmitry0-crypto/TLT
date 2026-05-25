@@ -249,7 +249,8 @@
 ## TC-OBJ-16: Excel-режим на больших таблицах
 
 **Автоматизировано:** Frontend unit ✅ `HeatCalcExcelGrid.test.tsx` для DOM-count<br>
-**Perf/manual:** `npm --prefix frontend run perf:heat-excel-virtual -- --url=http://localhost:3003 --rows=1000,3000`
+**Perf/manual default Glide engine:** `npm --prefix frontend run perf:heat-excel-virtual -- --url=http://localhost:3003 --rows=1000,3000`<br>
+**Perf/manual table fallback:** `npm --prefix frontend run perf:heat-excel-virtual -- --url=http://localhost:3003 --rows=1000,3000 --engine=table`
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|

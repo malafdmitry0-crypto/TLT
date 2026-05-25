@@ -196,6 +196,11 @@ import {
   type ExcelErrorFieldInfo,
   type ExcelSelectionRange,
 } from '@/utils/heatCalcExcelMode';
+import type {
+  HeatCalcGlideCellAlign,
+  HeatCalcGlideGridCellState,
+  HeatCalcGlideGridColumn,
+} from '@/utils/heatCalcGlideGrid';
 import {
   applyExcelDraftRowPatch,
   buildExcelLocalRows,
@@ -278,6 +283,12 @@ function uniqueErrorMessages(messages: string[]) {
     seen.add(normalized);
     return true;
   });
+}
+
+function normalizeGlideCellAlign(
+  align: HeatCalcTableColumnRenderSpec['align'],
+): HeatCalcGlideCellAlign | undefined {
+  return align === 'left' || align === 'center' || align === 'right' ? align : undefined;
 }
 
 function draftErrorMessages(
@@ -2202,6 +2213,7 @@ export default function HeatCalcPage() {
     selectedPosition: selectedExcelPosition,
     clearSelectionState: clearExcelSelectionState,
     selectCellByPosition: selectExcelCellByPosition,
+    setRangeSelection: setExcelRangeSelection,
     moveSelection: moveExcelSelection,
     selectAllCells: selectAllExcelCells,
     collapseSelectionToActiveCell,
@@ -2284,6 +2296,65 @@ export default function HeatCalcPage() {
     if (isExcelNewRowId(record.id)) return formatExcelDraftCellDisplay(config, draftRow);
     return formatExcelCellDisplay(config, getInlineCellFormValue(record, columnKey, draftRow));
   }, []);
+
+  const glideGridColumns = useMemo<HeatCalcGlideGridColumn[]>(
+    () => sourceColumnMetas.map((meta) => ({
+      key: meta.key,
+      title: meta.title,
+      width: meta.width,
+      align: normalizeGlideCellAlign(columnRenderers[meta.key]?.align),
+    })),
+    [columnRenderers, sourceColumnMetas],
+  );
+
+  const getGlideGridCellState = useCallback((
+    record: ProjectObject,
+    columnKey: string,
+    rowIndex: number,
+  ): HeatCalcGlideGridCellState => {
+    const draftRow = draftRowsById[record.id];
+    const renderer = columnRenderers[columnKey];
+    const rendererAlign = normalizeGlideCellAlign(renderer?.align);
+    if (isAllObjectScope && !isColumnApplicableToObjectType(columnKey, record.object_type)) {
+      return {
+        displayValue: INAPPLICABLE_TABLE_VALUE,
+        editable: false,
+        align: rendererAlign,
+      };
+    }
+
+    const config = !isAllObjectScope
+      && tableCellEditingEnabled
+      && (record.object_type === 'pipe' || record.object_type === 'tank')
+      ? getInlineEditFieldConfig(record.object_type, columnKey)
+      : null;
+    if (config) {
+      return {
+        displayValue: excelCellDisplayValue(record, columnKey, draftRow),
+        editable: true,
+        dirty: isSavableDraftRow(draftRow)
+          && Object.prototype.hasOwnProperty.call(draftRow?.dirtyFields ?? {}, config.fieldId),
+        error: draftRow?.errors[config.fieldId],
+        align: config.field.editor === 'number' ? 'right' : rendererAlign,
+        editor: config.field.editor,
+      };
+    }
+
+    const displayRecord = buildDraftDisplayRecord(draftRow, record);
+    const displayValue = renderer?.copyValue(displayRecord, rowIndex) ?? '';
+    return {
+      displayValue: String(displayValue),
+      editable: false,
+      align: rendererAlign,
+    };
+  }, [
+    columnRenderers,
+    draftRowsById,
+    excelCellDisplayValue,
+    isAllObjectScope,
+    isSavableDraftRow,
+    tableCellEditingEnabled,
+  ]);
 
   const notifyExcelSuccess = useCallback((message: string) => {
     void antdMessage.success(message);
@@ -3449,14 +3520,21 @@ export default function HeatCalcPage() {
                 currentTableViewActive={currentTableViewActive}
                 dataSource={visibleTableObjects}
                 excelModeEnabled={excelModeEnabled}
+                excelSelectionRange={excelSelectionRange}
                 fontSizeKey={resolvedTableFontSize.key}
+                glideColumns={glideGridColumns}
                 normalPagination={normalTablePagination}
+                selectedExcelPosition={selectedExcelPosition}
                 selectedExcelRowIndex={selectedExcelPosition?.rowIndex ?? null}
                 selectedRowKeys={selectedRowKeys}
                 tableScrollX={tableScrollX}
                 tableScrollY={tableScrollY}
                 onExcelRowSecondaryAction={openExcelRecordContextMenu}
                 onExcelReachScrollEnd={extendExcelInputRowsOnScroll}
+                onExcelSetRangeSelection={setExcelRangeSelection}
+                onGlideCellCommit={commitInlineCell}
+                onGlideCellState={getGlideGridCellState}
+                onGlideCellStartEdit={startInlineCellEdit}
                 onOpenEditWizard={openEditWizard}
                 onResetCurrentTableViewState={resetCurrentTableViewState}
                 onSelectedRowKeysChange={setSelectedRowKeys}

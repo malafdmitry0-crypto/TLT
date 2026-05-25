@@ -12,7 +12,7 @@ import type { ColumnType } from 'antd/es/table';
 
 import type { ProjectObject } from '@/types/project';
 
-interface HeatCalcExcelGridProps {
+export interface HeatCalcExcelGridProps {
   rows: ProjectObject[];
   columns: ColumnType<ProjectObject>[];
   tableScrollX: number;

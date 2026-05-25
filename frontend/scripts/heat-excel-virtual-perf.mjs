@@ -16,6 +16,7 @@ Usage:
 Options:
   --url=<url>                 Frontend URL, default ${DEFAULT_URL}
   --rows=<counts>             Comma-separated row counts, default ${DEFAULT_ROW_COUNTS}
+  --engine=<table|glide>      Excel engine, default glide
   --channel=<name>            Playwright browser channel, default chrome
   --max-dom-rows=<n>          Fail if rendered virtual rows exceed this, default 100
   --max-action-ms=<ms>        Optional fail threshold for any measured action
@@ -52,6 +53,11 @@ function parseRowCounts(value) {
   return counts;
 }
 
+function parseEngine(value) {
+  if (value === 'table' || value === 'glide') return value;
+  throw new Error('--engine must be "table" or "glide"');
+}
+
 if (hasFlag('help')) {
   usage();
   process.exit(0);
@@ -59,6 +65,7 @@ if (hasFlag('help')) {
 
 const frontendUrl = argValue('url', process.env.FRONTEND_URL ?? DEFAULT_URL).replace(/\/$/, '');
 const rowCounts = parseRowCounts(argValue('rows', process.env.HEAT_EXCEL_PERF_ROWS ?? DEFAULT_ROW_COUNTS));
+const engine = parseEngine(argValue('engine', process.env.HEAT_EXCEL_ENGINE ?? 'glide'));
 const channel = argValue('channel', process.env.PLAYWRIGHT_CHANNEL ?? 'chrome');
 const maxDomRows = positiveInt(argValue('max-dom-rows', process.env.HEAT_EXCEL_PERF_MAX_DOM_ROWS ?? '100'), 'max-dom-rows');
 const maxActionMs = optionalPositiveInt(
@@ -183,6 +190,25 @@ async function lastVisibleInputRowNumber(page) {
   return Number.isFinite(value) ? value : 0;
 }
 
+async function glideCanvasBox(page) {
+  const canvas = page.locator('.calc-spreadsheet--glide canvas').first();
+  await canvas.waitFor({ timeout: 10_000 });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('Glide canvas bounds are missing');
+  return box;
+}
+
+async function clickGlideCell(page, rowOffset = 0, columnOffset = 0, options = {}) {
+  const box = await glideCanvasBox(page);
+  await page.mouse.click(
+    box.x + 50 + 16 + columnOffset,
+    box.y + 38 + 15 + rowOffset,
+    options,
+  );
+  await afterFrame(page);
+  return box;
+}
+
 async function installApiMocks(page, rows) {
   const project = makeProject();
   await page.route('**/api/v1/**', async (route) => {
@@ -195,7 +221,7 @@ async function installApiMocks(page, rows) {
       await route.fulfill({ json: project });
       return;
     }
-    if (method === 'GET' && path === '/references/insulation') {
+    if (method === 'GET' && path.startsWith('/references/')) {
       await route.fulfill({ json: [] });
       return;
     }
@@ -231,6 +257,10 @@ async function installApiMocks(page, rows) {
       await route.fulfill({ json: target });
       return;
     }
+    if (method === 'POST' && path === '/audit/client-events') {
+      await route.fulfill({ json: { ok: true } });
+      return;
+    }
 
     await route.fulfill({ status: 404, json: { detail: `Unhandled perf mock route: ${method} ${path}` } });
   });
@@ -245,14 +275,19 @@ async function runForRowCount(browser, rowCount) {
   const page = await context.newPage();
   const measurements = [];
 
-  await page.addInitScript(({ project, sessionId }) => {
+  await page.addInitScript(({ project, sessionId, excelEngine }) => {
     localStorage.setItem('session_id', sessionId);
     localStorage.setItem('role', 'guest');
+    if (excelEngine === 'glide') {
+      localStorage.setItem('heatcalc.excelEngine', 'glide');
+    } else {
+      localStorage.setItem('heatcalc.excelEngine', 'table');
+    }
     localStorage.setItem('tlt-current-project', JSON.stringify({
       state: { currentProject: project },
       version: 0,
     }));
-  }, { project: makeProject(), sessionId: SESSION_ID });
+  }, { project: makeProject(), sessionId: SESSION_ID, excelEngine: engine });
   await installApiMocks(page, rows);
 
   async function measure(label, action) {
@@ -266,11 +301,133 @@ async function runForRowCount(browser, rowCount) {
 
   try {
     await measure('open-excel-mode', async () => {
-      await page.goto(`${frontendUrl}/workspace/heat-calc`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${frontendUrl}/workspace/heat-calc?excelEngine=${engine}`, { waitUntil: 'domcontentloaded' });
       await page.getByText('Excel-режим').click();
-      await page.waitForSelector('.excel-virtual-table-body');
+      await page.waitForSelector(engine === 'glide' ? '.calc-spreadsheet--glide canvas' : '.excel-virtual-table-body');
       await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
     });
+
+    if (engine === 'glide') {
+      const tableRowsInDom = await page.locator('.excel-virtual-row').count();
+      if (tableRowsInDom > 0) {
+        throw new Error(`Glide engine should not render table rows, got ${tableRowsInDom}`);
+      }
+      const canvasCount = await page.locator('.calc-spreadsheet--glide canvas').count();
+      if (canvasCount < 1 || canvasCount > 8) {
+        throw new Error(`Unexpected Glide canvas count at ${rowCount}: ${canvasCount}`);
+      }
+
+      await measure('select-first-glide-cell', async () => {
+        await clickGlideCell(page);
+        await page.waitForFunction(() => {
+          const input = document.querySelector('[data-testid="object-name-input"]');
+          return input instanceof HTMLInputElement && input.value === 'Perf pipe 0';
+        }, null, { timeout: 10_000 });
+      });
+
+      await measure('edit-first-glide-cell', async () => {
+        const nextName = `Perf pipe glide edited ${rowCount}`;
+        await page.keyboard.press('F2');
+        const editor = page.getByTestId('heatcalc-glide-cell-editor');
+        await editor.waitFor({ timeout: 5_000 });
+        await editor.fill(nextName);
+        await editor.press('Enter');
+        await page.waitForFunction((expectedValue) => {
+          const input = document.querySelector('[data-testid="object-name-input"]');
+          return input instanceof HTMLInputElement && input.value === expectedValue;
+        }, nextName, { timeout: 10_000 });
+      });
+
+      await measure('save-glide-edited-row', async () => {
+        await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+        await page.getByText('Сохранено строк: 1').waitFor({ timeout: 10_000 });
+      });
+
+      let scrollHeightBeforeTail = 0;
+      let scrollHeightAfterTail = 0;
+      await measure('scroll-glide-to-bottom', async () => {
+        const scroller = page.locator('.calc-spreadsheet--glide .dvn-scroller');
+        await scroller.evaluate((element) => {
+          element.scrollTop = element.scrollHeight;
+        });
+        await afterFrame(page);
+        await page.waitForFunction(() => {
+          const element = document.querySelector('.calc-spreadsheet--glide .dvn-scroller');
+          return element && element.scrollTop > 0;
+        }, null, { timeout: 10_000 });
+      });
+
+      await measure('context-menu-after-glide-scroll', async () => {
+        const box = await glideCanvasBox(page);
+        await page.mouse.click(box.x + 66, box.y + 38 + 15, { button: 'right' });
+        await page.getByRole('menu', { name: 'Действия Excel-режима' }).waitFor({ timeout: 10_000 });
+        await page.keyboard.press('Escape');
+      });
+
+      await measure('extend-glide-empty-tail-on-scroll', async () => {
+        const scroller = page.locator('.calc-spreadsheet--glide .dvn-scroller');
+        scrollHeightBeforeTail = await scroller.evaluate((element) => element.scrollHeight);
+        await scroller.hover();
+        await page.mouse.wheel(0, 4_000);
+        await afterFrame(page);
+        await scroller.evaluate((element) => {
+          element.scrollTop = element.scrollHeight;
+        });
+        await afterFrame(page);
+        scrollHeightAfterTail = await scroller.evaluate((element) => element.scrollHeight);
+        if (scrollHeightAfterTail <= scrollHeightBeforeTail) {
+          throw new Error(`Glide empty tail did not extend after scroll at ${rowCount}: ${scrollHeightBeforeTail} -> ${scrollHeightAfterTail}`);
+        }
+      });
+
+      await measure('paste-glide-100x10', async () => {
+        const scroller = page.locator('.calc-spreadsheet--glide .dvn-scroller');
+        await scroller.evaluate((element) => {
+          element.scrollTop = 0;
+        });
+        await afterFrame(page);
+        await clickGlideCell(page);
+        const pasted = Array.from({ length: 100 }, (_, index) => (
+          [
+            `Glide paste ${rowCount}-${index}`,
+            '108',
+            '10',
+            '50',
+            '80',
+            '-30',
+            '4',
+            '-20',
+            '220',
+            '1.1',
+          ].join('\t')
+        )).join('\n');
+        await page.evaluate((text) => {
+          const data = new DataTransfer();
+          data.setData('text/plain', text);
+          document.dispatchEvent(new ClipboardEvent('paste', {
+            bubbles: true,
+            cancelable: true,
+            clipboardData: data,
+          }));
+        }, pasted);
+        await page.getByText(/Вставлено ячеек:/).waitFor({ timeout: 10_000 });
+      });
+
+      const slowest = measurements.reduce((max, item) => Math.max(max, item.durationMs), 0);
+      if (maxActionMs != null && slowest > maxActionMs) {
+        throw new Error(`Action budget failed at ${rowCount}: slowest ${slowest}ms > ${maxActionMs}ms`);
+      }
+
+      return {
+        rowCount,
+        engine,
+        canvasCount,
+        tableRowsInDom,
+        scrollHeightBeforeTail,
+        scrollHeightAfterTail,
+        measurements,
+      };
+    }
 
     const initialDomRows = await page.locator('.excel-virtual-row').count();
     if (initialDomRows > maxDomRows || initialDomRows >= rowCount) {
@@ -451,6 +608,7 @@ async function runForRowCount(browser, rowCount) {
 
     return {
       rowCount,
+      engine,
       initialDomRows,
       bottomDomRows,
       bottomInputRows,
@@ -470,6 +628,7 @@ try {
   }
   console.log(JSON.stringify({
     url: frontendUrl,
+    engine,
     maxDomRows,
     results,
   }, null, 2));

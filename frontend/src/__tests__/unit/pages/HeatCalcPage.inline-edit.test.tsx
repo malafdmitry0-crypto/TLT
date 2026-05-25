@@ -17,6 +17,7 @@ import {
   HEATCALC_FIELD_INPUT_PREF_KEY,
   HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY,
 } from '@/utils/heatCalcFieldInputSettings';
+import { HEATCALC_EXCEL_ENGINE_STORAGE_KEY } from '@/utils/heatCalcExcelEngine';
 import {
   HEATCALC_PAGE_TEST_TIMEOUT,
   makeObject,
@@ -31,6 +32,10 @@ describe('HeatCalcPage inline edit', () => {
   setupHeatCalcPageTest();
 
   describe('Inline-редактирование', () => {
+    function useTableExcelEngineForDomCellTest() {
+      localStorage.setItem(HEATCALC_EXCEL_ENGINE_STORAGE_KEY, 'table');
+    }
+
     it('включает inline-редактирование через настройки таблицы и сохраняет draft только по кнопке', async () => {
       const { listObjects, updateObject } = await import('@/api/projects');
       const source = makeObject();
@@ -234,6 +239,7 @@ describe('HeatCalcPage inline edit', () => {
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('в Excel-режиме не автосохраняет ячейку и подсвечивает только изменённую ячейку', async () => {
+      useTableExcelEngineForDomCellTest();
       const { listObjects, updateObject } = await import('@/api/projects');
       const source = makeObject();
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
@@ -276,6 +282,7 @@ describe('HeatCalcPage inline edit', () => {
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('в Excel-режиме не показывает пустую таблицу, пока догружается полный список объектов', async () => {
+      useTableExcelEngineForDomCellTest();
       const { listObjects } = await import('@/api/projects');
       const source = makeObject();
       const previousRequestIdleCallback = window.requestIdleCallback;
@@ -313,6 +320,7 @@ describe('HeatCalcPage inline edit', () => {
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('в Excel-режиме показывает конкретную ошибку поля при сохранении', async () => {
+      useTableExcelEngineForDomCellTest();
       const { listObjects, updateObject } = await import('@/api/projects');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
 

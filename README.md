@@ -5,6 +5,10 @@
 
 ## Быстрый старт
 
+Локальная frontend-разработка рассчитана на Node.js из `.nvmrc` / `.node-version`
+(`22.13.0`). Это убирает engine warnings у Vitest/ESLint tooling; Docker и CI
+остаются на совместимом Node 20.x.
+
 ```bash
 cp .env.example .env
 
@@ -91,7 +95,7 @@ npx playwright test
 
 Текущее состояние:
 <!-- AUTO:test-counts -->
-**1263 backend** (921 unit + 342 integration) ✅ · **473 frontend vitest** ✅ · **87 e2e Playwright** ✅
+**1263 backend** (921 unit + 342 integration) ✅ · **483 frontend vitest** ✅ · **87 e2e Playwright** ✅
 <!-- /AUTO -->
 
 > Цифры синхронизируются `scripts/sync-docs.py` (правит этот блок на месте).

@@ -1,12 +1,20 @@
 import { Button, Card, Table, Typography, type TableProps } from 'antd';
-import type { Key, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import { lazy, Suspense, type Key, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import type { ColumnType } from 'antd/es/table';
 
 import HeatCalcExcelGrid from '@/components/heatcalc/HeatCalcExcelGrid';
+import type { HeatCalcExcelCellCoordinates } from '@/hooks/useHeatCalcExcelSelection';
 import type { ProjectObject } from '@/types/project';
+import type { ExcelCellPosition, ExcelSelectionRange } from '@/utils/heatCalcExcelMode';
+import { resolveHeatCalcExcelEngine } from '@/utils/heatCalcExcelEngine';
+import type {
+  HeatCalcGlideGridCellState,
+  HeatCalcGlideGridColumn,
+} from '@/utils/heatCalcGlideGrid';
 import type { HeatCalcObjectType } from '@/utils/heatCalcTableColumns';
 
 const { Text } = Typography;
+const HeatCalcGlideGrid = lazy(() => import('@/components/heatcalc/HeatCalcGlideGrid'));
 
 type ActiveObjectScope = HeatCalcObjectType | 'all';
 
@@ -17,8 +25,11 @@ interface HeatCalcObjectsTableCardProps {
   currentTableViewActive: boolean;
   dataSource: ProjectObject[];
   excelModeEnabled: boolean;
+  excelSelectionRange: ExcelSelectionRange | null;
   fontSizeKey: string;
+  glideColumns: HeatCalcGlideGridColumn[];
   normalPagination: TableProps<ProjectObject>['pagination'];
+  selectedExcelPosition: HeatCalcExcelCellCoordinates | null;
   selectedExcelRowIndex: number | null;
   selectedRowKeys: string[];
   tableScrollX: number;
@@ -28,6 +39,18 @@ interface HeatCalcObjectsTableCardProps {
     event: ReactMouseEvent<HTMLElement>,
   ) => void;
   onExcelReachScrollEnd: () => void;
+  onExcelSetRangeSelection: (
+    anchor: ExcelCellPosition,
+    focus: ExcelCellPosition,
+    active?: ExcelCellPosition,
+  ) => void;
+  onGlideCellCommit: (record: ProjectObject, columnKey: string, value: unknown) => string | null;
+  onGlideCellState: (
+    record: ProjectObject,
+    columnKey: string,
+    rowIndex: number,
+  ) => HeatCalcGlideGridCellState;
+  onGlideCellStartEdit: (record: ProjectObject, columnKey: string) => void;
   onOpenEditWizard: (record: ProjectObject) => void;
   onResetCurrentTableViewState: () => void;
   onSelectedRowKeysChange: (keys: string[]) => void;
@@ -97,40 +120,78 @@ export default function HeatCalcObjectsTableCard({
   currentTableViewActive,
   dataSource,
   excelModeEnabled,
+  excelSelectionRange,
   fontSizeKey,
+  glideColumns,
   normalPagination,
+  selectedExcelPosition,
   selectedExcelRowIndex,
   selectedRowKeys,
   tableScrollX,
   tableScrollY,
   onExcelRowSecondaryAction,
   onExcelReachScrollEnd,
+  onExcelSetRangeSelection,
+  onGlideCellCommit,
+  onGlideCellState,
+  onGlideCellStartEdit,
   onOpenEditWizard,
   onResetCurrentTableViewState,
   onSelectedRowKeysChange,
   onSourceTableChange,
   rowClassName,
 }: HeatCalcObjectsTableCardProps) {
+  const excelEngine = excelModeEnabled ? resolveHeatCalcExcelEngine() : 'table';
+  const excelEmptyContent = excelModeEnabled
+    ? getExcelEmptyContent({
+      activeObjectScope,
+      activeTypeTotalCount,
+      currentTableViewActive,
+      onResetCurrentTableViewState,
+    })
+    : null;
+
+  const tableGrid = excelModeEnabled ? (
+    <HeatCalcExcelGrid
+      rows={dataSource}
+      columns={columns}
+      tableScrollX={tableScrollX}
+      tableScrollY={tableScrollY}
+      fontSizeKey={fontSizeKey}
+      selectedRowIndex={selectedExcelRowIndex}
+      emptyContent={excelEmptyContent}
+      rowClassName={rowClassName}
+      onRowSecondaryAction={onExcelRowSecondaryAction}
+      onReachScrollEnd={onExcelReachScrollEnd}
+    />
+  ) : null;
+
   return (
     <Card size="small" className="workspace-table-card srs-table-wrap">
-      {excelModeEnabled ? (
-        <HeatCalcExcelGrid
-          rows={dataSource}
-          columns={columns}
-          tableScrollX={tableScrollX}
-          tableScrollY={tableScrollY}
-          fontSizeKey={fontSizeKey}
-          selectedRowIndex={selectedExcelRowIndex}
-          emptyContent={getExcelEmptyContent({
-            activeObjectScope,
-            activeTypeTotalCount,
-            currentTableViewActive,
-            onResetCurrentTableViewState,
-          })}
-          rowClassName={rowClassName}
-          onRowSecondaryAction={onExcelRowSecondaryAction}
-          onReachScrollEnd={onExcelReachScrollEnd}
-        />
+      {excelModeEnabled && excelEngine === 'glide' ? (
+        <Suspense fallback={tableGrid}>
+          <HeatCalcGlideGrid
+            rows={dataSource}
+            columns={columns}
+            tableScrollX={tableScrollX}
+            tableScrollY={tableScrollY}
+            fontSizeKey={fontSizeKey}
+            gridColumns={glideColumns}
+            selectedRowIndex={selectedExcelRowIndex}
+            selectedPosition={selectedExcelPosition}
+            selectionRange={excelSelectionRange}
+            emptyContent={excelEmptyContent}
+            rowClassName={rowClassName}
+            getCellState={onGlideCellState}
+            onRowSecondaryAction={onExcelRowSecondaryAction}
+            onReachScrollEnd={onExcelReachScrollEnd}
+            onSetRangeSelection={onExcelSetRangeSelection}
+            onStartCellEdit={onGlideCellStartEdit}
+            onCommitCell={onGlideCellCommit}
+          />
+        </Suspense>
+      ) : excelModeEnabled ? (
+        tableGrid
       ) : (
         <Table<ProjectObject>
           className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey}`}
