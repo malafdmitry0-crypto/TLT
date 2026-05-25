@@ -206,7 +206,9 @@ import {
   removeDraftRowsByIds,
   removeExcelRowsFromModel,
   resetExcelRowsInModel,
+  upsertSavedExcelObjectsInProjectList,
   type ExcelLocalProjectObject,
+  type SavedExcelProjectObject,
 } from '@/utils/heatCalcExcelRows';
 import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
 import {
@@ -1972,6 +1974,16 @@ export default function HeatCalcPage() {
     });
   }, [objectQueryKey, queryClient]);
 
+  const updateSavedExcelObjectsInCaches = useCallback((savedRows: SavedExcelProjectObject[]) => {
+    if (savedRows.length === 0) return;
+    queryClient.setQueryData<ProjectObject[] | undefined>(allProjectObjectsQueryKey, (current) => (
+      upsertSavedExcelObjectsInProjectList(current, savedRows, allProjectObjects)
+    ));
+    savedRows.forEach(({ draftRowId, savedObject }) => {
+      if (!isExcelNewRowId(draftRowId)) updateObjectInCurrentQuery(savedObject);
+    });
+  }, [allProjectObjects, allProjectObjectsQueryKey, queryClient, updateObjectInCurrentQuery]);
+
   const discardDraftRows = useCallback((rowIds?: string[]) => {
     setActiveInlineCell(null);
     setDraftRowsById((current) => removeDraftRowsByIds(current, rowIds));
@@ -2019,6 +2031,7 @@ export default function HeatCalcPage() {
     });
 
     const saved: ProjectObject[] = [];
+    const savedExcelRows: SavedExcelProjectObject[] = [];
     const savedDraftIds = new Set<string>();
     const failed: Record<string, string> = {};
     const failedValidation: Record<string, Record<string, string>> = {};
@@ -2041,8 +2054,8 @@ export default function HeatCalcPage() {
             params,
           });
         saved.push(savedObject);
+        savedExcelRows.push({ draftRowId: row.objectId, savedObject });
         savedDraftIds.add(row.objectId);
-        if (!isNewRow) updateObjectInCurrentQuery(savedObject);
       } catch (error) {
         if (error instanceof DraftRowValidationError) {
           failedValidation[row.objectId] = error.errors;
@@ -2053,6 +2066,7 @@ export default function HeatCalcPage() {
     }));
 
     if (savedDraftIds.size > 0) {
+      updateSavedExcelObjectsInCaches(savedExcelRows);
       setExcelLocalRows((current) => pruneExcelLocalRowsByIds(current, savedDraftIds));
     }
     setDraftRowsById((current) => {
@@ -2100,7 +2114,7 @@ export default function HeatCalcPage() {
     project,
     projectObjectCount,
     queryClient,
-    updateObjectInCurrentQuery,
+    updateSavedExcelObjectsInCaches,
     visibleTableObjects,
   ]);
 

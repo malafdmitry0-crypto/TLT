@@ -15,6 +15,11 @@ export type ExcelLocalProjectObject = ProjectObject & {
   __excelInsertAfterObjectId?: string | null;
 };
 
+export interface SavedExcelProjectObject {
+  draftRowId: string;
+  savedObject: ProjectObject;
+}
+
 export const MIN_TRAILING_EXCEL_INPUT_ROWS = 20;
 
 interface BuildExcelLocalRowsOptions {
@@ -95,6 +100,53 @@ export function mergeExcelLocalRows(
   baseRows.forEach(pushRow);
   rowsByAnchor.get(null)?.forEach(pushRow);
   return rows;
+}
+
+function compareProjectObjectsByExcelOrder(left: ProjectObject, right: ProjectObject) {
+  const bySortOrder = left.sort_order - right.sort_order;
+  if (bySortOrder !== 0) return bySortOrder;
+  const byCreatedAt = left.created_at.localeCompare(right.created_at);
+  if (byCreatedAt !== 0) return byCreatedAt;
+  return left.id.localeCompare(right.id);
+}
+
+export function upsertSavedExcelObjectsInProjectList(
+  currentRows: ProjectObject[] | undefined,
+  savedRows: readonly SavedExcelProjectObject[],
+  fallbackRows: readonly ProjectObject[] = [],
+): ProjectObject[] | undefined {
+  if (savedRows.length === 0) return currentRows;
+
+  const sourceRows = currentRows ?? fallbackRows;
+  const savedByDraftId = new Map(savedRows.map(({ draftRowId, savedObject }) => [draftRowId, savedObject]));
+  const savedByObjectId = new Map(savedRows.map(({ savedObject }) => [savedObject.id, savedObject]));
+  const emittedSavedObjectIds = new Set<string>();
+  const nextRows: ProjectObject[] = [];
+
+  sourceRows.forEach((row) => {
+    const savedObject = savedByDraftId.get(row.id) ?? savedByObjectId.get(row.id);
+    if (!savedObject) {
+      nextRows.push(row);
+      return;
+    }
+    if (!emittedSavedObjectIds.has(savedObject.id)) {
+      nextRows.push(savedObject);
+      emittedSavedObjectIds.add(savedObject.id);
+    }
+  });
+
+  savedRows.forEach(({ savedObject }) => {
+    if (
+      emittedSavedObjectIds.has(savedObject.id)
+      || nextRows.some((row) => row.id === savedObject.id)
+    ) {
+      return;
+    }
+    nextRows.push(savedObject);
+    emittedSavedObjectIds.add(savedObject.id);
+  });
+
+  return nextRows.sort(compareProjectObjectsByExcelOrder);
 }
 
 export function removeDraftRowsByIds(

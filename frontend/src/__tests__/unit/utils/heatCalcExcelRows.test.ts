@@ -14,6 +14,7 @@ import {
   removeDraftRowsByIds,
   removeExcelRowsFromModel,
   resetExcelRowsInModel,
+  upsertSavedExcelObjectsInProjectList,
 } from '@/utils/heatCalcExcelRows';
 
 function projectObject(id: string, sortOrder: number, objectType: 'pipe' | 'tank' = 'pipe'): ProjectObject {
@@ -124,6 +125,53 @@ describe('heatCalcExcelRows', () => {
       'pipe-b',
       templateAtEnd.id,
     ]);
+  });
+
+  it('заменяет временную Excel-строку сохраненным объектом в списке кеша', () => {
+    const persistedA = projectObject('pipe-a', 1);
+    const tempRow = projectObject('new:pipe:4', 2);
+    const persistedB = projectObject('pipe-b', 3);
+    const savedObject = projectObject('pipe-new', 2, 'pipe');
+
+    const result = upsertSavedExcelObjectsInProjectList(
+      [persistedA, tempRow, persistedB],
+      [{ draftRowId: tempRow.id, savedObject }],
+    );
+
+    expect(result?.map((row) => row.id)).toEqual(['pipe-a', 'pipe-new', 'pipe-b']);
+    expect(result?.find((row) => row.id === 'new:pipe:4')).toBeUndefined();
+  });
+
+  it('добавляет сохраненную Excel-строку в full-list cache, если временной строки там не было', () => {
+    const persistedA = projectObject('pipe-a', 1);
+    const persistedB = projectObject('pipe-b', 3);
+    const savedObject = projectObject('pipe-new', 2);
+
+    const result = upsertSavedExcelObjectsInProjectList(
+      [persistedA, persistedB],
+      [{ draftRowId: 'new:pipe:4', savedObject }],
+    );
+
+    expect(result?.map((row) => row.id)).toEqual(['pipe-a', 'pipe-new', 'pipe-b']);
+  });
+
+  it('обновляет persisted Excel-строку в full-list cache без дубликатов', () => {
+    const persistedA = projectObject('pipe-a', 1);
+    const persistedB = projectObject('pipe-b', 2);
+    const savedObject = {
+      ...persistedB,
+      version: 2,
+      params: { name: 'updated' },
+    };
+
+    const result = upsertSavedExcelObjectsInProjectList(
+      [persistedA, persistedB],
+      [{ draftRowId: persistedB.id, savedObject }],
+    );
+
+    expect(result?.map((row) => row.id)).toEqual(['pipe-a', 'pipe-b']);
+    expect(result?.find((row) => row.id === 'pipe-b')?.version).toBe(2);
+    expect(result?.find((row) => row.id === 'pipe-b')?.params).toEqual({ name: 'updated' });
   });
 
   it('delete удаляет только local rows из модели и возвращает persisted ids для backend', () => {
