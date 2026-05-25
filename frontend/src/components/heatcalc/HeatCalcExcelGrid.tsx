@@ -13,7 +13,7 @@ import type { ColumnType } from 'antd/es/table';
 
 import type { ProjectObject } from '@/types/project';
 
-interface HeatCalcExcelGridPagination {
+export interface HeatCalcExcelGridPagination {
   current: number;
   pageSize: number;
   total: number;
