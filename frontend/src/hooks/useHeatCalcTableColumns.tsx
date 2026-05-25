@@ -22,9 +22,8 @@ import {
 } from '@/utils/heatCalcInlineEdit';
 import {
   isExcelCellActive,
-  isExcelCellInRange,
-  normalizeExcelSelectionRange,
   type ExcelCellPosition,
+  type NormalizedExcelSelectionRange,
   type ExcelSelectionRange,
 } from '@/utils/heatCalcExcelMode';
 import {
@@ -60,6 +59,66 @@ const { Text } = Typography;
 export type HeatCalcTableColumnRenderSpec = Pick<ColumnType<ProjectObject>, 'render' | 'ellipsis' | 'align'> & {
   copyValue: (record: ProjectObject, index: number) => string;
 };
+
+export interface ExcelSelectionLookup {
+  normalizedRange: NormalizedExcelSelectionRange | null;
+  rowIdToIndex: Map<string, number>;
+  columnKeyToIndex: Map<string, number>;
+}
+
+export function buildExcelSelectionLookup(
+  range: ExcelSelectionRange | null,
+  rowIds: readonly string[],
+  columnKeys: readonly string[],
+): ExcelSelectionLookup {
+  const rowIdToIndex = new Map<string, number>();
+  rowIds.forEach((rowId, index) => rowIdToIndex.set(rowId, index));
+
+  const columnKeyToIndex = new Map<string, number>();
+  columnKeys.forEach((columnKey, index) => columnKeyToIndex.set(columnKey, index));
+
+  const anchorRowIndex = range ? rowIdToIndex.get(range.anchor.rowId) : undefined;
+  const focusRowIndex = range ? rowIdToIndex.get(range.focus.rowId) : undefined;
+  const anchorColumnIndex = range ? columnKeyToIndex.get(range.anchor.columnKey) : undefined;
+  const focusColumnIndex = range ? columnKeyToIndex.get(range.focus.columnKey) : undefined;
+  const normalizedRange = (
+    anchorRowIndex != null
+    && focusRowIndex != null
+    && anchorColumnIndex != null
+    && focusColumnIndex != null
+  )
+    ? {
+      top: Math.min(anchorRowIndex, focusRowIndex),
+      bottom: Math.max(anchorRowIndex, focusRowIndex),
+      left: Math.min(anchorColumnIndex, focusColumnIndex),
+      right: Math.max(anchorColumnIndex, focusColumnIndex),
+    }
+    : null;
+
+  return {
+    normalizedRange,
+    rowIdToIndex,
+    columnKeyToIndex,
+  };
+}
+
+export function isExcelCellSelectedByLookup(
+  lookup: ExcelSelectionLookup,
+  rowId: string,
+  columnKey: string,
+) {
+  const { normalizedRange } = lookup;
+  if (!normalizedRange) return false;
+  const rowIndex = lookup.rowIdToIndex.get(rowId);
+  const columnIndex = lookup.columnKeyToIndex.get(columnKey);
+  if (rowIndex == null || columnIndex == null) return false;
+  return (
+    rowIndex >= normalizedRange.top
+    && rowIndex <= normalizedRange.bottom
+    && columnIndex >= normalizedRange.left
+    && columnIndex <= normalizedRange.right
+  );
+}
 
 interface UseHeatCalcTableColumnsOptions {
   activeTableColumnScope: HeatCalcTableColumnScope;
@@ -160,6 +219,12 @@ export function useHeatCalcTableColumns({
   visibleTableObjectsLength,
   visibleTableRows,
 }: UseHeatCalcTableColumnsOptions) {
+  const excelSelectionLookup = useMemo(
+    () => buildExcelSelectionLookup(excelSelectionRange, excelRowIds, editableExcelColumnKeys),
+    [editableExcelColumnKeys, excelRowIds, excelSelectionRange],
+  );
+  const normalizedExcelRange = excelSelectionLookup.normalizedRange;
+
   const sourceColumns = useMemo<ColumnType<ProjectObject>[]>(
     () => sourceColumnMetas.map((meta, columnIndex) => {
       const renderer = columnRenderers[meta.key];
@@ -172,12 +237,11 @@ export function useHeatCalcTableColumns({
         && (isAllObjectScope || (capability?.sort.enabled ?? true));
       const filterKind = filterKindForColumn(meta.key, capability);
       const activeFilter = activeTableViewState.filters[meta.key];
-      const normalizedExcelRange = excelSelectionRange
-        ? normalizeExcelSelectionRange(excelSelectionRange, excelRowIds, editableExcelColumnKeys)
-        : null;
+      const excelColumnIndex = excelSelectionLookup.columnKeyToIndex.get(meta.key);
       const columnSelected = !!normalizedExcelRange
-        && columnIndex >= normalizedExcelRange.left
-        && columnIndex <= normalizedExcelRange.right;
+        && excelColumnIndex != null
+        && excelColumnIndex >= normalizedExcelRange.left
+        && excelColumnIndex <= normalizedExcelRange.right;
       return {
         key: meta.key,
         title: (
@@ -225,7 +289,7 @@ export function useHeatCalcTableColumns({
               rowIndex={index}
               columnIndex={columnIndex}
               active={activeInlineCell?.objectId === record.id && activeInlineCell.columnKey === meta.key}
-              selected={isExcelCellInRange(excelSelectionRange, record.id, meta.key, excelRowIds, editableExcelColumnKeys)}
+              selected={isExcelCellSelectedByLookup(excelSelectionLookup, record.id, meta.key)}
               selectionActive={isExcelCellActive(activeExcelCellPosition, record.id, meta.key)}
               excelMode={excelModeEnabled}
               dirty={isSavableDraftRow(draftRow) && Object.prototype.hasOwnProperty.call(draftRow?.dirtyFields ?? {}, config.fieldId)}
@@ -298,12 +362,10 @@ export function useHeatCalcTableColumns({
       columnRenderers,
       commitInlineCell,
       draftRowsById,
-      editableExcelColumnKeys,
       enumOptionsByColumn,
+      excelSelectionLookup,
       excelCellDisplayValue,
       excelModeEnabled,
-      excelRowIds,
-      excelSelectionRange,
       extendExcelCellSelection,
       extendExcelColumnSelection,
       fieldCapabilityByKey,
@@ -320,14 +382,12 @@ export function useHeatCalcTableColumns({
       startColumnResize,
       startInlineCellEdit,
       tableCellEditingEnabled,
+      normalizedExcelRange,
     ],
   );
 
   const excelRowHeaderColumn = useMemo<ColumnType<ProjectObject> | null>(() => {
     if (!excelModeEnabled) return null;
-    const normalizedExcelRange = excelSelectionRange
-      ? normalizeExcelSelectionRange(excelSelectionRange, excelRowIds, editableExcelColumnKeys)
-      : null;
     return {
       key: '__excel_row_header__',
       title: (
@@ -414,12 +474,10 @@ export function useHeatCalcTableColumns({
   }, [
     beginExcelRowSelection,
     draftRowsById,
-    editableExcelColumnKeys,
     excelModeEnabled,
-    excelRowIds,
-    excelSelectionRange,
     extendExcelRowSelection,
     isSavableDraftRow,
+    normalizedExcelRange,
     openExcelRowContextMenu,
     selectAllExcelCells,
     selectedExcelPosition,

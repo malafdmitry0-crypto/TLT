@@ -720,17 +720,47 @@ export default function HeatCalcPage() {
     () => ['project', project?.id, 'objects', 'query', objectQueryRequest] as const,
     [objectQueryRequest, project?.id],
   );
+  const allProjectObjectsQueryKey = useMemo(
+    () => ['project', project?.id, 'objects', 'query', 'all'] as const,
+    [project?.id],
+  );
   const { data: objectQueryResult } = useQuery({
     queryKey: objectQueryKey,
     queryFn: () => queryObjects(project!.id, objectQueryRequest!),
     enabled: !!project && objectQueryRequest != null && !!objectQueryCapabilities,
     placeholderData: (previous) => previous,
   });
-  const { data: allProjectObjects = [] } = useQuery({
-    queryKey: ['project', project?.id, 'objects', 'query', 'all'],
+  const currentPageObjectsForExcel = useMemo(
+    () => (!isAllObjectScope ? objectQueryResult?.items ?? [] : []),
+    [isAllObjectScope, objectQueryResult?.items],
+  );
+  const { data: allProjectObjectsData } = useQuery({
+    queryKey: allProjectObjectsQueryKey,
     queryFn: () => listObjects(project!.id),
     enabled: !!project && (isAllObjectScope || excelModeEnabled),
+    placeholderData: (previous) => previous ?? currentPageObjectsForExcel,
   });
+  const allProjectObjects = allProjectObjectsData ?? currentPageObjectsForExcel;
+
+  useEffect(() => {
+    if (!project || isAllObjectScope) return undefined;
+    const win = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const prefetchObjects = () => {
+      void queryClient.prefetchQuery({
+        queryKey: allProjectObjectsQueryKey,
+        queryFn: () => listObjects(project.id),
+      });
+    };
+    if (win.requestIdleCallback) {
+      const handle = win.requestIdleCallback(prefetchObjects, { timeout: 1_500 });
+      return () => win.cancelIdleCallback?.(handle);
+    }
+    const handle = window.setTimeout(prefetchObjects, 0);
+    return () => window.clearTimeout(handle);
+  }, [allProjectObjectsQueryKey, isAllObjectScope, project, queryClient]);
   const insulationLabelByCode = useMemo(
     () => new Map(insulationMaterials.map((m) => [m.material, insulationEntryLabel(m)])),
     [insulationMaterials],

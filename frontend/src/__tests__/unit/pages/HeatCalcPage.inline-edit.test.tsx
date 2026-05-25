@@ -275,6 +275,43 @@ describe('HeatCalcPage inline edit', () => {
       });
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
+    it('в Excel-режиме не показывает пустую таблицу, пока догружается полный список объектов', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const source = makeObject();
+      const previousRequestIdleCallback = window.requestIdleCallback;
+      const previousCancelIdleCallback = window.cancelIdleCallback;
+      window.requestIdleCallback = vi.fn(() => 1);
+      window.cancelIdleCallback = vi.fn();
+      let delayFullList = false;
+      let resolveFullList: ((rows: ReturnType<typeof makeObject>[]) => void) | undefined;
+      (listObjects as ReturnType<typeof vi.fn>).mockImplementation(() => {
+        if (!delayFullList) return Promise.resolve([source]);
+        return new Promise((resolve) => {
+          resolveFullList = resolve;
+        });
+      });
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      delayFullList = true;
+      await user.click(screen.getByText('Excel-режим'));
+
+      await waitFor(() => {
+        expect(document.querySelector('.calc-spreadsheet--excel-mode')).toBeInTheDocument();
+      });
+      const excelGrid = document.querySelector<HTMLElement>('.calc-spreadsheet--excel-mode');
+      expect(excelGrid).not.toBeNull();
+      expect(within(excelGrid!).getByRole('button', { name: 'Труба DN100' })).toBeInTheDocument();
+      expect(within(excelGrid!).queryByText(/не добавлены/i)).not.toBeInTheDocument();
+
+      resolveFullList?.([source]);
+      window.requestIdleCallback = previousRequestIdleCallback;
+      window.cancelIdleCallback = previousCancelIdleCallback;
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
     it('в Excel-режиме показывает конкретную ошибку поля при сохранении', async () => {
       const { listObjects, updateObject } = await import('@/api/projects');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
