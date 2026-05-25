@@ -27,6 +27,7 @@ interface HeatCalcObjectsTableCardProps {
     record: ProjectObject,
     event: ReactMouseEvent<HTMLElement>,
   ) => void;
+  onExcelReachScrollEnd: () => void;
   onOpenEditWizard: (record: ProjectObject) => void;
   onResetCurrentTableViewState: () => void;
   onSelectedRowKeysChange: (keys: string[]) => void;
@@ -103,6 +104,7 @@ export default function HeatCalcObjectsTableCard({
   tableScrollX,
   tableScrollY,
   onExcelRowSecondaryAction,
+  onExcelReachScrollEnd,
   onOpenEditWizard,
   onResetCurrentTableViewState,
   onSelectedRowKeysChange,
@@ -127,6 +129,7 @@ export default function HeatCalcObjectsTableCard({
           })}
           rowClassName={rowClassName}
           onRowSecondaryAction={onExcelRowSecondaryAction}
+          onReachScrollEnd={onExcelReachScrollEnd}
         />
       ) : (
         <Table<ProjectObject>

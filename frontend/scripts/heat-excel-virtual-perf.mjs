@@ -19,6 +19,7 @@ Options:
   --channel=<name>            Playwright browser channel, default chrome
   --max-dom-rows=<n>          Fail if rendered virtual rows exceed this, default 100
   --max-action-ms=<ms>        Optional fail threshold for any measured action
+  --screenshot=<path>         Optional screenshot path after bottom scroll for first row count
   --help                      Print this help
 `);
 }
@@ -64,6 +65,7 @@ const maxActionMs = optionalPositiveInt(
   argValue('max-action-ms', process.env.HEAT_EXCEL_PERF_MAX_ACTION_MS ?? ''),
   'max-action-ms',
 );
+const screenshotPath = argValue('screenshot', process.env.HEAT_EXCEL_PERF_SCREENSHOT ?? '');
 
 function makeProject() {
   return {
@@ -172,6 +174,15 @@ async function afterFrame(page) {
   }));
 }
 
+async function lastVisibleInputRowNumber(page) {
+  const text = await page
+    .locator('.excel-virtual-row.row-excel-new .excel-row-header-button')
+    .last()
+    .textContent();
+  const value = Number(text?.trim());
+  return Number.isFinite(value) ? value : 0;
+}
+
 async function installApiMocks(page, rows) {
   const project = makeProject();
   await page.route('**/api/v1/**', async (route) => {
@@ -277,6 +288,13 @@ async function runForRowCount(browser, rowCount) {
     if (bottomDomRows > maxDomRows || bottomDomRows >= rowCount) {
       throw new Error(`DOM row budget failed after scroll at ${rowCount}: rendered ${bottomDomRows}`);
     }
+    const bottomInputRows = await page.locator('.excel-virtual-row.row-excel-new').count();
+    if (bottomInputRows < 10) {
+      throw new Error(`Trailing input rows missing at ${rowCount}: rendered ${bottomInputRows}`);
+    }
+    if (screenshotPath && rowCount === rowCounts[0]) {
+      await page.screenshot({ path: screenshotPath, fullPage: false });
+    }
 
     await measure('edit-last-visible-row', async () => {
       const row = page.locator(`.excel-virtual-row[data-row-key="pipe-${rowCount - 1}"]`);
@@ -327,6 +345,27 @@ async function runForRowCount(browser, rowCount) {
       await page.keyboard.press('Escape');
     });
 
+    let scrolledInputTailRow = 0;
+    await measure('extend-empty-tail-on-scroll', async () => {
+      const body = page.locator('.excel-virtual-table-body');
+      await body.evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+      });
+      await afterFrame(page);
+      const beforeTailRow = await lastVisibleInputRowNumber(page);
+      await body.hover();
+      await page.mouse.wheel(0, 4_000);
+      await afterFrame(page);
+      await body.evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+      });
+      await afterFrame(page);
+      scrolledInputTailRow = await lastVisibleInputRowNumber(page);
+      if (scrolledInputTailRow <= beforeTailRow) {
+        throw new Error(`Empty tail did not extend after scroll at ${rowCount}: ${beforeTailRow} -> ${scrolledInputTailRow}`);
+      }
+    });
+
     await measure('paste-100x10', async () => {
       await page.locator('.excel-virtual-table-body').evaluate((element) => {
         element.scrollTop = 0;
@@ -368,6 +407,8 @@ async function runForRowCount(browser, rowCount) {
       rowCount,
       initialDomRows,
       bottomDomRows,
+      bottomInputRows,
+      scrolledInputTailRow,
       measurements,
     };
   } finally {

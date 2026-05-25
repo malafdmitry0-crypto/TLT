@@ -15,6 +15,8 @@ export type ExcelLocalProjectObject = ProjectObject & {
   __excelInsertAfterObjectId?: string | null;
 };
 
+export const MIN_TRAILING_EXCEL_INPUT_ROWS = 20;
+
 interface BuildExcelLocalRowsOptions {
   count: number;
   objectType: HeatCalcObjectType;
@@ -115,6 +117,29 @@ export function pruneExcelLocalRowsByIds(
   const ids = new Set(rowIds);
   if (ids.size === 0) return localRows;
   return localRows.filter((row) => !ids.has(row.id));
+}
+
+export function countTrailingBlankExcelInputRows(
+  rows: ProjectObject[],
+  draftRowsById: DraftRowsById,
+): number {
+  let count = 0;
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    const row = rows[index];
+    if (!row || !isExcelNewRowId(row.id) || !isExcelDraftRowBlank(draftRowsById[row.id])) {
+      break;
+    }
+    count += 1;
+  }
+  return count;
+}
+
+export function missingTrailingExcelInputRows(
+  rows: ProjectObject[],
+  draftRowsById: DraftRowsById,
+  minimumCount = MIN_TRAILING_EXCEL_INPUT_ROWS,
+): number {
+  return Math.max(0, minimumCount - countTrailingBlankExcelInputRows(rows, draftRowsById));
 }
 
 export function removeExcelRowsFromModel({

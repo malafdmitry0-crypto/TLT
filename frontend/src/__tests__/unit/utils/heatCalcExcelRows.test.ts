@@ -5,9 +5,11 @@ import type { DraftRowState } from '@/utils/heatCalcInlineEdit';
 import {
   applyExcelDraftRowPatch,
   buildExcelLocalRows,
+  countTrailingBlankExcelInputRows,
   getActiveExcelLocalRows,
   isSavableExcelDraftRow,
   mergeExcelLocalRows,
+  missingTrailingExcelInputRows,
   pruneExcelLocalRowsByIds,
   removeDraftRowsByIds,
   removeExcelRowsFromModel,
@@ -191,6 +193,36 @@ describe('heatCalcExcelRows', () => {
       objectId: 'pipe-a',
       dirtyFields: { name: 'P01' },
     }))).toBe(true);
+  });
+
+  it('считает только пустой trailing-хвост строк ввода для Excel-подобного заполнения', () => {
+    const persisted = projectObject('pipe-a', 1);
+    const persistedAfterMiddle = projectObject('pipe-b', 2);
+    const { rows: trailingRows } = buildExcelLocalRows({
+      count: 3,
+      objectType: 'pipe',
+      projectId: 'project-1',
+      projectObjectCount: 1,
+      startSeq: 0,
+    });
+    const [middleLocal] = buildExcelLocalRows({
+      count: 1,
+      objectType: 'pipe',
+      projectId: 'project-1',
+      projectObjectCount: 1,
+      startSeq: 10,
+      insertAfterObjectId: persisted.id,
+    }).rows;
+    const rows = mergeExcelLocalRows([persisted, persistedAfterMiddle], [middleLocal, ...trailingRows]);
+
+    expect(countTrailingBlankExcelInputRows(rows, {})).toBe(3);
+    expect(missingTrailingExcelInputRows(rows, {}, 5)).toBe(2);
+    expect(countTrailingBlankExcelInputRows(rows, {
+      [trailingRows[1].id]: draftRow({
+        objectId: trailingRows[1].id,
+        dirtyFields: { name: 'new' },
+      }),
+    })).toBe(1);
   });
 
   it('patch draft удаляет пустые строки, но сохраняет draft с ошибкой', () => {

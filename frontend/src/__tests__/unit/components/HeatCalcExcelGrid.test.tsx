@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ColumnType } from 'antd/es/table';
 
@@ -63,5 +63,43 @@ describe('HeatCalcExcelGrid', () => {
     expect(renderedRows.length).toBeLessThanOrEqual(80);
     expect(screen.getByText('Pipe 0')).toBeInTheDocument();
     expect(screen.queryByText('Pipe 999')).not.toBeInTheDocument();
+  });
+
+  it('requests more input rows when the user scrolls the Excel sheet bottom', () => {
+    const rows = Array.from({ length: 30 }, (_, index) => makePipe(index));
+    const onReachScrollEnd = vi.fn();
+    const { container } = render(
+      <HeatCalcExcelGrid
+        rows={rows}
+        columns={[{
+          key: 'name',
+          title: 'Название',
+          width: 160,
+          render: (_value, record) => String(record.params.name),
+        }]}
+        tableScrollX={160}
+        tableScrollY="320px"
+        fontSizeKey="standard"
+        selectedRowIndex={null}
+        emptyContent="Нет строк"
+        rowClassName={() => ''}
+        onRowSecondaryAction={vi.fn()}
+        onReachScrollEnd={onReachScrollEnd}
+      />,
+    );
+    const body = container.querySelector<HTMLDivElement>('.excel-virtual-table-body');
+    expect(body).not.toBeNull();
+    Object.defineProperty(body, 'scrollTop', { value: 680, configurable: true });
+    Object.defineProperty(body, 'clientHeight', { value: 320, configurable: true });
+    Object.defineProperty(body, 'scrollHeight', { value: 1_000, configurable: true });
+
+    fireEvent.scroll(body!);
+    fireEvent.scroll(body!);
+    expect(onReachScrollEnd).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(body, 'scrollHeight', { value: 1_600, configurable: true });
+    Object.defineProperty(body, 'scrollTop', { value: 1_280, configurable: true });
+    fireEvent.wheel(body!, { deltaY: 240 });
+    expect(onReachScrollEnd).toHaveBeenCalledTimes(2);
   });
 });

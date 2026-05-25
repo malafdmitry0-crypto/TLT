@@ -200,6 +200,8 @@ import {
   applyExcelDraftRowPatch,
   buildExcelLocalRows,
   isSavableExcelDraftRow,
+  MIN_TRAILING_EXCEL_INPUT_ROWS,
+  missingTrailingExcelInputRows,
   pruneExcelLocalRowsByIds,
   removeDraftRowsByIds,
   removeExcelRowsFromModel,
@@ -461,10 +463,11 @@ export default function HeatCalcPage() {
   const [excelLocalRows, setExcelLocalRows] = useState<ExcelLocalProjectObject[]>([]);
   const [excelContextMenu, setExcelContextMenu] = useState<HeatCalcExcelContextMenuState>(null);
   const excelNewRowSeqRef = useRef(0);
-  const excelBaselineRowsInitializedRef = useRef<Record<HeatCalcObjectType, boolean>>({
-    pipe: false,
-    tank: false,
-  });
+  const pendingExcelInputRowsRef = useRef<{
+    objectType: HeatCalcObjectType;
+    rowCount: number;
+    missingCount: number;
+  } | null>(null);
   const [pendingInlineDisableSettings, setPendingInlineDisableSettings] =
     useState<PendingInlineDisableSettings | null>(null);
   const [pendingWizardObject, setPendingWizardObject] = useState<ProjectObject | null>(null);
@@ -482,7 +485,7 @@ export default function HeatCalcPage() {
 
   useEffect(() => {
     excelNewRowSeqRef.current = 0;
-    excelBaselineRowsInitializedRef.current = { pipe: false, tank: false };
+    pendingExcelInputRowsRef.current = null;
     setExcelLocalRows([]);
     setSelectedExcelCell(null);
     setExcelSelectionRange(null);
@@ -1601,7 +1604,6 @@ export default function HeatCalcPage() {
     return rows;
   }, [createExcelLocalRows]);
   const {
-    activeLocalRows: activeExcelLocalRows,
     baseRows: excelBaseRows,
     rows: excelRows,
     indexedRows: excelTableRows,
@@ -1620,15 +1622,45 @@ export default function HeatCalcPage() {
     editableColumnKeys: editableExcelColumnKeys,
   });
 
+  const missingExcelInputRowCount = useMemo(
+    () => (excelModeEnabled
+      ? missingTrailingExcelInputRows(excelRows, draftRowsById)
+      : 0),
+    [draftRowsById, excelModeEnabled, excelRows],
+  );
+
   useEffect(() => {
-    if (!excelModeEnabled) return;
-    if (excelBaselineRowsInitializedRef.current[activeTableObjectType]) return;
-    excelBaselineRowsInitializedRef.current = {
-      ...excelBaselineRowsInitializedRef.current,
-      [activeTableObjectType]: true,
+    if (!excelModeEnabled || missingExcelInputRowCount <= 0) {
+      pendingExcelInputRowsRef.current = null;
+      return;
+    }
+    const pendingInputRows = pendingExcelInputRowsRef.current;
+    if (
+      pendingInputRows
+      && pendingInputRows.objectType === activeTableObjectType
+      && pendingInputRows.rowCount === excelRows.length
+      && pendingInputRows.missingCount === missingExcelInputRowCount
+    ) {
+      return;
+    }
+    pendingExcelInputRowsRef.current = {
+      objectType: activeTableObjectType,
+      rowCount: excelRows.length,
+      missingCount: missingExcelInputRowCount,
     };
-    if (activeExcelLocalRows.length === 0) appendExcelLocalRows(5);
-  }, [activeExcelLocalRows.length, activeTableObjectType, appendExcelLocalRows, excelModeEnabled]);
+    appendExcelLocalRows(missingExcelInputRowCount);
+  }, [
+    activeTableObjectType,
+    appendExcelLocalRows,
+    excelModeEnabled,
+    excelRows.length,
+    missingExcelInputRowCount,
+  ]);
+
+  const extendExcelInputRowsOnScroll = useCallback(() => {
+    if (!excelModeEnabled) return;
+    appendExcelLocalRows(MIN_TRAILING_EXCEL_INPUT_ROWS);
+  }, [appendExcelLocalRows, excelModeEnabled]);
 
   const allTableOffset = isAllObjectScope ? (activeTablePage - 1) * DEFAULT_OBJECT_QUERY_PAGE_SIZE : 0;
   const visibleAllTableRows = useMemo(
@@ -3375,6 +3407,7 @@ export default function HeatCalcPage() {
                 tableScrollX={tableScrollX}
                 tableScrollY={tableScrollY}
                 onExcelRowSecondaryAction={openExcelRecordContextMenu}
+                onExcelReachScrollEnd={extendExcelInputRowsOnScroll}
                 onOpenEditWizard={openEditWizard}
                 onResetCurrentTableViewState={resetCurrentTableViewState}
                 onSelectedRowKeysChange={setSelectedRowKeys}

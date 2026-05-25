@@ -22,6 +22,7 @@ interface HeatCalcExcelGridProps {
   emptyContent: ReactNode;
   rowClassName: (record: ProjectObject) => string;
   onRowSecondaryAction: (record: ProjectObject, event: MouseEvent<HTMLElement>) => void;
+  onReachScrollEnd?: () => void;
   overscan?: number;
   rowEstimatePx?: number;
 }
@@ -36,10 +37,12 @@ function HeatCalcExcelGrid({
   emptyContent,
   rowClassName,
   onRowSecondaryAction,
+  onReachScrollEnd,
   overscan = 12,
   rowEstimatePx = 30,
 }: HeatCalcExcelGridProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const lastScrollEndHeightRef = useRef(0);
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
@@ -75,6 +78,14 @@ function HeatCalcExcelGrid({
     ? Math.max(0, virtualTotalSize - lastVirtualRow.end)
     : 0;
   const className = `calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--excel-mode calc-spreadsheet--virtual`;
+  const handleScrollEndProbe = (element: HTMLDivElement) => {
+    if (!onReachScrollEnd) return;
+    const thresholdPx = rowEstimatePx * 4;
+    const nearBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - thresholdPx;
+    if (!nearBottom || element.scrollHeight === lastScrollEndHeightRef.current) return;
+    lastScrollEndHeightRef.current = element.scrollHeight;
+    onReachScrollEnd();
+  };
 
   if (rows.length === 0) {
     return (
@@ -95,6 +106,10 @@ function HeatCalcExcelGrid({
               ref={scrollRef}
               className="ant-table-body excel-virtual-table-body"
               style={{ maxHeight: tableScrollY }}
+              onScroll={(event) => handleScrollEndProbe(event.currentTarget)}
+              onWheel={(event) => {
+                if (event.deltaY > 0) handleScrollEndProbe(event.currentTarget);
+              }}
             >
               <table style={{ width: tableScrollX, minWidth: tableScrollX }}>
                 <colgroup>
