@@ -158,6 +158,19 @@
 
 ---
 
+## TC-OBJ-09A: Точечный пересчёт выбранных объектов
+
+**Автоматизировано:** ✅ (frontend unit) `HeatCalcPage.actions.test.tsx`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Выбрать строки чекбоксами или Ctrl/Cmd/Shift-семантикой в normal Glide | В toolbar пересчёт показывает количество выбранных строк |
+| 2 | Нажать «Пересчитать теплопотери» | `POST /api/v1/calc/heat-loss/batch/jobs` получает `object_ids` выбранных строк |
+| 3 | Снять выбор, оставить активную строку формы | Повторный запуск отправляет `object_ids` только активной строки |
+| 4 | Без выбора и активной строки запустить пересчёт | `object_ids` не передаются, пересчитывается весь проект |
+
+---
+
 ## TC-OBJ-10: Граничные значения параметров (валидация схемы)
 
 **Автоматизировано:** ✅ (unit) `test_calculation_schemas.py`, `test_pipe_heat_loss.py::TestSchemaValidation`
@@ -253,7 +266,7 @@
 **Автоматизировано:** Frontend unit ✅ `HeatCalcExcelGrid.test.tsx` для DOM-count<br>
 **Perf/manual default Glide engine:** `npm --prefix frontend run perf:heat-excel-virtual -- --url=http://localhost:3003 --rows=1000,3000`<br>
 **Perf/manual table fallback:** `npm --prefix frontend run perf:heat-excel-virtual -- --url=http://localhost:3003 --rows=1000,3000 --engine=table`<br>
-**Normal mode Glide default:** обычный режим по умолчанию использует Glide. Fallback на старую AntD Table включается через `?normalTableEngine=table` или `localStorage.heatcalc.normalTableEngine = "table"`. В Glide normal header click переключает сортировку, правая зона заголовка / правый клик по заголовку открывает тот же фильтр, что и AntD Table; индикаторы сортировки и фильтра видны прямо в canvas-заголовке. Номера строк отображаются в левом row-header как в Excel; отдельная колонка `№` в normal Glide не показывается. Клик по строке открывает её в форме и подсвечивает активную строку синей полосой без установки checkbox-selection; строки с ошибками остаются красными. Normal Glide не показывает page buttons: при скролле вниз он догружает следующую страницу через backend `page_info.next_cursor` и добавляет строки в текущий список.
+**Normal mode Glide default:** обычный режим по умолчанию использует Glide. Fallback на старую AntD Table включается через `?normalTableEngine=table` или `localStorage.heatcalc.normalTableEngine = "table"`. В Glide normal header click переключает сортировку, правая зона заголовка / правый клик по заголовку открывает тот же фильтр, что и AntD Table; индикаторы сортировки и фильтра видны прямо в canvas-заголовке. В левом row-header отображаются чекбоксы мультивыбора; Ctrl/Cmd+клик переключает одну строку, Shift+клик выбирает диапазон от anchor-строки, а чекбокс заголовка выбирает/снимает видимые загруженные строки. Отдельная колонка `№` в normal Glide не показывается. Клик по строке открывает её в форме и подсвечивает активную строку синей полосой без сброса checkbox-selection; строки с ошибками остаются красными. Normal Glide не показывает page buttons: при скролле вниз он догружает следующую страницу через backend `page_info.next_cursor` и добавляет строки в текущий список.
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|

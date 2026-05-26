@@ -26,10 +26,10 @@ describe('HeatCalcPage actions', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      await user.click(screen.getByRole('button', { name: 'Пересчитать теплопотери' }));
+      await user.click(screen.getByRole('button', { name: /Пересчитать теплопотери всех объектов проекта/i }));
 
       await waitFor(() => {
-        expect(enqueueHeatLossBatchJob).toHaveBeenCalledWith('proj-test-1', true);
+        expect(enqueueHeatLossBatchJob).toHaveBeenCalledWith('proj-test-1', true, undefined);
       });
       await waitFor(() => {
         expect(getCalcTask).toHaveBeenCalledWith('heat-task-1');
@@ -71,7 +71,7 @@ describe('HeatCalcPage actions', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      await user.click(screen.getByRole('button', { name: 'Пересчитать теплопотери' }));
+      await user.click(screen.getByRole('button', { name: /Пересчитать теплопотери всех объектов проекта/i }));
 
       await waitFor(() => {
         expect(getCalcTask).toHaveBeenCalledWith('heat-task-1');
@@ -80,6 +80,58 @@ describe('HeatCalcPage actions', () => {
         expect((getObjectsSummary as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(2);
       });
     });
+
+    it('запускает точечный пересчёт теплопотерь по выбранным строкам', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const { enqueueHeatLossBatchJob } = await import('@/api/calculations');
+      const source = makeObject();
+      const secondSource = makeObject({
+        id: 'obj-2',
+        sort_order: 1,
+        params: { ...source.params, name: 'Труба DN150' },
+      });
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source, secondSource]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      const table = getNormalGlideGrid();
+      fireEvent.click(within(table).getByRole('checkbox', { name: 'Выбрать Труба DN100' }));
+      fireEvent.click(within(table).getByRole('checkbox', { name: 'Выбрать Труба DN150' }));
+      await user.click(screen.getByRole('button', { name: /Пересчитать теплопотери выбранных строк \(2\)/i }));
+
+      await waitFor(() => {
+        expect(enqueueHeatLossBatchJob).toHaveBeenCalledWith('proj-test-1', true, [source.id, secondSource.id]);
+      });
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
+    it('запускает точечный пересчёт теплопотерь по активной строке без checkbox-selection', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const { enqueueHeatLossBatchJob } = await import('@/api/calculations');
+      const source = makeObject();
+      const secondSource = makeObject({
+        id: 'obj-2',
+        sort_order: 1,
+        params: { ...source.params, name: 'Труба DN150' },
+      });
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source, secondSource]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await user.click(await screen.findByText('Труба DN150'));
+      await waitFor(() => {
+        expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /Пересчитать теплопотери активной строки/i }));
+
+      await waitFor(() => {
+        expect(enqueueHeatLossBatchJob).toHaveBeenCalledWith('proj-test-1', true, [secondSource.id]);
+      });
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('после сохранения редактируемого объекта остаётся на той же записи', async () => {
       const { listObjects, updateObject } = await import('@/api/projects');

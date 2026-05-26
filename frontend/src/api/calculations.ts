@@ -361,12 +361,14 @@ export async function enqueueElectricalBatchJob(
 export async function enqueueHeatLossBatchJob(
   projectId: string,
   includeErrors: boolean = true,
+  objectIds?: readonly string[],
 ): Promise<CalculationTaskResponse> {
   const { data } = await apiClient.post<CalculationTaskResponse>(
     '/calc/heat-loss/batch/jobs',
     {
       project_id: projectId,
       include_errors: includeErrors,
+      ...(objectIds && objectIds.length > 0 ? { object_ids: objectIds } : {}),
     },
     withIdempotencyKey(),
   );

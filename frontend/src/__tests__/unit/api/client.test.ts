@@ -270,6 +270,27 @@ describe('apiClient network retry and idempotency', () => {
     }
   });
 
+  it('передаёт object_ids в async heat-loss job для точечного пересчёта', async () => {
+    const adapter = vi.fn(async (config) => ({
+      config,
+      data: { id: 'task-1', status: 'queued' },
+      headers: {},
+      status: 200,
+      statusText: 'OK',
+    }));
+    apiClient.defaults.adapter = adapter;
+
+    await enqueueHeatLossBatchJob('project-1', true, ['object-1', 'object-3']);
+
+    expect(adapter).toHaveBeenCalledWith(expect.objectContaining({
+      data: JSON.stringify({
+        project_id: 'project-1',
+        include_errors: true,
+        object_ids: ['object-1', 'object-3'],
+      }),
+    }));
+  });
+
   it('не перетирает явно переданный Idempotency-Key', () => {
     const config = withIdempotencyKey({ headers: { 'Idempotency-Key': 'same-click' } });
     expect(getHeader(config.headers, 'Idempotency-Key')).toBe('same-click');

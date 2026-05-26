@@ -440,6 +440,7 @@ function HeatCalcNormalGlideGrid({
   const editorRef = useRef<DataEditorRef | null>(null);
   const cellEditorElementRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
   const filterPopupRef = useRef<HTMLDivElement | null>(null);
+  const rowSelectionAnchorRef = useRef<number | null>(null);
   const fontSize = useMemo(() => resolveTableFontSizeByKey(fontSizeKey), [fontSizeKey]);
   const rowHeight = useMemo(() => glideRowHeight(fontSizeKey), [fontSizeKey]);
   const visibleGridColumns = useMemo(
@@ -530,17 +531,48 @@ function HeatCalcNormalGlideGrid({
     drawNormalStatusBadge(args.ctx, args.rect, status);
   }, [activeRowId, rows, visibleGridColumns]);
   const handleGridSelectionChange = useCallback((nextSelection: GridSelection) => {
-    const keys = nextSelection.rows
-      .toArray()
-      .map((rowIndex) => rows[rowIndex]?.id)
-      .filter((id): id is string => Boolean(id));
-    onSelectedRowKeysChange(keys);
     const currentCell = nextSelection.current?.cell;
+    const rowIndexes = nextSelection.rows.toArray();
+    if (rowIndexes.length > 0 || !currentCell) {
+      const keys = rowIndexes
+        .map((rowIndex) => rows[rowIndex]?.id)
+        .filter((id): id is string => Boolean(id));
+      onSelectedRowKeysChange(keys);
+    }
     if (currentCell) {
       setActiveCell(currentCell);
       syncActiveRecordFromCell(currentCell);
     }
   }, [onSelectedRowKeysChange, rows, syncActiveRecordFromCell]);
+  const updateRowSelectionFromClick = useCallback((
+    rowIndex: number,
+    event: Pick<CellClickedEventArgs, 'ctrlKey' | 'metaKey' | 'shiftKey'>,
+  ) => {
+    const record = rows[rowIndex];
+    if (!record) return;
+    const selected = new Set(selectedRowKeys);
+    const multiKey = event.ctrlKey || event.metaKey;
+    if (event.shiftKey) {
+      const anchorRow = rowSelectionAnchorRef.current ?? activeCell?.[1] ?? rowIndex;
+      const top = Math.min(anchorRow, rowIndex);
+      const bottom = Math.max(anchorRow, rowIndex);
+      for (let index = top; index <= bottom; index += 1) {
+        const row = rows[index];
+        if (row) selected.add(row.id);
+      }
+      rowSelectionAnchorRef.current = anchorRow;
+      onSelectedRowKeysChange(rows.filter((row) => selected.has(row.id)).map((row) => row.id));
+      return;
+    }
+    rowSelectionAnchorRef.current = rowIndex;
+    if (multiKey) {
+      if (selected.has(record.id)) selected.delete(record.id);
+      else selected.add(record.id);
+      onSelectedRowKeysChange(rows.filter((row) => selected.has(row.id)).map((row) => row.id));
+      return;
+    }
+    onSelectedRowKeysChange([record.id]);
+  }, [activeCell, onSelectedRowKeysChange, rows, selectedRowKeys]);
   const openEditorForCell = useCallback((cell: Item, fallbackBounds?: NormalGlideEditingCell['bounds']) => {
     const modelCell = getModelCell(cell[0], cell[1]);
     if (!modelCell?.state.editable) return false;
@@ -576,13 +608,23 @@ function HeatCalcNormalGlideGrid({
     setEditingCell(null);
   }, [editingCell, getModelCell, onCommitCell]);
   const handleCellClicked = useCallback((cell: Item, event: CellClickedEventArgs) => {
-    if (cell[0] < 0) return;
+    if (cell[0] < 0) {
+      event.preventDefault();
+      return;
+    }
+    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+      event.preventDefault();
+      setActiveCell(cell);
+      updateRowSelectionFromClick(cell[1], event);
+      return;
+    }
     event.preventDefault();
     setActiveCell(cell);
     syncActiveRecordFromCell(cell);
     if (openEditorForCell(cell, event.bounds)) return;
-  }, [openEditorForCell, syncActiveRecordFromCell]);
+  }, [openEditorForCell, syncActiveRecordFromCell, updateRowSelectionFromClick]);
   const handleCellActivated = useCallback((cell: Item) => {
+    if (cell[0] < 0) return;
     setActiveCell(cell);
     syncActiveRecordFromCell(cell);
     openEditorForCell(cell);
@@ -755,9 +797,12 @@ function HeatCalcNormalGlideGrid({
         height={tableScrollY}
         columns={editorColumns}
         rows={rows.length}
-        rowMarkers="clickable-number"
-        rowMarkerWidth={NORMAL_ROW_MARKER_WIDTH}
-        rowMarkerStartIndex={rowMarkerStartIndex}
+        rowMarkers={{
+          kind: 'checkbox-visible',
+          checkboxStyle: 'square',
+          width: NORMAL_ROW_MARKER_WIDTH,
+          startIndex: rowMarkerStartIndex,
+        }}
         rowHeight={rowHeight}
         headerHeight={rowHeight + 8}
         minColumnWidth={NORMAL_GLIDE_MIN_COLUMN_WIDTH}
@@ -780,6 +825,7 @@ function HeatCalcNormalGlideGrid({
         onColumnResize={onColumnResize ? handleColumnResize : undefined}
         onColumnResizeEnd={onColumnResizeEnd ? handleColumnResizeEnd : undefined}
         rowSelect="multi"
+        rowSelectionMode="multi"
         rangeSelect="cell"
         columnSelect="none"
         getRowThemeOverride={(rowIndex) => {

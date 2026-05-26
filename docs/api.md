@@ -133,6 +133,11 @@ Backend выполняет optimistic lock по `project_objects.version`: ус�
 спецификации проекта получают `is_stale=true`, потому что спецификация является
 производной от теплопотерь и электрорасчётов.
 
+**`POST /calc/heat-loss/batch/jobs`** принимает JSON
+`{ project_id, include_errors, object_ids? }`. Если `object_ids` переданы,
+фоновой задачей пересчитываются только выбранные объекты проекта; без
+`object_ids` пересчитывается весь проект.
+
 ## Фоновые задачи и idempotency
 
 Async job endpoints принимают заголовок `Idempotency-Key` и дедуплицируют

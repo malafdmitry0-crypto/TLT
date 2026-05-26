@@ -1016,7 +1016,7 @@ export default function HeatCalcPage() {
   );
 
   const heatLossBatchMut = useMutation({
-    mutationFn: () => enqueueHeatLossBatchJob(project!.id, true),
+    mutationFn: (objectIds?: string[]) => enqueueHeatLossBatchJob(project!.id, true, objectIds),
     onSuccess: (task) => {
       setActiveHeatLossJobId(task.id);
       queryClient.invalidateQueries({ queryKey: ['calc-job', task.id] });
@@ -1991,13 +1991,28 @@ export default function HeatCalcPage() {
     dirtyDraftRowCount > 0 ||
     submittingObject ||
     isHeatLossJobActive;
+  const heatLossRecalcObjectIds = useMemo(() => {
+    const selectedIds = selectedVisibleRows.map(({ record }) => record.id);
+    if (selectedIds.length > 0) return selectedIds;
+    if (selectedRowId) return [selectedRowId];
+    return undefined;
+  }, [selectedRowId, selectedVisibleRows]);
   const heatLossRecalcTooltip = dirtyDraftRowCount > 0
     ? 'Сохраните или сбросьте изменения в таблице перед пересчётом'
     : projectObjectCount === 0
       ? 'Добавьте объекты для пересчёта'
       : isHeatLossJobActive
         ? 'Пересчёт теплопотерь уже выполняется'
-        : 'Пересчитать теплопотери всех объектов проекта';
+        : heatLossRecalcObjectIds
+          ? selectedVisibleRows.length > 0
+            ? `Пересчитать теплопотери выбранных строк (${heatLossRecalcObjectIds.length})`
+            : 'Пересчитать теплопотери активной строки'
+          : 'Пересчитать теплопотери всех объектов проекта';
+  const heatLossRecalcAriaLabel = heatLossRecalcObjectIds
+    ? selectedVisibleRows.length > 0
+      ? `Пересчитать теплопотери выбранных строк (${heatLossRecalcObjectIds.length})`
+      : 'Пересчитать теплопотери активной строки'
+    : 'Пересчитать теплопотери всех объектов проекта';
 
   const duplicateSelectedObjects = useCallback(async () => {
     const duplicatePayloads = selectedVisibleRows
@@ -3546,10 +3561,10 @@ export default function HeatCalcPage() {
                 <Button
                   className="action-icon-button action-secondary-button"
                   icon={<ReloadOutlined />}
-                  aria-label="Пересчитать теплопотери"
+                  aria-label={heatLossRecalcAriaLabel}
                   loading={heatLossBatchMut.isPending || isHeatLossJobActive}
                   disabled={heatLossRecalcDisabled || heatLossBatchMut.isPending}
-                  onClick={() => heatLossBatchMut.mutate()}
+                  onClick={() => heatLossBatchMut.mutate(heatLossRecalcObjectIds)}
                 />
               </span>
             </Tooltip>
