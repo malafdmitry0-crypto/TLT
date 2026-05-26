@@ -5,6 +5,13 @@ __pycache__/
 *.pyd
 .Python
 *.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.tox/
+.nox/
+.hypothesis/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -19,14 +26,37 @@ dist/
 build/
 .vite/
 coverage/
+.nyc_output/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
 
 # Env
 .env
 .env.local
 .env.*.local
+!.env.example
+!.env.*.example
+.envrc
 
 # Local pip --user installs
 .local/
+
+# Logs and runtime files
+*.log
+*.pid
+*.seed
+*.sqlite
+*.sqlite3
+*.db
+
+# Build/package artifacts
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.7z
 
 # Демо-поставка (compose, README, образы) — собирается локально, не нужна в репо
 demo/
@@ -36,6 +66,7 @@ demo*.zip
 .vscode/
 .idea/
 *.swp
+.DS_Store?
 .claude
 
 # OS
@@ -45,6 +76,7 @@ Thumbs.db
 # Playwright
 test-results/
 playwright-report/
+blob-report/
 playwright/.cache/
 
 # QA agent generated reports
