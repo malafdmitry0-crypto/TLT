@@ -1997,6 +1997,7 @@ export default function HeatCalcPage() {
     if (selectedRowId) return [selectedRowId];
     return undefined;
   }, [selectedRowId, selectedVisibleRows]);
+  const heatLossScopedRecalcDisabled = heatLossRecalcDisabled || !heatLossRecalcObjectIds;
   const heatLossRecalcTooltip = dirtyDraftRowCount > 0
     ? 'Сохраните или сбросьте изменения в таблице перед пересчётом'
     : projectObjectCount === 0
@@ -2007,12 +2008,19 @@ export default function HeatCalcPage() {
           ? selectedVisibleRows.length > 0
             ? `Пересчитать теплопотери выбранных строк (${heatLossRecalcObjectIds.length})`
             : 'Пересчитать теплопотери активной строки'
-          : 'Пересчитать теплопотери всех объектов проекта';
+          : 'Выберите строку для точечного пересчёта или нажмите «Пересчитать все»';
   const heatLossRecalcAriaLabel = heatLossRecalcObjectIds
     ? selectedVisibleRows.length > 0
       ? `Пересчитать теплопотери выбранных строк (${heatLossRecalcObjectIds.length})`
       : 'Пересчитать теплопотери активной строки'
-    : 'Пересчитать теплопотери всех объектов проекта';
+    : 'Пересчитать теплопотери выбранных или активной строки';
+  const heatLossRecalcAllTooltip = dirtyDraftRowCount > 0
+    ? 'Сохраните или сбросьте изменения в таблице перед пересчётом'
+    : projectObjectCount === 0
+      ? 'Добавьте объекты для пересчёта'
+      : isHeatLossJobActive
+        ? 'Пересчёт теплопотерь уже выполняется'
+        : 'Пересчитать теплопотери всех объектов проекта';
 
   const duplicateSelectedObjects = useCallback(async () => {
     const duplicatePayloads = selectedVisibleRows
@@ -3563,9 +3571,23 @@ export default function HeatCalcPage() {
                   icon={<ReloadOutlined />}
                   aria-label={heatLossRecalcAriaLabel}
                   loading={heatLossBatchMut.isPending || isHeatLossJobActive}
-                  disabled={heatLossRecalcDisabled || heatLossBatchMut.isPending}
+                  disabled={heatLossScopedRecalcDisabled || heatLossBatchMut.isPending}
                   onClick={() => heatLossBatchMut.mutate(heatLossRecalcObjectIds)}
                 />
+              </span>
+            </Tooltip>
+            <Tooltip title={heatLossRecalcAllTooltip}>
+              <span className="action-tooltip-wrap">
+                <Button
+                  className="action-secondary-button action-recalc-all-button"
+                  icon={<ReloadOutlined />}
+                  aria-label="Пересчитать все"
+                  loading={heatLossBatchMut.isPending || isHeatLossJobActive}
+                  disabled={heatLossRecalcDisabled || heatLossBatchMut.isPending}
+                  onClick={() => heatLossBatchMut.mutate(undefined)}
+                >
+                  Пересчитать все
+                </Button>
               </span>
             </Tooltip>
             {isHeatLossJobActive && activeHeatLossJobId && (

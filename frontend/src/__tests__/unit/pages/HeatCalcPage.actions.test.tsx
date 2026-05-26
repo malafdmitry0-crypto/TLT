@@ -26,7 +26,7 @@ describe('HeatCalcPage actions', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      await user.click(screen.getByRole('button', { name: /Пересчитать теплопотери всех объектов проекта/i }));
+      await user.click(screen.getByRole('button', { name: 'Пересчитать все' }));
 
       await waitFor(() => {
         expect(enqueueHeatLossBatchJob).toHaveBeenCalledWith('proj-test-1', true, undefined);
@@ -71,7 +71,7 @@ describe('HeatCalcPage actions', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      await user.click(screen.getByRole('button', { name: /Пересчитать теплопотери всех объектов проекта/i }));
+      await user.click(screen.getByRole('button', { name: 'Пересчитать все' }));
 
       await waitFor(() => {
         expect(getCalcTask).toHaveBeenCalledWith('heat-task-1');
@@ -130,6 +130,32 @@ describe('HeatCalcPage actions', () => {
 
       await waitFor(() => {
         expect(enqueueHeatLossBatchJob).toHaveBeenCalledWith('proj-test-1', true, [secondSource.id]);
+      });
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
+    it('оставляет отдельную кнопку пересчёта всех объектов при активной строке', async () => {
+      const { listObjects } = await import('@/api/projects');
+      const { enqueueHeatLossBatchJob } = await import('@/api/calculations');
+      const source = makeObject();
+      const secondSource = makeObject({
+        id: 'obj-2',
+        sort_order: 1,
+        params: { ...source.params, name: 'Труба DN150' },
+      });
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source, secondSource]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await user.click(await screen.findByText('Труба DN150'));
+      await waitFor(() => {
+        expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: 'Пересчитать все' }));
+
+      await waitFor(() => {
+        expect(enqueueHeatLossBatchJob).toHaveBeenCalledWith('proj-test-1', true, undefined);
       });
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
