@@ -33,6 +33,26 @@ async function fillInput(page: Page, testId: string, value: string) {
   await input.press('Tab');
 }
 
+async function fillTemperatureRange(page: Page, prefix: string, min: string, max: string) {
+  await page.getByTestId(`${prefix}-temperature-range-button`).click();
+  const dialog = page.getByRole('dialog', { name: 'Диапазон температуры' });
+  await expect(dialog).toBeVisible();
+  const minInput = dialog.locator(`[data-testid="${prefix}-temperature-min-input"] input, input[data-testid="${prefix}-temperature-min-input"]`).first();
+  const maxInput = dialog.locator(`[data-testid="${prefix}-temperature-max-input"] input, input[data-testid="${prefix}-temperature-max-input"]`).first();
+  await minInput.fill(min);
+  await maxInput.fill(max);
+  await dialog.getByRole('button', { name: 'Применить' }).click();
+  await expect(dialog).toHaveCount(0);
+}
+
+async function openFirstNormalGlideRow(page: Page) {
+  const canvas = page.locator('.calc-spreadsheet--normal-glide canvas').first();
+  await expect(canvas).toBeVisible();
+  const box = await canvas.boundingBox();
+  expect(box).toBeTruthy();
+  await page.mouse.click(box!.x + 340, box!.y + 55);
+}
+
 async function selectOption(page: Page, testId: string, optionText: string) {
   await page.getByTestId(testId).click();
   const referenceList = page.locator('.reference-picker-modal .reference-picker-list:visible').last();
@@ -295,6 +315,7 @@ test.describe('inline form dependencies', () => {
 
     await selectOption(page, 'insulation-material-select', 'Другое');
     await expect(inputValue(page, 'first-insulation-lambda-input')).toBeEnabled();
+    await expect(page.getByTestId('first-insulation-temperature-range-button')).toBeEnabled();
 
     await selectOption(page, 'insulation-layer-count-select', '2 слоя');
     await expect(page.getByTestId('second-insulation-material-select')).toBeVisible();
@@ -314,6 +335,78 @@ test.describe('inline form dependencies', () => {
     await selectOption(page, 'insulation-layer-count-select', '1 слой');
     await expect(page.getByTestId('second-insulation-material-select')).toHaveCount(0);
     await expect(page.getByTestId('third-insulation-material-select')).toHaveCount(0);
+  });
+
+  test('ручная правка λ и диапазона T изоляции переводит справочный слой в Другое и сохраняется', async ({ page }) => {
+    test.setTimeout(90_000);
+    await loginAsGuest(page);
+    await openPipeForm(page);
+
+    const objectName = `E2E ручная изоляция ${Date.now()}`;
+    await page.getByTestId('object-name-input').fill(objectName);
+    await fillInput(page, 'outer-diameter-input', '114');
+    await fillInput(page, 'pipe-length-input', '5');
+    await fillInput(page, 'wall-thickness-input', '0.8');
+    await selectOption(page, 'pipe-lambda-mode-select', 'Справ.');
+    await selectSearchOption(page, 'pipe-material-select', 'Углеродистая', /Углеродистая/);
+    await selectOption(page, 'placement-select', 'На открытом воздухе');
+    await fillInput(page, 'ambient-temperature-input', '-20');
+    await fillInput(page, 'process-temperature-input', '54');
+    await fillInput(page, 'insulation-thickness-input', '20');
+    await selectSearchOption(page, 'insulation-material-select', 'пенополиуретана', /пенополиуретана/);
+
+    await expect(inputValue(page, 'first-insulation-lambda-input')).toBeEnabled();
+    await expect(page.getByTestId('first-insulation-temperature-range-button')).toBeEnabled();
+    const referenceLambda = await inputValue(page, 'first-insulation-lambda-input').inputValue();
+    const referenceRange = (await page.getByTestId('first-insulation-temperature-range-button').innerText()).trim();
+
+    await fillTemperatureRange(page, 'first-insulation', '-55', '220');
+    await expect(page.getByTestId('insulation-material-select')).toContainText('Другое');
+
+    await selectSearchOption(page, 'insulation-material-select', 'пенополиуретана', /пенополиуретана/);
+    await expect(inputValue(page, 'first-insulation-lambda-input')).toHaveValue(referenceLambda);
+    await expect(page.getByTestId('first-insulation-temperature-range-button')).toContainText(referenceRange);
+
+    const manualLambda = referenceLambda === '0.037' ? '0.039' : '0.037';
+    await fillInput(page, 'first-insulation-lambda-input', manualLambda);
+    await expect(page.getByTestId('insulation-material-select')).toContainText('Другое');
+    await fillTemperatureRange(page, 'first-insulation', '-55', '220');
+
+    const createResponse = page.waitForResponse((response) => {
+      if (response.request().method() !== 'POST') return false;
+      return /\/api\/v1\/projects\/[^/]+\/objects$/.test(new URL(response.url()).pathname);
+    });
+    await page.locator('#inline-object-save').dispatchEvent('click');
+    const response = await createResponse;
+    expect(response.ok()).toBeTruthy();
+    const created = await response.json() as {
+      is_valid: boolean;
+      params: Record<string, unknown>;
+      validation_errors?: Record<string, unknown> | null;
+    };
+
+    expect(created.is_valid).toBe(true);
+    expect(created.validation_errors ?? null).toBeNull();
+    expect(created.params.insulation_layers).toEqual([
+      expect.objectContaining({
+        material: 'other',
+        conductivity: Number(manualLambda),
+        temperature_range: [-55, 220],
+      }),
+    ]);
+
+    const savedName = String(created.params.name ?? objectName);
+    await page.reload({ waitUntil: 'networkidle' });
+    await expect(page.locator('.calc-spreadsheet--normal-glide canvas').first()).toBeVisible();
+    await expect(async () => {
+      const objects = await fetchProjectObjects(page);
+      expect(objects.some((obj) => obj.params.name === savedName)).toBe(true);
+    }).toPass();
+    await openFirstNormalGlideRow(page);
+    await expect(page.getByTestId('insulation-material-select')).toContainText('Другое');
+    await expect(inputValue(page, 'first-insulation-lambda-input')).toHaveValue(manualLambda);
+    await expect(page.getByTestId('first-insulation-temperature-range-button')).toContainText('-55...220 °C');
+    await expect(page.getByLabel('Ошибки выбранной строки')).toHaveCount(0);
   });
 
   test('режим tm изоляции показывает только варианты для размещения', async ({ page }) => {

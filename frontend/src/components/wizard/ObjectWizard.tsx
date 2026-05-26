@@ -20,7 +20,7 @@ import ReferencePicker from './ReferencePicker';
 import InsulationTemperatureRangeField from './InsulationTemperatureRangeField';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
 import { getClimate, getInsulation, getPipeMaterials, getSoilConductivity } from '@/api/references';
-import type { ClimateEntry } from '@/types/reference';
+import type { ClimateEntry, InsulationEntry } from '@/types/reference';
 import {
   generatePipeName,
   generateTankName,
@@ -95,6 +95,65 @@ const SECTION_FIELD_GRID =
   'repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr))';
 const REQUIRED_FIELDS_ERROR_PREFIX = 'Не заполнены обязательные поля объекта:';
 const REQUIRED_FIELD_ERROR_MESSAGE = '';
+
+const INSULATION_LAYER_FORM_FIELDS = [
+  {
+    material: 'insulation_material',
+    lambda: 'first_insulation_lambda',
+    range: 'first_insulation_temperature_range',
+    min: 'first_insulation_temperature_min',
+    max: 'first_insulation_temperature_max',
+  },
+  {
+    material: 'second_insulation_material',
+    lambda: 'second_insulation_lambda',
+    range: 'second_insulation_temperature_range',
+    min: 'second_insulation_temperature_min',
+    max: 'second_insulation_temperature_max',
+  },
+  {
+    material: 'third_insulation_material',
+    lambda: 'third_insulation_lambda',
+    range: 'third_insulation_temperature_range',
+    min: 'third_insulation_temperature_min',
+    max: 'third_insulation_temperature_max',
+  },
+] as const;
+
+function isReferenceInsulationMaterial(value: unknown) {
+  return value !== undefined && value !== null && value !== '' && value !== 'other';
+}
+
+function insulationReferenceFieldValues(
+  layer: (typeof INSULATION_LAYER_FORM_FIELDS)[number],
+  materials: InsulationEntry[],
+  material: unknown,
+) {
+  const selected = materials.find((entry) => entry.material === material);
+  if (!selected) return {};
+  const nextValues: Record<string, unknown> = {};
+  if (selected.conductivity != null) nextValues[layer.lambda] = selected.conductivity;
+  const range = selected.temperature_range;
+  if (Array.isArray(range) && range.length >= 2) {
+    nextValues[layer.min] = range[0];
+    nextValues[layer.max] = range[1];
+  }
+  return nextValues;
+}
+
+function expandedChangedFieldNames(fieldNames: string[]) {
+  const expanded = new Set(fieldNames);
+  INSULATION_LAYER_FORM_FIELDS.forEach((layer) => {
+    if (fieldNames.includes(layer.min) || fieldNames.includes(layer.max)) {
+      expanded.add(layer.range);
+    }
+    if (fieldNames.includes(layer.material)) {
+      expanded.add(layer.lambda);
+      expanded.add(layer.range);
+    }
+  });
+  return Array.from(expanded);
+}
 
 const REQUIRED_FIELD_LABEL_TO_FORM_NAMES: Record<string, string[]> = {
   'Наружный диаметр': ['outer_diameter_mm'],
@@ -511,6 +570,7 @@ export default function ObjectWizard({
   }, []);
 
   const insulationLayerCount = watchedString('insulation_layer_count');
+  const insulationMaterial = watchedString('insulation_material');
   const placement = watchedString('placement');
   const pipeLambdaMode = watchedString('pipe_lambda_mode');
   const selectedClimateKey = watchedString('climate_key');
@@ -578,8 +638,6 @@ export default function ObjectWizard({
   );
   const selectedSecondInsulation = insulationMaterials.find((m) => m.material === secondInsulationMaterial);
   const selectedThirdInsulation = insulationMaterials.find((m) => m.material === thirdInsulationMaterial);
-  const secondInsulationIsOther = secondInsulationMaterial === 'other';
-  const thirdInsulationIsOther = thirdInsulationMaterial === 'other';
 
   useEffect(() => {
     if (!formAlreadyHasValues(form, formInitialValues as Record<string, unknown>)) {
@@ -688,6 +746,26 @@ export default function ObjectWizard({
   }, [form, onDraftValuesChange, selectedGroundType, soilOptions]);
 
   useEffect(() => {
+    if (insulationMaterials.length === 0) return;
+    const nextValues: Record<string, unknown> = {};
+    INSULATION_LAYER_FORM_FIELDS.forEach((layer, index) => {
+      if (index + 1 > layerCount) return;
+      const material = form.getFieldValue(layer.material);
+      if (!isReferenceInsulationMaterial(material)) return;
+      Object.assign(nextValues, insulationReferenceFieldValues(layer, insulationMaterials, material));
+    });
+    if (Object.keys(nextValues).length === 0 || formAlreadyHasValues(form, nextValues)) return;
+    form.setFieldsValue(nextValues);
+  }, [
+    form,
+    insulationMaterial,
+    insulationMaterials,
+    layerCount,
+    secondInsulationMaterial,
+    thirdInsulationMaterial,
+  ]);
+
+  useEffect(() => {
     if (!values) return;
     try {
       const suggestedName =
@@ -717,6 +795,43 @@ export default function ObjectWizard({
     } catch {
       scrollToFirstError();
     }
+  }
+
+  function collectInsulationLayerSyncValues(changed: Record<string, unknown>) {
+    const nextValues: Record<string, unknown> = {};
+    INSULATION_LAYER_FORM_FIELDS.forEach((layer) => {
+      if (Object.prototype.hasOwnProperty.call(changed, layer.material)) {
+        const material = changed[layer.material];
+        if (isReferenceInsulationMaterial(material)) {
+          Object.assign(nextValues, insulationReferenceFieldValues(layer, insulationMaterials, material));
+        }
+      }
+
+      const manualFieldChanged = [layer.lambda, layer.min, layer.max].some((fieldName) => (
+        Object.prototype.hasOwnProperty.call(changed, fieldName)
+      ));
+      if (manualFieldChanged) {
+        const material = Object.prototype.hasOwnProperty.call(changed, layer.material)
+          ? changed[layer.material]
+          : form.getFieldValue(layer.material);
+        if (material !== 'other') {
+          nextValues[layer.material] = 'other';
+        }
+      }
+    });
+    return nextValues;
+  }
+
+  function syncProgrammaticValuesChange(changed: Record<string, unknown>) {
+    const syncedChanges: Record<string, unknown> = { ...changed };
+    const layerSyncValues = collectInsulationLayerSyncValues(changed);
+    if (Object.keys(layerSyncValues).length > 0) {
+      form.setFieldsValue(layerSyncValues);
+      Object.assign(syncedChanges, layerSyncValues);
+    }
+    clearCalculationFieldErrors(Object.keys(syncedChanges));
+    scheduleMissingRequiredFieldSync();
+    onDraftValuesChange?.(syncedChanges, form.getFieldsValue(true) as Record<string, unknown>);
   }
 
   function handleValuesChange(changed: Record<string, unknown>) {
@@ -760,6 +875,10 @@ export default function ObjectWizard({
         safety_factor_source: changed.safety_factor == null ? undefined : 'manual',
       });
     }
+    const layerSyncValues = collectInsulationLayerSyncValues(changed);
+    if (Object.keys(layerSyncValues).length > 0) {
+      setSyncedFields(layerSyncValues);
+    }
     scheduleMissingRequiredFieldSync();
     onDraftValuesChange?.(syncedChanges, form.getFieldsValue(true) as Record<string, unknown>);
   }
@@ -767,8 +886,9 @@ export default function ObjectWizard({
   function clearCalculationFieldErrors(changedFieldNames?: string[]) {
     const currentFieldNames = calculationFieldErrorNamesRef.current;
     if (currentFieldNames.length === 0) return;
-    const resetAll = !changedFieldNames
-      || changedFieldNames.some((fieldName) => (
+    const expandedChangedNames = changedFieldNames ? expandedChangedFieldNames(changedFieldNames) : undefined;
+    const resetAll = !expandedChangedNames
+      || expandedChangedNames.some((fieldName) => (
         fieldName === 'insulation_layer_count'
         || fieldName === 'placement'
         || fieldName === 'shape'
@@ -776,7 +896,7 @@ export default function ObjectWizard({
       ));
     const namesToClear = resetAll
       ? currentFieldNames
-      : currentFieldNames.filter((fieldName) => changedFieldNames.includes(fieldName));
+      : currentFieldNames.filter((fieldName) => expandedChangedNames.includes(fieldName));
     if (namesToClear.length === 0) return;
     form.setFields(namesToClear.map((fieldName) => ({ name: fieldName, errors: [] })));
     calculationFieldErrorNamesRef.current = resetAll
@@ -1306,7 +1426,11 @@ export default function ObjectWizard({
             )}
           </Form.Item>
           <div className="insulation-layer-group">
-            <ThermalStep objectType={heatCalcObjectType} fieldInputSettings={fieldInputSettings} />
+            <ThermalStep
+              objectType={heatCalcObjectType}
+              fieldInputSettings={fieldInputSettings}
+              onProgrammaticValuesChange={syncProgrammaticValuesChange}
+            />
           </div>
           {layerCount >= 2 && (
             <div className="insulation-layer-group">
@@ -1350,21 +1474,21 @@ export default function ObjectWizard({
               <Form.Item
                 className="numeric-form-item coefficient-form-item helped-form-item"
                 label={fieldLabel('second_insulation_lambda', heatCalcObjectType)}
-                name={secondInsulationIsOther ? 'second_insulation_lambda' : undefined}
+                name="second_insulation_lambda"
                 preserve={false}
-                rules={secondInsulationIsOther
-                  ? heatCalcFormFieldRules(form, heatCalcObjectType, 'second_insulation_lambda')
-                  : undefined}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'second_insulation_lambda')}
               >
                 {withHelp(
                   <UnitInputNumber
                     data-testid="second-insulation-lambda-input"
-                    disabled={!secondInsulationIsOther}
-                    value={secondInsulationIsOther ? undefined : selectedSecondInsulation?.conductivity}
                     {...numberInputProps('second_insulation_lambda')}
                     unit="Вт/мК"
                   />,
-                  fieldHelp('second_insulation_lambda', heatCalcObjectType, secondInsulationIsOther ? 'manual' : 'reference'),
+                  fieldHelp(
+                    'second_insulation_lambda',
+                    heatCalcObjectType,
+                    secondInsulationMaterial === 'other' ? 'manual' : 'reference',
+                  ),
                 )}
               </Form.Item>
               <InsulationTemperatureRangeField
@@ -1377,6 +1501,7 @@ export default function ObjectWizard({
                 labelFieldId="second_insulation_temperature_range"
                 hint={fieldHelp('second_insulation_temperature_range', heatCalcObjectType)}
                 required={heatCalcCustomControlRequiredProps(form, heatCalcObjectType, 'second_insulation_temperature_range').required}
+                onRangeChange={syncProgrammaticValuesChange}
               />
             </div>
           )}
@@ -1422,21 +1547,21 @@ export default function ObjectWizard({
               <Form.Item
                 className="numeric-form-item coefficient-form-item helped-form-item"
                 label={fieldLabel('third_insulation_lambda', heatCalcObjectType)}
-                name={thirdInsulationIsOther ? 'third_insulation_lambda' : undefined}
+                name="third_insulation_lambda"
                 preserve={false}
-                rules={thirdInsulationIsOther
-                  ? heatCalcFormFieldRules(form, heatCalcObjectType, 'third_insulation_lambda')
-                  : undefined}
+                rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'third_insulation_lambda')}
               >
                 {withHelp(
                   <UnitInputNumber
                     data-testid="third-insulation-lambda-input"
-                    disabled={!thirdInsulationIsOther}
-                    value={thirdInsulationIsOther ? undefined : selectedThirdInsulation?.conductivity}
                     {...numberInputProps('third_insulation_lambda')}
                     unit="Вт/мК"
                   />,
-                  fieldHelp('third_insulation_lambda', heatCalcObjectType, thirdInsulationIsOther ? 'manual' : 'reference'),
+                  fieldHelp(
+                    'third_insulation_lambda',
+                    heatCalcObjectType,
+                    thirdInsulationMaterial === 'other' ? 'manual' : 'reference',
+                  ),
                 )}
               </Form.Item>
               <InsulationTemperatureRangeField
@@ -1449,6 +1574,7 @@ export default function ObjectWizard({
                 labelFieldId="third_insulation_temperature_range"
                 hint={fieldHelp('third_insulation_temperature_range', heatCalcObjectType)}
                 required={heatCalcCustomControlRequiredProps(form, heatCalcObjectType, 'third_insulation_temperature_range').required}
+                onRangeChange={syncProgrammaticValuesChange}
               />
             </div>
           )}

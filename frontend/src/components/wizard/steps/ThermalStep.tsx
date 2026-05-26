@@ -38,9 +38,10 @@ function fieldHelp(fieldId: string, objectType: HeatCalcObjectType, mode?: strin
 interface Props {
   objectType: HeatCalcObjectType;
   fieldInputSettings?: HeatCalcFieldInputSettings;
+  onProgrammaticValuesChange?: (changedValues: Record<string, unknown>) => void;
 }
 
-export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
+export default function ThermalStep({ objectType, fieldInputSettings, onProgrammaticValuesChange }: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings, form });
@@ -58,7 +59,6 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
     [materials],
   );
   const selectedMaterial = materials.find((m) => m.material === insulationMaterial);
-  const isOtherMaterial = insulationMaterial === 'other';
 
   return (
     <>
@@ -102,19 +102,17 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
       <Form.Item
         className="numeric-form-item coefficient-form-item helped-form-item"
         label={fieldLabel('first_insulation_lambda', objectType)}
-        name={isOtherMaterial ? 'first_insulation_lambda' : undefined}
+        name="first_insulation_lambda"
         preserve={false}
-        rules={isOtherMaterial ? heatCalcFormFieldRules(form, objectType, 'first_insulation_lambda') : undefined}
+        rules={heatCalcFormFieldRules(form, objectType, 'first_insulation_lambda')}
       >
         {withHelp(
           <UnitInputNumber
             data-testid="first-insulation-lambda-input"
-            disabled={!isOtherMaterial}
-            value={isOtherMaterial ? undefined : selectedMaterial?.conductivity}
             {...numberInputProps('first_insulation_lambda')}
                     unit="Вт/мК"
           />,
-          fieldHelp('first_insulation_lambda', objectType, isOtherMaterial ? 'manual' : 'reference'),
+          fieldHelp('first_insulation_lambda', objectType, insulationMaterial === 'other' ? 'manual' : 'reference'),
         )}
       </Form.Item>
 
@@ -128,6 +126,7 @@ export default function ThermalStep({ objectType, fieldInputSettings }: Props) {
         labelFieldId="first_insulation_temperature_range"
         hint={fieldHelp('first_insulation_temperature_range', objectType)}
         required={heatCalcCustomControlRequiredProps(form, objectType, 'first_insulation_temperature_range').required}
+        onRangeChange={onProgrammaticValuesChange}
       />
     </>
   );

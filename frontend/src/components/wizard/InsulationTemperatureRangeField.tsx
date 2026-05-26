@@ -55,10 +55,10 @@ interface Props {
   labelFieldId?: string;
   hint: string;
   required?: boolean;
+  onRangeChange?: (changedValues: Record<string, unknown>) => void;
 }
 
 export default function InsulationTemperatureRangeField({
-  material,
   selectedMaterial,
   minName,
   maxName,
@@ -67,11 +67,11 @@ export default function InsulationTemperatureRangeField({
   labelFieldId = 'first_insulation_temperature_range',
   hint,
   required = false,
+  onRangeChange,
 }: Props) {
   const form = Form.useFormInstance();
   const [modalForm] = Form.useForm<RangeModalValues>();
   const [open, setOpen] = useState(false);
-  const isOtherMaterial = material === 'other';
   const referenceRange = formatInsulationTemperatureRange(selectedMaterial?.temperature_range) ?? '—';
   const currentMin = numericValue(Form.useWatch(minName, form) ?? form.getFieldValue(minName));
   const currentMax = numericValue(Form.useWatch(maxName, form) ?? form.getFieldValue(maxName));
@@ -126,6 +126,10 @@ export default function InsulationTemperatureRangeField({
       [minName]: values.min,
       [maxName]: values.max,
     });
+    onRangeChange?.({
+      [minName]: values.min,
+      [maxName]: values.max,
+    });
     await form.validateFields([minName, maxName]).catch(() => undefined);
     setOpen(false);
   }
@@ -146,57 +150,46 @@ export default function InsulationTemperatureRangeField({
           'helped-form-item',
         ].filter(Boolean).join(' ')}
         label={fieldLabel(labelFieldId)}
-        name={isOtherMaterial ? minName : undefined}
+        name={minName}
         preserve={false}
-        rules={isOtherMaterial ? [rangeValidator(minName)] : undefined}
+        rules={[rangeValidator(minName)]}
       >
         {withHelp(
-          isOtherMaterial ? (
-            <button
-              type="button"
-              className={[
-                'reference-picker-control',
-                'temperature-range-picker-control',
-                editableRange ? '' : 'reference-picker-control--empty',
-                required ? 'reference-picker-control--required' : '',
-              ].filter(Boolean).join(' ')}
-              aria-haspopup="dialog"
-              aria-expanded={open}
-              aria-required={required}
-              title={editableRange ?? 'Задать диапазон T'}
-              data-testid={`${dataTestIdPrefix}-temperature-range-button`}
-              onClick={openRangeModal}
-              onKeyDown={handleKeyDown}
-            >
-              <span className="reference-picker-value">
-                {editableRange ?? (
-                  <span className="reference-picker-placeholder">Задать</span>
-                )}
-              </span>
-              <EditOutlined className="reference-picker-icon" />
-            </button>
-          ) : (
-            <Input
-              data-testid={`${dataTestIdPrefix}-temperature-range-input`}
-              aria-label="Диапазон температуры изоляции"
-              disabled
-              value={referenceRange}
-            />
-          ),
+          <button
+            type="button"
+            className={[
+              'reference-picker-control',
+              'temperature-range-picker-control',
+              editableRange ? '' : 'reference-picker-control--empty',
+              required ? 'reference-picker-control--required' : '',
+            ].filter(Boolean).join(' ')}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-required={required}
+            title={editableRange ?? referenceRange ?? 'Задать диапазон T'}
+            data-testid={`${dataTestIdPrefix}-temperature-range-button`}
+            onClick={openRangeModal}
+            onKeyDown={handleKeyDown}
+          >
+            <span className="reference-picker-value">
+              {editableRange ?? referenceRange ?? (
+                <span className="reference-picker-placeholder">Задать</span>
+              )}
+            </span>
+            <EditOutlined className="reference-picker-icon" />
+          </button>,
           hint,
         )}
       </Form.Item>
 
-      {isOtherMaterial && (
-        <Form.Item
-          name={maxName}
-          hidden
-          preserve={false}
-          rules={[rangeValidator(maxName)]}
-        >
-          <Input />
-        </Form.Item>
-      )}
+      <Form.Item
+        name={maxName}
+        hidden
+        preserve={false}
+        rules={[rangeValidator(maxName)]}
+      >
+        <Input />
+      </Form.Item>
 
       <Modal
         title="Диапазон температуры"

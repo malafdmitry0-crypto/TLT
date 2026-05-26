@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ComponentProps } from 'react';
 import ObjectWizard from '@/components/wizard/ObjectWizard';
+import type { InsulationEntry } from '@/types/reference';
 
 vi.mock('@/api/references', () => ({
   getClimate: vi.fn(),
@@ -23,9 +24,9 @@ const climateRows = [
   },
 ];
 
-const insulationRows = [
-  { material: 'mineral_wool', name: 'Минеральная вата', conductivity: 0.045 },
-  { material: 'foam_glass', name: 'Пеностекло', conductivity: 0.052 },
+const insulationRows: InsulationEntry[] = [
+  { material: 'mineral_wool', name: 'Минеральная вата', conductivity: 0.045, temperature_range: [-60, 400] },
+  { material: 'foam_glass', name: 'Пеностекло', conductivity: 0.052, temperature_range: [-180, 430] },
 ];
 
 const pipeMaterialRows = [
@@ -507,6 +508,35 @@ describe('ObjectWizard dependencies', () => {
     });
   });
 
+  it('оставляет λ и диапазон T активными и переключает справочный слой на Другое при ручной правке', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderWizard({ initialParams: basePipeParams, onSubmit });
+
+    const materialPicker = await screen.findByTestId('insulation-material-select');
+    const lambdaInput = await screen.findByTestId('first-insulation-lambda-input');
+    await waitFor(() => expect(lambdaInput).toHaveValue('0.045'));
+    expect(lambdaInput).not.toBeDisabled();
+    expect(screen.getByTestId('first-insulation-temperature-range-button')).toBeVisible();
+
+    await user.clear(lambdaInput);
+    await user.type(lambdaInput, '0.049');
+    await user.tab();
+
+    await waitFor(() => expect(materialPicker).toHaveTextContent('Другое'));
+    await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.insulation_layers).toEqual([
+      expect.objectContaining({
+        material: 'other',
+        conductivity: 0.049,
+        temperature_range: [-60, 400],
+      }),
+    ]);
+  });
+
   it('для подземной трубы показывает грунт и скрывает ветер/alpha', async () => {
     renderWizard({
       initialParams: {
@@ -864,7 +894,7 @@ describe('ObjectWizard dependencies', () => {
         visible: [
           'insulation-material-select',
           'first-insulation-lambda-input',
-          'first-insulation-temperature-range-input',
+          'first-insulation-temperature-range-button',
         ],
         hidden: ['second-insulation-material-select', 'third-insulation-material-select'],
       },
@@ -874,7 +904,7 @@ describe('ObjectWizard dependencies', () => {
           'second-insulation-material-select',
           'second-insulation-thickness-input',
           'second-insulation-lambda-input',
-          'second-insulation-temperature-range-input',
+          'second-insulation-temperature-range-button',
         ],
         hidden: ['third-insulation-material-select', 'third-insulation-thickness-input'],
       },
@@ -885,7 +915,7 @@ describe('ObjectWizard dependencies', () => {
           'third-insulation-material-select',
           'third-insulation-thickness-input',
           'third-insulation-lambda-input',
-          'third-insulation-temperature-range-input',
+          'third-insulation-temperature-range-button',
         ],
         hidden: [],
       },
