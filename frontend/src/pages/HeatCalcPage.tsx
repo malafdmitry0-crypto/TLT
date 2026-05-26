@@ -71,9 +71,10 @@ import {
   useHeatCalcExcelSelection,
   type HeatCalcExcelCellRef,
 } from '@/hooks/useHeatCalcExcelSelection';
-import type { ProjectObject, ProjectObjectsQueryResponse } from '@/types/project';
+import type { ProjectObject, ProjectObjectsPageCursor, ProjectObjectsQueryResponse } from '@/types/project';
 import { formatNumber } from '@/utils/formatters';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
+import { resolveHeatCalcNormalTableEngine } from '@/utils/heatCalcExcelEngine';
 import { findDN } from '@/utils/objectWizardUtils';
 import {
   getHeatCalcFieldDefinition,
@@ -261,6 +262,20 @@ const { Text } = Typography;
 /** Мастер сейчас знает две формы — трубу и резервуар. */
 type WizardObjectType = HeatCalcObjectType;
 type ActiveObjectScope = HeatCalcObjectType | 'all';
+type TableCursorByType = Record<HeatCalcObjectType, Record<number, ProjectObjectsPageCursor>>;
+type NormalLoadedRowsByType = Record<HeatCalcObjectType, ProjectObject[]>;
+
+function cursorsEqual(
+  left: ProjectObjectsPageCursor | null | undefined,
+  right: ProjectObjectsPageCursor | null | undefined,
+) {
+  if (left == null || right == null) return left == null && right == null;
+  return left.sort_order === right.sort_order
+    && left.id === right.id
+    && (left.key ?? null) === (right.key ?? null)
+    && (left.value_is_null ?? false) === (right.value_is_null ?? false)
+    && JSON.stringify(left.value ?? null) === JSON.stringify(right.value ?? null);
+}
 
 function draftRowFingerprint(row: DraftRowState | null | undefined) {
   if (!row) return '';
@@ -413,6 +428,15 @@ export default function HeatCalcPage() {
     tank: 1,
     all: 1,
   });
+  const [tableCursorByType, setTableCursorByType] = useState<TableCursorByType>({
+    pipe: {},
+    tank: {},
+  });
+  const [normalLoadedRowsByType, setNormalLoadedRowsByType] = useState<NormalLoadedRowsByType>({
+    pipe: [],
+    tank: [],
+  });
+  const normalLoadMoreRequestRef = useRef<string | null>(null);
   const [lastSavedObject, setLastSavedObject] = useState<ProjectObject | null>(null);
   const [tableColumnSettings, setTableColumnSettings] = useState<HeatCalcTableColumnSettings>(() => {
     const auth = useAuthStore.getState();
@@ -557,7 +581,11 @@ export default function HeatCalcPage() {
   const activeTableColumnScope: HeatCalcTableColumnScope = isAllObjectScope ? 'all' : activeTableObjectType;
   const activeTableViewState = isAllObjectScope ? allTableViewState : tableViewStateByType[activeTableObjectType];
   const activeTablePage = tablePageByScope[activeObjectScope];
+  const activeObjectQueryCursor = !isAllObjectScope
+    ? tableCursorByType[activeTableObjectType]?.[activeTablePage] ?? null
+    : null;
   const excelModeEnabled = tableEditingMode === 'excel' && !isAllObjectScope;
+  const normalGlideEnabled = !excelModeEnabled && resolveHeatCalcNormalTableEngine() === 'glide';
 
   const { data: objectQueryCapabilities } = useQuery({
     queryKey: ['project', project?.id, 'objects', 'query-capabilities', activeTableObjectType],
@@ -726,8 +754,16 @@ export default function HeatCalcPage() {
         activeTablePage,
         objectQueryCapabilities?.default_page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE,
         objectQueryCapabilities,
+        activeObjectQueryCursor,
       )),
-    [activeTableObjectType, activeTablePage, activeTableViewState, isAllObjectScope, objectQueryCapabilities],
+    [
+      activeObjectQueryCursor,
+      activeTableObjectType,
+      activeTablePage,
+      activeTableViewState,
+      isAllObjectScope,
+      objectQueryCapabilities,
+    ],
   );
   const objectQueryKey = useMemo(
     () => ['project', project?.id, 'objects', 'query', objectQueryRequest] as const,
@@ -737,12 +773,65 @@ export default function HeatCalcPage() {
     () => ['project', project?.id, 'objects', 'query', 'all'] as const,
     [project?.id],
   );
-  const { data: objectQueryResult } = useQuery({
+  const { data: objectQueryResult, isFetching: objectQueryFetching } = useQuery({
     queryKey: objectQueryKey,
     queryFn: () => queryObjects(project!.id, objectQueryRequest!),
     enabled: !!project && objectQueryRequest != null && !!objectQueryCapabilities,
     placeholderData: (previous) => previous,
   });
+  useEffect(() => {
+    setTableCursorByType((current) => ({ ...current, [activeTableObjectType]: {} }));
+    setNormalLoadedRowsByType((current) => ({ ...current, [activeTableObjectType]: [] }));
+    setTablePageByScope((current) => (
+      current[activeObjectScope] === 1 ? current : { ...current, [activeObjectScope]: 1 }
+    ));
+  }, [activeObjectScope, activeTableObjectType, activeTableViewState, project?.id]);
+  useEffect(() => {
+    if (isAllObjectScope || !objectQueryResult) return;
+    const page = objectQueryResult.page_info.page;
+    const nextCursor = objectQueryResult.page_info.next_cursor;
+    setTableCursorByType((current) => {
+      const byPage = current[activeTableObjectType] ?? {};
+      const nextPage = page + 1;
+      if (!nextCursor) {
+        if (!(nextPage in byPage)) return current;
+        const nextByPage = { ...byPage };
+        delete nextByPage[nextPage];
+        return { ...current, [activeTableObjectType]: nextByPage };
+      }
+      if (cursorsEqual(byPage[nextPage], nextCursor)) return current;
+      return {
+        ...current,
+        [activeTableObjectType]: {
+          ...byPage,
+          [nextPage]: nextCursor,
+        },
+      };
+    });
+  }, [activeTableObjectType, isAllObjectScope, objectQueryResult, project?.id]);
+  useEffect(() => {
+    if (isAllObjectScope || excelModeEnabled || !objectQueryResult) return;
+    const page = objectQueryResult.page_info.page;
+    const offset = objectQueryResult.page_info.offset;
+    const pageItems = objectQueryResult.items;
+
+    setNormalLoadedRowsByType((current) => {
+      const currentRows = current[activeTableObjectType] ?? [];
+      const nextRows = page <= 1 || currentRows.length < offset ? pageItems : [...currentRows];
+      if (page > 1 && currentRows.length >= offset) {
+        nextRows.splice(offset, pageItems.length, ...pageItems);
+      }
+      const sameRows = currentRows.length === nextRows.length
+        && currentRows.every((row, index) => row === nextRows[index]);
+      if (sameRows) return current;
+      return { ...current, [activeTableObjectType]: nextRows };
+    });
+  }, [activeTableObjectType, excelModeEnabled, isAllObjectScope, objectQueryResult]);
+  useEffect(() => {
+    if (!objectQueryFetching) {
+      normalLoadMoreRequestRef.current = null;
+    }
+  }, [objectQueryFetching, objectQueryResult?.page_info.page]);
   const currentPageObjectsForExcel = useMemo(
     () => (!isAllObjectScope ? objectQueryResult?.items ?? [] : []),
     [isAllObjectScope, objectQueryResult?.items],
@@ -1713,19 +1802,35 @@ export default function HeatCalcPage() {
     appendExcelLocalRows(MIN_TRAILING_EXCEL_INPUT_ROWS);
   }, [appendExcelLocalRows, excelModeEnabled]);
 
-  const allTableOffset = isAllObjectScope ? (activeTablePage - 1) * DEFAULT_OBJECT_QUERY_PAGE_SIZE : 0;
+  const allTableOffset = isAllObjectScope && !normalGlideEnabled
+    ? (activeTablePage - 1) * DEFAULT_OBJECT_QUERY_PAGE_SIZE
+    : 0;
   const visibleAllTableRows = useMemo(
-    () => allFilteredSortedTableRows.slice(allTableOffset, allTableOffset + DEFAULT_OBJECT_QUERY_PAGE_SIZE),
-    [allFilteredSortedTableRows, allTableOffset],
+    () => (normalGlideEnabled
+      ? allFilteredSortedTableRows
+      : allFilteredSortedTableRows.slice(allTableOffset, allTableOffset + DEFAULT_OBJECT_QUERY_PAGE_SIZE)),
+    [allFilteredSortedTableRows, allTableOffset, normalGlideEnabled],
   );
   const baseVisibleTableObjects = useMemo(
     () => {
       if (excelModeEnabled) return excelBaseRows;
       return isAllObjectScope
         ? visibleAllTableRows.map(({ record }) => record)
-        : objectQueryResult?.items ?? [];
+        : normalLoadedRowsByType[activeTableObjectType].length > 0
+          ? normalLoadedRowsByType[activeTableObjectType]
+          : objectQueryResult?.page_info.page === 1
+            ? objectQueryResult.items
+            : [];
     },
-    [excelBaseRows, excelModeEnabled, isAllObjectScope, objectQueryResult, visibleAllTableRows],
+    [
+      activeTableObjectType,
+      excelBaseRows,
+      excelModeEnabled,
+      isAllObjectScope,
+      normalLoadedRowsByType,
+      objectQueryResult,
+      visibleAllTableRows,
+    ],
   );
   const visibleTableObjects = useMemo(() => {
     if (!excelModeEnabled) return baseVisibleTableObjects;
@@ -1740,10 +1845,10 @@ export default function HeatCalcPage() {
         ? visibleAllTableRows
         : visibleTableObjects.map((record, index) => ({
             record,
-            sourceIndex: (objectQueryResult?.page_info.offset ?? 0) + index,
+            sourceIndex: index,
           }));
     },
-    [excelModeEnabled, excelTableRows, isAllObjectScope, objectQueryResult, visibleAllTableRows, visibleTableObjects],
+    [excelModeEnabled, excelTableRows, isAllObjectScope, visibleAllTableRows, visibleTableObjects],
   );
   const visibleSourceIndexById = useMemo(
     () => new Map(visibleTableRows.map(({ record, sourceIndex }) => [record.id, sourceIndex])),
@@ -1967,6 +2072,12 @@ export default function HeatCalcPage() {
     persistedRows.forEach(({ record }) => {
       remove.mutate(record.id);
     });
+    if (persistedIdSet.size > 0) {
+      setNormalLoadedRowsByType((current) => ({
+        pipe: current.pipe.filter((row) => !persistedIdSet.has(row.id)),
+        tank: current.tank.filter((row) => !persistedIdSet.has(row.id)),
+      }));
+    }
 
     if (excelModeEnabled) {
       setSelectedExcelCell(null);
@@ -1987,6 +2098,13 @@ export default function HeatCalcPage() {
         items: current.items.map((item) => (item.id === savedObject.id ? savedObject : item)),
       };
     });
+    const savedObjectType: HeatCalcObjectType = savedObject.object_type === 'tank' ? 'tank' : 'pipe';
+    setNormalLoadedRowsByType((current) => ({
+      ...current,
+      [savedObjectType]: current[savedObjectType].map((item) => (
+        item.id === savedObject.id ? savedObject : item
+      )),
+    }));
   }, [objectQueryKey, queryClient]);
 
   const updateSavedExcelObjectsInCaches = useCallback((savedRows: SavedExcelProjectObject[]) => {
@@ -3538,7 +3656,7 @@ export default function HeatCalcPage() {
   }, [draftRowsById, excelModeEnabled, isSavableDraftRow, selectedRowId]);
 
   const normalTablePagination = useMemo<TableProps<ProjectObject>['pagination']>(() => ({
-    current: isAllObjectScope ? activeTablePage : objectQueryResult?.page_info.page ?? activeTablePage,
+    current: activeTablePage,
     pageSize: isAllObjectScope
       ? DEFAULT_OBJECT_QUERY_PAGE_SIZE
       : objectQueryResult?.page_info.page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE,
@@ -3550,12 +3668,83 @@ export default function HeatCalcPage() {
     activeTablePage,
     filteredTableCount,
     isAllObjectScope,
-    objectQueryResult?.page_info.page,
     objectQueryResult?.page_info.page_size,
   ]);
+  const normalInfiniteLoading = useMemo(() => (!normalGlideEnabled ? null : {
+    loaded: visibleTableObjects.length,
+    total: filteredTableCount,
+    hasNextPage: !isAllObjectScope && !!objectQueryResult?.page_info.has_next_page,
+    loading: !isAllObjectScope && objectQueryFetching,
+  }), [
+    filteredTableCount,
+    isAllObjectScope,
+    normalGlideEnabled,
+    objectQueryFetching,
+    objectQueryResult?.page_info.has_next_page,
+    visibleTableObjects.length,
+  ]);
+  const handleNormalLoadMore = useCallback(() => {
+    if (isAllObjectScope || excelModeEnabled || objectQueryFetching) return;
+    const nextCursor = objectQueryResult?.page_info.next_cursor;
+    if (!objectQueryResult?.page_info.has_next_page || !nextCursor) return;
+    const nextPage = activeTablePage + 1;
+    const requestKey = [
+      activeObjectScope,
+      nextPage,
+      nextCursor.id,
+      nextCursor.sort_order,
+      nextCursor.key ?? '',
+      JSON.stringify(nextCursor.value ?? null),
+      nextCursor.value_is_null ? 'null' : 'value',
+    ].join(':');
+    if (normalLoadMoreRequestRef.current === requestKey) return;
+    normalLoadMoreRequestRef.current = requestKey;
+
+    setTableCursorByType((current) => {
+      const byPage = current[activeTableObjectType] ?? {};
+      if (cursorsEqual(byPage[nextPage], nextCursor)) return current;
+      return {
+        ...current,
+        [activeTableObjectType]: {
+          ...byPage,
+          [nextPage]: nextCursor,
+        },
+      };
+    });
+    setTablePageByScope((current) => ({ ...current, [activeObjectScope]: nextPage }));
+  }, [
+    activeObjectScope,
+    activeTableObjectType,
+    activeTablePage,
+    excelModeEnabled,
+    isAllObjectScope,
+    objectQueryFetching,
+    objectQueryResult?.page_info.has_next_page,
+    objectQueryResult?.page_info.next_cursor,
+  ]);
   const handleNormalTablePageChange = useCallback((page: number) => {
+    if (!isAllObjectScope && page === activeTablePage + 1 && objectQueryResult?.page_info.next_cursor) {
+      const nextCursor = objectQueryResult.page_info.next_cursor;
+      setTableCursorByType((current) => {
+        const byPage = current[activeTableObjectType] ?? {};
+        if (cursorsEqual(byPage[page], nextCursor)) return current;
+        return {
+          ...current,
+          [activeTableObjectType]: {
+            ...byPage,
+            [page]: nextCursor,
+          },
+        };
+      });
+    }
     setTablePageByScope((current) => ({ ...current, [activeObjectScope]: page }));
-  }, [activeObjectScope]);
+  }, [
+    activeObjectScope,
+    activeTableObjectType,
+    activeTablePage,
+    isAllObjectScope,
+    objectQueryResult?.page_info.next_cursor,
+  ]);
 
   const formPanel = renderFormPanel();
 
@@ -3604,6 +3793,7 @@ export default function HeatCalcPage() {
                 excelSelectionRange={excelSelectionRange}
                 fontSizeKey={resolvedTableFontSize.key}
                 glideColumns={glideGridColumns}
+                normalInfiniteLoading={normalInfiniteLoading}
                 normalPagination={normalTablePagination}
                 activeTableViewState={activeTableViewState}
                 selectedExcelPosition={selectedExcelPosition}
@@ -3621,6 +3811,7 @@ export default function HeatCalcPage() {
                 onNormalSetColumnFilter={setColumnFilter}
                 onNormalResetColumnFilter={resetColumnFilter}
                 onNormalSetSort={handleNormalTableSortChange}
+                onNormalLoadMore={handleNormalLoadMore}
                 onNormalPageChange={handleNormalTablePageChange}
                 onOpenEditWizard={openEditWizard}
                 onResetCurrentTableViewState={resetCurrentTableViewState}

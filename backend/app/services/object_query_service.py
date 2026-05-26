@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
+from decimal import Decimal
 from functools import cmp_to_key
 from math import ceil
 from typing import Any, Literal
@@ -29,6 +30,7 @@ from app.schemas.project import (
     ObjectQueryFieldSortCapability,
     ObjectQueryOptionItem,
     ObjectQuerySearchCapability,
+    ProjectObjectsPageCursor,
     ProjectObjectsPageInfo,
     ProjectObjectsQueryCounts,
     ProjectObjectsQueryEcho,
@@ -67,6 +69,15 @@ class FieldDef:
     @property
     def filterable(self) -> bool:
         return len(self.filter_ops) > 0
+
+
+@dataclass(frozen=True)
+class SqlOrderSpec:
+    key: str
+    direction: Literal["asc", "desc"]
+    value_expr: Any
+    null_rank_expr: Any
+    order_by: list[Any]
 
 
 DN_TABLE: tuple[tuple[float, int], ...] = (
@@ -1282,8 +1293,12 @@ class ObjectQueryService:
         await ProjectService(self.db).get_project_basic(project_id, principal)
         by_type = await self._counts_by_type(project_id)
         if self._can_use_sql_page(data):
+            if data.page == 1 or self._has_keyset_cursor(data):
+                return await self._query_default_keyset_page(project_id, data, by_type)
             return await self._query_default_page(project_id, data, by_type)
         if self._can_use_sql_query(data):
+            if data.page == 1 or self._has_keyset_cursor(data):
+                return await self._query_sql_keyset_page(project_id, data, by_type)
             return await self._query_sql_page(project_id, data, by_type)
 
         objects_result = await self.db.execute(
@@ -1304,6 +1319,7 @@ class ObjectQueryService:
         offset = (data.page - 1) * data.page_size
         items = sorted_objects[offset : offset + data.page_size]
         total_pages = ceil(filtered_count / data.page_size) if filtered_count else 0
+        last_object = items[-1] if data.page * data.page_size < filtered_count and items else None
 
         return ProjectObjectsQueryResponse(
             items=items,
@@ -1314,6 +1330,19 @@ class ObjectQueryService:
                 total_pages=total_pages,
                 has_next_page=data.page * data.page_size < filtered_count,
                 has_previous_page=data.page > 1,
+                next_cursor=ProjectObjectsPageCursor(
+                    sort_order=last_object.sort_order,
+                    id=last_object.id,
+                    key=data.sort.key if data.sort else "sort_order",
+                    value=self._cursor_value(self._field(data.object_type, data.sort.key).value(last_object))
+                    if data.sort
+                    else last_object.sort_order,
+                    value_is_null=_is_empty(self._field(data.object_type, data.sort.key).value(last_object))
+                    if data.sort
+                    else False,
+                )
+                if last_object is not None
+                else None,
             ),
             counts=ProjectObjectsQueryCounts(
                 total=sum(by_type.values()),
@@ -1361,6 +1390,73 @@ class ObjectQueryService:
                 return False
         return True
 
+    async def _query_default_keyset_page(
+        self,
+        project_id: UUID,
+        data: ProjectObjectsQueryRequest,
+        by_type: Counter[str],
+    ) -> ProjectObjectsQueryResponse:
+        filtered_count = by_type.get(data.object_type, 0)
+        conditions = [
+            ProjectObject.project_id == project_id,
+            ProjectObject.object_type == data.object_type,
+        ]
+        if self._has_keyset_cursor(data):
+            cursor_key = data.after_key or "sort_order"
+            if cursor_key != "sort_order":
+                raise ObjectQueryValidationError(
+                    "Курсор не соответствует текущей сортировке таблицы"
+                )
+            conditions.append(
+                or_(
+                    ProjectObject.sort_order > data.after_sort_order,
+                    and_(
+                        ProjectObject.sort_order == data.after_sort_order,
+                        ProjectObject.id > data.after_id,
+                    ),
+                )
+            )
+
+        result = await self.db.execute(
+            select(ProjectObject)
+            .where(*conditions)
+            .order_by(ProjectObject.sort_order, ProjectObject.id)
+            .limit(data.page_size + 1)
+        )
+        fetched_items = list(result.scalars().all())
+        has_next_page = len(fetched_items) > data.page_size
+        items = fetched_items[: data.page_size]
+        total_pages = ceil(filtered_count / data.page_size) if filtered_count else 0
+        offset = (data.page - 1) * data.page_size
+        last_object = items[-1] if has_next_page and items else None
+
+        return ProjectObjectsQueryResponse(
+            items=items,
+            page_info=ProjectObjectsPageInfo(
+                page=data.page,
+                page_size=data.page_size,
+                offset=offset,
+                total_pages=total_pages,
+                has_next_page=has_next_page,
+                has_previous_page=data.page > 1,
+                next_cursor=ProjectObjectsPageCursor(
+                    sort_order=last_object.sort_order,
+                    id=last_object.id,
+                    key="sort_order",
+                    value=last_object.sort_order,
+                    value_is_null=False,
+                )
+                if last_object is not None
+                else None,
+            ),
+            counts=ProjectObjectsQueryCounts(
+                total=sum(by_type.values()),
+                by_type={"pipe": by_type.get("pipe", 0), "tank": by_type.get("tank", 0)},
+                filtered=filtered_count,
+            ),
+            query=ProjectObjectsQueryEcho(object_type=data.object_type, sort=data.sort),
+        )
+
     async def _query_default_page(
         self,
         project_id: UUID,
@@ -1391,6 +1487,81 @@ class ObjectQueryService:
                 total_pages=total_pages,
                 has_next_page=data.page * data.page_size < filtered_count,
                 has_previous_page=data.page > 1,
+            ),
+            counts=ProjectObjectsQueryCounts(
+                total=sum(by_type.values()),
+                by_type={"pipe": by_type.get("pipe", 0), "tank": by_type.get("tank", 0)},
+                filtered=filtered_count,
+            ),
+            query=ProjectObjectsQueryEcho(object_type=data.object_type, sort=data.sort),
+        )
+
+    async def _query_sql_keyset_page(
+        self,
+        project_id: UUID,
+        data: ProjectObjectsQueryRequest,
+        by_type: Counter[str],
+    ) -> ProjectObjectsQueryResponse:
+        conditions = [
+            ProjectObject.project_id == project_id,
+            ProjectObject.object_type == data.object_type,
+        ]
+        search_clause = self._sql_search_clause(data)
+        if search_clause is not None:
+            conditions.append(search_clause)
+        for item in data.filters:
+            clause = self._sql_filter_clause(self._field(data.object_type, item.key), item)
+            if clause is not None:
+                conditions.append(clause)
+
+        order_spec = self._sql_order_spec(data)
+        keyset_clause = self._sql_keyset_clause(order_spec, data)
+        if keyset_clause is not None:
+            conditions.append(keyset_clause)
+
+        count_conditions = conditions[:-1] if keyset_clause is not None else conditions
+        count_result = await self.db.execute(
+            select(func.count()).select_from(ProjectObject).where(*count_conditions)
+        )
+        filtered_count = int(count_result.scalar_one() or 0)
+
+        result = await self.db.execute(
+            select(
+                ProjectObject,
+                order_spec.value_expr.label("_cursor_value"),
+                order_spec.null_rank_expr.label("_cursor_null_rank"),
+            )
+            .where(*conditions)
+            .order_by(*order_spec.order_by)
+            .limit(data.page_size + 1)
+        )
+        fetched_rows = list(result.all())
+        has_next_page = len(fetched_rows) > data.page_size
+        fetched_page = fetched_rows[: data.page_size]
+        items = [obj for obj, _cursor_value, _cursor_null_rank in fetched_page]
+        total_pages = ceil(filtered_count / data.page_size) if filtered_count else 0
+        offset = (data.page - 1) * data.page_size
+        next_cursor = None
+        if has_next_page and fetched_page:
+            last_object, cursor_value, cursor_null_rank = fetched_page[-1]
+            next_cursor = ProjectObjectsPageCursor(
+                sort_order=last_object.sort_order,
+                id=last_object.id,
+                key=order_spec.key,
+                value=self._cursor_value(cursor_value),
+                value_is_null=bool(cursor_null_rank),
+            )
+
+        return ProjectObjectsQueryResponse(
+            items=items,
+            page_info=ProjectObjectsPageInfo(
+                page=data.page,
+                page_size=data.page_size,
+                offset=offset,
+                total_pages=total_pages,
+                has_next_page=has_next_page,
+                has_previous_page=data.page > 1,
+                next_cursor=next_cursor,
             ),
             counts=ProjectObjectsQueryCounts(
                 total=sum(by_type.values()),
@@ -1522,16 +1693,101 @@ class ObjectQueryService:
         return None
 
     def _sql_order_by(self, data: ProjectObjectsQueryRequest) -> list[Any]:
+        return self._sql_order_spec(data).order_by
+
+    def _sql_order_spec(self, data: ProjectObjectsQueryRequest) -> SqlOrderSpec:
         if data.sort is None:
-            return [ProjectObject.sort_order.asc(), ProjectObject.id.asc()]
+            return SqlOrderSpec(
+                key="sort_order",
+                direction="asc",
+                value_expr=ProjectObject.sort_order,
+                null_rank_expr=literal(0),
+                order_by=[ProjectObject.sort_order.asc(), ProjectObject.id.asc()],
+            )
         field = self._field(data.object_type, data.sort.key)
         expr = self._sql_expr(field)
         if field.sort_type in {"text", "label"}:
-            order_expr = func.lower(self._sql_text_expr(field, expr))
+            order_value_expr = func.lower(self._sql_text_expr(field, expr))
         else:
-            order_expr = expr
-        ordered = order_expr.desc() if data.sort.dir == "desc" else order_expr.asc()
-        return [ordered.nulls_last(), ProjectObject.sort_order.asc(), ProjectObject.id.asc()]
+            order_value_expr = expr
+        empty_clause = self._sql_empty_clause(expr)
+        null_rank_expr = case((empty_clause, 1), else_=0)
+        value_expr = case((empty_clause, None), else_=order_value_expr)
+        ordered = value_expr.desc() if data.sort.dir == "desc" else value_expr.asc()
+        return SqlOrderSpec(
+            key=field.key,
+            direction=data.sort.dir,
+            value_expr=value_expr,
+            null_rank_expr=null_rank_expr,
+            order_by=[
+                null_rank_expr.asc(),
+                ordered,
+                ProjectObject.sort_order.asc(),
+                ProjectObject.id.asc(),
+            ],
+        )
+
+    def _has_keyset_cursor(self, data: ProjectObjectsQueryRequest) -> bool:
+        return data.after_sort_order is not None and data.after_id is not None
+
+    def _sql_keyset_clause(self, spec: SqlOrderSpec, data: ProjectObjectsQueryRequest) -> Any | None:
+        if not self._has_keyset_cursor(data):
+            return None
+        cursor_key = data.after_key or "sort_order"
+        if cursor_key != spec.key:
+            raise ObjectQueryValidationError(
+                "Курсор не соответствует текущей сортировке таблицы"
+            )
+        if spec.key == "sort_order":
+            return or_(
+                ProjectObject.sort_order > data.after_sort_order,
+                and_(
+                    ProjectObject.sort_order == data.after_sort_order,
+                    ProjectObject.id > data.after_id,
+                ),
+            )
+
+        cursor_null_rank = 1 if data.after_value_is_null else 0
+        if data.after_value is None and cursor_null_rank == 0:
+            raise ObjectQueryValidationError("Курсор сортировки не содержит значение")
+
+        same_null_rank = spec.null_rank_expr == cursor_null_rank
+        same_value = self._sql_cursor_value_equals(spec, data)
+        clauses = [spec.null_rank_expr > cursor_null_rank]
+        if cursor_null_rank == 0:
+            value_compare = (
+                spec.value_expr < data.after_value
+                if spec.direction == "desc"
+                else spec.value_expr > data.after_value
+            )
+            clauses.append(and_(same_null_rank, value_compare))
+        clauses.append(
+            and_(
+                same_null_rank,
+                same_value,
+                ProjectObject.sort_order > data.after_sort_order,
+            )
+        )
+        clauses.append(
+            and_(
+                same_null_rank,
+                same_value,
+                ProjectObject.sort_order == data.after_sort_order,
+                ProjectObject.id > data.after_id,
+            )
+        )
+        return or_(*clauses)
+
+    def _sql_cursor_value_equals(self, spec: SqlOrderSpec, data: ProjectObjectsQueryRequest) -> Any:
+        if data.after_value_is_null:
+            return spec.null_rank_expr == 1
+        return spec.value_expr == data.after_value
+
+    @staticmethod
+    def _cursor_value(value: Any) -> Any:
+        if isinstance(value, Decimal):
+            return float(value)
+        return value
 
     def _field_capability(
         self, field: FieldDef, objects: list[ProjectObject]

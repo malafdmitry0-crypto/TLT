@@ -111,6 +111,11 @@ class ProjectObjectsQueryRequest(BaseModel):
     object_type: ObjectQueryType
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=50, ge=1, le=200)
+    after_sort_order: int | None = None
+    after_id: UUID | None = None
+    after_key: str | None = None
+    after_value: Any | None = None
+    after_value_is_null: bool = False
     search: ObjectQuerySearch | None = None
     filters: list[ObjectQueryFilter] = Field(default_factory=list, max_length=20)
     sort: ObjectQuerySort | None = None

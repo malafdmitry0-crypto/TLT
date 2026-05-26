@@ -8,18 +8,21 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { Pagination, Typography, type TableProps } from 'antd';
+import { Pagination, type TableProps } from 'antd';
 import {
   CompactSelection,
   DataEditor,
   GridCellKind,
+  type DrawCellCallback,
   type CellClickedEventArgs,
   type DrawHeaderCallback,
   type GridCell,
   type GridColumn,
+  type GridMouseEventArgs,
   type GridSelection,
   type HeaderClickedEventArgs,
   type Item,
+  type Rectangle,
 } from '@glideapps/glide-data-grid';
 import '@glideapps/glide-data-grid/dist/index.css';
 
@@ -35,15 +38,18 @@ import {
   type HeatCalcTableViewState,
 } from '@/utils/heatCalcTableFindability';
 
-const { Text } = Typography;
 const NORMAL_ROW_MARKER_WIDTH = 52;
 const NORMAL_GLIDE_HIDDEN_COLUMN_KEYS = new Set(['index']);
+const NORMAL_INFINITE_LOAD_THRESHOLD_ROWS = 12;
 const NORMAL_HEADER_FILTER_HIT_WIDTH = 28;
 const NORMAL_HEADER_CONTROL_PADDING = 6;
 const NORMAL_HEADER_CONTROL_BG = '#f3f6f4';
 const NORMAL_HEADER_CONTROL_MUTED = '#7a8b99';
 const NORMAL_HEADER_CONTROL_FAINT = '#b8c2cc';
 const NORMAL_HEADER_CONTROL_ACTIVE = '#1a5276';
+const NORMAL_STATUS_COLUMN_KEY = 'heat_loss_status';
+
+type NormalStatusVisual = 'calculated' | 'error' | 'unsupported' | 'not_calculated';
 
 interface HeatCalcNormalGlideGridProps {
   rows: ProjectObject[];
@@ -53,6 +59,7 @@ interface HeatCalcNormalGlideGridProps {
   fontSizeKey: string;
   selectedRowKeys: string[];
   tableViewState: HeatCalcTableViewState;
+  infiniteLoading: HeatCalcNormalInfiniteLoading | null;
   pagination: TableProps<ProjectObject>['pagination'];
   emptyContent: ReactNode;
   rowClassName: (record: ProjectObject) => string;
@@ -67,12 +74,20 @@ interface HeatCalcNormalGlideGridProps {
   onResetColumnFilter: (columnKey: string) => void;
   onSetSort: (columnKey: string, direction?: 'asc' | 'desc') => void;
   onPageChange: (page: number) => void;
+  onLoadMore: () => void;
 }
 
 interface FilterPopupState {
   columnIndex: number;
   left: number;
   top: number;
+}
+
+interface HeatCalcNormalInfiniteLoading {
+  loaded: number;
+  total: number;
+  hasNextPage: boolean;
+  loading?: boolean;
 }
 
 function isErrorRowClassName(className: string) {
@@ -200,6 +215,68 @@ function drawFilterIndicator(
   ctx.stroke();
 }
 
+function normalStatusVisualFromValue(value: unknown): NormalStatusVisual | null {
+  if (value === 'Рассчитан') return 'calculated';
+  if (value === 'Ошибка') return 'error';
+  if (value === 'Не применимо') return 'unsupported';
+  if (value === 'Не рассчитан' || value === '—' || value === '') return 'not_calculated';
+  return null;
+}
+
+function normalStatusPalette(status: NormalStatusVisual) {
+  if (status === 'calculated') {
+    return { fill: '#f6ffed', stroke: '#95de64', glyph: '#389e0d' };
+  }
+  if (status === 'error') {
+    return { fill: '#fff1f0', stroke: '#ffccc7', glyph: '#cf1322' };
+  }
+  if (status === 'unsupported') {
+    return { fill: '#fffbe6', stroke: '#ffe58f', glyph: '#d48806' };
+  }
+  return { fill: '#fafafa', stroke: '#d9d9d9', glyph: '#8c8c8c' };
+}
+
+function drawNormalStatusBadge(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  status: NormalStatusVisual,
+) {
+  const palette = normalStatusPalette(status);
+  const centerX = rect.x + rect.width / 2;
+  const centerY = rect.y + rect.height / 2;
+  const radius = Math.max(7, Math.min(10, rect.height / 2 - 5));
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.fillStyle = palette.fill;
+  ctx.fill();
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = palette.stroke;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = palette.glyph;
+  if (status === 'calculated') {
+    ctx.moveTo(centerX - 4, centerY);
+    ctx.lineTo(centerX - 1, centerY + 3);
+    ctx.lineTo(centerX + 5, centerY - 4);
+  } else if (status === 'error') {
+    ctx.moveTo(centerX - 4, centerY - 4);
+    ctx.lineTo(centerX + 4, centerY + 4);
+    ctx.moveTo(centerX + 4, centerY - 4);
+    ctx.lineTo(centerX - 4, centerY + 4);
+  } else {
+    ctx.moveTo(centerX - 5, centerY);
+    ctx.lineTo(centerX + 5, centerY);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 function HeatCalcNormalGlideGrid({
   rows,
   gridColumns,
@@ -208,6 +285,7 @@ function HeatCalcNormalGlideGrid({
   fontSizeKey,
   selectedRowKeys,
   tableViewState,
+  infiniteLoading,
   pagination,
   emptyContent,
   rowClassName,
@@ -218,8 +296,10 @@ function HeatCalcNormalGlideGrid({
   onResetColumnFilter,
   onSetSort,
   onPageChange,
+  onLoadMore,
 }: HeatCalcNormalGlideGridProps) {
   const [filterPopup, setFilterPopup] = useState<FilterPopupState | null>(null);
+  const [hoveredHeaderColumnIndex, setHoveredHeaderColumnIndex] = useState<number | null>(null);
   const filterPopupRef = useRef<HTMLDivElement | null>(null);
   const visibleGridColumns = useMemo(
     () => gridColumns.filter((column) => !NORMAL_GLIDE_HIDDEN_COLUMN_KEYS.has(column.key)),
@@ -232,7 +312,10 @@ function HeatCalcNormalGlideGrid({
     ),
     [gridColumns],
   );
-  const rowMarkerStartIndex = useMemo(() => normalRowMarkerStartIndex(pagination), [pagination]);
+  const rowMarkerStartIndex = useMemo(
+    () => (infiniteLoading ? 1 : normalRowMarkerStartIndex(pagination)),
+    [infiniteLoading, pagination],
+  );
   const normalTableScrollX = Math.max(640, tableScrollX - hiddenColumnWidth);
   const editorColumns = useMemo<GridColumn[]>(
     () => visibleGridColumns.map((column) => ({
@@ -265,12 +348,20 @@ function HeatCalcNormalGlideGrid({
       allowOverlay: false,
       readonly: true,
       data: state.displayValue,
-      displayData: state.displayValue,
+      displayData: column.key === NORMAL_STATUS_COLUMN_KEY ? '' : state.displayValue,
       copyData: state.displayValue,
       contentAlign: state.align ?? column.align ?? (state.editor === 'number' ? 'right' : 'left'),
       themeOverride: bgCell ? { bgCell } : undefined,
     };
   }, [getCellState, rowClassName, rows, visibleGridColumns]);
+  const drawCell = useCallback<DrawCellCallback>((args, drawContent) => {
+    drawContent();
+    const column = visibleGridColumns[args.col];
+    if (column?.key !== NORMAL_STATUS_COLUMN_KEY) return;
+    const status = normalStatusVisualFromValue(args.cell.kind === GridCellKind.Text ? args.cell.data : null);
+    if (!status) return;
+    drawNormalStatusBadge(args.ctx, args.rect, status);
+  }, [visibleGridColumns]);
   const handleGridSelectionChange = useCallback((nextSelection: GridSelection) => {
     const keys = nextSelection.rows
       .toArray()
@@ -306,6 +397,9 @@ function HeatCalcNormalGlideGrid({
     setFilterPopup(null);
     onSetSort(column.key, nextSortDirection(tableViewState, column.key));
   }, [onSetSort, openFilterPopup, tableViewState, visibleGridColumns]);
+  const handleItemHovered = useCallback((args: GridMouseEventArgs) => {
+    setHoveredHeaderColumnIndex(args.kind === 'header' ? args.location[0] : null);
+  }, []);
   const drawHeader = useCallback<DrawHeaderCallback>((args, drawContent) => {
     drawContent();
     const column = visibleGridColumns[args.columnIndex];
@@ -321,6 +415,12 @@ function HeatCalcNormalGlideGrid({
       ? tableViewState.sort.direction
       : undefined;
     const filterActive = isColumnFilterActive(tableViewState.filters[column.key]);
+    const controlsVisible = hoveredHeaderColumnIndex === args.columnIndex
+      || filterPopup?.columnIndex === args.columnIndex
+      || !!sortDirection
+      || filterActive;
+
+    if (!controlsVisible) return;
 
     ctx.save();
     ctx.fillStyle = args.theme.bgHeader ?? NORMAL_HEADER_CONTROL_BG;
@@ -335,7 +435,14 @@ function HeatCalcNormalGlideGrid({
       drawSortIndicator(ctx, cursorX, centerY, sortDirection);
     }
     ctx.restore();
-  }, [tableViewState, visibleGridColumns]);
+  }, [filterPopup?.columnIndex, hoveredHeaderColumnIndex, tableViewState, visibleGridColumns]);
+  const handleVisibleRegionChanged = useCallback((range: Rectangle) => {
+    if (!infiniteLoading?.hasNextPage || infiniteLoading.loading || rows.length === 0) return;
+    const visibleRowEnd = range.y + range.height;
+    if (visibleRowEnd >= rows.length - NORMAL_INFINITE_LOAD_THRESHOLD_ROWS) {
+      onLoadMore();
+    }
+  }, [infiniteLoading?.hasNextPage, infiniteLoading?.loading, onLoadMore, rows.length]);
   const activeFilterColumn = filterPopup ? visibleGridColumns[filterPopup.columnIndex] : undefined;
   const filterPopupStyle = useMemo<CSSProperties | undefined>(() => {
     if (!filterPopup) return undefined;
@@ -365,7 +472,7 @@ function HeatCalcNormalGlideGrid({
     };
   }, [filterPopup]);
   const pageConfig = paginationConfig(pagination);
-  const showPagination = !!pageConfig
+  const showOffsetPagination = !infiniteLoading && !!pageConfig
     && !(pageConfig.hideOnSinglePage && Number(pageConfig.total ?? 0) <= Number(pageConfig.pageSize ?? 0));
 
   if (rows.length === 0) {
@@ -395,12 +502,15 @@ function HeatCalcNormalGlideGrid({
         smoothScrollY
         verticalBorder
         getCellContent={getCellContent}
+        drawCell={drawCell}
         drawHeader={drawHeader}
         gridSelection={gridSelection}
         onGridSelectionChange={handleGridSelectionChange}
         onCellClicked={handleCellClicked}
         onHeaderClicked={handleHeaderClicked}
         onHeaderContextMenu={openFilterPopup}
+        onItemHovered={handleItemHovered}
+        onVisibleRegionChanged={handleVisibleRegionChanged}
         rowSelect="multi"
         rangeSelect="cell"
         columnSelect="none"
@@ -423,7 +533,7 @@ function HeatCalcNormalGlideGrid({
           headerFontStyle: '600 12px inherit',
         }}
       />
-      {showPagination && (
+      {showOffsetPagination && pageConfig && (
         <div className="heatcalc-normal-glide-pagination">
           <Pagination
             size={pageConfig.size === 'small' ? 'small' : 'default'}
@@ -448,7 +558,6 @@ function HeatCalcNormalGlideGrid({
           />
         </div>
       )}
-      <Text className="heatcalc-glide-engine-badge">Glide table</Text>
     </div>
   );
 }

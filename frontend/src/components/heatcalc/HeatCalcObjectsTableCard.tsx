@@ -26,6 +26,13 @@ const HeatCalcNormalGlideGrid = lazy(() => import('@/components/heatcalc/HeatCal
 
 type ActiveObjectScope = HeatCalcObjectType | 'all';
 
+export interface HeatCalcNormalInfiniteLoading {
+  loaded: number;
+  total: number;
+  hasNextPage: boolean;
+  loading?: boolean;
+}
+
 interface HeatCalcObjectsTableCardProps {
   activeObjectScope: ActiveObjectScope;
   activeTypeTotalCount: number;
@@ -36,6 +43,7 @@ interface HeatCalcObjectsTableCardProps {
   excelSelectionRange: ExcelSelectionRange | null;
   fontSizeKey: string;
   glideColumns: HeatCalcGlideGridColumn[];
+  normalInfiniteLoading: HeatCalcNormalInfiniteLoading | null;
   normalPagination: TableProps<ProjectObject>['pagination'];
   activeTableViewState: HeatCalcTableViewState;
   selectedExcelPosition: HeatCalcExcelCellCoordinates | null;
@@ -68,6 +76,7 @@ interface HeatCalcObjectsTableCardProps {
   onNormalSetColumnFilter: (columnKey: string, filter?: HeatCalcColumnFilter) => void;
   onNormalResetColumnFilter: (columnKey: string) => void;
   onNormalSetSort: (columnKey: string, direction?: 'asc' | 'desc') => void;
+  onNormalLoadMore: () => void;
   onNormalPageChange: (page: number) => void;
   onOpenEditWizard: (record: ProjectObject) => void;
   onResetCurrentTableViewState: () => void;
@@ -141,6 +150,7 @@ export default function HeatCalcObjectsTableCard({
   excelSelectionRange,
   fontSizeKey,
   glideColumns,
+  normalInfiniteLoading,
   normalPagination,
   activeTableViewState,
   selectedExcelPosition,
@@ -158,6 +168,7 @@ export default function HeatCalcObjectsTableCard({
   onNormalSetColumnFilter,
   onNormalResetColumnFilter,
   onNormalSetSort,
+  onNormalLoadMore,
   onNormalPageChange,
   onOpenEditWizard,
   onResetCurrentTableViewState,
@@ -233,6 +244,7 @@ export default function HeatCalcObjectsTableCard({
             fontSizeKey={fontSizeKey}
             selectedRowKeys={selectedRowKeys}
             tableViewState={activeTableViewState}
+            infiniteLoading={normalInfiniteLoading}
             pagination={normalPagination}
             emptyContent={normalEmptyContent}
             rowClassName={rowClassName}
@@ -243,6 +255,7 @@ export default function HeatCalcObjectsTableCard({
             onResetColumnFilter={onNormalResetColumnFilter}
             onSetSort={onNormalSetSort}
             onPageChange={onNormalPageChange}
+            onLoadMore={onNormalLoadMore}
           />
         </Suspense>
       ) : (

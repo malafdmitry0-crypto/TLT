@@ -4,6 +4,7 @@ import type {
   ObjectQueryFieldCapability,
   ObjectQueryFilter as BackendObjectQueryFilter,
   ProjectObject,
+  ProjectObjectsPageCursor,
   ProjectObjectsQueryRequest,
 } from '@/types/project';
 import { formatNumber } from '@/utils/formatters';
@@ -193,6 +194,7 @@ export function buildObjectQueryRequest(
   page: number,
   pageSize: number,
   capabilities?: ObjectQueryCapabilities,
+  cursor?: ProjectObjectsPageCursor | null,
 ): ProjectObjectsQueryRequest {
   const capabilityByKey = new Map(capabilities?.fields.map((field) => [field.key, field]) ?? []);
   const filters = Object.entries(state.filters)
@@ -201,7 +203,7 @@ export function buildObjectQueryRequest(
       : null)
     .filter((filter): filter is BackendObjectQueryFilter => filter != null);
   const sortCapability = state.sort ? capabilityByKey.get(state.sort.columnKey) : undefined;
-  return {
+  const request: ProjectObjectsQueryRequest = {
     object_type: objectType,
     page,
     page_size: pageSize,
@@ -210,6 +212,14 @@ export function buildObjectQueryRequest(
       ? { key: state.sort.columnKey, dir: state.sort.direction }
       : null,
   };
+  if (cursor) {
+    request.after_sort_order = cursor.sort_order;
+    request.after_id = cursor.id;
+    request.after_key = cursor.key ?? null;
+    request.after_value = cursor.value;
+    request.after_value_is_null = cursor.value_is_null ?? false;
+  }
+  return request;
 }
 
 export function toInputNumberValue(value: unknown) {

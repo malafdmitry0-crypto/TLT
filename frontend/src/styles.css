@@ -3624,6 +3624,25 @@ html, body, #root {
   line-height: 7px;
 }
 
+.calc-spreadsheet .heatcalc-table-header-actions-cell .ant-table-column-sorter,
+.calc-spreadsheet .heatcalc-table-header-actions-cell .ant-table-filter-trigger {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 120ms ease, visibility 120ms ease;
+}
+
+.calc-spreadsheet .heatcalc-table-header-actions-cell:hover .ant-table-column-sorter,
+.calc-spreadsheet .heatcalc-table-header-actions-cell:hover .ant-table-filter-trigger,
+.calc-spreadsheet .heatcalc-table-header-actions-cell:focus-within .ant-table-column-sorter,
+.calc-spreadsheet .heatcalc-table-header-actions-cell:focus-within .ant-table-filter-trigger,
+.calc-spreadsheet .heatcalc-table-header-actions-cell--sort-active .ant-table-column-sorter,
+.calc-spreadsheet .heatcalc-table-header-actions-cell--filter-active .ant-table-filter-trigger {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
 .calc-spreadsheet .table-filter-trigger {
   display: flex;
   align-items: center;

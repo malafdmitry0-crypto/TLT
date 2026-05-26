@@ -119,6 +119,15 @@ Backend выполняет optimistic lock по `project_objects.version`: ус�
 источника, backend считает значение ручным, включая `1.1`; автополитика климата
 может менять K только для `default`/`climate_policy` или отсутствующего поля.
 
+**`POST /projects/{id}/objects/query`** возвращает страницу объектов
+теплорасчёта с backend-фильтрами и сортировками. Для стандартной сортировки
+`(sort_order, id)` и SQL-поддерживаемых фильтров/сортировок ответ содержит
+`page_info.next_cursor = {sort_order, id, key, value, value_is_null}` при
+наличии следующей страницы. Последовательная следующая страница передаёт
+`after_sort_order`, `after_id`, `after_key`, `after_value`,
+`after_value_is_null`; backend использует keyset pagination. Произвольный
+переход по `page` без cursor остаётся offset fallback для совместимости.
+
 **`POST /calc/heat-loss/batch`** пересчитывает теплопотери объектов проекта.
 После пересчёта существующие электрорасчёты помечаются `stale`, а сохранённые
 спецификации проекта получают `is_stale=true`, потому что спецификация является

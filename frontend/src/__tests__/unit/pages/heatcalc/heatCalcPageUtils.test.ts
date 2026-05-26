@@ -157,6 +157,33 @@ describe('heatCalcPageUtils', () => {
     });
   });
 
+  it('добавляет cursor в backend-query для последовательной страницы', () => {
+    const request = buildObjectQueryRequest(
+      'pipe',
+      { filters: {}, sort: { columnKey: 'name', direction: 'asc' } },
+      3,
+      50,
+      capabilities([capability('name', ['contains'])]),
+      {
+        sort_order: 75,
+        id: 'object-75',
+        key: 'name',
+        value: 'Труба 75',
+        value_is_null: false,
+      },
+    );
+
+    expect(request).toMatchObject({
+      page: 3,
+      page_size: 50,
+      after_sort_order: 75,
+      after_id: 'object-75',
+      after_key: 'name',
+      after_value: 'Труба 75',
+      after_value_is_null: false,
+    });
+  });
+
   it('не отправляет сортировку, если capability запрещает sort', () => {
     const state: HeatCalcTableViewState = {
       filters: {},

@@ -237,6 +237,11 @@ export function useHeatCalcTableColumns({
         && (isAllObjectScope || (capability?.sort.enabled ?? true));
       const filterKind = filterKindForColumn(meta.key, capability);
       const activeFilter = activeTableViewState.filters[meta.key];
+      const filterActive = isColumnFilterActive(activeFilter);
+      const activeSort = sortEnabled && activeTableViewState.sort?.columnKey === meta.key
+        ? activeTableViewState.sort
+        : undefined;
+      const sortActive = !!activeSort;
       const excelColumnIndex = excelSelectionLookup.columnKeyToIndex.get(meta.key);
       const columnSelected = !!normalizedExcelRange
         && excelColumnIndex != null
@@ -311,13 +316,13 @@ export function useHeatCalcTableColumns({
           );
         },
         sorter: sortEnabled,
-        sortOrder: sortEnabled && activeTableViewState.sort?.columnKey === meta.key
-          ? activeTableViewState.sort.direction === 'asc'
+        sortOrder: sortActive
+          ? activeSort.direction === 'asc'
             ? 'ascend'
             : 'descend'
           : null,
         showSorterTooltip: false,
-        filtered: isColumnFilterActive(activeFilter),
+        filtered: filterActive,
         filterIcon: filterEnabled ? () => (
           <span
             role="button"
@@ -326,7 +331,7 @@ export function useHeatCalcTableColumns({
             style={{ pointerEvents: 'auto' }}
           >
             <FilterFilled
-              className={isColumnFilterActive(activeFilter) ? 'table-filter-icon active' : 'table-filter-icon'}
+              className={filterActive ? 'table-filter-icon active' : 'table-filter-icon'}
             />
           </span>
         ) : undefined,
@@ -341,6 +346,13 @@ export function useHeatCalcTableColumns({
             onClose={close}
           />
         ) : undefined,
+        onHeaderCell: () => ({
+          className: [
+            sortEnabled || filterEnabled ? 'heatcalc-table-header-actions-cell' : null,
+            sortActive ? 'heatcalc-table-header-actions-cell--sort-active' : null,
+            filterActive ? 'heatcalc-table-header-actions-cell--filter-active' : null,
+          ].filter(Boolean).join(' '),
+        }),
         onCell: !isAllObjectScope && tableCellEditingEnabled && getInlineEditFieldConfig(activeTableObjectType, meta.key)
           ? (_record, rowIndex) => ({
             className: 'editable-cell-host editable-cell-enabled',

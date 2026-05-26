@@ -110,6 +110,11 @@ describe('HeatCalcNormalGlideGrid', () => {
           filters: { name: { kind: 'text', value: 'Pipe' } },
           sort: { columnKey: 'name', direction: 'asc' },
         }}
+        infiniteLoading={{
+          loaded: 100,
+          total: 200,
+          hasNextPage: true,
+        }}
         pagination={{ current: 3, pageSize: 50, total: 200 }}
         emptyContent={null}
         rowClassName={(record) => (record.id === 'row-1' ? 'row-invalid row-dirty' : '')}
@@ -124,11 +129,12 @@ describe('HeatCalcNormalGlideGrid', () => {
         onResetColumnFilter={vi.fn()}
         onSetSort={vi.fn()}
         onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
       />,
     );
 
     expect(normalGlideMock.props?.rowMarkers).toBe('clickable-number');
-    expect(normalGlideMock.props?.rowMarkerStartIndex).toBe(101);
+    expect(normalGlideMock.props?.rowMarkerStartIndex).toBe(1);
     expect(normalGlideMock.props?.rowMarkerWidth).toBe(52);
     expect(normalGlideMock.props?.columns).toEqual([
       expect.objectContaining({ id: 'name', title: 'Name', hasMenu: false, style: 'highlight' }),
@@ -148,6 +154,7 @@ describe('HeatCalcNormalGlideGrid', () => {
 
     onCellClicked([0, 1], { preventDefault: vi.fn() });
     expect(onOpenEditWizard).toHaveBeenCalledWith(rows[1]);
+    expect(screen.queryByText(/Страница/)).not.toBeInTheDocument();
   });
 
   it('wires Glide header sorting and filter popup to the shared table-view model', async () => {
@@ -170,6 +177,7 @@ describe('HeatCalcNormalGlideGrid', () => {
         fontSizeKey="compact"
         selectedRowKeys={[]}
         tableViewState={{ filters: {} }}
+        infiniteLoading={null}
         pagination={false}
         emptyContent={null}
         rowClassName={() => ''}
@@ -183,6 +191,7 @@ describe('HeatCalcNormalGlideGrid', () => {
         onResetColumnFilter={vi.fn()}
         onSetSort={onSetSort}
         onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
       />,
     );
 
@@ -206,7 +215,88 @@ describe('HeatCalcNormalGlideGrid', () => {
     expect(onSetColumnFilter).toHaveBeenCalledWith('name', { kind: 'text', value: 'Pipe' });
   });
 
-  it('draws persistent sort and filter controls in Glide headers', () => {
+  it('renders heat-loss status as a colored canvas badge without visible text', () => {
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[{ key: 'heat_loss_status', title: 'Status', width: 96 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        selectedRowKeys={[]}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={null}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={(record) => ({
+          displayValue: record.id === 'row-1' ? 'Рассчитан' : 'Ошибка',
+          editable: false,
+          align: 'center',
+        })}
+        onOpenEditWizard={vi.fn()}
+        onSelectedRowKeysChange={vi.fn()}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    const getCellContent = normalGlideMock.props?.getCellContent as ((cell: [number, number]) => unknown);
+    const statusCell = getCellContent([0, 0]);
+    expect(statusCell).toMatchObject({
+      kind: 'text',
+      data: 'Рассчитан',
+      displayData: '',
+      copyData: 'Рассчитан',
+      contentAlign: 'center',
+    });
+
+    const drawCell = normalGlideMock.props?.drawCell as (
+      args: {
+        ctx: Record<string, unknown>;
+        cell: typeof statusCell;
+        col: number;
+        row: number;
+        rect: { x: number; y: number; width: number; height: number };
+      },
+      drawContent: () => void,
+    ) => void;
+    const drawContent = vi.fn();
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      set fillStyle(_value: string) {},
+      set strokeStyle(_value: string) {},
+      set lineWidth(_value: number) {},
+      set lineCap(_value: string) {},
+      set lineJoin(_value: string) {},
+    };
+
+    drawCell({
+      ctx,
+      cell: statusCell,
+      col: 0,
+      row: 0,
+      rect: { x: 10, y: 20, width: 96, height: 30 },
+    }, drawContent);
+
+    expect(drawContent).toHaveBeenCalled();
+    expect(ctx.arc).toHaveBeenCalled();
+    expect(ctx.moveTo).toHaveBeenCalled();
+    expect(ctx.lineTo).toHaveBeenCalled();
+    expect(ctx.stroke).toHaveBeenCalled();
+  });
+
+  it('draws Glide header controls on hover and active table view state only', () => {
     render(
       <HeatCalcNormalGlideGrid
         rows={rows}
@@ -222,10 +312,8 @@ describe('HeatCalcNormalGlideGrid', () => {
         tableScrollY="360px"
         fontSizeKey="compact"
         selectedRowKeys={[]}
-        tableViewState={{
-          filters: { name: { kind: 'text', value: 'Pipe' } },
-          sort: { columnKey: 'name', direction: 'desc' },
-        }}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={null}
         pagination={false}
         emptyContent={null}
         rowClassName={() => ''}
@@ -239,6 +327,7 @@ describe('HeatCalcNormalGlideGrid', () => {
         onResetColumnFilter={vi.fn()}
         onSetSort={vi.fn()}
         onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
       />,
     );
 
@@ -251,6 +340,10 @@ describe('HeatCalcNormalGlideGrid', () => {
       },
       drawContent: () => void,
     ) => void;
+    const onItemHovered = normalGlideMock.props?.onItemHovered as (args: {
+      kind: 'header' | 'cell';
+      location: [number, number];
+    }) => void;
     const drawContent = vi.fn();
     const ctx = {
       save: vi.fn(),
@@ -275,8 +368,135 @@ describe('HeatCalcNormalGlideGrid', () => {
     }, drawContent);
 
     expect(drawContent).toHaveBeenCalled();
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+
+    act(() => onItemHovered({ kind: 'header', location: [0, -1] }));
+    const drawHeaderAfterHover = normalGlideMock.props?.drawHeader as typeof drawHeader;
+    drawHeaderAfterHover({
+      ctx,
+      columnIndex: 0,
+      theme: { bgHeader: '#f3f6f4' },
+      rect: { x: 10, y: 20, width: 180, height: 38 },
+    }, drawContent);
+
     expect(ctx.fillRect).toHaveBeenCalled();
     expect(ctx.fill).toHaveBeenCalled();
     expect(ctx.stroke).toHaveBeenCalled();
+  });
+
+  it('keeps active Glide sort and filter controls visible without header hover', () => {
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[{
+          key: 'name',
+          title: 'Name',
+          width: 180,
+          sortable: true,
+          filterable: true,
+          filterKind: 'text',
+        }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        selectedRowKeys={[]}
+        tableViewState={{
+          filters: { name: { kind: 'text', value: 'Pipe' } },
+          sort: { columnKey: 'name', direction: 'desc' },
+        }}
+        infiniteLoading={null}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={(record) => ({
+          displayValue: String(record.params?.name ?? ''),
+          editable: false,
+        })}
+        onOpenEditWizard={vi.fn()}
+        onSelectedRowKeysChange={vi.fn()}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    const drawHeader = normalGlideMock.props?.drawHeader as (
+      args: {
+        ctx: Record<string, unknown>;
+        columnIndex: number;
+        theme: { bgHeader: string };
+        rect: { x: number; y: number; width: number; height: number };
+      },
+      drawContent: () => void,
+    ) => void;
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      fillRect: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      closePath: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
+      set fillStyle(_value: string) {},
+      set strokeStyle(_value: string) {},
+      set lineWidth(_value: number) {},
+    };
+
+    drawHeader({
+      ctx,
+      columnIndex: 0,
+      theme: { bgHeader: '#f3f6f4' },
+      rect: { x: 10, y: 20, width: 180, height: 38 },
+    }, vi.fn());
+
+    expect(ctx.fillRect).toHaveBeenCalled();
+    expect(ctx.fill).toHaveBeenCalled();
+    expect(ctx.stroke).toHaveBeenCalled();
+  });
+
+  it('loads more rows near the bottom instead of rendering pagination controls', () => {
+    const onLoadMore = vi.fn();
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[{ key: 'name', title: 'Name', width: 180 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        selectedRowKeys={[]}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={{
+          loaded: 100,
+          total: 125,
+          hasNextPage: true,
+        }}
+        pagination={{ current: 2, pageSize: 50, total: 125 }}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={(record) => ({
+          displayValue: String(record.params?.name ?? ''),
+          editable: false,
+        })}
+        onOpenEditWizard={vi.fn()}
+        onSelectedRowKeysChange={vi.fn()}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Страница/)).not.toBeInTheDocument();
+    const onVisibleRegionChanged = normalGlideMock.props?.onVisibleRegionChanged as (
+      range: { x: number; y: number; width: number; height: number },
+    ) => void;
+    act(() => onVisibleRegionChanged({ x: 0, y: 1, width: 1, height: 1 }));
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
   });
 });

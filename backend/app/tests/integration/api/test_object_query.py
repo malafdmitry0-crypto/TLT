@@ -156,6 +156,85 @@ class TestObjectQuery:
         assert body["page_info"]["page_size"] == 1
         assert body["items"][0]["params"]["name"] == "Труба Юг"
 
+    async def test_query_default_page_supports_keyset_cursor(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        pid = await _project(client, guest_session)
+        await _seed_objects(db_session, pid)
+
+        first = await client.post(
+            f"/api/v1/projects/{pid}/objects/query",
+            json={"object_type": "pipe", "page": 1, "page_size": 1},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert first.status_code == 200, first.text
+        first_body = first.json()
+        assert [item["params"]["name"] for item in first_body["items"]] == ["Труба Север"]
+        cursor = first_body["page_info"]["next_cursor"]
+        assert cursor["key"] == "sort_order"
+        assert cursor["sort_order"] == 0
+
+        second = await client.post(
+            f"/api/v1/projects/{pid}/objects/query",
+            json={
+                "object_type": "pipe",
+                "page": 2,
+                "page_size": 1,
+                "after_sort_order": cursor["sort_order"],
+                "after_id": cursor["id"],
+                "after_key": cursor["key"],
+                "after_value": cursor["value"],
+                "after_value_is_null": cursor["value_is_null"],
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert second.status_code == 200, second.text
+        second_body = second.json()
+        assert [item["params"]["name"] for item in second_body["items"]] == ["Труба Юг"]
+        assert second_body["page_info"].get("next_cursor") is None
+
+    async def test_query_sorted_page_supports_keyset_cursor(
+        self, client: AsyncClient, guest_session: str, db_session: AsyncSession
+    ):
+        pid = await _project(client, guest_session)
+        await _seed_objects(db_session, pid)
+
+        first = await client.post(
+            f"/api/v1/projects/{pid}/objects/query",
+            json={
+                "object_type": "pipe",
+                "page": 1,
+                "page_size": 1,
+                "sort": {"key": "process_temperature", "dir": "desc"},
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert first.status_code == 200, first.text
+        first_body = first.json()
+        assert [item["params"]["name"] for item in first_body["items"]] == ["Труба Юг"]
+        cursor = first_body["page_info"]["next_cursor"]
+        assert cursor["key"] == "process_temperature"
+        assert cursor["value"] == 95
+
+        second = await client.post(
+            f"/api/v1/projects/{pid}/objects/query",
+            json={
+                "object_type": "pipe",
+                "page": 2,
+                "page_size": 1,
+                "sort": {"key": "process_temperature", "dir": "desc"},
+                "after_sort_order": cursor["sort_order"],
+                "after_id": cursor["id"],
+                "after_key": cursor["key"],
+                "after_value": cursor["value"],
+                "after_value_is_null": cursor["value_is_null"],
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert second.status_code == 200, second.text
+        second_body = second.json()
+        assert [item["params"]["name"] for item in second_body["items"]] == ["Труба Север"]
+
     async def test_query_filters_and_sorts_result_heat_loss_fields(
         self, client: AsyncClient, guest_session: str, db_session: AsyncSession
     ):
