@@ -414,7 +414,7 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose
 docker-compose up --build -d
 ```
 
-Сервисы: `db` (PostgreSQL 16 · порт 5432), `backend` (FastAPI · порт 8000), `frontend` (Vite dev / nginx · порт 3003). Observability-override добавляет `loki` (:3100), `grafana` (:3002) и `alloy` (:12345).
+Сервисы: `db` (PostgreSQL 16 · host-порт 5433, внутри Docker `db:5432`), `backend` (FastAPI · порт 8000), `frontend` (Vite dev / nginx · порт 3003). Observability-override добавляет `loki` (:3100), `grafana` (:3002) и `alloy` (:12345).
 
 ---
 
@@ -429,7 +429,7 @@ docker-compose up --build -d
 
 Текущее состояние:
 <!-- AUTO:test-counts -->
-**1265 backend** (921 unit + 344 integration) ✅ · **513 frontend vitest** ✅ · **89 e2e Playwright** ✅
+**1265 backend** (921 unit + 344 integration) ✅ · **522 frontend vitest** ✅ · **91 e2e Playwright** ✅
 <!-- /AUTO -->
 
 Цифры обновляются командой `scripts/sync-docs.py`.

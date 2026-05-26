@@ -26,7 +26,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 - **Frontend**: http://localhost:3003 (dev и prod базовый) / :80 при
   `docker-compose.prod.yml` / :8080 для `demo/` (переопределяется `FRONTEND_PORT`)
 - **Backend Swagger**: http://localhost:8000/docs
-- **PostgreSQL**: :5432 (в проде порт наружу не публикуется)
+- **PostgreSQL**: :5433 (в проде порт наружу не публикуется)
 
 Для демо-поставки заказчику — см. [`demo/README.md`](demo/README.md)
 (готовые multi-arch образы amd64+arm64 в одном tar.gz, пошаговая инструкция
@@ -95,7 +95,7 @@ npx playwright test
 
 Текущее состояние:
 <!-- AUTO:test-counts -->
-**1265 backend** (921 unit + 344 integration) ✅ · **513 frontend vitest** ✅ · **89 e2e Playwright** ✅
+**1265 backend** (921 unit + 344 integration) ✅ · **522 frontend vitest** ✅ · **91 e2e Playwright** ✅
 <!-- /AUTO -->
 
 > Цифры синхронизируются `scripts/sync-docs.py` (правит этот блок на месте).
