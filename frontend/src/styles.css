@@ -1195,6 +1195,11 @@ html, body, #root {
   position: relative;
 }
 
+.inline-form-shell[hidden],
+.heatcalc-form-pane[hidden] {
+  display: none !important;
+}
+
 .heatcalc-workspace-shell {
   position: relative;
   min-width: 0;

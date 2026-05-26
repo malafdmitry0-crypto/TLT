@@ -71,6 +71,74 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     await expect(page.getByRole('menuitem', { name: /Электротехнический расчёт/i })).toBeVisible();
   });
 
+  test('скрытый боковой блок параметров не оставляет пустую правую область', async ({ page }) => {
+    await loginAsGuest(page);
+    await page.evaluate(() => {
+      localStorage.setItem('heatcalc.tableView.v1.guest', JSON.stringify({
+        version: 1,
+        fontSize: 'standard',
+        tableLabelFormat: 'short',
+        settingsLabelFormat: 'full',
+        inlineEditingEnabled: false,
+        formPlacement: 'right',
+        sideFormWidthPct: 34,
+        formSectionWeights: [1.655, 1.35, 1.2],
+      }));
+    });
+    await page.reload({ waitUntil: 'networkidle' });
+
+    const layout = page.locator('.heatcalc-workspace-layout--right');
+    const typeToolbar = page.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+    const visibilityToggle = typeToolbar.getByRole('checkbox', { name: 'Показать блок заполнения параметров' });
+    await expect(layout).toBeVisible();
+    await expect(visibilityToggle).toBeChecked();
+
+    await visibilityToggle.uncheck();
+    await expect(visibilityToggle).not.toBeChecked();
+    await expect(page.locator('.inline-form-shell[aria-label="Блок заполнения параметров"]')).toBeHidden();
+    const proof = await page.evaluate(() => {
+      const layout = document.querySelector<HTMLElement>('.heatcalc-workspace-layout--right');
+      const tablePane = document.querySelector<HTMLElement>('.heatcalc-workspace-layout--right .heatcalc-table-pane');
+      const formPane = document.querySelector<HTMLElement>('.heatcalc-workspace-layout--right .heatcalc-form-pane');
+      const resizeHandle = document.querySelectorAll('.heatcalc-workspace-layout--right .heatcalc-side-resize-handle');
+      const checkbox = document.querySelector<HTMLElement>('.actionbar-form-toggle .ant-checkbox');
+      if (!layout || !tablePane || !formPane) {
+        return {
+          checkboxClassChecked: true,
+          formDisplay: '',
+          formWidth: -1,
+          tableWidthRatio: 0,
+          tableRightGap: -1,
+          resizeHandleCount: resizeHandle.length,
+          noHorizontalScroll: false,
+        };
+      }
+      const layoutRect = layout.getBoundingClientRect();
+      const tableRect = tablePane.getBoundingClientRect();
+      const formRect = formPane.getBoundingClientRect();
+      return {
+        checkboxClassChecked: checkbox?.classList.contains('ant-checkbox-checked') ?? true,
+        formDisplay: getComputedStyle(formPane).display,
+        formWidth: Math.round(formRect.width),
+        tableWidthRatio: tableRect.width / layoutRect.width,
+        tableRightGap: Math.abs(layoutRect.right - tableRect.right),
+        resizeHandleCount: resizeHandle.length,
+        noHorizontalScroll: document.documentElement.scrollWidth <= window.innerWidth + 1,
+      };
+    });
+    expect(proof.checkboxClassChecked).toBe(false);
+    expect(proof.formDisplay).toBe('none');
+    expect(proof.formWidth).toBe(0);
+    expect(proof.tableWidthRatio).toBeGreaterThan(0.98);
+    expect(proof.tableRightGap).toBeLessThan(2);
+    expect(proof.resizeHandleCount).toBe(0);
+    expect(proof.noHorizontalScroll).toBe(true);
+    await page.screenshot({
+      path: 'test-results/heat-form-hidden-side-after.png',
+      fullPage: false,
+    });
+  });
+
   test('кнопка «Добавить» открывает inline-форму активного типа', async ({
     page,
   }) => {
