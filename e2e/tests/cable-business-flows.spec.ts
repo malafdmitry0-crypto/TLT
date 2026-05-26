@@ -126,7 +126,7 @@ async function recalculateAll(page: Page) {
 }
 
 test.describe('business flow: cable layout controls', () => {
-  test('ручные шаг навива и нитки сохраняются после повторного электрорасчёта', async ({
+  test('автоматические шаг навива и нитки стабильны после повторного электрорасчёта', async ({
     page,
   }) => {
     await loginAsGuest(page);
@@ -140,43 +140,38 @@ test.describe('business flow: cable layout controls', () => {
 
     const row = await rowForObject(page, pipeName);
     await row.click();
-    const pitchInput = row.getByRole('spinbutton').first();
-    await expect(pitchInput).toBeEnabled();
-    await expect(pitchInput).toHaveValue('0');
+    await expect(row.getByRole('spinbutton')).toHaveCount(0);
+    await expect(row.locator('.ant-select-selector')).toHaveCount(0);
 
-    await pitchInput.fill('200');
-    await pitchInput.press('Tab');
-    await expect(page.getByText('Параметры укладки применены')).toBeVisible();
-
-    await row.locator('.ant-select-selector').nth(1).click();
-    await selectDropdownOption(page, '2');
-    await expect(page.getByText('Параметры укладки применены')).toBeVisible();
-
-    await expect(pitchInput).toHaveValue('200');
-    await expect(row.locator('.ant-select-selector').nth(1)).toContainText('2');
+    const firstCalcs = await fetchElectricalCalcs(page, projectId, sessionId);
+    const firstCalc = firstCalcs.find((item) => item.object_id === pipe.id);
+    expect(firstCalc?.cable_mark).toBeTruthy();
+    expect(firstCalc?.results.winding_pitch).toBeDefined();
+    expect(Number(firstCalc?.results.num_circuits)).toBeGreaterThanOrEqual(1);
 
     await recalculateAll(page);
     await expectBatchSuccess(page);
 
     const refreshedRow = await rowForObject(page, pipeName);
     await refreshedRow.click();
-    await expect(refreshedRow.getByRole('spinbutton').first()).toHaveValue('200');
-    await expect(refreshedRow.locator('.ant-select-selector').nth(1)).toContainText('2');
+    await expect(refreshedRow.getByRole('spinbutton')).toHaveCount(0);
+    await expect(refreshedRow.locator('.ant-select-selector')).toHaveCount(0);
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const calc = calcs.find((item) => item.object_id === pipe.id);
     expect(calc?.cable_mark).toBeTruthy();
-    expect(calc?.results.winding_pitch).toBe(200);
-    expect(calc?.results.num_circuits).toBe(2);
+    expect(calc?.results.winding_pitch).toBe(firstCalc?.results.winding_pitch);
+    expect(calc?.results.num_circuits).toBe(firstCalc?.results.num_circuits);
     expect(Number(calc?.results.cable_length)).toBeGreaterThan(50);
   });
 
-  test('шаг навива валидируется по наружному диаметру и затем принимает рабочее значение', async ({
+  test('таблица электрорасчёта остаётся read-only для параметров укладки', async ({
     page,
   }) => {
     await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E pitch validation ${Date.now()}`;
-    await createCalculatedPipe(page, pipeName);
+    const pipe = await createCalculatedPipe(page, pipeName);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
     await recalculateAll(page);
@@ -184,18 +179,14 @@ test.describe('business flow: cable layout controls', () => {
 
     const row = await rowForObject(page, pipeName);
     await row.click();
-    const pitchInput = row.getByRole('spinbutton').first();
+    await expect(row.getByRole('spinbutton')).toHaveCount(0);
+    await expect(row.locator('.ant-select-selector')).toHaveCount(0);
 
-    await pitchInput.fill('50');
-    await pitchInput.press('Tab');
-    await expect(
-      page.getByText(/Шаг навива должен быть больше наружного диаметра трубы/i),
-    ).toBeVisible();
-
-    await pitchInput.fill('200');
-    await pitchInput.press('Tab');
-    await expect(page.getByText('Параметры укладки применены')).toBeVisible();
-    await expect(pitchInput).toHaveValue('200');
+    const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
+    const calc = calcs.find((item) => item.object_id === pipe.id);
+    expect(calc?.cable_mark).toBeTruthy();
+    expect(calc?.results.winding_pitch).toBeDefined();
+    expect(Number(calc?.results.num_circuits)).toBeGreaterThanOrEqual(1);
   });
 
   test('ТТН/ТТВ/ТТХ проходит через UI-параметры и сохраняет тип расчёта', async ({ page }) => {
@@ -248,7 +239,7 @@ test.describe('business flow: cable layout controls', () => {
     const calc = calcs.find((item) => item.object_id === pipe.id);
     expect(calc?.cable_type).toBe('single_core');
     expect(calc?.cable_mark).toBeTruthy();
-    expect(calc?.results.connection_type).toBe('line_1ph');
+    expect(calc?.results.connection_type).toBe('loop_1ph');
   });
 
   test('резистивный трёхжильный кабель считается из UI и фиксирует свой тип', async ({
@@ -262,8 +253,6 @@ test.describe('business flow: cable layout controls', () => {
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
     await selectCableType(page, 'Саморегулирующийся', 'Трёхж. пост. мощн.');
 
-    await page.locator('.actionbar-srs .ant-select-selector').filter({ hasText: 'Линия' }).first().click();
-    await selectDropdownOption(page, 'Петля 1×3');
     await recalculateAll(page);
 
     await expectBatchSuccess(page);
@@ -273,7 +262,7 @@ test.describe('business flow: cable layout controls', () => {
     const calc = calcs.find((item) => item.object_id === pipe.id);
     expect(calc?.cable_type).toBe('three_core');
     expect(calc?.cable_mark).toBeTruthy();
-    expect(calc?.results.connection_type).toBe('loop_1x3');
+    expect(calc?.results.connection_type).toBe('loop_2x3');
   });
 
   test('коммерческая база скрыта, встроенная база остаётся доступной', async ({ page }) => {
@@ -289,6 +278,7 @@ test.describe('business flow: cable layout controls', () => {
     await expect(page.getByText('База для пересчёта:')).toHaveCount(0);
     await page.getByRole('button', { name: 'Настройки' }).click();
     const settingsDialog = page.getByRole('dialog', { name: 'Настройки таблицы электрорасчёта' });
+    await settingsDialog.getByRole('tab', { name: 'Остальное' }).click();
     await expect(settingsDialog.getByText('База для пересчёта:')).toBeVisible();
     await expect(settingsDialog.getByText('Встроенная')).toBeVisible();
     await expect(page.getByLabel('Критерий подбора кабеля')).toHaveCount(0);

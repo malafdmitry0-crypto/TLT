@@ -19,6 +19,8 @@ export interface HeatCalcGlideGridColumn {
   title: string;
   label?: string;
   width: number;
+  minWidthPx?: number;
+  resizable?: boolean;
   align?: HeatCalcGlideCellAlign;
   sortable?: boolean;
   filterable?: boolean;
@@ -33,6 +35,8 @@ export interface HeatCalcGlideGridCellState {
   error?: string;
   align?: HeatCalcGlideCellAlign;
   editor?: HeatCalcGlideEditorKind;
+  options?: { label: string; value: string | number }[];
+  step?: number;
 }
 
 function isReactElementWithProps(value: ReactNode): value is ReactElement<Record<string, unknown>> {
@@ -67,6 +71,10 @@ function mapGridCellToExcelCell(
   const columnKey = columnKeys[columnIndex];
   if (!row || !columnKey) return null;
   return { rowId: row.id, columnKey };
+}
+
+function compactRowsFromRange(top: number, bottom: number) {
+  return CompactSelection.empty().add([top, bottom + 1]);
 }
 
 export function buildHeatCalcGlideGridSelection({
@@ -104,6 +112,24 @@ export function buildHeatCalcGlideGridSelection({
   const bottom = Math.max(anchorRowIndex, focusRowIndex);
   const left = Math.min(anchorColumnIndex, focusColumnIndex);
   const right = Math.max(anchorColumnIndex, focusColumnIndex);
+  const fullRowSelection = left === 0 && right === columnKeys.length - 1;
+  if (fullRowSelection) {
+    return {
+      columns: empty,
+      rows: compactRowsFromRange(top, bottom),
+      current: {
+        cell: [selectedPosition.columnIndex, selectedPosition.rowIndex],
+        range: {
+          x: selectedPosition.columnIndex,
+          y: selectedPosition.rowIndex,
+          width: 1,
+          height: 1,
+        },
+        rangeStack: [],
+      },
+    };
+  }
+
   return {
     columns: empty,
     rows: empty,
@@ -124,10 +150,12 @@ export function heatCalcGlideSelectionToExcelRange({
   rows,
   columnKeys,
   selection,
+  forceFullRowSelection = false,
 }: {
   rows: ProjectObject[];
   columnKeys: readonly string[];
   selection: GridSelection;
+  forceFullRowSelection?: boolean;
 }) {
   const selectedRows = selection.rows.toArray();
   if (selectedRows.length > 0 && columnKeys.length > 0) {
@@ -155,7 +183,9 @@ export function heatCalcGlideSelectionToExcelRange({
   if (!current) return null;
   const { range } = current;
   const focusRow = Math.max(range.y, range.y + range.height - 1);
-  const focusColumn = Math.max(range.x, range.x + range.width - 1);
+  const focusColumn = forceFullRowSelection && range.x === 0
+    ? columnKeys.length - 1
+    : Math.max(range.x, range.x + range.width - 1);
   return {
     anchor: mapGridCellToExcelCell(rows, columnKeys, range.y, range.x),
     focus: mapGridCellToExcelCell(rows, columnKeys, focusRow, focusColumn),

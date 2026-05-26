@@ -1349,6 +1349,7 @@ _PIPE_CONFIGS = [
             "process_temperature": 55.0,
             "pipe_length": 250.0,
             "burial_depth": 1.5,
+            "placement": "underground",
             "location": "outdoor",
         },
     },

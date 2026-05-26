@@ -110,6 +110,18 @@ describe('heatCalcPageUtils', () => {
     expect(heatLossStatusLabel(heatLossCalcStatus(makeObject()))).toBe('Не рассчитан');
   });
 
+  it('объясняет расчётную ошибку диапазона температуры изоляции через поля формы', () => {
+    const failed = makeObject({
+      validation_errors: {
+        message: "Температура горячей стороны слоя изоляции #1 (0.999942 °C) вне диапазона материала 'other': 2...6 °C",
+      },
+    });
+
+    expect(heatLossErrorText(failed)).toBe(
+      'Теплоизоляция, слой 1: расчётная T на стороне трубы/продукта 1 °C вне Диапазона T материала "Другое" (2...6 °C). Проверьте Материал изоляции, λ и Диапазон T.',
+    );
+  });
+
   it('распознаёт batch-ответ теплопотерь', () => {
     expect(isBatchHeatLossResponse({ updated: 1, failed: 0 })).toBe(true);
     expect(isBatchHeatLossResponse({ calculated: 1, failed: 0 })).toBe(false);

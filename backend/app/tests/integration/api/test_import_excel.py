@@ -8,8 +8,6 @@ from openpyxl import Workbook
 
 from app.services.excel_import_service import build_template_csv, build_template_xlsx
 
-pytestmark = pytest.mark.asyncio(loop_scope="session")
-
 MINERAL_WOOL = "mineral_wool_boards_120"
 POLYURETHANE = "polyurethane_products_50"
 
@@ -22,6 +20,7 @@ async def _create_project(client: AsyncClient, session_id: str) -> str:
     return resp.json()[0]["id"]
 
 
+@pytest.mark.asyncio(loop_scope="session")
 class TestExcelRoundTrip:
     """Экспорт в Excel → импорт этого же файла (same project или новый)."""
 
@@ -250,6 +249,7 @@ def _build_xlsx(pipes: list[list] | None = None, tanks: list[list] | None = None
     return buf.getvalue()
 
 
+@pytest.mark.asyncio(loop_scope="session")
 class TestExcelImport:
     async def test_template_downloads(self, client: AsyncClient, guest_session: str):
         pid = await _create_project(client, guest_session)
@@ -418,6 +418,7 @@ def test_csv_template_has_type_column():
     assert "Тип" in first_line
 
 
+@pytest.mark.asyncio(loop_scope="session")
 class TestCsvImport:
     async def test_csv_template_endpoint(self, client: AsyncClient, guest_session: str):
         pid = await _create_project(client, guest_session)

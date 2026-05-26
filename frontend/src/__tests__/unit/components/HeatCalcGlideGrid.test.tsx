@@ -5,7 +5,15 @@ import type { ProjectObject } from '@/types/project';
 
 vi.mock('@glideapps/glide-data-grid', () => ({
   CompactSelection: {
-    empty: () => ({ toArray: () => [] }),
+    empty: () => ({
+      add: (selection: number | [number, number]) => ({
+        toArray: () => {
+          if (typeof selection === 'number') return [selection];
+          return Array.from({ length: selection[1] - selection[0] }, (_, index) => selection[0] + index);
+        },
+      }),
+      toArray: () => [],
+    }),
   },
 }));
 
@@ -57,6 +65,30 @@ describe('HeatCalcGlideGrid helpers', () => {
     });
   });
 
+  it('renders full-row Excel ranges as Glide row marker selection', () => {
+    const selection = buildHeatCalcGlideGridSelection({
+      rows,
+      columnKeys,
+      selectedPosition: { rowIndex: 1, columnIndex: 0 },
+      selectionRange: {
+        anchor: { rowId: 'row-2', columnKey: 'name' },
+        focus: { rowId: 'row-3', columnKey: 'temperature' },
+      },
+    });
+
+    expect(selection.rows.toArray()).toEqual([1, 2]);
+    expect(selection.current).toEqual({
+      cell: [0, 1],
+      range: {
+        x: 0,
+        y: 1,
+        width: 1,
+        height: 1,
+      },
+      rangeStack: [],
+    });
+  });
+
   it('maps Glide range selection back to rowId + columnKey', () => {
     const selection = {
       columns: selectionRows([]),
@@ -87,6 +119,34 @@ describe('HeatCalcGlideGrid helpers', () => {
     } as unknown as GridSelection;
 
     expect(heatCalcGlideSelectionToExcelRange({ rows, columnKeys, selection })).toEqual({
+      anchor: { rowId: 'row-2', columnKey: 'name' },
+      focus: { rowId: 'row-3', columnKey: 'temperature' },
+      active: { rowId: 'row-2', columnKey: 'name' },
+    });
+  });
+
+  it('expands row-marker drag ranges to the full editable row width', () => {
+    const selection = {
+      columns: selectionRows([]),
+      rows: selectionRows([]),
+      current: {
+        cell: [0, 1],
+        range: {
+          x: 0,
+          y: 1,
+          width: 1,
+          height: 2,
+        },
+        rangeStack: [],
+      },
+    } as unknown as GridSelection;
+
+    expect(heatCalcGlideSelectionToExcelRange({
+      rows,
+      columnKeys,
+      selection,
+      forceFullRowSelection: true,
+    })).toEqual({
       anchor: { rowId: 'row-2', columnKey: 'name' },
       focus: { rowId: 'row-3', columnKey: 'temperature' },
       active: { rowId: 'row-2', columnKey: 'name' },

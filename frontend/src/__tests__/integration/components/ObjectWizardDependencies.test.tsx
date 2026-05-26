@@ -366,6 +366,55 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.queryByTestId('heatcalc-object-diagnostic')).not.toBeInTheDocument();
   });
 
+  it('подсвечивает поля первого слоя по расчётной ошибке диапазона температуры материала', async () => {
+    const message = "Температура горячей стороны слоя изоляции #1 (0.999942 °C) вне диапазона материала 'other': 2...6 °C";
+    renderWizard({
+      initialParams: {
+        ...basePipeParams,
+        insulation_material: 'other',
+        insulation_layers: [
+          { thickness: 0.05, material: 'other', conductivity: 0.029, temperature_range: [2, 6] },
+        ],
+      },
+      validationErrors: { message },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('first-insulation-temperature-range-button').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+      expect(screen.getByTestId('insulation-material-select').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+      expect(screen.getByTestId('first-insulation-lambda-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    });
+    expect(screen.queryByText(/Расчётная T горячей стороны/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Выберите материал, диапазон которого включает расчётную температуру слоя')).not.toBeInTheDocument();
+    expect(screen.queryByText('λ влияет на расчётную температуру слоя; после изменения проверьте диапазон T')).not.toBeInTheDocument();
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('heatcalc-object-diagnostic')).not.toBeInTheDocument();
+  });
+
+  it('подсвечивает поля второго слоя по расчётной ошибке диапазона температуры материала', async () => {
+    const message = "Температура горячей стороны слоя изоляции #2 (0.999942 °C) вне диапазона материала 'other': 2...6 °C";
+    renderWizard({
+      initialParams: {
+        ...basePipeParams,
+        insulation_layer_count: '2',
+        insulation_layers: [
+          { thickness: 0.05, material: 'mineral_wool' },
+          { thickness: 0.02, material: 'other', conductivity: 0.029, temperature_range: [2, 6] },
+        ],
+      },
+      validationErrors: { message },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('second-insulation-temperature-range-button').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+      expect(screen.getByTestId('second-insulation-material-select').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+      expect(screen.getByTestId('second-insulation-lambda-input').closest('.ant-form-item')).toHaveClass('ant-form-item-has-error');
+    });
+    expect(screen.getByTestId('insulation-material-select').closest('.ant-form-item')).not.toHaveClass('ant-form-item-has-error');
+    expect(screen.queryByText(/Расчётная T горячей стороны/)).not.toBeInTheDocument();
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+  });
+
   it('дефолтит форму нового резервуара, но не подставляет размеры', async () => {
     renderWizard({ objectType: 'tank' });
 

@@ -1261,6 +1261,30 @@ async function tableRowCount(page) {
   return rows.count();
 }
 
+async function isNormalGlideTable(page) {
+  return (await page.locator('.calc-spreadsheet--normal-glide canvas').count()) > 0;
+}
+
+async function waitForNormalTable(page, expectedRows) {
+  if (await isNormalGlideTable(page)) {
+    await page.locator('.calc-spreadsheet--normal-glide canvas').first().waitFor({ state: 'visible', timeout: 10_000 });
+    await page.getByText(String(expectedRows), { exact: true }).first().waitFor({ state: 'visible', timeout: 10_000 });
+    return expectedRows;
+  }
+  return tableRowCount(page);
+}
+
+async function openFirstNormalTableRow(page) {
+  if (await isNormalGlideTable(page)) {
+    const canvas = page.locator('.calc-spreadsheet--normal-glide canvas').first();
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('Normal Glide canvas bounds are missing');
+    await page.mouse.click(box.x + 80, box.y + 54);
+    return;
+  }
+  await page.locator('tr.ant-table-row').first().click();
+}
+
 async function selectObjectType(page, label) {
   const labels = label === 'Резервуары' ? [label, 'Резервуар'] : [label];
   for (const optionLabel of labels) {
@@ -1382,11 +1406,9 @@ async function main() {
     await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 30_000 });
     await page.waitForTimeout(700);
     await selectObjectType(page, 'Трубопровод');
-    await page.locator('td.ant-table-cell', { hasText: 'P01 · труба' }).first().waitFor({ state: 'visible', timeout: 10_000 });
-    const uiPipeRows = await tableRowCount(page);
+    const uiPipeRows = await waitForNormalTable(page, expectedVisibleUiRows.pipe);
     await selectObjectType(page, 'Резервуары');
-    await page.locator('td.ant-table-cell', { hasText: 'T01 · резервуар' }).first().waitFor({ state: 'visible', timeout: 10_000 });
-    const uiTankRows = await tableRowCount(page);
+    const uiTankRows = await waitForNormalTable(page, expectedVisibleUiRows.tank);
     if (uiPipeRows !== expectedVisibleUiRows.pipe || uiTankRows !== expectedVisibleUiRows.tank) {
       throw new Error(
         `Unexpected UI rows after type switch: pipe=${uiPipeRows}/${expectedVisibleUiRows.pipe}, tank=${uiTankRows}/${expectedVisibleUiRows.tank}`,
@@ -1400,10 +1422,10 @@ async function main() {
     await page.locator('#inline-object-cancel').evaluate((button) => button.click());
     await page.getByText('Режим: добавление', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
     await selectObjectType(page, 'Трубопровод');
-    await page.locator('td.ant-table-cell', { hasText: 'P01 · труба' }).first().click();
+    await openFirstNormalTableRow(page);
     await page.getByText('Режим: изменение', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
     await selectObjectType(page, 'Резервуары');
-    await page.locator('td.ant-table-cell', { hasText: 'T01 · резервуар' }).first().click();
+    await openFirstNormalTableRow(page);
     await page.getByText('Режим: изменение', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
     await page.locator('.action-save-button.save').click();
     await page.waitForFunction(() => {

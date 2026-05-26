@@ -32,8 +32,8 @@ describe('HeatCalcPage inline edit', () => {
   setupHeatCalcPageTest();
 
   describe('Inline-редактирование', () => {
-    function useTableExcelEngineForDomCellTest() {
-      localStorage.setItem(HEATCALC_EXCEL_ENGINE_STORAGE_KEY, 'table');
+    function useGlideExcelEngineForDomCellTest() {
+      localStorage.setItem(HEATCALC_EXCEL_ENGINE_STORAGE_KEY, 'glide');
     }
 
     it('включает inline-редактирование через настройки таблицы и сохраняет draft только по кнопке', async () => {
@@ -127,6 +127,7 @@ describe('HeatCalcPage inline edit', () => {
     it('подсвечивает невалидную inline-ячейку до сохранения и не отправляет её', async () => {
       const { listObjects, updateObject } = await import('@/api/projects');
       const source = makeObject();
+      const validationError = 'Требуемая температура объекта должна быть выше температуры среды';
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
       (updateObject as ReturnType<typeof vi.fn>).mockResolvedValue(
         makeObject({ params: { ...source.params, name: 'Труба valid' } }),
@@ -149,18 +150,19 @@ describe('HeatCalcPage inline edit', () => {
       fireEvent.change(editor, { target: { value: '-30' } });
       fireEvent.keyDown(editor, { key: 'Enter' });
 
-      expect(await screen.findByText('Требуемая температура объекта должна быть выше температуры среды')).toBeInTheDocument();
-      expect(editor.closest('.editable-cell-editor')).toHaveClass('error');
+      const invalidCell = await within(row as HTMLElement).findByTitle(validationError);
+      expect(invalidCell).toHaveClass('error');
       expect(await screen.findByText('Несохранено: 1')).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Сохранить' }));
       expect(updateObject).not.toHaveBeenCalled();
 
-      fireEvent.change(editor, { target: { value: '70' } });
-      fireEvent.keyDown(editor, { key: 'Enter' });
+      const fixedEditor = await within(row as HTMLElement).findByDisplayValue('-30');
+      fireEvent.change(fixedEditor, { target: { value: '70' } });
+      fireEvent.keyDown(fixedEditor, { key: 'Enter' });
 
       await waitFor(() => {
-        expect(screen.queryByText('Требуемая температура объекта должна быть выше температуры среды')).not.toBeInTheDocument();
+        expect(within(row as HTMLElement).queryByTitle(validationError)).not.toBeInTheDocument();
       });
       const fixedCell = await screen.findByRole('button', { name: '70' });
       expect(fixedCell).not.toHaveClass('error');
@@ -179,6 +181,7 @@ describe('HeatCalcPage inline edit', () => {
 
     it('сохраняет валидные dirty-строки и оставляет невалидные dirty-строки', async () => {
       const { listObjects, updateObject } = await import('@/api/projects');
+      const validationError = 'Требуемая температура объекта должна быть выше температуры среды';
       const baseParams = makeObject().params;
       const invalidSource = makeObject({
         id: 'pipe-invalid',
@@ -211,7 +214,7 @@ describe('HeatCalcPage inline edit', () => {
       const invalidEditor = await within(invalidRow as HTMLElement).findByDisplayValue('60.0');
       fireEvent.change(invalidEditor, { target: { value: '-30' } });
       fireEvent.keyDown(invalidEditor, { key: 'Enter' });
-      expect(await screen.findByText('Требуемая температура объекта должна быть выше температуры среды')).toBeInTheDocument();
+      expect(await within(invalidRow as HTMLElement).findByTitle(validationError)).toHaveClass('error');
 
       await user.click(await screen.findByRole('button', { name: 'Труба valid' }));
       const validEditor = await screen.findByDisplayValue('Труба valid');
@@ -232,14 +235,14 @@ describe('HeatCalcPage inline edit', () => {
           params: expect.objectContaining({ name: 'Труба valid saved' }),
         }),
       );
-      expect(screen.getByTitle('Требуемая температура объекта должна быть выше температуры среды')).toHaveClass('error');
+      expect(screen.getByTitle(validationError)).toHaveClass('error');
       await waitFor(() => {
         expect(screen.getByText('Несохранено: 1')).toBeInTheDocument();
       });
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('в Excel-режиме не автосохраняет ячейку и подсвечивает только изменённую ячейку', async () => {
-      useTableExcelEngineForDomCellTest();
+      useGlideExcelEngineForDomCellTest();
       const { listObjects, updateObject } = await import('@/api/projects');
       const source = makeObject();
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
@@ -282,7 +285,7 @@ describe('HeatCalcPage inline edit', () => {
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('в Excel-режиме не показывает пустую таблицу, пока догружается полный список объектов', async () => {
-      useTableExcelEngineForDomCellTest();
+      useGlideExcelEngineForDomCellTest();
       const { listObjects } = await import('@/api/projects');
       const source = makeObject();
       const previousRequestIdleCallback = window.requestIdleCallback;
@@ -320,7 +323,7 @@ describe('HeatCalcPage inline edit', () => {
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('в Excel-режиме показывает конкретную ошибку поля при сохранении', async () => {
-      useTableExcelEngineForDomCellTest();
+      useGlideExcelEngineForDomCellTest();
       const { listObjects, updateObject } = await import('@/api/projects');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
 

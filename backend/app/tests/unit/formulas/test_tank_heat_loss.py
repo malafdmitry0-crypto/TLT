@@ -35,6 +35,8 @@ def _cyl(**o) -> TankHeatLossParams:
         "process_temperature": 80.0,
     }
     base.update(o)
+    if base.get("location") == "indoor" and "insulation_temperature_basis" not in o:
+        base["insulation_temperature_basis"] = "indoor"
     return TankHeatLossParams(**base)
 
 
@@ -243,11 +245,16 @@ class TestAlpha:
         high = calc_tank_heat_loss(_cyl(wind_speed=5.0))
         assert high.heat_loss_per_m2 > low.heat_loss_per_m2
 
-    def test_indoor_less_than_outdoor(self):
+    def test_indoor_location_contract(self):
         indoor = calc_tank_heat_loss(_cyl(location="indoor"))
         outdoor = calc_tank_heat_loss(_cyl(location="outdoor", wind_speed=0.0))
-        # indoor α=9.0, outdoor α=11.6 → indoor R_ext больше → потери меньше
-        assert indoor.heat_loss_per_m2 < outdoor.heat_loss_per_m2
+        # indoor α=9.0, outdoor α=11.6, but q also includes the placement-specific tm basis.
+        assert indoor.alpha_vnesh == pytest.approx(9.0)
+        assert outdoor.alpha_vnesh == pytest.approx(11.6)
+        assert indoor.external_resistance > outdoor.external_resistance
+        assert indoor.location_factor == pytest.approx(0.9)
+        assert outdoor.location_factor == pytest.approx(1.0)
+        assert indoor.total_heat_loss < outdoor.total_heat_loss
 
 
 # ---------------------------------------------------------------------------

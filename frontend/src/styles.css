@@ -3498,15 +3498,24 @@ html, body, #root {
   bottom: -3px;
   width: 8px;
   border: 0;
-  border-right: 2px solid transparent;
+  border-right: 1px solid rgba(26, 82, 118, 0.18);
   background: transparent;
   cursor: col-resize;
+  opacity: 0.55;
+  transition: border-color 0.12s ease, opacity 0.12s ease;
 }
 
 .column-resize-handle:hover,
 .column-resize-handle:focus-visible {
   border-right-color: #2f5f84;
+  opacity: 1;
   outline: none;
+}
+
+.heatcalc-column-resizing,
+.heatcalc-column-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 .import-actions-compact {

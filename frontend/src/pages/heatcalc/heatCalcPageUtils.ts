@@ -116,12 +116,31 @@ export function heatLossStatusLabel(status: HeatLossCalcStatus) {
   return 'Не рассчитан';
 }
 
+function formatInsulationHotSideTemperatureError(message: string) {
+  const match = message.match(
+    /Температура горячей стороны слоя изоляции\s*#\s*(\d+)\s*\(([^)]+)\)\s*вне диапазона материала\s*'([^']+)':\s*([^°]+)\s*°C/i,
+  );
+  if (!match) return null;
+  const [, layerNumber, temperature, material, range] = match;
+  const materialLabel = material === 'other' ? 'Другое' : material;
+  const actual = Number(temperature.replace('°C', '').trim().replace(',', '.'));
+  const actualText = Number.isFinite(actual)
+    ? Number(actual.toFixed(3)).toLocaleString('ru-RU', { maximumFractionDigits: 3 })
+    : temperature.replace('°C', '').trim();
+  return [
+    `Теплоизоляция, слой ${layerNumber}: расчётная T на стороне трубы/продукта ${actualText} °C вне Диапазона T материала "${materialLabel}" (${range.trim()} °C).`,
+    'Проверьте Материал изоляции, λ и Диапазон T.',
+  ].join(' ');
+}
+
 export function heatLossErrorText(record: ProjectObject) {
   const errors = record.validation_errors;
   if (!errors) return 'Ошибка расчёта';
   if (typeof errors === 'object' && errors !== null) {
     const message = (errors as { message?: unknown }).message;
-    if (typeof message === 'string' && message.trim()) return message;
+    if (typeof message === 'string' && message.trim()) {
+      return formatInsulationHotSideTemperatureError(message) ?? message;
+    }
   }
   return JSON.stringify(errors);
 }

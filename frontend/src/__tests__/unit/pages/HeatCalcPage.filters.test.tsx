@@ -3,6 +3,8 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { useProjectStore } from '@/store/projectStore';
 import {
   HEATCALC_PAGE_TEST_TIMEOUT,
+  getNormalGlideGrid,
+  getNormalGlideRows,
   makeObject,
   makeTank,
   mockProject,
@@ -115,7 +117,7 @@ describe('HeatCalcPage filters', () => {
       await user.click(screen.getByRole('columnheader', { name: /Ø, мм/ }));
 
       await waitFor(() => {
-        const rows = [...document.querySelectorAll('.calc-spreadsheet .ant-table-tbody > tr[data-row-key]')];
+        const rows = getNormalGlideRows();
         expect(rows[0]).toHaveTextContent('Труба 60');
         expect(rows[1]).toHaveTextContent('Труба 219');
       });
@@ -164,10 +166,8 @@ describe('HeatCalcPage filters', () => {
       await waitFor(() => {
         expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
       });
-      const table = document.querySelector<HTMLElement>('.calc-spreadsheet');
-      expect(table).not.toBeNull();
-      const rowCheckboxes = within(table!).getAllByRole('checkbox');
-      await user.click(rowCheckboxes[1]);
+      const table = getNormalGlideGrid();
+      await user.click(within(table).getByRole('checkbox', { name: 'Выбрать Труба Север' }));
       expect(await screen.findByRole('button', { name: /Трубопровод:\s*1\/2/ })).toBeInTheDocument();
       expect(screen.queryByText(/Выбрано:/)).not.toBeInTheDocument();
 
@@ -194,10 +194,8 @@ describe('HeatCalcPage filters', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      const table = document.querySelector<HTMLElement>('.calc-spreadsheet');
-      expect(table).not.toBeNull();
-      const rowCheckboxes = within(table!).getAllByRole('checkbox');
-      await user.click(rowCheckboxes[1]);
+      const table = getNormalGlideGrid();
+      await user.click(within(table).getByRole('checkbox', { name: 'Выбрать Труба DN100' }));
 
       expect(await screen.findByRole('button', { name: /Трубопровод:\s*1\/1/ })).toBeInTheDocument();
       expect(screen.queryByText(/Выбрано:/)).not.toBeInTheDocument();

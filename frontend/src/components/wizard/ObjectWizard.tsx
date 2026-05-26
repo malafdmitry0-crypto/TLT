@@ -96,6 +96,11 @@ const SECTION_FIELD_GRID =
 const REQUIRED_FIELDS_ERROR_PREFIX = 'Не заполнены обязательные поля объекта:';
 const REQUIRED_FIELD_ERROR_MESSAGE = '';
 
+type CalculationFieldError = {
+  message: string;
+  required?: boolean;
+};
+
 const INSULATION_LAYER_FORM_FIELDS = [
   {
     material: 'insulation_material',
@@ -146,10 +151,14 @@ function expandedChangedFieldNames(fieldNames: string[]) {
   INSULATION_LAYER_FORM_FIELDS.forEach((layer) => {
     if (fieldNames.includes(layer.min) || fieldNames.includes(layer.max)) {
       expanded.add(layer.range);
+      expanded.add(layer.min);
+      expanded.add(layer.max);
     }
     if (fieldNames.includes(layer.material)) {
       expanded.add(layer.lambda);
       expanded.add(layer.range);
+      expanded.add(layer.min);
+      expanded.add(layer.max);
     }
   });
   return Array.from(expanded);
@@ -309,13 +318,27 @@ function insulationLayerFieldNamesFromMessage(message: string) {
     const index = Number(match[1]);
     const field = match[2];
     const prefix = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : null;
-    if (!prefix) return [];
+    const layer = INSULATION_LAYER_FORM_FIELDS[index];
+    if (!prefix || !layer) return [];
     if (field === 'thickness') return [index === 0 ? 'insulation_thickness_mm' : `${prefix}_insulation_thickness_mm`];
-    if (field === 'material') return [index === 0 ? 'insulation_material' : `${prefix}_insulation_material`];
-    if (field === 'conductivity') return [`${prefix}_insulation_lambda`];
-    if (field === 'temperature_range') return [`${prefix}_insulation_temperature_range`];
+    if (field === 'material') return [layer.material];
+    if (field === 'conductivity') return [layer.lambda];
+    if (field === 'temperature_range') return [layer.range, layer.min];
     return [];
   });
+}
+
+function insulationMaterialRangeLayerFromMessage(message: string) {
+  const numberPattern = '([-+−–—]?\\d+(?:[.,]\\d+)?)';
+  const match = message.match(new RegExp(
+    `слоя изоляции\\s*#\\s*(\\d+)\\s*\\(${numberPattern}\\s*°C\\)\\s*`
+    + `вне диапазона\\s*материала\\s*'([^']+)'\\s*:\\s*${numberPattern}\\s*(?:…|\\.{2,3})\\s*${numberPattern}\\s*°C`,
+    'i',
+  ));
+  if (!match) return null;
+
+  const layerNumber = Number(match[1]);
+  return INSULATION_LAYER_FORM_FIELDS[layerNumber - 1] ?? null;
 }
 
 function messageHasApiFieldName(message: string, apiName: string) {
@@ -353,13 +376,13 @@ function normalizeFieldErrorsForForm(
   objectType: HeatCalcObjectType,
 ) {
   if (!fieldErrors) return {};
-  const result: Record<string, string> = {};
+  const result: Record<string, CalculationFieldError> = {};
   Object.entries(fieldErrors).forEach(([fieldKey, message]) => {
     const text = typeof message === 'string' && message.trim()
       ? message
       : 'Проверьте значение';
     formFieldNamesFromErrorKey(fieldKey, objectType).forEach((fieldName) => {
-      result[fieldName] = text;
+      result[fieldName] = { message: text };
     });
   });
   return result;
@@ -368,9 +391,9 @@ function normalizeFieldErrorsForForm(
 function buildCalculationFieldErrors(
   validationErrors: ProjectObject['validation_errors'] | undefined,
   objectType: HeatCalcObjectType,
-): Record<string, string> {
+): Record<string, CalculationFieldError> {
   const message = validationErrorsText(validationErrors).trim();
-  const structuredErrors: Record<string, string> = {};
+  const structuredErrors: Record<string, CalculationFieldError> = {};
   const field = validationErrors?.['field'];
   if (typeof field === 'string' && field.trim()) {
     Object.assign(structuredErrors, normalizeFieldErrorsForForm({
@@ -386,12 +409,28 @@ function buildCalculationFieldErrors(
   if (requiredFieldNames.length > 0) {
     return {
       ...structuredErrors,
-      ...Object.fromEntries(requiredFieldNames.map((fieldName) => [fieldName, REQUIRED_FIELD_ERROR_MESSAGE])),
+      ...Object.fromEntries(requiredFieldNames.map((fieldName) => [
+        fieldName,
+        { message: REQUIRED_FIELD_ERROR_MESSAGE, required: true },
+      ])),
+    };
+  }
+  const insulationRangeLayer = insulationMaterialRangeLayerFromMessage(message);
+  if (insulationRangeLayer) {
+    return {
+      ...structuredErrors,
+      [insulationRangeLayer.material]: { message: '' },
+      [insulationRangeLayer.lambda]: { message: '' },
+      [insulationRangeLayer.range]: { message: '' },
+      [insulationRangeLayer.min]: { message: '' },
     };
   }
   return {
     ...structuredErrors,
-    ...Object.fromEntries(fieldNamesFromValidationMessage(message).map((fieldName) => [fieldName, message])),
+    ...Object.fromEntries(fieldNamesFromValidationMessage(message).map((fieldName) => [
+      fieldName,
+      { message },
+    ])),
   };
 }
 
@@ -685,7 +724,7 @@ export default function ObjectWizard({
       const nextFieldEntries = Object.entries(calculationFieldErrors);
       const nextFieldNames = nextFieldEntries.map(([fieldName]) => fieldName);
       const nextRequiredFieldNames = nextFieldEntries
-        .filter(([, message]) => message === REQUIRED_FIELD_ERROR_MESSAGE)
+        .filter(([, error]) => error.required)
         .map(([fieldName]) => fieldName);
       const staleLocalFieldNames = localRequiredFieldErrorNamesRef.current.filter((fieldName) => (
         !nextRequiredFieldNames.includes(fieldName)
@@ -695,9 +734,9 @@ export default function ObjectWizard({
         form.setFields(staleLocalFieldNames.map((fieldName) => ({ name: fieldName, errors: [] })));
       }
       if (nextFieldEntries.length > 0) {
-        form.setFields(nextFieldEntries.map(([fieldName, message]) => ({
+        form.setFields(nextFieldEntries.map(([fieldName, error]) => ({
           name: fieldName,
-          errors: [message],
+          errors: [error.message],
         })));
         calculationFieldErrorNamesRef.current = nextFieldNames;
         localRequiredFieldErrorNamesRef.current = nextRequiredFieldNames;

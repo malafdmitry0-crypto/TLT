@@ -4,6 +4,8 @@ import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import {
   HEATCALC_PAGE_TEST_TIMEOUT,
+  getNormalGlideGrid,
+  getNormalGlideRows,
   makeObject,
   mockProject,
   renderPage,
@@ -152,11 +154,9 @@ describe('HeatCalcPage actions', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      const table = document.querySelector<HTMLElement>('.calc-spreadsheet');
-      expect(table).not.toBeNull();
-      const rowCheckboxes = within(table!).getAllByRole('checkbox');
-      fireEvent.click(rowCheckboxes[1]);
-      fireEvent.click(rowCheckboxes[2]);
+      const table = getNormalGlideGrid();
+      fireEvent.click(within(table).getByRole('checkbox', { name: 'Выбрать Труба DN100' }));
+      fireEvent.click(within(table).getByRole('checkbox', { name: 'Выбрать Труба DN150' }));
       fireEvent.click(screen.getByRole('button', { name: 'Добавить копии выбранных' }));
 
       await waitFor(() => {
@@ -185,7 +185,7 @@ describe('HeatCalcPage actions', () => {
         expect(screen.getByTestId('object-name-input')).toHaveValue('Труба DN150 (копия)');
       });
       await waitFor(() => {
-        const rows = [...document.querySelectorAll('.calc-spreadsheet .ant-table-tbody > tr[data-row-key]')];
+        const rows = getNormalGlideRows();
         const focusedRow = rows.find((row) => row.textContent?.includes('Труба DN150 (копия)'));
         expect(focusedRow).toHaveClass('row-selected');
         expect(within(focusedRow as HTMLElement).getByRole('checkbox')).not.toBeChecked();
@@ -207,11 +207,9 @@ describe('HeatCalcPage actions', () => {
       renderPage();
 
       await screen.findByText('Труба DN100');
-      const table = document.querySelector<HTMLElement>('.calc-spreadsheet');
-      expect(table).not.toBeNull();
-      const rowCheckboxes = within(table!).getAllByRole('checkbox');
-      fireEvent.click(rowCheckboxes[1]);
-      fireEvent.click(rowCheckboxes[2]);
+      const table = getNormalGlideGrid();
+      fireEvent.click(within(table).getByRole('checkbox', { name: 'Выбрать Труба DN100' }));
+      fireEvent.click(within(table).getByRole('checkbox', { name: 'Выбрать Труба DN150' }));
       fireEvent.click(screen.getByRole('button', { name: 'Удалить выбранные' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Удалить' }));
 

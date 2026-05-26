@@ -41,7 +41,11 @@ interface Props {
   onProgrammaticValuesChange?: (changedValues: Record<string, unknown>) => void;
 }
 
-export default function ThermalStep({ objectType, fieldInputSettings, onProgrammaticValuesChange }: Props) {
+export default function ThermalStep({
+  objectType,
+  fieldInputSettings,
+  onProgrammaticValuesChange,
+}: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings, form });

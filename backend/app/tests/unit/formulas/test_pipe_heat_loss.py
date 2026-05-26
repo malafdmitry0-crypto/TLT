@@ -39,6 +39,8 @@ def _params(**overrides) -> PipeHeatLossParams:
         location="outdoor",
     )
     defaults.update(overrides)
+    if defaults.get("location") == "indoor" and "insulation_temperature_basis" not in overrides:
+        defaults["insulation_temperature_basis"] = "indoor"
     return PipeHeatLossParams(**defaults)
 
 

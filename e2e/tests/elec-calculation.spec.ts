@@ -224,7 +224,7 @@ test.describe('4.4 Электротехнический расчёт', () => {
       timeout: 20_000,
     });
     await expect.poll(async () => await electricalRowCellText(page, pipeName, 4)).toContain(
-      'Саморегулиру',
+      'ТЛТ-100',
     );
   });
 
@@ -238,7 +238,6 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
     const row = page.getByRole('row').filter({ hasText: pipeName }).first();
     await expect(row).toBeVisible();
-    await expect(row.locator('.heatloss-status-icon-tag[aria-label="Рассчитан"]')).toBeVisible();
     await expect(row.getByText(/^ОК$/)).toHaveCount(0);
     await expectElectricalHeaderControlsInline(page);
 

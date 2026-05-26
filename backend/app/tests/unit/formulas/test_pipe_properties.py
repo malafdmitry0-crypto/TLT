@@ -44,6 +44,8 @@ def _p(**overrides) -> PipeHeatLossParams:
         safety_factor=1.1,
     )
     defaults.update(overrides)
+    if defaults.get("location") == "indoor" and "insulation_temperature_basis" not in overrides:
+        defaults["insulation_temperature_basis"] = "indoor"
     return PipeHeatLossParams(**defaults)
 
 
@@ -122,11 +124,16 @@ class TestMetamorphicPipe:
         # И эффект должен быть заметен
         assert qs[-1] > qs[0]
 
-    def test_indoor_less_than_outdoor_no_wind(self):
-        """MR8: В помещении α=9 < α=11.6 на улице при v=0 → R_внеш больше → q меньше."""
-        q_indoor = calc_pipe_heat_loss(_p(location="indoor")).heat_loss_per_meter
-        q_outdoor = calc_pipe_heat_loss(_p(location="outdoor", wind_speed=0)).heat_loss_per_meter
-        assert q_indoor < q_outdoor
+    def test_indoor_location_contract_no_wind(self):
+        """MR8: indoor uses α=9 and its own tm basis; location factor affects only Q."""
+        indoor = calc_pipe_heat_loss(_p(location="indoor"))
+        outdoor = calc_pipe_heat_loss(_p(location="outdoor", wind_speed=0))
+        assert indoor.alpha_vnesh == pytest.approx(9.0)
+        assert outdoor.alpha_vnesh == pytest.approx(11.6)
+        assert indoor.external_resistance > outdoor.external_resistance
+        assert indoor.location_factor == pytest.approx(0.9)
+        assert outdoor.location_factor == pytest.approx(1.0)
+        assert indoor.total_heat_loss < outdoor.total_heat_loss
 
     def test_lower_conductivity_material_reduces_loss(self):
         """MR9: ↓λ_из → ↓q (ППУ лучше минваты при тех же условиях)."""

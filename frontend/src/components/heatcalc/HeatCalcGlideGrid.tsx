@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type MouseEvent,
+  type PointerEvent,
 } from 'react';
 import {
   DataEditor,
@@ -32,8 +33,13 @@ import {
   type HeatCalcGlideGridCellState,
   type HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
+import { resolveTableFontSizeByKey } from '@/utils/heatCalcTableViewSettings';
 
 const GLIDE_ROW_MARKER_WIDTH = 50;
+const GLIDE_MIN_COLUMN_WIDTH = 48;
+const GLIDE_MAX_COLUMN_WIDTH = 600;
+const GLIDE_SELECTED_ROW_BG = '#dbeeff';
+const GLIDE_SELECTED_ROW_BORDER = '#1a5276';
 
 type GlideEditingCell = {
   cell: Item;
@@ -60,6 +66,8 @@ export interface HeatCalcGlideGridProps extends HeatCalcExcelGridProps {
     focus: ExcelCellPosition,
     active?: ExcelCellPosition,
   ) => void;
+  onColumnResize?: (columnKey: string, widthPx: number) => void;
+  onColumnResizeEnd?: (columnKey: string, widthPx: number) => void;
   onStartCellEdit: (record: ProjectObject, columnKey: string) => void;
   onCommitCell: (record: ProjectObject, columnKey: string, value: unknown) => string | null;
 }
@@ -110,6 +118,15 @@ function isDirtyRowClassName(className: string) {
   return className.includes('row-excel-dirty') || className.includes('row-dirty');
 }
 
+function clampGlideColumnWidth(column: HeatCalcGlideGridColumn, widthPx: number) {
+  return Math.max(column.minWidthPx ?? GLIDE_MIN_COLUMN_WIDTH, widthPx);
+}
+
+function glideRowHeight(fontSizeKey: string) {
+  const fontSize = resolveTableFontSizeByKey(fontSizeKey);
+  return Math.max(26, Math.round(fontSize.fontSizePx * fontSize.lineHeight + fontSize.cellPaddingY * 2 + 11));
+}
+
 function HeatCalcGlideGrid({
   rows,
   tableScrollX,
@@ -124,12 +141,17 @@ function HeatCalcGlideGrid({
   onRowSecondaryAction,
   onReachScrollEnd,
   onSetRangeSelection,
+  onColumnResize,
+  onColumnResizeEnd,
   onStartCellEdit,
   onCommitCell,
 }: HeatCalcGlideGridProps) {
   const editorRef = useRef<DataEditorRef | null>(null);
   const lastScrollEndRowsRef = useRef(0);
+  const rowMarkerPointerActiveRef = useRef(false);
   const [editingCell, setEditingCell] = useState<GlideEditingCell | null>(null);
+  const fontSize = useMemo(() => resolveTableFontSizeByKey(fontSizeKey), [fontSizeKey]);
+  const rowHeight = useMemo(() => glideRowHeight(fontSizeKey), [fontSizeKey]);
   const columnKeys = useMemo(
     () => gridColumns.map((column) => column.key),
     [gridColumns],
@@ -151,6 +173,30 @@ function HeatCalcGlideGrid({
     }),
     [columnKeys, rows, selectedPosition, selectionRange],
   );
+  const fullRowSelectionBounds = useMemo(() => {
+    if (!selectionRange || rows.length === 0 || columnKeys.length === 0) return null;
+    const rowIdToIndex = new Map(rows.map((row, index) => [row.id, index]));
+    const columnKeyToIndex = new Map(columnKeys.map((columnKey, index) => [columnKey, index]));
+    const anchorRowIndex = rowIdToIndex.get(selectionRange.anchor.rowId);
+    const focusRowIndex = rowIdToIndex.get(selectionRange.focus.rowId);
+    const anchorColumnIndex = columnKeyToIndex.get(selectionRange.anchor.columnKey);
+    const focusColumnIndex = columnKeyToIndex.get(selectionRange.focus.columnKey);
+    if (
+      anchorRowIndex == null
+      || focusRowIndex == null
+      || anchorColumnIndex == null
+      || focusColumnIndex == null
+    ) {
+      return null;
+    }
+    const left = Math.min(anchorColumnIndex, focusColumnIndex);
+    const right = Math.max(anchorColumnIndex, focusColumnIndex);
+    if (left !== 0 || right !== columnKeys.length - 1) return null;
+    return {
+      top: Math.min(anchorRowIndex, focusRowIndex),
+      bottom: Math.max(anchorRowIndex, focusRowIndex),
+    };
+  }, [columnKeys, rows, selectionRange]);
   const getModelCell = useCallback((columnIndex: number, rowIndex: number) => {
     const column = gridColumns[columnIndex];
     const record = rows[rowIndex];
@@ -183,11 +229,11 @@ function HeatCalcGlideGrid({
       themeOverride: bgCell ? { bgCell } : undefined,
     };
   }, [getModelCell, rowClassName]);
-  const openEditorForCell = useCallback((cell: Item) => {
+  const openEditorForCell = useCallback((cell: Item, fallbackBounds?: GlideEditingCell['bounds']) => {
     const modelCell = getModelCell(cell[0], cell[1]);
     if (!modelCell?.state.editable) return;
     onStartCellEdit(modelCell.record, modelCell.column.key);
-    const bounds = editorRef.current?.getBounds(cell[0], cell[1]);
+    const bounds = editorRef.current?.getBounds(cell[0], cell[1]) ?? fallbackBounds;
     if (!bounds) return;
     setEditingCell({
       cell,
@@ -233,17 +279,26 @@ function HeatCalcGlideGrid({
       rows,
       columnKeys,
       selection: nextSelection,
+      forceFullRowSelection: rowMarkerPointerActiveRef.current,
     });
     if (!nextRange?.anchor || !nextRange.focus) return;
     onSetRangeSelection(nextRange.anchor, nextRange.focus, nextRange.active ?? nextRange.focus);
   }, [columnKeys, onSetRangeSelection, rows]);
+  const handlePointerDownCapture = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    const rect = target.getBoundingClientRect();
+    rowMarkerPointerActiveRef.current = event.clientX - rect.left <= GLIDE_ROW_MARKER_WIDTH;
+  }, []);
+  const clearRowMarkerPointer = useCallback(() => {
+    rowMarkerPointerActiveRef.current = false;
+  }, []);
   const handleCellActivated = useCallback((cell: Item) => {
     openEditorForCell(cell);
   }, [openEditorForCell]);
   const handleCellClicked = useCallback((cell: Item, event: CellClickedEventArgs) => {
     if (!event.isDoubleClick) return;
     event.preventDefault();
-    openEditorForCell(cell);
+    openEditorForCell(cell, event.bounds);
   }, [openEditorForCell]);
   const handleCellEdited = useCallback((cell: Item, newValue: EditableGridCell) => {
     const modelCell = getModelCell(cell[0], cell[1]);
@@ -264,6 +319,24 @@ function HeatCalcGlideGrid({
     lastScrollEndRowsRef.current = rows.length;
     onReachScrollEnd();
   }, [onReachScrollEnd, rows.length]);
+  const handleColumnResize = useCallback((
+    _column: GridColumn,
+    widthPx: number,
+    columnIndex: number,
+  ) => {
+    const gridColumn = gridColumns[columnIndex];
+    if (!gridColumn || gridColumn.resizable === false) return;
+    onColumnResize?.(gridColumn.key, clampGlideColumnWidth(gridColumn, widthPx));
+  }, [gridColumns, onColumnResize]);
+  const handleColumnResizeEnd = useCallback((
+    _column: GridColumn,
+    widthPx: number,
+    columnIndex: number,
+  ) => {
+    const gridColumn = gridColumns[columnIndex];
+    if (!gridColumn || gridColumn.resizable === false) return;
+    onColumnResizeEnd?.(gridColumn.key, clampGlideColumnWidth(gridColumn, widthPx));
+  }, [gridColumns, onColumnResizeEnd]);
 
   if (rows.length === 0) {
     return (
@@ -276,7 +349,12 @@ function HeatCalcGlideGrid({
   }
 
   return (
-    <div className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--excel-mode calc-spreadsheet--glide`}>
+    <div
+      className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--excel-mode calc-spreadsheet--glide`}
+      onPointerDownCapture={handlePointerDownCapture}
+      onPointerUpCapture={clearRowMarkerPointer}
+      onPointerCancelCapture={clearRowMarkerPointer}
+    >
       <DataEditor
         ref={editorRef}
         className="heatcalc-glide-editor"
@@ -286,8 +364,10 @@ function HeatCalcGlideGrid({
         rows={rows.length}
         rowMarkers="clickable-number"
         rowMarkerWidth={GLIDE_ROW_MARKER_WIDTH}
-        rowHeight={30}
-        headerHeight={38}
+        rowHeight={rowHeight}
+        headerHeight={rowHeight + 8}
+        minColumnWidth={GLIDE_MIN_COLUMN_WIDTH}
+        maxColumnWidth={GLIDE_MAX_COLUMN_WIDTH}
         smoothScrollX
         smoothScrollY
         verticalBorder
@@ -301,6 +381,8 @@ function HeatCalcGlideGrid({
         onCellEdited={handleCellEdited}
         onCellContextMenu={handleCellContextMenu}
         onVisibleRegionChanged={handleVisibleRegionChanged}
+        onColumnResize={onColumnResize ? handleColumnResize : undefined}
+        onColumnResizeEnd={onColumnResizeEnd ? handleColumnResizeEnd : undefined}
         onPaste={false}
         rowSelect="multi"
         cellActivationBehavior="double-click"
@@ -318,6 +400,17 @@ function HeatCalcGlideGrid({
           if (isDirtyRowClassName(className)) {
             return { bgCell: '#fffbe6' };
           }
+          if (
+            fullRowSelectionBounds
+            && rowIndex >= fullRowSelectionBounds.top
+            && rowIndex <= fullRowSelectionBounds.bottom
+          ) {
+            return {
+              accentColor: GLIDE_SELECTED_ROW_BORDER,
+              accentLight: GLIDE_SELECTED_ROW_BG,
+              bgCell: GLIDE_SELECTED_ROW_BG,
+            };
+          }
           return undefined;
         }}
         theme={{
@@ -327,8 +420,8 @@ function HeatCalcGlideGrid({
           bgHeader: '#f3f6f4',
           borderColor: '#d9d9d9',
           fontFamily: 'inherit',
-          baseFontStyle: '12px inherit',
-          headerFontStyle: '600 12px inherit',
+          baseFontStyle: `${fontSize.fontSizePx}px inherit`,
+          headerFontStyle: `600 ${fontSize.fontSizePx}px inherit`,
         }}
       />
       {editingCell && (

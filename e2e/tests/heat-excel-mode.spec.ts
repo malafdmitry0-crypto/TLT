@@ -39,7 +39,101 @@ async function selectSearchOption(page: Page, testId: string, search: string, op
   });
 }
 
+const EXCEL_GLIDE_METRICS_BY_FONT_SIZE = {
+  compact: { headerHeight: 34, rowHeight: 26 },
+  standard: { headerHeight: 38, rowHeight: 30 },
+  comfortable: { headerHeight: 42, rowHeight: 34 },
+  large: { headerHeight: 45, rowHeight: 37 },
+} as const;
+
+type ExcelGlideMetrics = typeof EXCEL_GLIDE_METRICS_BY_FONT_SIZE[keyof typeof EXCEL_GLIDE_METRICS_BY_FONT_SIZE];
+
+async function excelGlideMetrics(page: Page): Promise<ExcelGlideMetrics> {
+  const className = await page
+    .locator('.calc-spreadsheet--excel-mode.calc-spreadsheet--glide')
+    .first()
+    .getAttribute('class');
+  const fontSizeKey = Object.keys(EXCEL_GLIDE_METRICS_BY_FONT_SIZE).find((key) => (
+    className?.includes(`calc-spreadsheet--${key}`)
+  )) as keyof typeof EXCEL_GLIDE_METRICS_BY_FONT_SIZE | undefined;
+  return EXCEL_GLIDE_METRICS_BY_FONT_SIZE[fontSizeKey ?? 'standard'];
+}
+
+async function dragExcelGlideRowMarkers(page: Page, fromRowIndex: number, toRowIndex: number) {
+  const canvas = page.locator('.calc-spreadsheet--excel-mode.calc-spreadsheet--glide canvas').first();
+  await expect(canvas).toBeVisible();
+  const box = await canvas.boundingBox();
+  expect(box).toBeTruthy();
+  const { headerHeight, rowHeight } = await excelGlideMetrics(page);
+  await page.mouse.move(box!.x + 25, box!.y + headerHeight + rowHeight * fromRowIndex + rowHeight / 2);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + 25, box!.y + headerHeight + rowHeight * toRowIndex + rowHeight - 2, { steps: 12 });
+  await page.mouse.up();
+  return { canvas, metrics: { headerHeight, rowHeight } };
+}
+
+async function selectedRowBlueScores(canvas: Locator, rowIndex: number, metrics: ExcelGlideMetrics) {
+  return canvas.evaluate((node, { targetRowIndex, headerHeight, rowHeight }) => {
+    const canvasNode = node as HTMLCanvasElement;
+    const context = canvasNode.getContext('2d');
+    if (!context) return [];
+    const rect = canvasNode.getBoundingClientRect();
+    const scaleX = canvasNode.width / rect.width;
+    const scaleY = canvasNode.height / rect.height;
+    const y = Math.round((headerHeight + rowHeight * targetRowIndex + rowHeight / 2) * scaleY);
+    const sampleXs = [0.42, 0.58, 0.74, 0.9].map((ratio) => Math.round(rect.width * ratio * scaleX));
+    return sampleXs.map((x) => {
+      const size = Math.max(3, Math.round(5 * Math.max(scaleX, scaleY)));
+      const left = Math.max(0, x - size);
+      const top = Math.max(0, y - size);
+      const width = Math.min(canvasNode.width - left, size * 2 + 1);
+      const height = Math.min(canvasNode.height - top, size * 2 + 1);
+      const data = context.getImageData(left, top, width, height).data;
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      const count = data.length / 4;
+      for (let index = 0; index < data.length; index += 4) {
+        red += data[index];
+        green += data[index + 1];
+        blue += data[index + 2];
+      }
+      red /= count;
+      green /= count;
+      blue /= count;
+      return Math.min(blue - red, green - red);
+    });
+  }, {
+    targetRowIndex: rowIndex,
+    headerHeight: metrics.headerHeight,
+    rowHeight: metrics.rowHeight,
+  });
+}
+
 test.describe('Excel-режим таблицы теплопотерь', () => {
+  test('выбор через номера строк в Glide Excel выделяет строки полностью и фокусирует форму', async ({ page }) => {
+    await loginAsGuest(page);
+    const firstName = `E2E excel row marker ${Date.now()}`;
+    await createCalculatedPipe(page, firstName);
+    await createCalculatedPipe(page, `E2E excel row marker seed ${Date.now()}`);
+
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByText('Excel-режим').click();
+
+    const { canvas, metrics } = await dragExcelGlideRowMarkers(page, 0, 1);
+    await expect(page.getByTestId('object-name-input')).toHaveValue(firstName);
+    for (const rowIndex of [0, 1]) {
+      await expect.poll(async () => {
+        const scores = await selectedRowBlueScores(canvas, rowIndex, metrics);
+        return scores.length > 0 && scores.every((score) => score > 10);
+      }).toBe(true);
+    }
+    await expect.poll(async () => {
+      const scores = await selectedRowBlueScores(canvas, 3, metrics);
+      return scores.length > 0 && scores.every((score) => score > 10);
+    }).toBe(false);
+  });
+
   test('изменение ячейки не автосохраняется, подсвечивает только ячейку и сохраняется по кнопке', async ({ page }) => {
     await loginAsGuest(page);
     const pipeName = `E2E excel pipe ${Date.now()}`;

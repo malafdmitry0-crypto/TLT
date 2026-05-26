@@ -169,6 +169,7 @@ import {
   readGuestFieldInputSettings,
   readRegisteredFieldInputCache,
   resetHeatCalcFieldStep,
+  resolveHeatCalcFieldStep,
   setHeatCalcFieldStep,
   writeGuestFieldInputSettings,
   writeRegisteredFieldInputCache,
@@ -2433,6 +2434,8 @@ export default function HeatCalcPage() {
         title: meta.title,
         label: meta.label,
         width: meta.width,
+        minWidthPx: meta.minWidthPx,
+        resizable: meta.resizable,
         align: normalizeGlideCellAlign(columnRenderers[meta.key]?.align),
         sortable: sortEnabled,
         filterable: filterEnabled,
@@ -2480,6 +2483,8 @@ export default function HeatCalcPage() {
         error: draftRow?.errors[config.fieldId],
         align: config.field.editor === 'number' ? 'right' : rendererAlign,
         editor: config.field.editor,
+        options: config.field.options,
+        step: resolveHeatCalcFieldStep(config.objectType, config.fieldId, fieldInputSettings) ?? config.field.step,
       };
     }
 
@@ -2494,6 +2499,7 @@ export default function HeatCalcPage() {
     columnRenderers,
     draftRowsById,
     excelCellDisplayValue,
+    fieldInputSettings,
     isAllObjectScope,
     isSavableDraftRow,
     tableCellEditingEnabled,
@@ -2515,6 +2521,23 @@ export default function HeatCalcPage() {
       };
     }
 
+    const config = tableCellEditingEnabled && (record.object_type === 'pipe' || record.object_type === 'tank')
+      ? getInlineEditFieldConfig(record.object_type, columnKey)
+      : null;
+    if (config) {
+      return {
+        displayValue: excelCellDisplayValue(record, columnKey, draftRow),
+        editable: true,
+        dirty: isSavableDraftRow(draftRow)
+          && Object.prototype.hasOwnProperty.call(draftRow?.dirtyFields ?? {}, config.fieldId),
+        error: draftRow?.errors[config.fieldId],
+        align: config.field.editor === 'number' ? 'right' : rendererAlign,
+        editor: config.field.editor,
+        options: config.field.options,
+        step: resolveHeatCalcFieldStep(config.objectType, config.fieldId, fieldInputSettings) ?? config.field.step,
+      };
+    }
+
     const displayRecord = buildDraftDisplayRecord(draftRow, record);
     const sourceIndex = visibleSourceIndexById.get(record.id) ?? rowIndex;
     return {
@@ -2526,8 +2549,11 @@ export default function HeatCalcPage() {
   }, [
     columnRenderers,
     draftRowsById,
+    excelCellDisplayValue,
+    fieldInputSettings,
     isAllObjectScope,
     isSavableDraftRow,
+    tableCellEditingEnabled,
     visibleSourceIndexById,
   ]);
 
@@ -3007,6 +3033,23 @@ export default function HeatCalcPage() {
     persistTableColumnSettings(nextSettings, { showMessage: false });
   }, [persistTableColumnSettings]);
 
+  const updateColumnWidthDraft = useCallback((
+    type: HeatCalcTableColumnScope,
+    key: HeatCalcColumnKey,
+    widthPx: number,
+  ) => {
+    const widthPct = tableColumnWidthPxToPct(widthPx);
+    setTableColumnSettings((settings) => setTableColumnWidthPct(settings, type, key, widthPct));
+  }, []);
+
+  const handleGlideColumnResize = useCallback((key: string, widthPx: number) => {
+    updateColumnWidthDraft(activeTableColumnScope, key, widthPx);
+  }, [activeTableColumnScope, updateColumnWidthDraft]);
+
+  const handleGlideColumnResizeEnd = useCallback((key: string, widthPx: number) => {
+    applyColumnWidth(activeTableColumnScope, key, tableColumnWidthPxToPct(widthPx));
+  }, [activeTableColumnScope, applyColumnWidth]);
+
   const startColumnResize = useCallback((
     type: HeatCalcTableColumnScope,
     meta: HeatCalcResolvedColumnMeta,
@@ -3014,10 +3057,13 @@ export default function HeatCalcPage() {
   ) => {
     event.preventDefault();
     event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
     const startX = event.clientX;
     const startWidth = meta.width;
+    const minWidthPx = meta.minWidthPx;
     let latestWidthPct = meta.widthPct;
     let frameId: number | null = null;
+    document.body.classList.add('heatcalc-column-resizing');
 
     function flushDraftWidth() {
       frameId = null;
@@ -3025,25 +3071,30 @@ export default function HeatCalcPage() {
     }
 
     function handlePointerMove(pointerEvent: PointerEvent) {
-      const nextWidthPx = Math.max(30, startWidth + pointerEvent.clientX - startX);
+      const nextWidthPx = Math.max(minWidthPx, startWidth + pointerEvent.clientX - startX);
       latestWidthPct = tableColumnWidthPxToPct(nextWidthPx);
       if (frameId == null) {
         frameId = window.requestAnimationFrame(flushDraftWidth);
       }
     }
 
-    function handlePointerUp() {
+    function finishResize() {
       window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointerup', finishResize);
+      window.removeEventListener('pointercancel', finishResize);
+      window.removeEventListener('blur', finishResize);
       if (frameId != null) {
         window.cancelAnimationFrame(frameId);
         frameId = null;
       }
+      document.body.classList.remove('heatcalc-column-resizing');
       applyColumnWidth(type, meta.key, latestWidthPct);
     }
 
     window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointerup', finishResize);
+    window.addEventListener('pointercancel', finishResize);
+    window.addEventListener('blur', finishResize);
   }, [applyColumnWidth]);
 
   const { tableColumns, tableScrollX, tableScrollY } = useHeatCalcTableColumns({
@@ -3801,12 +3852,15 @@ export default function HeatCalcPage() {
                 selectedRowKeys={selectedRowKeys}
                 tableScrollX={tableScrollX}
                 tableScrollY={tableScrollY}
+                activeRowId={selectedRowId ?? null}
                 onExcelRowSecondaryAction={openExcelRecordContextMenu}
                 onExcelReachScrollEnd={extendExcelInputRowsOnScroll}
                 onExcelSetRangeSelection={setExcelRangeSelection}
                 onGlideCellCommit={commitInlineCell}
                 onGlideCellState={getGlideGridCellState}
                 onGlideCellStartEdit={startInlineCellEdit}
+                onGlideColumnResize={handleGlideColumnResize}
+                onGlideColumnResizeEnd={handleGlideColumnResizeEnd}
                 onNormalGlideCellState={getNormalGlideGridCellState}
                 onNormalSetColumnFilter={setColumnFilter}
                 onNormalResetColumnFilter={resetColumnFilter}

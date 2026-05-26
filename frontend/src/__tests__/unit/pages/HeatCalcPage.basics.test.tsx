@@ -5,6 +5,10 @@ import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import { HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY } from '@/utils/heatCalcTableColumns';
 import {
   HEATCALC_PAGE_TEST_TIMEOUT,
+  getNormalGlideGrid,
+  getNormalGlideHeaderTexts,
+  getNormalGlideRowCells,
+  getNormalGlideRows,
   makeObject,
   makeTank,
   mockProject,
@@ -167,7 +171,7 @@ describe('HeatCalcPage basics', () => {
 
       await user.click(screen.getByRole('columnheader', { name: /Наименование/ }));
       await waitFor(() => {
-        const rows = [...document.querySelectorAll('.calc-spreadsheet .ant-table-tbody > tr[data-row-key]')];
+        const rows = getNormalGlideRows();
         expect(rows[0]).toHaveTextContent('Альфа резервуар');
         expect(rows[1]).toHaveTextContent('Бета труба');
       });
@@ -206,7 +210,7 @@ describe('HeatCalcPage basics', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
       await waitFor(() => {
-        expect(screen.queryAllByRole('columnheader').map((header) => header.textContent)).not.toContain('Т подд.');
+        expect(getNormalGlideHeaderTexts()).not.toContain('Т подд.');
       });
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY) ?? '{}');
       expect(saved.types.all.visibleOrder).not.toContain('process_temperature');
@@ -229,8 +233,8 @@ describe('HeatCalcPage basics', () => {
       await user.click(await within(typeToolbar).findByRole('button', { name: /Все:/ }));
       expect(await screen.findByText('Труба DN100')).toBeInTheDocument();
       expect(await screen.findByText('Резервуар прямоугольный')).toBeInTheDocument();
-      expect(screen.queryAllByRole('columnheader').map((header) => header.textContent)).not.toContain('DN');
-      expect(screen.queryAllByRole('columnheader').map((header) => header.textContent)).not.toContain('Форма');
+      expect(getNormalGlideHeaderTexts()).not.toContain('DN');
+      expect(getNormalGlideHeaderTexts()).not.toContain('Форма');
 
       const dialog = await openTableSettingsDialog(user);
       expect(within(dialog).getByRole('checkbox', { name: 'DN' })).not.toBeChecked();
@@ -239,29 +243,24 @@ describe('HeatCalcPage basics', () => {
       await user.click(within(dialog).getByRole('checkbox', { name: 'Форма резервуара' }));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
-      const table = document.querySelector<HTMLElement>('.calc-spreadsheet');
-      expect(table).not.toBeNull();
+      const table = getNormalGlideGrid();
       await waitFor(() => {
-        const headerTexts = Array.from(table!.querySelectorAll('thead th'))
-          .map((header) => header.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+        const headerTexts = getNormalGlideHeaderTexts();
         expect(headerTexts).toContain('DN');
         expect(headerTexts).toContain('Форма');
       });
-      const headerTexts = Array.from(table!.querySelectorAll('thead th'))
-        .map((header) => header.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+      const headerTexts = getNormalGlideHeaderTexts();
       const dnIndex = headerTexts.findIndex((text) => text === 'DN');
       const shapeIndex = headerTexts.findIndex((text) => text === 'Форма');
       expect(dnIndex).toBeGreaterThan(-1);
       expect(shapeIndex).toBeGreaterThan(-1);
 
-      const pipeRow = screen.getByText('Труба DN100').closest('tr');
-      const tankRow = screen.getByText('Резервуар прямоугольный').closest('tr');
+      const pipeRow = within(table).getByText('Труба DN100').closest('[data-testid="normal-glide-row"]') as HTMLElement | null;
+      const tankRow = within(table).getByText('Резервуар прямоугольный').closest('[data-testid="normal-glide-row"]') as HTMLElement | null;
       expect(pipeRow).not.toBeNull();
       expect(tankRow).not.toBeNull();
-      const pipeCells = Array.from(pipeRow!.querySelectorAll('td'))
-        .map((cell) => cell.textContent?.replace(/\s+/g, ' ').trim() ?? '');
-      const tankCells = Array.from(tankRow!.querySelectorAll('td'))
-        .map((cell) => cell.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+      const pipeCells = getNormalGlideRowCells(pipeRow!);
+      const tankCells = getNormalGlideRowCells(tankRow!);
 
       expect(pipeCells[dnIndex]).toBe('DN100');
       expect(pipeCells[shapeIndex]).toBe('—');

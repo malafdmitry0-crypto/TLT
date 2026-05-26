@@ -33,6 +33,8 @@ def _cyl(**o) -> TankHeatLossParams:
         safety_factor=1.1,
     )
     defaults.update(o)
+    if defaults.get("location") == "indoor" and "insulation_temperature_basis" not in o:
+        defaults["insulation_temperature_basis"] = "indoor"
     return TankHeatLossParams(**defaults)
 
 
@@ -165,10 +167,15 @@ class TestMetamorphicTank:
         q_windy = calc_tank_heat_loss(_cyl(wind_speed=v)).heat_loss_per_m2
         assert q_windy >= q_calm - 1e-6
 
-    def test_indoor_less_than_outdoor(self):
-        q_indoor = calc_tank_heat_loss(_cyl(location="indoor")).heat_loss_per_m2
-        q_outdoor = calc_tank_heat_loss(_cyl(location="outdoor", wind_speed=0)).heat_loss_per_m2
-        assert q_indoor < q_outdoor
+    def test_indoor_location_contract(self):
+        indoor = calc_tank_heat_loss(_cyl(location="indoor"))
+        outdoor = calc_tank_heat_loss(_cyl(location="outdoor", wind_speed=0))
+        assert indoor.alpha_vnesh == pytest.approx(9.0)
+        assert outdoor.alpha_vnesh == pytest.approx(11.6)
+        assert indoor.external_resistance > outdoor.external_resistance
+        assert indoor.location_factor == pytest.approx(0.9)
+        assert outdoor.location_factor == pytest.approx(1.0)
+        assert indoor.total_heat_loss < outdoor.total_heat_loss
 
     def test_safety_factor_scales_only_total(self):
         """K влияет на Q, не на q. Диапазон ТЗ: 1.05…1.7."""

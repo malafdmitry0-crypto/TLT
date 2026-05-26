@@ -11,7 +11,15 @@ const glideMock = vi.hoisted(() => ({
 
 vi.mock('@glideapps/glide-data-grid', () => ({
   CompactSelection: {
-    empty: () => ({ toArray: () => [] }),
+    empty: () => ({
+      add: (selection: number | [number, number]) => ({
+        toArray: () => {
+          if (typeof selection === 'number') return [selection];
+          return Array.from({ length: selection[1] - selection[0] }, (_, index) => selection[0] + index);
+        },
+      }),
+      toArray: () => [],
+    }),
   },
   DataEditor: React.forwardRef((props: Record<string, unknown>) => {
     glideMock.props = props;
@@ -119,5 +127,134 @@ describe('HeatCalcGlideGrid model adapter', () => {
       themeOverride: { bgCell: '#fff1f0' },
     });
     expect(getRowThemeOverride(0)).toEqual({ bgCell: '#fff1f0' });
+  });
+
+  it('paints full-row Excel selection through row theme override', () => {
+    render(
+      <HeatCalcGlideGrid
+        rows={[row]}
+        columns={[{ key: 'name' }] as ColumnType<ProjectObject>[]}
+        gridColumns={[{ key: 'name', title: 'Name', width: 180 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        selectedRowIndex={0}
+        selectedPosition={{ rowIndex: 0, columnIndex: 0 }}
+        selectionRange={{
+          anchor: { rowId: 'row-1', columnKey: 'name' },
+          focus: { rowId: 'row-1', columnKey: 'name' },
+        }}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={() => ({
+          displayValue: 'Pipe selected',
+          editable: true,
+        })}
+        onRowSecondaryAction={vi.fn()}
+        onSetRangeSelection={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn()}
+      />,
+    );
+
+    const getRowThemeOverride = glideMock.props?.getRowThemeOverride as ((rowIndex: number) => unknown);
+    expect(getRowThemeOverride(0)).toEqual({
+      accentColor: '#1a5276',
+      accentLight: '#dbeeff',
+      bgCell: '#dbeeff',
+    });
+  });
+
+  it('uses table font-size settings in the Excel Glide canvas theme and row metrics', () => {
+    render(
+      <HeatCalcGlideGrid
+        rows={[row]}
+        columns={[{ key: 'name' }] as ColumnType<ProjectObject>[]}
+        gridColumns={[{ key: 'name', title: 'Name', width: 180 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="large"
+        selectedRowIndex={0}
+        selectedPosition={{ rowIndex: 0, columnIndex: 0 }}
+        selectionRange={{
+          anchor: { rowId: 'row-1', columnKey: 'name' },
+          focus: { rowId: 'row-1', columnKey: 'name' },
+        }}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={() => ({
+          displayValue: 'Pipe large',
+          editable: false,
+        })}
+        onRowSecondaryAction={vi.fn()}
+        onSetRangeSelection={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn()}
+      />,
+    );
+
+    expect(glideMock.props?.rowHeight).toBe(37);
+    expect(glideMock.props?.headerHeight).toBe(45);
+    expect(glideMock.props?.theme).toMatchObject({
+      baseFontStyle: '14px inherit',
+      headerFontStyle: '600 14px inherit',
+    });
+  });
+
+  it('maps Glide resize callbacks to column keys and clamps minimum width', () => {
+    const onColumnResize = vi.fn();
+    const onColumnResizeEnd = vi.fn();
+    render(
+      <HeatCalcGlideGrid
+        rows={[row]}
+        columns={[{ key: 'name' }] as ColumnType<ProjectObject>[]}
+        gridColumns={[
+          { key: 'name', title: 'Name', width: 180, minWidthPx: 120 },
+          { key: 'placement', title: 'Placement', width: 160, resizable: false },
+        ]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        selectedRowIndex={0}
+        selectedPosition={{ rowIndex: 0, columnIndex: 0 }}
+        selectionRange={{
+          anchor: { rowId: 'row-1', columnKey: 'name' },
+          focus: { rowId: 'row-1', columnKey: 'name' },
+        }}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={() => ({
+          displayValue: 'Pipe',
+          editable: true,
+        })}
+        onRowSecondaryAction={vi.fn()}
+        onSetRangeSelection={vi.fn()}
+        onColumnResize={onColumnResize}
+        onColumnResizeEnd={onColumnResizeEnd}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn()}
+      />,
+    );
+
+    const onResize = glideMock.props?.onColumnResize as (
+      column: unknown,
+      widthPx: number,
+      columnIndex: number,
+    ) => void;
+    const onResizeEnd = glideMock.props?.onColumnResizeEnd as (
+      column: unknown,
+      widthPx: number,
+      columnIndex: number,
+    ) => void;
+
+    expect(glideMock.props?.minColumnWidth).toBe(48);
+    expect(glideMock.props?.maxColumnWidth).toBe(600);
+    onResize({}, 90, 0);
+    onResize({}, 240, 1);
+    onResizeEnd({}, 260, 0);
+
+    expect(onColumnResize).toHaveBeenCalledOnce();
+    expect(onColumnResize).toHaveBeenCalledWith('name', 120);
+    expect(onColumnResizeEnd).toHaveBeenCalledWith('name', 260);
   });
 });

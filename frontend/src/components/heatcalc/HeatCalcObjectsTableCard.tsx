@@ -51,6 +51,7 @@ interface HeatCalcObjectsTableCardProps {
   selectedRowKeys: string[];
   tableScrollX: number;
   tableScrollY: string;
+  activeRowId: string | null;
   onExcelRowSecondaryAction: (
     record: ProjectObject,
     event: ReactMouseEvent<HTMLElement>,
@@ -68,6 +69,8 @@ interface HeatCalcObjectsTableCardProps {
     rowIndex: number,
   ) => HeatCalcGlideGridCellState;
   onGlideCellStartEdit: (record: ProjectObject, columnKey: string) => void;
+  onGlideColumnResize: (columnKey: string, widthPx: number) => void;
+  onGlideColumnResizeEnd: (columnKey: string, widthPx: number) => void;
   onNormalGlideCellState: (
     record: ProjectObject,
     columnKey: string,
@@ -158,12 +161,15 @@ export default function HeatCalcObjectsTableCard({
   selectedRowKeys,
   tableScrollX,
   tableScrollY,
+  activeRowId,
   onExcelRowSecondaryAction,
   onExcelReachScrollEnd,
   onExcelSetRangeSelection,
   onGlideCellCommit,
   onGlideCellState,
   onGlideCellStartEdit,
+  onGlideColumnResize,
+  onGlideColumnResizeEnd,
   onNormalGlideCellState,
   onNormalSetColumnFilter,
   onNormalResetColumnFilter,
@@ -230,6 +236,8 @@ export default function HeatCalcObjectsTableCard({
             onSetRangeSelection={onExcelSetRangeSelection}
             onStartCellEdit={onGlideCellStartEdit}
             onCommitCell={onGlideCellCommit}
+            onColumnResize={onGlideColumnResize}
+            onColumnResizeEnd={onGlideColumnResizeEnd}
           />
         </Suspense>
       ) : excelModeEnabled ? (
@@ -242,6 +250,7 @@ export default function HeatCalcObjectsTableCard({
             tableScrollX={tableScrollX}
             tableScrollY={tableScrollY}
             fontSizeKey={fontSizeKey}
+            activeRowId={activeRowId}
             selectedRowKeys={selectedRowKeys}
             tableViewState={activeTableViewState}
             infiniteLoading={normalInfiniteLoading}
@@ -251,9 +260,13 @@ export default function HeatCalcObjectsTableCard({
             getCellState={onNormalGlideCellState}
             onOpenEditWizard={onOpenEditWizard}
             onSelectedRowKeysChange={onSelectedRowKeysChange}
+            onStartCellEdit={onGlideCellStartEdit}
+            onCommitCell={onGlideCellCommit}
             onSetColumnFilter={onNormalSetColumnFilter}
             onResetColumnFilter={onNormalResetColumnFilter}
             onSetSort={onNormalSetSort}
+            onColumnResize={onGlideColumnResize}
+            onColumnResizeEnd={onGlideColumnResizeEnd}
             onPageChange={onNormalPageChange}
             onLoadMore={onNormalLoadMore}
           />

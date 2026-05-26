@@ -32,11 +32,14 @@ vi.mock('@glideapps/glide-data-grid', () => {
   return {
     CompactSelection: MockCompactSelection,
     DataEditor: React.forwardRef((props: Record<string, unknown>, ref) => {
-      void ref;
+      React.useImperativeHandle(ref, () => ({
+        getBounds: () => ({ x: 10, y: 20, width: 180, height: 30 }),
+      }));
       normalGlideMock.props = props;
       return React.createElement('div', { 'data-testid': 'normal-glide-data-editor' });
     }),
     GridCellKind: {
+      Number: 'number',
       Text: 'text',
     },
   };
@@ -125,6 +128,8 @@ describe('HeatCalcNormalGlideGrid', () => {
         })}
         onOpenEditWizard={onOpenEditWizard}
         onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
         onSetColumnFilter={vi.fn()}
         onResetColumnFilter={vi.fn()}
         onSetSort={vi.fn()}
@@ -157,6 +162,338 @@ describe('HeatCalcNormalGlideGrid', () => {
     expect(screen.queryByText(/Страница/)).not.toBeInTheDocument();
   });
 
+  it('uses table font-size settings in the Glide canvas theme and row metrics', () => {
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[{ key: 'name', title: 'Name', width: 180 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="large"
+        selectedRowKeys={[]}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={null}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={(record) => ({
+          displayValue: String(record.params?.name ?? ''),
+          editable: false,
+        })}
+        onOpenEditWizard={vi.fn()}
+        onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    expect(normalGlideMock.props?.rowHeight).toBe(37);
+    expect(normalGlideMock.props?.headerHeight).toBe(45);
+    expect(normalGlideMock.props?.theme).toMatchObject({
+      baseFontStyle: '14px inherit',
+      headerFontStyle: '600 14px inherit',
+    });
+  });
+
+  it('paints the active form row separately from checkbox row selection', () => {
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[{ key: 'name', title: 'Name', width: 180 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        activeRowId="row-2"
+        selectedRowKeys={['row-1']}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={null}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={(record) => (record.id === 'row-1' ? 'row-invalid' : '')}
+        getCellState={(record) => ({
+          displayValue: String(record.params?.name ?? ''),
+          editable: false,
+        })}
+        onOpenEditWizard={vi.fn()}
+        onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    const getRowThemeOverride = normalGlideMock.props?.getRowThemeOverride as (rowIndex: number) => unknown;
+    expect(getRowThemeOverride(0)).toMatchObject({ bgCell: '#fff1f0' });
+    expect(getRowThemeOverride(1)).toMatchObject({
+      bgCell: '#d6e9f5',
+      accentColor: '#1a5276',
+    });
+    expect(normalGlideMock.props?.gridSelection).toMatchObject({
+      rows: expect.objectContaining({ toArray: expect.any(Function) }),
+    });
+    expect((normalGlideMock.props?.gridSelection as { rows: { toArray: () => number[] } }).rows.toArray()).toEqual([0]);
+  });
+
+  it('keeps an active error row red and only adds the active accent', () => {
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[{ key: 'name', title: 'Name', width: 180 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        activeRowId="row-2"
+        selectedRowKeys={[]}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={null}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={(record) => (record.id === 'row-2' ? 'row-invalid row-selected' : '')}
+        getCellState={(record) => ({
+          displayValue: String(record.params?.name ?? ''),
+          editable: false,
+        })}
+        onOpenEditWizard={vi.fn()}
+        onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    const getRowThemeOverride = normalGlideMock.props?.getRowThemeOverride as (rowIndex: number) => unknown;
+    expect(getRowThemeOverride(1)).toMatchObject({
+      bgCell: '#fff1f0',
+      accentColor: '#1a5276',
+    });
+  });
+
+  it('draws a lightweight border for the active normal row', () => {
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[{ key: 'name', title: 'Name', width: 180 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        activeRowId="row-2"
+        selectedRowKeys={[]}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={null}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={(record) => ({
+          displayValue: String(record.params?.name ?? ''),
+          editable: false,
+        })}
+        onOpenEditWizard={vi.fn()}
+        onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    const drawCell = normalGlideMock.props?.drawCell as (
+      args: {
+        ctx: Record<string, unknown>;
+        cell: { kind: 'text'; data: string };
+        col: number;
+        row: number;
+        rect: { x: number; y: number; width: number; height: number };
+      },
+      drawContent: () => void,
+    ) => void;
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+      set strokeStyle(_value: string) {},
+      set lineWidth(_value: number) {},
+    };
+    const drawContent = vi.fn();
+
+    drawCell({
+      ctx,
+      cell: { kind: 'text', data: 'Pipe 2' },
+      col: 0,
+      row: 1,
+      rect: { x: 20, y: 60, width: 180, height: 30 },
+    }, drawContent);
+
+    expect(drawContent).toHaveBeenCalled();
+    expect(ctx.beginPath).toHaveBeenCalled();
+    expect(ctx.moveTo).toHaveBeenCalledWith(20.5, 60.5);
+    expect(ctx.lineTo).toHaveBeenCalledWith(199.5, 60.5);
+    expect(ctx.stroke).toHaveBeenCalled();
+  });
+
+  it('opens a normal-mode inline editor when the cell state is editable', () => {
+    const onOpenEditWizard = vi.fn();
+    const onStartCellEdit = vi.fn();
+    const onCommitCell = vi.fn(() => null);
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[{ key: 'name', title: 'Name', width: 180 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        selectedRowKeys={[]}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={null}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={(record) => ({
+          displayValue: String(record.params?.name ?? ''),
+          editable: true,
+          editor: 'text',
+        })}
+        onOpenEditWizard={onOpenEditWizard}
+        onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={onStartCellEdit}
+        onCommitCell={onCommitCell}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    const getCellContent = normalGlideMock.props?.getCellContent as ((cell: [number, number]) => unknown);
+    expect(getCellContent([0, 0])).toMatchObject({ readonly: false });
+
+    const onCellClicked = normalGlideMock.props?.onCellClicked as (
+      cell: [number, number],
+      event: { preventDefault: () => void },
+    ) => void;
+    act(() => onCellClicked([0, 0], { preventDefault: vi.fn() }));
+
+    expect(onOpenEditWizard).toHaveBeenCalledWith(rows[0]);
+    expect(onStartCellEdit).toHaveBeenCalledWith(rows[0], 'name');
+    expect((normalGlideMock.props?.gridSelection as { current?: { cell: [number, number] } }).current?.cell).toEqual([0, 0]);
+
+    const editor = screen.getByTestId('heatcalc-normal-glide-cell-editor');
+    fireEvent.change(editor, { target: { value: 'Pipe edited' } });
+    fireEvent.keyDown(editor, { key: 'Enter' });
+
+    expect(onCommitCell).toHaveBeenCalledWith(rows[0], 'name', 'Pipe edited');
+  });
+
+  it('syncs active row from Glide keyboard/focus selection without changing checkbox selection semantics', () => {
+    const onOpenEditWizard = vi.fn();
+    const onSelectedRowKeysChange = vi.fn();
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[{ key: 'name', title: 'Name', width: 180 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        activeRowId="row-1"
+        selectedRowKeys={['row-1']}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={null}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={(record) => ({
+          displayValue: String(record.params?.name ?? ''),
+          editable: false,
+        })}
+        onOpenEditWizard={onOpenEditWizard}
+        onSelectedRowKeysChange={onSelectedRowKeysChange}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    const onGridSelectionChange = normalGlideMock.props?.onGridSelectionChange as (selection: {
+      current?: { cell: [number, number] };
+      rows: { toArray: () => number[] };
+    }) => void;
+    act(() => onGridSelectionChange({
+      current: { cell: [0, 1] },
+      rows: { toArray: () => [0] },
+    }));
+
+    expect(onSelectedRowKeysChange).toHaveBeenCalledWith(['row-1']);
+    expect(onOpenEditWizard).toHaveBeenCalledWith(rows[1]);
+    expect((normalGlideMock.props?.gridSelection as { current?: { cell: [number, number] } }).current?.cell).toEqual([0, 1]);
+  });
+
+  it('does not resync the form when Glide focus stays on the already active row', () => {
+    const onOpenEditWizard = vi.fn();
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[{ key: 'name', title: 'Name', width: 180 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        activeRowId="row-2"
+        selectedRowKeys={[]}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={null}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={(record) => ({
+          displayValue: String(record.params?.name ?? ''),
+          editable: false,
+        })}
+        onOpenEditWizard={onOpenEditWizard}
+        onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    const onGridSelectionChange = normalGlideMock.props?.onGridSelectionChange as (selection: {
+      current?: { cell: [number, number] };
+      rows: { toArray: () => number[] };
+    }) => void;
+    act(() => onGridSelectionChange({
+      current: { cell: [0, 1] },
+      rows: { toArray: () => [] },
+    }));
+
+    expect(onOpenEditWizard).not.toHaveBeenCalled();
+  });
+
   it('wires Glide header sorting and filter popup to the shared table-view model', async () => {
     const onSetSort = vi.fn();
     const onSetColumnFilter = vi.fn();
@@ -187,6 +524,8 @@ describe('HeatCalcNormalGlideGrid', () => {
         })}
         onOpenEditWizard={vi.fn()}
         onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
         onSetColumnFilter={onSetColumnFilter}
         onResetColumnFilter={vi.fn()}
         onSetSort={onSetSort}
@@ -236,6 +575,8 @@ describe('HeatCalcNormalGlideGrid', () => {
         })}
         onOpenEditWizard={vi.fn()}
         onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
         onSetColumnFilter={vi.fn()}
         onResetColumnFilter={vi.fn()}
         onSetSort={vi.fn()}
@@ -290,7 +631,7 @@ describe('HeatCalcNormalGlideGrid', () => {
     }, drawContent);
 
     expect(drawContent).toHaveBeenCalled();
-    expect(ctx.arc).toHaveBeenCalled();
+    expect(ctx.arc).toHaveBeenCalledWith(58, 35, 8, 0, Math.PI * 2);
     expect(ctx.moveTo).toHaveBeenCalled();
     expect(ctx.lineTo).toHaveBeenCalled();
     expect(ctx.stroke).toHaveBeenCalled();
@@ -323,6 +664,8 @@ describe('HeatCalcNormalGlideGrid', () => {
         })}
         onOpenEditWizard={vi.fn()}
         onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
         onSetColumnFilter={vi.fn()}
         onResetColumnFilter={vi.fn()}
         onSetSort={vi.fn()}
@@ -414,6 +757,8 @@ describe('HeatCalcNormalGlideGrid', () => {
         })}
         onOpenEditWizard={vi.fn()}
         onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
         onSetColumnFilter={vi.fn()}
         onResetColumnFilter={vi.fn()}
         onSetSort={vi.fn()}
@@ -483,6 +828,8 @@ describe('HeatCalcNormalGlideGrid', () => {
         })}
         onOpenEditWizard={vi.fn()}
         onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
         onSetColumnFilter={vi.fn()}
         onResetColumnFilter={vi.fn()}
         onSetSort={vi.fn()}
@@ -498,5 +845,69 @@ describe('HeatCalcNormalGlideGrid', () => {
     ) => void;
     act(() => onVisibleRegionChanged({ x: 0, y: 1, width: 1, height: 1 }));
     expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps Glide resize callbacks to visible column keys and clamps minimum width', () => {
+    const onColumnResize = vi.fn();
+    const onColumnResizeEnd = vi.fn();
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[
+          { key: 'index', title: '№', width: 72 },
+          { key: 'name', title: 'Name', width: 180, minWidthPx: 140 },
+          { key: 'placement', title: 'Placement', width: 160, resizable: false },
+        ]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        selectedRowKeys={[]}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={null}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={(record) => ({
+          displayValue: String(record.params?.name ?? ''),
+          editable: false,
+        })}
+        onOpenEditWizard={vi.fn()}
+        onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onColumnResize={onColumnResize}
+        onColumnResizeEnd={onColumnResizeEnd}
+        onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    const onResize = normalGlideMock.props?.onColumnResize as (
+      column: unknown,
+      widthPx: number,
+      columnIndex: number,
+    ) => void;
+    const onResizeEnd = normalGlideMock.props?.onColumnResizeEnd as (
+      column: unknown,
+      widthPx: number,
+      columnIndex: number,
+    ) => void;
+
+    expect(normalGlideMock.props?.columns).toEqual([
+      expect.objectContaining({ id: 'name' }),
+      expect.objectContaining({ id: 'placement' }),
+    ]);
+    expect(normalGlideMock.props?.minColumnWidth).toBe(48);
+    expect(normalGlideMock.props?.maxColumnWidth).toBe(600);
+    onResize({}, 90, 0);
+    onResize({}, 240, 1);
+    onResizeEnd({}, 220, 0);
+
+    expect(onColumnResize).toHaveBeenCalledOnce();
+    expect(onColumnResize).toHaveBeenCalledWith('name', 140);
+    expect(onColumnResizeEnd).toHaveBeenCalledWith('name', 220);
   });
 });

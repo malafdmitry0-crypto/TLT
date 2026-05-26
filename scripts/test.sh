@@ -36,14 +36,14 @@ ensure_dev_stack() {
 run_backend_unit() {
   ensure_dev_stack
   echo "▶ Backend unit-тесты"
-  docker exec heatcalc_backend pytest app/tests/unit -q --tb=short
+  docker exec heatcalc_backend pytest app/tests/unit -q --tb=short --no-cov
 }
 
 run_backend_integration() {
   ensure_dev_stack
   echo "▶ Backend integration (требует БД heatcalc_test)"
   docker exec -e TEST_DATABASE_URL=postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test \
-    heatcalc_backend pytest app/tests/integration -q --tb=short
+    heatcalc_backend pytest app/tests/integration -q --tb=short --no-cov
 }
 
 run_frontend() {

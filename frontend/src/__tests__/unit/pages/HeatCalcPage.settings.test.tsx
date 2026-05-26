@@ -71,7 +71,9 @@ describe('HeatCalcPage settings', () => {
       expect(within(rowByKey('total_heat_loss')).getByText('Итог')).toBeInTheDocument();
       expect(within(rowByKey('thermal_resistance')).getByText('Вычисляется')).toBeInTheDocument();
       expect(within(rowByKey('thermal_resistance')).getByText('R')).toBeInTheDocument();
-      for (const serviceKey of ['index', 'heat_loss_status', 'type']) {
+      expect(dialog.querySelector('.column-layout-row[data-column-key="index"]')).toBeNull();
+      expect(within(dialog).queryByText('Номер строки')).not.toBeInTheDocument();
+      for (const serviceKey of ['heat_loss_status', 'type']) {
         expect(within(rowByKey(serviceKey)).queryByText('Вводится')).not.toBeInTheDocument();
         expect(within(rowByKey(serviceKey)).queryByText('Вычисляется')).not.toBeInTheDocument();
       }
@@ -111,8 +113,7 @@ describe('HeatCalcPage settings', () => {
       const orderInput = within(dialog).getByRole('spinbutton', { name: 'Порядок: DN' });
       const widthInput = within(dialog).getByRole('spinbutton', { name: 'Ширина: DN' });
       fireEvent.change(orderInput, { target: { value: '3' } });
-      expect(visibleColumnKeys().slice(0, 8)).toEqual([
-        'index',
+      expect(visibleColumnKeys().slice(0, 7)).toEqual([
         'heat_loss_status',
         'heat_loss_per_meter',
         'total_heat_loss',
@@ -123,11 +124,10 @@ describe('HeatCalcPage settings', () => {
       ]);
       fireEvent.blur(orderInput);
       await waitFor(() => {
-        expect(visibleColumnKeys().slice(0, 8)).toEqual([
-          'index',
+        expect(visibleColumnKeys().slice(0, 7)).toEqual([
           'heat_loss_status',
-          'pipe_dn',
           'heat_loss_per_meter',
+          'pipe_dn',
           'total_heat_loss',
           'name',
           'placement',
@@ -142,8 +142,8 @@ describe('HeatCalcPage settings', () => {
       expect(saved.types.pipe.visibleOrder.slice(0, 8)).toEqual([
         'index',
         'heat_loss_status',
-        'pipe_dn',
         'heat_loss_per_meter',
+        'pipe_dn',
         'total_heat_loss',
         'name',
         'placement',

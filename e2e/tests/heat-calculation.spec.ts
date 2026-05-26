@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { createCalculatedPipe, loginAsGuest } from './helpers/workspace';
+import { createCalculatedPipe, fetchProjectObjects, loginAsGuest } from './helpers/workspace';
 
 test.describe('4.3 Расчёт тепловых потерь', () => {
   test('пустой проект показывает рабочий экран теплопотерь и блокирует электрорасчёт', async ({
@@ -103,10 +103,16 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     await expect(typeToolbar.getByRole('button', { name: /Трубопровод:\s*1/ })).toBeVisible();
     await expect(typeToolbar.getByRole('button', { name: /Все:\s*1/ })).toBeVisible();
     await expect(page.getByText(/Все рассчитаны/)).toHaveCount(0);
-    await expect(page.getByText(pipeName)).toBeVisible();
-    await expect(page.getByText('108')).toBeVisible();
-    await expect(page.getByText('50,0')).toBeVisible();
-    await expect(page.getByText(/Плиты минераловатные прошивные/i)).toBeVisible();
+    await expect(page.locator('.calc-spreadsheet--normal-glide canvas').first()).toBeVisible();
+    const objects = await fetchProjectObjects(page);
+    const savedObject = objects.find((object) => object.params.name === pipeName);
+    expect(savedObject?.is_valid).toBe(true);
+    expect(savedObject?.params).toMatchObject({
+      outer_diameter: 0.108,
+      insulation_thickness: 0.05,
+      insulation_material: 'mineral_wool_boards_120',
+    });
+    expect(savedObject?.results?.heat_loss_per_meter).toBeTruthy();
 
     await expect(page.getByRole('button', { name: /Электрорасчёт/i })).toHaveCount(0);
     await expect(page.getByRole('menuitem', { name: /Электротехнический расчёт/i })).toBeVisible();
@@ -124,13 +130,14 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
 
     await page.getByText('Excel-режим', { exact: true }).click();
 
-    const row = page.getByRole('row').filter({ hasText: pipeName }).first();
-    await expect(row).toBeVisible();
-    await expect(row.getByText('5,0', { exact: true })).toBeVisible();
-    await page.locator('.ant-table-body').evaluate((element) => {
-      element.scrollLeft = element.scrollWidth;
+    await expect(page.locator('.calc-spreadsheet--excel-mode canvas').first()).toBeVisible();
+    const objects = await fetchProjectObjects(page);
+    const savedObject = objects.find((object) => object.params.name === pipeName);
+    expect(savedObject?.params).toMatchObject({
+      pipe_length: 5,
+      wall_thickness: 0.001,
+      safety_factor: 1.1,
     });
-    await expect(row.getByText('1,10', { exact: true })).toBeVisible();
   });
 
   test('со страницы теплопотерь открывается электрорасчёт и запускается ручной пересчёт', async ({

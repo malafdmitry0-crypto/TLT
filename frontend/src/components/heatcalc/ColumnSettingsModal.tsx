@@ -79,6 +79,10 @@ const SERVICE_COLUMN_KEYS = new Set<HeatCalcColumnKey>([
   'type',
 ]);
 
+const SETTINGS_HIDDEN_COLUMN_KEYS = new Set<HeatCalcColumnKey>([
+  'index',
+]);
+
 const INPUT_COLUMN_BADGE: ColumnNatureBadge = {
   label: 'Вводится',
   tooltip: 'Входной параметр объекта. Значение хранится в project_objects.params и может вводиться вручную, через форму или импорт.',
@@ -633,9 +637,23 @@ export default function ColumnSettingsModal({
     draftColumnSettings,
     draftViewSettings.settingsLabelFormat,
   );
-  const visibleColumns = columns.filter((column) => column.visible);
-  const hiddenColumns = columns.filter((column) => !column.visible);
+  const settingsColumns = columns.filter((column) => !SETTINGS_HIDDEN_COLUMN_KEYS.has(column.key));
+  const visibleSourceColumns = settingsColumns.filter((column) => column.visible);
+  const visibleColumns = visibleSourceColumns.map((column, index) => ({
+    ...column,
+    order: index + 1,
+  }));
+  const hiddenColumns = settingsColumns.filter((column) => !column.visible);
   const visibleRowCount = visibleColumns.length;
+  const handleOrderChange = (key: HeatCalcColumnKey, order: number) => {
+    const currentIndex = visibleSourceColumns.findIndex((column) => column.key === key);
+    if (currentIndex < 0) return;
+    const boundedOrder = Math.min(Math.max(1, Math.round(order)), Math.max(1, visibleSourceColumns.length));
+    if (boundedOrder === currentIndex + 1) return;
+    const targetColumn = visibleSourceColumns[boundedOrder - 1];
+    if (!targetColumn?.order) return;
+    onOrderChange(activeType, key, targetColumn.order);
+  };
 
   return (
     <Modal
@@ -709,7 +727,7 @@ export default function ColumnSettingsModal({
                             stepSettings={getColumnStepSettings(activeType, column.key, draftFieldInputSettings)}
                             rowCount={visibleRowCount}
                             onVisibleChange={(key, visible) => onVisibleChange(activeType, key, visible)}
-                            onOrderChange={(key, order) => onOrderChange(activeType, key, order)}
+                            onOrderChange={handleOrderChange}
                             onWidthChange={(key, widthPct) => onWidthChange(activeType, key, widthPct)}
                             onStepChange={(targets, step) => {
                               targets.forEach((target) => onFieldStepChange(target.objectType, target.fieldId, step));
@@ -734,7 +752,7 @@ export default function ColumnSettingsModal({
                           stepSettings={getColumnStepSettings(activeType, column.key, draftFieldInputSettings)}
                           rowCount={visibleRowCount}
                           onVisibleChange={(key, visible) => onVisibleChange(activeType, key, visible)}
-                          onOrderChange={(key, order) => onOrderChange(activeType, key, order)}
+                          onOrderChange={handleOrderChange}
                           onWidthChange={(key, widthPct) => onWidthChange(activeType, key, widthPct)}
                           onStepChange={(targets, step) => {
                             targets.forEach((target) => onFieldStepChange(target.objectType, target.fieldId, step));

@@ -28,6 +28,21 @@ export async function currentGuestContext(page: Page): Promise<{
   return { projectId, sessionId: sessionId! };
 }
 
+export async function fetchProjectObjects(page: Page) {
+  const { projectId, sessionId } = await currentGuestContext(page);
+  const response = await page.request.get(`${API_BASE}/api/v1/projects/${projectId}/objects`, {
+    headers: { 'X-Session-Id': sessionId },
+  });
+  expect(response.ok()).toBeTruthy();
+  return response.json() as Promise<Array<{
+    id: string;
+    object_type: string;
+    is_valid: boolean;
+    params: Record<string, unknown>;
+    results?: Record<string, unknown> | null;
+  }>>;
+}
+
 export async function createCalculatedPipe(
   page: Page,
   name = `E2E труба ${Date.now()}`,

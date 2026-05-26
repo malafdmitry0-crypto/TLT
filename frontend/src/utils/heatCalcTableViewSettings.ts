@@ -200,7 +200,13 @@ export function resolveTableFontSize(
   settings: HeatCalcTableViewSettings,
 ): HeatCalcResolvedTableFontSize {
   const normalized = normalizeTableViewSettings(settings);
-  return FONT_SIZE_BY_KEY.get(normalized.fontSize) ?? FONT_SIZE_BY_KEY.get(defaultFontSize()) ?? {
+  return resolveTableFontSizeByKey(normalized.fontSize);
+}
+
+export function resolveTableFontSizeByKey(
+  fontSize: string | null | undefined,
+): HeatCalcResolvedTableFontSize {
+  return FONT_SIZE_BY_KEY.get(fontSize as HeatCalcTableFontSize) ?? FONT_SIZE_BY_KEY.get(defaultFontSize()) ?? {
     key: 'standard',
     label: 'Стандартный',
     fontSizePx: 12,
