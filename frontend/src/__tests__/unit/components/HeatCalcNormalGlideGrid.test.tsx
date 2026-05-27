@@ -450,6 +450,15 @@ describe('HeatCalcNormalGlideGrid', () => {
 
     expect(onCellAction).toHaveBeenCalledWith(rows[0], 'cable_mark', 'choose');
     expect(onOpenEditWizard).not.toHaveBeenCalled();
+
+    act(() => onCellClicked([0, 0], {
+      preventDefault: vi.fn(),
+      bounds: { x: 72, y: 20, width: 180, height: 30 },
+      localEventX: 140,
+      localEventY: 15,
+    }));
+
+    expect(onCellAction).toHaveBeenLastCalledWith(rows[0], 'cable_mark', 'size');
   });
 
   it('opens a normal-mode inline editor when the cell state is editable', () => {

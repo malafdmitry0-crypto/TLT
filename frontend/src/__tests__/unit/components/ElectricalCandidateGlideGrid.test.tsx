@@ -202,6 +202,14 @@ describe('ElectricalCandidateGlideGrid', () => {
     expect(getActionMenuItems).toHaveBeenCalledWith(rows[0], 'actions', 'folder');
     fireEvent.click(screen.getByText('Избранное'));
     expect(menuClick).toHaveBeenCalled();
+
+    act(() => onCellClicked([1, 0], {
+      preventDefault: vi.fn(),
+      bounds: { x: 72, y: 20, width: 180, height: 28 },
+      localEventX: 140,
+      localEventY: 14,
+    }));
+    expect(onCellAction).toHaveBeenLastCalledWith(rows[0], 'actions', 'exclude');
   });
 
   it('keeps candidate sort and filter controls wired to page state', async () => {

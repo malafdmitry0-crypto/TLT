@@ -65,17 +65,6 @@ async function applyCandidate(page: Page, sessionId: string, candidateId: string
   expect(response.ok()).toBeTruthy();
 }
 
-async function excludeCandidate(page: Page, sessionId: string, candidateId: string) {
-  const response = await page.request.patch(
-    `${API_BASE}/api/v1/calc/electrical/candidates/${candidateId}`,
-    {
-      headers: { 'X-Session-Id': sessionId },
-      data: { status: 'excluded' },
-    },
-  );
-  expect(response.ok()).toBeTruthy();
-}
-
 async function createCandidateFolder(
   page: Page,
   projectId: string,
@@ -146,6 +135,17 @@ async function appliedCandidateIds(
 ) {
   const candidates = await listCandidates(page, projectId, sessionId, objectId);
   return candidates.filter((candidate) => candidate.is_applied).map((candidate) => candidate.id);
+}
+
+async function candidateStatus(
+  page: Page,
+  projectId: string,
+  sessionId: string,
+  objectId: string,
+  candidateId: string,
+) {
+  const candidates = await listCandidates(page, projectId, sessionId, objectId);
+  return candidates.find((candidate) => candidate.id === candidateId)?.status;
 }
 
 async function clickCandidateActionUntil(
@@ -235,9 +235,21 @@ test('Candidate Glide is default and keeps apply/folder/exclude mutations after 
     return folders.find((folder) => folder.name === 'Согласовать')?.candidate_ids ?? [];
   }).toContain(second.id);
 
-  await excludeCandidate(page, sessionId, first.id);
+  await page.keyboard.press('Escape');
+  await clickCandidateActionUntil(
+    page,
+    reloadedCandidateCanvas,
+    73,
+    [210, 220, 230, 240, 250, 260],
+    async () => (await candidateStatus(page, projectId, sessionId, pipe.id, first.id)) === 'excluded',
+  );
+  await expect.poll(
+    async () => candidateStatus(page, projectId, sessionId, pipe.id, first.id),
+  ).toBe('excluded');
+
   await page.reload();
   await openCandidateDialogFromDefaultGlide(page);
-  const candidatesAfterExclude = await listCandidates(page, projectId, sessionId, pipe.id);
-  expect(candidatesAfterExclude.find((candidate) => candidate.id === first.id)?.status).toBe('excluded');
+  await expect.poll(
+    async () => candidateStatus(page, projectId, sessionId, pipe.id, first.id),
+  ).toBe('excluded');
 });

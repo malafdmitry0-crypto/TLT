@@ -247,17 +247,17 @@ function findActionAt(actions: HeatCalcGlideGridCellAction[] | undefined, event:
     : null;
   const localX = rawLocalX == null
     ? bounds.width / 2
-    : bounds.x != null && rawLocalX >= bounds.x && rawLocalX <= bounds.x + bounds.width
-      ? rawLocalX - bounds.x
-      : rawLocalX >= 0 && rawLocalX <= bounds.width
-        ? rawLocalX
+    : rawLocalX >= 0 && rawLocalX <= bounds.width
+      ? rawLocalX
+      : bounds.x != null && rawLocalX >= bounds.x && rawLocalX <= bounds.x + bounds.width
+        ? rawLocalX - bounds.x
         : rawLocalX - (bounds.x ?? 0);
   const localY = rawLocalY == null
     ? bounds.height / 2
-    : bounds.y != null && rawLocalY >= bounds.y && rawLocalY <= bounds.y + bounds.height
-      ? rawLocalY - bounds.y
-      : rawLocalY >= 0 && rawLocalY <= bounds.height
-        ? rawLocalY
+    : rawLocalY >= 0 && rawLocalY <= bounds.height
+      ? rawLocalY
+      : bounds.y != null && rawLocalY >= bounds.y && rawLocalY <= bounds.y + bounds.height
+        ? rawLocalY - bounds.y
         : rawLocalY - (bounds.y ?? 0);
   return actionRects(actions, bounds.width, bounds.height)
     .find((rect) =>
