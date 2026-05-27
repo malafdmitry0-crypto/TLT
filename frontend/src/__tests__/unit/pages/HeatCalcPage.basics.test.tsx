@@ -54,6 +54,19 @@ describe('HeatCalcPage basics', () => {
 
 
   describe('Переключатель типа объектов', () => {
+    it('обычный режим игнорирует старый флаг normalTableEngine=table и всегда показывает Glide', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+      localStorage.setItem('heatcalc.normalTableEngine', 'table');
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      renderPage();
+
+      expect(await screen.findByText('Труба DN100')).toBeInTheDocument();
+      expect(getNormalGlideGrid()).toBeInTheDocument();
+      expect(document.querySelector('.ant-table-wrapper')).not.toBeInTheDocument();
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
     it('по умолчанию показывает только трубопроводы', async () => {
       const { listObjects } = await import('@/api/projects');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([

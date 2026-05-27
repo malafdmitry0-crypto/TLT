@@ -1,15 +1,12 @@
-import { Button, Card, Table, Typography, type TableProps } from 'antd';
-import { lazy, Suspense, type Key, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { Button, Card, Typography, type TableProps } from 'antd';
+import { lazy, Suspense, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import type { ColumnType } from 'antd/es/table';
 
 import HeatCalcExcelGrid from '@/components/heatcalc/HeatCalcExcelGrid';
 import type { HeatCalcExcelCellCoordinates } from '@/hooks/useHeatCalcExcelSelection';
 import type { ProjectObject } from '@/types/project';
 import type { ExcelCellPosition, ExcelSelectionRange } from '@/utils/heatCalcExcelMode';
-import {
-  resolveHeatCalcExcelEngine,
-  resolveHeatCalcNormalTableEngine,
-} from '@/utils/heatCalcExcelEngine';
+import { resolveHeatCalcExcelEngine } from '@/utils/heatCalcExcelEngine';
 import type {
   HeatCalcGlideGridCellState,
   HeatCalcGlideGridColumn,
@@ -84,7 +81,6 @@ interface HeatCalcObjectsTableCardProps {
   onOpenEditWizard: (record: ProjectObject) => void;
   onResetCurrentTableViewState: () => void;
   onSelectedRowKeysChange: (keys: string[]) => void;
-  onSourceTableChange: NonNullable<TableProps<ProjectObject>['onChange']>;
   rowClassName: (record: ProjectObject) => string;
 }
 
@@ -179,11 +175,9 @@ export default function HeatCalcObjectsTableCard({
   onOpenEditWizard,
   onResetCurrentTableViewState,
   onSelectedRowKeysChange,
-  onSourceTableChange,
   rowClassName,
 }: HeatCalcObjectsTableCardProps) {
   const excelEngine = excelModeEnabled ? resolveHeatCalcExcelEngine() : 'table';
-  const normalEngine = excelModeEnabled ? 'table' : resolveHeatCalcNormalTableEngine();
   const excelEmptyContent = excelModeEnabled
     ? getExcelEmptyContent({
       activeObjectScope,
@@ -242,7 +236,7 @@ export default function HeatCalcObjectsTableCard({
         </Suspense>
       ) : excelModeEnabled ? (
         tableGrid
-      ) : normalEngine === 'glide' ? (
+      ) : (
         <Suspense fallback={null}>
           <HeatCalcNormalGlideGrid
             rows={dataSource}
@@ -271,36 +265,6 @@ export default function HeatCalcObjectsTableCard({
             onLoadMore={onNormalLoadMore}
           />
         </Suspense>
-      ) : (
-        <Table<ProjectObject>
-          className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey}`}
-          rowKey="id"
-          size="small"
-          pagination={normalPagination}
-          dataSource={dataSource}
-          columns={columns}
-          onChange={onSourceTableChange}
-          scroll={{
-            x: tableScrollX,
-            y: tableScrollY,
-          }}
-          rowSelection={{
-            type: 'checkbox',
-            selectedRowKeys,
-            onChange: (keys: Key[]) => onSelectedRowKeysChange(keys as string[]),
-            columnWidth: 36,
-          }}
-          rowClassName={rowClassName}
-          onRow={(record) => ({
-            onClick: (event) => {
-              if ((event.target as HTMLElement).closest('.ant-table-selection-column')) return;
-              onOpenEditWizard(record);
-            },
-          })}
-          locale={{
-            emptyText: normalEmptyContent,
-          }}
-        />
       )}
     </Card>
   );

@@ -74,7 +74,6 @@ import {
 import type { ProjectObject, ProjectObjectsPageCursor, ProjectObjectsQueryResponse } from '@/types/project';
 import { formatNumber } from '@/utils/formatters';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
-import { resolveHeatCalcNormalTableEngine } from '@/utils/heatCalcExcelEngine';
 import { findDN } from '@/utils/objectWizardUtils';
 import {
   getHeatCalcFieldDefinition,
@@ -586,7 +585,7 @@ export default function HeatCalcPage() {
     ? tableCursorByType[activeTableObjectType]?.[activeTablePage] ?? null
     : null;
   const excelModeEnabled = tableEditingMode === 'excel' && !isAllObjectScope;
-  const normalGlideEnabled = !excelModeEnabled && resolveHeatCalcNormalTableEngine() === 'glide';
+  const normalGlideEnabled = !excelModeEnabled;
 
   const { data: objectQueryCapabilities } = useQuery({
     queryKey: ['project', project?.id, 'objects', 'query-capabilities', activeTableObjectType],
@@ -1803,14 +1802,9 @@ export default function HeatCalcPage() {
     appendExcelLocalRows(MIN_TRAILING_EXCEL_INPUT_ROWS);
   }, [appendExcelLocalRows, excelModeEnabled]);
 
-  const allTableOffset = isAllObjectScope && !normalGlideEnabled
-    ? (activeTablePage - 1) * DEFAULT_OBJECT_QUERY_PAGE_SIZE
-    : 0;
   const visibleAllTableRows = useMemo(
-    () => (normalGlideEnabled
-      ? allFilteredSortedTableRows
-      : allFilteredSortedTableRows.slice(allTableOffset, allTableOffset + DEFAULT_OBJECT_QUERY_PAGE_SIZE)),
-    [allFilteredSortedTableRows, allTableOffset, normalGlideEnabled],
+    () => allFilteredSortedTableRows,
+    [allFilteredSortedTableRows],
   );
   const baseVisibleTableObjects = useMemo(
     () => {
@@ -2778,34 +2772,6 @@ export default function HeatCalcPage() {
     setTableViewStateByType((current) => ({
       ...current,
       [activeTableObjectType]: createEmptyTableViewState(),
-    }));
-  }, [activeObjectScope, activeTableObjectType, isAllObjectScope]);
-
-  const handleSourceTableChange = useCallback<NonNullable<TableProps<ProjectObject>['onChange']>>((pagination, _filters, sorter, extra) => {
-    const nextPage = extra.action === 'sort' ? 1 : pagination.current ?? 1;
-    setTablePageByScope((current) => ({ ...current, [activeObjectScope]: nextPage }));
-    const nextSorter = Array.isArray(sorter)
-      ? sorter.find((item) => item.order)
-      : sorter;
-    const columnKey = typeof nextSorter?.columnKey === 'string' ? nextSorter.columnKey : null;
-    const order = nextSorter?.order;
-    if (isAllObjectScope) {
-      setAllTableViewState((current) => ({
-        ...current,
-        sort: columnKey && order
-          ? { columnKey, direction: order === 'ascend' ? 'asc' : 'desc' }
-          : undefined,
-      }));
-      return;
-    }
-    setTableViewStateByType((current) => ({
-      ...current,
-      [activeTableObjectType]: {
-        ...current[activeTableObjectType],
-        sort: columnKey && order
-          ? { columnKey, direction: order === 'ascend' ? 'asc' : 'desc' }
-          : undefined,
-      },
     }));
   }, [activeObjectScope, activeTableObjectType, isAllObjectScope]);
 
@@ -3907,7 +3873,6 @@ export default function HeatCalcPage() {
                 onOpenEditWizard={openEditWizard}
                 onResetCurrentTableViewState={resetCurrentTableViewState}
                 onSelectedRowKeysChange={setSelectedRowKeys}
-                onSourceTableChange={handleSourceTableChange}
                 rowClassName={tableRowClassName}
               />
             </div>

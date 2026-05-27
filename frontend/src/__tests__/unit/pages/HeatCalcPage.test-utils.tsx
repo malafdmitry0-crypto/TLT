@@ -9,7 +9,6 @@ import { cancelCalcTask, enqueueHeatLossBatchJob, getCalcTask } from '@/api/calc
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
-import { HEATCALC_NORMAL_TABLE_ENGINE_STORAGE_KEY } from '@/utils/heatCalcExcelEngine';
 import type { Project, ProjectObject, ProjectObjectsQueryRequest } from '@/types/project';
 
 export const HEATCALC_PAGE_TEST_TIMEOUT = 120_000;
@@ -726,7 +725,6 @@ export function getNormalGlideRowCells(row: HTMLElement) {
 export function setupHeatCalcPageTest() {
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem(HEATCALC_NORMAL_TABLE_ENGINE_STORAGE_KEY, 'glide');
     useAuthStore.getState().logout();
     useProjectStore.getState().setCurrentProject(null);
     useWorkspaceHeaderStore.getState().setContext(null);
