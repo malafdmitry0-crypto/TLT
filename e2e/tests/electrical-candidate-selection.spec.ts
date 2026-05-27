@@ -194,6 +194,13 @@ async function openCandidateDialog(page: Page, pipeName: string) {
 }
 
 test.describe('electrical candidate selection', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('electrical.tableEngine', 'table');
+      window.localStorage.setItem('electrical.candidateTableEngine', 'table');
+    });
+  });
+
   test('пометка, избранное и запрет не меняют выбранный кандидат', async ({ page }) => {
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);

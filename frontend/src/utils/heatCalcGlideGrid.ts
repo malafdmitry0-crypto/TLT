@@ -24,7 +24,7 @@ export interface HeatCalcGlideGridColumn {
   align?: HeatCalcGlideCellAlign;
   sortable?: boolean;
   filterable?: boolean;
-  filterKind?: 'text' | 'numberRange' | 'enum';
+  filterKind?: 'text' | 'numberRange' | 'enum' | 'boolean';
   enumOptions?: { label: string; value: string }[];
 }
 
@@ -37,6 +37,13 @@ export interface HeatCalcGlideGridCellState {
   editor?: HeatCalcGlideEditorKind;
   options?: { label: string; value: string | number }[];
   step?: number;
+  actions?: HeatCalcGlideGridCellAction[];
+}
+
+export interface HeatCalcGlideGridCellAction {
+  key: string;
+  label: string;
+  disabled?: boolean;
 }
 
 function isReactElementWithProps(value: ReactNode): value is ReactElement<Record<string, unknown>> {

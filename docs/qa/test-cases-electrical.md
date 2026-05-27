@@ -121,7 +121,9 @@
 **Автоматизировано:** ✅ (frontend) `ElecCalcPage.test.tsx` — в активной строке колонки `Марка` доступны кнопки `Выбор` и `Подбор`<br>
 **Автоматизировано:** ✅ (frontend) `ElecCalcPage.test.tsx` — в модалке `Подбор` TT-варианты с одинаковой маркой различимы по видимым колонкам `T3, °C`, `T проп., °C`, `Агр.`<br>
 **Автоматизировано:** ✅ (frontend/e2e) `ElecCalcPage.test.tsx`, `electrical-candidate-selection.spec.ts` — пометка двух вариантов включает сравнение и подсвечивает отличающиеся видимые поля<br>
-**Автоматизировано:** ✅ (e2e) `electrical-candidate-selection.spec.ts` — пометка/приоритет/запрет не выбирают кандидата, галочка выбирает по `candidate.id` и снимает предыдущий выбор
+**Автоматизировано:** ✅ (e2e) `electrical-candidate-selection.spec.ts` — пометка/приоритет/запрет не выбирают кандидата, галочка выбирает по `candidate.id` и снимает предыдущий выбор<br>
+**Автоматизировано:** ✅ (frontend/visual) `electrical-candidate-glide-grid-probe.mjs` — визуальный canvas proof для Glide-таблиц основного электрорасчёта и кандидатов; AntD fallback доступен только через явный engine `table`.<br>
+**Автоматизировано:** ✅ (e2e) `electrical-candidate-glide-default.spec.ts` — default Glide path на real backend: `apply`, папка, `exclude` и reload сохраняют состояние кандидатов.
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|

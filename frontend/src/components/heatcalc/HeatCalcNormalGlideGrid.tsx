@@ -31,6 +31,7 @@ import '@glideapps/glide-data-grid/dist/index.css';
 import ColumnFilterDropdown from '@/pages/heatcalc/HeatCalcColumnFilterDropdown';
 import type { ProjectObject } from '@/types/project';
 import type {
+  HeatCalcGlideGridCellAction,
   HeatCalcGlideGridCellState,
   HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
@@ -50,7 +51,7 @@ const NORMAL_HEADER_CONTROL_BG = '#f3f6f4';
 const NORMAL_HEADER_CONTROL_MUTED = '#7a8b99';
 const NORMAL_HEADER_CONTROL_FAINT = '#b8c2cc';
 const NORMAL_HEADER_CONTROL_ACTIVE = '#1a5276';
-const NORMAL_STATUS_COLUMN_KEY = 'heat_loss_status';
+const NORMAL_STATUS_COLUMN_KEYS = new Set(['heat_loss_status', 'electrical_status']);
 const NORMAL_STATUS_BADGE_MIN_RADIUS = 6;
 const NORMAL_STATUS_BADGE_MAX_RADIUS = 8;
 const NORMAL_GLIDE_MIN_COLUMN_WIDTH = 48;
@@ -59,10 +60,23 @@ const NORMAL_ACTIVE_ROW_BG = '#d6e9f5';
 const NORMAL_ACTIVE_ROW_BORDER = '#1a5276';
 const NORMAL_ERROR_ROW_BG = '#fff1f0';
 const NORMAL_DIRTY_ROW_BG = '#fffbe6';
+const NORMAL_CELL_ACTION_HEIGHT = 21;
+const NORMAL_CELL_ACTION_GAP = 4;
+const NORMAL_CELL_ACTION_PADDING = 6;
+const NORMAL_CELL_ACTION_MIN_WIDTH = 46;
+const NORMAL_CELL_ACTION_MAX_WIDTH = 68;
+const NORMAL_CELL_ACTION_TEXT_WIDTH = 6.8;
+const NORMAL_CELL_ACTION_BG = '#ffffff';
+const NORMAL_CELL_ACTION_BORDER = '#b8c8d6';
+const NORMAL_CELL_ACTION_TEXT = '#1a5276';
+const NORMAL_CELL_ACTION_DISABLED_BG = '#f5f5f5';
+const NORMAL_CELL_ACTION_DISABLED_BORDER = '#d9d9d9';
+const NORMAL_CELL_ACTION_DISABLED_TEXT = '#8c8c8c';
 
-type NormalStatusVisual = 'calculated' | 'error' | 'unsupported' | 'not_calculated';
+type NormalStatusVisual = 'calculated' | 'error' | 'unsupported' | 'stale' | 'not_calculated';
 
 interface HeatCalcNormalGlideGridProps {
+  className?: string;
   rows: ProjectObject[];
   gridColumns: HeatCalcGlideGridColumn[];
   tableScrollX: number;
@@ -91,6 +105,14 @@ interface HeatCalcNormalGlideGridProps {
   onColumnResizeEnd?: (columnKey: string, widthPx: number) => void;
   onPageChange: (page: number) => void;
   onLoadMore: () => void;
+  onCellAction?: (record: ProjectObject, columnKey: string, actionKey: string) => void;
+  renderFilterDropdown?: (props: {
+    column: HeatCalcGlideGridColumn;
+    filter?: HeatCalcColumnFilter;
+    onApply: (filter?: HeatCalcColumnFilter) => void;
+    onReset: () => void;
+    onClose: () => void;
+  }) => ReactNode;
 }
 
 interface FilterPopupState {
@@ -293,6 +315,7 @@ function normalStatusVisualFromValue(value: unknown): NormalStatusVisual | null 
   if (value === 'Рассчитан') return 'calculated';
   if (value === 'Ошибка') return 'error';
   if (value === 'Не применимо') return 'unsupported';
+  if (value === 'Требуется пересчёт') return 'stale';
   if (value === 'Не рассчитан' || value === '—' || value === '') return 'not_calculated';
   return null;
 }
@@ -303,6 +326,9 @@ function normalStatusPalette(status: NormalStatusVisual) {
   }
   if (status === 'error') {
     return { fill: '#fff1f0', stroke: '#ffccc7', glyph: '#cf1322' };
+  }
+  if (status === 'stale') {
+    return { fill: '#fffbe6', stroke: '#ffe58f', glyph: '#d48806' };
   }
   if (status === 'unsupported') {
     return { fill: '#fffbe6', stroke: '#ffe58f', glyph: '#d48806' };
@@ -351,6 +377,11 @@ function drawNormalStatusBadge(
     ctx.lineTo(centerX + glyphMediumOffset, centerY + glyphMediumOffset);
     ctx.moveTo(centerX + glyphMediumOffset, centerY - glyphMediumOffset);
     ctx.lineTo(centerX - glyphMediumOffset, centerY + glyphMediumOffset);
+  } else if (status === 'stale') {
+    ctx.arc(centerX, centerY, radius * 0.45, -Math.PI * 0.15, Math.PI * 1.35);
+    ctx.moveTo(centerX + radius * 0.14, centerY - radius * 0.62);
+    ctx.lineTo(centerX + radius * 0.58, centerY - radius * 0.55);
+    ctx.lineTo(centerX + radius * 0.42, centerY - radius * 0.15);
   } else {
     ctx.moveTo(centerX - glyphWideOffset, centerY);
     ctx.lineTo(centerX + glyphWideOffset, centerY);
@@ -407,7 +438,111 @@ function drawActiveNormalRowBorder(
   ctx.restore();
 }
 
+function normalCellActionWidth(action: HeatCalcGlideGridCellAction) {
+  return Math.max(
+    NORMAL_CELL_ACTION_MIN_WIDTH,
+    Math.min(NORMAL_CELL_ACTION_MAX_WIDTH, Math.ceil(action.label.length * NORMAL_CELL_ACTION_TEXT_WIDTH + 18)),
+  );
+}
+
+function normalCellActionRects(
+  actions: HeatCalcGlideGridCellAction[] | undefined,
+  width: number,
+  height: number,
+) {
+  if (!actions?.length) return [];
+  const widths = actions.map(normalCellActionWidth);
+  const totalWidth = widths.reduce((sum, actionWidth) => sum + actionWidth, 0)
+    + NORMAL_CELL_ACTION_GAP * Math.max(0, widths.length - 1);
+  let left = Math.max(
+    NORMAL_CELL_ACTION_PADDING,
+    width - NORMAL_CELL_ACTION_PADDING - totalWidth,
+  );
+  const top = Math.max(2, Math.floor((height - NORMAL_CELL_ACTION_HEIGHT) / 2));
+  return actions.map((action, index) => {
+    const actionWidth = widths[index];
+    const rect = {
+      action,
+      x: left,
+      y: top,
+      width: actionWidth,
+      height: NORMAL_CELL_ACTION_HEIGHT,
+    };
+    left += actionWidth + NORMAL_CELL_ACTION_GAP;
+    return rect;
+  });
+}
+
+function findNormalCellActionAt(
+  actions: HeatCalcGlideGridCellAction[] | undefined,
+  event: CellClickedEventArgs,
+) {
+  if (!actions?.length) return undefined;
+  const bounds = (event as { bounds?: { x?: number; y?: number; width: number; height: number } }).bounds;
+  if (!bounds || bounds.width <= 0 || bounds.height <= 0) return undefined;
+  const rawLocalX = typeof (event as { localEventX?: unknown }).localEventX === 'number'
+    ? (event as { localEventX: number }).localEventX
+    : null;
+  const rawLocalY = typeof (event as { localEventY?: unknown }).localEventY === 'number'
+    ? (event as { localEventY: number }).localEventY
+    : null;
+  const localX = rawLocalX == null
+    ? bounds.width / 2
+    : bounds.x != null && rawLocalX >= bounds.x && rawLocalX <= bounds.x + bounds.width
+      ? rawLocalX - bounds.x
+      : rawLocalX >= 0 && rawLocalX <= bounds.width
+        ? rawLocalX
+        : rawLocalX - (bounds.x ?? 0);
+  const localY = rawLocalY == null
+    ? bounds.height / 2
+    : bounds.y != null && rawLocalY >= bounds.y && rawLocalY <= bounds.y + bounds.height
+      ? rawLocalY - bounds.y
+      : rawLocalY >= 0 && rawLocalY <= bounds.height
+        ? rawLocalY
+        : rawLocalY - (bounds.y ?? 0);
+
+  return normalCellActionRects(actions, bounds.width, bounds.height)
+    .find((rect) =>
+      localX >= rect.x
+      && localX <= rect.x + rect.width
+      && localY >= rect.y
+      && localY <= rect.y + rect.height,
+    )?.action;
+}
+
+function drawNormalCellActions(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  actions: HeatCalcGlideGridCellAction[] | undefined,
+) {
+  const actionRects = normalCellActionRects(actions, rect.width, rect.height);
+  if (actionRects.length === 0) return;
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '11px inherit';
+  for (const actionRect of actionRects) {
+    const left = Math.floor(rect.x + actionRect.x) + 0.5;
+    const top = Math.floor(rect.y + actionRect.y) + 0.5;
+    const disabled = actionRect.action.disabled;
+    ctx.fillStyle = disabled ? NORMAL_CELL_ACTION_DISABLED_BG : NORMAL_CELL_ACTION_BG;
+    ctx.strokeStyle = disabled ? NORMAL_CELL_ACTION_DISABLED_BORDER : NORMAL_CELL_ACTION_BORDER;
+    ctx.lineWidth = 1;
+    ctx.fillRect(left, top, actionRect.width, actionRect.height);
+    ctx.strokeRect(left, top, actionRect.width, actionRect.height);
+    ctx.fillStyle = disabled ? NORMAL_CELL_ACTION_DISABLED_TEXT : NORMAL_CELL_ACTION_TEXT;
+    ctx.fillText(
+      actionRect.action.label,
+      left + actionRect.width / 2,
+      top + actionRect.height / 2 + 0.5,
+    );
+  }
+  ctx.restore();
+}
+
 function HeatCalcNormalGlideGrid({
+  className,
   rows,
   gridColumns,
   tableScrollX,
@@ -432,6 +567,8 @@ function HeatCalcNormalGlideGrid({
   onColumnResizeEnd,
   onPageChange,
   onLoadMore,
+  onCellAction,
+  renderFilterDropdown,
 }: HeatCalcNormalGlideGridProps) {
   const [filterPopup, setFilterPopup] = useState<FilterPopupState | null>(null);
   const [editingCell, setEditingCell] = useState<NormalGlideEditingCell | null>(null);
@@ -502,7 +639,7 @@ function HeatCalcNormalGlideGrid({
       allowOverlay: false,
       readonly: !state.editable,
       data: state.displayValue,
-      displayData: column.key === NORMAL_STATUS_COLUMN_KEY ? '' : state.displayValue,
+      displayData: NORMAL_STATUS_COLUMN_KEYS.has(column.key) ? '' : state.displayValue,
       copyData: state.displayValue,
       contentAlign: state.align ?? column.align ?? (state.editor === 'number' ? 'right' : 'left'),
       themeOverride: bgCell ? { bgCell } : undefined,
@@ -525,11 +662,13 @@ function HeatCalcNormalGlideGrid({
       drawActiveNormalRowBorder(args.ctx, args.rect, args.col, visibleGridColumns.length);
     }
     const column = visibleGridColumns[args.col];
-    if (column?.key !== NORMAL_STATUS_COLUMN_KEY) return;
+    const state = column ? getModelCell(args.col, args.row)?.state : undefined;
+    drawNormalCellActions(args.ctx, args.rect, state?.actions);
+    if (!column || !NORMAL_STATUS_COLUMN_KEYS.has(column.key)) return;
     const status = normalStatusVisualFromValue(args.cell.kind === GridCellKind.Text ? args.cell.data : null);
     if (!status) return;
     drawNormalStatusBadge(args.ctx, args.rect, status);
-  }, [activeRowId, rows, visibleGridColumns]);
+  }, [activeRowId, getModelCell, rows, visibleGridColumns]);
   const handleGridSelectionChange = useCallback((nextSelection: GridSelection) => {
     const currentCell = nextSelection.current?.cell;
     const rowIndexes = nextSelection.rows.toArray();
@@ -621,14 +760,26 @@ function HeatCalcNormalGlideGrid({
     event.preventDefault();
     setActiveCell(cell);
     syncActiveRecordFromCell(cell);
+    const modelCell = getModelCell(cell[0], cell[1]);
+    const action = modelCell ? findNormalCellActionAt(modelCell.state.actions, event) : undefined;
+    if (modelCell && action) {
+      if (!action.disabled) onCellAction?.(modelCell.record, modelCell.column.key, action.key);
+      return;
+    }
     if (openEditorForCell(cell, event.bounds)) return;
-  }, [openEditorForCell, syncActiveRecordFromCell, updateRowSelectionFromClick]);
+  }, [getModelCell, onCellAction, openEditorForCell, syncActiveRecordFromCell, updateRowSelectionFromClick]);
   const handleCellActivated = useCallback((cell: Item) => {
     if (cell[0] < 0) return;
     setActiveCell(cell);
     syncActiveRecordFromCell(cell);
+    const modelCell = getModelCell(cell[0], cell[1]);
+    const action = modelCell?.state.actions?.find((candidate) => !candidate.disabled);
+    if (modelCell && action) {
+      onCellAction?.(modelCell.record, modelCell.column.key, action.key);
+      return;
+    }
     openEditorForCell(cell);
-  }, [openEditorForCell, syncActiveRecordFromCell]);
+  }, [getModelCell, onCellAction, openEditorForCell, syncActiveRecordFromCell]);
   const handleCellEdited = useCallback((cell: Item, newValue: EditableGridCell) => {
     const modelCell = getModelCell(cell[0], cell[1]);
     if (!modelCell?.state.editable) return;
@@ -780,7 +931,7 @@ function HeatCalcNormalGlideGrid({
 
   if (rows.length === 0) {
     return (
-      <div className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide`}>
+      <div className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`}>
         <div className="excel-virtual-empty">
           {emptyContent}
         </div>
@@ -789,7 +940,7 @@ function HeatCalcNormalGlideGrid({
   }
 
   return (
-    <div className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide`}>
+    <div className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`}>
       <DataEditor
         className="heatcalc-glide-editor"
         ref={editorRef}
@@ -948,15 +1099,25 @@ function HeatCalcNormalGlideGrid({
       )}
       {filterPopup && activeFilterColumn && activeFilterColumn.filterable && (
         <div ref={filterPopupRef} className="heatcalc-normal-glide-filter-popup" style={filterPopupStyle}>
-          <ColumnFilterDropdown
-            title={activeFilterColumn.label ?? activeFilterColumn.title}
-            kind={activeFilterColumn.filterKind ?? 'text'}
-            filter={tableViewState.filters[activeFilterColumn.key]}
-            enumOptions={activeFilterColumn.enumOptions ?? []}
-            onApply={(filter) => onSetColumnFilter(activeFilterColumn.key, filter)}
-            onReset={() => onResetColumnFilter(activeFilterColumn.key)}
-            onClose={() => setFilterPopup(null)}
-          />
+          {renderFilterDropdown ? renderFilterDropdown({
+            column: activeFilterColumn,
+            filter: tableViewState.filters[activeFilterColumn.key],
+            onApply: (filter) => onSetColumnFilter(activeFilterColumn.key, filter),
+            onReset: () => onResetColumnFilter(activeFilterColumn.key),
+            onClose: () => setFilterPopup(null),
+          }) : (
+            <ColumnFilterDropdown
+              title={activeFilterColumn.label ?? activeFilterColumn.title}
+              kind={activeFilterColumn.filterKind === 'boolean'
+                ? 'enum'
+                : activeFilterColumn.filterKind ?? 'text'}
+              filter={tableViewState.filters[activeFilterColumn.key]}
+              enumOptions={activeFilterColumn.enumOptions ?? []}
+              onApply={(filter) => onSetColumnFilter(activeFilterColumn.key, filter)}
+              onReset={() => onResetColumnFilter(activeFilterColumn.key)}
+              onClose={() => setFilterPopup(null)}
+            />
+          )}
         </div>
       )}
     </div>

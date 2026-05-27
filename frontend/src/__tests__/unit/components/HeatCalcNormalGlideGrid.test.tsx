@@ -353,6 +353,105 @@ describe('HeatCalcNormalGlideGrid', () => {
     expect(ctx.stroke).toHaveBeenCalled();
   });
 
+  it('draws active cell actions and routes action clicks without DOM buttons per row', () => {
+    const onCellAction = vi.fn();
+    const onOpenEditWizard = vi.fn();
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[{ key: 'cable_mark', title: 'Cable mark', width: 180 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        activeRowId="row-1"
+        selectedRowKeys={[]}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={null}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={() => ({
+          displayValue: 'TLT-30',
+          editable: false,
+          actions: [
+            { key: 'choose', label: 'Выбор' },
+            { key: 'size', label: 'Подбор' },
+          ],
+        })}
+        onOpenEditWizard={onOpenEditWizard}
+        onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
+        onCellAction={onCellAction}
+      />,
+    );
+
+    const getCellContent = normalGlideMock.props?.getCellContent as ((cell: [number, number]) => unknown);
+    const actionCell = getCellContent([0, 0]);
+    const drawCell = normalGlideMock.props?.drawCell as (
+      args: {
+        ctx: Record<string, unknown>;
+        cell: typeof actionCell;
+        col: number;
+        row: number;
+        rect: { x: number; y: number; width: number; height: number };
+      },
+      drawContent: () => void,
+    ) => void;
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+      fillRect: vi.fn(),
+      strokeRect: vi.fn(),
+      fillText: vi.fn(),
+      set strokeStyle(_value: string) {},
+      set fillStyle(_value: string) {},
+      set lineWidth(_value: number) {},
+      set textAlign(_value: string) {},
+      set textBaseline(_value: string) {},
+      set font(_value: string) {},
+    };
+
+    drawCell({
+      ctx,
+      cell: actionCell,
+      col: 0,
+      row: 0,
+      rect: { x: 10, y: 20, width: 180, height: 30 },
+    }, vi.fn());
+
+    expect(ctx.fillText).toHaveBeenCalledWith('Выбор', expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('Подбор', expect.any(Number), expect.any(Number));
+
+    const onCellClicked = normalGlideMock.props?.onCellClicked as (
+      cell: [number, number],
+      event: {
+        preventDefault: () => void;
+        bounds: { x: number; y: number; width: number; height: number };
+        localEventX: number;
+        localEventY: number;
+      },
+    ) => void;
+    act(() => onCellClicked([0, 0], {
+      preventDefault: vi.fn(),
+      bounds: { x: 10, y: 20, width: 180, height: 30 },
+      localEventX: 82,
+      localEventY: 15,
+    }));
+
+    expect(onCellAction).toHaveBeenCalledWith(rows[0], 'cable_mark', 'choose');
+    expect(onOpenEditWizard).not.toHaveBeenCalled();
+  });
+
   it('opens a normal-mode inline editor when the cell state is editable', () => {
     const onOpenEditWizard = vi.fn();
     const onStartCellEdit = vi.fn();

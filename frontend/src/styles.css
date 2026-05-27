@@ -4104,6 +4104,36 @@ html, body, #root {
   background: #fff;
 }
 
+.electrical-candidate-spreadsheet--glide {
+  position: relative;
+  min-height: 0;
+}
+
+.electrical-candidate-spreadsheet--glide .dvn-stack {
+  font-size: 11px;
+}
+
+.electrical-candidate-glide-loading {
+  position: absolute;
+  inset: 34px 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 24px;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.42);
+  z-index: 2;
+}
+
+.electrical-candidate-glide-action-menu {
+  position: absolute;
+  min-width: 160px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.14);
+  z-index: 8;
+}
+
 .electrical-spreadsheet .electrical-status-icon-tag {
   display: inline-flex;
   align-items: center;

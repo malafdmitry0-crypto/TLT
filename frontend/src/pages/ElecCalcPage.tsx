@@ -1,9 +1,11 @@
 import {
   useCallback,
   useEffect,
+  lazy,
   useMemo,
   useRef,
   useState,
+  Suspense,
   type HTMLAttributes,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
@@ -177,6 +179,20 @@ import {
   type ElectricalTableViewSettings,
 } from '@/utils/electricalTableViewSettings';
 import {
+  resolveElectricalCandidateTableEngine,
+  resolveElectricalTableEngine,
+} from '@/utils/electricalTableEngine';
+import {
+  buildElectricalGlideColumns,
+} from '@/utils/electricalGlideGrid';
+import {
+  buildElectricalCandidateGlideColumns,
+} from '@/utils/electricalCandidateGlideGrid';
+import type {
+  HeatCalcGlideGridCellState,
+  HeatCalcGlideGridColumn,
+} from '@/utils/heatCalcGlideGrid';
+import {
   externalLabelSourceForCableRow,
   type CableCatalogRow,
   visibleCableRowsForSource,
@@ -198,6 +214,8 @@ import type {
 } from '@/types/project';
 
 const { Text } = Typography;
+const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
+const ElectricalCandidateGlideGrid = lazy(() => import('@/components/electrical/ElectricalCandidateGlideGrid'));
 
 type CableTypeKey =
   | 'self_regulating'
@@ -1220,6 +1238,19 @@ export default function ElecCalcPage() {
   const isEmployee = role === 'employee' || role === 'admin';
   const isRegisteredUser = isEmployee;
   const location = useLocation();
+  const electricalTableEngine = useMemo(
+    () => resolveElectricalTableEngine({ search: location.search }),
+    [location.search],
+  );
+  const electricalCandidateTableEngine = useMemo(
+    () => resolveElectricalCandidateTableEngine({
+      search: location.search,
+      fallback: electricalTableEngine,
+    }),
+    [electricalTableEngine, location.search],
+  );
+  const electricalGlideEnabled = electricalTableEngine === 'glide';
+  const electricalCandidateGlideEnabled = electricalCandidateTableEngine === 'glide';
   const navigationActiveJobId =
     (location.state as ElectricalNavigationState)?.activeJobId ?? null;
   const storedVariant = useCalculationVariantStore((s) =>
@@ -2821,6 +2852,17 @@ export default function ElecCalcPage() {
     setTableViewState(createEmptyTableViewState());
   }, []);
 
+  const setElectricalTableSort = useCallback((
+    columnKey: ElectricalColumnKey,
+    direction?: 'asc' | 'desc',
+  ) => {
+    setTablePage(1);
+    setTableViewState((current) => ({
+      ...current,
+      sort: direction ? { columnKey, direction } : undefined,
+    }));
+  }, []);
+
   const setCandidateColumnFilter = useCallback((
     columnKey: ElectricalCandidateColumnKey,
     filter?: HeatCalcColumnFilter,
@@ -2845,6 +2887,16 @@ export default function ElecCalcPage() {
 
   const resetCandidateTableViewState = useCallback(() => {
     setCandidateTableViewState(createEmptyTableViewState());
+  }, []);
+
+  const setCandidateTableSort = useCallback((
+    columnKey: ElectricalCandidateColumnKey,
+    direction?: 'asc' | 'desc',
+  ) => {
+    setCandidateTableViewState((current) => ({
+      ...current,
+      sort: direction ? { columnKey, direction } : undefined,
+    }));
   }, []);
 
   const handleElectricalTableChange = useCallback<NonNullable<TableProps<ProjectObject>['onChange']>>((pagination, _filters, sorter, extra) => {
@@ -3327,6 +3379,26 @@ export default function ElecCalcPage() {
     persistTableColumnSettings(nextSettings, { showMessage: false });
   }, [persistTableColumnSettings]);
 
+  const applyElectricalGlideColumnDraftWidth = useCallback((
+    key: string,
+    widthPx: number,
+  ) => {
+    setTableColumnSettings((settings) =>
+      setElectricalTableColumnWidthPct(
+        settings,
+        key,
+        electricalTableColumnWidthPxToPct(widthPx),
+      ),
+    );
+  }, []);
+
+  const commitElectricalGlideColumnWidth = useCallback((
+    key: string,
+    widthPx: number,
+  ) => {
+    applyColumnWidth(key, electricalTableColumnWidthPxToPct(widthPx));
+  }, [applyColumnWidth]);
+
   const applyCandidateColumnWidth = useCallback((
     key: ElectricalCandidateColumnKey,
     widthPct: number,
@@ -3338,6 +3410,26 @@ export default function ElecCalcPage() {
     );
     persistCandidateTableColumnSettings(nextSettings, { showMessage: false });
   }, [persistCandidateTableColumnSettings]);
+
+  const applyElectricalCandidateGlideColumnDraftWidth = useCallback((
+    key: string,
+    widthPx: number,
+  ) => {
+    setCandidateTableColumnSettings((settings) =>
+      setElectricalCandidateTableColumnWidthPct(
+        settings,
+        key,
+        electricalTableColumnWidthPxToPct(widthPx),
+      ),
+    );
+  }, []);
+
+  const commitElectricalCandidateGlideColumnWidth = useCallback((
+    key: string,
+    widthPx: number,
+  ) => {
+    applyCandidateColumnWidth(key, electricalTableColumnWidthPxToPct(widthPx));
+  }, [applyCandidateColumnWidth]);
 
   const startColumnResize = useCallback((
     meta: { key: ElectricalColumnKey; width: number; widthPct: number },
@@ -3486,6 +3578,33 @@ export default function ElecCalcPage() {
       visibleElectricalColumnMetas,
     ]);
 
+  const electricalGlideColumns = useMemo<HeatCalcGlideGridColumn[]>(() =>
+    buildElectricalGlideColumns({
+      columns: visibleElectricalColumnMetas,
+      capabilitiesByKey: fieldCapabilityByKey,
+      enumOptionsByColumn,
+      getAlign: (key) => electricalColumnRenderers[key]?.align,
+    }), [
+      electricalColumnRenderers,
+      enumOptionsByColumn,
+      fieldCapabilityByKey,
+      visibleElectricalColumnMetas,
+    ]);
+
+  const candidateGlideColumnMetaByKey = useMemo(
+    () => new Map(visibleCandidateColumnMetas.map((column) => [column.key, column])),
+    [visibleCandidateColumnMetas],
+  );
+  const electricalCandidateGlideColumns = useMemo<HeatCalcGlideGridColumn[]>(() =>
+    buildElectricalCandidateGlideColumns({
+      columns: visibleCandidateColumnMetas,
+      enumOptionsByColumn: candidateEnumOptionsByColumn,
+      getFilterKind: filterKindForCandidateColumn,
+    }), [
+      candidateEnumOptionsByColumn,
+      visibleCandidateColumnMetas,
+    ]);
+
   const electricalColumnCopyValue = useCallback((
     key: ElectricalColumnKey,
     obj: ProjectObject,
@@ -3542,14 +3661,24 @@ export default function ElecCalcPage() {
           return source ? `${value} (${source.label})` : value;
         }
       case 'laying_step':
+        return valueText(calc?.params?.laying_step ?? layingStep);
       case 'heating_height':
+        return valueText(calc?.params?.heating_height ?? heatingHeight);
       case 'connection_type':
+        {
+          const value = calc?.params?.connection_type ?? connectionType;
+          return CONNECTION_TYPE_LABEL[String(value)] ?? valueText(value);
+        }
       case 'supply_voltage':
+        return valueText(calc?.params?.supply_voltage ?? supplyVoltage);
       case 'winding_coefficient':
+        return valueText(calc?.params?.winding_coefficient ?? windingCoefficient);
       case 'vapor_temperature':
+        return valueText(calc?.params?.vapor_temperature ?? vaporTemperature);
       case 'maintain_temperature':
+        return valueText(calc?.params?.maintain_temperature ?? maintainTemperature);
       case 'aggressive_product':
-        return valueText(calc?.params?.[key]);
+        return valueText(calc?.params?.aggressive_product ?? aggressiveProduct);
       case 'order_cable_length':
         return valueText(orderCableLengthValue(currentCalc));
       case 'installed_cable_length':
@@ -3574,7 +3703,64 @@ export default function ElecCalcPage() {
       default:
         return '';
     }
-  }, [getCalculatedCableTypeForObject, pageInfo?.offset, stats.calcByObjectId]);
+  }, [
+    aggressiveProduct,
+    connectionType,
+    getCalculatedCableTypeForObject,
+    heatingHeight,
+    layingStep,
+    maintainTemperature,
+    pageInfo?.offset,
+    stats.calcByObjectId,
+    supplyVoltage,
+    vaporTemperature,
+    windingCoefficient,
+  ]);
+
+  const getElectricalGlideCellState = useCallback((
+    obj: ProjectObject,
+    columnKey: string,
+    rowIndex: number,
+  ): HeatCalcGlideGridCellState => {
+    const renderer = electricalColumnRenderers[columnKey];
+    const actions = columnKey === 'cable_mark' && activeRowId === obj.id
+      ? [
+        {
+          key: 'choose',
+          label: 'Выбор',
+          disabled: !obj.is_valid || !project || isCableMarkPending,
+        },
+        {
+          key: 'size',
+          label: 'Подбор',
+          disabled: !project,
+        },
+      ]
+      : undefined;
+    return {
+      displayValue: String(electricalColumnCopyValue(columnKey, obj, rowIndex) ?? ''),
+      editable: false,
+      align: renderer?.align,
+      actions,
+    };
+  }, [activeRowId, electricalColumnCopyValue, electricalColumnRenderers, isCableMarkPending, project]);
+
+  const handleElectricalGlideCellAction = useCallback((
+    obj: ProjectObject,
+    columnKey: string,
+    actionKey: string,
+  ) => {
+    if (columnKey !== 'cable_mark') return;
+    if (actionKey === 'choose') {
+      if (!obj.is_valid || !project || isCableMarkPending) return;
+      openCableMarkModal(obj);
+      return;
+    }
+    if (actionKey === 'size') {
+      if (!project) return;
+      openCableSizingModal(obj);
+    }
+  }, [isCableMarkPending, openCableMarkModal, openCableSizingModal, project]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -3617,6 +3803,27 @@ export default function ElecCalcPage() {
     ),
     [visibleElectricalColumnMetas],
   );
+
+  const electricalTableScrollY = 'max(320px, calc(100vh - 230px))';
+
+  const handleElectricalGlidePageChange = useCallback((page: number) => {
+    setTablePage(page);
+  }, []);
+
+  const electricalRowClassName = useCallback((obj: ProjectObject) => {
+    const calc = stats.calcByObjectId[obj.id];
+    return [
+      electricalCalcError(calc) && !isElectricalCalcUnsupported(calc)
+        && !isElectricalCalcStale(calc)
+        ? 'row-invalid'
+        : '',
+      activeRowId === obj.id ? 'electrical-row-active' : '',
+    ].filter(Boolean).join(' ');
+  }, [activeRowId, stats.calcByObjectId]);
+
+  const openElectricalRow = useCallback((record: ProjectObject) => {
+    setActiveRowId(record.id);
+  }, []);
 
   function openColumnSettings() {
     setDraftTableColumnSettings(normalizeElectricalTableColumnSettings(tableColumnSettings));
@@ -3810,6 +4017,16 @@ export default function ElecCalcPage() {
 
   const totalObjects = pageSummary?.total_objects ?? objects.length;
   const filteredTableCount = electricalPage?.counts?.filtered ?? totalObjects;
+  const electricalPagination = useMemo<TableProps<ProjectObject>['pagination']>(() => ({
+    current: tablePage,
+    pageSize: tablePageSize,
+    total: filteredTableCount,
+    pageSizeOptions: ['25', '50', '100'],
+    showSizeChanger: true,
+    hideOnSinglePage: filteredTableCount <= tablePageSize,
+    showTotal: (total, range) => `${range[0]}-${range[1]} из ${total}`,
+    size: 'small',
+  }), [filteredTableCount, tablePage, tablePageSize]);
   const validObjectsCount = pageSummary?.valid_objects ?? stats.validObjects.length;
   const selectedObjectsCount = selectedRowKeys.length;
   const selectedObjects = useMemo(
@@ -3953,6 +4170,126 @@ export default function ElecCalcPage() {
       ? CABLE_TYPE_LABEL[selectedCableType]
       : 'тип по объектам';
   const cableTypeControlLabel = 'Тип для пересчёта:';
+  const toggleElectricalCandidateGlideMarked = useCallback((
+    candidate: ElectricalCandidate,
+    checked: boolean,
+  ) => {
+    toggleCableSizingCandidateMark(candidate.id, checked);
+  }, []);
+  const getElectricalCandidateGlideCellState = useCallback((
+    candidate: ElectricalCandidate,
+    columnKey: string,
+  ): HeatCalcGlideGridCellState => {
+    const marked = markedCableSizingCandidateSet.has(candidate.id);
+    const isDiff = (
+      cableSizingCandidateCompareActive
+      && marked
+      && candidateCompareDiffColumnKeys.has(columnKey)
+    );
+    const actions = columnKey === 'actions'
+      ? [
+        {
+          key: 'apply',
+          label: candidate.is_applied ? 'Выбран' : 'Выбрать',
+          disabled: candidate.status !== 'applicable' || applyCandidateMut.isPending,
+        },
+        {
+          key: 'folder',
+          label: 'Папка',
+          disabled: toggleCandidateFolderItemMut.isPending,
+        },
+        {
+          key: 'exclude',
+          label: candidate.status === 'excluded' ? 'Вернуть' : 'Искл.',
+          disabled: updateCandidateMut.isPending,
+        },
+      ]
+      : undefined;
+    return {
+      displayValue: columnKey === 'marked'
+        ? (marked ? '1' : '0')
+        : columnKey === 'actions'
+          ? ''
+          : candidateCompareDisplayValue(columnKey, candidate),
+      editable: false,
+      align: candidateGlideColumnMetaByKey.get(columnKey)?.align,
+      dirty: isDiff,
+      error: candidate.status === 'error'
+        ? candidate.reason_message ?? 'Ошибка варианта'
+        : undefined,
+      actions,
+    };
+  }, [
+    applyCandidateMut.isPending,
+    cableSizingCandidateCompareActive,
+    candidateCompareDiffColumnKeys,
+    candidateGlideColumnMetaByKey,
+    markedCableSizingCandidateSet,
+    toggleCandidateFolderItemMut.isPending,
+    updateCandidateMut.isPending,
+  ]);
+  const handleElectricalCandidateGlideCellAction = useCallback((
+    candidate: ElectricalCandidate,
+    columnKey: string,
+    actionKey: string,
+  ) => {
+    if (columnKey !== 'actions') return;
+    if (actionKey === 'apply') {
+      if (candidate.status !== 'applicable' || candidate.is_applied) return;
+      applyCandidateMut.mutate(candidate.id);
+      return;
+    }
+    if (actionKey === 'exclude') {
+      updateCandidateMut.mutate({
+        candidateId: candidate.id,
+        patch: {
+          status: candidate.status === 'excluded' ? 'applicable' : 'excluded',
+        },
+      });
+    }
+  }, [applyCandidateMut, updateCandidateMut]);
+  const candidateFolderMenuItems = useCallback((candidate: ElectricalCandidate) => {
+    const favoriteItem = {
+      key: 'favorite',
+      label: `${candidate.is_pinned ? '✓ ' : ''}Избранное`,
+      disabled: updateCandidateMut.isPending,
+      onClick: () => updateCandidateMut.mutate({
+        candidateId: candidate.id,
+        patch: {
+          is_pinned: !candidate.is_pinned,
+        },
+      }),
+    };
+    const customFolderItems = cableSizingCandidateFolders.length > 0
+      ? cableSizingCandidateFolders.map((folder) => {
+          const checked = folder.candidate_ids.includes(candidate.id);
+          return {
+            key: folder.id,
+            label: `${checked ? '✓ ' : ''}${folder.name}`,
+            onClick: () => toggleCandidateFolderItemMut.mutate({
+              folderId: folder.id,
+              candidateId: candidate.id,
+              checked: !checked,
+            }),
+          };
+        })
+      : [{ key: 'empty', label: 'Создайте папку', disabled: true }];
+    return [
+      favoriteItem,
+      { key: 'folders-divider', type: 'divider' as const },
+      ...customFolderItems,
+    ];
+  }, [cableSizingCandidateFolders, toggleCandidateFolderItemMut, updateCandidateMut]);
+  const getElectricalCandidateGlideActionMenuItems = useCallback((
+    candidate: ElectricalCandidate,
+    columnKey: string,
+    actionKey: string,
+  ) => {
+    if (columnKey === 'actions' && actionKey === 'folder') {
+      return candidateFolderMenuItems(candidate);
+    }
+    return null;
+  }, [candidateFolderMenuItems]);
 
   if (!project) {
     return (
@@ -4350,39 +4687,6 @@ export default function ElecCalcPage() {
         </Button>
       </div>
     );
-  }
-
-  function candidateFolderMenuItems(candidate: ElectricalCandidate) {
-    const favoriteItem = {
-      key: 'favorite',
-      label: `${candidate.is_pinned ? '✓ ' : ''}Избранное`,
-      disabled: updateCandidateMut.isPending,
-      onClick: () => updateCandidateMut.mutate({
-        candidateId: candidate.id,
-        patch: {
-          is_pinned: !candidate.is_pinned,
-        },
-      }),
-    };
-    const customFolderItems = cableSizingCandidateFolders.length > 0
-      ? cableSizingCandidateFolders.map((folder) => {
-          const checked = folder.candidate_ids.includes(candidate.id);
-          return {
-            key: folder.id,
-            label: `${checked ? '✓ ' : ''}${folder.name}`,
-            onClick: () => toggleCandidateFolderItemMut.mutate({
-              folderId: folder.id,
-              candidateId: candidate.id,
-              checked: !checked,
-            }),
-          };
-        })
-      : [{ key: 'empty', label: 'Создайте папку', disabled: true }];
-    return [
-      favoriteItem,
-      { key: 'folders-divider', type: 'divider' as const },
-      ...customFolderItems,
-    ];
   }
 
   const cableSizingCandidateColumns: ColumnsType<ElectricalCandidate> =
@@ -4829,35 +5133,50 @@ export default function ElecCalcPage() {
               description="Добавьте объекты на шаге «Теплопотери»."
               style={{ margin: 12 }}
             />
+          ) : electricalGlideEnabled ? (
+            <Suspense fallback={null}>
+              <ElectricalGlideGrid
+                rows={objects}
+                gridColumns={electricalGlideColumns}
+                tableScrollX={electricalTableScrollX}
+                tableScrollY={electricalTableScrollY}
+                fontSizeKey={resolvedTableFontSize.key}
+                activeRowId={activeRowId}
+                selectedRowKeys={selectedRowKeys}
+                tableViewState={tableViewState}
+                pagination={electricalPagination}
+                emptyContent={currentTableViewActive && totalObjects > 0 ? (
+                  <div className="table-filter-empty">
+                    <Text type="secondary">Нет строк по текущим фильтрам</Text>
+                    <Button size="small" onClick={resetCurrentTableViewState}>
+                      Сбросить фильтры
+                    </Button>
+                  </div>
+                ) : undefined}
+                rowClassName={electricalRowClassName}
+                getCellState={getElectricalGlideCellState}
+                onOpenRow={openElectricalRow}
+                onSelectedRowKeysChange={setSelectedRowKeys}
+                onSetColumnFilter={setColumnFilter}
+                onResetColumnFilter={resetColumnFilter}
+                onSetSort={setElectricalTableSort}
+                onColumnResize={applyElectricalGlideColumnDraftWidth}
+                onColumnResizeEnd={commitElectricalGlideColumnWidth}
+                onPageChange={handleElectricalGlidePageChange}
+                onCellAction={handleElectricalGlideCellAction}
+              />
+            </Suspense>
           ) : (
             <Table<ProjectObject>
               className={`calc-spreadsheet calc-spreadsheet--${resolvedTableFontSize.key} electrical-spreadsheet`}
               rowKey="id"
               size="small"
               loading={isElectricalPageFetching}
-              pagination={{
-                current: tablePage,
-                pageSize: tablePageSize,
-                total: filteredTableCount,
-                pageSizeOptions: ['25', '50', '100'],
-                showSizeChanger: true,
-                hideOnSinglePage: filteredTableCount <= tablePageSize,
-                showTotal: (total, range) => `${range[0]}-${range[1]} из ${total}`,
-                size: 'small',
-              }}
+              pagination={electricalPagination}
               dataSource={objects}
               onChange={handleElectricalTableChange}
               scroll={{ x: electricalTableScrollX }}
-              rowClassName={(obj) => {
-                const calc = stats.calcByObjectId[obj.id];
-                return [
-                  electricalCalcError(calc) && !isElectricalCalcUnsupported(calc)
-                    && !isElectricalCalcStale(calc)
-                    ? 'row-invalid'
-                    : '',
-                  activeRowId === obj.id ? 'electrical-row-active' : '',
-                ].filter(Boolean).join(' ');
-              }}
+              rowClassName={electricalRowClassName}
               onRow={(obj) => ({
                 onClick: (event) => {
                   if ((event.target as HTMLElement).closest('.ant-table-selection-column')) return;
@@ -5087,24 +5406,49 @@ export default function ElecCalcPage() {
           {renderSelectedCableSummary()}
           {renderCandidateFolderTabs()}
           {renderCandidateCompareBar()}
-          <Table<ElectricalCandidate>
-            className="electrical-cable-sizing-table"
-            size="small"
-            rowKey="id"
-            onRow={(candidate) => ({
-              'data-testid': `candidate-row-${candidate.id}`,
-            }) as HTMLAttributes<HTMLElement>}
-            rowClassName={cableSizingCandidateRowClassName}
-            loading={isCableSizingCandidatesFetching}
-            dataSource={displayedCableSizingCandidates}
-            columns={cableSizingCandidateColumns}
-            onChange={handleCandidateTableChange}
-            pagination={false}
-            scroll={{ x: cableSizingCandidateTableScrollX, y: 'calc(100vh - 332px)' }}
-            locale={{
-              emptyText: candidateFolderEmptyText(),
-            }}
-          />
+          {electricalCandidateGlideEnabled ? (
+            <Suspense fallback={null}>
+              <ElectricalCandidateGlideGrid
+                rows={displayedCableSizingCandidates}
+                gridColumns={electricalCandidateGlideColumns}
+                tableScrollX={cableSizingCandidateTableScrollX}
+                tableScrollY="calc(100vh - 332px)"
+                fontSizeKey={resolvedTableFontSize.key}
+                loading={isCableSizingCandidatesFetching}
+                tableViewState={candidateTableViewState}
+                emptyContent={candidateFolderEmptyText()}
+                rowClassName={cableSizingCandidateRowClassName}
+                getCellState={getElectricalCandidateGlideCellState}
+                onToggleMarked={toggleElectricalCandidateGlideMarked}
+                onCellAction={handleElectricalCandidateGlideCellAction}
+                getActionMenuItems={getElectricalCandidateGlideActionMenuItems}
+                onSetColumnFilter={setCandidateColumnFilter}
+                onResetColumnFilter={resetCandidateColumnFilter}
+                onSetSort={setCandidateTableSort}
+                onColumnResize={applyElectricalCandidateGlideColumnDraftWidth}
+                onColumnResizeEnd={commitElectricalCandidateGlideColumnWidth}
+              />
+            </Suspense>
+          ) : (
+            <Table<ElectricalCandidate>
+              className="electrical-cable-sizing-table"
+              size="small"
+              rowKey="id"
+              onRow={(candidate) => ({
+                'data-testid': `candidate-row-${candidate.id}`,
+              }) as HTMLAttributes<HTMLElement>}
+              rowClassName={cableSizingCandidateRowClassName}
+              loading={isCableSizingCandidatesFetching}
+              dataSource={displayedCableSizingCandidates}
+              columns={cableSizingCandidateColumns}
+              onChange={handleCandidateTableChange}
+              pagination={false}
+              scroll={{ x: cableSizingCandidateTableScrollX, y: 'calc(100vh - 332px)' }}
+              locale={{
+                emptyText: candidateFolderEmptyText(),
+              }}
+            />
+          )}
           <Input.TextArea
             aria-label="Комментарий к выбранному кандидату"
             size="small"

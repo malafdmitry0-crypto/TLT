@@ -14,6 +14,10 @@ import { ELECTRICAL_GUEST_CANDIDATE_TABLE_COLUMN_STORAGE_KEY } from '@/utils/ele
 import {
   ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY,
 } from '@/utils/electricalTableViewSettings';
+import {
+  ELECTRICAL_CANDIDATE_TABLE_ENGINE_STORAGE_KEY,
+  ELECTRICAL_TABLE_ENGINE_STORAGE_KEY,
+} from '@/utils/electricalTableEngine';
 
 const apiMocks = vi.hoisted(() => {
   const field = (
@@ -257,6 +261,10 @@ describe('ElecCalcPage (integration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    // These integration cases exercise the AntD fallback DOM. Default Glide
+    // behavior is covered by focused component tests and Playwright probes.
+    localStorage.setItem(ELECTRICAL_TABLE_ENGINE_STORAGE_KEY, 'table');
+    localStorage.setItem(ELECTRICAL_CANDIDATE_TABLE_ENGINE_STORAGE_KEY, 'table');
     useAuthStore.getState().logout();
     useProjectStore.getState().setCurrentProject(null);
     useCalculationVariantStore.setState({ variantByProject: {} });

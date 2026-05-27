@@ -1,0 +1,675 @@
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
+import { Menu, Spin, type MenuProps } from 'antd';
+import {
+  CompactSelection,
+  DataEditor,
+  GridCellKind,
+  type CellClickedEventArgs,
+  type DrawCellCallback,
+  type DrawHeaderCallback,
+  type GridCell,
+  type GridColumn,
+  type GridMouseEventArgs,
+  type GridSelection,
+  type HeaderClickedEventArgs,
+  type Item,
+} from '@glideapps/glide-data-grid';
+import '@glideapps/glide-data-grid/dist/index.css';
+
+import ElectricalGlideColumnFilterDropdown from '@/components/electrical/ElectricalGlideColumnFilterDropdown';
+import type { ElectricalCandidate } from '@/types/calculation';
+import type {
+  HeatCalcGlideGridCellAction,
+  HeatCalcGlideGridCellState,
+  HeatCalcGlideGridColumn,
+} from '@/utils/heatCalcGlideGrid';
+import {
+  isColumnFilterActive,
+  type HeatCalcColumnFilter,
+  type HeatCalcTableViewState,
+} from '@/utils/heatCalcTableFindability';
+import { resolveTableFontSizeByKey } from '@/utils/heatCalcTableViewSettings';
+
+const CANDIDATE_GLIDE_MIN_COLUMN_WIDTH = 48;
+const CANDIDATE_GLIDE_MAX_COLUMN_WIDTH = 620;
+const CANDIDATE_HEADER_FILTER_HIT_WIDTH = 28;
+const CANDIDATE_HEADER_CONTROL_PADDING = 6;
+const CANDIDATE_HEADER_CONTROL_BG = '#f3f6f4';
+const CANDIDATE_HEADER_CONTROL_MUTED = '#7a8b99';
+const CANDIDATE_HEADER_CONTROL_FAINT = '#b8c2cc';
+const CANDIDATE_HEADER_CONTROL_ACTIVE = '#1a5276';
+const CANDIDATE_ERROR_ROW_BG = '#fff1f0';
+const CANDIDATE_COMPARED_ROW_BG = '#f7fbff';
+const CANDIDATE_DIFF_CELL_BG = '#fff7d6';
+const CANDIDATE_ACTION_HEIGHT = 20;
+const CANDIDATE_ACTION_GAP = 3;
+const CANDIDATE_ACTION_PADDING = 5;
+const CANDIDATE_ACTION_MIN_WIDTH = 28;
+const CANDIDATE_ACTION_MAX_WIDTH = 58;
+const CANDIDATE_ACTION_TEXT_WIDTH = 6.2;
+const CANDIDATE_CHECKBOX_SIZE = 13;
+
+interface ElectricalCandidateGlideGridProps {
+  rows: ElectricalCandidate[];
+  gridColumns: HeatCalcGlideGridColumn[];
+  tableScrollX: number;
+  tableScrollY: string;
+  fontSizeKey: string;
+  loading?: boolean;
+  tableViewState: HeatCalcTableViewState;
+  emptyContent: ReactNode;
+  rowClassName: (candidate: ElectricalCandidate) => string;
+  getCellState: (
+    candidate: ElectricalCandidate,
+    columnKey: string,
+    rowIndex: number,
+  ) => HeatCalcGlideGridCellState;
+  onToggleMarked: (candidate: ElectricalCandidate, checked: boolean) => void;
+  onCellAction: (candidate: ElectricalCandidate, columnKey: string, actionKey: string) => void;
+  getActionMenuItems?: (
+    candidate: ElectricalCandidate,
+    columnKey: string,
+    actionKey: string,
+  ) => MenuProps['items'] | null | undefined;
+  onSetColumnFilter: (columnKey: string, filter?: HeatCalcColumnFilter) => void;
+  onResetColumnFilter: (columnKey: string) => void;
+  onSetSort: (columnKey: string, direction?: 'asc' | 'desc') => void;
+  onColumnResize?: (columnKey: string, widthPx: number) => void;
+  onColumnResizeEnd?: (columnKey: string, widthPx: number) => void;
+}
+
+interface CandidateFilterPopupState {
+  columnIndex: number;
+  left: number;
+  top: number;
+}
+
+interface CandidateActionMenuState {
+  items: MenuProps['items'];
+  left: number;
+  top: number;
+}
+
+function isErrorRowClassName(className: string) {
+  return className.includes('row--error') || className.includes('row-error');
+}
+
+function isComparedRowClassName(className: string) {
+  return className.includes('row--compared') || className.includes('row-compared');
+}
+
+function candidateRowHeight(fontSizeKey: string) {
+  const fontSize = resolveTableFontSizeByKey(fontSizeKey);
+  return Math.max(24, Math.round(fontSize.fontSizePx * fontSize.lineHeight + fontSize.cellPaddingY * 2 + 7));
+}
+
+function blankCell(): GridCell {
+  return {
+    kind: GridCellKind.Text,
+    allowOverlay: false,
+    readonly: true,
+    data: '',
+    displayData: '',
+    copyData: '',
+  };
+}
+
+function headerControlWidth(column: HeatCalcGlideGridColumn) {
+  if (!column.sortable && !column.filterable) return 0;
+  return CANDIDATE_HEADER_CONTROL_PADDING
+    + (column.sortable ? 18 : 0)
+    + (column.filterable ? 22 : 0);
+}
+
+function drawTriangle(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  direction: 'up' | 'down',
+  color: string,
+) {
+  ctx.beginPath();
+  if (direction === 'up') {
+    ctx.moveTo(centerX, centerY - 4);
+    ctx.lineTo(centerX - 4, centerY + 2);
+    ctx.lineTo(centerX + 4, centerY + 2);
+  } else {
+    ctx.moveTo(centerX, centerY + 4);
+    ctx.lineTo(centerX - 4, centerY - 2);
+    ctx.lineTo(centerX + 4, centerY - 2);
+  }
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawSortIndicator(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  direction?: 'asc' | 'desc',
+) {
+  drawTriangle(
+    ctx,
+    centerX,
+    centerY - 4,
+    'up',
+    direction === 'asc' ? CANDIDATE_HEADER_CONTROL_ACTIVE : CANDIDATE_HEADER_CONTROL_FAINT,
+  );
+  drawTriangle(
+    ctx,
+    centerX,
+    centerY + 4,
+    'down',
+    direction === 'desc' ? CANDIDATE_HEADER_CONTROL_ACTIVE : CANDIDATE_HEADER_CONTROL_FAINT,
+  );
+}
+
+function drawFilterIndicator(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  active: boolean,
+) {
+  const color = active ? CANDIDATE_HEADER_CONTROL_ACTIVE : CANDIDATE_HEADER_CONTROL_MUTED;
+  ctx.beginPath();
+  ctx.moveTo(centerX - 6, centerY - 6);
+  ctx.lineTo(centerX + 6, centerY - 6);
+  ctx.lineTo(centerX + 2, centerY - 1);
+  ctx.lineTo(centerX + 2, centerY + 5);
+  ctx.lineTo(centerX - 2, centerY + 5);
+  ctx.lineTo(centerX - 2, centerY - 1);
+  ctx.closePath();
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+}
+
+function nextSortDirection(
+  tableViewState: HeatCalcTableViewState,
+  columnKey: string,
+): 'asc' | 'desc' | undefined {
+  if (tableViewState.sort?.columnKey !== columnKey) return 'asc';
+  if (tableViewState.sort.direction === 'asc') return 'desc';
+  return undefined;
+}
+
+function actionWidth(action: HeatCalcGlideGridCellAction) {
+  return Math.max(
+    CANDIDATE_ACTION_MIN_WIDTH,
+    Math.min(CANDIDATE_ACTION_MAX_WIDTH, Math.ceil(action.label.length * CANDIDATE_ACTION_TEXT_WIDTH + 16)),
+  );
+}
+
+function actionRects(
+  actions: HeatCalcGlideGridCellAction[] | undefined,
+  width: number,
+  height: number,
+) {
+  if (!actions?.length) return [];
+  const widths = actions.map(actionWidth);
+  const totalWidth = widths.reduce((sum, current) => sum + current, 0)
+    + CANDIDATE_ACTION_GAP * Math.max(0, widths.length - 1);
+  let left = Math.max(CANDIDATE_ACTION_PADDING, width - CANDIDATE_ACTION_PADDING - totalWidth);
+  const top = Math.max(2, Math.floor((height - CANDIDATE_ACTION_HEIGHT) / 2));
+  return actions.map((action, index) => {
+    const widthPx = widths[index];
+    const rect = {
+      action,
+      x: left,
+      y: top,
+      width: widthPx,
+      height: CANDIDATE_ACTION_HEIGHT,
+    };
+    left += widthPx + CANDIDATE_ACTION_GAP;
+    return rect;
+  });
+}
+
+function findActionAt(actions: HeatCalcGlideGridCellAction[] | undefined, event: CellClickedEventArgs) {
+  if (!actions?.length) return undefined;
+  const bounds = (event as { bounds?: { x?: number; y?: number; width: number; height: number } }).bounds;
+  if (!bounds) return undefined;
+  const rawLocalX = typeof (event as { localEventX?: unknown }).localEventX === 'number'
+    ? (event as { localEventX: number }).localEventX
+    : null;
+  const rawLocalY = typeof (event as { localEventY?: unknown }).localEventY === 'number'
+    ? (event as { localEventY: number }).localEventY
+    : null;
+  const localX = rawLocalX == null
+    ? bounds.width / 2
+    : bounds.x != null && rawLocalX >= bounds.x && rawLocalX <= bounds.x + bounds.width
+      ? rawLocalX - bounds.x
+      : rawLocalX >= 0 && rawLocalX <= bounds.width
+        ? rawLocalX
+        : rawLocalX - (bounds.x ?? 0);
+  const localY = rawLocalY == null
+    ? bounds.height / 2
+    : bounds.y != null && rawLocalY >= bounds.y && rawLocalY <= bounds.y + bounds.height
+      ? rawLocalY - bounds.y
+      : rawLocalY >= 0 && rawLocalY <= bounds.height
+        ? rawLocalY
+        : rawLocalY - (bounds.y ?? 0);
+  return actionRects(actions, bounds.width, bounds.height)
+    .find((rect) =>
+      localX >= rect.x
+      && localX <= rect.x + rect.width
+      && localY >= rect.y
+      && localY <= rect.y + rect.height,
+    )?.action;
+}
+
+function drawActions(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  actions: HeatCalcGlideGridCellAction[] | undefined,
+) {
+  const rects = actionRects(actions, rect.width, rect.height);
+  if (rects.length === 0) return;
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '11px inherit';
+  for (const actionRect of rects) {
+    const left = Math.floor(rect.x + actionRect.x) + 0.5;
+    const top = Math.floor(rect.y + actionRect.y) + 0.5;
+    const disabled = actionRect.action.disabled;
+    ctx.fillStyle = disabled ? '#f5f5f5' : '#ffffff';
+    ctx.strokeStyle = disabled ? '#d9d9d9' : '#b8c8d6';
+    ctx.lineWidth = 1;
+    ctx.fillRect(left, top, actionRect.width, actionRect.height);
+    ctx.strokeRect(left, top, actionRect.width, actionRect.height);
+    ctx.fillStyle = disabled ? '#8c8c8c' : '#1a5276';
+    ctx.fillText(actionRect.action.label, left + actionRect.width / 2, top + actionRect.height / 2 + 0.5);
+  }
+  ctx.restore();
+}
+
+function drawCheckbox(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  checked: boolean,
+) {
+  const left = Math.floor(rect.x + rect.width / 2 - CANDIDATE_CHECKBOX_SIZE / 2) + 0.5;
+  const top = Math.floor(rect.y + rect.height / 2 - CANDIDATE_CHECKBOX_SIZE / 2) + 0.5;
+  ctx.save();
+  ctx.fillStyle = checked ? '#1a5276' : '#ffffff';
+  ctx.strokeStyle = checked ? '#1a5276' : '#b8c2cc';
+  ctx.lineWidth = 1.2;
+  ctx.fillRect(left, top, CANDIDATE_CHECKBOX_SIZE, CANDIDATE_CHECKBOX_SIZE);
+  ctx.strokeRect(left, top, CANDIDATE_CHECKBOX_SIZE, CANDIDATE_CHECKBOX_SIZE);
+  if (checked) {
+    ctx.beginPath();
+    ctx.lineWidth = 1.7;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#ffffff';
+    ctx.moveTo(left + 3, top + 7);
+    ctx.lineTo(left + 5.5, top + 9.5);
+    ctx.lineTo(left + 10.5, top + 3.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function clampColumnWidth(column: HeatCalcGlideGridColumn, widthPx: number) {
+  return Math.max(column.minWidthPx ?? CANDIDATE_GLIDE_MIN_COLUMN_WIDTH, widthPx);
+}
+
+function ElectricalCandidateGlideGrid({
+  rows,
+  gridColumns,
+  tableScrollX,
+  tableScrollY,
+  fontSizeKey,
+  loading,
+  tableViewState,
+  emptyContent,
+  rowClassName,
+  getCellState,
+  onToggleMarked,
+  onCellAction,
+  getActionMenuItems,
+  onSetColumnFilter,
+  onResetColumnFilter,
+  onSetSort,
+  onColumnResize,
+  onColumnResizeEnd,
+}: ElectricalCandidateGlideGridProps) {
+  const [filterPopup, setFilterPopup] = useState<CandidateFilterPopupState | null>(null);
+  const [actionMenu, setActionMenu] = useState<CandidateActionMenuState | null>(null);
+  const [hoveredHeaderColumnIndex, setHoveredHeaderColumnIndex] = useState<number | null>(null);
+  const filterPopupRef = useRef<HTMLDivElement | null>(null);
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const fontSize = useMemo(() => resolveTableFontSizeByKey(fontSizeKey), [fontSizeKey]);
+  const rowHeight = useMemo(() => candidateRowHeight(fontSizeKey), [fontSizeKey]);
+  const editorColumns = useMemo<GridColumn[]>(
+    () => gridColumns.map((column) => ({
+      id: column.key,
+      title: column.title || column.key,
+      width: column.width,
+      hasMenu: false,
+      style: isColumnFilterActive(tableViewState.filters[column.key]) ? 'highlight' : 'normal',
+    })),
+    [gridColumns, tableViewState.filters],
+  );
+  const gridSelection = useMemo<GridSelection>(() => ({
+    columns: CompactSelection.empty(),
+    rows: CompactSelection.empty(),
+  }), []);
+  const getModelCell = useCallback((columnIndex: number, rowIndex: number) => {
+    const column = gridColumns[columnIndex];
+    const candidate = rows[rowIndex];
+    if (!column || !candidate) return null;
+    return {
+      column,
+      candidate,
+      state: getCellState(candidate, column.key, rowIndex),
+    };
+  }, [getCellState, gridColumns, rows]);
+  const getCellContent = useCallback((cell: Item): GridCell => {
+    const [columnIndex, rowIndex] = cell;
+    const modelCell = getModelCell(columnIndex, rowIndex);
+    if (!modelCell) return blankCell();
+    const { column, candidate, state } = modelCell;
+    const classes = rowClassName(candidate);
+    const bgCell = state.error || isErrorRowClassName(classes)
+      ? CANDIDATE_ERROR_ROW_BG
+      : state.dirty
+        ? CANDIDATE_DIFF_CELL_BG
+        : undefined;
+    return {
+      kind: GridCellKind.Text,
+      allowOverlay: false,
+      readonly: true,
+      data: state.displayValue,
+      displayData: column.key === 'marked' || column.key === 'actions' ? '' : state.displayValue,
+      copyData: state.displayValue,
+      contentAlign: state.align ?? column.align ?? 'left',
+      themeOverride: bgCell ? { bgCell } : undefined,
+    };
+  }, [getModelCell, rowClassName]);
+  const drawCell = useCallback<DrawCellCallback>((args, drawContent) => {
+    drawContent();
+    const column = gridColumns[args.col];
+    const state = column ? getModelCell(args.col, args.row)?.state : undefined;
+    if (!column || !state) return;
+    if (column.key === 'marked') {
+      drawCheckbox(args.ctx, args.rect, state.displayValue === '1');
+      return;
+    }
+    if (column.key === 'actions') {
+      drawActions(args.ctx, args.rect, state.actions);
+    }
+  }, [getModelCell, gridColumns]);
+  const openFilterPopup = useCallback((columnIndex: number, event: HeaderClickedEventArgs) => {
+    const column = gridColumns[columnIndex];
+    if (!column?.filterable) return;
+    event.preventDefault();
+    setActionMenu(null);
+    setFilterPopup({
+      columnIndex,
+      left: event.bounds.x,
+      top: event.bounds.y + event.bounds.height,
+    });
+  }, [gridColumns]);
+  const handleHeaderClicked = useCallback((columnIndex: number, event: HeaderClickedEventArgs) => {
+    const column = gridColumns[columnIndex];
+    if (!column) return;
+    if (column.filterable && event.localEventX >= Math.max(0, event.bounds.width - CANDIDATE_HEADER_FILTER_HIT_WIDTH)) {
+      openFilterPopup(columnIndex, event);
+      return;
+    }
+    if (!column.sortable) return;
+    event.preventDefault();
+    setFilterPopup(null);
+    setActionMenu(null);
+    onSetSort(column.key, nextSortDirection(tableViewState, column.key));
+  }, [gridColumns, onSetSort, openFilterPopup, tableViewState]);
+  const drawHeader = useCallback<DrawHeaderCallback>((args, drawContent) => {
+    drawContent();
+    const column = gridColumns[args.columnIndex];
+    if (!column) return;
+    const controlWidth = headerControlWidth(column);
+    if (controlWidth <= 0) return;
+
+    const { ctx, rect } = args;
+    const right = rect.x + rect.width;
+    const controlLeft = Math.max(rect.x + 1, right - controlWidth);
+    const centerY = rect.y + rect.height / 2;
+    const sortDirection = tableViewState.sort?.columnKey === column.key
+      ? tableViewState.sort.direction
+      : undefined;
+    const filterActive = isColumnFilterActive(tableViewState.filters[column.key]);
+    const controlsVisible = hoveredHeaderColumnIndex === args.columnIndex
+      || filterPopup?.columnIndex === args.columnIndex
+      || !!sortDirection
+      || filterActive;
+    if (!controlsVisible) return;
+
+    ctx.save();
+    ctx.fillStyle = args.theme.bgHeader ?? CANDIDATE_HEADER_CONTROL_BG;
+    ctx.fillRect(controlLeft, rect.y + 1, Math.max(0, right - controlLeft - 1), Math.max(0, rect.height - 2));
+    let cursorX = right - 12;
+    if (column.filterable) {
+      drawFilterIndicator(ctx, cursorX, centerY, filterActive);
+      cursorX -= 22;
+    }
+    if (column.sortable) {
+      drawSortIndicator(ctx, cursorX, centerY, sortDirection);
+    }
+    ctx.restore();
+  }, [filterPopup?.columnIndex, gridColumns, hoveredHeaderColumnIndex, tableViewState]);
+  const handleItemHovered = useCallback((args: GridMouseEventArgs) => {
+    setHoveredHeaderColumnIndex(args.kind === 'header' ? args.location[0] : null);
+  }, []);
+  const handleCellClicked = useCallback((cell: Item, event: CellClickedEventArgs) => {
+    const modelCell = getModelCell(cell[0], cell[1]);
+    if (!modelCell) return;
+    event.preventDefault();
+    setFilterPopup(null);
+    const { candidate, column, state } = modelCell;
+    if (column.key === 'marked') {
+      onToggleMarked(candidate, state.displayValue !== '1');
+      return;
+    }
+    const action = findActionAt(state.actions, event);
+    if (!action || action.disabled) return;
+    if (action.key === 'folder') {
+      const items = getActionMenuItems?.(candidate, column.key, action.key);
+      if (items?.length) {
+        setActionMenu({
+          items,
+          left: event.bounds.x,
+          top: event.bounds.y + event.bounds.height,
+        });
+      }
+      return;
+    }
+    setActionMenu(null);
+    onCellAction(candidate, column.key, action.key);
+  }, [getActionMenuItems, getModelCell, onCellAction, onToggleMarked]);
+  const handleColumnResize = useCallback((
+    _column: GridColumn,
+    widthPx: number,
+    columnIndex: number,
+  ) => {
+    const column = gridColumns[columnIndex];
+    if (!column || column.resizable === false) return;
+    onColumnResize?.(column.key, clampColumnWidth(column, widthPx));
+  }, [gridColumns, onColumnResize]);
+  const handleColumnResizeEnd = useCallback((
+    _column: GridColumn,
+    widthPx: number,
+    columnIndex: number,
+  ) => {
+    const column = gridColumns[columnIndex];
+    if (!column || column.resizable === false) return;
+    onColumnResizeEnd?.(column.key, clampColumnWidth(column, widthPx));
+  }, [gridColumns, onColumnResizeEnd]);
+  const activeFilterColumn = filterPopup ? gridColumns[filterPopup.columnIndex] : undefined;
+  const filterPopupStyle = useMemo<CSSProperties | undefined>(() => {
+    if (!filterPopup) return undefined;
+    return { left: filterPopup.left, top: filterPopup.top };
+  }, [filterPopup]);
+  const actionMenuStyle = useMemo<CSSProperties | undefined>(() => {
+    if (!actionMenu) return undefined;
+    return { left: actionMenu.left, top: actionMenu.top };
+  }, [actionMenu]);
+
+  useEffect(() => {
+    if (!filterPopup) return undefined;
+
+    function handlePointerDown(event: PointerEvent) {
+      const popup = filterPopupRef.current;
+      if (popup && event.target instanceof Node && popup.contains(event.target)) return;
+      setFilterPopup(null);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setFilterPopup(null);
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [filterPopup]);
+  useEffect(() => {
+    if (!actionMenu) return undefined;
+
+    function handlePointerDown(event: PointerEvent) {
+      const menu = actionMenuRef.current;
+      if (menu && event.target instanceof Node && menu.contains(event.target)) return;
+      setActionMenu(null);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setActionMenu(null);
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [actionMenu]);
+
+  if (rows.length === 0) {
+    return (
+      <div className={`electrical-cable-sizing-table electrical-candidate-spreadsheet--glide calc-spreadsheet--${fontSizeKey}`}>
+        <div className="excel-virtual-empty">
+          {loading ? <Spin size="small" /> : emptyContent}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`electrical-cable-sizing-table electrical-candidate-spreadsheet--glide calc-spreadsheet--${fontSizeKey}`}>
+      <DataEditor
+        className="electrical-candidate-glide-editor"
+        width={Math.max(640, tableScrollX)}
+        height={tableScrollY}
+        columns={editorColumns}
+        rows={rows.length}
+        rowHeight={rowHeight}
+        headerHeight={rowHeight + 8}
+        minColumnWidth={CANDIDATE_GLIDE_MIN_COLUMN_WIDTH}
+        maxColumnWidth={CANDIDATE_GLIDE_MAX_COLUMN_WIDTH}
+        smoothScrollX
+        smoothScrollY
+        verticalBorder
+        getCellContent={getCellContent}
+        drawCell={drawCell}
+        drawHeader={drawHeader}
+        gridSelection={gridSelection}
+        onCellClicked={handleCellClicked}
+        onHeaderClicked={handleHeaderClicked}
+        onHeaderContextMenu={openFilterPopup}
+        onItemHovered={handleItemHovered}
+        onColumnResize={onColumnResize ? handleColumnResize : undefined}
+        onColumnResizeEnd={onColumnResizeEnd ? handleColumnResizeEnd : undefined}
+        rowMarkers="none"
+        rowSelect="none"
+        rangeSelect="cell"
+        columnSelect="none"
+        getRowThemeOverride={(rowIndex) => {
+          const candidate = rows[rowIndex];
+          if (!candidate) return undefined;
+          const classes = rowClassName(candidate);
+          if (isErrorRowClassName(classes)) return { bgCell: CANDIDATE_ERROR_ROW_BG };
+          if (isComparedRowClassName(classes)) return { bgCell: CANDIDATE_COMPARED_ROW_BG };
+          return undefined;
+        }}
+        theme={{
+          accentColor: '#1a5276',
+          accentLight: '#dbeeff',
+          bgCell: '#ffffff',
+          bgHeader: '#f3f6f4',
+          borderColor: '#d9d9d9',
+          fontFamily: 'inherit',
+          baseFontStyle: `${fontSize.fontSizePx}px inherit`,
+          headerFontStyle: `600 ${fontSize.fontSizePx}px inherit`,
+          textHeader: '#2b2f33',
+          textDark: '#2b2f33',
+        }}
+      />
+      {loading && (
+        <div className="electrical-candidate-glide-loading">
+          <Spin size="small" />
+        </div>
+      )}
+      {activeFilterColumn && filterPopupStyle && (
+        <div
+          ref={filterPopupRef}
+          className="heatcalc-glide-filter-popup"
+          style={filterPopupStyle}
+        >
+          <ElectricalGlideColumnFilterDropdown
+            title={activeFilterColumn.label ?? activeFilterColumn.title}
+            kind={activeFilterColumn.filterKind ?? 'text'}
+            filter={tableViewState.filters[activeFilterColumn.key]}
+            enumOptions={activeFilterColumn.enumOptions ?? []}
+            onApply={(filter) => {
+              onSetColumnFilter(activeFilterColumn.key, filter);
+              setFilterPopup(null);
+            }}
+            onReset={() => {
+              onResetColumnFilter(activeFilterColumn.key);
+              setFilterPopup(null);
+            }}
+            onClose={() => setFilterPopup(null)}
+          />
+        </div>
+      )}
+      {actionMenu && actionMenuStyle && (
+        <div
+          ref={actionMenuRef}
+          className="electrical-candidate-glide-action-menu"
+          style={actionMenuStyle}
+        >
+          <Menu
+            selectable={false}
+            items={actionMenu.items}
+            onClick={() => setActionMenu(null)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default memo(ElectricalCandidateGlideGrid);
