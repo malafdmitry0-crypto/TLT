@@ -2,6 +2,7 @@ import { memo, useCallback, type ReactNode } from 'react';
 import type { TableProps } from 'antd';
 
 import HeatCalcNormalGlideGrid from '@/components/heatcalc/HeatCalcNormalGlideGrid';
+import type { HeatCalcNormalInfiniteLoading } from '@/components/heatcalc/HeatCalcNormalGlideGrid';
 import ElectricalGlideColumnFilterDropdown from '@/components/electrical/ElectricalGlideColumnFilterDropdown';
 import type { ProjectObject } from '@/types/project';
 import type {
@@ -23,6 +24,7 @@ interface ElectricalGlideGridProps {
   selectedRowKeys: string[];
   tableViewState: HeatCalcTableViewState;
   pagination: TableProps<ProjectObject>['pagination'];
+  infiniteLoading?: HeatCalcNormalInfiniteLoading | null;
   emptyContent: ReactNode;
   rowClassName: (record: ProjectObject) => string;
   getCellState: (
@@ -38,6 +40,7 @@ interface ElectricalGlideGridProps {
   onColumnResize?: (columnKey: string, widthPx: number) => void;
   onColumnResizeEnd?: (columnKey: string, widthPx: number) => void;
   onPageChange: (page: number) => void;
+  onLoadMore: () => void;
   onCellAction?: (record: ProjectObject, columnKey: string, actionKey: string) => void;
 }
 
@@ -51,6 +54,7 @@ function ElectricalGlideGrid({
   selectedRowKeys,
   tableViewState,
   pagination,
+  infiniteLoading,
   emptyContent,
   rowClassName,
   getCellState,
@@ -62,6 +66,7 @@ function ElectricalGlideGrid({
   onColumnResize,
   onColumnResizeEnd,
   onPageChange,
+  onLoadMore,
   onCellAction,
 }: ElectricalGlideGridProps) {
   const renderFilterDropdown = useCallback(({
@@ -99,7 +104,7 @@ function ElectricalGlideGrid({
       activeRowId={activeRowId}
       selectedRowKeys={selectedRowKeys}
       tableViewState={tableViewState}
-      infiniteLoading={null}
+      infiniteLoading={infiniteLoading ?? null}
       pagination={pagination}
       emptyContent={emptyContent}
       rowClassName={rowClassName}
@@ -114,7 +119,7 @@ function ElectricalGlideGrid({
       onColumnResize={onColumnResize}
       onColumnResizeEnd={onColumnResizeEnd}
       onPageChange={onPageChange}
-      onLoadMore={() => undefined}
+      onLoadMore={onLoadMore}
       onCellAction={onCellAction}
       renderFilterDropdown={renderFilterDropdown}
     />

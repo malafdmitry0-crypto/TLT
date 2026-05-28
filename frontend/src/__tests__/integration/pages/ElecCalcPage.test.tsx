@@ -67,6 +67,62 @@ const apiMocks = vi.hoisted(() => {
   };
 });
 
+const electricalGlideGridMock = vi.hoisted(() => ({
+  props: null as null | {
+    rows?: unknown[];
+    infiniteLoading?: {
+      loaded: number;
+      total: number;
+      hasNextPage: boolean;
+    } | null;
+    onLoadMore?: () => void;
+    [key: string]: unknown;
+  },
+}));
+
+vi.mock('@/components/electrical/ElectricalGlideGrid', async () => {
+  const React = await vi.importActual<typeof import('react')>('react');
+  return {
+    default: (props: {
+      rows?: unknown[];
+      infiniteLoading?: {
+        loaded: number;
+        total: number;
+        hasNextPage: boolean;
+      } | null;
+      onLoadMore?: () => void;
+      [key: string]: unknown;
+    }) => {
+      electricalGlideGridMock.props = props;
+      const infinite = props.infiniteLoading;
+      return React.createElement(
+        'div',
+        { 'data-testid': 'electrical-glide-grid-mock' },
+        infinite
+          ? [
+            React.createElement(
+              'span',
+              { key: 'label' },
+              `infinite:${props.rows?.length ?? 0}:${infinite.loaded}:${infinite.total}:${infinite.hasNextPage}`,
+            ),
+            React.createElement(
+              'button',
+              {
+                key: 'next',
+                type: 'button',
+                disabled: !infinite.hasNextPage,
+                'aria-label': 'Догрузить строки',
+                onClick: props.onLoadMore,
+              },
+              'load',
+            ),
+          ]
+          : 'no-infinite',
+      );
+    },
+  };
+});
+
 vi.mock('@/api/projects', () => ({
   deleteObject: vi.fn(),
 }));
@@ -260,6 +316,7 @@ async function openElectricalTableSettingsOtherTab(
 describe('ElecCalcPage (integration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    electricalGlideGridMock.props = null;
     localStorage.clear();
     // These integration cases exercise the AntD fallback DOM. Default Glide
     // behavior is covered by focused component tests and Playwright probes.
@@ -563,6 +620,76 @@ describe('ElecCalcPage (integration)', () => {
     expect(screen.getByText('Труба-50')).toBeInTheDocument();
     expect(screen.queryByText('Труба-51')).not.toBeInTheDocument();
     expect(document.querySelector('.ant-pagination')).toBeTruthy();
+  });
+
+  it('в Glide-режиме догружает следующую cursor-порцию в бесконечный список', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    const objects = Array.from({ length: 80 }, (_, index) =>
+      makeObject({
+        id: `o-${index + 1}`,
+        sort_order: index,
+        params: { name: `Труба-${index + 1}` },
+      })
+    );
+    (getElectricalPage as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(
+        makeElectricalPage(
+          objects.slice(0, 50),
+          [],
+          { total_objects: 80, valid_objects: 80, invalid_objects: 0 },
+          {
+            total_pages: 2,
+            has_next_page: true,
+            next_cursor: { id: 'o-50', sort_order: 49 },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        makeElectricalPage(
+          objects.slice(50),
+          [],
+          { total_objects: 80, valid_objects: 80, invalid_objects: 0 },
+          {
+            page: 2,
+            offset: 50,
+            total_pages: 2,
+            has_previous_page: true,
+            has_next_page: false,
+          },
+        ),
+      );
+    localStorage.setItem(ELECTRICAL_TABLE_ENGINE_STORAGE_KEY, 'glide');
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await screen.findByTestId('electrical-glide-grid-mock');
+    await waitFor(() => {
+      expect(electricalGlideGridMock.props?.infiniteLoading).toMatchObject({
+        loaded: 50,
+        total: 80,
+        hasNextPage: true,
+      });
+      expect(electricalGlideGridMock.props?.rows).toHaveLength(50);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Догрузить строки' }));
+
+    await waitFor(() => {
+      expect(getElectricalPage).toHaveBeenCalledWith(expect.objectContaining({
+        page: 2,
+        page_size: 50,
+        after_sort_order: 49,
+        after_id: 'o-50',
+      }));
+    });
+    await waitFor(() => {
+      expect(electricalGlideGridMock.props?.infiniteLoading).toMatchObject({
+        loaded: 80,
+        total: 80,
+        hasNextPage: false,
+      });
+      expect(electricalGlideGridMock.props?.rows).toHaveLength(80);
+    });
   });
 
   it('ставит batch ТЛТ в очередь с electrical params, а не пустым набором', async () => {

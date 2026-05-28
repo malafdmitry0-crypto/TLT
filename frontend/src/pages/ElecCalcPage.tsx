@@ -1072,6 +1072,18 @@ function buildElectricalQueryRequest(
   };
 }
 
+function projectObjectsPageCursorsEqual(
+  left?: ProjectObjectsPageCursor | null,
+  right?: ProjectObjectsPageCursor | null,
+) {
+  if (left == null || right == null) return left == null && right == null;
+  return left.id === right.id
+    && left.sort_order === right.sort_order
+    && left.key === right.key
+    && left.value === right.value
+    && left.value_is_null === right.value_is_null;
+}
+
 function ColumnFilterDropdown({
   title,
   kind,
@@ -1348,6 +1360,8 @@ export default function ElecCalcPage() {
     useState<HeatCalcTableViewState>(() => createEmptyTableViewState());
   const [electricalPageCursors, setElectricalPageCursors] =
     useState<Record<number, ProjectObjectsPageCursor | null>>({ 1: null });
+  const [electricalInfinitePages, setElectricalInfinitePages] =
+    useState<Record<number, ElectricalQueryResponse>>({});
   const [activeJobId, setActiveJobId] = useState<string | null>(
     () => navigationActiveJobId,
   );
@@ -1391,6 +1405,7 @@ export default function ElecCalcPage() {
 
   useEffect(() => {
     setElectricalPageCursors({ 1: null });
+    setElectricalInfinitePages({});
   }, [cableSource, project?.id, variant, tablePageSize, tableViewState]);
 
   useEffect(() => {
@@ -1450,39 +1465,101 @@ export default function ElecCalcPage() {
       variant,
     ],
   );
-  const { data: electricalPage, isFetching: isElectricalPageFetching } = useQuery({
+  const {
+    data: electricalPage,
+    isFetching: isElectricalPageFetching,
+    isPlaceholderData: isElectricalPagePlaceholderData,
+  } = useQuery({
     queryKey: ['project', project?.id, 'electrical-query', electricalQueryRequest],
     queryFn: () => queryElectrical(electricalQueryRequest!),
     enabled: !!project && electricalQueryRequest != null && !!electricalQueryCapabilities,
     placeholderData: (previous) => previous,
   });
-  const objects = electricalPage?.items ?? EMPTY_OBJECTS;
-  const elecCalcs = electricalPage?.calculations ?? EMPTY_ELECTRICAL_CALCS;
   const pageSummary = electricalPage?.summary;
   const pageInfo = electricalPage?.page_info;
   const nextElectricalPageCursor = pageInfo?.next_cursor;
+  useEffect(() => {
+    if (!electricalGlideEnabled || isElectricalPageFetching || isElectricalPagePlaceholderData || !electricalPage) {
+      return;
+    }
+    setElectricalInfinitePages((current) => {
+      if (current[tablePage] === electricalPage) return current;
+      if (tablePage === 1) return { 1: electricalPage };
+      return { ...current, [tablePage]: electricalPage };
+    });
+  }, [
+    electricalGlideEnabled,
+    electricalPage,
+    isElectricalPageFetching,
+    isElectricalPagePlaceholderData,
+    tablePage,
+  ]);
+  const electricalLoadedPages = useMemo(() => {
+    if (!electricalGlideEnabled) {
+      return electricalPage ? [electricalPage] : [];
+    }
+    const pages: ElectricalQueryResponse[] = [];
+    for (let page = 1; page <= tablePage; page += 1) {
+      const loadedPage = electricalInfinitePages[page];
+      if (loadedPage) pages.push(loadedPage);
+    }
+    if (pages.length === 0 && electricalPage && !isElectricalPagePlaceholderData) {
+      return [electricalPage];
+    }
+    return pages;
+  }, [
+    electricalGlideEnabled,
+    electricalInfinitePages,
+    electricalPage,
+    isElectricalPagePlaceholderData,
+    tablePage,
+  ]);
+  const objects = useMemo(() => {
+    if (!electricalGlideEnabled) return electricalPage?.items ?? EMPTY_OBJECTS;
+    if (electricalLoadedPages.length === 0) return EMPTY_OBJECTS;
+    const seen = new Set<string>();
+    const rows: ProjectObject[] = [];
+    electricalLoadedPages.forEach((page) => {
+      page.items.forEach((item) => {
+        if (seen.has(item.id)) return;
+        seen.add(item.id);
+        rows.push(item);
+      });
+    });
+    return rows;
+  }, [electricalGlideEnabled, electricalLoadedPages, electricalPage?.items]);
+  const elecCalcs = useMemo(() => {
+    if (!electricalGlideEnabled) return electricalPage?.calculations ?? EMPTY_ELECTRICAL_CALCS;
+    if (electricalLoadedPages.length === 0) return EMPTY_ELECTRICAL_CALCS;
+    const seen = new Set<string>();
+    const calculations: ElectricalCalcSummary[] = [];
+    electricalLoadedPages.forEach((page) => {
+      page.calculations.forEach((calc) => {
+        if (seen.has(calc.object_id)) return;
+        seen.add(calc.object_id);
+        calculations.push(calc);
+      });
+    });
+    return calculations;
+  }, [electricalGlideEnabled, electricalLoadedPages, electricalPage?.calculations]);
+  const electricalDisplayOffset = electricalGlideEnabled ? 0 : (pageInfo?.offset ?? 0);
   const stats = useElectricalStats(objects, elecCalcs);
 
   useEffect(() => {
-    if (isElectricalPageFetching) return;
+    if (isElectricalPageFetching || isElectricalPagePlaceholderData) return;
     const nextCursor = nextElectricalPageCursor;
     if (!nextCursor) return;
     setElectricalPageCursors((current) => {
       const nextPage = tablePage + 1;
       const existing = current[nextPage];
-      if (
-        existing?.id === nextCursor.id &&
-        existing.sort_order === nextCursor.sort_order &&
-        existing.key === nextCursor.key &&
-        existing.value === nextCursor.value &&
-        existing.value_is_null === nextCursor.value_is_null
-      ) {
+      if (projectObjectsPageCursorsEqual(existing, nextCursor)) {
         return current;
       }
       return { ...current, [nextPage]: nextCursor };
     });
   }, [
     isElectricalPageFetching,
+    isElectricalPagePlaceholderData,
     nextElectricalPageCursor,
     tablePage,
   ]);
@@ -2941,7 +3018,7 @@ export default function ElecCalcPage() {
   const electricalColumnRenderers = useMemo<Record<ElectricalColumnKey, ElectricalColumnRenderSpec>>(() => ({
     index: {
       render: (_: unknown, __: ProjectObject, idx: number) =>
-        (pageInfo?.offset ?? 0) + idx + 1,
+        electricalDisplayOffset + idx + 1,
     },
     object_name: {
       ellipsis: true,
@@ -3298,7 +3375,7 @@ export default function ElecCalcPage() {
     maintainTemperature,
     openCableMarkModal,
     openCableSizingModal,
-    pageInfo?.offset,
+    electricalDisplayOffset,
     project,
     stats.calcByObjectId,
     supplyVoltage,
@@ -3614,7 +3691,7 @@ export default function ElecCalcPage() {
     const currentCalc = currentElectricalCalc(calc);
     switch (key) {
       case 'index':
-        return (pageInfo?.offset ?? 0) + index + 1;
+        return electricalDisplayOffset + index + 1;
       case 'object_name':
         return objectDisplayName(obj);
       case 'object_type':
@@ -3710,7 +3787,7 @@ export default function ElecCalcPage() {
     heatingHeight,
     layingStep,
     maintainTemperature,
-    pageInfo?.offset,
+    electricalDisplayOffset,
     stats.calcByObjectId,
     supplyVoltage,
     vaporTemperature,
@@ -3809,6 +3886,18 @@ export default function ElecCalcPage() {
   const handleElectricalGlidePageChange = useCallback((page: number) => {
     setTablePage(page);
   }, []);
+
+  const handleElectricalGlideLoadMore = useCallback(() => {
+    if (isElectricalPageFetching || !pageInfo?.has_next_page || !nextElectricalPageCursor) return;
+    const nextPage = tablePage + 1;
+    setElectricalPageCursors((current) => {
+      if (projectObjectsPageCursorsEqual(current[nextPage], nextElectricalPageCursor)) {
+        return current;
+      }
+      return { ...current, [nextPage]: nextElectricalPageCursor };
+    });
+    setTablePage(nextPage);
+  }, [isElectricalPageFetching, nextElectricalPageCursor, pageInfo?.has_next_page, tablePage]);
 
   const electricalRowClassName = useCallback((obj: ProjectObject) => {
     const calc = stats.calcByObjectId[obj.id];
@@ -4027,6 +4116,19 @@ export default function ElecCalcPage() {
     showTotal: (total, range) => `${range[0]}-${range[1]} из ${total}`,
     size: 'small',
   }), [filteredTableCount, tablePage, tablePageSize]);
+  const electricalInfiniteLoading = useMemo(() => (electricalGlideEnabled ? {
+    loaded: objects.length,
+    total: filteredTableCount,
+    hasNextPage: Boolean(pageInfo?.has_next_page && nextElectricalPageCursor),
+    loading: isElectricalPageFetching,
+  } : null), [
+    electricalGlideEnabled,
+    filteredTableCount,
+    isElectricalPageFetching,
+    nextElectricalPageCursor,
+    objects.length,
+    pageInfo?.has_next_page,
+  ]);
   const validObjectsCount = pageSummary?.valid_objects ?? stats.validObjects.length;
   const selectedObjectsCount = selectedRowKeys.length;
   const selectedObjects = useMemo(
@@ -4083,7 +4185,7 @@ export default function ElecCalcPage() {
       if (!error || isElectricalCalcUnsupported(calc) || isElectricalCalcStale(calc)) return null;
       return {
         objectId: obj.id,
-        rowNumber: (pageInfo?.offset ?? 0) + index + 1,
+        rowNumber: electricalDisplayOffset + index + 1,
         objectName: objectDisplayName(obj),
         error,
         cableType: calc?.cable_type ?? null,
@@ -4102,7 +4204,7 @@ export default function ElecCalcPage() {
       errorCode: string | null;
       suggestedActions: string[] | null;
     } => item != null),
-  [objects, pageInfo?.offset, stats.calcByObjectId]);
+  [electricalDisplayOffset, objects, stats.calcByObjectId]);
   const activeElectricalErrorItem = useMemo(() => {
     if (activeRowId) {
       const activeIndex = objects.findIndex((obj) => obj.id === activeRowId);
@@ -4118,7 +4220,7 @@ export default function ElecCalcPage() {
         }
         return {
           objectId: activeObject.id,
-          rowNumber: (pageInfo?.offset ?? 0) + activeIndex + 1,
+          rowNumber: electricalDisplayOffset + activeIndex + 1,
           objectName: objectDisplayName(activeObject),
           error,
           cableType: calc?.cable_type ?? null,
@@ -4131,7 +4233,7 @@ export default function ElecCalcPage() {
     }
     const firstError = electricalErrorItems[0];
     return firstError ? { ...firstError, fallback: true } : null;
-  }, [activeRowId, electricalErrorItems, objects, pageInfo?.offset, stats.calcByObjectId]);
+  }, [activeRowId, electricalDisplayOffset, electricalErrorItems, objects, stats.calcByObjectId]);
   const activeElectricalErrorGuidance = activeElectricalErrorItem?.error
     ? getElectricalErrorGuidance({
         error: activeElectricalErrorItem.error,
@@ -5145,6 +5247,7 @@ export default function ElecCalcPage() {
                 selectedRowKeys={selectedRowKeys}
                 tableViewState={tableViewState}
                 pagination={electricalPagination}
+                infiniteLoading={electricalInfiniteLoading}
                 emptyContent={currentTableViewActive && totalObjects > 0 ? (
                   <div className="table-filter-empty">
                     <Text type="secondary">Нет строк по текущим фильтрам</Text>
@@ -5163,6 +5266,7 @@ export default function ElecCalcPage() {
                 onColumnResize={applyElectricalGlideColumnDraftWidth}
                 onColumnResizeEnd={commitElectricalGlideColumnWidth}
                 onPageChange={handleElectricalGlidePageChange}
+                onLoadMore={handleElectricalGlideLoadMore}
                 onCellAction={handleElectricalGlideCellAction}
               />
             </Suspense>

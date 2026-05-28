@@ -121,7 +121,7 @@ interface FilterPopupState {
   top: number;
 }
 
-interface HeatCalcNormalInfiniteLoading {
+export interface HeatCalcNormalInfiniteLoading {
   loaded: number;
   total: number;
   hasNextPage: boolean;

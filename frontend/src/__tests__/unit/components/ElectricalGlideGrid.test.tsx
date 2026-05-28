@@ -111,6 +111,7 @@ describe('ElectricalGlideGrid', () => {
       onResetColumnFilter: vi.fn(),
       onSetSort: vi.fn(),
       onPageChange: vi.fn(),
+      onLoadMore: vi.fn(),
       ...overrides,
     };
     render(<ElectricalGlideGrid {...props} />);
@@ -221,5 +222,26 @@ describe('ElectricalGlideGrid', () => {
 
     expect(onCellAction).toHaveBeenCalledWith(rows[0], 'cable_mark', 'choose');
     expect(props.onOpenRow).not.toHaveBeenCalled();
+  });
+
+  it('uses infinite loading instead of numbered pagination for the default Glide table', () => {
+    const onLoadMore = vi.fn();
+    renderGrid({
+      infiniteLoading: {
+        loaded: 50,
+        total: 80,
+        hasNextPage: true,
+      },
+      pagination: { current: 1, pageSize: 50, total: 80 },
+      onLoadMore,
+    });
+
+    expect(screen.queryByText(/Страница/)).not.toBeInTheDocument();
+    expect(document.querySelector('.ant-pagination-item')).toBeNull();
+    const onVisibleRegionChanged = glideMock.props?.onVisibleRegionChanged as (
+      range: { x: number; y: number; width: number; height: number },
+    ) => void;
+    act(() => onVisibleRegionChanged({ x: 0, y: 1, width: 1, height: 1 }));
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
   });
 });
