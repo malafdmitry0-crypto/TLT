@@ -1,5 +1,5 @@
-import { beforeEach, expect, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, expect, vi } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HeatCalcPage from '@/pages/HeatCalcPage';
@@ -12,6 +12,11 @@ import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import type { Project, ProjectObject, ProjectObjectsQueryRequest } from '@/types/project';
 
 export const HEATCALC_PAGE_TEST_TIMEOUT = 120_000;
+
+const HEATCALC_PAGE_TEST_IGNORED_WARNINGS = [
+  'Warning: Instance created by `useForm` is not connected to any Form element.',
+  'Warning: A suspended resource finished loading inside a test',
+];
 
 type MockGridColumn = {
   key: string;
@@ -687,7 +692,9 @@ export async function openTableSettingsDialog(user: { click: (element: Element) 
     { name: 'Настройки отображения' },
     { timeout: HEATCALC_PAGE_TEST_TIMEOUT },
   );
-  fireEvent.click(settingsButton);
+  await act(async () => {
+    fireEvent.click(settingsButton);
+  });
   return screen.findByRole(
     'dialog',
     { name: /Настройки таблицы/ },
@@ -723,12 +730,30 @@ export function getNormalGlideRowCells(row: HTMLElement) {
 
 
 export function setupHeatCalcPageTest() {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn> | undefined;
+
+  afterEach(async () => {
+    await act(async () => {
+      await Promise.resolve();
+    });
+    consoleErrorSpy?.mockRestore();
+    consoleErrorSpy = undefined;
+  });
+
   beforeEach(() => {
     localStorage.clear();
     useAuthStore.getState().logout();
     useProjectStore.getState().setCurrentProject(null);
     useWorkspaceHeaderStore.getState().setContext(null);
     vi.clearAllMocks();
+    const originalConsoleError = console.error;
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation((message?: unknown, ...args: unknown[]) => {
+      const text = typeof message === 'string' ? message : '';
+      if (HEATCALC_PAGE_TEST_IGNORED_WARNINGS.some((warning) => text.includes(warning))) {
+        return;
+      }
+      originalConsoleError(message, ...args);
+    });
     (getUserPreference as ReturnType<typeof vi.fn>).mockImplementation(async (key: string) => ({
       key,
       value: null,

@@ -18,6 +18,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET="${1:-all}"
+TEST_SECRET_KEY="${TEST_SECRET_KEY:-codex-test-secret-key-at-least-32-chars}"
 
 # Убедимся, что dev-стек поднят (для unit и integration).
 ensure_dev_stack() {
@@ -36,13 +37,15 @@ ensure_dev_stack() {
 run_backend_unit() {
   ensure_dev_stack
   echo "▶ Backend unit-тесты"
-  docker exec heatcalc_backend pytest app/tests/unit -q --tb=short --no-cov
+  docker exec -e SECRET_KEY="$TEST_SECRET_KEY" heatcalc_backend pytest app/tests/unit -q --tb=short --no-cov
 }
 
 run_backend_integration() {
   ensure_dev_stack
   echo "▶ Backend integration (требует БД heatcalc_test)"
-  docker exec -e TEST_DATABASE_URL=postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test \
+  docker exec \
+    -e SECRET_KEY="$TEST_SECRET_KEY" \
+    -e TEST_DATABASE_URL=postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test \
     heatcalc_backend pytest app/tests/integration -q --tb=short --no-cov
 }
 

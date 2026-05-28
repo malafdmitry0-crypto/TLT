@@ -16,7 +16,7 @@ describe('AdminLayout', () => {
     });
   });
 
-  it('рендерит шапку Администрирование, меню и кнопку Выход', () => {
+  it('рендерит шапку Администрирование, меню и кнопку Выход', async () => {
     render(
       <TestMemoryRouter initialEntries={['/admin/users']}>
         <Routes>
@@ -26,8 +26,8 @@ describe('AdminLayout', () => {
         </Routes>
       </TestMemoryRouter>
     );
-    expect(screen.getByText(/Администрирование/i)).toBeInTheDocument();
-    expect(screen.getByText('USERS-CONTENT')).toBeInTheDocument();
-    expect(screen.getByText('Выход')).toBeInTheDocument();
+    expect(await screen.findByText(/Администрирование/i)).toBeInTheDocument();
+    expect(await screen.findByText('USERS-CONTENT')).toBeInTheDocument();
+    expect(await screen.findByText('Выход')).toBeInTheDocument();
   });
 });

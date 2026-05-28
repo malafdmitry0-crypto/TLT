@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -49,9 +49,16 @@ function renderPage() {
 describe('ReportPage (integration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:report-test');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
     localStorage.clear();
     useProjectStore.getState().setCurrentProject(null);
     useCalculationVariantStore.setState({ variantByProject: {} });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('показывает заглушку без выбранного проекта', () => {

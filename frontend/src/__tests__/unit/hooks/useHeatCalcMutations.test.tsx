@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import TestMemoryRouter from '@/__tests__/utils/TestMemoryRouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -36,7 +36,9 @@ describe('useHeatCalcMutations', () => {
       { wrapper }
     );
 
-    await result.current.add.mutateAsync({ object_type: 'pipe', sort_order: 0, params: {} });
+    await act(async () => {
+      await result.current.add.mutateAsync({ object_type: 'pipe', sort_order: 0, params: {} });
+    });
     expect(onAdd).toHaveBeenCalled();
   });
 
@@ -53,7 +55,9 @@ describe('useHeatCalcMutations', () => {
       () => useHeatCalcMutations('p1', onAdd),
       { wrapper }
     );
-    await result.current.add.mutateAsync({ object_type: 'pipe', sort_order: 0, params: {} });
+    await act(async () => {
+      await result.current.add.mutateAsync({ object_type: 'pipe', sort_order: 0, params: {} });
+    });
     expect(onAdd).toHaveBeenCalled();
   });
 
@@ -69,7 +73,9 @@ describe('useHeatCalcMutations', () => {
       () => useHeatCalcMutations('p1', undefined, onEdit),
       { wrapper }
     );
-    await result.current.edit.mutateAsync({ objectId: 'o1', version: 1, params: {} });
+    await act(async () => {
+      await result.current.edit.mutateAsync({ objectId: 'o1', version: 1, params: {} });
+    });
     expect(onEdit).toHaveBeenCalled();
   });
 

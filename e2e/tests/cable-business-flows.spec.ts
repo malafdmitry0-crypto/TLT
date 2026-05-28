@@ -1,4 +1,4 @@
-import { test, expect, type Locator, type Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 import {
   API_BASE,
@@ -6,6 +6,13 @@ import {
   currentGuestContext,
   loginAsGuest,
 } from './helpers/workspace';
+import {
+  clickFirstElectricalGridRow,
+  expectElectricalCalcForObject,
+  expectElectricalGlideReady,
+  expectElectricalGridReadOnly,
+  fetchElectricalCalcs,
+} from './helpers/electrical-glide';
 
 async function selectDropdownOption(page: Page, optionText: string) {
   const dropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last();
@@ -17,12 +24,6 @@ async function selectDropdownOption(page: Page, optionText: string) {
     el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     (el as HTMLElement).click();
   });
-}
-
-async function rowForObject(page: Page, objectName: string): Promise<Locator> {
-  const row = page.getByRole('row').filter({ hasText: objectName }).first();
-  await expect(row).toBeVisible();
-  return row;
 }
 
 async function selectCableType(
@@ -39,29 +40,19 @@ async function selectCableType(
   await selectDropdownOption(page, nextText);
 }
 
-async function fetchElectricalCalcs(page: Page, projectId: string, sessionId: string) {
-  const response = await page.request.get(`${API_BASE}/api/v1/calc/electrical`, {
-    headers: { 'X-Session-Id': sessionId },
-    params: { project_id: projectId, variant_number: 1 },
+async function openElectricalSettingsDialog(page: Page) {
+  const settingsDialog = page.locator('.electrical-column-settings-dialog').filter({
+    hasText: 'Настройки таблицы электрорасчёта',
   });
-  expect(response.ok()).toBeTruthy();
-  return response.json() as Promise<
-    Array<{
-      object_id: string;
-      cable_type: string;
-      cable_mark: string | null;
-      results: {
-        winding_pitch?: number | null;
-        num_circuits?: number | null;
-        cable_length?: number | null;
-        series?: string | null;
-        connection_type?: string | null;
-        selection_policy?: string | null;
-        applied_selection_policy?: string | null;
-        commercial?: Record<string, unknown> | null;
-      };
-    }>
-  >;
+  const settingsButton = page.getByRole('button', { name: /^Настройки$/ });
+
+  await expect(settingsButton).toBeVisible();
+  await expect(async () => {
+    await settingsButton.click();
+    await expect(settingsDialog).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 10_000 });
+
+  return settingsDialog;
 }
 
 async function ensureCheapTlt100CommercialData(page: Page) {
@@ -138,10 +129,9 @@ test.describe('business flow: cable layout controls', () => {
     await recalculateAll(page);
     await expectBatchSuccess(page);
 
-    const row = await rowForObject(page, pipeName);
-    await row.click();
-    await expect(row.getByRole('spinbutton')).toHaveCount(0);
-    await expect(row.locator('.ant-select-selector')).toHaveCount(0);
+    await expectElectricalGlideReady(page);
+    await clickFirstElectricalGridRow(page);
+    await expectElectricalGridReadOnly(page);
 
     const firstCalcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const firstCalc = firstCalcs.find((item) => item.object_id === pipe.id);
@@ -152,10 +142,9 @@ test.describe('business flow: cable layout controls', () => {
     await recalculateAll(page);
     await expectBatchSuccess(page);
 
-    const refreshedRow = await rowForObject(page, pipeName);
-    await refreshedRow.click();
-    await expect(refreshedRow.getByRole('spinbutton')).toHaveCount(0);
-    await expect(refreshedRow.locator('.ant-select-selector')).toHaveCount(0);
+    await expectElectricalGlideReady(page);
+    await clickFirstElectricalGridRow(page);
+    await expectElectricalGridReadOnly(page);
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const calc = calcs.find((item) => item.object_id === pipe.id);
@@ -177,10 +166,9 @@ test.describe('business flow: cable layout controls', () => {
     await recalculateAll(page);
     await expectBatchSuccess(page);
 
-    const row = await rowForObject(page, pipeName);
-    await row.click();
-    await expect(row.getByRole('spinbutton')).toHaveCount(0);
-    await expect(row.locator('.ant-select-selector')).toHaveCount(0);
+    await expectElectricalGlideReady(page);
+    await clickFirstElectricalGridRow(page);
+    await expectElectricalGridReadOnly(page);
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const calc = calcs.find((item) => item.object_id === pipe.id);
@@ -206,8 +194,7 @@ test.describe('business flow: cable layout controls', () => {
     await recalculateAll(page);
 
     await expectBatchSuccess(page);
-    const row = await rowForObject(page, pipeName);
-    await expect(row).toContainText(/ТТ[НВХ].*-СТ/);
+    await expectElectricalGlideReady(page);
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const calc = calcs.find((item) => item.object_id === pipe.id);
@@ -233,7 +220,8 @@ test.describe('business flow: cable layout controls', () => {
     await recalculateAll(page);
 
     await expectBatchSuccess(page);
-    await rowForObject(page, pipeName);
+    await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id);
+    await expectElectricalGlideReady(page);
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const calc = calcs.find((item) => item.object_id === pipe.id);
@@ -256,7 +244,8 @@ test.describe('business flow: cable layout controls', () => {
     await recalculateAll(page);
 
     await expectBatchSuccess(page);
-    await rowForObject(page, pipeName);
+    await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id);
+    await expectElectricalGlideReady(page);
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const calc = calcs.find((item) => item.object_id === pipe.id);
@@ -276,8 +265,7 @@ test.describe('business flow: cable layout controls', () => {
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
     await expect(page.getByText('База для пересчёта:')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Настройки' }).click();
-    const settingsDialog = page.getByRole('dialog', { name: 'Настройки таблицы электрорасчёта' });
+    const settingsDialog = await openElectricalSettingsDialog(page);
     await settingsDialog.getByRole('tab', { name: 'Остальное' }).click();
     await expect(settingsDialog.getByText('База для пересчёта:')).toBeVisible();
     await expect(settingsDialog.getByText('Встроенная')).toBeVisible();
@@ -287,7 +275,8 @@ test.describe('business flow: cable layout controls', () => {
     await recalculateAll(page);
     await expectBatchSuccess(page);
 
-    await rowForObject(page, pipeName);
+    await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id);
+    await expectElectricalGlideReady(page);
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const calc = calcs.find((item) => item.object_id === pipe.id);
@@ -314,8 +303,8 @@ test.describe('business flow: cable layout controls', () => {
 
     await recalculateAll(page);
     await expectBatchSuccess(page);
-    await expect(page.getByText(pipeName)).toBeVisible();
-    await expect(page.getByText(/Рассчитан/i)).toBeVisible();
+    await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id);
+    await expectElectricalGlideReady(page);
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const calc = calcs.find((item) => item.object_id === pipe.id);

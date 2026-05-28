@@ -29,6 +29,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET="${1:-docs}"
+TEST_SECRET_KEY="${TEST_SECRET_KEY:-codex-test-secret-key-at-least-32-chars}"
 
 run_docs() {
   echo "▶ Docs drift check"
@@ -98,6 +99,7 @@ run_business() {
   echo "▶ Deep backend business logic tests"
   "$ROOT/scripts/formula-qa.sh" full
   docker exec \
+    -e SECRET_KEY="$TEST_SECRET_KEY" \
     -e TEST_DATABASE_URL=postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test \
     heatcalc_backend pytest \
       app/tests/integration/api/test_security_boundaries.py \

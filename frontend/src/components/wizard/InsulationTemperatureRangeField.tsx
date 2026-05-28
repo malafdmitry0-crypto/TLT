@@ -216,7 +216,7 @@ export default function InsulationTemperatureRangeField({
               min={modalMinLimit}
               max={modalMaxLimit}
               step={minStep}
-                    unit="°C"
+              unit="°C"
             />
           </Form.Item>
           <Form.Item
@@ -233,7 +233,7 @@ export default function InsulationTemperatureRangeField({
               min={modalMinLimit}
               max={modalMaxLimit}
               step={maxStep}
-                    unit="°C"
+              unit="°C"
             />
           </Form.Item>
         </Form>

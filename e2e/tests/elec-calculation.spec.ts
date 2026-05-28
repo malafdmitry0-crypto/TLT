@@ -1,6 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
 
-import { createCalculatedPipe, loginAsGuest } from './helpers/workspace';
+import { createCalculatedPipe, currentGuestContext, loginAsGuest } from './helpers/workspace';
+import {
+  expectElectricalCalcForObject,
+  expectElectricalGlideReady,
+  fetchElectricalCalcs,
+} from './helpers/electrical-glide';
 
 const ALL_ELECTRICAL_COLUMN_KEYS = [
   'index',
@@ -62,75 +67,17 @@ async function expectElectricalActionbarSingleLine(page: Page) {
 }
 
 async function expectElectricalHeaderControlsInline(page: Page) {
-  await expect(page.locator('.electrical-spreadsheet .ant-table-filter-trigger').first()).toBeVisible();
-
-  const issues = await page.locator('.electrical-spreadsheet .ant-table-thead th').evaluateAll((headers) => {
-    return headers.flatMap((header) => {
-      const title = header.querySelector('.resizable-column-title-text')?.getBoundingClientRect();
-      const sorter = header.querySelector('.ant-table-column-sorter')?.getBoundingClientRect();
-      const filter = header.querySelector('.ant-table-filter-trigger')?.getBoundingClientRect();
-      const label = header.textContent?.replace(/\s+/g, ' ').trim() || '(empty)';
-      const headerIssues: string[] = [];
-      const headerHeight = header.getBoundingClientRect().height;
-
-      if (headerHeight > 52) {
-        headerIssues.push(`${label}: header is too tall (${Math.round(headerHeight)}px)`);
-      }
-      if (title && filter && filter.top > title.bottom + 8) {
-        headerIssues.push(`${label}: filter is stacked below title`);
-      }
-      if (sorter && filter) {
-        const sorterCenter = (sorter.top + sorter.bottom) / 2;
-        const filterCenter = (filter.top + filter.bottom) / 2;
-        if (Math.abs(sorterCenter - filterCenter) > 2) {
-          headerIssues.push(`${label}: sorter and filter are vertically misaligned`);
-        }
-      }
-
-      return headerIssues;
-    });
+  await expectElectricalGlideReady(page);
+  const issues = await page.locator('.electrical-spreadsheet--glide canvas').first().evaluate((canvas) => {
+    const rect = canvas.getBoundingClientRect();
+    const grid = canvas.closest('.electrical-spreadsheet--glide')?.getBoundingClientRect();
+    const layoutIssues: string[] = [];
+    if (rect.width < 640) layoutIssues.push(`canvas is too narrow (${Math.round(rect.width)}px)`);
+    if (rect.height < 220) layoutIssues.push(`canvas is too short (${Math.round(rect.height)}px)`);
+    if (grid && rect.right > grid.right + 2) layoutIssues.push('canvas overflows grid container');
+    return layoutIssues;
   });
-
   expect(issues).toEqual([]);
-
-  const borderIssues = await page.evaluate(() => {
-    const headers = [...document.querySelectorAll<HTMLElement>(
-      '.electrical-spreadsheet .ant-table-thead th',
-    )];
-    const firstDataRow = document.querySelector<HTMLElement>(
-      '.electrical-spreadsheet .ant-table-tbody tr:not(.ant-table-measure-row)',
-    );
-    const cells = firstDataRow
-      ? [...firstDataRow.querySelectorAll<HTMLElement>('td')]
-      : [];
-
-    return headers.flatMap((header, index) => {
-      const cell = cells[index];
-      if (!cell) return [];
-
-      const headerRect = header.getBoundingClientRect();
-      if (headerRect.right <= 0 || headerRect.left >= window.innerWidth) {
-        return [];
-      }
-
-      const cellRect = cell.getBoundingClientRect();
-      const headerBorder = getComputedStyle(header).borderRight;
-      const cellBorder = getComputedStyle(cell).borderRight;
-      const label = header.textContent?.replace(/\s+/g, ' ').trim() || `column ${index}`;
-      const columnIssues: string[] = [];
-
-      if (Math.abs(headerRect.left - cellRect.left) > 1 || Math.abs(headerRect.right - cellRect.right) > 1) {
-        columnIssues.push(`${label}: header/body vertical borders are misaligned`);
-      }
-      if (headerBorder !== cellBorder) {
-        columnIssues.push(`${label}: header/body border styles differ`);
-      }
-
-      return columnIssues;
-    });
-  });
-
-  expect(borderIssues).toEqual([]);
 }
 
 async function showAllElectricalColumns(page: Page) {
@@ -144,13 +91,13 @@ async function showElectricalColumns(
 ) {
   await page.evaluate((keys) => {
     const columns = Object.fromEntries(keys.map((key) => [key, { widthPct: 8 }]));
-    localStorage.setItem('electrical.tableColumns.v4.guest', JSON.stringify({
-      version: 4,
+    localStorage.setItem('electrical.tableColumns.v5.guest', JSON.stringify({
+      version: 5,
       visibleOrder: keys,
       columns,
     }));
-    localStorage.setItem('electrical.tableView.v1.guest', JSON.stringify({
-      version: 1,
+    localStorage.setItem('electrical.tableView.v4.guest', JSON.stringify({
+      version: 4,
       fontSize: 'compact',
       tableLabelFormat: 'short',
       settingsLabelFormat: 'full',
@@ -159,26 +106,6 @@ async function showElectricalColumns(
   if (options.reload) {
     await page.reload();
   }
-}
-
-async function electricalRowCellText(page: Page, rowText: string, cellIndex: number) {
-  return page
-    .locator('.electrical-spreadsheet .ant-table-tbody tr:not(.ant-table-measure-row)')
-    .filter({ hasText: rowText })
-    .first()
-    .locator('td')
-    .nth(cellIndex)
-    .innerText();
-}
-
-async function scrollElectricalTableHorizontally(page: Page, scrollLeft: number) {
-  await page.evaluate((left) => {
-    const scroller = document.querySelector<HTMLElement>(
-      '.electrical-spreadsheet .ant-table-content, .electrical-spreadsheet .ant-table-body',
-    );
-    if (scroller) scroller.scrollLeft = left;
-  }, scrollLeft);
-  await page.waitForTimeout(100);
 }
 
 test.describe('4.4 Электротехнический расчёт', () => {
@@ -201,8 +128,9 @@ test.describe('4.4 Электротехнический расчёт', () => {
     page,
   }) => {
     await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E no cable type before calc ${Date.now()}`;
-    await createCalculatedPipe(page, pipeName);
+    const pipe = await createCalculatedPipe(page, pipeName);
     await showElectricalColumns(page, [
       'index',
       'object_name',
@@ -212,38 +140,35 @@ test.describe('4.4 Электротехнический расчёт', () => {
     ]);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    const row = page.getByRole('row').filter({ hasText: pipeName }).first();
-    await expect(row).toBeVisible();
-    await expect(row.locator('.electrical-status-icon-tag[aria-label="Не рассчитан"]')).toBeVisible();
-    await expect.poll(async () => (await electricalRowCellText(page, pipeName, 4)).trim()).toBe('—');
-    await expect(row.getByText(/Саморегулирующийся/i)).toHaveCount(0);
+    await expectElectricalGlideReady(page);
+    await expect.poll(async () => {
+      const rows = await fetchElectricalCalcs(page, projectId, sessionId);
+      return rows.find((row) => row.object_id === pipe.id)?.cable_mark ?? null;
+    }).toBeNull();
 
     await recalculateAll(page);
 
     await expect(page.getByText(/СО1 — расчёт выполнен для всех объектов: 1/i)).toBeVisible({
       timeout: 20_000,
     });
-    await expect.poll(async () => await electricalRowCellText(page, pipeName, 4)).toContain(
-      'ТЛТ-100',
-    );
+    await expect.poll(async () => {
+      const rows = await fetchElectricalCalcs(page, projectId, sessionId);
+      return rows.find((row) => row.object_id === pipe.id)?.cable_mark ?? '';
+    }).toContain('ТЛТ-100');
   });
 
   test('после расчёта объекта показывает марку кабеля, длину, мощность и ток', async ({
     page,
   }) => {
     await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E elec pipe ${Date.now()}`;
-    await createCalculatedPipe(page, pipeName);
+    const pipe = await createCalculatedPipe(page, pipeName);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
-    const row = page.getByRole('row').filter({ hasText: pipeName }).first();
-    await expect(row).toBeVisible();
-    await expect(row.getByText(/^ОК$/)).toHaveCount(0);
     await expectElectricalHeaderControlsInline(page);
 
     await showAllElectricalColumns(page);
-    await expect(page.getByRole('row').filter({ hasText: pipeName }).first()).toBeVisible();
-    await scrollElectricalTableHorizontally(page, 1500);
     await expectElectricalHeaderControlsInline(page);
 
     await expect(page.getByText(/СО1 · тип по объектам · расчёт не выполнен/i)).toBeVisible();
@@ -254,7 +179,11 @@ test.describe('4.4 Электротехнический расчёт', () => {
       timeout: 20_000,
     });
     await expect(page.getByText(/СО1 · тип по объектам · .*рассчитано: 1\/1/i)).toBeVisible();
-    await expect(page.getByText(/ТЛТ-100/)).toBeVisible();
+    const calc = await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id);
+    expect(calc.cable_mark).toContain('ТЛТ-100');
+    expect(Number(calc.results?.order_cable_length ?? calc.results?.cable_length)).toBeGreaterThan(0);
+    expect(Number(calc.results?.total_power)).toBeGreaterThan(0);
+    expect(Number(calc.results?.current)).toBeGreaterThan(0);
     await expect(page.getByText(/11,80 кВт|11\.80 кВт/i).first()).toBeVisible();
   });
 
@@ -262,8 +191,9 @@ test.describe('4.4 Электротехнический расчёт', () => {
     page,
   }) => {
     await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E variant pipe ${Date.now()}`;
-    await createCalculatedPipe(page, pipeName);
+    const pipe = await createCalculatedPipe(page, pipeName);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
     await page.getByRole('button').filter({ hasText: /^СО2$/ }).click();
@@ -274,17 +204,23 @@ test.describe('4.4 Электротехнический расчёт', () => {
       timeout: 20_000,
     });
     await expect(page.getByText(/СО2 · тип по объектам · .*рассчитано: 1\/1/i)).toBeVisible();
-    await expect(page.getByText(pipeName)).toBeVisible();
+    const co2Calc = await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id, 2);
+    expect(co2Calc.cable_mark).toBeTruthy();
 
     await page.getByRole('button').filter({ hasText: /^СО1$/ }).click();
     await expect(page.getByText(/СО1 · тип по объектам · расчёт не выполнен/i)).toBeVisible();
-    await expect(page.getByRole('row').filter({ hasText: pipeName }).first()).toBeVisible();
+    await expect.poll(async () => {
+      const rows = await fetchElectricalCalcs(page, projectId, sessionId, 1);
+      return rows.find((row) => row.object_id === pipe.id)?.cable_mark ?? null;
+    }).toBeNull();
+    await expectElectricalGlideReady(page);
   });
 
   test('создаёт СО на основании рассчитанного СО1 без Network Error', async ({ page }) => {
     await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E copy variant pipe ${Date.now()}`;
-    await createCalculatedPipe(page, pipeName);
+    const pipe = await createCalculatedPipe(page, pipeName);
     await showElectricalColumns(page, [
       'index',
       'object_name',
@@ -311,10 +247,10 @@ test.describe('4.4 Электротехнический расчёт', () => {
     await expect(page.getByText(/Network Error/i)).toHaveCount(0);
     await expect(page.getByRole('button').filter({ hasText: /^СО2$/ })).toHaveClass(/ant-btn-primary/);
     await expect(page.getByText(/СО2 · тип по объектам · .*рассчитано: 1\/1/i)).toBeVisible();
-    const targetRow = page.getByRole('row').filter({ hasText: pipeName }).first();
-    await expect(targetRow).toBeVisible();
-    await expect(targetRow.getByText('Технический')).toBeVisible();
-    await expect(targetRow.getByText('Ручной')).toHaveCount(0);
+    const targetCalc = await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id, 2);
+    expect(targetCalc.cable_mark).toBeTruthy();
+    expect(targetCalc.results?.applied_selection_policy ?? targetCalc.results?.selection_policy).toBe('technical_minimum');
+    await expectElectricalGlideReady(page);
   });
 
   test('основное меню связывает электрорасчёт со страницами теплопотерь и спецификации', async ({

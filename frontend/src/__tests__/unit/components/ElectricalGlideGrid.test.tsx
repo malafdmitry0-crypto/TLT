@@ -148,7 +148,7 @@ describe('ElectricalGlideGrid', () => {
       cell: [number, number],
       event: { preventDefault: () => void },
     ) => void;
-    onCellClicked([0, 1], { preventDefault: vi.fn() });
+    act(() => onCellClicked([0, 1], { preventDefault: vi.fn() }));
     expect(props.onOpenRow).toHaveBeenCalledWith(rows[1]);
   });
 

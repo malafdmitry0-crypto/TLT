@@ -18,6 +18,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET="${1:-quick}"
+TEST_SECRET_KEY="${TEST_SECRET_KEY:-codex-test-secret-key-at-least-32-chars}"
 
 compose_dev() {
   docker compose -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.dev.yml" "$@"
@@ -42,7 +43,7 @@ ensure_dev_stack() {
 }
 
 run_backend() {
-  docker exec heatcalc_backend "$@"
+  docker exec -e SECRET_KEY="$TEST_SECRET_KEY" heatcalc_backend "$@"
 }
 
 run_formula_unit() {
@@ -65,6 +66,7 @@ run_formula_integration() {
   ensure_dev_stack
   echo "▶ Formula API/object integration guards"
   docker exec \
+    -e SECRET_KEY="$TEST_SECRET_KEY" \
     -e TEST_DATABASE_URL=postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test \
     heatcalc_backend pytest \
       app/tests/integration/api/test_calculations.py \

@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-import { createCalculatedPipe, fetchProjectObjects, loginAsGuest } from './helpers/workspace';
+import { createCalculatedPipe, currentGuestContext, fetchProjectObjects, loginAsGuest } from './helpers/workspace';
+import {
+  expectElectricalGlideReady,
+  fetchElectricalCalcs,
+} from './helpers/electrical-glide';
 
 test.describe('4.3 Расчёт тепловых потерь', () => {
   test('пустой проект показывает рабочий экран теплопотерь и блокирует электрорасчёт', async ({
@@ -212,18 +216,26 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     page,
   }) => {
     await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E heat-to-elec ${Date.now()}`;
-    await createCalculatedPipe(page, pipeName);
+    const pipe = await createCalculatedPipe(page, pipeName);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
 
     await expect(page).toHaveURL(/\/workspace\/elec-calc/);
-    await expect(page.getByRole('row').filter({ hasText: pipeName }).first()).toBeVisible();
+    await expectElectricalGlideReady(page);
+    await expect.poll(async () => {
+      const rows = await fetchElectricalCalcs(page, projectId, sessionId);
+      return rows.find((row) => row.object_id === pipe.id)?.cable_mark ?? null;
+    }).toBeNull();
     await expect(page.getByText(/СО1 · тип по объектам · расчёт не выполнен/i)).toBeVisible();
     await page.getByRole('button', { name: /Пересчитать все СО1/i }).click();
     await page.getByRole('button', { name: /Да, пересчитать все/i }).click();
     await expect(page.getByText(/электрорасчёт всех объектов поставлен в очередь/i)).toBeVisible();
     await expect(page.getByText(/СО1 · тип по объектам · .*рассчитано: 1\/1/i)).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(/ТЛТ-100/)).toBeVisible();
+    await expect.poll(async () => {
+      const rows = await fetchElectricalCalcs(page, projectId, sessionId);
+      return rows.find((row) => row.object_id === pipe.id)?.cable_mark ?? '';
+    }).toContain('ТЛТ-100');
   });
 });

@@ -161,7 +161,7 @@ describe('HeatCalcNormalGlideGrid', () => {
       themeOverride: { bgCell: '#fff1f0' },
     });
 
-    onCellClicked([0, 1], { preventDefault: vi.fn() });
+    act(() => onCellClicked([0, 1], { preventDefault: vi.fn() }));
     expect(onOpenEditWizard).toHaveBeenCalledWith(rows[1]);
     expect(screen.queryByText(/Страница/)).not.toBeInTheDocument();
   });
