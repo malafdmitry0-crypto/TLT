@@ -193,11 +193,11 @@ describe('HeatCalcGlideGrid model adapter', () => {
       />,
     );
 
-    expect(glideMock.props?.rowHeight).toBe(37);
-    expect(glideMock.props?.headerHeight).toBe(45);
+    expect(glideMock.props?.rowHeight).toBe(36);
+    expect(glideMock.props?.headerHeight).toBe(44);
     expect(glideMock.props?.theme).toMatchObject({
-      baseFontStyle: '14px inherit',
-      headerFontStyle: '600 14px inherit',
+      baseFontStyle: '13px inherit',
+      headerFontStyle: '600 13px inherit',
     });
   });
 

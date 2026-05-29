@@ -649,6 +649,22 @@ html, body, #root {
   --heatcalc-table-header-content-min-height: 34px;
 }
 
+.heatcalc-spreadsheet {
+  --heatcalc-table-font-size: 11px;
+}
+
+.heatcalc-spreadsheet.calc-spreadsheet--compact {
+  --heatcalc-table-font-size: 10px;
+}
+
+.heatcalc-spreadsheet.calc-spreadsheet--comfortable {
+  --heatcalc-table-font-size: 12px;
+}
+
+.heatcalc-spreadsheet.calc-spreadsheet--large {
+  --heatcalc-table-font-size: 13px;
+}
+
 .calc-spreadsheet .ant-table {
   border: 1px solid var(--heatcalc-table-outer-border);
   font-size: var(--heatcalc-table-font-size);

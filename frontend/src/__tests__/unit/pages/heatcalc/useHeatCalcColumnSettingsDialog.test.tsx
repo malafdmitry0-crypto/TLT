@@ -80,7 +80,6 @@ describe('useHeatCalcColumnSettingsDialog', () => {
 
     act(() => {
       result.current.open();
-      result.current.updateDraftTableFontSize('large');
       result.current.updateDraftFormPlacement('left');
     });
     act(() => {
@@ -90,7 +89,7 @@ describe('useHeatCalcColumnSettingsDialog', () => {
     expect(cleanHiddenColumnStateForSettings).toHaveBeenCalledTimes(1);
     expect(persistTableSettings).toHaveBeenCalledTimes(1);
     expect(persistTableSettings.mock.calls[0][1]).toMatchObject({
-      fontSize: 'large',
+      fontSize: 'compact',
       formPlacement: 'left',
     });
   });

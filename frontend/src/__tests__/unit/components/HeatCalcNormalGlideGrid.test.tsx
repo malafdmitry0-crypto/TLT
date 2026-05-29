@@ -196,11 +196,11 @@ describe('HeatCalcNormalGlideGrid', () => {
       />,
     );
 
-    expect(normalGlideMock.props?.rowHeight).toBe(37);
-    expect(normalGlideMock.props?.headerHeight).toBe(45);
+    expect(normalGlideMock.props?.rowHeight).toBe(36);
+    expect(normalGlideMock.props?.headerHeight).toBe(44);
     expect(normalGlideMock.props?.theme).toMatchObject({
-      baseFontStyle: '14px inherit',
-      headerFontStyle: '600 14px inherit',
+      baseFontStyle: '13px inherit',
+      headerFontStyle: '600 13px inherit',
     });
   });
 

@@ -38,6 +38,7 @@ export const HEATCALC_SIDE_FORM_WIDTH_MAX = 62;
 export const HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT = [1.655, 1.35, 1.2] as const;
 export const HEATCALC_FORM_SECTION_WEIGHT_MIN = 0.35;
 export const HEATCALC_FORM_SECTION_WEIGHT_MAX = 3;
+export const HEATCALC_FORCED_TABLE_FONT_SIZE: HeatCalcTableFontSize = 'compact';
 export type HeatCalcFormSectionWeights = [number, number, number];
 export const HEATCALC_FORM_PLACEMENT_OPTIONS: Array<{ key: HeatCalcFormPlacement; label: string }> = [
   { key: 'top', label: 'Вверху' },
@@ -75,7 +76,7 @@ function configuredFontSizeOptions(): HeatCalcResolvedTableFontSize[] {
   return options.length > 0
     ? options
     : [
-      { key: 'standard', label: 'Стандартный', fontSizePx: 12, lineHeight: 1.22, cellPaddingY: 2 },
+      { key: HEATCALC_FORCED_TABLE_FONT_SIZE, label: 'Компактный', fontSizePx: 10, lineHeight: 1.18, cellPaddingY: 1 },
     ];
 }
 
@@ -86,17 +87,11 @@ const FONT_SIZE_BY_KEY = new Map<HeatCalcTableFontSize, HeatCalcResolvedTableFon
 );
 
 function defaultFontSize(): HeatCalcTableFontSize {
-  const configured = isRecord(defaultConfig) ? defaultConfig.defaultFontSize : null;
-  if (typeof configured === 'string' && FONT_SIZE_BY_KEY.has(configured as HeatCalcTableFontSize)) {
-    return configured as HeatCalcTableFontSize;
-  }
-  return HEATCALC_TABLE_FONT_SIZE_OPTIONS[0]?.key ?? 'standard';
+  return HEATCALC_FORCED_TABLE_FONT_SIZE;
 }
 
-function normalizeFontSize(value: unknown): HeatCalcTableFontSize {
-  return typeof value === 'string' && FONT_SIZE_BY_KEY.has(value as HeatCalcTableFontSize)
-    ? value as HeatCalcTableFontSize
-    : defaultFontSize();
+function normalizeFontSize(_value: unknown): HeatCalcTableFontSize {
+  return HEATCALC_FORCED_TABLE_FONT_SIZE;
 }
 
 function normalizeFormPlacement(value: unknown): HeatCalcFormPlacement {
@@ -203,11 +198,11 @@ export function resolveTableFontSizeByKey(
   fontSize: string | null | undefined,
 ): HeatCalcResolvedTableFontSize {
   return FONT_SIZE_BY_KEY.get(fontSize as HeatCalcTableFontSize) ?? FONT_SIZE_BY_KEY.get(defaultFontSize()) ?? {
-    key: 'standard',
-    label: 'Стандартный',
-    fontSizePx: 12,
-    lineHeight: 1.22,
-    cellPaddingY: 2,
+    key: HEATCALC_FORCED_TABLE_FONT_SIZE,
+    label: 'Компактный',
+    fontSizePx: 10,
+    lineHeight: 1.18,
+    cellPaddingY: 1,
   };
 }
 

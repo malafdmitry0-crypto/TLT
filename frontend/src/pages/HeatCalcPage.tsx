@@ -908,11 +908,9 @@ export default function HeatCalcPage() {
             onWidthChange={columnSettingsDialog.updateDraftColumnWidth}
             onResetWidth={columnSettingsDialog.resetDraftColumnWidth}
             onColumnReorder={columnSettingsDialog.reorderDraftColumn}
-            onFontSizeChange={columnSettingsDialog.updateDraftTableFontSize}
             onTableLabelFormatChange={columnSettingsDialog.updateDraftTableLabelFormat}
             onSettingsLabelFormatChange={columnSettingsDialog.updateDraftSettingsLabelFormat}
             onFormPlacementChange={columnSettingsDialog.updateDraftFormPlacement}
-            onResetFontSize={columnSettingsDialog.resetDraftTableFontSize}
             onResetLabelFormats={columnSettingsDialog.resetDraftLabelFormats}
             onCalculationDetailsPresetChange={columnSettingsDialog.updateDraftCalculationDetailsPreset}
             onCalculationDetailMetricsChange={columnSettingsDialog.updateDraftCalculationDetailMetrics}

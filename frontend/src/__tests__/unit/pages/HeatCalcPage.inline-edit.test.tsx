@@ -382,7 +382,7 @@ describe('HeatCalcPage inline edit', () => {
       fireEvent.change(stepInput, { target: { value: '2.5' } });
       fireEvent.blur(stepInput);
       await openTableSettingsOtherTab(user, dialog);
-      await user.click(within(dialog).getByText('Крупный'));
+      await user.click(within(dialog).getAllByText('Полные')[0]);
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
       await waitFor(() => {
@@ -418,8 +418,8 @@ describe('HeatCalcPage inline edit', () => {
       expect(viewCached.userId).toBe('user-test-1');
       expect(viewCached.settings).toEqual({
         version: 2,
-        fontSize: 'large',
-        tableLabelFormat: 'short',
+        fontSize: 'compact',
+        tableLabelFormat: 'full',
         settingsLabelFormat: 'full',
         formPlacement: 'top',
         sideFormWidthPct: 34,

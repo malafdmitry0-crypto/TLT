@@ -1,5 +1,12 @@
 # HeatCalc Table Font Size Preference Prompt
 
+> Superseded: выбор размера текста таблицы HeatCalc отключён. Актуальный
+> контракт: UI-контрол `Размер текста таблицы` не показывается, сохранённые
+> `fontSize` значения нормализуются в `compact`, а HeatCalc font presets в
+> `frontend/src/config/heatcalc-table-view.default.json` уменьшены на 1px.
+> Не используй этот prompt для повторного включения selector без нового
+> продуктового решения.
+
 ## Контекст
 
 В HeatCalc уже есть рабочая таблица исходных данных, переключение типа объектов,

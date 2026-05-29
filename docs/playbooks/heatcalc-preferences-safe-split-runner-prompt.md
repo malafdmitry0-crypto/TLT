@@ -214,7 +214,7 @@ Phase 2: Characterization Tests First
 P0 existing coverage that must remain green:
 - guest column visibility saves to localStorage and applies only active type;
 - guest column order and width save to localStorage;
-- guest font size saves to table view storage;
+- HeatCalc font size selector stays removed; saved font size values normalize to `compact`;
 - guest table/settings label format saves and reloads into modal labels;
 - guest form placement saves and applies layout class;
 - registered user saves preferences through API and caches DB response;

@@ -19,7 +19,6 @@ import {
   getDefaultTableViewSettings,
   normalizeTableViewSettings,
   type HeatCalcFormPlacement,
-  type HeatCalcTableFontSize,
   type HeatCalcTableLabelFormat,
   type HeatCalcTableViewSettings,
 } from '@/utils/heatCalcTableViewSettings';
@@ -142,18 +141,6 @@ export function useHeatCalcColumnSettingsDialog({
     );
   }, []);
 
-  const updateDraftTableFontSize = useCallback((fontSize: HeatCalcTableFontSize) => {
-    setDraftViewSettings((settings) => normalizeTableViewSettings({ ...settings, fontSize }));
-  }, []);
-
-  const resetDraftTableFontSize = useCallback(() => {
-    const defaultView = getDefaultTableViewSettings();
-    setDraftViewSettings((settings) => normalizeTableViewSettings({
-      ...settings,
-      fontSize: defaultView.fontSize,
-    }));
-  }, []);
-
   const updateDraftTableLabelFormat = useCallback((tableLabelFormat: HeatCalcTableLabelFormat) => {
     setDraftViewSettings((settings) => normalizeTableViewSettings({
       ...settings,
@@ -234,11 +221,9 @@ export function useHeatCalcColumnSettingsDialog({
     reorderDraftColumn,
     resetDraftColumns,
     selectAllDraftColumns,
-    updateDraftTableFontSize,
     updateDraftTableLabelFormat,
     updateDraftSettingsLabelFormat,
     updateDraftFormPlacement,
-    resetDraftTableFontSize,
     resetDraftLabelFormats,
     updateDraftCalculationDetailsPreset,
     updateDraftCalculationDetailMetrics,

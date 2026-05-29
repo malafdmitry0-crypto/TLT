@@ -77,7 +77,7 @@ function HeatCalcExcelGrid({
   const paddingBottom = lastVirtualRow
     ? Math.max(0, virtualTotalSize - lastVirtualRow.end)
     : 0;
-  const className = `calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--excel-mode calc-spreadsheet--virtual`;
+  const className = `calc-spreadsheet heatcalc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--excel-mode calc-spreadsheet--virtual`;
   const handleScrollEndProbe = (element: HTMLDivElement) => {
     if (!onReachScrollEnd) return;
     const thresholdPx = rowEstimatePx * 4;

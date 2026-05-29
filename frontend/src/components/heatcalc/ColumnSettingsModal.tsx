@@ -26,10 +26,8 @@ import {
 } from '@/utils/heatCalcTableColumns';
 import {
   HEATCALC_FORM_PLACEMENT_OPTIONS,
-  HEATCALC_TABLE_FONT_SIZE_OPTIONS,
   HEATCALC_TABLE_LABEL_FORMAT_OPTIONS,
   type HeatCalcFormPlacement,
-  type HeatCalcTableFontSize,
   type HeatCalcTableLabelFormat,
   type HeatCalcTableViewSettings,
 } from '@/utils/heatCalcTableViewSettings';
@@ -583,11 +581,9 @@ interface ColumnSettingsModalProps {
   onWidthChange: (type: HeatCalcTableColumnScope, key: HeatCalcColumnKey, widthPct: number) => void;
   onResetWidth: (type: HeatCalcTableColumnScope, key: HeatCalcColumnKey) => void;
   onColumnReorder: (type: HeatCalcTableColumnScope, activeKey: HeatCalcColumnKey, overKey: HeatCalcColumnKey) => void;
-  onFontSizeChange: (fontSize: HeatCalcTableFontSize) => void;
   onTableLabelFormatChange: (format: HeatCalcTableLabelFormat) => void;
   onSettingsLabelFormatChange: (format: HeatCalcTableLabelFormat) => void;
   onFormPlacementChange: (placement: HeatCalcFormPlacement) => void;
-  onResetFontSize: () => void;
   onResetLabelFormats: () => void;
   onCalculationDetailsPresetChange: (preset: HeatCalcCalculationDetailPreset) => void;
   onCalculationDetailMetricsChange: (metrics: HeatCalcCalculationDetailMetric[]) => void;
@@ -614,11 +610,9 @@ export default function ColumnSettingsModal({
   onWidthChange,
   onResetWidth,
   onColumnReorder,
-  onFontSizeChange,
   onTableLabelFormatChange,
   onSettingsLabelFormatChange,
   onFormPlacementChange,
-  onResetFontSize,
   onResetLabelFormats,
   onCalculationDetailsPresetChange,
   onCalculationDetailMetricsChange,
@@ -772,25 +766,6 @@ export default function ColumnSettingsModal({
             label: 'Остальное',
             children: (
               <div className="column-settings-modal column-settings-modal--other">
-                <div className="table-view-settings-panel">
-                  <Text className="table-view-settings-label">Размер текста таблицы</Text>
-                  <Segmented<HeatCalcTableFontSize>
-                    aria-label="Размер текста таблицы"
-                    value={draftViewSettings.fontSize}
-                    onChange={onFontSizeChange}
-                    options={HEATCALC_TABLE_FONT_SIZE_OPTIONS.map((option) => ({
-                      value: option.key,
-                      label: (
-                        <Tooltip title={`${option.fontSizePx}px`}>
-                          <span>{option.label}</span>
-                        </Tooltip>
-                      ),
-                    }))}
-                  />
-                  <Button size="small" onClick={onResetFontSize}>
-                    Сбросить размер
-                  </Button>
-                </div>
                 <div className="table-view-settings-panel table-label-format-settings-panel">
                   <Text className="table-view-settings-label">Формат названий</Text>
                   <Space size={8} wrap>

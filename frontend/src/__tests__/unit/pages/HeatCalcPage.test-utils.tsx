@@ -707,7 +707,7 @@ export async function openTableSettingsOtherTab(
   dialog: HTMLElement,
 ) {
   await user.click(within(dialog).getByRole('tab', { name: 'Остальное' }));
-  expect(within(dialog).getByText('Размер текста таблицы')).toBeInTheDocument();
+  expect(within(dialog).getByText('Формат названий')).toBeInTheDocument();
 }
 
 export function getNormalGlideGrid() {

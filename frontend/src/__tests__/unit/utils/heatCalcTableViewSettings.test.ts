@@ -19,7 +19,7 @@ describe('heatCalcTableViewSettings', () => {
   it('returns JSON default without writing it to localStorage', () => {
     expect(readGuestTableViewSettings()).toEqual({
       version: 2,
-      fontSize: 'standard',
+      fontSize: 'compact',
       tableLabelFormat: 'short',
       settingsLabelFormat: 'full',
       formPlacement: 'top',
@@ -43,7 +43,7 @@ describe('heatCalcTableViewSettings', () => {
       formSectionWeights: [1.2, 1.4, 1.1],
     })).toEqual({
       version: 2,
-      fontSize: 'large',
+      fontSize: 'compact',
       tableLabelFormat: 'compact',
       settingsLabelFormat: 'short',
       formPlacement: 'left',
@@ -100,7 +100,7 @@ describe('heatCalcTableViewSettings', () => {
 
     expect(readRegisteredTableViewCache('user-1')).toEqual({
       version: 2,
-      fontSize: 'comfortable',
+      fontSize: 'compact',
       tableLabelFormat: 'compact',
       settingsLabelFormat: 'short',
       formPlacement: 'right',
@@ -123,9 +123,9 @@ describe('heatCalcTableViewSettings', () => {
       sideFormWidthPct: 34,
       formSectionWeights: [1.655, 1.35, 1.2],
     })).toMatchObject({
-      key: 'large',
-      label: 'Крупный',
-      fontSizePx: 14,
+      key: 'compact',
+      label: 'Компактный',
+      fontSizePx: 10,
     });
   });
 });

@@ -931,7 +931,7 @@ function HeatCalcNormalGlideGrid({
 
   if (rows.length === 0) {
     return (
-      <div className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`}>
+      <div className={`calc-spreadsheet heatcalc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`}>
         <div className="excel-virtual-empty">
           {emptyContent}
         </div>
@@ -940,7 +940,7 @@ function HeatCalcNormalGlideGrid({
   }
 
   return (
-    <div className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`}>
+    <div className={`calc-spreadsheet heatcalc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`}>
       <DataEditor
         className="heatcalc-glide-editor"
         ref={editorRef}

@@ -154,26 +154,10 @@ describe('HeatCalcPage settings', () => {
       expect(saved.types.pipe.columns.pipe_dn).not.toHaveProperty('order');
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
-    it('сохраняет размер текста таблицы отдельной guest-настройкой', async () => {
+    it('не показывает выбор размера текста и принудительно использует compact для старых guest-настроек', async () => {
       const { listObjects } = await import('@/api/projects');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
-
-      useProjectStore.getState().setCurrentProject(mockProject);
-      const user = (await import('@testing-library/user-event')).default.setup();
-      renderPage();
-
-      await screen.findByText('Труба DN100');
-      expect(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY)).toBeNull();
-      const dialog = await openTableSettingsDialog(user);
-      await openTableSettingsOtherTab(user, dialog);
-      await user.click(within(dialog).getByText('Крупный'));
-      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
-
-      await waitFor(() => {
-        expect(document.querySelector('.calc-spreadsheet--large')).toBeInTheDocument();
-      });
-      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
-      expect(saved).toEqual({
+      localStorage.setItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY, JSON.stringify({
         version: 2,
         fontSize: 'large',
         tableLabelFormat: 'short',
@@ -181,6 +165,28 @@ describe('HeatCalcPage settings', () => {
         formPlacement: 'top',
         sideFormWidthPct: 34,
         formSectionWeights: [1.655, 1.35, 1.2],
+      }));
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      await waitFor(() => {
+        expect(document.querySelector('.calc-spreadsheet--compact')).toBeInTheDocument();
+      });
+      expect(document.querySelector('.calc-spreadsheet--large')).not.toBeInTheDocument();
+      const dialog = await openTableSettingsDialog(user);
+      await openTableSettingsOtherTab(user, dialog);
+      expect(within(dialog).queryByText('Размер текста таблицы')).not.toBeInTheDocument();
+      expect(within(dialog).queryByText('Крупный')).not.toBeInTheDocument();
+      await user.click(within(dialog).getAllByText('Полные')[0]);
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
+      expect(saved).toMatchObject({
+        fontSize: 'compact',
+        tableLabelFormat: 'full',
       });
       expect(saved).not.toHaveProperty('fontSizePx');
     }, HEATCALC_PAGE_TEST_TIMEOUT);
@@ -237,7 +243,7 @@ describe('HeatCalcPage settings', () => {
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
       expect(saved).toMatchObject({
         version: 2,
-        fontSize: 'standard',
+        fontSize: 'compact',
         tableLabelFormat: 'short',
         settingsLabelFormat: 'full',
         formPlacement: 'left',
@@ -417,7 +423,7 @@ describe('HeatCalcPage settings', () => {
       fireEvent.change(stepInput, { target: { value: '10' } });
       fireEvent.blur(stepInput);
       await openTableSettingsOtherTab(user, dialog);
-      await user.click(within(dialog).getByText('Крупный'));
+      await user.click(within(dialog).getByText('Слева'));
       await user.click(within(dialog).getByText('Подробно'));
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
@@ -430,7 +436,7 @@ describe('HeatCalcPage settings', () => {
       const resetDialog = await openTableSettingsDialog(user);
       await user.click(within(resetDialog).getByRole('button', { name: 'Сбросить шаг: Наружный диаметр' }));
       await openTableSettingsOtherTab(user, resetDialog);
-      await user.click(within(resetDialog).getByRole('button', { name: 'Сбросить размер' }));
+      await user.click(within(resetDialog).getByText('Вверху'));
       await user.click(within(resetDialog).getByRole('button', { name: 'Сбросить расшифровку' }));
       await user.click(within(resetDialog).getByRole('button', { name: 'Применить' }));
 

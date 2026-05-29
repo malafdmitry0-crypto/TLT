@@ -340,7 +340,7 @@ function HeatCalcGlideGrid({
 
   if (rows.length === 0) {
     return (
-      <div className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--excel-mode calc-spreadsheet--glide`}>
+      <div className={`calc-spreadsheet heatcalc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--excel-mode calc-spreadsheet--glide`}>
         <div className="excel-virtual-empty">
           {emptyContent}
         </div>
@@ -350,7 +350,7 @@ function HeatCalcGlideGrid({
 
   return (
     <div
-      className={`calc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--excel-mode calc-spreadsheet--glide`}
+      className={`calc-spreadsheet heatcalc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--excel-mode calc-spreadsheet--glide`}
       onPointerDownCapture={handlePointerDownCapture}
       onPointerUpCapture={clearRowMarkerPointer}
       onPointerCancelCapture={clearRowMarkerPointer}
