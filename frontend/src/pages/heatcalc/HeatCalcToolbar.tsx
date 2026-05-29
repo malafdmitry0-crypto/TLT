@@ -169,7 +169,7 @@ export function HeatCalcActionsToolbar({
                 className="action-icon-button action-add-button add"
                 icon={<PlusOutlined />}
                 aria-label="Добавить"
-                onClick={formActions.onAdd}
+                onClick={() => formActions.onAdd()}
               />
             </Tooltip>
 

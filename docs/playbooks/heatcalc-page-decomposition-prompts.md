@@ -90,6 +90,8 @@
 | Object editor hook | Done | `frontend/src/pages/heatcalc/useHeatCalcObjectEditor.ts`; characterization in `frontend/src/__tests__/unit/pages/HeatCalcPage.actions.test.tsx` and `frontend/src/__tests__/unit/pages/HeatCalcPageSaveReset.test.tsx`; explicit user-requested side slice |
 | Toolbar side-placement characterization | Done | `frontend/src/__tests__/unit/pages/HeatCalcPage.basics.test.tsx` covers side placement, DOM order and single toolbar ownership; code extraction not attempted because full UI proof/layout stack was not in scope for this tests-only slice |
 | Toolbar extraction | Implemented; needs heat e2e rerun | `frontend/src/pages/heatcalc/HeatCalcToolbar.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; focused HeatCalc toolbar/action tests, typecheck, `git diff --check`, toolbar Playwright verifier and `scripts/codex-functional-audit.sh layout` passed; focused `heat-calculation.spec.ts` rerun blocked at browser launch with `SIGTRAP` before app assertions |
+| Inline draft model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcInlineDraftModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcInlineDraftModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved draft/local Excel row state, trailing Excel input rows, inline commit and wizard draft handlers out of route component; typecheck and focused settings/inline suites passed |
+| Grid model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcGridModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcGridModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved grid column/cell/error view model out of route component; typecheck and focused HeatCalc suites passed |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers
@@ -140,7 +142,7 @@ runner instruction.
 
 ## Prompt 5. Вынести state hooks
 
-Status: `useHeatCalcTableState` Done; `useHeatCalcPreferences` Done; `useHeatCalcColumnSettingsDialog` Done; `HeatCalcToolbar` implemented and awaiting focused heat e2e rerun.
+Status: `useHeatCalcTableState` Done; `useHeatCalcPreferences` Done; `useHeatCalcColumnSettingsDialog` Done; `useHeatCalcInlineDraftModel` Done; `HeatCalcToolbar` implemented and awaiting focused heat e2e rerun.
 Не начинать toolbar или objects table extraction в том же запуске.
 
 После стабилизации helpers/UI вынеси состояние таблицы в hooks.
@@ -150,3 +152,38 @@ Status: `useHeatCalcTableState` Done; `useHeatCalcPreferences` Done; `useHeatCal
 - Отдельно `useHeatCalcTableState`.
 - Отдельно `useHeatCalcPreferences`.
 - Сначала покрыть сценарии переключения `pipe/tank/all`, фильтров и сброса фильтров.
+
+## Prompt 6. Вынести grid view model
+
+Status: Done. Не запускать повторно без нового finding.
+Historical prompt ниже сохранён как история выполнения.
+
+Вынеси из `frontend/src/pages/HeatCalcPage.tsx` только модель отображения
+таблицы/Glide:
+
+- `excelFieldInfoById`;
+- `excelTableErrors`;
+- `selectedRowErrorMessages`;
+- `excelCellDisplayValue`;
+- `glideGridColumns`;
+- `getGlideGridCellState`;
+- `getNormalGlideGridCellState`.
+
+Жёсткие границы:
+
+- Не трогать `saveDraftRows`, React Query cache updates, API calls и mutations.
+- Не переносить `useHeatCalcExcelSelection`, `useHeatCalcExcelKeyboard`,
+  `useHeatCalcExcelClipboard`.
+- Не менять JSX/layout, toolbar, modal тексты и CSS.
+- Не менять формулы, единицы измерения, object payload mapping или expected
+  business values.
+- Если нужен новый файл, использовать namespace `frontend/src/pages/heatcalc/`.
+
+Definition of Done:
+
+- Новый hook/model с явными inputs и focused tests.
+- `HeatCalcPage.tsx` только подключает hook и передаёт результат дальше.
+- Existing inline/settings/actions suites остаются зелёными.
+- Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
+  `git diff --check`.
+- Обновить Progress Ledger после успешного slice.
