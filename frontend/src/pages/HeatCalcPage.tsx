@@ -12,7 +12,6 @@ import {
   Alert,
   Space,
   message as antdMessage,
-  type TableProps,
 } from 'antd';
 import { FireOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -36,7 +35,6 @@ import {
   useHeatCalcTableColumns,
 } from '@/hooks/useHeatCalcTableColumns';
 import type { ProjectObject } from '@/types/project';
-import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 import {
   HEATCALC_TABLE_COLUMN_CATALOG,
   getAllTableColumnMetas,
@@ -62,7 +60,6 @@ import {
 } from '@/utils/heatCalcInlineEdit';
 import {
   getExcelEditableColumnMetas,
-  isExcelNewRowId,
 } from '@/utils/heatCalcExcelMode';
 import {
   isSavableExcelDraftRow,
@@ -73,7 +70,6 @@ import {
   buildObjectQueryRequest,
   escapeTableRowKey,
   filterKindForColumn,
-  heatLossCalcStatus,
   insulationEntryLabel,
   isColumnApplicableToObjectType,
 } from '@/pages/heatcalc/heatCalcPageUtils';
@@ -101,6 +97,7 @@ import {
   useHeatCalcExcelInteractionModel,
   useHeatCalcExcelInteractionState,
 } from '@/pages/heatcalc/useHeatCalcExcelInteractionModel';
+import { useHeatCalcNormalTableInteractionModel } from '@/pages/heatcalc/useHeatCalcNormalTableInteractionModel';
 
 const loadObjectWizard = () => import('@/components/wizard/ObjectWizard');
 const ObjectWizard = lazy(loadObjectWizard);
@@ -982,35 +979,6 @@ export default function HeatCalcPage() {
     clearExcelSelectionState();
   }, [activeObjectScope, clearExcelSelectionState, tableEditingMode]);
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (!(e.ctrlKey || e.metaKey) || e.key !== 'c') return;
-      if (excelModeEnabled) return;
-      if (selectedRowKeys.length === 0) return;
-      const active = document.activeElement;
-      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
-
-      const selected = visibleTableRows
-        .map((row) => ({ object: row.record, index: row.sourceIndex }))
-        .filter(({ object }) => selectedRowKeys.includes(object.id));
-      const header = sourceColumnMetas.map((meta) => meta.copyTitle ?? meta.title);
-      const rows = selected.map(({ object, index }) =>
-        sourceColumnMetas.map((meta) => (
-          isAllObjectScope && !isColumnApplicableToObjectType(meta.key, object.object_type)
-            ? INAPPLICABLE_TABLE_VALUE
-            : columnRenderers[meta.key].copyValue(object, index)
-        )),
-      );
-
-      copyToClipboard(buildTsv([header, ...rows])).then(() => {
-        antdMessage.success(`Скопировано строк: ${selected.length}`);
-      });
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [columnRenderers, excelModeEnabled, isAllObjectScope, selectedRowKeys, sourceColumnMetas, visibleTableRows]);
-
   function handleTableEditingModeChange(value: string | number) {
     const nextMode: TableEditingMode = value === 'excel' ? 'excel' : 'normal';
     if (nextMode === 'excel' && isAllObjectScope) {
@@ -1170,59 +1138,31 @@ export default function HeatCalcPage() {
     );
   }
 
-  const tableRowClassName = useCallback((record: ProjectObject) => {
-    const classes = [];
-    if (heatLossCalcStatus(record) === 'error') classes.push('row-invalid');
-    if (record.id === selectedRowId) classes.push('row-selected');
-    if (excelModeEnabled && Object.keys(draftRowsById[record.id]?.errors ?? {}).length > 0) {
-      classes.push('row-excel-error');
-    }
-    if (isSavableDraftRow(draftRowsById[record.id])) {
-      classes.push(excelModeEnabled ? 'row-excel-dirty' : 'row-dirty');
-    }
-    if (isExcelNewRowId(record.id)) classes.push('row-excel-new');
-    return classes.join(' ');
-  }, [draftRowsById, excelModeEnabled, isSavableDraftRow, selectedRowId]);
-
-  const normalTablePagination = useMemo<TableProps<ProjectObject>['pagination']>(() => ({
-    current: activeTablePage,
-    pageSize: isAllObjectScope
-      ? DEFAULT_OBJECT_QUERY_PAGE_SIZE
-      : objectQueryResult?.page_info.page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE,
-    total: filteredTableCount,
-    showSizeChanger: false,
-    hideOnSinglePage: true,
-    size: 'small',
-  }), [
+  const {
+    handleNormalLoadMore,
+    handleNormalTablePageChange,
+    normalInfiniteLoading,
+    normalTablePagination,
+    tableRowClassName,
+  } = useHeatCalcNormalTableInteractionModel({
     activeTablePage,
+    changeNormalTablePage,
+    columnRenderers,
+    draftRowsById,
+    excelModeEnabled,
     filteredTableCount,
     isAllObjectScope,
-    objectQueryResult?.page_info.page_size,
-  ]);
-  const normalInfiniteLoading = useMemo(() => (!normalGlideEnabled ? null : {
-    loaded: visibleTableObjects.length,
-    total: filteredTableCount,
-    hasNextPage: !isAllObjectScope && !!objectQueryResult?.page_info.has_next_page,
-    loading: !isAllObjectScope && objectQueryFetching,
-  }), [
-    filteredTableCount,
-    isAllObjectScope,
+    isSavableDraftRow,
+    loadNextNormalPage,
     normalGlideEnabled,
     objectQueryFetching,
-    objectQueryResult?.page_info.has_next_page,
-    visibleTableObjects.length,
-  ]);
-  const handleNormalLoadMore = useCallback(() => {
-    loadNextNormalPage(objectQueryResult, { excelModeEnabled, objectQueryFetching });
-  }, [
-    excelModeEnabled,
-    loadNextNormalPage,
-    objectQueryFetching,
     objectQueryResult,
-  ]);
-  const handleNormalTablePageChange = useCallback((page: number) => {
-    changeNormalTablePage(page, objectQueryResult);
-  }, [changeNormalTablePage, objectQueryResult]);
+    selectedRowId: selectedRowId ?? null,
+    selectedRowKeys,
+    sourceColumnMetas,
+    visibleTableObjectsLength: visibleTableObjects.length,
+    visibleTableRows,
+  });
 
   const formPanel = renderFormPanel();
 

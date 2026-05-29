@@ -100,6 +100,7 @@
 | Draft save model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcDraftSaveModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcDraftSaveModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved draft save target derivation, validation, create/update, cache writes and invalidation out of route component without backend/API/formula/layout changes; typecheck, focused hook test and inline-edit characterization passed |
 | Unsaved-change modals component | Done | `frontend/src/pages/heatcalc/HeatCalcUnsavedChangesModals.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/HeatCalcUnsavedChangesModals.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved inline-disable and pending-wizard unsaved-change Modal JSX without backend/API/formula/CSS/layout changes; typecheck, focused modal test and inline-edit characterization passed |
 | Excel interaction model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcExcelInteractionModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcExcelInteractionModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved Excel cell/selection/context-menu state, selection/clipboard/keyboard wiring, add-row and reset-selected-row interactions out of route component without backend/API/formula/CSS/layout changes; typecheck, focused hook test and inline-edit characterization passed |
+| Normal table interaction model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcNormalTableInteractionModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcNormalTableInteractionModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved normal row class, pagination/infinite loading, normal load/page callbacks and non-Excel selected rows copy hotkey out of route component without backend/API/formula/CSS/layout changes; typecheck, focused hook test and inline-edit characterization passed |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers
@@ -515,6 +516,48 @@ Functional trace:
   `frontend/src/__tests__/unit/pages/HeatCalcPage.inline-edit.test.tsx`.
 - Focused hook tests:
   `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcExcelInteractionModel.test.tsx`.
+
+Definition of Done:
+
+- Новый hook/model с явными inputs.
+- `HeatCalcPage.tsx` только подключает hook и передаёт returned values дальше.
+- Existing inline-edit characterization остаётся зелёной.
+- Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
+  `git diff --check`.
+- Обновить Progress Ledger после успешного slice.
+
+## Prompt 15. Вынести normal table interaction model
+
+Status: Done. Не запускать повторно без нового finding.
+Historical prompt ниже сохранён как история выполнения.
+
+Вынеси из `frontend/src/pages/HeatCalcPage.tsx` только normal table
+interaction/view model:
+
+- `tableRowClassName`;
+- `normalTablePagination`;
+- `normalInfiniteLoading`;
+- `handleNormalLoadMore`;
+- `handleNormalTablePageChange`;
+- non-Excel `Ctrl/Cmd+C` selected rows TSV copy hotkey effect.
+
+Жёсткие границы:
+
+- Не менять backend, API contracts, формулы, единицы измерения, expected
+  business values.
+- Не менять data/query model: `objectQueryRequest`, `objectQueryKey`,
+  `useQuery` calls, all/visible rows derivation остаются в HeatCalcPage.
+- Не менять Excel interaction model, draft save model, wizard/form shell,
+  toolbar, table card component.
+- Не менять CSS/layout/className/user-facing тексты.
+- Не менять copy TSV формат и success message.
+
+Functional trace:
+
+- Frontend characterization:
+  `frontend/src/__tests__/unit/pages/HeatCalcPage.inline-edit.test.tsx`.
+- Focused hook tests:
+  `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcNormalTableInteractionModel.test.tsx`.
 
 Definition of Done:
 
