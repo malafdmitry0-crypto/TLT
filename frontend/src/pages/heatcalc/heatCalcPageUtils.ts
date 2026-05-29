@@ -1,4 +1,5 @@
 import type { BatchHeatLossResponse } from '@/types/calculation';
+import { getHeatCalcFieldLabel } from '@/domain/heatCalcFields';
 import type {
   ObjectQueryCapabilities,
   ObjectQueryFieldCapability,
@@ -18,6 +19,8 @@ import {
   type HeatCalcColumnFilter,
   type HeatCalcTableViewState,
 } from '@/utils/heatCalcTableFindability';
+import type { DraftRowState } from '@/utils/heatCalcInlineEdit';
+import type { HeatCalcGlideCellAlign } from '@/utils/heatCalcGlideGrid';
 
 export type HeatCalcFilterKind = 'text' | 'numberRange' | 'enum';
 export type HeatLossCalcStatus = 'calculated' | 'error' | 'unsupported' | 'not_calculated';
@@ -239,6 +242,51 @@ export function buildObjectQueryRequest(
     request.after_value_is_null = cursor.value_is_null ?? false;
   }
   return request;
+}
+
+export function draftRowFingerprint(row: DraftRowState | null | undefined) {
+  if (!row) return '';
+  return JSON.stringify({
+    draftFormValues: row.draftFormValues,
+    dirtyFields: row.dirtyFields,
+    errors: row.errors,
+  });
+}
+
+export function uniqueErrorMessages(messages: string[]) {
+  const seen = new Set<string>();
+  return messages.filter((message) => {
+    const normalized = message.trim();
+    if (!normalized || seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
+}
+
+export function normalizeGlideCellAlign(align: unknown): HeatCalcGlideCellAlign | undefined {
+  return align === 'left' || align === 'center' || align === 'right' ? align : undefined;
+}
+
+export function draftErrorMessages(
+  objectType: HeatCalcObjectType,
+  errors: Record<string, string>,
+) {
+  return Object.entries(errors).map(([fieldId, message]) => {
+    if (fieldId === '_row') return message;
+    const label = getHeatCalcFieldLabel(fieldId, {
+      context: 'settings',
+      objectType,
+      variant: 'full',
+    });
+    return `${label}: ${message}`;
+  });
+}
+
+export function escapeTableRowKey(value: string) {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(value);
+  }
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 export function toInputNumberValue(value: unknown) {

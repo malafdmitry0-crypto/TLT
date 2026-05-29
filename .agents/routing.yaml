@@ -193,7 +193,8 @@ nightly_prompts:
   god_components_safe_split:
     file: docs/playbooks/god-components-safe-split-nightly-prompt.md
     primary: frontend_ui_proof
-    target_count: "Exactly one of HeatCalcPage or ElecCalcPage."
+    target_count: "HeatCalcPage only."
+    roadmap: docs/playbooks/heatcalc-page-decomposition-prompts.md
     supporting:
       - functional_accuracy
       - qa_regression

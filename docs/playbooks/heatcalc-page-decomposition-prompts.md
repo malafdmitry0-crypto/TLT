@@ -71,7 +71,29 @@
 - `frontend/src/pages/heatcalc/HeatCalcToolbar.tsx` — верхние действия.
 - `frontend/src/pages/heatcalc/HeatCalcObjectsTable.tsx` — сама таблица.
 
+## Progress Ledger
+
+Обновляй этот ledger после каждого успешного refactor slice. Ночной runner
+`docs/playbooks/god-components-safe-split-nightly-prompt.md` должен выбирать
+следующий шаг отсюда и не повторять уже выполненные пункты.
+
+| Шаг | Статус | Evidence |
+|---|---|---|
+| Audit decomposition map | Done | Этот документ, раздел `Prompt 1. Результат аудита` |
+| Pure helpers/constants extraction | Done | `frontend/src/pages/heatcalc/heatCalcPageUtils.ts`; `frontend/src/__tests__/unit/pages/heatcalc/heatCalcPageUtils.test.ts` |
+| Column filter dropdown extraction | Done | `frontend/src/pages/heatcalc/HeatCalcColumnFilterDropdown.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/HeatCalcColumnFilterDropdown.test.tsx` |
+| Render/copy column specifications extraction | Done | `frontend/src/pages/heatcalc/heatCalcColumnRenderers.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/heatCalcColumnRenderers.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx` |
+| Remaining small pure helpers | Done | `draftRowFingerprint`, `uniqueErrorMessages`, `normalizeGlideCellAlign`, `draftErrorMessages`, `escapeTableRowKey` moved to `frontend/src/pages/heatcalc/heatCalcPageUtils.ts`; covered by `frontend/src/__tests__/unit/pages/heatcalc/heatCalcPageUtils.test.ts`; page wiring in `frontend/src/pages/HeatCalcPage.tsx` |
+| Table state hook | Next | `useHeatCalcTableState`; needs tests for `pipe/tank/all`, filters, sorting, pagination, reset before moving state |
+| Preferences hook | Backlog | `useHeatCalcPreferences`; needs tests for column visibility/width/order, font size, label format, form placement |
+| Toolbar extraction | Backlog | `HeatCalcToolbar`; UI proof required because visible controls change ownership |
+| Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
+
 ## Prompt 2. Вынести только pure helpers
+
+Status: Done. Не запускать повторно без нового finding.
+Historical prompt below is kept as implementation history, not as the next
+runner instruction.
 
 Выполни первый безопасный шаг декомпозиции `frontend/src/pages/HeatCalcPage.tsx`.
 
@@ -87,6 +109,10 @@
 
 ## Prompt 3. Вынести UI фильтра колонки
 
+Status: Done. Не запускать повторно без нового finding.
+Historical prompt below is kept as implementation history, not as the next
+runner instruction.
+
 Вынеси `ColumnFilterDropdown` в отдельный `.tsx` файл.
 
 Требования:
@@ -97,6 +123,10 @@
 
 ## Prompt 4. Вынести render/copy спецификации колонок
 
+Status: Done. Не запускать повторно без нового finding.
+Historical prompt below is kept as implementation history, not as the next
+runner instruction.
+
 Вынеси построение `columnRenderers` в отдельный модуль.
 
 Требования:
@@ -106,6 +136,9 @@
 - Проверить copy/export значения для основных колонок.
 
 ## Prompt 5. Вынести state hooks
+
+Status: Next for `useHeatCalcTableState`. Не начинать `useHeatCalcPreferences`
+в том же запуске.
 
 После стабилизации helpers/UI вынеси состояние таблицы в hooks.
 

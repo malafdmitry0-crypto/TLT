@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   ObjectQueryCapabilities,
   ObjectQueryFieldCapability,
@@ -11,7 +11,10 @@ import {
   buildObjectQueryRequest,
   climateBasisLabel,
   countParamValue,
+  draftErrorMessages,
+  draftRowFingerprint,
   environmentLabel,
+  escapeTableRowKey,
   filterKindForColumn,
   formatDeltaTemperature,
   formatParamMetersAsMm,
@@ -30,15 +33,18 @@ import {
   isColumnApplicableToObjectType,
   lambdaModeLabel,
   mmParam,
+  normalizeGlideCellAlign,
   placementLabel,
   sourceSuffix,
   sourceText,
   tankDimensions,
   tankShapeLabel,
   toInputNumberValue,
+  uniqueErrorMessages,
   zoneLabel,
 } from '@/pages/heatcalc/heatCalcPageUtils';
 import type { HeatCalcTableViewState } from '@/utils/heatCalcTableFindability';
+import type { DraftRowState } from '@/utils/heatCalcInlineEdit';
 
 function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
   return {
@@ -89,6 +95,25 @@ function capabilities(fields: ObjectQueryFieldCapability[]): ObjectQueryCapabili
 function normalizeSpaces(value: string) {
   return value.replace(/\u00a0/g, ' ');
 }
+
+function draftRow(overrides: Partial<DraftRowState> = {}): DraftRowState {
+  return {
+    objectId: 'o1',
+    objectType: 'pipe',
+    baseVersion: 1,
+    baseFormValues: {},
+    draftFormValues: {},
+    dirtyFields: {},
+    errors: {},
+    saving: false,
+    sourceParams: {},
+    ...overrides,
+  };
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('heatCalcPageUtils', () => {
   it('определяет статус теплопотерь и текст ошибки', () => {
@@ -207,6 +232,67 @@ describe('heatCalcPageUtils', () => {
     ]));
 
     expect(request.sort).toBeNull();
+  });
+
+  it('строит стабильный fingerprint только по изменяемой части draft row', () => {
+    const left = draftRow({
+      objectId: 'old',
+      baseVersion: 1,
+      draftFormValues: { pipe_length: 10 },
+      dirtyFields: { pipe_length: 10 },
+      errors: { pipe_length: 'required' },
+      saving: false,
+    });
+    const right = draftRow({
+      objectId: 'new',
+      baseVersion: 99,
+      draftFormValues: { pipe_length: 10 },
+      dirtyFields: { pipe_length: 10 },
+      errors: { pipe_length: 'required' },
+      saving: true,
+    });
+
+    expect(draftRowFingerprint(null)).toBe('');
+    expect(draftRowFingerprint(left)).toBe(draftRowFingerprint(right));
+    expect(draftRowFingerprint({
+      ...right,
+      errors: { pipe_length: 'too short' },
+    })).not.toBe(draftRowFingerprint(left));
+  });
+
+  it('нормализует сообщения draft errors и align значения для grid', () => {
+    expect(draftErrorMessages('pipe', {
+      pipe_length: 'обязательное поле',
+      _row: 'строка содержит ошибки',
+    })).toEqual([
+      'Длина трубопровода: обязательное поле',
+      'строка содержит ошибки',
+    ]);
+
+    expect(normalizeGlideCellAlign('left')).toBe('left');
+    expect(normalizeGlideCellAlign('center')).toBe('center');
+    expect(normalizeGlideCellAlign('right')).toBe('right');
+    expect(normalizeGlideCellAlign(undefined)).toBeUndefined();
+  });
+
+  it('удаляет пустые и повторяющиеся сообщения ошибок без изменения первого текста', () => {
+    expect(uniqueErrorMessages([
+      '',
+      '  ',
+      'Ошибка 1',
+      'Ошибка 2',
+      'Ошибка 1',
+      '  Ошибка 2  ',
+      ' Ошибка 3 ',
+    ])).toEqual(['Ошибка 1', 'Ошибка 2', ' Ошибка 3 ']);
+  });
+
+  it('экранирует table row key через CSS.escape или локальный fallback', () => {
+    vi.stubGlobal('CSS', { escape: (value: string) => `escaped:${value}` });
+    expect(escapeTableRowKey('row"1')).toBe('escaped:row"1');
+
+    vi.stubGlobal('CSS', undefined);
+    expect(escapeTableRowKey('row\\with"quote')).toBe('row\\\\with\\"quote');
   });
 
   it('выбирает вид фильтра по capability или локальному fallback', () => {

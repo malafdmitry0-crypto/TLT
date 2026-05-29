@@ -1,28 +1,48 @@
-# God Components Safe Split Nightly Prompt
+# HeatCalcPage Safe Split Nightly Prompt
 
 Этот prompt предназначен для ночного запуска Codex в агентском режиме. Цель -
-подготовить безопасную декомпозицию одного выбранного god-component:
-`HeatCalcPage` или `ElecCalcPage`, не меняя бизнес-поведение без доказательств.
+за один автономный проход сделать анализ `HeatCalcPage`, зафиксировать текущее
+поведение тестами и выполнить один маленький безопасный refactor slice без
+изменения бизнес-поведения.
 
 ## Как запускать
 
 Скопируй блок ниже в Codex agent mode из корня репозитория.
 
 ```text
-Работай в режиме /fix-focused, но максимально консервативно. Цель:
-подготовить безопасное разделение одного выбранного god-component, не меняя
-бизнес-поведение.
+Работай в режиме /fix-focused, максимально консервативно и агентно.
 
-TARGET_PAGE:
-- Выбери ровно один target для этого запуска: HeatCalcPage или ElecCalcPage.
-- Если пользователь не указал target явно, выбери тот компонент, где первый
-  безопасный slice требует меньшего diff и лучше покрывается существующими
-  тестами.
-- Второй компонент не редактируй и не покрывай новыми тестами в этом запуске;
-  можно только кратко упомянуть его как out-of-scope в финальном отчете.
+Primary target:
+- HeatCalcPage only.
+- Не редактируй ElecCalcPage в этом запуске.
+- Не создавай shared abstraction для HeatCalcPage и ElecCalcPage.
 
-ВАЖНО:
-- Сначала прочитай AGENTS.md и обязательные документы из него.
+Goal:
+1. Проанализировать HeatCalcPage как god-component.
+2. Прочитать decomposition roadmap и progress ledger.
+3. Добавить или усилить characterization tests для текущего поведения.
+4. Сделать ровно один маленький refactor slice, только если tests/evidence
+   позволяют доказать неизменность поведения.
+5. Обновить progress ledger после успешного slice.
+6. Дать Functional Accuracy Report с docs -> backend -> frontend -> tests
+   evidence.
+
+Agent routing:
+- Сначала прочитай AGENTS.md.
+- Затем прочитай .agents/routing.yaml.
+- Primary role: frontend_ui_proof.
+- Supporting mental roles: functional_accuracy, qa_regression, backend_business.
+- Режим /fix-focused намеренно перекрывает default_mode роли frontend_ui_proof,
+  потому что запуск должен сделать один bounded code slice.
+- Если выбранный slice меняет JSX/CSS/видимый UI, дополнительно применяй
+  /ui-proof evidence requirements.
+- Если runtime или пользователь не разрешил sub-agents/delegation, применяй эти
+  роли локально.
+- Если delegation явно разрешен, можно дать sidecar read-only задачи:
+  docs_contract для требований и qa_regression для test inventory. Code-edit
+  owner только один.
+
+Hard safety rules:
 - Не делай широкий рефакторинг.
 - Не переписывай архитектуру целиком.
 - Не меняй формулы, expected/golden values, API-контракты или units без
@@ -30,115 +50,147 @@ TARGET_PAGE:
 - Не ослабляй assertions ради green tests.
 - Не удаляй существующий код без доказательства, что он больше не используется.
 - Не делай git commit.
+- Не трогай unrelated dirty files.
+- Перед правками выполни git status --short. Если HeatCalcPage или релевантные
+  test files уже dirty, прочитай diff и работай поверх него, не откатывая
+  чужие изменения.
 - Если появляется риск сломать поведение, остановись и оформи finding.
-- Если тест/Playwright/browser недоступен, это blocked, а не pass.
-
-Scope:
-1. Только TARGET_PAGE.
-2. Только подготовка к безопасному split:
-   - characterization tests;
-   - выявление state clusters;
-   - минимальное извлечение pure helper/hook/component только если есть
-     тестовое покрытие;
-   - доказательство, что UI/API поведение не изменилось.
+- Если in-scope тест/Playwright/browser/DB недоступен, это blocked или needs
+  verification, а не pass.
 
 Change budget:
-- максимум 1 production module extracted;
-- максимум 1 page file edited;
+- greenfield extraction: можно добавить максимум 1 production file и 1 test file;
+- existing module extraction: можно править максимум 1 existing production helper
+  file и 1 existing test file;
+- максимум 1 page file edited: frontend/src/pages/HeatCalcPage.tsx;
 - максимум 2 test files edited;
-- не создавать shared abstraction для Heat и Elec;
-- не менять второй god-component;
-- если нужно больше файлов, остановись и оформи next safe slice.
+- namespace для route-level helpers: `frontend/src/pages/heatcalc/`;
+- namespace для reusable UI components: `frontend/src/components/heatcalc/`;
+- tests по существующему паттерну: `frontend/src/__tests__/unit/pages/heatcalc/`
+  или уже существующий nearest test file;
+- не менять backend, если не обнаружен обязательный backend finding;
+- не менять ElecCalcPage;
+- если нужно больше файлов, остановись и оформи Recommended next safe slice.
 
 Обязательный старт:
-Прочитай:
+Всегда прочитай:
 - codex-docs/README.md
 - codex-docs/project-map.md
 - codex-docs/requirements-map.md
 - codex-docs/testing.md
+- docs/playbooks/agent-proof-modes.md
+- docs/playbooks/heatcalc-page-decomposition-prompts.md
+- docs/playbooks/god-components-safe-split-nightly-prompt.md
+- docs/api.md
+- docs/analysis/business-rules.md
+- docs/srs.md
+- docs/tz-compliance.md
+- docs/srs/ui/employee/03-screen-workspace-heatcalc.md
+- docs/srs/ui/guest/02-screen-workspace-heatcalc.md
+- relevant docs/qa/*
+
+Условно прочитай только если выбранный slice затрагивает units, calculation
+mapping, result diagnostics, formula traceability, payload или coefficients:
 - codex-docs/business-formula-contracts.json
 - formules.md
 - coefficients.MD
 - docs/context/formulas-summary.md
 - docs/playbooks/formula-validation-agent.md
-- docs/api.md
-- docs/analysis/business-rules.md
-- docs/srs.md
-- docs/tz-compliance.md
-- relevant docs/qa/*
 
-Затем через rg найди:
-- TARGET_PAGE implementation
-- API calls TARGET_PAGE
-- hooks/services/helpers, которые они используют
-- tests для выбранного heat/electrical flow
-- Playwright/e2e tests
-- formula contracts and result persistence paths
+Discovery через rg:
+- HeatCalcPage implementation;
+- already extracted modules in `frontend/src/pages/heatcalc/` and
+  `frontend/src/components/heatcalc/`;
+- remaining local helpers/components in HeatCalcPage;
+- useState/useEffect/useMemo/useCallback;
+- HeatCalcPage API calls and hooks;
+- object create/edit/delete/save paths;
+- heat calculation and electrical batch trigger paths from HeatCalcPage;
+- persistence/reload path;
+- diagnostics/result rendering path;
+- column/table/filter/sort/pagination state;
+- wizard/inline-edit/import-export state;
+- tests for HeatCalcPage, ObjectWizard, heat flow, object persistence;
+- relevant Playwright/e2e heat calculation specs;
+- formula contracts only if the candidate slice touches calculation mapping,
+  result diagnostics, payload, units, or traceability.
 
-Перед любыми правками составь короткую карту:
+Before edits checkpoint:
+Составь короткую карту:
 Документация -> backend -> frontend -> tests
 
-Phase 1: Audit and Safety Map
-Составь таблицу только для TARGET_PAGE:
+Прочитай `Progress Ledger` в `docs/playbooks/heatcalc-page-decomposition-prompts.md`.
+Не повторяй пункты со статусом Done. Затем выбери ровно один safe slice:
+A. tests-only characterization, если нет надежного тестового каркаса;
+B. следующий unfinished pure/helper/renderer slice из ledger, если он легко
+   покрывается unit tests;
+C. tiny presentational extraction, только если UI proof можно сделать без
+   большого prop chain;
+D. stop with finding, если safe slice превышает Change budget.
+
+Предпочтительный выбор для этого запуска:
+1. `Table state hook`, если можно сначала покрыть `pipe/tank/all`, filters,
+   sorting, pagination и reset focused tests в рамках Change budget.
+2. Иначе `Preferences hook` только как analysis/tests-only, без переноса state.
+3. Иначе tests-only characterization.
+Не переходи к presentational extraction, если state/tests slice возможен.
+
+Phase 1: HeatCalcPage Audit And Safety Map
+Составь таблицу:
 - файл и размер;
 - количество useState/useEffect/useMemo/useCallback;
+- крупные responsibility clusters;
 - API calls;
+- object save/reload path;
 - calculation submit path;
-- persistence/reload path;
+- electrical batch trigger path;
 - result rendering path;
 - diagnostics/error path;
-- modals/tabs/table/grid state;
-- candidates/selection state;
-- known tests.
+- table/grid/filter/sort/pagination state;
+- wizard/form state;
+- inline edit state;
+- import/export state;
+- existing tests and gaps;
+- proposed first safe extraction.
 
 Phase 2: Characterization Tests First
-Добавь или усили focused tests, которые фиксируют текущее поведение TARGET_PAGE.
-Не добавляй тесты для второго god-component.
+Добавь или усили focused tests, которые фиксируют текущее поведение
+HeatCalcPage или вынесенного pure helper.
 
-Если TARGET_PAGE = HeatCalcPage, используй эти test cases:
+P0 test cases: выбери только релевантные выбранному slice. Нерелевантные P0
+явно отметь как not applicable в финальном отчете, а не реализуй ради галочки.
+- submit/save формирует payload в правильных units;
+- validation error не отправляет некорректный payload;
+- backend error показывает UI error и не затирает старый валидный result, если
+  этот flow уже поддерживается;
+- successful save или mocked reload сохраняет выбранное/отображаемое состояние,
+  если slice затрагивает persistence;
+- result diagnostics не теряются при normalization/rendering;
+- unsupported/error/stale result не смешивается с successful result, если slice
+  затрагивает result helpers;
+- boundary value минимум для одного ключевого heat parameter, если slice
+  касается calculation mapping;
+- metamorphic check: параметр, который должен монотонно увеличивать результат,
+  не уменьшает результат, если slice касается расчетного mapping.
+
+P1 если инфраструктура уже рядом и не расширяет diff:
 - initial render без проекта/с проектом;
 - загрузка существующих параметров;
-- submit формирует payload в правильных units;
-- результат расчета отображается без потери diagnostics;
-- formula_id/source/version/error_code сохраняются или проходят через flow,
-  если это предусмотрено контрактом;
-- validation error не отправляет некорректный payload;
-- backend error показывает UI error и не затирает старый валидный результат;
-- successful save -> reload показывает тот же выбранный result;
-- unsupported/outdated/error result не смешивается с successful result;
 - ручное изменение input обновляет только ожидаемые derived fields;
-- boundary values для ключевых расчетных параметров;
-- metamorphic case: увеличение входного параметра, который должен монотонно
-  увеличивать результат, действительно не уменьшает результат;
-- snapshot/screenshot целевого viewport до refactor.
+- import/export payload shape для HeatCalc objects;
+- column/filter helper сохраняет ожидаемые значения для pipe/tank/all scope.
 
-Если TARGET_PAGE = ElecCalcPage, используй эти test cases:
-- initial render таблицы/строк;
-- добавление строки;
-- удаление строки;
-- reorder/перемещение строки, если поддерживается;
-- стабильные row ids после edit/reload;
-- candidate selection меняет только выбранную строку;
-- payload содержит правильные units;
-- batch calculation частично успешен: successful/error/unsupported не
-  смешиваются;
-- validation errors привязаны к правильной строке;
-- save -> reload сохраняет selected candidate;
-- повторный submit идемпотентен для неизмененных данных;
-- фильтры/поиск/пагинация candidates не ломают selection;
-- diagnostics/error_code отображаются и сохраняются;
-- large-ish table case: минимум 50-100 строк, проверить отсутствие очевидного
-  full re-render/timeout, если есть существующая инфраструктура;
-- screenshot before/after целевого viewport.
+P2 только зафиксируй как residual risk, не реализуй ночью:
+- полный browser before/after для всей HeatCalc страницы;
+- 50-100 object performance scenario;
+- comprehensive import/export round-trip;
+- full report/specification side effect chain.
 
-UI/layout checks:
-- no horizontal scroll в рабочем сценарии;
-- no text clipping;
-- no overlapping controls;
-- buttons not accidentally disabled;
-- table/grid selection visible;
-- error messages readable;
-- screenshots before/after for any touched UI.
+UI/layout proof:
+- Если refactor меняет JSX/CSS/видимый UI, обязателен /ui-proof:
+  before screenshot, DOM/CSS cause, verifier, after screenshot.
+- Если refactor только pure helper без visible UI changes, screenshots не
+  обязательны, но объясни это в report.
 
 Backend/API checks, если flow затрагивается:
 - payload shape;
@@ -146,73 +198,88 @@ Backend/API checks, если flow затрагивается:
 - roles/errors;
 - persistence;
 - reload;
-- DB invariants после UI сценария.
+- DB invariants после UI scenario.
 
-Phase 3: Minimal Refactor Only If Tests Pass
-Если characterization tests для TARGET_PAGE добавлены и проходят, можно сделать
-только один маленький refactor.
+Phase 3: One Minimal Refactor
+Если P0 characterization tests для выбранного slice добавлены/найдены и
+проходят, сделай ровно один маленький refactor.
 
-Preferred safe extraction order:
-1. pure payload builder / mapper;
-2. pure result normalizer;
-3. validation helper;
-4. small presentational component with props only;
-5. narrow hook for one workflow.
+Allowed extraction order:
+1. narrow `useHeatCalcTableState` hook from the ledger only if focused tests cover the
+   state transitions;
+2. preferences hook only after table state hook stabilizes;
+3. small presentational component with props only, with /ui-proof evidence.
 
-Rules for extraction:
-- Не меняй names/API shape без необходимости.
-- Не объединяй Heat и Elec abstractions преждевременно.
-- Не создавай один giant hook вместо giant component.
-- Не протаскивай десятки props; если получается слишком много props,
-  остановись и напиши finding.
-- Один PR-sized vertical slice максимум.
-- После extraction все tests должны пройти.
-- Для UI changes обязательны screenshots before/after.
+Do not redo completed slices:
+- `heatCalcPageUtils.ts` already exists for broad pure helpers.
+- `HeatCalcColumnFilterDropdown.tsx` is already extracted.
+- `heatCalcColumnRenderers.tsx` is already extracted.
+- Remaining small pure helpers are already in `heatCalcPageUtils.ts`.
+- If a candidate is already complete, update the ledger/finding and choose the
+  next unfinished slice instead of re-extracting it.
 
-Suggested first extraction:
-- For HeatCalcPage target: extract pure submit payload builder or result diagnostics
-  normalizer.
-- For ElecCalcPage target: extract pure row/candidate selection mapper or payload
-  builder.
-Выбери тот вариант, где меньше side effects и проще доказать неизменность
-поведения.
+Extraction rules:
+- Не менять UX.
+- Не менять API shape.
+- Не менять units.
+- Не менять names/labels без необходимости.
+- Не тащить React Query/router/global stores в helper.
+- Не переносить DOM helpers, pointer events, ColumnFilterDropdown,
+  ResizableColumnTitle, PipeTypeIcon, TankTypeIcon в этом запуске.
+- Не создавать giant hook.
+- Не создавать helper, который принимает десятки loosely related params.
+- Если extraction требует слишком много props/dependencies, stop and report
+  finding instead of forcing it.
+- После успешного slice обнови `Progress Ledger` в
+  `docs/playbooks/heatcalc-page-decomposition-prompts.md`.
 
-Commands to run:
+Verification commands:
 - rg-based discovery commands as needed.
-- scripts/formula-qa.sh quick if formulas/calculation mapping touched.
-- scripts/test.sh frontend for frontend tests.
-- scripts/test.sh backend-unit or backend-int if backend/API persistence
-  touched.
-- relevant Playwright/e2e for touched user flow.
-- scripts/codex-functional-audit.sh db-invariants after UI scenario if UI flow
-  persists data.
-- scripts/codex-functional-audit.sh layout if layout/UI touched.
-- scripts/codex-functional-audit.sh contracts if formula/API/UI mapping
-  touched.
+- git diff --check.
+- scripts/test.sh frontend OR a narrower existing frontend test command if
+  repository convention supports it.
+- scripts/formula-qa.sh quick if calculation mapping, units, coefficients, or
+  formula-related helpers are touched.
+- relevant Playwright/e2e heat calculation spec if visible workflow changed.
+- scripts/codex-functional-audit.sh layout if JSX/CSS/layout changed.
+- scripts/codex-functional-audit.sh db-invariants after persisted UI scenario.
+- scripts/codex-functional-audit.sh contracts if formula/API/UI mapping touched.
 
 Stop Conditions:
 Stop and report blocked/needs verification if:
 - docs and code disagree;
-- no reliable test harness exists for the touched behavior;
-- Playwright/browser screenshots are required but unavailable;
+- no reliable test harness exists for the selected slice;
 - expected/golden values would need changing without source of truth;
 - refactor requires touching unrelated files broadly;
+- required change exceeds Change budget;
 - extraction creates worse coupling or giant prop chains;
-- required change exceeds the Change budget;
-- persistence/reload cannot be verified;
-- formula_id/version/source/error_code traceability cannot be verified where
-  required.
+- persistence/reload cannot be verified when in scope;
+- formula_id/version/source/error_code traceability cannot be verified when in
+  scope;
+- Playwright/browser screenshots are required but unavailable.
 
 Final report format:
 
 Functional Accuracy Report
-Scope: <TARGET_PAGE> safe split preparation
+Scope: HeatCalcPage safe split preparation
+Mode: /fix-focused
+Agent roles used:
+- frontend_ui_proof
+- functional_accuracy
+- qa_regression
+- backend_business if applicable
 Docs checked:
 - ...
 Implementation found:
 - Backend: ...
 - Frontend: ...
 - Tests: ...
+Safety map:
+- state clusters: ...
+- effects: ...
+- API/persistence: ...
+Slice chosen:
+- ...
 Changes made:
 - ...
 Verification:
@@ -221,20 +288,24 @@ Verification:
 Screenshots:
 - before: ...
 - after: ...
+- not required because: pure helper/no visible UI change
 Findings:
 - ...
 Residual risk:
 - ...
 Recommended next safe slice:
 - ...
+Ledger updated:
+- yes/no, reason
 Out of scope:
-- The other god-component was not changed in this run.
+- ElecCalcPage was not changed.
+- Broad HeatCalc architecture rewrite was not attempted.
 ```
 
 ## Почему prompt ограничен
 
-Для этих страниц опасен широкий запрос "раздели оба компонента": агент может
-получить набор больших hooks вместо доказуемого улучшения. Этот prompt
-заставляет выбрать один target, сначала зафиксировать поведение, затем делать
-только один маленький vertical slice и явно останавливаться при нехватке
+Для `HeatCalcPage` опасен широкий запрос "раздели компонент": агент может
+получить большой hook или много файлов вместо доказуемого улучшения. Этот
+prompt оставляет анализ и refactor в одном запуске, но заставляет сначала
+зафиксировать поведение, выбрать один safe slice и остановиться при нехватке
 evidence.
