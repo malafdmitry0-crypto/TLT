@@ -54,8 +54,6 @@ import {
   resolveTableFontSize,
 } from '@/utils/heatCalcTableViewSettings';
 import {
-  buildDraftDisplayRecord,
-  getDraftRowValidationErrors,
   getInlineEditFieldConfig,
 } from '@/utils/heatCalcInlineEdit';
 import {
@@ -98,9 +96,12 @@ import {
   useHeatCalcExcelInteractionState,
 } from '@/pages/heatcalc/useHeatCalcExcelInteractionModel';
 import { useHeatCalcNormalTableInteractionModel } from '@/pages/heatcalc/useHeatCalcNormalTableInteractionModel';
+import {
+  preloadHeatCalcObjectWizard,
+} from '@/pages/heatcalc/HeatCalcWizardFormPanel';
+import HeatCalcWizardFormPanel from '@/pages/heatcalc/HeatCalcWizardFormPanel';
+import { useHeatCalcWizardFormShellModel } from '@/pages/heatcalc/useHeatCalcWizardFormShellModel';
 
-const loadObjectWizard = () => import('@/components/wizard/ObjectWizard');
-const ObjectWizard = lazy(loadObjectWizard);
 const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSettingsModal'));
 
 function scrollTableRowIntoView(objectId: string) {
@@ -247,7 +248,7 @@ export default function HeatCalcPage() {
       cancelIdleCallback?: (handle: number) => void;
     };
     const preload = () => {
-      void loadObjectWizard();
+      preloadHeatCalcObjectWizard();
     };
     if (win.requestIdleCallback) {
       const handle = win.requestIdleCallback(preload, { timeout: 2_000 });
@@ -615,29 +616,18 @@ export default function HeatCalcPage() {
     clearWizard();
   }
 
-  const wizardBaseObject = useMemo(() => {
-    const editingObject = wizardState?.editingObject;
-    if (!editingObject) return null;
-    const tableObject = visibleTableObjects.find((object) => object.id === editingObject.id)
-      ?? allProjectObjects.find((object) => object.id === editingObject.id);
-    if (!tableObject || editingObject.version > tableObject.version) return editingObject;
-    return tableObject;
-  }, [allProjectObjects, visibleTableObjects, wizardState?.editingObject]);
-  const wizardFormObject = useMemo(() => {
-    if (!wizardBaseObject) return null;
-    return buildDraftDisplayRecord(draftRowsById[wizardBaseObject.id], wizardBaseObject);
-  }, [draftRowsById, wizardBaseObject]);
-  const wizardDraftFieldErrors = useMemo(() => {
-    if (!wizardBaseObject) return undefined;
-    const draftRow = draftRowsById[wizardBaseObject.id];
-    return draftRow ? getDraftRowValidationErrors(draftRow) : undefined;
-  }, [draftRowsById, wizardBaseObject]);
-  const handleWizardDraftValuesChange = useCallback((
-    changedValues: Record<string, unknown>,
-    allValues: Record<string, unknown>,
-  ) => {
-    applyWizardDraftValuesChange(wizardBaseObject, changedValues, allValues);
-  }, [applyWizardDraftValuesChange, wizardBaseObject]);
+  const {
+    wizardBaseObject,
+    wizardFormObject,
+    wizardDraftFieldErrors,
+    handleWizardDraftValuesChange,
+  } = useHeatCalcWizardFormShellModel({
+    allProjectObjects,
+    draftRowsById,
+    visibleTableObjects,
+    wizardState,
+    applyWizardDraftValuesChange,
+  });
   const selectedVisibleRows = useMemo(
     () => visibleTableRows.filter(({ record }) => selectedRowKeys.includes(record.id)),
     [selectedRowKeys, visibleTableRows],
@@ -999,42 +989,6 @@ export default function HeatCalcPage() {
     document.getElementById('inline-object-save')?.click();
   }
 
-  function renderFormPanel() {
-    return (
-      <div
-        className={`inline-form-shell heatcalc-form-pane heatcalc-form-pane--${formPlacement}`}
-        aria-label="Блок заполнения параметров"
-        hidden={!formBlockVisible}
-      >
-        <div className="inline-form-srs">
-          {wizardState ? (
-            <Suspense fallback={<div className="inline-object-form-placeholder" />}>
-              <ObjectWizard
-                key={wizardState.editingObject?.id ?? `${wizardState.type}-new-${newWizardRevision}`}
-                objectType={wizardState.type}
-                onClose={closeWizard}
-                onSubmit={handleWizardSubmit}
-                submitting={submittingObject}
-                initialParams={(excelModeEnabled ? wizardFormObject : wizardBaseObject)?.params}
-                initialFormValues={excelModeEnabled && wizardBaseObject
-                  ? draftRowsById[wizardBaseObject.id]?.draftFormValues
-                  : undefined}
-                validationErrors={wizardFormObject?.validation_errors}
-                fieldErrors={wizardDraftFieldErrors}
-                fieldInputSettings={fieldInputSettings}
-                formSectionWeights={tableViewSettings.formSectionWeights}
-                sectionResizeEnabled={formPlacement === 'top' || formPlacement === 'bottom'}
-                onFormSectionWeightsChange={applyFormSectionWeights}
-                onFormSectionWeightsCommit={commitFormSectionWeights}
-                onDraftValuesChange={wizardBaseObject ? handleWizardDraftValuesChange : undefined}
-              />
-            </Suspense>
-          ) : null}
-        </div>
-      </div>
-    );
-  }
-
   function renderTypeBar() {
     return (
       <HeatCalcTypeToolbar
@@ -1164,7 +1118,27 @@ export default function HeatCalcPage() {
     visibleTableRows,
   });
 
-  const formPanel = renderFormPanel();
+  const formPanel = (
+    <HeatCalcWizardFormPanel
+      formBlockVisible={formBlockVisible}
+      formPlacement={formPlacement}
+      wizardState={wizardState}
+      newWizardRevision={newWizardRevision}
+      closeWizard={closeWizard}
+      handleWizardSubmit={handleWizardSubmit}
+      submittingObject={submittingObject}
+      excelModeEnabled={excelModeEnabled}
+      wizardBaseObject={wizardBaseObject}
+      wizardFormObject={wizardFormObject}
+      draftRowsById={draftRowsById}
+      wizardDraftFieldErrors={wizardDraftFieldErrors}
+      fieldInputSettings={fieldInputSettings}
+      formSectionWeights={tableViewSettings.formSectionWeights}
+      onFormSectionWeightsChange={applyFormSectionWeights}
+      onFormSectionWeightsCommit={commitFormSectionWeights}
+      onDraftValuesChange={handleWizardDraftValuesChange}
+    />
+  );
 
   if (!project) {
     return (
