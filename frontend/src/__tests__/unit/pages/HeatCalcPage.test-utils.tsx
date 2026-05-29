@@ -745,6 +745,8 @@ export function setupHeatCalcPageTest() {
     useAuthStore.getState().logout();
     useProjectStore.getState().setCurrentProject(null);
     useWorkspaceHeaderStore.getState().setContext(null);
+    vi.unstubAllEnvs();
+    vi.stubEnv('VITE_COMMERCIAL_FEATURES_ENABLED', 'false');
     vi.clearAllMocks();
     const originalConsoleError = console.error;
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation((message?: unknown, ...args: unknown[]) => {

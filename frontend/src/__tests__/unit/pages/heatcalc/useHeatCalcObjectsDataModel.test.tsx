@@ -185,6 +185,7 @@ function setupHook(
     queryClient,
     tableColumnSettings: getDefaultTableColumnSettings(),
     tableViewSettings: getDefaultTableViewSettings(),
+    tableFindabilityEnabled: true,
     mergeNormalLoadedRows: vi.fn(),
     rememberObjectQueryCursor: vi.fn(),
     resetNormalLoadMoreRequest: vi.fn(),
@@ -312,6 +313,26 @@ describe('useHeatCalcObjectsDataModel', () => {
     expect(getObjectQueryCapabilities).not.toHaveBeenCalled();
     expect(queryObjects).not.toHaveBeenCalled();
     expect(result.current.visibleAllTableRows.map(({ record }) => record.id)).toEqual(['pipe-a']);
+  });
+
+  it('ignores filters and sorting when table findability is feature-flagged off', async () => {
+    setupHook({
+      activeTableViewState: {
+        filters: { name: { kind: 'text', value: 'Alpha' } },
+        sort: { columnKey: 'pipe_outer_diameter', direction: 'desc' },
+      },
+      tableFindabilityEnabled: false,
+    });
+
+    await waitFor(() => {
+      expect(queryObjects).toHaveBeenCalledWith(
+        'project-1',
+        expect.objectContaining({
+          filters: [],
+          sort: null,
+        }),
+      );
+    });
   });
 
   it('keeps Excel visible rows separate from base query rows', () => {

@@ -167,7 +167,8 @@ describe('HeatCalcPage basics', () => {
       expect(screen.getAllByText('Тип').length).toBeGreaterThan(0);
     });
 
-    it('режим «Все» поддерживает сортировку и фильтры в колонках', async () => {
+    it('режим «Все» поддерживает сортировку и фильтры в колонках при включённых коммерческих фичах', async () => {
+      vi.stubEnv('VITE_COMMERCIAL_FEATURES_ENABLED', 'true');
       const { listObjects } = await import('@/api/projects');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([
         makeObject({ id: 'pipe-beta', sort_order: 0, params: { ...makeObject().params, name: 'Бета труба' } }),
@@ -343,6 +344,9 @@ describe('HeatCalcPage basics', () => {
       expect(within(tableActionsToolbar).getByRole('button', { name: 'Добавить копии выбранных' })).toBeDisabled();
       expect(within(tableActionsToolbar).queryByRole('button', { name: 'Удалить выбранные' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).getByRole('button', { name: 'Импорт XLSX/CSV' })).toBe(importButton);
+      expect(within(tableActionsToolbar).queryByText('Excel-режим')).not.toBeInTheDocument();
+      expect(within(tableActionsToolbar).queryByRole('button', { name: 'Сбросить фильтры таблицы' }))
+        .not.toBeInTheDocument();
       expect(within(tableActionsToolbar).queryByRole('button', { name: 'Трубопровод' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).queryByRole('button', { name: 'Резервуар' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).queryByText(/Режим:/)).not.toBeInTheDocument();

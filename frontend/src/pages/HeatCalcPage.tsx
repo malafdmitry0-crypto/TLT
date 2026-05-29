@@ -17,6 +17,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import HeatCalcExcelContextMenu from '@/components/heatcalc/HeatCalcExcelContextMenu';
 import HeatCalcObjectsTableCard from '@/components/heatcalc/HeatCalcObjectsTableCard';
+import { areCommercialFeaturesEnabled } from '@/config/featureFlags';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
@@ -30,6 +31,7 @@ import {
 } from '@/hooks/useHeatCalcTableColumns';
 import type { ProjectObject } from '@/types/project';
 import {
+  createEmptyTableViewState,
   hasActiveTableViewState,
 } from '@/utils/heatCalcTableFindability';
 import {
@@ -76,6 +78,7 @@ import { useHeatCalcRouteShellEffects } from '@/pages/heatcalc/useHeatCalcRouteS
 const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSettingsModal'));
 
 type TableEditingMode = HeatCalcToolbarEditingMode;
+const COMMERCIAL_FEATURES_DISABLED_TABLE_VIEW_STATE = createEmptyTableViewState();
 
 export default function HeatCalcPage() {
   const queryClient = useQueryClient();
@@ -115,6 +118,7 @@ export default function HeatCalcPage() {
     upsertNormalLoadedRow,
   } = useHeatCalcTableState({ projectId: project?.id });
   const [tableEditingMode, setTableEditingMode] = useState<TableEditingMode>('normal');
+  const commercialFeaturesAvailable = areCommercialFeaturesEnabled();
   const closeColumnSettingsRef = useRef<(() => void) | null>(null);
   const closeColumnSettings = useCallback(() => {
     closeColumnSettingsRef.current?.();
@@ -158,7 +162,13 @@ export default function HeatCalcPage() {
     setWorkspaceHeaderContext,
   });
 
-  const excelModeEnabled = tableEditingMode === 'excel' && !isAllObjectScope;
+  const effectiveActiveTableViewState = commercialFeaturesAvailable
+    ? activeTableViewState
+    : COMMERCIAL_FEATURES_DISABLED_TABLE_VIEW_STATE;
+  const effectiveAllTableViewState = commercialFeaturesAvailable
+    ? allTableViewState
+    : COMMERCIAL_FEATURES_DISABLED_TABLE_VIEW_STATE;
+  const excelModeEnabled = commercialFeaturesAvailable && tableEditingMode === 'excel' && !isAllObjectScope;
   const normalGlideEnabled = !excelModeEnabled;
 
   const {
@@ -188,8 +198,9 @@ export default function HeatCalcPage() {
     activeTableColumnScope,
     activeTableObjectType,
     activeTablePage,
-    activeTableViewState,
-    allTableViewState,
+    activeTableViewState: effectiveActiveTableViewState,
+    allTableViewState: effectiveAllTableViewState,
+    tableFindabilityEnabled: commercialFeaturesAvailable,
     excelModeEnabled,
     isAllObjectScope,
     project,
@@ -243,7 +254,7 @@ export default function HeatCalcPage() {
     allProjectObjects,
     activeObjectType: activeTableObjectType,
     projectObjectCount,
-    tableViewState: activeTableViewState,
+    tableViewState: effectiveActiveTableViewState,
     tableValueAccessors,
     selectedExcelCell,
     excelSelectionRange,
@@ -331,7 +342,7 @@ export default function HeatCalcPage() {
     () => visibleTableRows.filter(({ record }) => selectedRowKeys.includes(record.id)),
     [selectedRowKeys, visibleTableRows],
   );
-  const currentTableViewActive = hasActiveTableViewState(activeTableViewState);
+  const currentTableViewActive = commercialFeaturesAvailable && hasActiveTableViewState(effectiveActiveTableViewState);
   const activeTypeTotalCount = isAllObjectScope
     ? projectObjectCount
     : objectQueryResult?.counts.by_type[activeTableObjectType] ?? totalCount;
@@ -412,6 +423,12 @@ export default function HeatCalcPage() {
   });
 
   useEffect(() => {
+    if (!commercialFeaturesAvailable && tableEditingMode === 'excel') {
+      setTableEditingMode('normal');
+    }
+  }, [commercialFeaturesAvailable, tableEditingMode]);
+
+  useEffect(() => {
     closeColumnSettingsRef.current = columnSettingsDialog.close;
     return () => {
       if (closeColumnSettingsRef.current === columnSettingsDialog.close) {
@@ -470,6 +487,7 @@ export default function HeatCalcPage() {
     fieldInputSettings,
     isAllObjectScope,
     isSavableDraftRow,
+    tableFindabilityEnabled: commercialFeaturesAvailable,
     tableCellEditingEnabled,
     visibleTableRows,
     visibleSourceIndexById,
@@ -562,6 +580,7 @@ export default function HeatCalcPage() {
     clearWizard,
     closeExcelContextMenu,
     currentTableViewActive,
+    commercialFeaturesAvailable,
     filteredTableCount,
     formBlockVisible,
     pipeCount,
@@ -581,7 +600,7 @@ export default function HeatCalcPage() {
   const { tableColumns, tableScrollX, tableScrollY } = useHeatCalcTableColumns({
     activeTableColumnScope,
     activeTableObjectType,
-    activeTableViewState,
+    activeTableViewState: effectiveActiveTableViewState,
     activeInlineCell,
     activeExcelCellPosition,
     beginExcelCellSelection,
@@ -615,6 +634,7 @@ export default function HeatCalcPage() {
     sourceColumnMetas,
     startColumnResize,
     startInlineCellEdit,
+    tableFindabilityEnabled: commercialFeaturesAvailable,
     tableCellEditingEnabled,
     visibleTableObjectsLength: visibleTableObjects.length,
     visibleTableRows,
@@ -654,6 +674,7 @@ export default function HeatCalcPage() {
         }}
         tableActions={{
           editingMode: tableEditingMode,
+          commercialFeaturesAvailable,
           recalcTooltip: heatLossRecalcTooltip,
           recalcAriaLabel: heatLossRecalcAriaLabel,
           recalcLoading: heatLossBatchPending || isHeatLossJobActive,
@@ -815,7 +836,7 @@ export default function HeatCalcPage() {
                 glideColumns={glideGridColumns}
                 normalInfiniteLoading={normalInfiniteLoading}
                 normalPagination={normalTablePagination}
-                activeTableViewState={activeTableViewState}
+                activeTableViewState={effectiveActiveTableViewState}
                 selectedExcelPosition={selectedExcelPosition}
                 selectedExcelRowIndex={selectedExcelPosition?.rowIndex ?? null}
                 selectedRowKeys={selectedRowKeys}

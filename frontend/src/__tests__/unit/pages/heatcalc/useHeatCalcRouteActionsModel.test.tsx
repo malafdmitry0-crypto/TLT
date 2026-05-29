@@ -18,6 +18,7 @@ function makeOptions(
     clearSelectedRows: vi.fn(),
     clearWizard: vi.fn(),
     closeExcelContextMenu: vi.fn(),
+    commercialFeaturesAvailable: true,
     currentTableViewActive: false,
     filteredTableCount: 4,
     formBlockVisible: true,
@@ -160,6 +161,28 @@ describe('useHeatCalcRouteActionsModel', () => {
     expect(clearSelectedRows).toHaveBeenCalledTimes(1);
     expect(clearExcelSelectionState).toHaveBeenCalledTimes(1);
     expect(closeExcelContextMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps normal mode when commercial features are feature-flagged off', () => {
+    const clearSelectedRows = vi.fn();
+    const notifyInfo = vi.fn();
+    const selectObjectScope = vi.fn();
+    const setTableEditingMode = vi.fn();
+    const { result } = renderHook(() => useHeatCalcRouteActionsModel(makeOptions({
+      activeObjectScope: 'all',
+      clearSelectedRows,
+      commercialFeaturesAvailable: false,
+      notifyInfo,
+      selectObjectScope,
+      setTableEditingMode,
+    })));
+
+    act(() => result.current.handleTableEditingModeChange('excel'));
+
+    expect(setTableEditingMode).toHaveBeenCalledWith('normal');
+    expect(selectObjectScope).not.toHaveBeenCalled();
+    expect(notifyInfo).not.toHaveBeenCalled();
+    expect(clearSelectedRows).not.toHaveBeenCalled();
   });
 
   it('switches to normal mode without clearing selected normal rows', () => {

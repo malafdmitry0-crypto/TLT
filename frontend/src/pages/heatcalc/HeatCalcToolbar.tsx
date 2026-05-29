@@ -53,6 +53,7 @@ export type HeatCalcActionsToolbarProps = {
   };
   tableActions: {
     editingMode: HeatCalcToolbarEditingMode;
+    commercialFeaturesAvailable: boolean;
     recalcTooltip: string;
     recalcAriaLabel: string;
     recalcLoading: boolean;
@@ -213,15 +214,17 @@ export function HeatCalcActionsToolbar({
 
       <div className="actionbar-table-actions-row" role="toolbar" aria-label="Действия таблицы объектов">
         <div className="actionbar-group actionbar-table-actions-group">
-          <Segmented
-            size="small"
-            value={tableActions.editingMode}
-            options={[
-              { label: 'Обычный режим', value: 'normal' },
-              { label: 'Excel-режим', value: 'excel' },
-            ]}
-            onChange={tableActions.onEditingModeChange}
-          />
+          {tableActions.commercialFeaturesAvailable && (
+            <Segmented
+              size="small"
+              value={tableActions.editingMode}
+              options={[
+                { label: 'Обычный режим', value: 'normal' },
+                { label: 'Excel-режим', value: 'excel' },
+              ]}
+              onChange={tableActions.onEditingModeChange}
+            />
+          )}
           <Tooltip title={tableActions.recalcTooltip}>
             <span className="action-tooltip-wrap">
               <Button
@@ -270,17 +273,19 @@ export function HeatCalcActionsToolbar({
               />
             </span>
           </Tooltip>
-          <Tooltip title={tableActions.currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
-            <span className="action-tooltip-wrap">
-              <Button
-                className="action-icon-button action-secondary-button"
-                icon={<CloseCircleOutlined />}
-                aria-label="Сбросить фильтры таблицы"
-                disabled={!tableActions.currentTableViewActive}
-                onClick={tableActions.onResetCurrentTableView}
-              />
-            </span>
-          </Tooltip>
+          {tableActions.commercialFeaturesAvailable && (
+            <Tooltip title={tableActions.currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
+              <span className="action-tooltip-wrap">
+                <Button
+                  className="action-icon-button action-secondary-button"
+                  icon={<CloseCircleOutlined />}
+                  aria-label="Сбросить фильтры таблицы"
+                  disabled={!tableActions.currentTableViewActive}
+                  onClick={tableActions.onResetCurrentTableView}
+                />
+              </span>
+            </Tooltip>
+          )}
           {tableActions.draftControlsVisible && (
             <>
               <Tag color={tableActions.dirtyDraftRowCount > 0 ? 'gold' : 'default'} className="inline-draft-status-tag">

@@ -123,6 +123,7 @@ function makeOptions(overrides: Partial<Parameters<typeof useHeatCalcGridModel>[
     fieldInputSettings: getDefaultFieldInputSettings(),
     isAllObjectScope: false,
     isSavableDraftRow: (row) => !!row && Object.keys(row.dirtyFields).length > 0,
+    tableFindabilityEnabled: true,
     tableCellEditingEnabled: true,
     visibleTableRows: [{ record, sourceIndex: 0 }],
     visibleSourceIndexById: new Map([[record.id, 0]]),
@@ -162,6 +163,20 @@ describe('useHeatCalcGridModel', () => {
 
     expect(result.current.glideGridColumns[0]).toMatchObject({
       key: 'name',
+      filterable: false,
+      sortable: false,
+    });
+  });
+
+  it('hides grid filtering and sorting when table findability is feature-flagged off', () => {
+    const { result } = renderHook(() => useHeatCalcGridModel(makeOptions({
+      fieldCapabilityByKey: new Map([
+        ['name', capability({ key: 'name' })],
+      ]),
+      tableFindabilityEnabled: false,
+    })));
+
+    expect(result.current.glideGridColumns[0]).toMatchObject({
       filterable: false,
       sortable: false,
     });

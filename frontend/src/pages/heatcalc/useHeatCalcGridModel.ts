@@ -67,6 +67,7 @@ interface UseHeatCalcGridModelOptions {
   fieldInputSettings: HeatCalcFieldInputSettings;
   isAllObjectScope: boolean;
   isSavableDraftRow: (draftRow: DraftRowState | undefined) => boolean;
+  tableFindabilityEnabled: boolean;
   tableCellEditingEnabled: boolean;
   visibleTableRows: HeatCalcIndexedTableRow<ProjectObject>[];
   visibleSourceIndexById: Map<string, number>;
@@ -86,6 +87,7 @@ export function useHeatCalcGridModel({
   fieldInputSettings,
   isAllObjectScope,
   isSavableDraftRow,
+  tableFindabilityEnabled,
   tableCellEditingEnabled,
   visibleTableRows,
   visibleSourceIndexById,
@@ -182,10 +184,12 @@ export function useHeatCalcGridModel({
   const glideGridColumns = useMemo<HeatCalcGlideGridColumn[]>(
     () => sourceColumnMetas.map((meta) => {
       const capability = fieldCapabilityByKey.get(meta.key);
-      const filterEnabled = !excelModeEnabled
+      const filterEnabled = tableFindabilityEnabled
+        && !excelModeEnabled
         && meta.filterable !== false
         && (isAllObjectScope || (capability?.filter.enabled ?? true));
-      const sortEnabled = !excelModeEnabled
+      const sortEnabled = tableFindabilityEnabled
+        && !excelModeEnabled
         && meta.sortable !== false
         && (isAllObjectScope || (capability?.sort.enabled ?? true));
       return {
@@ -209,6 +213,7 @@ export function useHeatCalcGridModel({
       fieldCapabilityByKey,
       isAllObjectScope,
       sourceColumnMetas,
+      tableFindabilityEnabled,
     ],
   );
 

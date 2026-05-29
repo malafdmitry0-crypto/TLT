@@ -36,6 +36,7 @@ describe('HeatCalcPage inline edit', () => {
 
   describe('Inline-редактирование', () => {
     function useGlideExcelEngineForDomCellTest() {
+      vi.stubEnv('VITE_COMMERCIAL_FEATURES_ENABLED', 'true');
       localStorage.setItem(HEATCALC_EXCEL_ENGINE_STORAGE_KEY, 'glide');
     }
 

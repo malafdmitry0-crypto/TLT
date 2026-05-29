@@ -32,6 +32,7 @@ import {
 import {
   applyColumnFilters,
   applyTableSort,
+  createEmptyTableViewState,
   type HeatCalcColumnValueAccessors,
   type HeatCalcIndexedTableRow,
   type HeatCalcTableViewState,
@@ -71,6 +72,7 @@ interface UseHeatCalcObjectsDataModelOptions {
   queryClient: QueryClient;
   tableColumnSettings: HeatCalcTableColumnSettings;
   tableViewSettings: HeatCalcTableViewSettings;
+  tableFindabilityEnabled: boolean;
   mergeNormalLoadedRows: (
     result: ProjectObjectsQueryResponse | undefined,
     options: { excelModeEnabled: boolean },
@@ -78,6 +80,8 @@ interface UseHeatCalcObjectsDataModelOptions {
   rememberObjectQueryCursor: (result: ProjectObjectsQueryResponse | undefined) => void;
   resetNormalLoadMoreRequest: () => void;
 }
+
+const FINDABILITY_DISABLED_TABLE_VIEW_STATE = createEmptyTableViewState();
 
 export interface HeatCalcVisibleRowsModelOptions {
   activeTableObjectType: HeatCalcObjectType;
@@ -176,6 +180,7 @@ export function useHeatCalcObjectsDataModel({
   queryClient,
   tableColumnSettings,
   tableViewSettings,
+  tableFindabilityEnabled,
   mergeNormalLoadedRows,
   rememberObjectQueryCursor,
   resetNormalLoadMoreRequest,
@@ -199,13 +204,19 @@ export function useHeatCalcObjectsDataModel({
     enabled: !!project,
     ...referenceQueryOptions,
   });
+  const effectiveActiveTableViewState = tableFindabilityEnabled
+    ? activeTableViewState
+    : FINDABILITY_DISABLED_TABLE_VIEW_STATE;
+  const effectiveAllTableViewState = tableFindabilityEnabled
+    ? allTableViewState
+    : FINDABILITY_DISABLED_TABLE_VIEW_STATE;
 
   const objectQueryRequest = useMemo(
     () => (isAllObjectScope
       ? null
       : buildObjectQueryRequest(
         activeTableObjectType,
-        activeTableViewState,
+        effectiveActiveTableViewState,
         activeTablePage,
         objectQueryCapabilities?.default_page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE,
         objectQueryCapabilities,
@@ -215,7 +226,7 @@ export function useHeatCalcObjectsDataModel({
       activeObjectQueryCursor,
       activeTableObjectType,
       activeTablePage,
-      activeTableViewState,
+      effectiveActiveTableViewState,
       isAllObjectScope,
       objectQueryCapabilities,
     ],
@@ -371,11 +382,11 @@ export function useHeatCalcObjectsDataModel({
   );
   const allFilteredSortedTableRows = useMemo(
     () => applyTableSort(
-      applyColumnFilters(allIndexedTableRows, allTableViewState.filters, tableValueAccessors),
-      allTableViewState.sort,
+      applyColumnFilters(allIndexedTableRows, effectiveAllTableViewState.filters, tableValueAccessors),
+      effectiveAllTableViewState.sort,
       tableValueAccessors,
     ),
-    [allIndexedTableRows, allTableViewState, tableValueAccessors],
+    [allIndexedTableRows, effectiveAllTableViewState, tableValueAccessors],
   );
   const visibleAllTableRows = useMemo(
     () => allFilteredSortedTableRows,

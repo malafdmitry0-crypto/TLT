@@ -14,6 +14,7 @@ export interface UseHeatCalcRouteActionsModelOptions {
   clearSelectedRows: () => void;
   clearWizard: () => void;
   closeExcelContextMenu: () => void;
+  commercialFeaturesAvailable: boolean;
   currentTableViewActive: boolean;
   filteredTableCount: number;
   formBlockVisible: boolean;
@@ -63,6 +64,7 @@ export function useHeatCalcRouteActionsModel({
   clearSelectedRows,
   clearWizard,
   closeExcelContextMenu,
+  commercialFeaturesAvailable,
   currentTableViewActive,
   filteredTableCount,
   formBlockVisible,
@@ -99,7 +101,7 @@ export function useHeatCalcRouteActionsModel({
   }, [activeTableObjectType, clearWizard, resetNewWizard, setFormBlockVisible, wizardStateType]);
 
   const handleTableEditingModeChange = useCallback((value: string | number) => {
-    const nextMode: HeatCalcRouteTableEditingMode = value === 'excel' ? 'excel' : 'normal';
+    const nextMode: HeatCalcRouteTableEditingMode = value === 'excel' && commercialFeaturesAvailable ? 'excel' : 'normal';
     if (nextMode === 'excel' && activeObjectScope === 'all') {
       selectObjectScope('pipe');
       notifyInfo?.('Excel-режим включён для таблицы трубопроводов');
@@ -113,6 +115,7 @@ export function useHeatCalcRouteActionsModel({
     clearExcelSelectionState,
     clearSelectedRows,
     closeExcelContextMenu,
+    commercialFeaturesAvailable,
     notifyInfo,
     selectObjectScope,
     setTableEditingMode,

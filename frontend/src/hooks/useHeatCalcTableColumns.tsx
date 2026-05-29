@@ -173,6 +173,7 @@ interface UseHeatCalcTableColumnsOptions {
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => void;
   startInlineCellEdit: (record: ProjectObject, columnKey: string) => void;
+  tableFindabilityEnabled: boolean;
   tableCellEditingEnabled: boolean;
   visibleTableObjectsLength: number;
   visibleTableRows: HeatCalcIndexedTableRow<ProjectObject>[];
@@ -215,6 +216,7 @@ export function useHeatCalcTableColumns({
   sourceColumnMetas,
   startColumnResize,
   startInlineCellEdit,
+  tableFindabilityEnabled,
   tableCellEditingEnabled,
   visibleTableObjectsLength,
   visibleTableRows,
@@ -229,10 +231,12 @@ export function useHeatCalcTableColumns({
     () => sourceColumnMetas.map((meta, columnIndex) => {
       const renderer = columnRenderers[meta.key];
       const capability = fieldCapabilityByKey.get(meta.key);
-      const filterEnabled = !excelModeEnabled
+      const filterEnabled = tableFindabilityEnabled
+        && !excelModeEnabled
         && meta.filterable !== false
         && (isAllObjectScope || (capability?.filter.enabled ?? true));
-      const sortEnabled = !excelModeEnabled
+      const sortEnabled = tableFindabilityEnabled
+        && !excelModeEnabled
         && meta.sortable !== false
         && (isAllObjectScope || (capability?.sort.enabled ?? true));
       const filterKind = filterKindForColumn(meta.key, capability);
@@ -393,6 +397,7 @@ export function useHeatCalcTableColumns({
       sourceColumnMetas,
       startColumnResize,
       startInlineCellEdit,
+      tableFindabilityEnabled,
       tableCellEditingEnabled,
       normalizedExcelRange,
     ],
