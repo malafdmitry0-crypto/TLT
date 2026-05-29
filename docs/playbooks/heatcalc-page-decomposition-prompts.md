@@ -94,6 +94,7 @@
 | Grid model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcGridModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcGridModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved grid column/cell/error view model out of route component; typecheck and focused HeatCalc suites passed |
 | Bulk actions model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcBulkActions.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcBulkActions.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved duplicate/remove selected row orchestration and delete counters out of route component; typecheck and focused HeatCalc suites passed |
 | Heat-loss job/recalc model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcHeatLossJob.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcHeatLossJob.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved job polling, batch/cancel mutations, completion handling, recalc ids/tooltips/disabled state out of route component; typecheck and focused HeatCalc suites passed |
+| Assumptions panel component | Done | `frontend/src/pages/heatcalc/HeatCalcAssumptionsPanel.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/HeatCalcAssumptionsPanel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved calculation detail rendering out of route component without formula/API/layout changes; typecheck and focused settings suite passed |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers
@@ -270,6 +271,45 @@ Definition of Done:
 - `HeatCalcPage.tsx` только подключает hook и передаёт результат в toolbar.
 - Existing `HeatCalcPage.actions.test.tsx`, inline/settings suites остаются
   зелёными.
+- Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
+  `git diff --check`.
+- Обновить Progress Ledger после успешного slice.
+
+## Prompt 9. Вынести assumptions panel
+
+Status: Done. Не запускать повторно без нового finding.
+Historical prompt ниже сохранён как история выполнения.
+
+Вынеси из `frontend/src/pages/HeatCalcPage.tsx` только отображение расшифровки
+расчёта:
+
+- `selectedResults`;
+- `selectedParams`;
+- `resultValue`;
+- `paramValue`;
+- `renderAssumptionsPanel`;
+- минимальные display helpers, нужные только этому panel.
+
+Жёсткие границы:
+
+- Не менять backend, API contracts, формулы, единицы измерения и expected
+  business values.
+- Не трогать `saveDraftRows`, object payload mapping, Excel
+  selection/keyboard/clipboard hooks.
+- Не менять table layout, CSS, toolbar/actions, column settings и resize.
+- Сохранить className `calc-assumptions-panel` и существующие labels/units.
+
+Functional trace:
+
+- Frontend characterization:
+  `frontend/src/__tests__/unit/pages/HeatCalcPage.settings.test.tsx`.
+
+Definition of Done:
+
+- Новый component/model с явными props и focused tests.
+- `HeatCalcPage.tsx` только рендерит component с `selectedObject` и
+  `calculationDetailsSettings`.
+- Existing settings characterization остаётся зелёной.
 - Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
   `git diff --check`.
 - Обновить Progress Ledger после успешного slice.
