@@ -102,6 +102,7 @@
 | Excel interaction model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcExcelInteractionModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcExcelInteractionModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved Excel cell/selection/context-menu state, selection/clipboard/keyboard wiring, add-row and reset-selected-row interactions out of route component without backend/API/formula/CSS/layout changes; typecheck, focused hook test and inline-edit characterization passed |
 | Normal table interaction model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcNormalTableInteractionModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcNormalTableInteractionModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved normal row class, pagination/infinite loading, normal load/page callbacks and non-Excel selected rows copy hotkey out of route component without backend/API/formula/CSS/layout changes; typecheck, focused hook test and inline-edit characterization passed |
 | Wizard/form shell model and panel | Done | `frontend/src/pages/heatcalc/useHeatCalcWizardFormShellModel.ts`; `frontend/src/pages/heatcalc/HeatCalcWizardFormPanel.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcWizardFormShellModel.test.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/HeatCalcWizardFormPanel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved wizard base/display/draft-error derivation and form panel JSX out of route component without backend/API/formula/CSS/layout changes; typecheck, focused tests and HeatCalc basics/actions/inline-edit characterization passed |
+| Objects data/query model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcObjectsDataModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcObjectsDataModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved object summary/query capabilities/object queries/all objects/column accessors/all-scope filtering/enum options and visible rows resolver out of route component without backend/API/formula/CSS/layout changes; typecheck, focused tests and HeatCalc basics/actions/inline-edit characterization passed |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers
@@ -616,4 +617,60 @@ Definition of Done:
   зелёной.
 - Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
   `git diff --check`.
+- Обновить Progress Ledger после успешного slice.
+
+## Prompt 17. Вынести objects data/query model
+
+Status: Done. Не запускать повторно без нового finding.
+Historical prompt ниже сохранён как история выполнения.
+
+Вынеси из `frontend/src/pages/HeatCalcPage.tsx` только data/query/visible rows
+model:
+
+- `objectsSummary`;
+- `objectQueryCapabilities`;
+- `insulationMaterials`;
+- `objectQueryRequest`, `objectQueryKey`, `allProjectObjectsQueryKey`;
+- `objectQueryResult`, `objectQueryFetching`;
+- `currentPageObjectsForExcel`, `allProjectObjectsData`, `allProjectObjects`;
+- prefetch all objects effect;
+- `pipeCount`, `tankCount`, `projectObjectCount`, `totalCount`;
+- column renderers, configured/source metas, editable Excel column keys,
+  table value accessors, field capabilities, visible column keys;
+- all-scope indexed/filter/sort rows and enum options;
+- pure visible rows resolver for normal/all/Excel modes.
+
+Жёсткие границы:
+
+- Не менять backend, API contracts, формулы, единицы измерения, expected
+  business values.
+- Не менять object create/update/delete payload mapping.
+- Не менять `useHeatCalcDraftSaveModel`, `useHeatCalcInlineDraftModel`,
+  `useHeatCalcExcelInteractionModel`, `useHeatCalcObjectEditor`.
+- Не менять toolbar, table card, context menu, modals, CSS/className/user-facing
+  тексты.
+- Не переносить layout/render shell в этом slice.
+- Не менять поведение `pipe/tank/all`, Excel mode, placeholder data,
+  filters/sort, pagination/load-more.
+
+Functional trace:
+
+- API: `docs/api.md`, `POST /projects/{id}/objects/query`.
+- SRS: `docs/srs/ui/guest/02-screen-workspace-heatcalc.md` SC-03,
+  UC-G-07/08/09, UC-G-12, UC-G-23.
+- Frontend characterization:
+  `frontend/src/__tests__/unit/pages/HeatCalcPage.basics.test.tsx`,
+  `frontend/src/__tests__/unit/pages/HeatCalcPage.inline-edit.test.tsx`,
+  `frontend/src/__tests__/unit/pages/HeatCalcPage.actions.test.tsx`.
+- Focused tests:
+  `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcObjectsDataModel.test.tsx`.
+
+Definition of Done:
+
+- Новый hook/model с явными inputs.
+- `HeatCalcPage.tsx` только подключает hook и pure visible rows resolver.
+- Existing HeatCalc basics/actions/inline-edit characterization остаётся
+  зелёной.
+- Запустить `npm --prefix frontend run typecheck`, focused Vitest suite,
+  HeatCalc characterization suites и `git diff --check`.
 - Обновить Progress Ledger после успешного slice.
