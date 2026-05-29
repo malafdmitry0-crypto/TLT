@@ -95,6 +95,7 @@
 | Bulk actions model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcBulkActions.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcBulkActions.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved duplicate/remove selected row orchestration and delete counters out of route component; typecheck and focused HeatCalc suites passed |
 | Heat-loss job/recalc model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcHeatLossJob.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcHeatLossJob.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved job polling, batch/cancel mutations, completion handling, recalc ids/tooltips/disabled state out of route component; typecheck and focused HeatCalc suites passed |
 | Assumptions panel component | Done | `frontend/src/pages/heatcalc/HeatCalcAssumptionsPanel.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/HeatCalcAssumptionsPanel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved calculation detail rendering out of route component without formula/API/layout changes; typecheck and focused settings suite passed |
+| Selected row errors overlay component | Done | `frontend/src/pages/heatcalc/HeatCalcSelectedRowErrorsOverlay.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/HeatCalcSelectedRowErrorsOverlay.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved selected row validation overlay JSX without state/effect/API/layout changes; typecheck and focused inline-edit suite passed |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers
@@ -310,6 +311,40 @@ Definition of Done:
 - `HeatCalcPage.tsx` только рендерит component с `selectedObject` и
   `calculationDetailsSettings`.
 - Existing settings characterization остаётся зелёной.
+- Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
+  `git diff --check`.
+- Обновить Progress Ledger после успешного slice.
+
+## Prompt 10. Вынести selected row errors overlay
+
+Status: Done. Не запускать повторно без нового finding.
+Historical prompt ниже сохранён как история выполнения.
+
+Вынеси из `frontend/src/pages/HeatCalcPage.tsx` только JSX выбранной строки с
+ошибками:
+
+- `renderSelectedRowErrorsOverlay`;
+- truncation logic: первые 4 сообщения + `ещё N`;
+- существующие ARIA/test-id/className.
+
+Жёсткие границы:
+
+- Не менять backend, API contracts, формулы, единицы измерения, expected
+  business values.
+- Не трогать state/effects, `saveDraftRows`, object payload mapping, Excel
+  selection/keyboard/clipboard hooks.
+- Не менять CSS/layout и user-facing тексты.
+
+Functional trace:
+
+- Frontend characterization:
+  `frontend/src/__tests__/unit/pages/HeatCalcPage.inline-edit.test.tsx`.
+
+Definition of Done:
+
+- Новый component с явными props и focused tests.
+- `HeatCalcPage.tsx` только рендерит component с `selectedRowErrorMessages`.
+- Existing inline-edit characterization остаётся зелёной.
 - Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
   `git diff --check`.
 - Обновить Progress Ledger после успешного slice.
