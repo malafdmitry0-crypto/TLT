@@ -10,6 +10,7 @@ from app.generated.heatcalc_field_contract import HEATCALC_TABLE_COLUMNS_VERSION
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 HEATCALC_TABLE_COLUMNS_PREF_KEY = f"heatcalc.tableColumns.v{HEATCALC_TABLE_COLUMNS_VERSION}"
+HEATCALC_TABLE_VIEW_PREF_KEY = "heatcalc.tableView.v2"
 ELECTRICAL_TABLE_COLUMNS_VERSION = 5
 ELECTRICAL_TABLE_COLUMNS_PREF_KEY = f"electrical.tableColumns.v{ELECTRICAL_TABLE_COLUMNS_VERSION}"
 ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView.v4"
@@ -56,9 +57,10 @@ def heatcalc_table_view_value(
     form_section_weights: list[float] | None = None,
 ) -> dict[str, object]:
     return {
-        "version": 1,
+        "version": 2,
         "fontSize": font_size,
-        "inlineEditingEnabled": False,
+        "tableLabelFormat": "short",
+        "settingsLabelFormat": "full",
         "formPlacement": form_placement,
         "sideFormWidthPct": side_form_width_pct,
         "formSectionWeights": (
@@ -410,7 +412,7 @@ class TestUserPreferencesApi:
 
         assert resp.status_code == 422
 
-    async def test_old_electrical_preference_keys_are_rejected(
+    async def test_old_versioned_preference_keys_are_rejected(
         self,
         client: AsyncClient,
         employee_token: str,
@@ -438,12 +440,17 @@ class TestUserPreferencesApi:
             "/api/v1/preferences/electrical.candidateTableColumns.v0",
             headers=headers,
         )
+        old_heatcalc_table_view = await client.get(
+            "/api/v1/preferences/heatcalc.tableView.v1",
+            headers=headers,
+        )
 
         assert old_view.status_code == 422
         assert old_columns.status_code == 422
         assert old_view_v2.status_code == 422
         assert old_view_v3.status_code == 422
         assert old_candidates.status_code == 422
+        assert old_heatcalc_table_view.status_code == 422
 
     async def test_employee_can_upsert_heatcalc_table_view_preference(
         self,
@@ -453,7 +460,7 @@ class TestUserPreferencesApi:
         headers = {"Authorization": f"Bearer {employee_token}"}
 
         resp = await client.put(
-            "/api/v1/preferences/heatcalc.tableView.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_VIEW_PREF_KEY}",
             json={"value": heatcalc_table_view_value("comfortable")},
             headers=headers,
         )
@@ -461,7 +468,7 @@ class TestUserPreferencesApi:
         assert resp.json()["value"] == heatcalc_table_view_value("comfortable")
 
         read_back = await client.get(
-            "/api/v1/preferences/heatcalc.tableView.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_VIEW_PREF_KEY}",
             headers=headers,
         )
         assert read_back.status_code == 200
@@ -473,7 +480,7 @@ class TestUserPreferencesApi:
         employee_token: str,
     ):
         resp = await client.put(
-            "/api/v1/preferences/heatcalc.tableView.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_VIEW_PREF_KEY}",
             json={"value": heatcalc_table_view_value("huge")},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
@@ -487,9 +494,10 @@ class TestUserPreferencesApi:
     ):
         value = heatcalc_table_view_value()
         value["fontSizePx"] = 16
+        value["inlineEditingEnabled"] = True
 
         resp = await client.put(
-            "/api/v1/preferences/heatcalc.tableView.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_VIEW_PREF_KEY}",
             json={"value": value},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
@@ -502,7 +510,7 @@ class TestUserPreferencesApi:
         employee_token: str,
     ):
         resp = await client.put(
-            "/api/v1/preferences/heatcalc.tableView.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_VIEW_PREF_KEY}",
             json={"value": heatcalc_table_view_value(side_form_width_pct=80)},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
@@ -519,7 +527,7 @@ class TestUserPreferencesApi:
         )
 
         resp = await client.put(
-            "/api/v1/preferences/heatcalc.tableView.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_VIEW_PREF_KEY}",
             json={"value": legacy_value},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
@@ -533,7 +541,7 @@ class TestUserPreferencesApi:
         employee_token: str,
     ):
         resp = await client.put(
-            "/api/v1/preferences/heatcalc.tableView.v1",
+            f"/api/v1/preferences/{HEATCALC_TABLE_VIEW_PREF_KEY}",
             json={"value": heatcalc_table_view_value(form_section_weights=[1.2, 1.3])},
             headers={"Authorization": f"Bearer {employee_token}"},
         )

@@ -39,24 +39,12 @@ import {
   type HeatCalcFieldInputSettings,
 } from '@/utils/heatCalcFieldInputSettings';
 
-export type PendingInlineDisableSettings = {
-  columnSettings: HeatCalcTableColumnSettings;
-  viewSettings: HeatCalcTableViewSettings;
-  calculationDetailsSettings: HeatCalcCalculationDetailsSettings;
-  fieldInputSettings: HeatCalcFieldInputSettings;
-};
-
-type SaveDraftRowsResult = {
-  ok: boolean;
-};
-
 type UseHeatCalcColumnSettingsDialogOptions = {
   activeTableColumnScope: HeatCalcTableColumnScope;
   tableColumnSettings: HeatCalcTableColumnSettings;
   tableViewSettings: HeatCalcTableViewSettings;
   calculationDetailsSettings: HeatCalcCalculationDetailsSettings;
   fieldInputSettings: HeatCalcFieldInputSettings;
-  dirtyDraftRowCount: number;
   cleanHiddenColumnStateForSettings: (settings: HeatCalcTableColumnSettings) => void;
   persistTableSettings: (
     columnSettings: HeatCalcTableColumnSettings,
@@ -72,7 +60,6 @@ export function useHeatCalcColumnSettingsDialog({
   tableViewSettings,
   calculationDetailsSettings,
   fieldInputSettings,
-  dirtyDraftRowCount,
   cleanHiddenColumnStateForSettings,
   persistTableSettings,
 }: UseHeatCalcColumnSettingsDialogOptions) {
@@ -88,8 +75,6 @@ export function useHeatCalcColumnSettingsDialog({
     useState<HeatCalcCalculationDetailsSettings>(() => calculationDetailsSettings);
   const [draftFieldInputSettings, setDraftFieldInputSettings] =
     useState<HeatCalcFieldInputSettings>(() => fieldInputSettings);
-  const [pendingInlineDisableSettings, setPendingInlineDisableSettings] =
-    useState<PendingInlineDisableSettings | null>(null);
 
   const close = useCallback(() => {
     setIsOpen(false);
@@ -196,13 +181,6 @@ export function useHeatCalcColumnSettingsDialog({
     setDraftViewSettings((settings) => normalizeTableViewSettings({ ...settings, formPlacement }));
   }, []);
 
-  const updateDraftInlineEditingEnabled = useCallback((inlineEditingEnabled: boolean) => {
-    setDraftViewSettings((settings) => normalizeTableViewSettings({
-      ...settings,
-      inlineEditingEnabled,
-    }));
-  }, []);
-
   const updateDraftCalculationDetailsPreset = useCallback((preset: HeatCalcCalculationDetailPreset) => {
     setDraftCalculationDetailsSettings((settings) => setCalculationDetailsPreset(settings, preset));
   }, []);
@@ -228,67 +206,16 @@ export function useHeatCalcColumnSettingsDialog({
     const normalizedView = normalizeTableViewSettings(draftViewSettings);
     const normalizedDetails = normalizeCalculationDetailsSettings(draftCalculationDetailsSettings);
     const normalizedFieldInputs = normalizeFieldInputSettings(draftFieldInputSettings);
-    if (
-      normalizeTableViewSettings(tableViewSettings).inlineEditingEnabled
-      && !normalizedView.inlineEditingEnabled
-      && dirtyDraftRowCount > 0
-    ) {
-      setPendingInlineDisableSettings({
-        columnSettings: normalized,
-        viewSettings: normalizedView,
-        calculationDetailsSettings: normalizedDetails,
-        fieldInputSettings: normalizedFieldInputs,
-      });
-      return;
-    }
     cleanHiddenColumnStateForSettings(normalized);
     persistTableSettings(normalized, normalizedView, normalizedDetails, normalizedFieldInputs);
   }, [
     cleanHiddenColumnStateForSettings,
-    dirtyDraftRowCount,
     draftCalculationDetailsSettings,
     draftColumnSettings,
     draftFieldInputSettings,
     draftViewSettings,
     persistTableSettings,
-    tableViewSettings,
   ]);
-
-  const cancelPendingInlineDisable = useCallback(() => {
-    setPendingInlineDisableSettings(null);
-    setDraftViewSettings(tableViewSettings);
-    setDraftCalculationDetailsSettings(calculationDetailsSettings);
-    setDraftFieldInputSettings(fieldInputSettings);
-  }, [calculationDetailsSettings, fieldInputSettings, tableViewSettings]);
-
-  const discardPendingInlineDisable = useCallback((discardDraftRows: () => void) => {
-    const pending = pendingInlineDisableSettings;
-    if (!pending) return;
-    discardDraftRows();
-    persistTableSettings(
-      pending.columnSettings,
-      pending.viewSettings,
-      pending.calculationDetailsSettings,
-      pending.fieldInputSettings,
-    );
-    setPendingInlineDisableSettings(null);
-  }, [pendingInlineDisableSettings, persistTableSettings]);
-
-  const savePendingInlineDisable = useCallback(async (
-    saveDraftRows: () => Promise<SaveDraftRowsResult>,
-  ) => {
-    const pending = pendingInlineDisableSettings;
-    if (!pending) return;
-    const result = await saveDraftRows();
-    if (!result.ok) return;
-    persistTableSettings(
-      pending.columnSettings,
-      pending.viewSettings,
-      pending.calculationDetailsSettings,
-      pending.fieldInputSettings,
-    );
-    setPendingInlineDisableSettings(null);
-  }, [pendingInlineDisableSettings, persistTableSettings]);
 
   return {
     isOpen,
@@ -297,7 +224,6 @@ export function useHeatCalcColumnSettingsDialog({
     draftViewSettings,
     draftCalculationDetailsSettings,
     draftFieldInputSettings,
-    pendingInlineDisableSettings,
     setActiveType,
     open,
     close,
@@ -312,7 +238,6 @@ export function useHeatCalcColumnSettingsDialog({
     updateDraftTableLabelFormat,
     updateDraftSettingsLabelFormat,
     updateDraftFormPlacement,
-    updateDraftInlineEditingEnabled,
     resetDraftTableFontSize,
     resetDraftLabelFormats,
     updateDraftCalculationDetailsPreset,
@@ -321,8 +246,5 @@ export function useHeatCalcColumnSettingsDialog({
     updateDraftFieldStep,
     resetDraftFieldStep,
     apply,
-    cancelPendingInlineDisable,
-    discardPendingInlineDisable,
-    savePendingInlineDisable,
   };
 }

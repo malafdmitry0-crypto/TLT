@@ -18,11 +18,10 @@ describe('heatCalcTableViewSettings', () => {
 
   it('returns JSON default without writing it to localStorage', () => {
     expect(readGuestTableViewSettings()).toEqual({
-      version: 1,
+      version: 2,
       fontSize: 'standard',
       tableLabelFormat: 'short',
       settingsLabelFormat: 'full',
-      inlineEditingEnabled: false,
       formPlacement: 'top',
       sideFormWidthPct: 34,
       formSectionWeights: [1.655, 1.35, 1.2],
@@ -43,11 +42,10 @@ describe('heatCalcTableViewSettings', () => {
       sideFormWidthPct: 42.25,
       formSectionWeights: [1.2, 1.4, 1.1],
     })).toEqual({
-      version: 1,
+      version: 2,
       fontSize: 'large',
       tableLabelFormat: 'compact',
       settingsLabelFormat: 'short',
-      inlineEditingEnabled: true,
       formPlacement: 'left',
       sideFormWidthPct: 42.3,
       formSectionWeights: [1.2, 1.4, 1.1],
@@ -69,22 +67,20 @@ describe('heatCalcTableViewSettings', () => {
 
   it('writes guest settings only after explicit user change', () => {
     writeGuestTableViewSettings({
-      version: 1,
+      version: 2,
       fontSize: 'compact',
       tableLabelFormat: 'full',
       settingsLabelFormat: 'compact',
-      inlineEditingEnabled: false,
       formPlacement: 'bottom',
       sideFormWidthPct: 44,
       formSectionWeights: [1, 1.5, 1.1],
     });
 
     expect(JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}')).toEqual({
-      version: 1,
+      version: 2,
       fontSize: 'compact',
       tableLabelFormat: 'full',
       settingsLabelFormat: 'compact',
-      inlineEditingEnabled: false,
       formPlacement: 'bottom',
       sideFormWidthPct: 44,
       formSectionWeights: [1, 1.5, 1.1],
@@ -93,22 +89,20 @@ describe('heatCalcTableViewSettings', () => {
 
   it('uses registered cache only for matching user id', () => {
     writeRegisteredTableViewCache('user-1', {
-      version: 1,
+      version: 2,
       fontSize: 'comfortable',
       tableLabelFormat: 'compact',
       settingsLabelFormat: 'short',
-      inlineEditingEnabled: false,
       formPlacement: 'right',
       sideFormWidthPct: 52,
       formSectionWeights: [1, 1.4, 1.2],
     });
 
     expect(readRegisteredTableViewCache('user-1')).toEqual({
-      version: 1,
+      version: 2,
       fontSize: 'comfortable',
       tableLabelFormat: 'compact',
       settingsLabelFormat: 'short',
-      inlineEditingEnabled: false,
       formPlacement: 'right',
       sideFormWidthPct: 52,
       formSectionWeights: [1, 1.4, 1.2],
@@ -121,11 +115,10 @@ describe('heatCalcTableViewSettings', () => {
 
   it('resolves visual tokens from default JSON', () => {
     expect(resolveTableFontSize({
-      version: 1,
+      version: 2,
       fontSize: 'large',
       tableLabelFormat: 'short',
       settingsLabelFormat: 'full',
-      inlineEditingEnabled: false,
       formPlacement: 'top',
       sideFormWidthPct: 34,
       formSectionWeights: [1.655, 1.35, 1.2],

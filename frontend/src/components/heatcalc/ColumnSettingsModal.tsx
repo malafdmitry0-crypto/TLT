@@ -587,7 +587,6 @@ interface ColumnSettingsModalProps {
   onTableLabelFormatChange: (format: HeatCalcTableLabelFormat) => void;
   onSettingsLabelFormatChange: (format: HeatCalcTableLabelFormat) => void;
   onFormPlacementChange: (placement: HeatCalcFormPlacement) => void;
-  onInlineEditingEnabledChange: (enabled: boolean) => void;
   onResetFontSize: () => void;
   onResetLabelFormats: () => void;
   onCalculationDetailsPresetChange: (preset: HeatCalcCalculationDetailPreset) => void;
@@ -619,7 +618,6 @@ export default function ColumnSettingsModal({
   onTableLabelFormatChange,
   onSettingsLabelFormatChange,
   onFormPlacementChange,
-  onInlineEditingEnabledChange,
   onResetFontSize,
   onResetLabelFormats,
   onCalculationDetailsPresetChange,
@@ -832,14 +830,6 @@ export default function ColumnSettingsModal({
                       label: option.label,
                     }))}
                   />
-                </div>
-                <div className="table-view-settings-panel">
-                  <Checkbox
-                    checked={draftViewSettings.inlineEditingEnabled}
-                    onChange={(event) => onInlineEditingEnabledChange(event.target.checked)}
-                  >
-                    Редактировать ячейки в таблице
-                  </Checkbox>
                 </div>
                 <div className="table-view-settings-panel calculation-details-settings-panel">
                   <div className="calculation-details-settings-header">

@@ -9,7 +9,6 @@ export interface HeatCalcTableViewSettings {
   fontSize: HeatCalcTableFontSize;
   tableLabelFormat: HeatCalcTableLabelFormat;
   settingsLabelFormat: HeatCalcTableLabelFormat;
-  inlineEditingEnabled: boolean;
   formPlacement: HeatCalcFormPlacement;
   sideFormWidthPct: number;
   formSectionWeights: HeatCalcFormSectionWeights;
@@ -29,10 +28,10 @@ interface RegisteredTableViewCache {
   cachedAt: string;
 }
 
-export const HEATCALC_TABLE_VIEW_VERSION = 1;
-export const HEATCALC_TABLE_VIEW_PREF_KEY = 'heatcalc.tableView.v1';
-export const HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY = 'heatcalc.tableView.v1.guest';
-export const HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY = 'heatcalc.tableView.v1.registered.cache';
+export const HEATCALC_TABLE_VIEW_VERSION = 2;
+export const HEATCALC_TABLE_VIEW_PREF_KEY = 'heatcalc.tableView.v2';
+export const HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY = 'heatcalc.tableView.v2.guest';
+export const HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY = 'heatcalc.tableView.v2.registered.cache';
 export const HEATCALC_SIDE_FORM_WIDTH_DEFAULT = 34;
 export const HEATCALC_SIDE_FORM_WIDTH_MIN = 22;
 export const HEATCALC_SIDE_FORM_WIDTH_MAX = 62;
@@ -163,7 +162,6 @@ export function getDefaultTableViewSettings(): HeatCalcTableViewSettings {
     fontSize: defaultFontSize(),
     tableLabelFormat: 'short',
     settingsLabelFormat: 'full',
-    inlineEditingEnabled: false,
     formPlacement: 'top',
     sideFormWidthPct: HEATCALC_SIDE_FORM_WIDTH_DEFAULT,
     formSectionWeights: [...HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT] as HeatCalcFormSectionWeights,
@@ -177,7 +175,6 @@ export function normalizeTableViewSettings(value: unknown): HeatCalcTableViewSet
     fontSize: normalizeFontSize(source.fontSize),
     tableLabelFormat: normalizeLabelFormat(source.tableLabelFormat, 'short'),
     settingsLabelFormat: normalizeLabelFormat(source.settingsLabelFormat, 'full'),
-    inlineEditingEnabled: source.inlineEditingEnabled === true,
     formPlacement: normalizeFormPlacement(source.formPlacement),
     sideFormWidthPct: normalizeSideFormWidthPct(source.sideFormWidthPct),
     formSectionWeights: normalizeFormSectionWeights(source.formSectionWeights),
@@ -190,7 +187,6 @@ export function isDefaultTableViewSettings(settings: HeatCalcTableViewSettings) 
   return normalized.fontSize === defaults.fontSize
     && normalized.tableLabelFormat === defaults.tableLabelFormat
     && normalized.settingsLabelFormat === defaults.settingsLabelFormat
-    && normalized.inlineEditingEnabled === defaults.inlineEditingEnabled
     && normalized.formPlacement === defaults.formPlacement
     && normalized.sideFormWidthPct === defaults.sideFormWidthPct
     && areFormSectionWeightsEqual(normalized.formSectionWeights, defaults.formSectionWeights);

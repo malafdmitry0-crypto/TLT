@@ -115,10 +115,6 @@ export default function HeatCalcPage() {
     upsertNormalLoadedRow,
   } = useHeatCalcTableState({ projectId: project?.id });
   const [tableEditingMode, setTableEditingMode] = useState<TableEditingMode>('normal');
-  const resetInlineDraftActiveCellRef = useRef<(() => void) | null>(null);
-  const handleInlineEditingDisabled = useCallback(() => {
-    resetInlineDraftActiveCellRef.current?.();
-  }, []);
   const closeColumnSettingsRef = useRef<(() => void) | null>(null);
   const closeColumnSettings = useCallback(() => {
     closeColumnSettingsRef.current?.();
@@ -141,7 +137,6 @@ export default function HeatCalcPage() {
   } = useHeatCalcPreferences({
     isRegisteredUser,
     registeredUserId,
-    onInlineEditingDisabled: handleInlineEditingDisabled,
     onCloseSettingsModal: closeColumnSettings,
   });
   const sideWorkspaceRef = useRef<HTMLDivElement | null>(null);
@@ -255,15 +250,6 @@ export default function HeatCalcPage() {
     editableExcelColumnKeys,
     onProjectReset: clearExcelSelectionForProject,
   });
-
-  useEffect(() => {
-    resetInlineDraftActiveCellRef.current = () => setActiveInlineCell(null);
-    return () => {
-      if (resetInlineDraftActiveCellRef.current) {
-        resetInlineDraftActiveCellRef.current = null;
-      }
-    };
-  }, [setActiveInlineCell]);
 
   const {
     baseVisibleTableObjects,
@@ -388,8 +374,7 @@ export default function HeatCalcPage() {
     removeObject: remove.mutate,
     notifySuccess: notifyBulkActionSuccess,
   });
-  const inlineEditingEnabled = normalizedTableView.inlineEditingEnabled;
-  const tableCellEditingEnabled = inlineEditingEnabled || excelModeEnabled;
+  const tableCellEditingEnabled = excelModeEnabled;
   const isSavableDraftRow = isSavableExcelDraftRow;
   const {
     dirtyDraftRowCount,
@@ -422,7 +407,6 @@ export default function HeatCalcPage() {
     tableViewSettings,
     calculationDetailsSettings,
     fieldInputSettings,
-    dirtyDraftRowCount,
     cleanHiddenColumnStateForSettings,
     persistTableSettings,
   });
@@ -907,7 +891,6 @@ export default function HeatCalcPage() {
             onTableLabelFormatChange={columnSettingsDialog.updateDraftTableLabelFormat}
             onSettingsLabelFormatChange={columnSettingsDialog.updateDraftSettingsLabelFormat}
             onFormPlacementChange={columnSettingsDialog.updateDraftFormPlacement}
-            onInlineEditingEnabledChange={columnSettingsDialog.updateDraftInlineEditingEnabled}
             onResetFontSize={columnSettingsDialog.resetDraftTableFontSize}
             onResetLabelFormats={columnSettingsDialog.resetDraftLabelFormats}
             onCalculationDetailsPresetChange={columnSettingsDialog.updateDraftCalculationDetailsPreset}
@@ -919,12 +902,8 @@ export default function HeatCalcPage() {
         </Suspense>
       )}
       <HeatCalcUnsavedChangesModals
-        pendingInlineDisableOpen={columnSettingsDialog.pendingInlineDisableSettings != null}
         pendingWizardObject={pendingWizardObject}
         inlineDraftSaving={inlineDraftSaving}
-        cancelPendingInlineDisable={columnSettingsDialog.cancelPendingInlineDisable}
-        discardPendingInlineDisable={columnSettingsDialog.discardPendingInlineDisable}
-        savePendingInlineDisable={columnSettingsDialog.savePendingInlineDisable}
         discardDraftRows={discardDraftRows}
         saveDraftRows={saveDraftRows}
         setPendingWizardObject={setPendingWizardObject}

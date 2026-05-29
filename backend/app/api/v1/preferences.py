@@ -23,14 +23,13 @@ HEATCALC_TABLE_COLUMNS_PREF_KEY = f"heatcalc.tableColumns.v{HEATCALC_TABLE_COLUM
 HEATCALC_TABLE_COLUMN_WIDTH_MIN = 3
 HEATCALC_TABLE_COLUMN_WIDTH_MAX = 60
 HEATCALC_TABLE_COLUMN_LAYOUT_KEYS = {"widthPct"}
-HEATCALC_TABLE_VIEW_PREF_KEY = "heatcalc.tableView.v1"
-HEATCALC_TABLE_VIEW_VERSION = 1
+HEATCALC_TABLE_VIEW_PREF_KEY = "heatcalc.tableView.v2"
+HEATCALC_TABLE_VIEW_VERSION = 2
 HEATCALC_TABLE_VIEW_KEYS = {
     "version",
     "fontSize",
     "tableLabelFormat",
     "settingsLabelFormat",
-    "inlineEditingEnabled",
     "formPlacement",
     "sideFormWidthPct",
     "formSectionWeights",
@@ -120,6 +119,9 @@ ELECTRICAL_VERSIONED_PREF_PREFIXES = (
     "electrical.tableView.",
     "electrical.candidateTableColumns.",
 )
+HEATCALC_VERSIONED_PREF_PREFIXES = (
+    "heatcalc.tableView.",
+)
 
 PreferenceKey = Annotated[
     str,
@@ -138,6 +140,8 @@ def _validate_preference_key(key: str) -> None:
         ELECTRICAL_CANDIDATE_TABLE_COLUMNS_PREF_KEY,
     }:
         _preference_validation_error("Unsupported electrical preference key")
+    if key.startswith(HEATCALC_VERSIONED_PREF_PREFIXES) and key != HEATCALC_TABLE_VIEW_PREF_KEY:
+        _preference_validation_error("Unsupported heatcalc preference key")
 
 
 def _validate_heatcalc_table_columns(value: dict[str, object]) -> None:
@@ -326,8 +330,6 @@ def _validate_heatcalc_table_view(value: dict[str, object]) -> None:
         and value["settingsLabelFormat"] not in TABLE_VIEW_LABEL_FORMATS
     ):
         _preference_validation_error("HeatCalc table view settingsLabelFormat is unsupported")
-    if "inlineEditingEnabled" in value and not isinstance(value["inlineEditingEnabled"], bool):
-        _preference_validation_error("HeatCalc table view inlineEditingEnabled must be boolean")
     if value.get("formPlacement") not in HEATCALC_TABLE_VIEW_FORM_PLACEMENTS:
         _preference_validation_error("HeatCalc table view formPlacement is unsupported")
     if "sideFormWidthPct" in value:

@@ -12,14 +12,8 @@ type SaveDraftRowsResult = {
 type SaveDraftRows = (rowIds?: string[]) => Promise<SaveDraftRowsResult>;
 
 interface HeatCalcUnsavedChangesModalsProps {
-  pendingInlineDisableOpen: boolean;
   pendingWizardObject: ProjectObject | null;
   inlineDraftSaving: boolean;
-  cancelPendingInlineDisable: () => void;
-  discardPendingInlineDisable: (discardDraftRows: () => void) => void;
-  savePendingInlineDisable: (
-    saveDraftRows: () => Promise<{ ok: boolean }>,
-  ) => Promise<void> | void;
   discardDraftRows: (rowIds?: string[]) => void;
   saveDraftRows: SaveDraftRows;
   setPendingWizardObject: (object: ProjectObject | null) => void;
@@ -27,12 +21,8 @@ interface HeatCalcUnsavedChangesModalsProps {
 }
 
 export default function HeatCalcUnsavedChangesModals({
-  pendingInlineDisableOpen,
   pendingWizardObject,
   inlineDraftSaving,
-  cancelPendingInlineDisable,
-  discardPendingInlineDisable,
-  savePendingInlineDisable,
   discardDraftRows,
   saveDraftRows,
   setPendingWizardObject,
@@ -63,40 +53,6 @@ export default function HeatCalcUnsavedChangesModals({
 
   return (
     <>
-      <Modal
-        open={pendingInlineDisableOpen}
-        title="Отключить редактирование ячеек?"
-        onCancel={cancelPendingInlineDisable}
-        footer={[
-          <Button
-            key="cancel"
-            onClick={cancelPendingInlineDisable}
-          >
-            Cancel
-          </Button>,
-          <Button
-            key="discard"
-            disabled={inlineDraftSaving}
-            onClick={() => discardPendingInlineDisable(discardDraftRows)}
-          >
-            Discard
-          </Button>,
-          <Button
-            key="save"
-            type="primary"
-            loading={inlineDraftSaving}
-            onClick={() => {
-              void savePendingInlineDisable(() => saveDraftRows());
-            }}
-          >
-            Save
-          </Button>,
-        ]}
-      >
-        <Text>
-          Есть несохранённые изменения в строках. Сохраните или сбросьте их перед отключением режима.
-        </Text>
-      </Modal>
       <Modal
         open={pendingWizardObject != null}
         title="Открыть форму объекта?"

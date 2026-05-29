@@ -174,11 +174,10 @@ describe('HeatCalcPage settings', () => {
       });
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
       expect(saved).toEqual({
-        version: 1,
+        version: 2,
         fontSize: 'large',
         tableLabelFormat: 'short',
         settingsLabelFormat: 'full',
-        inlineEditingEnabled: false,
         formPlacement: 'top',
         sideFormWidthPct: 34,
         formSectionWeights: [1.655, 1.35, 1.2],
@@ -237,11 +236,10 @@ describe('HeatCalcPage settings', () => {
       });
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
       expect(saved).toMatchObject({
-        version: 1,
+        version: 2,
         fontSize: 'standard',
         tableLabelFormat: 'short',
         settingsLabelFormat: 'full',
-        inlineEditingEnabled: false,
         formPlacement: 'left',
         sideFormWidthPct: 34,
       });

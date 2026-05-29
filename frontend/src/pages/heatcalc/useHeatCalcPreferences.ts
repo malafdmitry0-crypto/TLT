@@ -74,14 +74,12 @@ type TableSettingsPreferenceMutation = {
 type UseHeatCalcPreferencesOptions = {
   isRegisteredUser: boolean;
   registeredUserId: string | null;
-  onInlineEditingDisabled?: () => void;
   onCloseSettingsModal?: () => void;
 };
 
 export function useHeatCalcPreferences({
   isRegisteredUser,
   registeredUserId,
-  onInlineEditingDisabled,
   onCloseSettingsModal,
 }: UseHeatCalcPreferencesOptions) {
   const [tableColumnSettings, setTableColumnSettings] = useState<HeatCalcTableColumnSettings>(() => {
@@ -386,7 +384,6 @@ export function useHeatCalcPreferences({
     const viewChanged = normalizedView.fontSize !== currentView.fontSize
       || normalizedView.tableLabelFormat !== currentView.tableLabelFormat
       || normalizedView.settingsLabelFormat !== currentView.settingsLabelFormat
-      || normalizedView.inlineEditingEnabled !== currentView.inlineEditingEnabled
       || normalizedView.formPlacement !== currentView.formPlacement
       || normalizedView.sideFormWidthPct !== currentView.sideFormWidthPct
       || !areFormSectionWeightsEqual(normalizedView.formSectionWeights, currentView.formSectionWeights);
@@ -399,7 +396,6 @@ export function useHeatCalcPreferences({
     setTableViewSettings(normalizedView);
     setCalculationDetailsSettings(normalizedDetails);
     setFieldInputSettings(normalizedFieldInputs);
-    if (!normalizedView.inlineEditingEnabled) onInlineEditingDisabled?.();
     if (isRegisteredUser) {
       clearRegisteredTableColumnCache(registeredUserId);
       if (viewChanged) clearRegisteredTableViewCache(registeredUserId);
@@ -442,7 +438,6 @@ export function useHeatCalcPreferences({
     fieldInputSettings,
     isRegisteredUser,
     onCloseSettingsModal,
-    onInlineEditingDisabled,
     registeredUserId,
     tableViewSettings,
     updateTableSettingsPreference,

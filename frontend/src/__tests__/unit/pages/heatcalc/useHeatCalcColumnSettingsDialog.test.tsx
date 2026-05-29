@@ -11,7 +11,6 @@ import {
 } from '@/utils/heatCalcTableColumns';
 import {
   getDefaultTableViewSettings,
-  normalizeTableViewSettings,
   type HeatCalcTableViewSettings,
 } from '@/utils/heatCalcTableViewSettings';
 import {
@@ -25,12 +24,10 @@ function setupDialog({
   activeTableColumnScope = 'pipe',
   tableColumnSettings = getDefaultTableColumnSettings(),
   tableViewSettings = getDefaultTableViewSettings(),
-  dirtyDraftRowCount = 0,
 }: {
   activeTableColumnScope?: HeatCalcTableColumnScope;
   tableColumnSettings?: HeatCalcTableColumnSettings;
   tableViewSettings?: HeatCalcTableViewSettings;
-  dirtyDraftRowCount?: number;
 } = {}) {
   const cleanHiddenColumnStateForSettings = vi.fn();
   const persistTableSettings = vi.fn();
@@ -40,7 +37,6 @@ function setupDialog({
     tableViewSettings,
     calculationDetailsSettings: getDefaultCalculationDetailsSettings(),
     fieldInputSettings: getDefaultFieldInputSettings(),
-    dirtyDraftRowCount,
     cleanHiddenColumnStateForSettings,
     persistTableSettings,
   }));
@@ -77,83 +73,25 @@ describe('useHeatCalcColumnSettingsDialog', () => {
       .toMatchObject({ widthPct: 22.5 });
   });
 
-  it('blocks inline editing disable while dirty rows exist until user decides', () => {
-    const tableViewSettings = normalizeTableViewSettings({
-      ...getDefaultTableViewSettings(),
-      inlineEditingEnabled: true,
-    });
+  it('persists view draft changes without inline-edit pending flow', () => {
     const { result, cleanHiddenColumnStateForSettings, persistTableSettings } = setupDialog({
-      tableViewSettings,
-      dirtyDraftRowCount: 1,
+      tableViewSettings: getDefaultTableViewSettings(),
     });
 
     act(() => {
       result.current.open();
-      result.current.updateDraftInlineEditingEnabled(false);
+      result.current.updateDraftTableFontSize('large');
+      result.current.updateDraftFormPlacement('left');
     });
     act(() => {
       result.current.apply();
     });
 
-    expect(result.current.pendingInlineDisableSettings).not.toBeNull();
-    expect(cleanHiddenColumnStateForSettings).not.toHaveBeenCalled();
-    expect(persistTableSettings).not.toHaveBeenCalled();
-
-    act(() => {
-      result.current.cancelPendingInlineDisable();
-    });
-
-    expect(result.current.pendingInlineDisableSettings).toBeNull();
-    expect(result.current.draftViewSettings.inlineEditingEnabled).toBe(true);
-
-    const discardDraftRows = vi.fn();
-    act(() => {
-      result.current.updateDraftInlineEditingEnabled(false);
-    });
-    act(() => {
-      result.current.apply();
-    });
-    act(() => {
-      result.current.discardPendingInlineDisable(discardDraftRows);
-    });
-
-    expect(discardDraftRows).toHaveBeenCalledTimes(1);
+    expect(cleanHiddenColumnStateForSettings).toHaveBeenCalledTimes(1);
     expect(persistTableSettings).toHaveBeenCalledTimes(1);
-    expect(persistTableSettings.mock.calls[0][1]).toMatchObject({ inlineEditingEnabled: false });
-    expect(result.current.pendingInlineDisableSettings).toBeNull();
-  });
-
-  it('keeps pending inline disable open when draft save fails', async () => {
-    const tableViewSettings = normalizeTableViewSettings({
-      ...getDefaultTableViewSettings(),
-      inlineEditingEnabled: true,
+    expect(persistTableSettings.mock.calls[0][1]).toMatchObject({
+      fontSize: 'large',
+      formPlacement: 'left',
     });
-    const { result, persistTableSettings } = setupDialog({
-      tableViewSettings,
-      dirtyDraftRowCount: 1,
-    });
-
-    act(() => {
-      result.current.open();
-      result.current.updateDraftInlineEditingEnabled(false);
-    });
-    act(() => {
-      result.current.apply();
-    });
-
-    await act(async () => {
-      await result.current.savePendingInlineDisable(async () => ({ ok: false }));
-    });
-
-    expect(result.current.pendingInlineDisableSettings).not.toBeNull();
-    expect(persistTableSettings).not.toHaveBeenCalled();
-
-    await act(async () => {
-      await result.current.savePendingInlineDisable(async () => ({ ok: true }));
-    });
-
-    expect(persistTableSettings).toHaveBeenCalledTimes(1);
-    expect(persistTableSettings.mock.calls[0][1]).toMatchObject({ inlineEditingEnabled: false });
-    expect(result.current.pendingInlineDisableSettings).toBeNull();
   });
 });

@@ -1,5 +1,10 @@
 # HeatCalcPage Preferences Safe Split Runner Prompt
 
+Status: historical. `useHeatCalcPreferences` already extracted, and normal
+table inline editing was removed later in
+`heatcalc-page-decomposition-prompts.md` Prompt 21. Do not run this prompt as a
+current instruction without first updating its inline-disable references.
+
 Этот prompt предназначен для одного автономного запуска Codex из корня
 репозитория. Цель - безопасно продвинуть следующий slice декомпозиции
 `HeatCalcPage`: preferences/settings state. Запуск должен сначала доказать

@@ -106,6 +106,7 @@
 | Page effects model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcPageEffectsModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcPageEffectsModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved hidden-column cleanup, selected-row pruning, pending table focus, dirty-draft beforeunload guard, last-saved hidden-by-filter notice, Excel selection cleanup and Excel/all-scope guard without backend/API/formula/CSS/layout/render shell changes; typecheck, focused hook test and HeatCalc basics/actions/inline-edit characterization passed |
 | Route actions/counts model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcRouteActionsModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcRouteActionsModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved object scope/form visibility/table editing mode/toolbar save handlers and scope count labels without backend/API/formula/CSS/layout/render shell changes; typecheck, focused hook test and HeatCalc basics/actions/inline-edit characterization passed |
 | Tiny route shell cleanup | Done | `frontend/src/pages/heatcalc/HeatCalcObjectTypeIcons.tsx`; `frontend/src/pages/heatcalc/HeatCalcEmptyProjectState.tsx`; `frontend/src/pages/heatcalc/useHeatCalcRouteShellEffects.ts`; focused empty-state/effects tests; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved only icons, no-project empty state, workspace header reset and wizard preload without backend/API/formula/CSS/layout/render shell/table changes; typecheck, focused tests and HeatCalc basics characterization passed |
+| Normal table read-only and inline-edit setting removal | Done | Removed normal-mode table inline editing setting from `HeatCalcTableViewSettings`, bumped table view preference/cache/storage key and backend preference validation to `heatcalc.tableView.v2`, removed settings checkbox and pending inline-disable modal flow; normal table is read-only, Excel mode remains editable; focused table-view/settings/inline/modal/dialog/API preference tests updated |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers
@@ -867,3 +868,61 @@ Definition of Done:
 - Запустить `npm --prefix frontend run typecheck`, focused Vitest suite,
   HeatCalc characterization suites и `git diff --check`.
 - Обновить Progress Ledger после успешного slice.
+
+## Prompt 21. Normal table read-only and inline-edit setting removal
+
+Status: Done. Clean break: no backwards compatibility for normal-table
+inline editing.
+
+Убери редактирование ячеек из обычного режима таблицы HeatCalc. Обычная
+таблица должна быть read-only; редактирование объектов остаётся через форму/
+wizard. Excel-режим остаётся редактируемым с selection/clipboard/dirty drafts/
+save-discard flow.
+
+Разрешённый scope:
+
+- удалить user-facing настройку `Редактировать ячейки в таблице`;
+- удалить `inlineEditingEnabled` из `HeatCalcTableViewSettings`, defaults,
+  normalization, default comparison and persisted payloads;
+- поднять version/key table-view preference/cache/storage с
+  `heatcalc.tableView.v1` на `heatcalc.tableView.v2`, чтобы старые persisted flags не
+  применялись;
+- удалить `updateDraftInlineEditingEnabled`, `onInlineEditingEnabledChange`,
+  `onInlineEditingDisabled`, pending inline-disable dialog flow and now-unused
+  page ref bridge;
+- в `HeatCalcPage.tsx` считать `tableCellEditingEnabled` только от
+  `excelModeEnabled`.
+
+Жёсткие границы:
+
+- Не менять расчётный backend, object API contracts, schemas, formulas, units,
+  object payload mapping or expected business values.
+- Разрешена только минимальная синхронизация registered-user preferences API
+  validation/key с `heatcalc.tableView.v2`, иначе сохранение настроек
+  сотрудником сломается.
+- Не менять CSS/layout/render shell вне удаления самого settings checkbox и
+  obsolete modal.
+- Не менять Excel mode editing semantics.
+- Не оставлять compatibility branch для normal inline editing.
+
+Focused tests:
+
+- normal mode does not start cell editing even if old persisted inline setting
+  existed;
+- normal mode cell interactions do not create dirty drafts;
+- Excel mode still edits and creates dirty draft;
+- save/discard controls remain available for dirty Excel rows;
+- settings modal no longer shows `Редактировать ячейки в таблице`;
+- `heatCalcTableViewSettings` ignores legacy `inlineEditingEnabled` and writes
+  v2 payloads without that field;
+- `useHeatCalcColumnSettingsDialog` and `HeatCalcUnsavedChangesModals` have no
+  pending inline-disable API.
+
+Definition of Done:
+
+- Production code has no `inlineEditingEnabled`, `pendingInlineDisable`,
+  `onInlineEditing` or `Редактировать ячейки` references.
+- Existing HeatCalc inline/settings/basics characterization remains green.
+- Run focused dialog/modal/table-view settings tests, typecheck and
+  `git diff --check`.
+- Update Progress Ledger after successful slice.

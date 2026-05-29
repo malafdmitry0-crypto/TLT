@@ -27,12 +27,8 @@ function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
 
 function setup(overrides: Partial<Props> = {}) {
   const props: Props = {
-    pendingInlineDisableOpen: false,
     pendingWizardObject: null,
     inlineDraftSaving: false,
-    cancelPendingInlineDisable: vi.fn(),
-    discardPendingInlineDisable: vi.fn(),
-    savePendingInlineDisable: vi.fn(),
     discardDraftRows: vi.fn(),
     saveDraftRows: vi.fn(async () => ({ ok: true, saved: [] })),
     setPendingWizardObject: vi.fn(),
@@ -53,36 +49,6 @@ function getModal(title: string) {
 }
 
 describe('HeatCalcUnsavedChangesModals', () => {
-  it('pending inline disable Cancel calls cancelPendingInlineDisable', async () => {
-    const { props, user } = setup({ pendingInlineDisableOpen: true });
-
-    await user.click(within(getModal('Отключить редактирование ячеек?')).getByRole('button', { name: 'Cancel' }));
-
-    expect(props.cancelPendingInlineDisable).toHaveBeenCalledTimes(1);
-  });
-
-  it('pending inline disable Discard calls discardPendingInlineDisable with discardDraftRows', async () => {
-    const { props, user } = setup({ pendingInlineDisableOpen: true });
-
-    await user.click(within(getModal('Отключить редактирование ячеек?')).getByRole('button', { name: 'Discard' }));
-
-    expect(props.discardPendingInlineDisable).toHaveBeenCalledTimes(1);
-    expect(props.discardPendingInlineDisable).toHaveBeenCalledWith(props.discardDraftRows);
-  });
-
-  it('pending inline disable Save passes callback that saves draft rows', async () => {
-    const { props, user } = setup({ pendingInlineDisableOpen: true });
-
-    await user.click(within(getModal('Отключить редактирование ячеек?')).getByRole('button', { name: 'Save' }));
-
-    expect(props.savePendingInlineDisable).toHaveBeenCalledTimes(1);
-    const callback = vi.mocked(props.savePendingInlineDisable).mock.calls[0]?.[0];
-    expect(callback).toBeTypeOf('function');
-    await callback?.();
-    expect(props.saveDraftRows).toHaveBeenCalledTimes(1);
-    expect(props.saveDraftRows).toHaveBeenCalledWith();
-  });
-
   it('pending wizard Cancel clears pending object', async () => {
     const target = makeObject();
     const { props, user } = setup({ pendingWizardObject: target });

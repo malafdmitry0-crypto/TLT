@@ -214,7 +214,7 @@ HeatCalc.
 Рекомендуемый key:
 
 ```text
-heatcalc.tableView.v1
+heatcalc.tableView.v2
 ```
 
 Рекомендуемый payload:
@@ -349,7 +349,7 @@ inline style каждой ячейки.
 ## Backend Validation
 
 Если preference сохраняется для registered users через generic preferences API,
-добавить строгую валидацию для key `heatcalc.tableView.v1`.
+добавить строгую валидацию для key `heatcalc.tableView.v2`.
 
 Backend должен проверять:
 
