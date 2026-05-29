@@ -96,6 +96,7 @@
 | Heat-loss job/recalc model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcHeatLossJob.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcHeatLossJob.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved job polling, batch/cancel mutations, completion handling, recalc ids/tooltips/disabled state out of route component; typecheck and focused HeatCalc suites passed |
 | Assumptions panel component | Done | `frontend/src/pages/heatcalc/HeatCalcAssumptionsPanel.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/HeatCalcAssumptionsPanel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved calculation detail rendering out of route component without formula/API/layout changes; typecheck and focused settings suite passed |
 | Selected row errors overlay component | Done | `frontend/src/pages/heatcalc/HeatCalcSelectedRowErrorsOverlay.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/HeatCalcSelectedRowErrorsOverlay.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved selected row validation overlay JSX without state/effect/API/layout changes; typecheck and focused inline-edit suite passed |
+| Resize model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcResizeModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcResizeModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved side form and column resize drag handlers out of route component without CSS/layout/API/formula changes; typecheck, focused hook test and settings suite passed |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers
@@ -345,6 +346,47 @@ Definition of Done:
 - Новый component с явными props и focused tests.
 - `HeatCalcPage.tsx` только рендерит component с `selectedRowErrorMessages`.
 - Existing inline-edit characterization остаётся зелёной.
+- Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
+  `git diff --check`.
+- Обновить Progress Ledger после успешного slice.
+
+## Prompt 11. Вынести resize model
+
+Status: Done. Не запускать повторно без нового finding.
+Historical prompt ниже сохранён как история выполнения.
+
+Вынеси из `frontend/src/pages/HeatCalcPage.tsx` только resize-логику:
+
+- side form resize: `sideFormWidthPctFromClientX`,
+  `startSideFormResizeDrag`, `startSideFormResize`,
+  `startSideFormMouseResize`;
+- table column resize: `applyColumnWidth`, `updateColumnWidthDraft`,
+  `handleGlideColumnResize`, `handleGlideColumnResizeEnd`,
+  `startColumnResize`.
+
+Жёсткие границы:
+
+- Не менять backend, API contracts, формулы, единицы измерения и expected
+  business values.
+- Не менять CSS/layout className, пользовательские тексты и структуру
+  `HeatCalcObjectsTableCard`.
+- Не трогать `saveDraftRows`, Excel selection/keyboard/clipboard, object
+  payload mapping, toolbar actions и modal flows.
+- Не менять persistence contracts: guest/registered preferences должны
+  сохраняться через существующие `useHeatCalcPreferences` callbacks.
+
+Functional trace:
+
+- Frontend characterization:
+  `frontend/src/__tests__/unit/pages/HeatCalcPage.settings.test.tsx`.
+- Focused hook tests:
+  `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcResizeModel.test.tsx`.
+
+Definition of Done:
+
+- Новый hook/model с явными inputs и focused tests.
+- `HeatCalcPage.tsx` только подключает hook и передаёт resize callbacks дальше.
+- Existing settings characterization остаётся зелёной.
 - Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
   `git diff --check`.
 - Обновить Progress Ledger после успешного slice.
