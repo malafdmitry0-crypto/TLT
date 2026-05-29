@@ -20,20 +20,18 @@ import {
   type TableProps,
 } from 'antd';
 import { FireOutlined } from '@ant-design/icons';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import HeatCalcExcelContextMenu, {
   type HeatCalcExcelContextMenuState,
 } from '@/components/heatcalc/HeatCalcExcelContextMenu';
 import HeatCalcObjectsTableCard from '@/components/heatcalc/HeatCalcObjectsTableCard';
-import { OBJECT_TYPE_LABELS } from '@/constants/objectTypes';
 import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import { createObject, getObjectQueryCapabilities, getObjectsSummary, listObjects, queryObjects, updateObject } from '@/api/projects';
-import { cancelCalcTask, enqueueHeatLossBatchJob, getCalcTask } from '@/api/calculations';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
 import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
@@ -98,12 +96,10 @@ import {
 import {
   isSavableExcelDraftRow,
   pruneExcelLocalRowsByIds,
-  removeExcelRowsFromModel,
   resetExcelRowsInModel,
   upsertSavedExcelObjectsInProjectList,
   type SavedExcelProjectObject,
 } from '@/utils/heatCalcExcelRows';
-import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
 import {
   DEFAULT_OBJECT_QUERY_PAGE_SIZE,
   INAPPLICABLE_TABLE_VALUE,
@@ -112,7 +108,6 @@ import {
   filterKindForColumn,
   heatLossCalcStatus,
   insulationEntryLabel,
-  isBatchHeatLossResponse,
   isColumnApplicableToObjectType,
   sourceSuffix,
   sourceText,
@@ -130,6 +125,8 @@ import {
 import { useHeatCalcColumnSettingsDialog } from '@/pages/heatcalc/useHeatCalcColumnSettingsDialog';
 import { useHeatCalcInlineDraftModel } from '@/pages/heatcalc/useHeatCalcInlineDraftModel';
 import { useHeatCalcGridModel } from '@/pages/heatcalc/useHeatCalcGridModel';
+import { useHeatCalcBulkActions } from '@/pages/heatcalc/useHeatCalcBulkActions';
+import { useHeatCalcHeatLossJob } from '@/pages/heatcalc/useHeatCalcHeatLossJob';
 
 const loadObjectWizard = () => import('@/components/wizard/ObjectWizard');
 const ObjectWizard = lazy(loadObjectWizard);
@@ -268,7 +265,6 @@ export default function HeatCalcPage() {
   const [excelContextMenu, setExcelContextMenu] = useState<HeatCalcExcelContextMenuState>(null);
   const [pendingWizardObject, setPendingWizardObject] = useState<ProjectObject | null>(null);
   const [pendingTableFocusObject, setPendingTableFocusObject] = useState<ProjectObject | null>(null);
-  const [activeHeatLossJobId, setActiveHeatLossJobId] = useState<string | null>(null);
   const setWorkspaceHeaderContext = useWorkspaceHeaderStore((s) => s.setContext);
 
   const clearExcelSelectionForProject = useCallback(() => {
@@ -279,18 +275,6 @@ export default function HeatCalcPage() {
   useEffect(() => {
     setWorkspaceHeaderContext(null);
   }, [setWorkspaceHeaderContext]);
-
-  useEffect(() => {
-    setActiveHeatLossJobId(null);
-  }, [project?.id]);
-
-  const invalidateHeatLossProjectData = useCallback(() => {
-    if (!project?.id) return;
-    queryClient.invalidateQueries({ queryKey: ['project', project.id, 'objects'] });
-    queryClient.invalidateQueries({ queryKey: ['project', project.id, 'electrical-page'] });
-    queryClient.invalidateQueries({ queryKey: ['project', project.id, 'electrical-query'] });
-    queryClient.invalidateQueries({ queryKey: ['project', project.id, 'electrical-query-capabilities'] });
-  }, [project?.id, queryClient]);
 
   useEffect(() => {
     if (!project) return undefined;
@@ -315,13 +299,6 @@ export default function HeatCalcPage() {
     enabled: !!project,
   });
 
-  const { data: activeHeatLossJob } = useQuery({
-    queryKey: ['calc-job', activeHeatLossJobId],
-    queryFn: () => getCalcTask(activeHeatLossJobId!),
-    enabled: !!activeHeatLossJobId,
-    refetchInterval: (query) => getCalcJobRefetchInterval(query.state.data?.status),
-    refetchIntervalInBackground: true,
-  });
   const excelModeEnabled = tableEditingMode === 'excel' && !isAllObjectScope;
   const normalGlideEnabled = !excelModeEnabled;
 
@@ -424,55 +401,6 @@ export default function HeatCalcPage() {
     if (!code) return '—';
     return insulationLabelByCode.get(code) ?? MATERIAL_LABELS[code] ?? code;
   }, [insulationLabelByCode]);
-
-  const heatLossBatchMut = useMutation({
-    mutationFn: (objectIds?: string[]) => enqueueHeatLossBatchJob(project!.id, true, objectIds),
-    onSuccess: (task) => {
-      setActiveHeatLossJobId(task.id);
-      queryClient.invalidateQueries({ queryKey: ['calc-job', task.id] });
-      antdMessage.info('Пересчёт теплопотерь поставлен в очередь');
-    },
-    onError: (error) => {
-      antdMessage.error(error instanceof Error ? error.message : 'Не удалось запустить пересчёт теплопотерь');
-    },
-  });
-
-  const cancelHeatLossJobMut = useMutation({
-    mutationFn: () => cancelCalcTask(activeHeatLossJobId!),
-    onSuccess: (task) => {
-      setActiveHeatLossJobId(task.id);
-      antdMessage.warning('Пересчёт теплопотерь остановлен');
-    },
-    onError: (error) => {
-      antdMessage.error(error instanceof Error ? error.message : 'Не удалось остановить пересчёт теплопотерь');
-    },
-  });
-
-  useEffect(() => {
-    if (!activeHeatLossJob) return;
-    if (activeHeatLossJob.status === 'succeeded') {
-      invalidateHeatLossProjectData();
-      const result = isBatchHeatLossResponse(activeHeatLossJob.result) ? activeHeatLossJob.result : null;
-      if (result && result.failed > 0) {
-        antdMessage.warning(
-          `Пересчёт теплопотерь завершён: пересчитано ${result.updated}, ошибок ${result.failed}`,
-          10,
-        );
-      } else if (result) {
-        antdMessage.success(`Пересчёт теплопотерь завершён: пересчитано ${result.updated}`);
-      } else {
-        antdMessage.success('Пересчёт теплопотерь завершён');
-      }
-      setActiveHeatLossJobId(null);
-    }
-    if (activeHeatLossJob.status === 'failed') {
-      antdMessage.error(activeHeatLossJob.error_message || 'Пересчёт теплопотерь завершился ошибкой');
-      setActiveHeatLossJobId(null);
-    }
-    if (activeHeatLossJob.status === 'cancelled') {
-      setActiveHeatLossJobId(null);
-    }
-  }, [activeHeatLossJob, invalidateHeatLossProjectData]);
 
   const pipeCount = objectsSummary?.by_type.pipe ?? 0;
   const tankCount = objectsSummary?.by_type.tank ?? 0;
@@ -826,9 +754,6 @@ export default function HeatCalcPage() {
     () => visibleTableRows.filter(({ record }) => selectedRowKeys.includes(record.id)),
     [selectedRowKeys, visibleTableRows],
   );
-  const tableDeleteRows = excelModeEnabled ? selectedExcelRows : selectedVisibleRows;
-  const selectedObjectCount = selectedVisibleRows.length;
-  const deleteTargetCount = tableDeleteRows.length;
   const currentTableViewActive = hasActiveTableViewState(activeTableViewState);
   const activeTypeTotalCount = isAllObjectScope
     ? projectObjectCount
@@ -838,6 +763,40 @@ export default function HeatCalcPage() {
     : excelModeEnabled
       ? visibleTableObjects.length
       : objectQueryResult?.counts.filtered ?? baseVisibleTableObjects.length;
+  const notifyBulkActionSuccess = useCallback((message: string) => {
+    void antdMessage.success(message);
+  }, []);
+  const {
+    selectedObjectCount,
+    deleteTargetCount,
+    duplicateSelectedObjects,
+    removeSelectedObjects,
+  } = useHeatCalcBulkActions({
+    activeObjectScope,
+    activeTypeTotalCount,
+    allFilteredSortedTableRowCount: allFilteredSortedTableRows.length,
+    clearSelectedRows,
+    draftRowsById,
+    excelLocalRows,
+    excelModeEnabled,
+    objectQueryFilteredCount: objectQueryResult?.counts.filtered,
+    objectQueryPageSize: objectQueryResult?.page_info.page_size,
+    openEditWizard,
+    projectObjectCount,
+    removeNormalLoadedRows,
+    selectedExcelRows,
+    selectedVisibleRows,
+    setActiveInlineCell,
+    setDraftRowsById,
+    setExcelLocalRows,
+    setExcelSelectionRange,
+    setPendingTableFocusObject,
+    setSelectedExcelCell,
+    setTablePage,
+    addObject: add.mutateAsync,
+    removeObject: remove.mutate,
+    notifySuccess: notifyBulkActionSuccess,
+  });
   const typeButtonCountText = useCallback((
     scope: ActiveObjectScope,
     total: number,
@@ -927,139 +886,28 @@ export default function HeatCalcPage() {
     : hasWizard
       ? 'Сохранить объект'
       : 'Нет изменений для сохранения';
-  const activeHeatLossJobStatus = activeHeatLossJob?.status ?? null;
-  const isHeatLossJobActive = isActiveCalcJobStatus(activeHeatLossJobStatus);
-  const heatLossJobProgress = activeHeatLossJob?.progress;
-  const heatLossJobProgressLabel = heatLossJobProgress?.total
-    ? `${heatLossJobProgress.current}/${heatLossJobProgress.total}` +
-      `${heatLossJobProgress.percent != null ? ` (${heatLossJobProgress.percent}%)` : ''}`
-    : activeHeatLossJobStatus ?? '';
-  const heatLossRecalcDisabled =
-    projectObjectCount === 0 ||
-    dirtyDraftRowCount > 0 ||
-    submittingObject ||
-    isHeatLossJobActive;
-  const heatLossRecalcObjectIds = useMemo(() => {
-    const selectedIds = selectedVisibleRows.map(({ record }) => record.id);
-    if (selectedIds.length > 0) return selectedIds;
-    if (selectedRowId) return [selectedRowId];
-    return undefined;
-  }, [selectedRowId, selectedVisibleRows]);
-  const heatLossScopedRecalcDisabled = heatLossRecalcDisabled || !heatLossRecalcObjectIds;
-  const heatLossRecalcTooltip = dirtyDraftRowCount > 0
-    ? 'Сохраните или сбросьте изменения в таблице перед пересчётом'
-    : projectObjectCount === 0
-      ? 'Добавьте объекты для пересчёта'
-      : isHeatLossJobActive
-        ? 'Пересчёт теплопотерь уже выполняется'
-        : heatLossRecalcObjectIds
-          ? selectedVisibleRows.length > 0
-            ? `Пересчитать теплопотери выбранных строк (${heatLossRecalcObjectIds.length})`
-            : 'Пересчитать теплопотери активной строки'
-          : 'Выберите строку для точечного пересчёта или нажмите «Пересчитать все»';
-  const heatLossRecalcAriaLabel = heatLossRecalcObjectIds
-    ? selectedVisibleRows.length > 0
-      ? `Пересчитать теплопотери выбранных строк (${heatLossRecalcObjectIds.length})`
-      : 'Пересчитать теплопотери активной строки'
-    : 'Пересчитать теплопотери выбранных или активной строки';
-  const heatLossRecalcAllTooltip = dirtyDraftRowCount > 0
-    ? 'Сохраните или сбросьте изменения в таблице перед пересчётом'
-    : projectObjectCount === 0
-      ? 'Добавьте объекты для пересчёта'
-      : isHeatLossJobActive
-        ? 'Пересчёт теплопотерь уже выполняется'
-        : 'Пересчитать теплопотери всех объектов проекта';
-
-  const duplicateSelectedObjects = useCallback(async () => {
-    const duplicatePayloads = selectedVisibleRows
-      .filter(({ record }) => record.object_type === 'pipe' || record.object_type === 'tank')
-      .map(({ record }, index) => {
-        const sourceName = String(record.params?.name ?? OBJECT_TYPE_LABELS[record.object_type]);
-        return {
-          object_type: record.object_type,
-          params: {
-            ...record.params,
-            name: `${sourceName} (копия)`,
-          },
-          sort_order: projectObjectCount + index,
-        };
-      });
-    if (duplicatePayloads.length === 0) return;
-
-    const createdObjects: ProjectObject[] = [];
-    for (const payload of duplicatePayloads) {
-      try {
-        createdObjects.push(await add.mutateAsync(payload));
-      } catch {
-        break;
-      }
-    }
-
-    const lastCreatedObject = createdObjects[createdObjects.length - 1];
-    if (!lastCreatedObject) return;
-
-    const lastCreatedObjectType: HeatCalcObjectType = lastCreatedObject.object_type === 'tank' ? 'tank' : 'pipe';
-    const targetScope: ActiveObjectScope = activeObjectScope === 'all' ? 'all' : lastCreatedObjectType;
-    const createdInTargetScope = activeObjectScope === 'all'
-      ? createdObjects.length
-      : createdObjects.filter((object) => object.object_type === lastCreatedObjectType).length;
-    const pageSize = activeObjectScope === 'all'
-      ? DEFAULT_OBJECT_QUERY_PAGE_SIZE
-      : objectQueryResult?.page_info.page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE;
-    const currentTargetCount = activeObjectScope === 'all'
-      ? allFilteredSortedTableRows.length
-      : objectQueryResult?.counts.filtered ?? activeTypeTotalCount;
-    const targetPage = Math.max(1, Math.ceil((currentTargetCount + createdInTargetScope) / pageSize));
-
-    clearSelectedRows();
-    setTablePage(targetScope, targetPage);
-    setPendingTableFocusObject(lastCreatedObject);
-    openEditWizard(lastCreatedObject);
-  }, [
-    activeObjectScope,
-    activeTypeTotalCount,
-    add,
-    allFilteredSortedTableRows.length,
-    clearSelectedRows,
-    objectQueryResult?.counts.filtered,
-    objectQueryResult?.page_info.page_size,
-    openEditWizard,
+  const {
+    activeHeatLossJobId,
+    isHeatLossJobActive,
+    heatLossJobProgressLabel,
+    heatLossRecalcDisabled,
+    heatLossScopedRecalcDisabled,
+    heatLossRecalcTooltip,
+    heatLossRecalcAriaLabel,
+    heatLossRecalcAllTooltip,
+    heatLossBatchPending,
+    cancelHeatLossJobPending,
+    recalcScoped: recalcHeatLossScoped,
+    recalcAll: recalcHeatLossAll,
+    cancelJob: cancelHeatLossJob,
+  } = useHeatCalcHeatLossJob({
+    dirtyDraftRowCount,
+    projectId: project?.id,
     projectObjectCount,
+    selectedRowId,
     selectedVisibleRows,
-    setTablePage,
-  ]);
-
-  const removeSelectedObjects = useCallback(() => {
-    const rowIds = tableDeleteRows.map(({ record }) => record.id);
-    const nextModel = removeExcelRowsFromModel({
-      localRows: excelLocalRows,
-      draftRowsById,
-      rowIds,
-    });
-    if (nextModel.localIds.length > 0) {
-      setExcelLocalRows(nextModel.localRows);
-      setDraftRowsById(nextModel.draftRowsById);
-    }
-
-    const persistedIdSet = new Set(nextModel.persistedIds);
-    const persistedRows = tableDeleteRows.filter(({ record }) => persistedIdSet.has(record.id));
-    persistedRows.forEach(({ record }) => {
-      remove.mutate(record.id);
-    });
-    if (persistedIdSet.size > 0) {
-      removeNormalLoadedRows(persistedIdSet);
-    }
-
-    if (excelModeEnabled) {
-      setSelectedExcelCell(null);
-      setExcelSelectionRange(null);
-      setActiveInlineCell(null);
-    }
-    clearSelectedRows();
-    if (nextModel.localIds.length > 0 && persistedRows.length === 0) {
-      antdMessage.success(nextModel.localIds.length > 1 ? 'Строки удалены' : 'Строка удалена');
-    }
-  }, [clearSelectedRows, draftRowsById, excelLocalRows, excelModeEnabled, remove, removeNormalLoadedRows, tableDeleteRows]);
+    submittingObject,
+  });
 
   const updateObjectInCurrentQuery = useCallback((savedObject: ProjectObject) => {
     queryClient.setQueryData<ProjectObjectsQueryResponse | undefined>(objectQueryKey, (current) => {
@@ -1796,13 +1644,13 @@ export default function HeatCalcPage() {
           editingMode: tableEditingMode,
           recalcTooltip: heatLossRecalcTooltip,
           recalcAriaLabel: heatLossRecalcAriaLabel,
-          recalcLoading: heatLossBatchMut.isPending || isHeatLossJobActive,
-          recalcDisabled: heatLossScopedRecalcDisabled || heatLossBatchMut.isPending,
+          recalcLoading: heatLossBatchPending || isHeatLossJobActive,
+          recalcDisabled: heatLossScopedRecalcDisabled || heatLossBatchPending,
           recalcAllTooltip: heatLossRecalcAllTooltip,
-          recalcAllDisabled: heatLossRecalcDisabled || heatLossBatchMut.isPending,
+          recalcAllDisabled: heatLossRecalcDisabled || heatLossBatchPending,
           jobActive: isHeatLossJobActive,
           jobId: activeHeatLossJobId,
-          cancelJobLoading: cancelHeatLossJobMut.isPending,
+          cancelJobLoading: cancelHeatLossJobPending,
           currentTableViewActive,
           draftControlsVisible,
           dirtyDraftRowCount,
@@ -1812,9 +1660,9 @@ export default function HeatCalcPage() {
           selectedObjectCount,
           duplicateLoading: add.isPending,
           onEditingModeChange: handleTableEditingModeChange,
-          onRecalcScoped: () => heatLossBatchMut.mutate(heatLossRecalcObjectIds),
-          onRecalcAll: () => heatLossBatchMut.mutate(undefined),
-          onCancelJob: () => cancelHeatLossJobMut.mutate(),
+          onRecalcScoped: recalcHeatLossScoped,
+          onRecalcAll: recalcHeatLossAll,
+          onCancelJob: cancelHeatLossJob,
           onOpenSettings: columnSettingsDialog.open,
           onResetCurrentTableView: resetCurrentTableViewState,
           onDiscardDrafts: () => discardDraftRows(saveTargetIds),

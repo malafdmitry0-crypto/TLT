@@ -92,6 +92,8 @@
 | Toolbar extraction | Implemented; needs heat e2e rerun | `frontend/src/pages/heatcalc/HeatCalcToolbar.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; focused HeatCalc toolbar/action tests, typecheck, `git diff --check`, toolbar Playwright verifier and `scripts/codex-functional-audit.sh layout` passed; focused `heat-calculation.spec.ts` rerun blocked at browser launch with `SIGTRAP` before app assertions |
 | Inline draft model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcInlineDraftModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcInlineDraftModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved draft/local Excel row state, trailing Excel input rows, inline commit and wizard draft handlers out of route component; typecheck and focused settings/inline suites passed |
 | Grid model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcGridModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcGridModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved grid column/cell/error view model out of route component; typecheck and focused HeatCalc suites passed |
+| Bulk actions model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcBulkActions.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcBulkActions.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved duplicate/remove selected row orchestration and delete counters out of route component; typecheck and focused HeatCalc suites passed |
+| Heat-loss job/recalc model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcHeatLossJob.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcHeatLossJob.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved job polling, batch/cancel mutations, completion handling, recalc ids/tooltips/disabled state out of route component; typecheck and focused HeatCalc suites passed |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers
@@ -184,6 +186,90 @@ Definition of Done:
 - Новый hook/model с явными inputs и focused tests.
 - `HeatCalcPage.tsx` только подключает hook и передаёт результат дальше.
 - Existing inline/settings/actions suites остаются зелёными.
+- Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
+  `git diff --check`.
+- Обновить Progress Ledger после успешного slice.
+
+## Prompt 7. Вынести bulk actions model
+
+Status: Done. Не запускать повторно без нового finding.
+Historical prompt ниже сохранён как история выполнения.
+
+Вынеси из `frontend/src/pages/HeatCalcPage.tsx` только модель групповых действий
+над строками:
+
+- вычисление `tableDeleteRows`, `selectedObjectCount`, `deleteTargetCount`;
+- `duplicateSelectedObjects`;
+- `removeSelectedObjects`;
+- минимальные helper-вычисления, которые нужны только этим действиям.
+
+Жёсткие границы:
+
+- Не трогать `saveDraftRows`, `updateSavedExcelObjectsInCaches`,
+  `updateObjectInCurrentQuery`, React Query cache writes и object create/update
+  payload mapping для сохранения draft.
+- Не переносить Excel selection/keyboard/clipboard hooks.
+- Не менять JSX/layout, CSS, toolbar labels, modal тексты.
+- Не менять API contracts, формулы, единицы измерения, expected business
+  values.
+- Новый файл держать в `frontend/src/pages/heatcalc/`.
+
+Functional trace:
+
+- SRS: `docs/srs/ui/guest/02-screen-workspace-heatcalc.md` UC-G-10,
+  UC-G-22, UC-G-23.
+- QA: `docs/qa/test-cases-objects.md` TC-OBJ-11 для удаления.
+- Frontend characterization: `frontend/src/__tests__/unit/pages/HeatCalcPage.actions.test.tsx`.
+
+Definition of Done:
+
+- Новый hook/model с явными inputs и focused tests на duplicate/remove model.
+- `HeatCalcPage.tsx` только подключает hook и передаёт callbacks/counts дальше.
+- Existing `HeatCalcPage.actions.test.tsx`, inline/settings suites остаются
+  зелёными.
+- Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
+  `git diff --check`.
+- Обновить Progress Ledger после успешного slice.
+
+## Prompt 8. Вынести heat-loss job/recalc model
+
+Status: Done. Не запускать повторно без нового finding.
+Historical prompt ниже сохранён как история выполнения.
+
+Вынеси из `frontend/src/pages/HeatCalcPage.tsx` только frontend-модель фонового
+пересчёта теплопотерь:
+
+- `activeHeatLossJobId`;
+- polling query `getCalcTask`;
+- batch/cancel mutations для heat-loss job;
+- обработку `succeeded`/`failed`/`cancelled`;
+- derived state для toolbar: progress label, disabled flags, scoped/all
+  tooltips, aria label, selected/active object ids.
+
+Жёсткие границы:
+
+- Не менять backend, API contracts, формулы, единицы измерения, expected
+  business values.
+- Не трогать `saveDraftRows`, object create/update/delete payloads, React Query
+  cache writes не связанные с завершением heat-loss job.
+- Не переносить Excel selection/keyboard/clipboard hooks.
+- Не менять JSX/layout, CSS и toolbar labels кроме переноса существующих строк
+  без изменения текста.
+
+Functional trace:
+
+- API: `docs/api.md` — `/calc/heat-loss/batch/jobs` принимает
+  `{ project_id, include_errors, object_ids? }`.
+- QA: `docs/qa/test-cases-objects.md` TC-OBJ-09 и TC-OBJ-09A.
+- Frontend characterization:
+  `frontend/src/__tests__/unit/pages/HeatCalcPage.actions.test.tsx`.
+
+Definition of Done:
+
+- Новый hook/model с явными inputs и focused tests.
+- `HeatCalcPage.tsx` только подключает hook и передаёт результат в toolbar.
+- Existing `HeatCalcPage.actions.test.tsx`, inline/settings suites остаются
+  зелёными.
 - Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
   `git diff --check`.
 - Обновить Progress Ledger после успешного slice.
