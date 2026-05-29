@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type MouseEvent as ReactMouseEvent,
 } from 'react';
 import {
   Alert,
@@ -19,9 +18,7 @@ import { FireOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
-import HeatCalcExcelContextMenu, {
-  type HeatCalcExcelContextMenuState,
-} from '@/components/heatcalc/HeatCalcExcelContextMenu';
+import HeatCalcExcelContextMenu from '@/components/heatcalc/HeatCalcExcelContextMenu';
 import HeatCalcObjectsTableCard from '@/components/heatcalc/HeatCalcObjectsTableCard';
 import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
@@ -31,8 +28,6 @@ import { getObjectQueryCapabilities, getObjectsSummary, listObjects, queryObject
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
 import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
-import { useHeatCalcExcelClipboard } from '@/hooks/useHeatCalcExcelClipboard';
-import { useHeatCalcExcelKeyboard } from '@/hooks/useHeatCalcExcelKeyboard';
 import {
   useHeatCalcObjectEditor,
 } from '@/pages/heatcalc/useHeatCalcObjectEditor';
@@ -40,10 +35,6 @@ import { useHeatCalcPreferences } from '@/pages/heatcalc/useHeatCalcPreferences'
 import {
   useHeatCalcTableColumns,
 } from '@/hooks/useHeatCalcTableColumns';
-import {
-  useHeatCalcExcelSelection,
-  type HeatCalcExcelCellRef,
-} from '@/hooks/useHeatCalcExcelSelection';
 import type { ProjectObject } from '@/types/project';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 import {
@@ -71,13 +62,10 @@ import {
 } from '@/utils/heatCalcInlineEdit';
 import {
   getExcelEditableColumnMetas,
-  getExcelInsertAfterRowIndex,
   isExcelNewRowId,
-  type ExcelSelectionRange,
 } from '@/utils/heatCalcExcelMode';
 import {
   isSavableExcelDraftRow,
-  resetExcelRowsInModel,
 } from '@/utils/heatCalcExcelRows';
 import {
   DEFAULT_OBJECT_QUERY_PAGE_SIZE,
@@ -109,6 +97,10 @@ import HeatCalcSelectedRowErrorsOverlay from '@/pages/heatcalc/HeatCalcSelectedR
 import { useHeatCalcResizeModel } from '@/pages/heatcalc/useHeatCalcResizeModel';
 import { useHeatCalcDraftSaveModel } from '@/pages/heatcalc/useHeatCalcDraftSaveModel';
 import HeatCalcUnsavedChangesModals from '@/pages/heatcalc/HeatCalcUnsavedChangesModals';
+import {
+  useHeatCalcExcelInteractionModel,
+  useHeatCalcExcelInteractionState,
+} from '@/pages/heatcalc/useHeatCalcExcelInteractionModel';
 
 const loadObjectWizard = () => import('@/components/wizard/ObjectWizard');
 const ObjectWizard = lazy(loadObjectWizard);
@@ -144,7 +136,6 @@ function scrollTableRowIntoView(objectId: string) {
   window.requestAnimationFrame(() => window.requestAnimationFrame(run));
 }
 
-type ActiveInlineCell = HeatCalcExcelCellRef;
 type TableEditingMode = HeatCalcToolbarEditingMode;
 
 function PipeTypeIcon() {
@@ -236,17 +227,17 @@ export default function HeatCalcPage() {
   });
   const sideWorkspaceRef = useRef<HTMLDivElement | null>(null);
   useFocusableTableScrollRegions(sideWorkspaceRef, 'Таблица расчёта теплопотерь', Boolean(project));
-  const [selectedExcelCell, setSelectedExcelCell] = useState<ActiveInlineCell>(null);
-  const [excelSelectionRange, setExcelSelectionRange] = useState<ExcelSelectionRange | null>(null);
-  const [excelContextMenu, setExcelContextMenu] = useState<HeatCalcExcelContextMenuState>(null);
+  const excelInteractionState = useHeatCalcExcelInteractionState();
+  const {
+    selectedExcelCell,
+    setSelectedExcelCell,
+    excelSelectionRange,
+    setExcelSelectionRange,
+    clearExcelSelectionForProject,
+  } = excelInteractionState;
   const [pendingWizardObject, setPendingWizardObject] = useState<ProjectObject | null>(null);
   const [pendingTableFocusObject, setPendingTableFocusObject] = useState<ProjectObject | null>(null);
   const setWorkspaceHeaderContext = useWorkspaceHeaderStore((s) => s.setContext);
-
-  const clearExcelSelectionForProject = useCallback(() => {
-    setSelectedExcelCell(null);
-    setExcelSelectionRange(null);
-  }, []);
 
   useEffect(() => {
     setWorkspaceHeaderContext(null);
@@ -815,65 +806,6 @@ export default function HeatCalcPage() {
     submittingObject,
   });
 
-  const startInlineCellEdit = useCallback((record: ProjectObject, columnKey: string) => {
-    if (!tableCellEditingEnabled) return;
-    if (excelModeEnabled) {
-      setSelectedExcelCell({ objectId: record.id, columnKey });
-      syncWizardWithRecord(record);
-    }
-    setActiveInlineCell({ objectId: record.id, columnKey });
-  }, [excelModeEnabled, syncWizardWithRecord, tableCellEditingEnabled]);
-
-  const closeExcelContextMenu = useCallback(() => {
-    setExcelContextMenu(null);
-  }, []);
-
-  const openExcelContextMenu = useCallback((event: ReactMouseEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const width = 240;
-    const height = 330;
-    setExcelContextMenu({
-      x: Math.max(8, Math.min(event.clientX, window.innerWidth - width)),
-      y: Math.max(8, Math.min(event.clientY, window.innerHeight - height)),
-    });
-  }, []);
-
-  const handleExcelRecordSelected = useCallback((record: ProjectObject) => {
-    syncWizardWithRecord(record);
-  }, [syncWizardWithRecord]);
-
-  const {
-    selectedPosition: selectedExcelPosition,
-    clearSelectionState: clearExcelSelectionState,
-    selectCellByPosition: selectExcelCellByPosition,
-    setRangeSelection: setExcelRangeSelection,
-    moveSelection: moveExcelSelection,
-    selectAllCells: selectAllExcelCells,
-    collapseSelectionToActiveCell,
-    beginCellSelection: beginExcelCellSelection,
-    extendCellSelection: extendExcelCellSelection,
-    beginRowSelection: beginExcelRowSelection,
-    extendRowSelection: extendExcelRowSelection,
-    beginColumnSelection: beginExcelColumnSelection,
-    extendColumnSelection: extendExcelColumnSelection,
-    openCellContextMenu: openExcelCellContextMenu,
-    openRowContextMenu: openExcelRowContextMenu,
-    openRecordContextMenu: openExcelRecordContextMenu,
-  } = useHeatCalcExcelSelection({
-    excelModeEnabled,
-    rows: visibleTableObjects,
-    editableColumnKeys: editableExcelColumnKeys,
-    selectedCell: selectedExcelCell,
-    setSelectedCell: setSelectedExcelCell,
-    selectionRange: excelSelectionRange,
-    setSelectionRange: setExcelSelectionRange,
-    setActiveInlineCell,
-    focusedRowId: selectedRowId ?? null,
-    onSelectRecord: handleExcelRecordSelected,
-    openContextMenu: openExcelContextMenu,
-  });
-
   const {
     selectedRowErrorMessages,
     excelCellDisplayValue,
@@ -899,77 +831,50 @@ export default function HeatCalcPage() {
     wizardFormObject,
   });
 
-  const notifyExcelSuccess = useCallback((message: string) => {
-    void antdMessage.success(message);
-  }, []);
-
-  const notifyExcelError = useCallback((message: string) => {
-    void antdMessage.error(message);
-  }, []);
-
-  const notifyExcelInfo = useCallback((message: string) => {
-    void antdMessage.info(message);
-  }, []);
-
   const {
-    copySelection: copyExcelSelection,
-    clearSelection: clearExcelSelection,
-    cutSelection: cutExcelSelection,
-    applyPaste: applyExcelPaste,
-    pasteFromClipboard: pasteExcelFromClipboard,
-  } = useHeatCalcExcelClipboard({
-    excelModeEnabled,
-    rows: visibleTableObjects,
-    sourceColumnMetas,
-    draftRowsById,
-    setDraftRowsById,
-    selectionRange: excelSelectionRange,
-    activeCell: activeExcelCellPosition,
-    appendLocalRows: appendExcelLocalRows,
-    cellDisplayValue: excelCellDisplayValue,
-    notifySuccess: notifyExcelSuccess,
-    notifyError: notifyExcelError,
-    notifyInfo: notifyExcelInfo,
-  });
-
-  const addExcelRowsBelowSelection = useCallback((count: number) => {
-    const afterRowIndex = getExcelInsertAfterRowIndex(
-      excelSelectionRange,
-      activeExcelCellPosition,
-      excelRowIds,
-      editableExcelColumnKeys,
-    );
-    const insertAfterObjectId = afterRowIndex == null ? null : visibleTableObjects[afterRowIndex]?.id ?? null;
-    const rows = appendExcelLocalRows(count, insertAfterObjectId);
-    if (rows.length > 0) {
-      window.setTimeout(() => {
-        const firstRowIndex = visibleTableObjects.findIndex((object) => object.id === insertAfterObjectId) + 1;
-        selectExcelCellByPosition(firstRowIndex > 0 ? firstRowIndex : visibleTableObjects.length, 0);
-      }, 0);
-    }
-  }, [
-    appendExcelLocalRows,
-    activeExcelCellPosition,
-    editableExcelColumnKeys,
-    excelSelectionRange,
-    excelRowIds,
+    excelContextMenu,
+    selectedExcelPosition,
+    clearExcelSelectionState,
     selectExcelCellByPosition,
+    setExcelRangeSelection,
+    selectAllExcelCells,
+    beginExcelCellSelection,
+    extendExcelCellSelection,
+    beginExcelRowSelection,
+    extendExcelRowSelection,
+    beginExcelColumnSelection,
+    extendExcelColumnSelection,
+    openExcelCellContextMenu,
+    openExcelRowContextMenu,
+    openExcelRecordContextMenu,
+    closeExcelContextMenu,
+    copyExcelSelection,
+    clearExcelSelection,
+    cutExcelSelection,
+    pasteExcelFromClipboard,
+    addExcelRowsBelowSelection,
+    resetSelectedExcelRows,
+    startInlineCellEdit,
+  } = useHeatCalcExcelInteractionModel({
+    ...excelInteractionState,
+    activeExcelCellPosition,
+    appendExcelLocalRows,
+    draftRowsById,
+    editableExcelColumnKeys,
+    excelCellDisplayValue,
+    excelLocalRows,
+    excelModeEnabled,
+    excelRowIds,
+    selectedExcelRows,
+    selectedRowId: selectedRowId ?? null,
+    setActiveInlineCell,
+    setDraftRowsById,
+    setExcelLocalRows,
+    sourceColumnMetas,
+    syncWizardWithRecord,
+    tableCellEditingEnabled,
     visibleTableObjects,
-  ]);
-
-  const resetSelectedExcelRows = useCallback(() => {
-    const ids = selectedExcelRows.map(({ record }) => record.id);
-    if (ids.length === 0) return;
-    const nextModel = resetExcelRowsInModel({
-      localRows: excelLocalRows,
-      draftRowsById,
-      rowIds: ids,
-    });
-    setActiveInlineCell(null);
-    setDraftRowsById(nextModel.draftRowsById);
-    setExcelLocalRows(nextModel.localRows);
-    antdMessage.success(ids.length > 1 ? 'Изменения строк сброшены' : 'Изменения строки сброшены');
-  }, [draftRowsById, excelLocalRows, selectedExcelRows]);
+  });
 
   useEffect(() => {
     cleanHiddenColumnState(visibleTableColumnKeys);
@@ -1076,55 +981,6 @@ export default function HeatCalcPage() {
     setTableEditingMode('normal');
     clearExcelSelectionState();
   }, [activeObjectScope, clearExcelSelectionState, tableEditingMode]);
-
-  useHeatCalcExcelKeyboard({
-    excelModeEnabled,
-    selectedPosition: selectedExcelPosition,
-    rows: visibleTableObjects,
-    editableColumnKeys: editableExcelColumnKeys,
-    contextMenuOpen: !!excelContextMenu,
-    closeContextMenu: closeExcelContextMenu,
-    collapseSelectionToActiveCell,
-    moveSelection: moveExcelSelection,
-    selectAllCells: selectAllExcelCells,
-    copySelection: copyExcelSelection,
-    applyPaste: applyExcelPaste,
-    startInlineCellEdit,
-  });
-
-  useEffect(() => {
-    if (!excelModeEnabled) {
-      closeExcelContextMenu();
-    }
-  }, [closeExcelContextMenu, excelModeEnabled]);
-
-  useEffect(() => {
-    if (!excelContextMenu) return undefined;
-
-    function handlePointerDown(event: PointerEvent) {
-      if (event.target instanceof Element && event.target.closest('.excel-context-menu')) return;
-      closeExcelContextMenu();
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      closeExcelContextMenu();
-    }
-
-    function handleScroll() {
-      closeExcelContextMenu();
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('scroll', handleScroll, true);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('scroll', handleScroll, true);
-    };
-  }, [closeExcelContextMenu, excelContextMenu]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

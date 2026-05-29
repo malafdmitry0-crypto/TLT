@@ -99,6 +99,7 @@
 | Resize model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcResizeModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcResizeModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved side form and column resize drag handlers out of route component without CSS/layout/API/formula changes; typecheck, focused hook test and settings suite passed |
 | Draft save model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcDraftSaveModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcDraftSaveModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved draft save target derivation, validation, create/update, cache writes and invalidation out of route component without backend/API/formula/layout changes; typecheck, focused hook test and inline-edit characterization passed |
 | Unsaved-change modals component | Done | `frontend/src/pages/heatcalc/HeatCalcUnsavedChangesModals.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/HeatCalcUnsavedChangesModals.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved inline-disable and pending-wizard unsaved-change Modal JSX without backend/API/formula/CSS/layout changes; typecheck, focused modal test and inline-edit characterization passed |
+| Excel interaction model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcExcelInteractionModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcExcelInteractionModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved Excel cell/selection/context-menu state, selection/clipboard/keyboard wiring, add-row and reset-selected-row interactions out of route component without backend/API/formula/CSS/layout changes; typecheck, focused hook test and inline-edit characterization passed |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers
@@ -472,6 +473,53 @@ Definition of Done:
 
 - Новый component с явными props.
 - `HeatCalcPage.tsx` только рендерит component и передаёт callbacks/state.
+- Existing inline-edit characterization остаётся зелёной.
+- Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
+  `git diff --check`.
+- Обновить Progress Ledger после успешного slice.
+
+## Prompt 14. Вынести Excel interaction model
+
+Status: Done. Не запускать повторно без нового finding.
+Historical prompt ниже сохранён как история выполнения.
+
+Вынеси из `frontend/src/pages/HeatCalcPage.tsx` только Excel interaction shell:
+
+- `selectedExcelCell`, `excelSelectionRange`, `excelContextMenu`;
+- clear/close/open context menu callbacks;
+- wiring `useHeatCalcExcelSelection`;
+- wiring `useHeatCalcExcelClipboard`;
+- wiring `useHeatCalcExcelKeyboard`;
+- `addExcelRowsBelowSelection`;
+- `resetSelectedExcelRows`;
+- effects закрытия context menu при выключении Excel mode, outside
+  pointerdown, Escape и scroll.
+
+Жёсткие границы:
+
+- Не менять backend, API contracts, формулы, единицы измерения, expected
+  business values.
+- Не менять `saveDraftRows`, `useHeatCalcDraftSaveModel`, draft save cache
+  writes.
+- Не менять `useHeatCalcInlineDraftModel` implementation.
+- Не менять object create/update/delete payload mapping.
+- Не менять toolbar, ColumnSettingsModal, HeatCalcObjectsTableCard,
+  ObjectWizard.
+- Не менять CSS/layout/className/user-facing тексты.
+- Не переносить data/query/table rows model в этом slice.
+- Не смешивать с wizard/form panel extraction.
+
+Functional trace:
+
+- Frontend characterization:
+  `frontend/src/__tests__/unit/pages/HeatCalcPage.inline-edit.test.tsx`.
+- Focused hook tests:
+  `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcExcelInteractionModel.test.tsx`.
+
+Definition of Done:
+
+- Новый hook/model с явными inputs.
+- `HeatCalcPage.tsx` только подключает hook и передаёт returned values дальше.
 - Existing inline-edit characterization остаётся зелёной.
 - Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
   `git diff --check`.
