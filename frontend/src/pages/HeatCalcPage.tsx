@@ -13,10 +13,8 @@ import {
   Space,
   message as antdMessage,
 } from 'antd';
-import { FireOutlined } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
 
-import EmptyProjectState from '@/components/common/EmptyProjectState';
 import HeatCalcExcelContextMenu from '@/components/heatcalc/HeatCalcExcelContextMenu';
 import HeatCalcObjectsTableCard from '@/components/heatcalc/HeatCalcObjectsTableCard';
 import { useAuthStore } from '@/store/authStore';
@@ -60,9 +58,6 @@ import {
   useHeatCalcExcelInteractionState,
 } from '@/pages/heatcalc/useHeatCalcExcelInteractionModel';
 import { useHeatCalcNormalTableInteractionModel } from '@/pages/heatcalc/useHeatCalcNormalTableInteractionModel';
-import {
-  preloadHeatCalcObjectWizard,
-} from '@/pages/heatcalc/HeatCalcWizardFormPanel';
 import HeatCalcWizardFormPanel from '@/pages/heatcalc/HeatCalcWizardFormPanel';
 import { useHeatCalcWizardFormShellModel } from '@/pages/heatcalc/useHeatCalcWizardFormShellModel';
 import {
@@ -71,30 +66,16 @@ import {
 } from '@/pages/heatcalc/useHeatCalcObjectsDataModel';
 import { useHeatCalcPageEffectsModel } from '@/pages/heatcalc/useHeatCalcPageEffectsModel';
 import { useHeatCalcRouteActionsModel } from '@/pages/heatcalc/useHeatCalcRouteActionsModel';
+import HeatCalcEmptyProjectState from '@/pages/heatcalc/HeatCalcEmptyProjectState';
+import {
+  PipeTypeIcon,
+  TankTypeIcon,
+} from '@/pages/heatcalc/HeatCalcObjectTypeIcons';
+import { useHeatCalcRouteShellEffects } from '@/pages/heatcalc/useHeatCalcRouteShellEffects';
 
 const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSettingsModal'));
 
 type TableEditingMode = HeatCalcToolbarEditingMode;
-
-function PipeTypeIcon() {
-  return (
-    <svg className="object-type-svg" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <path d="M2.5 6h11v4h-11z" />
-      <path d="M1.5 5v6M14.5 5v6" />
-      <path d="M5 4.5v7M11 4.5v7" />
-    </svg>
-  );
-}
-
-function TankTypeIcon() {
-  return (
-    <svg className="object-type-svg" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <path d="M4 4.5c0-1 8-1 8 0v7c0 1-8 1-8 0z" />
-      <path d="M4 4.5c0 1 8 1 8 0" />
-      <path d="M4 11.5c0 1 8 1 8 0" />
-    </svg>
-  );
-}
 
 export default function HeatCalcPage() {
   const queryClient = useQueryClient();
@@ -177,26 +158,10 @@ export default function HeatCalcPage() {
   const [pendingTableFocusObject, setPendingTableFocusObject] = useState<ProjectObject | null>(null);
   const setWorkspaceHeaderContext = useWorkspaceHeaderStore((s) => s.setContext);
 
-  useEffect(() => {
-    setWorkspaceHeaderContext(null);
-  }, [setWorkspaceHeaderContext]);
-
-  useEffect(() => {
-    if (!project) return undefined;
-    const win = window as Window & {
-      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-    const preload = () => {
-      preloadHeatCalcObjectWizard();
-    };
-    if (win.requestIdleCallback) {
-      const handle = win.requestIdleCallback(preload, { timeout: 2_000 });
-      return () => win.cancelIdleCallback?.(handle);
-    }
-    const handle = window.setTimeout(preload, 0);
-    return () => window.clearTimeout(handle);
-  }, [project]);
+  useHeatCalcRouteShellEffects({
+    projectPresent: Boolean(project),
+    setWorkspaceHeaderContext,
+  });
 
   const excelModeEnabled = tableEditingMode === 'excel' && !isAllObjectScope;
   const normalGlideEnabled = !excelModeEnabled;
@@ -823,13 +788,7 @@ export default function HeatCalcPage() {
   );
 
   if (!project) {
-    return (
-      <EmptyProjectState
-        icon={<FireOutlined style={{ marginRight: 8, color: '#e06c1e' }} />}
-        title="Расчёт теплопотерь"
-        description="Шаг 1 из 4. Добавьте объекты (трубопроводы, резервуары) вручную или импортом из Excel / CSV — система автоматически рассчитает тепловые потери."
-      />
-    );
+    return <HeatCalcEmptyProjectState />;
   }
 
   return (

@@ -105,6 +105,7 @@
 | Objects data/query model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcObjectsDataModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcObjectsDataModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved object summary/query capabilities/object queries/all objects/column accessors/all-scope filtering/enum options and visible rows resolver out of route component without backend/API/formula/CSS/layout changes; typecheck, focused tests and HeatCalc basics/actions/inline-edit characterization passed |
 | Page effects model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcPageEffectsModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcPageEffectsModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved hidden-column cleanup, selected-row pruning, pending table focus, dirty-draft beforeunload guard, last-saved hidden-by-filter notice, Excel selection cleanup and Excel/all-scope guard without backend/API/formula/CSS/layout/render shell changes; typecheck, focused hook test and HeatCalc basics/actions/inline-edit characterization passed |
 | Route actions/counts model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcRouteActionsModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcRouteActionsModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved object scope/form visibility/table editing mode/toolbar save handlers and scope count labels without backend/API/formula/CSS/layout/render shell changes; typecheck, focused hook test and HeatCalc basics/actions/inline-edit characterization passed |
+| Tiny route shell cleanup | Done | `frontend/src/pages/heatcalc/HeatCalcObjectTypeIcons.tsx`; `frontend/src/pages/heatcalc/HeatCalcEmptyProjectState.tsx`; `frontend/src/pages/heatcalc/useHeatCalcRouteShellEffects.ts`; focused empty-state/effects tests; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved only icons, no-project empty state, workspace header reset and wizard preload without backend/API/formula/CSS/layout/render shell/table changes; typecheck, focused tests and HeatCalc basics characterization passed |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers
@@ -675,6 +676,49 @@ Definition of Done:
   зелёной.
 - Запустить `npm --prefix frontend run typecheck`, focused Vitest suite,
   HeatCalc characterization suites и `git diff --check`.
+- Обновить Progress Ledger после успешного slice.
+
+## Prompt 20. Tiny route shell cleanup
+
+Status: Done. Scope intentionally tiny: icons, empty state and simple route
+shell effects only.
+
+Выполни безопасный cleanup `frontend/src/pages/HeatCalcPage.tsx`:
+
+- вынеси `PipeTypeIcon` и `TankTypeIcon` в
+  `frontend/src/pages/heatcalc/HeatCalcObjectTypeIcons.tsx`;
+- вынеси empty-project ветку в
+  `frontend/src/pages/heatcalc/HeatCalcEmptyProjectState.tsx`;
+- вынеси workspace header reset и wizard preload effects в
+  `frontend/src/pages/heatcalc/useHeatCalcRouteShellEffects.ts`, только если
+  hook остаётся простым и тестируемым без хрупкого mocking.
+
+Жёсткие границы:
+
+- Не менять backend, API contracts, схемы, формулы, единицы измерения или
+  expected business values.
+- Не менять CSS/layout/className/user-facing тексты.
+- Не выносить render shell: `renderTypeBar`, `renderActionsBar`,
+  `HeatCalcObjectsTableCard`, context menu, settings modal, unsaved modals.
+- Не менять hook wiring и state ownership.
+- Не менять порядок/условия table/layout render.
+- Не ослаблять assertions и не менять golden/expected значения.
+
+Focused tests:
+
+- `frontend/src/__tests__/unit/pages/heatcalc/HeatCalcEmptyProjectState.test.tsx`
+  проверяет текущие title/description.
+- `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcRouteShellEffects.test.tsx`
+  проверяет reset header context, preload при `projectPresent=true` и отсутствие
+  preload при `projectPresent=false`, если effects hook вынесен.
+
+Definition of Done:
+
+- `HeatCalcPage.tsx` стал немного меньше.
+- Вынесены только icons/empty state/simple route shell effects.
+- Existing HeatCalc basics characterization остаётся зелёной.
+- Запустить focused tests, `HeatCalcPage.basics.test.tsx`, typecheck и
+  `git diff --check`.
 - Обновить Progress Ledger после успешного slice.
 
 ## Prompt 19. Вынести route actions/counts model
