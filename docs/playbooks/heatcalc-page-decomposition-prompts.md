@@ -86,9 +86,10 @@
 | Remaining small pure helpers | Done | `draftRowFingerprint`, `uniqueErrorMessages`, `normalizeGlideCellAlign`, `draftErrorMessages`, `escapeTableRowKey` moved to `frontend/src/pages/heatcalc/heatCalcPageUtils.ts`; covered by `frontend/src/__tests__/unit/pages/heatcalc/heatCalcPageUtils.test.ts`; page wiring in `frontend/src/pages/HeatCalcPage.tsx` |
 | Table state hook | Done | `frontend/src/pages/heatcalc/useHeatCalcTableState.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcTableState.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; focused HeatCalc suites passed |
 | Preferences hook | Done | `frontend/src/pages/heatcalc/useHeatCalcPreferences.ts`; characterization in `HeatCalcPage.settings.test.tsx` and `HeatCalcPage.inline-edit.test.tsx`; focused settings/inline suites and typecheck passed |
+| Column settings dialog hook | Done | `frontend/src/pages/heatcalc/useHeatCalcColumnSettingsDialog.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcColumnSettingsDialog.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved settings draft/apply/pending-inline-disable state out of route component; typecheck and focused settings/inline suites passed |
 | Object editor hook | Done | `frontend/src/pages/heatcalc/useHeatCalcObjectEditor.ts`; characterization in `frontend/src/__tests__/unit/pages/HeatCalcPage.actions.test.tsx` and `frontend/src/__tests__/unit/pages/HeatCalcPageSaveReset.test.tsx`; explicit user-requested side slice |
 | Toolbar side-placement characterization | Done | `frontend/src/__tests__/unit/pages/HeatCalcPage.basics.test.tsx` covers side placement, DOM order and single toolbar ownership; code extraction not attempted because full UI proof/layout stack was not in scope for this tests-only slice |
-| Toolbar extraction | Next | `HeatCalcToolbar`; UI proof required because visible controls change ownership; remains the next generic god-component runner slice |
+| Toolbar extraction | Implemented; needs heat e2e rerun | `frontend/src/pages/heatcalc/HeatCalcToolbar.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; focused HeatCalc toolbar/action tests, typecheck, `git diff --check`, toolbar Playwright verifier and `scripts/codex-functional-audit.sh layout` passed; focused `heat-calculation.spec.ts` rerun blocked at browser launch with `SIGTRAP` before app assertions |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers
@@ -139,7 +140,7 @@ runner instruction.
 
 ## Prompt 5. Вынести state hooks
 
-Status: `useHeatCalcTableState` Done; `useHeatCalcPreferences` Done. Next for `HeatCalcToolbar`.
+Status: `useHeatCalcTableState` Done; `useHeatCalcPreferences` Done; `useHeatCalcColumnSettingsDialog` Done; `HeatCalcToolbar` implemented and awaiting focused heat e2e rerun.
 Не начинать toolbar или objects table extraction в том же запуске.
 
 После стабилизации helpers/UI вынеси состояние таблицы в hooks.

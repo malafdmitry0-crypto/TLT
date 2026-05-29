@@ -13,33 +13,15 @@ import {
 import {
   Alert,
   Button,
-  Checkbox,
   Modal,
-  Popconfirm,
-  Segmented,
   Space,
-  Tag,
-  Tooltip,
   Typography,
   message as antdMessage,
   type TableProps,
 } from 'antd';
-import {
-  AppstoreOutlined,
-  CloseCircleOutlined,
-  CopyOutlined,
-  DeleteOutlined,
-  FireOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  SaveOutlined,
-  StopOutlined,
-  TableOutlined,
-} from '@ant-design/icons';
+import { FireOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import ImportExcelButton from '@/components/ImportExcelButton';
-import ExportObjectsButton from '@/components/ExportObjectsButton';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import HeatCalcExcelContextMenu, {
   type HeatCalcExcelContextMenuState,
@@ -81,22 +63,13 @@ import {
 import {
   HEATCALC_TABLE_COLUMN_CATALOG,
   clampTableColumnWidthPct,
-  createTableColumnSettingsPatch,
   getAllTableColumnMetas,
-  getAvailableTableColumnKeys,
   getVisibleTableColumnMetas,
-  moveTableColumnToOrder,
-  normalizeTableColumnSettings,
-  reorderTableColumn,
-  resetTableColumnTypeSettings,
-  resetTableColumnWidth,
-  setTableColumnVisibility,
   setTableColumnWidthPct,
   tableColumnWidthPxToPct,
   type HeatCalcColumnKey,
   type HeatCalcObjectType,
   type HeatCalcResolvedColumnMeta,
-  type HeatCalcTableColumnSettings,
   type HeatCalcTableColumnScope,
 } from '@/utils/heatCalcTableColumns';
 import {
@@ -107,29 +80,16 @@ import {
   type HeatCalcIndexedTableRow,
 } from '@/utils/heatCalcTableFindability';
 import {
-  getDefaultTableViewSettings,
   normalizeTableViewSettings,
   resolveTableFontSize,
   type HeatCalcFormPlacement,
-  type HeatCalcTableFontSize,
-  type HeatCalcTableLabelFormat,
-  type HeatCalcTableViewSettings,
 } from '@/utils/heatCalcTableViewSettings';
 import {
-  getDefaultCalculationDetailsSettings,
   normalizeCalculationDetailsSettings,
-  setCalculationDetailsMetrics,
-  setCalculationDetailsPreset,
   type HeatCalcCalculationDetailMetric,
-  type HeatCalcCalculationDetailPreset,
-  type HeatCalcCalculationDetailsSettings,
 } from '@/utils/heatCalcCalculationDetailsSettings';
 import {
-  normalizeFieldInputSettings,
-  resetHeatCalcFieldStep,
   resolveHeatCalcFieldStep,
-  setHeatCalcFieldStep,
-  type HeatCalcFieldInputSettings,
 } from '@/utils/heatCalcFieldInputSettings';
 import {
   applyInlineCellDraft,
@@ -192,9 +152,15 @@ import {
 } from '@/pages/heatcalc/heatCalcPageUtils';
 import { buildHeatCalcColumnRenderers } from '@/pages/heatcalc/heatCalcColumnRenderers';
 import {
+  HeatCalcActionsToolbar,
+  HeatCalcTypeToolbar,
+  type HeatCalcToolbarEditingMode,
+} from '@/pages/heatcalc/HeatCalcToolbar';
+import {
   useHeatCalcTableState,
   type ActiveObjectScope,
 } from '@/pages/heatcalc/useHeatCalcTableState';
+import { useHeatCalcColumnSettingsDialog } from '@/pages/heatcalc/useHeatCalcColumnSettingsDialog';
 
 const loadObjectWizard = () => import('@/components/wizard/ObjectWizard');
 const ObjectWizard = lazy(loadObjectWizard);
@@ -233,13 +199,7 @@ function scrollTableRowIntoView(objectId: string) {
 }
 
 type ActiveInlineCell = HeatCalcExcelCellRef;
-type TableEditingMode = 'normal' | 'excel';
-type PendingInlineDisableSettings = {
-  columnSettings: HeatCalcTableColumnSettings;
-  viewSettings: HeatCalcTableViewSettings;
-  calculationDetailsSettings: HeatCalcCalculationDetailsSettings;
-  fieldInputSettings: HeatCalcFieldInputSettings;
-};
+type TableEditingMode = HeatCalcToolbarEditingMode;
 
 function PipeTypeIcon() {
   return (
@@ -298,15 +258,14 @@ export default function HeatCalcPage() {
     setTablePage,
     upsertNormalLoadedRow,
   } = useHeatCalcTableState({ projectId: project?.id });
-  const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
-  const [columnSettingsType, setColumnSettingsType] = useState<HeatCalcTableColumnScope>('pipe');
   const [tableEditingMode, setTableEditingMode] = useState<TableEditingMode>('normal');
   const [activeInlineCell, setActiveInlineCell] = useState<ActiveInlineCell>(null);
   const handleInlineEditingDisabled = useCallback(() => {
     setActiveInlineCell(null);
   }, []);
+  const closeColumnSettingsRef = useRef<(() => void) | null>(null);
   const closeColumnSettings = useCallback(() => {
-    setColumnSettingsOpen(false);
+    closeColumnSettingsRef.current?.();
   }, []);
   const {
     tableColumnSettings,
@@ -335,16 +294,6 @@ export default function HeatCalcPage() {
     rect: DOMRect;
   } | null>(null);
   useFocusableTableScrollRegions(sideWorkspaceRef, 'Таблица расчёта теплопотерь', Boolean(project));
-  const [draftTableColumnSettings, setDraftTableColumnSettings] = useState<HeatCalcTableColumnSettings>(
-    () => tableColumnSettings,
-  );
-  const [draftTableViewSettings, setDraftTableViewSettings] = useState<HeatCalcTableViewSettings>(
-    () => tableViewSettings,
-  );
-  const [draftCalculationDetailsSettings, setDraftCalculationDetailsSettings] =
-    useState<HeatCalcCalculationDetailsSettings>(() => calculationDetailsSettings);
-  const [draftFieldInputSettings, setDraftFieldInputSettings] =
-    useState<HeatCalcFieldInputSettings>(() => fieldInputSettings);
   const [selectedExcelCell, setSelectedExcelCell] = useState<ActiveInlineCell>(null);
   const [excelSelectionRange, setExcelSelectionRange] = useState<ExcelSelectionRange | null>(null);
   const [draftRowsById, setDraftRowsById] = useState<DraftRowsById>({});
@@ -356,8 +305,6 @@ export default function HeatCalcPage() {
     rowCount: number;
     missingCount: number;
   } | null>(null);
-  const [pendingInlineDisableSettings, setPendingInlineDisableSettings] =
-    useState<PendingInlineDisableSettings | null>(null);
   const [pendingWizardObject, setPendingWizardObject] = useState<ProjectObject | null>(null);
   const [pendingTableFocusObject, setPendingTableFocusObject] = useState<ProjectObject | null>(null);
   const [activeHeatLossJobId, setActiveHeatLossJobId] = useState<string | null>(null);
@@ -1050,6 +997,26 @@ export default function HeatCalcPage() {
     ? `Сбросить выбранные (${saveTargetCount})`
     : `Сбросить все (${saveTargetCount})`;
   const inlineDraftSaving = dirtyDraftRows.some((row) => row.saving);
+  const columnSettingsDialog = useHeatCalcColumnSettingsDialog({
+    activeTableColumnScope,
+    tableColumnSettings,
+    tableViewSettings,
+    calculationDetailsSettings,
+    fieldInputSettings,
+    dirtyDraftRowCount,
+    cleanHiddenColumnStateForSettings,
+    persistTableSettings,
+  });
+
+  useEffect(() => {
+    closeColumnSettingsRef.current = columnSettingsDialog.close;
+    return () => {
+      if (closeColumnSettingsRef.current === columnSettingsDialog.close) {
+        closeColumnSettingsRef.current = null;
+      }
+    };
+  }, [columnSettingsDialog.close]);
+
   const toolbarSaveDisabled = saveTargetCount === 0 && !hasWizard;
   const toolbarSaveLoading = inlineDraftSaving || submittingObject;
   const toolbarSaveTooltip = saveTargetCount > 0
@@ -2062,15 +2029,6 @@ export default function HeatCalcPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [columnRenderers, excelModeEnabled, isAllObjectScope, selectedRowKeys, sourceColumnMetas, visibleTableRows]);
 
-  function openColumnSettings() {
-    setColumnSettingsType(activeTableColumnScope);
-    setDraftTableColumnSettings(normalizeTableColumnSettings(tableColumnSettings));
-    setDraftTableViewSettings(normalizeTableViewSettings(tableViewSettings));
-    setDraftCalculationDetailsSettings(normalizeCalculationDetailsSettings(calculationDetailsSettings));
-    setDraftFieldInputSettings(normalizeFieldInputSettings(fieldInputSettings));
-    setColumnSettingsOpen(true);
-  }
-
   function handleTableEditingModeChange(value: string | number) {
     const nextMode: TableEditingMode = value === 'excel' ? 'excel' : 'normal';
     if (nextMode === 'excel' && isAllObjectScope) {
@@ -2083,127 +2041,12 @@ export default function HeatCalcPage() {
     closeExcelContextMenu();
   }
 
-  function updateDraftColumn(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey, checked: boolean) {
-    setDraftTableColumnSettings((settings) => setTableColumnVisibility(settings, type, key, checked));
-  }
-
-  function updateDraftColumnOrder(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey, order: number) {
-    setDraftTableColumnSettings((settings) => moveTableColumnToOrder(settings, type, key, order));
-  }
-
-  function updateDraftColumnWidth(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey, widthPct: number) {
-    setDraftTableColumnSettings((settings) => setTableColumnWidthPct(settings, type, key, widthPct));
-  }
-
-  function updateDraftTableFontSize(fontSize: HeatCalcTableFontSize) {
-    setDraftTableViewSettings((settings) => normalizeTableViewSettings({ ...settings, fontSize }));
-  }
-
-  function resetDraftTableFontSize() {
-    const defaultView = getDefaultTableViewSettings();
-    setDraftTableViewSettings((settings) => normalizeTableViewSettings({
-      ...settings,
-      fontSize: defaultView.fontSize,
-    }));
-  }
-
-  function updateDraftTableLabelFormat(tableLabelFormat: HeatCalcTableLabelFormat) {
-    setDraftTableViewSettings((settings) => normalizeTableViewSettings({
-      ...settings,
-      tableLabelFormat,
-    }));
-  }
-
-  function updateDraftSettingsLabelFormat(settingsLabelFormat: HeatCalcTableLabelFormat) {
-    setDraftTableViewSettings((settings) => normalizeTableViewSettings({
-      ...settings,
-      settingsLabelFormat,
-    }));
-  }
-
-  function resetDraftLabelFormats() {
-    const defaultView = getDefaultTableViewSettings();
-    setDraftTableViewSettings((settings) => normalizeTableViewSettings({
-      ...settings,
-      tableLabelFormat: defaultView.tableLabelFormat,
-      settingsLabelFormat: defaultView.settingsLabelFormat,
-    }));
-  }
-
-  function updateDraftFormPlacement(formPlacement: HeatCalcFormPlacement) {
-    setDraftTableViewSettings((settings) => normalizeTableViewSettings({ ...settings, formPlacement }));
-  }
-
-  function updateDraftInlineEditingEnabled(inlineEditingEnabled: boolean) {
-    setDraftTableViewSettings((settings) => normalizeTableViewSettings({
-      ...settings,
-      inlineEditingEnabled,
-    }));
-  }
-
-  function updateDraftCalculationDetailsPreset(preset: HeatCalcCalculationDetailPreset) {
-    setDraftCalculationDetailsSettings((settings) => setCalculationDetailsPreset(settings, preset));
-  }
-
-  function updateDraftCalculationDetailMetrics(metrics: HeatCalcCalculationDetailMetric[]) {
-    setDraftCalculationDetailsSettings((settings) => setCalculationDetailsMetrics(settings, metrics));
-  }
-
-  function updateDraftFieldStep(type: HeatCalcObjectType, fieldId: string, step: number | null) {
-    setDraftFieldInputSettings((settings) => setHeatCalcFieldStep(settings, type, fieldId, step));
-  }
-
-  function resetDraftFieldStep(type: HeatCalcObjectType, fieldId: string) {
-    setDraftFieldInputSettings((settings) => resetHeatCalcFieldStep(settings, type, fieldId));
-  }
-
-  function resetDraftColumnWidth(type: HeatCalcTableColumnScope, key: HeatCalcColumnKey) {
-    setDraftTableColumnSettings((settings) => resetTableColumnWidth(settings, type, key));
-  }
-
   function handleToolbarSave() {
     if (saveTargetCount > 0) {
       void saveDraftRows(saveTargetIds);
       return;
     }
     document.getElementById('inline-object-save')?.click();
-  }
-
-  function reorderDraftColumn(type: HeatCalcTableColumnScope, activeKey: HeatCalcColumnKey, overKey: HeatCalcColumnKey) {
-    if (activeKey === overKey) return;
-    setDraftTableColumnSettings((settings) => reorderTableColumn(settings, type, activeKey, overKey));
-  }
-
-  function resetDraftColumns(type: HeatCalcTableColumnScope) {
-    setDraftTableColumnSettings((settings) => resetTableColumnTypeSettings(settings, type));
-  }
-
-  function selectAllDraftColumns(type: HeatCalcTableColumnScope) {
-    setDraftTableColumnSettings((settings) =>
-      createTableColumnSettingsPatch(settings, type, getAvailableTableColumnKeys(type)),
-    );
-  }
-
-  function applyColumnSettings() {
-    const normalized = normalizeTableColumnSettings(draftTableColumnSettings);
-    const normalizedView = normalizeTableViewSettings(draftTableViewSettings);
-    const normalizedDetails = normalizeCalculationDetailsSettings(draftCalculationDetailsSettings);
-    const normalizedFieldInputs = normalizeFieldInputSettings(draftFieldInputSettings);
-    if (
-      normalizeTableViewSettings(tableViewSettings).inlineEditingEnabled
-      && !normalizedView.inlineEditingEnabled
-      && dirtyDraftRowCount > 0
-    ) {
-      setPendingInlineDisableSettings({
-        columnSettings: normalized,
-        viewSettings: normalizedView,
-        calculationDetailsSettings: normalizedDetails,
-        fieldInputSettings: normalizedFieldInputs,
-      });
-      return;
-    }
-    cleanHiddenColumnStateForSettings(normalized);
-    persistTableSettings(normalized, normalizedView, normalizedDetails, normalizedFieldInputs);
   }
 
   function renderFormPanel() {
@@ -2244,227 +2087,71 @@ export default function HeatCalcPage() {
 
   function renderTypeBar() {
     return (
-      <div className="actionbar-srs actionbar-type-row" role="toolbar" aria-label="Тип объекта и блок параметров">
-        <div className="actionbar-group actionbar-type-group" aria-label="Тип объекта">
-          <Button
-            className="action-type-button"
-            type={activeObjectScope === 'pipe' ? 'primary' : 'default'}
-            icon={<PipeTypeIcon />}
-            aria-label={`Трубопровод: ${pipeButtonCountText}`}
-            aria-pressed={activeObjectScope === 'pipe'}
-            onClick={() => handleObjectScopeChange('pipe')}
-          >
-            Трубопровод: <strong className="action-type-count">{pipeButtonCountText}</strong>
-          </Button>
-          <Button
-            className="action-type-button"
-            type={activeObjectScope === 'tank' ? 'primary' : 'default'}
-            icon={<TankTypeIcon />}
-            aria-label={`Резервуар: ${tankButtonCountText}`}
-            aria-pressed={activeObjectScope === 'tank'}
-            onClick={() => handleObjectScopeChange('tank')}
-          >
-            Резервуар: <strong className="action-type-count">{tankButtonCountText}</strong>
-          </Button>
-          <Button
-            className="action-type-button"
-            type={activeObjectScope === 'all' ? 'primary' : 'default'}
-            icon={<AppstoreOutlined />}
-            aria-label={`Все: ${allButtonCountText}`}
-            aria-pressed={activeObjectScope === 'all'}
-            onClick={() => handleObjectScopeChange('all')}
-          >
-            Все: <strong className="action-type-count">{allButtonCountText}</strong>
-          </Button>
-        </div>
-
-        <div className="actionbar-group actionbar-form-state-group">
-          {formBlockVisible && (
-            <Tag className={`actionbar-mode-tag ${formCaptionMode}`}>
-              {formCaptionModeLabel}
-            </Tag>
-          )}
-          <Checkbox
-            className="actionbar-form-toggle"
-            checked={formBlockVisible}
-            onChange={(event) => handleFormBlockVisibilityChange(event.target.checked)}
-          >
-            Показать блок заполнения параметров
-          </Checkbox>
-        </div>
-      </div>
+      <HeatCalcTypeToolbar
+        activeObjectScope={activeObjectScope}
+        pipeButtonCountText={pipeButtonCountText}
+        tankButtonCountText={tankButtonCountText}
+        allButtonCountText={allButtonCountText}
+        pipeIcon={<PipeTypeIcon />}
+        tankIcon={<TankTypeIcon />}
+        formBlockVisible={formBlockVisible}
+        formCaptionMode={formCaptionMode}
+        formCaptionModeLabel={formCaptionModeLabel}
+        onObjectScopeChange={handleObjectScopeChange}
+        onFormBlockVisibilityChange={handleFormBlockVisibilityChange}
+      />
     );
   }
 
   function renderActionsBar() {
     return (
-      <div className="actionbar-srs actionbar-actions-row">
-        {formBlockVisible && (
-          <div className="actionbar-form-actions-row" role="toolbar" aria-label="Действия блока заполнения">
-            <div className="actionbar-group actionbar-form-actions-group">
-              <Tooltip title="Добавить">
-                <Button
-                  type="primary"
-                  className="action-icon-button action-add-button add"
-                  icon={<PlusOutlined />}
-                  aria-label="Добавить"
-                  onClick={() => openAddWizard()}
-                />
-              </Tooltip>
-
-              <Tooltip title={toolbarSaveTooltip}>
-                <span className="action-tooltip-wrap">
-                  <Button
-                    className="action-icon-button action-save-button save"
-                    icon={<SaveOutlined />}
-                    aria-label="Сохранить"
-                    disabled={toolbarSaveDisabled}
-                    loading={toolbarSaveLoading}
-                    onClick={handleToolbarSave}
-                  />
-                </span>
-              </Tooltip>
-              <Tooltip title={deleteTargetCount === 0 ? 'Выберите строки для удаления' : 'Удалить выбранные'}>
-                <span className="action-tooltip-wrap">
-                  <Popconfirm
-                    title={deleteTargetCount > 1 ? `Удалить выбранные строки: ${deleteTargetCount}?` : 'Удалить выбранную строку?'}
-                    okText="Удалить"
-                    cancelText="Отмена"
-                    disabled={deleteTargetCount === 0}
-                    onConfirm={removeSelectedObjects}
-                  >
-                    <Button
-                      danger
-                      className="action-icon-button action-secondary-button"
-                      icon={<DeleteOutlined />}
-                      aria-label="Удалить выбранные"
-                      loading={remove.isPending}
-                      disabled={deleteTargetCount === 0}
-                    />
-                  </Popconfirm>
-                </span>
-              </Tooltip>
-            </div>
-          </div>
-        )}
-
-        <div className="actionbar-table-actions-row" role="toolbar" aria-label="Действия таблицы объектов">
-          <div className="actionbar-group actionbar-table-actions-group">
-            <Segmented
-              size="small"
-              value={tableEditingMode}
-              options={[
-                { label: 'Обычный режим', value: 'normal' },
-                { label: 'Excel-режим', value: 'excel' },
-              ]}
-              onChange={handleTableEditingModeChange}
-            />
-            <Tooltip title={heatLossRecalcTooltip}>
-              <span className="action-tooltip-wrap">
-                <Button
-                  className="action-icon-button action-secondary-button"
-                  icon={<ReloadOutlined />}
-                  aria-label={heatLossRecalcAriaLabel}
-                  loading={heatLossBatchMut.isPending || isHeatLossJobActive}
-                  disabled={heatLossScopedRecalcDisabled || heatLossBatchMut.isPending}
-                  onClick={() => heatLossBatchMut.mutate(heatLossRecalcObjectIds)}
-                />
-              </span>
-            </Tooltip>
-            <Tooltip title={heatLossRecalcAllTooltip}>
-              <span className="action-tooltip-wrap">
-                <Button
-                  className="action-secondary-button action-recalc-all-button"
-                  icon={<ReloadOutlined />}
-                  aria-label="Пересчитать все"
-                  loading={heatLossBatchMut.isPending || isHeatLossJobActive}
-                  disabled={heatLossRecalcDisabled || heatLossBatchMut.isPending}
-                  onClick={() => heatLossBatchMut.mutate(undefined)}
-                >
-                  Пересчитать все
-                </Button>
-              </span>
-            </Tooltip>
-            {isHeatLossJobActive && activeHeatLossJobId && (
-              <Tooltip title="Отменить пересчёт теплопотерь">
-                <Button
-                  danger
-                  className="action-icon-button action-secondary-button"
-                  icon={<StopOutlined />}
-                  aria-label="Отменить пересчёт теплопотерь"
-                  loading={cancelHeatLossJobMut.isPending}
-                  onClick={() => cancelHeatLossJobMut.mutate()}
-                />
-              </Tooltip>
-            )}
-            <Tooltip title="Настройки отображения">
-              <span className="action-tooltip-wrap">
-                <Button
-                  className="action-icon-button action-secondary-button"
-                  icon={<TableOutlined />}
-                  aria-label="Настройки отображения"
-                  onClick={openColumnSettings}
-                />
-              </span>
-            </Tooltip>
-            <Tooltip title={currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
-              <span className="action-tooltip-wrap">
-                <Button
-                  className="action-icon-button action-secondary-button"
-                  icon={<CloseCircleOutlined />}
-                  aria-label="Сбросить фильтры таблицы"
-                  disabled={!currentTableViewActive}
-                  onClick={resetCurrentTableViewState}
-                />
-              </span>
-            </Tooltip>
-            {draftControlsVisible && (
-              <>
-                <Tag color={dirtyDraftRowCount > 0 ? 'gold' : 'default'} className="inline-draft-status-tag">
-                  Несохранено: {dirtyDraftRowCount}
-                </Tag>
-                <Button
-                  size="small"
-                  disabled={saveTargetCount === 0 || inlineDraftSaving}
-                  onClick={() => discardDraftRows(saveTargetIds)}
-                >
-                  {draftDiscardLabel}
-                </Button>
-              </>
-            )}
-            <Tooltip
-              title={
-                selectedObjectCount > 0
-                  ? `Добавить копии выбранных объектов: ${selectedObjectCount}`
-                  : 'Выберите галочками один или несколько объектов для копирования'
-              }
-            >
-              <span className="action-tooltip-wrap">
-                <Button
-                  className="action-icon-button action-secondary-button"
-                  icon={<CopyOutlined />}
-                  aria-label="Добавить копии выбранных"
-                  disabled={selectedObjectCount === 0 || add.isPending}
-                  loading={add.isPending}
-                  onClick={duplicateSelectedObjects}
-                />
-              </span>
-            </Tooltip>
-            <ImportExcelButton
-              projectId={project!.id}
-              existingObjectCount={projectObjectCount}
-            />
-            {role === 'employee' && (
-              <ExportObjectsButton
-                projectId={project!.id}
-                projectName={project!.name}
-                disabled={projectObjectCount === 0}
-              />
-            )}
-          </div>
-
-        </div>
-      </div>
+      <HeatCalcActionsToolbar
+        formActions={{
+          visible: formBlockVisible,
+          saveTooltip: toolbarSaveTooltip,
+          saveDisabled: toolbarSaveDisabled,
+          saveLoading: toolbarSaveLoading,
+          deleteTargetCount,
+          deleteLoading: remove.isPending,
+          onAdd: openAddWizard,
+          onSave: handleToolbarSave,
+          onDeleteSelected: removeSelectedObjects,
+        }}
+        tableActions={{
+          editingMode: tableEditingMode,
+          recalcTooltip: heatLossRecalcTooltip,
+          recalcAriaLabel: heatLossRecalcAriaLabel,
+          recalcLoading: heatLossBatchMut.isPending || isHeatLossJobActive,
+          recalcDisabled: heatLossScopedRecalcDisabled || heatLossBatchMut.isPending,
+          recalcAllTooltip: heatLossRecalcAllTooltip,
+          recalcAllDisabled: heatLossRecalcDisabled || heatLossBatchMut.isPending,
+          jobActive: isHeatLossJobActive,
+          jobId: activeHeatLossJobId,
+          cancelJobLoading: cancelHeatLossJobMut.isPending,
+          currentTableViewActive,
+          draftControlsVisible,
+          dirtyDraftRowCount,
+          saveTargetCount,
+          inlineDraftSaving,
+          draftDiscardLabel,
+          selectedObjectCount,
+          duplicateLoading: add.isPending,
+          onEditingModeChange: handleTableEditingModeChange,
+          onRecalcScoped: () => heatLossBatchMut.mutate(heatLossRecalcObjectIds),
+          onRecalcAll: () => heatLossBatchMut.mutate(undefined),
+          onCancelJob: () => cancelHeatLossJobMut.mutate(),
+          onOpenSettings: columnSettingsDialog.open,
+          onResetCurrentTableView: resetCurrentTableViewState,
+          onDiscardDrafts: () => discardDraftRows(saveTargetIds),
+          onDuplicateSelected: duplicateSelectedObjects,
+        }}
+        importExport={{
+          projectId: project!.id,
+          projectName: project!.name,
+          existingObjectCount: projectObjectCount,
+          canExport: role === 'employee',
+        }}
+      />
     );
   }
 
@@ -2679,78 +2366,56 @@ export default function HeatCalcPage() {
         resetSelectedRows={resetSelectedExcelRows}
       />
 
-      {columnSettingsOpen && (
+      {columnSettingsDialog.isOpen && (
         <Suspense fallback={null}>
           <ColumnSettingsModal
-            open={columnSettingsOpen}
-            activeType={columnSettingsType}
-            draftColumnSettings={draftTableColumnSettings}
-            draftViewSettings={draftTableViewSettings}
-            draftCalculationDetailsSettings={draftCalculationDetailsSettings}
-            draftFieldInputSettings={draftFieldInputSettings}
+            open={columnSettingsDialog.isOpen}
+            activeType={columnSettingsDialog.activeType}
+            draftColumnSettings={columnSettingsDialog.draftColumnSettings}
+            draftViewSettings={columnSettingsDialog.draftViewSettings}
+            draftCalculationDetailsSettings={columnSettingsDialog.draftCalculationDetailsSettings}
+            draftFieldInputSettings={columnSettingsDialog.draftFieldInputSettings}
             confirmLoading={preferenceSavePending}
-            onTypeChange={setColumnSettingsType}
-            onOk={applyColumnSettings}
-            onCancel={() => setColumnSettingsOpen(false)}
-            onSelectAllColumns={selectAllDraftColumns}
-            onResetColumns={resetDraftColumns}
-            onVisibleChange={updateDraftColumn}
-            onOrderChange={updateDraftColumnOrder}
-            onWidthChange={updateDraftColumnWidth}
-            onResetWidth={resetDraftColumnWidth}
-            onColumnReorder={reorderDraftColumn}
-            onFontSizeChange={updateDraftTableFontSize}
-            onTableLabelFormatChange={updateDraftTableLabelFormat}
-            onSettingsLabelFormatChange={updateDraftSettingsLabelFormat}
-            onFormPlacementChange={updateDraftFormPlacement}
-            onInlineEditingEnabledChange={updateDraftInlineEditingEnabled}
-            onResetFontSize={resetDraftTableFontSize}
-            onResetLabelFormats={resetDraftLabelFormats}
-            onCalculationDetailsPresetChange={updateDraftCalculationDetailsPreset}
-            onCalculationDetailMetricsChange={updateDraftCalculationDetailMetrics}
-            onResetCalculationDetails={() =>
-              setDraftCalculationDetailsSettings(getDefaultCalculationDetailsSettings())}
-            onFieldStepChange={updateDraftFieldStep}
-            onResetFieldStep={resetDraftFieldStep}
+            onTypeChange={columnSettingsDialog.setActiveType}
+            onOk={columnSettingsDialog.apply}
+            onCancel={columnSettingsDialog.close}
+            onSelectAllColumns={columnSettingsDialog.selectAllDraftColumns}
+            onResetColumns={columnSettingsDialog.resetDraftColumns}
+            onVisibleChange={columnSettingsDialog.updateDraftColumn}
+            onOrderChange={columnSettingsDialog.updateDraftColumnOrder}
+            onWidthChange={columnSettingsDialog.updateDraftColumnWidth}
+            onResetWidth={columnSettingsDialog.resetDraftColumnWidth}
+            onColumnReorder={columnSettingsDialog.reorderDraftColumn}
+            onFontSizeChange={columnSettingsDialog.updateDraftTableFontSize}
+            onTableLabelFormatChange={columnSettingsDialog.updateDraftTableLabelFormat}
+            onSettingsLabelFormatChange={columnSettingsDialog.updateDraftSettingsLabelFormat}
+            onFormPlacementChange={columnSettingsDialog.updateDraftFormPlacement}
+            onInlineEditingEnabledChange={columnSettingsDialog.updateDraftInlineEditingEnabled}
+            onResetFontSize={columnSettingsDialog.resetDraftTableFontSize}
+            onResetLabelFormats={columnSettingsDialog.resetDraftLabelFormats}
+            onCalculationDetailsPresetChange={columnSettingsDialog.updateDraftCalculationDetailsPreset}
+            onCalculationDetailMetricsChange={columnSettingsDialog.updateDraftCalculationDetailMetrics}
+            onResetCalculationDetails={columnSettingsDialog.resetDraftCalculationDetails}
+            onFieldStepChange={columnSettingsDialog.updateDraftFieldStep}
+            onResetFieldStep={columnSettingsDialog.resetDraftFieldStep}
           />
         </Suspense>
       )}
       <Modal
-        open={pendingInlineDisableSettings != null}
+        open={columnSettingsDialog.pendingInlineDisableSettings != null}
         title="Отключить редактирование ячеек?"
-        onCancel={() => {
-          setPendingInlineDisableSettings(null);
-          setDraftTableViewSettings(tableViewSettings);
-          setDraftCalculationDetailsSettings(calculationDetailsSettings);
-          setDraftFieldInputSettings(fieldInputSettings);
-        }}
+        onCancel={columnSettingsDialog.cancelPendingInlineDisable}
         footer={[
           <Button
             key="cancel"
-            onClick={() => {
-              setPendingInlineDisableSettings(null);
-              setDraftTableViewSettings(tableViewSettings);
-              setDraftCalculationDetailsSettings(calculationDetailsSettings);
-              setDraftFieldInputSettings(fieldInputSettings);
-            }}
+            onClick={columnSettingsDialog.cancelPendingInlineDisable}
           >
             Cancel
           </Button>,
           <Button
             key="discard"
             disabled={inlineDraftSaving}
-            onClick={() => {
-              const pending = pendingInlineDisableSettings;
-              if (!pending) return;
-              discardDraftRows();
-              persistTableSettings(
-                pending.columnSettings,
-                pending.viewSettings,
-                pending.calculationDetailsSettings,
-                pending.fieldInputSettings,
-              );
-              setPendingInlineDisableSettings(null);
-            }}
+            onClick={() => columnSettingsDialog.discardPendingInlineDisable(discardDraftRows)}
           >
             Discard
           </Button>,
@@ -2759,18 +2424,7 @@ export default function HeatCalcPage() {
             type="primary"
             loading={inlineDraftSaving}
             onClick={() => {
-              const pending = pendingInlineDisableSettings;
-              if (!pending) return;
-              void saveDraftRows().then((result) => {
-                if (!result.ok) return;
-                persistTableSettings(
-                  pending.columnSettings,
-                  pending.viewSettings,
-                  pending.calculationDetailsSettings,
-                  pending.fieldInputSettings,
-                );
-                setPendingInlineDisableSettings(null);
-              });
+              void columnSettingsDialog.savePendingInlineDisable(() => saveDraftRows());
             }}
           >
             Save
