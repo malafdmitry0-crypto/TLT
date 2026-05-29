@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import { HEATCALC_GUEST_TABLE_COLUMN_STORAGE_KEY } from '@/utils/heatCalcTableColumns';
+import { HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY } from '@/utils/heatCalcTableViewSettings';
 import {
   HEATCALC_PAGE_TEST_TIMEOUT,
   getNormalGlideGrid,
@@ -403,5 +404,49 @@ describe('HeatCalcPage basics', () => {
       expect(screen.getByTestId('object-name-input')).toHaveValue('');
       expect(paramsBlock()).toBeVisible();
     }, HEATCALC_PAGE_TEST_TIMEOUT);
+
+    it('при боковом размещении оставляет toolbar внутри области таблицы', async () => {
+      localStorage.setItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY, JSON.stringify({
+        version: 1,
+        fontSize: 'standard',
+        tableLabelFormat: 'short',
+        settingsLabelFormat: 'full',
+        inlineEditingEnabled: false,
+        formPlacement: 'right',
+        sideFormWidthPct: 34,
+        formSectionWeights: [1.655, 1.35, 1.2],
+      }));
+      useProjectStore.getState().setCurrentProject(mockProject);
+      renderPage();
+
+      const layout = document.querySelector<HTMLElement>('.heatcalc-workspace-layout--right');
+      const tablePane = document.querySelector<HTMLElement>('.heatcalc-workspace-layout--right .heatcalc-table-pane');
+      const paramsBlock = screen.getByLabelText('Блок заполнения параметров');
+      const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+      const formActionsToolbar = screen.getByRole('toolbar', { name: 'Действия блока заполнения' });
+      const tableActionsToolbar = screen.getByRole('toolbar', { name: 'Действия таблицы объектов' });
+
+      expect(layout).toBeInTheDocument();
+      expect(tablePane).toBeInTheDocument();
+      expect(tablePane).toContainElement(typeToolbar);
+      expect(tablePane).toContainElement(formActionsToolbar);
+      expect(tablePane).toContainElement(tableActionsToolbar);
+      expect(document.querySelectorAll('[role="toolbar"][aria-label="Тип объекта и блок параметров"]')).toHaveLength(1);
+      expect(document.querySelectorAll('[role="toolbar"][aria-label="Действия блока заполнения"]')).toHaveLength(1);
+      expect(document.querySelectorAll('[role="toolbar"][aria-label="Действия таблицы объектов"]')).toHaveLength(1);
+      expect(tablePane).not.toContainElement(paramsBlock);
+      expect(layout).toContainElement(paramsBlock);
+      expect(typeToolbar.compareDocumentPosition(formActionsToolbar) & Node.DOCUMENT_POSITION_FOLLOWING)
+        .toBeTruthy();
+      expect(formActionsToolbar.compareDocumentPosition(tableActionsToolbar) & Node.DOCUMENT_POSITION_FOLLOWING)
+        .toBeTruthy();
+      expect(tablePane!.compareDocumentPosition(paramsBlock) & Node.DOCUMENT_POSITION_FOLLOWING)
+        .toBeTruthy();
+      expect(within(typeToolbar).getByRole('checkbox', { name: 'Показать блок заполнения параметров' }))
+        .toBeChecked();
+      expect(within(formActionsToolbar).getByRole('button', { name: 'Добавить' })).toBeVisible();
+      expect(within(tableActionsToolbar).getByRole('button', { name: 'Настройки отображения' })).toBeVisible();
+      expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+    });
   });
 });
