@@ -44,7 +44,6 @@ import {
 } from '@/pages/heatcalc/HeatCalcToolbar';
 import {
   useHeatCalcTableState,
-  type ActiveObjectScope,
 } from '@/pages/heatcalc/useHeatCalcTableState';
 import { useHeatCalcColumnSettingsDialog } from '@/pages/heatcalc/useHeatCalcColumnSettingsDialog';
 import { useHeatCalcInlineDraftModel } from '@/pages/heatcalc/useHeatCalcInlineDraftModel';
@@ -71,6 +70,7 @@ import {
   useHeatCalcObjectsDataModel,
 } from '@/pages/heatcalc/useHeatCalcObjectsDataModel';
 import { useHeatCalcPageEffectsModel } from '@/pages/heatcalc/useHeatCalcPageEffectsModel';
+import { useHeatCalcRouteActionsModel } from '@/pages/heatcalc/useHeatCalcRouteActionsModel';
 
 const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSettingsModal'));
 
@@ -364,25 +364,6 @@ export default function HeatCalcPage() {
     onDirtyEditBlocked: setPendingWizardObject,
   });
 
-  function handleObjectScopeChange(scope: ActiveObjectScope) {
-    selectObjectScope(scope);
-    if (scope === 'all') return;
-    if (formBlockVisible) {
-      resetNewWizard(scope);
-      return;
-    }
-    clearWizard();
-  }
-
-  function handleFormBlockVisibilityChange(checked: boolean) {
-    setFormBlockVisible(checked);
-    if (checked) {
-      resetNewWizard(wizardState?.type ?? activeTableObjectType);
-      return;
-    }
-    clearWizard();
-  }
-
   const {
     wizardBaseObject,
     wizardFormObject,
@@ -442,18 +423,6 @@ export default function HeatCalcPage() {
     removeObject: remove.mutate,
     notifySuccess: notifyBulkActionSuccess,
   });
-  const typeButtonCountText = useCallback((
-    scope: ActiveObjectScope,
-    total: number,
-  ) => {
-    if (activeObjectScope !== scope) return String(total);
-    if (selectedObjectCount > 0) return `${selectedObjectCount}/${total}`;
-    if (currentTableViewActive) return `${filteredTableCount}/${activeTypeTotalCount}`;
-    return String(total);
-  }, [activeObjectScope, activeTypeTotalCount, currentTableViewActive, filteredTableCount, selectedObjectCount]);
-  const pipeButtonCountText = typeButtonCountText('pipe', pipeCount);
-  const tankButtonCountText = typeButtonCountText('tank', tankCount);
-  const allButtonCountText = typeButtonCountText('all', projectObjectCount);
   const inlineEditingEnabled = normalizedTableView.inlineEditingEnabled;
   const tableCellEditingEnabled = inlineEditingEnabled || excelModeEnabled;
   const isSavableDraftRow = isSavableExcelDraftRow;
@@ -626,6 +595,40 @@ export default function HeatCalcPage() {
     notifyInfo: antdMessage.info,
   });
 
+  const {
+    allButtonCountText,
+    handleFormBlockVisibilityChange,
+    handleObjectScopeChange,
+    handleTableEditingModeChange,
+    handleToolbarSave,
+    pipeButtonCountText,
+    tankButtonCountText,
+  } = useHeatCalcRouteActionsModel({
+    activeObjectScope,
+    activeTableObjectType,
+    activeTypeTotalCount,
+    allCount: projectObjectCount,
+    clearExcelSelectionState,
+    clearSelectedRows,
+    clearWizard,
+    closeExcelContextMenu,
+    currentTableViewActive,
+    filteredTableCount,
+    formBlockVisible,
+    pipeCount,
+    resetNewWizard,
+    saveDraftRows,
+    saveTargetCount,
+    saveTargetIds,
+    selectedObjectCount,
+    selectObjectScope,
+    setFormBlockVisible,
+    setTableEditingMode,
+    tankCount,
+    wizardStateType: wizardState?.type,
+    notifyInfo: antdMessage.info,
+  });
+
   const { tableColumns, tableScrollX, tableScrollY } = useHeatCalcTableColumns({
     activeTableColumnScope,
     activeTableObjectType,
@@ -667,26 +670,6 @@ export default function HeatCalcPage() {
     visibleTableObjectsLength: visibleTableObjects.length,
     visibleTableRows,
   });
-
-  function handleTableEditingModeChange(value: string | number) {
-    const nextMode: TableEditingMode = value === 'excel' ? 'excel' : 'normal';
-    if (nextMode === 'excel' && isAllObjectScope) {
-      selectObjectScope('pipe');
-      antdMessage.info('Excel-режим включён для таблицы трубопроводов');
-    }
-    setTableEditingMode(nextMode);
-    if (nextMode === 'excel') clearSelectedRows();
-    clearExcelSelectionState();
-    closeExcelContextMenu();
-  }
-
-  function handleToolbarSave() {
-    if (saveTargetCount > 0) {
-      void saveDraftRows(saveTargetIds);
-      return;
-    }
-    document.getElementById('inline-object-save')?.click();
-  }
 
   function renderTypeBar() {
     return (
