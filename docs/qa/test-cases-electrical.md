@@ -67,6 +67,19 @@
 
 ---
 
+## TC-ELEC-01B: MVP feature flag ограничивает выбор кабеля ТЛТ
+
+**Автоматизировано:** ✅ (integration) `ElecCalcPage.test.tsx::при выключенных commercial features оставляет только саморегулирующийся ТЛТ`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Открыть SC-04 при `VITE_COMMERCIAL_FEATURES_ENABLED=false` | В выборе типа доступен только `self_regulating` / саморегулирующийся ТЛТ |
+| 2 | Запустить пересчёт всех объектов | Frontend отправляет `cable_type=self_regulating`, `cable_source=builtin` |
+| 3 | Проверить загрузку справочников | Справочники ТТН/ТТВ/ТТХ и резистивных кабелей не запрашиваются |
+| 4 | Включить `VITE_COMMERCIAL_FEATURES_ENABLED=true` | Расширенные типы `self_regulating_tt`, `single_core`, `three_core` снова доступны в UI |
+
+---
+
 ## TC-ELEC-02: Автоматический подбор кабеля
 
 **Автоматизировано:** ✅ (unit) `test_self_regulating.py::TestSelfRegulating::test_auto_selection_when_mark_missing`

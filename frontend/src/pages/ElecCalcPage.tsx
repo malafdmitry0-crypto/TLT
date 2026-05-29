@@ -88,6 +88,7 @@ import {
   type CalculationVariant,
 } from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
+import { areCommercialFeaturesEnabled } from '@/config/featureFlags';
 import { useElectricalStats } from '@/hooks/useElectricalStats';
 import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
 import {
@@ -246,12 +247,14 @@ const CABLE_TYPE_LABEL: Record<CableTypeKey, string> = {
   skin: 'Скин-система',
 };
 
-const ENABLED_CABLE_TYPES: ReadonlySet<CableTypeKey> = new Set([
+const DEFAULT_CABLE_TYPE: CableTypeKey = 'self_regulating';
+const MVP_CABLE_TYPES: readonly CableTypeKey[] = [DEFAULT_CABLE_TYPE];
+const FULL_FEATURE_CABLE_TYPES: readonly CableTypeKey[] = [
   'self_regulating',
   'self_regulating_tt',
   'single_core',
   'three_core',
-]);
+];
 const SHOW_COMMERCIAL_CABLE_BASE_UI = false;
 const SELECTION_POLICY_LABEL: Record<SelectionPolicy, string> = {
   technical_minimum: 'Технический',
@@ -1249,6 +1252,20 @@ export default function ElecCalcPage() {
   const registeredUserId = useAuthStore((s) => s.user?.id ?? null);
   const isEmployee = role === 'employee' || role === 'admin';
   const isRegisteredUser = isEmployee;
+  const commercialFeaturesAvailable = areCommercialFeaturesEnabled();
+  const availableCableTypeKeys = useMemo(
+    () => commercialFeaturesAvailable ? FULL_FEATURE_CABLE_TYPES : MVP_CABLE_TYPES,
+    [commercialFeaturesAvailable],
+  );
+  const availableCableTypes = useMemo(
+    () => new Set<CableTypeKey>(availableCableTypeKeys),
+    [availableCableTypeKeys],
+  );
+  const normalizeAvailableCableType = useCallback(
+    (type: CableTypeKey | null | undefined): CableTypeKey =>
+      type && availableCableTypes.has(type) ? type : DEFAULT_CABLE_TYPE,
+    [availableCableTypes],
+  );
   const location = useLocation();
   const electricalTableEngine = useMemo(
     () => resolveElectricalTableEngine({ search: location.search }),
@@ -1279,7 +1296,7 @@ export default function ElecCalcPage() {
 
   const [selectionPolicy, setSelectionPolicy] = useState<SelectionPolicy>('technical_minimum');
   const [defaultCableType, setDefaultCableType] =
-    useState<CableTypeKey>('self_regulating');
+    useState<CableTypeKey>(DEFAULT_CABLE_TYPE);
   const [cableTypeDraftByObjectId, setCableTypeDraftByObjectId] =
     useState<Record<string, CableTypeKey>>({});
   const [supplyVoltage, setSupplyVoltage] = useState<number | null>(220);
@@ -1300,7 +1317,7 @@ export default function ElecCalcPage() {
     useState<CalculationVariant[]>([]);
   const [cableSizingModalObjectId, setCableSizingModalObjectId] = useState<string | null>(null);
   const [cableSizingMode, setCableSizingMode] = useState<'auto' | 'manual'>('auto');
-  const [cableSizingCableType, setCableSizingCableType] = useState<CableTypeKey>('self_regulating');
+  const [cableSizingCableType, setCableSizingCableType] = useState<CableTypeKey>(DEFAULT_CABLE_TYPE);
   const [cableSizingManualMark, setCableSizingManualMark] = useState<string | null>(null);
   const [markedCableSizingCandidateIds, setMarkedCableSizingCandidateIds] = useState<string[]>([]);
   const [activeCandidateFolderKey, setActiveCandidateFolderKey] =
@@ -1343,6 +1360,7 @@ export default function ElecCalcPage() {
   const cableSource: CableSource = isEmployee
     ? tableViewSettings.calculationCableSource
     : 'builtin';
+  const effectiveSource: CableSource = commercialFeaturesAvailable ? cableSource : 'builtin';
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [candidateColumnSettingsOpen, setCandidateColumnSettingsOpen] = useState(false);
   const [draftTableColumnSettings, setDraftTableColumnSettings] =
@@ -1380,6 +1398,25 @@ export default function ElecCalcPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    setDefaultCableType((current) => normalizeAvailableCableType(current));
+    setCableSizingCableType((current) => normalizeAvailableCableType(current));
+    setCableMarkModalCableType((current) =>
+      current == null ? null : normalizeAvailableCableType(current));
+    setCableTypeDraftByObjectId((current) => {
+      let changed = false;
+      const next: Record<string, CableTypeKey> = {};
+      for (const [objectId, cableType] of Object.entries(current)) {
+        if (!availableCableTypes.has(cableType)) {
+          changed = true;
+          continue;
+        }
+        next[objectId] = cableType;
+      }
+      return changed ? next : current;
+    });
+  }, [availableCableTypes, normalizeAvailableCableType]);
+
+  useEffect(() => {
     tableColumnSettingsRef.current = tableColumnSettings;
   }, [tableColumnSettings]);
 
@@ -1406,7 +1443,7 @@ export default function ElecCalcPage() {
   useEffect(() => {
     setElectricalPageCursors({ 1: null });
     setElectricalInfinitePages({});
-  }, [cableSource, project?.id, variant, tablePageSize, tableViewState]);
+  }, [effectiveSource, project?.id, variant, tablePageSize, tableViewState]);
 
   useEffect(() => {
     setSelectedRowKeys([]);
@@ -1572,13 +1609,13 @@ export default function ElecCalcPage() {
   }, [stats.calcByObjectId]);
   const getSavedCableTypeForObject = useCallback(
     (objectId: string): CableTypeKey =>
-      getCalculatedCableTypeForObject(objectId) ?? 'self_regulating',
-    [getCalculatedCableTypeForObject],
+      normalizeAvailableCableType(getCalculatedCableTypeForObject(objectId) ?? DEFAULT_CABLE_TYPE),
+    [getCalculatedCableTypeForObject, normalizeAvailableCableType],
   );
 
   const getDraftCableTypeForObject = useCallback((objectId: string): CableTypeKey =>
-    cableTypeDraftByObjectId[objectId] ?? getSavedCableTypeForObject(objectId),
-  [cableTypeDraftByObjectId, getSavedCableTypeForObject]);
+    normalizeAvailableCableType(cableTypeDraftByObjectId[objectId] ?? getSavedCableTypeForObject(objectId)),
+  [cableTypeDraftByObjectId, getSavedCableTypeForObject, normalizeAvailableCableType]);
 
   const selectedCableTypes = useMemo(
     () => selectedRowKeys.map((objectId) => getDraftCableTypeForObject(objectId)),
@@ -1599,15 +1636,16 @@ export default function ElecCalcPage() {
     objectIds
       .map((objectId) => {
         const draftType = cableTypeDraftByObjectId[objectId];
+        const cableType = normalizeAvailableCableType(draftType);
         return draftType
           ? {
               object_id: objectId,
-              cable_type: draftType,
+              cable_type: cableType,
             }
           : null;
       })
       .filter((item): item is { object_id: string; cable_type: CableTypeKey } => item != null),
-  [cableTypeDraftByObjectId]);
+  [cableTypeDraftByObjectId, normalizeAvailableCableType]);
 
   useEffect(() => {
     const visibleIds = new Set(objects.map((object) => object.id));
@@ -1630,7 +1668,6 @@ export default function ElecCalcPage() {
     refetchIntervalInBackground: true,
   });
 
-  const effectiveSource: CableSource = cableSource;
   const { data: cables = [] } = useQuery({
     queryKey: referenceQueryKeys.cables(effectiveSource, 'self_regulating'),
     queryFn: () => listCables(effectiveSource, 'self_regulating'),
@@ -1644,23 +1681,24 @@ export default function ElecCalcPage() {
   const { data: ttCables = [] } = useQuery({
     queryKey: referenceQueryKeys.ttCables,
     queryFn: getCablesTt,
-    enabled: !!project,
+    enabled: !!project && commercialFeaturesAvailable,
     ...referenceQueryOptions,
   });
   const { data: resistiveCables } = useQuery({
     queryKey: referenceQueryKeys.resistiveCables(effectiveSource),
     queryFn: () => getResistiveCables(effectiveSource),
-    enabled: !!project,
+    enabled: !!project && commercialFeaturesAvailable,
     ...referenceQueryOptions,
   });
   const { data: builtinResistiveCables } = useQuery({
     queryKey: referenceQueryKeys.resistiveCables('builtin'),
     queryFn: () => getResistiveCables('builtin'),
-    enabled: !!project,
+    enabled: !!project && commercialFeaturesAvailable,
     ...referenceQueryOptions,
   });
 
   const cableRowsForType = useCallback((type: CableTypeKey): CableStatusRow[] => {
+    if (!availableCableTypes.has(type)) return [];
     if (type === 'self_regulating') {
       return visibleCableRowsForSource(cables, builtinCables, effectiveSource);
     }
@@ -1681,6 +1719,7 @@ export default function ElecCalcPage() {
     }
     return [];
   }, [
+    availableCableTypes,
     builtinCables,
     builtinResistiveCables,
     cables,
@@ -1899,12 +1938,13 @@ export default function ElecCalcPage() {
       const fallbackCableType = scope === 'selected'
         ? selectedCableType ?? defaultCableType
         : cableTypeForRecalculation;
-      const selectionMode = isResistiveCableType(fallbackCableType) ? 'auto' : undefined;
+      const effectiveCableType = normalizeAvailableCableType(fallbackCableType);
+      const selectionMode = isResistiveCableType(effectiveCableType) ? 'auto' : undefined;
       return enqueueElectricalBatchJob(
         project!.id,
         effectiveSource,
         variant,
-        fallbackCableType,
+        effectiveCableType,
         {
           supplyVoltage,
           selectionMode,
@@ -2108,6 +2148,7 @@ export default function ElecCalcPage() {
     [builtinCables, cableMarkOption, cables, effectiveSource],
   );
   const manualCableOptionsForType = useCallback((type: CableTypeKey): CableMarkSelectOption[] => {
+    if (!availableCableTypes.has(type)) return [];
     if (type === 'self_regulating') return cableOptions;
     if (type === 'self_regulating_tt') {
       const suffix = aggressiveProduct ? 'СТ' : 'СР';
@@ -2167,6 +2208,7 @@ export default function ElecCalcPage() {
     return [];
   }, [
     aggressiveProduct,
+    availableCableTypes,
     builtinResistiveCables,
     cableMarkOption,
     cableOptions,
@@ -2201,13 +2243,14 @@ export default function ElecCalcPage() {
       ...manualOptions,
     ];
   }, [autoCableMarkOption, cableMarkOption, effectiveSource, manualCableOptionsForType]);
+  const cableSizingEffectiveCableType = normalizeAvailableCableType(cableSizingCableType);
   const cableSizingManualOptions = useMemo(
-    () => manualCableOptionsForType(cableSizingCableType),
-    [cableSizingCableType, manualCableOptionsForType],
+    () => manualCableOptionsForType(cableSizingEffectiveCableType),
+    [cableSizingEffectiveCableType, manualCableOptionsForType],
   );
   const cableSizingCandidateParams = useMemo(() => ({
     supply_voltage: supplyVoltage,
-    selection_mode: isResistiveCableType(cableSizingCableType) ? 'auto' : undefined,
+    selection_mode: isResistiveCableType(cableSizingEffectiveCableType) ? 'auto' : undefined,
     selection_policy: selectionPolicy,
     connection_type: connectionType,
     winding_coefficient: windingCoefficient,
@@ -2218,7 +2261,7 @@ export default function ElecCalcPage() {
     aggressive_product: aggressiveProduct,
   }), [
     aggressiveProduct,
-    cableSizingCableType,
+    cableSizingEffectiveCableType,
     connectionType,
     heatingHeight,
     layingStep,
@@ -2301,7 +2344,7 @@ export default function ElecCalcPage() {
         project_id: project!.id,
         object_id: cableSizingModalObjectId!,
         variant_number: variant,
-        cable_type: cableSizingCableType,
+        cable_type: cableSizingEffectiveCableType,
         cable_source: effectiveSource,
         mode,
         cable_mark: mode === 'manual' ? mark ?? null : null,
@@ -2423,15 +2466,16 @@ export default function ElecCalcPage() {
       targetVariants: CalculationVariant[];
     }) => {
       const variantsToUpdate = targetVariants.length > 0 ? targetVariants : [variant];
+      const effectiveCableType = normalizeAvailableCableType(cableType);
       return selectCableForVariants(
         objectId,
         mark,
         cableSource ?? effectiveSource,
         variantsToUpdate,
-        cableType,
+        effectiveCableType,
         {
           supplyVoltage,
-          selectionMode: isResistiveCableType(cableType) ? 'auto' : undefined,
+          selectionMode: isResistiveCableType(effectiveCableType) ? 'auto' : undefined,
           selectionPolicy,
           connectionType,
           windingCoefficient,
@@ -2464,15 +2508,16 @@ export default function ElecCalcPage() {
       targetVariants: CalculationVariant[];
     }) => {
       const variantsToUpdate = targetVariants.length > 0 ? targetVariants : [variant];
+      const effectiveCableType = normalizeAvailableCableType(cableType);
       return selectCableForVariants(
         objectId,
         null,
         effectiveSource,
         variantsToUpdate,
-        cableType,
+        effectiveCableType,
         {
           supplyVoltage,
-          selectionMode: isResistiveCableType(cableType) ? 'auto' : undefined,
+          selectionMode: isResistiveCableType(effectiveCableType) ? 'auto' : undefined,
           selectionPolicy,
           connectionType,
           windingCoefficient,
@@ -2602,16 +2647,16 @@ export default function ElecCalcPage() {
     findCableRowForMark,
   ]);
   const cableSizingModalSelectedCable = useMemo<CableStatusRow | null>(() => (
-    cableSizingCableType
+    cableSizingEffectiveCableType
       ? findCableRowForMark(
-          cableSizingCableType,
+          cableSizingEffectiveCableType,
           cableSizingManualMark ?? getCableMark(cableSizingModalCalc),
           cableSizingModalCalc,
           catalogSourceFromSnapshot(cableSizingModalCalc),
         )
       : null
   ), [
-    cableSizingCableType,
+    cableSizingEffectiveCableType,
     cableSizingManualMark,
     cableSizingModalCalc,
     findCableRowForMark,
@@ -2669,10 +2714,10 @@ export default function ElecCalcPage() {
     setCableSizingModalObjectId(obj.id);
   }, [getSavedCableTypeForObject, stats.calcByObjectId]);
   const changeCableMarkModalCableType = useCallback((nextType: CableTypeKey) => {
-    setCableMarkModalCableType(nextType);
+    setCableMarkModalCableType(normalizeAvailableCableType(nextType));
     setCableMarkModalValue(AUTO_CABLE_MARK_VALUE);
     setConnectionType('line_1ph');
-  }, []);
+  }, [normalizeAvailableCableType]);
   const applyCableMarkModal = useCallback(() => {
     if (!cableMarkModalObject || !cableMarkModalCableType) return;
     const targetVariants = cableMarkModalTargetVariants.length > 0
@@ -4403,12 +4448,11 @@ export default function ElecCalcPage() {
     );
   }
 
-  const cableTypeOptions = (Object.keys(CABLE_TYPE_LABEL) as CableTypeKey[]).map((k) => ({
-    label: ENABLED_CABLE_TYPES.has(k)
+  const cableTypeOptions = availableCableTypeKeys.map((k) => ({
+    label: commercialFeaturesAvailable
       ? CABLE_TYPE_LABEL[k]
-      : <Tooltip title="Нет формулы/каталога в текущей поставке">{CABLE_TYPE_LABEL[k]}</Tooltip>,
+      : <Tooltip title="Расширенные типы кабеля закрыты feature flag">{CABLE_TYPE_LABEL[k]}</Tooltip>,
     value: k,
-    disabled: !ENABLED_CABLE_TYPES.has(k),
   }));
   const cableSourceOptions: Array<{ label: string; value: ElectricalCalculationCableSource }> = [
     { label: 'Встроенная', value: 'builtin' },
@@ -4542,18 +4586,22 @@ export default function ElecCalcPage() {
         className="table-view-settings-panel electrical-recalculation-settings-panel"
         aria-label="Настройки пересчёта"
       >
-        <Tooltip title="Используется только при новом пересчёте или новом ручном выборе. Уже рассчитанные строки хранят снимок кабеля в проекте.">
-          <Text className="table-view-settings-label">
-            База для пересчёта:
-          </Text>
-        </Tooltip>
-        <Segmented<ElectricalCalculationCableSource>
-          aria-label="База для пересчёта"
-          size="small"
-          value={isEmployee ? draftTableViewSettings.calculationCableSource : 'builtin'}
-          onChange={updateDraftCalculationCableSource}
-          options={cableSourceOptions}
-        />
+        {commercialFeaturesAvailable && (
+          <>
+            <Tooltip title="Используется только при новом пересчёте или новом ручном выборе. Уже рассчитанные строки хранят снимок кабеля в проекте.">
+              <Text className="table-view-settings-label">
+                База для пересчёта:
+              </Text>
+            </Tooltip>
+            <Segmented<ElectricalCalculationCableSource>
+              aria-label="База для пересчёта"
+              size="small"
+              value={isEmployee ? draftTableViewSettings.calculationCableSource : 'builtin'}
+              onChange={updateDraftCalculationCableSource}
+              options={cableSourceOptions}
+            />
+          </>
+        )}
         {SHOW_COMMERCIAL_CABLE_BASE_UI && (
           <>
             <Tag color={commercialDataStatus.color} style={{ marginInlineEnd: 0 }}>
@@ -5054,18 +5102,19 @@ export default function ElecCalcPage() {
               size="small"
               value={visibleCableTypeControl ?? undefined}
               placeholder="Несколько типов"
-              disabled={isJobActive}
+              disabled={isJobActive || !commercialFeaturesAvailable}
               onChange={(next) => {
+                const nextType = normalizeAvailableCableType(next);
                 if (selectedRowKeys.length === 0) {
-                  setDefaultCableType(next);
+                  setDefaultCableType(nextType);
                 } else {
                   setCableTypeDraftByObjectId((prev) => {
                     const nextDrafts = { ...prev };
                     for (const objectId of selectedRowKeys) {
-                      if (next === getSavedCableTypeForObject(objectId)) {
+                      if (nextType === getSavedCableTypeForObject(objectId)) {
                         delete nextDrafts[objectId];
                       } else {
-                        nextDrafts[objectId] = next;
+                        nextDrafts[objectId] = nextType;
                       }
                     }
                     return nextDrafts;
@@ -5371,7 +5420,7 @@ export default function ElecCalcPage() {
                 aria-label="Тип кабеля для выбора марки"
                 size="small"
                 value={cableMarkModalCableType}
-                disabled={isCableMarkPending}
+                disabled={isCableMarkPending || !commercialFeaturesAvailable}
                 onChange={changeCableMarkModalCableType}
                 options={cableTypeOptions}
                 style={{ width: '100%', marginTop: 4 }}
@@ -5427,7 +5476,7 @@ export default function ElecCalcPage() {
             <CablePickerCharacteristics
               object={cableSizingModalObject}
               cable={cableSizingModalSelectedCable}
-              cableType={cableSizingCableType}
+              cableType={cableSizingEffectiveCableType}
               showCable={false}
               objectColumnCount={4}
             />
@@ -5446,9 +5495,10 @@ export default function ElecCalcPage() {
             <Select<CableTypeKey>
               aria-label="Тип кабеля для подбора"
               size="small"
-              value={cableSizingCableType}
+              value={cableSizingEffectiveCableType}
+              disabled={!commercialFeaturesAvailable}
               onChange={(nextType) => {
-                setCableSizingCableType(nextType);
+                setCableSizingCableType(normalizeAvailableCableType(nextType));
                 setCableSizingManualMark(null);
                 setConnectionType('line_1ph');
               }}
@@ -5506,7 +5556,7 @@ export default function ElecCalcPage() {
               Сбросить фильтры
             </Button>
           </div>
-          {renderElectricalTypeControls(cableSizingCableType, { block: true })}
+          {renderElectricalTypeControls(cableSizingEffectiveCableType, { block: true })}
           {renderSelectedCableSummary()}
           {renderCandidateFolderTabs()}
           {renderCandidateCompareBar()}

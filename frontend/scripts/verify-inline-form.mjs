@@ -326,6 +326,13 @@ try {
   }
 
   if ((await page.locator('.inline-object-form').count()) === 0) {
+    const typeToolbar = page.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
+    if ((await typeToolbar.count()) === 0) {
+      await seedGuestWorkspace(page);
+    }
+  }
+
+  if ((await page.locator('.inline-object-form').count()) === 0) {
     if (mode === 'tank') {
       await selectObjectType(page, 'Резервуар');
     } else {
@@ -511,7 +518,7 @@ try {
     });
 
     const compactSpacingReport = sections.flatMap((section, sectionIndex) => {
-      if (sectionIndex !== 0) return [];
+      if (!section.classList.contains('form-col-srs--primary')) return [];
       const sectionRect = section.getBoundingClientRect();
       const rows = new Map();
       Array.from(

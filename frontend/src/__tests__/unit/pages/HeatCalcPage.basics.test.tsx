@@ -102,7 +102,11 @@ describe('HeatCalcPage basics', () => {
 
       const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
       expect(await screen.findByText('Геометрия трубы')).toBeInTheDocument();
+      expect(screen.getByText('алгоритм выбора кабеля')).toBeInTheDocument();
       expect(screen.queryByText('Электропараметры и арматура')).not.toBeInTheDocument();
+      expect([...document.querySelectorAll('.inline-object-form > .heatcalc-cable-algorithm-section > h4, .form-grid-srs .form-col-srs > h4')].map((title) =>
+        title.textContent?.replace(/\s+/g, ' ').trim(),
+      )).toEqual(['алгоритм выбора кабеля', 'Геометрия трубы', 'Теплоизоляция', 'Температура и среда']);
       expect([...document.querySelectorAll('.form-grid-srs .form-col-srs > h4')].map((title) =>
         title.textContent?.replace(/\s+/g, ' ').trim(),
       )).toEqual(['Геометрия трубы', 'Теплоизоляция', 'Температура и среда']);
@@ -128,8 +132,12 @@ describe('HeatCalcPage basics', () => {
       expect(screen.queryByText('L, м')).not.toBeInTheDocument();
       expect(screen.queryByText('Зад.')).not.toBeInTheDocument();
       expect(document.body.textContent).toMatch(/3\s*000.*2\s*000.*1\s*500 мм/);
+      expect(screen.getByText('алгоритм выбора кабеля')).toBeInTheDocument();
       expect(screen.getByText('Форма и геометрия резервуара')).toBeInTheDocument();
       expect(screen.queryByText('Электропараметры и арматура')).not.toBeInTheDocument();
+      expect([...document.querySelectorAll('.inline-object-form > .heatcalc-cable-algorithm-section > h4, .form-grid-srs .form-col-srs > h4')].map((title) =>
+        title.textContent?.replace(/\s+/g, ' ').trim(),
+      )).toEqual(['алгоритм выбора кабеля', 'Форма и геометрия резервуара', 'Теплоизоляция', 'Температура и среда']);
       expect([...document.querySelectorAll('.form-grid-srs .form-col-srs > h4')].map((title) =>
         title.textContent?.replace(/\s+/g, ' ').trim(),
       )).toEqual(['Форма и геометрия резервуара', 'Теплоизоляция', 'Температура и среда']);

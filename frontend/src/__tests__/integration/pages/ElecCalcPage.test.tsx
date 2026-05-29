@@ -316,6 +316,8 @@ async function openElectricalTableSettingsOtherTab(
 describe('ElecCalcPage (integration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    vi.stubEnv('VITE_COMMERCIAL_FEATURES_ENABLED', 'true');
     electricalGlideGridMock.props = null;
     localStorage.clear();
     // These integration cases exercise the AntD fallback DOM. Default Glide
@@ -833,6 +835,56 @@ describe('ElecCalcPage (integration)', () => {
       source_variant_number: 1,
       target_variant_number: 2,
       overwrite: true,
+    });
+  });
+
+  it('при выключенных commercial features оставляет только саморегулирующийся ТЛТ', async () => {
+    vi.stubEnv('VITE_COMMERCIAL_FEATURES_ENABLED', 'false');
+    const { enqueueElectricalBatchJob, getElectricalPage } = await import('@/api/calculations');
+    const { getCablesTt, getResistiveCables } = await import('@/api/references');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
+    (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'task-1',
+      type: 'electrical_batch',
+      status: 'enqueued',
+      project_id: 'p-1',
+      progress: { current: 0, total: null, phase: 'enqueued', percent: null },
+      result: null,
+      error_message: null,
+      cancel_requested: false,
+      created_at: '2026-01-01T00:00:00Z',
+      started_at: null,
+      finished_at: null,
+      links: { status: '', result: '', cancel: '' },
+    });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Тип для пересчёта/i)).toBeInTheDocument();
+      expect(screen.getByText('Труба-1')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('ТТН/ТТВ/ТТХ')).not.toBeInTheDocument();
+    expect(getCablesTt).not.toHaveBeenCalled();
+    expect(getResistiveCables).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /Пересчитать все СО1/i }));
+    await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));
+
+    await waitFor(() => {
+      expect(enqueueElectricalBatchJob).toHaveBeenCalledWith(
+        'p-1',
+        'builtin',
+        1,
+        'self_regulating',
+        expect.objectContaining({
+          forceCableType: true,
+          objectOverrides: undefined,
+          selectionMode: undefined,
+          skipManual: true,
+        }),
+      );
     });
   });
 
