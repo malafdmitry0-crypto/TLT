@@ -11,10 +11,7 @@ import {
 } from 'react';
 import {
   Alert,
-  Button,
-  Modal,
   Space,
-  Typography,
   message as antdMessage,
   type TableProps,
 } from 'antd';
@@ -111,12 +108,11 @@ import HeatCalcAssumptionsPanel from '@/pages/heatcalc/HeatCalcAssumptionsPanel'
 import HeatCalcSelectedRowErrorsOverlay from '@/pages/heatcalc/HeatCalcSelectedRowErrorsOverlay';
 import { useHeatCalcResizeModel } from '@/pages/heatcalc/useHeatCalcResizeModel';
 import { useHeatCalcDraftSaveModel } from '@/pages/heatcalc/useHeatCalcDraftSaveModel';
+import HeatCalcUnsavedChangesModals from '@/pages/heatcalc/HeatCalcUnsavedChangesModals';
 
 const loadObjectWizard = () => import('@/components/wizard/ObjectWizard');
 const ObjectWizard = lazy(loadObjectWizard);
 const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSettingsModal'));
-
-const { Text } = Typography;
 
 function scrollTableRowIntoView(objectId: string) {
   const run = () => {
@@ -1511,88 +1507,18 @@ export default function HeatCalcPage() {
           />
         </Suspense>
       )}
-      <Modal
-        open={columnSettingsDialog.pendingInlineDisableSettings != null}
-        title="Отключить редактирование ячеек?"
-        onCancel={columnSettingsDialog.cancelPendingInlineDisable}
-        footer={[
-          <Button
-            key="cancel"
-            onClick={columnSettingsDialog.cancelPendingInlineDisable}
-          >
-            Cancel
-          </Button>,
-          <Button
-            key="discard"
-            disabled={inlineDraftSaving}
-            onClick={() => columnSettingsDialog.discardPendingInlineDisable(discardDraftRows)}
-          >
-            Discard
-          </Button>,
-          <Button
-            key="save"
-            type="primary"
-            loading={inlineDraftSaving}
-            onClick={() => {
-              void columnSettingsDialog.savePendingInlineDisable(() => saveDraftRows());
-            }}
-          >
-            Save
-          </Button>,
-        ]}
-      >
-        <Text>
-          Есть несохранённые изменения в строках. Сохраните или сбросьте их перед отключением режима.
-        </Text>
-      </Modal>
-      <Modal
-        open={pendingWizardObject != null}
-        title="Открыть форму объекта?"
-        onCancel={() => setPendingWizardObject(null)}
-        footer={[
-          <Button key="cancel" onClick={() => setPendingWizardObject(null)}>
-            Cancel
-          </Button>,
-          <Button
-            key="discard"
-            disabled={inlineDraftSaving}
-            onClick={() => {
-              const target = pendingWizardObject;
-              if (!target) return;
-              const objectType = target.object_type;
-              if (objectType !== 'pipe' && objectType !== 'tank') return;
-              discardDraftRows([target.id]);
-              setPendingWizardObject(null);
-              forceOpenEditWizard(target);
-            }}
-          >
-            Discard
-          </Button>,
-          <Button
-            key="save"
-            type="primary"
-            loading={inlineDraftSaving}
-            onClick={() => {
-              const target = pendingWizardObject;
-              if (!target) return;
-              const objectType = target.object_type;
-              if (objectType !== 'pipe' && objectType !== 'tank') return;
-              void saveDraftRows([target.id]).then((result) => {
-                if (!result.ok) return;
-                const savedObject = result.saved.find((item) => item.id === target.id) ?? target;
-                setPendingWizardObject(null);
-                forceOpenEditWizard(savedObject);
-              });
-            }}
-          >
-            Save
-          </Button>,
-        ]}
-      >
-        <Text>
-          В строке есть несохранённые изменения. Сохраните их, сбросьте или отмените открытие формы.
-        </Text>
-      </Modal>
+      <HeatCalcUnsavedChangesModals
+        pendingInlineDisableOpen={columnSettingsDialog.pendingInlineDisableSettings != null}
+        pendingWizardObject={pendingWizardObject}
+        inlineDraftSaving={inlineDraftSaving}
+        cancelPendingInlineDisable={columnSettingsDialog.cancelPendingInlineDisable}
+        discardPendingInlineDisable={columnSettingsDialog.discardPendingInlineDisable}
+        savePendingInlineDisable={columnSettingsDialog.savePendingInlineDisable}
+        discardDraftRows={discardDraftRows}
+        saveDraftRows={saveDraftRows}
+        setPendingWizardObject={setPendingWizardObject}
+        forceOpenEditWizard={forceOpenEditWizard}
+      />
     </>
   );
 }
