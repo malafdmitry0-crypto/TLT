@@ -84,8 +84,8 @@
 | Column filter dropdown extraction | Done | `frontend/src/pages/heatcalc/HeatCalcColumnFilterDropdown.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/HeatCalcColumnFilterDropdown.test.tsx` |
 | Render/copy column specifications extraction | Done | `frontend/src/pages/heatcalc/heatCalcColumnRenderers.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/heatCalcColumnRenderers.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx` |
 | Remaining small pure helpers | Done | `draftRowFingerprint`, `uniqueErrorMessages`, `normalizeGlideCellAlign`, `draftErrorMessages`, `escapeTableRowKey` moved to `frontend/src/pages/heatcalc/heatCalcPageUtils.ts`; covered by `frontend/src/__tests__/unit/pages/heatcalc/heatCalcPageUtils.test.ts`; page wiring in `frontend/src/pages/HeatCalcPage.tsx` |
-| Table state hook | Next | `useHeatCalcTableState`; needs tests for `pipe/tank/all`, filters, sorting, pagination, reset before moving state |
-| Preferences hook | Backlog | `useHeatCalcPreferences`; needs tests for column visibility/width/order, font size, label format, form placement |
+| Table state hook | Done | `frontend/src/pages/heatcalc/useHeatCalcTableState.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcTableState.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; focused HeatCalc suites passed |
+| Preferences hook | Next | `useHeatCalcPreferences`; needs tests for column visibility/width/order, font size, label format, form placement; do not mix with toolbar extraction |
 | Toolbar extraction | Backlog | `HeatCalcToolbar`; UI proof required because visible controls change ownership |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
@@ -137,8 +137,8 @@ runner instruction.
 
 ## Prompt 5. Вынести state hooks
 
-Status: Next for `useHeatCalcTableState`. Не начинать `useHeatCalcPreferences`
-в том же запуске.
+Status: `useHeatCalcTableState` Done. Next for `useHeatCalcPreferences`.
+Не начинать toolbar или objects table extraction в том же запуске.
 
 После стабилизации helpers/UI вынеси состояние таблицы в hooks.
 

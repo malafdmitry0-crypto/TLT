@@ -129,11 +129,11 @@ C. tiny presentational extraction, только если UI proof можно с�
 D. stop with finding, если safe slice превышает Change budget.
 
 Предпочтительный выбор для этого запуска:
-1. `Table state hook`, если можно сначала покрыть `pipe/tank/all`, filters,
-   sorting, pagination и reset focused tests в рамках Change budget.
-2. Иначе `Preferences hook` только как analysis/tests-only, без переноса state.
+1. `Preferences hook`, если можно сначала покрыть column visibility/width/order,
+   font size, label format и form placement focused tests в рамках Change budget.
+2. Иначе tests-only characterization для preferences/settings state, без переноса state.
 3. Иначе tests-only characterization.
-Не переходи к presentational extraction, если state/tests slice возможен.
+Не переходи к toolbar/presentational extraction, если preferences state/tests slice возможен.
 
 Phase 1: HeatCalcPage Audit And Safety Map
 Составь таблицу:
@@ -205,15 +205,16 @@ Phase 3: One Minimal Refactor
 проходят, сделай ровно один маленький refactor.
 
 Allowed extraction order:
-1. narrow `useHeatCalcTableState` hook from the ledger only if focused tests cover the
-   state transitions;
-2. preferences hook only after table state hook stabilizes;
+1. narrow `useHeatCalcPreferences` hook from the ledger only if focused tests cover
+   persistence/settings transitions;
+2. tests-only characterization for preferences/settings state if extraction is too broad;
 3. small presentational component with props only, with /ui-proof evidence.
 
 Do not redo completed slices:
 - `heatCalcPageUtils.ts` already exists for broad pure helpers.
 - `HeatCalcColumnFilterDropdown.tsx` is already extracted.
 - `heatCalcColumnRenderers.tsx` is already extracted.
+- `useHeatCalcTableState.ts` is already extracted.
 - Remaining small pure helpers are already in `heatCalcPageUtils.ts`.
 - If a candidate is already complete, update the ledger/finding and choose the
   next unfinished slice instead of re-extracting it.
