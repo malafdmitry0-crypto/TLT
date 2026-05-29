@@ -1,8 +1,8 @@
 # God Components Safe Split Nightly Prompt
 
 Этот prompt предназначен для ночного запуска Codex в агентском режиме. Цель -
-подготовить безопасную декомпозицию `HeatCalcPage` и `ElecCalcPage`, не меняя
-бизнес-поведение без доказательств.
+подготовить безопасную декомпозицию одного выбранного god-component:
+`HeatCalcPage` или `ElecCalcPage`, не меняя бизнес-поведение без доказательств.
 
 ## Как запускать
 
@@ -10,8 +10,16 @@
 
 ```text
 Работай в режиме /fix-focused, но максимально консервативно. Цель:
-подготовить безопасное разделение god-components HeatCalcPage и ElecCalcPage,
-не меняя бизнес-поведение.
+подготовить безопасное разделение одного выбранного god-component, не меняя
+бизнес-поведение.
+
+TARGET_PAGE:
+- Выбери ровно один target для этого запуска: HeatCalcPage или ElecCalcPage.
+- Если пользователь не указал target явно, выбери тот компонент, где первый
+  безопасный slice требует меньшего diff и лучше покрывается существующими
+  тестами.
+- Второй компонент не редактируй и не покрывай новыми тестами в этом запуске;
+  можно только кратко упомянуть его как out-of-scope в финальном отчете.
 
 ВАЖНО:
 - Сначала прочитай AGENTS.md и обязательные документы из него.
@@ -26,14 +34,21 @@
 - Если тест/Playwright/browser недоступен, это blocked, а не pass.
 
 Scope:
-1. HeatCalcPage
-2. ElecCalcPage
-3. Только подготовка к безопасному split:
+1. Только TARGET_PAGE.
+2. Только подготовка к безопасному split:
    - characterization tests;
    - выявление state clusters;
    - минимальное извлечение pure helper/hook/component только если есть
      тестовое покрытие;
    - доказательство, что UI/API поведение не изменилось.
+
+Change budget:
+- максимум 1 production module extracted;
+- максимум 1 page file edited;
+- максимум 2 test files edited;
+- не создавать shared abstraction для Heat и Elec;
+- не менять второй god-component;
+- если нужно больше файлов, остановись и оформи next safe slice.
 
 Обязательный старт:
 Прочитай:
@@ -53,11 +68,10 @@ Scope:
 - relevant docs/qa/*
 
 Затем через rg найди:
-- HeatCalcPage implementation
-- ElecCalcPage implementation
-- их API calls
+- TARGET_PAGE implementation
+- API calls TARGET_PAGE
 - hooks/services/helpers, которые они используют
-- tests для heat/electrical flows
+- tests для выбранного heat/electrical flow
 - Playwright/e2e tests
 - formula contracts and result persistence paths
 
@@ -65,7 +79,7 @@ Scope:
 Документация -> backend -> frontend -> tests
 
 Phase 1: Audit and Safety Map
-Составь таблицу для каждого компонента:
+Составь таблицу только для TARGET_PAGE:
 - файл и размер;
 - количество useState/useEffect/useMemo/useCallback;
 - API calls;
@@ -78,9 +92,10 @@ Phase 1: Audit and Safety Map
 - known tests.
 
 Phase 2: Characterization Tests First
-Добавь или усили focused tests, которые фиксируют текущее поведение.
+Добавь или усили focused tests, которые фиксируют текущее поведение TARGET_PAGE.
+Не добавляй тесты для второго god-component.
 
-HeatCalcPage test cases:
+Если TARGET_PAGE = HeatCalcPage, используй эти test cases:
 - initial render без проекта/с проектом;
 - загрузка существующих параметров;
 - submit формирует payload в правильных units;
@@ -97,7 +112,7 @@ HeatCalcPage test cases:
   увеличивать результат, действительно не уменьшает результат;
 - snapshot/screenshot целевого viewport до refactor.
 
-ElecCalcPage test cases:
+Если TARGET_PAGE = ElecCalcPage, используй эти test cases:
 - initial render таблицы/строк;
 - добавление строки;
 - удаление строки;
@@ -134,8 +149,8 @@ Backend/API checks, если flow затрагивается:
 - DB invariants после UI сценария.
 
 Phase 3: Minimal Refactor Only If Tests Pass
-Если characterization tests добавлены и проходят, можно сделать только один
-маленький refactor.
+Если characterization tests для TARGET_PAGE добавлены и проходят, можно сделать
+только один маленький refactor.
 
 Preferred safe extraction order:
 1. pure payload builder / mapper;
@@ -155,9 +170,9 @@ Rules for extraction:
 - Для UI changes обязательны screenshots before/after.
 
 Suggested first extraction:
-- For HeatCalcPage: extract pure submit payload builder or result diagnostics
+- For HeatCalcPage target: extract pure submit payload builder or result diagnostics
   normalizer.
-- For ElecCalcPage: extract pure row/candidate selection mapper or payload
+- For ElecCalcPage target: extract pure row/candidate selection mapper or payload
   builder.
 Выбери тот вариант, где меньше side effects и проще доказать неизменность
 поведения.
@@ -183,6 +198,7 @@ Stop and report blocked/needs verification if:
 - expected/golden values would need changing without source of truth;
 - refactor requires touching unrelated files broadly;
 - extraction creates worse coupling or giant prop chains;
+- required change exceeds the Change budget;
 - persistence/reload cannot be verified;
 - formula_id/version/source/error_code traceability cannot be verified where
   required.
@@ -190,7 +206,7 @@ Stop and report blocked/needs verification if:
 Final report format:
 
 Functional Accuracy Report
-Scope: HeatCalcPage / ElecCalcPage safe split preparation
+Scope: <TARGET_PAGE> safe split preparation
 Docs checked:
 - ...
 Implementation found:
@@ -211,11 +227,14 @@ Residual risk:
 - ...
 Recommended next safe slice:
 - ...
+Out of scope:
+- The other god-component was not changed in this run.
 ```
 
 ## Почему prompt ограничен
 
-Для этих страниц опасен широкий запрос "раздели компонент": агент может
+Для этих страниц опасен широкий запрос "раздели оба компонента": агент может
 получить набор больших hooks вместо доказуемого улучшения. Этот prompt
-заставляет сначала зафиксировать поведение, затем делать только один маленький
-vertical slice и явно останавливаться при нехватке evidence.
+заставляет выбрать один target, сначала зафиксировать поведение, затем делать
+только один маленький vertical slice и явно останавливаться при нехватке
+evidence.

@@ -17,7 +17,7 @@
 | [formula-validation-agent.md](formula-validation-agent.md) | Агентная проверка формул и расчётных алгоритмов |
 | [agent-proof-modes.md](agent-proof-modes.md) | Режимы запуска агентов: audit-only, fix-focused, ui-proof, release-gate |
 | [deep-business-logic-qa.md](deep-business-logic-qa.md) | Глубокое тестирование бизнес-логики: MCP, smoke, backend, Playwright |
-| [god-components-safe-split-nightly-prompt.md](god-components-safe-split-nightly-prompt.md) | Ночной agent prompt для безопасной декомпозиции HeatCalcPage и ElecCalcPage |
+| [god-components-safe-split-nightly-prompt.md](god-components-safe-split-nightly-prompt.md) | Ночной agent prompt для безопасной декомпозиции одного god-component |
 | [add-role-or-permission.md](add-role-or-permission.md) | Расширить RBAC-матрицу |
 | [debug-pdf-export.md](debug-pdf-export.md) | Отладить экспорт отчёта в PDF/DOCX/XLSX |
 | [object-type-switch-prompt.md](object-type-switch-prompt.md) | Разделить таблицу HeatCalc по типам объектов без изменения БД |

@@ -71,8 +71,26 @@ def _insulation() -> list[dict[str, Any]]:
 
 
 @lru_cache
+def _insulation_by_material() -> dict[str, dict[str, Any]]:
+    by_material: dict[str, dict[str, Any]] = {}
+    for entry in _insulation():
+        by_material.setdefault(str(entry["material"]), entry)
+    return by_material
+
+
+@lru_cache
 def _cables_tlt() -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], _load_json("cables_tlt.json")["cables"])
+
+
+@lru_cache
+def _tlt_cables_by_mark() -> dict[str, dict[str, Any]]:
+    by_mark: dict[str, dict[str, Any]] = {}
+    for cable in _cables_tlt():
+        model = str(cable["model"])
+        by_mark.setdefault(model, cable)
+        by_mark.setdefault(model.replace("ТЛТ-", ""), cable)
+    return by_mark
 
 
 @lru_cache
@@ -98,6 +116,14 @@ def _resistive_cables() -> dict[str, Any]:
 @lru_cache
 def _cables_tt() -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], _load_json("cables_tt.json")["cables"])
+
+
+@lru_cache
+def _tt_cables_by_model() -> dict[str, dict[str, Any]]:
+    by_model: dict[str, dict[str, Any]] = {}
+    for cable in _cables_tt():
+        by_model.setdefault(str(cable["model"]), cable)
+    return by_model
 
 
 # ---- public API ----
@@ -165,10 +191,8 @@ def list_insulation_materials() -> list[dict[str, Any]]:
 
 
 def get_insulation_material(material: str) -> dict[str, Any] | None:
-    for entry in _insulation():
-        if entry["material"] == material:
-            return _with_insulation_catalog_flags(entry)
-    return None
+    entry = _insulation_by_material().get(material)
+    return _with_insulation_catalog_flags(entry) if entry is not None else None
 
 
 def is_generic_insulation_material(material: str | None) -> bool:
@@ -244,10 +268,8 @@ def list_tt_cables() -> list[dict[str, Any]]:
 
 def get_tt_cable_by_model(model: str) -> dict[str, Any] | None:
     """Кабель ТТН/ТТВ/ТТХ по базовому имени модели (без суффикса -СР/-СТ)."""
-    for c in _cables_tt():
-        if c["model"] == model:
-            return dict(c)
-    return None
+    cable = _tt_cables_by_model().get(model)
+    return dict(cable) if cable is not None else None
 
 
 def get_insulation_conductivity(material: str, temperature: float) -> float:
@@ -257,23 +279,21 @@ def get_insulation_conductivity(material: str, temperature: float) -> float:
     - conductivity_20_plus: число или [a, b] для формулы a + b * temperature
     - conductivity_19_minus: [λ(-60..19), λ(<-60)] или одиночное значение
     """
-    for raw in _insulation():
-        if raw["material"] == material:
-            m = _with_insulation_catalog_flags(raw)
-            _ensure_selectable_insulation_material(m)
-            if temperature >= 20:
-                return _positive_reference_lambda(
-                    _resolve_warm_insulation_conductivity(
-                        m.get("conductivity_20_plus"), temperature
-                    ),
-                    material,
-                    temperature,
-                )
+    raw = _insulation_by_material().get(material)
+    if raw is not None:
+        m = _with_insulation_catalog_flags(raw)
+        _ensure_selectable_insulation_material(m)
+        if temperature >= 20:
             return _positive_reference_lambda(
-                _resolve_cold_insulation_conductivity(m.get("conductivity_19_minus"), temperature),
+                _resolve_warm_insulation_conductivity(m.get("conductivity_20_plus"), temperature),
                 material,
                 temperature,
             )
+        return _positive_reference_lambda(
+            _resolve_cold_insulation_conductivity(m.get("conductivity_19_minus"), temperature),
+            material,
+            temperature,
+        )
     raise ValueError(f"Неизвестный материал изоляции: {material}")
 
 
@@ -345,10 +365,8 @@ def get_pipe_material_lambda(material: str | None, temperature: float) -> float:
 def get_tlt_cable_by_mark(mark: str | None) -> dict[str, Any] | None:
     if mark is None:
         return None
-    for c in _cables_tlt():
-        if c["model"] == mark or c["model"].replace("ТЛТ-", "") == mark:
-            return dict(c)
-    return None
+    cable = _tlt_cables_by_mark().get(mark)
+    return dict(cable) if cable is not None else None
 
 
 def clear_cache() -> None:
@@ -357,12 +375,15 @@ def clear_cache() -> None:
     _climate_by_city_region.cache_clear()
     _climate_by_unique_city.cache_clear()
     _insulation.cache_clear()
+    _insulation_by_material.cache_clear()
     _cables_tlt.cache_clear()
+    _tlt_cables_by_mark.cache_clear()
     _accessories.cache_clear()
     _pipe_materials.cache_clear()
     _soil_conductivity.cache_clear()
     _resistive_cables.cache_clear()
     _cables_tt.cache_clear()
+    _tt_cables_by_model.cache_clear()
 
 
 def preload_all() -> None:
@@ -372,9 +393,12 @@ def preload_all() -> None:
     _climate_by_city_region()
     _climate_by_unique_city()
     _insulation()
+    _insulation_by_material()
     _cables_tlt()
+    _tlt_cables_by_mark()
     _accessories()
     _pipe_materials()
     _soil_conductivity()
     _resistive_cables()
     _cables_tt()
+    _tt_cables_by_model()

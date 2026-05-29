@@ -12,7 +12,12 @@ from app.formulas.electrical.commercial import (
     select_commercial_candidate,
 )
 from app.formulas.electrical.common import cable_order_length
-from app.reference_data.loader import get_tlt_cable_by_mark, list_tlt_cables, list_tt_cables
+from app.reference_data.loader import (
+    get_tlt_cable_by_mark,
+    get_tt_cable_by_model,
+    list_tlt_cables,
+    list_tt_cables,
+)
 from app.schemas.calculation import (
     SelfRegulatingParams,
     SelfRegulatingResult,
@@ -306,7 +311,6 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
     одной нитки недостаточно, берём максимальный номинал этой серии и считаем
     N = ceil(q_required / q_б) без эскалации серии только из-за мощности.
     """
-    catalog = list_tt_cables()
     suffix = "СТ" if params.aggressive_product else "СР"
     q_required = params.required_power_per_meter * params.safety_factor
     selected_threads: int | None = None
@@ -324,7 +328,7 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
         base_model = (
             params.cable_mark.split("-")[0] if "-" in params.cable_mark else params.cable_mark
         )
-        match = next((c for c in catalog if c["model"] == base_model), None)
+        match = get_tt_cable_by_model(base_model)
         if match is None:
             raise ValueError(f"Кабель «{params.cable_mark}» не найден в справочнике")
         cable = match
@@ -342,6 +346,7 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
                 f"серии {series} ({cable['max_vapor_temp']}°C)"
             )
     else:
+        catalog = list_tt_cables()
         series = _select_tt_series(params.process_temperature, params.vapor_temperature)
         s_cables = sorted(
             [c for c in catalog if c["series"] == series],

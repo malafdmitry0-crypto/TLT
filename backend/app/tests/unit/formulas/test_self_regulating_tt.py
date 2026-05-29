@@ -5,6 +5,7 @@ import math
 import pytest
 
 from app.formulas.electrical.self_regulating import calc_self_regulating_tt
+from app.reference_data.loader import clear_cache, get_tt_cable_by_model
 from app.schemas.calculation import SelfRegulatingTTParams
 
 
@@ -95,6 +96,28 @@ class TestCableSelection:
         )
         assert r.series == "ТТН"
         assert r.power_per_meter == pytest.approx(-0.491 * 40 + 37.5, rel=1e-3)
+
+    def test_manual_cable_mark_uses_indexed_model_lookup(self, monkeypatch):
+        clear_cache()
+        assert get_tt_cable_by_model("30ТТВ2") is not None
+
+        def fail_full_scan():
+            raise AssertionError("manual TT cable lookup must not rescan full catalog")
+
+        monkeypatch.setattr("app.reference_data.loader._cables_tt", fail_full_scan)
+
+        r = calc_self_regulating_tt(
+            _params(
+                cable_mark="30ТТВ2-СР",
+                process_temperature=80.0,
+                maintain_temperature=50.0,
+                required_power_per_meter=10.0,
+                safety_factor=1.0,
+            )
+        )
+
+        assert r.selected_cable == "30ТТВ2"
+        assert r.cable_mark == "30ТТВ2-СР"
 
     def test_user_threads_participate_in_autoselect(self):
         """При заданных 2 нитках можно выбрать 30ТТВ2 вместо более мощного 45ТТВ2."""

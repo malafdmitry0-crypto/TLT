@@ -12,6 +12,7 @@ from app.reference_data.loader import (
     get_climate_by_key,
     get_climate_entry,
     get_insulation_conductivity,
+    get_insulation_material,
     get_insulation_temperature_range,
     get_pipe_material_lambda,
     get_tlt_cable_by_mark,
@@ -288,6 +289,25 @@ class TestGetInsulationConductivity:
         with pytest.raises(ValueError, match="Неизвестный материал"):
             get_insulation_conductivity("vacuum", 20)
 
+    def test_insulation_indexes_are_reused_after_first_lookup(self, monkeypatch):
+        clear_cache()
+        assert get_insulation_material("mineral_wool_boards_120") is not None
+        assert get_insulation_temperature_range("mineral_wool_boards_120") == pytest.approx(
+            (-60.0, 400.0)
+        )
+        assert get_insulation_conductivity("mineral_wool_boards_120", 20) > 0
+
+        def fail_full_scan():
+            raise AssertionError("insulation lookup must use cached material index")
+
+        monkeypatch.setattr("app.reference_data.loader._insulation", fail_full_scan)
+
+        assert get_insulation_material("mineral_wool_boards_120") is not None
+        assert get_insulation_temperature_range("mineral_wool_boards_120") == pytest.approx(
+            (-60.0, 400.0)
+        )
+        assert get_insulation_conductivity("mineral_wool_boards_120", 20) > 0
+
 
 class TestGetPipeMaterialLambda:
     def test_known_material_formula(self):
@@ -320,6 +340,19 @@ class TestGetTltCableByMark:
     def test_unknown_mark_returns_none(self):
         assert get_tlt_cable_by_mark("ТЛТ-999") is None
         assert get_tlt_cable_by_mark("Nexans") is None
+
+    def test_tlt_cable_index_is_reused_after_first_lookup(self, monkeypatch):
+        clear_cache()
+        assert get_tlt_cable_by_mark("ТЛТ-25") is not None
+        assert get_tlt_cable_by_mark("25") is not None
+
+        def fail_full_scan():
+            raise AssertionError("TLT cable lookup must use cached mark index")
+
+        monkeypatch.setattr("app.reference_data.loader._cables_tlt", fail_full_scan)
+
+        assert get_tlt_cable_by_mark("ТЛТ-25")["power_per_meter"] == 25
+        assert get_tlt_cable_by_mark("25")["power_per_meter"] == 25
 
 
 class TestCacheControl:
@@ -371,3 +404,16 @@ class TestTTCables:
 
     def test_get_tt_cable_by_model_not_found(self):
         assert get_tt_cable_by_model("99ТТХ9") is None
+
+    def test_tt_cable_index_is_reused_after_first_lookup(self, monkeypatch):
+        clear_cache()
+        assert get_tt_cable_by_model("30ТТВ2") is not None
+
+        def fail_full_scan():
+            raise AssertionError("TT cable lookup must use cached model index")
+
+        monkeypatch.setattr("app.reference_data.loader._cables_tt", fail_full_scan)
+
+        cable = get_tt_cable_by_model("30ТТВ2")
+        assert cable is not None
+        assert cable["series"] == "ТТВ"
