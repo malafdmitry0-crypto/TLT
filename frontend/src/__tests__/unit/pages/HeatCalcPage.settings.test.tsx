@@ -404,5 +404,46 @@ describe('HeatCalcPage settings', () => {
         expect(screen.getByTestId('outer-diameter-input')).toHaveAttribute('step', '10');
       });
     }, HEATCALC_PAGE_TEST_TIMEOUT);
+
+    it('удаляет guest-настройки вида, расшифровки и шагов после сброса к дефолтам', async () => {
+      const { listObjects } = await import('@/api/projects');
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      const dialog = await openTableSettingsDialog(user);
+      const stepInput = within(dialog).getByRole('spinbutton', { name: 'Шаг: Наружный диаметр' });
+      fireEvent.change(stepInput, { target: { value: '10' } });
+      fireEvent.blur(stepInput);
+      await openTableSettingsOtherTab(user, dialog);
+      await user.click(within(dialog).getByText('Крупный'));
+      await user.click(within(dialog).getByText('Подробно'));
+      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY)).not.toBeNull();
+        expect(localStorage.getItem(HEATCALC_GUEST_CALCULATION_DETAILS_STORAGE_KEY)).not.toBeNull();
+        expect(localStorage.getItem(HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY)).not.toBeNull();
+      });
+
+      const resetDialog = await openTableSettingsDialog(user);
+      await user.click(within(resetDialog).getByRole('button', { name: 'Сбросить шаг: Наружный диаметр' }));
+      await openTableSettingsOtherTab(user, resetDialog);
+      await user.click(within(resetDialog).getByRole('button', { name: 'Сбросить размер' }));
+      await user.click(within(resetDialog).getByRole('button', { name: 'Сбросить расшифровку' }));
+      await user.click(within(resetDialog).getByRole('button', { name: 'Применить' }));
+
+      await waitFor(() => {
+        expect(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY)).toBeNull();
+        expect(localStorage.getItem(HEATCALC_GUEST_CALCULATION_DETAILS_STORAGE_KEY)).toBeNull();
+        expect(localStorage.getItem(HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY)).toBeNull();
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId('outer-diameter-input')).toHaveAttribute('step', '1');
+      });
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
   });
 });

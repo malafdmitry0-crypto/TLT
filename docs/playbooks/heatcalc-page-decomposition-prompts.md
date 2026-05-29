@@ -85,8 +85,8 @@
 | Render/copy column specifications extraction | Done | `frontend/src/pages/heatcalc/heatCalcColumnRenderers.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/heatCalcColumnRenderers.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx` |
 | Remaining small pure helpers | Done | `draftRowFingerprint`, `uniqueErrorMessages`, `normalizeGlideCellAlign`, `draftErrorMessages`, `escapeTableRowKey` moved to `frontend/src/pages/heatcalc/heatCalcPageUtils.ts`; covered by `frontend/src/__tests__/unit/pages/heatcalc/heatCalcPageUtils.test.ts`; page wiring in `frontend/src/pages/HeatCalcPage.tsx` |
 | Table state hook | Done | `frontend/src/pages/heatcalc/useHeatCalcTableState.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcTableState.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; focused HeatCalc suites passed |
-| Preferences hook | Next | `useHeatCalcPreferences`; needs tests for column visibility/width/order, font size, label format, form placement; do not mix with toolbar extraction |
-| Toolbar extraction | Backlog | `HeatCalcToolbar`; UI proof required because visible controls change ownership |
+| Preferences hook | Done | `frontend/src/pages/heatcalc/useHeatCalcPreferences.ts`; characterization in `HeatCalcPage.settings.test.tsx` and `HeatCalcPage.inline-edit.test.tsx`; focused settings/inline suites and typecheck passed |
+| Toolbar extraction | Next | `HeatCalcToolbar`; UI proof required because visible controls change ownership |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers
@@ -137,7 +137,7 @@ runner instruction.
 
 ## Prompt 5. Вынести state hooks
 
-Status: `useHeatCalcTableState` Done. Next for `useHeatCalcPreferences`.
+Status: `useHeatCalcTableState` Done; `useHeatCalcPreferences` Done. Next for `HeatCalcToolbar`.
 Не начинать toolbar или objects table extraction в том же запуске.
 
 После стабилизации helpers/UI вынеси состояние таблицы в hooks.

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import {
@@ -12,7 +12,10 @@ import {
   HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY,
   HEATCALC_TABLE_VIEW_PREF_KEY,
 } from '@/utils/heatCalcTableViewSettings';
-import { HEATCALC_CALCULATION_DETAILS_PREF_KEY } from '@/utils/heatCalcCalculationDetailsSettings';
+import {
+  HEATCALC_CALCULATION_DETAILS_PREF_KEY,
+  HEATCALC_REGISTERED_CALCULATION_DETAILS_CACHE_KEY,
+} from '@/utils/heatCalcCalculationDetailsSettings';
 import {
   HEATCALC_FIELD_INPUT_PREF_KEY,
   HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY,
@@ -87,6 +90,132 @@ describe('HeatCalcPage inline edit', () => {
       });
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
       expect(saved.inlineEditingEnabled).toBe(true);
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
+    it('при отключении inline-редактирования Cancel сохраняет draft, а Discard сбрасывает draft и применяет настройки', async () => {
+      const { listObjects, updateObject } = await import('@/api/projects');
+      const source = makeObject();
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
+      (updateObject as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeObject({ params: { ...source.params, name: 'Труба cancel draft' } }),
+      );
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      const enableDialog = await openTableSettingsDialog(user);
+      await openTableSettingsOtherTab(user, enableDialog);
+      await user.click(within(enableDialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
+      await user.click(within(enableDialog).getByRole('button', { name: 'Применить' }));
+
+      await user.click(await screen.findByRole('button', { name: 'Труба DN100' }));
+      const editor = await screen.findByDisplayValue('Труба DN100');
+      await user.clear(editor);
+      await user.type(editor, 'Труба cancel draft');
+      await user.keyboard('{Enter}');
+      expect(await screen.findByText('Несохранено: 1')).toBeInTheDocument();
+
+      const disableDialog = await openTableSettingsDialog(user);
+      await openTableSettingsOtherTab(user, disableDialog);
+      const inlineToggle = within(disableDialog).getByRole('checkbox', {
+        name: 'Редактировать ячейки в таблице',
+      });
+      expect(inlineToggle).toBeChecked();
+      await user.click(inlineToggle);
+      await user.click(within(disableDialog).getByRole('button', { name: 'Применить' }));
+
+      const cancelModal = screen.getByText('Отключить редактирование ячеек?').closest('.ant-modal');
+      expect(cancelModal).toBeInstanceOf(HTMLElement);
+      await user.click(within(cancelModal as HTMLElement).getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Отключить редактирование ячеек?')).not.toBeVisible();
+      });
+      expect(screen.getByText('Несохранено: 1')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Труба cancel draft' })).toBeInTheDocument();
+      expect(within(disableDialog).getByRole('checkbox', {
+        name: 'Редактировать ячейки в таблице',
+      })).toBeChecked();
+      expect(JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}'))
+        .toMatchObject({ inlineEditingEnabled: true });
+
+      await user.click(within(disableDialog).getByRole('checkbox', {
+        name: 'Редактировать ячейки в таблице',
+      }));
+      await user.click(within(disableDialog).getByRole('button', { name: 'Применить' }));
+      const discardModal = screen.getByText('Отключить редактирование ячеек?').closest('.ant-modal');
+      expect(discardModal).toBeInstanceOf(HTMLElement);
+      await user.click(within(discardModal as HTMLElement).getByRole('button', { name: 'Discard' }));
+
+      await waitFor(() => {
+        expect(screen.queryByText('Несохранено: 1')).not.toBeInTheDocument();
+      });
+      expect(screen.queryByText('Труба cancel draft')).not.toBeInTheDocument();
+      expect(screen.getByText('Труба DN100')).toBeInTheDocument();
+      expect(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY)).toBeNull();
+      expect(updateObject).not.toHaveBeenCalled();
+    }, HEATCALC_PAGE_TEST_TIMEOUT);
+
+    it('при отключении inline-редактирования Save применяет настройки только после успешного сохранения draft', async () => {
+      const { listObjects, updateObject } = await import('@/api/projects');
+      const source = makeObject();
+      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
+      let resolveUpdate: (value: ReturnType<typeof makeObject>) => void = () => {};
+      const updatePromise = new Promise<ReturnType<typeof makeObject>>((resolve) => {
+        resolveUpdate = resolve;
+      });
+      (updateObject as ReturnType<typeof vi.fn>).mockReturnValue(updatePromise);
+
+      useProjectStore.getState().setCurrentProject(mockProject);
+      const user = (await import('@testing-library/user-event')).default.setup();
+      renderPage();
+
+      await screen.findByText('Труба DN100');
+      const enableDialog = await openTableSettingsDialog(user);
+      await openTableSettingsOtherTab(user, enableDialog);
+      await user.click(within(enableDialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
+      await user.click(within(enableDialog).getByRole('button', { name: 'Применить' }));
+
+      await user.click(await screen.findByRole('button', { name: 'Труба DN100' }));
+      const editor = await screen.findByDisplayValue('Труба DN100');
+      await user.clear(editor);
+      await user.type(editor, 'Труба save draft');
+      await user.keyboard('{Enter}');
+      expect(await screen.findByText('Несохранено: 1')).toBeInTheDocument();
+
+      const disableDialog = await openTableSettingsDialog(user);
+      await openTableSettingsOtherTab(user, disableDialog);
+      await user.click(within(disableDialog).getByRole('checkbox', { name: 'Редактировать ячейки в таблице' }));
+      await user.click(within(disableDialog).getByRole('button', { name: 'Применить' }));
+      const saveModal = screen.getByText('Отключить редактирование ячеек?').closest('.ant-modal');
+      expect(saveModal).toBeInstanceOf(HTMLElement);
+      await user.click(within(saveModal as HTMLElement).getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => {
+        expect(updateObject).toHaveBeenCalledWith(
+          'proj-test-1',
+          source.id,
+          expect.objectContaining({
+            params: expect.objectContaining({ name: 'Труба save draft' }),
+          }),
+        );
+      });
+      expect(JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}'))
+        .toMatchObject({ inlineEditingEnabled: true });
+      expect(screen.getByText('Отключить редактирование ячеек?')).toBeVisible();
+
+      await act(async () => {
+        resolveUpdate(makeObject({ params: { ...source.params, name: 'Труба save draft' } }));
+        await updatePromise;
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Отключить редактирование ячеек?')).not.toBeVisible();
+      });
+      expect(screen.queryByText('Несохранено: 1')).not.toBeInTheDocument();
+      expect(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY)).toBeNull();
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('подсвечивает только inline-редактируемые ячейки при включенном режиме', async () => {
@@ -421,6 +550,33 @@ describe('HeatCalcPage inline edit', () => {
           cachedAt: '2026-05-08T00:00:00.000Z',
         }),
       );
+      localStorage.setItem(
+        HEATCALC_REGISTERED_CALCULATION_DETAILS_CACHE_KEY,
+        JSON.stringify({
+          userId: 'user-test-1',
+          settings: {
+            version: 1,
+            preset: 'detailed',
+            visibleMetrics: ['delta_t', 'thermal_resistance'],
+          },
+          cachedAt: '2026-05-08T00:00:00.000Z',
+        }),
+      );
+      localStorage.setItem(
+        HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY,
+        JSON.stringify({
+          userId: 'user-test-1',
+          settings: {
+            version: 1,
+            fields: {
+              pipe: {
+                outer_diameter_mm: { step: 10 },
+              },
+            },
+          },
+          cachedAt: '2026-05-08T00:00:00.000Z',
+        }),
+      );
       useAuthStore.getState().setEmployee(
         {
           id: 'user-test-1',
@@ -444,9 +600,12 @@ describe('HeatCalcPage inline edit', () => {
       await waitFor(() => {
         expect(localStorage.getItem(HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY)).toBeNull();
         expect(localStorage.getItem(HEATCALC_REGISTERED_TABLE_VIEW_CACHE_KEY)).toBeNull();
+        expect(localStorage.getItem(HEATCALC_REGISTERED_CALCULATION_DETAILS_CACHE_KEY)).toBeNull();
+        expect(localStorage.getItem(HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY)).toBeNull();
       });
       await waitFor(() => {
         expect(screen.getAllByText('DN').length).toBeGreaterThan(0);
+        expect(screen.getByTestId('outer-diameter-input')).toHaveAttribute('step', '1');
       });
     });
 

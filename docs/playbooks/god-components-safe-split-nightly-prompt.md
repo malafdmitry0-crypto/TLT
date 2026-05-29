@@ -129,11 +129,11 @@ C. tiny presentational extraction, только если UI proof можно с�
 D. stop with finding, если safe slice превышает Change budget.
 
 Предпочтительный выбор для этого запуска:
-1. `Preferences hook`, если можно сначала покрыть column visibility/width/order,
-   font size, label format и form placement focused tests в рамках Change budget.
-2. Иначе tests-only characterization для preferences/settings state, без переноса state.
-3. Иначе tests-only characterization.
-Не переходи к toolbar/presentational extraction, если preferences state/tests slice возможен.
+1. `Toolbar extraction`, если ledger показывает `useHeatCalcPreferences` как Done
+   и можно выполнить `/ui-proof` evidence без большого prop chain.
+2. Иначе вернуться к `Preferences hook` только при finding/regression в ledger.
+3. Иначе tests-only characterization для следующего unfinished slice.
+Не переходи к objects table extraction, если toolbar slice возможен.
 
 Phase 1: HeatCalcPage Audit And Safety Map
 Составь таблицу:
@@ -205,16 +205,17 @@ Phase 3: One Minimal Refactor
 проходят, сделай ровно один маленький refactor.
 
 Allowed extraction order:
-1. narrow `useHeatCalcPreferences` hook from the ledger only if focused tests cover
-   persistence/settings transitions;
-2. tests-only characterization for preferences/settings state if extraction is too broad;
-3. small presentational component with props only, with /ui-proof evidence.
+1. small `HeatCalcToolbar` extraction with props only, with `/ui-proof` evidence;
+2. narrow `useHeatCalcPreferences` follow-up only if the ledger/focused tests show
+   an unfinished preferences finding;
+3. tests-only characterization if the next slice is too broad.
 
 Do not redo completed slices:
 - `heatCalcPageUtils.ts` already exists for broad pure helpers.
 - `HeatCalcColumnFilterDropdown.tsx` is already extracted.
 - `heatCalcColumnRenderers.tsx` is already extracted.
 - `useHeatCalcTableState.ts` is already extracted.
+- `useHeatCalcPreferences.ts` is already extracted.
 - Remaining small pure helpers are already in `heatCalcPageUtils.ts`.
 - If a candidate is already complete, update the ledger/finding and choose the
   next unfinished slice instead of re-extracting it.
