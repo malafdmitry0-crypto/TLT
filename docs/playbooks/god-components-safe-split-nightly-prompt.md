@@ -217,6 +217,9 @@ Do not redo completed slices:
 - `useHeatCalcTableState.ts` is already extracted.
 - `useHeatCalcPreferences.ts` is already extracted.
 - Remaining small pure helpers are already in `heatCalcPageUtils.ts`.
+- `useHeatCalcObjectEditor.ts` is already extracted as an explicit
+  user-requested side slice; keep `HeatCalcToolbar` as the next generic runner
+  target unless a new object-editor finding appears.
 - If a candidate is already complete, update the ledger/finding and choose the
   next unfinished slice instead of re-extracting it.
 

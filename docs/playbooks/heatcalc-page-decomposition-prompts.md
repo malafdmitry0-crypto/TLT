@@ -86,7 +86,8 @@
 | Remaining small pure helpers | Done | `draftRowFingerprint`, `uniqueErrorMessages`, `normalizeGlideCellAlign`, `draftErrorMessages`, `escapeTableRowKey` moved to `frontend/src/pages/heatcalc/heatCalcPageUtils.ts`; covered by `frontend/src/__tests__/unit/pages/heatcalc/heatCalcPageUtils.test.ts`; page wiring in `frontend/src/pages/HeatCalcPage.tsx` |
 | Table state hook | Done | `frontend/src/pages/heatcalc/useHeatCalcTableState.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcTableState.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; focused HeatCalc suites passed |
 | Preferences hook | Done | `frontend/src/pages/heatcalc/useHeatCalcPreferences.ts`; characterization in `HeatCalcPage.settings.test.tsx` and `HeatCalcPage.inline-edit.test.tsx`; focused settings/inline suites and typecheck passed |
-| Toolbar extraction | Next | `HeatCalcToolbar`; UI proof required because visible controls change ownership |
+| Object editor hook | Done | `frontend/src/pages/heatcalc/useHeatCalcObjectEditor.ts`; characterization in `frontend/src/__tests__/unit/pages/HeatCalcPage.actions.test.tsx` and `frontend/src/__tests__/unit/pages/HeatCalcPageSaveReset.test.tsx`; explicit user-requested side slice |
+| Toolbar extraction | Next | `HeatCalcToolbar`; UI proof required because visible controls change ownership; remains the next generic god-component runner slice |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers

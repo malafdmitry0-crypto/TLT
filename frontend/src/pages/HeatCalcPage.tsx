@@ -55,10 +55,13 @@ import { cancelCalcTask, enqueueHeatLossBatchJob, getCalcTask } from '@/api/calc
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
 import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
-import { useHeatCalcMutations } from '@/hooks/useHeatCalcMutations';
 import { useHeatCalcExcelClipboard } from '@/hooks/useHeatCalcExcelClipboard';
 import { useHeatCalcExcelKeyboard } from '@/hooks/useHeatCalcExcelKeyboard';
 import { useHeatCalcExcelRowsModel } from '@/hooks/useHeatCalcExcelRowsModel';
+import {
+  canOpenObjectWizard,
+  useHeatCalcObjectEditor,
+} from '@/pages/heatcalc/useHeatCalcObjectEditor';
 import { useHeatCalcPreferences } from '@/pages/heatcalc/useHeatCalcPreferences';
 import {
   useHeatCalcTableColumns,
@@ -137,7 +140,6 @@ import {
   getDraftRowValidationErrors,
   getInlineCellFormValue,
   getInlineEditFieldConfig,
-  isDraftRowDirty,
   type DraftRowState,
   type DraftRowsById,
 } from '@/utils/heatCalcInlineEdit';
@@ -200,13 +202,6 @@ const ColumnSettingsModal = lazy(() => import('@/components/heatcalc/ColumnSetti
 
 const { Text } = Typography;
 
-/** Мастер сейчас знает две формы — трубу и резервуар. */
-type WizardObjectType = HeatCalcObjectType;
-
-function canOpenObjectWizard(record: ProjectObject): record is ProjectObject & { object_type: HeatCalcObjectType } {
-  return record.object_type === 'pipe' || record.object_type === 'tank';
-}
-
 function scrollTableRowIntoView(objectId: string) {
   const run = () => {
     const row = document.querySelector<HTMLElement>(
@@ -266,19 +261,12 @@ function TankTypeIcon() {
   );
 }
 
-interface WizardState {
-  type: WizardObjectType;
-  editingObject?: ProjectObject;
-}
-
 export default function HeatCalcPage() {
   const queryClient = useQueryClient();
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
   const registeredUserId = useAuthStore((s) => s.user?.id ?? null);
   const isRegisteredUser = role === 'employee' || role === 'admin';
-  const [wizardState, setWizardState] = useState<WizardState | null>({ type: 'pipe' });
-  const [newWizardRevision, setNewWizardRevision] = useState(0);
   const [formBlockVisible, setFormBlockVisible] = useState(true);
   const {
     activeObjectScope,
@@ -310,7 +298,6 @@ export default function HeatCalcPage() {
     setTablePage,
     upsertNormalLoadedRow,
   } = useHeatCalcTableState({ projectId: project?.id });
-  const [lastSavedObject, setLastSavedObject] = useState<ProjectObject | null>(null);
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [columnSettingsType, setColumnSettingsType] = useState<HeatCalcTableColumnScope>('pipe');
   const [tableEditingMode, setTableEditingMode] = useState<TableEditingMode>('normal');
@@ -535,48 +522,6 @@ export default function HeatCalcPage() {
     return insulationLabelByCode.get(code) ?? MATERIAL_LABELS[code] ?? code;
   }, [insulationLabelByCode]);
 
-  useEffect(() => {
-    clearSelectedRows();
-    setWizardState((current) => {
-      if (activeObjectScope === 'all' || !current || current.type === activeObjectScope) return current;
-      return null;
-    });
-  }, [activeObjectScope, clearSelectedRows]);
-
-  const resetNewWizard = (type: WizardObjectType) => {
-    setNewWizardRevision((revision) => revision + 1);
-    setWizardState({ type });
-  };
-  const clearWizard = () => {
-    setNewWizardRevision((revision) => revision + 1);
-    setWizardState(null);
-  };
-  const closeWizard = () => {
-    if (formBlockVisible) {
-      resetNewWizard(wizardState?.type ?? activeTableObjectType);
-      return;
-    }
-    clearWizard();
-  };
-  const openNewObjectMode = (obj?: ProjectObject) => {
-    const type =
-      obj?.object_type === 'pipe' || obj?.object_type === 'tank'
-        ? obj.object_type
-        : wizardState?.type ?? activeTableObjectType;
-    if (type !== 'pipe' && type !== 'tank') return;
-    if (formBlockVisible) {
-      resetNewWizard(type);
-      return;
-    }
-    clearWizard();
-  };
-  const { add, edit, remove } = useHeatCalcMutations(
-    project?.id,
-    handleObjectAdded,
-    handleObjectEdited,
-    closeWizard,
-  );
-
   const heatLossBatchMut = useMutation({
     mutationFn: (objectIds?: string[]) => enqueueHeatLossBatchJob(project!.id, true, objectIds),
     onSuccess: (task) => {
@@ -632,19 +577,40 @@ export default function HeatCalcPage() {
   const totalCount = activeObjectScope === 'all'
     ? projectObjectCount
     : objectsSummary?.by_type[activeObjectScope] ?? 0;
-  const formCaptionMode = wizardState?.editingObject ? 'edit' : wizardState ? 'new' : 'idle';
-  const formCaptionModeLabel =
-    formCaptionMode === 'edit'
-      ? 'Режим: изменение'
-      : formCaptionMode === 'new'
-        ? 'Режим: добавление'
-        : 'Режим: ожидание';
-  const hasWizard = !!wizardState;
-  const submittingObject = add.isPending || edit.isPending;
-
-  function openAddWizard(type: WizardObjectType = wizardState?.type ?? activeTableObjectType) {
-    resetNewWizard(type);
-  }
+  const {
+    add,
+    remove,
+    wizardState,
+    newWizardRevision,
+    lastSavedObject,
+    resetNewWizard,
+    clearWizard,
+    closeWizard,
+    openAddWizard,
+    openEditWizard,
+    forceOpenEditWizard,
+    handleWizardSubmit,
+    syncWizardWithRecord,
+    clearLastSavedObject,
+    selectedRowId,
+    selectedObject,
+    formCaptionMode,
+    formCaptionModeLabel,
+    hasWizard,
+    submittingObject,
+  } = useHeatCalcObjectEditor({
+    projectId: project?.id,
+    activeObjectScope,
+    activeTableObjectType,
+    formBlockVisible,
+    excelModeEnabled,
+    projectObjectCount,
+    draftRowsById,
+    setDraftRowsById,
+    setExcelLocalRows,
+    onScopeChanged: clearSelectedRows,
+    onDirtyEditBlocked: setPendingWizardObject,
+  });
 
   function handleObjectScopeChange(scope: ActiveObjectScope) {
     selectObjectScope(scope);
@@ -665,95 +631,8 @@ export default function HeatCalcPage() {
     clearWizard();
   }
 
-  const openEditWizard = useCallback((obj: ProjectObject) => {
-    // Редактировать можно только те типы, которые умеем: трубы и резервуары.
-    // Другие типы (pump/platform/other) пока не имеют форм мастера.
-    if (!canOpenObjectWizard(obj)) return;
-    if (!excelModeEnabled && isDraftRowDirty(draftRowsById[obj.id])) {
-      setPendingWizardObject(obj);
-      return;
-    }
-    setWizardState({ type: obj.object_type, editingObject: obj });
-  }, [draftRowsById, excelModeEnabled]);
-
-  function handleWizardSubmit(params: Record<string, unknown>) {
-    if (wizardState?.editingObject) {
-      const currentState = wizardState;
-      const editingObject = currentState.editingObject!;
-      const optimisticObject: ProjectObject = {
-        ...editingObject,
-        params,
-      };
-      setWizardState({ type: currentState.type, editingObject: optimisticObject });
-      if (isExcelNewRowId(editingObject.id)) {
-        add.mutate({
-          object_type: currentState.type,
-          params,
-          sort_order: projectObjectCount,
-        }, {
-          onSuccess: (createdObject) => {
-            setExcelLocalRows((current) => current.filter((row) => row.id !== editingObject.id));
-            setDraftRowsById((current) => {
-              const next = { ...current };
-              delete next[editingObject.id];
-              return next;
-            });
-            if (createdObject.object_type === 'pipe' || createdObject.object_type === 'tank') {
-              setWizardState({ type: createdObject.object_type, editingObject: createdObject });
-            }
-          },
-        });
-        return;
-      }
-      edit.mutate(
-        { objectId: editingObject.id, version: editingObject.version, params },
-        {
-          onSuccess: () => {
-            setDraftRowsById((current) => {
-              if (!current[editingObject.id]) return current;
-              const next = { ...current };
-              delete next[editingObject.id];
-              return next;
-            });
-          },
-        },
-      );
-    } else if (wizardState) {
-      add.mutate({
-        object_type: wizardState.type,
-        params,
-        sort_order: projectObjectCount,
-      });
-    }
-  }
-
-  function handleObjectAdded(obj: ProjectObject) {
-    setLastSavedObject(obj);
-    if (!obj.is_valid && (obj.object_type === 'pipe' || obj.object_type === 'tank')) {
-      setWizardState({ type: obj.object_type, editingObject: obj });
-      return;
-    }
-    openNewObjectMode(obj);
-  }
-
-  function handleObjectEdited(obj: ProjectObject) {
-    setLastSavedObject(obj);
-    if (obj.object_type !== 'pipe' && obj.object_type !== 'tank') return;
-    setWizardState({ type: obj.object_type, editingObject: obj });
-  }
-
-  const selectedRowId = wizardState?.editingObject?.id;
-  const selectedObject = wizardState?.editingObject ?? null;
   const selectedResults = selectedObject?.results as Record<string, unknown> | undefined;
   const selectedParams = selectedObject?.params as Record<string, unknown> | undefined;
-
-  const syncWizardWithRecord = useCallback((record: ProjectObject) => {
-    if (!canOpenObjectWizard(record)) return;
-    setWizardState((current) => {
-      if (current?.editingObject?.id === record.id) return current;
-      return { type: record.object_type, editingObject: record };
-    });
-  }, []);
 
   function resultValue(key: string, digits = 3) {
     const value = Number(selectedResults?.[key]);
@@ -1058,9 +937,10 @@ export default function HeatCalcPage() {
   const wizardBaseObject = useMemo(() => {
     const editingObject = wizardState?.editingObject;
     if (!editingObject) return null;
-    return visibleTableObjects.find((object) => object.id === editingObject.id)
-      ?? allProjectObjects.find((object) => object.id === editingObject.id)
-      ?? editingObject;
+    const tableObject = visibleTableObjects.find((object) => object.id === editingObject.id)
+      ?? allProjectObjects.find((object) => object.id === editingObject.id);
+    if (!tableObject || editingObject.version > tableObject.version) return editingObject;
+    return tableObject;
   }, [allProjectObjects, visibleTableObjects, wizardState?.editingObject]);
   const wizardFormObject = useMemo(() => {
     if (!wizardBaseObject) return null;
@@ -1883,18 +1763,25 @@ export default function HeatCalcPage() {
   useEffect(() => {
     if (!lastSavedObject) return;
     if (!isAllObjectScope && lastSavedObject.object_type !== activeTableObjectType) {
-      setLastSavedObject(null);
+      clearLastSavedObject();
       return;
     }
     if (!currentTableViewActive) {
-      setLastSavedObject(null);
+      clearLastSavedObject();
       return;
     }
     if (!visibleTableObjects.some((object) => object.id === lastSavedObject.id)) {
       antdMessage.info('Объект сохранён, но скрыт текущими фильтрами');
     }
-    setLastSavedObject(null);
-  }, [activeTableObjectType, currentTableViewActive, isAllObjectScope, lastSavedObject, visibleTableObjects]);
+    clearLastSavedObject();
+  }, [
+    activeTableObjectType,
+    clearLastSavedObject,
+    currentTableViewActive,
+    isAllObjectScope,
+    lastSavedObject,
+    visibleTableObjects,
+  ]);
 
   const sideFormWidthPctFromClientX = useCallback((clientX: number) => {
     const state = sideResizeStateRef.current;
@@ -2334,7 +2221,7 @@ export default function HeatCalcPage() {
                 objectType={wizardState.type}
                 onClose={closeWizard}
                 onSubmit={handleWizardSubmit}
-                submitting={add.isPending || edit.isPending}
+                submitting={submittingObject}
                 initialParams={(excelModeEnabled ? wizardFormObject : wizardBaseObject)?.params}
                 initialFormValues={excelModeEnabled && wizardBaseObject
                   ? draftRowsById[wizardBaseObject.id]?.draftFormValues
@@ -2912,7 +2799,7 @@ export default function HeatCalcPage() {
               if (objectType !== 'pipe' && objectType !== 'tank') return;
               discardDraftRows([target.id]);
               setPendingWizardObject(null);
-              setWizardState({ type: objectType, editingObject: target });
+              forceOpenEditWizard(target);
             }}
           >
             Discard
@@ -2930,7 +2817,7 @@ export default function HeatCalcPage() {
                 if (!result.ok) return;
                 const savedObject = result.saved.find((item) => item.id === target.id) ?? target;
                 setPendingWizardObject(null);
-                setWizardState({ type: objectType, editingObject: savedObject });
+                forceOpenEditWizard(savedObject);
               });
             }}
           >

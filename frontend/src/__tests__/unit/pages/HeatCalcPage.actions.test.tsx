@@ -159,14 +159,15 @@ describe('HeatCalcPage actions', () => {
       });
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
-    it('после сохранения редактируемого объекта остаётся на той же записи', async () => {
+    it('после сохранения редактируемого объекта отправляет version и остаётся на возвращённой записи', async () => {
       const { listObjects, updateObject } = await import('@/api/projects');
-      const source = makeObject();
+      const source = makeObject({ version: 7 });
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([source]);
       (updateObject as ReturnType<typeof vi.fn>).mockResolvedValue(
         makeObject({
           id: source.id,
-          params: { ...source.params, name: 'Труба DN100' },
+          version: 8,
+          params: { ...source.params, name: 'Труба DN100 сервер' },
         }),
       );
 
@@ -192,6 +193,7 @@ describe('HeatCalcPage actions', () => {
           'proj-test-1',
           source.id,
           expect.objectContaining({
+            version: 7,
             params: expect.objectContaining({
               name: 'Труба DN100',
             }),
@@ -202,7 +204,9 @@ describe('HeatCalcPage actions', () => {
         expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
       });
       expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('Труба DN100')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Труба DN100 сервер')).toBeInTheDocument();
+      });
     });
 
     it('создаёт копии объектов, выбранных галочками', async () => {

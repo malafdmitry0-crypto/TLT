@@ -220,6 +220,7 @@ describe('HeatCalcPage save reset', () => {
         expect.objectContaining({
           object_type: 'pipe',
           params: { name: 'ee' },
+          sort_order: 0,
         }),
       );
     });
