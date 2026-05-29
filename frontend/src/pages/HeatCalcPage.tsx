@@ -30,7 +30,7 @@ import { MATERIAL_LABELS } from '@/constants/materials';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
-import { createObject, getObjectQueryCapabilities, getObjectsSummary, listObjects, queryObjects, updateObject } from '@/api/projects';
+import { getObjectQueryCapabilities, getObjectsSummary, listObjects, queryObjects } from '@/api/projects';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
 import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
@@ -47,7 +47,7 @@ import {
   useHeatCalcExcelSelection,
   type HeatCalcExcelCellRef,
 } from '@/hooks/useHeatCalcExcelSelection';
-import type { ProjectObject, ProjectObjectsQueryResponse } from '@/types/project';
+import type { ProjectObject } from '@/types/project';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 import {
   HEATCALC_TABLE_COLUMN_CATALOG,
@@ -69,11 +69,8 @@ import {
 } from '@/utils/heatCalcTableViewSettings';
 import {
   buildDraftDisplayRecord,
-  buildDraftRowParams,
-  DraftRowValidationError,
   getDraftRowValidationErrors,
   getInlineEditFieldConfig,
-  type DraftRowState,
 } from '@/utils/heatCalcInlineEdit';
 import {
   getExcelEditableColumnMetas,
@@ -83,10 +80,7 @@ import {
 } from '@/utils/heatCalcExcelMode';
 import {
   isSavableExcelDraftRow,
-  pruneExcelLocalRowsByIds,
   resetExcelRowsInModel,
-  upsertSavedExcelObjectsInProjectList,
-  type SavedExcelProjectObject,
 } from '@/utils/heatCalcExcelRows';
 import {
   DEFAULT_OBJECT_QUERY_PAGE_SIZE,
@@ -116,6 +110,7 @@ import { useHeatCalcHeatLossJob } from '@/pages/heatcalc/useHeatCalcHeatLossJob'
 import HeatCalcAssumptionsPanel from '@/pages/heatcalc/HeatCalcAssumptionsPanel';
 import HeatCalcSelectedRowErrorsOverlay from '@/pages/heatcalc/HeatCalcSelectedRowErrorsOverlay';
 import { useHeatCalcResizeModel } from '@/pages/heatcalc/useHeatCalcResizeModel';
+import { useHeatCalcDraftSaveModel } from '@/pages/heatcalc/useHeatCalcDraftSaveModel';
 
 const loadObjectWizard = () => import('@/components/wizard/ObjectWizard');
 const ObjectWizard = lazy(loadObjectWizard);
@@ -747,25 +742,31 @@ export default function HeatCalcPage() {
   const inlineEditingEnabled = normalizedTableView.inlineEditingEnabled;
   const tableCellEditingEnabled = inlineEditingEnabled || excelModeEnabled;
   const isSavableDraftRow = isSavableExcelDraftRow;
-  const dirtyDraftRows = useMemo(
-    () => Object.values(draftRowsById).filter(isSavableDraftRow),
-    [draftRowsById, isSavableDraftRow],
-  );
-  const dirtyDraftRowCount = dirtyDraftRows.length;
-  const selectedDirtyRowIds = useMemo(
-    () => selectedRowKeys.filter((key) => isSavableDraftRow(draftRowsById[key])),
-    [draftRowsById, isSavableDraftRow, selectedRowKeys],
-  );
-  const saveTargetIds = selectedDirtyRowIds.length > 0
-    ? selectedDirtyRowIds
-    : dirtyDraftRows.map((row) => row.objectId);
-  const saveTargetCount = saveTargetIds.length;
-  const selectedDirtyTarget = selectedDirtyRowIds.length > 0;
-  const draftControlsVisible = tableCellEditingEnabled || dirtyDraftRowCount > 0;
-  const draftDiscardLabel = selectedDirtyTarget
-    ? `Сбросить выбранные (${saveTargetCount})`
-    : `Сбросить все (${saveTargetCount})`;
-  const inlineDraftSaving = dirtyDraftRows.some((row) => row.saving);
+  const {
+    dirtyDraftRowCount,
+    draftControlsVisible,
+    draftDiscardLabel,
+    inlineDraftSaving,
+    saveDraftRows,
+    saveTargetCount,
+    saveTargetIds,
+    selectedDirtyTarget,
+  } = useHeatCalcDraftSaveModel({
+    allProjectObjects,
+    allProjectObjectsQueryKey,
+    draftRowsById,
+    isSavableDraftRow,
+    objectQueryKey,
+    project,
+    projectObjectCount,
+    queryClient,
+    selectedRowKeys,
+    setDraftRowsById,
+    setExcelLocalRows,
+    tableCellEditingEnabled,
+    upsertNormalLoadedRow,
+    visibleTableObjects,
+  });
   const columnSettingsDialog = useHeatCalcColumnSettingsDialog({
     activeTableColumnScope,
     tableColumnSettings,
@@ -817,156 +818,6 @@ export default function HeatCalcPage() {
     selectedVisibleRows,
     submittingObject,
   });
-
-  const updateObjectInCurrentQuery = useCallback((savedObject: ProjectObject) => {
-    queryClient.setQueryData<ProjectObjectsQueryResponse | undefined>(objectQueryKey, (current) => {
-      if (!current) return current;
-      return {
-        ...current,
-        items: current.items.map((item) => (item.id === savedObject.id ? savedObject : item)),
-      };
-    });
-    upsertNormalLoadedRow(savedObject);
-  }, [objectQueryKey, queryClient, upsertNormalLoadedRow]);
-
-  const updateSavedExcelObjectsInCaches = useCallback((savedRows: SavedExcelProjectObject[]) => {
-    if (savedRows.length === 0) return;
-    queryClient.setQueryData<ProjectObject[] | undefined>(allProjectObjectsQueryKey, (current) => (
-      upsertSavedExcelObjectsInProjectList(current, savedRows, allProjectObjects)
-    ));
-    savedRows.forEach(({ draftRowId, savedObject }) => {
-      if (!isExcelNewRowId(draftRowId)) updateObjectInCurrentQuery(savedObject);
-    });
-  }, [allProjectObjects, allProjectObjectsQueryKey, queryClient, updateObjectInCurrentQuery]);
-
-  const saveDraftRows = useCallback(async (rowIds?: string[]) => {
-    if (!project) return { ok: false, saved: [] as ProjectObject[] };
-    const targetRows = (rowIds ?? Object.keys(draftRowsById))
-      .map((id) => draftRowsById[id])
-      .filter((row): row is DraftRowState => isSavableDraftRow(row));
-
-    if (targetRows.length === 0) return { ok: true, saved: [] as ProjectObject[] };
-    const validationByRowId = Object.fromEntries(
-      targetRows.map((row) => [row.objectId, getDraftRowValidationErrors(row)]),
-    ) as Record<string, Record<string, string>>;
-    const invalidRows = targetRows.filter((row) => Object.keys(validationByRowId[row.objectId] ?? {}).length > 0);
-    const validRows = targetRows.filter((row) => Object.keys(validationByRowId[row.objectId] ?? {}).length === 0);
-    if (invalidRows.length > 0) {
-      setDraftRowsById((current) => {
-        const next = { ...current };
-        invalidRows.forEach((row) => {
-          if (next[row.objectId]) {
-            next[row.objectId] = {
-              ...next[row.objectId],
-              saving: false,
-              errors: validationByRowId[row.objectId] ?? {},
-            };
-          }
-        });
-        return next;
-      });
-    }
-    if (validRows.length === 0) {
-      antdMessage.error('Исправьте ошибки в строках перед сохранением');
-      return { ok: false, saved: [] as ProjectObject[] };
-    }
-
-    const targetIds = new Set(validRows.map((row) => row.objectId));
-    setDraftRowsById((current) => {
-      const next = { ...current };
-      targetIds.forEach((id) => {
-        if (next[id]) next[id] = { ...next[id], saving: true };
-      });
-      return next;
-    });
-
-    const saved: ProjectObject[] = [];
-    const savedExcelRows: SavedExcelProjectObject[] = [];
-    const savedDraftIds = new Set<string>();
-    const failed: Record<string, string> = {};
-    const failedValidation: Record<string, Record<string, string>> = {};
-
-    await Promise.all(validRows.map(async (row, index) => {
-      try {
-        const isNewRow = isExcelNewRowId(row.objectId);
-        const params = buildDraftRowParams(row);
-        const savedObject = isNewRow
-          ? await createObject(project.id, {
-            object_type: row.objectType,
-            params,
-            sort_order: (() => {
-              const rowIndex = visibleTableObjects.findIndex((object) => object.id === row.objectId);
-              return rowIndex >= 0 ? rowIndex : projectObjectCount + index;
-            })(),
-          })
-          : await updateObject(project.id, row.objectId, {
-            version: row.baseVersion,
-            params,
-          });
-        saved.push(savedObject);
-        savedExcelRows.push({ draftRowId: row.objectId, savedObject });
-        savedDraftIds.add(row.objectId);
-      } catch (error) {
-        if (error instanceof DraftRowValidationError) {
-          failedValidation[row.objectId] = error.errors;
-        } else {
-          failed[row.objectId] = error instanceof Error ? error.message : 'Не удалось сохранить строку';
-        }
-      }
-    }));
-
-    if (savedDraftIds.size > 0) {
-      updateSavedExcelObjectsInCaches(savedExcelRows);
-      setExcelLocalRows((current) => pruneExcelLocalRowsByIds(current, savedDraftIds));
-    }
-    setDraftRowsById((current) => {
-      const next = { ...current };
-      savedDraftIds.forEach((id) => {
-        delete next[id];
-      });
-      Object.entries(failed).forEach(([id, message]) => {
-        if (next[id]) {
-          next[id] = {
-            ...next[id],
-            saving: false,
-            errors: {
-              ...next[id].errors,
-              _row: message,
-            },
-          };
-        }
-      });
-      Object.entries(failedValidation).forEach(([id, errors]) => {
-        if (next[id]) {
-          next[id] = {
-            ...next[id],
-            saving: false,
-            errors,
-          };
-        }
-      });
-      return next;
-    });
-
-    queryClient.invalidateQueries({ queryKey: ['project', project.id, 'objects', 'query'] });
-    queryClient.invalidateQueries({ queryKey: ['project', project.id, 'objects', 'summary'] });
-    queryClient.invalidateQueries({ queryKey: ['spec', project.id] });
-
-    if (Object.keys(failed).length > 0 || Object.keys(failedValidation).length > 0 || invalidRows.length > 0) {
-      antdMessage.error('Часть строк не сохранена');
-      return { ok: false, saved };
-    }
-    antdMessage.success(`Сохранено строк: ${saved.length}`);
-    return { ok: true, saved };
-  }, [
-    draftRowsById,
-    isSavableDraftRow,
-    project,
-    projectObjectCount,
-    queryClient,
-    updateSavedExcelObjectsInCaches,
-    visibleTableObjects,
-  ]);
 
   const startInlineCellEdit = useCallback((record: ProjectObject, columnKey: string) => {
     if (!tableCellEditingEnabled) return;

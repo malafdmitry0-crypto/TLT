@@ -97,6 +97,7 @@
 | Assumptions panel component | Done | `frontend/src/pages/heatcalc/HeatCalcAssumptionsPanel.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/HeatCalcAssumptionsPanel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved calculation detail rendering out of route component without formula/API/layout changes; typecheck and focused settings suite passed |
 | Selected row errors overlay component | Done | `frontend/src/pages/heatcalc/HeatCalcSelectedRowErrorsOverlay.tsx`; `frontend/src/__tests__/unit/pages/heatcalc/HeatCalcSelectedRowErrorsOverlay.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved selected row validation overlay JSX without state/effect/API/layout changes; typecheck and focused inline-edit suite passed |
 | Resize model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcResizeModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcResizeModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved side form and column resize drag handlers out of route component without CSS/layout/API/formula changes; typecheck, focused hook test and settings suite passed |
+| Draft save model hook | Done | `frontend/src/pages/heatcalc/useHeatCalcDraftSaveModel.ts`; `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcDraftSaveModel.test.tsx`; page wiring in `frontend/src/pages/HeatCalcPage.tsx`; moved draft save target derivation, validation, create/update, cache writes and invalidation out of route component without backend/API/formula/layout changes; typecheck, focused hook test and inline-edit characterization passed |
 | Objects table route wrapper extraction | Backlog | `HeatCalcObjectsTable`; high risk, do after renderers/state hooks stabilize |
 
 ## Prompt 2. Вынести только pure helpers
@@ -387,6 +388,50 @@ Definition of Done:
 - Новый hook/model с явными inputs и focused tests.
 - `HeatCalcPage.tsx` только подключает hook и передаёт resize callbacks дальше.
 - Existing settings characterization остаётся зелёной.
+- Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
+  `git diff --check`.
+- Обновить Progress Ledger после успешного slice.
+
+## Prompt 12. Вынести draft save model
+
+Status: Done. Не запускать повторно без нового finding.
+Historical prompt ниже сохранён как история выполнения.
+
+Вынеси из `frontend/src/pages/HeatCalcPage.tsx` только draft-save
+orchestration:
+
+- `dirtyDraftRows` / `dirtyDraftRowCount`;
+- `selectedDirtyRowIds`;
+- `saveTargetIds` / `saveTargetCount` / `selectedDirtyTarget`;
+- `draftControlsVisible` / `draftDiscardLabel` / `inlineDraftSaving`;
+- `updateObjectInCurrentQuery`;
+- `updateSavedExcelObjectsInCaches`;
+- `saveDraftRows`.
+
+Жёсткие границы:
+
+- Не менять backend, API contracts, формулы, единицы измерения, expected
+  business values.
+- Не менять object payload mapping вне уже существующего `buildDraftRowParams`.
+- Не менять Excel selection/keyboard/clipboard logic.
+- Не менять toolbar UI/CSS/layout/texts.
+- Не менять modal flow, кроме wiring на новый hook output.
+- Сохранить save flow, сообщения и invalidation query keys.
+
+Functional trace:
+
+- API contract: `docs/api.md`, `PUT /projects/{id}/objects/{object_id}`
+  требует `version` и обновляет объект.
+- Frontend characterization:
+  `frontend/src/__tests__/unit/pages/HeatCalcPage.inline-edit.test.tsx`.
+- Focused hook tests:
+  `frontend/src/__tests__/unit/pages/heatcalc/useHeatCalcDraftSaveModel.test.tsx`.
+
+Definition of Done:
+
+- Новый hook/model с явными inputs и focused tests.
+- `HeatCalcPage.tsx` только подключает hook и использует returned values.
+- Existing inline-edit characterization остаётся зелёной.
 - Запустить `npm --prefix frontend run typecheck`, focused Vitest suites и
   `git diff --check`.
 - Обновить Progress Ledger после успешного slice.
