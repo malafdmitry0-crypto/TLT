@@ -87,3 +87,15 @@
 | 1 | Создать проект с session_A | `id_A` |
 | 2 | `PUT /api/v1/projects/{id_A}` с session_B | HTTP 403 |
 | 3 | `DELETE /api/v1/projects/{id_A}` с session_B | HTTP 403 |
+
+---
+
+## TC-PROJ-08: Пакетный CSV-экспорт проектов без N+1
+
+**Автоматизировано:** ✅ `test_query_counts.py::test_bulk_project_csv_export_uses_constant_query_count`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Создать несколько проектов сотрудника с объектами, электрорасчётами и спецификациями | Данные сохранены |
+| 2 | Запустить `export_projects_bulk` для всех проектов | CSV содержит секции `projects`, `objects`, `electrical`, `specifications` |
+| 3 | Посчитать SQL-запросы export-сервиса | Константно 4 `SELECT`: проекты, объекты, электрорасчёты, спецификации |

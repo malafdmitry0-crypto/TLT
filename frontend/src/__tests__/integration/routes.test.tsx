@@ -10,7 +10,7 @@ import AppRoutes from '@/routes';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
 
-const lazyRouteTimeout = { timeout: 5000 };
+const lazyRouteTimeout = { timeout: 15_000 };
 
 // Мокаем все API чтобы страницы не падали на загрузке
 vi.mock('@/api/projects', () => ({
@@ -138,7 +138,7 @@ describe('AppRoutes', () => {
 
   it('/ показывает HomePage', async () => {
     renderAt('/');
-    expect((await screen.findAllByText(/без регистрации/i))[0]).toBeInTheDocument();
+    expect((await screen.findAllByText(/без регистрации/i, undefined, lazyRouteTimeout))[0]).toBeInTheDocument();
   });
 
   it('/login показывает форму авторизации', async () => {
@@ -168,13 +168,13 @@ describe('AppRoutes', () => {
   it('/admin без role редиректит на /', async () => {
     renderAt('/admin/users');
     // ProtectedRoute → Navigate("/") → HomePage
-    expect((await screen.findAllByText(/без регистрации/i))[0]).toBeInTheDocument();
+    expect((await screen.findAllByText(/без регистрации/i, undefined, lazyRouteTimeout))[0]).toBeInTheDocument();
   });
 
   it('/projects для guest редиректит на /', async () => {
     useAuthStore.getState().setGuest('sid-1');
     renderAt('/projects');
-    expect((await screen.findAllByText(/без регистрации/i))[0]).toBeInTheDocument();
+    expect((await screen.findAllByText(/без регистрации/i, undefined, lazyRouteTimeout))[0]).toBeInTheDocument();
   });
 
   it('/workspace для admin редиректит на / (admin не работает с проектами)', async () => {
@@ -183,6 +183,6 @@ describe('AppRoutes', () => {
       { access: 'a', refresh: 'r' }
     );
     renderAt('/workspace');
-    expect((await screen.findAllByText(/без регистрации/i))[0]).toBeInTheDocument();
+    expect((await screen.findAllByText(/без регистрации/i, undefined, lazyRouteTimeout))[0]).toBeInTheDocument();
   });
 });

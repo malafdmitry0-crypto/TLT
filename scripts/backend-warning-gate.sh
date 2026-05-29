@@ -36,9 +36,18 @@ ensure_dev_stack
 
 docker exec \
   -e SECRET_KEY=codex-warning-gate-secret-key-at-least-32-chars \
-  -e TEST_DATABASE_URL=postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test \
   heatcalc_backend pytest \
     app/tests/unit/core/test_config_security.py \
+    -q --tb=short --no-cov \
+    -W error::jwt.warnings.InsecureKeyLengthWarning \
+    -W error::pydantic.warnings.PydanticDeprecatedSince20 \
+    -W error::DeprecationWarning:fastapi.routing \
+    -W error::DeprecationWarning:passlib.utils
+
+docker exec \
+  -e SECRET_KEY=codex-warning-gate-secret-key-at-least-32-chars \
+  -e TEST_DATABASE_URL=postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test \
+  heatcalc_backend pytest \
     app/tests/integration/api/test_security_boundaries.py \
     app/tests/integration/api/test_import_excel.py \
     -q --tb=short --no-cov \

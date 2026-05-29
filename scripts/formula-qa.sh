@@ -86,6 +86,7 @@ run_mutation() {
 
   run_backend mutmut run
   run_backend mutmut results
+  run_backend python scripts/mutmut_score_gate.py
 }
 
 case "$TARGET" in

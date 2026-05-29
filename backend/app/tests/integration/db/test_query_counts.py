@@ -11,12 +11,14 @@ from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project import Project
 from app.models.project_object import ProjectObject
+from app.models.specification import Specification
 from app.models.user import User
 from app.schemas.calculation import ElectricalQueryRequest
 from app.schemas.project import ProjectObjectsQueryRequest
 from app.services.calculation_service import CalculationService
 from app.services.electrical_query_service import ElectricalQueryService
 from app.services.object_query_service import ObjectQueryService
+from app.services.project_io_service import export_projects_bulk
 from app.services.project_service import ProjectService
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -447,6 +449,74 @@ async def test_list_projects_uses_lightweight_object_type_lookup(
     assert "project_objects.params" not in object_type_sql
     assert "project_objects.results" not in object_type_sql
     assert "project_objects.validation_errors" not in object_type_sql
+
+
+async def test_bulk_project_csv_export_uses_constant_query_count(
+    db_session: AsyncSession,
+    employee_user: User,
+    test_engine: AsyncEngine,
+):
+    project_ids = []
+    for project_index in range(5):
+        project = Project(
+            name=f"BulkExport-{project_index}",
+            task_number=f"BE-{project_index}",
+            user_id=employee_user.id,
+        )
+        db_session.add(project)
+        await db_session.flush()
+        project_ids.append(project.id)
+
+        objects = [
+            ProjectObject(
+                project_id=project.id,
+                object_type="pipe",
+                sort_order=object_index,
+                is_valid=True,
+                params={"name": f"Pipe-{project_index}-{object_index}"},
+                results={"heat_loss_per_meter": 20.0, "total_heat_loss": 100.0},
+            )
+            for object_index in range(3)
+        ]
+        db_session.add_all(objects)
+        await db_session.flush()
+
+        db_session.add_all(
+            ElectricalCalculation(
+                project_id=project.id,
+                object_id=obj.id,
+                variant_number=1,
+                cable_type="self_regulating",
+                cable_mark="ТЛТ-30",
+                params={},
+                results={"selected_cable": {"mark": "ТЛТ-30"}},
+            )
+            for obj in objects
+        )
+        db_session.add(
+            Specification(
+                project_id=project.id,
+                variant_number=1,
+                items=[{"name": f"Cable-{project_index}", "quantity": 1}],
+            )
+        )
+
+    await db_session.commit()
+
+    with count_sql(test_engine) as statements:
+        filename, payload = await export_projects_bulk(
+            db_session,
+            project_ids,
+            _principal(employee_user),
+        )
+
+    text = payload.decode("utf-8-sig")
+    assert filename == "projects_export.csv"
+    assert "[SECTION];projects" in text
+    assert "BulkExport-0" in text
+    assert "BulkExport-4" in text
+    assert "ТЛТ-30" in text
+    _assert_query_count(statements, 4)
 
 
 async def test_reorder_objects_uses_single_object_lookup(

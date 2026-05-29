@@ -43,7 +43,7 @@ from app.models.electrical_candidate_folder import (
 )
 from app.models.project_object import ProjectObject
 from app.reference_data.loader import (
-    get_climate_by_city,
+    get_climate_entry,
     list_resistive_cables,
     list_tlt_cables,
     list_tt_cables,
@@ -837,8 +837,11 @@ class CalculationService:
         object_type: str,
         data: dict[str, Any],
         coefficients: dict[str, float],
+        *,
+        apply_climate_policy: bool = True,
     ) -> HeatLossResultDict:
-        data = self._apply_climate_policy(object_type, data)
+        if apply_climate_policy:
+            data = self._apply_climate_policy(object_type, data)
         if object_type == "pipe":
             params = PipeHeatLossParams(**self._heat_loss_formula_input(PipeHeatLossParams, data))
             pipe_result = calc_pipe_heat_loss(params, coefficients=coefficients)
@@ -983,10 +986,12 @@ class CalculationService:
         try:
             obj.params = prepare_project_object_params(obj.object_type, obj.params)
             obj.params = self._apply_climate_policy(obj.object_type, obj.params)
-            result = (
-                self._calc_heat_loss_with_coefficients(obj.object_type, obj.params, coefficients)
-                if coefficients is not None
-                else await self.calc_heat_loss(obj.object_type, obj.params)
+            resolved_coefficients = coefficients if coefficients is not None else await self.get_coefficients()
+            result = self._calc_heat_loss_with_coefficients(
+                obj.object_type,
+                obj.params,
+                resolved_coefficients,
+                apply_climate_policy=False,
             )
             obj.results = cast(dict[str, Any], result)
             obj.is_valid = True
@@ -1013,10 +1018,11 @@ class CalculationService:
 
     @staticmethod
     def _climate_entry(data: dict[str, Any]) -> dict[str, Any] | None:
-        city = data.get("climate_city")
-        if city:
-            return get_climate_by_city(str(city))
-        return None
+        return get_climate_entry(
+            climate_key=str(data["climate_key"]) if data.get("climate_key") else None,
+            city=str(data["climate_city"]) if data.get("climate_city") else None,
+            region=str(data["climate_region"]) if data.get("climate_region") else None,
+        )
 
     @classmethod
     def _apply_climate_policy(cls, object_type: str, data: dict[str, Any]) -> dict[str, Any]:

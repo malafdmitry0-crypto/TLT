@@ -32,7 +32,7 @@ UI/API workflow считается gap до полного соответств�
 | `tlt_tank_external_resistance` | Да | Да | Да | Да | Да | Covered |
 | `tlt_rectangular_tank_perimeter` | Да | Да | Да | Да | Да | Covered |
 | `tlt_tank_heat_loss_no_double_k` | Да | Да | Да | Да | Да | Covered |
-| `tlt_climate_safety_factor` | Да | Да | Да, backend resolver нормализует K и расчетную T | Частично через поля климата | Да | Covered |
+| `tlt_climate_safety_factor` | Да | Да | Да, backend resolver нормализует K и расчетную T; lookup использует `climate_key`/регион для городов-дубликатов | Частично через поля климата | Да | Covered |
 | `tlt_max_winding_coefficient` | Да | Да | Да, hard-limit для explicit/geometric Kn | Частично: UI manual max `1.5` | Да | Covered |
 | `tlt_self_regulating_tlt_selection` | Да | Частично | Да, auto подбор ТЛТ по мощности и температурам | Да, таблица электрорасчёта и ручной/авто выбор марки | Да | Covered |
 | `tlt_self_regulating_thread_source_policy` | Да | Нет | Да, auto `N=1..3`, manual override и source metadata | Да, колонка ниток показывает источник | Да | Covered |

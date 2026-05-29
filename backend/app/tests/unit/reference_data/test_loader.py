@@ -9,6 +9,8 @@ import pytest
 from app.reference_data.loader import (
     clear_cache,
     get_climate_by_city,
+    get_climate_by_key,
+    get_climate_entry,
     get_insulation_conductivity,
     get_insulation_temperature_range,
     get_pipe_material_lambda,
@@ -33,6 +35,7 @@ class TestListFunctions:
         assert len(cities) >= 100  # sample проверка
         # Каждая запись содержит city и t_0_98 (температурные данные)
         assert all("city" in c for c in cities)
+        assert all("key" in c for c in cities)
 
     def test_insulation_has_known_materials(self):
         materials = list_insulation_materials()
@@ -209,6 +212,52 @@ class TestGetClimateByCity:
 
     def test_unknown_city_returns_none(self):
         assert get_climate_by_city("Атлантида") is None
+
+    def test_duplicate_city_requires_region_or_key(self):
+        assert get_climate_by_city("Октябрьское") is None
+
+        hmao = get_climate_by_city(
+            "Октябрьское",
+            region="Ханты-Мансийский автономный округ – Югра",
+        )
+        chelyabinsk = get_climate_by_key("Челябинская область|||Октябрьское")
+
+        assert hmao is not None
+        assert hmao["t_abs_min"] == pytest.approx(-56.0)
+        assert hmao["key"] == "Ханты-Мансийский автономный округ – Югра|||Октябрьское"
+        assert chelyabinsk is not None
+        assert chelyabinsk["t_abs_min"] == pytest.approx(-44.0)
+        assert chelyabinsk["key"] == "Челябинская область|||Октябрьское"
+
+    def test_climate_entry_prefers_key_over_city(self):
+        entry = get_climate_entry(
+            climate_key="Челябинская область|||Октябрьское",
+            city="Октябрьское",
+            region="Ханты-Мансийский автономный округ – Югра",
+        )
+
+        assert entry is not None
+        assert entry["region"] == "Челябинская область"
+        assert entry["t_0_92"] == pytest.approx(-32.0)
+
+    def test_climate_entry_falls_back_to_unique_city_when_region_is_stale(self):
+        entry = get_climate_entry(city="Славгород", region="Могилёвская область")
+
+        assert entry is not None
+        assert entry["region"] == "Алтайский край"
+        assert entry["t_abs_min"] == pytest.approx(-48.0)
+
+    def test_climate_indexes_are_reused_after_first_lookup(self, monkeypatch):
+        assert get_climate_entry(climate_key="Ярославская область|||Ярославль") is not None
+        assert get_climate_entry(city="Атлантида") is None
+
+        def fail_full_scan():
+            raise AssertionError("climate lookup must use cached indexes")
+
+        monkeypatch.setattr("app.reference_data.loader._climate", fail_full_scan)
+
+        assert get_climate_entry(climate_key="Ярославская область|||Ярославль") is not None
+        assert get_climate_entry(city="Атлантида") is None
 
 
 class TestGetInsulationConductivity:

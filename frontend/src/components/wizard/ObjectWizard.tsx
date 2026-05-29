@@ -7,7 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactElement,
 } from 'react';
-import { Button, Form, Input, InputNumber, Select, Tag, type FormInstance } from 'antd';
+import { Button, Form, Input, InputNumber, Tag, type FormInstance } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import type { ObjectType } from '@/constants/objectTypes';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
@@ -19,6 +19,7 @@ import FieldLabel from './FieldLabel';
 import ReferencePicker from './ReferencePicker';
 import InsulationTemperatureRangeField from './InsulationTemperatureRangeField';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
+import { TltSelect } from '@/components/form-controls';
 import { getClimate, getInsulation, getPipeMaterials, getSoilConductivity } from '@/api/references';
 import type { ClimateEntry, InsulationEntry } from '@/types/reference';
 import {
@@ -36,6 +37,7 @@ import {
   heatCalcCustomControlRequiredProps,
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
+  heatCalcSelectInputProps,
   heatCalcSelectOptions,
   heatCalcTextInputProps,
 } from '@/utils/heatCalcWizardFieldRules';
@@ -437,6 +439,7 @@ function buildCalculationFieldErrors(
 type ClimateBasis = 't_0_92' | 't_0_98' | 't_abs_min';
 
 function climateKey(entry: ClimateEntry) {
+  if (entry.key) return entry.key;
   return `${entry.region}|||${entry.city ?? entry.region}`;
 }
 
@@ -559,6 +562,8 @@ export default function ObjectWizard({
     fieldInputSettings,
     form,
   });
+  const selectInputProps = (fieldId: string) =>
+    heatCalcSelectInputProps(heatCalcObjectType, fieldId, { form });
   const isEditMode = !!initialParams || !!initialFormValues;
   const initialValues = useMemo(() =>
     initialFormValues != null
@@ -1105,8 +1110,9 @@ export default function ObjectWizard({
           name="supply_voltage"
         >
           {withHelp(
-            <Select
+            <TltSelect
               data-testid="supply-voltage-select"
+              {...selectInputProps('supply_voltage')}
               options={heatCalcSelectOptions(heatCalcObjectType, 'supply_voltage')}
               placeholder="Выберите"
             />,
@@ -1151,8 +1157,9 @@ export default function ObjectWizard({
           name="steam_tracing"
         >
           {withHelp(
-            <Select
+            <TltSelect
               data-testid="steam-tracing-select"
+              {...selectInputProps('steam_tracing')}
               options={heatCalcSelectOptions(heatCalcObjectType, 'steam_tracing')}
               placeholder="Выберите"
             />,
@@ -1319,8 +1326,9 @@ export default function ObjectWizard({
                 rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'pipe_lambda_mode')}
               >
                 {withHelp(
-                  <Select
+                  <TltSelect
                     data-testid="pipe-lambda-mode-select"
+                    {...selectInputProps('pipe_lambda_mode')}
                     placeholder="Выберите режим"
                     options={heatCalcSelectOptions(heatCalcObjectType, 'pipe_lambda_mode')}
                   />,
@@ -1374,8 +1382,9 @@ export default function ObjectWizard({
             rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'placement')}
           >
             {withHelp(
-              <Select
+              <TltSelect
                 data-testid="placement-select"
+                {...selectInputProps('placement')}
                 placeholder="Выберите размещение"
                 options={heatCalcSelectOptions(heatCalcObjectType, 'placement')}
               />,
@@ -1456,8 +1465,9 @@ export default function ObjectWizard({
             rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'insulation_layer_count')}
           >
             {withHelp(
-              <Select
+              <TltSelect
                 data-testid="insulation-layer-count-select"
+                {...selectInputProps('insulation_layer_count')}
                 options={heatCalcSelectOptions(heatCalcObjectType, 'insulation_layer_count')}
                 placeholder="Выберите"
               />,
@@ -1623,8 +1633,9 @@ export default function ObjectWizard({
             name="insulation_cover_material"
           >
             {withHelp(
-              <Select
+              <TltSelect
                 data-testid="insulation-cover-material-select"
+                {...selectInputProps('insulation_cover_material')}
                 options={heatCalcSelectOptions(heatCalcObjectType, 'insulation_cover_material')}
                 placeholder="Не указано"
               />,
@@ -1682,8 +1693,9 @@ export default function ObjectWizard({
             rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'insulation_temperature_basis')}
           >
             {withHelp(
-              <Select
+              <TltSelect
                 data-testid="insulation-temperature-basis-select"
+                {...selectInputProps('insulation_temperature_basis')}
                 placeholder="Выберите режим tm"
                 options={heatCalcSelectOptions(
                   heatCalcObjectType,
@@ -1813,8 +1825,9 @@ export default function ObjectWizard({
             name="environment"
           >
             {withHelp(
-              <Select
+              <TltSelect
                 data-testid="environment-select"
+                {...selectInputProps('environment')}
                 options={heatCalcSelectOptions(heatCalcObjectType, 'environment')}
                 placeholder="Выберите среду"
               />,
@@ -1827,8 +1840,9 @@ export default function ObjectWizard({
             name="zone_classification"
           >
             {withHelp(
-              <Select
+              <TltSelect
                 data-testid="zone-classification-select"
+                {...selectInputProps('zone_classification')}
                 options={heatCalcSelectOptions(heatCalcObjectType, 'zone_classification')}
                 placeholder="Выберите зону"
               />,
@@ -1841,8 +1855,9 @@ export default function ObjectWizard({
             name="temperature_group"
           >
             {withHelp(
-              <Select
+              <TltSelect
                 data-testid="temperature-group-select"
+                {...selectInputProps('temperature_group')}
                 options={heatCalcSelectOptions(heatCalcObjectType, 'temperature_group')}
                 placeholder="Выберите"
               />,
@@ -1867,7 +1882,9 @@ function scrollToFirstError() {
     const el = document.querySelector<HTMLElement>('.inline-object-form .ant-form-item-has-error');
     if (el) {
       el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-      el.querySelector<HTMLElement>('input, select, textarea, .reference-picker-control')?.focus();
+      el.querySelector<HTMLElement>(
+        'input, select, textarea, .tlt-select__trigger, .reference-picker-control',
+      )?.focus();
     }
   }, 0);
 }

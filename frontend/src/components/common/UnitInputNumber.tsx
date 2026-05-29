@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { InputNumber, Space, type InputNumberProps } from 'antd';
+import type { InputNumberProps } from 'antd';
+import { TltNumberField } from '@/components/form-controls';
 
 type UnitInputNumberProps = Omit<InputNumberProps, 'addonAfter' | 'addonBefore'> & {
   unit: ReactNode;
@@ -20,17 +21,12 @@ export default function UnitInputNumber({
   ...inputProps
 }: UnitInputNumberProps) {
   return (
-    <Space.Compact
+    <TltNumberField
+      {...inputProps}
+      addonClassName={joinClassNames('unit-input-number__addon', addonClassName)}
       className={joinClassNames('unit-input-number', wrapperClassName)}
-      style={wrapperStyle}
-    >
-      <InputNumber {...inputProps} />
-      <span
-        className={joinClassNames('unit-input-number__addon', addonClassName)}
-        aria-hidden="true"
-      >
-        {unit}
-      </span>
-    </Space.Compact>
+      unit={unit}
+      wrapperStyle={wrapperStyle}
+    />
   );
 }

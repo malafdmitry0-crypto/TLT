@@ -1,9 +1,11 @@
-import { Form, Select } from 'antd';
+import { Form } from 'antd';
 import type { ReactElement } from 'react';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
+import { TltSelect } from '@/components/form-controls';
 import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
+  heatCalcSelectInputProps,
   heatCalcSelectOptions,
 } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
@@ -34,6 +36,8 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps('tank', fieldId, { fieldInputSettings, form });
+  const selectInputProps = (fieldId: string) =>
+    heatCalcSelectInputProps('tank', fieldId, { form });
   const shape = Form.useWatch('shape', form) as string | undefined;
   const needDiameter = shape === 'cylindrical' || shape === 'spherical';
   const needHeight = shape === 'cylindrical' || shape === 'rectangular';
@@ -49,8 +53,9 @@ export default function TankGeometryStep({ fieldInputSettings }: Props) {
         rules={heatCalcFormFieldRules(form, 'tank', 'shape')}
       >
         {withHelp(
-          <Select
+          <TltSelect
             data-testid="tank-shape-select"
+            {...selectInputProps('shape')}
             options={heatCalcSelectOptions('tank', 'shape')}
             placeholder="Выберите форму"
           />,

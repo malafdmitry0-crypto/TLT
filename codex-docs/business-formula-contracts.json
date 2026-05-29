@@ -31,6 +31,7 @@
         { "path": "backend/app/tests/unit/formulas/test_pipe_heat_loss.py", "command": "scripts/formula-qa.sh quick" },
         { "path": "backend/app/tests/unit/services/test_no_double_safety.py", "command": "scripts/formula-qa.sh quick" },
         { "path": "backend/app/tests/unit/services/test_calculation_service_unit.py", "command": "scripts/formula-qa.sh quick" },
+        { "path": "backend/app/tests/unit/reference_data/test_loader.py", "command": "scripts/formula-qa.sh quick" },
         { "path": "qa-agent/tests/AlgorithmOracle.test.ts", "command": "npm --prefix qa-agent test" },
         { "path": "backend/app/tests/integration/api/test_calculations.py", "command": "scripts/formula-qa.sh full" },
         { "path": "e2e/tests/heat-calculation.spec.ts", "command": "scripts/codex-functional-audit.sh user-flows" }

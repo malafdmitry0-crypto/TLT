@@ -48,7 +48,9 @@ addopts = "-ra -q --cov=app --cov-fail-under=85 --cov-report=term-missing:skip-c
 # Запуск: scripts/formula-qa.sh mutation
 paths_to_mutate = ["app/formulas/"]
 runner = "python -m pytest -x --no-cov -q app/tests/unit/formulas"
-tests_dir = "app/tests/unit/formulas"
+pytest_add_cli_args = ["--no-cov"]
+tests_dir = ["app/tests/unit/formulas"]
+also_copy = ["app"]
 backup = false
 
 [tool.bandit]

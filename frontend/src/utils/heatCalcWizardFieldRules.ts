@@ -114,6 +114,24 @@ export function heatCalcTextInputProps(objectType: HeatCalcObjectType, fieldId: 
   };
 }
 
+export function heatCalcSelectInputProps(
+  objectType: HeatCalcObjectType,
+  fieldId: string,
+  options: {
+    form?: FormInstance;
+  } = {},
+) {
+  const required = options.form ? heatCalcFieldRequired(options.form, objectType, fieldId) : false;
+  return {
+    'aria-label': getHeatCalcFieldLabel(fieldId, {
+      objectType,
+      context: 'form',
+      variant: 'full',
+    }),
+    'aria-required': required ? true : undefined,
+  };
+}
+
 export function heatCalcSelectOptions(
   objectType: HeatCalcObjectType,
   fieldId: string,

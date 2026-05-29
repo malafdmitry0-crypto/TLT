@@ -82,6 +82,22 @@
 | `/ui-proof` | Любой UI/layout/UX дефект | Before screenshot, DOM/CSS finding, fix, verifier/Playwright, after screenshot минимум на целевом viewport |
 | `/release-gate` | Предрелизная проверка | `all`/`deep` gates, список блокеров; не подменять блокеры случайными refactor/fix вне scope |
 
+## Multi-agent routing
+
+Для агентных задач используй repo-local routing layer:
+
+1. Сначала прочитай этот `AGENTS.md`.
+2. Затем прочитай `.agents/routing.yaml`.
+3. Выбери primary role и прочитай соответствующий файл
+   `.agents/roles/*.md`.
+4. Если runtime или пользователь не разрешил delegation, применяй выбранную
+   роль локально.
+5. Если delegation разрешен, назначай одного lead agent и только независимые
+   sidecar-задачи с явным read-only scope или disjoint write set.
+
+`AGENTS.md` всегда сильнее `.agents/*`. Role-файлы уточняют маршрутизацию, но
+не отменяют требования evidence, stop conditions и запреты на ослабление тестов.
+
 ## Жёсткие правила evidence
 
 - Если пользователь назвал конкретный симптом, агент не имеет права уходить в

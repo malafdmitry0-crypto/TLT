@@ -133,15 +133,23 @@ async function verifyToolbarTooltips(page) {
 }
 
 async function selectPipeLayerCount(page, count) {
-  const layerSelect = page.locator('.layer-count-form-item .ant-select').first();
+  const layerSelect = page
+    .locator('.layer-count-form-item .tlt-select__trigger, .layer-count-form-item .ant-select')
+    .first();
   if ((await layerSelect.count()) === 0) return false;
 
   await layerSelect.click();
-  await page
-    .locator('.ant-select-item-option')
-    .filter({ hasText: `${count} ${count === 1 ? 'слой' : 'слоя'}` })
-    .last()
-    .click();
+  const label = `${count} ${count === 1 ? 'слой' : 'слоя'}`;
+  const ariaOption = page.getByRole('option', { name: label }).last();
+  if ((await ariaOption.count()) > 0) {
+    await ariaOption.click();
+  } else {
+    await page
+      .locator('.ant-select-item-option')
+      .filter({ hasText: label })
+      .last()
+      .click();
+  }
   await page.waitForTimeout(400);
   return true;
 }

@@ -28,6 +28,43 @@ def _climate() -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], _load_json("climate.json")["cities"])
 
 
+def _normalized_text(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def _climate_key_for(entry: dict[str, Any]) -> str:
+    city = str(entry.get("city") or entry["region"]).strip()
+    region = str(entry["region"]).strip()
+    return f"{region}|||{city}"
+
+
+def _with_climate_key(entry: dict[str, Any]) -> dict[str, Any]:
+    result = dict(entry)
+    result.setdefault("key", _climate_key_for(entry))
+    return result
+
+
+@lru_cache
+def _climate_by_key() -> dict[str, dict[str, Any]]:
+    return {_normalized_text(_climate_key_for(entry)): entry for entry in _climate()}
+
+
+@lru_cache
+def _climate_by_city_region() -> dict[tuple[str, str], dict[str, Any]]:
+    return {
+        (_normalized_text(entry.get("city") or entry["region"]), _normalized_text(entry["region"])): entry
+        for entry in _climate()
+    }
+
+
+@lru_cache
+def _climate_by_unique_city() -> dict[str, dict[str, Any]]:
+    buckets: dict[str, list[dict[str, Any]]] = {}
+    for entry in _climate():
+        buckets.setdefault(_normalized_text(entry.get("city") or entry["region"]), []).append(entry)
+    return {city: rows[0] for city, rows in buckets.items() if len(rows) == 1}
+
+
 @lru_cache
 def _insulation() -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], _load_json("insulation.json")["materials"])
@@ -67,15 +104,59 @@ def _cables_tt() -> list[dict[str, Any]]:
 
 
 def list_climate_cities() -> list[dict[str, Any]]:
-    return list(_climate())
+    return [_with_climate_key(entry) for entry in _climate()]
 
 
-def get_climate_by_city(city: str) -> dict[str, Any] | None:
-    """Возвращает климатические данные по названию города (нечувствительно к регистру)."""
-    city_lower = city.strip().lower()
-    for entry in _climate():
-        if entry["city"].lower() == city_lower:
-            return dict(entry)
+def get_climate_by_key(key: str | None) -> dict[str, Any] | None:
+    """Возвращает климатические данные по стабильному ключу `region|||city`."""
+    if not key:
+        return None
+    entry = _climate_by_key().get(_normalized_text(key))
+    return _with_climate_key(entry) if entry is not None else None
+
+
+def get_climate_by_city(city: str, *, region: str | None = None) -> dict[str, Any] | None:
+    """Возвращает климатические данные по городу.
+
+    Если передан регион, используется точная пара `region + city`. Если регион
+    не передан, city-only lookup допускается только для однозначных названий.
+    Это предотвращает выбор первой строки для городов-дубликатов.
+    """
+    city_key = _normalized_text(city)
+    if not city_key:
+        return None
+    if region:
+        entry = _climate_by_city_region().get((city_key, _normalized_text(region)))
+    else:
+        entry = _climate_by_unique_city().get(city_key)
+    return _with_climate_key(entry) if entry is not None else None
+
+
+def get_climate_entry(
+    *,
+    climate_key: str | None = None,
+    city: str | None = None,
+    region: str | None = None,
+) -> dict[str, Any] | None:
+    """Возвращает конкретную строку климатического справочника.
+
+    Приоритет: стабильный `climate_key`, затем точная пара `region + city`,
+    затем legacy city-only lookup для однозначных городов.
+    """
+    if climate_key:
+        entry = get_climate_by_key(climate_key)
+        if entry is not None:
+            return entry
+        if "|||" in climate_key:
+            region_from_key, city_from_key = climate_key.split("|||", 1)
+            entry = get_climate_by_city(city_from_key, region=region_from_key)
+            if entry is not None:
+                return entry
+    if city:
+        entry = get_climate_by_city(city, region=region) if region else None
+        if entry is not None:
+            return entry
+        return get_climate_by_city(city)
     return None
 
 
@@ -272,6 +353,9 @@ def get_tlt_cable_by_mark(mark: str | None) -> dict[str, Any] | None:
 
 def clear_cache() -> None:
     _climate.cache_clear()
+    _climate_by_key.cache_clear()
+    _climate_by_city_region.cache_clear()
+    _climate_by_unique_city.cache_clear()
     _insulation.cache_clear()
     _cables_tlt.cache_clear()
     _accessories.cache_clear()
@@ -284,6 +368,9 @@ def clear_cache() -> None:
 def preload_all() -> None:
     """Прогрев кеша при старте приложения."""
     _climate()
+    _climate_by_key()
+    _climate_by_city_region()
+    _climate_by_unique_city()
     _insulation()
     _cables_tlt()
     _accessories()

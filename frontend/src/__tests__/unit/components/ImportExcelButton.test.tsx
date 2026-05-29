@@ -48,6 +48,11 @@ describe('ImportExcelButton', () => {
     await waitFor(() => {
       expect(importObjectsExcel).toHaveBeenCalledWith('p1', file, 'merge');
     });
+    expect(await screen.findByText('Пропущено дублей:')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Результат импорта' })).not.toBeInTheDocument();
+    });
   });
 
   it('shows rows skipped by project limit in import result', async () => {
@@ -72,5 +77,9 @@ describe('ImportExcelButton', () => {
       await screen.findByText('Пропущено из-за лимита проекта:')
     ).toBeInTheDocument();
     expect(screen.getByText('149')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Результат импорта' })).not.toBeInTheDocument();
+    });
   });
 });

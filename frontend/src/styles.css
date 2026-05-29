@@ -1917,13 +1917,6 @@ html, body, #root {
   line-height: calc(var(--inline-control-height) - 2px);
 }
 
-.inline-object-form .ant-input[aria-required='true'],
-.inline-object-form .ant-select[aria-required='true'] .ant-select-selector,
-.inline-object-form .ant-input-number:has(.ant-input-number-input[aria-required='true']) {
-  box-shadow: inset 2px 0 0 #d48806;
-  background-color: #fffdf6;
-}
-
 .inline-object-form .ant-form-item-has-warning .ant-form-item-explain,
 .inline-object-form .ant-form-item-has-warning .ant-form-item-extra {
   display: none;
@@ -1936,6 +1929,9 @@ html, body, #root {
 
 .inline-object-form .ant-form-item-has-error .ant-input:not([disabled]),
 .inline-object-form .ant-form-item-has-error .ant-input-number:not(.ant-input-number-disabled),
+.inline-object-form .ant-form-item-has-error .tlt-number-field__input:not([disabled]),
+.inline-object-form .ant-form-item-has-error .tlt-text-field__input:not([disabled]),
+.inline-object-form .ant-form-item-has-error .tlt-select__trigger:not([disabled]),
 .inline-object-form .ant-form-item-has-error .ant-select:not(.ant-select-disabled) .ant-select-selector,
 .inline-object-form .ant-form-item-has-error .reference-picker-control:not(.reference-picker-control--disabled) {
   border-color: #ff4d4f !important;
@@ -1951,13 +1947,15 @@ html, body, #root {
   display: none;
 }
 
-.inline-object-form .ant-form-item-explain:has(.ant-form-item-explain-error:empty):not(:has(.ant-form-item-explain-error:not(:empty))) {
-  display: none;
-  min-height: 0;
-}
-
 /* ── Select ───────────────────────────────────────────────────── */
 .inline-object-form .ant-select {
+  width: 100%;
+  min-width: var(--field-input-min-width, 160px);
+  height: var(--inline-control-height);
+  flex: 1;
+}
+
+.inline-object-form .tlt-select {
   width: 100%;
   min-width: var(--field-input-min-width, 160px);
   height: var(--inline-control-height);
@@ -2079,6 +2077,195 @@ html, body, #root {
   height: calc(var(--inline-control-height) - 2px) !important;
 }
 
+.inline-object-form .tlt-select__trigger {
+  height: var(--inline-control-height);
+  padding: 0 4px;
+  border-radius: 2px;
+}
+
+.inline-object-form .tlt-select__value {
+  font-size: 9px;
+  line-height: calc(var(--inline-control-height) - 2px);
+}
+
+.inline-object-form .tlt-select__arrow {
+  margin-inline-start: 4px;
+  border-inline-start-width: 3px;
+  border-inline-end-width: 3px;
+  border-block-start-width: 4px;
+}
+
+/* ── React Aria form controls ─────────────────────────────────── */
+.tlt-number-field,
+.tlt-text-field,
+.tlt-select {
+  display: inline-flex;
+  align-items: stretch;
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: top;
+}
+
+.tlt-number-field__input,
+.tlt-text-field__input,
+.tlt-select__trigger {
+  box-sizing: border-box;
+  height: 32px;
+  min-width: 0;
+  padding: 0 8px;
+  color: #1f1f1f;
+  font-size: 14px;
+  line-height: 30px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 2px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.tlt-number-field__input:hover,
+.tlt-text-field__input:hover,
+.tlt-select__trigger:hover {
+  border-color: #4096ff;
+}
+
+.tlt-number-field__input:focus,
+.tlt-text-field__input:focus,
+.tlt-select__trigger:focus {
+  border-color: #1f4e69;
+  box-shadow: 0 0 0 2px rgba(31, 78, 105, 0.16);
+}
+
+.tlt-number-field[data-disabled] .tlt-number-field__input,
+.tlt-text-field[data-disabled] .tlt-text-field__input,
+.tlt-select[data-disabled] .tlt-select__trigger,
+.tlt-number-field__input:disabled,
+.tlt-text-field__input:disabled,
+.tlt-select__trigger:disabled {
+  color: rgba(0, 0, 0, 0.25);
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.tlt-number-field[data-required] .tlt-number-field__input,
+.tlt-text-field[data-required] .tlt-text-field__input,
+.tlt-select[data-required] .tlt-select__trigger {
+  box-shadow: inset 2px 0 0 #d48806;
+  background-color: #fffdf6;
+}
+
+.tlt-number-field[data-invalid] .tlt-number-field__input,
+.tlt-text-field[data-invalid] .tlt-text-field__input,
+.tlt-select[data-invalid] .tlt-select__trigger {
+  border-color: #ff4d4f;
+  background-color: #fff1f0;
+}
+
+.tlt-number-field__unit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 32px;
+  padding: 0 11px;
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid #d9d9d9;
+  border-inline-start: 0;
+  border-radius: 0 6px 6px 0;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.tlt-number-field[data-disabled] .tlt-number-field__unit {
+  color: #5f6b76;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.tlt-select {
+  width: 100%;
+  flex: 1;
+}
+
+.tlt-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  cursor: pointer;
+  text-align: start;
+}
+
+.tlt-select__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tlt-select__value[data-placeholder] {
+  color: #595959;
+}
+
+.tlt-select__arrow {
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  margin-inline-start: 6px;
+  border-inline-start: 4px solid transparent;
+  border-inline-end: 4px solid transparent;
+  border-block-start: 5px solid #9aa8b5;
+}
+
+.tlt-select__popover {
+  z-index: 1070;
+  min-width: var(--trigger-width);
+  max-height: 260px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.tlt-select__listbox {
+  display: grid;
+  gap: 1px;
+  max-height: inherit;
+  padding: 4px;
+  outline: none;
+}
+
+.tlt-select__option {
+  min-height: 26px;
+  padding: 4px 8px;
+  color: #1f1f1f;
+  font-size: 13px;
+  line-height: 18px;
+  border-radius: 3px;
+  cursor: pointer;
+  outline: none;
+}
+
+.tlt-select__option[data-focused],
+.tlt-select__option[data-hovered] {
+  background: #e6f4ff;
+}
+
+.tlt-select__option[data-selected] {
+  color: #1f4e69;
+  font-weight: 600;
+  background: #edf6fb;
+}
+
+.tlt-select__option[data-disabled] {
+  color: rgba(0, 0, 0, 0.25);
+  cursor: not-allowed;
+}
+
 /* ── InputNumber (без addon) ──────────────────────────────────── */
 .inline-object-form .ant-input-number {
   height: var(--inline-control-height);
@@ -2097,6 +2284,11 @@ html, body, #root {
 }
 
 .unit-input-number .ant-input-number {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.unit-input-number .tlt-number-field__input {
   border-start-end-radius: 0;
   border-end-end-radius: 0;
 }
@@ -2138,6 +2330,16 @@ html, body, #root {
   height: var(--inline-control-height);
   width: calc(var(--numeric-value-width, 6ch) + 22px);
   min-width: calc(var(--numeric-value-width, 6ch) + 22px);
+}
+
+.inline-object-form .unit-input-number .tlt-number-field__input,
+.inline-object-form .tlt-number-field__input {
+  height: var(--inline-control-height);
+  width: calc(var(--numeric-value-width, 6ch) + 22px);
+  min-width: calc(var(--numeric-value-width, 6ch) + 22px);
+  padding: 0 3px;
+  font-size: 10px;
+  line-height: calc(var(--inline-control-height) - 2px);
 }
 
 .inline-object-form .ant-input-number-input-wrap {
@@ -2257,20 +2459,26 @@ html, body, #root {
 
 .inline-object-form .fit-label-form-item .ant-input,
 .inline-object-form .fit-label-form-item .ant-select,
+.inline-object-form .fit-label-form-item .tlt-select,
 .inline-object-form .fit-label-form-item .reference-picker-control,
 .inline-object-form .numeric-form-item .ant-input,
 .inline-object-form .numeric-form-item .ant-select,
+.inline-object-form .numeric-form-item .tlt-select,
 .inline-object-form .numeric-form-item .reference-picker-control,
 .inline-object-form .compact-select-form-item .ant-select,
+.inline-object-form .compact-select-form-item .tlt-select,
 .inline-object-form .compact-select-form-item .reference-picker-control,
 .inline-object-form .medium-select-form-item .ant-select,
+.inline-object-form .medium-select-form-item .tlt-select,
 .inline-object-form .medium-select-form-item .reference-picker-control,
-.inline-object-form .layer-count-form-item .ant-select {
+.inline-object-form .layer-count-form-item .ant-select,
+.inline-object-form .layer-count-form-item .tlt-select {
   width: max-content;
   min-width: var(--field-input-min-width, 104px);
 }
 
-.inline-object-form .compact-select-form-item .ant-select {
+.inline-object-form .compact-select-form-item .ant-select,
+.inline-object-form .compact-select-form-item .tlt-select {
   width: 88px;
   min-width: 88px;
 }
@@ -2280,7 +2488,8 @@ html, body, #root {
   min-width: 88px;
 }
 
-.inline-object-form .medium-select-form-item .ant-select {
+.inline-object-form .medium-select-form-item .ant-select,
+.inline-object-form .medium-select-form-item .tlt-select {
   width: 128px;
   min-width: 128px;
 }
@@ -2303,13 +2512,15 @@ html, body, #root {
   line-height: 1.05;
 }
 
-.inline-object-form .environment-form-item .ant-select {
+.inline-object-form .environment-form-item .ant-select,
+.inline-object-form .environment-form-item .tlt-select {
   flex: 0 0 94px;
   width: 94px;
   min-width: 94px;
 }
 
-.inline-object-form .zone-classification-form-item .ant-select {
+.inline-object-form .zone-classification-form-item .ant-select,
+.inline-object-form .zone-classification-form-item .tlt-select {
   flex: 0 0 108px;
   width: 108px;
   min-width: 108px;
@@ -2341,7 +2552,8 @@ html, body, #root {
   grid-column: 1;
 }
 
-.inline-object-form .layer-count-form-item .ant-select {
+.inline-object-form .layer-count-form-item .ant-select,
+.inline-object-form .layer-count-form-item .tlt-select {
   width: 94px;
   min-width: 94px;
 }
@@ -2366,7 +2578,8 @@ html, body, #root {
 
 .inline-object-form .pipe-material-form-item .ant-select,
 .inline-object-form .pipe-material-form-item .reference-picker-control,
-.inline-object-form .fixed-select-form-item .ant-select {
+.inline-object-form .fixed-select-form-item .ant-select,
+.inline-object-form .fixed-select-form-item .tlt-select {
   width: 100%;
   min-width: var(--field-input-min-width, 160px);
 }
@@ -2516,10 +2729,13 @@ html, body, #root {
 
 .inline-object-form .insulation-layer-group .ant-select,
 .inline-object-form .insulation-layer-group .fixed-select-form-item .ant-select,
+.inline-object-form .insulation-layer-group .fixed-select-form-item .tlt-select,
 .inline-object-form .insulation-layer-group .fixed-select-form-item .reference-picker-control,
 .inline-object-form .insulation-layer-group .medium-select-form-item .ant-select,
+.inline-object-form .insulation-layer-group .medium-select-form-item .tlt-select,
 .inline-object-form .insulation-layer-group .medium-select-form-item .reference-picker-control,
-.inline-object-form .insulation-layer-group .layer-material-form-item .ant-select {
+.inline-object-form .insulation-layer-group .layer-material-form-item .ant-select,
+.inline-object-form .insulation-layer-group .layer-material-form-item .tlt-select {
   width: 100%;
   min-width: var(--field-input-min-width, 112px);
 }
@@ -2574,7 +2790,8 @@ html, body, #root {
   min-width: 0;
 }
 
-.inline-object-form .temperature-group-form-item .ant-select {
+.inline-object-form .temperature-group-form-item .ant-select,
+.inline-object-form .temperature-group-form-item .tlt-select {
   width: 44px;
   min-width: 44px;
 }

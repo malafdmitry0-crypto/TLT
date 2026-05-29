@@ -4,6 +4,21 @@ import { cleanup, configure } from '@testing-library/react';
 
 configure({ asyncUtilTimeout: 5_000 });
 
+let nativeElementFocus = typeof window.HTMLElement.prototype.focus === 'function'
+  ? window.HTMLElement.prototype.focus
+  : function focusElement() {};
+Object.defineProperty(window.HTMLElement.prototype, 'focus', {
+  configurable: true,
+  get() {
+    return nativeElementFocus;
+  },
+  set(nextFocus) {
+    if (typeof nextFocus === 'function') {
+      nativeElementFocus = nextFocus;
+    }
+  },
+});
+
 afterEach(() => {
   cleanup();
   localStorage.clear();

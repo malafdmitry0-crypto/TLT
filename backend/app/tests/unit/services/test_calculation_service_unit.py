@@ -14,6 +14,7 @@ test_calculations.py::TestManualCableSelection.
 from __future__ import annotations
 
 import math
+import time
 import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -444,6 +445,31 @@ class TestClimatePolicy:
         assert normalized["ambient_temperature"] == pytest.approx(-10.0)
         assert "climate_temperature_basis" not in normalized
         assert "climate_policy_rule" not in normalized
+
+    def test_backend_uses_climate_key_to_disambiguate_duplicate_city(self):
+        hmao = CalculationService._apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.099,
+                "ambient_temperature": -10,
+                "climate_key": "Ханты-Мансийский автономный округ – Югра|||Октябрьское",
+                "climate_city": "Октябрьское",
+                "climate_region": "Ханты-Мансийский автономный округ – Югра",
+            },
+        )
+        chelyabinsk = CalculationService._apply_climate_policy(
+            "pipe",
+            {
+                "outer_diameter": 0.099,
+                "ambient_temperature": -10,
+                "climate_key": "Челябинская область|||Октябрьское",
+                "climate_city": "Октябрьское",
+                "climate_region": "Челябинская область",
+            },
+        )
+
+        assert hmao["ambient_temperature"] == pytest.approx(-56.0)
+        assert chelyabinsk["ambient_temperature"] == pytest.approx(-44.0)
 
 
 class TestCableLayoutMapping:
@@ -1210,6 +1236,75 @@ class TestBatchRecalculate:
         assert all(
             call.args[2] is coefficients
             for call in service._calc_heat_loss_with_coefficients.call_args_list
+        )
+
+    async def test_climate_lookup_is_indexed_for_late_and_unknown_city_batch(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        project_id = uuid.uuid4()
+        object_count = 600
+        late_city = {
+            **_minimal_pipe_params(),
+            "outer_diameter": 0.099,
+            "climate_key": "Ярославская область|||Ярославль",
+            "climate_region": "Ярославская область",
+            "climate_city": "Ярославль",
+            "ambient_temperature_source": "climate",
+        }
+        unknown_city = {
+            **_minimal_pipe_params(),
+            "outer_diameter": 0.099,
+            "climate_city": "Атлантида",
+        }
+        objects = [
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                project_id=project_id,
+                object_type="pipe",
+                sort_order=index,
+                params=dict(late_city if index % 2 == 0 else unknown_city),
+                results=None,
+                is_valid=False,
+                validation_errors=None,
+            )
+            for index in range(object_count)
+        ]
+        db = AsyncMock()
+        db.execute = AsyncMock(side_effect=[_count_result(object_count), _objects_result(objects)])
+        db.flush = AsyncMock()
+        db.commit = AsyncMock()
+        service = CalculationService(db)
+        _disable_stale_mark(service)
+        service.get_coefficients = AsyncMock(return_value={})  # type: ignore[method-assign]
+
+        climate_calls = 0
+
+        from app.services import calculation_service as calculation_service_module
+
+        original_get_climate_entry = calculation_service_module.get_climate_entry
+
+        def counting_get_climate_entry(**kwargs):
+            nonlocal climate_calls
+            climate_calls += 1
+            return original_get_climate_entry(**kwargs)
+
+        monkeypatch.setattr(
+            "app.services.calculation_service.get_climate_entry",
+            counting_get_climate_entry,
+        )
+
+        started = time.perf_counter()
+        updated, failed, errors = await service.batch_recalculate(project_id)
+        elapsed_s = time.perf_counter() - started
+
+        assert updated == object_count
+        assert failed == 0
+        assert errors == []
+        assert climate_calls == object_count
+        assert elapsed_s < 1.0, (
+            "heat-loss batch with late-list and unknown climate cities regressed: "
+            f"{elapsed_s:.3f}s for {object_count} objects"
         )
 
     async def test_reports_progress(self):

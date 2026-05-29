@@ -1,4 +1,5 @@
 export interface ClimateEntry {
+  key?: string;
   city?: string;
   region: string;
   min_temperature?: number;

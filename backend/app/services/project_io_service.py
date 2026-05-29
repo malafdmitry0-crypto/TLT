@@ -29,6 +29,7 @@ from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.services.project_service import (
     ProjectAccessError,
+    ProjectNotFoundError,
     ProjectService,
 )
 from app.services.spreadsheet_safety import safe_spreadsheet_cell
@@ -213,9 +214,16 @@ async def export_projects_bulk(
     w = csv.writer(buf, delimiter=DELIMITER, quoting=csv.QUOTE_MINIMAL)
 
     # Секция projects — общая
+    unique_project_ids = list(dict.fromkeys(project_ids))
+    projects_result = await db.execute(select(Project).where(Project.id.in_(unique_project_ids)))
+    projects_by_id = {project.id: project for project in projects_result.scalars()}
+
     projects: list[tuple[str, Project]] = []
     for idx, pid in enumerate(project_ids, start=1):
-        project = await service.get_project_basic(pid, principal)
+        project = projects_by_id.get(pid)
+        if project is None:
+            raise ProjectNotFoundError(f"Проект {pid} не найден")
+        service._check_access(project, principal)
         projects.append((f"p{idx}", project))
 
     _write_row(w, ["[SECTION]", "meta"])
@@ -238,33 +246,48 @@ async def export_projects_bulk(
         )
     _write_row(w, [])
 
+    objects_by_project: dict[UUID, list[ProjectObject]] = defaultdict(list)
+    electrical_by_project: dict[UUID, list[ElectricalCalculation]] = defaultdict(list)
+    specs_by_project: dict[UUID, list[Specification]] = defaultdict(list)
+
+    if unique_project_ids:
+        objects_result = await db.execute(
+            select(ProjectObject)
+            .where(ProjectObject.project_id.in_(unique_project_ids))
+            .order_by(ProjectObject.project_id, ProjectObject.sort_order, ProjectObject.id)
+        )
+        for obj in objects_result.scalars():
+            objects_by_project[obj.project_id].append(obj)
+
+        electrical_result = await db.execute(
+            select(ElectricalCalculation)
+            .where(ElectricalCalculation.project_id.in_(unique_project_ids))
+            .order_by(
+                ElectricalCalculation.project_id,
+                ElectricalCalculation.object_id,
+                ElectricalCalculation.variant_number,
+            )
+        )
+        for calc in electrical_result.scalars():
+            electrical_by_project[calc.project_id].append(calc)
+
+        specs_result = await db.execute(
+            select(Specification)
+            .where(Specification.project_id.in_(unique_project_ids))
+            .order_by(Specification.project_id, Specification.variant_number)
+        )
+        for spec in specs_result.scalars():
+            specs_by_project[spec.project_id].append(spec)
+
     for key, project in projects:
-        objects = list(
-            (
-                await db.execute(
-                    select(ProjectObject)
-                    .where(ProjectObject.project_id == project.id)
-                    .order_by(ProjectObject.sort_order)
-                )
-            ).scalars()
+        _dump_project_to_writer(
+            w,
+            project,
+            objects_by_project[project.id],
+            electrical_by_project[project.id],
+            specs_by_project[project.id],
+            project_key=key,
         )
-        electrical = list(
-            (
-                await db.execute(
-                    select(ElectricalCalculation).where(
-                        ElectricalCalculation.project_id == project.id
-                    )
-                )
-            ).scalars()
-        )
-        specs = list(
-            (
-                await db.execute(
-                    select(Specification).where(Specification.project_id == project.id)
-                )
-            ).scalars()
-        )
-        _dump_project_to_writer(w, project, objects, electrical, specs, project_key=key)
 
     payload = ("\ufeff" + buf.getvalue()).encode("utf-8")
     return "projects_export.csv", payload
