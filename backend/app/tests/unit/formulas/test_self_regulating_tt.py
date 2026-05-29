@@ -69,6 +69,22 @@ class TestCableSelection:
         assert r.num_circuits == 2
         assert r.power_per_meter == pytest.approx(-0.491 * 50 + 37.5, rel=1e-3)
 
+    def test_autoselect_uses_minimal_nominal_when_single_thread_is_sufficient(self):
+        """Full-version VSDX loop stops at the first TT nominal covering q_required."""
+        r = calc_self_regulating_tt(
+            _params(
+                process_temperature=40.0,
+                maintain_temperature=40.0,
+                required_power_per_meter=5.0,
+                safety_factor=1.1,
+            )
+        )
+        assert r.series == "ТТН"
+        assert r.selected_cable == "15ТТН2"
+        assert r.cable_mark == "15ТТН2-СР"
+        assert r.num_circuits == 1
+        assert r.power_per_meter * r.num_circuits >= 5.0 * 1.1
+
     def test_power_curve_uses_t3_not_product_temperature(self):
         """T1 выбирает серию, но q_б считается от T3."""
         r = calc_self_regulating_tt(

@@ -373,8 +373,16 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
             _, _, _, cable = min(candidates, key=lambda item: (item[0], item[1]))
             selected_threads = params.number_of_threads
         else:
-            q_b_max, cable = max(power_rows, key=lambda item: item[1]["nominal_power"])
-            selected_threads = math.ceil(q_required / q_b_max)
+            single_thread_match = next(
+                ((q_b, c) for q_b, c in power_rows if q_b >= q_required),
+                None,
+            )
+            if single_thread_match is not None:
+                _, cable = single_thread_match
+                selected_threads = 1
+            else:
+                q_b_max, cable = max(power_rows, key=lambda item: item[1]["nominal_power"])
+                selected_threads = math.ceil(q_required / q_b_max)
 
     q_b = cable["q1"] * t3 + cable["q2"]
     if q_b <= 0:
