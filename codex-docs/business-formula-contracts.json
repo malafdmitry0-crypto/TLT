@@ -120,6 +120,8 @@
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_r1_catalog" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_r3_catalog" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_tt_r1_resistance_based_power" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_resistive_temperature_correction_gap" },
+        { "path": "docs/analysis/resistive-temperature-tz-deviation.md" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_resistive_selection_algorithm_full" },
         { "path": "docs/tnp/project-reconciliation-audit.md", "symbol": "ALG-RES-01" },
         { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_resistive_passport_ohm_law" },

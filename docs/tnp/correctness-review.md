@@ -18,9 +18,10 @@
 - Геометрия резервуаров на воздухе корректна:
   - цилиндр: `S = πdH + πd²/2`;
   - прямоугольный резервуар: `S = 2(L + B)H + 2LB`.
-- Температурная поправка сопротивления резистивного кабеля должна быть
-  `rho_T = rho * (1 + alpha * (Tж - 20))`; в конвертированном DOCX формулы
-  читаются именно так.
+- Температурная поправка сопротивления резистивного кабеля должна применяться
+  как к подбору сечения, так и к обратному расчету мощности `P`; в
+  конвертированном DOCX формулы читаются через
+  `[1 + alpha * (Tж - 20)]`.
 - Подбор стандартного сечения резистивного кабеля как минимального
   `Sк_б >= Sк` инженерно корректен.
 
@@ -278,9 +279,9 @@ XLSX-переменные ТНП для трубопроводов указыв�
 | Границы ТТН/ТТВ/ТТХ | Включительные | Backend совпадает |
 | TT power curve `q_b(T3) = q1*T3 + q2` | Да | `backend/app/formulas/electrical/self_regulating.py`, `maintain_temperature` с fallback `T3=T1` |
 | TT full-version threads | Да | Backend auto `N=ceil(Pоб/Pi)` без лимита 3 |
-| Резистивный `rho_T` | Да | `backend/app/formulas/electrical/resistive.py` |
+| Резистивный `rho_T` | Частично | `required_cross_section` использует `rho_T`, но `P/I` и auto `p2/p3` считают по холодному `R20`; см. `docs/analysis/resistive-temperature-tz-deviation.md` |
 | Подбор минимального сечения `Sк_б >= Sк` | Да | `backend/app/formulas/electrical/resistive.py` |
-| Резистивное `R/P/I` по паспорту | Да | Для строк с `resistance_ohm_km` backend считает мощность/ток по паспорту и лимиту `65 А` |
+| Резистивное `R/P/I` по паспорту | Needs correction / decision | Для строк с `resistance_ohm_km` backend считает мощность/ток по холодному паспорту `R20`; первичные DOCX требуют температурный множитель сопротивления |
 | Резистивный full-version auto `U/N/M`, `p2/p3`, `L1/L2` | Да, с fallback policy | Backend/QA-agent перебирают VSDX-схемы; default `p3` cap берется из справочника (`Р1=40`, `Р3=50` Вт/м), type-specific `correction_coefficients` могут уточнять |
 
 ## Рекомендации для QA-agent
