@@ -1833,9 +1833,9 @@ class TestBatchElectricalCallbacks:
             params={
                 "ambient_temperature": -20,
                 "process_temperature": 80,
-                "pipe_length": 10,
+                "pipe_length": 100,
             },
-            results={"heat_loss_per_meter": 30, "total_heat_loss": 300},
+            results={"heat_loss_per_meter": 30, "total_heat_loss": 3000},
             is_valid=True,
         )
         count_result = MagicMock()

@@ -72,6 +72,7 @@ class _AutoSchemeMetrics:
     section_length: float
     l1_m: float | None
     l2_m: float | None
+    max_current_a: float
     stage_rank: int = 0
 
 
@@ -347,22 +348,37 @@ def _auto_scheme_metrics(
         raise ValueError("Паспортное сопротивление должно быть положительным")
 
     connection_type = _auto_connection_type(cable_kind, threads)
-    if threads == 2:
-        circuit_resistance = resistance_per_m * section_length * threads
-        current = voltage / circuit_resistance
-        per_thread_power = current**2 * resistance_per_m * section_length
-        l1_m = section_length
-        l2_m = None
+    if cable_kind == "three_core":
+        (
+            effective_voltage,
+            resistance_factor,
+            power_multiplier,
+            current_divisor,
+        ) = _connection_factors(connection_type, voltage, cable_kind)
+        circuit_resistance = resistance_per_m * section_length * resistance_factor
+        per_scheme_power = (effective_voltage**2 / circuit_resistance) * power_multiplier
+        current = per_scheme_power / current_divisor
+        p2 = per_scheme_power / (section_length * threads)
+        total_power = per_scheme_power * schemes
+        l1_m = section_length if threads == 2 else None
+        l2_m = section_length if threads == 3 else None
     else:
-        phase_voltage = voltage / math.sqrt(3)
-        circuit_resistance = resistance_per_m * section_length
-        current = phase_voltage / circuit_resistance
-        per_thread_power = current**2 * resistance_per_m * section_length
-        l1_m = None
-        l2_m = section_length
+        if threads == 2:
+            circuit_resistance = resistance_per_m * section_length * threads
+            current = voltage / circuit_resistance
+            per_thread_power = current**2 * resistance_per_m * section_length
+            l1_m = section_length
+            l2_m = None
+        else:
+            phase_voltage = voltage / math.sqrt(3)
+            circuit_resistance = resistance_per_m * section_length
+            current = phase_voltage / circuit_resistance
+            per_thread_power = current**2 * resistance_per_m * section_length
+            l1_m = None
+            l2_m = section_length
+        p2 = per_thread_power / section_length
+        total_power = per_thread_power * threads * schemes
 
-    p2 = per_thread_power / section_length
-    total_power = per_thread_power * threads * schemes
     cable_length = section_length * threads * schemes
     order_length = cable_order_length(cable_length)
     return _AutoSchemeMetrics(
@@ -387,12 +403,15 @@ def _auto_scheme_metrics(
         section_length=section_length,
         l1_m=l1_m,
         l2_m=l2_m,
+        max_current_a=max_current_a,
         stage_rank=stage_rank,
     )
 
 
 def _within_p3(metrics: _AutoSchemeMetrics) -> bool:
-    return metrics.p2_w_m <= metrics.p3_w_m + 1e-9
+    return metrics.p2_w_m <= metrics.p3_w_m + 1e-9 and (
+        metrics.current <= metrics.max_current_a + 1e-9
+    )
 
 
 def _collect_auto_loop(

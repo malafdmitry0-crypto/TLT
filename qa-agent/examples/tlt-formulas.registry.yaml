@@ -951,6 +951,7 @@ algorithms:
     sourceRefs:
       - "docs/tnp/algorithms/resistive-selection.md"
       - "docs/tnp/internal-references/resistive-cable-r1.md"
+      - "docs/tnp/internal-references/resistive-cable-r3.md"
     implementationRefs:
       - "backend/app/formulas/electrical/resistive.py"
       - "qa-agent/src/oracle/AlgorithmOracle.ts"
@@ -958,7 +959,9 @@ algorithms:
       status: implemented
       notes:
         - "VSDX order: M from 1 up; loop at start voltage with step-down if first cable exceeds p3; loop at high voltage; star at high voltage."
-        - "p2 is per-thread W/m, p3 is min(65A current limit, optional maxLinearPowerWM)."
+        - "p2 is the VSDX scheme-unit W/m used in p=p2*N*M; for TT R3 it includes the three-core scheme multipliers."
+        - "Selected candidates must also keep reported current <= maxCurrentA."
+        - "For TT R3 three-core auto selection, loop_2x3 and star_3x3 use the same three-conductor passport resistance multipliers as manual mode."
     examples:
       - id: resistive-vsdx-auto-loop-380
         kind: fixed
@@ -977,6 +980,25 @@ algorithms:
           voltage: 380
           threads: 2
           schemes: 1
+      - id: resistive-vsdx-r3-loop-380
+        kind: fixed
+        input:
+          cableKind: three_core
+          requiredHeatLoss: 10000
+          objectLength: 100
+          catalog:
+            - model: TT R3 100
+              resistanceOhmKm: 100
+              conductorCrossSection: 0.47
+        expected:
+          model: TT R3 100
+          voltage: 380
+          threads: 2
+          schemes: 1
+          connectionType: loop_2x3
+          totalPower: 21660
+          current: 57
+          p2WM: 108.3
 
   - id: tlt_specification_grouping
     description: "Group electrical calculation results by selected cable/cable_mark and add accessory quantities per total object count."

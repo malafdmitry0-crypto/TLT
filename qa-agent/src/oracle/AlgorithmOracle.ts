@@ -207,6 +207,13 @@ function resistiveCableResistanceOhmKm(item: Record<string, unknown>): number {
   return (0.0175 * 1000) / section;
 }
 
+function resistiveAutoConnectionType(cableKind: string, threads: number): string {
+  if (cableKind === 'three_core') {
+    return threads === 2 ? 'loop_2x3' : 'star_3x3';
+  }
+  return threads === 2 ? 'loop_1ph' : 'star_3ph';
+}
+
 function resistiveAutoMetrics(
   cable: Record<string, unknown>,
   {
@@ -215,6 +222,7 @@ function resistiveAutoMetrics(
     voltage,
     threads,
     schemes,
+    cableKind,
     maxCurrentA,
     maxLinearPowerWM,
   }: {
@@ -223,6 +231,7 @@ function resistiveAutoMetrics(
     voltage: number;
     threads: number;
     schemes: number;
+    cableKind: string;
     maxCurrentA: number;
     maxLinearPowerWM?: number;
   },
@@ -231,20 +240,42 @@ function resistiveAutoMetrics(
   const resistancePerM = resistanceOhmKm / 1000;
   let circuitResistanceOhm: number;
   let current: number;
-  if (threads === 2) {
+  let p2WM: number;
+  let totalPower: number;
+
+  if (cableKind === 'three_core') {
+    const phaseVoltage = voltage / Math.sqrt(3);
+    if (threads === 2) {
+      circuitResistanceOhm = resistancePerM * sectionLength * 2;
+      const perSchemePower = (voltage ** 2 / circuitResistanceOhm) * 3;
+      current = perSchemePower / voltage;
+      p2WM = perSchemePower / (sectionLength * threads);
+      totalPower = perSchemePower * schemes;
+    } else if (threads === 3) {
+      circuitResistanceOhm = resistancePerM * sectionLength * 3;
+      const perSchemePower = (phaseVoltage ** 2 / circuitResistanceOhm) * 3;
+      current = perSchemePower / (voltage * Math.sqrt(3));
+      p2WM = perSchemePower / (sectionLength * threads);
+      totalPower = perSchemePower * schemes;
+    } else {
+      throw new Error('threads must be 2 or 3');
+    }
+  } else if (threads === 2) {
     circuitResistanceOhm = resistancePerM * sectionLength * threads;
     current = voltage / circuitResistanceOhm;
+    p2WM = current ** 2 * resistancePerM;
+    totalPower = p2WM * sectionLength * threads * schemes;
   } else if (threads === 3) {
     circuitResistanceOhm = resistancePerM * sectionLength;
     current = (voltage / Math.sqrt(3)) / circuitResistanceOhm;
+    p2WM = current ** 2 * resistancePerM;
+    totalPower = p2WM * sectionLength * threads * schemes;
   } else {
     throw new Error('threads must be 2 or 3');
   }
-  const p2WM = current ** 2 * resistancePerM;
+
   const p3ByCurrent = maxCurrentA ** 2 * resistancePerM;
   const p3WM = maxLinearPowerWM === undefined ? p3ByCurrent : Math.min(p3ByCurrent, maxLinearPowerWM);
-  const perThreadPower = p2WM * sectionLength;
-  const totalPower = perThreadPower * threads * schemes;
   return {
     model: String(cable.model ?? cable.brand ?? ''),
     resistanceOhmKm,
@@ -257,7 +288,7 @@ function resistiveAutoMetrics(
     voltage,
     threads,
     schemes,
-    connectionType: threads === 2 ? 'loop_1ph' : 'star_3ph',
+    connectionType: resistiveAutoConnectionType(cableKind, threads),
     cableLength: sectionLength * threads * schemes,
   };
 }
@@ -268,6 +299,8 @@ function resistiveVsdxAutoSelect(input: Record<string, unknown>) {
   const windingCoefficient = optionalNumberInput(input, 'windingCoefficient') ?? 1;
   const startVoltage = optionalNumberInput(input, 'startVoltage') ?? 220;
   const highVoltage = optionalNumberInput(input, 'highVoltage') ?? 380;
+  const rawCableKind = input.cableKind ?? input.cable_kind ?? 'single_core';
+  const cableKind = rawCableKind === 'three_core' ? 'three_core' : 'single_core';
   const minAdjustedVoltage = optionalNumberInput(input, 'minAdjustedVoltage') ?? 1;
   const voltageStep = optionalNumberInput(input, 'voltageStep') ?? 1;
   const maxCurrentA = optionalNumberInput(input, 'maxCurrentA') ?? 65;
@@ -296,10 +329,11 @@ function resistiveVsdxAutoSelect(input: Record<string, unknown>) {
           voltage,
           threads: 2,
           schemes,
+          cableKind,
           maxCurrentA,
           maxLinearPowerWM,
         });
-        if (metrics.p2WM > metrics.p3WM) {
+        if (metrics.p2WM > metrics.p3WM || metrics.current > maxCurrentA) {
           if (index === 0) {
             reduceVoltage = true;
             break;
@@ -323,10 +357,15 @@ function resistiveVsdxAutoSelect(input: Record<string, unknown>) {
           voltage: candidate.voltage,
           threads: candidate.threads,
           schemes,
+          cableKind,
           maxCurrentA,
           maxLinearPowerWM,
         });
-        if (metrics.p2WM <= metrics.p3WM && metrics.linearPowerWM >= requiredLinearPowerWM) {
+        if (
+          metrics.p2WM <= metrics.p3WM &&
+          metrics.current <= maxCurrentA &&
+          metrics.linearPowerWM >= requiredLinearPowerWM
+        ) {
           return metrics;
         }
       }

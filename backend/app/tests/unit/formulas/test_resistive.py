@@ -374,11 +374,16 @@ class TestThreeCoreConnections:
         r = calc_resistive_three_core(
             _tc(
                 selection_mode="auto",
-                required_heat_loss=5000.0,
+                required_heat_loss=10000.0,
                 pipe_length=100.0,
                 cable_catalog=catalog,
             )
         )
+
+        resistance_per_m = 100.0 / 1000.0
+        section_length = 100.0
+        expected_total_power = (380.0**2 / (resistance_per_m * section_length * 2.0)) * 3.0
+        expected_p2 = expected_total_power / (section_length * 2.0)
 
         assert r.selection_mode == "auto"
         assert r.selected_cable == "ТТ Р3 100,0"
@@ -386,9 +391,47 @@ class TestThreeCoreConnections:
         assert r.voltage == pytest.approx(380.0)
         assert r.scheme_count == 1
         assert r.scheme_threads == 2
+        assert r.total_power == pytest.approx(expected_total_power, rel=1e-6)
+        assert r.current == pytest.approx(expected_total_power / 380.0, rel=1e-6)
+        assert r.p2_w_m == pytest.approx(expected_p2, rel=1e-6)
         assert r.linear_power_w_m >= r.required_linear_power_w_m
         assert r.current <= 65.0
         assert r.applied_selection_policy == "technical_minimum"
+
+    def test_auto_vsdx_three_core_star_uses_r3_connection_multiplier(self):
+        """Golden: VSDX p=p2*N*M plus ТТ Р3 has three parallel heating cores."""
+        catalog = [
+            {"model": "ТТ Р3 100,0", "conductor_cross_section": 0.47, "resistance_ohm_km": 100.0},
+        ]
+
+        r = calc_resistive_three_core(
+            _tc(
+                selection_mode="auto",
+                required_heat_loss=4500.0,
+                pipe_length=100.0,
+                cable_catalog=catalog,
+                max_linear_power_w_m=20.0,
+            )
+        )
+
+        resistance_per_m = 100.0 / 1000.0
+        section_length = 100.0
+        phase_voltage = 380.0 / math.sqrt(3.0)
+        expected_total_power = (phase_voltage**2 / (resistance_per_m * section_length * 3.0)) * 3.0
+        expected_p2 = expected_total_power / (section_length * 3.0)
+
+        assert r.selection_mode == "auto"
+        assert r.selected_cable == "ТТ Р3 100,0"
+        assert r.connection_type == "star_3x3"
+        assert r.voltage == pytest.approx(380.0)
+        assert r.scheme_count == 1
+        assert r.scheme_threads == 3
+        assert r.total_power == pytest.approx(expected_total_power, rel=1e-6)
+        assert r.current == pytest.approx(expected_total_power / (380.0 * math.sqrt(3.0)), abs=1e-3)
+        assert r.p2_w_m == pytest.approx(expected_p2, rel=1e-6)
+        assert r.linear_power_w_m >= r.required_linear_power_w_m
+        assert r.p2_w_m <= r.p3_w_m
+        assert r.current <= 65.0
 
     def test_empty_three_core_catalog_raises(self):
         with pytest.raises(ValueError, match="пуст"):
