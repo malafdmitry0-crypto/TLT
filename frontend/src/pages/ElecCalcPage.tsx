@@ -862,6 +862,38 @@ function calcLayoutValues(calc: ElectricalCalcSummary | undefined) {
   };
 }
 
+const ELECTRICAL_LAYOUT_EDITABLE_COLUMNS = new Set(['winding_pitch_mm', 'number_of_threads']);
+
+function parseElectricalLayoutNumber(value: unknown) {
+  const text = String(value ?? '').trim().replace(',', '.');
+  if (!text) return null;
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function maxThreadsForCableType(type: CableTypeKey) {
+  return type === 'self_regulating' ? 3 : 100;
+}
+
+function pipeOuterDiameterMm(obj: ProjectObject) {
+  if (obj.object_type !== 'pipe') return null;
+  const raw = Number(obj.params?.outer_diameter);
+  return Number.isFinite(raw) && raw > 0 ? raw * 1000 : null;
+}
+
+function maxWindingCoefficientForDiameterMm(diameterMm: number) {
+  if (diameterMm < 57) return 1.0;
+  if (diameterMm === 57) return 1.1;
+  if (diameterMm <= 75) return 1.2;
+  if (diameterMm <= 89) return 1.3;
+  if (diameterMm <= 108) return 1.4;
+  return 1.5;
+}
+
+function windingCoefficientForPitch(diameterMm: number, pitchMm: number) {
+  return Math.sqrt(1 + ((Math.PI * diameterMm) / pitchMm) ** 2);
+}
+
 type ElectricalColumnRenderSpec = {
   align?: 'left' | 'right' | 'center';
   ellipsis?: boolean;
@@ -2539,9 +2571,59 @@ export default function ElecCalcPage() {
     onError: (e: Error) => message.error(e.message),
   });
 
+  const electricalLayoutMut = useMutation({
+    mutationFn: async ({
+      objectId,
+      cableMark,
+      cableSource,
+      cableType,
+      windingPitchMm,
+      numberOfThreads,
+    }: {
+      objectId: string;
+      cableMark: string | null;
+      cableSource: CableSource;
+      cableType: CableTypeKey;
+      windingPitchMm: number | null;
+      numberOfThreads: number | null;
+    }) => {
+      const effectiveCableType = normalizeAvailableCableType(cableType);
+      return selectCableForVariants(
+        objectId,
+        cableMark,
+        cableSource,
+        [variant],
+        effectiveCableType,
+        {
+          supplyVoltage,
+          selectionMode: isResistiveCableType(effectiveCableType) ? 'auto' : undefined,
+          selectionPolicy,
+          connectionType,
+          windingCoefficient,
+          windingPitchMm,
+          numberOfThreads,
+          heatingHeight,
+          layingStep,
+          maintainTemperature,
+          vaporTemperature,
+          aggressiveProduct,
+        },
+      );
+    },
+    onSuccess: (calculations) => {
+      calculations.forEach(setElectricalQueryCalculation);
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
+      qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
+      message.success('Параметры укладки сохранены, расчёт обновлён');
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+
   const manualCableMutate = manualCableMut.mutate;
   const autoCableMutate = autoCableMut.mutate;
-  const isCableMarkPending = manualCableMut.isPending || autoCableMut.isPending;
+  const electricalLayoutMutate = electricalLayoutMut.mutate;
+  const isCableMarkPending = manualCableMut.isPending || autoCableMut.isPending || electricalLayoutMut.isPending;
   const cableMarkModalObject = cableMarkModalObjectId
     ? objects.find((object) => object.id === cableMarkModalObjectId) ?? null
     : null;
@@ -3839,12 +3921,29 @@ export default function ElecCalcPage() {
     windingCoefficient,
   ]);
 
+  const isElectricalLayoutCellEditable = useCallback((obj: ProjectObject, columnKey: string) => {
+    if (!ELECTRICAL_LAYOUT_EDITABLE_COLUMNS.has(columnKey)) return false;
+    if (!project || !obj.is_valid || isCableMarkPending) return false;
+    const calc = currentElectricalCalc(stats.calcByObjectId[obj.id]);
+    if (!calc || !getCableMark(calc)) return false;
+    const cableType = getSavedCableTypeForObject(obj.id);
+    return cableType !== 'mineral' && cableType !== 'skin';
+  }, [getSavedCableTypeForObject, isCableMarkPending, project, stats.calcByObjectId]);
+
   const getElectricalGlideCellState = useCallback((
     obj: ProjectObject,
     columnKey: string,
     rowIndex: number,
   ): HeatCalcGlideGridCellState => {
     const renderer = electricalColumnRenderers[columnKey];
+    const layoutEditable = isElectricalLayoutCellEditable(obj, columnKey);
+    const currentCalc = currentElectricalCalc(stats.calcByObjectId[obj.id]);
+    const layoutValues = layoutEditable ? calcLayoutValues(currentCalc) : null;
+    const displayValue = layoutValues && columnKey === 'winding_pitch_mm'
+      ? String(layoutValues.windingPitchMm)
+      : layoutValues && columnKey === 'number_of_threads'
+        ? String(layoutValues.numberOfThreads)
+        : String(electricalColumnCopyValue(columnKey, obj, rowIndex) ?? '');
     const actions = columnKey === 'cable_mark' && activeRowId === obj.id
       ? [
         {
@@ -3860,12 +3959,96 @@ export default function ElecCalcPage() {
       ]
       : undefined;
     return {
-      displayValue: String(electricalColumnCopyValue(columnKey, obj, rowIndex) ?? ''),
-      editable: false,
+      displayValue,
+      editable: layoutEditable,
       align: renderer?.align,
+      editor: layoutEditable ? 'number' : undefined,
+      step: layoutEditable ? 1 : undefined,
       actions,
     };
-  }, [activeRowId, electricalColumnCopyValue, electricalColumnRenderers, isCableMarkPending, project]);
+  }, [
+    activeRowId,
+    electricalColumnCopyValue,
+    electricalColumnRenderers,
+    isCableMarkPending,
+    isElectricalLayoutCellEditable,
+    project,
+    stats.calcByObjectId,
+  ]);
+
+  const handleElectricalGlideStartCellEdit = useCallback((obj: ProjectObject) => {
+    setActiveRowId(obj.id);
+  }, []);
+
+  const handleElectricalGlideCommitCell = useCallback((
+    obj: ProjectObject,
+    columnKey: string,
+    value: unknown,
+  ) => {
+    if (!ELECTRICAL_LAYOUT_EDITABLE_COLUMNS.has(columnKey)) return null;
+    if (!project) return 'Проект не выбран';
+    if (!obj.is_valid) return 'Теплопотери объекта не рассчитаны';
+    const calc = currentElectricalCalc(stats.calcByObjectId[obj.id]);
+    const mark = getCableMark(calc);
+    if (!calc || !mark) return 'Сначала выполните электрорасчёт';
+
+    const cableType = getSavedCableTypeForObject(obj.id);
+    if (cableType === 'mineral' || cableType === 'skin') {
+      return 'Для этого типа кабеля параметры укладки не редактируются в таблице';
+    }
+
+    const parsed = parseElectricalLayoutNumber(value);
+    if (parsed === null) return 'Введите число';
+    const layoutValues = calcLayoutValues(calc);
+    let windingPitchMm = layoutValues.windingPitchMm;
+    let numberOfThreads: number | null = null;
+
+    if (columnKey === 'winding_pitch_mm') {
+      if (parsed < 0) return 'Шаг навива не может быть отрицательным';
+      const diameterMm = pipeOuterDiameterMm(obj);
+      if (diameterMm !== null && parsed > 0 && parsed <= diameterMm) {
+        return 'Шаг навива должен быть больше наружного диаметра трубы';
+      }
+      if (diameterMm !== null && parsed > 0) {
+        const coefficient = windingCoefficientForPitch(diameterMm, parsed);
+        const maxCoefficient = maxWindingCoefficientForDiameterMm(diameterMm);
+        if (coefficient > maxCoefficient + 1e-9) {
+          return `Коэффициент навива ${coefficient.toFixed(3)} превышает максимум ${maxCoefficient.toFixed(1)} для D=${diameterMm.toFixed(0)} мм`;
+        }
+      }
+      windingPitchMm = parsed;
+      const threadSource = getThreadSource(calc);
+      if (threadSource === 'manual' || threadSource === 'previous_result') {
+        numberOfThreads = Math.round(layoutValues.numberOfThreads);
+      }
+    } else if (columnKey === 'number_of_threads') {
+      const integerValue = Math.round(parsed);
+      if (integerValue !== parsed) return 'Количество ниток должно быть целым числом';
+      if (integerValue < 1) return 'Количество ниток должно быть не меньше 1';
+      const maxThreads = maxThreadsForCableType(cableType);
+      if (integerValue > maxThreads) {
+        return `Количество ниток должно быть не больше ${maxThreads}`;
+      }
+      numberOfThreads = integerValue;
+    }
+
+    const markSource = getCableMarkSource(calc);
+    electricalLayoutMutate({
+      objectId: obj.id,
+      cableMark: markSource === 'manual' ? mark : null,
+      cableSource: markSource === 'manual' ? catalogSourceFromSnapshot(calc) ?? effectiveSource : effectiveSource,
+      cableType,
+      windingPitchMm,
+      numberOfThreads,
+    });
+    return null;
+  }, [
+    effectiveSource,
+    electricalLayoutMutate,
+    getSavedCableTypeForObject,
+    project,
+    stats.calcByObjectId,
+  ]);
 
   const handleElectricalGlideCellAction = useCallback((
     obj: ProjectObject,
@@ -5317,6 +5500,8 @@ export default function ElecCalcPage() {
                 onPageChange={handleElectricalGlidePageChange}
                 onLoadMore={handleElectricalGlideLoadMore}
                 onCellAction={handleElectricalGlideCellAction}
+                onStartCellEdit={handleElectricalGlideStartCellEdit}
+                onCommitCell={handleElectricalGlideCommitCell}
               />
             </Suspense>
           ) : (

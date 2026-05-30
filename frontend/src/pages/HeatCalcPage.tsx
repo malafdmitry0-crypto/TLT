@@ -119,6 +119,7 @@ export default function HeatCalcPage() {
   } = useHeatCalcTableState({ projectId: project?.id });
   const [tableEditingMode, setTableEditingMode] = useState<TableEditingMode>('normal');
   const commercialFeaturesAvailable = areCommercialFeaturesEnabled();
+  const tableFindabilityAvailable = true;
   const closeColumnSettingsRef = useRef<(() => void) | null>(null);
   const closeColumnSettings = useCallback(() => {
     closeColumnSettingsRef.current?.();
@@ -162,10 +163,10 @@ export default function HeatCalcPage() {
     setWorkspaceHeaderContext,
   });
 
-  const effectiveActiveTableViewState = commercialFeaturesAvailable
+  const effectiveActiveTableViewState = tableFindabilityAvailable
     ? activeTableViewState
     : COMMERCIAL_FEATURES_DISABLED_TABLE_VIEW_STATE;
-  const effectiveAllTableViewState = commercialFeaturesAvailable
+  const effectiveAllTableViewState = tableFindabilityAvailable
     ? allTableViewState
     : COMMERCIAL_FEATURES_DISABLED_TABLE_VIEW_STATE;
   const excelModeEnabled = commercialFeaturesAvailable && tableEditingMode === 'excel' && !isAllObjectScope;
@@ -200,7 +201,7 @@ export default function HeatCalcPage() {
     activeTablePage,
     activeTableViewState: effectiveActiveTableViewState,
     allTableViewState: effectiveAllTableViewState,
-    tableFindabilityEnabled: commercialFeaturesAvailable,
+    tableFindabilityEnabled: tableFindabilityAvailable,
     excelModeEnabled,
     isAllObjectScope,
     project,
@@ -342,7 +343,7 @@ export default function HeatCalcPage() {
     () => visibleTableRows.filter(({ record }) => selectedRowKeys.includes(record.id)),
     [selectedRowKeys, visibleTableRows],
   );
-  const currentTableViewActive = commercialFeaturesAvailable && hasActiveTableViewState(effectiveActiveTableViewState);
+  const currentTableViewActive = tableFindabilityAvailable && hasActiveTableViewState(effectiveActiveTableViewState);
   const activeTypeTotalCount = isAllObjectScope
     ? projectObjectCount
     : objectQueryResult?.counts.by_type[activeTableObjectType] ?? totalCount;
@@ -487,7 +488,7 @@ export default function HeatCalcPage() {
     fieldInputSettings,
     isAllObjectScope,
     isSavableDraftRow,
-    tableFindabilityEnabled: commercialFeaturesAvailable,
+    tableFindabilityEnabled: tableFindabilityAvailable,
     tableCellEditingEnabled,
     visibleTableRows,
     visibleSourceIndexById,
@@ -634,7 +635,7 @@ export default function HeatCalcPage() {
     sourceColumnMetas,
     startColumnResize,
     startInlineCellEdit,
-    tableFindabilityEnabled: commercialFeaturesAvailable,
+    tableFindabilityEnabled: tableFindabilityAvailable,
     tableCellEditingEnabled,
     visibleTableObjectsLength: visibleTableObjects.length,
     visibleTableRows,
@@ -675,6 +676,7 @@ export default function HeatCalcPage() {
         tableActions={{
           editingMode: tableEditingMode,
           commercialFeaturesAvailable,
+          tableFindabilityAvailable,
           recalcTooltip: heatLossRecalcTooltip,
           recalcAriaLabel: heatLossRecalcAriaLabel,
           recalcLoading: heatLossBatchPending || isHeatLossJobActive,

@@ -42,6 +42,8 @@ interface ElectricalGlideGridProps {
   onPageChange: (page: number) => void;
   onLoadMore: () => void;
   onCellAction?: (record: ProjectObject, columnKey: string, actionKey: string) => void;
+  onStartCellEdit?: (record: ProjectObject, columnKey: string) => void;
+  onCommitCell?: (record: ProjectObject, columnKey: string, value: unknown) => string | null;
 }
 
 function ElectricalGlideGrid({
@@ -68,6 +70,8 @@ function ElectricalGlideGrid({
   onPageChange,
   onLoadMore,
   onCellAction,
+  onStartCellEdit,
+  onCommitCell,
 }: ElectricalGlideGridProps) {
   const renderFilterDropdown = useCallback(({
     column,
@@ -111,8 +115,8 @@ function ElectricalGlideGrid({
       getCellState={getCellState}
       onOpenEditWizard={onOpenRow}
       onSelectedRowKeysChange={onSelectedRowKeysChange}
-      onStartCellEdit={() => undefined}
-      onCommitCell={() => null}
+      onStartCellEdit={onStartCellEdit ?? (() => undefined)}
+      onCommitCell={onCommitCell ?? (() => null)}
       onSetColumnFilter={onSetColumnFilter}
       onResetColumnFilter={onResetColumnFilter}
       onSetSort={onSetSort}

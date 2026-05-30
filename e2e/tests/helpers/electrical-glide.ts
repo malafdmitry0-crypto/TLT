@@ -19,10 +19,33 @@ export async function expectElectricalGlideReady(page: Page) {
   await expect(page.locator('.electrical-spreadsheet .ant-table')).toHaveCount(0);
 }
 
-export async function expectElectricalGridReadOnly(page: Page) {
+export async function expectElectricalGridHasNoOpenEditor(page: Page) {
   await expectElectricalGlideReady(page);
   await expect(page.locator('.electrical-spreadsheet--glide input[role="spinbutton"]')).toHaveCount(0);
   await expect(page.locator('.electrical-spreadsheet--glide .ant-select-selector')).toHaveCount(0);
+}
+
+const FIRST_ROW_CENTER_Y = 52;
+const LAYOUT_COLUMN_CENTER_X: Record<'winding_pitch_mm' | 'number_of_threads', number> = {
+  winding_pitch_mm: 708,
+  number_of_threads: 775,
+};
+
+export async function editFirstElectricalGridLayoutCell(
+  page: Page,
+  column: 'winding_pitch_mm' | 'number_of_threads',
+  value: string,
+) {
+  await expectElectricalGlideReady(page);
+  const canvas = page.locator('.electrical-spreadsheet--glide canvas').first();
+  const box = await canvas.boundingBox();
+  expect(box).toBeTruthy();
+  await page.mouse.click(box!.x + LAYOUT_COLUMN_CENTER_X[column], box!.y + FIRST_ROW_CENTER_Y);
+  const editor = page.getByTestId('heatcalc-normal-glide-cell-editor');
+  await expect(editor).toBeVisible();
+  await editor.fill(value);
+  await editor.press('Enter');
+  await expect(editor).toHaveCount(0);
 }
 
 export async function clickFirstElectricalGridRow(page: Page) {

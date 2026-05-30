@@ -8,9 +8,10 @@ import {
 } from './helpers/workspace';
 import {
   clickFirstElectricalGridRow,
+  editFirstElectricalGridLayoutCell,
   expectElectricalCalcForObject,
   expectElectricalGlideReady,
-  expectElectricalGridReadOnly,
+  expectElectricalGridHasNoOpenEditor,
   fetchElectricalCalcs,
 } from './helpers/electrical-glide';
 
@@ -131,7 +132,7 @@ test.describe('business flow: cable layout controls', () => {
 
     await expectElectricalGlideReady(page);
     await clickFirstElectricalGridRow(page);
-    await expectElectricalGridReadOnly(page);
+    await expectElectricalGridHasNoOpenEditor(page);
 
     const firstCalcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const firstCalc = firstCalcs.find((item) => item.object_id === pipe.id);
@@ -144,7 +145,7 @@ test.describe('business flow: cable layout controls', () => {
 
     await expectElectricalGlideReady(page);
     await clickFirstElectricalGridRow(page);
-    await expectElectricalGridReadOnly(page);
+    await expectElectricalGridHasNoOpenEditor(page);
 
     const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
     const calc = calcs.find((item) => item.object_id === pipe.id);
@@ -154,12 +155,12 @@ test.describe('business flow: cable layout controls', () => {
     expect(Number(calc?.results.cable_length)).toBeGreaterThan(50);
   });
 
-  test('таблица электрорасчёта остаётся read-only для параметров укладки', async ({
+  test('Glide-таблица редактирует шаг навива и количество ниток SC-04', async ({
     page,
   }) => {
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);
-    const pipeName = `E2E pitch validation ${Date.now()}`;
+    const pipeName = `E2E layout edit ${Date.now()}`;
     const pipe = await createCalculatedPipe(page, pipeName);
 
     await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
@@ -167,14 +168,21 @@ test.describe('business flow: cable layout controls', () => {
     await expectBatchSuccess(page);
 
     await expectElectricalGlideReady(page);
-    await clickFirstElectricalGridRow(page);
-    await expectElectricalGridReadOnly(page);
+    await editFirstElectricalGridLayoutCell(page, 'winding_pitch_mm', '400');
 
-    const calcs = await fetchElectricalCalcs(page, projectId, sessionId);
-    const calc = calcs.find((item) => item.object_id === pipe.id);
-    expect(calc?.cable_mark).toBeTruthy();
-    expect(calc?.results.winding_pitch).toBeDefined();
-    expect(Number(calc?.results.num_circuits)).toBeGreaterThanOrEqual(1);
+    await expect.poll(async () => {
+      const rows = await fetchElectricalCalcs(page, projectId, sessionId);
+      const row = rows.find((item) => item.object_id === pipe.id);
+      return row?.results?.winding_pitch;
+    }).toBe(400);
+
+    await editFirstElectricalGridLayoutCell(page, 'number_of_threads', '2');
+
+    const calc = await expectElectricalCalcForObject(page, projectId, sessionId, pipe.id);
+    expect(calc.cable_mark).toBeTruthy();
+    expect(calc.results?.winding_pitch).toBe(400);
+    expect(calc.results?.num_circuits).toBe(2);
+    expect(calc.results?.number_of_threads_source).toBe('manual');
   });
 
   test('ТТН/ТТВ/ТТХ проходит через UI-параметры и сохраняет тип расчёта', async ({ page }) => {

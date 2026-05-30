@@ -353,8 +353,9 @@ describe('HeatCalcPage basics', () => {
       expect(within(tableActionsToolbar).queryByRole('button', { name: 'Удалить выбранные' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).getByRole('button', { name: 'Импорт XLSX/CSV' })).toBe(importButton);
       expect(within(tableActionsToolbar).queryByText('Excel-режим')).not.toBeInTheDocument();
-      expect(within(tableActionsToolbar).queryByRole('button', { name: 'Сбросить фильтры таблицы' }))
-        .not.toBeInTheDocument();
+      const resetFiltersButton = within(tableActionsToolbar).getByRole('button', { name: 'Сбросить фильтры таблицы' });
+      expect(resetFiltersButton).toBeDisabled();
+      expect(resetFiltersButton).toHaveTextContent(/^$/);
       expect(within(tableActionsToolbar).queryByRole('button', { name: 'Трубопровод' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).queryByRole('button', { name: 'Резервуар' })).not.toBeInTheDocument();
       expect(within(tableActionsToolbar).queryByText(/Режим:/)).not.toBeInTheDocument();

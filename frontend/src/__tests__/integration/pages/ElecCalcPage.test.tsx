@@ -2514,81 +2514,113 @@ describe('ElecCalcPage (integration)', () => {
     });
   });
 
-  it('оставляет поля таблицы электрорасчёта только для чтения', async () => {
-    const { getElectricalPage } = await import('@/api/calculations');
-    const objects = [
-      makeObject({ id: 'o-1', params: { name: 'Труба-1' } }),
-      makeObject({ id: 'o-2', sort_order: 1, params: { name: 'Труба-2' } }),
-    ];
-    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
-      makeElectricalPage(objects, [
-        {
-          id: 'c-1',
-          object_id: 'o-1',
-          cable_type: 'self_regulating',
-          cable_mark: 'ТЛТ-30',
-          variant_number: 1,
-          results: {
-            selected_cable: 'ТЛТ-30',
-            winding_pitch: 0,
-            num_circuits: 1,
-            installed_cable_length: 10,
-            order_cable_length: 11,
-            total_power: 600,
-            current: 2.7,
-            voltage: 220,
-          },
-        },
-        {
-          id: 'c-2',
-          object_id: 'o-2',
-          cable_type: 'self_regulating',
-          cable_mark: 'ТЛТ-40',
-          variant_number: 1,
-          results: {
-            selected_cable: 'ТЛТ-40',
-            winding_pitch: 120,
-            num_circuits: 2,
-            installed_cable_length: 12,
-            order_cable_length: 13.2,
-            total_power: 700,
-            current: 3.2,
-            voltage: 220,
-          },
-        },
-      ]),
-    );
+  it('делает шаг навива и количество ниток редактируемыми в Glide-таблице SC-04', async () => {
+    const { getElectricalPage, selectCableForVariants } = await import('@/api/calculations');
+    localStorage.setItem(ELECTRICAL_TABLE_ENGINE_STORAGE_KEY, 'glide');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockReset();
+    (selectCableForVariants as ReturnType<typeof vi.fn>).mockReset();
+    const object = makeObject({
+      id: 'o-1',
+      params: { name: 'Труба-1', outer_diameter: 0.108 },
+    });
+    const calc: ElectricalCalcSummary = {
+      id: 'c-1',
+      object_id: 'o-1',
+      cable_type: 'self_regulating',
+      cable_mark: 'ТЛТ-30',
+      cable_mark_source: 'auto',
+      variant_number: 1,
+      params: {},
+      results: {
+        selected_cable: 'ТЛТ-30',
+        winding_pitch: 0,
+        num_circuits: 1,
+        number_of_threads_source: 'auto',
+        installed_cable_length: 10,
+        order_cable_length: 11,
+        total_power: 600,
+        current: 2.7,
+        voltage: 220,
+      },
+    };
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([object], [calc]));
+    (selectCableForVariants as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        ...calc,
+        results: { ...calc.results, winding_pitch: 400, num_circuits: 2, number_of_threads_source: 'manual' },
+      },
+    ]);
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Труба-1')).toBeInTheDocument();
+      expect(electricalGlideGridMock.props?.getCellState).toBeTypeOf('function');
     });
-    expect(document.querySelectorAll('.electrical-spreadsheet .ant-select-selector')).toHaveLength(0);
-    expect(document.querySelectorAll('.electrical-spreadsheet input[role="spinbutton"]')).toHaveLength(0);
+    const getCellState = (record: ProjectObject, columnKey: string, rowIndex: number) => {
+      const fn = electricalGlideGridMock.props!.getCellState as (
+        item: ProjectObject,
+        key: string,
+        index: number,
+      ) => { editable: boolean; editor?: string; displayValue: string };
+      return fn(record, columnKey, rowIndex);
+    };
 
-    fireEvent.click(screen.getByText('Труба-1').closest('tr') as HTMLTableRowElement);
-    expect(document.querySelectorAll('.electrical-spreadsheet .ant-select-selector')).toHaveLength(0);
-    expect(document.querySelectorAll('.electrical-spreadsheet input[role="spinbutton"]')).toHaveLength(0);
-    fireEvent.click(
-      within(screen.getByText('Труба-1').closest('tr') as HTMLTableRowElement).getByRole(
-        'button',
-        { name: 'Выбор' },
-      ),
+    await waitFor(() => {
+      expect(getCellState(object, 'winding_pitch_mm', 0)).toMatchObject({
+        editable: true,
+        editor: 'number',
+        displayValue: '0',
+      });
+      expect(getCellState(object, 'number_of_threads', 0)).toMatchObject({
+        editable: true,
+        editor: 'number',
+        displayValue: '1',
+      });
+    });
+    const onCommitCell = electricalGlideGridMock.props!.onCommitCell as (
+      record: ProjectObject,
+      columnKey: string,
+      value: unknown,
+    ) => string | null;
+
+    expect(onCommitCell(object, 'winding_pitch_mm', '100')).toBe(
+      'Шаг навива должен быть больше наружного диаметра трубы',
     );
-    expect(await screen.findByText('Выбор марки кабеля')).toBeInTheDocument();
-    expect(document.querySelectorAll('.ant-modal .ant-select-selector')).toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+    expect(selectCableForVariants).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByText('Труба-2').closest('tr') as HTMLTableRowElement);
-    expect(document.querySelectorAll('.electrical-spreadsheet .ant-select-selector')).toHaveLength(0);
-    expect(document.querySelectorAll('.electrical-spreadsheet input[role="spinbutton"]')).toHaveLength(0);
-    expect(
-      within(screen.getByText('Труба-2').closest('tr') as HTMLTableRowElement).getByRole(
-        'button',
-        { name: 'Выбор' },
-      ),
-    ).toBeEnabled();
+    expect(onCommitCell(object, 'winding_pitch_mm', '200')).toBe(
+      'Коэффициент навива 1.969 превышает максимум 1.4 для D=108 мм',
+    );
+    expect(selectCableForVariants).not.toHaveBeenCalled();
+
+    expect(onCommitCell(object, 'winding_pitch_mm', '400')).toBeNull();
+    await waitFor(() => {
+      expect(selectCableForVariants).toHaveBeenLastCalledWith(
+        'o-1',
+        null,
+        'builtin',
+        [1],
+        'self_regulating',
+        expect.objectContaining({
+          windingPitchMm: 400,
+          numberOfThreads: null,
+        }),
+      );
+    });
+    (selectCableForVariants as ReturnType<typeof vi.fn>).mockClear();
+    expect(onCommitCell(object, 'number_of_threads', '2')).toBeNull();
+    await waitFor(() => {
+      expect(selectCableForVariants).toHaveBeenLastCalledWith(
+        'o-1',
+        null,
+        'builtin',
+        [1],
+        'self_regulating',
+        expect.objectContaining({
+          numberOfThreads: 2,
+        }),
+      );
+    });
   });
 
   it('не закрывает модалку выбора марки при ошибке ручного применения', async () => {

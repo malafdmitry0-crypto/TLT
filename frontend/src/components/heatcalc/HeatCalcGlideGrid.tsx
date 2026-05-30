@@ -241,14 +241,18 @@ function HeatCalcGlideGrid({
       bounds,
     });
   }, [getModelCell, onStartCellEdit]);
-  const commitGlideEditor = useCallback(() => {
+  const commitGlideEditor = useCallback((valueOverride?: string) => {
     if (!editingCell) return;
     const modelCell = getModelCell(editingCell.cell[0], editingCell.cell[1]);
     if (!modelCell?.state.editable) {
       setEditingCell(null);
       return;
     }
-    const error = onCommitCell(modelCell.record, modelCell.column.key, editingCell.value);
+    const error = onCommitCell(
+      modelCell.record,
+      modelCell.column.key,
+      valueOverride ?? editingCell.value,
+    );
     if (!error) setEditingCell(null);
   }, [editingCell, getModelCell, onCommitCell]);
   useEffect(() => {
@@ -443,12 +447,12 @@ function HeatCalcGlideGrid({
             const value = event.target.value;
             setEditingCell((current) => (current ? { ...current, value } : current));
           }}
-          onBlur={commitGlideEditor}
+          onBlur={(event) => commitGlideEditor(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
               event.preventDefault();
               event.stopPropagation();
-              commitGlideEditor();
+              commitGlideEditor(event.currentTarget.value);
               return;
             }
             if (event.key === 'Escape') {

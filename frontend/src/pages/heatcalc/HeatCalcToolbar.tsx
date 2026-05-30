@@ -54,6 +54,7 @@ export type HeatCalcActionsToolbarProps = {
   tableActions: {
     editingMode: HeatCalcToolbarEditingMode;
     commercialFeaturesAvailable: boolean;
+    tableFindabilityAvailable: boolean;
     recalcTooltip: string;
     recalcAriaLabel: string;
     recalcLoading: boolean;
@@ -273,7 +274,7 @@ export function HeatCalcActionsToolbar({
               />
             </span>
           </Tooltip>
-          {tableActions.commercialFeaturesAvailable && (
+          {tableActions.tableFindabilityAvailable && (
             <Tooltip title={tableActions.currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
               <span className="action-tooltip-wrap">
                 <Button
