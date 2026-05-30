@@ -3760,19 +3760,6 @@
           "field": "climate_region"
         },
         {
-          "key": "climate_key",
-          "group": "Температура и среда",
-          "defaultWidthPct": 11,
-          "minWidthPx": 80,
-          "ellipsis": true,
-          "valueType": "enum",
-          "defaultVisible": false,
-          "sortable": true,
-          "filterable": true,
-          "resizable": true,
-          "field": "climate_key"
-        },
-        {
           "key": "climate_temperature_basis",
           "group": "Температура и среда",
           "defaultWidthPct": 8.2,
@@ -4503,19 +4490,6 @@
           "filterable": true,
           "resizable": true,
           "field": "climate_region"
-        },
-        {
-          "key": "climate_key",
-          "group": "Температура и среда",
-          "defaultWidthPct": 11,
-          "minWidthPx": 80,
-          "ellipsis": true,
-          "valueType": "enum",
-          "defaultVisible": false,
-          "sortable": true,
-          "filterable": true,
-          "resizable": true,
-          "field": "climate_key"
         },
         {
           "key": "climate_temperature_basis",
