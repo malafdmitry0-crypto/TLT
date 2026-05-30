@@ -85,7 +85,7 @@ sequenceDiagram
     participant Coef as CorrectionCoefficients
 
     API->>Coef: load_coefficients()
-    Coef-->>API: { safety_factor: 1.1,\n  wind_factor: 1.05,\n  location_outdoor: 1.0 }
+    Coef-->>API: { safety_factor: 1.1,\n  wind_factor: 1.0,\n  location_outdoor: 1.0 }
 
     API->>Form: calc_pipe_heat_loss(\n  d_outer=114mm, wall=4mm,\n  length=100m, t_proc=80°C,\n  t_amb=-30°C,\n  layers=[{mat:"minvata",\n    thick=50mm, lambda=0.04}],\n  underground=false,\n  coefficients={...})
 
@@ -113,10 +113,10 @@ sequenceDiagram
     Form->>Form: q_base = ΔT / R_total = 110 / 2.499\n= 44.0 Вт/м
 
     Note over Form: 7. Удельные теплопотери без K
-    Form->>Form: q_linear = q_base\nlocation_* сейчас не применяется
+    Form->>Form: q_linear = q_base\nlocation_factor применяется только к Q
 
-    Note over Form: 8. Коэффициент запаса
-    Form->>Form: Q_total = q_linear × L_eff × safety_factor
+    Note over Form: 8. Коэффициенты итогового Q
+    Form->>Form: Q_total = q_linear × L_eff\n× safety_factor × location_factor
 
     Form-->>API: { heat_loss_per_meter: q_linear,\n  total_heat_loss: Q_total,\n  r_wall: 0.000184,\n  r_insulation: [2.35],\n  r_ext: 0.149,\n  safety_factor:1.1 }
 ```

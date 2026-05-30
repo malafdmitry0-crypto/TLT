@@ -30,6 +30,7 @@ UI/API workflow считается gap до полного соответств�
 | `tlt_pipe_total_heat_loss` | Да | Да | Да | Да | Да | Covered |
 | `tlt_pipe_heat_loss_no_double_k` | Да | Да | Да | Да | Да | Covered |
 | `tlt_tank_external_resistance` | Да | Да | Да | Да | Да | Covered |
+| `tlt_tank_total_heat_loss` | Да | Нет отдельного registry primitive | Да, `Q = base*K*location_factor + Qдоп` и подземная ветка | Да | Да | Covered |
 | `tlt_rectangular_tank_perimeter` | Да | Да | Да | Да | Да | Covered |
 | `tlt_tank_heat_loss_no_double_k` | Да | Да | Да | Да | Да | Covered |
 | `tlt_climate_safety_factor` | Да | Да | Да, backend resolver нормализует K и расчетную T; lookup использует `climate_key`/регион для городов-дубликатов | Частично через поля климата | Да | Covered |
@@ -46,6 +47,7 @@ UI/API workflow считается gap до полного соответств�
 | `tlt_tt_thread_count_policy` | Да | Частично | Да, auto `N=ceil(Pоб/Pi)` без лимита 3 для ТТ | Нет отдельного policy control | Да | Covered |
 | `tlt_tt_mark_suffix_policy` | Да | Нет | Да, принято `aggressive_product -> СТ`, иначе `СР` | Да через поле агрессивности | Да | Covered |
 | `tlt_insulation_lambda_tm` | Да | Да | Да, `lambda(tm)` + конкретный материал/плотность + `insulation_temperature_basis` | Да, отдельное поле режима `tm` | Да | Covered |
+| `tlt_heat_loss_location_factor_source_gap` | Частично: задокументировано как app policy, не найдено в первичных ТНП DOCX/XLSX | Нет | Да, `location_indoor/location_outdoor` умножают итоговое `Q`; для трубы electrical input берет `q*location_factor` без `K` | Да, отображается в деталях расчёта как `Kразм примен.` | Да | Needs business decision |
 
 ## Audit Notes
 
@@ -54,6 +56,12 @@ use selectable concrete insulation codes (for example
 `mineral_wool_boards_120`) plus `insulation_temperature_basis`. Generic family
 codes (`mineral_wool`, `foam_glass`, `polyurethane`) remain only in reference
 data / import-reselection checks and are not accepted as calculation materials.
+
+2026-05-30: primary-source audit confirmed `L_eff=L+Lдоп`, `Qдоп` after `K`,
+and `lambda(tm)` from the insulation reference. `location_indoor=0.9` /
+`location_outdoor=1.0` are current application policy and are covered by
+backend tests, but the separate placement multiplier was not found in inspected
+primary TNP DOCX/XLSX sources.
 
 ## Gates
 

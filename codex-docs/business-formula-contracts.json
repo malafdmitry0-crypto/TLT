@@ -9,6 +9,7 @@
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_pipe_total_heat_loss" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_pipe_heat_loss_no_double_k" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_climate_safety_factor" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_heat_loss_location_factor_source_gap" },
         { "path": "docs/tnp/block-heat-loss-and-cable-selection/pipe-heat-loss-and-cable-selection.md" },
         { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_pipe_total_heat_loss" },
         { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_climate_safety_factor" },
@@ -42,8 +43,10 @@
       "title": "Расчет теплопотерь резервуара",
       "requirementRefs": [
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_tank_external_resistance" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_tank_total_heat_loss" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_rectangular_tank_perimeter" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_tank_heat_loss_no_double_k" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_heat_loss_location_factor_source_gap" },
         { "path": "docs/tnp/block-heat-loss-and-cable-selection/tank-heat-loss-and-cable-selection.md" },
         { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_tank_external_resistance" },
         { "path": "formules.md", "symbol": "резервуар" },

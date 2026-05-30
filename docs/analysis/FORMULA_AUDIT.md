@@ -7,6 +7,9 @@
 > уже перенесены в текущую документацию. Действующий контракт формул,
 > алгоритмов и справочников находится в `docs/business-logic-contract.md`,
 > `docs/context/formulas-summary.md` и machine-readable registry QA-agent.
+> По состоянию на 2026-05-30 `formules.md` дополнительно обновлён по
+> первичным DOCX/XLSX: `L_eff=L+Lдоп`, `Qдоп` после `K`, температурная
+> `λ_из(tm)` и статус `location_indoor/location_outdoor` как app policy.
 
 ---
 
