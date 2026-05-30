@@ -11,10 +11,9 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 HEATCALC_TABLE_COLUMNS_PREF_KEY = f"heatcalc.tableColumns.v{HEATCALC_TABLE_COLUMNS_VERSION}"
 HEATCALC_TABLE_VIEW_PREF_KEY = "heatcalc.tableView.v2"
-ELECTRICAL_TABLE_COLUMNS_VERSION = 5
-ELECTRICAL_TABLE_COLUMNS_PREF_KEY = f"electrical.tableColumns.v{ELECTRICAL_TABLE_COLUMNS_VERSION}"
-ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView.v4"
-ELECTRICAL_CANDIDATE_TABLE_COLUMNS_PREF_KEY = "electrical.candidateTableColumns.v1"
+ELECTRICAL_TABLE_COLUMNS_PREF_KEY = "electrical.tableColumns"
+ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView"
+ELECTRICAL_CANDIDATE_TABLE_COLUMNS_PREF_KEY = "electrical.candidateTableColumns"
 
 
 def heatcalc_table_columns_value(
@@ -84,12 +83,13 @@ def electrical_table_columns_value(
     visible: list[str] | None = None,
 ) -> dict[str, object]:
     return {
-        "version": ELECTRICAL_TABLE_COLUMNS_VERSION,
         "visibleOrder": visible or ["index", "object_name", "cable_mark", "current"],
         "columns": {
             "index": {"widthPct": 4},
             "object_name": {"widthPct": 22},
             "cable_mark": {"widthPct": 18},
+            "power_per_meter": {"widthPct": 10},
+            "installed_power_per_meter": {"widthPct": 10},
             "current": {"widthPct": 8},
         },
     }
@@ -101,7 +101,6 @@ def electrical_table_view_value(
     settings_label_format: str = "full",
 ) -> dict[str, object]:
     return {
-        "version": 4,
         "fontSize": font_size,
         "tableLabelFormat": table_label_format,
         "settingsLabelFormat": settings_label_format,
@@ -113,13 +112,14 @@ def electrical_candidate_table_columns_value(
     visible: list[str] | None = None,
 ) -> dict[str, object]:
     return {
-        "version": 1,
         "visibleOrder": visible or ["marked", "actions", "mode", "cable_mark", "current"],
         "columns": {
             "marked": {"widthPct": 6.8},
             "actions": {"widthPct": 9.6},
             "mode": {"widthPct": 8.6},
             "cable_mark": {"widthPct": 19},
+            "power_per_meter": {"widthPct": 10},
+            "installed_power_per_meter": {"widthPct": 12},
             "current": {"widthPct": 10},
         },
     }
@@ -249,6 +249,33 @@ class TestUserPreferencesApi:
         assert read_back.status_code == 200
         assert read_back.json()["value"]["columns"]["current"] == {"widthPct": 8}
 
+    async def test_electrical_table_columns_accepts_power_per_meter_keys(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        value = electrical_table_columns_value(
+            [
+                "index",
+                "object_name",
+                "cable_mark",
+                "power_per_meter",
+                "installed_power_per_meter",
+            ]
+        )
+
+        resp = await client.put(
+            f"/api/v1/preferences/{ELECTRICAL_TABLE_COLUMNS_PREF_KEY}",
+            json={"value": value},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["value"]["columns"]["power_per_meter"] == {"widthPct": 10}
+        assert resp.json()["value"]["columns"]["installed_power_per_meter"] == {
+            "widthPct": 10
+        }
+
     async def test_electrical_table_columns_rejects_unknown_key(
         self,
         client: AsyncClient,
@@ -365,6 +392,32 @@ class TestUserPreferencesApi:
         assert read_back.status_code == 200
         assert read_back.json()["value"]["columns"]["current"] == {"widthPct": 10}
 
+    async def test_electrical_candidate_table_columns_accepts_power_per_meter_keys(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        value = electrical_candidate_table_columns_value(
+            [
+                "actions",
+                "cable_mark",
+                "power_per_meter",
+                "installed_power_per_meter",
+            ]
+        )
+
+        resp = await client.put(
+            f"/api/v1/preferences/{ELECTRICAL_CANDIDATE_TABLE_COLUMNS_PREF_KEY}",
+            json={"value": value},
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["value"]["columns"]["power_per_meter"] == {"widthPct": 10}
+        assert resp.json()["value"]["columns"]["installed_power_per_meter"] == {
+            "widthPct": 12
+        }
+
     async def test_electrical_candidate_table_columns_rejects_unknown_key(
         self,
         client: AsyncClient,
@@ -412,45 +465,35 @@ class TestUserPreferencesApi:
 
         assert resp.status_code == 422
 
-    async def test_old_versioned_preference_keys_are_rejected(
+    async def test_electrical_versioned_preference_keys_are_rejected(
         self,
         client: AsyncClient,
         employee_token: str,
     ):
         headers = {"Authorization": f"Bearer {employee_token}"}
 
-        old_view = await client.put(
-            "/api/v1/preferences/electrical.tableView.v1",
+        versioned_electrical_table = await client.get(
+            "/api/v1/preferences/electrical.tableColumns.v6",
+            headers=headers,
+        )
+        versioned_electrical_view = await client.put(
+            "/api/v1/preferences/electrical.tableView.v4",
             json={"value": electrical_table_view_value()},
             headers=headers,
         )
-        old_columns = await client.get(
-            "/api/v1/preferences/electrical.tableColumns.v4",
+        versioned_candidates = await client.get(
+            "/api/v1/preferences/electrical.candidateTableColumns.v2",
             headers=headers,
         )
-        old_view_v2 = await client.get(
-            "/api/v1/preferences/electrical.tableView.v2",
-            headers=headers,
-        )
-        old_view_v3 = await client.get(
-            "/api/v1/preferences/electrical.tableView.v3",
-            headers=headers,
-        )
-        old_candidates = await client.get(
-            "/api/v1/preferences/electrical.candidateTableColumns.v0",
-            headers=headers,
-        )
-        old_heatcalc_table_view = await client.get(
-            "/api/v1/preferences/heatcalc.tableView.v1",
+        unsupported_heatcalc_table_view = await client.get(
+            "/api/v1/preferences/heatcalc.tableView.unsupported",
             headers=headers,
         )
 
-        assert old_view.status_code == 422
-        assert old_columns.status_code == 422
-        assert old_view_v2.status_code == 422
-        assert old_view_v3.status_code == 422
-        assert old_candidates.status_code == 422
-        assert old_heatcalc_table_view.status_code == 422
+        assert versioned_electrical_table.status_code == 422
+        assert versioned_electrical_view.status_code == 422
+        assert versioned_candidates.status_code == 422
+        assert unsupported_heatcalc_table_view.status_code == 422
 
     async def test_employee_can_upsert_heatcalc_table_view_preference(
         self,

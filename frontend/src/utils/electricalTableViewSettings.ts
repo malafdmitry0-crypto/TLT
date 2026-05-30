@@ -5,7 +5,6 @@ export type ElectricalTableLabelFormat = 'full' | 'short' | 'compact';
 export type ElectricalCalculationCableSource = 'builtin' | 'extended' | 'all';
 
 export interface ElectricalTableViewSettings {
-  version: number;
   fontSize: ElectricalTableFontSize;
   tableLabelFormat: ElectricalTableLabelFormat;
   settingsLabelFormat: ElectricalTableLabelFormat;
@@ -26,11 +25,10 @@ interface RegisteredElectricalTableViewCache {
   cachedAt: string;
 }
 
-export const ELECTRICAL_TABLE_VIEW_VERSION = 4;
-export const ELECTRICAL_TABLE_VIEW_PREF_KEY = 'electrical.tableView.v4';
-export const ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY = 'electrical.tableView.v4.guest';
+export const ELECTRICAL_TABLE_VIEW_PREF_KEY = 'electrical.tableView';
+export const ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY = 'electrical.tableView.guest';
 export const ELECTRICAL_REGISTERED_TABLE_VIEW_CACHE_KEY =
-  'electrical.tableView.v4.registered.cache';
+  'electrical.tableView.registered.cache';
 
 export const ELECTRICAL_TABLE_LABEL_FORMAT_OPTIONS: Array<{
   key: ElectricalTableLabelFormat;
@@ -110,7 +108,6 @@ export function normalizeElectricalCalculationCableSource(
 
 export function getDefaultElectricalTableViewSettings(): ElectricalTableViewSettings {
   return {
-    version: ELECTRICAL_TABLE_VIEW_VERSION,
     fontSize: defaultFontSize(),
     tableLabelFormat: 'short',
     settingsLabelFormat: 'full',
@@ -123,7 +120,6 @@ export function normalizeElectricalTableViewSettings(
 ): ElectricalTableViewSettings {
   const source = isRecord(value) ? value : {};
   return {
-    version: ELECTRICAL_TABLE_VIEW_VERSION,
     fontSize: normalizeFontSize(source.fontSize),
     tableLabelFormat: normalizeLabelFormat(source.tableLabelFormat, 'short'),
     settingsLabelFormat: normalizeLabelFormat(source.settingsLabelFormat, 'full'),

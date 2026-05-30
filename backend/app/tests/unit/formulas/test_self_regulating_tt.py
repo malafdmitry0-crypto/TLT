@@ -206,6 +206,10 @@ class TestCableSelection:
         assert r.cable_length == pytest.approx(50.0 * 1.2 * 2, rel=1e-3)
         assert r.order_cable_length == pytest.approx(50.0 * 1.2 * 2 * 1.1, rel=1e-3)
         assert r.total_power == pytest.approx(r.power_per_meter * r.cable_length, rel=1e-3)
+        assert r.installed_power_per_meter == pytest.approx(
+            r.power_per_meter * r.winding_coefficient * r.num_circuits,
+            rel=1e-3,
+        )
 
     def test_user_threads_must_cover_required_power(self):
         with pytest.raises(ValueError, match="требуется"):

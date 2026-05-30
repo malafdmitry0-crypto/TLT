@@ -36,7 +36,6 @@ export interface ElectricalCandidateColumnLayout {
 }
 
 export interface ElectricalCandidateTableColumnSettings {
-  version: number;
   visibleOrder: ElectricalCandidateColumnKey[];
   columns: Record<ElectricalCandidateColumnKey, ElectricalCandidateColumnLayout>;
 }
@@ -54,9 +53,8 @@ interface RegisteredElectricalCandidateTableColumnCache {
   cachedAt: string;
 }
 
-export const ELECTRICAL_CANDIDATE_TABLE_COLUMNS_VERSION = 1;
 export const ELECTRICAL_CANDIDATE_TABLE_COLUMN_PREF_KEY =
-  `electrical.candidateTableColumns.v${ELECTRICAL_CANDIDATE_TABLE_COLUMNS_VERSION}`;
+  'electrical.candidateTableColumns';
 export const ELECTRICAL_GUEST_CANDIDATE_TABLE_COLUMN_STORAGE_KEY =
   `${ELECTRICAL_CANDIDATE_TABLE_COLUMN_PREF_KEY}.guest`;
 export const ELECTRICAL_REGISTERED_CANDIDATE_TABLE_COLUMN_CACHE_KEY =
@@ -74,6 +72,7 @@ const CANDIDATE_FIELD_EXCLUDED_KEYS = new Set<ElectricalColumnKey>([
 const CANDIDATE_COLUMN_PRIORITY = [
   'cable_type',
   'cable_mark',
+  'power_per_meter',
   'maintain_temperature',
   'vapor_temperature',
   'aggressive_product',
@@ -97,6 +96,7 @@ const CANDIDATE_COLUMN_WIDTH_PCT_BY_KEY: Record<string, number> = {
   actions: 16.2,
   mode: 8.6,
   cable_mark: 19,
+  power_per_meter: 10,
   selection_policy: 13,
   applied_selection_policy: 15,
   selection_reason: 32,
@@ -113,6 +113,7 @@ const CANDIDATE_COLUMN_WIDTH_PCT_BY_KEY: Record<string, number> = {
   installed_cable_length: 13,
   order_cable_length: 13,
   total_power: 12,
+  installed_power_per_meter: 12,
   current: 10,
   voltage: 11,
   price_per_meter: 12,
@@ -279,7 +280,6 @@ function defaultVisibleKeys() {
 
 export function getDefaultElectricalCandidateTableColumnSettings(): ElectricalCandidateTableColumnSettings {
   return {
-    version: ELECTRICAL_CANDIDATE_TABLE_COLUMNS_VERSION,
     visibleOrder: normalizeVisibleOrder(defaultVisibleKeys()),
     columns: normalizeColumns(null),
   };
@@ -290,7 +290,6 @@ export function normalizeElectricalCandidateTableColumnSettings(
 ): ElectricalCandidateTableColumnSettings {
   const source = isRecord(value) ? value : {};
   return {
-    version: ELECTRICAL_CANDIDATE_TABLE_COLUMNS_VERSION,
     visibleOrder: normalizeVisibleOrder(source.visibleOrder, defaultVisibleKeys()),
     columns: normalizeColumns(source.columns),
   };

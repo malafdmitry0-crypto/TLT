@@ -393,6 +393,8 @@ const CANDIDATE_NUMERIC_FILTER_KEYS = new Set<ElectricalCandidateColumnKey>([
   'installed_cable_length',
   'order_cable_length',
   'total_power',
+  'power_per_meter',
+  'installed_power_per_meter',
   'current',
   'voltage',
   'price_per_meter',
@@ -476,6 +478,12 @@ function getCableMark(calc: ElectricalCalcSummary | undefined) {
   return calc?.cable_mark ?? (typeof selectedCable === 'string' ? selectedCable : undefined);
 }
 
+function finiteNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : undefined;
+}
+
 function candidateOrderCableLengthValue(candidate: ElectricalCandidate) {
   const explicitRaw = candidate.results?.order_cable_length;
   if (explicitRaw === null || explicitRaw === undefined || explicitRaw === '') return undefined;
@@ -487,6 +495,14 @@ function candidateCommercialValue(candidate: ElectricalCandidate, key: string) {
   const commercial = candidate.results?.commercial;
   if (typeof commercial !== 'object' || commercial === null || Array.isArray(commercial)) return undefined;
   return (commercial as Record<string, unknown>)[key];
+}
+
+function candidatePowerPerMeterValue(candidate: ElectricalCandidate) {
+  return finiteNumber(candidate.results?.power_per_meter);
+}
+
+function candidateInstalledPowerPerMeterValue(candidate: ElectricalCandidate) {
+  return finiteNumber(candidate.results?.installed_power_per_meter);
 }
 
 function candidateThreadSource(candidate: ElectricalCandidate): ThreadSource | null {
@@ -549,6 +565,10 @@ function candidateElectricalFieldValue(
       return candidateOrderCableLengthValue(candidate);
     case 'total_power':
       return candidate.results?.total_power;
+    case 'power_per_meter':
+      return candidatePowerPerMeterValue(candidate);
+    case 'installed_power_per_meter':
+      return candidateInstalledPowerPerMeterValue(candidate);
     case 'current':
       return candidate.results?.current;
     case 'voltage':
@@ -634,6 +654,10 @@ function candidateCompareDisplayValue(
       return numberText(candidateOrderCableLengthValue(candidate), 1);
     case 'total_power':
       return powerText(candidate.results?.total_power);
+    case 'power_per_meter':
+      return numberText(candidatePowerPerMeterValue(candidate), 2);
+    case 'installed_power_per_meter':
+      return numberText(candidateInstalledPowerPerMeterValue(candidate), 2);
     case 'current':
       return numberText(candidate.results?.current, 2);
     case 'voltage':
@@ -744,6 +768,10 @@ function renderCandidateElectricalField(
       return numberText(candidateOrderCableLengthValue(candidate), 1);
     case 'total_power':
       return powerText(candidate.results?.total_power);
+    case 'power_per_meter':
+      return numberText(candidatePowerPerMeterValue(candidate), 2);
+    case 'installed_power_per_meter':
+      return numberText(candidateInstalledPowerPerMeterValue(candidate), 2);
     case 'current':
       return numberText(candidate.results?.current, 2);
     case 'voltage':
@@ -971,6 +999,14 @@ function cableSnapshotRow(calc: ElectricalCalcSummary | undefined): CableStatusR
   };
 }
 
+function cablePowerPerMeterValue(calc: ElectricalCalcSummary | undefined) {
+  return finiteNumber(calc?.results?.power_per_meter);
+}
+
+function installedPowerPerMeterValue(calc: ElectricalCalcSummary | undefined) {
+  return finiteNumber(calc?.results?.installed_power_per_meter);
+}
+
 function orderCableLengthValue(calc: ElectricalCalcSummary | undefined) {
   if (!calc?.results) return undefined;
   const explicitRaw = calc.results.order_cable_length;
@@ -1017,7 +1053,15 @@ function filterKindForElectricalColumn(
     }
     return 'text';
   }
-  if (['installed_cable_length', 'order_cable_length', 'total_power', 'current', 'voltage'].includes(key)) {
+  if ([
+    'installed_cable_length',
+    'order_cable_length',
+    'total_power',
+    'power_per_meter',
+    'installed_power_per_meter',
+    'current',
+    'voltage',
+  ].includes(key)) {
     return 'numberRange';
   }
   if (['electrical_status', 'object_type', 'heat_loss_status', 'cable_type'].includes(key)) {
@@ -3448,6 +3492,16 @@ export default function ElecCalcPage() {
       render: (_: unknown, obj) =>
         powerText(currentElectricalCalc(stats.calcByObjectId[obj.id])?.results?.total_power),
     },
+    power_per_meter: {
+      align: 'right',
+      render: (_: unknown, obj) =>
+        numberText(cablePowerPerMeterValue(currentElectricalCalc(stats.calcByObjectId[obj.id])), 2),
+    },
+    installed_power_per_meter: {
+      align: 'right',
+      render: (_: unknown, obj) =>
+        numberText(installedPowerPerMeterValue(currentElectricalCalc(stats.calcByObjectId[obj.id])), 2),
+    },
     current: {
       align: 'right',
       render: (_: unknown, obj) => resultNumber(currentElectricalCalc(stats.calcByObjectId[obj.id]), 'current', 2),
@@ -3890,6 +3944,10 @@ export default function ElecCalcPage() {
       case 'current':
       case 'voltage':
         return valueText(currentCalc?.results?.[key]);
+      case 'power_per_meter':
+        return valueText(cablePowerPerMeterValue(currentCalc));
+      case 'installed_power_per_meter':
+        return valueText(installedPowerPerMeterValue(currentCalc));
       case 'price_per_meter':
       case 'required_order_length':
       case 'total_cost':

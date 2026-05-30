@@ -296,6 +296,8 @@ class TestElectricalCalculation:
         assert result["selected_cable"] == "ТЛТ-25"
         assert "installed_cable_length" in result
         assert "order_cable_length" in result
+        assert result["power_per_meter"] == pytest.approx(25)
+        assert result["installed_power_per_meter"] == pytest.approx(25)
         assert "total_power" in result
         assert "current" in result
         assert "voltage" in result
@@ -2007,6 +2009,9 @@ class TestElectricalCalculationContinued:
         fields = {field["key"]: field for field in resp.json()["fields"]}
         assert fields["current"]["filter"]["ops"] == ["range"]
         assert fields["total_power"]["sort"]["enabled"] is True
+        assert fields["power_per_meter"]["filter"]["ops"] == ["range"]
+        assert fields["power_per_meter"]["unit"] == "Вт/м"
+        assert fields["installed_power_per_meter"]["sort"]["enabled"] is True
         assert fields["electrical_status"]["options"]["items"]
 
     async def test_electrical_query_does_not_create_calculation_rows(

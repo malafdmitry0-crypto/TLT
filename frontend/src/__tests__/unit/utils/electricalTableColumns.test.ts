@@ -27,6 +27,7 @@ describe('electricalTableColumns', () => {
       'object_name',
       'electrical_status',
       'cable_mark',
+      'power_per_meter',
       'applied_selection_policy',
       'winding_pitch_mm',
       'number_of_threads',
@@ -58,6 +59,13 @@ describe('electricalTableColumns', () => {
 
   it('не отдаёт служебный номер СО как пользовательскую колонку', () => {
     expect(getAvailableElectricalTableColumnKeys()).not.toContain('variant_number');
+  });
+
+  it('даёт включить удельную и установленную мощность кабеля', () => {
+    const availableKeys = getAvailableElectricalTableColumnKeys();
+
+    expect(availableKeys).toContain('power_per_meter');
+    expect(availableKeys).toContain('installed_power_per_meter');
   });
 
   it('нормализует неизвестные ключи и сохраняет обязательные колонки', () => {

@@ -113,6 +113,8 @@ async def test_batch_calc_electrical_passes_raw_q_linear_not_total():
             cable_length=PIPE_LEN,
             installed_cable_length=PIPE_LEN,
             order_cable_length=PIPE_LEN * 1.1,
+            power_per_meter=25,
+            installed_power_per_meter=25,
             total_power=25 * PIPE_LEN,
             current=25 * PIPE_LEN / 220.0,
             voltage=220.0,

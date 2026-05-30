@@ -91,13 +91,11 @@ async function showElectricalColumns(
 ) {
   await page.evaluate((keys) => {
     const columns = Object.fromEntries(keys.map((key) => [key, { widthPct: 8 }]));
-    localStorage.setItem('electrical.tableColumns.v5.guest', JSON.stringify({
-      version: 5,
+    localStorage.setItem('electrical.tableColumns.guest', JSON.stringify({
       visibleOrder: keys,
       columns,
     }));
-    localStorage.setItem('electrical.tableView.v4.guest', JSON.stringify({
-      version: 4,
+    localStorage.setItem('electrical.tableView.guest', JSON.stringify({
       fontSize: 'compact',
       tableLabelFormat: 'short',
       settingsLabelFormat: 'full',

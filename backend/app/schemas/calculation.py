@@ -580,6 +580,8 @@ class SelfRegulatingResult(BaseModel):
     cable_length: float
     installed_cable_length: float
     order_cable_length: float
+    power_per_meter: float
+    installed_power_per_meter: float
     total_power: float
     current: float
     voltage: float
@@ -657,6 +659,7 @@ class SelfRegulatingTTResult(BaseModel):
     order_cable_length: float
     num_circuits: int
     power_per_meter: float
+    installed_power_per_meter: float
     total_power: float
     current: float
     voltage: float

@@ -37,7 +37,6 @@ export interface ElectricalColumnLayout {
 }
 
 export interface ElectricalTableColumnSettings {
-  version: number;
   visibleOrder: ElectricalColumnKey[];
   columns: Record<ElectricalColumnKey, ElectricalColumnLayout>;
 }
@@ -53,8 +52,7 @@ interface RegisteredElectricalTableColumnCache {
   cachedAt: string;
 }
 
-export const ELECTRICAL_TABLE_COLUMNS_VERSION = 5;
-export const ELECTRICAL_TABLE_COLUMN_PREF_KEY = `electrical.tableColumns.v${ELECTRICAL_TABLE_COLUMNS_VERSION}`;
+export const ELECTRICAL_TABLE_COLUMN_PREF_KEY = 'electrical.tableColumns';
 export const ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY = `${ELECTRICAL_TABLE_COLUMN_PREF_KEY}.guest`;
 export const ELECTRICAL_REGISTERED_TABLE_COLUMN_CACHE_KEY =
   `${ELECTRICAL_TABLE_COLUMN_PREF_KEY}.registered.cache`;
@@ -183,7 +181,6 @@ function normalizeColumns(rawColumns: unknown): Record<ElectricalColumnKey, Elec
 
 export function getDefaultElectricalTableColumnSettings(): ElectricalTableColumnSettings {
   return {
-    version: ELECTRICAL_TABLE_COLUMNS_VERSION,
     visibleOrder: normalizeVisibleOrder(defaultVisibleKeys()),
     columns: normalizeColumns(null),
   };
@@ -195,7 +192,6 @@ export function normalizeElectricalTableColumnSettings(
   const source = isRecord(value) ? value : {};
   const visibleOrder = normalizeVisibleOrder(source.visibleOrder, defaultVisibleKeys());
   return {
-    version: ELECTRICAL_TABLE_COLUMNS_VERSION,
     visibleOrder,
     columns: normalizeColumns(source.columns),
   };

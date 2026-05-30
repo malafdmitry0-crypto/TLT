@@ -46,12 +46,9 @@ HEATCALC_FIELD_INPUT_PREF_KEY = "heatcalc.fieldInputs.v1"
 HEATCALC_FIELD_INPUT_MAX_STEP = 1_000_000
 HEATCALC_FIELD_INPUT_KEYS = {"version", "fields"}
 HEATCALC_FIELD_INPUT_LAYOUT_KEYS = {"step"}
-ELECTRICAL_TABLE_COLUMNS_VERSION = 5
-ELECTRICAL_TABLE_COLUMNS_PREF_KEY = f"electrical.tableColumns.v{ELECTRICAL_TABLE_COLUMNS_VERSION}"
-ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView.v4"
-ELECTRICAL_TABLE_VIEW_VERSION = 4
+ELECTRICAL_TABLE_COLUMNS_PREF_KEY = "electrical.tableColumns"
+ELECTRICAL_TABLE_VIEW_PREF_KEY = "electrical.tableView"
 ELECTRICAL_TABLE_VIEW_KEYS = {
-    "version",
     "fontSize",
     "tableLabelFormat",
     "settingsLabelFormat",
@@ -66,6 +63,7 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
     "electrical_status",
     "cable_type",
     "cable_mark",
+    "power_per_meter",
     "cable_snapshot_status",
     "applied_selection_policy",
     "selection_reason",
@@ -82,6 +80,7 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
     "installed_cable_length",
     "order_cable_length",
     "total_power",
+    "installed_power_per_meter",
     "current",
     "voltage",
     "price_per_meter",
@@ -95,12 +94,9 @@ ELECTRICAL_TABLE_COLUMN_KEYS = {
     "message",
 }
 ELECTRICAL_TABLE_COLUMN_REQUIRED_KEYS = {"index", "object_name", "cable_mark"}
-ELECTRICAL_TABLE_COLUMN_PAYLOAD_KEYS = {"version", "visibleOrder", "columns"}
+ELECTRICAL_TABLE_COLUMN_PAYLOAD_KEYS = {"visibleOrder", "columns"}
 ELECTRICAL_TABLE_COLUMN_LAYOUT_KEYS = {"widthPct"}
-ELECTRICAL_CANDIDATE_TABLE_COLUMNS_VERSION = 1
-ELECTRICAL_CANDIDATE_TABLE_COLUMNS_PREF_KEY = (
-    f"electrical.candidateTableColumns.v{ELECTRICAL_CANDIDATE_TABLE_COLUMNS_VERSION}"
-)
+ELECTRICAL_CANDIDATE_TABLE_COLUMNS_PREF_KEY = "electrical.candidateTableColumns"
 ELECTRICAL_CANDIDATE_TABLE_COLUMN_KEYS = (
     ELECTRICAL_TABLE_COLUMN_KEYS
     - {
@@ -205,10 +201,8 @@ def _validate_heatcalc_table_columns(value: dict[str, object]) -> None:
 def _validate_electrical_table_columns(value: dict[str, object]) -> None:
     if set(value) - ELECTRICAL_TABLE_COLUMN_PAYLOAD_KEYS:
         _preference_validation_error(
-            "Electrical table columns payload can contain only version, visibleOrder and columns"
+            "Electrical table columns payload can contain only visibleOrder and columns"
         )
-    if value.get("version") != ELECTRICAL_TABLE_COLUMNS_VERSION:
-        _preference_validation_error("Unsupported electrical table column settings version")
 
     visible_order = value.get("visibleOrder")
     if not isinstance(visible_order, list) or not all(
@@ -250,12 +244,7 @@ def _validate_electrical_table_columns(value: dict[str, object]) -> None:
 def _validate_electrical_candidate_table_columns(value: dict[str, object]) -> None:
     if set(value) - ELECTRICAL_TABLE_COLUMN_PAYLOAD_KEYS:
         _preference_validation_error(
-            "Electrical candidate table columns payload can contain only version, "
-            "visibleOrder and columns"
-        )
-    if value.get("version") != ELECTRICAL_CANDIDATE_TABLE_COLUMNS_VERSION:
-        _preference_validation_error(
-            "Unsupported electrical candidate table column settings version"
+            "Electrical candidate table columns payload can contain only visibleOrder and columns"
         )
 
     visible_order = value.get("visibleOrder")
@@ -363,8 +352,6 @@ def _validate_heatcalc_table_view(value: dict[str, object]) -> None:
 def _validate_electrical_table_view(value: dict[str, object]) -> None:
     if set(value) - ELECTRICAL_TABLE_VIEW_KEYS:
         _preference_validation_error("Electrical table view payload contains unsupported keys")
-    if value.get("version") != ELECTRICAL_TABLE_VIEW_VERSION:
-        _preference_validation_error("Unsupported electrical table view settings version")
     if value.get("fontSize") not in HEATCALC_TABLE_VIEW_FONT_SIZES:
         _preference_validation_error("Electrical table view fontSize is unsupported")
     if value.get("tableLabelFormat") not in TABLE_VIEW_LABEL_FORMATS:

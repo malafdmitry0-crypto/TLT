@@ -29,6 +29,8 @@ class TestSelfRegulating:
         assert r.cable_length == pytest.approx(50, rel=1e-3)
         assert r.installed_cable_length == pytest.approx(50, rel=1e-3)
         assert r.order_cable_length == pytest.approx(50 * CABLE_LENGTH_FACTOR, rel=1e-3)
+        assert r.power_per_meter == pytest.approx(25, rel=1e-3)
+        assert r.installed_power_per_meter == pytest.approx(25, rel=1e-3)
         assert r.total_power == pytest.approx(25 * 50, rel=1e-3)
         assert r.current == pytest.approx(25 * 50 / 220, rel=1e-3)
 
@@ -46,6 +48,7 @@ class TestSelfRegulating:
         # Находим мощность кабеля через total_power / cable_length
         power_per_meter = r.total_power / r.cable_length
         assert power_per_meter == pytest.approx(25.0, rel=1e-3)  # ТЛТ-25 = 25 Вт/м
+        assert r.power_per_meter == pytest.approx(power_per_meter, rel=1e-3)
 
     def test_auto_selection_when_mark_is_none(self):
         r = calc_self_regulating(_params(cable_mark=None))

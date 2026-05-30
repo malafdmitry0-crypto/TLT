@@ -60,6 +60,8 @@ const apiMocks = vi.hoisted(() => {
         field('installed_cable_length', 'number', ['range']),
         field('order_cable_length', 'number', ['range']),
         field('total_power', 'number', ['range']),
+        field('power_per_meter', 'number', ['range']),
+        field('installed_power_per_meter', 'number', ['range']),
         field('current', 'number', ['range']),
         field('message'),
       ],
@@ -2227,6 +2229,8 @@ describe('ElecCalcPage (integration)', () => {
             num_circuits: 1,
             installed_cable_length: 10,
             order_cable_length: 11,
+            power_per_meter: 30,
+            installed_power_per_meter: 30,
             total_power: 600,
             current: 2.7,
             voltage: 220,
@@ -2239,9 +2243,14 @@ describe('ElecCalcPage (integration)', () => {
 
     await waitFor(() => {
       expect(document.querySelector('.electrical-spreadsheet')?.textContent).toContain('Ток, А');
+      expect(document.querySelector('.electrical-spreadsheet')?.textContent).toContain('P каб., Вт/м');
+      expect(document.querySelector('.electrical-spreadsheet')?.textContent).toContain('30,00');
     });
 
     await user.click(screen.getByRole('button', { name: 'Настройки' }));
+    expect(
+      await screen.findByRole('checkbox', { name: /Показать Удельная мощность выбранного кабеля, Вт\/м/i }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole('checkbox', { name: /Показать Расчётный ток/i }));
     await user.click(screen.getByRole('button', { name: 'Сохранить' }));
 
@@ -2300,7 +2309,6 @@ describe('ElecCalcPage (integration)', () => {
       localStorage.getItem(ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}',
     );
     expect(stored).toMatchObject({
-      version: 4,
       fontSize: 'compact',
       tableLabelFormat: 'full',
       settingsLabelFormat: 'full',

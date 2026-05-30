@@ -257,6 +257,8 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
         cable_length=round(cable_length, 3),
         installed_cable_length=round(cable_length, 3),
         order_cable_length=round(order_cable_length, 3),
+        power_per_meter=round(cable["power_per_meter"], 3),
+        installed_power_per_meter=round(installed_power_per_meter, 3),
         total_power=round(total_power, 3),
         current=round(current, 3),
         voltage=applied_voltage,
@@ -418,6 +420,7 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
     cable_length = base_length * params.winding_coefficient * num_circuits
     order_cable_length = cable_order_length(cable_length)
     total_power = q_b * cable_length
+    installed_power_per_meter = q_b * params.winding_coefficient * num_circuits
 
     return SelfRegulatingTTResult(
         selected_cable=cable["model"],
@@ -428,6 +431,7 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
         order_cable_length=round(order_cable_length, 3),
         num_circuits=num_circuits,
         power_per_meter=round(q_b, 3),
+        installed_power_per_meter=round(installed_power_per_meter, 3),
         total_power=round(total_power, 3),
         current=round(total_power / params.supply_voltage, 3),
         voltage=params.supply_voltage,

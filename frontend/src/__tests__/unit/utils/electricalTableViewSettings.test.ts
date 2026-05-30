@@ -23,7 +23,6 @@ describe('electricalTableViewSettings', () => {
       cablePickerObjectFields: null,
       cablePickerCableFields: ['source'],
     })).toEqual({
-      version: 4,
       fontSize: 'compact',
       tableLabelFormat: 'full',
       settingsLabelFormat: 'compact',
@@ -42,7 +41,6 @@ describe('electricalTableViewSettings', () => {
 
     const stored = JSON.parse(localStorage.getItem(ELECTRICAL_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
     expect(stored).toMatchObject({
-      version: 4,
       fontSize: 'comfortable',
       tableLabelFormat: 'full',
       settingsLabelFormat: 'short',

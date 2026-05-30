@@ -19,11 +19,11 @@ describe('electricalCandidateTableColumns', () => {
   it('keeps candidate table settings separate from the main electrical table', () => {
     const defaults = getDefaultElectricalCandidateTableColumnSettings();
 
-    expect(defaults.version).toBe(1);
     expect(defaults.visibleOrder).toContain('marked');
     expect(defaults.visibleOrder).toContain('actions');
     expect(defaults.visibleOrder).toContain('mode');
     expect(defaults.visibleOrder).toContain('cable_mark');
+    expect(defaults.visibleOrder).toContain('power_per_meter');
     expect(defaults.visibleOrder).not.toContain('object_name');
   });
 
@@ -38,7 +38,6 @@ describe('electricalCandidateTableColumns', () => {
       },
     });
 
-    expect(normalized.version).toBe(1);
     expect(normalized.visibleOrder).toEqual(['marked', 'current', 'actions', 'cable_mark']);
     expect(normalized.columns.current.widthPct).toBe(60);
     expect(normalized.columns.cable_mark.widthPct).toBe(3);

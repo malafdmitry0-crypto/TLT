@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from functools import cmp_to_key
-from math import ceil
+from math import ceil, isfinite
 from typing import Any, Literal
 from uuid import UUID
 
@@ -224,6 +224,14 @@ def _sql_selected_cable() -> Any:
     )
 
 
+def _sql_power_per_meter() -> Any:
+    return _sql_calc_result_number("power_per_meter")
+
+
+def _sql_installed_power_per_meter() -> Any:
+    return _sql_calc_result_number("installed_power_per_meter")
+
+
 def _sql_electrical_status() -> Any:
     stale_text = _sql_calc_result_text("stale")
     return case(
@@ -274,7 +282,7 @@ def _to_float(value: Any) -> float | None:
         numeric = float(value)
     except (TypeError, ValueError):
         return None
-    return numeric if numeric == numeric else None
+    return numeric if isfinite(numeric) else None
 
 
 def _label_from_options(value: Any, options: tuple[tuple[Any, str], ...]) -> str:
@@ -288,6 +296,14 @@ def _calc_result(row: ElectricalQueryRow, key: str) -> Any:
     if row.calc is None or not isinstance(row.calc.results, dict):
         return None
     return row.calc.results.get(key)
+
+
+def _calc_power_per_meter(row: ElectricalQueryRow) -> float | None:
+    return _to_float(_calc_result(row, "power_per_meter"))
+
+
+def _calc_installed_power_per_meter(row: ElectricalQueryRow) -> float | None:
+    return _to_float(_calc_result(row, "installed_power_per_meter"))
 
 
 def _calc_commercial(row: ElectricalQueryRow, key: str) -> Any:
@@ -634,6 +650,28 @@ FIELDS: tuple[FieldDef, ...] = (
         sort_type="number",
     ),
     FieldDef(
+        "power_per_meter",
+        "Удельная мощность выбранного кабеля, Вт/м",
+        "P каб., Вт/м",
+        "number",
+        _calc_power_per_meter,
+        unit="Вт/м",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
+        "installed_power_per_meter",
+        "Установленная удельная мощность с учётом укладки, Вт/м",
+        "P уст., Вт/м",
+        "number",
+        _calc_installed_power_per_meter,
+        unit="Вт/м",
+        filter_ops=("range",),
+        sortable=True,
+        sort_type="number",
+    ),
+    FieldDef(
         "current",
         "Расчётный ток, А",
         "Ток, А",
@@ -779,6 +817,8 @@ ELECTRICAL_SQL_EXPRESSIONS: dict[str, SqlExprFactory] = {
     "installed_cable_length": lambda: _sql_calc_result_number("installed_cable_length"),
     "order_cable_length": lambda: _sql_calc_result_number("order_cable_length"),
     "total_power": lambda: _sql_calc_result_number("total_power"),
+    "power_per_meter": _sql_power_per_meter,
+    "installed_power_per_meter": _sql_installed_power_per_meter,
     "current": lambda: _sql_calc_result_number("current"),
     "voltage": lambda: _sql_calc_result_number("voltage"),
     "price_per_meter": lambda: _sql_calc_commercial_number("price_per_meter"),
@@ -824,6 +864,8 @@ ELECTRICAL_CALC_RESULT_KEYS = frozenset(
         "installed_cable_length",
         "order_cable_length",
         "total_power",
+        "power_per_meter",
+        "installed_power_per_meter",
         "current",
         "voltage",
         "message",
