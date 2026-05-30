@@ -3557,12 +3557,30 @@ html, body, #root {
   min-width: 920px;
 }
 
+.column-layout-list--heatcalc {
+  min-width: 760px;
+}
+
+.column-layout-list--electrical {
+  min-width: 760px;
+}
+
 .column-layout-header,
 .column-layout-row {
   display: grid;
   grid-template-columns: 28px 42px 58px minmax(180px, 1fr) 78px 46px 34px 78px 20px 34px;
   align-items: center;
   gap: 6px;
+}
+
+.column-layout-header--heatcalc,
+.column-layout-row--heatcalc {
+  grid-template-columns: 28px 42px 58px minmax(240px, 1fr) 78px 20px 34px;
+}
+
+.column-layout-header--electrical,
+.column-layout-row--electrical {
+  grid-template-columns: 28px 42px 58px minmax(240px, 1fr) 78px 20px 34px;
 }
 
 .column-layout-list--candidate {

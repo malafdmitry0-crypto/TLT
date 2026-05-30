@@ -38,6 +38,9 @@ import {
   isSavableExcelDraftRow,
 } from '@/utils/heatCalcExcelRows';
 import {
+  getDefaultFieldInputSettings,
+} from '@/utils/heatCalcFieldInputSettings';
+import {
   HeatCalcActionsToolbar,
   HeatCalcTypeToolbar,
   type HeatCalcToolbarEditingMode,
@@ -130,7 +133,6 @@ export default function HeatCalcPage() {
     tableViewSettings,
     tableViewSettingsRef,
     calculationDetailsSettings,
-    fieldInputSettings,
     preferenceSavePending,
     persistTableColumnSettings,
     persistTableSettings,
@@ -144,6 +146,7 @@ export default function HeatCalcPage() {
     registeredUserId,
     onCloseSettingsModal: closeColumnSettings,
   });
+  const fieldInputSettings = useMemo(() => getDefaultFieldInputSettings(), []);
   const sideWorkspaceRef = useRef<HTMLDivElement | null>(null);
   useFocusableTableScrollRegions(sideWorkspaceRef, 'Таблица расчёта теплопотерь', Boolean(project));
   const excelInteractionState = useHeatCalcExcelInteractionState();
@@ -418,7 +421,6 @@ export default function HeatCalcPage() {
     tableColumnSettings,
     tableViewSettings,
     calculationDetailsSettings,
-    fieldInputSettings,
     cleanHiddenColumnStateForSettings,
     persistTableSettings,
   });
@@ -898,7 +900,6 @@ export default function HeatCalcPage() {
             draftColumnSettings={columnSettingsDialog.draftColumnSettings}
             draftViewSettings={columnSettingsDialog.draftViewSettings}
             draftCalculationDetailsSettings={columnSettingsDialog.draftCalculationDetailsSettings}
-            draftFieldInputSettings={columnSettingsDialog.draftFieldInputSettings}
             confirmLoading={preferenceSavePending}
             onTypeChange={columnSettingsDialog.setActiveType}
             onOk={columnSettingsDialog.apply}
@@ -917,8 +918,6 @@ export default function HeatCalcPage() {
             onCalculationDetailsPresetChange={columnSettingsDialog.updateDraftCalculationDetailsPreset}
             onCalculationDetailMetricsChange={columnSettingsDialog.updateDraftCalculationDetailMetrics}
             onResetCalculationDetails={columnSettingsDialog.resetDraftCalculationDetails}
-            onFieldStepChange={columnSettingsDialog.updateDraftFieldStep}
-            onResetFieldStep={columnSettingsDialog.resetDraftFieldStep}
           />
         </Suspense>
       )}

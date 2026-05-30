@@ -11,7 +11,6 @@ import {
   setTableColumnVisibility,
   setTableColumnWidthPct,
   type HeatCalcColumnKey,
-  type HeatCalcObjectType,
   type HeatCalcTableColumnSettings,
   type HeatCalcTableColumnScope,
 } from '@/utils/heatCalcTableColumns';
@@ -31,25 +30,17 @@ import {
   type HeatCalcCalculationDetailPreset,
   type HeatCalcCalculationDetailsSettings,
 } from '@/utils/heatCalcCalculationDetailsSettings';
-import {
-  normalizeFieldInputSettings,
-  resetHeatCalcFieldStep,
-  setHeatCalcFieldStep,
-  type HeatCalcFieldInputSettings,
-} from '@/utils/heatCalcFieldInputSettings';
 
 type UseHeatCalcColumnSettingsDialogOptions = {
   activeTableColumnScope: HeatCalcTableColumnScope;
   tableColumnSettings: HeatCalcTableColumnSettings;
   tableViewSettings: HeatCalcTableViewSettings;
   calculationDetailsSettings: HeatCalcCalculationDetailsSettings;
-  fieldInputSettings: HeatCalcFieldInputSettings;
   cleanHiddenColumnStateForSettings: (settings: HeatCalcTableColumnSettings) => void;
   persistTableSettings: (
     columnSettings: HeatCalcTableColumnSettings,
     viewSettings: HeatCalcTableViewSettings,
     calculationDetailsSettings: HeatCalcCalculationDetailsSettings,
-    fieldInputSettings: HeatCalcFieldInputSettings,
   ) => void;
 };
 
@@ -58,7 +49,6 @@ export function useHeatCalcColumnSettingsDialog({
   tableColumnSettings,
   tableViewSettings,
   calculationDetailsSettings,
-  fieldInputSettings,
   cleanHiddenColumnStateForSettings,
   persistTableSettings,
 }: UseHeatCalcColumnSettingsDialogOptions) {
@@ -72,8 +62,6 @@ export function useHeatCalcColumnSettingsDialog({
   );
   const [draftCalculationDetailsSettings, setDraftCalculationDetailsSettings] =
     useState<HeatCalcCalculationDetailsSettings>(() => calculationDetailsSettings);
-  const [draftFieldInputSettings, setDraftFieldInputSettings] =
-    useState<HeatCalcFieldInputSettings>(() => fieldInputSettings);
 
   const close = useCallback(() => {
     setIsOpen(false);
@@ -84,12 +72,10 @@ export function useHeatCalcColumnSettingsDialog({
     setDraftColumnSettings(normalizeTableColumnSettings(tableColumnSettings));
     setDraftViewSettings(normalizeTableViewSettings(tableViewSettings));
     setDraftCalculationDetailsSettings(normalizeCalculationDetailsSettings(calculationDetailsSettings));
-    setDraftFieldInputSettings(normalizeFieldInputSettings(fieldInputSettings));
     setIsOpen(true);
   }, [
     activeTableColumnScope,
     calculationDetailsSettings,
-    fieldInputSettings,
     tableColumnSettings,
     tableViewSettings,
   ]);
@@ -180,26 +166,16 @@ export function useHeatCalcColumnSettingsDialog({
     setDraftCalculationDetailsSettings(getDefaultCalculationDetailsSettings());
   }, []);
 
-  const updateDraftFieldStep = useCallback((type: HeatCalcObjectType, fieldId: string, step: number | null) => {
-    setDraftFieldInputSettings((settings) => setHeatCalcFieldStep(settings, type, fieldId, step));
-  }, []);
-
-  const resetDraftFieldStep = useCallback((type: HeatCalcObjectType, fieldId: string) => {
-    setDraftFieldInputSettings((settings) => resetHeatCalcFieldStep(settings, type, fieldId));
-  }, []);
-
   const apply = useCallback(() => {
     const normalized = normalizeTableColumnSettings(draftColumnSettings);
     const normalizedView = normalizeTableViewSettings(draftViewSettings);
     const normalizedDetails = normalizeCalculationDetailsSettings(draftCalculationDetailsSettings);
-    const normalizedFieldInputs = normalizeFieldInputSettings(draftFieldInputSettings);
     cleanHiddenColumnStateForSettings(normalized);
-    persistTableSettings(normalized, normalizedView, normalizedDetails, normalizedFieldInputs);
+    persistTableSettings(normalized, normalizedView, normalizedDetails);
   }, [
     cleanHiddenColumnStateForSettings,
     draftCalculationDetailsSettings,
     draftColumnSettings,
-    draftFieldInputSettings,
     draftViewSettings,
     persistTableSettings,
   ]);
@@ -210,7 +186,6 @@ export function useHeatCalcColumnSettingsDialog({
     draftColumnSettings,
     draftViewSettings,
     draftCalculationDetailsSettings,
-    draftFieldInputSettings,
     setActiveType,
     open,
     close,
@@ -228,8 +203,6 @@ export function useHeatCalcColumnSettingsDialog({
     updateDraftCalculationDetailsPreset,
     updateDraftCalculationDetailMetrics,
     resetDraftCalculationDetails,
-    updateDraftFieldStep,
-    resetDraftFieldStep,
     apply,
   };
 }

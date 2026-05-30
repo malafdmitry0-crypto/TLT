@@ -44,18 +44,8 @@ import {
   type HeatCalcCalculationDetailsSettings,
 } from '@/utils/heatCalcCalculationDetailsSettings';
 import {
-  HEATCALC_FIELD_INPUT_PREF_KEY,
-  areFieldInputSettingsEqual,
   clearGuestFieldInputSettings,
   clearRegisteredFieldInputCache,
-  getDefaultFieldInputSettings,
-  isDefaultFieldInputSettings,
-  normalizeFieldInputSettings,
-  readGuestFieldInputSettings,
-  readRegisteredFieldInputCache,
-  writeGuestFieldInputSettings,
-  writeRegisteredFieldInputCache,
-  type HeatCalcFieldInputSettings,
 } from '@/utils/heatCalcFieldInputSettings';
 
 type TableColumnPreferenceMutation = {
@@ -68,7 +58,6 @@ type TableSettingsPreferenceMutation = {
   columnSettings: HeatCalcTableColumnSettings;
   viewSettings?: HeatCalcTableViewSettings;
   calculationDetailsSettings?: HeatCalcCalculationDetailsSettings;
-  fieldInputSettings?: HeatCalcFieldInputSettings;
 };
 
 type UseHeatCalcPreferencesOptions = {
@@ -104,13 +93,6 @@ export function useHeatCalcPreferences({
       }
       return readGuestCalculationDetailsSettings();
     });
-  const [fieldInputSettings, setFieldInputSettings] =
-    useState<HeatCalcFieldInputSettings>(() => {
-      if (isRegisteredUser) {
-        return readRegisteredFieldInputCache(registeredUserId) ?? getDefaultFieldInputSettings();
-      }
-      return readGuestFieldInputSettings();
-    });
 
   useEffect(() => {
     tableColumnSettingsRef.current = tableColumnSettings;
@@ -141,13 +123,6 @@ export function useHeatCalcPreferences({
     staleTime: 30_000,
   });
 
-  const { data: persistedFieldInputPreference } = useQuery({
-    queryKey: ['preference', HEATCALC_FIELD_INPUT_PREF_KEY],
-    queryFn: () => getUserPreference<HeatCalcFieldInputSettings>(HEATCALC_FIELD_INPUT_PREF_KEY),
-    enabled: isRegisteredUser,
-    staleTime: 30_000,
-  });
-
   const updateTableColumnPreference = useMutation({
     mutationFn: ({ settings }: TableColumnPreferenceMutation) =>
       updateUserPreference<HeatCalcTableColumnSettings>(
@@ -173,7 +148,6 @@ export function useHeatCalcPreferences({
       columnSettings,
       viewSettings,
       calculationDetailsSettings: calculationDetailsPreferenceSettings,
-      fieldInputSettings: fieldInputPreferenceSettings,
     }: TableSettingsPreferenceMutation) => {
       const columnPreference = await updateUserPreference<HeatCalcTableColumnSettings>(
         HEATCALC_TABLE_COLUMN_PREF_KEY,
@@ -191,24 +165,16 @@ export function useHeatCalcPreferences({
           normalizeCalculationDetailsSettings(calculationDetailsPreferenceSettings),
         )
         : null;
-      const fieldInputPreference = fieldInputPreferenceSettings
-        ? await updateUserPreference<HeatCalcFieldInputSettings>(
-          HEATCALC_FIELD_INPUT_PREF_KEY,
-          normalizeFieldInputSettings(fieldInputPreferenceSettings),
-        )
-        : null;
       return {
         columnPreference,
         viewPreference,
         calculationDetailsPreference,
-        fieldInputPreference,
       };
     },
     onSuccess: ({
       columnPreference,
       viewPreference,
       calculationDetailsPreference,
-      fieldInputPreference,
     }) => {
       const normalizedColumns = normalizeTableColumnSettings(columnPreference.value);
       setTableColumnSettings(normalizedColumns);
@@ -228,13 +194,6 @@ export function useHeatCalcPreferences({
         setCalculationDetailsSettings(normalizedDetails);
         if (calculationDetailsPreference.user_id) {
           writeRegisteredCalculationDetailsCache(calculationDetailsPreference.user_id, normalizedDetails);
-        }
-      }
-      if (fieldInputPreference) {
-        const normalizedFieldInputs = normalizeFieldInputSettings(fieldInputPreference.value);
-        setFieldInputSettings(normalizedFieldInputs);
-        if (fieldInputPreference.user_id) {
-          writeRegisteredFieldInputCache(fieldInputPreference.user_id, normalizedFieldInputs);
         }
       }
       onCloseSettingsModal?.();
@@ -265,6 +224,11 @@ export function useHeatCalcPreferences({
   });
 
   useEffect(() => {
+    clearGuestFieldInputSettings();
+    clearRegisteredFieldInputCache(registeredUserId);
+  }, [registeredUserId]);
+
+  useEffect(() => {
     if (isRegisteredUser) {
       const registeredTableViewSettings =
         readRegisteredTableViewCache(registeredUserId) ?? getDefaultTableViewSettings();
@@ -276,9 +240,6 @@ export function useHeatCalcPreferences({
       setCalculationDetailsSettings(
         readRegisteredCalculationDetailsCache(registeredUserId) ?? getDefaultCalculationDetailsSettings(),
       );
-      setFieldInputSettings(
-        readRegisteredFieldInputCache(registeredUserId) ?? getDefaultFieldInputSettings(),
-      );
       return;
     }
     const guestTableViewSettings = readGuestTableViewSettings();
@@ -286,7 +247,6 @@ export function useHeatCalcPreferences({
     tableViewSettingsRef.current = guestTableViewSettings;
     setTableViewSettings(guestTableViewSettings);
     setCalculationDetailsSettings(readGuestCalculationDetailsSettings());
-    setFieldInputSettings(readGuestFieldInputSettings());
   }, [isRegisteredUser, registeredUserId]);
 
   useEffect(() => {
@@ -334,20 +294,6 @@ export function useHeatCalcPreferences({
     setCalculationDetailsSettings(getDefaultCalculationDetailsSettings());
   }, [isRegisteredUser, persistedCalculationDetailsPreference, registeredUserId]);
 
-  useEffect(() => {
-    if (!isRegisteredUser || !persistedFieldInputPreference) return;
-    if (persistedFieldInputPreference.value) {
-      const normalized = normalizeFieldInputSettings(persistedFieldInputPreference.value);
-      setFieldInputSettings(normalized);
-      if (persistedFieldInputPreference.user_id) {
-        writeRegisteredFieldInputCache(persistedFieldInputPreference.user_id, normalized);
-      }
-      return;
-    }
-    clearRegisteredFieldInputCache(registeredUserId ?? persistedFieldInputPreference.user_id);
-    setFieldInputSettings(getDefaultFieldInputSettings());
-  }, [isRegisteredUser, persistedFieldInputPreference, registeredUserId]);
-
   const persistTableColumnSettings = useCallback((
     settings: HeatCalcTableColumnSettings,
     options: { closeModal?: boolean; showMessage?: boolean } = {},
@@ -372,15 +318,12 @@ export function useHeatCalcPreferences({
     columnSettings: HeatCalcTableColumnSettings,
     viewSettings: HeatCalcTableViewSettings,
     calculationDetails: HeatCalcCalculationDetailsSettings,
-    fieldInputs: HeatCalcFieldInputSettings,
   ) => {
     const normalizedColumns = normalizeTableColumnSettings(columnSettings);
     const normalizedView = normalizeTableViewSettings(viewSettings);
     const normalizedDetails = normalizeCalculationDetailsSettings(calculationDetails);
-    const normalizedFieldInputs = normalizeFieldInputSettings(fieldInputs);
     const currentView = normalizeTableViewSettings(tableViewSettings);
     const currentDetails = normalizeCalculationDetailsSettings(calculationDetailsSettings);
-    const currentFieldInputs = normalizeFieldInputSettings(fieldInputSettings);
     const viewChanged = normalizedView.fontSize !== currentView.fontSize
       || normalizedView.tableLabelFormat !== currentView.tableLabelFormat
       || normalizedView.settingsLabelFormat !== currentView.settingsLabelFormat
@@ -390,22 +333,18 @@ export function useHeatCalcPreferences({
     const detailsChanged = normalizedDetails.preset !== currentDetails.preset
       || normalizedDetails.visibleMetrics.length !== currentDetails.visibleMetrics.length
       || normalizedDetails.visibleMetrics.some((metric) => !currentDetails.visibleMetrics.includes(metric));
-    const fieldInputsChanged = !areFieldInputSettingsEqual(normalizedFieldInputs, currentFieldInputs);
     setTableColumnSettings(normalizedColumns);
     tableViewSettingsRef.current = normalizedView;
     setTableViewSettings(normalizedView);
     setCalculationDetailsSettings(normalizedDetails);
-    setFieldInputSettings(normalizedFieldInputs);
     if (isRegisteredUser) {
       clearRegisteredTableColumnCache(registeredUserId);
       if (viewChanged) clearRegisteredTableViewCache(registeredUserId);
       if (detailsChanged) clearRegisteredCalculationDetailsCache(registeredUserId);
-      if (fieldInputsChanged) clearRegisteredFieldInputCache(registeredUserId);
       updateTableSettingsPreference.mutate({
         columnSettings: normalizedColumns,
         viewSettings: viewChanged ? normalizedView : undefined,
         calculationDetailsSettings: detailsChanged ? normalizedDetails : undefined,
-        fieldInputSettings: fieldInputsChanged ? normalizedFieldInputs : undefined,
       });
       return;
     }
@@ -424,18 +363,10 @@ export function useHeatCalcPreferences({
         writeGuestCalculationDetailsSettings(normalizedDetails);
       }
     }
-    if (fieldInputsChanged) {
-      if (isDefaultFieldInputSettings(normalizedFieldInputs)) {
-        clearGuestFieldInputSettings();
-      } else {
-        writeGuestFieldInputSettings(normalizedFieldInputs);
-      }
-    }
     onCloseSettingsModal?.();
     antdMessage.success('Настройки таблицы сохранены');
   }, [
     calculationDetailsSettings,
-    fieldInputSettings,
     isRegisteredUser,
     onCloseSettingsModal,
     registeredUserId,
@@ -500,7 +431,6 @@ export function useHeatCalcPreferences({
     tableViewSettings,
     tableViewSettingsRef,
     calculationDetailsSettings,
-    fieldInputSettings,
     preferenceSavePending: updateTableColumnPreference.isPending
       || updateTableSettingsPreference.isPending
       || updateTableViewPreference.isPending,

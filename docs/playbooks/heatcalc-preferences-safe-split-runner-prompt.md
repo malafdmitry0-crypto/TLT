@@ -123,7 +123,6 @@ Discovery через `rg`:
   - `tableColumnSettings`
   - `tableViewSettings`
   - `calculationDetailsSettings`
-  - `fieldInputSettings`
   - `columnSettingsOpen`
   - `columnSettingsType`
   - draft settings
@@ -144,8 +143,7 @@ Discovery через `rg`:
   - `frontend/src/__tests__/unit/utils/heatCalcTableColumns.test.ts`
   - `frontend/src/__tests__/unit/utils/heatCalcTableViewSettings.test.ts`
   - `frontend/src/__tests__/unit/utils/heatCalcCalculationDetailsSettings.test.ts`
-  - `frontend/src/__tests__/unit/utils/heatCalcFieldInputSettings.test.ts`
-- existing hook test style in `frontend/src/__tests__/unit/pages/heatcalc/`.
+  - existing hook test style in `frontend/src/__tests__/unit/pages/heatcalc/`.
 
 Before edits checkpoint:
 Составь короткую карту:
@@ -172,7 +170,6 @@ Phase 1: Safety Map
   - persisted `tableColumnSettings`
   - persisted `tableViewSettings`
   - persisted `calculationDetailsSettings`
-  - persisted `fieldInputSettings`
   - `tableColumnSettingsRef`
   - `tableViewSettingsRef`
   - preference queries/mutations

@@ -182,7 +182,7 @@ describe('useHeatCalcGridModel', () => {
     });
   });
 
-  it('builds editable dirty/error cell state from draft rows', () => {
+  it('builds editable dirty/error cell state from draft rows and ignores legacy step overrides', () => {
     const record = makeObject();
     const draft = applyInlineCellDraft(null, record, 'pipe_outer_diameter', 5)!;
     const { result } = renderHook(() => useHeatCalcGridModel(makeOptions({
@@ -201,7 +201,7 @@ describe('useHeatCalcGridModel', () => {
       error: 'Минимальное значение — 10.8',
       align: 'right',
       editor: 'number',
-      step: 2,
+      step: 1,
     });
   });
 

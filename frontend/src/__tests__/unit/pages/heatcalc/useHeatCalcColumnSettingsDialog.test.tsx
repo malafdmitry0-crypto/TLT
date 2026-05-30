@@ -16,9 +16,6 @@ import {
 import {
   getDefaultCalculationDetailsSettings,
 } from '@/utils/heatCalcCalculationDetailsSettings';
-import {
-  getDefaultFieldInputSettings,
-} from '@/utils/heatCalcFieldInputSettings';
 
 function setupDialog({
   activeTableColumnScope = 'pipe',
@@ -36,7 +33,6 @@ function setupDialog({
     tableColumnSettings,
     tableViewSettings,
     calculationDetailsSettings: getDefaultCalculationDetailsSettings(),
-    fieldInputSettings: getDefaultFieldInputSettings(),
     cleanHiddenColumnStateForSettings,
     persistTableSettings,
   }));

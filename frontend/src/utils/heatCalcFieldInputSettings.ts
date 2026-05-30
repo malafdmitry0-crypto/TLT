@@ -1,9 +1,6 @@
 import {
   getHeatCalcFieldInputSettingsVersion,
   getHeatCalcFieldDefinition,
-  HEATCALC_FIELD_DEFINITIONS,
-  isHeatCalcFieldStepConfigurable,
-  type HeatCalcFieldDefinition,
   type HeatCalcFieldId,
 } from '@/domain/heatCalcFields';
 import type { HeatCalcObjectType } from '@/types/project';
@@ -33,72 +30,12 @@ interface RegisteredFieldInputCache {
   cachedAt: string;
 }
 
-const OBJECT_TYPES: HeatCalcObjectType[] = ['pipe', 'tank'];
-const EPSILON = 1e-9;
-const MAX_STEP = 1_000_000;
-
 export const HEATCALC_FIELD_INPUT_SETTINGS_VERSION = getHeatCalcFieldInputSettingsVersion();
-export const HEATCALC_FIELD_INPUT_PREF_KEY = 'heatcalc.fieldInputs.v1';
 export const HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY = 'heatcalc.fieldInputs.v1.guest';
 export const HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY = 'heatcalc.fieldInputs.v1.registered.cache';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isPositiveFinite(value: unknown): value is number {
-  return typeof value === 'number'
-    && Number.isFinite(value)
-    && value > 0
-    && value <= MAX_STEP;
-}
-
-function numberFromUnknown(value: unknown) {
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string' && value.trim().length > 0) return Number(value);
-  return Number.NaN;
-}
-
-function isConfigurableNumberField(
-  objectType: HeatCalcObjectType,
-  field: HeatCalcFieldDefinition | null,
-): field is HeatCalcFieldDefinition & { step: number } {
-  return !!field
-    && field.editor === 'number'
-    && isPositiveFinite(field.step)
-    && isHeatCalcFieldStepConfigurable(objectType, field.id);
-}
-
-function sameStep(left: number | undefined, right: number | undefined) {
-  if (left == null || right == null) return left == null && right == null;
-  return Math.abs(left - right) < EPSILON;
-}
-
-function cloneFieldSettings(settings: HeatCalcFieldInputSettings): HeatCalcFieldInputSettings {
-  const fields: HeatCalcFieldInputSettings['fields'] = {};
-  for (const objectType of OBJECT_TYPES) {
-    const objectFields = settings.fields[objectType];
-    if (!objectFields || Object.keys(objectFields).length === 0) continue;
-    fields[objectType] = Object.fromEntries(
-      Object.entries(objectFields).map(([fieldId, layout]) => [fieldId, { ...layout }]),
-    );
-  }
-  return {
-    version: HEATCALC_FIELD_INPUT_SETTINGS_VERSION,
-    fields,
-  };
-}
-
-function normalizedStepOverride(
-  objectType: HeatCalcObjectType,
-  fieldId: string,
-  layout: unknown,
-) {
-  const field = getHeatCalcFieldDefinition(fieldId, objectType);
-  if (!isConfigurableNumberField(objectType, field) || !isRecord(layout)) return undefined;
-  const step = numberFromUnknown(layout.step);
-  if (!isPositiveFinite(step) || sameStep(step, field.step)) return undefined;
-  return step;
 }
 
 export function getDefaultFieldInputSettings(): HeatCalcFieldInputSettings {
@@ -109,40 +46,13 @@ export function getDefaultFieldInputSettings(): HeatCalcFieldInputSettings {
 }
 
 export function normalizeFieldInputSettings(value: unknown): HeatCalcFieldInputSettings {
-  if (!isRecord(value)) return getDefaultFieldInputSettings();
-  const rawFields = isRecord(value.fields) ? value.fields : {};
-  const fields: HeatCalcFieldInputSettings['fields'] = {};
-
-  for (const objectType of OBJECT_TYPES) {
-    const objectFields = rawFields[objectType];
-    if (!isRecord(objectFields)) continue;
-    const normalizedObjectFields: Record<HeatCalcFieldId, HeatCalcFieldInputLayout> = {};
-    for (const [fieldId, layout] of Object.entries(objectFields)) {
-      const step = normalizedStepOverride(objectType, fieldId, layout);
-      if (step != null) normalizedObjectFields[fieldId] = { step };
-    }
-    if (Object.keys(normalizedObjectFields).length > 0) {
-      fields[objectType] = normalizedObjectFields;
-    }
-  }
-
-  return {
-    version: HEATCALC_FIELD_INPUT_SETTINGS_VERSION,
-    fields,
-  };
+  void value;
+  return getDefaultFieldInputSettings();
 }
 
 export function areFieldInputSettingsEqual(left: unknown, right: unknown) {
-  const normalizedLeft = normalizeFieldInputSettings(left);
-  const normalizedRight = normalizeFieldInputSettings(right);
-  for (const objectType of OBJECT_TYPES) {
-    const leftFields = normalizedLeft.fields[objectType] ?? {};
-    const rightFields = normalizedRight.fields[objectType] ?? {};
-    const keys = new Set([...Object.keys(leftFields), ...Object.keys(rightFields)]);
-    for (const key of keys) {
-      if (!sameStep(leftFields[key]?.step, rightFields[key]?.step)) return false;
-    }
-  }
+  normalizeFieldInputSettings(left);
+  normalizeFieldInputSettings(right);
   return true;
 }
 
@@ -155,10 +65,12 @@ export function resolveHeatCalcFieldStep(
   fieldId: HeatCalcFieldId,
   settings?: HeatCalcFieldInputSettings,
 ) {
+  void settings;
   const field = getHeatCalcFieldDefinition(fieldId, objectType);
-  if (!isConfigurableNumberField(objectType, field)) return undefined;
-  const normalized = settings ? normalizeFieldInputSettings(settings) : getDefaultFieldInputSettings();
-  return normalized.fields[objectType]?.[fieldId]?.step ?? field.step;
+  if (!field || field.editor !== 'number' || typeof field.step !== 'number' || !Number.isFinite(field.step)) {
+    return undefined;
+  }
+  return field.step;
 }
 
 export function setHeatCalcFieldStep(
@@ -167,24 +79,10 @@ export function setHeatCalcFieldStep(
   fieldId: HeatCalcFieldId,
   step: unknown,
 ) {
-  const field = getHeatCalcFieldDefinition(fieldId, objectType);
-  if (!isConfigurableNumberField(objectType, field)) return normalizeFieldInputSettings(settings);
-  const numericStep = numberFromUnknown(step);
-  const normalized = cloneFieldSettings(normalizeFieldInputSettings(settings));
-  const nextObjectFields = { ...(normalized.fields[objectType] ?? {}) };
-
-  if (!isPositiveFinite(numericStep) || sameStep(numericStep, field.step)) {
-    delete nextObjectFields[fieldId];
-  } else {
-    nextObjectFields[fieldId] = { step: numericStep };
-  }
-
-  if (Object.keys(nextObjectFields).length === 0) {
-    delete normalized.fields[objectType];
-  } else {
-    normalized.fields[objectType] = nextObjectFields;
-  }
-  return normalizeFieldInputSettings(normalized);
+  void objectType;
+  void fieldId;
+  void step;
+  return normalizeFieldInputSettings(settings);
 }
 
 export function resetHeatCalcFieldStep(
@@ -192,29 +90,18 @@ export function resetHeatCalcFieldStep(
   objectType: HeatCalcObjectType,
   fieldId: HeatCalcFieldId,
 ) {
-  return setHeatCalcFieldStep(settings, objectType, fieldId, undefined);
+  void objectType;
+  void fieldId;
+  return normalizeFieldInputSettings(settings);
 }
 
 export function getHeatCalcFieldStepSettingItems(
   objectType: HeatCalcObjectType,
   settings: HeatCalcFieldInputSettings,
 ): HeatCalcFieldStepSettingItem[] {
-  const normalized = normalizeFieldInputSettings(settings);
-  return HEATCALC_FIELD_DEFINITIONS
-    .filter((field): field is HeatCalcFieldDefinition & { step: number } =>
-      field.objectTypes.includes(objectType) && isConfigurableNumberField(objectType, field))
-    .map((field) => {
-      const override = normalized.fields[objectType]?.[field.id]?.step;
-      return {
-        objectType,
-        fieldId: field.id,
-        label: field.label,
-        unit: field.unit,
-        defaultStep: field.step,
-        step: override ?? field.step,
-        overridden: override != null,
-      };
-    });
+  void objectType;
+  void settings;
+  return [];
 }
 
 function readStorageJson(key: string): unknown {

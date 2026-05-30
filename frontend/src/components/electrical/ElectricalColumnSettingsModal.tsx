@@ -264,9 +264,6 @@ function ColumnSettingsRowContent({
         <span className="column-layout-empty">—</span>
       )}
       {renderColumnLabel(column)}
-      <span className="column-layout-empty">—</span>
-      <span className="column-layout-unit" />
-      <span />
       <InputNumber
         min={ELECTRICAL_TABLE_COLUMN_MIN_WIDTH_PCT}
         max={ELECTRICAL_TABLE_COLUMN_MAX_WIDTH_PCT}
@@ -306,7 +303,7 @@ function ColumnSettingsRow({
   onResetWidth: (key: ElectricalColumnKey) => void;
 }) {
   return (
-    <div className="column-layout-row hidden" data-column-key={column.key}>
+    <div className="column-layout-row column-layout-row--electrical hidden" data-column-key={column.key}>
       <ColumnSettingsRowContent
         column={column}
         rowCount={rowCount}
@@ -361,7 +358,9 @@ function SortableColumnSettingsRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={isDragging ? 'column-layout-row dragging' : 'column-layout-row'}
+      className={isDragging
+        ? 'column-layout-row column-layout-row--electrical dragging'
+        : 'column-layout-row column-layout-row--electrical'}
       data-column-key={column.key}
     >
       <ColumnSettingsRowContent
@@ -516,15 +515,12 @@ export default function ElectricalColumnSettingsModal({
                       <Button size="small" onClick={onResetColumns}>Сбросить</Button>
                     </Space>
                   </Space>
-                  <div className="column-layout-list" role="list" aria-label="Настройки таблицы электрорасчёта">
-                    <div className="column-layout-header" aria-hidden="true">
+                  <div className="column-layout-list column-layout-list--electrical" role="list" aria-label="Настройки таблицы электрорасчёта">
+                    <div className="column-layout-header column-layout-header--electrical" aria-hidden="true">
                       <span />
                       <span>Вид</span>
                       <span>№</span>
                       <span>Поле</span>
-                      <span>Шаг</span>
-                      <span />
-                      <span />
                       <span>Ширина</span>
                       <span />
                       <span />

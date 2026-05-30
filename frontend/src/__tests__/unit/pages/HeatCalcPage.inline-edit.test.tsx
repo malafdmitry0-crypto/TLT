@@ -17,7 +17,6 @@ import {
   HEATCALC_REGISTERED_CALCULATION_DETAILS_CACHE_KEY,
 } from '@/utils/heatCalcCalculationDetailsSettings';
 import {
-  HEATCALC_FIELD_INPUT_PREF_KEY,
   HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY,
 } from '@/utils/heatCalcFieldInputSettings';
 import { HEATCALC_EXCEL_ENGINE_STORAGE_KEY } from '@/utils/heatCalcExcelEngine';
@@ -337,7 +336,7 @@ describe('HeatCalcPage inline edit', () => {
         expect(getUserPreference).toHaveBeenCalledWith(HEATCALC_TABLE_COLUMN_PREF_KEY);
         expect(getUserPreference).toHaveBeenCalledWith(HEATCALC_TABLE_VIEW_PREF_KEY);
         expect(getUserPreference).toHaveBeenCalledWith(HEATCALC_CALCULATION_DETAILS_PREF_KEY);
-        expect(getUserPreference).toHaveBeenCalledWith(HEATCALC_FIELD_INPUT_PREF_KEY);
+        expect(getUserPreference).not.toHaveBeenCalledWith('heatcalc.fieldInputs.v1');
       });
       await waitFor(() => {
         expect(localStorage.getItem(HEATCALC_REGISTERED_TABLE_COLUMN_CACHE_KEY)).toBeNull();
@@ -378,9 +377,8 @@ describe('HeatCalcPage inline edit', () => {
       await screen.findByText('Труба DN100');
       const dialog = await openTableSettingsDialog(user);
       await user.click(within(dialog).getByRole('checkbox', { name: 'DN' }));
-      const stepInput = within(dialog).getByRole('spinbutton', { name: 'Шаг: Наружный диаметр' });
-      fireEvent.change(stepInput, { target: { value: '2.5' } });
-      fireEvent.blur(stepInput);
+      expect(within(dialog).queryByText('Шаг')).not.toBeInTheDocument();
+      expect(within(dialog).queryByRole('spinbutton', { name: /^Шаг:/ })).not.toBeInTheDocument();
       await openTableSettingsOtherTab(user, dialog);
       await user.click(within(dialog).getAllByText('Полные')[0]);
       await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
@@ -394,10 +392,7 @@ describe('HeatCalcPage inline edit', () => {
           HEATCALC_TABLE_VIEW_PREF_KEY,
           expect.any(Object),
         );
-        expect(updateUserPreference).toHaveBeenCalledWith(
-          HEATCALC_FIELD_INPUT_PREF_KEY,
-          expect.any(Object),
-        );
+        expect(updateUserPreference).not.toHaveBeenCalledWith('heatcalc.fieldInputs.v1', expect.any(Object));
       });
       const preferencePayload = (updateUserPreference as ReturnType<typeof vi.fn>).mock.calls.find(
         ([key]) => key === HEATCALC_TABLE_COLUMN_PREF_KEY,
@@ -425,13 +420,7 @@ describe('HeatCalcPage inline edit', () => {
         sideFormWidthPct: 34,
         formSectionWeights: [1.655, 1.35, 1.2],
       });
-      const fieldInputPayload = (updateUserPreference as ReturnType<typeof vi.fn>).mock.calls.find(
-        ([key]) => key === HEATCALC_FIELD_INPUT_PREF_KEY,
-      )?.[1];
-      expect(fieldInputPayload.fields.pipe.outer_diameter_mm).toEqual({ step: 2.5 });
-      const fieldInputCached = JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY) ?? '{}');
-      expect(fieldInputCached.userId).toBe('user-test-1');
-      expect(fieldInputCached.settings.fields.pipe.outer_diameter_mm).toEqual({ step: 2.5 });
+      expect(localStorage.getItem(HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY)).toBeNull();
     }, HEATCALC_PAGE_TEST_TIMEOUT);
   });
 });

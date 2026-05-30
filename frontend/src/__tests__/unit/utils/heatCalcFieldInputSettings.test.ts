@@ -30,7 +30,7 @@ describe('heatCalcFieldInputSettings', () => {
     expect(localStorage.getItem(HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY)).toBeNull();
   });
 
-  it('сохраняет пользовательский шаг и сбрасывает его к дефолту поля', () => {
+  it('не сохраняет пользовательский шаг и оставляет дефолт поля', () => {
     const customized = setHeatCalcFieldStep(
       getDefaultFieldInputSettings(),
       'pipe',
@@ -38,15 +38,15 @@ describe('heatCalcFieldInputSettings', () => {
       10,
     );
 
-    expect(resolveHeatCalcFieldStep('pipe', 'outer_diameter_mm', customized)).toBe(10);
-    expect(isDefaultFieldInputSettings(customized)).toBe(false);
+    expect(resolveHeatCalcFieldStep('pipe', 'outer_diameter_mm', customized)).toBe(1);
+    expect(isDefaultFieldInputSettings(customized)).toBe(true);
 
     const reset = resetHeatCalcFieldStep(customized, 'pipe', 'outer_diameter_mm');
     expect(resolveHeatCalcFieldStep('pipe', 'outer_diameter_mm', reset)).toBe(1);
     expect(isDefaultFieldInputSettings(reset)).toBe(true);
   });
 
-  it('нормализует только положительные шаги известных числовых полей', () => {
+  it('игнорирует legacy-настройки пользовательских шагов', () => {
     const settings = normalizeFieldInputSettings({
       version: 99,
       fields: {
@@ -61,44 +61,44 @@ describe('heatCalcFieldInputSettings', () => {
 
     expect(settings).toEqual({
       version: 1,
-      fields: {
-        pipe: {
-          outer_diameter_mm: { step: 2.5 },
-        },
-      },
+      fields: {},
     });
+    expect(resolveHeatCalcFieldStep('pipe', 'outer_diameter_mm', settings)).toBe(1);
+    expect(isDefaultFieldInputSettings(settings)).toBe(true);
   });
 
-  it('пишет гостевые настройки и читает кеш только текущего пользователя', () => {
-    const settings = setHeatCalcFieldStep(
-      getDefaultFieldInputSettings(),
-      'tank',
-      'diameter_mm',
-      25,
-    );
+  it('пишет пустые настройки и читает legacy-кеш как дефолт только для текущего пользователя', () => {
+    const settings = getDefaultFieldInputSettings();
 
     writeGuestFieldInputSettings(settings);
     expect(JSON.parse(localStorage.getItem(HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY) ?? '{}'))
-      .toMatchObject({ fields: { tank: { diameter_mm: { step: 25 } } } });
-    expect(readGuestFieldInputSettings().fields.tank?.diameter_mm?.step).toBe(25);
+      .toEqual({ version: 1, fields: {} });
+    localStorage.setItem(HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      fields: { tank: { diameter_mm: { step: 25 } } },
+    }));
+    expect(readGuestFieldInputSettings()).toEqual(getDefaultFieldInputSettings());
 
-    writeRegisteredFieldInputCache('user-1', settings);
+    localStorage.setItem(HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY, JSON.stringify({
+      userId: 'user-1',
+      settings: {
+        version: 1,
+        fields: { tank: { diameter_mm: { step: 25 } } },
+      },
+      cachedAt: '2026-05-08T00:00:00.000Z',
+    }));
     expect(readRegisteredFieldInputCache('user-2')).toBeNull();
-    expect(readRegisteredFieldInputCache('user-1')?.fields.tank?.diameter_mm?.step).toBe(25);
+    expect(readRegisteredFieldInputCache('user-1')).toEqual(getDefaultFieldInputSettings());
+
+    localStorage.clear();
+    writeRegisteredFieldInputCache('user-1', settings);
     expect(JSON.parse(localStorage.getItem(HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY) ?? '{}'))
-      .toHaveProperty('userId', 'user-1');
+      .toMatchObject({ userId: 'user-1', settings: { version: 1, fields: {} } });
   });
 
-  it('возвращает список настраиваемых шагов только для числовых полей', () => {
+  it('не возвращает список настраиваемых шагов', () => {
     const items = getHeatCalcFieldStepSettingItems('pipe', getDefaultFieldInputSettings());
 
-    expect(items.map((item) => item.fieldId)).toContain('outer_diameter_mm');
-    expect(items.map((item) => item.fieldId)).not.toContain('name');
-    expect(items.find((item) => item.fieldId === 'outer_diameter_mm')).toMatchObject({
-      label: 'Наружный диаметр',
-      defaultStep: 1,
-      step: 1,
-      overridden: false,
-    });
+    expect(items).toEqual([]);
   });
 });

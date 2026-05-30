@@ -7,9 +7,6 @@ import {
 } from '@/utils/heatCalcTableViewSettings';
 import { HEATCALC_GUEST_CALCULATION_DETAILS_STORAGE_KEY } from '@/utils/heatCalcCalculationDetailsSettings';
 import {
-  HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY,
-} from '@/utils/heatCalcFieldInputSettings';
-import {
   HEATCALC_PAGE_TEST_TIMEOUT,
   makeObject,
   makeTank,
@@ -64,6 +61,9 @@ describe('HeatCalcPage settings', () => {
       expect(within(dialog).getAllByText('R').length).toBeGreaterThan(0);
       expect(within(dialog).getAllByText('Производное').length).toBeGreaterThan(0);
       expect(within(dialog).queryByText('Расчётное')).not.toBeInTheDocument();
+      expect(within(dialog).queryByText('Шаг')).not.toBeInTheDocument();
+      expect(within(dialog).queryByRole('spinbutton', { name: /^Шаг:/ })).not.toBeInTheDocument();
+      expect(within(dialog).queryByRole('button', { name: /^Сбросить шаг:/ })).not.toBeInTheDocument();
       expect(within(rowByKey('name')).getByText('Вводится')).toBeInTheDocument();
       expect(within(rowByKey('pipe_material')).getByText('Вводится')).toBeInTheDocument();
       expect(within(rowByKey('pipe_dn')).getByText('Вычисляется')).toBeInTheDocument();
@@ -386,30 +386,7 @@ describe('HeatCalcPage settings', () => {
       expect(saved.visibleMetrics).toContain('temperature_source');
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
-    it('сохраняет гостевой шаг числового поля и применяет его в форме', async () => {
-      const { listObjects } = await import('@/api/projects');
-      (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
-
-      useProjectStore.getState().setCurrentProject(mockProject);
-      const user = (await import('@testing-library/user-event')).default.setup();
-      renderPage();
-
-      await screen.findByText('Труба DN100');
-      await screen.findByText('Геометрия трубы');
-      const dialog = await openTableSettingsDialog(user);
-      const stepInput = within(dialog).getByRole('spinbutton', { name: 'Шаг: Наружный диаметр' });
-      fireEvent.change(stepInput, { target: { value: '10' } });
-      fireEvent.blur(stepInput);
-      await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
-
-      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY) ?? '{}');
-      expect(saved.fields.pipe.outer_diameter_mm).toEqual({ step: 10 });
-      await waitFor(() => {
-        expect(screen.getByTestId('outer-diameter-input')).toHaveAttribute('step', '10');
-      });
-    }, HEATCALC_PAGE_TEST_TIMEOUT);
-
-    it('удаляет guest-настройки вида, расшифровки и шагов после сброса к дефолтам', async () => {
+    it('удаляет guest-настройки вида и расшифровки после сброса к дефолтам', async () => {
       const { listObjects } = await import('@/api/projects');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
 
@@ -419,9 +396,6 @@ describe('HeatCalcPage settings', () => {
 
       await screen.findByText('Труба DN100');
       const dialog = await openTableSettingsDialog(user);
-      const stepInput = within(dialog).getByRole('spinbutton', { name: 'Шаг: Наружный диаметр' });
-      fireEvent.change(stepInput, { target: { value: '10' } });
-      fireEvent.blur(stepInput);
       await openTableSettingsOtherTab(user, dialog);
       await user.click(within(dialog).getByText('Слева'));
       await user.click(within(dialog).getByText('Подробно'));
@@ -430,11 +404,10 @@ describe('HeatCalcPage settings', () => {
       await waitFor(() => {
         expect(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY)).not.toBeNull();
         expect(localStorage.getItem(HEATCALC_GUEST_CALCULATION_DETAILS_STORAGE_KEY)).not.toBeNull();
-        expect(localStorage.getItem(HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY)).not.toBeNull();
       });
 
       const resetDialog = await openTableSettingsDialog(user);
-      await user.click(within(resetDialog).getByRole('button', { name: 'Сбросить шаг: Наружный диаметр' }));
+      expect(within(resetDialog).queryByText('Шаг')).not.toBeInTheDocument();
       await openTableSettingsOtherTab(user, resetDialog);
       await user.click(within(resetDialog).getByText('Вверху'));
       await user.click(within(resetDialog).getByRole('button', { name: 'Сбросить расшифровку' }));
@@ -443,7 +416,6 @@ describe('HeatCalcPage settings', () => {
       await waitFor(() => {
         expect(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY)).toBeNull();
         expect(localStorage.getItem(HEATCALC_GUEST_CALCULATION_DETAILS_STORAGE_KEY)).toBeNull();
-        expect(localStorage.getItem(HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY)).toBeNull();
       });
       await waitFor(() => {
         expect(screen.getByTestId('outer-diameter-input')).toHaveAttribute('step', '1');
