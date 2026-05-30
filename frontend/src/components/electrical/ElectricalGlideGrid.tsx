@@ -125,6 +125,7 @@ function ElectricalGlideGrid({
       onPageChange={onPageChange}
       onLoadMore={onLoadMore}
       onCellAction={onCellAction}
+      fillAvailableWidth
       renderFilterDropdown={renderFilterDropdown}
     />
   );

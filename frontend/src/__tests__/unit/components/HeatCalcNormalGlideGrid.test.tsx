@@ -1,5 +1,5 @@
 import React, { act } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ProjectObject } from '@/types/project';
@@ -164,6 +164,84 @@ describe('HeatCalcNormalGlideGrid', () => {
     act(() => onCellClicked([0, 1], { preventDefault: vi.fn() }));
     expect(onOpenEditWizard).toHaveBeenCalledWith(rows[1]);
     expect(screen.queryByText(/Страница/)).not.toBeInTheDocument();
+  });
+
+  it('stretches columns to fill the container when requested', async () => {
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
+      const className = String((this as HTMLElement).className ?? '');
+      if (className.includes('calc-spreadsheet--normal-glide')) {
+        return {
+          x: 0,
+          y: 0,
+          top: 0,
+          left: 0,
+          right: 1000,
+          bottom: 360,
+          width: 1000,
+          height: 360,
+          toJSON: () => ({}),
+        };
+      }
+      return originalGetBoundingClientRect.call(this);
+    };
+    class MockResizeObserver {
+      private readonly callback: ResizeObserverCallback;
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+      }
+
+      observe() {
+        this.callback([], this as unknown as ResizeObserver);
+      }
+
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', MockResizeObserver);
+
+    try {
+      render(
+        <HeatCalcNormalGlideGrid
+          rows={rows}
+          gridColumns={[
+            { key: 'index', title: '№', width: 72 },
+            { key: 'name', title: 'Name', width: 180 },
+            { key: 'status', title: 'Status', width: 100 },
+          ]}
+          tableScrollX={352}
+          tableScrollY="360px"
+          fontSizeKey="compact"
+          selectedRowKeys={[]}
+          tableViewState={{ filters: {} }}
+          infiniteLoading={null}
+          pagination={false}
+          emptyContent={null}
+          rowClassName={() => ''}
+          getCellState={(record) => ({
+            displayValue: String(record.params?.name ?? ''),
+            editable: false,
+          })}
+          onOpenEditWizard={vi.fn()}
+          onSelectedRowKeysChange={vi.fn()}
+          onStartCellEdit={vi.fn()}
+          onCommitCell={vi.fn(() => null)}
+          onSetColumnFilter={vi.fn()}
+          onResetColumnFilter={vi.fn()}
+          onSetSort={vi.fn()}
+          onPageChange={vi.fn()}
+          onLoadMore={vi.fn()}
+          fillAvailableWidth
+        />,
+      );
+
+      await waitFor(() => expect(normalGlideMock.props?.width).toBe(1000));
+      const renderedColumns = normalGlideMock.props?.columns as Array<{ width: number }>;
+      expect(renderedColumns.reduce((sum, column) => sum + column.width, 0)).toBe(948);
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+      vi.unstubAllGlobals();
+    }
   });
 
   it('uses table font-size settings in the Glide canvas theme and row metrics', () => {

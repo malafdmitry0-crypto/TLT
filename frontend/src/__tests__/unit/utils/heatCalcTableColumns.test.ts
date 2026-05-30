@@ -137,6 +137,35 @@ describe('heatCalcTableColumns', () => {
     expect(allTank).toContain('vapor_temperature');
   });
 
+  it('не отдаёт грунт в таблицу и настройки колонок даже из сохранённых пользовательских настроек', () => {
+    const settings = normalizeTableColumnSettings({
+      version: HEATCALC_TABLE_COLUMNS_VERSION,
+      types: {
+        pipe: {
+          visibleOrder: ['index', 'name', 'ground_type'],
+          columns: { ground_type: { widthPct: 24 } },
+        },
+        tank: {
+          visibleOrder: ['index', 'name', 'ground_type'],
+          columns: { ground_type: { widthPct: 24 } },
+        },
+        all: {
+          visibleOrder: ['index', 'type', 'name', 'ground_type'],
+          columns: { ground_type: { widthPct: 24 } },
+        },
+      },
+    });
+
+    for (const type of ['pipe', 'tank', 'all'] as const) {
+      expect(settings.types[type].visibleOrder).not.toContain('ground_type');
+      expect(settings.types[type].columns).not.toHaveProperty('ground_type');
+      expect(getVisibleTableColumnMetas(type, settings).map((column) => column.key))
+        .not.toContain('ground_type');
+      expect(getAllTableColumnMetas(type, settings).map((column) => column.key))
+        .not.toContain('ground_type');
+    }
+  });
+
   it('показывает теплопотери как результатные колонки по умолчанию', () => {
     const settings = getDefaultTableColumnSettings();
     const visiblePipe = getVisibleTableColumnMetas('pipe', settings).map((column) => column.key);

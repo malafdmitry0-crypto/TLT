@@ -106,6 +106,7 @@ interface HeatCalcNormalGlideGridProps {
   onPageChange: (page: number) => void;
   onLoadMore: () => void;
   onCellAction?: (record: ProjectObject, columnKey: string, actionKey: string) => void;
+  fillAvailableWidth?: boolean;
   renderFilterDropdown?: (props: {
     column: HeatCalcGlideGridColumn;
     filter?: HeatCalcColumnFilter;
@@ -568,12 +569,15 @@ function HeatCalcNormalGlideGrid({
   onPageChange,
   onLoadMore,
   onCellAction,
+  fillAvailableWidth = false,
   renderFilterDropdown,
 }: HeatCalcNormalGlideGridProps) {
   const [filterPopup, setFilterPopup] = useState<FilterPopupState | null>(null);
   const [editingCell, setEditingCell] = useState<NormalGlideEditingCell | null>(null);
   const [hoveredHeaderColumnIndex, setHoveredHeaderColumnIndex] = useState<number | null>(null);
   const [activeCell, setActiveCell] = useState<Item | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<DataEditorRef | null>(null);
   const cellEditorElementRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
   const filterPopupRef = useRef<HTMLDivElement | null>(null);
@@ -595,16 +599,53 @@ function HeatCalcNormalGlideGrid({
     () => (infiniteLoading ? 1 : normalRowMarkerStartIndex(pagination)),
     [infiniteLoading, pagination],
   );
-  const normalTableScrollX = Math.max(640, tableScrollX - hiddenColumnWidth);
+  const visibleColumnsWidth = useMemo(
+    () => visibleGridColumns.reduce((sum, column) => sum + column.width, 0),
+    [visibleGridColumns],
+  );
+  const targetDataWidth = Math.max(
+    640,
+    tableScrollX - hiddenColumnWidth,
+    fillAvailableWidth && containerWidth > 0
+      ? containerWidth - NORMAL_ROW_MARKER_WIDTH
+      : 0,
+  );
+  const stretchedColumnWidths = useMemo(() => {
+    const extraWidth = fillAvailableWidth
+      ? Math.max(0, targetDataWidth - visibleColumnsWidth)
+      : 0;
+    if (extraWidth <= 0 || visibleGridColumns.length === 0) {
+      return new Map<string, number>();
+    }
+
+    const stretchableColumns = visibleGridColumns.filter((column) => column.resizable !== false);
+    const targets = stretchableColumns.length > 0 ? stretchableColumns : visibleGridColumns;
+    const targetWidthSum = targets.reduce((sum, column) => sum + Math.max(1, column.width), 0);
+    const widths = new Map<string, number>();
+    let assignedExtra = 0;
+
+    targets.forEach((column, index) => {
+      const columnExtra = index === targets.length - 1
+        ? extraWidth - assignedExtra
+        : Math.floor((extraWidth * Math.max(1, column.width)) / targetWidthSum);
+      assignedExtra += columnExtra;
+      widths.set(column.key, column.width + columnExtra);
+    });
+
+    return widths;
+  }, [fillAvailableWidth, targetDataWidth, visibleColumnsWidth, visibleGridColumns]);
+  const editorWidth = fillAvailableWidth && containerWidth > 0
+    ? Math.max(targetDataWidth + NORMAL_ROW_MARKER_WIDTH, containerWidth)
+    : targetDataWidth + NORMAL_ROW_MARKER_WIDTH;
   const editorColumns = useMemo<GridColumn[]>(
     () => visibleGridColumns.map((column) => ({
       id: column.key,
       title: column.title || column.key,
-      width: column.width,
+      width: stretchedColumnWidths.get(column.key) ?? column.width,
       hasMenu: false,
       style: isColumnFilterActive(tableViewState.filters[column.key]) ? 'highlight' : 'normal',
     })),
-    [tableViewState, visibleGridColumns],
+    [stretchedColumnWidths, tableViewState, visibleGridColumns],
   );
   const gridSelection = useMemo(
     () => buildRowSelection(rows, selectedRowKeys, activeCell),
@@ -900,6 +941,29 @@ function HeatCalcNormalGlideGrid({
     };
   }, [filterPopup]);
   useEffect(() => {
+    if (!fillAvailableWidth) {
+      setContainerWidth(0);
+      return undefined;
+    }
+
+    const element = rootRef.current;
+    if (!element) return undefined;
+
+    const updateContainerWidth = () => {
+      setContainerWidth(Math.floor(element.getBoundingClientRect().width));
+    };
+
+    updateContainerWidth();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateContainerWidth);
+      return () => window.removeEventListener('resize', updateContainerWidth);
+    }
+
+    const observer = new ResizeObserver(updateContainerWidth);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [fillAvailableWidth]);
+  useEffect(() => {
     if (!activeRowId) {
       setActiveCell(null);
       return;
@@ -931,7 +995,7 @@ function HeatCalcNormalGlideGrid({
 
   if (rows.length === 0) {
     return (
-      <div className={`calc-spreadsheet heatcalc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`}>
+      <div ref={rootRef} className={`calc-spreadsheet heatcalc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`}>
         <div className="excel-virtual-empty">
           {emptyContent}
         </div>
@@ -940,11 +1004,11 @@ function HeatCalcNormalGlideGrid({
   }
 
   return (
-    <div className={`calc-spreadsheet heatcalc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`}>
+    <div ref={rootRef} className={`calc-spreadsheet heatcalc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`}>
       <DataEditor
         className="heatcalc-glide-editor"
         ref={editorRef}
-        width={normalTableScrollX + NORMAL_ROW_MARKER_WIDTH}
+        width={editorWidth}
         height={tableScrollY}
         columns={editorColumns}
         rows={rows.length}

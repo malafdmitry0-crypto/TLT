@@ -3809,19 +3809,6 @@
           "field": "burial_depth"
         },
         {
-          "key": "ground_type",
-          "group": "Грунт",
-          "defaultWidthPct": 13.2,
-          "minWidthPx": 80,
-          "ellipsis": true,
-          "valueType": "enum",
-          "defaultVisible": false,
-          "sortable": true,
-          "filterable": true,
-          "resizable": true,
-          "field": "ground_type"
-        },
-        {
           "key": "ground_conductivity",
           "group": "Грунт",
           "defaultWidthPct": 7.8,
@@ -4565,19 +4552,6 @@
           "filterable": true,
           "resizable": true,
           "field": "burial_depth"
-        },
-        {
-          "key": "ground_type",
-          "group": "Грунт",
-          "defaultWidthPct": 13.2,
-          "minWidthPx": 80,
-          "ellipsis": true,
-          "valueType": "enum",
-          "defaultVisible": false,
-          "sortable": true,
-          "filterable": true,
-          "resizable": true,
-          "field": "ground_type"
         },
         {
           "key": "ground_conductivity",

@@ -75,6 +75,7 @@ async function expectElectricalHeaderControlsInline(page: Page) {
     if (rect.width < 640) layoutIssues.push(`canvas is too narrow (${Math.round(rect.width)}px)`);
     if (rect.height < 220) layoutIssues.push(`canvas is too short (${Math.round(rect.height)}px)`);
     if (grid && rect.right > grid.right + 2) layoutIssues.push('canvas overflows grid container');
+    if (grid && rect.width < grid.width - 2) layoutIssues.push('canvas does not fill grid container');
     return layoutIssues;
   });
   expect(issues).toEqual([]);
