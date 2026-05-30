@@ -307,11 +307,13 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
 
     Формула мощности: q_б(T3) = q1 × T3 + q2  [Вт/м]
     Марка: <мощность>ТТН/ТТВ/ТТХ2-СР (агрессивная среда → СТ)
-    Количество ниток: N = задано пользователем или ceil(q_required / q_б)
+    Количество ниток: N = задано пользователем или
+    ceil(q_required / (q_б × k_навива))
 
     Алгоритм серии: выбираем минимально подходящую по T1/T2 серию. Если
     одной нитки недостаточно, берём максимальный номинал этой серии и считаем
-    N = ceil(q_required / q_б) без эскалации серии только из-за мощности.
+    N = ceil(q_required / (q_б × k_навива)) без эскалации серии только из-за
+    мощности.
     """
     suffix = "СТ" if params.aggressive_product else "СР"
     q_required = params.required_power_per_meter * params.safety_factor
@@ -321,6 +323,9 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
         if params.maintain_temperature is not None
         else params.process_temperature
     )
+
+    def installed_linear_power(q_b: float, threads: int) -> float:
+        return q_b * params.winding_coefficient * threads
 
     if params.cable_mark is not None:
         if params.cable_mark.endswith("-СТ"):
@@ -363,20 +368,30 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
 
         if params.number_of_threads is not None:
             candidates = [
-                (c["nominal_power"], q_b * params.number_of_threads, q_b, c)
+                (
+                    c["nominal_power"],
+                    installed_linear_power(q_b, params.number_of_threads),
+                    q_b,
+                    c,
+                )
                 for q_b, c in power_rows
-                if q_b * params.number_of_threads >= q_required
+                if installed_linear_power(q_b, params.number_of_threads) >= q_required
             ]
             if not candidates:
                 raise ValueError(
                     f"Ни один кабель серии {series} при {params.number_of_threads} нитк. "
-                    f"не обеспечивает {q_required:.2f} Вт/м при T3={t3}°C"
+                    f"не обеспечивает {q_required:.2f} Вт/м при T3={t3}°C "
+                    f"и k_навива={params.winding_coefficient:.3f}"
                 )
             _, _, _, cable = min(candidates, key=lambda item: (item[0], item[1]))
             selected_threads = params.number_of_threads
         else:
             single_thread_match = next(
-                ((q_b, c) for q_b, c in power_rows if q_b >= q_required),
+                (
+                    (q_b, c)
+                    for q_b, c in power_rows
+                    if installed_linear_power(q_b, 1) >= q_required
+                ),
                 None,
             )
             if single_thread_match is not None:
@@ -384,7 +399,7 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
                 selected_threads = 1
             else:
                 q_b_max, cable = max(power_rows, key=lambda item: item[1]["nominal_power"])
-                selected_threads = math.ceil(q_required / q_b_max)
+                selected_threads = math.ceil(q_required / installed_linear_power(q_b_max, 1))
 
     q_b = cable["q1"] * t3 + cable["q2"]
     if q_b <= 0:
@@ -395,15 +410,22 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
 
     if params.number_of_threads is not None:
         num_circuits = params.number_of_threads
-        if q_b * num_circuits < q_required:
+        effective_power_per_meter = installed_linear_power(q_b, num_circuits)
+        if effective_power_per_meter < q_required:
             raise ValueError(
                 f"Кабель {cable['model']} при {num_circuits} нитк. обеспечивает "
-                f"{q_b * num_circuits:.2f} Вт/м, требуется {q_required:.2f} Вт/м"
+                f"{effective_power_per_meter:.2f} Вт/м с учётом k_навива="
+                f"{params.winding_coefficient:.3f}, требуется {q_required:.2f} Вт/м"
             )
     elif selected_threads is not None:
         num_circuits = selected_threads
     else:
-        num_circuits = math.ceil(q_required / q_b) if q_b < q_required else 1
+        single_thread_power = installed_linear_power(q_b, 1)
+        num_circuits = (
+            math.ceil(q_required / single_thread_power)
+            if single_thread_power < q_required
+            else 1
+        )
     cable_mark = f"{cable['model']}-{suffix}"
 
     if params.tank_shape and params.heating_height and params.laying_step:
@@ -420,7 +442,7 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
     cable_length = base_length * params.winding_coefficient * num_circuits
     order_cable_length = cable_order_length(cable_length)
     total_power = q_b * cable_length
-    installed_power_per_meter = q_b * params.winding_coefficient * num_circuits
+    installed_power_per_meter = installed_linear_power(q_b, num_circuits)
     applied_voltage = _catalog_voltage(cable) or params.supply_voltage
 
     return SelfRegulatingTTResult(

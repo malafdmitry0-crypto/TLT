@@ -126,6 +126,20 @@
 
 ---
 
+## TC-ELEC-03B.1: ТТН/ТТВ/ТТХ учитывает навив в проверке мощности
+
+**Автоматизировано:** ✅ (unit) `test_self_regulating_tt.py::TestCableSelection::test_manual_mark_coverage_uses_winding_coefficient`<br>
+**Автоматизировано:** ✅ (unit) `test_self_regulating_tt.py::TestCableSelection::test_autoselect_coverage_uses_winding_coefficient`<br>
+**Автоматизировано:** ✅ (unit) `test_self_regulating_tt.py::TestCableSelection::test_autoselect_thread_count_uses_winding_coefficient_boundary`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | `self_regulating_tt`, T1=80°C, T3=50°C, `required_power_per_meter=27`, `winding_coefficient=1.1`, ручная марка `30ТТВ2-СР`, `number_of_threads=1` | Кабель проходит: `q_б=24.95`, установленная мощность `24.95 × 1.1 = 27.445 Вт/м` |
+| 2 | Auto с теми же входами без `cable_mark` | Выбран `30ТТВ2`, а не более мощный `45ТТВ2` |
+| 3 | Auto с `required_power_per_meter=55`, T1=80°C, T3=50°C, `winding_coefficient=1.1` | Выбран `60ТТВ2` с одной ниткой, потому что `53.5 × 1.1 ≥ 55` |
+
+---
+
 ## TC-ELEC-03C: Массовый автоподбор не перезаписывает ручную марку кабеля
 
 **Автоматизировано:** ✅ (integration) `test_calculations.py::TestManualCableSelection::test_batch_default_preserves_manual_cable`<br>

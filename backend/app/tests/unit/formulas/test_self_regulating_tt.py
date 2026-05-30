@@ -129,6 +129,57 @@ class TestCableSelection:
         assert r.voltage == pytest.approx(220.0)
         assert r.current == pytest.approx(r.total_power / 220.0, rel=1e-4)
 
+    def test_manual_mark_coverage_uses_winding_coefficient(self):
+        """30ТТВ2 at T3=50 gives 24.95 W/m; with k=1.1 it covers 27 W/m."""
+        r = calc_self_regulating_tt(
+            _params(
+                cable_mark="30ТТВ2-СР",
+                process_temperature=80.0,
+                maintain_temperature=50.0,
+                required_power_per_meter=27.0,
+                safety_factor=1.0,
+                winding_coefficient=1.1,
+                number_of_threads=1,
+            )
+        )
+
+        assert r.selected_cable == "30ТТВ2"
+        assert r.power_per_meter == pytest.approx(24.95, rel=1e-4)
+        assert r.installed_power_per_meter == pytest.approx(24.95 * 1.1, rel=1e-4)
+
+    def test_autoselect_coverage_uses_winding_coefficient(self):
+        """Auto must not skip 30ТТВ2 when winding makes it sufficient."""
+        r = calc_self_regulating_tt(
+            _params(
+                process_temperature=80.0,
+                maintain_temperature=50.0,
+                required_power_per_meter=27.0,
+                safety_factor=1.0,
+                winding_coefficient=1.1,
+            )
+        )
+
+        assert r.selected_cable == "30ТТВ2"
+        assert r.num_circuits == 1
+        assert r.installed_power_per_meter >= 27.0
+
+    def test_autoselect_thread_count_uses_winding_coefficient_boundary(self):
+        """At k=1.1 one 60ТТВ2 thread covers 55 W/m; without k it would need two."""
+        r = calc_self_regulating_tt(
+            _params(
+                process_temperature=80.0,
+                maintain_temperature=50.0,
+                required_power_per_meter=55.0,
+                safety_factor=1.0,
+                winding_coefficient=1.1,
+            )
+        )
+
+        assert r.selected_cable == "60ТТВ2"
+        assert r.num_circuits == 1
+        assert r.power_per_meter == pytest.approx(53.5, rel=1e-4)
+        assert r.installed_power_per_meter == pytest.approx(53.5 * 1.1, rel=1e-4)
+
     def test_manual_cable_mark_uses_indexed_model_lookup(self, monkeypatch):
         clear_cache()
         assert get_tt_cable_by_model("30ТТВ2") is not None
@@ -249,7 +300,7 @@ class TestCableSelection:
         )
         assert r.series == "ТТН"
         assert r.num_circuits > 3
-        assert r.power_per_meter * r.num_circuits >= 500.0
+        assert r.installed_power_per_meter >= 500.0
 
 
 class TestManualMark:
