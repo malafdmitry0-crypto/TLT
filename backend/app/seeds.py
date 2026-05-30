@@ -516,9 +516,14 @@ async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficie
             description="ТТ Р1/ТТ Р3 current limit from parsed documentation, A.",
         ),
         dict(
-            key="resistive_max_linear_power_w_m",
+            key="resistive_single_core_max_linear_power_w_m",
             value=40.0,
-            description="ТТ Р1/ТТ Р3 max nominal linear power from parsed 20/30/40 W/m tables.",
+            description="ТТ Р1 max linear power from datasheet, W/m.",
+        ),
+        dict(
+            key="resistive_three_core_max_linear_power_w_m",
+            value=50.0,
+            description="ТТ Р3 max linear heat output from datasheet, W/m.",
         ),
         dict(
             key="resistive_max_parallel_schemes",

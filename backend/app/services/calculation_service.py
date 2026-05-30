@@ -29,7 +29,11 @@ from app.electrical_input_validation import (
 )
 from app.electrical_result_status import FAILED_ELECTRICAL_CATEGORIES
 from app.formulas.electrical.cable_geometry import compute_tank_cable_length
-from app.formulas.electrical.resistive import calc_resistive_single_core, calc_resistive_three_core
+from app.formulas.electrical.resistive import (
+    calc_resistive_single_core,
+    calc_resistive_three_core,
+    default_resistive_max_linear_power_w_m,
+)
 from app.formulas.electrical.self_regulating import calc_self_regulating, calc_self_regulating_tt
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
@@ -2027,19 +2031,25 @@ class CalculationService:
     def _resistive_policy_payload(
         self,
         *,
+        cable_type: str,
         overrides: dict[str, Any],
         params: dict[str, Any],
         coefficients: dict[str, float] | None,
         supply_voltage: float,
     ) -> dict[str, Any]:
         """DB-backed VSDX policy values with deterministic fallbacks."""
+        max_linear_aliases = (
+            ("resistive_single_core_max_linear_power_w_m",)
+            if cable_type == "single_core"
+            else ("resistive_three_core_max_linear_power_w_m",)
+        )
         max_linear_power = self._pick_numeric_policy(
             key="max_linear_power_w_m",
-            fallback=None,
+            fallback=default_resistive_max_linear_power_w_m(cable_type),
             overrides=overrides,
             params=params,
             coefficients=coefficients,
-            aliases=("resistive_max_linear_power_w_m",),
+            aliases=max_linear_aliases,
         )
         max_parallel = self._pick_numeric_policy(
             key="max_parallel_schemes",
@@ -2615,6 +2625,7 @@ class CalculationService:
             }
             data.update(
                 self._resistive_policy_payload(
+                    cable_type=cable_type,
                     overrides=overrides,
                     params=params,
                     coefficients=coefficients,

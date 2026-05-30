@@ -945,7 +945,7 @@ algorithms:
           withinCurrentLimit: true
 
   - id: tlt_resistive_vsdx_auto_select
-    description: "Full-version deterministic auto-selection for resistive cable by U/N/M, p2/p3 and 65A current limit."
+    description: "Full-version deterministic auto-selection for resistive cable by U/N/M, p2/p3, type-specific W/m cap and 65A current limit."
     inputs: [requiredHeatLoss, objectLength, windingCoefficient, catalog, startVoltage, highVoltage, maxCurrentA, maxLinearPowerWM, maxParallelSchemes]
     outputs: [selected_cable, voltage, threads, schemes, p2_w_m, p3_w_m, total_power]
     sourceRefs:
@@ -960,6 +960,7 @@ algorithms:
       notes:
         - "VSDX order: M from 1 up; loop at start voltage with step-down if first cable exceeds p3; loop at high voltage; star at high voltage."
         - "p2 is the VSDX scheme-unit W/m used in p=p2*N*M; for TT R3 it includes the three-core scheme multipliers."
+        - "If maxLinearPowerWM is omitted, p3 uses datasheet defaults: TT R1 = 40 W/m, TT R3 = 50 W/m."
         - "Selected candidates must also keep reported current <= maxCurrentA."
         - "For TT R3 three-core auto selection, loop_2x3 and star_3x3 use the same three-conductor passport resistance multipliers as manual mode."
     examples:

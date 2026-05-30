@@ -248,11 +248,12 @@ Engineering review:
 - For catalog rows with passport `resistance_ohm_km`, backend now computes
   `R = resistance_ohm_km / 1000 * L`, `P = U^2/R`, `I = P/U` and rejects
   passport candidates above `65 A`.
-- The parsed TNP resistive algorithm is broader than this base oracle: it sorts
-  `Q(i,1)`, computes `p2/p3`, applies the `65 A` current limit and iterates
-  `U/N/M`. Full `U/N/M`, `L1/L2` auto-selection still needs formalization.
-- `ТТ Р3` legacy fields `standard_supply_voltage_v` and `max_linear_power_w_m`
-  still need source-page confirmation if they are used as hard business limits.
+- The parsed TNP resistive algorithm sorts `Q(i,1)`, computes `p2/p3`, applies
+  the `65 A` current limit and iterates `U/N/M`; the QA-agent oracle covers the
+  full `U/N/M`, `L1/L2` auto-selection path.
+- `max_linear_power_w_m` is a hard default `p3` cap from the resistive catalog:
+  `ТТ Р1 = 40 W/m`, `ТТ Р3 = 50 W/m`. `standard_supply_voltage_v` for `ТТ Р3`
+  still needs source-page confirmation before it is used as a new hard limit.
 
 ## Electrical: Mineral Cable
 

@@ -603,6 +603,7 @@
     "single_core": {
       "max_supply_voltage_v": 600,
       "supply_frequency_hz": 50,
+      "max_linear_power_w_m": 40,
       "connection_schemes": [
         {
           "id": "line_1ph",

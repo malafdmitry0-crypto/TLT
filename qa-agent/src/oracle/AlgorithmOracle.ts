@@ -304,7 +304,8 @@ function resistiveVsdxAutoSelect(input: Record<string, unknown>) {
   const minAdjustedVoltage = optionalNumberInput(input, 'minAdjustedVoltage') ?? 1;
   const voltageStep = optionalNumberInput(input, 'voltageStep') ?? 1;
   const maxCurrentA = optionalNumberInput(input, 'maxCurrentA') ?? 65;
-  const maxLinearPowerWM = optionalNumberInput(input, 'maxLinearPowerWM');
+  const maxLinearPowerWM =
+    optionalNumberInput(input, 'maxLinearPowerWM') ?? (cableKind === 'three_core' ? 50 : 40);
   const maxParallelSchemes = optionalNumberInput(input, 'maxParallelSchemes') ?? 20;
   const catalog = input.catalog;
   if (requiredHeatLoss <= 0) throw new Error('requiredHeatLoss must be > 0');

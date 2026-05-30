@@ -941,7 +941,7 @@ class TestCableLayoutMapping:
             coefficients={
                 "resistive_max_current_a": 60.0,
                 "resistive_max_parallel_schemes": 7.0,
-                "resistive_max_linear_power_w_m": 45.0,
+                "resistive_single_core_max_linear_power_w_m": 45.0,
             },
         )
 
@@ -952,6 +952,39 @@ class TestCableLayoutMapping:
         assert data["high_voltage"] == pytest.approx(380.0)
         assert data["min_adjusted_voltage"] == pytest.approx(40.0)
         assert data["voltage_step"] == pytest.approx(5.0)
+
+    def test_resistive_electrical_data_uses_three_core_catalog_cap_and_ignores_legacy_global(self):
+        service = CalculationService(_mock_db_empty())
+        obj = SimpleNamespace(
+            object_type="pipe",
+            params={
+                "outer_diameter": 0.108,
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 100,
+                "safety_factor": 1.1,
+            },
+            results={
+                "heat_loss_per_meter": 30,
+                "total_heat_loss": 3000,
+                "effective_length": 100,
+            },
+            is_valid=True,
+        )
+
+        data = service._build_electrical_data(
+            obj=obj,
+            cable_type="three_core",
+            cable_mark=None,
+            tlt_catalog=[],
+            overrides={},
+            coefficients={
+                "resistive_max_linear_power_w_m": 40.0,
+            },
+        )
+
+        assert data["selection_mode"] == "auto"
+        assert data["max_linear_power_w_m"] == pytest.approx(50.0)
 
 
 class TestCableSourceNormalization:

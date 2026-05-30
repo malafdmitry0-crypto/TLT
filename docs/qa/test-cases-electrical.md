@@ -332,9 +332,13 @@
 ## TC-ELEC-13: Full-version auto-подбор резистивного кабеля ТТ Р1/ТТ Р3
 
 **Автоматизировано:** ✅ (unit) `test_resistive.py::test_auto_vsdx_selects_u_n_m_by_passport_resistance`
+**Автоматизировано:** ✅ (unit) `test_resistive.py::TestSingleCoreLinear::test_auto_vsdx_single_core_uses_catalog_default_40_w_m_cap`
 **Автоматизировано:** ✅ (unit) `test_resistive.py::TestThreeCoreConnections::test_auto_vsdx_three_core_selects_u_n_m_by_passport_resistance`
+**Автоматизировано:** ✅ (unit) `test_resistive.py::TestThreeCoreConnections::test_auto_vsdx_three_core_uses_catalog_default_50_w_m_cap`
+**Автоматизировано:** ✅ (unit) `test_resistive.py::TestThreeCoreConnections::test_auto_vsdx_three_core_default_50_rejects_over_catalog_cap`
 **Автоматизировано:** ✅ (unit) `test_resistive.py::TestThreeCoreConnections::test_auto_vsdx_three_core_star_uses_r3_connection_multiplier`
 **Автоматизировано:** ✅ (service) `test_calculation_service_unit.py::test_resistive_electrical_data_uses_db_policy_coefficients_with_fallbacks`
+**Автоматизировано:** ✅ (service) `test_calculation_service_unit.py::test_resistive_electrical_data_uses_three_core_catalog_cap_and_ignores_legacy_global`
 **Автоматизировано:** ✅ (qa-agent) `AlgorithmOracle.test.ts::evaluates full-version resistive VSDX auto selection`
 **Автоматизировано:** ✅ (qa-agent) `AlgorithmOracle.test.ts::evaluates three-core R3 VSDX loop with scheme multiplier`
 **Автоматизировано:** ✅ (qa-agent) `AlgorithmOracle.test.ts::evaluates three-core R3 VSDX star with scheme multiplier`
@@ -346,7 +350,8 @@
 | 3 | Проверить ограничение мощности | `p2_w_m <= p3_w_m` |
 | 4 | Проверить покрытие теплопотерь | `linear_power_w_m >= required_linear_power_w_m` |
 | 5 | Проверить ток | `current <= max_current_limit_a` |
-| 6 | Передать коэффициенты `resistive_max_current_a`, `resistive_max_linear_power_w_m`, `resistive_max_parallel_schemes` | Расчёт использует БД/override значения; при отсутствии работает fallback |
+| 6 | Запустить без явного `max_linear_power_w_m` | `p3` ограничен справочником: `ТТ Р1=40 Вт/м`, `ТТ Р3=50 Вт/м` |
+| 7 | Передать коэффициенты `resistive_max_current_a`, `resistive_single_core_max_linear_power_w_m` или `resistive_three_core_max_linear_power_w_m`, `resistive_max_parallel_schemes` | Расчёт использует type-specific БД/override значения; старый глобальный `resistive_max_linear_power_w_m` не является рабочей политикой |
 
 ---
 

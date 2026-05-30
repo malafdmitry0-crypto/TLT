@@ -186,6 +186,23 @@ class TestSingleCoreLinear:
         assert r.p3_w_m <= 35.0
         assert r.scheme_count is not None and r.scheme_count >= 1
 
+    def test_auto_vsdx_single_core_uses_catalog_default_40_w_m_cap(self):
+        """ТТ Р1 datasheet: p3 is capped by 40 W/m when no explicit override is set."""
+        catalog = [
+            {"model": "ТТ Р1 35,0", "conductor_cross_section": 0.5, "resistance_ohm_km": 35.0},
+        ]
+
+        with pytest.raises(ValueError, match="Не найден full-version"):
+            calc_resistive_single_core(
+                _sc(
+                    selection_mode="auto",
+                    required_heat_loss=8500.0,
+                    pipe_length=100.0,
+                    cable_catalog=catalog,
+                    max_parallel_schemes=1,
+                )
+            )
+
     def test_auto_lowest_cost_ranks_technical_resistive_candidates(self):
         catalog = [
             {
@@ -377,6 +394,7 @@ class TestThreeCoreConnections:
                 required_heat_loss=10000.0,
                 pipe_length=100.0,
                 cable_catalog=catalog,
+                max_linear_power_w_m=200.0,
             )
         )
 
@@ -397,6 +415,49 @@ class TestThreeCoreConnections:
         assert r.linear_power_w_m >= r.required_linear_power_w_m
         assert r.current <= 65.0
         assert r.applied_selection_policy == "technical_minimum"
+
+    def test_auto_vsdx_three_core_uses_catalog_default_50_w_m_cap(self):
+        """ТТ Р3 datasheet: p3 default is 50 W/m, not the ТТ Р1 40 W/m cap."""
+        catalog = [
+            {"model": "ТТ Р3 х 0,5-0,6", "conductor_cross_section": 0.5, "resistance_ohm_km": 35.0},
+        ]
+
+        r = calc_resistive_three_core(
+            _tc(
+                selection_mode="auto",
+                required_heat_loss=13000.0,
+                pipe_length=100.0,
+                cable_catalog=catalog,
+                max_parallel_schemes=1,
+            )
+        )
+
+        resistance_per_m = 35.0 / 1000.0
+        phase_voltage = 380.0 / math.sqrt(3.0)
+        expected_total_power = (phase_voltage**2 / (resistance_per_m * 100.0 * 3.0)) * 3.0
+        expected_p2 = expected_total_power / (100.0 * 3.0)
+
+        assert r.connection_type == "star_3x3"
+        assert r.scheme_threads == 3
+        assert r.p2_w_m == pytest.approx(expected_p2, rel=1e-6)
+        assert r.p3_w_m == pytest.approx(50.0)
+        assert r.p2_w_m > 40.0
+
+    def test_auto_vsdx_three_core_default_50_rejects_over_catalog_cap(self):
+        catalog = [
+            {"model": "ТТ Р3 х 0,7-0,6", "conductor_cross_section": 0.7, "resistance_ohm_km": 25.0},
+        ]
+
+        with pytest.raises(ValueError, match="Не найден full-version"):
+            calc_resistive_three_core(
+                _tc(
+                    selection_mode="auto",
+                    required_heat_loss=18000.0,
+                    pipe_length=100.0,
+                    cable_catalog=catalog,
+                    max_parallel_schemes=1,
+                )
+            )
 
     def test_auto_vsdx_three_core_star_uses_r3_connection_multiplier(self):
         """Golden: VSDX p=p2*N*M plus ТТ Р3 has three parallel heating cores."""

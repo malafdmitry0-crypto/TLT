@@ -55,16 +55,16 @@ machine-readable registry QA-agent.
 | Навив | Отражен с инженерной нормализацией | Границы `75/89/108` заполнены как верхне-включительные; backend валидирует explicit/geometric `Kn` как hard-limit. |
 | ТЛТ self-regulating | Отражен | Подбор по мощности/температурам, auto `N=1..3`, ручной override ниток и source metadata закреплены в backend tests. |
 | ТТН/ТТВ/ТТХ | Отражен | Series limits, T1/T2/T3, full-version `N=ceil(Pоб/Pi)` и принятое правило суффикса покрыты backend tests. |
-| Резистивный подбор | Отражен для текущей full-version формализации | Backend и QA-agent реализуют перебор `M -> петля 220 -> петля 380 -> звезда 380`, `p2/p3`, `L1/L2` и лимит `65 А`; лимиты могут приходить из `correction_coefficients` с fallback. |
+| Резистивный подбор | Отражен для текущей full-version формализации | Backend и QA-agent реализуют перебор `M -> петля 220 -> петля 380 -> звезда 380`, `p2/p3`, `L1/L2`, лимит `65 А` и type-specific default cap `Р1=40`/`Р3=50` Вт/м; лимиты могут уточняться через `correction_coefficients`. |
 
 ## Resistive Catalogs
 
 | ID | Правило | Источник | Реализация | Evidence |
 |---|---|---|---|---|
-| `tlt_tt_r1_catalog` | Одножильный ТТ Р1: питание до `~600 В`, `50 Гц`, схемы линия/петля/звезда, формат заказа, таблица сопротивлений/сечений/диаметров/длин секций | `docs/tnp/internal-references/resistive-cable-r1.md` | `backend/app/reference_data/resistive_cables.json` | `backend/app/tests/unit/reference_data/test_loader.py` |
-| `tlt_tt_r3_catalog` | Трехжильный ТТ Р3: температуры, сечения жил, строительная длина `200 м`, маркировка, таблица габаритов/массы/радиуса изгиба | `docs/tnp/internal-references/resistive-cable-r3.md` | `backend/app/reference_data/resistive_cables.json` | `backend/app/tests/unit/reference_data/test_loader.py` |
+| `tlt_tt_r1_catalog` | Одножильный ТТ Р1: питание до `~600 В`, `50 Гц`, линейная мощность до `40 Вт/м`, схемы линия/петля/звезда, формат заказа, таблица сопротивлений/сечений/диаметров/длин секций | `docs/tnp/internal-references/resistive-cable-r1.md` | `backend/app/reference_data/resistive_cables.json` | `backend/app/tests/unit/reference_data/test_loader.py` |
+| `tlt_tt_r3_catalog` | Трехжильный ТТ Р3: температуры, сечения жил, линейное тепловыделение до `50 Вт/м`, строительная длина `200 м`, маркировка, таблица габаритов/массы/радиуса изгиба | `docs/tnp/internal-references/resistive-cable-r3.md` | `backend/app/reference_data/resistive_cables.json` | `backend/app/tests/unit/reference_data/test_loader.py` |
 | `tlt_tt_r1_resistance_based_power` | Для паспортных резистивных кабелей: `R = resistance_ohm_km / 1000 * L`, `P = U²/R`, `I = P/U`, ток не выше `65 А` | `docs/tnp/internal-references/resistive-cable-r1.md`, `docs/tnp/algorithms/resistive-selection.md` | `backend/app/formulas/electrical/resistive.py`, `qa-agent/src/oracle/AlgorithmOracle.ts` | `backend/app/tests/unit/formulas/test_resistive.py`, `qa-agent/tests/AlgorithmOracle.test.ts` |
-| `tlt_resistive_selection_algorithm_full` | Full-version auto mode: каталог сортируется по `Q(i,1)` по убыванию; для `M=1..max` проверяются петля `U=start`, петля `U=high`, звезда `U=high`; `p2` считается как W/m единицы схемы VSDX (`p=p2*N*M`; для Р3 — со схемными множителями трехжильного кабеля), `p3=min(Imax²*Rм, optional max_linear_power_w_m)`, выбранный вариант должен покрыть `p1=Q/L` и иметь ток не выше `max_current_a`; результат возвращает `U`, `N`, `M`, `L1/L2`, `p2/p3`; fallback для шагового снижения напряжения — `min=40 В`, `step=5 В`, если коэффициенты политики не заданы | `docs/tnp/algorithms/resistive-selection.md` | `backend/app/formulas/electrical/resistive.py`, `backend/app/services/calculation_service.py`, `qa-agent/src/oracle/AlgorithmOracle.ts` | `backend/app/tests/unit/formulas/test_resistive.py`, `backend/app/tests/unit/services/test_calculation_service_unit.py`, `qa-agent/tests/AlgorithmOracle.test.ts` |
+| `tlt_resistive_selection_algorithm_full` | Full-version auto mode: каталог сортируется по `Q(i,1)` по убыванию; для `M=1..max` проверяются петля `U=start`, петля `U=high`, звезда `U=high`; `p2` считается как W/m единицы схемы VSDX (`p=p2*N*M`; для Р3 — со схемными множителями трехжильного кабеля), `p3=min(Imax²*Rм, max_linear_power_w_m)`, где default cap берется из `resistive_cables.json/common` (`ТТ Р1=40 Вт/м`, `ТТ Р3=50 Вт/м`) и может быть явно переопределен; выбранный вариант должен покрыть `p1=Q/L` и иметь ток не выше `max_current_a`; результат возвращает `U`, `N`, `M`, `L1/L2`, `p2/p3`; fallback для шагового снижения напряжения — `min=40 В`, `step=5 В`, если коэффициенты политики не заданы | `docs/tnp/algorithms/resistive-selection.md`, `docs/tnp/internal-references/resistive-cable-r1.md`, `docs/tnp/internal-references/resistive-cable-r3.md` | `backend/app/formulas/electrical/resistive.py`, `backend/app/services/calculation_service.py`, `qa-agent/src/oracle/AlgorithmOracle.ts` | `backend/app/tests/unit/formulas/test_resistive.py`, `backend/app/tests/unit/services/test_calculation_service_unit.py`, `qa-agent/tests/AlgorithmOracle.test.ts` |
 
 Для `three_core` auto-ветка VSDX использует схемные множители ТТ Р3 из
 паспортной модели, а не универсальное `per_thread_power * N`: `loop_2x3`
@@ -73,9 +73,9 @@ machine-readable registry QA-agent.
 Это сохраняет согласованность auto с ручной проверкой схемы и справочником
 трех параллельных нагревательных жил.
 
-`standard_supply_voltage_v = 380` и `max_linear_power_w_m = 50` для `ТТ Р3`
-остаются legacy fields из прежнего справочника. Если они станут hard business
-limit, нужен отдельный источник/скрин и отдельный тест на эти поля.
+`standard_supply_voltage_v = 380` для `ТТ Р3` остается legacy field из прежнего
+справочника. `max_linear_power_w_m = 50` подтвержден как hard default cap
+линейного тепловыделения для `ТТ Р3`.
 
 ## Known Algorithm Gaps
 
@@ -83,7 +83,7 @@ limit, нужен отдельный источник/скрин и отдель
 
 | ID | Статус | Что важно |
 |---|---|---|
-| `tlt_resistive_selection_algorithm_full` | Covered with formalized fallback policy | Реализован deterministic backend/QA-agent oracle по `U/N/M`, `p2/p3`, `L1/L2`. Оставшийся риск: точные заводские thermal `p3`-лимиты должны быть заполнены в БД; до этого работает fallback по `65 А`. |
+| `tlt_resistive_selection_algorithm_full` | Covered with formalized fallback policy | Реализован deterministic backend/QA-agent oracle по `U/N/M`, `p2/p3`, `L1/L2`; default `p3` cap для `ТТ Р1/ТТ Р3` берется из справочника (`40/50 Вт/м`). |
 | `tlt_tt_t3_temperature_policy` | Covered | `maintain_temperature` является отдельным T3; если он отсутствует, backend использует `process_temperature` как совместимый fallback. |
 | `tlt_insulation_lambda_tm` | Covered | Backend/QA-agent считают `lambda(tm)` по ТНП. Generic семьи (`mineral_wool`, `foam_glass`, `polyurethane` и т.п.) не являются расчётными материалами; нужен конкретный код с плотностью и `insulation_temperature_basis`. JSON-справочник сидируется в `insulation_materials`, `/references/insulation` читает DB projection. |
 

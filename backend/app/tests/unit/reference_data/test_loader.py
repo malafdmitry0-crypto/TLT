@@ -68,6 +68,7 @@ class TestListFunctions:
 
         assert common["max_supply_voltage_v"] == 600
         assert common["supply_frequency_hz"] == 50
+        assert common["max_linear_power_w_m"] == 40
         assert common["ordering_example"] == "ТТ Р1 1,810-3"
         assert common["ordering_code_parts"]["sheath_material_codes"] == {
             "2": "FEP",
@@ -145,6 +146,7 @@ class TestListFunctions:
         ]
         assert common["nominal_linear_supply_voltage_v"] == 1000
         assert common["construction_length_min_m"] == 200
+        assert common["max_linear_power_w_m"] == 50
         assert common["temperature_class"] == "T6...T3"
         assert common["explosion_protection_marking"] == "Ex 60079-30-1 IIC T6...T3 Gb X"
 

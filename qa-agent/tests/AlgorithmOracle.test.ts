@@ -232,6 +232,7 @@ describe('AlgorithmOracle', () => {
         cableKind: 'three_core',
         requiredHeatLoss: 10000,
         objectLength: 100,
+        maxLinearPowerWM: 200,
         catalog: [{ model: 'TT R3 100', resistanceOhmKm: 100, conductorCrossSection: 0.47 }],
       }),
     );
@@ -247,6 +248,29 @@ describe('AlgorithmOracle', () => {
     expect((result.value as { totalPower: number }).totalPower).toBeCloseTo(21660);
     expect((result.value as { current: number }).current).toBeCloseTo(57);
     expect((result.value as { p2WM: number }).p2WM).toBeCloseTo(108.3);
+  });
+
+  it('applies type-specific R3 50 W/m default p3 cap', () => {
+    const result = new AlgorithmOracle(registry()).evaluate(
+      testCase('tlt_resistive_vsdx_auto_select', {
+        cableKind: 'three_core',
+        requiredHeatLoss: 13000,
+        objectLength: 100,
+        maxParallelSchemes: 1,
+        catalog: [{ model: 'TT R3 35', resistanceOhmKm: 35, conductorCrossSection: 0.5 }],
+      }),
+    );
+
+    expect(result.metadata.ok).toBe(true);
+    expect(result.value).toMatchObject({
+      model: 'TT R3 35',
+      voltage: 380,
+      threads: 3,
+      schemes: 1,
+      connectionType: 'star_3x3',
+    });
+    expect((result.value as { p2WM: number }).p2WM).toBeGreaterThan(40);
+    expect((result.value as { p3WM: number }).p3WM).toBeCloseTo(50);
   });
 
   it('evaluates three-core R3 VSDX star with scheme multiplier', () => {

@@ -40,7 +40,7 @@ UI/API workflow считается gap до полного соответств�
 | `tlt_tt_t3_power_curve` | Да | Да | Да | Да | Да | Covered |
 | `tlt_tt_r1_catalog` | Да | Нет формулы, справочник | Да | Да через резистивный подбор | Да | Covered |
 | `tlt_tt_r3_catalog` | Да | Нет формулы, справочник | Да | Да через резистивный подбор | Да | Covered |
-| `tlt_resistive_selection_algorithm_full` | Да | Да | Да, auto `U/N/M`, `p2/p3`, `L1/L2`, DB-policy coefficients with fallback | Да, основной flow auto; manual scheme остается override | Да | Covered with fallback policy |
+| `tlt_resistive_selection_algorithm_full` | Да | Да | Да, auto `U/N/M`, `p2/p3`, `L1/L2`, type-specific `p3` cap `Р1=40`/`Р3=50` из справочника и DB-policy coefficients | Да, основной flow auto; manual scheme остается override | Да | Covered with fallback policy |
 | `tlt_tt_r1_resistance_based_power` | Да | Да | Да | Да через резистивный подбор | Да | Covered |
 | `tlt_tt_t3_temperature_policy` | Да | Да | Да, T3 опционален с fallback на `process_temperature` | Да | Да | Covered |
 | `tlt_tt_thread_count_policy` | Да | Частично | Да, auto `N=ceil(Pоб/Pi)` без лимита 3 для ТТ | Нет отдельного policy control | Да | Covered |

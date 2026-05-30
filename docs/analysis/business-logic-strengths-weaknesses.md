@@ -173,8 +173,8 @@ flowchart LR
 
 | ID | Риск | Деталь | Митигация сегодня |
 |---|---|---|---|
-| RES-P3 | Резистивный thermal cap | `p3` из БД не заполнен production-значениями; fallback 65 А | Консервативный лимит; тесты на fallback |
-| REF-R3-01 | Legacy поля ТТ Р3 | `max_linear_power_w_m`, `standard_supply_voltage_v` не являются hard-limit без источника | Не использовать в UI как жёсткие границы |
+| RES-P3 | Резистивный thermal cap | `p3` ограничен справочником: `ТТ Р1=40 Вт/м`, `ТТ Р3=50 Вт/м`; production БД может переопределить type-specific коэффициентами | Справочные cap закреплены тестами pure formula/service/reference-data |
+| REF-R3-01 | Legacy поля ТТ Р3 | `max_linear_power_w_m=50` подтвержден как hard default cap; `standard_supply_voltage_v` остается legacy без финального источника | Не использовать `standard_supply_voltage_v` в UI как жёсткую границу без отдельного источника |
 | DOC-DRIFT | `formules.md` vs код | Устаревшие примеры (R_ins, линейный ветер); код по СНиП корректен | Опираться на business-logic-contract, не на старые примеры |
 | REPRO | Воспроизводимость | `audit_events` фиксируют действия, но **нет снапшота** применённых K, λ, версии справочника в `HeatCalculation`/`ElectricalCalculation` | Ручной разбор по текущим справочникам |
 | IMP-GEN | Импорт | Generic-названия изоляции → draft, нужно уточнение в форме | Валидация + подсветка в UI |
@@ -243,7 +243,7 @@ flowchart LR
 | **P0** | Подписать SEC-A (или выбрать Б/С) | SEC-* |
 | **P1** | Закрыть Q-01..Q-14 по отчёту | REPORT |
 | **P1** | Снапшот коэффициентов и справочников в результате расчёта | REPRO |
-| **P1** | Заполнить production thermal `p3` для резистивного каталога | RES-P3 |
+| **P1** | Решить, нужны ли production overrides для резистивного `p3` сверх справочных `40/50 Вт/м` | RES-P3 |
 | **P2** | Завершить `docs/error-codes.md` | DOC-ERR |
 | **P2** | Синхронизировать `formules.md` с контрактом или пометить как архив | DOC-DRIFT |
 

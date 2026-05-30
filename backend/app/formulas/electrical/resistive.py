@@ -131,6 +131,23 @@ def _get_three_core_catalog(override: list[dict[str, Any]] | None) -> list[dict[
     return [_normalize_cable(c) for c in data.get("three_core", [])]
 
 
+def default_resistive_max_linear_power_w_m(cable_kind: str) -> float | None:
+    """Datasheet p3 cap for resistive auto-selection from catalog common metadata."""
+    data = list_resistive_cables()
+    raw = data.get("common", {}).get(cable_kind, {}).get("max_linear_power_w_m")
+    if raw is None:
+        return None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
+
+
+def _effective_max_linear_power_w_m(cable_kind: str, explicit: float | None) -> float | None:
+    return explicit if explicit is not None else default_resistive_max_linear_power_w_m(cable_kind)
+
+
 def _pick_cable(catalog: list[dict[str, Any]], min_cross_section: float) -> dict[str, Any]:
     """Минимальный кабель из каталога с conductor_cross_section ≥ min_cross_section."""
     candidates = [
@@ -817,6 +834,10 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
     object_length = _resolve_base_length(params)
     if params.selection_mode == "auto":
         section_length = object_length * params.winding_coefficient
+        max_linear_power_w_m = _effective_max_linear_power_w_m(
+            "single_core",
+            params.max_linear_power_w_m,
+        )
         metrics, selection_metadata = _select_resistive_auto(
             catalog,
             required_heat_loss=params.required_heat_loss,
@@ -826,7 +847,7 @@ def calc_resistive_single_core(params: ResistiveSingleCoreParams) -> ResistiveSi
             start_voltage=params.start_voltage or params.supply_voltage,
             high_voltage=params.high_voltage,
             max_current_a=params.max_current_a,
-            max_linear_power_w_m=params.max_linear_power_w_m,
+            max_linear_power_w_m=max_linear_power_w_m,
             max_parallel_schemes=params.max_parallel_schemes,
             min_adjusted_voltage=params.min_adjusted_voltage,
             voltage_step=params.voltage_step,
@@ -968,6 +989,10 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
     object_length = _resolve_base_length(params)
     if params.selection_mode == "auto":
         section_length = object_length * params.winding_coefficient
+        max_linear_power_w_m = _effective_max_linear_power_w_m(
+            "three_core",
+            params.max_linear_power_w_m,
+        )
         metrics, selection_metadata = _select_resistive_auto(
             catalog,
             required_heat_loss=params.required_heat_loss,
@@ -977,7 +1002,7 @@ def calc_resistive_three_core(params: ResistiveThreeCoreParams) -> ResistiveThre
             start_voltage=params.start_voltage or params.supply_voltage,
             high_voltage=params.high_voltage,
             max_current_a=params.max_current_a,
-            max_linear_power_w_m=params.max_linear_power_w_m,
+            max_linear_power_w_m=max_linear_power_w_m,
             max_parallel_schemes=params.max_parallel_schemes,
             min_adjusted_voltage=params.min_adjusted_voltage,
             voltage_step=params.voltage_step,

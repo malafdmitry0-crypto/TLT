@@ -700,7 +700,7 @@ class ResistiveSingleCoreParams(BaseModel):
     max_linear_power_w_m: float | None = Field(
         default=None,
         gt=0,
-        description="Дополнительный лимит p3, Вт/м; если не задан — используется только 65 А",
+        description="Override лимита p3, Вт/м; в auto по умолчанию берётся ТТ Р1=40 из справочника",
     )
     max_parallel_schemes: int = Field(
         default=20,
@@ -835,7 +835,7 @@ class ResistiveThreeCoreParams(BaseModel):
     max_linear_power_w_m: float | None = Field(
         default=None,
         gt=0,
-        description="Дополнительный лимит p3, Вт/м; если не задан — используется только 65 А",
+        description="Override лимита p3, Вт/м; в auto по умолчанию берётся ТТ Р3=50 из справочника",
     )
     max_parallel_schemes: int = Field(
         default=20,

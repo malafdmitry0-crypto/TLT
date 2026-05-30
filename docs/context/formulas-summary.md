@@ -237,19 +237,23 @@ M = 1..max_parallel_schemes
 N = 2: петля при U=start, затем петля при U=high
 N = 3: звезда при U=high
 p2 = I² * resistance_ohm_km / 1000
-p3 = min(Imax² * resistance_ohm_km / 1000, max_linear_power_w_m?)
+p3 = min(Imax² * resistance_ohm_km / 1000, max_linear_power_w_m)
 select first candidate where p2 <= p3 and p2 * N * M covers p1
 ```
 
-`Imax`, `max_linear_power_w_m`, `start/high/min voltage` и `max_parallel_schemes`
-могут приходить из `correction_coefficients`; пока БД не заполнена, backend
-использует fallback `Imax=65 A`, `start=220 В`, `high=380 В`,
-`min_adjusted=40 В`, `voltage_step=5 В`, `M<=20`.
+`Imax`, `start/high/min voltage` и `max_parallel_schemes` могут приходить из
+`correction_coefficients`; пока БД не заполнена, backend использует fallback
+`Imax=65 A`, `start=220 В`, `high=380 В`, `min_adjusted=40 В`,
+`voltage_step=5 В`, `M<=20`. `max_linear_power_w_m` по умолчанию берется из
+`resistive_cables.json/common`: для `ТТ Р1` — `40 Вт/м`, для `ТТ Р3` —
+`50 Вт/м`; явный override `max_linear_power_w_m` или type-specific coefficient
+может заменить это значение.
 
 Справочник ТТ Р1 сверяется с последними пользовательскими скринами:
 `docs/tnp/internal-references/resistive-cable-r1.md`. Для ТТ Р1 зафиксированы
-питание до `~600 В`, `50 Гц`, схемы линия/петля/звезда, формат заказа и
-таблица сопротивлений/сечений/диаметров/длин секций.
+питание до `~600 В`, `50 Гц`, линейная мощность до `40 Вт/м`, схемы
+линия/петля/звезда, формат заказа и таблица сопротивлений/сечений/диаметров/
+длин секций.
 
 ## Резистивный трёхжильный ТТ Р3
 
@@ -263,8 +267,8 @@ select first candidate where p2 <= p3 and p2 * N * M covers p1
 
 Справочник ТТ Р3 сверяется с последними пользовательскими скринами:
 `docs/tnp/internal-references/resistive-cable-r3.md`. Для ТТ Р3 зафиксированы
-температуры, сечения жил, строительная длина `200 м`, маркировка и таблица
-габаритов/массы/радиусов изгиба.
+температуры, сечения жил, линейное тепловыделение до `50 Вт/м`, строительная
+длина `200 м`, маркировка и таблица габаритов/массы/радиусов изгиба.
 
 Для машинного расчёта ТТ Р3 справочник хранит `conductor_section_mm2` и
 `resistance_ohm_km` явно. Runtime-код сначала использует эти поля; извлечение
