@@ -1316,6 +1316,7 @@ class CalculationService:
             result_tt = calc_self_regulating_tt(params_tt)
             cable_mark = result_tt.cable_mark
             result_dict = result_tt.model_dump()
+            request.data["supply_voltage"] = result_dict["voltage"]
         elif cable_type == "single_core":
             params_sc = ResistiveSingleCoreParams(**request.data)
             result_sc = calc_resistive_single_core(params_sc)

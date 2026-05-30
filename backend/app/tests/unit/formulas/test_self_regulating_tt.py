@@ -113,6 +113,22 @@ class TestCableSelection:
         assert r.series == "ТТН"
         assert r.power_per_meter == pytest.approx(-0.491 * 40 + 37.5, rel=1e-3)
 
+    def test_catalog_voltage_overrides_request_voltage_for_current(self):
+        """ТТН/ТТВ/ТТХ имеют паспортное voltage в каталоге; ток считается по нему."""
+        r = calc_self_regulating_tt(
+            _params(
+                cable_mark="30ТТВ2-СР",
+                process_temperature=80.0,
+                maintain_temperature=50.0,
+                required_power_per_meter=10.0,
+                safety_factor=1.0,
+                supply_voltage=380.0,
+            )
+        )
+
+        assert r.voltage == pytest.approx(220.0)
+        assert r.current == pytest.approx(r.total_power / 220.0, rel=1e-4)
+
     def test_manual_cable_mark_uses_indexed_model_lookup(self, monkeypatch):
         clear_cache()
         assert get_tt_cable_by_model("30ТТВ2") is not None

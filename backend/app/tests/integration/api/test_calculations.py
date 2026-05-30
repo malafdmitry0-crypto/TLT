@@ -26,6 +26,16 @@ async def _create_project(client: AsyncClient, session_id: str) -> dict:
     return resp.json()[0]
 
 
+async def _create_project_with_token(client: AsyncClient, token: str) -> dict:
+    resp = await client.post(
+        "/api/v1/projects",
+        json={"name": "Admin calculation project"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
 async def _create_pipe_object(
     client: AsyncClient,
     project_id: str,
@@ -49,6 +59,34 @@ async def _create_pipe_object(
             "params": params,
         },
         headers={"X-Session-Id": session_id},
+    )
+    assert resp.status_code in (200, 201), resp.text
+    return resp.json()
+
+
+async def _create_pipe_object_with_token(
+    client: AsyncClient,
+    project_id: str,
+    token: str,
+    params_override: dict | None = None,
+) -> dict:
+    params = {
+        "outer_diameter": 0.108,
+        "insulation_thickness": 0.05,
+        "insulation_material": MINERAL_WOOL,
+        "insulation_temperature_basis": "outdoor_winter",
+        "ambient_temperature": -30,
+        "process_temperature": 80,
+        "pipe_length": 50,
+    }
+    params.update(params_override or {})
+    resp = await client.post(
+        f"/api/v1/projects/{project_id}/objects",
+        json={
+            "object_type": "pipe",
+            "params": params,
+        },
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code in (200, 201), resp.text
     return resp.json()
@@ -269,6 +307,33 @@ class TestHeatLossCalculation:
 
 
 class TestElectricalCalculation:
+    async def test_admin_can_create_project_and_run_electrical_calc(
+        self, client: AsyncClient, admin_token: str
+    ):
+        """Admin is a staff role for project support and calculation workflows."""
+        project = await _create_project_with_token(client, admin_token)
+        obj = await _create_pipe_object_with_token(client, project["id"], admin_token)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical",
+            json={
+                "object_id": obj["id"],
+                "cable_type": "self_regulating",
+                "data": {
+                    "required_power_per_meter": 20.0,
+                    "cable_mark": "ТЛТ-25",
+                    "supply_voltage": 220.0,
+                    "ambient_temperature": -30.0,
+                    "pipe_length": 50.0,
+                    "safety_factor": 1.1,
+                },
+            },
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["result"]["selected_cable"] == "ТЛТ-25"
+
     async def test_electrical_calc_returns_all_fields(
         self, client: AsyncClient, guest_session: str
     ):
@@ -329,6 +394,46 @@ class TestElectricalCalculation:
                     "ambient_temperature": -30,
                     "pipe_length": 50,
                     "safety_factor": 1.1,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert resp.status_code == 200, resp.text
+        result = resp.json()["result"]
+        assert result["voltage"] == 220
+        assert result["current"] == pytest.approx(result["total_power"] / 220, rel=1e-4)
+
+        list_resp = await client.get(
+            "/api/v1/calc/electrical",
+            params={"project_id": project["id"]},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert list_resp.status_code == 200, list_resp.text
+        calc = list_resp.json()[0]
+        assert calc["params"]["supply_voltage"] == 220
+        assert calc["results"]["voltage"] == 220
+
+    async def test_tt_uses_catalog_voltage_for_current(
+        self, client: AsyncClient, guest_session: str
+    ):
+        """ТТН/ТТВ/ТТХ считают ток по паспортному voltage выбранного кабеля."""
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+
+        resp = await client.post(
+            "/api/v1/calc/electrical",
+            json={
+                "object_id": obj["id"],
+                "cable_type": "self_regulating_tt",
+                "data": {
+                    "required_power_per_meter": 10.0,
+                    "cable_mark": "30ТТВ2-СР",
+                    "pipe_length": 50.0,
+                    "process_temperature": 80.0,
+                    "maintain_temperature": 50.0,
+                    "safety_factor": 1.0,
+                    "supply_voltage": 380.0,
                 },
             },
             headers={"X-Session-Id": guest_session},

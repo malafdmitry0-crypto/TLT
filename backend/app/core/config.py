@@ -67,9 +67,11 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
 
     # Пользовательские (гостевые) сессии: защита от ботов и накопления мусора.
+    # Историческое имя GUEST_MAX_OBJECTS_PER_PROJECT используется как глобальный
+    # лимит объектов в проекте для всех ролей, чтобы bounded NFR сохранялся в API.
     # Поток: зашёл → один авто-проект → поработал → ушёл → через TTL+интервал всё чистится.
     GUEST_MAX_PROJECTS: int = 1  # у пользователя ровно один проект
-    GUEST_MAX_OBJECTS_PER_PROJECT: int = 101  # максимум объектов в одном проекте
+    GUEST_MAX_OBJECTS_PER_PROJECT: int = 50  # максимум объектов в одном проекте
     GUEST_SESSION_TTL_MINUTES: int = 20  # неактивная сессия чистится после N мин
     GUEST_CLEANUP_INTERVAL_MINUTES: int = 10  # периодичность фонового cleanup
     GUEST_MAX_SESSIONS_PER_IP: int = 10  # максимум новых сессий с одного IP за 1 час
