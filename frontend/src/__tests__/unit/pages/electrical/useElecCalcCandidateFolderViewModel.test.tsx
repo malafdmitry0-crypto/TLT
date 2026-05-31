@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { CandidateFolderKey } from '@/pages/electrical/elecCalcCandidateFolderModel';
 import { useElecCalcCandidateFolderViewModel } from '@/pages/electrical/useElecCalcCandidateFolderViewModel';
@@ -50,7 +50,6 @@ function renderCandidateFolderViewModel(options: {
   initialKey?: CandidateFolderKey;
   candidates?: ElectricalCandidate[];
   candidateFolders?: ElectricalCandidateFolder[];
-  onActiveFolderChange?: () => void;
 } = {}) {
   return renderHook((props: Required<typeof options>) => {
     const [activeCandidateFolderKey, setActiveCandidateFolderKey] =
@@ -60,7 +59,6 @@ function renderCandidateFolderViewModel(options: {
       setActiveCandidateFolderKey,
       candidates: props.candidates,
       candidateFolders: props.candidateFolders,
-      onActiveFolderChange: props.onActiveFolderChange,
     });
     return { activeCandidateFolderKey, setActiveCandidateFolderKey, ...model };
   }, {
@@ -68,7 +66,6 @@ function renderCandidateFolderViewModel(options: {
       initialKey: 'all',
       candidates: [candidate('1'), candidate('2', true)],
       candidateFolders: [folder('folder-1', ['1'])],
-      onActiveFolderChange: vi.fn(),
       ...options,
     },
   });
@@ -94,21 +91,17 @@ describe('useElecCalcCandidateFolderViewModel', () => {
     expect(result.current.candidatesByActiveFolder.map((item) => item.id)).toEqual(['1']);
   });
 
-  it('resets missing custom folder and notifies when active folder changes', () => {
-    const onActiveFolderChange = vi.fn();
+  it('resets missing custom folder and keeps normal active folder changes local', () => {
     const { result } = renderCandidateFolderViewModel({
       initialKey: 'custom:missing',
-      onActiveFolderChange,
     });
 
     expect(result.current.activeCandidateFolderKey).toBe('all');
-    expect(onActiveFolderChange).toHaveBeenCalledTimes(1);
 
     act(() => {
       result.current.setActiveCandidateFolderKey('favorite');
     });
 
     expect(result.current.activeCandidateFolderKey).toBe('favorite');
-    expect(onActiveFolderChange).toHaveBeenCalledTimes(2);
   });
 });

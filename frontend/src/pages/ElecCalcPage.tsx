@@ -181,10 +181,6 @@ import {
   type CableMarkOptionSource,
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import {
-  buildDisplayedCandidateRows,
-  filterMarkedCandidateRows,
-} from '@/pages/electrical/elecCalcCandidateTableModel';
-import {
   cableSnapshotRow,
   commercialStatus,
   technicalStatus,
@@ -201,8 +197,6 @@ import {
   isTargetVariantNotEmptyError,
 } from '@/pages/electrical/elecCalcApiResponseGuards';
 import {
-  buildCandidateCompareDiffColumnKeys,
-  buildCandidateColumnValueAccessors,
   candidateCompareDisplayValue,
   candidateOrderCableLengthValue,
 } from '@/pages/electrical/elecCalcCandidateCompareModel';
@@ -293,6 +287,7 @@ import {
 } from '@/pages/electrical/elecCalcTableFilterModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
+import { useElecCalcCandidateCompareState } from '@/pages/electrical/useElecCalcCandidateCompareState';
 import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCalcCandidateFolderUiState';
 import { useElecCalcCandidateFolderViewModel } from '@/pages/electrical/useElecCalcCandidateFolderViewModel';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
@@ -382,7 +377,6 @@ export default function ElecCalcPage() {
   const [cableSizingMode, setCableSizingMode] = useState<'auto' | 'manual'>('auto');
   const [cableSizingCableType, setCableSizingCableType] = useState<CableTypeKey>(DEFAULT_CABLE_TYPE);
   const [cableSizingManualMark, setCableSizingManualMark] = useState<string | null>(null);
-  const [markedCableSizingCandidateIds, setMarkedCableSizingCandidateIds] = useState<string[]>([]);
   const {
     activeCandidateFolderKey,
     setActiveCandidateFolderKey,
@@ -1620,6 +1614,36 @@ export default function ElecCalcPage() {
       listElectricalCandidateFolders(project!.id, cableSizingModalObjectId!, variant),
     enabled: !!project && !!cableSizingModalObjectId,
   });
+  const {
+    activeCustomCandidateFolder,
+    candidatesByActiveFolder: cableSizingCandidatesByActiveFolder,
+    candidateFolderCounts,
+  } = useElecCalcCandidateFolderViewModel({
+    activeCandidateFolderKey,
+    setActiveCandidateFolderKey,
+    candidates: cableSizingCandidates,
+    candidateFolders: cableSizingCandidateFolders,
+  });
+  const candidateCompare = useElecCalcCandidateCompareState({
+    candidatesByActiveFolder: cableSizingCandidatesByActiveFolder,
+    candidateTableViewState,
+    visibleCandidateColumnMetas,
+    resetKey: activeCandidateFolderKey,
+  });
+  const {
+    markedCandidateIds: markedCableSizingCandidateIds,
+    markedCandidateSet: markedCableSizingCandidateSet,
+    candidateColumnValueAccessors,
+    resetMarkedCandidates: resetMarkedCableSizingCandidates,
+    toggleCandidateMarked: toggleCableSizingCandidateMark,
+    toggleCandidateMarkedByRow: toggleElectricalCandidateGlideMarked,
+    displayedCandidates: displayedCableSizingCandidates,
+    displayedMarkedCandidates: displayedMarkedCableSizingCandidates,
+    compareActive: cableSizingCandidateCompareActive,
+    diffColumnKeys: candidateCompareDiffColumnKeys,
+    isCompareDiffCell: isCandidateCompareDiffCell,
+    candidateRowClassName: cableSizingCandidateRowClassName,
+  } = candidateCompare;
   const appliedCableSizingCandidate = useMemo(
     () => cableSizingCandidates.find((candidate) => candidate.is_applied) ?? null,
     [cableSizingCandidates],
@@ -1739,11 +1763,11 @@ export default function ElecCalcPage() {
     setCableSizingModalObjectId(null);
     setCableSizingMode('auto');
     setCableSizingManualMark(null);
-    setMarkedCableSizingCandidateIds([]);
+    resetMarkedCableSizingCandidates();
     setActiveCandidateFolderKey('all');
     closeCandidateFolderModal();
     setCandidateColumnSettingsOpen(false);
-  }, [closeCandidateFolderModal]);
+  }, [closeCandidateFolderModal, resetMarkedCableSizingCandidates]);
   const openCableMarkModal = useCallback((obj: ProjectObject) => {
     const calc = stats.calcByObjectId[obj.id];
     const currentCalc = currentElectricalCalc(calc);
@@ -1761,10 +1785,15 @@ export default function ElecCalcPage() {
     activateRowId(obj.id);
     setCableSizingCableType(type);
     setCableSizingManualMark(getCableMark(calc) ?? null);
-    setMarkedCableSizingCandidateIds([]);
+    resetMarkedCableSizingCandidates();
     setActiveCandidateFolderKey('all');
     setCableSizingModalObjectId(obj.id);
-  }, [activateRowId, cableTypes.getSavedCableTypeForObject, stats.calcByObjectId]);
+  }, [
+    activateRowId,
+    cableTypes.getSavedCableTypeForObject,
+    resetMarkedCableSizingCandidates,
+    stats.calcByObjectId,
+  ]);
   const changeCableMarkModalCableType = useCallback((nextType: CableTypeKey) => {
     setCableMarkModalCableType(cableTypes.normalizeAvailableCableType(nextType));
     setCableMarkModalValue(AUTO_CABLE_MARK_VALUE);
@@ -1816,45 +1845,6 @@ export default function ElecCalcPage() {
   const enumOptionsByColumn = useMemo(
     () => buildElectricalEnumOptionsByColumn(electricalQueryCapabilities?.fields),
     [electricalQueryCapabilities?.fields],
-  );
-  const markedCableSizingCandidateSet = useMemo(
-    () => new Set(markedCableSizingCandidateIds),
-    [markedCableSizingCandidateIds],
-  );
-  const candidateColumnValueAccessors = useMemo(
-    () => buildCandidateColumnValueAccessors(visibleCandidateColumnMetas, markedCableSizingCandidateSet),
-    [markedCableSizingCandidateSet, visibleCandidateColumnMetas],
-  );
-  const resetMarkedCableSizingCandidates = useCallback(() => {
-    setMarkedCableSizingCandidateIds([]);
-  }, []);
-  const {
-    activeCustomCandidateFolder,
-    candidatesByActiveFolder: cableSizingCandidatesByActiveFolder,
-    candidateFolderCounts,
-  } = useElecCalcCandidateFolderViewModel({
-    activeCandidateFolderKey,
-    setActiveCandidateFolderKey,
-    candidates: cableSizingCandidates,
-    candidateFolders: cableSizingCandidateFolders,
-    onActiveFolderChange: resetMarkedCableSizingCandidates,
-  });
-  const displayedCableSizingCandidates = useMemo(
-    () => buildDisplayedCandidateRows(
-      cableSizingCandidatesByActiveFolder,
-      candidateTableViewState,
-      candidateColumnValueAccessors,
-    ),
-    [cableSizingCandidatesByActiveFolder, candidateColumnValueAccessors, candidateTableViewState],
-  );
-  const displayedMarkedCableSizingCandidates = useMemo(
-    () => filterMarkedCandidateRows(displayedCableSizingCandidates, markedCableSizingCandidateSet),
-    [displayedCableSizingCandidates, markedCableSizingCandidateSet],
-  );
-  const cableSizingCandidateCompareActive = displayedMarkedCableSizingCandidates.length >= 2;
-  const candidateCompareDiffColumnKeys = useMemo(
-    () => buildCandidateCompareDiffColumnKeys(displayedMarkedCableSizingCandidates, visibleCandidateColumnMetas),
-    [displayedMarkedCableSizingCandidates, visibleCandidateColumnMetas],
   );
   const candidateEnumOptionsByColumn = useMemo(
     () => buildCandidateEnumOptionsByColumn(
@@ -2965,12 +2955,6 @@ export default function ElecCalcPage() {
       ? CABLE_TYPE_LABEL[cableTypes.selectedCableType]
       : 'тип по объектам';
   const cableTypeControlLabel = 'Тип для пересчёта:';
-  const toggleElectricalCandidateGlideMarked = useCallback((
-    candidate: ElectricalCandidate,
-    checked: boolean,
-  ) => {
-    toggleCableSizingCandidateMark(candidate.id, checked);
-  }, []);
   const getElectricalCandidateGlideCellState = useCallback((
     candidate: ElectricalCandidate,
     columnKey: string,
@@ -3311,35 +3295,6 @@ export default function ElecCalcPage() {
           I: <strong>{numberText(results?.current, 2)} А</strong>
         </Text>
       </div>
-    );
-  }
-
-  function toggleCableSizingCandidateMark(candidateId: string, checked: boolean) {
-    setMarkedCableSizingCandidateIds((current) => {
-      if (checked) {
-        return current.includes(candidateId) ? current : [...current, candidateId];
-      }
-      return current.filter((id) => id !== candidateId);
-    });
-  }
-
-  function cableSizingCandidateRowClassName(candidate: ElectricalCandidate) {
-    return [
-      candidate.status === 'error' ? 'electrical-cable-sizing-table__row--error' : '',
-      cableSizingCandidateCompareActive && markedCableSizingCandidateSet.has(candidate.id)
-        ? 'electrical-cable-sizing-table__row--compared'
-        : '',
-    ].filter(Boolean).join(' ');
-  }
-
-  function isCandidateCompareDiffCell(
-    candidate: ElectricalCandidate,
-    columnKey: ElectricalCandidateColumnKey,
-  ) {
-    return (
-      cableSizingCandidateCompareActive
-      && markedCableSizingCandidateSet.has(candidate.id)
-      && candidateCompareDiffColumnKeys.has(columnKey)
     );
   }
 

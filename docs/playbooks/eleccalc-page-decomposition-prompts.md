@@ -123,6 +123,7 @@ Potential target structure:
 | Cable type state hook | Done | 2026-05-31: default/draft cable type state, available-type normalization, selected-row type resolution and object overrides moved to `useElecCalcCableTypeState.ts`; focused hook unit + full frontend gate |
 | Candidate folder UI state hook | Done | 2026-05-31: active folder key, create/rename modal state and open/close helpers moved to `useElecCalcCandidateFolderUiState.ts`; focused hook unit + full frontend gate |
 | Candidate folder view model hook | Done | 2026-05-31: active custom folder lookup, active-folder candidate filtering, folder counts and active-folder reset effects moved to `useElecCalcCandidateFolderViewModel.ts`; focused hook unit + full frontend gate |
+| Candidate compare state hook | Done | 2026-05-31: marked candidate ids, compare-active state, displayed candidate projection, diff keys and compare row/cell helpers moved to `useElecCalcCandidateCompareState.ts`; focused hook unit + full frontend gate |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |

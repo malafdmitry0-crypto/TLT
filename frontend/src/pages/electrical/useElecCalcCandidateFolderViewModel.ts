@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 
 import type { ElectricalCandidate, ElectricalCandidateFolder } from '@/types/calculation';
@@ -15,7 +15,6 @@ type UseElecCalcCandidateFolderViewModelOptions = {
   setActiveCandidateFolderKey: Dispatch<SetStateAction<CandidateFolderKey>>;
   candidates: readonly ElectricalCandidate[];
   candidateFolders: readonly ElectricalCandidateFolder[];
-  onActiveFolderChange: () => void;
 };
 
 export function useElecCalcCandidateFolderViewModel({
@@ -23,9 +22,7 @@ export function useElecCalcCandidateFolderViewModel({
   setActiveCandidateFolderKey,
   candidates,
   candidateFolders,
-  onActiveFolderChange,
 }: UseElecCalcCandidateFolderViewModelOptions) {
-  const previousActiveCandidateFolderKeyRef = useRef<CandidateFolderKey>(activeCandidateFolderKey);
   const activeCustomCandidateFolderId = candidateCustomFolderId(activeCandidateFolderKey);
   const activeCustomCandidateFolder = useMemo(
     () => findActiveCustomCandidateFolder(activeCandidateFolderKey, candidateFolders),
@@ -53,12 +50,6 @@ export function useElecCalcCandidateFolderViewModel({
     activeCustomCandidateFolderId,
     setActiveCandidateFolderKey,
   ]);
-
-  useEffect(() => {
-    if (previousActiveCandidateFolderKeyRef.current === activeCandidateFolderKey) return;
-    previousActiveCandidateFolderKeyRef.current = activeCandidateFolderKey;
-    onActiveFolderChange();
-  }, [activeCandidateFolderKey, onActiveFolderChange]);
 
   return {
     activeCustomCandidateFolderId,
