@@ -181,8 +181,8 @@ import {
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import {
   cableSnapshotRow,
-  commercialStatus,
-  technicalStatus,
+  resolveCableCatalogStatuses,
+  resolveCableRowsForType,
   type CableStatusRow,
 } from '@/pages/electrical/elecCalcCableCatalogModel';
 import {
@@ -714,26 +714,16 @@ export default function ElecCalcPage() {
   });
 
   const cableRowsForType = useCallback((type: CableTypeKey): CableStatusRow[] => {
-    if (!availableCableTypes.has(type)) return [];
-    if (type === 'self_regulating') {
-      return visibleCableRowsForSource(cables, builtinCables, effectiveSource);
-    }
-    if (type === 'self_regulating_tt') return ttCables;
-    if (type === 'single_core') {
-      return visibleCableRowsForSource(
-        resistiveCables?.single_core ?? [],
-        builtinResistiveCables?.single_core ?? [],
-        effectiveSource,
-      );
-    }
-    if (type === 'three_core') {
-      return visibleCableRowsForSource(
-        resistiveCables?.three_core ?? [],
-        builtinResistiveCables?.three_core ?? [],
-        effectiveSource,
-      );
-    }
-    return [];
+    return resolveCableRowsForType({
+      type,
+      availableCableTypes,
+      cables,
+      builtinCables,
+      ttCables,
+      resistiveCables,
+      builtinResistiveCables,
+      effectiveSource,
+    });
   }, [
     availableCableTypes,
     builtinCables,
@@ -751,12 +741,11 @@ export default function ElecCalcPage() {
     cableRowsForType,
     cableTypes.visibleCableTypeControl,
   ]);
-  const commercialDataStatus = useMemo(
-    () => commercialStatus(visibleCableCatalog),
-    [visibleCableCatalog],
-  );
-  const technicalDataStatus = useMemo(
-    () => technicalStatus(cableTypes.visibleCableTypeControl, visibleCableCatalog),
+  const {
+    commercialDataStatus,
+    technicalDataStatus,
+  } = useMemo(
+    () => resolveCableCatalogStatuses(cableTypes.visibleCableTypeControl, visibleCableCatalog),
     [visibleCableCatalog, cableTypes.visibleCableTypeControl],
   );
 

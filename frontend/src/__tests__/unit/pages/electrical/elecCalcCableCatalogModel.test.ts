@@ -6,6 +6,8 @@ import {
   hasCommercialData,
   hasTechnicalData,
   hasValue,
+  resolveCableCatalogStatuses,
+  resolveCableRowsForType,
   technicalStatus,
   type CableStatusRow,
 } from '@/pages/electrical/elecCalcCableCatalogModel';
@@ -99,6 +101,110 @@ describe('elecCalcCableCatalogModel', () => {
     ])).toEqual({ label: 'Техданные неполные', color: 'warning' });
     expect(technicalStatus('self_regulating', [{ power_per_meter: 25 }]))
       .toEqual({ label: 'Нет техданных', color: 'error' });
+  });
+
+  it('resolves visible cable rows by cable type and source mode', () => {
+    const availableCableTypes = new Set([
+      'self_regulating',
+      'self_regulating_tt',
+      'single_core',
+      'three_core',
+    ] as const);
+    const builtinCable: CableStatusRow = {
+      model: 'ТЛТ-10',
+      cable_type: 'self_regulating',
+      source: 'builtin',
+      power_per_meter: 10,
+    };
+    const duplicateExternalCable: CableStatusRow = {
+      ...builtinCable,
+      source: 'extended',
+    };
+    const newExternalCable: CableStatusRow = {
+      model: 'ТЛТ-20',
+      cable_type: 'self_regulating',
+      source: 'extended',
+      power_per_meter: 20,
+    };
+    const ttCable: CableStatusRow = {
+      model: 'ТТН-10',
+      cable_type: 'self_regulating_tt',
+      source: 'builtin',
+      q1: 1,
+      q2: 2,
+    };
+    const singleCoreCable: CableStatusRow = {
+      model: 'R1',
+      cable_type: 'single_core',
+      source: 'extended',
+      resistance_ohm_km: 100,
+    };
+    const threeCoreCable: CableStatusRow = {
+      model: 'R3',
+      cable_type: 'three_core',
+      source: 'extended',
+      resistance_ohm_km: 120,
+    };
+
+    expect(resolveCableRowsForType({
+      type: 'self_regulating',
+      availableCableTypes,
+      cables: [duplicateExternalCable, newExternalCable],
+      builtinCables: [builtinCable],
+      ttCables: [ttCable],
+      effectiveSource: 'all',
+      resistiveCables: {
+        single_core: [singleCoreCable],
+        three_core: [threeCoreCable],
+      },
+      builtinResistiveCables: {
+        single_core: [],
+        three_core: [],
+      },
+    }).map((row) => row.model)).toEqual(['ТЛТ-20']);
+
+    expect(resolveCableRowsForType({
+      type: 'self_regulating_tt',
+      availableCableTypes,
+      cables: [],
+      builtinCables: [],
+      ttCables: [ttCable],
+      effectiveSource: 'builtin',
+    })).toEqual([ttCable]);
+
+    expect(resolveCableRowsForType({
+      type: 'single_core',
+      availableCableTypes,
+      cables: [],
+      builtinCables: [],
+      ttCables: [],
+      effectiveSource: 'extended',
+      resistiveCables: {
+        single_core: [singleCoreCable],
+        three_core: [threeCoreCable],
+      },
+    })).toEqual([singleCoreCable]);
+
+    expect(resolveCableRowsForType({
+      type: 'mineral',
+      availableCableTypes,
+      cables: [newExternalCable],
+      builtinCables: [],
+      ttCables: [ttCable],
+      effectiveSource: 'all',
+    })).toEqual([]);
+  });
+
+  it('resolves cable catalog statuses together', () => {
+    expect(resolveCableCatalogStatuses('self_regulating', [{
+      power_per_meter: 30,
+      max_temperature: 65,
+      min_temperature: -60,
+      price_per_meter: 100,
+    }])).toEqual({
+      commercialDataStatus: { label: 'Коммерческие данные есть', color: 'success' },
+      technicalDataStatus: { label: 'Техданные полные', color: 'success' },
+    });
   });
 
   it('builds cable row from calculation snapshot without accepting invalid snapshots', () => {

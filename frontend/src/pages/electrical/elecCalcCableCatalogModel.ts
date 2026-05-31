@@ -1,5 +1,7 @@
+import type { CableSource } from '@/api/calculations';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { CableCatalogRow } from '@/utils/cableCatalogSourceLabels';
+import { visibleCableRowsForSource } from '@/utils/cableCatalogSourceLabels';
 import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
 
 export type CatalogStatusColor = 'default' | 'success' | 'warning' | 'error';
@@ -13,6 +15,23 @@ export type CableStatusRow = CableCatalogRow & {
   lead_time_days?: number | null;
   supplier_priority?: number | null;
   is_preferred?: boolean;
+};
+
+type ResolveCableRowsForTypeInput = {
+  type: CableTypeKey;
+  availableCableTypes: ReadonlySet<CableTypeKey>;
+  cables: CableStatusRow[];
+  builtinCables: CableStatusRow[];
+  ttCables: CableStatusRow[];
+  resistiveCables?: {
+    single_core?: CableStatusRow[];
+    three_core?: CableStatusRow[];
+  };
+  builtinResistiveCables?: {
+    single_core?: CableStatusRow[];
+    three_core?: CableStatusRow[];
+  };
+  effectiveSource: CableSource;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -67,6 +86,48 @@ export function technicalStatus(type: CableTypeKey | null, rows: CableStatusRow[
   if (completeCount === rows.length) return { label: 'Техданные полные', color: 'success' };
   if (completeCount > 0) return { label: 'Техданные неполные', color: 'warning' };
   return { label: 'Нет техданных', color: 'error' };
+}
+
+export function resolveCableRowsForType({
+  type,
+  availableCableTypes,
+  cables,
+  builtinCables,
+  ttCables,
+  resistiveCables,
+  builtinResistiveCables,
+  effectiveSource,
+}: ResolveCableRowsForTypeInput): CableStatusRow[] {
+  if (!availableCableTypes.has(type)) return [];
+  if (type === 'self_regulating') {
+    return visibleCableRowsForSource(cables, builtinCables, effectiveSource);
+  }
+  if (type === 'self_regulating_tt') return ttCables;
+  if (type === 'single_core') {
+    return visibleCableRowsForSource(
+      resistiveCables?.single_core ?? [],
+      builtinResistiveCables?.single_core ?? [],
+      effectiveSource,
+    );
+  }
+  if (type === 'three_core') {
+    return visibleCableRowsForSource(
+      resistiveCables?.three_core ?? [],
+      builtinResistiveCables?.three_core ?? [],
+      effectiveSource,
+    );
+  }
+  return [];
+}
+
+export function resolveCableCatalogStatuses(
+  type: CableTypeKey | null,
+  rows: CableStatusRow[],
+) {
+  return {
+    commercialDataStatus: commercialStatus(rows),
+    technicalDataStatus: technicalStatus(type, rows),
+  };
 }
 
 export function cableSnapshotRow(calc: ElectricalCalcSummary | undefined): CableStatusRow | null {
