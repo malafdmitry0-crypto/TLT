@@ -150,7 +150,7 @@ Potential target structure:
 | Candidate Glide cell state hook | Done | 2026-06-01: thin candidate cell-state hook moved marked/diff/display/error assembly to `useElecCalcCandidateGlideCellState.ts`; page keeps actions, menu handlers and mutations; focused hook unit + `ElecCalcPage` integration |
 | Candidate Glide actions/menu hook | Done | 2026-06-01: candidate action descriptors, Glide action routing and folder menu items moved to `useElecCalcCandidateGlideActions.ts`; page keeps JSX renderers and React Query mutations; focused hook unit + candidate grid + `ElecCalcPage` integration |
 | Main Glide actions hook | Done | 2026-06-01: main cable-mark Glide actions and choose/size routing moved to `useElecCalcGlideActions.ts`; page keeps JSX renderers, modals and mutation payloads; focused hook unit + main grid + `ElecCalcPage` integration |
-| Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
+| Main electrical column renderers hook | Done | 2026-06-01: `electricalColumnRenderers` JSX moved to `useElecCalcElectricalColumnRenderers.tsx`; page keeps column wiring, filters, table engines and mutation payloads; focused renderer unit + `ElecCalcPage` integration |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |
 | Candidate table state hook | Backlog | remaining marked comparison state |
