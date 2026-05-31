@@ -104,7 +104,7 @@ import {
 import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 import { getElectricalErrorGuidance } from '@/utils/electricalErrorGuidance';
-import { formatNumber, formatPower } from '@/utils/formatters';
+import { formatNumber } from '@/utils/formatters';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import CablePickerCharacteristics from '@/components/electrical/CablePickerCharacteristics';
@@ -198,11 +198,47 @@ import {
   candidatePowerPerMeterValue,
   candidateThreadSource,
   isCandidateCompareColumn,
-  type CandidateThreadSource as ThreadSource,
 } from '@/pages/electrical/elecCalcCandidateCompareModel';
 import {
   buildElectricalQueryRequest,
 } from '@/pages/electrical/elecCalcQueryModel';
+import {
+  ELECTRICAL_LAYOUT_EDITABLE_COLUMNS,
+  maxThreadsForCableType,
+  maxWindingCoefficientForDiameterMm,
+  parseElectricalLayoutNumber,
+  pipeOuterDiameterMm,
+  windingCoefficientForPitch,
+} from '@/pages/electrical/elecCalcLayoutModel';
+import {
+  cableSnapshotStatusTag,
+  CABLE_TYPE_LABEL,
+  CONNECTION_TYPE_LABEL,
+  mainElectricalColumnCopyValue,
+  OBJECT_TYPE_LABEL,
+  objectDisplayName,
+  STOCK_STATUS_LABEL,
+  type CableTypeKey,
+} from '@/pages/electrical/elecCalcMainTableModel';
+import {
+  calcLayoutValues,
+  cablePowerPerMeterValue,
+  commercialNumber,
+  commercialValue,
+  currentElectricalCalc,
+  getCableMark,
+  getCableMarkSource,
+  getThreadSource,
+  installedPowerPerMeterValue,
+  numberText,
+  objectResultNumber,
+  orderCableLengthValue,
+  powerText,
+  resultNumber,
+  selectionPolicyText,
+  threadSourceTag,
+  valueText,
+} from '@/pages/electrical/elecCalcResultValueModel';
 import type {
   HeatCalcGlideGridCellState,
   HeatCalcGlideGridColumn,
@@ -231,14 +267,6 @@ const { Text } = Typography;
 const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
 const ElectricalCandidateGlideGrid = lazy(() => import('@/components/electrical/ElectricalCandidateGlideGrid'));
 
-type CableTypeKey =
-  | 'self_regulating'
-  | 'self_regulating_tt'
-  | 'single_core'
-  | 'three_core'
-  | 'mineral'
-  | 'skin';
-
 function isBatchElectricalResponse(result: unknown): result is BatchElectricalResponse {
   return typeof result === 'object' && result !== null && 'calculated' in result;
 }
@@ -250,15 +278,6 @@ function isApiError(error: unknown): error is ApiError {
 function isTargetVariantNotEmptyError(error: unknown): error is ApiError {
   return isApiError(error) && error.status === 409 && error.code === 'target_not_empty';
 }
-
-const CABLE_TYPE_LABEL: Record<CableTypeKey, string> = {
-  self_regulating: 'Саморегулирующийся',
-  self_regulating_tt: 'ТТН/ТТВ/ТТХ',
-  single_core: 'Однож. пост. мощн.',
-  three_core: 'Трёхж. пост. мощн.',
-  mineral: 'С мин. изоляцией',
-  skin: 'Скин-система',
-};
 
 const DEFAULT_CABLE_TYPE: CableTypeKey = 'self_regulating';
 const MVP_CABLE_TYPES: readonly CableTypeKey[] = [DEFAULT_CABLE_TYPE];
@@ -375,8 +394,6 @@ type CopyElectricalVariantMutationArgs = {
 const EMPTY_OBJECTS: ProjectObject[] = [];
 const EMPTY_ELECTRICAL_CALCS: ElectricalCalcSummary[] = [];
 
-type CableMarkSource = 'auto' | 'manual';
-
 type ElectricalNavigationState = {
   activeJobId?: string;
 } | null;
@@ -483,17 +500,6 @@ function externalCableOptionLabelSource(
   source: CableSource,
 ): CableMarkOptionSource | null {
   return externalLabelSourceForCableRow(row, rows, builtinRows, source);
-}
-
-function getCableMark(calc: ElectricalCalcSummary | undefined) {
-  const selectedCable = calc?.results?.selected_cable;
-  return calc?.cable_mark ?? (typeof selectedCable === 'string' ? selectedCable : undefined);
-}
-
-function finiteNumber(value: unknown): number | undefined {
-  if (value === null || value === undefined || value === '') return undefined;
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? numericValue : undefined;
 }
 
 function renderCandidateElectricalField(
@@ -603,133 +609,10 @@ function renderCandidateElectricalField(
   }
 }
 
-function currentElectricalCalc(calc: ElectricalCalcSummary | undefined) {
-  if (!calc?.results) return undefined;
-  const results = calc.results as Record<string, unknown>;
-  if (
-    results.error_code
-    || results.category
-    || results.stale === true
-    || results.stale === 'true'
-  ) {
-    return undefined;
-  }
-  return getCableMark(calc) ? calc : undefined;
-}
-
-function getCableMarkSource(calc: ElectricalCalcSummary | undefined): CableMarkSource {
-  const value = calc?.cable_mark_source ?? calc?.params?.cable_mark_source;
-  return value === 'manual' ? 'manual' : 'auto';
-}
-
-function cableSnapshotStatusTag(calc: ElectricalCalcSummary | undefined) {
-  if (!calc) return null;
-  const status = calc.cable_snapshot_status;
-  if (!status) return null;
-  const technicalStatus = status.technical_status;
-  const commercialStatus = status.commercial_status;
-  if (technicalStatus === 'missing' || commercialStatus === 'missing') {
-    return {
-      color: 'orange',
-      label: 'нет в базе',
-      tooltip: status.message || 'Кабель сохранён в проекте, но отсутствует в текущей базе.',
-    };
-  }
-  if (technicalStatus === 'changed') {
-    const fields = Array.isArray(status.changed_fields) ? status.changed_fields.join(', ') : '';
-    return {
-      color: 'red',
-      label: 'техн. изм.',
-      tooltip: `${status.message || 'Технические параметры кабеля изменились.'}${fields ? ` Поля: ${fields}` : ''}`,
-    };
-  }
-  if (commercialStatus === 'changed') {
-    const fields = Array.isArray(status.changed_fields) ? status.changed_fields.join(', ') : '';
-    return {
-      color: 'gold',
-      label: 'комм. изм.',
-      tooltip: `${status.message || 'Коммерческие данные кабеля изменились.'}${fields ? ` Поля: ${fields}` : ''}`,
-    };
-  }
-  if (technicalStatus === 'unknown' || commercialStatus === 'unknown') {
-    return {
-      color: 'default',
-      label: 'стар.',
-      tooltip: status.message || 'Расчёт создан без сохранённого снимка кабеля.',
-    };
-  }
-  return null;
-}
-
 function shouldShowProjectCableOption(calc: ElectricalCalcSummary | undefined) {
   if (!calc?.cable_snapshot) return false;
   const technicalStatus = calc.cable_snapshot_status?.technical_status;
   return technicalStatus === 'missing' || technicalStatus === 'changed';
-}
-
-function getThreadSource(calc: ElectricalCalcSummary | undefined): ThreadSource | null {
-  const value = calc?.results?.number_of_threads_source ?? calc?.params?.number_of_threads_source;
-  return value === 'auto'
-    || value === 'manual'
-    || value === 'default'
-    || value === 'previous_result'
-    ? value
-    : null;
-}
-
-function threadSourceTag(source: ThreadSource | null) {
-  if (source === 'manual') {
-    return { color: 'purple', label: 'ручн.', tooltip: 'Количество ниток задано вручную' };
-  }
-  if (source === 'auto') {
-    return { color: 'blue', label: 'авто', tooltip: 'Количество ниток подобрано алгоритмом' };
-  }
-  if (source === 'previous_result') {
-    return { color: 'gold', label: 'пред.', tooltip: 'Количество ниток взято из предыдущего результата' };
-  }
-  if (source === 'default') {
-    return { color: 'default', label: 'по ум.', tooltip: 'Использовано значение по умолчанию' };
-  }
-  return null;
-}
-
-function calcLayoutValues(calc: ElectricalCalcSummary | undefined) {
-  return {
-    windingPitchMm: Number(calc?.results?.winding_pitch ?? 0),
-    numberOfThreads: Number(calc?.results?.num_circuits ?? 1),
-  };
-}
-
-const ELECTRICAL_LAYOUT_EDITABLE_COLUMNS = new Set(['winding_pitch_mm', 'number_of_threads']);
-
-function parseElectricalLayoutNumber(value: unknown) {
-  const text = String(value ?? '').trim().replace(',', '.');
-  if (!text) return null;
-  const parsed = Number(text);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function maxThreadsForCableType(type: CableTypeKey) {
-  return type === 'self_regulating' ? 3 : 100;
-}
-
-function pipeOuterDiameterMm(obj: ProjectObject) {
-  if (obj.object_type !== 'pipe') return null;
-  const raw = Number(obj.params?.outer_diameter);
-  return Number.isFinite(raw) && raw > 0 ? raw * 1000 : null;
-}
-
-function maxWindingCoefficientForDiameterMm(diameterMm: number) {
-  if (diameterMm < 57) return 1.0;
-  if (diameterMm === 57) return 1.1;
-  if (diameterMm <= 75) return 1.2;
-  if (diameterMm <= 89) return 1.3;
-  if (diameterMm <= 108) return 1.4;
-  return 1.5;
-}
-
-function windingCoefficientForPitch(diameterMm: number, pitchMm: number) {
-  return Math.sqrt(1 + ((Math.PI * diameterMm) / pitchMm) ** 2);
 }
 
 type ElectricalColumnRenderSpec = {
@@ -738,53 +621,7 @@ type ElectricalColumnRenderSpec = {
   render: (_: unknown, obj: ProjectObject, idx: number) => ReactNode;
 };
 
-const OBJECT_TYPE_LABEL: Record<string, string> = {
-  pipe: 'Труба',
-  tank: 'Резервуар',
-};
-
-const CONNECTION_TYPE_LABEL: Record<string, string> = {
-  line_1ph: 'Линия',
-  loop_1ph: 'Петля',
-  star_3ph: 'Звезда',
-  loop_2x3: 'Петля 2×3',
-  loop_1x3: 'Петля 1×3',
-  star_3x3: 'Звезда 3×3',
-  star_1x3: 'Звезда 1×3',
-};
-
-const STOCK_STATUS_LABEL: Record<string, string> = {
-  in_stock: 'В наличии',
-  limited: 'Ограничено',
-  on_order: 'Под заказ',
-  unknown: 'Неизвестно',
-};
-
 type ElectricalFilterKind = 'text' | 'numberRange' | 'enum' | 'boolean';
-
-function valueText(value: unknown) {
-  if (value === null || value === undefined || value === '') return '—';
-  if (typeof value === 'boolean') return value ? 'Да' : 'Нет';
-  return String(value);
-}
-
-function objectDisplayName(obj: ProjectObject) {
-  return String(obj.params?.name ?? `${obj.object_type} ${obj.id}`);
-}
-
-function numberText(value: unknown, digits = 2) {
-  if (value === null || value === undefined || value === '') return formatNumber(null, digits);
-  return formatNumber(Number(value), digits);
-}
-
-function powerText(value: unknown) {
-  if (value === null || value === undefined || value === '') return '—';
-  return formatPower(Number(value));
-}
-
-function resultNumber(calc: ElectricalCalcSummary | undefined, key: string, digits = 2) {
-  return numberText(calc?.results?.[key], digits);
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -807,43 +644,6 @@ function cableSnapshotRow(calc: ElectricalCalcSummary | undefined): CableStatusR
         ? snapshot.requested_catalog_source
         : 'project',
   };
-}
-
-function cablePowerPerMeterValue(calc: ElectricalCalcSummary | undefined) {
-  return finiteNumber(calc?.results?.power_per_meter);
-}
-
-function installedPowerPerMeterValue(calc: ElectricalCalcSummary | undefined) {
-  return finiteNumber(calc?.results?.installed_power_per_meter);
-}
-
-function orderCableLengthValue(calc: ElectricalCalcSummary | undefined) {
-  if (!calc?.results) return undefined;
-  const explicitRaw = calc.results.order_cable_length;
-  if (explicitRaw !== null && explicitRaw !== undefined && explicitRaw !== '') {
-    const explicitLength = Number(explicitRaw);
-    if (Number.isFinite(explicitLength)) return explicitLength;
-  }
-  return undefined;
-}
-
-function commercialValue(calc: ElectricalCalcSummary | undefined, key: string) {
-  const commercial = calc?.results?.commercial;
-  if (typeof commercial !== 'object' || commercial === null || Array.isArray(commercial)) return undefined;
-  return (commercial as Record<string, unknown>)[key];
-}
-
-function commercialNumber(calc: ElectricalCalcSummary | undefined, key: string, digits = 2) {
-  return numberText(commercialValue(calc, key), digits);
-}
-
-function selectionPolicyText(value: unknown) {
-  if (typeof value !== 'string') return '—';
-  return SELECTION_POLICY_LABEL[value as SelectionPolicy] ?? (value === 'manual_selection' ? 'Ручной' : value);
-}
-
-function objectResultNumber(obj: ProjectObject, key: string, digits = 2) {
-  return numberText(obj.results?.[key], digits);
 }
 
 function toInputNumberValue(value: unknown) {
@@ -3603,105 +3403,19 @@ export default function ElecCalcPage() {
     key: ElectricalColumnKey,
     obj: ProjectObject,
     index: number,
-  ) => {
-    const calc = stats.calcByObjectId[obj.id];
-    const currentCalc = currentElectricalCalc(calc);
-    switch (key) {
-      case 'index':
-        return electricalDisplayOffset + index + 1;
-      case 'object_name':
-        return objectDisplayName(obj);
-      case 'object_type':
-        return OBJECT_TYPE_LABEL[obj.object_type] ?? obj.object_type;
-      case 'heat_loss_status':
-        return obj.is_valid
-          ? 'Рассчитан'
-          : obj.validation_errors?.category === 'unsupported'
-            ? 'Не применимо'
-            : obj.validation_errors
-              ? 'Ошибка'
-              : 'Не рассчитан';
-      case 'electrical_status':
-        return isElectricalCalcSuccess(calc)
-          ? 'Рассчитан'
-          : isElectricalCalcUnsupported(calc)
-            ? 'Не применимо'
-            : isElectricalCalcStale(calc)
-              ? 'Требуется пересчёт'
-            : electricalCalcError(calc)
-              ? 'Ошибка'
-            : 'Не рассчитан';
-      case 'cable_type':
-        {
-          const type = getCalculatedCableTypeForObject(obj.id);
-          return type ? CABLE_TYPE_LABEL[type] ?? type : '—';
-        }
-      case 'cable_mark':
-        return getCableMark(currentCalc) ?? '—';
-      case 'cable_snapshot_status':
-        return cableSnapshotStatusTag(currentCalc)?.label ?? '—';
-      case 'selection_policy':
-        return selectionPolicyText(currentCalc?.results?.selection_policy);
-      case 'applied_selection_policy':
-        return selectionPolicyText(currentCalc?.results?.applied_selection_policy);
-      case 'selection_reason':
-        return valueText(currentCalc?.results?.selection_reason);
-      case 'winding_pitch_mm':
-        return valueText(currentCalc?.results?.winding_pitch);
-      case 'number_of_threads':
-        {
-          const source = threadSourceTag(getThreadSource(currentCalc));
-          const value = valueText(currentCalc?.results?.num_circuits);
-          return source ? `${value} (${source.label})` : value;
-        }
-      case 'laying_step':
-        return valueText(calc?.params?.laying_step ?? layingStep);
-      case 'heating_height':
-        return valueText(calc?.params?.heating_height ?? heatingHeight);
-      case 'connection_type':
-        {
-          const value = calc?.params?.connection_type ?? connectionType;
-          return CONNECTION_TYPE_LABEL[String(value)] ?? valueText(value);
-        }
-      case 'supply_voltage':
-        return valueText(calc?.params?.supply_voltage ?? supplyVoltage);
-      case 'winding_coefficient':
-        return valueText(calc?.params?.winding_coefficient ?? windingCoefficient);
-      case 'vapor_temperature':
-        return valueText(calc?.params?.vapor_temperature ?? vaporTemperature);
-      case 'maintain_temperature':
-        return valueText(calc?.params?.maintain_temperature ?? maintainTemperature);
-      case 'aggressive_product':
-        return valueText(calc?.params?.aggressive_product ?? aggressiveProduct);
-      case 'order_cable_length':
-        return valueText(orderCableLengthValue(currentCalc));
-      case 'installed_cable_length':
-      case 'total_power':
-      case 'current':
-      case 'voltage':
-        return valueText(currentCalc?.results?.[key]);
-      case 'power_per_meter':
-        return valueText(cablePowerPerMeterValue(currentCalc));
-      case 'installed_power_per_meter':
-        return valueText(installedPowerPerMeterValue(currentCalc));
-      case 'price_per_meter':
-      case 'required_order_length':
-      case 'total_cost':
-      case 'lead_time_days':
-        return valueText(commercialValue(currentCalc, key));
-      case 'stock_status':
-        {
-          const value = commercialValue(currentCalc, key);
-          return typeof value === 'string' ? STOCK_STATUS_LABEL[value] ?? value : '—';
-        }
-      case 'heat_loss_per_meter':
-      case 'heat_loss_per_m2':
-      case 'total_heat_loss':
-        return valueText(obj.results?.[key]);
-      default:
-        return '';
-    }
-  }, [
+  ) => mainElectricalColumnCopyValue(key, obj, index, {
+    calcByObjectId: stats.calcByObjectId,
+    electricalDisplayOffset,
+    getCableTypeForObject: getCalculatedCableTypeForObject,
+    layingStep,
+    heatingHeight,
+    connectionType,
+    supplyVoltage,
+    windingCoefficient,
+    vaporTemperature,
+    maintainTemperature,
+    aggressiveProduct,
+  }), [
     aggressiveProduct,
     connectionType,
     getCalculatedCableTypeForObject,

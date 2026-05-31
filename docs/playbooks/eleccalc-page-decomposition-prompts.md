@@ -91,7 +91,10 @@ Potential target structure:
 | Pure helper inventory | Done | 2026-05-31: inventory-only prompt; safe/coupled helpers mapped before next code slice |
 | Query/filter request builder characterization | Done | `frontend/src/pages/electrical/elecCalcQueryModel.ts`; `npm --prefix frontend test -- --run src/__tests__/unit/pages/electrical/elecCalcQueryModel.test.ts src/__tests__/integration/pages/ElecCalcPage.test.tsx` |
 | Candidate compare/value helpers characterization | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCandidateCompareModel.ts`; focused unit + `ElecCalcPage` integration, 60 pass |
-| Main table render/copy characterization | Backlog | cable mark/status/layout/commerce copy values |
+| Main electrical result/value helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcResultValueModel.ts`; focused unit + candidate/query units + `ElecCalcPage` integration, 65 pass |
+| Layout numeric helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcLayoutModel.ts`; focused unit + result/candidate/query units + `ElecCalcPage` integration, 71 pass |
+| Main table copy/status characterization | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcMainTableModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 76 pass |
+| Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | page/filter/sort/cursor state, hidden-column cleanup |
 | Candidate table state hook | Backlog | local filter/sort/marked comparison state |
@@ -246,3 +249,153 @@ Definition of Done:
   coupled UI/business flows.
 - Ledger marks `Pure helper inventory` as Done.
 - `git diff --check` passes.
+
+## Prompt 5. Вынести main electrical result/value helpers
+
+Status: Done. Не запускать повторно без нового finding.
+
+Режим `/fix-focused`.
+Scope: только чистые helpers отображения и извлечения значений основного
+электрорасчёта в `ElecCalcPage`.
+
+Задача:
+
+- Вынести pure helpers из `frontend/src/pages/ElecCalcPage.tsx` в
+  `frontend/src/pages/electrical/elecCalcResultValueModel.ts`.
+- Разрешённый набор:
+  `finiteNumber`, `valueText`, `numberText`, `powerText`, `resultNumber`,
+  `objectResultNumber`, `cablePowerPerMeterValue`,
+  `installedPowerPerMeterValue`, `orderCableLengthValue`, `commercialValue`,
+  `commercialNumber`, `selectionPolicyText`, `getCableMark`,
+  `currentElectricalCalc`, `getCableMarkSource`, `getThreadSource`,
+  `threadSourceTag`, `calcLayoutValues`.
+- Не двигать JSX renderers, table columns, copy callback, Glide actions,
+  hooks/effects, React Query, Zustand, mutations, preferences, payload builders
+  и business workflow.
+- Не менять видимые тексты, формат чисел, единицы, `manual_selection`,
+  `stale`/error filtering и fallback `results.selected_cable`.
+- Добавить focused unit:
+  `frontend/src/__tests__/unit/pages/electrical/elecCalcResultValueModel.test.ts`.
+
+Definition of Done:
+
+- `ElecCalcPage.tsx` импортирует вынесенные helpers и не держит локальный
+  duplicate-блок result/value helpers.
+- Unit покрывает selected cable fallback, success/error/stale filtering,
+  explicit `order_cable_length`, commercial projection, selection policy text,
+  thread source tags и layout defaults.
+- Запущены:
+  `npm --prefix frontend test -- --run src/__tests__/unit/pages/electrical/elecCalcResultValueModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCandidateCompareModel.test.ts src/__tests__/unit/pages/electrical/elecCalcQueryModel.test.ts src/__tests__/integration/pages/ElecCalcPage.test.tsx`
+- Запущены `npm --prefix frontend run typecheck` и `git diff --check`.
+- Playwright/screenshots не требуются, если JSX/CSS/visible UI не менялись.
+
+## Prompt 7. Вынести main table copy/status model
+
+Status: Done. Не запускать повторно без нового finding.
+
+Режим `/fix-focused`.
+Scope: только чистая модель текстовых значений основной таблицы SC-04:
+TSV/copy values, labels типов/статусов, object display name и metadata
+`cable_snapshot_status`.
+
+Анализ документа перед выполнением:
+
+- Ledger после Prompt 6 оставляет `Main table render/copy` как следующий
+  безопасный участок, но `electricalColumnRenderers` содержит JSX, AntD
+  `Button/Tag/Tooltip/Space`, active-row actions и callbacks. Это не pure
+  slice.
+- Безопасная часть внутри этого участка - `electricalColumnCopyValue`,
+  `objectDisplayName`, label dictionaries и `cableSnapshotStatusTag`: они не
+  содержат JSX, React state/effects, DOM, React Query, Zustand, mutations,
+  payload builders или backend calls.
+- `docs/srs/ui/guest/03-screen-workspace-electrical.md`, `docs/api.md` и
+  `docs/context/formulas-summary.md` фиксируют тексты/смысл статусов,
+  выбранную марку, параметры укладки, коммерческую проекцию и правило успешного
+  электрорасчёта. Этот slice не меняет формулы, единицы, API/payload,
+  persistence, JSX/CSS или видимые действия.
+
+Задача:
+
+- Вынести из `frontend/src/pages/ElecCalcPage.tsx` только:
+  `CableTypeKey`, `CABLE_TYPE_LABEL`, `OBJECT_TYPE_LABEL`,
+  `CONNECTION_TYPE_LABEL`, `STOCK_STATUS_LABEL`, `objectDisplayName`,
+  `cableSnapshotStatusTag` и pure-wrapper для `electricalColumnCopyValue`.
+- Целевой файл:
+  `frontend/src/pages/electrical/elecCalcMainTableModel.ts`.
+- В `ElecCalcPage.tsx` оставить `useCallback` и передавать в модель только
+  явный context: `calcByObjectId`, offset, cable type resolver и default
+  electrical parameters.
+- Не двигать `electricalColumnRenderers`, JSX, Glide actions/cell state,
+  `handleElectricalGlideCommitCell`, column settings, filters, mutations,
+  hooks/effects, payload builders, backend/API и persistence.
+- Не менять тексты `Рассчитан`, `Не применимо`, `Требуется пересчёт`,
+  `Ошибка`, `Не рассчитан`, `ручн.`, source labels, commercial stock labels,
+  `manual_selection`, fallback `results.selected_cable` и filtering
+  failed/stale/current calc.
+- Добавить focused unit:
+  `frontend/src/__tests__/unit/pages/electrical/elecCalcMainTableModel.test.ts`.
+
+Definition of Done:
+
+- `ElecCalcPage.tsx` импортирует main-table copy/status helpers и больше не
+  держит локальный duplicate-блок copy/status labels.
+- Unit покрывает object labels, snapshot status labels/tooltips, heat-loss
+  statuses, electrical success/unsupported/stale/error statuses, `selected_cable`
+  fallback, thread source suffix, defaults, connection/stock labels,
+  commercial values and stale/current filtering for copy text.
+- Запущены:
+  `npm --prefix frontend test -- --run src/__tests__/unit/pages/electrical/elecCalcMainTableModel.test.ts src/__tests__/unit/pages/electrical/elecCalcLayoutModel.test.ts src/__tests__/unit/pages/electrical/elecCalcResultValueModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCandidateCompareModel.test.ts src/__tests__/unit/pages/electrical/elecCalcQueryModel.test.ts src/__tests__/integration/pages/ElecCalcPage.test.tsx`
+- Запущены `npm --prefix frontend run typecheck` и `git diff --check`.
+- Playwright/screenshots не требуются, если JSX/CSS/visible UI не менялись.
+
+## Prompt 6. Вынести layout numeric helpers
+
+Status: Done. Не запускать повторно без нового finding.
+
+Режим `/fix-focused`.
+Scope: только чистые numeric/input helpers inline-редактирования параметров
+укладки в основной таблице `ElecCalcPage`.
+
+Анализ документа перед выполнением:
+
+- `Prompt 4` прямо отмечает `parseElectricalLayoutNumber`,
+  `maxThreadsForCableType`, `pipeOuterDiameterMm`,
+  `maxWindingCoefficientForDiameterMm`, `windingCoefficientForPitch` как
+  следующий безопасный pure-кандидат.
+- Документированный oracle для `maxWindingCoefficientForDiameterMm` находится в
+  `docs/tnp/algorithms/winding.md` и `docs/context/formulas-summary.md`:
+  граничные точки `75/89/108` трактуются консервативно как включённые в нижний
+  диапазон.
+- `docs/srs/ui/guest/03-screen-workspace-electrical.md` и
+  `docs/api.md` фиксируют, что шаг навива и количество ниток являются
+  параметрами укладки SC-04; этот slice не меняет payload, backend, формулы,
+  JSX/CSS или сохранение.
+
+Задача:
+
+- Вынести из `frontend/src/pages/ElecCalcPage.tsx` только:
+  `ELECTRICAL_LAYOUT_EDITABLE_COLUMNS`, `parseElectricalLayoutNumber`,
+  `maxThreadsForCableType`, `pipeOuterDiameterMm`,
+  `maxWindingCoefficientForDiameterMm`, `windingCoefficientForPitch`.
+- Целевой файл:
+  `frontend/src/pages/electrical/elecCalcLayoutModel.ts`.
+- Не двигать `handleElectricalGlideCommitCell`, Glide cell state/actions,
+  table columns/renderers, mutations, hooks/effects, payload builders,
+  backend/API и persistence.
+- Не менять тексты ошибок, единицы измерения, rounding поведения,
+  ограничения `self_regulating -> 3`, full-version `self_regulating_tt` и
+  резистивные типы `-> 100`.
+- Добавить focused unit:
+  `frontend/src/__tests__/unit/pages/electrical/elecCalcLayoutModel.test.ts`.
+
+Definition of Done:
+
+- `ElecCalcPage.tsx` импортирует layout helpers и не держит локальный
+  duplicate-блок layout numeric helpers.
+- Unit покрывает editable column set, парсинг `12,5`, пустой/невалидный ввод,
+  лимиты ниток по типам кабеля, перевод диаметра трубы м -> мм, boundary
+  oracle `57/75/89/108` и формулу `sqrt(1 + (pi * D / pitch)^2)`.
+- Запущены:
+  `npm --prefix frontend test -- --run src/__tests__/unit/pages/electrical/elecCalcLayoutModel.test.ts src/__tests__/unit/pages/electrical/elecCalcResultValueModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCandidateCompareModel.test.ts src/__tests__/unit/pages/electrical/elecCalcQueryModel.test.ts src/__tests__/integration/pages/ElecCalcPage.test.tsx`
+- Запущены `npm --prefix frontend run typecheck` и `git diff --check`.
+- Playwright/screenshots не требуются, если JSX/CSS/visible UI не менялись.
