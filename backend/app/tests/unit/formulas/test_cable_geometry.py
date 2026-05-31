@@ -50,7 +50,7 @@ class TestCylinderPerimeter:
             shape="cylindrical",
             diameter=2.0,
             heating_height=2.0,
-            laying_step=0.05,
+            laying_step=0.1,
         )
         assert fine > coarse
 
@@ -141,40 +141,42 @@ class TestUnsupportedShapes:
 
 class TestStepValidation:
     def test_step_below_min_raises(self):
-        """Шаг укладки 0.05 м — нижняя граница."""
-        with pytest.raises(ValueError, match="0.05"):
+        """Source: Блок теплопотери и выбор кабеля/переменные резервуар.xlsx, Лист1!A22:D22."""
+        with pytest.raises(ValueError, match="0.1"):
             compute_tank_cable_length(
                 shape="cylindrical",
                 diameter=2.0,
                 heating_height=2.0,
-                laying_step=0.04,
+                laying_step=0.099,
             )
 
     def test_step_above_max_raises(self):
-        """Шаг укладки 0.5 м — верхняя граница."""
-        with pytest.raises(ValueError, match="0.5"):
+        """Source: Блок теплопотери и выбор кабеля/переменные резервуар.xlsx, Лист1!A22:D22."""
+        with pytest.raises(ValueError, match="0.4"):
             compute_tank_cable_length(
                 shape="cylindrical",
                 diameter=2.0,
                 heating_height=2.0,
-                laying_step=0.51,
+                laying_step=0.401,
             )
 
     def test_step_at_min_ok(self):
+        """Source: Блок теплопотери и выбор кабеля/переменные резервуар.xlsx, Лист1!A22:D22."""
         n = compute_tank_cable_length(
             shape="cylindrical",
             diameter=2.0,
             heating_height=2.0,
-            laying_step=0.05,
+            laying_step=0.1,
         )
         assert n > 0
 
     def test_step_at_max_ok(self):
+        """Source: Блок теплопотери и выбор кабеля/переменные резервуар.xlsx, Лист1!A22:D22."""
         n = compute_tank_cable_length(
             shape="cylindrical",
             diameter=2.0,
             heating_height=2.0,
-            laying_step=0.5,
+            laying_step=0.4,
         )
         assert n > 0
 

@@ -647,7 +647,7 @@ class SelfRegulatingTTParams(BaseModel):
     tank_length: float | None = Field(default=None, gt=0)
     tank_width: float | None = Field(default=None, gt=0)
     heating_height: float | None = Field(default=None, gt=0)
-    laying_step: float | None = Field(default=None, ge=0.05, le=0.5)
+    laying_step: float | None = Field(default=None, ge=0.1, le=0.4)
 
 
 class SelfRegulatingTTResult(BaseModel):
@@ -760,8 +760,8 @@ class ResistiveSingleCoreParams(BaseModel):
     )
     laying_step: float | None = Field(
         default=None,
-        ge=0.05,
-        le=0.5,
+        ge=0.1,
+        le=0.4,
         description="w_step — шаг укладки, м",
     )
 
@@ -889,8 +889,8 @@ class ResistiveThreeCoreParams(BaseModel):
     )
     laying_step: float | None = Field(
         default=None,
-        ge=0.05,
-        le=0.5,
+        ge=0.1,
+        le=0.4,
         description="w_step — шаг укладки, м",
     )
 
@@ -986,7 +986,7 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
     winding_pitch: float | None = None
     number_of_threads: int | None = None
     heating_height: float | None = None
-    laying_step: float | None = None
+    laying_step: float | None = Field(default=None, ge=0.1, le=0.4)
     maintain_temperature: float | None = None
     vapor_temperature: float | None = None
     aggressive_product: bool = False
@@ -1291,7 +1291,7 @@ class ElectricalBatchJobRequest(BaseModel):
     winding_pitch: float | None = None
     number_of_threads: int | None = None
     heating_height: float | None = None
-    laying_step: float | None = None
+    laying_step: float | None = Field(default=None, ge=0.1, le=0.4)
     maintain_temperature: float | None = None
     vapor_temperature: float | None = None
     aggressive_product: bool = False

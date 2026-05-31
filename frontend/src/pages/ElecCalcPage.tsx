@@ -1960,7 +1960,7 @@ export default function ElecCalcPage() {
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>h:</Text>
           <InputNumber<number> size="small" min={0} step={0.1} value={recalc.heatingHeight} onChange={setRecalc.heatingHeight} style={{ width: 76 }} />
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>шаг:</Text>
-          <InputNumber<number> size="small" min={0.05} max={0.5} step={0.01} value={recalc.layingStep} onChange={setRecalc.layingStep} style={{ width: 76 }} />
+          <InputNumber<number> size="small" min={0.1} max={0.4} step={0.01} value={recalc.layingStep} onChange={setRecalc.layingStep} style={{ width: 76 }} />
         </>,
       );
     }

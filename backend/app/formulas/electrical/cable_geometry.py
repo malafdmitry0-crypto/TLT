@@ -11,8 +11,8 @@
 
 import math
 
-LAYING_STEP_MIN = 0.05
-LAYING_STEP_MAX = 0.5
+LAYING_STEP_MIN = 0.1
+LAYING_STEP_MAX = 0.4
 
 
 def compute_tank_cable_length(
@@ -31,7 +31,7 @@ def compute_tank_cable_length(
         diameter: для цилиндра — диаметр, м (>0)
         length, width: для прямоугольника — длина и ширина основания, м (>0)
         heating_height: высота зоны обогрева h_укл, м (>0)
-        laying_step: шаг укладки w_step, м (0.05–0.5)
+        laying_step: шаг укладки w_step, м (0.1–0.4)
 
     Returns:
         Длина кабеля N, м.

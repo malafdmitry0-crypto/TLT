@@ -1,10 +1,14 @@
 """Валидация Pydantic-схем расчётов."""
 
+from uuid import uuid4
+
 import pytest
 from pydantic import ValidationError
 
 from app.reference_data.loader import list_soil_conductivity
 from app.schemas.calculation import (
+    ElectricalBatchJobRequest,
+    ElectricalCableSelectionVariantsRequest,
     InsulationLayer,
     PipeHeatLossParams,
     ResistiveSingleCoreParams,
@@ -575,23 +579,51 @@ class TestSelfRegulatingParams:
 
 
 class TestElectricalTankLayingStepLimits:
-    def test_tank_laying_step_bounds_match_application_range(self):
+    def test_tank_laying_step_bounds_match_source_document(self):
+        """Source: Блок теплопотери и выбор кабеля/переменные резервуар.xlsx, Лист1!A22:D22."""
         valid = dict(
             required_power_per_meter=20,
             pipe_length=10,
             process_temperature=80,
             heating_height=2,
         )
-        assert SelfRegulatingTTParams(**valid, laying_step=0.05).laying_step == 0.05
-        assert SelfRegulatingTTParams(**valid, laying_step=0.5).laying_step == 0.5
+        assert SelfRegulatingTTParams(**valid, laying_step=0.1).laying_step == 0.1
+        assert SelfRegulatingTTParams(**valid, laying_step=0.4).laying_step == 0.4
         with pytest.raises(ValidationError):
-            SelfRegulatingTTParams(**valid, laying_step=0.04)
+            SelfRegulatingTTParams(**valid, laying_step=0.099)
         with pytest.raises(ValidationError):
-            SelfRegulatingTTParams(**valid, laying_step=0.51)
+            SelfRegulatingTTParams(**valid, laying_step=0.401)
 
-    def test_resistive_tank_laying_step_bounds_match_application_range(self):
+    def test_resistive_tank_laying_step_bounds_match_source_document(self):
+        """Source: Блок теплопотери и выбор кабеля/переменные резервуар.xlsx, Лист1!A22:D22."""
         base = dict(required_heat_loss=5000, pipe_length=10, process_temperature=80)
+        assert ResistiveSingleCoreParams(**base, laying_step=0.1).laying_step == 0.1
+        assert ResistiveThreeCoreParams(**base, laying_step=0.4).laying_step == 0.4
         with pytest.raises(ValidationError):
-            ResistiveSingleCoreParams(**base, laying_step=0.04)
+            ResistiveSingleCoreParams(**base, laying_step=0.099)
         with pytest.raises(ValidationError):
-            ResistiveThreeCoreParams(**base, laying_step=0.51)
+            ResistiveThreeCoreParams(**base, laying_step=0.401)
+
+    def test_electrical_request_laying_step_bounds_match_source_document(self):
+        """Source: Блок теплопотери и выбор кабеля/переменные резервуар.xlsx, Лист1!A22:D22."""
+        object_id = uuid4()
+        assert ElectricalCableSelectionVariantsRequest(
+            object_id=object_id,
+            laying_step=0.1,
+        ).laying_step == 0.1
+        assert ElectricalCableSelectionVariantsRequest(
+            object_id=object_id,
+            laying_step=0.4,
+        ).laying_step == 0.4
+        with pytest.raises(ValidationError):
+            ElectricalCableSelectionVariantsRequest(object_id=object_id, laying_step=0.099)
+        with pytest.raises(ValidationError):
+            ElectricalCableSelectionVariantsRequest(object_id=object_id, laying_step=0.401)
+
+        project_id = uuid4()
+        assert ElectricalBatchJobRequest(project_id=project_id, laying_step=0.1).laying_step == 0.1
+        assert ElectricalBatchJobRequest(project_id=project_id, laying_step=0.4).laying_step == 0.4
+        with pytest.raises(ValidationError):
+            ElectricalBatchJobRequest(project_id=project_id, laying_step=0.099)
+        with pytest.raises(ValidationError):
+            ElectricalBatchJobRequest(project_id=project_id, laying_step=0.401)

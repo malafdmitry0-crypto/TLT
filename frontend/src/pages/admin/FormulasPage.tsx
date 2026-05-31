@@ -1291,7 +1291,7 @@ function TTTab() {
           {tankShape && (
             <Row gutter={12}>
               <Col span={12}><Form.Item name="heating_height" label="Высота обогрева, м" rules={[{ required: true }]}><InputNumber min={0.001} style={{ width: '100%' }} /></Form.Item></Col>
-              <Col span={12}><Form.Item name="laying_step" label="Шаг укладки, м" rules={[{ required: true }]}><InputNumber min={0.05} max={0.5} step={0.01} style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="laying_step" label="Шаг укладки, м" rules={[{ required: true }]}><InputNumber min={0.1} max={0.4} step={0.01} style={{ width: '100%' }} /></Form.Item></Col>
             </Row>
           )}
           <Button type="primary" onClick={onCalc} loading={loading}>Подобрать кабель</Button>
@@ -1397,7 +1397,7 @@ function ResistiveTab() {
           {tankShape && (
             <Row gutter={12}>
               <Col span={12}><Form.Item name="heating_height" label="Высота обогрева, м" rules={[{ required: true }]}><InputNumber min={0.001} style={{ width: '100%' }} /></Form.Item></Col>
-              <Col span={12}><Form.Item name="laying_step" label="Шаг укладки, м" rules={[{ required: true }]}><InputNumber min={0.05} max={0.5} step={0.01} style={{ width: '100%' }} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="laying_step" label="Шаг укладки, м" rules={[{ required: true }]}><InputNumber min={0.1} max={0.4} step={0.01} style={{ width: '100%' }} /></Form.Item></Col>
             </Row>
           )}
           <Button type="primary" onClick={onCalc} loading={loading}>Подобрать кабель</Button>
@@ -1444,7 +1444,7 @@ function TankCableTab() {
           )}
           <Row gutter={12}>
             <Col span={12}><Form.Item name="heating_height" label="Высота обогрева, м" rules={[{ required: true }]}><InputNumber min={0.001} style={{ width: '100%' }} placeholder="2" /></Form.Item></Col>
-            <Col span={12}><Form.Item name="laying_step" label="Шаг укладки, м" rules={[{ required: true }]}><InputNumber min={0.05} max={0.5} step={0.01} style={{ width: '100%' }} placeholder="0.2" /></Form.Item></Col>
+            <Col span={12}><Form.Item name="laying_step" label="Шаг укладки, м" rules={[{ required: true }]}><InputNumber min={0.1} max={0.4} step={0.01} style={{ width: '100%' }} placeholder="0.2" /></Form.Item></Col>
           </Row>
           <Button type="primary" onClick={onCalc} loading={loading}>Рассчитать</Button>
         </Form>
