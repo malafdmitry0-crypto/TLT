@@ -209,8 +209,11 @@ import {
 import {
   DEFAULT_CABLE_TYPE,
   FULL_FEATURE_CABLE_TYPES,
+  buildCableTypeObjectOverrides,
   isResistiveCableType,
   MVP_CABLE_TYPES,
+  normalizeCableTypeForAvailableTypes,
+  resolveUniformCableType,
 } from '@/pages/electrical/elecCalcCableTypeModel';
 import {
   isBatchElectricalResponse,
@@ -338,7 +341,7 @@ export default function ElecCalcPage() {
   );
   const normalizeAvailableCableType = useCallback(
     (type: CableTypeKey | null | undefined): CableTypeKey =>
-      type && availableCableTypes.has(type) ? type : DEFAULT_CABLE_TYPE,
+      normalizeCableTypeForAvailableTypes(type, availableCableTypes),
     [availableCableTypes],
   );
   const location = useLocation();
@@ -671,11 +674,10 @@ export default function ElecCalcPage() {
     () => selectedRowKeys.map((objectId) => getDraftCableTypeForObject(objectId)),
     [getDraftCableTypeForObject, selectedRowKeys],
   );
-  const selectedCableType = useMemo<CableTypeKey | null>(() => {
-    if (selectedCableTypes.length === 0) return null;
-    const [firstType] = selectedCableTypes;
-    return selectedCableTypes.every((type) => type === firstType) ? firstType : null;
-  }, [selectedCableTypes]);
+  const selectedCableType = useMemo<CableTypeKey | null>(
+    () => resolveUniformCableType(selectedCableTypes),
+    [selectedCableTypes],
+  );
   const selectedCableTypesMixed = selectedCableTypes.length > 0 && selectedCableType == null;
   const cableTypeForRecalculation = selectedCableTypesMixed
     ? defaultCableType
@@ -683,19 +685,8 @@ export default function ElecCalcPage() {
   const visibleCableTypeControl = selectedCableTypesMixed ? null : cableTypeForRecalculation;
 
   const objectOverridesForIds = useCallback((objectIds: string[]) =>
-    objectIds
-      .map((objectId) => {
-        const draftType = cableTypeDraftByObjectId[objectId];
-        const cableType = normalizeAvailableCableType(draftType);
-        return draftType
-          ? {
-              object_id: objectId,
-              cable_type: cableType,
-            }
-          : null;
-      })
-      .filter((item): item is { object_id: string; cable_type: CableTypeKey } => item != null),
-  [cableTypeDraftByObjectId, normalizeAvailableCableType]);
+    buildCableTypeObjectOverrides(objectIds, cableTypeDraftByObjectId, availableCableTypes),
+  [availableCableTypes, cableTypeDraftByObjectId]);
 
   useEffect(() => {
     const visibleIds = new Set(objects.map((object) => object.id));
