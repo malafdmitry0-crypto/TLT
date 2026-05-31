@@ -148,6 +148,7 @@ Potential target structure:
 | Layout commit validation model | Done | 2026-06-01: pure validation and next layout values for Glide layout commit moved to `elecCalcLayoutModel.ts`; mutation payload assembly remains in `ElecCalcPage`; focused model unit + `ElecCalcPage` integration |
 | Main Glide cell state hook | Done | 2026-06-01: thin cell-state hook moved display/editability assembly to `useElecCalcGlideCellState.ts`; page keeps renderers, actions and handlers; focused hook unit + `ElecCalcPage` integration |
 | Candidate Glide cell state hook | Done | 2026-06-01: thin candidate cell-state hook moved marked/diff/display/error assembly to `useElecCalcCandidateGlideCellState.ts`; page keeps actions, menu handlers and mutations; focused hook unit + `ElecCalcPage` integration |
+| Candidate Glide actions/menu hook | Done | 2026-06-01: candidate action descriptors, Glide action routing and folder menu items moved to `useElecCalcCandidateGlideActions.ts`; page keeps JSX renderers and React Query mutations; focused hook unit + candidate grid + `ElecCalcPage` integration |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |

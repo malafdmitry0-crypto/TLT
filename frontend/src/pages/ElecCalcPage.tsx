@@ -238,6 +238,7 @@ import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTy
 import { useElecCalcCandidateCompareState } from '@/pages/electrical/useElecCalcCandidateCompareState';
 import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCalcCandidateFolderUiState';
 import { useElecCalcCandidateFolderViewModel } from '@/pages/electrical/useElecCalcCandidateFolderViewModel';
+import { useElecCalcCandidateGlideActions } from '@/pages/electrical/useElecCalcCandidateGlideActions';
 import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColumnPersistence';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
@@ -2224,35 +2225,20 @@ export default function ElecCalcPage() {
       ? CABLE_TYPE_LABEL[cableTypes.selectedCableType]
       : 'тип по объектам';
   const cableTypeControlLabel = 'Тип для пересчёта:';
-  const getElectricalCandidateGlideCellActions = useCallback((
-    candidate: ElectricalCandidate,
-    columnKey: string,
-  ) => {
-    if (columnKey === 'actions') {
-      return [
-        {
-          key: 'apply',
-          label: candidate.is_applied ? 'Выбран' : 'Выбрать',
-          disabled: candidate.status !== 'applicable' || applyCandidateMut.isPending,
-        },
-        {
-          key: 'folder',
-          label: 'Папка',
-          disabled: toggleCandidateFolderItemMut.isPending,
-        },
-        {
-          key: 'exclude',
-          label: candidate.status === 'excluded' ? 'Вернуть' : 'Искл.',
-          disabled: updateCandidateMut.isPending,
-        },
-      ];
-    }
-    return undefined;
-  }, [
-    applyCandidateMut.isPending,
-    toggleCandidateFolderItemMut.isPending,
-    updateCandidateMut.isPending,
-  ]);
+  const {
+    getElectricalCandidateGlideCellActions,
+    handleElectricalCandidateGlideCellAction,
+    candidateFolderMenuItems,
+    getElectricalCandidateGlideActionMenuItems,
+  } = useElecCalcCandidateGlideActions({
+    candidateFolders: cableSizingCandidateFolders,
+    applyCandidatePending: applyCandidateMut.isPending,
+    updateCandidatePending: updateCandidateMut.isPending,
+    toggleCandidateFolderItemPending: toggleCandidateFolderItemMut.isPending,
+    onApplyCandidate: applyCandidateMut.mutate,
+    onUpdateCandidate: updateCandidateMut.mutate,
+    onToggleCandidateFolderItem: toggleCandidateFolderItemMut.mutate,
+  });
   const getElectricalCandidateGlideColumnAlign = useCallback(
     (columnKey: string) => candidateGlideColumnMetaByKey.get(columnKey)?.align,
     [candidateGlideColumnMetaByKey],
@@ -2264,68 +2250,6 @@ export default function ElecCalcPage() {
     getColumnAlign: getElectricalCandidateGlideColumnAlign,
     getCellActions: getElectricalCandidateGlideCellActions,
   });
-  const handleElectricalCandidateGlideCellAction = useCallback((
-    candidate: ElectricalCandidate,
-    columnKey: string,
-    actionKey: string,
-  ) => {
-    if (columnKey !== 'actions') return;
-    if (actionKey === 'apply') {
-      if (candidate.status !== 'applicable' || candidate.is_applied) return;
-      applyCandidateMut.mutate(candidate.id);
-      return;
-    }
-    if (actionKey === 'exclude') {
-      updateCandidateMut.mutate({
-        candidateId: candidate.id,
-        patch: {
-          status: candidate.status === 'excluded' ? 'applicable' : 'excluded',
-        },
-      });
-    }
-  }, [applyCandidateMut, updateCandidateMut]);
-  const candidateFolderMenuItems = useCallback((candidate: ElectricalCandidate) => {
-    const favoriteItem = {
-      key: 'favorite',
-      label: `${candidate.is_pinned ? '✓ ' : ''}Избранное`,
-      disabled: updateCandidateMut.isPending,
-      onClick: () => updateCandidateMut.mutate({
-        candidateId: candidate.id,
-        patch: {
-          is_pinned: !candidate.is_pinned,
-        },
-      }),
-    };
-    const customFolderItems = cableSizingCandidateFolders.length > 0
-      ? cableSizingCandidateFolders.map((folder) => {
-          const checked = folder.candidate_ids.includes(candidate.id);
-          return {
-            key: folder.id,
-            label: `${checked ? '✓ ' : ''}${folder.name}`,
-            onClick: () => toggleCandidateFolderItemMut.mutate({
-              folderId: folder.id,
-              candidateId: candidate.id,
-              checked: !checked,
-            }),
-          };
-        })
-      : [{ key: 'empty', label: 'Создайте папку', disabled: true }];
-    return [
-      favoriteItem,
-      { key: 'folders-divider', type: 'divider' as const },
-      ...customFolderItems,
-    ];
-  }, [cableSizingCandidateFolders, toggleCandidateFolderItemMut, updateCandidateMut]);
-  const getElectricalCandidateGlideActionMenuItems = useCallback((
-    candidate: ElectricalCandidate,
-    columnKey: string,
-    actionKey: string,
-  ) => {
-    if (columnKey === 'actions' && actionKey === 'folder') {
-      return candidateFolderMenuItems(candidate);
-    }
-    return null;
-  }, [candidateFolderMenuItems]);
 
   if (!project) {
     return (
