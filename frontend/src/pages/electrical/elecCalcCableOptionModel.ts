@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import type { CableSource } from '@/api/calculations';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import {
@@ -6,6 +8,16 @@ import {
 } from '@/utils/cableCatalogSourceLabels';
 
 export type CableMarkOptionSource = CableSource | 'project';
+
+export type CableMarkSelectOption = {
+  value: string;
+  label: ReactNode;
+  searchLabel: string;
+  mark: string | null;
+  optionSource: CableMarkOptionSource;
+  cableSource?: CableSource;
+  disabled?: boolean;
+};
 
 export const AUTO_CABLE_MARK_VALUE = '__auto__';
 export const CABLE_MARK_OPTION_SEPARATOR = '::';

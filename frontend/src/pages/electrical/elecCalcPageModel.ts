@@ -5,6 +5,7 @@ import type { ElectricalTableColumnSettings } from '@/utils/electricalTableColum
 import type { ElectricalTableViewSettings } from '@/utils/electricalTableViewSettings';
 
 export const ELECTRICAL_TABLE_PAGE_SIZE = 50;
+export const SHOW_COMMERCIAL_CABLE_BASE_UI = false;
 export const EMPTY_OBJECTS: ProjectObject[] = [];
 export const EMPTY_ELECTRICAL_CALCS: ElectricalCalcSummary[] = [];
 

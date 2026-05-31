@@ -194,6 +194,7 @@ import {
   normalizeCableMarkOptionSource,
   normalizeCableSource,
   shouldShowProjectCableOption,
+  type CableMarkSelectOption,
   type CableMarkOptionSource,
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import {
@@ -245,6 +246,7 @@ import {
   ELECTRICAL_TABLE_PAGE_SIZE,
   EMPTY_ELECTRICAL_CALCS,
   EMPTY_OBJECTS,
+  SHOW_COMMERCIAL_CABLE_BASE_UI,
   type CandidateFolderModalMode,
   type CopyElectricalVariantMutationArgs,
   type ElectricalBatchMutationArgs,
@@ -319,17 +321,6 @@ import {
 const { Text } = Typography;
 const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
 const ElectricalCandidateGlideGrid = lazy(() => import('@/components/electrical/ElectricalCandidateGlideGrid'));
-
-const SHOW_COMMERCIAL_CABLE_BASE_UI = false;
-type CableMarkSelectOption = {
-  value: string;
-  label: ReactNode;
-  searchLabel: string;
-  mark: string | null;
-  optionSource: CableMarkOptionSource;
-  cableSource?: CableSource;
-  disabled?: boolean;
-};
 
 function renderCandidateElectricalField(
   key: ElectricalColumnKey,

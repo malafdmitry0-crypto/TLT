@@ -1,4 +1,4 @@
-import type { SelectionPolicy } from '@/api/calculations';
+import { selectionPolicyText } from '@/pages/electrical/elecCalcSelectionPolicyModel';
 import type { ElectricalCandidate } from '@/types/calculation';
 import type { ElectricalCandidateColumnKey } from '@/utils/electricalCandidateTableColumns';
 import { formatNumber, formatPower } from '@/utils/formatters';
@@ -20,15 +20,6 @@ const CANDIDATE_CABLE_TYPE_LABEL: Record<CandidateCableTypeKey, string> = {
   three_core: 'Трёхж. пост. мощн.',
   mineral: 'С мин. изоляцией',
   skin: 'Скин-система',
-};
-
-const CANDIDATE_SELECTION_POLICY_LABEL: Record<SelectionPolicy, string> = {
-  technical_minimum: 'Технический',
-  lowest_cost: 'Дешевле',
-  fastest_delivery: 'Быстрее',
-  in_stock: 'В наличии',
-  preferred_supplier: 'Приоритет',
-  balanced: 'Баланс',
 };
 
 const CANDIDATE_CONNECTION_TYPE_LABEL: Record<string, string> = {
@@ -75,12 +66,6 @@ function candidateNumberText(value: unknown, digits = 2) {
 function candidatePowerText(value: unknown) {
   if (value === null || value === undefined || value === '') return '—';
   return formatPower(Number(value));
-}
-
-function candidateSelectionPolicyText(value: unknown) {
-  if (typeof value !== 'string') return '—';
-  return CANDIDATE_SELECTION_POLICY_LABEL[value as SelectionPolicy]
-    ?? (value === 'manual_selection' ? 'Ручной' : value);
 }
 
 function candidateCableTypeText(value: unknown) {
@@ -131,9 +116,9 @@ export function candidateElectricalFieldValue(
     case 'cable_mark':
       return candidate.cable_mark;
     case 'selection_policy':
-      return candidateSelectionPolicyText(candidate.results?.selection_policy);
+      return selectionPolicyText(candidate.results?.selection_policy);
     case 'applied_selection_policy':
-      return candidateSelectionPolicyText(candidate.results?.applied_selection_policy);
+      return selectionPolicyText(candidate.results?.applied_selection_policy);
     case 'selection_reason':
       return candidate.reason_message ?? candidate.results?.selection_reason;
     case 'winding_pitch_mm':
@@ -216,9 +201,9 @@ export function candidateCompareDisplayValue(
     case 'cable_mark':
       return candidateValueText(candidate.cable_mark);
     case 'selection_policy':
-      return candidateSelectionPolicyText(candidate.results?.selection_policy);
+      return selectionPolicyText(candidate.results?.selection_policy);
     case 'applied_selection_policy':
-      return candidateSelectionPolicyText(candidate.results?.applied_selection_policy);
+      return selectionPolicyText(candidate.results?.applied_selection_policy);
     case 'selection_reason':
       return candidateValueText(candidate.reason_message ?? candidate.results?.selection_reason);
     case 'winding_pitch_mm':
