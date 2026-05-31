@@ -1,4 +1,9 @@
+import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
+import {
+  currentElectricalCalc,
+  getCableMark,
+} from '@/pages/electrical/elecCalcResultValueModel';
 
 export type ElectricalLayoutCableType =
   | 'self_regulating'
@@ -9,6 +14,31 @@ export type ElectricalLayoutCableType =
   | 'skin';
 
 export const ELECTRICAL_LAYOUT_EDITABLE_COLUMNS = new Set(['winding_pitch_mm', 'number_of_threads']);
+
+export type ElectricalLayoutCellEditabilityOptions = {
+  obj: ProjectObject;
+  columnKey: string;
+  projectSelected: boolean;
+  isCableMarkPending: boolean;
+  calcByObjectId: Record<string, ElectricalCalcSummary | undefined>;
+  getCableTypeForObject: (objectId: string) => string | null | undefined;
+};
+
+export function isElectricalLayoutCellEditable({
+  obj,
+  columnKey,
+  projectSelected,
+  isCableMarkPending,
+  calcByObjectId,
+  getCableTypeForObject,
+}: ElectricalLayoutCellEditabilityOptions) {
+  if (!ELECTRICAL_LAYOUT_EDITABLE_COLUMNS.has(columnKey)) return false;
+  if (!projectSelected || !obj.is_valid || isCableMarkPending) return false;
+  const calc = currentElectricalCalc(calcByObjectId[obj.id]);
+  if (!calc || !getCableMark(calc)) return false;
+  const cableType = getCableTypeForObject(obj.id);
+  return cableType !== 'mineral' && cableType !== 'skin';
+}
 
 export function parseElectricalLayoutNumber(value: unknown) {
   const text = String(value ?? '').trim().replace(',', '.');

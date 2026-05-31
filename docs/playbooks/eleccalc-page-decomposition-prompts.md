@@ -144,6 +144,7 @@ Potential target structure:
 | Glide column model hook | Done | 2026-05-31: main/candidate Glide column metadata, widths, filters and candidate meta lookup moved to `useElecCalcGlideColumnModel.ts`; focused hook unit + `ElecCalcPage` integration |
 | Main table copy value hook | Done | 2026-05-31: page dependency wrapper around `mainElectricalColumnCopyValue` moved to `useElecCalcElectricalColumnCopyValue.ts`; focused hook unit + `ElecCalcPage` integration |
 | Selected rows clipboard effect hook | Done | 2026-05-31: Ctrl+C selected-row TSV copy side effect moved to `useElecCalcSelectedRowsClipboardEffect.ts`; focused hook unit with clipboard/message mocks + `ElecCalcPage` integration |
+| Layout editability model | Done | 2026-06-01: layout cell editability rules moved to `elecCalcLayoutModel.ts`; focused model unit + `ElecCalcPage` integration |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |

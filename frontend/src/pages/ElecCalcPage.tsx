@@ -195,6 +195,7 @@ import {
 } from '@/pages/electrical/elecCalcPageModel';
 import {
   ELECTRICAL_LAYOUT_EDITABLE_COLUMNS,
+  isElectricalLayoutCellEditable as resolveElectricalLayoutCellEditable,
   maxThreadsForCableType,
   maxWindingCoefficientForDiameterMm,
   parseElectricalLayoutNumber,
@@ -1997,12 +1998,14 @@ export default function ElecCalcPage() {
   });
 
   const isElectricalLayoutCellEditable = useCallback((obj: ProjectObject, columnKey: string) => {
-    if (!ELECTRICAL_LAYOUT_EDITABLE_COLUMNS.has(columnKey)) return false;
-    if (!project || !obj.is_valid || isCableMarkPending) return false;
-    const calc = currentElectricalCalc(stats.calcByObjectId[obj.id]);
-    if (!calc || !getCableMark(calc)) return false;
-    const cableType = cableTypes.getSavedCableTypeForObject(obj.id);
-    return cableType !== 'mineral' && cableType !== 'skin';
+    return resolveElectricalLayoutCellEditable({
+      obj,
+      columnKey,
+      projectSelected: Boolean(project),
+      isCableMarkPending,
+      calcByObjectId: stats.calcByObjectId,
+      getCableTypeForObject: cableTypes.getSavedCableTypeForObject,
+    });
   }, [cableTypes.getSavedCableTypeForObject, isCableMarkPending, project, stats.calcByObjectId]);
 
   const getElectricalGlideCellState = useCallback((
