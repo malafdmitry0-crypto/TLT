@@ -201,6 +201,9 @@ import {
   type CableMarkOptionSource,
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import {
+  buildDisplayedCandidateRows,
+} from '@/pages/electrical/elecCalcCandidateTableModel';
+import {
   cableSnapshotRow,
   commercialStatus,
   technicalStatus,
@@ -315,8 +318,6 @@ import {
   visibleCableRowsForSource,
 } from '@/utils/cableCatalogSourceLabels';
 import {
-  applyColumnFilters,
-  applyTableSort,
   createEmptyTableViewState,
   hasActiveTableViewState,
   isColumnFilterActive,
@@ -1928,24 +1929,14 @@ export default function ElecCalcPage() {
     previousActiveCandidateFolderKeyRef.current = activeCandidateFolderKey;
     setMarkedCableSizingCandidateIds([]);
   }, [activeCandidateFolderKey]);
-  const cableSizingCandidateTableRows = useMemo(
-    () => cableSizingCandidatesByActiveFolder.map((record, sourceIndex) => ({ record, sourceIndex })),
-    [cableSizingCandidatesByActiveFolder],
-  );
-  const displayedCableSizingCandidates = useMemo(() => {
-    const sortedRows = applyTableSort(
-      applyColumnFilters(
-        cableSizingCandidateTableRows,
-        candidateTableViewState.filters,
-        candidateColumnValueAccessors,
-      ),
-      candidateTableViewState.sort,
+  const displayedCableSizingCandidates = useMemo(
+    () => buildDisplayedCandidateRows(
+      cableSizingCandidatesByActiveFolder,
+      candidateTableViewState,
       candidateColumnValueAccessors,
-    );
-    const appliedRows = sortedRows.filter((row) => row.record.is_applied);
-    const otherRows = sortedRows.filter((row) => !row.record.is_applied);
-    return [...appliedRows, ...otherRows].map((row) => row.record);
-  }, [cableSizingCandidateTableRows, candidateColumnValueAccessors, candidateTableViewState]);
+    ),
+    [cableSizingCandidatesByActiveFolder, candidateColumnValueAccessors, candidateTableViewState],
+  );
   const displayedMarkedCableSizingCandidates = useMemo(
     () => displayedCableSizingCandidates.filter((candidate) =>
       markedCableSizingCandidateSet.has(candidate.id),

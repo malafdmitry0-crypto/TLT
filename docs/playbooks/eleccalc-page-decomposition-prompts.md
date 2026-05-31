@@ -112,6 +112,7 @@ Potential target structure:
 | Enum filter option builders | Done | 2026-05-31: main/candidate enum option builders moved to `elecCalcTableFilterModel.ts`; focused unit + `ElecCalcPage` integration |
 | Candidate compare diff keys | Done | 2026-05-31: diff-key detection moved to `elecCalcCandidateCompareModel.ts`; focused unit + `ElecCalcPage` integration |
 | Candidate table value accessors | Done | 2026-05-31: candidate table accessor builder moved to `elecCalcCandidateCompareModel.ts`; focused unit + `ElecCalcPage` integration |
+| Candidate displayed rows model | Done | 2026-05-31: candidate filter/sort/applied-first projection moved to `elecCalcCandidateTableModel.ts`; focused unit + `ElecCalcPage` integration |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | page/filter/sort/cursor state, hidden-column cleanup |
