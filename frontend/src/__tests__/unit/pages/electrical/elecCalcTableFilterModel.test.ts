@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildCandidateEnumOptionsByColumn,
+  buildElectricalEnumOptionsByColumn,
   CANDIDATE_BOOLEAN_FILTER_KEYS,
   CANDIDATE_ENUM_FILTER_KEYS,
   CANDIDATE_NUMERIC_FILTER_KEYS,
@@ -10,8 +12,13 @@ import {
   updateTableViewColumnFilter,
   updateTableViewSort,
 } from '@/pages/electrical/elecCalcTableFilterModel';
+import type { ElectricalCandidate } from '@/types/calculation';
 import type { ObjectQueryFieldCapability, ObjectQueryFilterOp } from '@/types/project';
-import type { HeatCalcColumnFilter, HeatCalcTableViewState } from '@/utils/heatCalcTableFindability';
+import type {
+  HeatCalcColumnFilter,
+  HeatCalcColumnValueAccessors,
+  HeatCalcTableViewState,
+} from '@/utils/heatCalcTableFindability';
 
 function capability(
   ops: ObjectQueryFilterOp[],
@@ -135,6 +142,61 @@ describe('elecCalcTableFilterModel', () => {
         cable_mark: filter,
       },
       sort: undefined,
+    });
+  });
+
+  it('builds main table enum filter options from backend capabilities', () => {
+    const statusCapability = {
+      ...capability(['in'], 'enum'),
+      key: 'electrical_status',
+      options: {
+        mode: 'inline',
+        include_empty: true,
+        items: [
+          { value: 'success', label: 'Успешно' },
+          { value: 404, label: 'Ошибка 404' },
+        ],
+      },
+    } satisfies ObjectQueryFieldCapability;
+    const textCapability = {
+      ...capability(['contains'], 'text'),
+      key: 'object_name',
+    } satisfies ObjectQueryFieldCapability;
+
+    expect(buildElectricalEnumOptionsByColumn([statusCapability, textCapability])).toEqual({
+      electrical_status: [
+        { value: 'success', label: 'Успешно' },
+        { value: '404', label: 'Ошибка 404' },
+      ],
+    });
+    expect(buildElectricalEnumOptionsByColumn(null)).toEqual({});
+  });
+
+  it('builds candidate enum filter options from visible enum columns and accessors', () => {
+    const candidates = [
+      { id: 'candidate-1', cable_type: 'tt', mode: 'manual' },
+      { id: 'candidate-2', cable_type: 'selfreg', mode: 'auto' },
+      { id: 'candidate-3', cable_type: 'tt', mode: '—' },
+    ] as ElectricalCandidate[];
+    const accessors: HeatCalcColumnValueAccessors<ElectricalCandidate> = {
+      cable_type: (candidate) => candidate.cable_type,
+      mode: (candidate) => candidate.mode,
+      cable_mark: (candidate) => candidate.cable_mark,
+    };
+
+    expect(buildCandidateEnumOptionsByColumn(
+      candidates,
+      [{ key: 'cable_type' }, { key: 'mode' }, { key: 'cable_mark' }],
+      accessors,
+    )).toEqual({
+      cable_type: [
+        { value: 'selfreg', label: 'selfreg' },
+        { value: 'tt', label: 'tt' },
+      ],
+      mode: [
+        { value: 'auto', label: 'auto' },
+        { value: 'manual', label: 'manual' },
+      ],
     });
   });
 });

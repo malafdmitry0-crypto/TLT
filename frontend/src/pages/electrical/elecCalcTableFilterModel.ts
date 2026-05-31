@@ -1,15 +1,18 @@
+import type { ElectricalCandidate } from '@/types/calculation';
 import type { ObjectQueryFieldCapability } from '@/types/project';
 import type { ElectricalCandidateColumnKey } from '@/utils/electricalCandidateTableColumns';
 import type { ElectricalColumnKey } from '@/utils/electricalTableColumns';
 import {
   isColumnFilterActive,
   type HeatCalcColumnFilter,
+  type HeatCalcColumnValueAccessors,
   type HeatCalcTableViewState,
 } from '@/utils/heatCalcTableFindability';
 
 export type ElectricalFilterKind = 'text' | 'numberRange' | 'enum' | 'boolean';
 export type ElectricalTableViewColumnKey = ElectricalColumnKey | ElectricalCandidateColumnKey;
 export type ElectricalTableSortDirection = 'asc' | 'desc';
+export type ElectricalFilterOption = { value: string; label: string };
 
 export const CANDIDATE_NUMERIC_FILTER_KEYS = new Set<ElectricalCandidateColumnKey>([
   'winding_pitch_mm',
@@ -119,4 +122,42 @@ export function updateTableViewSort(
     ...state,
     sort: direction ? { columnKey, direction } : undefined,
   };
+}
+
+export function buildElectricalEnumOptionsByColumn(
+  fields: readonly ObjectQueryFieldCapability[] | null | undefined,
+): Record<string, ElectricalFilterOption[]> {
+  const result: Record<string, ElectricalFilterOption[]> = {};
+  for (const field of fields ?? []) {
+    if (!field.options) continue;
+    result[field.key] = field.options.items.map((item) => ({
+      value: String(item.value),
+      label: item.label,
+    }));
+  }
+  return result;
+}
+
+export function buildCandidateEnumOptionsByColumn(
+  candidates: readonly ElectricalCandidate[],
+  visibleColumns: readonly { key: ElectricalCandidateColumnKey }[],
+  valueAccessors: HeatCalcColumnValueAccessors<ElectricalCandidate>,
+): Record<string, ElectricalFilterOption[]> {
+  const result: Record<string, ElectricalFilterOption[]> = {};
+  for (const column of visibleColumns) {
+    if (filterKindForCandidateColumn(column.key) !== 'enum') continue;
+    const accessor = valueAccessors[column.key];
+    if (!accessor) continue;
+    const values = new Map<string, string>();
+    candidates.forEach((candidate, index) => {
+      const value = accessor(candidate, index);
+      if (value === null || value === undefined || value === '' || value === '—') return;
+      const text = String(value);
+      values.set(text, text);
+    });
+    result[column.key] = [...values.values()]
+      .sort((left, right) => left.localeCompare(right, 'ru', { numeric: true, sensitivity: 'base' }))
+      .map((value) => ({ value, label: value }));
+  }
+  return result;
 }

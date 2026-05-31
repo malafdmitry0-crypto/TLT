@@ -301,6 +301,8 @@ import {
   valueText,
 } from '@/pages/electrical/elecCalcResultValueModel';
 import {
+  buildCandidateEnumOptionsByColumn,
+  buildElectricalEnumOptionsByColumn,
   filterKindForCandidateColumn,
   filterKindForElectricalColumn,
   updateTableViewColumnFilter,
@@ -1887,17 +1889,10 @@ export default function ElecCalcPage() {
     () => new Map(electricalQueryCapabilities?.fields.map((field) => [field.key, field]) ?? []),
     [electricalQueryCapabilities],
   );
-  const enumOptionsByColumn = useMemo(() => {
-    const result: Record<string, Array<{ value: string; label: string }>> = {};
-    for (const field of electricalQueryCapabilities?.fields ?? []) {
-      if (!field.options) continue;
-      result[field.key] = field.options.items.map((item) => ({
-        value: String(item.value),
-        label: item.label,
-      }));
-    }
-    return result;
-  }, [electricalQueryCapabilities]);
+  const enumOptionsByColumn = useMemo(
+    () => buildElectricalEnumOptionsByColumn(electricalQueryCapabilities?.fields),
+    [electricalQueryCapabilities?.fields],
+  );
   const currentTableViewActive = hasActiveTableViewState(tableViewState);
   const candidateTableViewActive = hasActiveTableViewState(candidateTableViewState);
   const markedCableSizingCandidateSet = useMemo(
@@ -1986,25 +1981,14 @@ export default function ElecCalcPage() {
     displayedMarkedCableSizingCandidates,
     visibleCandidateColumnMetas,
   ]);
-  const candidateEnumOptionsByColumn = useMemo(() => {
-    const result: Record<string, Array<{ value: string; label: string }>> = {};
-    for (const column of visibleCandidateColumnMetas) {
-      if (filterKindForCandidateColumn(column.key) !== 'enum') continue;
-      const accessor = candidateColumnValueAccessors[column.key];
-      if (!accessor) continue;
-      const values = new Map<string, string>();
-      cableSizingCandidates.forEach((candidate, index) => {
-        const value = accessor(candidate, index);
-        if (value === null || value === undefined || value === '' || value === '—') return;
-        const text = String(value);
-        values.set(text, text);
-      });
-      result[column.key] = [...values.values()]
-        .sort((left, right) => left.localeCompare(right, 'ru', { numeric: true, sensitivity: 'base' }))
-        .map((value) => ({ value, label: value }));
-    }
-    return result;
-  }, [cableSizingCandidates, candidateColumnValueAccessors, visibleCandidateColumnMetas]);
+  const candidateEnumOptionsByColumn = useMemo(
+    () => buildCandidateEnumOptionsByColumn(
+      cableSizingCandidates,
+      visibleCandidateColumnMetas,
+      candidateColumnValueAccessors,
+    ),
+    [cableSizingCandidates, candidateColumnValueAccessors, visibleCandidateColumnMetas],
+  );
 
   useEffect(() => {
     setTableViewState((current) => {
