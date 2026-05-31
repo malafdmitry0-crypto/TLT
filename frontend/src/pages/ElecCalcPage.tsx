@@ -246,6 +246,7 @@ import { useElecCalcDataLifecycleEffects } from '@/pages/electrical/useElecCalcD
 import { useElecCalcElectricalColumnCopyValue } from '@/pages/electrical/useElecCalcElectricalColumnCopyValue';
 import { useElecCalcFilterOptions } from '@/pages/electrical/useElecCalcFilterOptions';
 import { useElecCalcCandidateGlideCellState } from '@/pages/electrical/useElecCalcCandidateGlideCellState';
+import { useElecCalcGlideActions } from '@/pages/electrical/useElecCalcGlideActions';
 import { useElecCalcGlideColumnModel } from '@/pages/electrical/useElecCalcGlideColumnModel';
 import { useElecCalcGlideCellState } from '@/pages/electrical/useElecCalcGlideCellState';
 import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
@@ -2002,27 +2003,16 @@ export default function ElecCalcPage() {
     });
   }, [cableTypes.getSavedCableTypeForObject, isCableMarkPending, project, stats.calcByObjectId]);
 
-  const getElectricalGlideCellActions = useCallback((obj: ProjectObject, columnKey: string) => {
-    if (columnKey === 'cable_mark' && activeRowId === obj.id) {
-      return [
-        {
-          key: 'choose',
-          label: 'Выбор',
-          disabled: !obj.is_valid || !project || isCableMarkPending,
-        },
-        {
-          key: 'size',
-          label: 'Подбор',
-          disabled: !project,
-        },
-      ];
-    }
-    return undefined;
-  }, [
+  const {
+    getElectricalGlideCellActions,
+    handleElectricalGlideCellAction,
+  } = useElecCalcGlideActions({
     activeRowId,
+    projectSelected: Boolean(project),
     isCableMarkPending,
-    project,
-  ]);
+    onOpenCableMarkModal: openCableMarkModal,
+    onOpenCableSizingModal: openCableSizingModal,
+  });
 
   const getElectricalGlideCellState = useElecCalcGlideCellState({
     calcByObjectId: stats.calcByObjectId,
@@ -2071,23 +2061,6 @@ export default function ElecCalcPage() {
     project,
     stats.calcByObjectId,
   ]);
-
-  const handleElectricalGlideCellAction = useCallback((
-    obj: ProjectObject,
-    columnKey: string,
-    actionKey: string,
-  ) => {
-    if (columnKey !== 'cable_mark') return;
-    if (actionKey === 'choose') {
-      if (!obj.is_valid || !project || isCableMarkPending) return;
-      openCableMarkModal(obj);
-      return;
-    }
-    if (actionKey === 'size') {
-      if (!project) return;
-      openCableSizingModal(obj);
-    }
-  }, [isCableMarkPending, openCableMarkModal, openCableSizingModal, project]);
 
   useElecCalcSelectedRowsClipboardEffect({
     electricalColumnCopyValue,
