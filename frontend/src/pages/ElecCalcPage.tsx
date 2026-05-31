@@ -81,7 +81,6 @@ import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQuerie
 import { getCablesTt, getResistiveCables } from '@/api/references';
 import { useAuthStore } from '@/store/authStore';
 import {
-  CALCULATION_VARIANTS,
   normalizeCalculationVariant,
   useCalculationVariantStore,
   type CalculationVariant,
@@ -209,7 +208,6 @@ import {
 } from '@/pages/electrical/elecCalcCandidateFolderModel';
 import {
   calculationVariantLabel,
-  normalizeCalculationVariantList,
 } from '@/pages/electrical/elecCalcVariantModel';
 import {
   SELECTION_POLICY_OPTIONS,
@@ -286,6 +284,7 @@ import {
   filterKindForElectricalColumn,
 } from '@/pages/electrical/elecCalcTableFilterModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
+import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
 import { useElecCalcCandidateCompareState } from '@/pages/electrical/useElecCalcCandidateCompareState';
 import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCalcCandidateFolderUiState';
@@ -368,11 +367,6 @@ export default function ElecCalcPage() {
     rememberNextCursor,
     loadNextElectricalGlidePage,
   } = useElecCalcPaginationState();
-  const [cableMarkModalObjectId, setCableMarkModalObjectId] = useState<string | null>(null);
-  const [cableMarkModalCableType, setCableMarkModalCableType] = useState<CableTypeKey | null>(null);
-  const [cableMarkModalValue, setCableMarkModalValue] = useState<string | null>(null);
-  const [cableMarkModalTargetVariants, setCableMarkModalTargetVariants] =
-    useState<CalculationVariant[]>([]);
   const [cableSizingModalObjectId, setCableSizingModalObjectId] = useState<string | null>(null);
   const [cableSizingMode, setCableSizingMode] = useState<'auto' | 'manual'>('auto');
   const [cableSizingCableType, setCableSizingCableType] = useState<CableTypeKey>(DEFAULT_CABLE_TYPE);
@@ -642,8 +636,6 @@ export default function ElecCalcPage() {
 
   useEffect(() => {
     setCableSizingCableType((current) => cableTypes.normalizeAvailableCableType(current));
-    setCableMarkModalCableType((current) =>
-      current == null ? null : cableTypes.normalizeAvailableCableType(current));
   }, [cableTypes.normalizeAvailableCableType]);
 
   useEffect(() => {
@@ -1590,9 +1582,6 @@ export default function ElecCalcPage() {
   const autoCableMutate = autoCableMut.mutate;
   const electricalLayoutMutate = electricalLayoutMut.mutate;
   const isCableMarkPending = manualCableMut.isPending || autoCableMut.isPending || electricalLayoutMut.isPending;
-  const cableMarkModalObject = cableMarkModalObjectId
-    ? objects.find((object) => object.id === cableMarkModalObjectId) ?? null
-    : null;
   const cableSizingModalObject = cableSizingModalObjectId
     ? objects.find((object) => object.id === cableSizingModalObjectId) ?? null
     : null;
@@ -1648,42 +1637,6 @@ export default function ElecCalcPage() {
     () => cableSizingCandidates.find((candidate) => candidate.is_applied) ?? null,
     [cableSizingCandidates],
   );
-  const cableMarkModalCalc = cableMarkModalObject
-    ? stats.calcByObjectId[cableMarkModalObject.id]
-    : undefined;
-  const cableMarkModalSavedType = cableMarkModalObject
-    ? cableTypes.getSavedCableTypeForObject(cableMarkModalObject.id)
-    : null;
-  const cableMarkModalCurrentMark = cableMarkModalCableType === cableMarkModalSavedType
-    ? getCableMark(cableMarkModalCalc)
-    : undefined;
-  const cableMarkModalOptions = useMemo(
-    () => (
-      cableMarkModalCableType
-        ? cableMarkOptionsFor(cableMarkModalCableType, cableMarkModalCurrentMark, cableMarkModalCalc)
-        : []
-    ),
-    [
-      cableMarkModalCableType,
-      cableMarkModalCalc,
-      cableMarkModalCurrentMark,
-      cableMarkOptionsFor,
-    ],
-  );
-  const cableMarkModalOptionByValue = useMemo(
-    () => new Map(cableMarkModalOptions.map((option) => [option.value, option])),
-    [cableMarkModalOptions],
-  );
-  const cableMarkModalSelectedOption = cableMarkModalOptionByValue.get(
-    cableMarkModalValue ?? AUTO_CABLE_MARK_VALUE,
-  );
-  const cableMarkModalTargetVariantOptions = useMemo(
-    () => CALCULATION_VARIANTS.map((targetVariant) => ({
-      label: `СО${targetVariant}`,
-      value: targetVariant,
-    })),
-    [],
-  );
 
   const findCableRowForMark = useCallback((
     type: CableTypeKey,
@@ -1708,22 +1661,6 @@ export default function ElecCalcPage() {
       ?? { model: mark, cable_type: type, source: selectedSource ?? 'project' };
   }, [cableRowsForType]);
 
-  const cableMarkModalSelectedCable = useMemo<CableStatusRow | null>(() => {
-    if (!cableMarkModalCableType || !cableMarkModalSelectedOption?.mark) return null;
-    const snapshotRow = cableSnapshotRow(cableMarkModalCalc);
-    if (cableMarkModalSelectedOption.optionSource === 'project') return snapshotRow;
-    return findCableRowForMark(
-      cableMarkModalCableType,
-      cableMarkModalSelectedOption.mark,
-      cableMarkModalCalc,
-      cableMarkModalSelectedOption.cableSource,
-    );
-  }, [
-    cableMarkModalCableType,
-    cableMarkModalCalc,
-    cableMarkModalSelectedOption,
-    findCableRowForMark,
-  ]);
   const cableSizingModalSelectedCable = useMemo<CableStatusRow | null>(() => (
     cableSizingEffectiveCableType
       ? findCableRowForMark(
@@ -1753,12 +1690,40 @@ export default function ElecCalcPage() {
       ?? manualOptions.find((option) => option.mark === mark);
     return matchingOption?.value ?? cableMarkOptionValue(savedSource ?? effectiveSource, mark);
   }, [effectiveSource, manualCableOptionsForType]);
-  const closeCableMarkModal = useCallback(() => {
-    setCableMarkModalObjectId(null);
-    setCableMarkModalCableType(null);
-    setCableMarkModalValue(null);
-    setCableMarkModalTargetVariants([]);
-  }, []);
+  const cableMarkModal = useElecCalcCableMarkModalState({
+    objects,
+    calcByObjectId: stats.calcByObjectId,
+    variant,
+    getSavedCableTypeForObject: cableTypes.getSavedCableTypeForObject,
+    normalizeAvailableCableType: cableTypes.normalizeAvailableCableType,
+    cableMarkOptionsFor,
+    cableMarkValueForCalc,
+    findCableRowForMark,
+    onOpenObject: (object) => activateRowId(object.id),
+    onCableTypeChange: () => setRecalc.connectionType('line_1ph'),
+  });
+  const {
+    object: cableMarkModalObject,
+    cableType: cableMarkModalCableType,
+    value: cableMarkModalValue,
+    setValue: setCableMarkModalValue,
+    targetVariants: cableMarkModalTargetVariants,
+    targetVariantsForSubmit: cableMarkModalTargetVariantsForSubmit,
+    options: cableMarkModalOptions,
+    optionByValue: cableMarkModalOptionByValue,
+    selectedCable: cableMarkModalSelectedCable,
+    targetVariantOptions: cableMarkModalTargetVariantOptions,
+    close: closeCableMarkModal,
+    open: openCableMarkModal,
+    changeCableType: changeCableMarkModalCableType,
+    normalizeSelectedCableType: normalizeCableMarkModalCableType,
+    setTargetVariantsFromValues: setCableMarkModalTargetVariantsFromValues,
+  } = cableMarkModal;
+
+  useEffect(() => {
+    normalizeCableMarkModalCableType();
+  }, [normalizeCableMarkModalCableType]);
+
   const closeCableSizingModal = useCallback(() => {
     setCableSizingModalObjectId(null);
     setCableSizingMode('auto');
@@ -1768,17 +1733,6 @@ export default function ElecCalcPage() {
     closeCandidateFolderModal();
     setCandidateColumnSettingsOpen(false);
   }, [closeCandidateFolderModal, resetMarkedCableSizingCandidates]);
-  const openCableMarkModal = useCallback((obj: ProjectObject) => {
-    const calc = stats.calcByObjectId[obj.id];
-    const currentCalc = currentElectricalCalc(calc);
-    const type = cableTypes.getSavedCableTypeForObject(obj.id);
-    activateRowId(obj.id);
-    setCableMarkModalObjectId(obj.id);
-    setCableMarkModalCableType(type);
-    setCableMarkModalTargetVariants([variant]);
-    const mark = getCableMark(currentCalc);
-    setCableMarkModalValue(cableMarkValueForCalc(type, mark, currentCalc));
-  }, [activateRowId, cableMarkValueForCalc, cableTypes.getSavedCableTypeForObject, stats.calcByObjectId, variant]);
   const openCableSizingModal = useCallback((obj: ProjectObject) => {
     const type = cableTypes.getSavedCableTypeForObject(obj.id);
     const calc = currentElectricalCalc(stats.calcByObjectId[obj.id]);
@@ -1794,16 +1748,9 @@ export default function ElecCalcPage() {
     resetMarkedCableSizingCandidates,
     stats.calcByObjectId,
   ]);
-  const changeCableMarkModalCableType = useCallback((nextType: CableTypeKey) => {
-    setCableMarkModalCableType(cableTypes.normalizeAvailableCableType(nextType));
-    setCableMarkModalValue(AUTO_CABLE_MARK_VALUE);
-    setRecalc.connectionType('line_1ph');
-  }, [cableTypes.normalizeAvailableCableType]);
   const applyCableMarkModal = useCallback(() => {
     if (!cableMarkModalObject || !cableMarkModalCableType) return;
-    const targetVariants = cableMarkModalTargetVariants.length > 0
-      ? cableMarkModalTargetVariants
-      : [variant];
+    const targetVariants = cableMarkModalTargetVariantsForSubmit;
     const selectedMark = cableMarkModalValue ?? AUTO_CABLE_MARK_VALUE;
     if (selectedMark === AUTO_CABLE_MARK_VALUE) {
       autoCableMutate({
@@ -1831,11 +1778,10 @@ export default function ElecCalcPage() {
     cableMarkModalCableType,
     cableMarkModalObject,
     cableMarkModalOptionByValue,
-    cableMarkModalTargetVariants,
+    cableMarkModalTargetVariantsForSubmit,
     cableMarkModalValue,
     closeCableMarkModal,
     manualCableMutate,
-    variant,
   ]);
 
   const fieldCapabilityByKey = useMemo(
@@ -4041,9 +3987,7 @@ export default function ElecCalcPage() {
               options={cableMarkModalTargetVariantOptions}
               value={cableMarkModalTargetVariants}
               disabled={isCableMarkPending}
-              onChange={(values) => {
-                setCableMarkModalTargetVariants(normalizeCalculationVariantList(values));
-              }}
+              onChange={setCableMarkModalTargetVariantsFromValues}
               style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}
             />
           </div>
