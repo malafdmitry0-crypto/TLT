@@ -92,17 +92,13 @@ import { useElectricalStats } from '@/hooks/useElectricalStats';
 import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
 import {
   electricalCalcError,
-  electricalCalcErrorCode,
-  electricalCalcGuidanceContext,
   electricalCalcHint,
-  electricalCalcSuggestedActions,
   isElectricalCalcStale,
   isElectricalCalcSuccess,
   isElectricalCalcUnsupported,
 } from '@/utils/calcStatus';
 import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
-import { getElectricalErrorGuidance } from '@/utils/electricalErrorGuidance';
 import { formatNumber } from '@/utils/formatters';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
@@ -239,6 +235,11 @@ import {
   selectedObjectsForKeys,
   selectedRecalcDisabledTooltip,
 } from '@/pages/electrical/elecCalcSelectionModel';
+import {
+  buildElectricalErrorItems,
+  electricalErrorGuidanceForItem,
+  resolveActiveElectricalErrorItem,
+} from '@/pages/electrical/elecCalcErrorSummaryModel';
 import {
   SHOW_COMMERCIAL_CABLE_BASE_UI,
   electricalCalculationsForTable,
@@ -2993,71 +2994,28 @@ export default function ElecCalcPage() {
       </>
     );
   }, [overwriteManualChoices]);
-  const electricalErrorItems = useMemo(() => objects
-    .map((obj, index) => {
-      const calc = stats.calcByObjectId[obj.id];
-      const error = electricalCalcError(calc);
-      if (!error || isElectricalCalcUnsupported(calc) || isElectricalCalcStale(calc)) return null;
-      return {
-        objectId: obj.id,
-        rowNumber: electricalDisplayOffset + index + 1,
-        objectName: objectDisplayName(obj),
-        error,
-        cableType: calc?.cable_type ?? null,
-        errorContext: electricalCalcGuidanceContext(calc),
-        errorCode: electricalCalcErrorCode(calc),
-        suggestedActions: electricalCalcSuggestedActions(calc),
-      };
-    })
-    .filter((item): item is {
-      objectId: string;
-      rowNumber: number;
-      objectName: string;
-      error: string;
-      cableType: string;
-      errorContext: Record<string, unknown> | null;
-      errorCode: string | null;
-      suggestedActions: string[] | null;
-    } => item != null),
-  [electricalDisplayOffset, objects, stats.calcByObjectId]);
-  const activeElectricalErrorItem = useMemo(() => {
-    if (activeRowId) {
-      const activeIndex = objects.findIndex((obj) => obj.id === activeRowId);
-      const activeObject = activeIndex >= 0 ? objects[activeIndex] : null;
-      if (activeObject) {
-        const calc = stats.calcByObjectId[activeObject.id];
-        const error = isElectricalCalcUnsupported(calc) || isElectricalCalcStale(calc)
-          ? null
-          : electricalCalcError(calc);
-        if (!error) {
-          const firstError = electricalErrorItems[0];
-          return firstError ? { ...firstError, fallback: true } : null;
-        }
-        return {
-          objectId: activeObject.id,
-          rowNumber: electricalDisplayOffset + activeIndex + 1,
-          objectName: objectDisplayName(activeObject),
-          error,
-          cableType: calc?.cable_type ?? null,
-          errorContext: electricalCalcGuidanceContext(calc),
-          errorCode: electricalCalcErrorCode(calc),
-          suggestedActions: electricalCalcSuggestedActions(calc),
-          fallback: false,
-        };
-      }
-    }
-    const firstError = electricalErrorItems[0];
-    return firstError ? { ...firstError, fallback: true } : null;
-  }, [activeRowId, electricalDisplayOffset, electricalErrorItems, objects, stats.calcByObjectId]);
-  const activeElectricalErrorGuidance = activeElectricalErrorItem?.error
-    ? getElectricalErrorGuidance({
-        error: activeElectricalErrorItem.error,
-        cableType: activeElectricalErrorItem.cableType,
-        errorContext: activeElectricalErrorItem.errorContext,
-        errorCode: activeElectricalErrorItem.errorCode,
-        suggestedActions: activeElectricalErrorItem.suggestedActions,
-      })
-    : null;
+  const electricalErrorItems = useMemo(
+    () => buildElectricalErrorItems({
+      objects,
+      calcByObjectId: stats.calcByObjectId,
+      electricalDisplayOffset,
+    }),
+    [electricalDisplayOffset, objects, stats.calcByObjectId],
+  );
+  const activeElectricalErrorItem = useMemo(
+    () => resolveActiveElectricalErrorItem({
+      activeRowId,
+      objects,
+      calcByObjectId: stats.calcByObjectId,
+      electricalDisplayOffset,
+      electricalErrorItems,
+    }),
+    [activeRowId, electricalDisplayOffset, electricalErrorItems, objects, stats.calcByObjectId],
+  );
+  const activeElectricalErrorGuidance = useMemo(
+    () => electricalErrorGuidanceForItem(activeElectricalErrorItem),
+    [activeElectricalErrorItem],
+  );
   const showSummaryInKW = totalPower >= 1000;
   const summaryPowerDisplay = showSummaryInKW
     ? `${(totalPower / 1000).toFixed(2)} кВт`
