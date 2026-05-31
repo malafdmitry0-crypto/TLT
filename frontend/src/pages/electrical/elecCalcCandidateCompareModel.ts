@@ -2,6 +2,7 @@ import { selectionPolicyText } from '@/pages/electrical/elecCalcSelectionPolicyM
 import type { ElectricalCandidate } from '@/types/calculation';
 import type { ElectricalCandidateColumnKey } from '@/utils/electricalCandidateTableColumns';
 import { formatNumber, formatPower } from '@/utils/formatters';
+import type { HeatCalcColumnValueAccessors } from '@/utils/heatCalcTableFindability';
 
 type CandidateCableTypeKey =
   | 'self_regulating'
@@ -264,6 +265,19 @@ export function candidateCompareValue(
   candidate: ElectricalCandidate,
 ) {
   return normalizeCandidateCompareText(candidateCompareDisplayValue(key, candidate));
+}
+
+export function buildCandidateColumnValueAccessors(
+  visibleColumns: readonly { key: ElectricalCandidateColumnKey }[],
+  markedCandidateIds: ReadonlySet<string>,
+): HeatCalcColumnValueAccessors<ElectricalCandidate> {
+  const accessors: HeatCalcColumnValueAccessors<ElectricalCandidate> = {};
+  for (const column of visibleColumns) {
+    if (column.key === 'actions') continue;
+    accessors[column.key] = (candidate) =>
+      candidateElectricalFieldValue(column.key, candidate, markedCandidateIds.has(candidate.id));
+  }
+  return accessors;
 }
 
 export function buildCandidateCompareDiffColumnKeys(

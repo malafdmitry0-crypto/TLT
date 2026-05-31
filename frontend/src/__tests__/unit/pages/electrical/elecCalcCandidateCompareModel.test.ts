@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CANDIDATE_COMPARE_EMPTY_VALUE,
+  buildCandidateColumnValueAccessors,
   buildCandidateCompareDiffColumnKeys,
   candidateCommercialValue,
   candidateCompareDisplayValue,
@@ -166,5 +167,17 @@ describe('elecCalcCandidateCompareModel', () => {
       { key: 'mode' },
       { key: 'total_power' },
     ])]).toEqual(['mode', 'total_power']);
+  });
+
+  it('builds candidate table value accessors and skips action service column', () => {
+    const row = candidate({ id: 'candidate-1', mode: 'manual' });
+    const accessors = buildCandidateColumnValueAccessors(
+      [{ key: 'marked' }, { key: 'mode' }, { key: 'actions' }],
+      new Set(['candidate-1']),
+    );
+
+    expect(accessors.marked?.(row, 0)).toBe(true);
+    expect(accessors.mode?.(row, 0)).toBe('Ручной');
+    expect(accessors.actions).toBeUndefined();
   });
 });

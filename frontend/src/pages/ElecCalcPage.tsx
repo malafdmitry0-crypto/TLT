@@ -221,8 +221,8 @@ import {
 } from '@/pages/electrical/elecCalcApiResponseGuards';
 import {
   buildCandidateCompareDiffColumnKeys,
+  buildCandidateColumnValueAccessors,
   candidateCompareDisplayValue,
-  candidateElectricalFieldValue,
   candidateOrderCableLengthValue,
 } from '@/pages/electrical/elecCalcCandidateCompareModel';
 import {
@@ -322,7 +322,6 @@ import {
   isColumnFilterActive,
   removeHiddenTableViewState,
   type HeatCalcColumnFilter,
-  type HeatCalcColumnValueAccessors,
   type HeatCalcTableViewState,
 } from '@/utils/heatCalcTableFindability';
 
@@ -1898,15 +1897,10 @@ export default function ElecCalcPage() {
     () => new Set(markedCableSizingCandidateIds),
     [markedCableSizingCandidateIds],
   );
-  const candidateColumnValueAccessors = useMemo<HeatCalcColumnValueAccessors<ElectricalCandidate>>(() => {
-    const accessors: HeatCalcColumnValueAccessors<ElectricalCandidate> = {};
-    for (const column of visibleCandidateColumnMetas) {
-      if (column.key === 'actions') continue;
-      accessors[column.key] = (candidate) =>
-        candidateElectricalFieldValue(column.key, candidate, markedCableSizingCandidateSet.has(candidate.id));
-    }
-    return accessors;
-  }, [markedCableSizingCandidateSet, visibleCandidateColumnMetas]);
+  const candidateColumnValueAccessors = useMemo(
+    () => buildCandidateColumnValueAccessors(visibleCandidateColumnMetas, markedCableSizingCandidateSet),
+    [markedCableSizingCandidateSet, visibleCandidateColumnMetas],
+  );
   const activeCustomCandidateFolderId = candidateCustomFolderId(activeCandidateFolderKey);
   const activeCustomCandidateFolder = useMemo(
     () => findActiveCustomCandidateFolder(activeCandidateFolderKey, cableSizingCandidateFolders),
