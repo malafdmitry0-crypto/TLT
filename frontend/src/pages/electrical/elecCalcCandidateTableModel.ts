@@ -25,3 +25,11 @@ export function buildDisplayedCandidateRows(
   const otherRows = sortedRows.filter((row) => !row.record.is_applied);
   return [...appliedRows, ...otherRows].map((row) => row.record);
 }
+
+export function filterMarkedCandidateRows(
+  candidates: readonly ElectricalCandidate[],
+  markedCandidateIds: ReadonlySet<string>,
+): ElectricalCandidate[] {
+  if (markedCandidateIds.size === 0) return [];
+  return candidates.filter((candidate) => markedCandidateIds.has(candidate.id));
+}

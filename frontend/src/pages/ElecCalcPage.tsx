@@ -202,6 +202,7 @@ import {
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import {
   buildDisplayedCandidateRows,
+  filterMarkedCandidateRows,
 } from '@/pages/electrical/elecCalcCandidateTableModel';
 import {
   cableSnapshotRow,
@@ -1938,9 +1939,7 @@ export default function ElecCalcPage() {
     [cableSizingCandidatesByActiveFolder, candidateColumnValueAccessors, candidateTableViewState],
   );
   const displayedMarkedCableSizingCandidates = useMemo(
-    () => displayedCableSizingCandidates.filter((candidate) =>
-      markedCableSizingCandidateSet.has(candidate.id),
-    ),
+    () => filterMarkedCandidateRows(displayedCableSizingCandidates, markedCableSizingCandidateSet),
     [displayedCableSizingCandidates, markedCableSizingCandidateSet],
   );
   const cableSizingCandidateCompareActive = displayedMarkedCableSizingCandidates.length >= 2;

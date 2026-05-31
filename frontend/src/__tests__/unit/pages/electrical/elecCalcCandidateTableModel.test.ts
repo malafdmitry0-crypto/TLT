@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildDisplayedCandidateRows,
+  filterMarkedCandidateRows,
 } from '@/pages/electrical/elecCalcCandidateTableModel';
 import type { ElectricalCandidate } from '@/types/calculation';
 import type { HeatCalcColumnValueAccessors, HeatCalcTableViewState } from '@/utils/heatCalcTableFindability';
@@ -59,5 +60,25 @@ describe('elecCalcCandidateTableModel', () => {
 
     expect(buildDisplayedCandidateRows(candidates, tableViewState, accessors).map((row) => row.id))
       .toEqual(['applied-30', 'regular-20']);
+  });
+
+  it('keeps only marked candidate rows in the displayed order', () => {
+    const candidates = [
+      candidate({ id: 'visible-first' }),
+      candidate({ id: 'visible-second' }),
+      candidate({ id: 'visible-third' }),
+    ];
+
+    expect(filterMarkedCandidateRows(
+      candidates,
+      new Set(['visible-third', 'missing', 'visible-first']),
+    ).map((row) => row.id)).toEqual(['visible-first', 'visible-third']);
+  });
+
+  it('returns no marked rows when the marked set is empty', () => {
+    expect(filterMarkedCandidateRows(
+      [candidate({ id: 'visible-first' })],
+      new Set(),
+    )).toEqual([]);
   });
 });
