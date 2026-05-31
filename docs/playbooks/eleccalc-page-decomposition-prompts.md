@@ -120,12 +120,13 @@ Potential target structure:
 | Main row selection state hook | Done | 2026-05-31: active row, selected row keys, visibility pruning and selected/manual count helpers moved to `useElecCalcRowSelectionState.ts` and `elecCalcSelectionModel.ts`; focused unit + `ElecCalcPage` integration |
 | Electrical error summary model | Done | 2026-05-31: failed-only error item selection, active-row fallback and guidance input moved to `elecCalcErrorSummaryModel.ts`; focused unit + full frontend gate |
 | Recalculation params hook | Done | 2026-05-31: selection policy, voltage, connection, layout and TT params moved to `useElecCalcRecalculationParams.ts`; focused hook unit + full frontend gate |
+| Cable type state hook | Done | 2026-05-31: default/draft cable type state, available-type normalization, selected-row type resolution and object overrides moved to `useElecCalcCableTypeState.ts`; focused hook unit + full frontend gate |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |
 | Candidate table state hook | Backlog | remaining marked comparison state |
 | Preferences/settings hook | Backlog | main/candidate columns, view settings, role cache |
-| Cable type/source model hook | Backlog | feature flag, built-in/extended/all, object drafts |
+| Cable source availability hook | Backlog | remaining feature flag and built-in/extended/all available type wiring |
 | Batch job/recalc model hook | Backlog | active job polling, selected/all scope, overwrite manual |
 | Cable mark modal model hook | Backlog | manual mark, source option, save-to-CO variants |
 | Candidate sizing modal model hook | Backlog | auto/manual candidate creation, apply, reload |
