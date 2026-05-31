@@ -1,0 +1,128 @@
+import { act, renderHook } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import {
+  type ElecCalcCableSizingParams,
+  useElecCalcCableSizingModalState,
+} from '@/pages/electrical/useElecCalcCableSizingModalState';
+import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import type { ElectricalCalcSummary } from '@/types/calculation';
+import type { ProjectObject } from '@/types/project';
+
+const object: ProjectObject = {
+  id: 'object-1',
+  project_id: 'project-1',
+  object_type: 'pipe',
+  sort_order: 0,
+  version: 1,
+  params: {},
+  results: null,
+  is_valid: true,
+  validation_errors: null,
+  created_at: '',
+  updated_at: '',
+};
+
+const calc: ElectricalCalcSummary = {
+  id: 'calc-1',
+  project_id: 'project-1',
+  object_id: object.id,
+  cable_type: 'self_regulating',
+  cable_mark: 'ТЛТ-25',
+  cable_mark_source: 'auto',
+  variant_number: 1,
+  params: {},
+  results: { selected_cable: 'ТЛТ-25' },
+  created_at: '',
+  updated_at: '',
+};
+
+const recalc: ElecCalcCableSizingParams = {
+  selectionPolicy: 'technical_minimum',
+  supplyVoltage: 220,
+  connectionType: 'line_1ph',
+  windingCoefficient: 1,
+  heatingHeight: null,
+  layingStep: 0.1,
+  maintainTemperature: null,
+  vaporTemperature: null,
+  aggressiveProduct: false,
+};
+
+describe('useElecCalcCableSizingModalState', () => {
+  it('opens and resets modal state around the selected object', () => {
+    const { result } = renderHook(() => useElecCalcCableSizingModalState({
+      projectId: 'project-1',
+      variant: 2,
+      objects: [object],
+      calcByObjectId: { [object.id]: calc },
+      recalc,
+      getSavedCableTypeForObject: () => 'self_regulating',
+      normalizeAvailableCableType: (type) => type,
+    }));
+
+    act(() => {
+      result.current.setMode('manual');
+      result.current.openModalState(object);
+    });
+
+    expect(result.current.object).toEqual(object);
+    expect(result.current.calc).toEqual(calc);
+    expect(result.current.cableType).toBe('self_regulating');
+    expect(result.current.manualMark).toBe('ТЛТ-25');
+    expect(result.current.mode).toBe('manual');
+    expect(result.current.candidatesQueryKey).toEqual([
+      'project',
+      'project-1',
+      'electrical-candidates',
+      object.id,
+      2,
+    ]);
+    expect(result.current.candidateFoldersQueryKey).toEqual([
+      'project',
+      'project-1',
+      'electrical-candidate-folders',
+      object.id,
+      2,
+    ]);
+
+    act(() => {
+      result.current.resetModalState();
+    });
+
+    expect(result.current.objectId).toBeNull();
+    expect(result.current.object).toBeNull();
+    expect(result.current.mode).toBe('auto');
+    expect(result.current.manualMark).toBeNull();
+  });
+
+  it('derives effective type and candidate params', () => {
+    const normalizeAvailableCableType = (type: CableTypeKey) => type;
+    const { result } = renderHook(() => useElecCalcCableSizingModalState({
+      projectId: 'project-1',
+      variant: 1,
+      objects: [],
+      calcByObjectId: {},
+      recalc: {
+        ...recalc,
+        supplyVoltage: 380,
+        aggressiveProduct: true,
+      },
+      getSavedCableTypeForObject: () => 'single_core',
+      normalizeAvailableCableType,
+    }));
+
+    act(() => {
+      result.current.setCableType('single_core');
+    });
+
+    expect(result.current.effectiveCableType).toBe('single_core');
+    expect(result.current.candidateParams).toMatchObject({
+      supply_voltage: 380,
+      selection_mode: 'auto',
+      selection_policy: 'technical_minimum',
+      connection_type: 'line_1ph',
+      aggressive_product: true,
+    });
+  });
+});

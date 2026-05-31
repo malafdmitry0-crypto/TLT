@@ -186,7 +186,6 @@ import {
   type CableStatusRow,
 } from '@/pages/electrical/elecCalcCableCatalogModel';
 import {
-  DEFAULT_CABLE_TYPE,
   FULL_FEATURE_CABLE_TYPES,
   isResistiveCableType,
   MVP_CABLE_TYPES,
@@ -285,6 +284,7 @@ import {
 } from '@/pages/electrical/elecCalcTableFilterModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
+import { useElecCalcCableSizingModalState } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
 import { useElecCalcCandidateCompareState } from '@/pages/electrical/useElecCalcCandidateCompareState';
 import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCalcCandidateFolderUiState';
@@ -367,10 +367,6 @@ export default function ElecCalcPage() {
     rememberNextCursor,
     loadNextElectricalGlidePage,
   } = useElecCalcPaginationState();
-  const [cableSizingModalObjectId, setCableSizingModalObjectId] = useState<string | null>(null);
-  const [cableSizingMode, setCableSizingMode] = useState<'auto' | 'manual'>('auto');
-  const [cableSizingCableType, setCableSizingCableType] = useState<CableTypeKey>(DEFAULT_CABLE_TYPE);
-  const [cableSizingManualMark, setCableSizingManualMark] = useState<string | null>(null);
   const {
     activeCandidateFolderKey,
     setActiveCandidateFolderKey,
@@ -503,10 +499,6 @@ export default function ElecCalcPage() {
   }, [project?.id, resetTablePage, variant]);
 
   useEffect(() => {
-    resetCandidateTableViewState();
-  }, [cableSizingModalObjectId, resetCandidateTableViewState]);
-
-  useEffect(() => {
     resetPaginationCache();
   }, [effectiveSource, project?.id, resetPaginationCache, tablePageSize, tableViewState, variant]);
 
@@ -633,6 +625,36 @@ export default function ElecCalcPage() {
     projectId: project?.id,
     variant,
   });
+  const cableSizingModal = useElecCalcCableSizingModalState({
+    projectId: project?.id,
+    variant,
+    objects,
+    calcByObjectId: stats.calcByObjectId,
+    recalc,
+    getSavedCableTypeForObject: cableTypes.getSavedCableTypeForObject,
+    normalizeAvailableCableType: cableTypes.normalizeAvailableCableType,
+  });
+  const {
+    objectId: cableSizingModalObjectId,
+    mode: cableSizingMode,
+    setMode: setCableSizingMode,
+    cableType: cableSizingCableType,
+    setCableType: setCableSizingCableType,
+    manualMark: cableSizingManualMark,
+    setManualMark: setCableSizingManualMark,
+    effectiveCableType: cableSizingEffectiveCableType,
+    candidateParams: cableSizingCandidateParams,
+    candidatesQueryKey: cableSizingCandidatesQueryKey,
+    candidateFoldersQueryKey: cableSizingCandidateFoldersQueryKey,
+    object: cableSizingModalObject,
+    calc: cableSizingModalCalc,
+    resetModalState: resetCableSizingModalState,
+    openModalState: openCableSizingModalState,
+  } = cableSizingModal;
+
+  useEffect(() => {
+    resetCandidateTableViewState();
+  }, [cableSizingModalObjectId, resetCandidateTableViewState]);
 
   useEffect(() => {
     setCableSizingCableType((current) => cableTypes.normalizeAvailableCableType(current));
@@ -1236,48 +1258,10 @@ export default function ElecCalcPage() {
       ...manualOptions,
     ];
   }, [autoCableMarkOption, cableMarkOption, effectiveSource, manualCableOptionsForType]);
-  const cableSizingEffectiveCableType = cableTypes.normalizeAvailableCableType(cableSizingCableType);
   const cableSizingManualOptions = useMemo(
     () => manualCableOptionsForType(cableSizingEffectiveCableType),
     [cableSizingEffectiveCableType, manualCableOptionsForType],
   );
-  const cableSizingCandidateParams = useMemo(() => ({
-    supply_voltage: recalc.supplyVoltage,
-    selection_mode: isResistiveCableType(cableSizingEffectiveCableType) ? 'auto' : undefined,
-    selection_policy: recalc.selectionPolicy,
-    connection_type: recalc.connectionType,
-    winding_coefficient: recalc.windingCoefficient,
-    heating_height: recalc.heatingHeight,
-    laying_step: recalc.layingStep,
-    maintain_temperature: recalc.maintainTemperature,
-    vapor_temperature: recalc.vaporTemperature,
-    aggressive_product: recalc.aggressiveProduct,
-  }), [
-    recalc.aggressiveProduct,
-    cableSizingEffectiveCableType,
-    recalc.connectionType,
-    recalc.heatingHeight,
-    recalc.layingStep,
-    recalc.maintainTemperature,
-    recalc.selectionPolicy,
-    recalc.supplyVoltage,
-    recalc.vaporTemperature,
-    recalc.windingCoefficient,
-  ]);
-  const cableSizingCandidatesQueryKey = useMemo(() => [
-    'project',
-    project?.id,
-    'electrical-candidates',
-    cableSizingModalObjectId,
-    variant,
-  ] as const, [cableSizingModalObjectId, project?.id, variant]);
-  const cableSizingCandidateFoldersQueryKey = useMemo(() => [
-    'project',
-    project?.id,
-    'electrical-candidate-folders',
-    cableSizingModalObjectId,
-    variant,
-  ] as const, [cableSizingModalObjectId, project?.id, variant]);
   const setCableSizingCandidateApplied = useCallback((
     candidateId: string | null,
     appliedCandidate?: ElectricalCandidate,
@@ -1582,12 +1566,6 @@ export default function ElecCalcPage() {
   const autoCableMutate = autoCableMut.mutate;
   const electricalLayoutMutate = electricalLayoutMut.mutate;
   const isCableMarkPending = manualCableMut.isPending || autoCableMut.isPending || electricalLayoutMut.isPending;
-  const cableSizingModalObject = cableSizingModalObjectId
-    ? objects.find((object) => object.id === cableSizingModalObjectId) ?? null
-    : null;
-  const cableSizingModalCalc = cableSizingModalObject
-    ? currentElectricalCalc(stats.calcByObjectId[cableSizingModalObject.id])
-    : undefined;
   const {
     data: cableSizingCandidates = [],
     isFetching: isCableSizingCandidatesFetching,
@@ -1725,28 +1703,21 @@ export default function ElecCalcPage() {
   }, [normalizeCableMarkModalCableType]);
 
   const closeCableSizingModal = useCallback(() => {
-    setCableSizingModalObjectId(null);
-    setCableSizingMode('auto');
-    setCableSizingManualMark(null);
+    resetCableSizingModalState();
     resetMarkedCableSizingCandidates();
     setActiveCandidateFolderKey('all');
     closeCandidateFolderModal();
     setCandidateColumnSettingsOpen(false);
-  }, [closeCandidateFolderModal, resetMarkedCableSizingCandidates]);
+  }, [closeCandidateFolderModal, resetCableSizingModalState, resetMarkedCableSizingCandidates]);
   const openCableSizingModal = useCallback((obj: ProjectObject) => {
-    const type = cableTypes.getSavedCableTypeForObject(obj.id);
-    const calc = currentElectricalCalc(stats.calcByObjectId[obj.id]);
     activateRowId(obj.id);
-    setCableSizingCableType(type);
-    setCableSizingManualMark(getCableMark(calc) ?? null);
+    openCableSizingModalState(obj);
     resetMarkedCableSizingCandidates();
     setActiveCandidateFolderKey('all');
-    setCableSizingModalObjectId(obj.id);
   }, [
     activateRowId,
-    cableTypes.getSavedCableTypeForObject,
+    openCableSizingModalState,
     resetMarkedCableSizingCandidates,
-    stats.calcByObjectId,
   ]);
   const applyCableMarkModal = useCallback(() => {
     if (!cableMarkModalObject || !cableMarkModalCableType) return;

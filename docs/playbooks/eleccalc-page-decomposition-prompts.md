@@ -125,6 +125,7 @@ Potential target structure:
 | Candidate folder view model hook | Done | 2026-05-31: active custom folder lookup, active-folder candidate filtering, folder counts and active-folder reset effects moved to `useElecCalcCandidateFolderViewModel.ts`; focused hook unit + full frontend gate |
 | Candidate compare state hook | Done | 2026-05-31: marked candidate ids, compare-active state, displayed candidate projection, diff keys and compare row/cell helpers moved to `useElecCalcCandidateCompareState.ts`; focused hook unit + full frontend gate |
 | Cable mark modal state hook | Done | 2026-05-31: modal object/type/value/target-variant state, option derivation, selected cable lookup and open/close/change helpers moved to `useElecCalcCableMarkModalState.ts`; focused hook unit + full frontend gate |
+| Cable sizing modal state hook | Done | 2026-05-31: modal object/mode/type/manual-mark state, effective cable type, candidate params, query keys and open/reset helpers moved to `useElecCalcCableSizingModalState.ts`; focused hook unit + full frontend gate |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |
@@ -133,7 +134,7 @@ Potential target structure:
 | Cable source availability hook | Backlog | remaining feature flag and built-in/extended/all available type wiring |
 | Batch job/recalc model hook | Backlog | active job polling, selected/all scope, overwrite manual |
 | Cable mark modal apply flow hook | Backlog | manual/auto mutations and save-to-CO side effects |
-| Candidate sizing modal model hook | Backlog | auto/manual candidate creation, apply, reload |
+| Candidate sizing modal mutation flow hook | Backlog | auto/manual candidate creation, apply, reload |
 | Candidate folders model hook | Backlog | all/favorite/custom folders, rename/delete, excluded |
 | Electrical result diagnostics component/model | Backlog | failed/unsupported/stale/success separation |
 | Toolbar/actionbar component | Backlog | Only after characterization and UI proof |
