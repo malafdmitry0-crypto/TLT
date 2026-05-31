@@ -246,6 +246,7 @@ import { useElecCalcDataLifecycleEffects } from '@/pages/electrical/useElecCalcD
 import { useElecCalcElectricalColumnCopyValue } from '@/pages/electrical/useElecCalcElectricalColumnCopyValue';
 import { useElecCalcFilterOptions } from '@/pages/electrical/useElecCalcFilterOptions';
 import { useElecCalcGlideColumnModel } from '@/pages/electrical/useElecCalcGlideColumnModel';
+import { useElecCalcGlideCellState } from '@/pages/electrical/useElecCalcGlideCellState';
 import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
@@ -2003,22 +2004,9 @@ export default function ElecCalcPage() {
     });
   }, [cableTypes.getSavedCableTypeForObject, isCableMarkPending, project, stats.calcByObjectId]);
 
-  const getElectricalGlideCellState = useCallback((
-    obj: ProjectObject,
-    columnKey: string,
-    rowIndex: number,
-  ): HeatCalcGlideGridCellState => {
-    const renderer = electricalColumnRenderers[columnKey];
-    const layoutEditable = isElectricalLayoutCellEditable(obj, columnKey);
-    const currentCalc = currentElectricalCalc(stats.calcByObjectId[obj.id]);
-    const layoutValues = layoutEditable ? calcLayoutValues(currentCalc) : null;
-    const displayValue = layoutValues && columnKey === 'winding_pitch_mm'
-      ? String(layoutValues.windingPitchMm)
-      : layoutValues && columnKey === 'number_of_threads'
-        ? String(layoutValues.numberOfThreads)
-        : String(electricalColumnCopyValue(columnKey, obj, rowIndex) ?? '');
-    const actions = columnKey === 'cable_mark' && activeRowId === obj.id
-      ? [
+  const getElectricalGlideCellActions = useCallback((obj: ProjectObject, columnKey: string) => {
+    if (columnKey === 'cable_mark' && activeRowId === obj.id) {
+      return [
         {
           key: 'choose',
           label: 'Выбор',
@@ -2029,25 +2017,22 @@ export default function ElecCalcPage() {
           label: 'Подбор',
           disabled: !project,
         },
-      ]
-      : undefined;
-    return {
-      displayValue,
-      editable: layoutEditable,
-      align: renderer?.align,
-      editor: layoutEditable ? 'number' : undefined,
-      step: layoutEditable ? 1 : undefined,
-      actions,
-    };
+      ];
+    }
+    return undefined;
   }, [
     activeRowId,
-    electricalColumnCopyValue,
-    electricalColumnRenderers,
     isCableMarkPending,
-    isElectricalLayoutCellEditable,
     project,
-    stats.calcByObjectId,
   ]);
+
+  const getElectricalGlideCellState = useElecCalcGlideCellState({
+    calcByObjectId: stats.calcByObjectId,
+    electricalColumnCopyValue,
+    isElectricalLayoutCellEditable,
+    getColumnAlign: getElectricalGlideColumnAlign,
+    getCellActions: getElectricalGlideCellActions,
+  });
 
   const handleElectricalGlideStartCellEdit = useCallback((obj: ProjectObject) => {
     activateRowId(obj.id);
