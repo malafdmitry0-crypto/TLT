@@ -309,9 +309,8 @@ import {
   buildFieldCapabilityByKey,
   filterKindForCandidateColumn,
   filterKindForElectricalColumn,
-  updateTableViewColumnFilter,
-  updateTableViewSort,
 } from '@/pages/electrical/elecCalcTableFilterModel';
+import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
 import type {
   HeatCalcGlideGridCellState,
   HeatCalcGlideGridColumn,
@@ -320,12 +319,7 @@ import {
   visibleCableRowsForSource,
 } from '@/utils/cableCatalogSourceLabels';
 import {
-  createEmptyTableViewState,
-  hasActiveTableViewState,
   isColumnFilterActive,
-  removeHiddenTableViewState,
-  type HeatCalcColumnFilter,
-  type HeatCalcTableViewState,
 } from '@/utils/heatCalcTableFindability';
 
 const { Text } = Typography;
@@ -443,6 +437,59 @@ export default function ElecCalcPage() {
       }
       return readGuestElectricalTableViewSettings();
     });
+  const normalizedTableViewSettings = useMemo(
+    () => normalizeElectricalTableViewSettings(tableViewSettings),
+    [tableViewSettings],
+  );
+  const visibleElectricalColumnMetas = useMemo(
+    () => getVisibleElectricalTableColumnMetas(
+      tableColumnSettings,
+      normalizedTableViewSettings.tableLabelFormat,
+    ),
+    [normalizedTableViewSettings.tableLabelFormat, tableColumnSettings],
+  );
+  const visibleCandidateColumnMetas = useMemo(
+    () => getVisibleElectricalCandidateTableColumnMetas(
+      candidateTableColumnSettings,
+      normalizedTableViewSettings.tableLabelFormat,
+    ),
+    [candidateTableColumnSettings, normalizedTableViewSettings.tableLabelFormat],
+  );
+  const resolvedTableFontSize = useMemo(
+    () => resolveElectricalTableFontSize(normalizedTableViewSettings),
+    [normalizedTableViewSettings],
+  );
+  const visibleElectricalColumnKeys = useMemo(
+    () => visibleElectricalColumnMetas.map((meta) => meta.key),
+    [visibleElectricalColumnMetas],
+  );
+  const visibleCandidateColumnKeys = useMemo(
+    () => visibleCandidateColumnMetas.map((meta) => meta.key),
+    [visibleCandidateColumnMetas],
+  );
+  const resetElectricalTablePage = useCallback(() => {
+    setTablePage(1);
+  }, []);
+  const {
+    tableViewState,
+    candidateTableViewState,
+    setTableViewState,
+    setCandidateTableViewState,
+    currentTableViewActive,
+    candidateTableViewActive,
+    setColumnFilter,
+    resetColumnFilter,
+    resetCurrentTableViewState,
+    setElectricalTableSort,
+    setCandidateColumnFilter,
+    resetCandidateColumnFilter,
+    resetCandidateTableViewState,
+    setCandidateTableSort,
+  } = useElecCalcTableViewState({
+    visibleElectricalColumnKeys,
+    visibleCandidateColumnKeys,
+    resetElectricalTablePage,
+  });
   const cableSource: CableSource = isEmployee
     ? tableViewSettings.calculationCableSource
     : 'builtin';
@@ -458,10 +505,6 @@ export default function ElecCalcPage() {
   const tableColumnSettingsRef = useRef(tableColumnSettings);
   const candidateTableColumnSettingsRef = useRef(candidateTableColumnSettings);
   const tableViewSettingsRef = useRef(tableViewSettings);
-  const [tableViewState, setTableViewState] =
-    useState<HeatCalcTableViewState>(() => createEmptyTableViewState());
-  const [candidateTableViewState, setCandidateTableViewState] =
-    useState<HeatCalcTableViewState>(() => createEmptyTableViewState());
   const [electricalPageCursors, setElectricalPageCursors] =
     useState<Record<number, ProjectObjectsPageCursor | null>>({ 1: null });
   const [electricalInfinitePages, setElectricalInfinitePages] =
@@ -515,16 +558,16 @@ export default function ElecCalcPage() {
   }, [tableViewSettings]);
 
   useEffect(() => {
-    setTablePage(1);
-  }, [project?.id, variant]);
+    resetElectricalTablePage();
+  }, [project?.id, resetElectricalTablePage, variant]);
 
   useEffect(() => {
     setActiveRowId(null);
   }, [project?.id, variant, tablePage, tablePageSize]);
 
   useEffect(() => {
-    setCandidateTableViewState(createEmptyTableViewState());
-  }, [cableSizingModalObjectId]);
+    resetCandidateTableViewState();
+  }, [cableSizingModalObjectId, resetCandidateTableViewState]);
 
   useEffect(() => {
     setElectricalPageCursors({ 1: null });
@@ -1856,36 +1899,6 @@ export default function ElecCalcPage() {
     variant,
   ]);
 
-  const normalizedTableViewSettings = useMemo(
-    () => normalizeElectricalTableViewSettings(tableViewSettings),
-    [tableViewSettings],
-  );
-  const visibleElectricalColumnMetas = useMemo(
-    () => getVisibleElectricalTableColumnMetas(
-      tableColumnSettings,
-      normalizedTableViewSettings.tableLabelFormat,
-    ),
-    [normalizedTableViewSettings.tableLabelFormat, tableColumnSettings],
-  );
-  const visibleCandidateColumnMetas = useMemo(
-    () => getVisibleElectricalCandidateTableColumnMetas(
-      candidateTableColumnSettings,
-      normalizedTableViewSettings.tableLabelFormat,
-    ),
-    [candidateTableColumnSettings, normalizedTableViewSettings.tableLabelFormat],
-  );
-  const resolvedTableFontSize = useMemo(
-    () => resolveElectricalTableFontSize(normalizedTableViewSettings),
-    [normalizedTableViewSettings],
-  );
-  const visibleElectricalColumnKeys = useMemo(
-    () => visibleElectricalColumnMetas.map((meta) => meta.key),
-    [visibleElectricalColumnMetas],
-  );
-  const visibleCandidateColumnKeys = useMemo(
-    () => visibleCandidateColumnMetas.map((meta) => meta.key),
-    [visibleCandidateColumnMetas],
-  );
   const fieldCapabilityByKey = useMemo(
     () => buildFieldCapabilityByKey(electricalQueryCapabilities?.fields),
     [electricalQueryCapabilities],
@@ -1894,8 +1907,6 @@ export default function ElecCalcPage() {
     () => buildElectricalEnumOptionsByColumn(electricalQueryCapabilities?.fields),
     [electricalQueryCapabilities?.fields],
   );
-  const currentTableViewActive = hasActiveTableViewState(tableViewState);
-  const candidateTableViewActive = hasActiveTableViewState(candidateTableViewState);
   const markedCableSizingCandidateSet = useMemo(
     () => new Set(markedCableSizingCandidateIds),
     [markedCableSizingCandidateIds],
@@ -1956,76 +1967,6 @@ export default function ElecCalcPage() {
     ),
     [cableSizingCandidates, candidateColumnValueAccessors, visibleCandidateColumnMetas],
   );
-
-  useEffect(() => {
-    setTableViewState((current) => {
-      const cleaned = removeHiddenTableViewState(current, visibleElectricalColumnKeys);
-      if (
-        cleaned.sort === current.sort
-        && Object.keys(cleaned.filters).length === Object.keys(current.filters).length
-      ) {
-        return current;
-      }
-      return cleaned;
-    });
-  }, [visibleElectricalColumnKeys]);
-
-  useEffect(() => {
-    setCandidateTableViewState((current) => {
-      const cleaned = removeHiddenTableViewState(current, visibleCandidateColumnKeys);
-      if (
-        cleaned.sort === current.sort
-        && Object.keys(cleaned.filters).length === Object.keys(current.filters).length
-      ) {
-        return current;
-      }
-      return cleaned;
-    });
-  }, [visibleCandidateColumnKeys]);
-
-  const setColumnFilter = useCallback((columnKey: ElectricalColumnKey, filter?: HeatCalcColumnFilter) => {
-    setTablePage(1);
-    setTableViewState((current) => updateTableViewColumnFilter(current, columnKey, filter));
-  }, []);
-
-  const resetColumnFilter = useCallback((columnKey: ElectricalColumnKey) => {
-    setColumnFilter(columnKey, undefined);
-  }, [setColumnFilter]);
-
-  const resetCurrentTableViewState = useCallback(() => {
-    setTablePage(1);
-    setTableViewState(createEmptyTableViewState());
-  }, []);
-
-  const setElectricalTableSort = useCallback((
-    columnKey: ElectricalColumnKey,
-    direction?: 'asc' | 'desc',
-  ) => {
-    setTablePage(1);
-    setTableViewState((current) => updateTableViewSort(current, columnKey, direction));
-  }, []);
-
-  const setCandidateColumnFilter = useCallback((
-    columnKey: ElectricalCandidateColumnKey,
-    filter?: HeatCalcColumnFilter,
-  ) => {
-    setCandidateTableViewState((current) => updateTableViewColumnFilter(current, columnKey, filter));
-  }, []);
-
-  const resetCandidateColumnFilter = useCallback((columnKey: ElectricalCandidateColumnKey) => {
-    setCandidateColumnFilter(columnKey, undefined);
-  }, [setCandidateColumnFilter]);
-
-  const resetCandidateTableViewState = useCallback(() => {
-    setCandidateTableViewState(createEmptyTableViewState());
-  }, []);
-
-  const setCandidateTableSort = useCallback((
-    columnKey: ElectricalCandidateColumnKey,
-    direction?: 'asc' | 'desc',
-  ) => {
-    setCandidateTableViewState((current) => updateTableViewSort(current, columnKey, direction));
-  }, []);
 
   const handleElectricalTableChange = useCallback<NonNullable<TableProps<ProjectObject>['onChange']>>((pagination, _filters, sorter, extra) => {
     const nextPage = extra.action === 'sort' ? 1 : pagination.current ?? 1;

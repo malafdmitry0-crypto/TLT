@@ -113,10 +113,11 @@ Potential target structure:
 | Candidate compare diff keys | Done | 2026-05-31: diff-key detection moved to `elecCalcCandidateCompareModel.ts`; focused unit + `ElecCalcPage` integration |
 | Candidate table value accessors | Done | 2026-05-31: candidate table accessor builder moved to `elecCalcCandidateCompareModel.ts`; focused unit + `ElecCalcPage` integration |
 | Candidate displayed rows model | Done | 2026-05-31: candidate filter/sort/applied-first projection and marked-row filtering moved to `elecCalcCandidateTableModel.ts`; focused unit + `ElecCalcPage` integration |
+| Main/candidate table view state hook | Done | 2026-05-31: filter/sort/reset callbacks and hidden-column cleanup moved to `useElecCalcTableViewState.ts`; focused hook unit + `ElecCalcPage` integration |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
-| Main table state hook | Backlog | page/filter/sort/cursor state, hidden-column cleanup |
-| Candidate table state hook | Backlog | local filter/sort/marked comparison state |
+| Main table state hook | Backlog | remaining page/cursor state and Ant table compatibility handlers |
+| Candidate table state hook | Backlog | remaining marked comparison and Ant table compatibility handlers |
 | Preferences/settings hook | Backlog | main/candidate columns, view settings, role cache |
 | Cable type/source model hook | Backlog | feature flag, built-in/extended/all, object drafts |
 | Batch job/recalc model hook | Backlog | active job polling, selected/all scope, overwrite manual |
