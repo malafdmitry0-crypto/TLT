@@ -263,6 +263,7 @@ import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCal
 import { useElecCalcCandidateFolderViewModel } from '@/pages/electrical/useElecCalcCandidateFolderViewModel';
 import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColumnPersistence';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
+import { useElecCalcDataLifecycleEffects } from '@/pages/electrical/useElecCalcDataLifecycleEffects';
 import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
@@ -493,20 +494,6 @@ export default function ElecCalcPage() {
   const pageSummary = electricalPage?.summary;
   const pageInfo = electricalPage?.page_info;
   const nextElectricalPageCursor = pageInfo?.next_cursor;
-  useEffect(() => {
-    rememberElectricalPage({
-      electricalGlideEnabled,
-      electricalPage,
-      isFetching: isElectricalPageFetching,
-      isPlaceholderData: isElectricalPagePlaceholderData,
-    });
-  }, [
-    electricalGlideEnabled,
-    electricalPage,
-    isElectricalPageFetching,
-    isElectricalPagePlaceholderData,
-    rememberElectricalPage,
-  ]);
   const {
     objects,
     elecCalcs,
@@ -566,26 +553,19 @@ export default function ElecCalcPage() {
     openModalState: openCableSizingModalState,
   } = cableSizingModal;
 
-  useEffect(() => {
-    resetCandidateTableViewState();
-  }, [cableSizingModalObjectId, resetCandidateTableViewState]);
-
-  useEffect(() => {
-    setCableSizingCableType((current) => cableTypes.normalizeAvailableCableType(current));
-  }, [cableTypes.normalizeAvailableCableType]);
-
-  useEffect(() => {
-    rememberNextCursor({
-      nextCursor: nextElectricalPageCursor,
-      isFetching: isElectricalPageFetching,
-      isPlaceholderData: isElectricalPagePlaceholderData,
-    });
-  }, [
+  useElecCalcDataLifecycleEffects({
+    electricalGlideEnabled,
+    electricalPage,
     isElectricalPageFetching,
     isElectricalPagePlaceholderData,
+    rememberElectricalPage,
+    cableSizingModalObjectId,
+    resetCandidateTableViewState,
+    setCableSizingCableType,
+    normalizeAvailableCableType: cableTypes.normalizeAvailableCableType,
     nextElectricalPageCursor,
     rememberNextCursor,
-  ]);
+  });
 
   const { data: activeJob } = useQuery({
     queryKey: ['calc-job', activeJobId],
