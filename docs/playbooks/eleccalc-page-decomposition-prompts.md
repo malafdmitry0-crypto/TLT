@@ -129,6 +129,7 @@ Potential target structure:
 | Cable catalog row resolver | Done | 2026-05-31: cable rows by type/source and catalog commercial/technical statuses moved to `elecCalcCableCatalogModel.ts`; focused model unit + full frontend gate |
 | Cable selected-row resolver | Done | 2026-05-31: cable row lookup by mark/source, TT suffix matching, snapshot fallback and synthetic fallback moved to `elecCalcCableCatalogModel.ts`; focused model unit + full frontend gate |
 | Boot/view state hook | Done | 2026-05-31: available cable type keys/set, table engine resolution, glide flags and navigation active job id moved to `useElecCalcBootViewState.ts`; focused hook unit + `ElecCalcPage` integration |
+| Table projection hook | Done | 2026-05-31: loaded-page projection, visible objects/calculations, display offset and stats moved to `useElecCalcTableProjection.ts`; focused hook unit + `ElecCalcPage` integration |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |

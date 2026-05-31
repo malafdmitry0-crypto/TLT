@@ -87,7 +87,6 @@ import {
 } from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
 import { areCommercialFeaturesEnabled } from '@/config/featureFlags';
-import { useElectricalStats } from '@/hooks/useElectricalStats';
 import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
 import {
   electricalCalcError,
@@ -220,9 +219,6 @@ import {
 } from '@/pages/electrical/elecCalcErrorSummaryModel';
 import {
   SHOW_COMMERCIAL_CABLE_BASE_UI,
-  electricalCalculationsForTable,
-  electricalLoadedPagesForTable,
-  electricalObjectsForTable,
   type CopyElectricalVariantMutationArgs,
   type ElectricalBatchMutationArgs,
   type ElectricalBatchScope,
@@ -287,6 +283,7 @@ import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecC
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
 import { useElecCalcRowSelectionState } from '@/pages/electrical/useElecCalcRowSelectionState';
+import { useElecCalcTableProjection } from '@/pages/electrical/useElecCalcTableProjection';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
 import type {
   HeatCalcGlideGridCellState,
@@ -561,31 +558,18 @@ export default function ElecCalcPage() {
     isElectricalPagePlaceholderData,
     rememberElectricalPage,
   ]);
-  const electricalLoadedPages = useMemo(() => {
-    return electricalLoadedPagesForTable({
-      electricalGlideEnabled,
-      electricalPage,
-      electricalInfinitePages,
-      isElectricalPagePlaceholderData,
-      tablePage,
-    });
-  }, [
+  const {
+    objects,
+    elecCalcs,
+    electricalDisplayOffset,
+    stats,
+  } = useElecCalcTableProjection({
     electricalGlideEnabled,
-    electricalInfinitePages,
     electricalPage,
+    electricalInfinitePages,
     isElectricalPagePlaceholderData,
     tablePage,
-  ]);
-  const objects = useMemo(
-    () => electricalObjectsForTable(electricalGlideEnabled, electricalPage, electricalLoadedPages),
-    [electricalGlideEnabled, electricalLoadedPages, electricalPage],
-  );
-  const elecCalcs = useMemo(
-    () => electricalCalculationsForTable(electricalGlideEnabled, electricalPage, electricalLoadedPages),
-    [electricalGlideEnabled, electricalLoadedPages, electricalPage],
-  );
-  const electricalDisplayOffset = electricalGlideEnabled ? 0 : (pageInfo?.offset ?? 0);
-  const stats = useElectricalStats(objects, elecCalcs);
+  });
   const {
     activeRowId,
     selectedRowKeys,
