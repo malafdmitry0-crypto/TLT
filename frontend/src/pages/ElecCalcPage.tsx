@@ -268,6 +268,7 @@ import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCal
 import { useElecCalcCandidateFolderViewModel } from '@/pages/electrical/useElecCalcCandidateFolderViewModel';
 import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColumnPersistence';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
+import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
 import { useElecCalcRowSelectionState } from '@/pages/electrical/useElecCalcRowSelectionState';
@@ -431,7 +432,6 @@ export default function ElecCalcPage() {
   const [activeBatchScope, setActiveBatchScope] = useState<ElectricalBatchScope | null>(null);
   const [overwriteManualChoices, setOverwriteManualChoices] = useState(false);
   const activeBatchObjectIdsRef = useRef<string[] | null>(null);
-  const pageScopeRef = useRef<{ projectId?: string; variant: number } | null>(null);
   const tableScrollRegionsRef = useRef<HTMLDivElement | null>(null);
   useFocusableTableScrollRegions(
     tableScrollRegionsRef,
@@ -442,34 +442,18 @@ export default function ElecCalcPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    resetTablePage();
-  }, [project?.id, resetTablePage, variant]);
-
-  useEffect(() => {
-    resetPaginationCache();
-  }, [effectiveSource, project?.id, resetPaginationCache, tablePageSize, tableViewState, variant]);
-
-  useEffect(() => {
-    if (navigationActiveJobId) {
-      setActiveJobId(navigationActiveJobId);
-    }
-  }, [navigationActiveJobId]);
-
-  useEffect(() => {
-    const currentScope = { projectId: project?.id, variant };
-    const previousScope = pageScopeRef.current;
-    pageScopeRef.current = currentScope;
-    if (!previousScope) return;
-    if (!previousScope.projectId && currentScope.projectId) return;
-    if (
-      previousScope.projectId !== currentScope.projectId ||
-      previousScope.variant !== currentScope.variant
-    ) {
-      setActiveJobId(null);
-      setActiveBatchScope(null);
-    }
-  }, [project?.id, variant]);
+  useElecCalcPageScopeEffects({
+    projectId: project?.id,
+    variant,
+    effectiveSource,
+    tablePageSize,
+    tableViewState,
+    navigationActiveJobId,
+    resetTablePage,
+    resetPaginationCache,
+    setActiveJobId,
+    setActiveBatchScope,
+  });
 
   const { data: electricalQueryCapabilities } = useQuery({
     queryKey: ['project', project?.id, 'electrical-query-capabilities', variant],
