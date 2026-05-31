@@ -94,7 +94,6 @@ import {
   isElectricalCalcUnsupported,
 } from '@/utils/calcStatus';
 import { getCalcJobRefetchInterval } from '@/utils/calcJobPolling';
-import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 import { formatNumber } from '@/utils/formatters';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
@@ -258,6 +257,7 @@ import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPagina
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
 import { useElecCalcRowClassName } from '@/pages/electrical/useElecCalcRowClassName';
 import { useElecCalcRowSelectionState } from '@/pages/electrical/useElecCalcRowSelectionState';
+import { useElecCalcSelectedRowsClipboardEffect } from '@/pages/electrical/useElecCalcSelectedRowsClipboardEffect';
 import { useElecCalcTableProjection } from '@/pages/electrical/useElecCalcTableProjection';
 import { useElecCalcTableDimensions } from '@/pages/electrical/useElecCalcTableDimensions';
 import { useElecCalcTableNavigation } from '@/pages/electrical/useElecCalcTableNavigation';
@@ -2144,36 +2144,12 @@ export default function ElecCalcPage() {
     }
   }, [isCableMarkPending, openCableMarkModal, openCableSizingModal, project]);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (!(event.ctrlKey || event.metaKey) || event.key !== 'c') return;
-      if (selectedRowKeys.length === 0) return;
-      const active = document.activeElement;
-      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
-
-      const selectedRows = objects
-        .map((object, index) => ({ object, index }))
-        .filter(({ object }) => selectedRowKeys.includes(object.id));
-      if (selectedRows.length === 0) return;
-      const header = visibleElectricalColumnMetas.map((meta) => meta.title);
-      const rows = selectedRows.map(({ object, index }) =>
-        visibleElectricalColumnMetas.map((meta) =>
-          String(electricalColumnCopyValue(meta.key, object, index) ?? ''),
-        ),
-      );
-      copyToClipboard(buildTsv([header, ...rows])).then(() => {
-        message.success(`Скопировано строк: ${selectedRows.length}`);
-      });
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [
+  useElecCalcSelectedRowsClipboardEffect({
     electricalColumnCopyValue,
     objects,
     selectedRowKeys,
     visibleElectricalColumnMetas,
-  ]);
+  });
 
   const {
     electricalTableScrollX,
