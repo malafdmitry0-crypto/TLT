@@ -2,6 +2,7 @@ import type { CableSource } from '@/api/calculations';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { CableCatalogRow } from '@/utils/cableCatalogSourceLabels';
 import { visibleCableRowsForSource } from '@/utils/cableCatalogSourceLabels';
+import { normalizeCableSource } from '@/pages/electrical/elecCalcCableOptionModel';
 import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
 
 export type CatalogStatusColor = 'default' | 'success' | 'warning' | 'error';
@@ -32,6 +33,14 @@ type ResolveCableRowsForTypeInput = {
     three_core?: CableStatusRow[];
   };
   effectiveSource: CableSource;
+};
+
+type ResolveCableRowForMarkInput = {
+  type: CableTypeKey;
+  mark: string | undefined;
+  calc: ElectricalCalcSummary | undefined;
+  rows: CableStatusRow[];
+  selectedSource?: CableSource | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -128,6 +137,29 @@ export function resolveCableCatalogStatuses(
     commercialDataStatus: commercialStatus(rows),
     technicalDataStatus: technicalStatus(type, rows),
   };
+}
+
+export function resolveCableRowForMark({
+  type,
+  mark,
+  calc,
+  rows,
+  selectedSource,
+}: ResolveCableRowForMarkInput): CableStatusRow | null {
+  if (!mark) return null;
+  const snapshotRow = cableSnapshotRow(calc);
+  const snapshotMatchesMark = snapshotRow?.model === mark;
+  const matchesMark = (row: CableStatusRow) => {
+    if (!row.model) return false;
+    if (row.model === mark) return true;
+    return type === 'self_regulating_tt' && mark.startsWith(`${row.model}-`);
+  };
+  const matchesSource = (row: CableStatusRow) =>
+    !selectedSource || normalizeCableSource(row.source) === selectedSource;
+  return rows.find((row) => matchesMark(row) && matchesSource(row))
+    ?? rows.find(matchesMark)
+    ?? (snapshotMatchesMark ? snapshotRow : null)
+    ?? { model: mark, cable_type: type, source: selectedSource ?? 'project' };
 }
 
 export function cableSnapshotRow(calc: ElectricalCalcSummary | undefined): CableStatusRow | null {

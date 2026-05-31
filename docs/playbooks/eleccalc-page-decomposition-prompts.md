@@ -127,6 +127,7 @@ Potential target structure:
 | Cable mark modal state hook | Done | 2026-05-31: modal object/type/value/target-variant state, option derivation, selected cable lookup and open/close/change helpers moved to `useElecCalcCableMarkModalState.ts`; focused hook unit + full frontend gate |
 | Cable sizing modal state hook | Done | 2026-05-31: modal object/mode/type/manual-mark state, effective cable type, candidate params, query keys and open/reset helpers moved to `useElecCalcCableSizingModalState.ts`; focused hook unit + full frontend gate |
 | Cable catalog row resolver | Done | 2026-05-31: cable rows by type/source and catalog commercial/technical statuses moved to `elecCalcCableCatalogModel.ts`; focused model unit + full frontend gate |
+| Cable selected-row resolver | Done | 2026-05-31: cable row lookup by mark/source, TT suffix matching, snapshot fallback and synthetic fallback moved to `elecCalcCableCatalogModel.ts`; focused model unit + full frontend gate |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |

@@ -7,6 +7,7 @@ import {
   hasTechnicalData,
   hasValue,
   resolveCableCatalogStatuses,
+  resolveCableRowForMark,
   resolveCableRowsForType,
   technicalStatus,
   type CableStatusRow,
@@ -205,6 +206,61 @@ describe('elecCalcCableCatalogModel', () => {
       commercialDataStatus: { label: 'Коммерческие данные есть', color: 'success' },
       technicalDataStatus: { label: 'Техданные полные', color: 'success' },
     });
+  });
+
+  it('resolves selected cable rows by mark, source and snapshot fallback', () => {
+    const builtinRow: CableStatusRow = {
+      model: 'ТЛТ-25',
+      cable_type: 'self_regulating',
+      source: 'builtin',
+    };
+    const extendedRow: CableStatusRow = {
+      model: 'ТЛТ-25',
+      cable_type: 'self_regulating',
+      source: 'extended',
+    };
+    expect(resolveCableRowForMark({
+      type: 'self_regulating',
+      mark: 'ТЛТ-25',
+      calc: undefined,
+      rows: [builtinRow, extendedRow],
+      selectedSource: 'extended',
+    })).toBe(extendedRow);
+
+    expect(resolveCableRowForMark({
+      type: 'self_regulating_tt',
+      mark: 'ТТН-10-СР',
+      calc: undefined,
+      rows: [{ model: 'ТТН-10', cable_type: 'self_regulating_tt', source: 'builtin' }],
+    })).toMatchObject({ model: 'ТТН-10' });
+
+    const snapshotCalc = calc({
+      cable_snapshot: {
+        cable_mark: 'Снимок-ТЛТ',
+        cable_type: 'self_regulating',
+        technical: { model: 'Снимок-ТЛТ' },
+      },
+    });
+    expect(resolveCableRowForMark({
+      type: 'self_regulating',
+      mark: 'Снимок-ТЛТ',
+      calc: snapshotCalc,
+      rows: [],
+    })).toMatchObject({ model: 'Снимок-ТЛТ', source: 'project' });
+
+    expect(resolveCableRowForMark({
+      type: 'single_core',
+      mark: 'R1',
+      calc: undefined,
+      rows: [],
+      selectedSource: 'extended',
+    })).toEqual({ model: 'R1', cable_type: 'single_core', source: 'extended' });
+    expect(resolveCableRowForMark({
+      type: 'single_core',
+      mark: undefined,
+      calc: undefined,
+      rows: [],
+    })).toBeNull();
   });
 
   it('builds cable row from calculation snapshot without accepting invalid snapshots', () => {

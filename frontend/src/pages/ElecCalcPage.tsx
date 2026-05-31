@@ -180,8 +180,8 @@ import {
   type CableMarkOptionSource,
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import {
-  cableSnapshotRow,
   resolveCableCatalogStatuses,
+  resolveCableRowForMark,
   resolveCableRowsForType,
   type CableStatusRow,
 } from '@/pages/electrical/elecCalcCableCatalogModel';
@@ -1610,23 +1610,13 @@ export default function ElecCalcPage() {
     mark: string | undefined,
     calc: ElectricalCalcSummary | undefined,
     selectedSource?: CableSource | null,
-  ): CableStatusRow | null => {
-    if (!mark) return null;
-    const snapshotRow = cableSnapshotRow(calc);
-    const snapshotMatchesMark = snapshotRow?.model === mark;
-    const rows = cableRowsForType(type);
-    const matchesMark = (row: CableStatusRow) => {
-      if (!row.model) return false;
-      if (row.model === mark) return true;
-      return type === 'self_regulating_tt' && mark.startsWith(`${row.model}-`);
-    };
-    const matchesSource = (row: CableStatusRow) =>
-      !selectedSource || normalizeCableSource(row.source) === selectedSource;
-    return rows.find((row) => matchesMark(row) && matchesSource(row))
-      ?? rows.find(matchesMark)
-      ?? (snapshotMatchesMark ? snapshotRow : null)
-      ?? { model: mark, cable_type: type, source: selectedSource ?? 'project' };
-  }, [cableRowsForType]);
+  ): CableStatusRow | null => resolveCableRowForMark({
+    type,
+    mark,
+    calc,
+    rows: cableRowsForType(type),
+    selectedSource,
+  }), [cableRowsForType]);
 
   const cableSizingModalSelectedCable = useMemo<CableStatusRow | null>(() => (
     cableSizingEffectiveCableType
