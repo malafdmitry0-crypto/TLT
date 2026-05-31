@@ -2,7 +2,10 @@ import type { ApiError } from '@/api/client';
 import type { BatchElectricalResponse } from '@/types/calculation';
 
 export function isBatchElectricalResponse(result: unknown): result is BatchElectricalResponse {
-  return typeof result === 'object' && result !== null && 'calculated' in result;
+  return typeof result === 'object'
+    && result !== null
+    && !Array.isArray(result)
+    && Number.isFinite((result as { calculated?: unknown }).calculated);
 }
 
 export function isApiError(error: unknown): error is ApiError {

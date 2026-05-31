@@ -1,7 +1,7 @@
-import type { SelectionPolicy } from '@/api/calculations';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 import { formatNumber, formatPower } from '@/utils/formatters';
+export { selectionPolicyText } from '@/pages/electrical/elecCalcSelectionPolicyModel';
 
 export type CableMarkSource = 'auto' | 'manual';
 export type ThreadSource = 'auto' | 'manual' | 'default' | 'previous_result';
@@ -10,15 +10,6 @@ export type ThreadSourceTag = {
   color: 'purple' | 'blue' | 'gold' | 'default';
   label: string;
   tooltip: string;
-};
-
-const RESULT_SELECTION_POLICY_LABEL: Record<SelectionPolicy, string> = {
-  technical_minimum: 'Технический',
-  lowest_cost: 'Дешевле',
-  fastest_delivery: 'Быстрее',
-  in_stock: 'В наличии',
-  preferred_supplier: 'Приоритет',
-  balanced: 'Баланс',
 };
 
 export function getCableMark(calc: ElectricalCalcSummary | undefined) {
@@ -130,12 +121,6 @@ export function commercialValue(calc: ElectricalCalcSummary | undefined, key: st
 
 export function commercialNumber(calc: ElectricalCalcSummary | undefined, key: string, digits = 2) {
   return numberText(commercialValue(calc, key), digits);
-}
-
-export function selectionPolicyText(value: unknown) {
-  if (typeof value !== 'string') return '—';
-  return RESULT_SELECTION_POLICY_LABEL[value as SelectionPolicy]
-    ?? (value === 'manual_selection' ? 'Ручной' : value);
 }
 
 export function objectResultNumber(obj: ProjectObject, key: string, digits = 2) {

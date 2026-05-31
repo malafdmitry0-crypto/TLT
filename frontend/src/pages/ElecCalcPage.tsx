@@ -239,6 +239,22 @@ import {
   normalizeCalculationVariantList,
 } from '@/pages/electrical/elecCalcVariantModel';
 import {
+  SELECTION_POLICY_OPTIONS,
+} from '@/pages/electrical/elecCalcSelectionPolicyModel';
+import {
+  ELECTRICAL_TABLE_PAGE_SIZE,
+  EMPTY_ELECTRICAL_CALCS,
+  EMPTY_OBJECTS,
+  type CandidateFolderModalMode,
+  type CopyElectricalVariantMutationArgs,
+  type ElectricalBatchMutationArgs,
+  type ElectricalBatchScope,
+  type ElectricalCandidateTableColumnPreferenceMutation,
+  type ElectricalNavigationState,
+  type ElectricalTableColumnPreferenceMutation,
+  type ElectricalTableSettingsPreferenceMutation,
+} from '@/pages/electrical/elecCalcPageModel';
+import {
   ELECTRICAL_LAYOUT_EDITABLE_COLUMNS,
   maxThreadsForCableType,
   maxWindingCoefficientForDiameterMm,
@@ -305,21 +321,6 @@ const ElectricalGlideGrid = lazy(() => import('@/components/electrical/Electrica
 const ElectricalCandidateGlideGrid = lazy(() => import('@/components/electrical/ElectricalCandidateGlideGrid'));
 
 const SHOW_COMMERCIAL_CABLE_BASE_UI = false;
-const SELECTION_POLICY_LABEL: Record<SelectionPolicy, string> = {
-  technical_minimum: 'Технический',
-  lowest_cost: 'Дешевле',
-  fastest_delivery: 'Быстрее',
-  in_stock: 'В наличии',
-  preferred_supplier: 'Приоритет',
-  balanced: 'Баланс',
-};
-const SELECTION_POLICY_OPTIONS = (Object.keys(SELECTION_POLICY_LABEL) as SelectionPolicy[]).map(
-  (value) => ({
-    value,
-    label: SELECTION_POLICY_LABEL[value],
-  }),
-);
-type CandidateFolderModalMode = 'create' | 'rename';
 type CableMarkSelectOption = {
   value: string;
   label: ReactNode;
@@ -328,41 +329,6 @@ type CableMarkSelectOption = {
   optionSource: CableMarkOptionSource;
   cableSource?: CableSource;
   disabled?: boolean;
-};
-
-const ELECTRICAL_TABLE_PAGE_SIZE = 50;
-type ElectricalBatchScope = 'all' | 'selected';
-type ElectricalBatchMutationArgs = {
-  scope: ElectricalBatchScope;
-  objectIds?: string[];
-  skipManual?: boolean;
-};
-type CopyElectricalVariantMutationArgs = {
-  targetVariant: number;
-  overwrite?: boolean;
-};
-const EMPTY_OBJECTS: ProjectObject[] = [];
-const EMPTY_ELECTRICAL_CALCS: ElectricalCalcSummary[] = [];
-
-type ElectricalNavigationState = {
-  activeJobId?: string;
-} | null;
-
-type ElectricalTableColumnPreferenceMutation = {
-  settings: ElectricalTableColumnSettings;
-  closeModal?: boolean;
-  showMessage?: boolean;
-};
-
-type ElectricalCandidateTableColumnPreferenceMutation = {
-  settings: ElectricalCandidateTableColumnSettings;
-  closeModal?: boolean;
-  showMessage?: boolean;
-};
-
-type ElectricalTableSettingsPreferenceMutation = {
-  columnSettings: ElectricalTableColumnSettings;
-  viewSettings: ElectricalTableViewSettings;
 };
 
 function renderCandidateElectricalField(

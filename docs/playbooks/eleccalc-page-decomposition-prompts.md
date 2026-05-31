@@ -100,6 +100,7 @@ Potential target structure:
 | Cable type constants/helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCableTypeModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 89 pass |
 | CO variant, cursor and API guard helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcVariantModel.ts`, `elecCalcCursorModel.ts`, `elecCalcApiResponseGuards.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 96 pass |
 | Candidate folder, project cable option and filter input helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCandidateFolderModel.ts`, `shouldShowProjectCableOption`, `toInputNumberValue`; focused unit + previous pure units + `ElecCalcPage` integration, 100 pass |
+| Selection policy and page constants/types | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcSelectionPolicyModel.ts`, `elecCalcPageModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 103 pass |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | page/filter/sort/cursor state, hidden-column cleanup |

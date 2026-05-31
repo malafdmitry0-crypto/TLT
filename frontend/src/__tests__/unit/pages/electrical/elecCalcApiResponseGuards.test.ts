@@ -11,7 +11,10 @@ describe('elecCalcApiResponseGuards', () => {
     expect(isBatchElectricalResponse({ calculated: 0 })).toBe(true);
     expect(isBatchElectricalResponse({ calculated: 2, results: [] })).toBe(true);
     expect(isBatchElectricalResponse(null)).toBe(false);
+    expect(isBatchElectricalResponse([])).toBe(false);
     expect(isBatchElectricalResponse({ results: [] })).toBe(false);
+    expect(isBatchElectricalResponse({ calculated: '2', results: [] })).toBe(false);
+    expect(isBatchElectricalResponse({ calculated: Number.NaN, results: [] })).toBe(false);
   });
 
   it('preserves the existing ApiError guard semantics', () => {
