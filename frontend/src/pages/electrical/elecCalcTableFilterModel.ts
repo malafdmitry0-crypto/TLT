@@ -124,6 +124,12 @@ export function updateTableViewSort(
   };
 }
 
+export function buildFieldCapabilityByKey(
+  fields: readonly ObjectQueryFieldCapability[] | null | undefined,
+): Map<string, ObjectQueryFieldCapability> {
+  return new Map((fields ?? []).map((field) => [field.key, field]));
+}
+
 export function buildElectricalEnumOptionsByColumn(
   fields: readonly ObjectQueryFieldCapability[] | null | undefined,
 ): Record<string, ElectricalFilterOption[]> {

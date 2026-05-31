@@ -306,6 +306,7 @@ import {
 import {
   buildCandidateEnumOptionsByColumn,
   buildElectricalEnumOptionsByColumn,
+  buildFieldCapabilityByKey,
   filterKindForCandidateColumn,
   filterKindForElectricalColumn,
   updateTableViewColumnFilter,
@@ -1886,7 +1887,7 @@ export default function ElecCalcPage() {
     [visibleCandidateColumnMetas],
   );
   const fieldCapabilityByKey = useMemo(
-    () => new Map(electricalQueryCapabilities?.fields.map((field) => [field.key, field]) ?? []),
+    () => buildFieldCapabilityByKey(electricalQueryCapabilities?.fields),
     [electricalQueryCapabilities],
   );
   const enumOptionsByColumn = useMemo(

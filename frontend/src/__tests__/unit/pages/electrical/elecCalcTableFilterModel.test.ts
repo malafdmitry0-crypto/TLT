@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCandidateEnumOptionsByColumn,
   buildElectricalEnumOptionsByColumn,
+  buildFieldCapabilityByKey,
   CANDIDATE_BOOLEAN_FILTER_KEYS,
   CANDIDATE_ENUM_FILTER_KEYS,
   CANDIDATE_NUMERIC_FILTER_KEYS,
@@ -143,6 +144,23 @@ describe('elecCalcTableFilterModel', () => {
       },
       sort: undefined,
     });
+  });
+
+  it('builds field capabilities lookup by backend field key', () => {
+    const totalPowerCapability = {
+      ...capability(['range'], 'number'),
+      key: 'total_power',
+    } satisfies ObjectQueryFieldCapability;
+    const statusCapability = {
+      ...capability(['in'], 'enum'),
+      key: 'electrical_status',
+    } satisfies ObjectQueryFieldCapability;
+
+    const byKey = buildFieldCapabilityByKey([totalPowerCapability, statusCapability]);
+
+    expect(byKey.get('total_power')).toBe(totalPowerCapability);
+    expect(byKey.get('electrical_status')).toBe(statusCapability);
+    expect(buildFieldCapabilityByKey(null).size).toBe(0);
   });
 
   it('builds main table enum filter options from backend capabilities', () => {

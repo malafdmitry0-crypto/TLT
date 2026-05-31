@@ -109,7 +109,7 @@ Potential target structure:
 | Cable type selection helpers | Done | 2026-05-31: normalize/resolve/build object overrides moved to `elecCalcCableTypeModel.ts`; focused unit + `ElecCalcPage` integration, 58 pass |
 | Table view filter/sort state helpers | Done | 2026-05-31: filter/sort state update helpers moved to `elecCalcTableFilterModel.ts`; focused unit + `ElecCalcPage` integration |
 | Candidate folder active-state helpers | Done | 2026-05-31: custom folder lookup, folder filtering and counts moved to `elecCalcCandidateFolderModel.ts`; focused unit + `ElecCalcPage` integration |
-| Enum filter option builders | Done | 2026-05-31: main/candidate enum option builders moved to `elecCalcTableFilterModel.ts`; focused unit + `ElecCalcPage` integration |
+| Enum filter option builders | Done | 2026-05-31: main/candidate enum option builders and backend capability lookup moved to `elecCalcTableFilterModel.ts`; focused unit + `ElecCalcPage` integration |
 | Candidate compare diff keys | Done | 2026-05-31: diff-key detection moved to `elecCalcCandidateCompareModel.ts`; focused unit + `ElecCalcPage` integration |
 | Candidate table value accessors | Done | 2026-05-31: candidate table accessor builder moved to `elecCalcCandidateCompareModel.ts`; focused unit + `ElecCalcPage` integration |
 | Candidate displayed rows model | Done | 2026-05-31: candidate filter/sort/applied-first projection and marked-row filtering moved to `elecCalcCandidateTableModel.ts`; focused unit + `ElecCalcPage` integration |
