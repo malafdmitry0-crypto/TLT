@@ -240,9 +240,6 @@ import {
   valueText,
 } from '@/pages/electrical/elecCalcResultValueModel';
 import {
-  buildCandidateEnumOptionsByColumn,
-  buildElectricalEnumOptionsByColumn,
-  buildFieldCapabilityByKey,
   filterKindForCandidateColumn,
   filterKindForElectricalColumn,
 } from '@/pages/electrical/elecCalcTableFilterModel';
@@ -260,6 +257,7 @@ import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColu
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
 import { useElecCalcDataLifecycleEffects } from '@/pages/electrical/useElecCalcDataLifecycleEffects';
+import { useElecCalcFilterOptions } from '@/pages/electrical/useElecCalcFilterOptions';
 import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
@@ -1444,22 +1442,16 @@ export default function ElecCalcPage() {
     manualCableMutate,
   ]);
 
-  const fieldCapabilityByKey = useMemo(
-    () => buildFieldCapabilityByKey(electricalQueryCapabilities?.fields),
-    [electricalQueryCapabilities],
-  );
-  const enumOptionsByColumn = useMemo(
-    () => buildElectricalEnumOptionsByColumn(electricalQueryCapabilities?.fields),
-    [electricalQueryCapabilities?.fields],
-  );
-  const candidateEnumOptionsByColumn = useMemo(
-    () => buildCandidateEnumOptionsByColumn(
-      cableSizingCandidates,
-      visibleCandidateColumnMetas,
-      candidateColumnValueAccessors,
-    ),
-    [cableSizingCandidates, candidateColumnValueAccessors, visibleCandidateColumnMetas],
-  );
+  const {
+    fieldCapabilityByKey,
+    enumOptionsByColumn,
+    candidateEnumOptionsByColumn,
+  } = useElecCalcFilterOptions({
+    electricalFields: electricalQueryCapabilities?.fields,
+    cableSizingCandidates,
+    visibleCandidateColumnMetas,
+    candidateColumnValueAccessors,
+  });
 
   const {
     handleElectricalTableChange,
