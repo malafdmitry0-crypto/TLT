@@ -94,6 +94,7 @@ Potential target structure:
 | Main electrical result/value helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcResultValueModel.ts`; focused unit + candidate/query units + `ElecCalcPage` integration, 65 pass |
 | Layout numeric helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcLayoutModel.ts`; focused unit + result/candidate/query units + `ElecCalcPage` integration, 71 pass |
 | Main table copy/status characterization | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcMainTableModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 76 pass |
+| Cable mark/source option helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCableOptionModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 80 pass |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | page/filter/sort/cursor state, hidden-column cleanup |
@@ -345,6 +346,62 @@ Definition of Done:
   commercial values and stale/current filtering for copy text.
 - Запущены:
   `npm --prefix frontend test -- --run src/__tests__/unit/pages/electrical/elecCalcMainTableModel.test.ts src/__tests__/unit/pages/electrical/elecCalcLayoutModel.test.ts src/__tests__/unit/pages/electrical/elecCalcResultValueModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCandidateCompareModel.test.ts src/__tests__/unit/pages/electrical/elecCalcQueryModel.test.ts src/__tests__/integration/pages/ElecCalcPage.test.tsx`
+- Запущены `npm --prefix frontend run typecheck` и `git diff --check`.
+- Playwright/screenshots не требуются, если JSX/CSS/visible UI не менялись.
+
+## Prompt 8. Вынести cable mark/source option helpers
+
+Status: Done. Не запускать повторно без нового finding.
+
+Режим `/fix-focused`.
+Scope: только чистые helpers выбора источника/значения марки кабеля в
+`ElecCalcPage`: normalizer источника, encoding значения option, fallback
+источника из `cable_snapshot` и внешняя метка source для catalog rows.
+
+Анализ документа перед выполнением:
+
+- `Prompt 4` отмечает `normalizeCableSource`,
+  `normalizeCableMarkOptionSource`, `cableMarkOptionValue`,
+  `catalogSourceFromSnapshot`, `externalCableOptionLabelSource` как безопасный
+  pure-кандидат при наличии focused unit tests.
+- `docs/srs/ui/guest/03-screen-workspace-electrical.md` фиксирует, что список
+  марок зависит от типа кабеля и активной базы расчёта, а ручной выбор марки
+  сохраняется отдельно по объекту/CO. Этот slice не меняет форму, JSX, тексты
+  модалки, payload, backend, формулы, persistence или CO workflow.
+- Источник истины для отображения внешней метки уже локализован в
+  `frontend/src/utils/cableCatalogSourceLabels.ts`; новая модель должна только
+  делегировать туда сравнение extended/builtin строк.
+
+Задача:
+
+- Вынести из `frontend/src/pages/ElecCalcPage.tsx` только:
+  `CableMarkOptionSource`, `AUTO_CABLE_MARK_VALUE`,
+  `CABLE_MARK_OPTION_SEPARATOR`, `normalizeCableSource`,
+  `normalizeCableMarkOptionSource`, `cableMarkOptionValue`,
+  `catalogSourceFromSnapshot`, `externalCableOptionLabelSource`.
+- Целевой файл:
+  `frontend/src/pages/electrical/elecCalcCableOptionModel.ts`.
+- Не двигать `CableMarkSelectOption`, `optionWithSourceLabel`,
+  `cableMarkOption`, `manualCableOptionsForType`,
+  `cableMarkOptionsFor`, `findCableRowForMark`, модалки ручного выбора,
+  sizing modal, JSX renderers, React state/effects, React Query/Zustand,
+  mutations, payload builders, backend/API и persistence.
+- Не менять sentinel и encoding: `__auto__`, separator `::`,
+  `encodeURIComponent(mark)`, fallback invalid source -> `builtin`, special
+  source `project`, snapshot fallback `actual_catalog_source` -> затем
+  `requested_catalog_source`.
+- Добавить focused unit:
+  `frontend/src/__tests__/unit/pages/electrical/elecCalcCableOptionModel.test.ts`.
+
+Definition of Done:
+
+- `ElecCalcPage.tsx` импортирует option/source helpers и больше не держит
+  локальный duplicate-блок этих функций/констант.
+- Unit покрывает source normalization, `project` special case, invalid fallback,
+  option encoding для кириллицы/символов, snapshot actual/requested fallback,
+  invalid/array snapshot и external label delegation для `all` vs `extended`.
+- Запущены:
+  `npm --prefix frontend test -- --run src/__tests__/unit/pages/electrical/elecCalcCableOptionModel.test.ts src/__tests__/unit/pages/electrical/elecCalcMainTableModel.test.ts src/__tests__/unit/pages/electrical/elecCalcLayoutModel.test.ts src/__tests__/unit/pages/electrical/elecCalcResultValueModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCandidateCompareModel.test.ts src/__tests__/unit/pages/electrical/elecCalcQueryModel.test.ts src/__tests__/integration/pages/ElecCalcPage.test.tsx`
 - Запущены `npm --prefix frontend run typecheck` и `git diff --check`.
 - Playwright/screenshots не требуются, если JSX/CSS/visible UI не менялись.
 

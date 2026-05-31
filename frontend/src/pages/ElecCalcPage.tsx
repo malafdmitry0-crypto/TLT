@@ -189,6 +189,15 @@ import {
   buildElectricalCandidateGlideColumns,
 } from '@/utils/electricalCandidateGlideGrid';
 import {
+  AUTO_CABLE_MARK_VALUE,
+  cableMarkOptionValue,
+  catalogSourceFromSnapshot,
+  externalCableOptionLabelSource,
+  normalizeCableMarkOptionSource,
+  normalizeCableSource,
+  type CableMarkOptionSource,
+} from '@/pages/electrical/elecCalcCableOptionModel';
+import {
   candidateCommercialValue,
   candidateCompareDisplayValue,
   candidateCompareValue,
@@ -244,7 +253,6 @@ import type {
   HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
 import {
-  externalLabelSourceForCableRow,
   type CableCatalogRow,
   visibleCableRowsForSource,
 } from '@/utils/cableCatalogSourceLabels';
@@ -328,7 +336,6 @@ type CableMarkSelectOption = {
   cableSource?: CableSource;
   disabled?: boolean;
 };
-type CableMarkOptionSource = CableSource | 'project';
 
 function hasCommercialData(row: CableStatusRow) {
   return row.price_per_meter != null
@@ -451,9 +458,6 @@ type ElectricalTableSettingsPreferenceMutation = {
   viewSettings: ElectricalTableViewSettings;
 };
 
-const AUTO_CABLE_MARK_VALUE = '__auto__';
-const CABLE_MARK_OPTION_SEPARATOR = '::';
-
 function calculationVariantLabel(variants: readonly number[]) {
   return variants.map((targetVariant) => `СО${targetVariant}`).join(', ');
 }
@@ -466,40 +470,6 @@ function normalizeCalculationVariantList(values: readonly unknown[]): Calculatio
         (CALCULATION_VARIANTS as readonly number[]).includes(value)),
   );
   return CALCULATION_VARIANTS.filter((targetVariant) => selected.has(targetVariant));
-}
-
-function normalizeCableSource(value: unknown): CableSource | null {
-  return value === 'builtin'
-    || value === 'commercial'
-    || value === 'extended'
-    || value === 'all'
-    ? value
-    : null;
-}
-
-function normalizeCableMarkOptionSource(value: unknown): CableMarkOptionSource {
-  if (value === 'project') return 'project';
-  return normalizeCableSource(value) ?? 'builtin';
-}
-
-function cableMarkOptionValue(source: CableMarkOptionSource, mark: string) {
-  return `${source}${CABLE_MARK_OPTION_SEPARATOR}${encodeURIComponent(mark)}`;
-}
-
-function catalogSourceFromSnapshot(calc: ElectricalCalcSummary | undefined): CableSource | null {
-  const snapshot = calc?.cable_snapshot;
-  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return null;
-  return normalizeCableSource(snapshot.actual_catalog_source)
-    ?? normalizeCableSource(snapshot.requested_catalog_source);
-}
-
-function externalCableOptionLabelSource(
-  row: CableStatusRow,
-  rows: CableStatusRow[],
-  builtinRows: CableStatusRow[],
-  source: CableSource,
-): CableMarkOptionSource | null {
-  return externalLabelSourceForCableRow(row, rows, builtinRows, source);
 }
 
 function renderCandidateElectricalField(
