@@ -158,9 +158,7 @@ import {
   shouldShowProjectCableOption,
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import {
-  resolveCableCatalogStatuses,
   resolveCableRowForMark,
-  resolveCableRowsForType,
   type CableStatusRow,
 } from '@/pages/electrical/elecCalcCableCatalogModel';
 import {
@@ -251,6 +249,7 @@ import {
 } from '@/pages/electrical/elecCalcTableFilterModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
+import { useElecCalcCableCatalogView } from '@/pages/electrical/useElecCalcCableCatalogView';
 import { useElecCalcCableMarkOptions } from '@/pages/electrical/useElecCalcCableMarkOptions';
 import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
 import { useElecCalcCableSizingModalState } from '@/pages/electrical/useElecCalcCableSizingModalState';
@@ -587,41 +586,20 @@ export default function ElecCalcPage() {
     ...referenceQueryOptions,
   });
 
-  const cableRowsForType = useCallback((type: CableTypeKey): CableStatusRow[] => {
-    return resolveCableRowsForType({
-      type,
-      availableCableTypes,
-      cables,
-      builtinCables,
-      ttCables,
-      resistiveCables,
-      builtinResistiveCables,
-      effectiveSource,
-    });
-  }, [
-    availableCableTypes,
-    builtinCables,
-    builtinResistiveCables,
-    cables,
-    effectiveSource,
-    resistiveCables,
-    ttCables,
-  ]);
-
-  const visibleCableCatalog = useMemo<CableStatusRow[]>(() => {
-    if (!cableTypes.visibleCableTypeControl) return [];
-    return cableRowsForType(cableTypes.visibleCableTypeControl);
-  }, [
-    cableRowsForType,
-    cableTypes.visibleCableTypeControl,
-  ]);
   const {
+    cableRowsForType,
     commercialDataStatus,
     technicalDataStatus,
-  } = useMemo(
-    () => resolveCableCatalogStatuses(cableTypes.visibleCableTypeControl, visibleCableCatalog),
-    [visibleCableCatalog, cableTypes.visibleCableTypeControl],
-  );
+  } = useElecCalcCableCatalogView({
+    availableCableTypes,
+    cables,
+    builtinCables,
+    ttCables,
+    resistiveCables,
+    builtinResistiveCables,
+    effectiveSource,
+    visibleCableTypeControl: cableTypes.visibleCableTypeControl,
+  });
 
   const { data: persistedTableColumnPreference } = useQuery({
     queryKey: ['preference', ELECTRICAL_TABLE_COLUMN_PREF_KEY],
