@@ -208,7 +208,6 @@ import {
   cableSnapshotStatusTag,
   CABLE_TYPE_LABEL,
   CONNECTION_TYPE_LABEL,
-  mainElectricalColumnCopyValue,
   OBJECT_TYPE_LABEL,
   objectDisplayName,
   STOCK_STATUS_LABEL,
@@ -251,6 +250,7 @@ import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColu
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
 import { useElecCalcDataLifecycleEffects } from '@/pages/electrical/useElecCalcDataLifecycleEffects';
+import { useElecCalcElectricalColumnCopyValue } from '@/pages/electrical/useElecCalcElectricalColumnCopyValue';
 import { useElecCalcFilterOptions } from '@/pages/electrical/useElecCalcFilterOptions';
 import { useElecCalcGlideColumnModel } from '@/pages/electrical/useElecCalcGlideColumnModel';
 import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
@@ -1984,11 +1984,7 @@ export default function ElecCalcPage() {
     candidateEnumOptionsByColumn,
   });
 
-  const electricalColumnCopyValue = useCallback((
-    key: ElectricalColumnKey,
-    obj: ProjectObject,
-    index: number,
-  ) => mainElectricalColumnCopyValue(key, obj, index, {
+  const electricalColumnCopyValue = useElecCalcElectricalColumnCopyValue({
     calcByObjectId: stats.calcByObjectId,
     electricalDisplayOffset,
     getCableTypeForObject: cableTypes.getCalculatedCableTypeForObject,
@@ -2000,19 +1996,7 @@ export default function ElecCalcPage() {
     vaporTemperature: recalc.vaporTemperature,
     maintainTemperature: recalc.maintainTemperature,
     aggressiveProduct: recalc.aggressiveProduct,
-  }), [
-    recalc.aggressiveProduct,
-    recalc.connectionType,
-    cableTypes.getCalculatedCableTypeForObject,
-    recalc.heatingHeight,
-    recalc.layingStep,
-    recalc.maintainTemperature,
-    electricalDisplayOffset,
-    stats.calcByObjectId,
-    recalc.supplyVoltage,
-    recalc.vaporTemperature,
-    recalc.windingCoefficient,
-  ]);
+  });
 
   const isElectricalLayoutCellEditable = useCallback((obj: ProjectObject, columnKey: string) => {
     if (!ELECTRICAL_LAYOUT_EDITABLE_COLUMNS.has(columnKey)) return false;
