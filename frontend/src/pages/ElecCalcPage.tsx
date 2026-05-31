@@ -210,11 +210,7 @@ import {
   buildElectricalQueryRequest,
 } from '@/pages/electrical/elecCalcQueryModel';
 import {
-  buildCandidateFolderCounts,
-  candidateCustomFolderId,
   candidateCustomFolderKey,
-  filterCandidatesByActiveFolder,
-  findActiveCustomCandidateFolder,
   type CandidateFolderKey,
 } from '@/pages/electrical/elecCalcCandidateFolderModel';
 import {
@@ -298,6 +294,7 @@ import {
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
 import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCalcCandidateFolderUiState';
+import { useElecCalcCandidateFolderViewModel } from '@/pages/electrical/useElecCalcCandidateFolderViewModel';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
@@ -389,7 +386,6 @@ export default function ElecCalcPage() {
   const {
     activeCandidateFolderKey,
     setActiveCandidateFolderKey,
-    previousActiveCandidateFolderKeyRef,
     candidateFolderModalMode,
     candidateFolderModalOpen,
     candidateFolderName,
@@ -1829,33 +1825,20 @@ export default function ElecCalcPage() {
     () => buildCandidateColumnValueAccessors(visibleCandidateColumnMetas, markedCableSizingCandidateSet),
     [markedCableSizingCandidateSet, visibleCandidateColumnMetas],
   );
-  const activeCustomCandidateFolderId = candidateCustomFolderId(activeCandidateFolderKey);
-  const activeCustomCandidateFolder = useMemo(
-    () => findActiveCustomCandidateFolder(activeCandidateFolderKey, cableSizingCandidateFolders),
-    [activeCandidateFolderKey, cableSizingCandidateFolders],
-  );
-  const cableSizingCandidatesByActiveFolder = useMemo(
-    () => filterCandidatesByActiveFolder(
-      cableSizingCandidates,
-      activeCandidateFolderKey,
-      activeCustomCandidateFolder,
-    ),
-    [activeCandidateFolderKey, activeCustomCandidateFolder, cableSizingCandidates],
-  );
-  const candidateFolderCounts = useMemo(
-    () => buildCandidateFolderCounts(cableSizingCandidates, cableSizingCandidateFolders),
-    [cableSizingCandidateFolders, cableSizingCandidates],
-  );
-  useEffect(() => {
-    if (activeCustomCandidateFolderId && !activeCustomCandidateFolder) {
-      setActiveCandidateFolderKey('all');
-    }
-  }, [activeCustomCandidateFolder, activeCustomCandidateFolderId]);
-  useEffect(() => {
-    if (previousActiveCandidateFolderKeyRef.current === activeCandidateFolderKey) return;
-    previousActiveCandidateFolderKeyRef.current = activeCandidateFolderKey;
+  const resetMarkedCableSizingCandidates = useCallback(() => {
     setMarkedCableSizingCandidateIds([]);
-  }, [activeCandidateFolderKey]);
+  }, []);
+  const {
+    activeCustomCandidateFolder,
+    candidatesByActiveFolder: cableSizingCandidatesByActiveFolder,
+    candidateFolderCounts,
+  } = useElecCalcCandidateFolderViewModel({
+    activeCandidateFolderKey,
+    setActiveCandidateFolderKey,
+    candidates: cableSizingCandidates,
+    candidateFolders: cableSizingCandidateFolders,
+    onActiveFolderChange: resetMarkedCableSizingCandidates,
+  });
   const displayedCableSizingCandidates = useMemo(
     () => buildDisplayedCandidateRows(
       cableSizingCandidatesByActiveFolder,
@@ -3378,7 +3361,7 @@ export default function ElecCalcPage() {
         </Text>
         <Button
           size="small"
-          onClick={() => setMarkedCableSizingCandidateIds([])}
+          onClick={resetMarkedCableSizingCandidates}
         >
           Сбросить сравнение
         </Button>

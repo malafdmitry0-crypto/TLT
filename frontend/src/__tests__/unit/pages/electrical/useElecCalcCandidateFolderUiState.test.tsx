@@ -53,7 +53,7 @@ describe('useElecCalcCandidateFolderUiState', () => {
     expect(result.current.editingCandidateFolder).toBeNull();
   });
 
-  it('tracks active folder key and exposes previous-key ref', () => {
+  it('tracks active folder key', () => {
     const { result } = renderHook(() => useElecCalcCandidateFolderUiState());
 
     act(() => {
@@ -61,6 +61,5 @@ describe('useElecCalcCandidateFolderUiState', () => {
     });
 
     expect(result.current.activeCandidateFolderKey).toBe('favorite');
-    expect(result.current.previousActiveCandidateFolderKeyRef.current).toBe('all');
   });
 });

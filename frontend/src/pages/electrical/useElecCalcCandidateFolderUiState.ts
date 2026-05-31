@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import type { ElectricalCandidateFolder } from '@/types/calculation';
 import type { CandidateFolderKey } from '@/pages/electrical/elecCalcCandidateFolderModel';
@@ -7,7 +7,6 @@ import type { CandidateFolderModalMode } from '@/pages/electrical/elecCalcPageMo
 export function useElecCalcCandidateFolderUiState() {
   const [activeCandidateFolderKey, setActiveCandidateFolderKey] =
     useState<CandidateFolderKey>('all');
-  const previousActiveCandidateFolderKeyRef = useRef<CandidateFolderKey>('all');
   const [candidateFolderModalMode, setCandidateFolderModalMode] =
     useState<CandidateFolderModalMode>('create');
   const [candidateFolderModalOpen, setCandidateFolderModalOpen] = useState(false);
@@ -38,7 +37,6 @@ export function useElecCalcCandidateFolderUiState() {
   return {
     activeCandidateFolderKey,
     setActiveCandidateFolderKey,
-    previousActiveCandidateFolderKeyRef,
     candidateFolderModalMode,
     candidateFolderModalOpen,
     candidateFolderName,
