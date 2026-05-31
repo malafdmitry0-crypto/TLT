@@ -243,9 +243,10 @@ import {
 } from '@/pages/electrical/elecCalcSelectionPolicyModel';
 import {
   ELECTRICAL_TABLE_PAGE_SIZE,
-  EMPTY_ELECTRICAL_CALCS,
-  EMPTY_OBJECTS,
   SHOW_COMMERCIAL_CABLE_BASE_UI,
+  electricalCalculationsForTable,
+  electricalLoadedPagesForTable,
+  electricalObjectsForTable,
   type CandidateFolderModalMode,
   type CopyElectricalVariantMutationArgs,
   type ElectricalBatchMutationArgs,
@@ -606,18 +607,13 @@ export default function ElecCalcPage() {
     tablePage,
   ]);
   const electricalLoadedPages = useMemo(() => {
-    if (!electricalGlideEnabled) {
-      return electricalPage ? [electricalPage] : [];
-    }
-    const pages: ElectricalQueryResponse[] = [];
-    for (let page = 1; page <= tablePage; page += 1) {
-      const loadedPage = electricalInfinitePages[page];
-      if (loadedPage) pages.push(loadedPage);
-    }
-    if (pages.length === 0 && electricalPage && !isElectricalPagePlaceholderData) {
-      return [electricalPage];
-    }
-    return pages;
+    return electricalLoadedPagesForTable({
+      electricalGlideEnabled,
+      electricalPage,
+      electricalInfinitePages,
+      isElectricalPagePlaceholderData,
+      tablePage,
+    });
   }, [
     electricalGlideEnabled,
     electricalInfinitePages,
@@ -625,34 +621,14 @@ export default function ElecCalcPage() {
     isElectricalPagePlaceholderData,
     tablePage,
   ]);
-  const objects = useMemo(() => {
-    if (!electricalGlideEnabled) return electricalPage?.items ?? EMPTY_OBJECTS;
-    if (electricalLoadedPages.length === 0) return EMPTY_OBJECTS;
-    const seen = new Set<string>();
-    const rows: ProjectObject[] = [];
-    electricalLoadedPages.forEach((page) => {
-      page.items.forEach((item) => {
-        if (seen.has(item.id)) return;
-        seen.add(item.id);
-        rows.push(item);
-      });
-    });
-    return rows;
-  }, [electricalGlideEnabled, electricalLoadedPages, electricalPage?.items]);
-  const elecCalcs = useMemo(() => {
-    if (!electricalGlideEnabled) return electricalPage?.calculations ?? EMPTY_ELECTRICAL_CALCS;
-    if (electricalLoadedPages.length === 0) return EMPTY_ELECTRICAL_CALCS;
-    const seen = new Set<string>();
-    const calculations: ElectricalCalcSummary[] = [];
-    electricalLoadedPages.forEach((page) => {
-      page.calculations.forEach((calc) => {
-        if (seen.has(calc.object_id)) return;
-        seen.add(calc.object_id);
-        calculations.push(calc);
-      });
-    });
-    return calculations;
-  }, [electricalGlideEnabled, electricalLoadedPages, electricalPage?.calculations]);
+  const objects = useMemo(
+    () => electricalObjectsForTable(electricalGlideEnabled, electricalPage, electricalLoadedPages),
+    [electricalGlideEnabled, electricalLoadedPages, electricalPage],
+  );
+  const elecCalcs = useMemo(
+    () => electricalCalculationsForTable(electricalGlideEnabled, electricalPage, electricalLoadedPages),
+    [electricalGlideEnabled, electricalLoadedPages, electricalPage],
+  );
   const electricalDisplayOffset = electricalGlideEnabled ? 0 : (pageInfo?.offset ?? 0);
   const stats = useElectricalStats(objects, elecCalcs);
 
