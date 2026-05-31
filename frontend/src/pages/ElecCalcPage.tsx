@@ -306,6 +306,7 @@ import {
   filterKindForCandidateColumn,
   filterKindForElectricalColumn,
 } from '@/pages/electrical/elecCalcTableFilterModel';
+import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
 import type {
@@ -1959,44 +1960,15 @@ export default function ElecCalcPage() {
     [cableSizingCandidates, candidateColumnValueAccessors, visibleCandidateColumnMetas],
   );
 
-  const handleElectricalTableChange = useCallback<NonNullable<TableProps<ProjectObject>['onChange']>>((pagination, _filters, sorter, extra) => {
-    const nextPage = extra.action === 'sort' ? 1 : pagination.current ?? 1;
-    setTablePage(nextPage);
-    if (pagination.pageSize) setTablePageSize(pagination.pageSize);
-    const nextSorter = Array.isArray(sorter)
-      ? sorter.find((item) => item.order)
-      : sorter;
-    const columnKey = typeof nextSorter?.columnKey === 'string'
-      ? nextSorter.columnKey
-      : typeof nextSorter?.column?.key === 'string'
-        ? nextSorter.column.key
-        : null;
-    const order = nextSorter?.order;
-    setTableViewState((current) => ({
-      ...current,
-      sort: columnKey && order
-        ? { columnKey, direction: order === 'ascend' ? 'asc' : 'desc' }
-        : undefined,
-    }));
-  }, []);
-
-  const handleCandidateTableChange = useCallback<NonNullable<TableProps<ElectricalCandidate>['onChange']>>((_pagination, _filters, sorter) => {
-    const nextSorter = Array.isArray(sorter)
-      ? sorter.find((item) => item.order)
-      : sorter;
-    const columnKey = typeof nextSorter?.columnKey === 'string'
-      ? nextSorter.columnKey
-      : typeof nextSorter?.column?.key === 'string'
-        ? nextSorter.column.key
-        : null;
-    const order = nextSorter?.order;
-    setCandidateTableViewState((current) => ({
-      ...current,
-      sort: columnKey && order
-        ? { columnKey, direction: order === 'ascend' ? 'asc' : 'desc' }
-        : undefined,
-    }));
-  }, []);
+  const {
+    handleElectricalTableChange,
+    handleCandidateTableChange,
+  } = useElecCalcAntTableHandlers({
+    setTablePage,
+    setTablePageSize,
+    setTableViewState,
+    setCandidateTableViewState,
+  });
 
   const electricalColumnRenderers = useMemo<Record<ElectricalColumnKey, ElectricalColumnRenderSpec>>(() => ({
     index: {
