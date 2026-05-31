@@ -119,6 +119,7 @@ Potential target structure:
 | Column settings draft hook | Done | 2026-05-31: main/candidate column settings draft state, open/update/reset/select-all/apply handlers moved to `useElecCalcColumnSettingsDraftState.ts`; focused hook unit + `ElecCalcPage` integration |
 | Main row selection state hook | Done | 2026-05-31: active row, selected row keys, visibility pruning and selected/manual count helpers moved to `useElecCalcRowSelectionState.ts` and `elecCalcSelectionModel.ts`; focused unit + `ElecCalcPage` integration |
 | Electrical error summary model | Done | 2026-05-31: failed-only error item selection, active-row fallback and guidance input moved to `elecCalcErrorSummaryModel.ts`; focused unit + full frontend gate |
+| Recalculation params hook | Done | 2026-05-31: selection policy, voltage, connection, layout and TT params moved to `useElecCalcRecalculationParams.ts`; focused hook unit + full frontend gate |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |

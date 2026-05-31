@@ -302,6 +302,7 @@ import {
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
+import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
 import { useElecCalcRowSelectionState } from '@/pages/electrical/useElecCalcRowSelectionState';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
 import type {
@@ -367,19 +368,11 @@ export default function ElecCalcPage() {
     [project?.id, saveVariant],
   );
 
-  const [selectionPolicy, setSelectionPolicy] = useState<SelectionPolicy>('technical_minimum');
   const [defaultCableType, setDefaultCableType] =
     useState<CableTypeKey>(DEFAULT_CABLE_TYPE);
   const [cableTypeDraftByObjectId, setCableTypeDraftByObjectId] =
     useState<Record<string, CableTypeKey>>({});
-  const [supplyVoltage, setSupplyVoltage] = useState<number | null>(220);
-  const [connectionType, setConnectionType] = useState<string>('line_1ph');
-  const [windingCoefficient, setWindingCoefficient] = useState<number | null>(1);
-  const [heatingHeight, setHeatingHeight] = useState<number | null>(null);
-  const [layingStep, setLayingStep] = useState<number | null>(0.1);
-  const [maintainTemperature, setMaintainTemperature] = useState<number | null>(null);
-  const [vaporTemperature, setVaporTemperature] = useState<number | null>(null);
-  const [aggressiveProduct, setAggressiveProduct] = useState(false);
+  const { values: recalc, setters: setRecalc } = useElecCalcRecalculationParams();
   const {
     tablePage,
     tablePageSize,
@@ -1016,16 +1009,16 @@ export default function ElecCalcPage() {
         variant,
         effectiveCableType,
         {
-          supplyVoltage,
+          supplyVoltage: recalc.supplyVoltage,
           selectionMode,
-          selectionPolicy,
-          connectionType,
-          windingCoefficient,
-          heatingHeight,
-          layingStep,
-          maintainTemperature,
-          vaporTemperature,
-          aggressiveProduct,
+          selectionPolicy: recalc.selectionPolicy,
+          connectionType: recalc.connectionType,
+          windingCoefficient: recalc.windingCoefficient,
+          heatingHeight: recalc.heatingHeight,
+          layingStep: recalc.layingStep,
+          maintainTemperature: recalc.maintainTemperature,
+          vaporTemperature: recalc.vaporTemperature,
+          aggressiveProduct: recalc.aggressiveProduct,
           skipManual,
           objectIds: scope === 'selected' ? selectedObjectIds : undefined,
           forceCableType: scope === 'all',
@@ -1220,7 +1213,7 @@ export default function ElecCalcPage() {
     if (!availableCableTypes.has(type)) return [];
     if (type === 'self_regulating') return cableOptions;
     if (type === 'self_regulating_tt') {
-      const suffix = aggressiveProduct ? 'СТ' : 'СР';
+      const suffix = recalc.aggressiveProduct ? 'СТ' : 'СР';
       return ttCables.map((c) => {
         const value = `${c.model}-${suffix}`;
         return cableMarkOption(
@@ -1276,7 +1269,7 @@ export default function ElecCalcPage() {
     }
     return [];
   }, [
-    aggressiveProduct,
+    recalc.aggressiveProduct,
     availableCableTypes,
     builtinResistiveCables,
     cableMarkOption,
@@ -1318,27 +1311,27 @@ export default function ElecCalcPage() {
     [cableSizingEffectiveCableType, manualCableOptionsForType],
   );
   const cableSizingCandidateParams = useMemo(() => ({
-    supply_voltage: supplyVoltage,
+    supply_voltage: recalc.supplyVoltage,
     selection_mode: isResistiveCableType(cableSizingEffectiveCableType) ? 'auto' : undefined,
-    selection_policy: selectionPolicy,
-    connection_type: connectionType,
-    winding_coefficient: windingCoefficient,
-    heating_height: heatingHeight,
-    laying_step: layingStep,
-    maintain_temperature: maintainTemperature,
-    vapor_temperature: vaporTemperature,
-    aggressive_product: aggressiveProduct,
+    selection_policy: recalc.selectionPolicy,
+    connection_type: recalc.connectionType,
+    winding_coefficient: recalc.windingCoefficient,
+    heating_height: recalc.heatingHeight,
+    laying_step: recalc.layingStep,
+    maintain_temperature: recalc.maintainTemperature,
+    vapor_temperature: recalc.vaporTemperature,
+    aggressive_product: recalc.aggressiveProduct,
   }), [
-    aggressiveProduct,
+    recalc.aggressiveProduct,
     cableSizingEffectiveCableType,
-    connectionType,
-    heatingHeight,
-    layingStep,
-    maintainTemperature,
-    selectionPolicy,
-    supplyVoltage,
-    vaporTemperature,
-    windingCoefficient,
+    recalc.connectionType,
+    recalc.heatingHeight,
+    recalc.layingStep,
+    recalc.maintainTemperature,
+    recalc.selectionPolicy,
+    recalc.supplyVoltage,
+    recalc.vaporTemperature,
+    recalc.windingCoefficient,
   ]);
   const cableSizingCandidatesQueryKey = useMemo(() => [
     'project',
@@ -1543,16 +1536,16 @@ export default function ElecCalcPage() {
         variantsToUpdate,
         effectiveCableType,
         {
-          supplyVoltage,
+          supplyVoltage: recalc.supplyVoltage,
           selectionMode: isResistiveCableType(effectiveCableType) ? 'auto' : undefined,
-          selectionPolicy,
-          connectionType,
-          windingCoefficient,
-          heatingHeight,
-          layingStep,
-          maintainTemperature,
-          vaporTemperature,
-          aggressiveProduct,
+          selectionPolicy: recalc.selectionPolicy,
+          connectionType: recalc.connectionType,
+          windingCoefficient: recalc.windingCoefficient,
+          heatingHeight: recalc.heatingHeight,
+          layingStep: recalc.layingStep,
+          maintainTemperature: recalc.maintainTemperature,
+          vaporTemperature: recalc.vaporTemperature,
+          aggressiveProduct: recalc.aggressiveProduct,
         },
       );
     },
@@ -1585,16 +1578,16 @@ export default function ElecCalcPage() {
         variantsToUpdate,
         effectiveCableType,
         {
-          supplyVoltage,
+          supplyVoltage: recalc.supplyVoltage,
           selectionMode: isResistiveCableType(effectiveCableType) ? 'auto' : undefined,
-          selectionPolicy,
-          connectionType,
-          windingCoefficient,
-          heatingHeight,
-          layingStep,
-          maintainTemperature,
-          vaporTemperature,
-          aggressiveProduct,
+          selectionPolicy: recalc.selectionPolicy,
+          connectionType: recalc.connectionType,
+          windingCoefficient: recalc.windingCoefficient,
+          heatingHeight: recalc.heatingHeight,
+          layingStep: recalc.layingStep,
+          maintainTemperature: recalc.maintainTemperature,
+          vaporTemperature: recalc.vaporTemperature,
+          aggressiveProduct: recalc.aggressiveProduct,
         },
       );
     },
@@ -1632,18 +1625,18 @@ export default function ElecCalcPage() {
         [variant],
         effectiveCableType,
         {
-          supplyVoltage,
+          supplyVoltage: recalc.supplyVoltage,
           selectionMode: isResistiveCableType(effectiveCableType) ? 'auto' : undefined,
-          selectionPolicy,
-          connectionType,
-          windingCoefficient,
+          selectionPolicy: recalc.selectionPolicy,
+          connectionType: recalc.connectionType,
+          windingCoefficient: recalc.windingCoefficient,
           windingPitchMm,
           numberOfThreads,
-          heatingHeight,
-          layingStep,
-          maintainTemperature,
-          vaporTemperature,
-          aggressiveProduct,
+          heatingHeight: recalc.heatingHeight,
+          layingStep: recalc.layingStep,
+          maintainTemperature: recalc.maintainTemperature,
+          vaporTemperature: recalc.vaporTemperature,
+          aggressiveProduct: recalc.aggressiveProduct,
         },
       );
     },
@@ -1835,7 +1828,7 @@ export default function ElecCalcPage() {
   const changeCableMarkModalCableType = useCallback((nextType: CableTypeKey) => {
     setCableMarkModalCableType(normalizeAvailableCableType(nextType));
     setCableMarkModalValue(AUTO_CABLE_MARK_VALUE);
-    setConnectionType('line_1ph');
+    setRecalc.connectionType('line_1ph');
   }, [normalizeAvailableCableType]);
   const applyCableMarkModal = useCallback(() => {
     if (!cableMarkModalObject || !cableMarkModalCableType) return;
@@ -2202,49 +2195,49 @@ export default function ElecCalcPage() {
     laying_step: {
       align: 'right',
       render: (_: unknown, obj) =>
-        numberText(stats.calcByObjectId[obj.id]?.params?.laying_step ?? layingStep, 2),
+        numberText(stats.calcByObjectId[obj.id]?.params?.laying_step ?? recalc.layingStep, 2),
     },
     heating_height: {
       align: 'right',
       render: (_: unknown, obj) =>
-        numberText(stats.calcByObjectId[obj.id]?.params?.heating_height ?? heatingHeight, 1),
+        numberText(stats.calcByObjectId[obj.id]?.params?.heating_height ?? recalc.heatingHeight, 1),
     },
     connection_type: {
       render: (_: unknown, obj) => {
-        const value = stats.calcByObjectId[obj.id]?.params?.connection_type ?? connectionType;
+        const value = stats.calcByObjectId[obj.id]?.params?.connection_type ?? recalc.connectionType;
         return CONNECTION_TYPE_LABEL[String(value)] ?? valueText(value);
       },
     },
     supply_voltage: {
       align: 'right',
       render: (_: unknown, obj) =>
-        numberText(stats.calcByObjectId[obj.id]?.params?.supply_voltage ?? supplyVoltage, 0),
+        numberText(stats.calcByObjectId[obj.id]?.params?.supply_voltage ?? recalc.supplyVoltage, 0),
     },
     winding_coefficient: {
       align: 'right',
       render: (_: unknown, obj) =>
         numberText(
-          stats.calcByObjectId[obj.id]?.params?.winding_coefficient ?? windingCoefficient,
+          stats.calcByObjectId[obj.id]?.params?.winding_coefficient ?? recalc.windingCoefficient,
           2,
         ),
     },
     vapor_temperature: {
       align: 'right',
       render: (_: unknown, obj) =>
-        numberText(stats.calcByObjectId[obj.id]?.params?.vapor_temperature ?? vaporTemperature, 1),
+        numberText(stats.calcByObjectId[obj.id]?.params?.vapor_temperature ?? recalc.vaporTemperature, 1),
     },
     maintain_temperature: {
       align: 'right',
       render: (_: unknown, obj) =>
         numberText(
-          stats.calcByObjectId[obj.id]?.params?.maintain_temperature ?? maintainTemperature,
+          stats.calcByObjectId[obj.id]?.params?.maintain_temperature ?? recalc.maintainTemperature,
           1,
         ),
     },
     aggressive_product: {
       align: 'center',
       render: (_: unknown, obj) =>
-        valueText(stats.calcByObjectId[obj.id]?.params?.aggressive_product ?? aggressiveProduct),
+        valueText(stats.calcByObjectId[obj.id]?.params?.aggressive_product ?? recalc.aggressiveProduct),
     },
     installed_cable_length: {
       align: 'right',
@@ -2316,21 +2309,21 @@ export default function ElecCalcPage() {
     },
   }), [
     activeRowId,
-    aggressiveProduct,
-    connectionType,
+    recalc.aggressiveProduct,
+    recalc.connectionType,
     getCalculatedCableTypeForObject,
-    heatingHeight,
+    recalc.heatingHeight,
     isCableMarkPending,
-    layingStep,
-    maintainTemperature,
+    recalc.layingStep,
+    recalc.maintainTemperature,
     openCableMarkModal,
     openCableSizingModal,
     electricalDisplayOffset,
     project,
     stats.calcByObjectId,
-    supplyVoltage,
-    vaporTemperature,
-    windingCoefficient,
+    recalc.supplyVoltage,
+    recalc.vaporTemperature,
+    recalc.windingCoefficient,
   ]);
 
   const persistTableColumnSettings = useCallback((
@@ -2679,26 +2672,26 @@ export default function ElecCalcPage() {
     calcByObjectId: stats.calcByObjectId,
     electricalDisplayOffset,
     getCableTypeForObject: getCalculatedCableTypeForObject,
-    layingStep,
-    heatingHeight,
-    connectionType,
-    supplyVoltage,
-    windingCoefficient,
-    vaporTemperature,
-    maintainTemperature,
-    aggressiveProduct,
+    layingStep: recalc.layingStep,
+    heatingHeight: recalc.heatingHeight,
+    connectionType: recalc.connectionType,
+    supplyVoltage: recalc.supplyVoltage,
+    windingCoefficient: recalc.windingCoefficient,
+    vaporTemperature: recalc.vaporTemperature,
+    maintainTemperature: recalc.maintainTemperature,
+    aggressiveProduct: recalc.aggressiveProduct,
   }), [
-    aggressiveProduct,
-    connectionType,
+    recalc.aggressiveProduct,
+    recalc.connectionType,
     getCalculatedCableTypeForObject,
-    heatingHeight,
-    layingStep,
-    maintainTemperature,
+    recalc.heatingHeight,
+    recalc.layingStep,
+    recalc.maintainTemperature,
     electricalDisplayOffset,
     stats.calcByObjectId,
-    supplyVoltage,
-    vaporTemperature,
-    windingCoefficient,
+    recalc.supplyVoltage,
+    recalc.vaporTemperature,
+    recalc.windingCoefficient,
   ]);
 
   const isElectricalLayoutCellEditable = useCallback((obj: ProjectObject, columnKey: string) => {
@@ -3249,21 +3242,21 @@ export default function ElecCalcPage() {
           <InputNumber<number>
             aria-label="T пропарки"
             size="small"
-            value={vaporTemperature}
-            onChange={setVaporTemperature}
+            value={recalc.vaporTemperature}
+            onChange={setRecalc.vaporTemperature}
             style={{ width: 92 }}
           />
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>T3, °C:</Text>
           <InputNumber<number>
             aria-label="T3 поддержания"
             size="small"
-            value={maintainTemperature}
-            onChange={setMaintainTemperature}
+            value={recalc.maintainTemperature}
+            onChange={setRecalc.maintainTemperature}
             style={{ width: 92 }}
           />
           <Checkbox
-            checked={aggressiveProduct}
-            onChange={(e) => setAggressiveProduct(e.target.checked)}
+            checked={recalc.aggressiveProduct}
+            onChange={(e) => setRecalc.aggressiveProduct(e.target.checked)}
           >
             <span style={{ fontSize: 12 }}>агр.</span>
           </Checkbox>
@@ -3289,19 +3282,19 @@ export default function ElecCalcPage() {
           <Select
             aria-label="Схема подключения"
             size="small"
-            value={connectionType}
-            onChange={setConnectionType}
+            value={recalc.connectionType}
+            onChange={setRecalc.connectionType}
             options={connectionOptions}
             style={{ width: 118 }}
           />
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>U:</Text>
-          <InputNumber<number> size="small" min={1} value={supplyVoltage} onChange={setSupplyVoltage} style={{ width: 76 }} />
+          <InputNumber<number> size="small" min={1} value={recalc.supplyVoltage} onChange={setRecalc.supplyVoltage} style={{ width: 76 }} />
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>w:</Text>
-          <InputNumber<number> size="small" min={1} max={1.5} step={0.05} value={windingCoefficient} onChange={setWindingCoefficient} style={{ width: 72 }} />
+          <InputNumber<number> size="small" min={1} max={1.5} step={0.05} value={recalc.windingCoefficient} onChange={setRecalc.windingCoefficient} style={{ width: 72 }} />
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>h:</Text>
-          <InputNumber<number> size="small" min={0} step={0.1} value={heatingHeight} onChange={setHeatingHeight} style={{ width: 76 }} />
+          <InputNumber<number> size="small" min={0} step={0.1} value={recalc.heatingHeight} onChange={setRecalc.heatingHeight} style={{ width: 76 }} />
           <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>шаг:</Text>
-          <InputNumber<number> size="small" min={0.05} max={0.5} step={0.01} value={layingStep} onChange={setLayingStep} style={{ width: 76 }} />
+          <InputNumber<number> size="small" min={0.05} max={0.5} step={0.01} value={recalc.layingStep} onChange={setRecalc.layingStep} style={{ width: 76 }} />
         </>,
       );
     }
@@ -3341,8 +3334,8 @@ export default function ElecCalcPage() {
             <Select<SelectionPolicy>
               aria-label="Критерий подбора кабеля"
               size="small"
-              value={selectionPolicy}
-              onChange={setSelectionPolicy}
+              value={recalc.selectionPolicy}
+              onChange={setRecalc.selectionPolicy}
               options={SELECTION_POLICY_OPTIONS}
               style={{ width: 128 }}
             />
@@ -3848,7 +3841,7 @@ export default function ElecCalcPage() {
                     return nextDrafts;
                   });
                 }
-                setConnectionType('line_1ph');
+                setRecalc.connectionType('line_1ph');
               }}
               options={cableTypeOptions}
               style={{ width: 210 }}
@@ -4230,7 +4223,7 @@ export default function ElecCalcPage() {
               onChange={(nextType) => {
                 setCableSizingCableType(normalizeAvailableCableType(nextType));
                 setCableSizingManualMark(null);
-                setConnectionType('line_1ph');
+                setRecalc.connectionType('line_1ph');
               }}
               options={cableTypeOptions}
               style={{ minWidth: 220 }}
