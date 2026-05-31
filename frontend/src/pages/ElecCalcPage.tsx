@@ -145,12 +145,6 @@ import {
   type ElectricalTableViewSettings,
 } from '@/utils/electricalTableViewSettings';
 import {
-  buildElectricalGlideColumns,
-} from '@/utils/electricalGlideGrid';
-import {
-  buildElectricalCandidateGlideColumns,
-} from '@/utils/electricalCandidateGlideGrid';
-import {
   AUTO_CABLE_MARK_VALUE,
   cableMarkOptionValue,
   catalogSourceFromSnapshot,
@@ -258,6 +252,7 @@ import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecC
 import { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
 import { useElecCalcDataLifecycleEffects } from '@/pages/electrical/useElecCalcDataLifecycleEffects';
 import { useElecCalcFilterOptions } from '@/pages/electrical/useElecCalcFilterOptions';
+import { useElecCalcGlideColumnModel } from '@/pages/electrical/useElecCalcGlideColumnModel';
 import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
@@ -269,7 +264,6 @@ import { useElecCalcTableNavigation } from '@/pages/electrical/useElecCalcTableN
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
 import type {
   HeatCalcGlideGridCellState,
-  HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
 import {
   isColumnFilterActive,
@@ -1973,32 +1967,22 @@ export default function ElecCalcPage() {
       visibleElectricalColumnMetas,
     ]);
 
-  const electricalGlideColumns = useMemo<HeatCalcGlideGridColumn[]>(() =>
-    buildElectricalGlideColumns({
-      columns: visibleElectricalColumnMetas,
-      capabilitiesByKey: fieldCapabilityByKey,
-      enumOptionsByColumn,
-      getAlign: (key) => electricalColumnRenderers[key]?.align,
-    }), [
-      electricalColumnRenderers,
-      enumOptionsByColumn,
-      fieldCapabilityByKey,
-      visibleElectricalColumnMetas,
-    ]);
-
-  const candidateGlideColumnMetaByKey = useMemo(
-    () => new Map(visibleCandidateColumnMetas.map((column) => [column.key, column])),
-    [visibleCandidateColumnMetas],
+  const getElectricalGlideColumnAlign = useCallback(
+    (key: ElectricalColumnKey) => electricalColumnRenderers[key]?.align,
+    [electricalColumnRenderers],
   );
-  const electricalCandidateGlideColumns = useMemo<HeatCalcGlideGridColumn[]>(() =>
-    buildElectricalCandidateGlideColumns({
-      columns: visibleCandidateColumnMetas,
-      enumOptionsByColumn: candidateEnumOptionsByColumn,
-      getFilterKind: filterKindForCandidateColumn,
-    }), [
-      candidateEnumOptionsByColumn,
-      visibleCandidateColumnMetas,
-    ]);
+  const {
+    electricalGlideColumns,
+    candidateGlideColumnMetaByKey,
+    electricalCandidateGlideColumns,
+  } = useElecCalcGlideColumnModel({
+    visibleElectricalColumnMetas,
+    fieldCapabilityByKey,
+    enumOptionsByColumn,
+    getElectricalColumnAlign: getElectricalGlideColumnAlign,
+    visibleCandidateColumnMetas,
+    candidateEnumOptionsByColumn,
+  });
 
   const electricalColumnCopyValue = useCallback((
     key: ElectricalColumnKey,

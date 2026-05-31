@@ -141,6 +141,7 @@ Potential target structure:
 | Filter options hook | Done | 2026-05-31: backend field capability map, main table enum options and candidate enum options moved to `useElecCalcFilterOptions.ts`; focused hook unit + `ElecCalcPage` integration |
 | Table dimensions hook | Done | 2026-05-31: main electrical table scrollX calculation and stable scrollY constant moved to `useElecCalcTableDimensions.ts`; focused hook unit + `ElecCalcPage` integration |
 | Row class model hook | Done | 2026-05-31: electrical row invalid/active CSS class resolution moved to `useElecCalcRowClassName.ts`; focused hook/model unit + `ElecCalcPage` integration |
+| Glide column model hook | Done | 2026-05-31: main/candidate Glide column metadata, widths, filters and candidate meta lookup moved to `useElecCalcGlideColumnModel.ts`; focused hook unit + `ElecCalcPage` integration |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |
