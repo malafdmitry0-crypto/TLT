@@ -94,7 +94,7 @@ import {
   isElectricalCalcSuccess,
   isElectricalCalcUnsupported,
 } from '@/utils/calcStatus';
-import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
+import { getCalcJobRefetchInterval } from '@/utils/calcJobPolling';
 import { buildTsv, copyToClipboard } from '@/utils/clipboard';
 import { formatNumber } from '@/utils/formatters';
 
@@ -191,18 +191,13 @@ import {
   SELECTION_POLICY_OPTIONS,
 } from '@/pages/electrical/elecCalcSelectionPolicyModel';
 import {
-  countManualCableRows,
-  countValidSelectedObjects,
-  formatSelectedRecalcCountLabel,
-  objectIdsForSelection,
-  selectedObjectsForKeys,
-  selectedRecalcDisabledTooltip,
-} from '@/pages/electrical/elecCalcSelectionModel';
-import {
   buildElectricalErrorItems,
   electricalErrorGuidanceForItem,
   resolveActiveElectricalErrorItem,
 } from '@/pages/electrical/elecCalcErrorSummaryModel';
+import {
+  buildElecCalcSummaryViewModel,
+} from '@/pages/electrical/elecCalcSummaryModel';
 import {
   SHOW_COMMERCIAL_CABLE_BASE_UI,
   type CopyElectricalVariantMutationArgs,
@@ -2355,30 +2350,45 @@ export default function ElecCalcPage() {
     objects.length,
     pageInfo?.has_next_page,
   ]);
-  const validObjectsCount = pageSummary?.valid_objects ?? stats.validObjects.length;
-  const selectedObjectsCount = selectedRowKeys.length;
-  const selectedObjects = useMemo(
-    () => selectedObjectsForKeys(objects, selectedRowKeys),
-    [objects, selectedRowKeys],
-  );
-  const selectedValidObjectsCount = useMemo(
-    () => countValidSelectedObjects(selectedObjects),
-    [selectedObjects],
-  );
-  const selectedHeatLossFailedCount = selectedObjectsCount - selectedValidObjectsCount;
-  const calculatedCount = pageSummary?.calculated_count ?? stats.calcedCount;
-  const failedCount = pageSummary?.failed_count ?? stats.failedCount;
-  const totalCableLength = pageSummary?.total_cable_length ?? stats.totalCableLength;
-  const totalPower = pageSummary?.total_power ?? stats.totalPower;
-  const totalCurrent = pageSummary?.total_current ?? stats.totalCurrent;
-  const visibleManualCableCount = useMemo(
-    () => countManualCableRows(objectIdsForSelection(objects), stats.calcByObjectId),
-    [objects, stats.calcByObjectId],
-  );
-  const manualCableCount = pageSummary?.manual_cable_mark_count ?? visibleManualCableCount;
-  const selectedManualCableCount = useMemo(
-    () => countManualCableRows(selectedRowKeys, stats.calcByObjectId),
-    [selectedRowKeys, stats.calcByObjectId],
+  const activeJobStatus = activeJob?.status ?? null;
+  const {
+    validObjectsCount,
+    selectedValidObjectsCount,
+    selectedHeatLossFailedCount,
+    calculatedCount,
+    failedCount,
+    totalCableLength,
+    totalCurrent,
+    manualCableCount,
+    selectedManualCableCount,
+    summaryPowerDisplay,
+    bannerStats,
+    isJobActive,
+    selectedRecalcDisabled,
+    selectedRecalcTooltip,
+    selectedRecalcCountLabel,
+    jobProgressLabel,
+    sourceVariantCalculationCount,
+    projectObjectsForCopyCount,
+  } = useMemo(
+    () => buildElecCalcSummaryViewModel({
+      pageSummary,
+      objects,
+      elecCalcsCount: elecCalcs.length,
+      selectedRowKeys,
+      stats,
+      activeJobStatus,
+      jobProgress: activeJob?.progress,
+    }),
+    [
+      activeJob?.progress,
+      activeJobStatus,
+      elecCalcs.length,
+      objects,
+      pageSummary,
+      selectedRowKeys,
+      stats,
+    ],
   );
   const renderManualOverwriteControl = useCallback((manualCount: number): ReactNode => {
     if (manualCount <= 0) return null;
@@ -2418,29 +2428,6 @@ export default function ElecCalcPage() {
     () => electricalErrorGuidanceForItem(activeElectricalErrorItem),
     [activeElectricalErrorItem],
   );
-  const showSummaryInKW = totalPower >= 1000;
-  const summaryPowerDisplay = showSummaryInKW
-    ? `${(totalPower / 1000).toFixed(2)} кВт`
-    : `${totalPower.toFixed(0)} Вт`;
-
-  const bannerStats = calculatedCount > 0
-    ? `${totalCableLength.toFixed(1)} м · ${summaryPowerDisplay} · ${totalCurrent.toFixed(2)} А · рассчитано: ${calculatedCount}/${totalObjects}`
-    : 'расчёт не выполнен';
-  const activeJobStatus = activeJob?.status ?? null;
-  const isJobActive = isActiveCalcJobStatus(activeJobStatus);
-  const selectedRecalcDisabled = selectedValidObjectsCount === 0 || isJobActive;
-  const selectedRecalcTooltip = selectedRecalcDisabledTooltip(
-    selectedObjectsCount,
-    selectedValidObjectsCount,
-  );
-  const selectedRecalcCountLabel = formatSelectedRecalcCountLabel(
-    selectedObjectsCount,
-    selectedValidObjectsCount,
-  );
-  const jobProgress = activeJob?.progress;
-  const jobProgressLabel = jobProgress?.total
-    ? `${jobProgress.current}/${jobProgress.total}`
-    : activeJobStatus ?? '';
   const bannerCableTypeLabel = cableTypes.selectedCableTypesMixed
     ? 'смешанные типы'
     : cableTypes.selectedCableType
@@ -2587,9 +2574,6 @@ export default function ElecCalcPage() {
         ]
       : []),
   ];
-  const sourceVariantCalculationCount =
-    pageSummary?.electrical_calculations_total ?? elecCalcs.length;
-  const projectObjectsForCopyCount = pageSummary?.total_objects ?? objects.length;
   const copyVariantMenuItems = [1, 2, 3, 4]
     .filter((targetVariant) => targetVariant !== variant)
     .map((targetVariant) => ({
