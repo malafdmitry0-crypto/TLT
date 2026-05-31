@@ -204,6 +204,8 @@ function setupHook(
 describe('useHeatCalcObjectsDataModel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(window, 'requestIdleCallback', { configurable: true, value: undefined });
+    Object.defineProperty(window, 'cancelIdleCallback', { configurable: true, value: undefined });
     (getObjectsSummary as ReturnType<typeof vi.fn>).mockResolvedValue({
       total: 2,
       valid: 2,
@@ -256,6 +258,52 @@ describe('useHeatCalcObjectsDataModel', () => {
       excelModeEnabled: false,
     });
     expect(resetNormalLoadMoreRequest).toHaveBeenCalled();
+  });
+
+  it('idle-prefetches all objects only when the summary fits the current page limit', async () => {
+    const requestIdleCallback = vi.fn((callback: () => void) => {
+      callback();
+      return 1;
+    });
+    Object.defineProperty(window, 'requestIdleCallback', { configurable: true, value: requestIdleCallback });
+    Object.defineProperty(window, 'cancelIdleCallback', { configurable: true, value: vi.fn() });
+
+    setupHook();
+
+    await waitFor(() => {
+      expect(requestIdleCallback).toHaveBeenCalled();
+      expect(listObjects).toHaveBeenCalledWith('project-1');
+    });
+  });
+
+  it('skips idle-prefetch of the full object list for large paginated projects', async () => {
+    const requestIdleCallback = vi.fn((callback: () => void) => {
+      callback();
+      return 1;
+    });
+    Object.defineProperty(window, 'requestIdleCallback', { configurable: true, value: requestIdleCallback });
+    Object.defineProperty(window, 'cancelIdleCallback', { configurable: true, value: vi.fn() });
+    (getObjectsSummary as ReturnType<typeof vi.fn>).mockResolvedValue({
+      total: 500,
+      valid: 500,
+      invalid: 0,
+      by_type: { pipe: 500, tank: 0 },
+      valid_by_type: { pipe: 500, tank: 0 },
+      electrical_calculations_total: 0,
+      successful_electrical_calculations: 0,
+      failed_electrical_calculations: 0,
+      objects_with_successful_electrical_calculation: 0,
+    });
+
+    const { result } = setupHook();
+
+    await waitFor(() => {
+      expect(result.current.projectObjectCount).toBe(500);
+      expect(queryObjects).toHaveBeenCalled();
+    });
+
+    expect(requestIdleCallback).not.toHaveBeenCalled();
+    expect(listObjects).not.toHaveBeenCalled();
   });
 
   it('switches the typed query model to tank scope', async () => {

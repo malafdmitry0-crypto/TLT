@@ -12,10 +12,32 @@ interface Props {
   objectType: ObjectType;
 }
 
+type ConfirmStepWatchedValues = Record<string, unknown>;
+
+const CONFIRM_STEP_WATCH_FIELDS = [
+  'ambient_temperature',
+  'diameter_mm',
+  'height_mm',
+  'insulation_material',
+  'insulation_thickness_mm',
+  'length_mm',
+  'outer_diameter_mm',
+  'pipe_length',
+  'process_temperature',
+  'shape',
+  'width_mm',
+] as const;
+
+function selectConfirmStepWatchedValues(values: ConfirmStepWatchedValues = {}) {
+  return Object.fromEntries(
+    CONFIRM_STEP_WATCH_FIELDS.map((fieldName) => [fieldName, values[fieldName]]),
+  ) as ConfirmStepWatchedValues;
+}
+
 // Inner component with access to form instance via Form.useFormInstance
 function ConfirmStepInner({ objectType }: Props) {
   const form = Form.useFormInstance();
-  const values = Form.useWatch([], form);
+  const values = Form.useWatch(selectConfirmStepWatchedValues, form) as ConfirmStepWatchedValues | undefined;
   const prevSuggestedRef = useRef<string>('');
 
   // Build suggested name whenever params change
@@ -23,9 +45,9 @@ function ConfirmStepInner({ objectType }: Props) {
     if (!values) return '';
     try {
       if (objectType === 'pipe') {
-        return generatePipeName(values as PipeFormValues);
+        return generatePipeName(values as unknown as PipeFormValues);
       } else {
-        return generateTankName(values as TankFormValues);
+        return generateTankName(values as unknown as TankFormValues);
       }
     } catch {
       return '';

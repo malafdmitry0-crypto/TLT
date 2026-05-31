@@ -68,7 +68,7 @@ export default function HeatCalcWizardFormPanel({
       hidden={!formBlockVisible}
     >
       <div className="inline-form-srs">
-        {wizardState ? (
+        {formBlockVisible && wizardState ? (
           <Suspense fallback={<div className="inline-object-form-placeholder" />}>
             <ObjectWizard
               key={wizardState.editingObject?.id ?? `${wizardState.type}-new-${newWizardRevision}`}

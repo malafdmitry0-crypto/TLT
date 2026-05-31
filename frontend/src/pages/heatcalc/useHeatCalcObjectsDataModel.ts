@@ -269,9 +269,18 @@ export function useHeatCalcObjectsDataModel({
     placeholderData: (previous) => previous ?? currentPageObjectsForExcel,
   });
   const allProjectObjects = allProjectObjectsData ?? currentPageObjectsForExcel;
+  const allProjectObjectsPrefetchLimit =
+    objectQueryCapabilities?.default_page_size ?? DEFAULT_OBJECT_QUERY_PAGE_SIZE;
+  const projectObjectCountForPrefetch = objectsSummary?.total;
 
   useEffect(() => {
-    if (!project || isAllObjectScope) return undefined;
+    if (
+      !project ||
+      isAllObjectScope ||
+      excelModeEnabled ||
+      projectObjectCountForPrefetch == null ||
+      projectObjectCountForPrefetch > allProjectObjectsPrefetchLimit
+    ) return undefined;
     const win = window as Window & {
       requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
       cancelIdleCallback?: (handle: number) => void;
@@ -288,7 +297,15 @@ export function useHeatCalcObjectsDataModel({
     }
     const handle = window.setTimeout(prefetchObjects, 0);
     return () => window.clearTimeout(handle);
-  }, [allProjectObjectsQueryKey, isAllObjectScope, project, queryClient]);
+  }, [
+    allProjectObjectsPrefetchLimit,
+    allProjectObjectsQueryKey,
+    excelModeEnabled,
+    isAllObjectScope,
+    project,
+    projectObjectCountForPrefetch,
+    queryClient,
+  ]);
 
   const insulationLabelByCode = useMemo(
     () => new Map(insulationMaterials.map((m) => [m.material, insulationEntryLabel(m)])),

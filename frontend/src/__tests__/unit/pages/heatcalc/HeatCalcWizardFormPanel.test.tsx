@@ -89,11 +89,10 @@ describe('HeatCalcWizardFormPanel', () => {
     wizardMock.latestProps = null;
   });
 
-  it('keeps the existing shell classes and hidden state', () => {
+  it('keeps the existing shell classes and hidden state without mounting the wizard', () => {
     render(<HeatCalcWizardFormPanel {...makeProps({
       formBlockVisible: false,
       formPlacement: 'right',
-      wizardState: null,
     })}
     />);
 

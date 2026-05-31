@@ -18,7 +18,6 @@ import {
   Input,
   InputNumber,
   Modal,
-  Popconfirm,
   Select,
   Segmented,
   Space,
@@ -33,7 +32,6 @@ import {
   CheckOutlined,
   CloseCircleFilled,
   CloseCircleOutlined,
-  CopyOutlined,
   DeleteOutlined,
   EditOutlined,
   FilterFilled,
@@ -41,7 +39,6 @@ import {
   MinusCircleFilled,
   MoreOutlined,
   PlusOutlined,
-  ReloadOutlined,
   StopOutlined,
   TableOutlined,
   ThunderboltOutlined,
@@ -103,6 +100,7 @@ import { renderCandidateElectricalField } from '@/components/electrical/Electric
 import ElectricalColumnFilterDropdown from '@/components/electrical/ElectricalColumnFilterDropdown';
 import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalColumnSettingsModal';
 import ResizableColumnTitle from '@/components/heatcalc/ResizableColumnTitle';
+import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject } from '@/types/project';
 import type {
@@ -2973,209 +2971,71 @@ export default function ElecCalcPage() {
           </div>
         )}
 
-        {/* ActionBar */}
-        <div className="actionbar-srs electrical-actionbar">
-          <div className="electrical-actionbar-row electrical-actionbar-row--setup">
-            {[1, 2, 3, 4].map((n) => (
-              <Button
-                key={n}
-                size="small"
-                type={variant === n ? 'primary' : 'default'}
-                onClick={() => {
-                  resetTablePage();
-                  setVariant(n);
-                }}
-              >
-                СО{n}
-              </Button>
-            ))}
-            <Dropdown
-              trigger={['click']}
-              disabled={copyVariantMut.isPending || isJobActive}
-              menu={{
-                items: copyVariantMenuItems,
-                onClick: ({ key }) => showCopyVariantConfirm(Number(key)),
-              }}
-            >
-              <Button
-                size="small"
-                icon={<CopyOutlined />}
-                loading={copyVariantMut.isPending}
-                disabled={copyVariantMut.isPending || isJobActive}
-              >
-                Создать на основании
-              </Button>
-            </Dropdown>
-            <span className="sep" />
-            <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>{cableTypeControlLabel}</Text>
-            <Select<CableTypeKey>
-              aria-label="Тип кабеля для пересчёта"
-              size="small"
-              value={cableTypes.visibleCableTypeControl ?? undefined}
-              placeholder="Несколько типов"
-              disabled={isJobActive || !commercialFeaturesAvailable}
-              onChange={(next) => {
-                const nextType = cableTypes.normalizeAvailableCableType(next);
-                if (selectedRowKeys.length === 0) {
-                  cableTypes.setDefaultCableType(nextType);
-                } else {
-                  cableTypes.setCableTypeDraftByObjectId((prev) => {
-                    const nextDrafts = { ...prev };
-                    for (const objectId of selectedRowKeys) {
-                      if (nextType === cableTypes.getSavedCableTypeForObject(objectId)) {
-                        delete nextDrafts[objectId];
-                      } else {
-                        nextDrafts[objectId] = nextType;
-                      }
-                    }
-                    return nextDrafts;
-                  });
+        <ElectricalBatchActionBar
+          variant={variant}
+          cableTypeControlLabel={cableTypeControlLabel}
+          cableTypeOptions={cableTypeOptions}
+          visibleCableTypeControl={cableTypes.visibleCableTypeControl}
+          typeControls={renderElectricalTypeControls()}
+          commercialFeaturesAvailable={commercialFeaturesAvailable}
+          copyVariantMenuItems={copyVariantMenuItems}
+          copyVariantPending={copyVariantMut.isPending}
+          isJobActive={isJobActive}
+          selectedManualCableCount={selectedManualCableCount}
+          selectedValidObjectsCount={selectedValidObjectsCount}
+          selectedHeatLossFailedCount={selectedHeatLossFailedCount}
+          manualCableCount={manualCableCount}
+          overwriteManualChoices={overwriteManualChoices}
+          selectedRecalcDisabled={selectedRecalcDisabled}
+          selectedRecalcTooltip={selectedRecalcTooltip}
+          selectedRecalcCountLabel={selectedRecalcCountLabel}
+          batchPending={batchMut.isPending}
+          validObjectsCount={validObjectsCount}
+          cableTypeForRecalculation={cableTypes.cableTypeForRecalculation}
+          activeJobId={activeJobId}
+          cancelJobPending={cancelJobMut.isPending}
+          currentTableViewActive={currentTableViewActive}
+          renderManualOverwriteControl={renderManualOverwriteControl}
+          onVariantChange={(nextVariant) => {
+            resetTablePage();
+            setVariant(nextVariant);
+          }}
+          onCopyVariant={showCopyVariantConfirm}
+          onCableTypeChange={(next) => {
+            const nextType = cableTypes.normalizeAvailableCableType(next);
+            if (selectedRowKeys.length === 0) {
+              cableTypes.setDefaultCableType(nextType);
+            } else {
+              cableTypes.setCableTypeDraftByObjectId((prev) => {
+                const nextDrafts = { ...prev };
+                for (const objectId of selectedRowKeys) {
+                  if (nextType === cableTypes.getSavedCableTypeForObject(objectId)) {
+                    delete nextDrafts[objectId];
+                  } else {
+                    nextDrafts[objectId] = nextType;
+                  }
                 }
-                setRecalc.connectionType('line_1ph');
-              }}
-              options={cableTypeOptions}
-              style={{ width: 210 }}
-            />
-            {renderElectricalTypeControls()}
-          </div>
-          <div className="electrical-actionbar-row electrical-actionbar-row--actions">
-            {selectedManualCableCount > 0 ? (
-              <Popconfirm
-                title="Пересчитать выбранные объекты?"
-                description={(
-                  <Space direction="vertical" size={8}>
-                    <Text>
-                      Будет обработано выбранных объектов с рассчитанными теплопотерями: {selectedValidObjectsCount}.
-                    </Text>
-                    {selectedHeatLossFailedCount > 0 && (
-                      <Text type="secondary">
-                        Без рассчитанных теплопотерь будет пропущено: {selectedHeatLossFailedCount}.
-                      </Text>
-                    )}
-                    {renderManualOverwriteControl(selectedManualCableCount)}
-                  </Space>
-                )}
-                okText="Пересчитать"
-                okButtonProps={{ danger: overwriteManualChoices }}
-                cancelText="Отмена"
-                onOpenChange={(open) => {
-                  if (open) setOverwriteManualChoices(false);
-                }}
-                onConfirm={() =>
-                  batchMut.mutate({
-                    scope: 'selected',
-                    objectIds: selectedRowKeys,
-                    skipManual: !overwriteManualChoices,
-                  })
-                }
-                disabled={selectedRecalcDisabled}
-              >
-                <Tooltip title={selectedRecalcTooltip}>
-                  <span>
-                    <Button
-                      size="small"
-                      type="primary"
-                      icon={<ReloadOutlined />}
-                      loading={batchMut.isPending || isJobActive}
-                      disabled={selectedRecalcDisabled}
-                    >
-                      Пересчитать выбранные ({selectedRecalcCountLabel})
-                    </Button>
-                  </span>
-                </Tooltip>
-              </Popconfirm>
-            ) : (
-              <Tooltip title={selectedRecalcTooltip}>
-                <span>
-                  <Button
-                    size="small"
-                    type="primary"
-                    icon={<ReloadOutlined />}
-                    loading={batchMut.isPending || isJobActive}
-                    disabled={selectedRecalcDisabled}
-                    onClick={() =>
-                      batchMut.mutate({
-                        scope: 'selected',
-                        objectIds: selectedRowKeys,
-                        skipManual: true,
-                      })
-                    }
-                  >
-                    Пересчитать выбранные ({selectedRecalcCountLabel})
-                  </Button>
-                </span>
-              </Tooltip>
-            )}
-          <Popconfirm
-            title={`Пересчитать все объекты СО${variant}?`}
-            description={(
-              <Space direction="vertical" size={8}>
-                <Text>
-                  {manualCableCount > 0
-                    ? `Строки без ручной марки в СО${variant} будут пересчитаны с типом `
-                    : `Все объекты СО${variant} будут пересчитаны с типом `}
-                  «{CABLE_TYPE_LABEL[cableTypes.cableTypeForRecalculation]}». Тип кабеля у пересчитываемых
-                  строк будет заменён.
-                </Text>
-                {renderManualOverwriteControl(manualCableCount)}
-              </Space>
-            )}
-            okText="Да, пересчитать все"
-            okButtonProps={{ danger: true }}
-            cancelText="Отмена"
-            onOpenChange={(open) => {
-              if (open) setOverwriteManualChoices(false);
-            }}
-            onConfirm={() => batchMut.mutate({
-              scope: 'all',
-              skipManual: !overwriteManualChoices,
+                return nextDrafts;
+              });
+            }
+            setRecalc.connectionType('line_1ph');
+          }}
+          onManualOverwritePromptOpen={() => setOverwriteManualChoices(false)}
+          onRecalculateSelected={(skipManual) =>
+            batchMut.mutate({
+              scope: 'selected',
+              objectIds: selectedRowKeys,
+              skipManual,
             })}
-            disabled={validObjectsCount === 0 || isJobActive}
-          >
-            <Button
-              size="small"
-              danger
-              icon={<ReloadOutlined />}
-              loading={batchMut.isPending || isJobActive}
-              disabled={validObjectsCount === 0 || isJobActive}
-            >
-              Пересчитать все СО{variant}
-            </Button>
-          </Popconfirm>
-          {isJobActive && activeJobId && (
-            <Button
-              size="small"
-              danger
-              icon={<StopOutlined />}
-              loading={cancelJobMut.isPending}
-              onClick={() => cancelJobMut.mutate()}
-            >
-              Отменить
-            </Button>
-          )}
-          <Button
-            size="small"
-            icon={<TableOutlined />}
-            aria-label="Настройки"
-            onClick={openColumnSettings}
-          >
-            Настройки
-          </Button>
-          <Tooltip title={currentTableViewActive ? 'Сбросить фильтры и сортировку' : 'Фильтры не активны'}>
-            <span className="action-tooltip-wrap">
-              <Button
-                size="small"
-                icon={<CloseCircleOutlined />}
-                aria-label="Сбросить фильтры таблицы"
-                disabled={!currentTableViewActive}
-                onClick={resetCurrentTableViewState}
-              >
-                Сбросить фильтры
-              </Button>
-            </span>
-          </Tooltip>
-          </div>
-        </div>
+          onRecalculateAll={(skipManual) =>
+            batchMut.mutate({
+              scope: 'all',
+              skipManual,
+            })}
+          onCancelJob={() => cancelJobMut.mutate()}
+          onOpenColumnSettings={openColumnSettings}
+          onResetFilters={resetCurrentTableViewState}
+        />
 
         {isJobActive && (
           <Alert
