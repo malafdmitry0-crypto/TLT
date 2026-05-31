@@ -261,6 +261,7 @@ import { useElecCalcFilterOptions } from '@/pages/electrical/useElecCalcFilterOp
 import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
+import { useElecCalcRowClassName } from '@/pages/electrical/useElecCalcRowClassName';
 import { useElecCalcRowSelectionState } from '@/pages/electrical/useElecCalcRowSelectionState';
 import { useElecCalcTableProjection } from '@/pages/electrical/useElecCalcTableProjection';
 import { useElecCalcTableDimensions } from '@/pages/electrical/useElecCalcTableDimensions';
@@ -2213,16 +2214,10 @@ export default function ElecCalcPage() {
     visibleElectricalColumnMetas,
   });
 
-  const electricalRowClassName = useCallback((obj: ProjectObject) => {
-    const calc = stats.calcByObjectId[obj.id];
-    return [
-      electricalCalcError(calc) && !isElectricalCalcUnsupported(calc)
-        && !isElectricalCalcStale(calc)
-        ? 'row-invalid'
-        : '',
-      activeRowId === obj.id ? 'electrical-row-active' : '',
-    ].filter(Boolean).join(' ');
-  }, [activeRowId, stats.calcByObjectId]);
+  const electricalRowClassName = useElecCalcRowClassName({
+    activeRowId,
+    calcByObjectId: stats.calcByObjectId,
+  });
 
   const cablePickerModalTitle = (
     <div className="electrical-cable-picker-title">
