@@ -121,6 +121,7 @@ Potential target structure:
 | Electrical error summary model | Done | 2026-05-31: failed-only error item selection, active-row fallback and guidance input moved to `elecCalcErrorSummaryModel.ts`; focused unit + full frontend gate |
 | Recalculation params hook | Done | 2026-05-31: selection policy, voltage, connection, layout and TT params moved to `useElecCalcRecalculationParams.ts`; focused hook unit + full frontend gate |
 | Cable type state hook | Done | 2026-05-31: default/draft cable type state, available-type normalization, selected-row type resolution and object overrides moved to `useElecCalcCableTypeState.ts`; focused hook unit + full frontend gate |
+| Candidate folder UI state hook | Done | 2026-05-31: active folder key, create/rename modal state and open/close helpers moved to `useElecCalcCandidateFolderUiState.ts`; focused hook unit + full frontend gate |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |

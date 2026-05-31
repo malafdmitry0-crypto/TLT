@@ -242,7 +242,6 @@ import {
   electricalCalculationsForTable,
   electricalLoadedPagesForTable,
   electricalObjectsForTable,
-  type CandidateFolderModalMode,
   type CopyElectricalVariantMutationArgs,
   type ElectricalBatchMutationArgs,
   type ElectricalBatchScope,
@@ -298,6 +297,7 @@ import {
 } from '@/pages/electrical/elecCalcTableFilterModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
+import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCalcCandidateFolderUiState';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
@@ -386,15 +386,19 @@ export default function ElecCalcPage() {
   const [cableSizingCableType, setCableSizingCableType] = useState<CableTypeKey>(DEFAULT_CABLE_TYPE);
   const [cableSizingManualMark, setCableSizingManualMark] = useState<string | null>(null);
   const [markedCableSizingCandidateIds, setMarkedCableSizingCandidateIds] = useState<string[]>([]);
-  const [activeCandidateFolderKey, setActiveCandidateFolderKey] =
-    useState<CandidateFolderKey>('all');
-  const previousActiveCandidateFolderKeyRef = useRef<CandidateFolderKey>('all');
-  const [candidateFolderModalMode, setCandidateFolderModalMode] =
-    useState<CandidateFolderModalMode>('create');
-  const [candidateFolderModalOpen, setCandidateFolderModalOpen] = useState(false);
-  const [candidateFolderName, setCandidateFolderName] = useState('');
-  const [editingCandidateFolder, setEditingCandidateFolder] =
-    useState<ElectricalCandidateFolder | null>(null);
+  const {
+    activeCandidateFolderKey,
+    setActiveCandidateFolderKey,
+    previousActiveCandidateFolderKeyRef,
+    candidateFolderModalMode,
+    candidateFolderModalOpen,
+    candidateFolderName,
+    setCandidateFolderName,
+    editingCandidateFolder,
+    closeCandidateFolderModal,
+    openCreateCandidateFolderModal,
+    openRenameCandidateFolderModal,
+  } = useElecCalcCandidateFolderUiState();
   const [tableColumnSettings, setTableColumnSettings] =
     useState<ElectricalTableColumnSettings>(() => {
       const auth = useAuthStore.getState();
@@ -1392,8 +1396,7 @@ export default function ElecCalcPage() {
     onSuccess: (folder) => {
       invalidateCableSizingCandidateFolders();
       setActiveCandidateFolderKey(candidateCustomFolderKey(folder.id));
-      setCandidateFolderModalOpen(false);
-      setCandidateFolderName('');
+      closeCandidateFolderModal();
       message.success('Папка создана');
     },
     onError: (error: Error) => message.error(error.message),
@@ -1403,9 +1406,7 @@ export default function ElecCalcPage() {
       updateElectricalCandidateFolder(folderId, { name }),
     onSuccess: () => {
       invalidateCableSizingCandidateFolders();
-      setCandidateFolderModalOpen(false);
-      setCandidateFolderName('');
-      setEditingCandidateFolder(null);
+      closeCandidateFolderModal();
       message.success('Папка переименована');
     },
     onError: (error: Error) => message.error(error.message),
@@ -1744,11 +1745,9 @@ export default function ElecCalcPage() {
     setCableSizingManualMark(null);
     setMarkedCableSizingCandidateIds([]);
     setActiveCandidateFolderKey('all');
-    setCandidateFolderModalOpen(false);
-    setEditingCandidateFolder(null);
-    setCandidateFolderName('');
+    closeCandidateFolderModal();
     setCandidateColumnSettingsOpen(false);
-  }, []);
+  }, [closeCandidateFolderModal]);
   const openCableMarkModal = useCallback((obj: ProjectObject) => {
     const calc = stats.calcByObjectId[obj.id];
     const currentCalc = currentElectricalCalc(calc);
@@ -3387,20 +3386,6 @@ export default function ElecCalcPage() {
     );
   }
 
-  function openCreateCandidateFolderModal() {
-    setCandidateFolderModalMode('create');
-    setEditingCandidateFolder(null);
-    setCandidateFolderName('');
-    setCandidateFolderModalOpen(true);
-  }
-
-  function openRenameCandidateFolderModal(folder: ElectricalCandidateFolder) {
-    setCandidateFolderModalMode('rename');
-    setEditingCandidateFolder(folder);
-    setCandidateFolderName(folder.name);
-    setCandidateFolderModalOpen(true);
-  }
-
   function submitCandidateFolderModal() {
     const name = candidateFolderName.trim();
     if (!name) {
@@ -4302,11 +4287,7 @@ export default function ElecCalcPage() {
         confirmLoading={createCandidateFolderMut.isPending || updateCandidateFolderMut.isPending}
         okButtonProps={{ disabled: candidateFolderName.trim().length === 0 }}
         onOk={submitCandidateFolderModal}
-        onCancel={() => {
-          setCandidateFolderModalOpen(false);
-          setEditingCandidateFolder(null);
-          setCandidateFolderName('');
-        }}
+        onCancel={closeCandidateFolderModal}
       >
         <Input
           autoFocus
