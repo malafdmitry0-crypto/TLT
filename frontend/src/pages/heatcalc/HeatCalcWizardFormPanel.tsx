@@ -11,13 +11,9 @@ import type {
 } from '@/utils/heatCalcTableViewSettings';
 import type { DraftRowsById } from '@/utils/heatCalcInlineEdit';
 import type { WizardState } from '@/pages/heatcalc/useHeatCalcObjectEditor';
+import { loadHeatCalcObjectWizard } from '@/pages/heatcalc/heatCalcObjectWizardLoader';
 
-export const loadHeatCalcObjectWizard = () => import('@/components/wizard/ObjectWizard');
 const ObjectWizard = lazy(loadHeatCalcObjectWizard);
-
-export function preloadHeatCalcObjectWizard() {
-  void loadHeatCalcObjectWizard();
-}
 
 interface HeatCalcWizardFormPanelProps {
   formBlockVisible: boolean;

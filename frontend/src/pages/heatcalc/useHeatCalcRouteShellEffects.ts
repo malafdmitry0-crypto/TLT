@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { preloadHeatCalcObjectWizard } from '@/pages/heatcalc/HeatCalcWizardFormPanel';
+import { preloadHeatCalcObjectWizard } from '@/pages/heatcalc/heatCalcObjectWizardLoader';
 
 interface UseHeatCalcRouteShellEffectsOptions {
   projectPresent: boolean;
