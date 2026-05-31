@@ -198,6 +198,12 @@ import {
   type CableMarkOptionSource,
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import {
+  cableSnapshotRow,
+  commercialStatus,
+  technicalStatus,
+  type CableStatusRow,
+} from '@/pages/electrical/elecCalcCableCatalogModel';
+import {
   candidateCommercialValue,
   candidateCompareDisplayValue,
   candidateCompareValue,
@@ -248,12 +254,16 @@ import {
   threadSourceTag,
   valueText,
 } from '@/pages/electrical/elecCalcResultValueModel';
+import {
+  filterKindForCandidateColumn,
+  filterKindForElectricalColumn,
+  type ElectricalFilterKind,
+} from '@/pages/electrical/elecCalcTableFilterModel';
 import type {
   HeatCalcGlideGridCellState,
   HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
 import {
-  type CableCatalogRow,
   visibleCableRowsForSource,
 } from '@/utils/cableCatalogSourceLabels';
 import {
@@ -267,9 +277,6 @@ import {
   type HeatCalcColumnValueAccessors,
   type HeatCalcTableViewState,
 } from '@/utils/heatCalcTableFindability';
-import type {
-  ObjectQueryFieldCapability,
-} from '@/types/project';
 
 const { Text } = Typography;
 const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
@@ -316,17 +323,6 @@ const candidateCustomFolderKey = (folderId: string): CandidateFolderKey => `cust
 const candidateCustomFolderId = (key: CandidateFolderKey): string | null =>
   key.startsWith('custom:') ? key.slice('custom:'.length) : null;
 const isResistiveCableType = (type: CableTypeKey) => type === 'single_core' || type === 'three_core';
-type CatalogStatusColor = 'default' | 'success' | 'warning' | 'error';
-type CatalogStatus = { label: string; color: CatalogStatusColor };
-type CableStatusRow = CableCatalogRow & {
-  technical_data_complete?: boolean;
-  price_per_meter?: number | null;
-  stock_quantity_m?: number | null;
-  stock_status?: string | null;
-  lead_time_days?: number | null;
-  supplier_priority?: number | null;
-  is_preferred?: boolean;
-};
 type CableMarkSelectOption = {
   value: string;
   label: ReactNode;
@@ -336,56 +332,6 @@ type CableMarkSelectOption = {
   cableSource?: CableSource;
   disabled?: boolean;
 };
-
-function hasCommercialData(row: CableStatusRow) {
-  return row.price_per_meter != null
-    || row.stock_quantity_m != null
-    || (row.stock_status != null && row.stock_status !== 'unknown')
-    || row.lead_time_days != null
-    || row.supplier_priority != null
-    || row.is_preferred === true;
-}
-
-function commercialStatus(rows: CableStatusRow[]): CatalogStatus {
-  if (rows.length === 0) return { label: 'Нет коммерческих данных', color: 'default' };
-  const completeCount = rows.filter(hasCommercialData).length;
-  if (completeCount === 0) return { label: 'Нет коммерческих данных', color: 'default' };
-  if (completeCount < rows.length) return { label: 'Коммерческие данные неполные', color: 'warning' };
-  return { label: 'Коммерческие данные есть', color: 'success' };
-}
-
-function hasValue(value: unknown) {
-  return value !== null && value !== undefined;
-}
-
-function hasTechnicalData(type: CableTypeKey, row: CableStatusRow) {
-  if (typeof row.technical_data_complete === 'boolean') return row.technical_data_complete;
-  if (type === 'self_regulating') {
-    return hasValue(row.power_per_meter)
-      && hasValue(row.max_temperature)
-      && hasValue(row.min_temperature);
-  }
-  if (type === 'self_regulating_tt') {
-    return hasValue(row.q1)
-      && hasValue(row.q2)
-      && hasValue(row.max_product_temp)
-      && hasValue(row.max_vapor_temp);
-  }
-  if (type === 'single_core' || type === 'three_core') {
-    return hasValue(row.resistance_ohm_km)
-      && (hasValue(row.conductor_section_mm2) || hasValue(row.conductor_cross_section));
-  }
-  return false;
-}
-
-function technicalStatus(type: CableTypeKey | null, rows: CableStatusRow[]): CatalogStatus {
-  if (!type) return { label: 'Техданные: несколько типов', color: 'default' };
-  if (rows.length === 0) return { label: 'Нет техданных', color: 'error' };
-  const completeCount = rows.filter((row) => hasTechnicalData(type, row)).length;
-  if (completeCount === rows.length) return { label: 'Техданные полные', color: 'success' };
-  if (completeCount > 0) return { label: 'Техданные неполные', color: 'warning' };
-  return { label: 'Нет техданных', color: 'error' };
-}
 
 const ELECTRICAL_TABLE_PAGE_SIZE = 50;
 type ElectricalBatchScope = 'all' | 'selected';
@@ -416,42 +362,6 @@ type ElectricalCandidateTableColumnPreferenceMutation = {
   closeModal?: boolean;
   showMessage?: boolean;
 };
-
-const CANDIDATE_NUMERIC_FILTER_KEYS = new Set<ElectricalCandidateColumnKey>([
-  'winding_pitch_mm',
-  'number_of_threads',
-  'laying_step',
-  'heating_height',
-  'supply_voltage',
-  'winding_coefficient',
-  'vapor_temperature',
-  'maintain_temperature',
-  'installed_cable_length',
-  'order_cable_length',
-  'total_power',
-  'power_per_meter',
-  'installed_power_per_meter',
-  'current',
-  'voltage',
-  'price_per_meter',
-  'required_order_length',
-  'total_cost',
-  'lead_time_days',
-]);
-
-const CANDIDATE_ENUM_FILTER_KEYS = new Set<ElectricalCandidateColumnKey>([
-  'mode',
-  'cable_type',
-  'connection_type',
-  'selection_policy',
-  'applied_selection_policy',
-  'stock_status',
-]);
-
-const CANDIDATE_BOOLEAN_FILTER_KEYS = new Set<ElectricalCandidateColumnKey>([
-  'marked',
-  'aggressive_product',
-]);
 
 type ElectricalTableSettingsPreferenceMutation = {
   columnSettings: ElectricalTableColumnSettings;
@@ -591,70 +501,9 @@ type ElectricalColumnRenderSpec = {
   render: (_: unknown, obj: ProjectObject, idx: number) => ReactNode;
 };
 
-type ElectricalFilterKind = 'text' | 'numberRange' | 'enum' | 'boolean';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function cableSnapshotRow(calc: ElectricalCalcSummary | undefined): CableStatusRow | null {
-  const snapshot = calc?.cable_snapshot;
-  if (!isRecord(snapshot)) return null;
-  const technical = isRecord(snapshot.technical) ? snapshot.technical : {};
-  const commercial = isRecord(snapshot.commercial) ? snapshot.commercial : {};
-  const model = typeof snapshot.cable_mark === 'string' ? snapshot.cable_mark : technical.model;
-  return {
-    ...technical,
-    ...commercial,
-    model: typeof model === 'string' ? model : null,
-    cable_type: typeof snapshot.cable_type === 'string' ? snapshot.cable_type : null,
-    source: typeof snapshot.actual_catalog_source === 'string'
-      ? snapshot.actual_catalog_source
-      : typeof snapshot.requested_catalog_source === 'string'
-        ? snapshot.requested_catalog_source
-        : 'project',
-  };
-}
-
 function toInputNumberValue(value: unknown) {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue : null;
-}
-
-function filterKindForElectricalColumn(
-  key: ElectricalColumnKey,
-  capability?: ObjectQueryFieldCapability,
-): ElectricalFilterKind {
-  if (capability?.filter.enabled) {
-    if (capability.filter.ops.includes('range')) return 'numberRange';
-    if (capability.filter.ops.includes('in')) return 'enum';
-    if (capability.filter.ops.includes('equals') && capability.data_type === 'boolean') {
-      return 'boolean';
-    }
-    return 'text';
-  }
-  if ([
-    'installed_cable_length',
-    'order_cable_length',
-    'total_power',
-    'power_per_meter',
-    'installed_power_per_meter',
-    'current',
-    'voltage',
-  ].includes(key)) {
-    return 'numberRange';
-  }
-  if (['electrical_status', 'object_type', 'heat_loss_status', 'cable_type'].includes(key)) {
-    return 'enum';
-  }
-  return 'text';
-}
-
-function filterKindForCandidateColumn(key: ElectricalCandidateColumnKey): ElectricalFilterKind {
-  if (CANDIDATE_BOOLEAN_FILTER_KEYS.has(key)) return 'boolean';
-  if (CANDIDATE_NUMERIC_FILTER_KEYS.has(key)) return 'numberRange';
-  if (CANDIDATE_ENUM_FILTER_KEYS.has(key)) return 'enum';
-  return 'text';
 }
 
 function projectObjectsPageCursorsEqual(

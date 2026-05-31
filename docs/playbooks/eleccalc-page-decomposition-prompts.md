@@ -95,6 +95,8 @@ Potential target structure:
 | Layout numeric helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcLayoutModel.ts`; focused unit + result/candidate/query units + `ElecCalcPage` integration, 71 pass |
 | Main table copy/status characterization | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcMainTableModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 76 pass |
 | Cable mark/source option helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCableOptionModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 80 pass |
+| Cable catalog status helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCableCatalogModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 87 pass |
+| Table filter kind helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcTableFilterModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 87 pass |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | page/filter/sort/cursor state, hidden-column cleanup |
@@ -195,6 +197,12 @@ Pure helpers already extracted:
 |---|---|---|
 | Electrical backend query/filter builder | `frontend/src/pages/electrical/elecCalcQueryModel.ts` | Done |
 | Candidate compare/value helpers | `frontend/src/pages/electrical/elecCalcCandidateCompareModel.ts` | Done |
+| Main electrical result/value helpers | `frontend/src/pages/electrical/elecCalcResultValueModel.ts` | Done |
+| Layout numeric helpers | `frontend/src/pages/electrical/elecCalcLayoutModel.ts` | Done |
+| Main table copy/status model | `frontend/src/pages/electrical/elecCalcMainTableModel.ts` | Done |
+| Cable mark/source option helpers | `frontend/src/pages/electrical/elecCalcCableOptionModel.ts` | Done |
+| Cable catalog status helpers | `frontend/src/pages/electrical/elecCalcCableCatalogModel.ts` | Done |
+| Table filter kind helpers | `frontend/src/pages/electrical/elecCalcTableFilterModel.ts` | Done |
 
 Safe next pure candidates, but only with focused unit tests:
 
@@ -404,6 +412,52 @@ Definition of Done:
   `npm --prefix frontend test -- --run src/__tests__/unit/pages/electrical/elecCalcCableOptionModel.test.ts src/__tests__/unit/pages/electrical/elecCalcMainTableModel.test.ts src/__tests__/unit/pages/electrical/elecCalcLayoutModel.test.ts src/__tests__/unit/pages/electrical/elecCalcResultValueModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCandidateCompareModel.test.ts src/__tests__/unit/pages/electrical/elecCalcQueryModel.test.ts src/__tests__/integration/pages/ElecCalcPage.test.tsx`
 - Запущены `npm --prefix frontend run typecheck` и `git diff --check`.
 - Playwright/screenshots не требуются, если JSX/CSS/visible UI не менялись.
+
+## Prompt 9. Вынести cable catalog status helpers
+
+Status: Done. Не запускать повторно без нового finding.
+
+Режим `/fix-focused`.
+Scope: только pure helpers анализа строк кабельного каталога и snapshot row:
+`CableStatusRow`, `CatalogStatus`, `hasCommercialData`, `commercialStatus`,
+`hasValue`, `hasTechnicalData`, `technicalStatus`, `cableSnapshotRow`.
+
+Задача выполнена в
+`frontend/src/pages/electrical/elecCalcCableCatalogModel.ts`.
+Не двигались JSX, модалки выбора кабеля, mutations, payload builders,
+backend/API, persistence и workflow CO.
+
+Evidence:
+
+- Unit:
+  `frontend/src/__tests__/unit/pages/electrical/elecCalcCableCatalogModel.test.ts`.
+- Focused run:
+  `npm --prefix frontend test -- --run src/__tests__/unit/pages/electrical/elecCalcCableCatalogModel.test.ts src/__tests__/unit/pages/electrical/elecCalcTableFilterModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCableOptionModel.test.ts src/__tests__/unit/pages/electrical/elecCalcMainTableModel.test.ts src/__tests__/unit/pages/electrical/elecCalcLayoutModel.test.ts src/__tests__/unit/pages/electrical/elecCalcResultValueModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCandidateCompareModel.test.ts src/__tests__/unit/pages/electrical/elecCalcQueryModel.test.ts src/__tests__/integration/pages/ElecCalcPage.test.tsx` — 87 pass.
+- Playwright/screenshots не требуются, потому что JSX/CSS/visible UI не менялись.
+
+## Prompt 10. Вынести table filter kind helpers
+
+Status: Done. Не запускать повторно без нового finding.
+
+Режим `/fix-focused`.
+Scope: только pure helpers выбора типа фильтра таблицы:
+`ElectricalFilterKind`, `CANDIDATE_NUMERIC_FILTER_KEYS`,
+`CANDIDATE_ENUM_FILTER_KEYS`, `CANDIDATE_BOOLEAN_FILTER_KEYS`,
+`filterKindForElectricalColumn`, `filterKindForCandidateColumn`.
+
+Задача выполнена в
+`frontend/src/pages/electrical/elecCalcTableFilterModel.ts`.
+Не двигались `ColumnFilterDropdown`, `ResizableColumnTitle`, JSX, DOM,
+табличные renderers, настройки колонок, React state/effects, backend/API и
+persistence.
+
+Evidence:
+
+- Unit:
+  `frontend/src/__tests__/unit/pages/electrical/elecCalcTableFilterModel.test.ts`.
+- Focused run:
+  `npm --prefix frontend test -- --run src/__tests__/unit/pages/electrical/elecCalcCableCatalogModel.test.ts src/__tests__/unit/pages/electrical/elecCalcTableFilterModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCableOptionModel.test.ts src/__tests__/unit/pages/electrical/elecCalcMainTableModel.test.ts src/__tests__/unit/pages/electrical/elecCalcLayoutModel.test.ts src/__tests__/unit/pages/electrical/elecCalcResultValueModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCandidateCompareModel.test.ts src/__tests__/unit/pages/electrical/elecCalcQueryModel.test.ts src/__tests__/integration/pages/ElecCalcPage.test.tsx` — 87 pass.
+- Playwright/screenshots не требуются, потому что JSX/CSS/visible UI не менялись.
 
 ## Prompt 6. Вынести layout numeric helpers
 
