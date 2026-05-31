@@ -8,7 +8,6 @@ import {
   Suspense,
   type HTMLAttributes,
   type ReactNode,
-  type PointerEvent as ReactPointerEvent,
 } from 'react';
 import {
   Alert,
@@ -116,16 +115,12 @@ import type {
 } from '@/types/calculation';
 import {
   ELECTRICAL_TABLE_COLUMN_PREF_KEY,
-  clampElectricalTableColumnWidthPct,
   clearRegisteredElectricalTableColumnCache,
-  electricalTableColumnWidthPxToPct,
   getDefaultElectricalTableColumnSettings,
   getVisibleElectricalTableColumnMetas,
   normalizeElectricalTableColumnSettings,
   readGuestElectricalTableColumnSettings,
   readRegisteredElectricalTableColumnCache,
-  setElectricalTableColumnWidthPct,
-  writeGuestElectricalTableColumnSettings,
   writeRegisteredElectricalTableColumnCache,
   type ElectricalColumnKey,
   type ElectricalTableColumnSettings,
@@ -138,10 +133,7 @@ import {
   normalizeElectricalCandidateTableColumnSettings,
   readGuestElectricalCandidateTableColumnSettings,
   readRegisteredElectricalCandidateTableColumnCache,
-  setElectricalCandidateTableColumnWidthPct,
-  writeGuestElectricalCandidateTableColumnSettings,
   writeRegisteredElectricalCandidateTableColumnCache,
-  type ElectricalCandidateColumnKey,
   type ElectricalCandidateTableColumnSettings,
 } from '@/utils/electricalCandidateTableColumns';
 import {
@@ -152,7 +144,6 @@ import {
   readGuestElectricalTableViewSettings,
   readRegisteredElectricalTableViewCache,
   resolveElectricalTableFontSize,
-  writeGuestElectricalTableViewSettings,
   writeRegisteredElectricalTableViewCache,
   type ElectricalCalculationCableSource,
   type ElectricalTableViewSettings,
@@ -275,6 +266,7 @@ import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTy
 import { useElecCalcCandidateCompareState } from '@/pages/electrical/useElecCalcCandidateCompareState';
 import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCalcCandidateFolderUiState';
 import { useElecCalcCandidateFolderViewModel } from '@/pages/electrical/useElecCalcCandidateFolderViewModel';
+import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColumnPersistence';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
@@ -433,9 +425,6 @@ export default function ElecCalcPage() {
   const effectiveSource: CableSource = commercialFeaturesAvailable ? cableSource : 'builtin';
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [candidateColumnSettingsOpen, setCandidateColumnSettingsOpen] = useState(false);
-  const tableColumnSettingsRef = useRef(tableColumnSettings);
-  const candidateTableColumnSettingsRef = useRef(candidateTableColumnSettings);
-  const tableViewSettingsRef = useRef(tableViewSettings);
   const [activeJobId, setActiveJobId] = useState<string | null>(
     () => navigationActiveJobId,
   );
@@ -452,18 +441,6 @@ export default function ElecCalcPage() {
 
   const qc = useQueryClient();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    tableColumnSettingsRef.current = tableColumnSettings;
-  }, [tableColumnSettings]);
-
-  useEffect(() => {
-    candidateTableColumnSettingsRef.current = candidateTableColumnSettings;
-  }, [candidateTableColumnSettings]);
-
-  useEffect(() => {
-    tableViewSettingsRef.current = tableViewSettings;
-  }, [tableViewSettings]);
 
   useEffect(() => {
     resetTablePage();
@@ -791,7 +768,6 @@ export default function ElecCalcPage() {
       const normalizedColumns = normalizeElectricalTableColumnSettings(columnPreference.value);
       const normalizedView = normalizeElectricalTableViewSettings(viewPreference.value);
       setTableColumnSettings(normalizedColumns);
-      tableViewSettingsRef.current = normalizedView;
       setTableViewSettings(normalizedView);
       if (columnPreference.user_id) {
         writeRegisteredElectricalTableColumnCache(columnPreference.user_id, normalizedColumns);
@@ -820,14 +796,12 @@ export default function ElecCalcPage() {
         readRegisteredElectricalCandidateTableColumnCache(registeredUserId) ??
           getDefaultElectricalCandidateTableColumnSettings(),
       );
-      tableViewSettingsRef.current = registeredViewSettings;
       setTableViewSettings(registeredViewSettings);
       return;
     }
     setTableColumnSettings(readGuestElectricalTableColumnSettings());
     setCandidateTableColumnSettings(readGuestElectricalCandidateTableColumnSettings());
     const guestViewSettings = readGuestElectricalTableViewSettings();
-    tableViewSettingsRef.current = guestViewSettings;
     setTableViewSettings(guestViewSettings);
   }, [isRegisteredUser, registeredUserId]);
 
@@ -877,7 +851,6 @@ export default function ElecCalcPage() {
     if (!isRegisteredUser || !persistedTableViewPreference) return;
     if (persistedTableViewPreference.value) {
       const normalized = normalizeElectricalTableViewSettings(persistedTableViewPreference.value);
-      tableViewSettingsRef.current = normalized;
       setTableViewSettings(normalized);
       if (persistedTableViewPreference.user_id) {
         writeRegisteredElectricalTableViewCache(persistedTableViewPreference.user_id, normalized);
@@ -888,7 +861,6 @@ export default function ElecCalcPage() {
       registeredUserId ?? persistedTableViewPreference.user_id,
     );
     const defaults = getDefaultElectricalTableViewSettings();
-    tableViewSettingsRef.current = defaults;
     setTableViewSettings(defaults);
   }, [isRegisteredUser, persistedTableViewPreference, registeredUserId]);
 
@@ -1960,130 +1932,29 @@ export default function ElecCalcPage() {
     recalc.windingCoefficient,
   ]);
 
-  const persistTableColumnSettings = useCallback((
-    settings: ElectricalTableColumnSettings,
-    options: { closeModal?: boolean; showMessage?: boolean } = {},
-  ) => {
-    const normalized = normalizeElectricalTableColumnSettings(settings);
-    setTableColumnSettings(normalized);
-    if (isRegisteredUser) {
-      clearRegisteredElectricalTableColumnCache(registeredUserId);
-      updateTableColumnPreference.mutate({
-        settings: normalized,
-        closeModal: options.closeModal,
-        showMessage: options.showMessage,
-      });
-      return;
-    }
-    writeGuestElectricalTableColumnSettings(normalized);
-    if (options.closeModal) setColumnSettingsOpen(false);
-    if (options.showMessage !== false) message.success('Настройки таблицы сохранены');
-  }, [isRegisteredUser, registeredUserId, updateTableColumnPreference]);
-
-  const persistCandidateTableColumnSettings = useCallback((
-    settings: ElectricalCandidateTableColumnSettings,
-    options: { closeModal?: boolean; showMessage?: boolean } = {},
-  ) => {
-    const normalized = normalizeElectricalCandidateTableColumnSettings(settings);
-    setCandidateTableColumnSettings(normalized);
-    if (isRegisteredUser) {
-      clearRegisteredElectricalCandidateTableColumnCache(registeredUserId);
-      updateCandidateTableColumnPreference.mutate({
-        settings: normalized,
-        closeModal: options.closeModal,
-        showMessage: options.showMessage,
-      });
-      return;
-    }
-    writeGuestElectricalCandidateTableColumnSettings(normalized);
-    if (options.closeModal) setCandidateColumnSettingsOpen(false);
-    if (options.showMessage !== false) message.success('Настройки таблицы подбора сохранены');
-  }, [isRegisteredUser, registeredUserId, updateCandidateTableColumnPreference]);
-
-  const persistTableSettings = useCallback((
-    columnSettings: ElectricalTableColumnSettings,
-    viewSettings: ElectricalTableViewSettings,
-  ) => {
-    const normalizedColumns = normalizeElectricalTableColumnSettings(columnSettings);
-    const normalizedView = normalizeElectricalTableViewSettings(viewSettings);
-    setTableColumnSettings(normalizedColumns);
-    tableViewSettingsRef.current = normalizedView;
-    setTableViewSettings(normalizedView);
-    if (isRegisteredUser) {
-      clearRegisteredElectricalTableColumnCache(registeredUserId);
-      clearRegisteredElectricalTableViewCache(registeredUserId);
-      updateTableSettingsPreference.mutate({
-        columnSettings: normalizedColumns,
-        viewSettings: normalizedView,
-      });
-      return;
-    }
-    writeGuestElectricalTableColumnSettings(normalizedColumns);
-    writeGuestElectricalTableViewSettings(normalizedView);
-    setColumnSettingsOpen(false);
-    message.success('Настройки таблицы сохранены');
-  }, [isRegisteredUser, registeredUserId, updateTableSettingsPreference]);
-
-  const applyColumnWidth = useCallback((key: ElectricalColumnKey, widthPct: number) => {
-    const nextSettings = setElectricalTableColumnWidthPct(
-      tableColumnSettingsRef.current,
-      key,
-      clampElectricalTableColumnWidthPct(widthPct),
-    );
-    persistTableColumnSettings(nextSettings, { showMessage: false });
-  }, [persistTableColumnSettings]);
-
-  const applyElectricalGlideColumnDraftWidth = useCallback((
-    key: string,
-    widthPx: number,
-  ) => {
-    setTableColumnSettings((settings) =>
-      setElectricalTableColumnWidthPct(
-        settings,
-        key,
-        electricalTableColumnWidthPxToPct(widthPx),
-      ),
-    );
-  }, []);
-
-  const commitElectricalGlideColumnWidth = useCallback((
-    key: string,
-    widthPx: number,
-  ) => {
-    applyColumnWidth(key, electricalTableColumnWidthPxToPct(widthPx));
-  }, [applyColumnWidth]);
-
-  const applyCandidateColumnWidth = useCallback((
-    key: ElectricalCandidateColumnKey,
-    widthPct: number,
-  ) => {
-    const nextSettings = setElectricalCandidateTableColumnWidthPct(
-      candidateTableColumnSettingsRef.current,
-      key,
-      clampElectricalTableColumnWidthPct(widthPct),
-    );
-    persistCandidateTableColumnSettings(nextSettings, { showMessage: false });
-  }, [persistCandidateTableColumnSettings]);
-
-  const applyElectricalCandidateGlideColumnDraftWidth = useCallback((
-    key: string,
-    widthPx: number,
-  ) => {
-    setCandidateTableColumnSettings((settings) =>
-      setElectricalCandidateTableColumnWidthPct(
-        settings,
-        key,
-        electricalTableColumnWidthPxToPct(widthPx),
-      ),
-    );
-  }, []);
-
-  const commitElectricalCandidateGlideColumnWidth = useCallback((
-    key: string,
-    widthPx: number,
-  ) => {
-    applyCandidateColumnWidth(key, electricalTableColumnWidthPxToPct(widthPx));
-  }, [applyCandidateColumnWidth]);
+  const {
+    persistCandidateTableColumnSettings,
+    persistTableSettings,
+    applyElectricalGlideColumnDraftWidth,
+    commitElectricalGlideColumnWidth,
+    applyElectricalCandidateGlideColumnDraftWidth,
+    commitElectricalCandidateGlideColumnWidth,
+    startColumnResize,
+    startCandidateColumnResize,
+  } = useElecCalcColumnPersistence({
+    tableColumnSettings,
+    candidateTableColumnSettings,
+    isRegisteredUser,
+    registeredUserId,
+    setTableColumnSettings,
+    setCandidateTableColumnSettings,
+    setTableViewSettings,
+    setColumnSettingsOpen,
+    setCandidateColumnSettingsOpen,
+    updateTableColumnPreference: updateTableColumnPreference.mutate,
+    updateCandidateTableColumnPreference: updateCandidateTableColumnPreference.mutate,
+    updateTableSettingsPreference: updateTableSettingsPreference.mutate,
+  });
 
   const {
     draftTableColumnSettings,
@@ -2123,86 +1994,6 @@ export default function ElecCalcPage() {
     persistTableSettings,
     persistCandidateTableColumnSettings,
   });
-
-  const startColumnResize = useCallback((
-    meta: { key: ElectricalColumnKey; width: number; widthPct: number },
-    event: ReactPointerEvent<HTMLButtonElement>,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const startX = event.clientX;
-    const startWidth = meta.width;
-    let latestWidthPct = meta.widthPct;
-    let frameId: number | null = null;
-
-    function flushDraftWidth() {
-      frameId = null;
-      setTableColumnSettings((settings) =>
-        setElectricalTableColumnWidthPct(settings, meta.key, latestWidthPct),
-      );
-    }
-
-    function handlePointerMove(pointerEvent: PointerEvent) {
-      const nextWidthPx = Math.max(30, startWidth + pointerEvent.clientX - startX);
-      latestWidthPct = electricalTableColumnWidthPxToPct(nextWidthPx);
-      if (frameId == null) {
-        frameId = window.requestAnimationFrame(flushDraftWidth);
-      }
-    }
-
-    function handlePointerUp() {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      if (frameId != null) {
-        window.cancelAnimationFrame(frameId);
-        frameId = null;
-      }
-      applyColumnWidth(meta.key, latestWidthPct);
-    }
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-  }, [applyColumnWidth]);
-
-  const startCandidateColumnResize = useCallback((
-    meta: { key: ElectricalCandidateColumnKey; width: number; widthPct: number },
-    event: ReactPointerEvent<HTMLButtonElement>,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const startX = event.clientX;
-    const startWidth = meta.width;
-    let latestWidthPct = meta.widthPct;
-    let frameId: number | null = null;
-
-    function flushDraftWidth() {
-      frameId = null;
-      setCandidateTableColumnSettings((settings) =>
-        setElectricalCandidateTableColumnWidthPct(settings, meta.key, latestWidthPct),
-      );
-    }
-
-    function handlePointerMove(pointerEvent: PointerEvent) {
-      const nextWidthPx = Math.max(30, startWidth + pointerEvent.clientX - startX);
-      latestWidthPct = electricalTableColumnWidthPxToPct(nextWidthPx);
-      if (frameId == null) {
-        frameId = window.requestAnimationFrame(flushDraftWidth);
-      }
-    }
-
-    function handlePointerUp() {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      if (frameId != null) {
-        window.cancelAnimationFrame(frameId);
-        frameId = null;
-      }
-      applyCandidateColumnWidth(meta.key, latestWidthPct);
-    }
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-  }, [applyCandidateColumnWidth]);
 
   const electricalColumns = useMemo<ColumnsType<ProjectObject>>(() =>
     visibleElectricalColumnMetas.map((column) => {

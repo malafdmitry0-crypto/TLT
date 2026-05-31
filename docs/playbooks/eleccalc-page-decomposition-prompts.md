@@ -131,6 +131,7 @@ Potential target structure:
 | Boot/view state hook | Done | 2026-05-31: available cable type keys/set, table engine resolution, glide flags and navigation active job id moved to `useElecCalcBootViewState.ts`; focused hook unit + `ElecCalcPage` integration |
 | Table projection hook | Done | 2026-05-31: loaded-page projection, visible objects/calculations, display offset and stats moved to `useElecCalcTableProjection.ts`; focused hook unit + `ElecCalcPage` integration |
 | Cable mark options hook | Done | 2026-05-31: self-regulating/TT/resistive manual options, project snapshot option and sizing modal options moved to `useElecCalcCableMarkOptions.tsx`; focused hook unit + `ElecCalcPage` integration |
+| Column persistence/resize hook | Done | 2026-05-31: main/candidate table settings persistence, guest/registered side effects and column resize handlers moved to `useElecCalcColumnPersistence.ts`; focused hook unit + `ElecCalcPage` integration |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |
