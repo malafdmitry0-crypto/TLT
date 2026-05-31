@@ -167,12 +167,7 @@ import {
   AUTO_CABLE_MARK_VALUE,
   cableMarkOptionValue,
   catalogSourceFromSnapshot,
-  externalCableOptionLabelSource,
-  normalizeCableMarkOptionSource,
-  normalizeCableSource,
   shouldShowProjectCableOption,
-  type CableMarkSelectOption,
-  type CableMarkOptionSource,
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import {
   resolveCableCatalogStatuses,
@@ -273,6 +268,7 @@ import {
 } from '@/pages/electrical/elecCalcTableFilterModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
+import { useElecCalcCableMarkOptions } from '@/pages/electrical/useElecCalcCableMarkOptions';
 import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
 import { useElecCalcCableSizingModalState } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
@@ -289,9 +285,6 @@ import type {
   HeatCalcGlideGridCellState,
   HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
-import {
-  visibleCableRowsForSource,
-} from '@/utils/cableCatalogSourceLabels';
 import {
   isColumnFilterActive,
 } from '@/utils/heatCalcTableFindability';
@@ -1064,158 +1057,21 @@ export default function ElecCalcPage() {
     }
   }, [activeBatchScope, activeJob, project?.id, qc, variant]);
 
-  const optionWithSourceLabel = useCallback((label: string, source?: CableMarkOptionSource | null) => {
-    if (source !== 'extended' && source !== 'project') return label;
-    const tag = source === 'extended'
-      ? { color: 'blue', label: 'внеш.' }
-      : { color: 'green', label: 'проект' };
-    return (
-      <Space size={6}>
-        <span>{label}</span>
-        <Tag color={tag.color} style={{ marginInlineEnd: 0 }}>{tag.label}</Tag>
-      </Space>
-    );
-  }, []);
-  const cableMarkOption = useCallback((
-    mark: string,
-    text: string,
-    source?: string | null,
-    disabled?: boolean,
-    cableSource?: CableSource | null,
-    displaySource?: CableMarkOptionSource | null,
-  ): CableMarkSelectOption => ({
-    value: cableMarkOptionValue(normalizeCableMarkOptionSource(source), mark),
-    label: optionWithSourceLabel(
-      text,
-      displaySource === undefined ? normalizeCableMarkOptionSource(source) : displaySource,
-    ),
-    searchLabel: text,
-    mark,
-    optionSource: normalizeCableMarkOptionSource(source),
-    cableSource: cableSource ?? normalizeCableSource(source) ?? undefined,
-    disabled,
-  }), [optionWithSourceLabel]);
-  const autoCableMarkOption = useCallback((): CableMarkSelectOption => ({
-    value: AUTO_CABLE_MARK_VALUE,
-    label: 'Авто',
-    searchLabel: 'Авто',
-    mark: null,
-    optionSource: 'builtin',
-  }), []);
-  const cableOptions = useMemo(
-    () => visibleCableRowsForSource(cables, builtinCables, effectiveSource).map((c) => {
-      const label = `${c.model} · ${c.power_per_meter ?? '—'} Вт/м`;
-      return cableMarkOption(
-        c.model ?? label,
-        label,
-        c.source,
-        false,
-        normalizeCableSource(c.source) ?? undefined,
-        externalCableOptionLabelSource(c, cables, builtinCables, effectiveSource),
-      );
-    }),
-    [builtinCables, cableMarkOption, cables, effectiveSource],
-  );
-  const manualCableOptionsForType = useCallback((type: CableTypeKey): CableMarkSelectOption[] => {
-    if (!availableCableTypes.has(type)) return [];
-    if (type === 'self_regulating') return cableOptions;
-    if (type === 'self_regulating_tt') {
-      const suffix = recalc.aggressiveProduct ? 'СТ' : 'СР';
-      return ttCables.map((c) => {
-        const value = `${c.model}-${suffix}`;
-        return cableMarkOption(
-          value,
-          `${value} · ${c.series} · ${c.nominal_power} Вт/м`,
-          (c as { source?: string | null }).source,
-        );
-      });
-    }
-    if (type === 'single_core') {
-      const rows = resistiveCables?.single_core ?? [];
-      const builtinRows = builtinResistiveCables?.single_core ?? [];
-      return visibleCableRowsForSource(rows, builtinRows, effectiveSource)
-        .filter((c) => typeof c.model === 'string')
-        .map((c) => {
-          const row = c as CableStatusRow & { model: string };
-          return cableMarkOption(
-            row.model,
-            `${row.model} · ${row.resistance_ohm_km ?? '—'} Ом/км`,
-            row.source,
-            false,
-            normalizeCableSource(row.source) ?? undefined,
-            externalCableOptionLabelSource(
-              row,
-              rows,
-              builtinRows,
-              effectiveSource,
-            ),
-          );
-        });
-    }
-    if (type === 'three_core') {
-      const rows = resistiveCables?.three_core ?? [];
-      const builtinRows = builtinResistiveCables?.three_core ?? [];
-      return visibleCableRowsForSource(rows, builtinRows, effectiveSource)
-        .filter((c) => typeof c.model === 'string')
-        .map((c) => {
-          const row = c as CableStatusRow & { model: string };
-          return cableMarkOption(
-            row.model,
-            `${row.model} · ${row.resistance_ohm_km ?? '—'} Ом/км · ${row.nominal_size_mm ?? '—'}`,
-            row.source,
-            false,
-            normalizeCableSource(row.source) ?? undefined,
-            externalCableOptionLabelSource(
-              row,
-              rows,
-              builtinRows,
-              effectiveSource,
-            ),
-          );
-        });
-    }
-    return [];
-  }, [
-    recalc.aggressiveProduct,
+  const {
+    manualCableOptionsForType,
+    cableMarkOptionsFor,
+    cableSizingManualOptions,
+  } = useElecCalcCableMarkOptions({
     availableCableTypes,
-    builtinResistiveCables,
-    cableMarkOption,
-    cableOptions,
-    effectiveSource,
-    resistiveCables,
+    cables,
+    builtinCables,
     ttCables,
-  ]);
-  const cableMarkOptionsFor = useCallback((
-    type: CableTypeKey,
-    mark?: string,
-    calc?: ElectricalCalcSummary,
-  ) => {
-    const manualOptions = manualCableOptionsForType(type);
-    const savedSource = catalogSourceFromSnapshot(calc);
-    const matchingCatalogOption = mark
-      ? manualOptions.find((option) =>
-          option.mark === mark && (!savedSource || option.cableSource === savedSource))
-        ?? manualOptions.find((option) => option.mark === mark)
-      : undefined;
-    const projectOption = mark && shouldShowProjectCableOption(calc)
-      ? cableMarkOption(
-          mark,
-          `${mark} · сохранён в проекте`,
-          'project',
-          false,
-          savedSource ?? matchingCatalogOption?.cableSource ?? effectiveSource,
-        )
-      : null;
-    return [
-      autoCableMarkOption(),
-      ...(projectOption ? [projectOption] : []),
-      ...manualOptions,
-    ];
-  }, [autoCableMarkOption, cableMarkOption, effectiveSource, manualCableOptionsForType]);
-  const cableSizingManualOptions = useMemo(
-    () => manualCableOptionsForType(cableSizingEffectiveCableType),
-    [cableSizingEffectiveCableType, manualCableOptionsForType],
-  );
+    resistiveCables,
+    builtinResistiveCables,
+    effectiveSource,
+    aggressiveProduct: recalc.aggressiveProduct,
+    cableSizingEffectiveCableType,
+  });
   const setCableSizingCandidateApplied = useCallback((
     candidateId: string | null,
     appliedCandidate?: ElectricalCandidate,
