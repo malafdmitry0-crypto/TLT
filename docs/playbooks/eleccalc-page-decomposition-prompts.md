@@ -107,6 +107,7 @@ Potential target structure:
 | Candidate field renderer extraction | Done | 2026-05-31: `renderCandidateElectricalField` moved to `components/electrical/ElectricalCandidateFieldRenderer.tsx`; characterization unit + `ElecCalcPage` integration, 56 pass |
 | Electrical query page merge helpers | Done | 2026-05-31: loaded-page fallback and object/calculation de-duplication moved to `elecCalcPageModel.ts`; focused unit + `ElecCalcPage` integration, 57 pass |
 | Cable type selection helpers | Done | 2026-05-31: normalize/resolve/build object overrides moved to `elecCalcCableTypeModel.ts`; focused unit + `ElecCalcPage` integration, 58 pass |
+| Table view filter/sort state helpers | Done | 2026-05-31: filter/sort state update helpers moved to `elecCalcTableFilterModel.ts`; focused unit + `ElecCalcPage` integration |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | page/filter/sort/cursor state, hidden-column cleanup |

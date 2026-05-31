@@ -300,6 +300,8 @@ import {
 import {
   filterKindForCandidateColumn,
   filterKindForElectricalColumn,
+  updateTableViewColumnFilter,
+  updateTableViewSort,
 } from '@/pages/electrical/elecCalcTableFilterModel';
 import type {
   HeatCalcGlideGridCellState,
@@ -2042,18 +2044,7 @@ export default function ElecCalcPage() {
 
   const setColumnFilter = useCallback((columnKey: ElectricalColumnKey, filter?: HeatCalcColumnFilter) => {
     setTablePage(1);
-    setTableViewState((current) => {
-      const nextFilters = { ...current.filters };
-      if (filter && isColumnFilterActive(filter)) {
-        nextFilters[columnKey] = filter;
-      } else {
-        delete nextFilters[columnKey];
-      }
-      return {
-        ...current,
-        filters: nextFilters,
-      };
-    });
+    setTableViewState((current) => updateTableViewColumnFilter(current, columnKey, filter));
   }, []);
 
   const resetColumnFilter = useCallback((columnKey: ElectricalColumnKey) => {
@@ -2070,28 +2061,14 @@ export default function ElecCalcPage() {
     direction?: 'asc' | 'desc',
   ) => {
     setTablePage(1);
-    setTableViewState((current) => ({
-      ...current,
-      sort: direction ? { columnKey, direction } : undefined,
-    }));
+    setTableViewState((current) => updateTableViewSort(current, columnKey, direction));
   }, []);
 
   const setCandidateColumnFilter = useCallback((
     columnKey: ElectricalCandidateColumnKey,
     filter?: HeatCalcColumnFilter,
   ) => {
-    setCandidateTableViewState((current) => {
-      const nextFilters = { ...current.filters };
-      if (filter && isColumnFilterActive(filter)) {
-        nextFilters[columnKey] = filter;
-      } else {
-        delete nextFilters[columnKey];
-      }
-      return {
-        ...current,
-        filters: nextFilters,
-      };
-    });
+    setCandidateTableViewState((current) => updateTableViewColumnFilter(current, columnKey, filter));
   }, []);
 
   const resetCandidateColumnFilter = useCallback((columnKey: ElectricalCandidateColumnKey) => {
@@ -2106,10 +2083,7 @@ export default function ElecCalcPage() {
     columnKey: ElectricalCandidateColumnKey,
     direction?: 'asc' | 'desc',
   ) => {
-    setCandidateTableViewState((current) => ({
-      ...current,
-      sort: direction ? { columnKey, direction } : undefined,
-    }));
+    setCandidateTableViewState((current) => updateTableViewSort(current, columnKey, direction));
   }, []);
 
   const handleElectricalTableChange = useCallback<NonNullable<TableProps<ProjectObject>['onChange']>>((pagination, _filters, sorter, extra) => {

@@ -7,8 +7,11 @@ import {
   filterKindForCandidateColumn,
   filterKindForElectricalColumn,
   toInputNumberValue,
+  updateTableViewColumnFilter,
+  updateTableViewSort,
 } from '@/pages/electrical/elecCalcTableFilterModel';
 import type { ObjectQueryFieldCapability, ObjectQueryFilterOp } from '@/types/project';
+import type { HeatCalcColumnFilter, HeatCalcTableViewState } from '@/utils/heatCalcTableFindability';
 
 function capability(
   ops: ObjectQueryFilterOp[],
@@ -75,5 +78,63 @@ describe('elecCalcTableFilterModel', () => {
     expect(toInputNumberValue(null)).toBe(0);
     expect(toInputNumberValue(undefined)).toBeNull();
     expect(toInputNumberValue('bad')).toBeNull();
+  });
+
+  it('adds and removes table view filters without changing other state', () => {
+    const totalPowerFilter: HeatCalcColumnFilter = { kind: 'numberRange', min: 10 };
+    const currentFilter: HeatCalcColumnFilter = { kind: 'numberRange', max: 30 };
+    const initial: HeatCalcTableViewState = {
+      filters: {
+        current: currentFilter,
+      },
+      sort: {
+        columnKey: 'current',
+        direction: 'desc',
+      },
+    };
+
+    const withFilter = updateTableViewColumnFilter(initial, 'total_power', totalPowerFilter);
+
+    expect(withFilter).toEqual({
+      filters: {
+        current: currentFilter,
+        total_power: totalPowerFilter,
+      },
+      sort: {
+        columnKey: 'current',
+        direction: 'desc',
+      },
+    });
+    expect(updateTableViewColumnFilter(withFilter, 'total_power', { kind: 'text', value: '  ' }))
+      .toEqual(initial);
+  });
+
+  it('updates table view sort and preserves active filters', () => {
+    const filter: HeatCalcColumnFilter = { kind: 'text', value: 'ТЛТ' };
+    const initial: HeatCalcTableViewState = {
+      filters: {
+        cable_mark: filter,
+      },
+      sort: {
+        columnKey: 'current',
+        direction: 'desc',
+      },
+    };
+
+    expect(updateTableViewSort(initial, 'total_cost', 'asc')).toEqual({
+      filters: {
+        cable_mark: filter,
+      },
+      sort: {
+        columnKey: 'total_cost',
+        direction: 'asc',
+      },
+    });
+    expect(updateTableViewSort(initial, 'total_cost')).toEqual({
+      filters: {
+        cable_mark: filter,
+      },
+      sort: undefined,
+    });
   });
 });

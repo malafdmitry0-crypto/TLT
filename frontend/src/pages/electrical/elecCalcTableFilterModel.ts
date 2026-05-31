@@ -1,8 +1,15 @@
 import type { ObjectQueryFieldCapability } from '@/types/project';
 import type { ElectricalCandidateColumnKey } from '@/utils/electricalCandidateTableColumns';
 import type { ElectricalColumnKey } from '@/utils/electricalTableColumns';
+import {
+  isColumnFilterActive,
+  type HeatCalcColumnFilter,
+  type HeatCalcTableViewState,
+} from '@/utils/heatCalcTableFindability';
 
 export type ElectricalFilterKind = 'text' | 'numberRange' | 'enum' | 'boolean';
+export type ElectricalTableViewColumnKey = ElectricalColumnKey | ElectricalCandidateColumnKey;
+export type ElectricalTableSortDirection = 'asc' | 'desc';
 
 export const CANDIDATE_NUMERIC_FILTER_KEYS = new Set<ElectricalCandidateColumnKey>([
   'winding_pitch_mm',
@@ -84,4 +91,32 @@ export function filterKindForCandidateColumn(key: ElectricalCandidateColumnKey):
 export function toInputNumberValue(value: unknown) {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+export function updateTableViewColumnFilter(
+  state: HeatCalcTableViewState,
+  columnKey: ElectricalTableViewColumnKey,
+  filter?: HeatCalcColumnFilter,
+): HeatCalcTableViewState {
+  const nextFilters = { ...state.filters };
+  if (filter && isColumnFilterActive(filter)) {
+    nextFilters[columnKey] = filter;
+  } else {
+    delete nextFilters[columnKey];
+  }
+  return {
+    ...state,
+    filters: nextFilters,
+  };
+}
+
+export function updateTableViewSort(
+  state: HeatCalcTableViewState,
+  columnKey: ElectricalTableViewColumnKey,
+  direction?: ElectricalTableSortDirection,
+): HeatCalcTableViewState {
+  return {
+    ...state,
+    sort: direction ? { columnKey, direction } : undefined,
+  };
 }
