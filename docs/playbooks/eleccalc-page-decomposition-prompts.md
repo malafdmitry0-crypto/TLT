@@ -116,6 +116,7 @@ Potential target structure:
 | Main/candidate table view state hook | Done | 2026-05-31: filter/sort/reset callbacks and hidden-column cleanup moved to `useElecCalcTableViewState.ts`; focused hook unit + `ElecCalcPage` integration |
 | Main pagination/cursor hook | Done | 2026-05-31: page/pageSize, cursor cache, Glide loaded pages and load-more state moved to `useElecCalcPaginationState.ts`; focused hook unit + `ElecCalcPage` integration |
 | Ant table compatibility handlers | Done | 2026-05-31: Ant sorter parsing and main/candidate `onChange` adapters moved to `useElecCalcAntTableHandlers.ts`; focused hook unit + `ElecCalcPage` integration |
+| Column settings draft hook | Done | 2026-05-31: main/candidate column settings draft state, open/update/reset/select-all/apply handlers moved to `useElecCalcColumnSettingsDraftState.ts`; focused hook unit + `ElecCalcPage` integration |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row interaction state |

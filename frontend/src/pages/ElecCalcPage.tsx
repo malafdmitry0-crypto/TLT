@@ -124,19 +124,12 @@ import {
   ELECTRICAL_TABLE_COLUMN_PREF_KEY,
   clampElectricalTableColumnWidthPct,
   clearRegisteredElectricalTableColumnCache,
-  createElectricalTableColumnSettingsPatch,
   electricalTableColumnWidthPxToPct,
-  getAvailableElectricalTableColumnKeys,
   getDefaultElectricalTableColumnSettings,
   getVisibleElectricalTableColumnMetas,
-  moveElectricalTableColumnToOrder,
   normalizeElectricalTableColumnSettings,
   readGuestElectricalTableColumnSettings,
   readRegisteredElectricalTableColumnCache,
-  reorderElectricalTableColumn,
-  resetElectricalTableColumnSettings,
-  resetElectricalTableColumnWidth,
-  setElectricalTableColumnVisibility,
   setElectricalTableColumnWidthPct,
   writeGuestElectricalTableColumnSettings,
   writeRegisteredElectricalTableColumnCache,
@@ -146,18 +139,11 @@ import {
 import {
   ELECTRICAL_CANDIDATE_TABLE_COLUMN_PREF_KEY,
   clearRegisteredElectricalCandidateTableColumnCache,
-  createElectricalCandidateTableColumnSettingsPatch,
-  getAvailableElectricalCandidateTableColumnKeys,
   getDefaultElectricalCandidateTableColumnSettings,
   getVisibleElectricalCandidateTableColumnMetas,
-  moveElectricalCandidateTableColumnToOrder,
   normalizeElectricalCandidateTableColumnSettings,
   readGuestElectricalCandidateTableColumnSettings,
   readRegisteredElectricalCandidateTableColumnCache,
-  reorderElectricalCandidateTableColumn,
-  resetElectricalCandidateTableColumnSettings,
-  resetElectricalCandidateTableColumnWidth,
-  setElectricalCandidateTableColumnVisibility,
   setElectricalCandidateTableColumnWidthPct,
   writeGuestElectricalCandidateTableColumnSettings,
   writeRegisteredElectricalCandidateTableColumnCache,
@@ -175,8 +161,6 @@ import {
   writeGuestElectricalTableViewSettings,
   writeRegisteredElectricalTableViewCache,
   type ElectricalCalculationCableSource,
-  type ElectricalTableFontSize,
-  type ElectricalTableLabelFormat,
   type ElectricalTableViewSettings,
 } from '@/utils/electricalTableViewSettings';
 import {
@@ -307,6 +291,7 @@ import {
   filterKindForElectricalColumn,
 } from '@/pages/electrical/elecCalcTableFilterModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
+import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
 import type {
@@ -503,12 +488,6 @@ export default function ElecCalcPage() {
   const effectiveSource: CableSource = commercialFeaturesAvailable ? cableSource : 'builtin';
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [candidateColumnSettingsOpen, setCandidateColumnSettingsOpen] = useState(false);
-  const [draftTableColumnSettings, setDraftTableColumnSettings] =
-    useState<ElectricalTableColumnSettings>(() => tableColumnSettings);
-  const [draftCandidateTableColumnSettings, setDraftCandidateTableColumnSettings] =
-    useState<ElectricalCandidateTableColumnSettings>(() => candidateTableColumnSettings);
-  const [draftTableViewSettings, setDraftTableViewSettings] =
-    useState<ElectricalTableViewSettings>(() => tableViewSettings);
   const tableColumnSettingsRef = useRef(tableColumnSettings);
   const candidateTableColumnSettingsRef = useRef(candidateTableColumnSettings);
   const tableViewSettingsRef = useRef(tableViewSettings);
@@ -2473,6 +2452,45 @@ export default function ElecCalcPage() {
     applyCandidateColumnWidth(key, electricalTableColumnWidthPxToPct(widthPx));
   }, [applyCandidateColumnWidth]);
 
+  const {
+    draftTableColumnSettings,
+    draftCandidateTableColumnSettings,
+    draftTableViewSettings,
+    openColumnSettings,
+    openCandidateColumnSettings,
+    updateDraftColumn,
+    updateDraftColumnOrder,
+    reorderDraftColumn,
+    updateDraftColumnWidth,
+    updateDraftTableFontSize,
+    resetDraftTableFontSize,
+    updateDraftTableLabelFormat,
+    updateDraftSettingsLabelFormat,
+    resetDraftLabelFormats,
+    updateDraftCalculationCableSource,
+    resetDraftColumnWidth,
+    resetDraftColumns,
+    selectAllDraftColumns,
+    applyColumnSettings,
+    updateDraftCandidateColumn,
+    updateDraftCandidateColumnOrder,
+    reorderDraftCandidateColumn,
+    updateDraftCandidateColumnWidth,
+    resetDraftCandidateColumnWidth,
+    resetDraftCandidateColumns,
+    selectAllDraftCandidateColumns,
+    applyCandidateColumnSettings,
+  } = useElecCalcColumnSettingsDraftState({
+    tableColumnSettings,
+    candidateTableColumnSettings,
+    tableViewSettings,
+    isEmployee,
+    setColumnSettingsOpen,
+    setCandidateColumnSettingsOpen,
+    persistTableSettings,
+    persistCandidateTableColumnSettings,
+  });
+
   const startColumnResize = useCallback((
     meta: { key: ElectricalColumnKey; width: number; widthPct: number },
     event: ReactPointerEvent<HTMLButtonElement>,
@@ -2894,26 +2912,6 @@ export default function ElecCalcPage() {
     setActiveRowId(record.id);
   }, []);
 
-  function openColumnSettings() {
-    setDraftTableColumnSettings(normalizeElectricalTableColumnSettings(tableColumnSettings));
-    setDraftTableViewSettings(
-      normalizeElectricalTableViewSettings({
-        ...tableViewSettings,
-        calculationCableSource: isEmployee
-          ? tableViewSettings.calculationCableSource
-          : 'builtin',
-      }),
-    );
-    setColumnSettingsOpen(true);
-  }
-
-  function openCandidateColumnSettings() {
-    setDraftCandidateTableColumnSettings(
-      normalizeElectricalCandidateTableColumnSettings(candidateTableColumnSettings),
-    );
-    setCandidateColumnSettingsOpen(true);
-  }
-
   const cablePickerModalTitle = (
     <div className="electrical-cable-picker-title">
       <span className="electrical-cable-picker-title-text">Выбор марки кабеля</span>
@@ -2927,162 +2925,6 @@ export default function ElecCalcPage() {
       )}
     </div>
   );
-
-  function updateDraftColumn(key: ElectricalColumnKey, checked: boolean) {
-    setDraftTableColumnSettings((settings) =>
-      setElectricalTableColumnVisibility(settings, key, checked),
-    );
-  }
-
-  function updateDraftColumnOrder(key: ElectricalColumnKey, order: number) {
-    setDraftTableColumnSettings((settings) =>
-      moveElectricalTableColumnToOrder(settings, key, order),
-    );
-  }
-
-  function reorderDraftColumn(activeKey: ElectricalColumnKey, overKey: ElectricalColumnKey) {
-    setDraftTableColumnSettings((settings) =>
-      reorderElectricalTableColumn(settings, activeKey, overKey),
-    );
-  }
-
-  function updateDraftColumnWidth(key: ElectricalColumnKey, widthPct: number) {
-    setDraftTableColumnSettings((settings) =>
-      setElectricalTableColumnWidthPct(settings, key, widthPct),
-    );
-  }
-
-  function updateDraftTableFontSize(fontSize: ElectricalTableFontSize) {
-    setDraftTableViewSettings((settings) =>
-      normalizeElectricalTableViewSettings({ ...settings, fontSize }),
-    );
-  }
-
-  function resetDraftTableFontSize() {
-    const defaultView = getDefaultElectricalTableViewSettings();
-    setDraftTableViewSettings((settings) =>
-      normalizeElectricalTableViewSettings({
-        ...settings,
-        fontSize: defaultView.fontSize,
-      }),
-    );
-  }
-
-  function updateDraftTableLabelFormat(tableLabelFormat: ElectricalTableLabelFormat) {
-    setDraftTableViewSettings((settings) =>
-      normalizeElectricalTableViewSettings({
-        ...settings,
-        tableLabelFormat,
-      }),
-    );
-  }
-
-  function updateDraftSettingsLabelFormat(settingsLabelFormat: ElectricalTableLabelFormat) {
-    setDraftTableViewSettings((settings) =>
-      normalizeElectricalTableViewSettings({
-        ...settings,
-        settingsLabelFormat,
-      }),
-    );
-  }
-
-  function resetDraftLabelFormats() {
-    const defaultView = getDefaultElectricalTableViewSettings();
-    setDraftTableViewSettings((settings) =>
-      normalizeElectricalTableViewSettings({
-        ...settings,
-        tableLabelFormat: defaultView.tableLabelFormat,
-        settingsLabelFormat: defaultView.settingsLabelFormat,
-      }),
-    );
-  }
-
-  function updateDraftCalculationCableSource(
-    calculationCableSource: ElectricalCalculationCableSource,
-  ) {
-    setDraftTableViewSettings((settings) =>
-      normalizeElectricalTableViewSettings({
-        ...settings,
-        calculationCableSource,
-      }),
-    );
-  }
-
-  function resetDraftColumnWidth(key: ElectricalColumnKey) {
-    setDraftTableColumnSettings((settings) => resetElectricalTableColumnWidth(settings, key));
-  }
-
-  function resetDraftColumns() {
-    setDraftTableColumnSettings(resetElectricalTableColumnSettings());
-  }
-
-  function selectAllDraftColumns() {
-    setDraftTableColumnSettings((settings) =>
-      createElectricalTableColumnSettingsPatch(settings, getAvailableElectricalTableColumnKeys()),
-    );
-  }
-
-  function applyColumnSettings() {
-    const normalized = normalizeElectricalTableColumnSettings(draftTableColumnSettings);
-    const normalizedView = normalizeElectricalTableViewSettings(draftTableViewSettings);
-    persistTableSettings(normalized, normalizedView);
-  }
-
-  function updateDraftCandidateColumn(key: ElectricalCandidateColumnKey, checked: boolean) {
-    setDraftCandidateTableColumnSettings((settings) =>
-      setElectricalCandidateTableColumnVisibility(settings, key, checked),
-    );
-  }
-
-  function updateDraftCandidateColumnOrder(key: ElectricalCandidateColumnKey, order: number) {
-    setDraftCandidateTableColumnSettings((settings) =>
-      moveElectricalCandidateTableColumnToOrder(settings, key, order),
-    );
-  }
-
-  function reorderDraftCandidateColumn(
-    activeKey: ElectricalCandidateColumnKey,
-    overKey: ElectricalCandidateColumnKey,
-  ) {
-    setDraftCandidateTableColumnSettings((settings) =>
-      reorderElectricalCandidateTableColumn(settings, activeKey, overKey),
-    );
-  }
-
-  function updateDraftCandidateColumnWidth(
-    key: ElectricalCandidateColumnKey,
-    widthPct: number,
-  ) {
-    setDraftCandidateTableColumnSettings((settings) =>
-      setElectricalCandidateTableColumnWidthPct(settings, key, widthPct),
-    );
-  }
-
-  function resetDraftCandidateColumnWidth(key: ElectricalCandidateColumnKey) {
-    setDraftCandidateTableColumnSettings((settings) =>
-      resetElectricalCandidateTableColumnWidth(settings, key),
-    );
-  }
-
-  function resetDraftCandidateColumns() {
-    setDraftCandidateTableColumnSettings(resetElectricalCandidateTableColumnSettings());
-  }
-
-  function selectAllDraftCandidateColumns() {
-    setDraftCandidateTableColumnSettings((settings) =>
-      createElectricalCandidateTableColumnSettingsPatch(
-        settings,
-        getAvailableElectricalCandidateTableColumnKeys(),
-      ),
-    );
-  }
-
-  function applyCandidateColumnSettings() {
-    const normalized = normalizeElectricalCandidateTableColumnSettings(
-      draftCandidateTableColumnSettings,
-    );
-    persistCandidateTableColumnSettings(normalized, { closeModal: true });
-  }
 
   const totalObjects = pageSummary?.total_objects ?? objects.length;
   const filteredTableCount = electricalPage?.counts?.filtered ?? totalObjects;
