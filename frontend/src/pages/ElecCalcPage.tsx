@@ -159,10 +159,6 @@ import {
   type ElectricalTableViewSettings,
 } from '@/utils/electricalTableViewSettings';
 import {
-  resolveElectricalCandidateTableEngine,
-  resolveElectricalTableEngine,
-} from '@/utils/electricalTableEngine';
-import {
   buildElectricalGlideColumns,
 } from '@/utils/electricalGlideGrid';
 import {
@@ -186,9 +182,7 @@ import {
   type CableStatusRow,
 } from '@/pages/electrical/elecCalcCableCatalogModel';
 import {
-  FULL_FEATURE_CABLE_TYPES,
   isResistiveCableType,
-  MVP_CABLE_TYPES,
 } from '@/pages/electrical/elecCalcCableTypeModel';
 import {
   isBatchElectricalResponse,
@@ -234,7 +228,6 @@ import {
   type ElectricalBatchScope,
   type ElectricalCandidateTableColumnPreferenceMutation,
   type ElectricalColumnRenderSpec,
-  type ElectricalNavigationState,
   type ElectricalTableColumnPreferenceMutation,
   type ElectricalTableSettingsPreferenceMutation,
 } from '@/pages/electrical/elecCalcPageModel';
@@ -283,6 +276,7 @@ import {
   filterKindForElectricalColumn,
 } from '@/pages/electrical/elecCalcTableFilterModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
+import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
 import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
 import { useElecCalcCableSizingModalState } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
@@ -316,30 +310,17 @@ export default function ElecCalcPage() {
   const isEmployee = role === 'employee' || role === 'admin';
   const isRegisteredUser = isEmployee;
   const commercialFeaturesAvailable = areCommercialFeaturesEnabled();
-  const availableCableTypeKeys = useMemo(
-    () => commercialFeaturesAvailable ? FULL_FEATURE_CABLE_TYPES : MVP_CABLE_TYPES,
-    [commercialFeaturesAvailable],
-  );
-  const availableCableTypes = useMemo(
-    () => new Set<CableTypeKey>(availableCableTypeKeys),
-    [availableCableTypeKeys],
-  );
   const location = useLocation();
-  const electricalTableEngine = useMemo(
-    () => resolveElectricalTableEngine({ search: location.search }),
-    [location.search],
-  );
-  const electricalCandidateTableEngine = useMemo(
-    () => resolveElectricalCandidateTableEngine({
-      search: location.search,
-      fallback: electricalTableEngine,
-    }),
-    [electricalTableEngine, location.search],
-  );
-  const electricalGlideEnabled = electricalTableEngine === 'glide';
-  const electricalCandidateGlideEnabled = electricalCandidateTableEngine === 'glide';
-  const navigationActiveJobId =
-    (location.state as ElectricalNavigationState)?.activeJobId ?? null;
+  const {
+    availableCableTypeKeys,
+    availableCableTypes,
+    electricalGlideEnabled,
+    electricalCandidateGlideEnabled,
+    navigationActiveJobId,
+  } = useElecCalcBootViewState({
+    commercialFeaturesAvailable,
+    location,
+  });
   const storedVariant = useCalculationVariantStore((s) =>
     project?.id ? s.variantByProject[project.id] : undefined
   );
