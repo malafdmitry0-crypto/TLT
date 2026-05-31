@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CANDIDATE_COMPARE_EMPTY_VALUE,
+  buildCandidateCompareDiffColumnKeys,
   candidateCommercialValue,
   candidateCompareDisplayValue,
   candidateCompareValue,
@@ -134,5 +135,36 @@ describe('elecCalcCandidateCompareModel', () => {
     expect(candidateThreadSource(candidate({
       results: { number_of_threads_source: 'legacy' },
     }))).toBeNull();
+  });
+
+  it('builds comparison diff keys only for visible comparable columns with different values', () => {
+    const left = candidate({
+      id: 'left',
+      cable_mark: 'ТЛТ-25',
+      mode: 'auto',
+      results: {
+        total_power: 1000,
+      },
+    });
+    const right = candidate({
+      id: 'right',
+      cable_mark: 'ТЛТ-25',
+      mode: 'manual',
+      results: {
+        total_power: 1500,
+      },
+    });
+
+    expect([...buildCandidateCompareDiffColumnKeys([left], [
+      { key: 'mode' },
+      { key: 'total_power' },
+    ])]).toEqual([]);
+    expect([...buildCandidateCompareDiffColumnKeys([left, right], [
+      { key: 'marked' },
+      { key: 'actions' },
+      { key: 'cable_mark' },
+      { key: 'mode' },
+      { key: 'total_power' },
+    ])]).toEqual(['mode', 'total_power']);
   });
 });

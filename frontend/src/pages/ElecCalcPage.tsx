@@ -220,11 +220,10 @@ import {
   isTargetVariantNotEmptyError,
 } from '@/pages/electrical/elecCalcApiResponseGuards';
 import {
+  buildCandidateCompareDiffColumnKeys,
   candidateCompareDisplayValue,
-  candidateCompareValue,
   candidateElectricalFieldValue,
   candidateOrderCableLengthValue,
-  isCandidateCompareColumn,
 } from '@/pages/electrical/elecCalcCandidateCompareModel';
 import {
   buildElectricalQueryRequest,
@@ -1960,27 +1959,10 @@ export default function ElecCalcPage() {
     [displayedCableSizingCandidates, markedCableSizingCandidateSet],
   );
   const cableSizingCandidateCompareActive = displayedMarkedCableSizingCandidates.length >= 2;
-  const candidateCompareDiffColumnKeys = useMemo(() => {
-    const diffKeys = new Set<ElectricalCandidateColumnKey>();
-    if (!cableSizingCandidateCompareActive) return diffKeys;
-
-    for (const column of visibleCandidateColumnMetas) {
-      if (!isCandidateCompareColumn(column.key)) continue;
-      const values = new Set(
-        displayedMarkedCableSizingCandidates.map((candidate) =>
-          candidateCompareValue(column.key, candidate),
-        ),
-      );
-      if (values.size > 1) {
-        diffKeys.add(column.key);
-      }
-    }
-    return diffKeys;
-  }, [
-    cableSizingCandidateCompareActive,
-    displayedMarkedCableSizingCandidates,
-    visibleCandidateColumnMetas,
-  ]);
+  const candidateCompareDiffColumnKeys = useMemo(
+    () => buildCandidateCompareDiffColumnKeys(displayedMarkedCableSizingCandidates, visibleCandidateColumnMetas),
+    [displayedMarkedCableSizingCandidates, visibleCandidateColumnMetas],
+  );
   const candidateEnumOptionsByColumn = useMemo(
     () => buildCandidateEnumOptionsByColumn(
       cableSizingCandidates,

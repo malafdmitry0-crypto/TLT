@@ -265,3 +265,22 @@ export function candidateCompareValue(
 ) {
   return normalizeCandidateCompareText(candidateCompareDisplayValue(key, candidate));
 }
+
+export function buildCandidateCompareDiffColumnKeys(
+  candidates: readonly ElectricalCandidate[],
+  visibleColumns: readonly { key: ElectricalCandidateColumnKey }[],
+): Set<ElectricalCandidateColumnKey> {
+  const diffKeys = new Set<ElectricalCandidateColumnKey>();
+  if (candidates.length < 2) return diffKeys;
+
+  for (const column of visibleColumns) {
+    if (!isCandidateCompareColumn(column.key)) continue;
+    const values = new Set(
+      candidates.map((candidate) => candidateCompareValue(column.key, candidate)),
+    );
+    if (values.size > 1) {
+      diffKeys.add(column.key);
+    }
+  }
+  return diffKeys;
+}
