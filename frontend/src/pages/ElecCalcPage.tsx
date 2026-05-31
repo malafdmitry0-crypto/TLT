@@ -109,6 +109,7 @@ import EmptyProjectState from '@/components/common/EmptyProjectState';
 import CablePickerCharacteristics from '@/components/electrical/CablePickerCharacteristics';
 import ElectricalCandidateColumnSettingsModal from '@/components/electrical/ElectricalCandidateColumnSettingsModal';
 import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalColumnSettingsModal';
+import ResizableColumnTitle from '@/components/heatcalc/ResizableColumnTitle';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject, ProjectObjectsPageCursor } from '@/types/project';
 import type {
@@ -252,6 +253,7 @@ import {
   type ElectricalBatchMutationArgs,
   type ElectricalBatchScope,
   type ElectricalCandidateTableColumnPreferenceMutation,
+  type ElectricalColumnRenderSpec,
   type ElectricalNavigationState,
   type ElectricalTableColumnPreferenceMutation,
   type ElectricalTableSettingsPreferenceMutation,
@@ -429,12 +431,6 @@ function renderCandidateElectricalField(
   }
 }
 
-type ElectricalColumnRenderSpec = {
-  align?: 'left' | 'right' | 'center';
-  ellipsis?: boolean;
-  render: (_: unknown, obj: ProjectObject, idx: number) => ReactNode;
-};
-
 function ColumnFilterDropdown({
   title,
   kind,
@@ -564,33 +560,6 @@ function ColumnFilterDropdown({
         </Button>
       </div>
     </div>
-  );
-}
-
-function ResizableColumnTitle({
-  title,
-  label,
-  onResizeStart,
-}: {
-  title: string;
-  label: string;
-  onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
-}) {
-  return (
-    <span className="resizable-column-title">
-      <span className="resizable-column-title-text">{title}</span>
-      <button
-        type="button"
-        className="column-resize-handle"
-        aria-label={`Изменить ширину: ${label}`}
-        tabIndex={-1}
-        onPointerDown={onResizeStart}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-        }}
-      />
-    </span>
   );
 }
 

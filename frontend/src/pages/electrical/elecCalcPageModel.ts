@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 import type { ElectricalCandidateTableColumnSettings } from '@/utils/electricalCandidateTableColumns';
@@ -43,4 +45,10 @@ export type ElectricalCandidateTableColumnPreferenceMutation = {
 export type ElectricalTableSettingsPreferenceMutation = {
   columnSettings: ElectricalTableColumnSettings;
   viewSettings: ElectricalTableViewSettings;
+};
+
+export type ElectricalColumnRenderSpec = {
+  align?: 'left' | 'right' | 'center';
+  ellipsis?: boolean;
+  render: (_: unknown, obj: ProjectObject, idx: number) => ReactNode;
 };
