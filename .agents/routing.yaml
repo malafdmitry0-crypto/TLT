@@ -204,3 +204,19 @@ nightly_prompts:
       - "Missing characterization tests."
       - "Missing UI screenshots for touched visual behavior."
       - "Payload, units, persistence, or formula traceability cannot be verified."
+
+  eleccalc_safe_split:
+    file: docs/playbooks/eleccalc-safe-split-nightly-prompt.md
+    primary: frontend_ui_proof
+    target_count: "ElecCalcPage only."
+    roadmap: docs/playbooks/eleccalc-page-decomposition-prompts.md
+    supporting:
+      - functional_accuracy
+      - formula_oracle
+      - qa_regression
+      - backend_business
+    max_code_slice: "One PR-sized vertical slice."
+    stop_on:
+      - "Missing characterization tests."
+      - "Missing UI screenshots for touched visual behavior."
+      - "CO variant, candidate apply, payload, units, persistence, or formula traceability cannot be verified."

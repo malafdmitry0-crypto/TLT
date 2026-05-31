@@ -118,7 +118,6 @@ import type {
   ElectricalCandidateFolder,
   ElectricalCalcSummary,
   ElectricalQueryResponse,
-  ElectricalQueryRequest,
 } from '@/types/calculation';
 import {
   ELECTRICAL_TABLE_COLUMN_PREF_KEY,
@@ -189,6 +188,21 @@ import {
 import {
   buildElectricalCandidateGlideColumns,
 } from '@/utils/electricalCandidateGlideGrid';
+import {
+  candidateCommercialValue,
+  candidateCompareDisplayValue,
+  candidateCompareValue,
+  candidateElectricalFieldValue,
+  candidateInstalledPowerPerMeterValue,
+  candidateOrderCableLengthValue,
+  candidatePowerPerMeterValue,
+  candidateThreadSource,
+  isCandidateCompareColumn,
+  type CandidateThreadSource as ThreadSource,
+} from '@/pages/electrical/elecCalcCandidateCompareModel';
+import {
+  buildElectricalQueryRequest,
+} from '@/pages/electrical/elecCalcQueryModel';
 import type {
   HeatCalcGlideGridCellState,
   HeatCalcGlideGridColumn,
@@ -211,7 +225,6 @@ import {
 } from '@/utils/heatCalcTableFindability';
 import type {
   ObjectQueryFieldCapability,
-  ObjectQueryFilter as BackendObjectQueryFilter,
 } from '@/types/project';
 
 const { Text } = Typography;
@@ -363,7 +376,6 @@ const EMPTY_OBJECTS: ProjectObject[] = [];
 const EMPTY_ELECTRICAL_CALCS: ElectricalCalcSummary[] = [];
 
 type CableMarkSource = 'auto' | 'manual';
-type ThreadSource = 'auto' | 'manual' | 'default' | 'previous_result';
 
 type ElectricalNavigationState = {
   activeJobId?: string;
@@ -482,208 +494,6 @@ function finiteNumber(value: unknown): number | undefined {
   if (value === null || value === undefined || value === '') return undefined;
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue : undefined;
-}
-
-function candidateOrderCableLengthValue(candidate: ElectricalCandidate) {
-  const explicitRaw = candidate.results?.order_cable_length;
-  if (explicitRaw === null || explicitRaw === undefined || explicitRaw === '') return undefined;
-  const explicitLength = Number(explicitRaw);
-  return Number.isFinite(explicitLength) ? explicitLength : undefined;
-}
-
-function candidateCommercialValue(candidate: ElectricalCandidate, key: string) {
-  const commercial = candidate.results?.commercial;
-  if (typeof commercial !== 'object' || commercial === null || Array.isArray(commercial)) return undefined;
-  return (commercial as Record<string, unknown>)[key];
-}
-
-function candidatePowerPerMeterValue(candidate: ElectricalCandidate) {
-  return finiteNumber(candidate.results?.power_per_meter);
-}
-
-function candidateInstalledPowerPerMeterValue(candidate: ElectricalCandidate) {
-  return finiteNumber(candidate.results?.installed_power_per_meter);
-}
-
-function candidateThreadSource(candidate: ElectricalCandidate): ThreadSource | null {
-  const value = candidate.results?.number_of_threads_source ?? candidate.params?.number_of_threads_source;
-  return value === 'auto'
-    || value === 'manual'
-    || value === 'default'
-    || value === 'previous_result'
-    ? value
-    : null;
-}
-
-function candidateElectricalFieldValue(
-  key: ElectricalCandidateColumnKey,
-  candidate: ElectricalCandidate,
-  marked = false,
-) {
-  switch (key) {
-    case 'marked':
-      return marked;
-    case 'mode':
-      return candidate.mode === 'auto' ? 'Авто' : 'Ручной';
-    case 'cable_type':
-      return CABLE_TYPE_LABEL[candidate.cable_type as CableTypeKey] ?? candidate.cable_type;
-    case 'cable_mark':
-      return candidate.cable_mark;
-    case 'selection_policy':
-      return selectionPolicyText(candidate.results?.selection_policy);
-    case 'applied_selection_policy':
-      return selectionPolicyText(candidate.results?.applied_selection_policy);
-    case 'selection_reason':
-      return candidate.reason_message ?? candidate.results?.selection_reason;
-    case 'winding_pitch_mm':
-      return candidate.results?.winding_pitch;
-    case 'number_of_threads':
-      return candidate.results?.num_circuits;
-    case 'laying_step':
-      return candidate.params?.laying_step;
-    case 'heating_height':
-      return candidate.params?.heating_height;
-    case 'connection_type': {
-      const value = candidate.params?.connection_type;
-      return CONNECTION_TYPE_LABEL[String(value)] ?? value;
-    }
-    case 'supply_voltage':
-      return candidate.params?.supply_voltage;
-    case 'winding_coefficient':
-      return candidate.params?.winding_coefficient;
-    case 'vapor_temperature':
-      return candidate.params?.vapor_temperature;
-    case 'maintain_temperature':
-      return candidate.params?.maintain_temperature ?? candidate.params?.process_temperature;
-    case 'aggressive_product':
-      return typeof candidate.params?.aggressive_product === 'boolean'
-        ? candidate.params.aggressive_product
-        : undefined;
-    case 'installed_cable_length':
-      return candidate.results?.installed_cable_length;
-    case 'order_cable_length':
-      return candidateOrderCableLengthValue(candidate);
-    case 'total_power':
-      return candidate.results?.total_power;
-    case 'power_per_meter':
-      return candidatePowerPerMeterValue(candidate);
-    case 'installed_power_per_meter':
-      return candidateInstalledPowerPerMeterValue(candidate);
-    case 'current':
-      return candidate.results?.current;
-    case 'voltage':
-      return candidate.results?.voltage;
-    case 'price_per_meter':
-      return candidateCommercialValue(candidate, 'price_per_meter');
-    case 'required_order_length':
-      return candidateCommercialValue(candidate, 'required_order_length');
-    case 'total_cost':
-      return candidateCommercialValue(candidate, 'total_cost');
-    case 'stock_status': {
-      const value = candidateCommercialValue(candidate, 'stock_status');
-      return typeof value === 'string' ? STOCK_STATUS_LABEL[value] ?? value : undefined;
-    }
-    case 'lead_time_days':
-      return candidateCommercialValue(candidate, 'lead_time_days');
-    default:
-      return candidate.results?.[key] ?? candidate.params?.[key];
-  }
-}
-
-const CANDIDATE_COMPARE_SERVICE_COLUMN_KEYS = new Set<ElectricalCandidateColumnKey>([
-  'marked',
-  'actions',
-]);
-const CANDIDATE_COMPARE_EMPTY_VALUE = '__empty__';
-
-function isCandidateCompareColumn(key: ElectricalCandidateColumnKey) {
-  return !CANDIDATE_COMPARE_SERVICE_COLUMN_KEYS.has(key);
-}
-
-function normalizeCandidateCompareText(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === '—') return CANDIDATE_COMPARE_EMPTY_VALUE;
-  return trimmed.toLocaleLowerCase('ru');
-}
-
-function candidateCompareDisplayValue(
-  key: ElectricalCandidateColumnKey,
-  candidate: ElectricalCandidate,
-) {
-  switch (key) {
-    case 'marked':
-    case 'actions':
-      return CANDIDATE_COMPARE_EMPTY_VALUE;
-    case 'mode':
-      return candidate.mode === 'auto' ? 'Авто' : 'Ручной';
-    case 'cable_type':
-      return CABLE_TYPE_LABEL[candidate.cable_type as CableTypeKey] ?? candidate.cable_type;
-    case 'cable_mark':
-      return valueText(candidate.cable_mark);
-    case 'selection_policy':
-      return selectionPolicyText(candidate.results?.selection_policy);
-    case 'applied_selection_policy':
-      return selectionPolicyText(candidate.results?.applied_selection_policy);
-    case 'selection_reason':
-      return valueText(candidate.reason_message ?? candidate.results?.selection_reason);
-    case 'winding_pitch_mm':
-      return numberText(candidate.results?.winding_pitch, 0);
-    case 'number_of_threads':
-      return numberText(candidate.results?.num_circuits, 0);
-    case 'laying_step':
-      return numberText(candidate.params?.laying_step, 2);
-    case 'heating_height':
-      return numberText(candidate.params?.heating_height, 1);
-    case 'connection_type': {
-      const value = candidate.params?.connection_type;
-      return CONNECTION_TYPE_LABEL[String(value)] ?? valueText(value);
-    }
-    case 'supply_voltage':
-      return numberText(candidate.params?.supply_voltage, 0);
-    case 'winding_coefficient':
-      return numberText(candidate.params?.winding_coefficient, 2);
-    case 'vapor_temperature':
-      return numberText(candidate.params?.vapor_temperature, 1);
-    case 'maintain_temperature':
-      return numberText(candidate.params?.maintain_temperature ?? candidate.params?.process_temperature, 1);
-    case 'aggressive_product':
-      return valueText(candidate.params?.aggressive_product);
-    case 'installed_cable_length':
-      return numberText(candidate.results?.installed_cable_length, 1);
-    case 'order_cable_length':
-      return numberText(candidateOrderCableLengthValue(candidate), 1);
-    case 'total_power':
-      return powerText(candidate.results?.total_power);
-    case 'power_per_meter':
-      return numberText(candidatePowerPerMeterValue(candidate), 2);
-    case 'installed_power_per_meter':
-      return numberText(candidateInstalledPowerPerMeterValue(candidate), 2);
-    case 'current':
-      return numberText(candidate.results?.current, 2);
-    case 'voltage':
-      return numberText(candidate.results?.voltage, 0);
-    case 'price_per_meter':
-      return numberText(candidateCommercialValue(candidate, 'price_per_meter'), 2);
-    case 'required_order_length':
-      return numberText(candidateCommercialValue(candidate, 'required_order_length'), 1);
-    case 'total_cost':
-      return numberText(candidateCommercialValue(candidate, 'total_cost'), 2);
-    case 'stock_status': {
-      const value = candidateCommercialValue(candidate, 'stock_status');
-      return typeof value === 'string' ? STOCK_STATUS_LABEL[value] ?? value : '—';
-    }
-    case 'lead_time_days':
-      return numberText(candidateCommercialValue(candidate, 'lead_time_days'), 0);
-    default:
-      return valueText(candidate.results?.[key] ?? candidate.params?.[key]);
-  }
-}
-
-function candidateCompareValue(
-  key: ElectricalCandidateColumnKey,
-  candidate: ElectricalCandidate,
-) {
-  return normalizeCandidateCompareText(candidateCompareDisplayValue(key, candidate));
 }
 
 function renderCandidateElectricalField(
@@ -1075,80 +885,6 @@ function filterKindForCandidateColumn(key: ElectricalCandidateColumnKey): Electr
   if (CANDIDATE_NUMERIC_FILTER_KEYS.has(key)) return 'numberRange';
   if (CANDIDATE_ENUM_FILTER_KEYS.has(key)) return 'enum';
   return 'text';
-}
-
-function backendFilterFromElectricalColumnFilter(
-  key: ElectricalColumnKey,
-  filter: HeatCalcColumnFilter,
-  capability?: ObjectQueryFieldCapability,
-): BackendObjectQueryFilter | null {
-  if (!isColumnFilterActive(filter)) return null;
-  const ops = capability?.filter.ops ?? [];
-  if (filter.kind === 'text') {
-    return { key, op: 'contains', value: filter.value };
-  }
-  if (filter.kind === 'numberRange') {
-    return {
-      key,
-      op: 'range',
-      min: Number.isFinite(filter.min) ? filter.min : undefined,
-      max: Number.isFinite(filter.max) ? filter.max : undefined,
-      include_empty: !!filter.includeEmpty,
-    };
-  }
-  if (filter.kind === 'enum') {
-    return {
-      key,
-      op: ops.includes('equals') && filter.values.length === 1 ? 'equals' : 'in',
-      value: ops.includes('equals') && filter.values.length === 1 ? filter.values[0] : undefined,
-      values: ops.includes('equals') && filter.values.length === 1 ? undefined : filter.values,
-      include_empty: !!filter.includeEmpty,
-    };
-  }
-  if (filter.kind === 'boolean') {
-    return {
-      key,
-      op: 'equals',
-      value: filter.value === 'empty' ? null : filter.value,
-      include_empty: filter.value === 'empty',
-    };
-  }
-  return null;
-}
-
-function buildElectricalQueryRequest(
-  projectId: string,
-  variant: number,
-  cableSource: CableSource,
-  state: HeatCalcTableViewState,
-  page: number,
-  pageSize: number,
-  capabilities?: { fields: ObjectQueryFieldCapability[] },
-  cursor?: ProjectObjectsPageCursor | null,
-): ElectricalQueryRequest {
-  const capabilityByKey = new Map(capabilities?.fields.map((field) => [field.key, field]) ?? []);
-  const filters = Object.entries(state.filters)
-    .map(([key, filter]) => filter
-      ? backendFilterFromElectricalColumnFilter(key, filter, capabilityByKey.get(key))
-      : null)
-    .filter((filter): filter is BackendObjectQueryFilter => filter != null);
-  const sortCapability = state.sort ? capabilityByKey.get(state.sort.columnKey) : undefined;
-  return {
-    project_id: projectId,
-    variant_number: variant,
-    cable_source: cableSource,
-    page,
-    page_size: pageSize,
-    after_sort_order: cursor?.sort_order,
-    after_id: cursor?.id,
-    after_key: cursor?.key,
-    after_value: cursor?.value,
-    after_value_is_null: cursor?.value_is_null,
-    filters,
-    sort: state.sort && (sortCapability?.sort.enabled ?? true)
-      ? { key: state.sort.columnKey, dir: state.sort.direction }
-      : null,
-  };
 }
 
 function projectObjectsPageCursorsEqual(
