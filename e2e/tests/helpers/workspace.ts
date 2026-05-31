@@ -73,3 +73,39 @@ export async function createCalculatedPipe(
   expect(response.status()).toBe(201);
   return response.json();
 }
+
+export async function createCalculatedTank(
+  page: Page,
+  name = `E2E резервуар ${Date.now()}`,
+  params: Record<string, unknown> = {},
+) {
+  const { projectId, sessionId } = await currentGuestContext(page);
+  const response = await page.request.post(
+    `${API_BASE}/api/v1/projects/${projectId}/objects`,
+    {
+      headers: { 'X-Session-Id': sessionId },
+      data: {
+        object_type: 'tank',
+        params: {
+          name,
+          shape: 'cylindrical',
+          diameter: 2,
+          height: 3,
+          insulation_thickness: 0.08,
+          insulation_material: 'mineral_wool_boards_120',
+          insulation_temperature_basis: 'outdoor_winter',
+          ambient_temperature: -20,
+          process_temperature: 80,
+          safety_factor: 1.1,
+          ...params,
+        },
+      },
+    },
+  );
+
+  expect(response.status()).toBe(201);
+  const body = await response.json();
+  expect(body.is_valid).toBe(true);
+  expect(Number(body.results?.total_heat_loss)).toBeGreaterThan(0);
+  return body;
+}

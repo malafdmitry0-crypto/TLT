@@ -3,6 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 import {
   API_BASE,
   createCalculatedPipe,
+  createCalculatedTank,
   currentGuestContext,
   loginAsGuest,
 } from './helpers/workspace';
@@ -118,6 +119,60 @@ async function recalculateAll(page: Page) {
 }
 
 test.describe('business flow: cable layout controls', () => {
+  test('резервуар проходит UI batch ТЛТ с геометрией укладки и заказным запасом отдельно', async ({
+    page,
+  }) => {
+    await loginAsGuest(page);
+    const { projectId, sessionId } = await currentGuestContext(page);
+    const tank = await createCalculatedTank(page, `E2E TLT tank ${Date.now()}`);
+
+    await page.getByRole('menuitem', { name: /Электротехнический расчёт/i }).click();
+    await expect(page).toHaveURL(/\/workspace\/elec-calc/);
+    await expect(page.getByText(/СО1 · тип по объектам/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Пересчитать все СО1/i })).toBeVisible();
+    const batchRequestPromise = page.waitForRequest((request) =>
+      request.method() === 'POST' && request.url().includes('/api/v1/calc/electrical/batch/jobs'),
+    );
+    await recalculateAll(page);
+    const batchRequest = await batchRequestPromise;
+    const batchPayload = batchRequest.postDataJSON() as Record<string, unknown>;
+    expect(batchPayload).toEqual(
+      expect.objectContaining({
+        cable_type: 'self_regulating',
+        cable_source: 'builtin',
+        laying_step: 0.1,
+        project_id: projectId,
+      }),
+    );
+    await expectBatchSuccess(page);
+    await expectElectricalGlideReady(page);
+
+    const calc = await expectElectricalCalcForObject(page, projectId, sessionId, tank.id);
+    expect(calc.cable_type).toBe('self_regulating');
+    expect(calc.cable_mark).toMatch(/^ТЛТ-/);
+
+    const diameter = Number(tank.params.diameter);
+    const heatingHeight = Number(tank.params.height);
+    const layingStep = Number(batchPayload.laying_step);
+    const threads = Number(calc.results?.num_circuits);
+    const windingCoefficient = Number(calc.results?.winding_coefficient);
+    const installedCableLength = Number(calc.results?.installed_cable_length);
+    const orderCableLength = Number(calc.results?.order_cable_length);
+    const powerPerMeter = Number(calc.results?.power_per_meter);
+    const totalPower = Number(calc.results?.total_power);
+
+    // Источник формулы: backend/app/formulas/electrical/cable_geometry.py.
+    // Для цилиндра N = (pi * D / 2) * (h / laying_step).
+    const baseTankCableLength = (Math.PI * diameter / 2) * (heatingHeight / layingStep);
+    const expectedInstalledLength = baseTankCableLength * windingCoefficient * threads;
+
+    expect(layingStep).toBe(0.1);
+    expect(installedCableLength).toBeCloseTo(expectedInstalledLength, 3);
+    expect(orderCableLength).toBeCloseTo(installedCableLength * 1.1, 3);
+    expect(totalPower).toBeCloseTo(powerPerMeter * expectedInstalledLength, 3);
+    expect(totalPower).toBeGreaterThanOrEqual(Number(tank.results.total_heat_loss));
+  });
+
   test('автоматические шаг навива и нитки стабильны после повторного электрорасчёта', async ({
     page,
   }) => {
