@@ -117,7 +117,6 @@ import {
   ELECTRICAL_TABLE_COLUMN_PREF_KEY,
   clearRegisteredElectricalTableColumnCache,
   getDefaultElectricalTableColumnSettings,
-  getVisibleElectricalTableColumnMetas,
   normalizeElectricalTableColumnSettings,
   readGuestElectricalTableColumnSettings,
   readRegisteredElectricalTableColumnCache,
@@ -129,7 +128,6 @@ import {
   ELECTRICAL_CANDIDATE_TABLE_COLUMN_PREF_KEY,
   clearRegisteredElectricalCandidateTableColumnCache,
   getDefaultElectricalCandidateTableColumnSettings,
-  getVisibleElectricalCandidateTableColumnMetas,
   normalizeElectricalCandidateTableColumnSettings,
   readGuestElectricalCandidateTableColumnSettings,
   readRegisteredElectricalCandidateTableColumnCache,
@@ -143,7 +141,6 @@ import {
   normalizeElectricalTableViewSettings,
   readGuestElectricalTableViewSettings,
   readRegisteredElectricalTableViewCache,
-  resolveElectricalTableFontSize,
   writeRegisteredElectricalTableViewCache,
   type ElectricalCalculationCableSource,
   type ElectricalTableViewSettings,
@@ -263,6 +260,7 @@ import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCal
 import { useElecCalcCandidateFolderViewModel } from '@/pages/electrical/useElecCalcCandidateFolderViewModel';
 import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColumnPersistence';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
+import { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
 import { useElecCalcDataLifecycleEffects } from '@/pages/electrical/useElecCalcDataLifecycleEffects';
 import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
@@ -366,36 +364,18 @@ export default function ElecCalcPage() {
       }
       return readGuestElectricalTableViewSettings();
     });
-  const normalizedTableViewSettings = useMemo(
-    () => normalizeElectricalTableViewSettings(tableViewSettings),
-    [tableViewSettings],
-  );
-  const visibleElectricalColumnMetas = useMemo(
-    () => getVisibleElectricalTableColumnMetas(
-      tableColumnSettings,
-      normalizedTableViewSettings.tableLabelFormat,
-    ),
-    [normalizedTableViewSettings.tableLabelFormat, tableColumnSettings],
-  );
-  const visibleCandidateColumnMetas = useMemo(
-    () => getVisibleElectricalCandidateTableColumnMetas(
-      candidateTableColumnSettings,
-      normalizedTableViewSettings.tableLabelFormat,
-    ),
-    [candidateTableColumnSettings, normalizedTableViewSettings.tableLabelFormat],
-  );
-  const resolvedTableFontSize = useMemo(
-    () => resolveElectricalTableFontSize(normalizedTableViewSettings),
-    [normalizedTableViewSettings],
-  );
-  const visibleElectricalColumnKeys = useMemo(
-    () => visibleElectricalColumnMetas.map((meta) => meta.key),
-    [visibleElectricalColumnMetas],
-  );
-  const visibleCandidateColumnKeys = useMemo(
-    () => visibleCandidateColumnMetas.map((meta) => meta.key),
-    [visibleCandidateColumnMetas],
-  );
+  const {
+    normalizedTableViewSettings,
+    visibleElectricalColumnMetas,
+    visibleCandidateColumnMetas,
+    resolvedTableFontSize,
+    visibleElectricalColumnKeys,
+    visibleCandidateColumnKeys,
+  } = useElecCalcColumnViewModel({
+    tableColumnSettings,
+    candidateTableColumnSettings,
+    tableViewSettings,
+  });
   const {
     tableViewState,
     candidateTableViewState,

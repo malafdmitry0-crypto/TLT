@@ -135,6 +135,7 @@ Potential target structure:
 | Page scope effects hook | Done | 2026-05-31: table page reset, pagination cache reset, navigation active job hydration and project/variant active-job cleanup moved to `useElecCalcPageScopeEffects.ts`; focused hook unit + `ElecCalcPage` integration |
 | Summary/selection view model | Done | 2026-05-31: toolbar/banner totals, selected valid/manual counts, recalc disabled labels and job progress moved to `elecCalcSummaryModel.ts`; focused model unit + `ElecCalcPage` integration |
 | Data lifecycle effects hook | Done | 2026-05-31: electrical page/cursor remembering, candidate-table reset on sizing object change and sizing cable type normalization moved to `useElecCalcDataLifecycleEffects.ts`; focused hook unit + `ElecCalcPage` integration |
+| Column view model hook | Done | 2026-05-31: normalized table view settings, main/candidate visible column metas/keys and resolved table font size moved to `useElecCalcColumnViewModel.ts`; focused hook unit + `ElecCalcPage` integration |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |
