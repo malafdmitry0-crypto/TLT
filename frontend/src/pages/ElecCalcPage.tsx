@@ -27,7 +27,6 @@ import {
   Tooltip,
   Typography,
   message,
-  type TableProps,
 } from 'antd';
 import {
   CheckCircleFilled,
@@ -266,6 +265,7 @@ import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPagina
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
 import { useElecCalcRowSelectionState } from '@/pages/electrical/useElecCalcRowSelectionState';
 import { useElecCalcTableProjection } from '@/pages/electrical/useElecCalcTableProjection';
+import { useElecCalcTableNavigation } from '@/pages/electrical/useElecCalcTableNavigation';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
 import type {
   HeatCalcGlideGridCellState,
@@ -2226,18 +2226,6 @@ export default function ElecCalcPage() {
 
   const electricalTableScrollY = 'max(320px, calc(100vh - 230px))';
 
-  const handleElectricalGlidePageChange = useCallback((page: number) => {
-    setTablePage(page);
-  }, []);
-
-  const handleElectricalGlideLoadMore = useCallback(() => {
-    loadNextElectricalGlidePage({
-      isFetching: isElectricalPageFetching,
-      hasNextPage: Boolean(pageInfo?.has_next_page),
-      nextCursor: nextElectricalPageCursor,
-    });
-  }, [isElectricalPageFetching, loadNextElectricalGlidePage, nextElectricalPageCursor, pageInfo?.has_next_page]);
-
   const electricalRowClassName = useCallback((obj: ProjectObject) => {
     const calc = stats.calcByObjectId[obj.id];
     return [
@@ -2264,30 +2252,24 @@ export default function ElecCalcPage() {
   );
 
   const totalObjects = pageSummary?.total_objects ?? objects.length;
-  const filteredTableCount = electricalPage?.counts?.filtered ?? totalObjects;
-  const electricalPagination = useMemo<TableProps<ProjectObject>['pagination']>(() => ({
-    current: tablePage,
-    pageSize: tablePageSize,
-    total: filteredTableCount,
-    pageSizeOptions: ['25', '50', '100'],
-    showSizeChanger: true,
-    hideOnSinglePage: filteredTableCount <= tablePageSize,
-    showTotal: (total, range) => `${range[0]}-${range[1]} из ${total}`,
-    size: 'small',
-  }), [filteredTableCount, tablePage, tablePageSize]);
-  const electricalInfiniteLoading = useMemo(() => (electricalGlideEnabled ? {
-    loaded: objects.length,
-    total: filteredTableCount,
-    hasNextPage: Boolean(pageInfo?.has_next_page && nextElectricalPageCursor),
-    loading: isElectricalPageFetching,
-  } : null), [
+  const {
+    electricalPagination,
+    electricalInfiniteLoading,
+    handleElectricalGlidePageChange,
+    handleElectricalGlideLoadMore,
+  } = useElecCalcTableNavigation({
+    tablePage,
+    tablePageSize,
+    totalObjects,
+    filteredCount: electricalPage?.counts?.filtered,
     electricalGlideEnabled,
-    filteredTableCount,
-    isElectricalPageFetching,
+    loadedObjectsCount: objects.length,
+    hasNextPage: Boolean(pageInfo?.has_next_page),
     nextElectricalPageCursor,
-    objects.length,
-    pageInfo?.has_next_page,
-  ]);
+    isElectricalPageFetching,
+    setTablePage,
+    loadNextElectricalGlidePage,
+  });
   const activeJobStatus = activeJob?.status ?? null;
   const {
     validObjectsCount,
