@@ -97,6 +97,7 @@ Potential target structure:
 | Cable mark/source option helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCableOptionModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 80 pass |
 | Cable catalog status helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCableCatalogModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 87 pass |
 | Table filter kind helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcTableFilterModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 87 pass |
+| Cable type constants/helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCableTypeModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 89 pass |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | page/filter/sort/cursor state, hidden-column cleanup |
@@ -458,6 +459,54 @@ Evidence:
 - Focused run:
   `npm --prefix frontend test -- --run src/__tests__/unit/pages/electrical/elecCalcCableCatalogModel.test.ts src/__tests__/unit/pages/electrical/elecCalcTableFilterModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCableOptionModel.test.ts src/__tests__/unit/pages/electrical/elecCalcMainTableModel.test.ts src/__tests__/unit/pages/electrical/elecCalcLayoutModel.test.ts src/__tests__/unit/pages/electrical/elecCalcResultValueModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCandidateCompareModel.test.ts src/__tests__/unit/pages/electrical/elecCalcQueryModel.test.ts src/__tests__/integration/pages/ElecCalcPage.test.tsx` — 87 pass.
 - Playwright/screenshots не требуются, потому что JSX/CSS/visible UI не менялись.
+
+## Prompt 11. Вынести cable type constants/helpers
+
+Status: Done. Не запускать повторно без нового finding.
+
+Режим `/fix-focused`.
+Scope: только default/available cable type constants и predicate для
+резистивных типов в `ElecCalcPage`.
+
+Анализ документа перед выполнением:
+
+- `docs/srs/ui/guest/03-screen-workspace-electrical.md` фиксирует, что на SC-04
+  пользователь выбирает тип кабеля; этот slice не меняет список на экране,
+  source controls, object drafts, payload, backend/API, формулы, persistence
+  или CO workflow.
+- Этот slice не является `Cable type/source model hook`: не двигать React
+  state/effects, feature flag source controls, per-object drafts,
+  `normalizeAvailableCableType`, `getCableTypeForObject`, модалки,
+  mutations или renderers.
+
+Задача:
+
+- Вынести из `frontend/src/pages/ElecCalcPage.tsx` только:
+  `DEFAULT_CABLE_TYPE`, `MVP_CABLE_TYPES`, `FULL_FEATURE_CABLE_TYPES`,
+  `isResistiveCableType`.
+- Целевой файл:
+  `frontend/src/pages/electrical/elecCalcCableTypeModel.ts`.
+- Не менять порядок типов, default `self_regulating`, full-version список
+  `self_regulating`, `self_regulating_tt`, `single_core`, `three_core`, и
+  predicate `single_core|three_core`.
+- Добавить focused unit:
+  `frontend/src/__tests__/unit/pages/electrical/elecCalcCableTypeModel.test.ts`.
+
+Definition of Done:
+
+- `ElecCalcPage.tsx` импортирует cable type constants/helpers и не держит
+  локальный duplicate-блок этих констант.
+- Unit покрывает default type, MVP/full списки и resistive predicate.
+- Запущены focused unit + existing pure units + `ElecCalcPage` integration,
+  `npm --prefix frontend run typecheck` и `git diff --check`.
+- Playwright/screenshots не требуются, если JSX/CSS/visible UI не менялись.
+
+Evidence:
+
+- Unit:
+  `frontend/src/__tests__/unit/pages/electrical/elecCalcCableTypeModel.test.ts`.
+- Focused run:
+  `npm --prefix frontend test -- --run src/__tests__/unit/pages/electrical/elecCalcCableTypeModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCableCatalogModel.test.ts src/__tests__/unit/pages/electrical/elecCalcTableFilterModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCableOptionModel.test.ts src/__tests__/unit/pages/electrical/elecCalcMainTableModel.test.ts src/__tests__/unit/pages/electrical/elecCalcLayoutModel.test.ts src/__tests__/unit/pages/electrical/elecCalcResultValueModel.test.ts src/__tests__/unit/pages/electrical/elecCalcCandidateCompareModel.test.ts src/__tests__/unit/pages/electrical/elecCalcQueryModel.test.ts src/__tests__/integration/pages/ElecCalcPage.test.tsx` — 89 pass.
 
 ## Prompt 6. Вынести layout numeric helpers
 

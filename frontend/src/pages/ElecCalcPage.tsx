@@ -204,6 +204,12 @@ import {
   type CableStatusRow,
 } from '@/pages/electrical/elecCalcCableCatalogModel';
 import {
+  DEFAULT_CABLE_TYPE,
+  FULL_FEATURE_CABLE_TYPES,
+  isResistiveCableType,
+  MVP_CABLE_TYPES,
+} from '@/pages/electrical/elecCalcCableTypeModel';
+import {
   candidateCommercialValue,
   candidateCompareDisplayValue,
   candidateCompareValue,
@@ -294,14 +300,6 @@ function isTargetVariantNotEmptyError(error: unknown): error is ApiError {
   return isApiError(error) && error.status === 409 && error.code === 'target_not_empty';
 }
 
-const DEFAULT_CABLE_TYPE: CableTypeKey = 'self_regulating';
-const MVP_CABLE_TYPES: readonly CableTypeKey[] = [DEFAULT_CABLE_TYPE];
-const FULL_FEATURE_CABLE_TYPES: readonly CableTypeKey[] = [
-  'self_regulating',
-  'self_regulating_tt',
-  'single_core',
-  'three_core',
-];
 const SHOW_COMMERCIAL_CABLE_BASE_UI = false;
 const SELECTION_POLICY_LABEL: Record<SelectionPolicy, string> = {
   technical_minimum: 'Технический',
@@ -322,7 +320,6 @@ type CandidateFolderModalMode = 'create' | 'rename';
 const candidateCustomFolderKey = (folderId: string): CandidateFolderKey => `custom:${folderId}`;
 const candidateCustomFolderId = (key: CandidateFolderKey): string | null =>
   key.startsWith('custom:') ? key.slice('custom:'.length) : null;
-const isResistiveCableType = (type: CableTypeKey) => type === 'single_core' || type === 'three_core';
 type CableMarkSelectOption = {
   value: string;
   label: ReactNode;
