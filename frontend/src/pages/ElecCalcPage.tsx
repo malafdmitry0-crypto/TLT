@@ -28,19 +28,15 @@ import {
   message,
 } from 'antd';
 import {
-  CheckOutlined,
   CloseCircleFilled,
   CloseCircleOutlined,
   DeleteOutlined,
   EditOutlined,
   FilterFilled,
-  FolderOutlined,
   MoreOutlined,
   PlusOutlined,
-  StopOutlined,
   TableOutlined,
   ThunderboltOutlined,
-  UndoOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -86,7 +82,6 @@ import { getCalcJobRefetchInterval } from '@/utils/calcJobPolling';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import CablePickerCharacteristics from '@/components/electrical/CablePickerCharacteristics';
 import ElectricalCandidateColumnSettingsModal from '@/components/electrical/ElectricalCandidateColumnSettingsModal';
-import { renderCandidateElectricalField } from '@/components/electrical/ElectricalCandidateFieldRenderer';
 import ElectricalColumnFilterDropdown from '@/components/electrical/ElectricalColumnFilterDropdown';
 import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalColumnSettingsModal';
 import ResizableColumnTitle from '@/components/heatcalc/ResizableColumnTitle';
@@ -199,7 +194,6 @@ import {
   valueText,
 } from '@/pages/electrical/elecCalcResultValueModel';
 import {
-  filterKindForCandidateColumn,
   filterKindForElectricalColumn,
 } from '@/pages/electrical/elecCalcTableFilterModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
@@ -209,6 +203,7 @@ import { useElecCalcCableMarkOptions } from '@/pages/electrical/useElecCalcCable
 import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
 import { useElecCalcCableSizingModalState } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
+import { useElecCalcCandidateColumns } from '@/pages/electrical/useElecCalcCandidateColumns';
 import { useElecCalcCandidateCompareState } from '@/pages/electrical/useElecCalcCandidateCompareState';
 import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCalcCandidateFolderUiState';
 import { useElecCalcCandidateFolderViewModel } from '@/pages/electrical/useElecCalcCandidateFolderViewModel';
@@ -2188,166 +2183,24 @@ export default function ElecCalcPage() {
     );
   }
 
-  const cableSizingCandidateColumns: ColumnsType<ElectricalCandidate> =
-    visibleCandidateColumnMetas.map((column) => {
-      const filterEnabled = column.key !== 'actions';
-      const sortEnabled = column.key !== 'actions';
-      const activeFilter = candidateTableViewState.filters[column.key];
-      const filterKind = filterKindForCandidateColumn(column.key);
-      const columnTitle = (
-        <ResizableColumnTitle
-          title={column.title}
-          label={column.label}
-          onResizeStart={(event) => startCandidateColumnResize(column, event)}
-        />
-      );
-      const baseColumn = {
-        title: columnTitle,
-        key: column.key,
-        columnKey: column.key,
-        width: Math.max(column.width, column.minWidthPx),
-        fixed: column.fixed,
-        sorter: sortEnabled,
-        sortOrder: sortEnabled && candidateTableViewState.sort?.columnKey === column.key
-          ? candidateTableViewState.sort.direction === 'asc'
-            ? 'ascend' as const
-            : 'descend' as const
-          : null,
-        showSorterTooltip: false,
-        filtered: isColumnFilterActive(activeFilter),
-        filterIcon: filterEnabled ? () => (
-          <span
-            role="button"
-            aria-label={`Фильтр ${column.label}`}
-            className="table-filter-trigger"
-            style={{ pointerEvents: 'auto' }}
-          >
-            <FilterFilled
-              className={isColumnFilterActive(activeFilter) ? 'table-filter-icon active' : 'table-filter-icon'}
-            />
-          </span>
-        ) : undefined,
-        filterDropdown: filterEnabled ? ({ close }: { close: () => void }) => (
-          <ElectricalColumnFilterDropdown
-            title={column.label}
-            kind={filterKind}
-            filter={activeFilter}
-            enumOptions={candidateEnumOptionsByColumn[column.key] ?? []}
-            onApply={(filter) => setCandidateColumnFilter(column.key, filter)}
-            onReset={() => resetCandidateColumnFilter(column.key)}
-            onClose={close}
-          />
-        ) : undefined,
-        onCell: (candidate: ElectricalCandidate) => {
-          const isDiff = isCandidateCompareDiffCell(candidate, column.key);
-          return {
-            className: isDiff ? 'electrical-candidate-cell--diff' : undefined,
-            title: isDiff ? 'Отличается в выбранных вариантах' : undefined,
-            'data-testid': isDiff ? `candidate-diff-${candidate.id}-${column.key}` : undefined,
-          } as HTMLAttributes<HTMLElement>;
-        },
-      };
-      if (column.key === 'marked') {
-        return {
-          ...baseColumn,
-          align: 'center' as const,
-          render: (_value, candidate) => (
-            <Checkbox
-              aria-label={`Пометить кандидат ${candidate.cable_mark ?? candidate.id}`}
-              data-testid={`candidate-mark-${candidate.id}`}
-              checked={markedCableSizingCandidateIds.includes(candidate.id)}
-              onChange={(event) => toggleCableSizingCandidateMark(candidate.id, event.target.checked)}
-            />
-          ),
-        };
-      }
-      if (column.key === 'actions') {
-        return {
-          ...baseColumn,
-          render: (_value, candidate) => {
-            const candidateName = candidate.cable_mark ?? candidate.id;
-            const applyTooltip = candidate.is_applied
-              ? 'Уже выбран'
-              : candidate.status !== 'applicable'
-                ? candidate.reason_message ?? 'Недоступно для выбора'
-                : 'Выбрать';
-            const excluded = candidate.status === 'excluded';
-            const exclusionTooltip = excluded ? 'Вернуть вариант' : 'Исключить вариант';
-
-            return (
-              <Space size={2} wrap={false} className="electrical-candidate-actions">
-                <Tooltip title={applyTooltip}>
-                  <Button
-                    aria-label={`${applyTooltip} кандидат ${candidateName}`}
-                    aria-pressed={candidate.is_applied}
-                    data-testid={`candidate-apply-${candidate.id}`}
-                    className="electrical-candidate-action-button"
-                    size="small"
-                    type={candidate.is_applied ? 'primary' : 'default'}
-                    icon={<CheckOutlined />}
-                    disabled={
-                      candidate.status !== 'applicable' ||
-                      applyCandidateMut.isPending
-                    }
-                    loading={applyCandidateMut.isPending && applyCandidateMut.variables === candidate.id}
-                    onClick={() => {
-                      if (!candidate.is_applied) {
-                        applyCandidateMut.mutate(candidate.id);
-                      }
-                    }}
-                  />
-                </Tooltip>
-                <Dropdown
-                  trigger={['click']}
-                  menu={{ items: candidateFolderMenuItems(candidate) }}
-                >
-                  <Button
-                    aria-label={`Добавить кандидат ${candidateName} в папку`}
-                    data-testid={`candidate-folder-${candidate.id}`}
-                    className="electrical-candidate-action-button"
-                    size="small"
-                    icon={<FolderOutlined />}
-                    disabled={toggleCandidateFolderItemMut.isPending}
-                  />
-                </Dropdown>
-                <Tooltip title={exclusionTooltip}>
-                  <Button
-                    aria-label={exclusionTooltip}
-                    data-testid={`candidate-exclude-${candidate.id}`}
-                    className="electrical-candidate-action-button"
-                    size="small"
-                    danger={!excluded}
-                    icon={excluded ? <UndoOutlined /> : <StopOutlined />}
-                    disabled={updateCandidateMut.isPending}
-                    onClick={() => updateCandidateMut.mutate({
-                      candidateId: candidate.id,
-                      patch: {
-                        status: excluded ? 'applicable' : 'excluded',
-                      },
-                    })}
-                  />
-                </Tooltip>
-              </Space>
-            );
-          },
-        };
-      }
-      if (column.key === 'mode') {
-        return {
-          ...baseColumn,
-          dataIndex: 'mode',
-          render: (value) => (value === 'auto' ? 'Авто' : 'Ручной'),
-        };
-      }
-      return {
-        ...baseColumn,
-        dataIndex: column.key,
-        ellipsis: column.key === 'selection_reason' ? false : column.ellipsis,
-        align: column.align,
-        render: (_value: unknown, candidate: ElectricalCandidate) =>
-          renderCandidateElectricalField(column.key, candidate),
-      };
-    });
+  const cableSizingCandidateColumns = useElecCalcCandidateColumns({
+    visibleCandidateColumnMetas,
+    candidateTableViewState,
+    candidateEnumOptionsByColumn,
+    markedCandidateIds: markedCableSizingCandidateIds,
+    applyCandidatePending: applyCandidateMut.isPending,
+    applyingCandidateId: applyCandidateMut.variables,
+    updateCandidatePending: updateCandidateMut.isPending,
+    toggleCandidateFolderItemPending: toggleCandidateFolderItemMut.isPending,
+    onCandidateColumnResizeStart: startCandidateColumnResize,
+    onSetCandidateColumnFilter: setCandidateColumnFilter,
+    onResetCandidateColumnFilter: resetCandidateColumnFilter,
+    isCandidateCompareDiffCell,
+    onToggleCandidateMark: toggleCableSizingCandidateMark,
+    onApplyCandidate: applyCandidateMut.mutate,
+    onUpdateCandidate: updateCandidateMut.mutate,
+    candidateFolderMenuItems,
+  });
   const cableSizingCandidateTableScrollX = Math.max(
     920,
     visibleCandidateColumnMetas.reduce(
