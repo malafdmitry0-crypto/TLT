@@ -232,6 +232,14 @@ import {
   SELECTION_POLICY_OPTIONS,
 } from '@/pages/electrical/elecCalcSelectionPolicyModel';
 import {
+  countManualCableRows,
+  countValidSelectedObjects,
+  formatSelectedRecalcCountLabel,
+  objectIdsForSelection,
+  selectedObjectsForKeys,
+  selectedRecalcDisabledTooltip,
+} from '@/pages/electrical/elecCalcSelectionModel';
+import {
   SHOW_COMMERCIAL_CABLE_BASE_UI,
   electricalCalculationsForTable,
   electricalLoadedPagesForTable,
@@ -293,6 +301,7 @@ import {
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPaginationState';
+import { useElecCalcRowSelectionState } from '@/pages/electrical/useElecCalcRowSelectionState';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
 import type {
   HeatCalcGlideGridCellState,
@@ -384,7 +393,6 @@ export default function ElecCalcPage() {
     rememberNextCursor,
     loadNextElectricalGlidePage,
   } = useElecCalcPaginationState();
-  const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [cableMarkModalObjectId, setCableMarkModalObjectId] = useState<string | null>(null);
   const [cableMarkModalCableType, setCableMarkModalCableType] = useState<CableTypeKey | null>(null);
   const [cableMarkModalValue, setCableMarkModalValue] = useState<string | null>(null);
@@ -404,7 +412,6 @@ export default function ElecCalcPage() {
   const [candidateFolderName, setCandidateFolderName] = useState('');
   const [editingCandidateFolder, setEditingCandidateFolder] =
     useState<ElectricalCandidateFolder | null>(null);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [tableColumnSettings, setTableColumnSettings] =
     useState<ElectricalTableColumnSettings>(() => {
       const auth = useAuthStore.getState();
@@ -544,10 +551,6 @@ export default function ElecCalcPage() {
   }, [project?.id, resetTablePage, variant]);
 
   useEffect(() => {
-    setActiveRowId(null);
-  }, [project?.id, variant, tablePage, tablePageSize]);
-
-  useEffect(() => {
     resetCandidateTableViewState();
   }, [cableSizingModalObjectId, resetCandidateTableViewState]);
 
@@ -556,7 +559,6 @@ export default function ElecCalcPage() {
   }, [effectiveSource, project?.id, resetPaginationCache, tablePageSize, tableViewState, variant]);
 
   useEffect(() => {
-    setSelectedRowKeys([]);
     setCableTypeDraftByObjectId({});
   }, [project?.id, variant]);
 
@@ -663,6 +665,19 @@ export default function ElecCalcPage() {
   );
   const electricalDisplayOffset = electricalGlideEnabled ? 0 : (pageInfo?.offset ?? 0);
   const stats = useElectricalStats(objects, elecCalcs);
+  const {
+    activeRowId,
+    selectedRowKeys,
+    setSelectedRowKeys,
+    activateRowId,
+    openElectricalRow,
+  } = useElecCalcRowSelectionState({
+    projectId: project?.id,
+    variant,
+    tablePage,
+    tablePageSize,
+    objects,
+  });
 
   useEffect(() => {
     rememberNextCursor({
@@ -710,16 +725,6 @@ export default function ElecCalcPage() {
   const objectOverridesForIds = useCallback((objectIds: string[]) =>
     buildCableTypeObjectOverrides(objectIds, cableTypeDraftByObjectId, availableCableTypes),
   [availableCableTypes, cableTypeDraftByObjectId]);
-
-  useEffect(() => {
-    const visibleIds = new Set(objects.map((object) => object.id));
-    setSelectedRowKeys((keys) => {
-      const nextKeys = keys.filter((key) => visibleIds.has(key));
-      return nextKeys.length === keys.length && nextKeys.every((key, index) => key === keys[index])
-        ? keys
-        : nextKeys;
-    });
-  }, [objects]);
 
   const { data: activeJob } = useQuery({
     queryKey: ['calc-job', activeJobId],
@@ -1809,23 +1814,23 @@ export default function ElecCalcPage() {
     const calc = stats.calcByObjectId[obj.id];
     const currentCalc = currentElectricalCalc(calc);
     const type = getSavedCableTypeForObject(obj.id);
-    setActiveRowId(obj.id);
+    activateRowId(obj.id);
     setCableMarkModalObjectId(obj.id);
     setCableMarkModalCableType(type);
     setCableMarkModalTargetVariants([variant]);
     const mark = getCableMark(currentCalc);
     setCableMarkModalValue(cableMarkValueForCalc(type, mark, currentCalc));
-  }, [cableMarkValueForCalc, getSavedCableTypeForObject, stats.calcByObjectId, variant]);
+  }, [activateRowId, cableMarkValueForCalc, getSavedCableTypeForObject, stats.calcByObjectId, variant]);
   const openCableSizingModal = useCallback((obj: ProjectObject) => {
     const type = getSavedCableTypeForObject(obj.id);
     const calc = currentElectricalCalc(stats.calcByObjectId[obj.id]);
-    setActiveRowId(obj.id);
+    activateRowId(obj.id);
     setCableSizingCableType(type);
     setCableSizingManualMark(getCableMark(calc) ?? null);
     setMarkedCableSizingCandidateIds([]);
     setActiveCandidateFolderKey('all');
     setCableSizingModalObjectId(obj.id);
-  }, [getSavedCableTypeForObject, stats.calcByObjectId]);
+  }, [activateRowId, getSavedCableTypeForObject, stats.calcByObjectId]);
   const changeCableMarkModalCableType = useCallback((nextType: CableTypeKey) => {
     setCableMarkModalCableType(normalizeAvailableCableType(nextType));
     setCableMarkModalValue(AUTO_CABLE_MARK_VALUE);
@@ -2751,8 +2756,8 @@ export default function ElecCalcPage() {
   ]);
 
   const handleElectricalGlideStartCellEdit = useCallback((obj: ProjectObject) => {
-    setActiveRowId(obj.id);
-  }, []);
+    activateRowId(obj.id);
+  }, [activateRowId]);
 
   const handleElectricalGlideCommitCell = useCallback((
     obj: ProjectObject,
@@ -2908,10 +2913,6 @@ export default function ElecCalcPage() {
     ].filter(Boolean).join(' ');
   }, [activeRowId, stats.calcByObjectId]);
 
-  const openElectricalRow = useCallback((record: ProjectObject) => {
-    setActiveRowId(record.id);
-  }, []);
-
   const cablePickerModalTitle = (
     <div className="electrical-cable-picker-title">
       <span className="electrical-cable-picker-title-text">Выбор марки кабеля</span>
@@ -2954,11 +2955,11 @@ export default function ElecCalcPage() {
   const validObjectsCount = pageSummary?.valid_objects ?? stats.validObjects.length;
   const selectedObjectsCount = selectedRowKeys.length;
   const selectedObjects = useMemo(
-    () => objects.filter((object) => selectedRowKeys.includes(object.id)),
+    () => selectedObjectsForKeys(objects, selectedRowKeys),
     [objects, selectedRowKeys],
   );
   const selectedValidObjectsCount = useMemo(
-    () => selectedObjects.filter((object) => object.is_valid).length,
+    () => countValidSelectedObjects(selectedObjects),
     [selectedObjects],
   );
   const selectedHeatLossFailedCount = selectedObjectsCount - selectedValidObjectsCount;
@@ -2968,20 +2969,12 @@ export default function ElecCalcPage() {
   const totalPower = pageSummary?.total_power ?? stats.totalPower;
   const totalCurrent = pageSummary?.total_current ?? stats.totalCurrent;
   const visibleManualCableCount = useMemo(
-    () => objects.reduce(
-      (count, object) =>
-        count + (getCableMarkSource(stats.calcByObjectId[object.id]) === 'manual' ? 1 : 0),
-      0,
-    ),
+    () => countManualCableRows(objectIdsForSelection(objects), stats.calcByObjectId),
     [objects, stats.calcByObjectId],
   );
   const manualCableCount = pageSummary?.manual_cable_mark_count ?? visibleManualCableCount;
   const selectedManualCableCount = useMemo(
-    () => selectedRowKeys.reduce(
-      (count, objectId) =>
-        count + (getCableMarkSource(stats.calcByObjectId[objectId]) === 'manual' ? 1 : 0),
-      0,
-    ),
+    () => countManualCableRows(selectedRowKeys, stats.calcByObjectId),
     [selectedRowKeys, stats.calcByObjectId],
   );
   const renderManualOverwriteControl = useCallback((manualCount: number): ReactNode => {
@@ -3076,14 +3069,14 @@ export default function ElecCalcPage() {
   const activeJobStatus = activeJob?.status ?? null;
   const isJobActive = isActiveCalcJobStatus(activeJobStatus);
   const selectedRecalcDisabled = selectedValidObjectsCount === 0 || isJobActive;
-  const selectedRecalcTooltip =
-    selectedObjectsCount > 0 && selectedValidObjectsCount === 0
-      ? 'Сначала рассчитайте теплопотери для выбранных объектов'
-      : undefined;
-  const selectedRecalcCountLabel =
-    selectedHeatLossFailedCount > 0
-      ? `${selectedValidObjectsCount}/${selectedObjectsCount}`
-      : String(selectedObjectsCount);
+  const selectedRecalcTooltip = selectedRecalcDisabledTooltip(
+    selectedObjectsCount,
+    selectedValidObjectsCount,
+  );
+  const selectedRecalcCountLabel = formatSelectedRecalcCountLabel(
+    selectedObjectsCount,
+    selectedValidObjectsCount,
+  );
   const jobProgress = activeJob?.progress;
   const jobProgressLabel = jobProgress?.total
     ? `${jobProgress.current}/${jobProgress.total}`
@@ -4112,7 +4105,7 @@ export default function ElecCalcPage() {
               onRow={(obj) => ({
                 onClick: (event) => {
                   if ((event.target as HTMLElement).closest('.ant-table-selection-column')) return;
-                  setActiveRowId(obj.id);
+                  activateRowId(obj.id);
                 },
               })}
               rowSelection={{

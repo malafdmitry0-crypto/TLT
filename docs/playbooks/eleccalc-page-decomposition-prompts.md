@@ -117,9 +117,10 @@ Potential target structure:
 | Main pagination/cursor hook | Done | 2026-05-31: page/pageSize, cursor cache, Glide loaded pages and load-more state moved to `useElecCalcPaginationState.ts`; focused hook unit + `ElecCalcPage` integration |
 | Ant table compatibility handlers | Done | 2026-05-31: Ant sorter parsing and main/candidate `onChange` adapters moved to `useElecCalcAntTableHandlers.ts`; focused hook unit + `ElecCalcPage` integration |
 | Column settings draft hook | Done | 2026-05-31: main/candidate column settings draft state, open/update/reset/select-all/apply handlers moved to `useElecCalcColumnSettingsDraftState.ts`; focused hook unit + `ElecCalcPage` integration |
+| Main row selection state hook | Done | 2026-05-31: active row, selected row keys, visibility pruning and selected/manual count helpers moved to `useElecCalcRowSelectionState.ts` and `elecCalcSelectionModel.ts`; focused unit + `ElecCalcPage` integration |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
-| Main table state hook | Backlog | remaining row interaction state |
+| Main table state hook | Backlog | remaining row class/cell action state helpers |
 | Candidate table state hook | Backlog | remaining marked comparison state |
 | Preferences/settings hook | Backlog | main/candidate columns, view settings, role cache |
 | Cable type/source model hook | Backlog | feature flag, built-in/extended/all, object drafts |
