@@ -194,13 +194,8 @@ import {
   type ElectricalTableSettingsPreferenceMutation,
 } from '@/pages/electrical/elecCalcPageModel';
 import {
-  ELECTRICAL_LAYOUT_EDITABLE_COLUMNS,
   isElectricalLayoutCellEditable as resolveElectricalLayoutCellEditable,
-  maxThreadsForCableType,
-  maxWindingCoefficientForDiameterMm,
-  parseElectricalLayoutNumber,
-  pipeOuterDiameterMm,
-  windingCoefficientForPitch,
+  validateElectricalLayoutCellCommit,
 } from '@/pages/electrical/elecCalcLayoutModel';
 import {
   cableSnapshotStatusTag,
@@ -2063,61 +2058,27 @@ export default function ElecCalcPage() {
     columnKey: string,
     value: unknown,
   ) => {
-    if (!ELECTRICAL_LAYOUT_EDITABLE_COLUMNS.has(columnKey)) return null;
-    if (!project) return 'Проект не выбран';
-    if (!obj.is_valid) return 'Теплопотери объекта не рассчитаны';
-    const calc = currentElectricalCalc(stats.calcByObjectId[obj.id]);
-    const mark = getCableMark(calc);
-    if (!calc || !mark) return 'Сначала выполните электрорасчёт';
+    const validation = validateElectricalLayoutCellCommit({
+      obj,
+      columnKey,
+      value,
+      projectSelected: Boolean(project),
+      calcByObjectId: stats.calcByObjectId,
+      getCableTypeForObject: cableTypes.getSavedCableTypeForObject,
+    });
+    if (validation.status === 'ignored') return null;
+    if (validation.status === 'error') return validation.error;
 
-    const cableType = cableTypes.getSavedCableTypeForObject(obj.id);
-    if (cableType === 'mineral' || cableType === 'skin') {
-      return 'Для этого типа кабеля параметры укладки не редактируются в таблице';
-    }
-
-    const parsed = parseElectricalLayoutNumber(value);
-    if (parsed === null) return 'Введите число';
-    const layoutValues = calcLayoutValues(calc);
-    let windingPitchMm = layoutValues.windingPitchMm;
-    let numberOfThreads: number | null = null;
-
-    if (columnKey === 'winding_pitch_mm') {
-      if (parsed < 0) return 'Шаг навива не может быть отрицательным';
-      const diameterMm = pipeOuterDiameterMm(obj);
-      if (diameterMm !== null && parsed > 0 && parsed <= diameterMm) {
-        return 'Шаг навива должен быть больше наружного диаметра трубы';
-      }
-      if (diameterMm !== null && parsed > 0) {
-        const coefficient = windingCoefficientForPitch(diameterMm, parsed);
-        const maxCoefficient = maxWindingCoefficientForDiameterMm(diameterMm);
-        if (coefficient > maxCoefficient + 1e-9) {
-          return `Коэффициент навива ${coefficient.toFixed(3)} превышает максимум ${maxCoefficient.toFixed(1)} для D=${diameterMm.toFixed(0)} мм`;
-        }
-      }
-      windingPitchMm = parsed;
-      const threadSource = getThreadSource(calc);
-      if (threadSource === 'manual' || threadSource === 'previous_result') {
-        numberOfThreads = Math.round(layoutValues.numberOfThreads);
-      }
-    } else if (columnKey === 'number_of_threads') {
-      const integerValue = Math.round(parsed);
-      if (integerValue !== parsed) return 'Количество ниток должно быть целым числом';
-      if (integerValue < 1) return 'Количество ниток должно быть не меньше 1';
-      const maxThreads = maxThreadsForCableType(cableType);
-      if (integerValue > maxThreads) {
-        return `Количество ниток должно быть не больше ${maxThreads}`;
-      }
-      numberOfThreads = integerValue;
-    }
-
-    const markSource = getCableMarkSource(calc);
+    const markSource = getCableMarkSource(validation.calc);
     electricalLayoutMutate({
       objectId: obj.id,
-      cableMark: markSource === 'manual' ? mark : null,
-      cableSource: markSource === 'manual' ? catalogSourceFromSnapshot(calc) ?? effectiveSource : effectiveSource,
-      cableType,
-      windingPitchMm,
-      numberOfThreads,
+      cableMark: markSource === 'manual' ? validation.mark : null,
+      cableSource: markSource === 'manual'
+        ? catalogSourceFromSnapshot(validation.calc) ?? effectiveSource
+        : effectiveSource,
+      cableType: validation.cableType,
+      windingPitchMm: validation.windingPitchMm,
+      numberOfThreads: validation.numberOfThreads,
     });
     return null;
   }, [

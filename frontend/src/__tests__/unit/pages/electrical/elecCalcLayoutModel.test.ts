@@ -7,6 +7,7 @@ import {
   maxWindingCoefficientForDiameterMm,
   parseElectricalLayoutNumber,
   pipeOuterDiameterMm,
+  validateElectricalLayoutCellCommit,
   windingCoefficientForPitch,
 } from '@/pages/electrical/elecCalcLayoutModel';
 import type { ElectricalCalcSummary } from '@/types/calculation';
@@ -51,6 +52,29 @@ function editabilityOptions(
     projectSelected: true,
     isCableMarkPending: false,
     calcByObjectId: { 'object-1': calc() },
+    getCableTypeForObject: () => 'self_regulating',
+    ...overrides,
+  };
+}
+
+function commitOptions(
+  overrides: Partial<Parameters<typeof validateElectricalLayoutCellCommit>[0]> = {},
+): Parameters<typeof validateElectricalLayoutCellCommit>[0] {
+  return {
+    obj: projectObject({ params: { outer_diameter: 0.108 } }),
+    columnKey: 'winding_pitch_mm',
+    value: 500,
+    projectSelected: true,
+    calcByObjectId: {
+      'object-1': calc({
+        params: {},
+        results: {
+          selected_cable: 'ТЛТ-25',
+          winding_pitch: 0,
+          num_circuits: 2,
+        },
+      }),
+    },
     getCableTypeForObject: () => 'self_regulating',
     ...overrides,
   };
@@ -101,6 +125,96 @@ describe('elecCalcLayoutModel', () => {
     expect(isElectricalLayoutCellEditable(editabilityOptions({
       getCableTypeForObject: () => null,
     }))).toBe(true);
+  });
+
+  it('validates layout commit prerequisites without mutating page state', () => {
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      columnKey: 'cable_mark',
+    }))).toEqual({ status: 'ignored' });
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      projectSelected: false,
+    }))).toEqual({ status: 'error', error: 'Проект не выбран' });
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      obj: projectObject({ is_valid: false }),
+    }))).toEqual({ status: 'error', error: 'Теплопотери объекта не рассчитаны' });
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      calcByObjectId: {},
+    }))).toEqual({ status: 'error', error: 'Сначала выполните электрорасчёт' });
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      getCableTypeForObject: () => 'mineral',
+    }))).toEqual({
+      status: 'error',
+      error: 'Для этого типа кабеля параметры укладки не редактируются в таблице',
+    });
+  });
+
+  it('validates winding pitch and preserves manual thread count when pitch changes', () => {
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      value: 'bad',
+    }))).toEqual({ status: 'error', error: 'Введите число' });
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      value: -1,
+    }))).toEqual({ status: 'error', error: 'Шаг навива не может быть отрицательным' });
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      value: 108,
+    }))).toEqual({
+      status: 'error',
+      error: 'Шаг навива должен быть больше наружного диаметра трубы',
+    });
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      value: 300,
+    }))).toMatchObject({
+      status: 'error',
+      error: expect.stringContaining('Коэффициент навива'),
+    });
+
+    const result = validateElectricalLayoutCellCommit(commitOptions({
+      value: 500,
+      calcByObjectId: {
+        'object-1': calc({
+          results: {
+            selected_cable: 'ТЛТ-25',
+            winding_pitch: 120,
+            num_circuits: 2.4,
+            number_of_threads_source: 'manual',
+          },
+        }),
+      },
+    }));
+
+    expect(result).toMatchObject({
+      status: 'valid',
+      mark: 'ТЛТ-25',
+      cableType: 'self_regulating',
+      windingPitchMm: 500,
+      numberOfThreads: 2,
+    });
+  });
+
+  it('validates thread count input and self-regulating cap', () => {
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      columnKey: 'number_of_threads',
+      value: 1.5,
+    }))).toEqual({ status: 'error', error: 'Количество ниток должно быть целым числом' });
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      columnKey: 'number_of_threads',
+      value: 0,
+    }))).toEqual({ status: 'error', error: 'Количество ниток должно быть не меньше 1' });
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      columnKey: 'number_of_threads',
+      value: 4,
+      getCableTypeForObject: () => 'self_regulating',
+    }))).toEqual({ status: 'error', error: 'Количество ниток должно быть не больше 3' });
+
+    expect(validateElectricalLayoutCellCommit(commitOptions({
+      columnKey: 'number_of_threads',
+      value: 4,
+      getCableTypeForObject: () => 'single_core',
+    }))).toMatchObject({
+      status: 'valid',
+      windingPitchMm: 0,
+      numberOfThreads: 4,
+    });
   });
 
   it('parses localized numeric layout input strictly', () => {

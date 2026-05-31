@@ -1,8 +1,10 @@
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 import {
+  calcLayoutValues,
   currentElectricalCalc,
   getCableMark,
+  getThreadSource,
 } from '@/pages/electrical/elecCalcResultValueModel';
 
 export type ElectricalLayoutCableType =
@@ -38,6 +40,104 @@ export function isElectricalLayoutCellEditable({
   if (!calc || !getCableMark(calc)) return false;
   const cableType = getCableTypeForObject(obj.id);
   return cableType !== 'mineral' && cableType !== 'skin';
+}
+
+export type ElectricalLayoutCellCommitValidationOptions = {
+  obj: ProjectObject;
+  columnKey: string;
+  value: unknown;
+  projectSelected: boolean;
+  calcByObjectId: Record<string, ElectricalCalcSummary | undefined>;
+  getCableTypeForObject: (objectId: string) => ElectricalLayoutCableType;
+};
+
+export type ElectricalLayoutCellCommitValidationResult =
+  | { status: 'ignored' }
+  | { status: 'error'; error: string }
+  | {
+      status: 'valid';
+      calc: ElectricalCalcSummary;
+      mark: string;
+      cableType: ElectricalLayoutCableType;
+      windingPitchMm: number;
+      numberOfThreads: number | null;
+    };
+
+export function validateElectricalLayoutCellCommit({
+  obj,
+  columnKey,
+  value,
+  projectSelected,
+  calcByObjectId,
+  getCableTypeForObject,
+}: ElectricalLayoutCellCommitValidationOptions): ElectricalLayoutCellCommitValidationResult {
+  if (!ELECTRICAL_LAYOUT_EDITABLE_COLUMNS.has(columnKey)) return { status: 'ignored' };
+  if (!projectSelected) return { status: 'error', error: 'Проект не выбран' };
+  if (!obj.is_valid) return { status: 'error', error: 'Теплопотери объекта не рассчитаны' };
+  const calc = currentElectricalCalc(calcByObjectId[obj.id]);
+  const mark = getCableMark(calc);
+  if (!calc || !mark) return { status: 'error', error: 'Сначала выполните электрорасчёт' };
+
+  const cableType = getCableTypeForObject(obj.id);
+  if (cableType === 'mineral' || cableType === 'skin') {
+    return {
+      status: 'error',
+      error: 'Для этого типа кабеля параметры укладки не редактируются в таблице',
+    };
+  }
+
+  const parsed = parseElectricalLayoutNumber(value);
+  if (parsed === null) return { status: 'error', error: 'Введите число' };
+  const layoutValues = calcLayoutValues(calc);
+  let windingPitchMm = layoutValues.windingPitchMm;
+  let numberOfThreads: number | null = null;
+
+  if (columnKey === 'winding_pitch_mm') {
+    if (parsed < 0) {
+      return { status: 'error', error: 'Шаг навива не может быть отрицательным' };
+    }
+    const diameterMm = pipeOuterDiameterMm(obj);
+    if (diameterMm !== null && parsed > 0 && parsed <= diameterMm) {
+      return { status: 'error', error: 'Шаг навива должен быть больше наружного диаметра трубы' };
+    }
+    if (diameterMm !== null && parsed > 0) {
+      const coefficient = windingCoefficientForPitch(diameterMm, parsed);
+      const maxCoefficient = maxWindingCoefficientForDiameterMm(diameterMm);
+      if (coefficient > maxCoefficient + 1e-9) {
+        return {
+          status: 'error',
+          error: `Коэффициент навива ${coefficient.toFixed(3)} превышает максимум ${maxCoefficient.toFixed(1)} для D=${diameterMm.toFixed(0)} мм`,
+        };
+      }
+    }
+    windingPitchMm = parsed;
+    const threadSource = getThreadSource(calc);
+    if (threadSource === 'manual' || threadSource === 'previous_result') {
+      numberOfThreads = Math.round(layoutValues.numberOfThreads);
+    }
+  } else if (columnKey === 'number_of_threads') {
+    const integerValue = Math.round(parsed);
+    if (integerValue !== parsed) {
+      return { status: 'error', error: 'Количество ниток должно быть целым числом' };
+    }
+    if (integerValue < 1) {
+      return { status: 'error', error: 'Количество ниток должно быть не меньше 1' };
+    }
+    const maxThreads = maxThreadsForCableType(cableType);
+    if (integerValue > maxThreads) {
+      return { status: 'error', error: `Количество ниток должно быть не больше ${maxThreads}` };
+    }
+    numberOfThreads = integerValue;
+  }
+
+  return {
+    status: 'valid',
+    calc,
+    mark,
+    cableType,
+    windingPitchMm,
+    numberOfThreads,
+  };
 }
 
 export function parseElectricalLayoutNumber(value: unknown) {
