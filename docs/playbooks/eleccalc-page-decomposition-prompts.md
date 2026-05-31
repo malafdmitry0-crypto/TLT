@@ -139,6 +139,7 @@ Potential target structure:
 | Cable catalog view hook | Done | 2026-05-31: cable rows by visible type and commercial/technical catalog statuses moved to `useElecCalcCableCatalogView.ts`; focused hook unit + `ElecCalcPage` integration |
 | Table navigation hook | Done | 2026-05-31: Ant pagination config, Glide infinite-loading state and page/load-more handlers moved to `useElecCalcTableNavigation.ts`; focused hook unit + `ElecCalcPage` integration |
 | Filter options hook | Done | 2026-05-31: backend field capability map, main table enum options and candidate enum options moved to `useElecCalcFilterOptions.ts`; focused hook unit + `ElecCalcPage` integration |
+| Table dimensions hook | Done | 2026-05-31: main electrical table scrollX calculation and stable scrollY constant moved to `useElecCalcTableDimensions.ts`; focused hook unit + `ElecCalcPage` integration |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |

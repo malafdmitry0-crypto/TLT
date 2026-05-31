@@ -263,6 +263,7 @@ import { useElecCalcPaginationState } from '@/pages/electrical/useElecCalcPagina
 import { useElecCalcRecalculationParams } from '@/pages/electrical/useElecCalcRecalculationParams';
 import { useElecCalcRowSelectionState } from '@/pages/electrical/useElecCalcRowSelectionState';
 import { useElecCalcTableProjection } from '@/pages/electrical/useElecCalcTableProjection';
+import { useElecCalcTableDimensions } from '@/pages/electrical/useElecCalcTableDimensions';
 import { useElecCalcTableNavigation } from '@/pages/electrical/useElecCalcTableNavigation';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
 import type {
@@ -2205,18 +2206,12 @@ export default function ElecCalcPage() {
     visibleElectricalColumnMetas,
   ]);
 
-  const electricalTableScrollX = useMemo(
-    () => Math.max(
-      1200,
-      visibleElectricalColumnMetas.reduce(
-        (sum, column) => sum + Math.max(column.width, column.minWidthPx),
-        36,
-      ),
-    ),
-    [visibleElectricalColumnMetas],
-  );
-
-  const electricalTableScrollY = 'max(320px, calc(100vh - 230px))';
+  const {
+    electricalTableScrollX,
+    electricalTableScrollY,
+  } = useElecCalcTableDimensions({
+    visibleElectricalColumnMetas,
+  });
 
   const electricalRowClassName = useCallback((obj: ProjectObject) => {
     const calc = stats.calcByObjectId[obj.id];
