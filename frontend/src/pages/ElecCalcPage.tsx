@@ -230,8 +230,11 @@ import {
   buildElectricalQueryRequest,
 } from '@/pages/electrical/elecCalcQueryModel';
 import {
+  buildCandidateFolderCounts,
   candidateCustomFolderId,
   candidateCustomFolderKey,
+  filterCandidatesByActiveFolder,
+  findActiveCustomCandidateFolder,
   type CandidateFolderKey,
 } from '@/pages/electrical/elecCalcCandidateFolderModel';
 import {
@@ -1912,34 +1915,21 @@ export default function ElecCalcPage() {
   }, [markedCableSizingCandidateSet, visibleCandidateColumnMetas]);
   const activeCustomCandidateFolderId = candidateCustomFolderId(activeCandidateFolderKey);
   const activeCustomCandidateFolder = useMemo(
-    () => activeCustomCandidateFolderId
-      ? cableSizingCandidateFolders.find((folder) => folder.id === activeCustomCandidateFolderId) ?? null
-      : null,
-    [activeCustomCandidateFolderId, cableSizingCandidateFolders],
+    () => findActiveCustomCandidateFolder(activeCandidateFolderKey, cableSizingCandidateFolders),
+    [activeCandidateFolderKey, cableSizingCandidateFolders],
   );
-  const cableSizingCandidatesByActiveFolder = useMemo(() => {
-    if (activeCandidateFolderKey === 'favorite') {
-      return cableSizingCandidates.filter((candidate) => candidate.is_pinned);
-    }
-    if (activeCustomCandidateFolder) {
-      const ids = new Set(activeCustomCandidateFolder.candidate_ids);
-      return cableSizingCandidates.filter((candidate) => ids.has(candidate.id));
-    }
-    return cableSizingCandidates;
-  }, [activeCandidateFolderKey, activeCustomCandidateFolder, cableSizingCandidates]);
-  const candidateFolderCounts = useMemo(() => {
-    const allIds = new Set(cableSizingCandidates.map((candidate) => candidate.id));
-    return {
-      all: cableSizingCandidates.length,
-      favorite: cableSizingCandidates.filter((candidate) => candidate.is_pinned).length,
-      custom: new Map(
-        cableSizingCandidateFolders.map((folder) => [
-          folder.id,
-          folder.candidate_ids.filter((candidateId) => allIds.has(candidateId)).length,
-        ]),
-      ),
-    };
-  }, [cableSizingCandidateFolders, cableSizingCandidates]);
+  const cableSizingCandidatesByActiveFolder = useMemo(
+    () => filterCandidatesByActiveFolder(
+      cableSizingCandidates,
+      activeCandidateFolderKey,
+      activeCustomCandidateFolder,
+    ),
+    [activeCandidateFolderKey, activeCustomCandidateFolder, cableSizingCandidates],
+  );
+  const candidateFolderCounts = useMemo(
+    () => buildCandidateFolderCounts(cableSizingCandidates, cableSizingCandidateFolders),
+    [cableSizingCandidateFolders, cableSizingCandidates],
+  );
   useEffect(() => {
     if (activeCustomCandidateFolderId && !activeCustomCandidateFolder) {
       setActiveCandidateFolderKey('all');
