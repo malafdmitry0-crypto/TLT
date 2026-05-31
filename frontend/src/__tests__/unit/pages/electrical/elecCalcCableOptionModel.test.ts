@@ -8,6 +8,7 @@ import {
   externalCableOptionLabelSource,
   normalizeCableMarkOptionSource,
   normalizeCableSource,
+  shouldShowProjectCableOption,
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { CableCatalogRow } from '@/utils/cableCatalogSourceLabels';
@@ -75,6 +76,23 @@ describe('elecCalcCableOptionModel', () => {
     expect(catalogSourceFromSnapshot(calc({ cable_snapshot: [] as unknown as Record<string, unknown> })))
       .toBeNull();
     expect(catalogSourceFromSnapshot(undefined)).toBeNull();
+  });
+
+  it('shows project cable option only for missing or changed technical snapshots', () => {
+    expect(shouldShowProjectCableOption(calc({
+      cable_snapshot: { model: 'ТЛТ-25' },
+      cable_snapshot_status: { technical_status: 'missing' },
+    }))).toBe(true);
+    expect(shouldShowProjectCableOption(calc({
+      cable_snapshot: { model: 'ТЛТ-25' },
+      cable_snapshot_status: { technical_status: 'changed' },
+    }))).toBe(true);
+    expect(shouldShowProjectCableOption(calc({
+      cable_snapshot: { model: 'ТЛТ-25' },
+      cable_snapshot_status: { technical_status: 'matched' },
+    }))).toBe(false);
+    expect(shouldShowProjectCableOption(calc({ cable_snapshot: null }))).toBe(false);
+    expect(shouldShowProjectCableOption(undefined)).toBe(false);
   });
 
   it('delegates external label decision for all-source catalog rows', () => {

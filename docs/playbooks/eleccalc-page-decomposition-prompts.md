@@ -98,6 +98,8 @@ Potential target structure:
 | Cable catalog status helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCableCatalogModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 87 pass |
 | Table filter kind helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcTableFilterModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 87 pass |
 | Cable type constants/helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCableTypeModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 89 pass |
+| CO variant, cursor and API guard helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcVariantModel.ts`, `elecCalcCursorModel.ts`, `elecCalcApiResponseGuards.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 96 pass |
+| Candidate folder, project cable option and filter input helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCandidateFolderModel.ts`, `shouldShowProjectCableOption`, `toInputNumberValue`; focused unit + previous pure units + `ElecCalcPage` integration, 100 pass |
 | Main table JSX renderers characterization | Backlog | cable mark active actions, status tags, layout cells; no extraction without UI proof if JSX/CSS changes |
 | Candidate table render/copy characterization | Backlog | apply/actions, TT duplicate marks, comparison diff |
 | Main table state hook | Backlog | page/filter/sort/cursor state, hidden-column cleanup |
@@ -204,6 +206,7 @@ Pure helpers already extracted:
 | Cable mark/source option helpers | `frontend/src/pages/electrical/elecCalcCableOptionModel.ts` | Done |
 | Cable catalog status helpers | `frontend/src/pages/electrical/elecCalcCableCatalogModel.ts` | Done |
 | Table filter kind helpers | `frontend/src/pages/electrical/elecCalcTableFilterModel.ts` | Done |
+| Candidate folder key helpers | `frontend/src/pages/electrical/elecCalcCandidateFolderModel.ts` | Done |
 
 Safe next pure candidates, but only with focused unit tests:
 
@@ -214,7 +217,6 @@ Safe next pure candidates, but only with focused unit tests:
 | Layout numeric helpers | `parseElectricalLayoutNumber`, `maxThreadsForCableType`, `pipeOuterDiameterMm`, `maxWindingCoefficientForDiameterMm`, `windingCoefficientForPitch` | Pure numeric/input helpers; no API calls. Need boundary tests because they constrain editable layout cells. | `frontend/src/pages/electrical/elecCalcLayoutModel.ts` |
 | Cable mark/source option helpers | `normalizeCableSource`, `normalizeCableMarkOptionSource`, `cableMarkOptionValue`, `catalogSourceFromSnapshot`, `externalCableOptionLabelSource` | Pure option/source mapping. Safe only with tests for project/builtin/commercial/extended/all encoding and snapshot fallback. | `frontend/src/pages/electrical/elecCalcCableOptionModel.ts` |
 | Cable catalog status helpers | `hasCommercialData`, `commercialStatus`, `hasValue`, `hasTechnicalData`, `technicalStatus`, `cableSnapshotRow` | Pure catalog row analysis. Needs tests for TLT/TT/resistive completeness and commercial status labels. | `frontend/src/pages/electrical/elecCalcCableCatalogModel.ts` |
-| Candidate folder keys | `candidateCustomFolderKey`, `candidateCustomFolderId` | Pure string helpers, but better move together with candidate folders model to avoid tiny low-value module. | Future `useElecCalcCandidateFolders.ts` |
 | Column filter kind helpers | `filterKindForElectricalColumn`, `filterKindForCandidateColumn`, `CANDIDATE_*_FILTER_KEYS` | Pure, but tightly tied to table column capabilities and candidate settings. Extract only with tests for capability priority and fallback keys. | `frontend/src/pages/electrical/elecCalcTableFilterModel.ts` |
 
 Coupled helpers/components - do not move as pure helpers:

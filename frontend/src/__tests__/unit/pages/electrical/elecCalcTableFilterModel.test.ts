@@ -6,6 +6,7 @@ import {
   CANDIDATE_NUMERIC_FILTER_KEYS,
   filterKindForCandidateColumn,
   filterKindForElectricalColumn,
+  toInputNumberValue,
 } from '@/pages/electrical/elecCalcTableFilterModel';
 import type { ObjectQueryFieldCapability, ObjectQueryFilterOp } from '@/types/project';
 
@@ -66,5 +67,13 @@ describe('elecCalcTableFilterModel', () => {
     expect(filterKindForCandidateColumn('mode')).toBe('enum');
     expect(filterKindForCandidateColumn('stock_status')).toBe('enum');
     expect(filterKindForCandidateColumn('cable_mark')).toBe('text');
+  });
+
+  it('keeps InputNumber value coercion stable for range filters', () => {
+    expect(toInputNumberValue(10)).toBe(10);
+    expect(toInputNumberValue('12.5')).toBe(12.5);
+    expect(toInputNumberValue(null)).toBe(0);
+    expect(toInputNumberValue(undefined)).toBeNull();
+    expect(toInputNumberValue('bad')).toBeNull();
   });
 });

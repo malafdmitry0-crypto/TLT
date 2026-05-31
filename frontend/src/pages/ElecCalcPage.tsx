@@ -76,7 +76,6 @@ import {
   type CopyElectricalVariantResponse,
   type SelectionPolicy,
 } from '@/api/calculations';
-import type { ApiError } from '@/api/client';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getCablesTt, getResistiveCables } from '@/api/references';
@@ -113,7 +112,6 @@ import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalCol
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject, ProjectObjectsPageCursor } from '@/types/project';
 import type {
-  BatchElectricalResponse,
   ElectricalCandidate,
   ElectricalCandidateFolder,
   ElectricalCalcSummary,
@@ -195,6 +193,7 @@ import {
   externalCableOptionLabelSource,
   normalizeCableMarkOptionSource,
   normalizeCableSource,
+  shouldShowProjectCableOption,
   type CableMarkOptionSource,
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import {
@@ -210,6 +209,10 @@ import {
   MVP_CABLE_TYPES,
 } from '@/pages/electrical/elecCalcCableTypeModel';
 import {
+  isBatchElectricalResponse,
+  isTargetVariantNotEmptyError,
+} from '@/pages/electrical/elecCalcApiResponseGuards';
+import {
   candidateCommercialValue,
   candidateCompareDisplayValue,
   candidateCompareValue,
@@ -223,6 +226,18 @@ import {
 import {
   buildElectricalQueryRequest,
 } from '@/pages/electrical/elecCalcQueryModel';
+import {
+  candidateCustomFolderId,
+  candidateCustomFolderKey,
+  type CandidateFolderKey,
+} from '@/pages/electrical/elecCalcCandidateFolderModel';
+import {
+  projectObjectsPageCursorsEqual,
+} from '@/pages/electrical/elecCalcCursorModel';
+import {
+  calculationVariantLabel,
+  normalizeCalculationVariantList,
+} from '@/pages/electrical/elecCalcVariantModel';
 import {
   ELECTRICAL_LAYOUT_EDITABLE_COLUMNS,
   maxThreadsForCableType,
@@ -263,6 +278,7 @@ import {
 import {
   filterKindForCandidateColumn,
   filterKindForElectricalColumn,
+  toInputNumberValue,
   type ElectricalFilterKind,
 } from '@/pages/electrical/elecCalcTableFilterModel';
 import type {
@@ -288,18 +304,6 @@ const { Text } = Typography;
 const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
 const ElectricalCandidateGlideGrid = lazy(() => import('@/components/electrical/ElectricalCandidateGlideGrid'));
 
-function isBatchElectricalResponse(result: unknown): result is BatchElectricalResponse {
-  return typeof result === 'object' && result !== null && 'calculated' in result;
-}
-
-function isApiError(error: unknown): error is ApiError {
-  return error instanceof Error;
-}
-
-function isTargetVariantNotEmptyError(error: unknown): error is ApiError {
-  return isApiError(error) && error.status === 409 && error.code === 'target_not_empty';
-}
-
 const SHOW_COMMERCIAL_CABLE_BASE_UI = false;
 const SELECTION_POLICY_LABEL: Record<SelectionPolicy, string> = {
   technical_minimum: 'Технический',
@@ -315,11 +319,7 @@ const SELECTION_POLICY_OPTIONS = (Object.keys(SELECTION_POLICY_LABEL) as Selecti
     label: SELECTION_POLICY_LABEL[value],
   }),
 );
-type CandidateFolderKey = 'all' | 'favorite' | `custom:${string}`;
 type CandidateFolderModalMode = 'create' | 'rename';
-const candidateCustomFolderKey = (folderId: string): CandidateFolderKey => `custom:${folderId}`;
-const candidateCustomFolderId = (key: CandidateFolderKey): string | null =>
-  key.startsWith('custom:') ? key.slice('custom:'.length) : null;
 type CableMarkSelectOption = {
   value: string;
   label: ReactNode;
@@ -364,20 +364,6 @@ type ElectricalTableSettingsPreferenceMutation = {
   columnSettings: ElectricalTableColumnSettings;
   viewSettings: ElectricalTableViewSettings;
 };
-
-function calculationVariantLabel(variants: readonly number[]) {
-  return variants.map((targetVariant) => `СО${targetVariant}`).join(', ');
-}
-
-function normalizeCalculationVariantList(values: readonly unknown[]): CalculationVariant[] {
-  const selected = new Set(
-    values
-      .map(Number)
-      .filter((value): value is CalculationVariant =>
-        (CALCULATION_VARIANTS as readonly number[]).includes(value)),
-  );
-  return CALCULATION_VARIANTS.filter((targetVariant) => selected.has(targetVariant));
-}
 
 function renderCandidateElectricalField(
   key: ElectricalColumnKey,
@@ -486,34 +472,11 @@ function renderCandidateElectricalField(
   }
 }
 
-function shouldShowProjectCableOption(calc: ElectricalCalcSummary | undefined) {
-  if (!calc?.cable_snapshot) return false;
-  const technicalStatus = calc.cable_snapshot_status?.technical_status;
-  return technicalStatus === 'missing' || technicalStatus === 'changed';
-}
-
 type ElectricalColumnRenderSpec = {
   align?: 'left' | 'right' | 'center';
   ellipsis?: boolean;
   render: (_: unknown, obj: ProjectObject, idx: number) => ReactNode;
 };
-
-function toInputNumberValue(value: unknown) {
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? numericValue : null;
-}
-
-function projectObjectsPageCursorsEqual(
-  left?: ProjectObjectsPageCursor | null,
-  right?: ProjectObjectsPageCursor | null,
-) {
-  if (left == null || right == null) return left == null && right == null;
-  return left.id === right.id
-    && left.sort_order === right.sort_order
-    && left.key === right.key
-    && left.value === right.value
-    && left.value_is_null === right.value_is_null;
-}
 
 function ColumnFilterDropdown({
   title,

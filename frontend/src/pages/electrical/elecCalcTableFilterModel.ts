@@ -80,3 +80,8 @@ export function filterKindForCandidateColumn(key: ElectricalCandidateColumnKey):
   if (CANDIDATE_ENUM_FILTER_KEYS.has(key)) return 'enum';
   return 'text';
 }
+
+export function toInputNumberValue(value: unknown) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}

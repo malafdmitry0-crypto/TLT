@@ -35,6 +35,12 @@ export function catalogSourceFromSnapshot(calc: ElectricalCalcSummary | undefine
     ?? normalizeCableSource(snapshot.requested_catalog_source);
 }
 
+export function shouldShowProjectCableOption(calc: ElectricalCalcSummary | undefined) {
+  if (!calc?.cable_snapshot) return false;
+  const technicalStatus = calc.cable_snapshot_status?.technical_status;
+  return technicalStatus === 'missing' || technicalStatus === 'changed';
+}
+
 export function externalCableOptionLabelSource<TRow extends CableCatalogRow>(
   row: TRow,
   rows: TRow[],
