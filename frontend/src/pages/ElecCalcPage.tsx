@@ -159,7 +159,6 @@ import {
   isTargetVariantNotEmptyError,
 } from '@/pages/electrical/elecCalcApiResponseGuards';
 import {
-  candidateCompareDisplayValue,
   candidateOrderCableLengthValue,
 } from '@/pages/electrical/elecCalcCandidateCompareModel';
 import {
@@ -245,6 +244,7 @@ import { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumn
 import { useElecCalcDataLifecycleEffects } from '@/pages/electrical/useElecCalcDataLifecycleEffects';
 import { useElecCalcElectricalColumnCopyValue } from '@/pages/electrical/useElecCalcElectricalColumnCopyValue';
 import { useElecCalcFilterOptions } from '@/pages/electrical/useElecCalcFilterOptions';
+import { useElecCalcCandidateGlideCellState } from '@/pages/electrical/useElecCalcCandidateGlideCellState';
 import { useElecCalcGlideColumnModel } from '@/pages/electrical/useElecCalcGlideColumnModel';
 import { useElecCalcGlideCellState } from '@/pages/electrical/useElecCalcGlideCellState';
 import { useElecCalcPageScopeEffects } from '@/pages/electrical/useElecCalcPageScopeEffects';
@@ -257,9 +257,6 @@ import { useElecCalcTableProjection } from '@/pages/electrical/useElecCalcTableP
 import { useElecCalcTableDimensions } from '@/pages/electrical/useElecCalcTableDimensions';
 import { useElecCalcTableNavigation } from '@/pages/electrical/useElecCalcTableNavigation';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
-import type {
-  HeatCalcGlideGridCellState,
-} from '@/utils/heatCalcGlideGrid';
 import {
   isColumnFilterActive,
 } from '@/utils/heatCalcTableFindability';
@@ -2227,18 +2224,12 @@ export default function ElecCalcPage() {
       ? CABLE_TYPE_LABEL[cableTypes.selectedCableType]
       : 'тип по объектам';
   const cableTypeControlLabel = 'Тип для пересчёта:';
-  const getElectricalCandidateGlideCellState = useCallback((
+  const getElectricalCandidateGlideCellActions = useCallback((
     candidate: ElectricalCandidate,
     columnKey: string,
-  ): HeatCalcGlideGridCellState => {
-    const marked = markedCableSizingCandidateSet.has(candidate.id);
-    const isDiff = (
-      cableSizingCandidateCompareActive
-      && marked
-      && candidateCompareDiffColumnKeys.has(columnKey)
-    );
-    const actions = columnKey === 'actions'
-      ? [
+  ) => {
+    if (columnKey === 'actions') {
+      return [
         {
           key: 'apply',
           label: candidate.is_applied ? 'Выбран' : 'Выбрать',
@@ -2254,31 +2245,25 @@ export default function ElecCalcPage() {
           label: candidate.status === 'excluded' ? 'Вернуть' : 'Искл.',
           disabled: updateCandidateMut.isPending,
         },
-      ]
-      : undefined;
-    return {
-      displayValue: columnKey === 'marked'
-        ? (marked ? '1' : '0')
-        : columnKey === 'actions'
-          ? ''
-          : candidateCompareDisplayValue(columnKey, candidate),
-      editable: false,
-      align: candidateGlideColumnMetaByKey.get(columnKey)?.align,
-      dirty: isDiff,
-      error: candidate.status === 'error'
-        ? candidate.reason_message ?? 'Ошибка варианта'
-        : undefined,
-      actions,
-    };
+      ];
+    }
+    return undefined;
   }, [
     applyCandidateMut.isPending,
-    cableSizingCandidateCompareActive,
-    candidateCompareDiffColumnKeys,
-    candidateGlideColumnMetaByKey,
-    markedCableSizingCandidateSet,
     toggleCandidateFolderItemMut.isPending,
     updateCandidateMut.isPending,
   ]);
+  const getElectricalCandidateGlideColumnAlign = useCallback(
+    (columnKey: string) => candidateGlideColumnMetaByKey.get(columnKey)?.align,
+    [candidateGlideColumnMetaByKey],
+  );
+  const getElectricalCandidateGlideCellState = useElecCalcCandidateGlideCellState({
+    markedCandidateSet: markedCableSizingCandidateSet,
+    candidateCompareActive: cableSizingCandidateCompareActive,
+    diffColumnKeys: candidateCompareDiffColumnKeys,
+    getColumnAlign: getElectricalCandidateGlideColumnAlign,
+    getCellActions: getElectricalCandidateGlideCellActions,
+  });
   const handleElectricalCandidateGlideCellAction = useCallback((
     candidate: ElectricalCandidate,
     columnKey: string,
