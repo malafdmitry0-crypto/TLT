@@ -152,6 +152,7 @@ Potential target structure:
 | Main Glide actions hook | Done | 2026-06-01: main cable-mark Glide actions and choose/size routing moved to `useElecCalcGlideActions.ts`; page keeps JSX renderers, modals and mutation payloads; focused hook unit + main grid + `ElecCalcPage` integration |
 | Main electrical column renderers hook | Done | 2026-06-01: `electricalColumnRenderers` JSX moved to `useElecCalcElectricalColumnRenderers.tsx`; page keeps column wiring, filters, table engines and mutation payloads; focused renderer unit + `ElecCalcPage` integration |
 | Candidate Ant table columns hook | Done | 2026-06-01: candidate Ant column assembly, marked checkbox and action buttons moved to `useElecCalcCandidateColumns.tsx`; page keeps candidate mutations, folders, filters and table engines; focused hook unit + `ElecCalcPage` integration |
+| Main Ant table columns hook | Done | 2026-06-01: main Ant column assembly, filter dropdown wiring and sorter state moved to `useElecCalcElectricalColumns.tsx`; page keeps renderers, Glide table and mutation flows; focused hook unit + `ElecCalcPage` integration |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |
 | Candidate table state hook | Backlog | remaining marked comparison state |
 | Preferences/settings hook | Backlog | main/candidate columns, view settings, role cache |

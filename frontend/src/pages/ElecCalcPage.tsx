@@ -32,7 +32,6 @@ import {
   CloseCircleOutlined,
   DeleteOutlined,
   EditOutlined,
-  FilterFilled,
   MoreOutlined,
   PlusOutlined,
   TableOutlined,
@@ -40,7 +39,6 @@ import {
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { ColumnsType } from 'antd/es/table';
 
 import {
   applyElectricalCandidate,
@@ -82,9 +80,7 @@ import { getCalcJobRefetchInterval } from '@/utils/calcJobPolling';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import CablePickerCharacteristics from '@/components/electrical/CablePickerCharacteristics';
 import ElectricalCandidateColumnSettingsModal from '@/components/electrical/ElectricalCandidateColumnSettingsModal';
-import ElectricalColumnFilterDropdown from '@/components/electrical/ElectricalColumnFilterDropdown';
 import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalColumnSettingsModal';
-import ResizableColumnTitle from '@/components/heatcalc/ResizableColumnTitle';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject } from '@/types/project';
@@ -193,9 +189,6 @@ import {
   powerText,
   valueText,
 } from '@/pages/electrical/elecCalcResultValueModel';
-import {
-  filterKindForElectricalColumn,
-} from '@/pages/electrical/elecCalcTableFilterModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
 import { useElecCalcCableCatalogView } from '@/pages/electrical/useElecCalcCableCatalogView';
@@ -212,6 +205,7 @@ import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColu
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
 import { useElecCalcDataLifecycleEffects } from '@/pages/electrical/useElecCalcDataLifecycleEffects';
+import { useElecCalcElectricalColumns } from '@/pages/electrical/useElecCalcElectricalColumns';
 import { useElecCalcElectricalColumnCopyValue } from '@/pages/electrical/useElecCalcElectricalColumnCopyValue';
 import { useElecCalcElectricalColumnRenderers } from '@/pages/electrical/useElecCalcElectricalColumnRenderers';
 import { useElecCalcFilterOptions } from '@/pages/electrical/useElecCalcFilterOptions';
@@ -229,9 +223,6 @@ import { useElecCalcTableProjection } from '@/pages/electrical/useElecCalcTableP
 import { useElecCalcTableDimensions } from '@/pages/electrical/useElecCalcTableDimensions';
 import { useElecCalcTableNavigation } from '@/pages/electrical/useElecCalcTableNavigation';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
-import {
-  isColumnFilterActive,
-} from '@/utils/heatCalcTableFindability';
 
 const { Text } = Typography;
 const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
@@ -1498,72 +1489,16 @@ export default function ElecCalcPage() {
     persistCandidateTableColumnSettings,
   });
 
-  const electricalColumns = useMemo<ColumnsType<ProjectObject>>(() =>
-    visibleElectricalColumnMetas.map((column) => {
-      const renderer = electricalColumnRenderers[column.key];
-      const capability = fieldCapabilityByKey.get(column.key);
-      const filterEnabled = column.key !== 'index' && (capability?.filter.enabled ?? false);
-      const sortEnabled = column.key !== 'index' && (capability?.sort.enabled ?? false);
-      const filterKind = filterKindForElectricalColumn(column.key, capability);
-      const activeFilter = tableViewState.filters[column.key];
-      return {
-        key: column.key,
-        title: (
-          <ResizableColumnTitle
-            title={column.title}
-            label={column.label}
-            onResizeStart={(event) => startColumnResize(column, event)}
-          />
-        ),
-        columnKey: column.key,
-        width: Math.max(column.width, column.minWidthPx),
-        align: renderer?.align,
-        ellipsis: column.key === 'selection_reason'
-          ? false
-          : column.ellipsis || renderer?.ellipsis,
-        render: renderer?.render ?? (() => '—'),
-        sorter: sortEnabled,
-        sortOrder: sortEnabled && tableViewState.sort?.columnKey === column.key
-          ? tableViewState.sort.direction === 'asc'
-            ? 'ascend'
-            : 'descend'
-          : null,
-        showSorterTooltip: false,
-        filtered: isColumnFilterActive(activeFilter),
-        filterIcon: filterEnabled ? () => (
-          <span
-            role="button"
-            aria-label={`Фильтр ${column.label}`}
-            className="table-filter-trigger"
-            style={{ pointerEvents: 'auto' }}
-          >
-            <FilterFilled
-              className={isColumnFilterActive(activeFilter) ? 'table-filter-icon active' : 'table-filter-icon'}
-            />
-          </span>
-        ) : undefined,
-        filterDropdown: filterEnabled ? ({ close }) => (
-          <ElectricalColumnFilterDropdown
-            title={column.label}
-            kind={filterKind}
-            filter={activeFilter}
-            enumOptions={enumOptionsByColumn[column.key] ?? []}
-            onApply={(filter) => setColumnFilter(column.key, filter)}
-            onReset={() => resetColumnFilter(column.key)}
-            onClose={close}
-          />
-        ) : undefined,
-      };
-    }), [
-      electricalColumnRenderers,
-      enumOptionsByColumn,
-      fieldCapabilityByKey,
-      resetColumnFilter,
-      setColumnFilter,
-      startColumnResize,
-      tableViewState,
-      visibleElectricalColumnMetas,
-    ]);
+  const electricalColumns = useElecCalcElectricalColumns({
+    visibleElectricalColumnMetas,
+    electricalColumnRenderers,
+    fieldCapabilityByKey,
+    enumOptionsByColumn,
+    tableViewState,
+    onColumnResizeStart: startColumnResize,
+    onSetColumnFilter: setColumnFilter,
+    onResetColumnFilter: resetColumnFilter,
+  });
 
   const getElectricalGlideColumnAlign = useCallback(
     (key: ElectricalColumnKey) => electricalColumnRenderers[key]?.align,
