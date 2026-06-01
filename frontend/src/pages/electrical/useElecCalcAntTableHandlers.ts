@@ -1,7 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import type { TableProps } from 'antd';
 
-import type { ElectricalCandidate } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 import type { HeatCalcTableViewState } from '@/utils/heatCalcTableFindability';
 
@@ -19,7 +18,6 @@ type UseElecCalcAntTableHandlersOptions = {
   setTablePage: (page: number) => void;
   setTablePageSize: (pageSize: number) => void;
   setTableViewState: TableViewStateSetter;
-  setCandidateTableViewState: TableViewStateSetter;
 };
 
 function isAntSorterLike(value: unknown): value is AntSorterLike {
@@ -59,7 +57,6 @@ export function useElecCalcAntTableHandlers({
   setTablePage,
   setTablePageSize,
   setTableViewState,
-  setCandidateTableViewState,
 }: UseElecCalcAntTableHandlersOptions) {
   const handleElectricalTableChange = useCallback<NonNullable<TableProps<ProjectObject>['onChange']>>(
     (pagination, _filters, sorter, extra) => {
@@ -71,15 +68,7 @@ export function useElecCalcAntTableHandlers({
     [setTablePage, setTablePageSize, setTableViewState],
   );
 
-  const handleCandidateTableChange = useCallback<NonNullable<TableProps<ElectricalCandidate>['onChange']>>(
-    (_pagination, _filters, sorter) => {
-      setCandidateTableViewState((current) => applyAntTableSorter(current, sorter));
-    },
-    [setCandidateTableViewState],
-  );
-
   return {
     handleElectricalTableChange,
-    handleCandidateTableChange,
   };
 }

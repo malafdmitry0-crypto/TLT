@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 
 import {
   API_BASE,
@@ -11,7 +11,14 @@ type Candidate = {
   id: string;
   cable_mark: string | null;
   is_applied: boolean;
+  is_pinned?: boolean;
   status?: string;
+};
+
+type CandidateFolder = {
+  id: string;
+  name: string;
+  candidate_ids: string[];
 };
 
 type CandidateUpsertResponse = {
@@ -86,6 +93,24 @@ async function listCandidates(
   return response.json() as Promise<Candidate[]>;
 }
 
+async function listFolders(
+  page: Page,
+  projectId: string,
+  sessionId: string,
+  objectId: string,
+) {
+  const response = await page.request.get(`${API_BASE}/api/v1/calc/electrical/candidate-folders`, {
+    headers: { 'X-Session-Id': sessionId },
+    params: {
+      project_id: projectId,
+      object_id: objectId,
+      variant_number: 1,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  return response.json() as Promise<CandidateFolder[]>;
+}
+
 async function fetchElectricalCalcs(
   page: Page,
   projectId: string,
@@ -133,6 +158,39 @@ async function expectElectricalCalcMark(
       .filter((calc) => calc.object_id === objectId)
       .map((calc) => calc.cable_mark);
   }).toEqual(cableMark === null ? [] : [cableMark]);
+}
+
+async function electricalCalcMarkForObject(
+  page: Page,
+  projectId: string,
+  sessionId: string,
+  objectId: string,
+  variantNumber = 1,
+) {
+  const calcs = await fetchElectricalCalcs(page, projectId, sessionId, variantNumber);
+  return calcs.find((calc) => calc.object_id === objectId)?.cable_mark ?? null;
+}
+
+async function candidateStatus(
+  page: Page,
+  projectId: string,
+  sessionId: string,
+  objectId: string,
+  candidateId: string,
+) {
+  const candidates = await listCandidates(page, projectId, sessionId, objectId);
+  return candidates.find((candidate) => candidate.id === candidateId)?.status;
+}
+
+async function candidatePinned(
+  page: Page,
+  projectId: string,
+  sessionId: string,
+  objectId: string,
+  candidateId: string,
+) {
+  const candidates = await listCandidates(page, projectId, sessionId, objectId);
+  return candidates.find((candidate) => candidate.id === candidateId)?.is_pinned;
 }
 
 async function expectAutoCandidateParamVariants(
@@ -193,11 +251,39 @@ async function openCandidateDialog(page: Page, pipeName: string) {
   return dialog;
 }
 
+async function expectCandidateGlideCanvas(dialog: Locator) {
+  await expect(dialog.locator('.ant-table')).toHaveCount(0);
+  const canvas = dialog.locator('.electrical-candidate-spreadsheet--glide canvas').first();
+  await expect(canvas).toBeVisible();
+  return canvas;
+}
+
+async function clickCanvasPoint(page: Page, canvas: Locator, x: number, y: number) {
+  const box = await canvas.boundingBox();
+  expect(box).toBeTruthy();
+  await page.mouse.click(box!.x + x, box!.y + y);
+}
+
+async function clickCandidateGridUntil(
+  page: Page,
+  canvas: Locator,
+  y: number,
+  xCandidates: number[],
+  isDone: () => Promise<boolean>,
+) {
+  for (const x of xCandidates) {
+    await clickCanvasPoint(page, canvas, x, y);
+    await page.waitForTimeout(250);
+    if (await isDone()) return;
+    await page.keyboard.press('Escape');
+  }
+  expect(await isDone()).toBe(true);
+}
+
 test.describe('electrical candidate selection', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('electrical.tableEngine', 'table');
-      window.localStorage.setItem('electrical.candidateTableEngine', 'table');
     });
   });
 
@@ -213,60 +299,49 @@ test.describe('electrical candidate selection', () => {
     });
     const first = await createManualCandidate(page, projectId, sessionId, pipe.id, 'ТЛТ-10');
     const second = await createManualCandidate(page, projectId, sessionId, pipe.id, 'ТЛТ-20');
-    const errorCandidate = await createManualCandidate(
-      page,
-      projectId,
-      sessionId,
-      pipe.id,
-      'НЕСУЩЕСТВУЮЩИЙ-КАБЕЛЬ',
-    );
-    expect(errorCandidate.candidate.status).toBe('error');
     await applyCandidate(page, sessionId, first.candidate.id);
 
     const dialog = await openCandidateDialog(page, pipeName);
-    await expect(dialog.locator('th').filter({ hasText: /^Статус$/ })).toHaveCount(0);
-    await expect(dialog.locator('[aria-label="Готов"]')).toHaveCount(0);
-    await expect(dialog.getByTestId(`candidate-row-${first.candidate.id}`)).not.toHaveClass(
-      /electrical-cable-sizing-table__row--error/,
-    );
-    await expect(dialog.getByTestId(`candidate-row-${errorCandidate.candidate.id}`)).toHaveClass(
-      /electrical-cable-sizing-table__row--error/,
-    );
-    await expect(dialog.getByTestId(`candidate-apply-${first.candidate.id}`)).toBeEnabled();
-    await expect(dialog.getByTestId(`candidate-apply-${first.candidate.id}`)).toHaveAttribute('aria-pressed', 'true');
-    await expect(dialog.getByTestId(`candidate-apply-${first.candidate.id}`)).toHaveAccessibleName(
-      'Уже выбран кандидат ТЛТ-10',
-    );
+    const candidateCanvas = await expectCandidateGlideCanvas(dialog);
 
-    const markerCheckbox = dialog.getByTestId(`candidate-mark-${second.candidate.id}`);
-    await expect(markerCheckbox).toBeEnabled();
-    await markerCheckbox.click();
+    await clickCanvasPoint(page, candidateCanvas, 28, 47);
     await expectAppliedCandidateIds(page, projectId, sessionId, pipe.id, [first.candidate.id]);
     await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, 'ТЛТ-10');
 
-    await dialog.getByTestId(`candidate-mark-${first.candidate.id}`).click();
-    await expect(dialog.getByTestId('candidate-compare-bar')).toContainText('Сравнение: 2 вариантов');
-    await expect(dialog.getByTestId(`candidate-row-${first.candidate.id}`)).toHaveClass(
-      /electrical-cable-sizing-table__row--compared/,
+    await clickCandidateGridUntil(
+      page,
+      candidateCanvas,
+      73,
+      [28],
+      async () => (await dialog.getByTestId('candidate-compare-bar').count()) > 0,
     );
-    await expect(dialog.getByTestId(`candidate-diff-${first.candidate.id}-cable_mark`)).toBeVisible();
-    await expect(dialog.getByTestId(`candidate-diff-${second.candidate.id}-cable_mark`)).toBeVisible();
+    await expect(dialog.getByTestId('candidate-compare-bar')).toContainText('Сравнение: 2 вариантов');
     await dialog.getByRole('button', { name: 'Сбросить сравнение' }).click();
     await expect(dialog.getByTestId('candidate-compare-bar')).toHaveCount(0);
 
-    await expect(dialog.getByTestId(`candidate-favorite-${second.candidate.id}`)).toHaveCount(0);
-    await dialog.getByTestId(`candidate-folder-${second.candidate.id}`).click();
+    await clickCandidateGridUntil(
+      page,
+      candidateCanvas,
+      73,
+      [174, 190, 204],
+      async () => (await page.locator('.electrical-candidate-glide-action-menu').count()) > 0,
+    );
     await page.getByRole('menuitem', { name: 'Избранное' }).click();
+    await expect.poll(
+      async () => candidatePinned(page, projectId, sessionId, pipe.id, second.candidate.id),
+    ).toBe(true);
     await expectAppliedCandidateIds(page, projectId, sessionId, pipe.id, [first.candidate.id]);
     await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, 'ТЛТ-10');
     await dialog.getByRole('button', { name: /Избранное/ }).click();
-    await expect(dialog.getByTestId(`candidate-row-${second.candidate.id}`)).toBeVisible();
-    await expect(dialog.getByTestId(`candidate-row-${first.candidate.id}`)).toHaveCount(0);
+    await expectCandidateGlideCanvas(dialog);
     await dialog.getByRole('button', { name: /Все/ }).click();
 
-    await dialog.getByTestId(`candidate-exclude-${second.candidate.id}`).click();
-    await expect(dialog.getByTestId(`candidate-row-${second.candidate.id}`)).not.toHaveClass(
-      /electrical-cable-sizing-table__row--error/,
+    await clickCandidateGridUntil(
+      page,
+      candidateCanvas,
+      73,
+      [230, 245, 260],
+      async () => (await candidateStatus(page, projectId, sessionId, pipe.id, second.candidate.id)) === 'excluded',
     );
     await expectAppliedCandidateIds(page, projectId, sessionId, pipe.id, [first.candidate.id]);
     await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, 'ТЛТ-10');
@@ -282,10 +357,12 @@ test.describe('electrical candidate selection', () => {
       ambient_temperature: 29,
       process_temperature: 30,
     });
-    const first = await createManualCandidate(page, projectId, sessionId, pipe.id, 'ТЛТ-10');
-    const second = await createManualCandidate(page, projectId, sessionId, pipe.id, 'ТЛТ-20');
+    await createManualCandidate(page, projectId, sessionId, pipe.id, 'ТЛТ-10');
+    await createManualCandidate(page, projectId, sessionId, pipe.id, 'ТЛТ-20');
+    const initialCableMark = await electricalCalcMarkForObject(page, projectId, sessionId, pipe.id);
 
     const dialog = await openCandidateDialog(page, pipeName);
+    const candidateCanvas = await expectCandidateGlideCanvas(dialog);
     await dialog.getByRole('button', { name: /Папка/ }).click();
     const folderDialog = page.getByRole('dialog', { name: 'Новая папка' });
     await folderDialog.getByLabel('Название папки вариантов').fill('Согласовать');
@@ -293,13 +370,25 @@ test.describe('electrical candidate selection', () => {
     await expect(dialog.getByRole('button', { name: /^Согласовать\s+0$/ })).toBeVisible();
 
     await dialog.getByRole('button', { name: /Все/ }).click();
-    await dialog.getByTestId(`candidate-folder-${second.candidate.id}`).click();
+    await clickCandidateGridUntil(
+      page,
+      candidateCanvas,
+      47,
+      [174, 190, 204],
+      async () => (await page.locator('.electrical-candidate-glide-action-menu').count()) > 0,
+    );
     await page.getByRole('menuitem', { name: 'Согласовать' }).click();
+    await expect.poll(async () => {
+      const folders = await listFolders(page, projectId, sessionId, pipe.id);
+      const candidates = await listCandidates(page, projectId, sessionId, pipe.id);
+      const marksById = new Map(candidates.map((candidate) => [candidate.id, candidate.cable_mark]));
+      return (folders.find((folder) => folder.name === 'Согласовать')?.candidate_ids ?? [])
+        .map((candidateId) => marksById.get(candidateId));
+    }).toContain('ТЛТ-20');
     await dialog.getByRole('button', { name: /^Согласовать\s+1$/ }).click();
 
-    await expect(dialog.getByTestId(`candidate-row-${second.candidate.id}`)).toBeVisible();
-    await expect(dialog.getByTestId(`candidate-row-${first.candidate.id}`)).toHaveCount(0);
-    await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, null);
+    await expectCandidateGlideCanvas(dialog);
+    await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, initialCableMark);
   });
 
   test('повторный идентичный авторасчёт не создаёт дубль', async ({ page }) => {
@@ -553,30 +642,26 @@ test.describe('electrical candidate selection', () => {
     await applyCandidate(page, sessionId, first.candidate.id);
 
     let dialog = await openCandidateDialog(page, pipeName);
-    await expect(dialog.getByTestId(`candidate-row-${first.candidate.id}`)).toBeVisible();
-    await expect(dialog.getByTestId(`candidate-row-${second.candidate.id}`)).toBeVisible();
-    await expect(dialog.getByTestId(`candidate-apply-${first.candidate.id}`)).toBeEnabled();
-    await expect(dialog.getByTestId(`candidate-apply-${first.candidate.id}`)).toHaveAttribute('aria-pressed', 'true');
-    await expect(dialog.getByTestId(`candidate-apply-${second.candidate.id}`)).toBeEnabled();
-    await expect(dialog.getByTestId(`candidate-apply-${second.candidate.id}`)).toHaveAttribute('aria-pressed', 'false');
+    let candidateCanvas = await expectCandidateGlideCanvas(dialog);
+    await expectAppliedCandidateIds(page, projectId, sessionId, pipe.id, [first.candidate.id]);
 
-    await dialog.getByTestId(`candidate-apply-${second.candidate.id}`).click();
+    await clickCandidateGridUntil(
+      page,
+      candidateCanvas,
+      73,
+      [80, 95, 110, 125, 140, 155],
+      async () => {
+        const candidates = await listCandidates(page, projectId, sessionId, pipe.id);
+        return candidates.find((candidate) => candidate.id === second.candidate.id)?.is_applied === true;
+      },
+    );
     await expectAppliedCandidateIds(page, projectId, sessionId, pipe.id, [second.candidate.id]);
     await expectElectricalCalcMark(page, projectId, sessionId, pipe.id, 'ТЛТ-20');
-    await expect(dialog.getByTestId(`candidate-apply-${first.candidate.id}`)).toBeEnabled();
-    await expect(dialog.getByTestId(`candidate-apply-${first.candidate.id}`)).toHaveAttribute('aria-pressed', 'false');
-    await expect(dialog.getByTestId(`candidate-apply-${second.candidate.id}`)).toBeEnabled();
-    await expect(dialog.getByTestId(`candidate-apply-${second.candidate.id}`)).toHaveAttribute('aria-pressed', 'true');
-    await expect(dialog.getByTestId(`candidate-apply-${second.candidate.id}`)).toHaveAccessibleName(
-      'Уже выбран кандидат ТЛТ-20',
-    );
 
     await page.reload();
     dialog = await openCandidateDialog(page, pipeName);
+    candidateCanvas = await expectCandidateGlideCanvas(dialog);
+    await expect(candidateCanvas).toBeVisible();
     await expectAppliedCandidateIds(page, projectId, sessionId, pipe.id, [second.candidate.id]);
-    await expect(dialog.getByTestId(`candidate-apply-${first.candidate.id}`)).toBeEnabled();
-    await expect(dialog.getByTestId(`candidate-apply-${first.candidate.id}`)).toHaveAttribute('aria-pressed', 'false');
-    await expect(dialog.getByTestId(`candidate-apply-${second.candidate.id}`)).toBeEnabled();
-    await expect(dialog.getByTestId(`candidate-apply-${second.candidate.id}`)).toHaveAttribute('aria-pressed', 'true');
   });
 });

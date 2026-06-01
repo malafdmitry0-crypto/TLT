@@ -7,7 +7,6 @@ import {
 import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
 import type { ElectricalNavigationState } from '@/pages/electrical/elecCalcPageModel';
 import {
-  resolveElectricalCandidateTableEngine,
   resolveElectricalTableEngine,
 } from '@/utils/electricalTableEngine';
 
@@ -37,15 +36,7 @@ export function useElecCalcBootViewState({
     () => resolveElectricalTableEngine({ search: location.search }),
     [location.search],
   );
-  const electricalCandidateTableEngine = useMemo(
-    () => resolveElectricalCandidateTableEngine({
-      search: location.search,
-      fallback: electricalTableEngine,
-    }),
-    [electricalTableEngine, location.search],
-  );
   const electricalGlideEnabled = electricalTableEngine === 'glide';
-  const electricalCandidateGlideEnabled = electricalCandidateTableEngine === 'glide';
   const navigationActiveJobId =
     (location.state as ElectricalNavigationState | null | undefined)?.activeJobId ?? null;
 
@@ -53,9 +44,7 @@ export function useElecCalcBootViewState({
     availableCableTypeKeys,
     availableCableTypes,
     electricalTableEngine,
-    electricalCandidateTableEngine,
     electricalGlideEnabled,
-    electricalCandidateGlideEnabled,
     navigationActiveJobId,
   };
 }

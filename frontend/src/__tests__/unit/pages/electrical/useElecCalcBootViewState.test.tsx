@@ -51,28 +51,14 @@ describe('useElecCalcBootViewState', () => {
     expect(result.current.availableCableTypes.has('single_core')).toBe(true);
   });
 
-  it('resolves table engines, glide flags and navigation active job from route state', () => {
+  it('resolves main table engine, glide flag and navigation active job from route state', () => {
     const { result } = renderBootViewState({
       search: '?electricalTableEngine=table',
       state: { activeJobId: 'job-123' },
     });
 
     expect(result.current.electricalTableEngine).toBe('table');
-    expect(result.current.electricalCandidateTableEngine).toBe('table');
     expect(result.current.electricalGlideEnabled).toBe(false);
-    expect(result.current.electricalCandidateGlideEnabled).toBe(false);
     expect(result.current.navigationActiveJobId).toBe('job-123');
-  });
-
-  it('lets the candidate table engine override the main table engine', () => {
-    const { result } = renderBootViewState({
-      search: '?electricalTableEngine=table&electricalCandidateTableEngine=glide',
-    });
-
-    expect(result.current.electricalTableEngine).toBe('table');
-    expect(result.current.electricalCandidateTableEngine).toBe('glide');
-    expect(result.current.electricalGlideEnabled).toBe(false);
-    expect(result.current.electricalCandidateGlideEnabled).toBe(true);
-    expect(result.current.navigationActiveJobId).toBeNull();
   });
 });

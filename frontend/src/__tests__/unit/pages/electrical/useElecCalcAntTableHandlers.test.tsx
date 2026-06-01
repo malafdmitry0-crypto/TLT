@@ -55,12 +55,10 @@ describe('useElecCalcAntTableHandlers', () => {
     const setTablePage = vi.fn();
     const setTablePageSize = vi.fn();
     const setTableViewState = vi.fn();
-    const setCandidateTableViewState = vi.fn();
     const { result } = renderHook(() => useElecCalcAntTableHandlers({
       setTablePage,
       setTablePageSize,
       setTableViewState,
-      setCandidateTableViewState,
     }));
 
     act(() => {
@@ -75,7 +73,6 @@ describe('useElecCalcAntTableHandlers', () => {
     expect(setTablePage).toHaveBeenCalledWith(4);
     expect(setTablePageSize).toHaveBeenCalledWith(100);
     expect(setTableViewState).toHaveBeenCalledTimes(1);
-    expect(setCandidateTableViewState).not.toHaveBeenCalled();
 
     const update = setTableViewState.mock.calls[0][0] as (
       state: HeatCalcTableViewState,
@@ -92,7 +89,6 @@ describe('useElecCalcAntTableHandlers', () => {
       setTablePage,
       setTablePageSize: vi.fn(),
       setTableViewState: vi.fn(),
-      setCandidateTableViewState: vi.fn(),
     }));
 
     act(() => {
@@ -105,40 +101,5 @@ describe('useElecCalcAntTableHandlers', () => {
     });
 
     expect(setTablePage).toHaveBeenCalledWith(1);
-  });
-
-  it('adapts candidate Ant sorter without touching main pagination', () => {
-    const setTablePage = vi.fn();
-    const setTablePageSize = vi.fn();
-    const setTableViewState = vi.fn();
-    const setCandidateTableViewState = vi.fn();
-    const { result } = renderHook(() => useElecCalcAntTableHandlers({
-      setTablePage,
-      setTablePageSize,
-      setTableViewState,
-      setCandidateTableViewState,
-    }));
-
-    act(() => {
-      result.current.handleCandidateTableChange(
-        {},
-        {},
-        { order: 'ascend', column: { key: 'cable_mark' } },
-        { action: 'sort', currentDataSource: [] },
-      );
-    });
-
-    expect(setTablePage).not.toHaveBeenCalled();
-    expect(setTablePageSize).not.toHaveBeenCalled();
-    expect(setTableViewState).not.toHaveBeenCalled();
-    expect(setCandidateTableViewState).toHaveBeenCalledTimes(1);
-
-    const update = setCandidateTableViewState.mock.calls[0][0] as (
-      state: HeatCalcTableViewState,
-    ) => HeatCalcTableViewState;
-    expect(update({ filters: {} })).toEqual({
-      filters: {},
-      sort: { columnKey: 'cable_mark', direction: 'asc' },
-    });
   });
 });

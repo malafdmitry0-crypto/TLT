@@ -186,7 +186,6 @@ test('Candidate Glide is default and keeps apply/folder/exclude mutations after 
   await loginAsGuest(page);
   await page.evaluate(() => {
     window.localStorage.removeItem('electrical.tableEngine');
-    window.localStorage.removeItem('electrical.candidateTableEngine');
   });
   await clearProjectObjects(page);
 
@@ -226,7 +225,7 @@ test('Candidate Glide is default and keeps apply/folder/exclude mutations after 
     page,
     reloadedCandidateCanvas,
     47,
-    [120, 145, 170, 195, 220, 245],
+    [174, 190, 204],
     async () => (await page.locator('.electrical-candidate-glide-action-menu').count()) > 0,
   );
   await page.getByRole('menuitem', { name: 'Согласовать' }).click();
@@ -240,7 +239,7 @@ test('Candidate Glide is default and keeps apply/folder/exclude mutations after 
     page,
     reloadedCandidateCanvas,
     73,
-    [210, 220, 230, 240, 250, 260],
+    [230, 245, 260],
     async () => (await candidateStatus(page, projectId, sessionId, pipe.id, first.id)) === 'excluded',
   );
   await expect.poll(

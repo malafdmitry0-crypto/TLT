@@ -271,46 +271,6 @@ export function useElecCalcColumnPersistence({
     window.addEventListener('pointerup', handlePointerUp);
   }, [applyColumnWidth, setTableColumnSettings]);
 
-  const startCandidateColumnResize = useCallback((
-    meta: ResizeMeta<ElectricalCandidateColumnKey>,
-    event: ReactPointerEvent<HTMLButtonElement>,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const startX = event.clientX;
-    const startWidth = meta.width;
-    let latestWidthPct = meta.widthPct;
-    let frameId: number | null = null;
-
-    function flushDraftWidth() {
-      frameId = null;
-      setCandidateTableColumnSettings((settings) =>
-        setElectricalCandidateTableColumnWidthPct(settings, meta.key, latestWidthPct),
-      );
-    }
-
-    function handlePointerMove(pointerEvent: PointerEvent) {
-      const nextWidthPx = Math.max(30, startWidth + pointerEvent.clientX - startX);
-      latestWidthPct = electricalTableColumnWidthPxToPct(nextWidthPx);
-      if (frameId == null) {
-        frameId = window.requestAnimationFrame(flushDraftWidth);
-      }
-    }
-
-    function handlePointerUp() {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      if (frameId != null) {
-        window.cancelAnimationFrame(frameId);
-        frameId = null;
-      }
-      applyCandidateColumnWidth(meta.key, latestWidthPct);
-    }
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-  }, [applyCandidateColumnWidth, setCandidateTableColumnSettings]);
-
   return {
     persistTableColumnSettings,
     persistCandidateTableColumnSettings,
@@ -322,6 +282,5 @@ export function useElecCalcColumnPersistence({
     applyElectricalCandidateGlideColumnDraftWidth,
     commitElectricalCandidateGlideColumnWidth,
     startColumnResize,
-    startCandidateColumnResize,
   };
 }

@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
   Suspense,
-  type HTMLAttributes,
   type ReactNode,
 } from 'react';
 import {
@@ -57,13 +56,13 @@ import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBa
 import ElecCalcCableMarkModal from '@/pages/electrical/ElecCalcCableMarkModal';
 import ElecCalcCandidateCompareBar from '@/pages/electrical/ElecCalcCandidateCompareBar';
 import ElecCalcCandidateFolderTabs from '@/pages/electrical/ElecCalcCandidateFolderTabs';
+import ElecCalcCandidateTablePanel from '@/pages/electrical/ElecCalcCandidateTablePanel';
 import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
 import ElecCalcRecalculationSettings from '@/pages/electrical/ElecCalcRecalculationSettings';
 import ElecCalcSelectedCableSummary from '@/pages/electrical/ElecCalcSelectedCableSummary';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject } from '@/types/project';
 import type {
-  ElectricalCandidate,
   ElectricalCandidateFolder,
   ElectricalCalcSummary,
   ElectricalQueryResponse,
@@ -115,7 +114,6 @@ import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCa
 import { useElecCalcCableSizingModalState } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
 import { useElecCalcBatchJobOrchestration } from '@/pages/electrical/useElecCalcBatchJobOrchestration';
-import { useElecCalcCandidateColumns } from '@/pages/electrical/useElecCalcCandidateColumns';
 import { useElecCalcCandidateCompareState } from '@/pages/electrical/useElecCalcCandidateCompareState';
 import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCalcCandidateFolderUiState';
 import { useElecCalcCandidateFolderViewModel } from '@/pages/electrical/useElecCalcCandidateFolderViewModel';
@@ -148,7 +146,6 @@ import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableVi
 
 const { Text } = Typography;
 const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
-const ElectricalCandidateGlideGrid = lazy(() => import('@/components/electrical/ElectricalCandidateGlideGrid'));
 
 export default function ElecCalcPage() {
   const project = useProjectStore((s) => s.currentProject);
@@ -162,7 +159,6 @@ export default function ElecCalcPage() {
     availableCableTypeKeys,
     availableCableTypes,
     electricalGlideEnabled,
-    electricalCandidateGlideEnabled,
     navigationActiveJobId,
   } = useElecCalcBootViewState({
     commercialFeaturesAvailable,
@@ -241,7 +237,6 @@ export default function ElecCalcPage() {
     tableViewState,
     candidateTableViewState,
     setTableViewState,
-    setCandidateTableViewState,
     currentTableViewActive,
     candidateTableViewActive,
     setColumnFilter,
@@ -521,17 +516,14 @@ export default function ElecCalcPage() {
     resetKey: activeCandidateFolderKey,
   });
   const {
-    markedCandidateIds: markedCableSizingCandidateIds,
     markedCandidateSet: markedCableSizingCandidateSet,
     candidateColumnValueAccessors,
     resetMarkedCandidates: resetMarkedCableSizingCandidates,
-    toggleCandidateMarked: toggleCableSizingCandidateMark,
     toggleCandidateMarkedByRow: toggleElectricalCandidateGlideMarked,
     displayedCandidates: displayedCableSizingCandidates,
     displayedMarkedCandidates: displayedMarkedCableSizingCandidates,
     compareActive: cableSizingCandidateCompareActive,
     diffColumnKeys: candidateCompareDiffColumnKeys,
-    isCompareDiffCell: isCandidateCompareDiffCell,
     candidateRowClassName: cableSizingCandidateRowClassName,
   } = candidateCompare;
   const appliedCableSizingCandidate = useMemo(
@@ -664,12 +656,10 @@ export default function ElecCalcPage() {
 
   const {
     handleElectricalTableChange,
-    handleCandidateTableChange,
   } = useElecCalcAntTableHandlers({
     setTablePage,
     setTablePageSize,
     setTableViewState,
-    setCandidateTableViewState,
   });
 
   const electricalColumnRenderers = useElecCalcElectricalColumnRenderers({
@@ -692,7 +682,6 @@ export default function ElecCalcPage() {
     applyElectricalCandidateGlideColumnDraftWidth,
     commitElectricalCandidateGlideColumnWidth,
     startColumnResize,
-    startCandidateColumnResize,
   } = useElecCalcColumnPersistence({
     tableColumnSettings,
     candidateTableColumnSettings,
@@ -984,7 +973,6 @@ export default function ElecCalcPage() {
   const {
     getElectricalCandidateGlideCellActions,
     handleElectricalCandidateGlideCellAction,
-    candidateFolderMenuItems,
     getElectricalCandidateGlideActionMenuItems,
   } = useElecCalcCandidateGlideActions({
     candidateFolders: cableSizingCandidateFolders,
@@ -1113,24 +1101,6 @@ export default function ElecCalcPage() {
     return 'Вариантов пока нет. Запустите авторасчёт или ручной расчёт.';
   }
 
-  const cableSizingCandidateColumns = useElecCalcCandidateColumns({
-    visibleCandidateColumnMetas,
-    candidateTableViewState,
-    candidateEnumOptionsByColumn,
-    markedCandidateIds: markedCableSizingCandidateIds,
-    applyCandidatePending: applyCandidateMut.isPending,
-    applyingCandidateId: applyCandidateMut.variables,
-    updateCandidatePending: updateCandidateMut.isPending,
-    toggleCandidateFolderItemPending: toggleCandidateFolderItemMut.isPending,
-    onCandidateColumnResizeStart: startCandidateColumnResize,
-    onSetCandidateColumnFilter: setCandidateColumnFilter,
-    onResetCandidateColumnFilter: resetCandidateColumnFilter,
-    isCandidateCompareDiffCell,
-    onToggleCandidateMark: toggleCableSizingCandidateMark,
-    onApplyCandidate: applyCandidateMut.mutate,
-    onUpdateCandidate: updateCandidateMut.mutate,
-    candidateFolderMenuItems,
-  });
   const cableSizingCandidateTableScrollX = Math.max(
     920,
     visibleCandidateColumnMetas.reduce(
@@ -1519,66 +1489,29 @@ export default function ElecCalcPage() {
             diffCount={candidateCompareDiffColumnKeys.size}
             onReset={resetMarkedCableSizingCandidates}
           />
-          {electricalCandidateGlideEnabled ? (
-            <Suspense fallback={null}>
-              <ElectricalCandidateGlideGrid
-                rows={displayedCableSizingCandidates}
-                gridColumns={electricalCandidateGlideColumns}
-                tableScrollX={cableSizingCandidateTableScrollX}
-                tableScrollY="calc(100vh - 332px)"
-                fontSizeKey={resolvedTableFontSize.key}
-                loading={isCableSizingCandidatesFetching}
-                tableViewState={candidateTableViewState}
-                emptyContent={candidateFolderEmptyText()}
-                rowClassName={cableSizingCandidateRowClassName}
-                getCellState={getElectricalCandidateGlideCellState}
-                onToggleMarked={toggleElectricalCandidateGlideMarked}
-                onCellAction={handleElectricalCandidateGlideCellAction}
-                getActionMenuItems={getElectricalCandidateGlideActionMenuItems}
-                onSetColumnFilter={setCandidateColumnFilter}
-                onResetColumnFilter={resetCandidateColumnFilter}
-                onSetSort={setCandidateTableSort}
-                onColumnResize={applyElectricalCandidateGlideColumnDraftWidth}
-                onColumnResizeEnd={commitElectricalCandidateGlideColumnWidth}
-              />
-            </Suspense>
-          ) : (
-            <Table<ElectricalCandidate>
-              className="electrical-cable-sizing-table"
-              size="small"
-              rowKey="id"
-              onRow={(candidate) => ({
-                'data-testid': `candidate-row-${candidate.id}`,
-              }) as HTMLAttributes<HTMLElement>}
-              rowClassName={cableSizingCandidateRowClassName}
-              loading={isCableSizingCandidatesFetching}
-              dataSource={displayedCableSizingCandidates}
-              columns={cableSizingCandidateColumns}
-              onChange={handleCandidateTableChange}
-              pagination={false}
-              scroll={{ x: cableSizingCandidateTableScrollX, y: 'calc(100vh - 332px)' }}
-              locale={{
-                emptyText: candidateFolderEmptyText(),
-              }}
-            />
-          )}
-          <Input.TextArea
-            aria-label="Комментарий к выбранному кандидату"
-            size="small"
-            rows={2}
-            maxLength={2000}
-            placeholder="Комментарий инженера к выбранному варианту"
-            disabled={!cableSizingCandidates.find((candidate) => candidate.is_applied)}
-            defaultValue={
-              cableSizingCandidates.find((candidate) => candidate.is_applied)?.engineer_comment ?? ''
-            }
-            onBlur={(event) => {
-              const applied = cableSizingCandidates.find((candidate) => candidate.is_applied);
-              if (!applied) return;
-              const nextComment = event.currentTarget.value;
-              if ((applied.engineer_comment ?? '') === nextComment) return;
+          <ElecCalcCandidateTablePanel
+            rows={displayedCableSizingCandidates}
+            glideColumns={electricalCandidateGlideColumns}
+            tableScrollX={cableSizingCandidateTableScrollX}
+            fontSizeKey={resolvedTableFontSize.key}
+            loading={isCableSizingCandidatesFetching}
+            tableViewState={candidateTableViewState}
+            emptyContent={candidateFolderEmptyText()}
+            rowClassName={cableSizingCandidateRowClassName}
+            getCellState={getElectricalCandidateGlideCellState}
+            onToggleMarked={toggleElectricalCandidateGlideMarked}
+            onCellAction={handleElectricalCandidateGlideCellAction}
+            getActionMenuItems={getElectricalCandidateGlideActionMenuItems}
+            onSetColumnFilter={setCandidateColumnFilter}
+            onResetColumnFilter={resetCandidateColumnFilter}
+            onSetSort={setCandidateTableSort}
+            onColumnResize={applyElectricalCandidateGlideColumnDraftWidth}
+            onColumnResizeEnd={commitElectricalCandidateGlideColumnWidth}
+            appliedCandidate={appliedCableSizingCandidate}
+            onAppliedCandidateCommentBlur={(candidate, nextComment) => {
+              if ((candidate.engineer_comment ?? '') === nextComment) return;
               updateCandidateMut.mutate({
-                candidateId: applied.id,
+                candidateId: candidate.id,
                 patch: { engineer_comment: nextComment },
               });
             }}
