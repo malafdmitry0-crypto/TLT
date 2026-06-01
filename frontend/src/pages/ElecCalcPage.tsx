@@ -76,6 +76,7 @@ import CablePickerCharacteristics from '@/components/electrical/CablePickerChara
 import ElectricalCandidateColumnSettingsModal from '@/components/electrical/ElectricalCandidateColumnSettingsModal';
 import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalColumnSettingsModal';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
+import ElecCalcCandidateCompareBar from '@/pages/electrical/ElecCalcCandidateCompareBar';
 import ElecCalcCandidateFolderTabs from '@/pages/electrical/ElecCalcCandidateFolderTabs';
 import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
 import ElecCalcSelectedCableSummary from '@/pages/electrical/ElecCalcSelectedCableSummary';
@@ -1872,32 +1873,6 @@ export default function ElecCalcPage() {
     );
   }
 
-  function renderCandidateCompareBar() {
-    if (!cableSizingCandidateCompareActive) return null;
-    const diffCount = candidateCompareDiffColumnKeys.size;
-    return (
-      <div
-        className="electrical-candidate-compare-bar"
-        data-testid="candidate-compare-bar"
-        role="status"
-        aria-live="polite"
-      >
-        <Text strong>Сравнение: {displayedMarkedCableSizingCandidates.length} вариантов</Text>
-        <Text type="secondary">
-          {diffCount > 0
-            ? `Отличий в видимых колонках: ${diffCount}`
-            : 'В видимых колонках отличий нет'}
-        </Text>
-        <Button
-          size="small"
-          onClick={resetMarkedCableSizingCandidates}
-        >
-          Сбросить сравнение
-        </Button>
-      </div>
-    );
-  }
-
   function submitCandidateFolderModal() {
     const name = candidateFolderName.trim();
     if (!name) {
@@ -2380,7 +2355,12 @@ export default function ElecCalcPage() {
             onRenameFolder={openRenameCandidateFolderModal}
             onDeleteFolder={showDeleteCandidateFolderConfirm}
           />
-          {renderCandidateCompareBar()}
+          <ElecCalcCandidateCompareBar
+            active={cableSizingCandidateCompareActive}
+            markedCount={displayedMarkedCableSizingCandidates.length}
+            diffCount={candidateCompareDiffColumnKeys.size}
+            onReset={resetMarkedCableSizingCandidates}
+          />
           {electricalCandidateGlideEnabled ? (
             <Suspense fallback={null}>
               <ElectricalCandidateGlideGrid
