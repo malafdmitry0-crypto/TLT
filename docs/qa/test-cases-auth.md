@@ -62,6 +62,17 @@
 
 ---
 
+## TC-AUTH-04B: Проверка пароля не блокирует event loop API
+
+**Автоматизировано:** ✅ `test_auth_service_unit.py::TestLogin::test_password_verify_runs_off_event_loop`
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Запустить `AuthService.login()` с искусственно заблокированной bcrypt-проверкой | Проверка выполняется вне event loop |
+| 2 | Пока bcrypt-проверка заблокирована, выполнить лёгкий async probe | Event loop продолжает выполнять другие coroutine |
+
+---
+
 ## TC-AUTH-05: Обновление access token через refresh
 
 **Предусловие:** Получена пара токенов  

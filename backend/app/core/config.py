@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     GUEST_MAX_SESSIONS_PER_IP: int = 10  # максимум новых сессий с одного IP за 1 час
     GUEST_ACTIVITY_TOUCH_INTERVAL_SECONDS: int = 60  # throttle UPDATE last_activity
     LOGIN_MAX_ATTEMPTS_PER_IP: int = 10  # максимум попыток логина с одного IP за 1 час
+    AUTH_PASSWORD_HASH_MAX_CONCURRENCY: int = 4  # bcrypt/hash не должны раздувать общий threadpool
     IMPORT_MAX_REQUESTS_PER_PRINCIPAL_PER_IP: int = 20
     REPORT_MAX_REQUESTS_PER_PRINCIPAL_PER_IP: int = 30
     BATCH_MAX_REQUESTS_PER_PRINCIPAL_PER_IP: int = 30

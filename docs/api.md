@@ -65,6 +65,8 @@ Backend валидирует список известных колонок, о�
 
 - `/auth/guest`: 10 сессий / IP / час (sliding window, Redis или in-memory)
 - `/auth/login`: 10 попыток / IP / час
+  - bcrypt-проверка пароля выполняется вне event loop API с лимитом
+    `AUTH_PASSWORD_HASH_MAX_CONCURRENCY`
 - Импорт объектов: 20 запросов / пользователь+IP / час
 - Операции с отчётами (preview/export): 30 запросов / пользователь+IP / час
 - Синхронные batch-расчёты: 30 запросов / пользователь+IP / час

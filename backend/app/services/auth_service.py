@@ -14,8 +14,8 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    hash_password,
-    verify_password,
+    hash_password_async,
+    verify_password_async,
 )
 from app.models.guest_session import GuestSession
 from app.models.refresh_session import RefreshSession
@@ -82,7 +82,7 @@ class AuthService:
         result = await self.db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
         password_hash = user.hashed_password if user is not None else DUMMY_PASSWORD_HASH
-        password_ok = verify_password(password, password_hash)
+        password_ok = await verify_password_async(password, password_hash)
         if user is None or not password_ok:
             raise AuthError("Неверный email или пароль")
         if not user.is_active:
@@ -179,7 +179,7 @@ class AuthService:
             raise AuthError(f"Пользователь {email} уже существует")
         user = User(
             email=email,
-            hashed_password=hash_password(password),
+            hashed_password=await hash_password_async(password),
             full_name=full_name,
             role=role,
             is_active=True,

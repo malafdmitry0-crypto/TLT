@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
+from anyio import CapacityLimiter, to_thread
 from jwt import InvalidTokenError
 
 with warnings.catch_warnings():
@@ -20,6 +21,7 @@ with warnings.catch_warnings():
 from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+password_hash_limiter = CapacityLimiter(settings.AUTH_PASSWORD_HASH_MAX_CONCURRENCY)
 
 
 def hash_password(password: str) -> str:
@@ -28,6 +30,19 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
+
+
+async def hash_password_async(password: str) -> str:
+    return await to_thread.run_sync(hash_password, password, limiter=password_hash_limiter)
+
+
+async def verify_password_async(plain_password: str, hashed_password: str) -> bool:
+    return await to_thread.run_sync(
+        verify_password,
+        plain_password,
+        hashed_password,
+        limiter=password_hash_limiter,
+    )
 
 
 def create_access_token(

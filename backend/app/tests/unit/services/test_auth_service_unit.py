@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import threading
 import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
@@ -9,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.core import security as security_module
 from app.core.security import create_access_token, create_refresh_token, decode_token, hash_password
 from app.models.refresh_session import RefreshSession
 from app.services import auth_service as auth_service_module
@@ -109,17 +112,51 @@ class TestLogin:
     async def test_invalid_email_still_verifies_dummy_hash(self, monkeypatch: pytest.MonkeyPatch):
         calls: list[tuple[str, str]] = []
 
-        def fake_verify_password(password: str, hashed_password: str) -> bool:
+        async def fake_verify_password(password: str, hashed_password: str) -> bool:
             calls.append((password, hashed_password))
             return False
 
-        monkeypatch.setattr(auth_service_module, "verify_password", fake_verify_password)
+        monkeypatch.setattr(auth_service_module, "verify_password_async", fake_verify_password)
         db = _mock_db(scalar_value=None)
 
         with pytest.raises(AuthError, match="Неверный"):
             await AuthService(db).login("a@b.c", "pw")
 
         assert calls == [("pw", auth_service_module.DUMMY_PASSWORD_HASH)]
+
+    async def test_password_verify_runs_off_event_loop(self, monkeypatch: pytest.MonkeyPatch):
+        user = SimpleNamespace(
+            id=uuid.uuid4(),
+            email="a@b.c",
+            hashed_password="blocked-hash",
+            is_active=True,
+            role="employee",
+        )
+        db = _mock_db(scalar_value=user)
+        loop_thread_id = threading.get_ident()
+        verify_thread_ids: list[int] = []
+        verify_started = threading.Event()
+        release_verify = threading.Event()
+
+        def blocking_verify(password: str, hashed_password: str) -> bool:
+            verify_thread_ids.append(threading.get_ident())
+            verify_started.set()
+            release_verify.wait(timeout=1)
+            return password == "pw" and hashed_password == "blocked-hash"
+
+        monkeypatch.setattr(security_module, "verify_password", blocking_verify)
+        login_task = asyncio.create_task(AuthService(db).login("a@b.c", "pw"))
+        try:
+            assert await asyncio.wait_for(asyncio.to_thread(verify_started.wait), timeout=0.3)
+            await asyncio.sleep(0)
+            assert verify_thread_ids and verify_thread_ids[0] != loop_thread_id
+            assert not login_task.done()
+        finally:
+            release_verify.set()
+
+        tokens = await asyncio.wait_for(login_task, timeout=0.5)
+        assert tokens.access_token
+        assert tokens.refresh_token
 
     async def test_wrong_password_raises(self):
         user = SimpleNamespace(

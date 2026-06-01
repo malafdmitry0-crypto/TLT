@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import hash_password
+from app.core.security import hash_password_async
 from app.models.accessory import AccessoryExtended
 from app.models.cable import CableExtended
 from app.models.coefficient import CorrectionCoefficient
@@ -40,7 +40,7 @@ class AdminService:
             raise AdminError(f"Пользователь {data.email} уже существует")
         user = User(
             email=data.email,
-            hashed_password=hash_password(data.password),
+            hashed_password=await hash_password_async(data.password),
             full_name=data.full_name,
             role=data.role,
             is_active=True,
@@ -54,7 +54,7 @@ class AdminService:
         user = await self._get_user(user_id)
         upd = data.model_dump(exclude_unset=True)
         if upd.get("password"):
-            user.hashed_password = hash_password(upd.pop("password"))
+            user.hashed_password = await hash_password_async(upd.pop("password"))
         for k, v in upd.items():
             setattr(user, k, v)
         await self.db.commit()
