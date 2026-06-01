@@ -37,16 +37,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   applyElectricalCandidate,
   addElectricalCandidateToFolder,
-  cancelCalcTask,
-  copyElectricalVariant,
   createElectricalCandidate,
   createElectricalCandidateFolder,
   deleteElectricalCandidateFolder,
-  enqueueElectricalBatchJob,
   listElectricalCandidateFolders,
   listElectricalCandidates,
   getElectricalQueryCapabilities,
-  getCalcTask,
   listCables,
   queryElectrical,
   selectCableForVariants,
@@ -54,7 +50,6 @@ import {
   updateElectricalCandidateFolder,
   updateElectricalCandidate,
   type CableSource,
-  type CopyElectricalVariantResponse,
 } from '@/api/calculations';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getCablesTt, getResistiveCables } from '@/api/references';
@@ -67,7 +62,6 @@ import {
 import { useProjectStore } from '@/store/projectStore';
 import { areCommercialFeaturesEnabled } from '@/config/featureFlags';
 import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
-import { getCalcJobRefetchInterval } from '@/utils/calcJobPolling';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import CablePickerCharacteristics from '@/components/electrical/CablePickerCharacteristics';
@@ -107,10 +101,6 @@ import {
   isResistiveCableType,
 } from '@/pages/electrical/elecCalcCableTypeModel';
 import {
-  isBatchElectricalResponse,
-  isTargetVariantNotEmptyError,
-} from '@/pages/electrical/elecCalcApiResponseGuards';
-import {
   buildElectricalQueryRequest,
 } from '@/pages/electrical/elecCalcQueryModel';
 import {
@@ -127,11 +117,6 @@ import {
 import {
   buildElecCalcSummaryViewModel,
 } from '@/pages/electrical/elecCalcSummaryModel';
-import {
-  type CopyElectricalVariantMutationArgs,
-  type ElectricalBatchMutationArgs,
-  type ElectricalBatchScope,
-} from '@/pages/electrical/elecCalcPageModel';
 import {
   isElectricalLayoutCellEditable as resolveElectricalLayoutCellEditable,
   validateElectricalLayoutCellCommit,
@@ -152,6 +137,7 @@ import { useElecCalcCableMarkOptions } from '@/pages/electrical/useElecCalcCable
 import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
 import { useElecCalcCableSizingModalState } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
+import { useElecCalcBatchJobOrchestration } from '@/pages/electrical/useElecCalcBatchJobOrchestration';
 import { useElecCalcCandidateColumns } from '@/pages/electrical/useElecCalcCandidateColumns';
 import { useElecCalcCandidateCompareState } from '@/pages/electrical/useElecCalcCandidateCompareState';
 import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCalcCandidateFolderUiState';
@@ -296,12 +282,7 @@ export default function ElecCalcPage() {
     ? tableViewSettings.calculationCableSource
     : 'builtin';
   const effectiveSource: CableSource = commercialFeaturesAvailable ? cableSource : 'builtin';
-  const [activeJobId, setActiveJobId] = useState<string | null>(
-    () => navigationActiveJobId,
-  );
-  const [activeBatchScope, setActiveBatchScope] = useState<ElectricalBatchScope | null>(null);
   const [overwriteManualChoices, setOverwriteManualChoices] = useState(false);
-  const activeBatchObjectIdsRef = useRef<string[] | null>(null);
   const tableScrollRegionsRef = useRef<HTMLDivElement | null>(null);
   useFocusableTableScrollRegions(
     tableScrollRegionsRef,
@@ -311,19 +292,6 @@ export default function ElecCalcPage() {
 
   const qc = useQueryClient();
   const navigate = useNavigate();
-
-  useElecCalcPageScopeEffects({
-    projectId: project?.id,
-    variant,
-    effectiveSource,
-    tablePageSize,
-    tableViewState,
-    navigationActiveJobId,
-    resetTablePage,
-    resetPaginationCache,
-    setActiveJobId,
-    setActiveBatchScope,
-  });
 
   const { data: electricalQueryCapabilities } = useQuery({
     queryKey: ['project', project?.id, 'electrical-query-capabilities', variant],
@@ -400,6 +368,44 @@ export default function ElecCalcPage() {
     projectId: project?.id,
     variant,
   });
+  const {
+    activeJob,
+    activeJobId,
+    setActiveJobId,
+    setActiveBatchScope,
+    batchMut,
+    copyVariantMut,
+    cancelJobMut,
+  } = useElecCalcBatchJobOrchestration({
+    initialActiveJobId: navigationActiveJobId,
+    projectId: project?.id,
+    variant,
+    effectiveSource,
+    recalc,
+    selectedCableType: cableTypes.selectedCableType,
+    defaultCableType: cableTypes.defaultCableType,
+    cableTypeForRecalculation: cableTypes.cableTypeForRecalculation,
+    normalizeAvailableCableType: cableTypes.normalizeAvailableCableType,
+    objectOverridesForIds: cableTypes.objectOverridesForIds,
+    setCableTypeDraftByObjectId: cableTypes.setCableTypeDraftByObjectId,
+    resetTablePageAndCursors,
+    setSelectedRowKeys,
+    setVariant,
+  });
+
+  useElecCalcPageScopeEffects({
+    projectId: project?.id,
+    variant,
+    effectiveSource,
+    tablePageSize,
+    tableViewState,
+    navigationActiveJobId,
+    resetTablePage,
+    resetPaginationCache,
+    setActiveJobId,
+    setActiveBatchScope,
+  });
+
   const cableSizingModal = useElecCalcCableSizingModalState({
     projectId: project?.id,
     variant,
@@ -439,17 +445,6 @@ export default function ElecCalcPage() {
     normalizeAvailableCableType: cableTypes.normalizeAvailableCableType,
     nextElectricalPageCursor,
     rememberNextCursor,
-  });
-
-  const { data: activeJob } = useQuery({
-    queryKey: ['calc-job', activeJobId],
-    queryFn: () => getCalcTask(activeJobId!),
-    enabled: !!activeJobId,
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return getCalcJobRefetchInterval(status);
-    },
-    refetchIntervalInBackground: true,
   });
 
   const { data: cables = [] } = useQuery({
@@ -495,171 +490,6 @@ export default function ElecCalcPage() {
     effectiveSource,
     visibleCableTypeControl: cableTypes.visibleCableTypeControl,
   });
-
-  const batchMut = useMutation({
-    mutationFn: ({ scope, objectIds, skipManual = true }: ElectricalBatchMutationArgs) => {
-      const selectedObjectIds = objectIds ?? [];
-      const objectOverrides = scope === 'selected'
-        ? cableTypes.objectOverridesForIds(selectedObjectIds)
-        : [];
-      const fallbackCableType = scope === 'selected'
-        ? cableTypes.selectedCableType ?? cableTypes.defaultCableType
-        : cableTypes.cableTypeForRecalculation;
-      const effectiveCableType = cableTypes.normalizeAvailableCableType(fallbackCableType);
-      const selectionMode = isResistiveCableType(effectiveCableType) ? 'auto' : undefined;
-      return enqueueElectricalBatchJob(
-        project!.id,
-        effectiveSource,
-        variant,
-        effectiveCableType,
-        {
-          supplyVoltage: recalc.supplyVoltage,
-          selectionMode,
-          selectionPolicy: recalc.selectionPolicy,
-          connectionType: recalc.connectionType,
-          windingCoefficient: recalc.windingCoefficient,
-          heatingHeight: recalc.heatingHeight,
-          layingStep: recalc.layingStep,
-          maintainTemperature: recalc.maintainTemperature,
-          vaporTemperature: recalc.vaporTemperature,
-          aggressiveProduct: recalc.aggressiveProduct,
-          skipManual,
-          objectIds: scope === 'selected' ? selectedObjectIds : undefined,
-          forceCableType: scope === 'all',
-          objectOverrides: objectOverrides.length > 0 ? objectOverrides : undefined,
-        },
-      );
-    },
-    onSuccess: (task, variables) => {
-      setActiveJobId(task.id);
-      setActiveBatchScope(variables.scope);
-      activeBatchObjectIdsRef.current = variables.scope === 'selected'
-        ? variables.objectIds ?? []
-        : null;
-      message.info(
-        variables.scope === 'selected'
-          ? `СО${variant} · электрорасчёт выбранных объектов поставлен в очередь`
-          : `СО${variant} · электрорасчёт всех объектов поставлен в очередь`,
-      );
-    },
-    onError: (e: Error) => message.error(e.message),
-  });
-
-  const copyVariantMut = useMutation({
-    mutationFn: ({ targetVariant, overwrite = false }: CopyElectricalVariantMutationArgs) =>
-      copyElectricalVariant({
-        project_id: project!.id,
-        source_variant_number: variant,
-        target_variant_number: targetVariant,
-        overwrite,
-        regenerate_specification: true,
-    }),
-    onSuccess: (res: CopyElectricalVariantResponse) => {
-      resetTablePageAndCursors();
-      setSelectedRowKeys([]);
-      cableTypes.setCableTypeDraftByObjectId({});
-      setVariant(res.target_variant_number);
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
-      qc.invalidateQueries({ queryKey: ['spec', project?.id, res.target_variant_number] });
-      qc.invalidateQueries({ queryKey: ['report-preview', project?.id, res.target_variant_number] });
-      message.success(
-        `СО${res.target_variant_number} создан на основании СО${res.source_variant_number}: ` +
-        `скопировано ${res.copied_count}, успешно проверено ${res.validated_count ?? 0}`,
-      );
-      if ((res.validation_failed_count ?? 0) > 0) {
-        message.warning(
-          `В СО${res.target_variant_number} есть ошибки проверки скопированного выбора: ` +
-          `${res.validation_failed_count}. Новый кабель автоматически не подбирался.`,
-        );
-      }
-      if (res.copied_count < res.project_objects_count) {
-        message.info(
-          `В проекте объектов: ${res.project_objects_count}, скопировано расчётов: ${res.copied_count}. ` +
-          `Остальные в СО${res.target_variant_number} не рассчитаны.`,
-        );
-      }
-    },
-    onError: (error: Error, variables) => {
-      if (isTargetVariantNotEmptyError(error) && !variables.overwrite) {
-        Modal.confirm({
-          title: `СО${variables.targetVariant} уже содержит расчёты`,
-          content: `Заменить СО${variables.targetVariant} копией СО${variant}? ` +
-            `Все текущие расчёты СО${variables.targetVariant} будут удалены.`,
-          okText: 'Заменить',
-          okButtonProps: { danger: true },
-          cancelText: 'Отмена',
-          onOk: () => copyVariantMut.mutate({ ...variables, overwrite: true }),
-        });
-        return;
-      }
-      message.error(error.message);
-    },
-  });
-
-  const cancelJobMut = useMutation({
-    mutationFn: () => cancelCalcTask(activeJobId!),
-    onSuccess: (task) => {
-      setActiveJobId(task.id);
-      setActiveBatchScope(null);
-      activeBatchObjectIdsRef.current = null;
-      message.warning('Электрорасчёт остановлен');
-    },
-    onError: (e: Error) => message.error(e.message),
-  });
-
-  useEffect(() => {
-    if (!activeJob) return;
-    if (activeJob.status === 'succeeded') {
-      const res = isBatchElectricalResponse(activeJob.result) ? activeJob.result : null;
-      const resultScope = res?.scope ?? activeBatchScope ?? 'all';
-      const scopeLabel = resultScope === 'selected' ? 'выбранных объектов' : 'всех объектов';
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
-      if (res && res.calculated === 0 && res.heat_loss_failed > 0) {
-        message.warning(
-          `СО${variant} · электрорасчёт не выполнен: у выбранных объектов не рассчитаны теплопотери (${res.heat_loss_failed}).`,
-        );
-      } else if (res && (res.skipped > 0 || res.heat_loss_failed > 0)) {
-        message.warning(
-          `СО${variant} · рассчитано для ${scopeLabel}: ${res.calculated}, пропущено: ${res.skipped}` +
-          `${res.heat_loss_failed > 0 ? `, ошибок теплопотерь: ${res.heat_loss_failed}` : ''}.`,
-        );
-      } else if (res) {
-        message.success(
-          `СО${variant} — расчёт выполнен для ${scopeLabel}: ${res.calculated}` +
-          `${res.heat_loss_failed > 0 ? ` (ещё ${res.heat_loss_failed} с ошибками теплопотерь)` : ''}`,
-        );
-      } else {
-        message.success(`СО${variant} — расчёт выполнен`);
-      }
-      cableTypes.setCableTypeDraftByObjectId((prev) => {
-        if (resultScope === 'all') return {};
-        const affectedIds = activeBatchObjectIdsRef.current;
-        if (!affectedIds || affectedIds.length === 0) return prev;
-        const next = { ...prev };
-        for (const objectId of affectedIds) {
-          delete next[objectId];
-        }
-        return next;
-      });
-      activeBatchObjectIdsRef.current = null;
-      setActiveJobId(null);
-      setActiveBatchScope(null);
-    }
-    if (activeJob.status === 'failed') {
-      message.error(activeJob.error_message || 'Электрорасчёт завершился ошибкой');
-      setActiveJobId(null);
-      setActiveBatchScope(null);
-      activeBatchObjectIdsRef.current = null;
-    }
-    if (activeJob.status === 'cancelled') {
-      setActiveJobId(null);
-      setActiveBatchScope(null);
-      activeBatchObjectIdsRef.current = null;
-    }
-  }, [activeBatchScope, activeJob, project?.id, qc, variant]);
 
   const {
     manualCableOptionsForType,

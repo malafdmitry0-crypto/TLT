@@ -159,6 +159,7 @@ Potential target structure:
 | Candidate compare bar component | Done | 2026-06-01: candidate comparison status/reset bar moved to `ElecCalcCandidateCompareBar.tsx`; page keeps compare state and reset callback; focused component unit + `ElecCalcPage` integration |
 | Recalculation settings component | Done | 2026-06-01: recalculation source/status/selection-policy panel moved to `ElecCalcRecalculationSettings.tsx`; page keeps draft view settings, recalc state and source/status derivation; focused component unit + `ElecCalcPage` integration |
 | Preference settings hook | Done | 2026-06-01: main/candidate/view preference state, registered preference queries, mutations and cache sync effects moved to `useElecCalcPreferenceSettings.ts`; page keeps modal open state and column persistence wiring; focused hook unit + `ElecCalcPage` integration |
+| Batch job orchestration hook | Done | 2026-06-01: active electrical job polling, enqueue/copy/cancel mutations and batch completion side effects moved to `useElecCalcBatchJobOrchestration.ts`; page keeps action bar UI and confirmation opener; focused hook unit + `ElecCalcPage` integration |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |
 | Candidate table state hook | Backlog | remaining marked comparison state |
 | Preferences/settings hook | Backlog | main/candidate columns, view settings, role cache |
