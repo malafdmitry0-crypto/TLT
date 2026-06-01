@@ -157,6 +157,7 @@ Potential target structure:
 | Selected cable summary component | Done | 2026-06-01: selected cable summary moved to `ElecCalcSelectedCableSummary.tsx`; page passes applied candidate/current calc/fallback type only; focused component unit + `ElecCalcPage` integration |
 | Candidate folder tabs component | Done | 2026-06-01: candidate folder tab buttons and custom-folder dropdown moved to `ElecCalcCandidateFolderTabs.tsx`; page keeps active key, counts and create/rename/delete side effects; focused component unit + `ElecCalcPage` integration |
 | Candidate compare bar component | Done | 2026-06-01: candidate comparison status/reset bar moved to `ElecCalcCandidateCompareBar.tsx`; page keeps compare state and reset callback; focused component unit + `ElecCalcPage` integration |
+| Recalculation settings component | Done | 2026-06-01: recalculation source/status/selection-policy panel moved to `ElecCalcRecalculationSettings.tsx`; page keeps draft view settings, recalc state and source/status derivation; focused component unit + `ElecCalcPage` integration |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |
 | Candidate table state hook | Backlog | remaining marked comparison state |
 | Preferences/settings hook | Backlog | main/candidate columns, view settings, role cache |

@@ -55,7 +55,6 @@ import {
   updateElectricalCandidate,
   type CableSource,
   type CopyElectricalVariantResponse,
-  type SelectionPolicy,
 } from '@/api/calculations';
 import { getUserPreference, updateUserPreference } from '@/api/preferences';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
@@ -79,6 +78,7 @@ import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBa
 import ElecCalcCandidateCompareBar from '@/pages/electrical/ElecCalcCandidateCompareBar';
 import ElecCalcCandidateFolderTabs from '@/pages/electrical/ElecCalcCandidateFolderTabs';
 import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
+import ElecCalcRecalculationSettings from '@/pages/electrical/ElecCalcRecalculationSettings';
 import ElecCalcSelectedCableSummary from '@/pages/electrical/ElecCalcSelectedCableSummary';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject } from '@/types/project';
@@ -147,9 +147,6 @@ import {
   calculationVariantLabel,
 } from '@/pages/electrical/elecCalcVariantModel';
 import {
-  SELECTION_POLICY_OPTIONS,
-} from '@/pages/electrical/elecCalcSelectionPolicyModel';
-import {
   buildElectricalErrorItems,
   electricalErrorGuidanceForItem,
   resolveActiveElectricalErrorItem,
@@ -158,7 +155,6 @@ import {
   buildElecCalcSummaryViewModel,
 } from '@/pages/electrical/elecCalcSummaryModel';
 import {
-  SHOW_COMMERCIAL_CABLE_BASE_UI,
   type CopyElectricalVariantMutationArgs,
   type ElectricalBatchMutationArgs,
   type ElectricalBatchScope,
@@ -1828,48 +1824,17 @@ export default function ElecCalcPage() {
 
   function renderRecalculationSettings() {
     return (
-      <div
-        className="table-view-settings-panel electrical-recalculation-settings-panel"
-        aria-label="Настройки пересчёта"
-      >
-        {commercialFeaturesAvailable && (
-          <>
-            <Tooltip title="Используется только при новом пересчёте или новом ручном выборе. Уже рассчитанные строки хранят снимок кабеля в проекте.">
-              <Text className="table-view-settings-label">
-                База для пересчёта:
-              </Text>
-            </Tooltip>
-            <Segmented<ElectricalCalculationCableSource>
-              aria-label="База для пересчёта"
-              size="small"
-              value={isEmployee ? draftTableViewSettings.calculationCableSource : 'builtin'}
-              onChange={updateDraftCalculationCableSource}
-              options={cableSourceOptions}
-            />
-          </>
-        )}
-        {SHOW_COMMERCIAL_CABLE_BASE_UI && (
-          <>
-            <Tag color={commercialDataStatus.color} style={{ marginInlineEnd: 0 }}>
-              {commercialDataStatus.label}
-            </Tag>
-            <Text className="table-view-settings-label">
-              Критерий:
-            </Text>
-            <Select<SelectionPolicy>
-              aria-label="Критерий подбора кабеля"
-              size="small"
-              value={recalc.selectionPolicy}
-              onChange={setRecalc.selectionPolicy}
-              options={SELECTION_POLICY_OPTIONS}
-              style={{ width: 128 }}
-            />
-          </>
-        )}
-        <Tag color={technicalDataStatus.color} style={{ marginInlineEnd: 0 }}>
-          {technicalDataStatus.label}
-        </Tag>
-      </div>
+      <ElecCalcRecalculationSettings
+        commercialFeaturesAvailable={commercialFeaturesAvailable}
+        isEmployee={isEmployee}
+        calculationCableSource={draftTableViewSettings.calculationCableSource}
+        cableSourceOptions={cableSourceOptions}
+        selectionPolicy={recalc.selectionPolicy}
+        commercialDataStatus={commercialDataStatus}
+        technicalDataStatus={technicalDataStatus}
+        onCalculationCableSourceChange={updateDraftCalculationCableSource}
+        onSelectionPolicyChange={setRecalc.selectionPolicy}
+      />
     );
   }
 
