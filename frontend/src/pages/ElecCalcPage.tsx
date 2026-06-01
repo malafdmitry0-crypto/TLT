@@ -37,12 +37,9 @@ import {
   listElectricalCandidateFolders,
   listElectricalCandidates,
   getElectricalQueryCapabilities,
-  listCables,
   queryElectrical,
   type CableSource,
 } from '@/api/calculations';
-import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
-import { getCablesTt, getResistiveCables } from '@/api/references';
 import { useAuthStore } from '@/store/authStore';
 import {
   normalizeCalculationVariant,
@@ -112,8 +109,7 @@ import {
 } from '@/pages/electrical/elecCalcResultValueModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
-import { useElecCalcCableCatalogView } from '@/pages/electrical/useElecCalcCableCatalogView';
-import { useElecCalcCableMarkOptions } from '@/pages/electrical/useElecCalcCableMarkOptions';
+import { useElecCalcCableReferenceData } from '@/pages/electrical/useElecCalcCableReferenceData';
 import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCableMarkModalState';
 import { useElecCalcCableSizingModalState } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
@@ -429,62 +425,19 @@ export default function ElecCalcPage() {
     rememberNextCursor,
   });
 
-  const { data: cables = [] } = useQuery({
-    queryKey: referenceQueryKeys.cables(effectiveSource, 'self_regulating'),
-    queryFn: () => listCables(effectiveSource, 'self_regulating'),
-    ...referenceQueryOptions,
-  });
-  const { data: builtinCables = [] } = useQuery({
-    queryKey: referenceQueryKeys.cables('builtin', 'self_regulating'),
-    queryFn: () => listCables('builtin', 'self_regulating'),
-    ...referenceQueryOptions,
-  });
-  const { data: ttCables = [] } = useQuery({
-    queryKey: referenceQueryKeys.ttCables,
-    queryFn: getCablesTt,
-    enabled: !!project && commercialFeaturesAvailable,
-    ...referenceQueryOptions,
-  });
-  const { data: resistiveCables } = useQuery({
-    queryKey: referenceQueryKeys.resistiveCables(effectiveSource),
-    queryFn: () => getResistiveCables(effectiveSource),
-    enabled: !!project && commercialFeaturesAvailable,
-    ...referenceQueryOptions,
-  });
-  const { data: builtinResistiveCables } = useQuery({
-    queryKey: referenceQueryKeys.resistiveCables('builtin'),
-    queryFn: () => getResistiveCables('builtin'),
-    enabled: !!project && commercialFeaturesAvailable,
-    ...referenceQueryOptions,
-  });
-
   const {
     cableRowsForType,
     commercialDataStatus,
     technicalDataStatus,
-  } = useElecCalcCableCatalogView({
-    availableCableTypes,
-    cables,
-    builtinCables,
-    ttCables,
-    resistiveCables,
-    builtinResistiveCables,
-    effectiveSource,
-    visibleCableTypeControl: cableTypes.visibleCableTypeControl,
-  });
-
-  const {
     manualCableOptionsForType,
     cableMarkOptionsFor,
     cableSizingManualOptions,
-  } = useElecCalcCableMarkOptions({
+  } = useElecCalcCableReferenceData({
+    projectSelected: Boolean(project),
+    commercialFeaturesAvailable,
     availableCableTypes,
-    cables,
-    builtinCables,
-    ttCables,
-    resistiveCables,
-    builtinResistiveCables,
     effectiveSource,
+    visibleCableTypeControl: cableTypes.visibleCableTypeControl,
     aggressiveProduct: recalc.aggressiveProduct,
     cableSizingEffectiveCableType,
   });
