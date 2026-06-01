@@ -163,6 +163,7 @@ Potential target structure:
 | Candidate sizing mutation flow hook | Done | 2026-06-01: candidate create/update/apply, candidate folder mutations and candidate cache helpers moved to `useElecCalcCandidateMutationFlow.ts`; page keeps candidate queries, modal JSX and manual/auto cable mark mutations; focused hook unit + `ElecCalcPage` integration |
 | Cable selection mutation flow hook | Done | 2026-06-01: manual/auto cable selection, layout edit mutation, shared invalidation/messages and cable-mark modal apply flow moved to `useElecCalcCableSelectionMutationFlow.ts`; page keeps modal/table JSX and layout validation; focused hook unit + `ElecCalcPage` integration |
 | Cable reference data hook | Done | 2026-06-01: read-only cable reference queries, catalog statuses and manual cable option builders moved to `useElecCalcCableReferenceData.ts`; page keeps cable modal/table JSX and selection payloads; focused hook unit + catalog/options units + `ElecCalcPage` integration |
+| Cable mark modal component | Done | 2026-06-01: manual cable mark dialog JSX moved to `ElecCalcCableMarkModal.tsx`; page keeps modal state, option builders and apply mutation flow; focused component unit + modal state/mutation units + `ElecCalcPage` integration |
 | Main table state hook | Backlog | remaining row class/cell action state helpers |
 | Candidate table state hook | Backlog | remaining marked comparison state |
 | Preferences/settings hook | Backlog | main/candidate columns, view settings, role cache |

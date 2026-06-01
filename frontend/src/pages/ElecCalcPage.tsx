@@ -54,6 +54,7 @@ import CablePickerCharacteristics from '@/components/electrical/CablePickerChara
 import ElectricalCandidateColumnSettingsModal from '@/components/electrical/ElectricalCandidateColumnSettingsModal';
 import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalColumnSettingsModal';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
+import ElecCalcCableMarkModal from '@/pages/electrical/ElecCalcCableMarkModal';
 import ElecCalcCandidateCompareBar from '@/pages/electrical/ElecCalcCandidateCompareBar';
 import ElecCalcCandidateFolderTabs from '@/pages/electrical/ElecCalcCandidateFolderTabs';
 import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
@@ -877,20 +878,6 @@ export default function ElecCalcPage() {
     calcByObjectId: stats.calcByObjectId,
   });
 
-  const cablePickerModalTitle = (
-    <div className="electrical-cable-picker-title">
-      <span className="electrical-cable-picker-title-text">Выбор марки кабеля</span>
-      {cableMarkModalObject && (
-        <>
-          <span className="electrical-cable-picker-title-for">для</span>
-          <span className="electrical-cable-picker-title-object">
-            {objectDisplayName(cableMarkModalObject)}
-          </span>
-        </>
-      )}
-    </div>
-  );
-
   const totalObjects = pageSummary?.total_objects ?? objects.length;
   const {
     electricalPagination,
@@ -1397,78 +1384,26 @@ export default function ElecCalcPage() {
 
         </Space>
       </div>
-      <Modal
-        open={!!cableMarkModalObject}
-        width="min(92vw, 1056px)"
-        className="electrical-cable-picker-dialog"
-        style={{ top: 28 }}
-        title={cablePickerModalTitle}
-        okText="Применить"
-        cancelText="Отмена"
-        confirmLoading={isCableMarkPending}
-        okButtonProps={{
-          disabled: !cableMarkModalObject?.is_valid
-            || !cableMarkModalValue
-            || cableMarkModalTargetVariants.length === 0,
-        }}
-        onOk={applyCableMarkModal}
+      <ElecCalcCableMarkModal
+        object={cableMarkModalObject}
+        selectedCable={cableMarkModalSelectedCable}
+        cableType={cableMarkModalCableType}
+        cableTypeOptions={cableTypeOptions}
+        commercialFeaturesAvailable={commercialFeaturesAvailable}
+        projectSelected={Boolean(project)}
+        pending={isCableMarkPending}
+        value={cableMarkModalValue}
+        markOptions={cableMarkModalOptions}
+        targetVariants={cableMarkModalTargetVariants}
+        targetVariantOptions={cableMarkModalTargetVariantOptions}
+        renderTypeControls={(nextCableType) =>
+          renderElectricalTypeControls(nextCableType, { block: true })}
+        onCableTypeChange={changeCableMarkModalCableType}
+        onMarkChange={setCableMarkModalValue}
+        onTargetVariantsChange={setCableMarkModalTargetVariantsFromValues}
+        onApply={applyCableMarkModal}
         onCancel={closeCableMarkModal}
-      >
-        <Space direction="vertical" size={12} style={{ width: '100%' }}>
-          {cableMarkModalObject && (
-            <CablePickerCharacteristics
-              object={cableMarkModalObject}
-              cable={cableMarkModalSelectedCable}
-              cableType={cableMarkModalCableType}
-            />
-          )}
-          {cableMarkModalCableType && (
-            <div>
-              <Text type="secondary">Тип кабеля</Text>
-              <Select<CableTypeKey>
-                aria-label="Тип кабеля для выбора марки"
-                size="small"
-                value={cableMarkModalCableType}
-                disabled={isCableMarkPending || !commercialFeaturesAvailable}
-                onChange={changeCableMarkModalCableType}
-                options={cableTypeOptions}
-                style={{ width: '100%', marginTop: 4 }}
-              />
-            </div>
-          )}
-          {cableMarkModalCableType && renderElectricalTypeControls(cableMarkModalCableType, { block: true })}
-          <div>
-            <Text type="secondary">Марка</Text>
-            <Select
-              autoFocus
-              showSearch
-              value={cableMarkModalValue ?? AUTO_CABLE_MARK_VALUE}
-              options={cableMarkModalOptions}
-              optionFilterProp="searchLabel"
-              disabled={!cableMarkModalObject?.is_valid || !project}
-              loading={isCableMarkPending}
-              notFoundContent="Нет доступных марок"
-              style={{ width: '100%', marginTop: 4 }}
-              onChange={setCableMarkModalValue}
-            />
-          </div>
-          <div>
-            <Text type="secondary">Сохранить в СО</Text>
-            <Checkbox.Group
-              aria-label="СО для сохранения выбора марки"
-              options={cableMarkModalTargetVariantOptions}
-              value={cableMarkModalTargetVariants}
-              disabled={isCableMarkPending}
-              onChange={setCableMarkModalTargetVariantsFromValues}
-              style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}
-            />
-          </div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            «Авто» запустит автоподбор для выбранных СО. Выбор конкретной марки сохранит ручной
-            подбор в отмеченных СО.
-          </Text>
-        </Space>
-      </Modal>
+      />
       <Modal
         open={!!cableSizingModalObject}
         width="100vw"
