@@ -35,20 +35,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
-  applyElectricalCandidate,
-  addElectricalCandidateToFolder,
-  createElectricalCandidate,
-  createElectricalCandidateFolder,
-  deleteElectricalCandidateFolder,
   listElectricalCandidateFolders,
   listElectricalCandidates,
   getElectricalQueryCapabilities,
   listCables,
   queryElectrical,
   selectCableForVariants,
-  removeElectricalCandidateFromFolder,
-  updateElectricalCandidateFolder,
-  updateElectricalCandidate,
   type CableSource,
 } from '@/api/calculations';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
@@ -104,9 +96,6 @@ import {
   buildElectricalQueryRequest,
 } from '@/pages/electrical/elecCalcQueryModel';
 import {
-  candidateCustomFolderKey,
-} from '@/pages/electrical/elecCalcCandidateFolderModel';
-import {
   calculationVariantLabel,
 } from '@/pages/electrical/elecCalcVariantModel';
 import {
@@ -143,6 +132,7 @@ import { useElecCalcCandidateCompareState } from '@/pages/electrical/useElecCalc
 import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCalcCandidateFolderUiState';
 import { useElecCalcCandidateFolderViewModel } from '@/pages/electrical/useElecCalcCandidateFolderViewModel';
 import { useElecCalcCandidateGlideActions } from '@/pages/electrical/useElecCalcCandidateGlideActions';
+import { useElecCalcCandidateMutationFlow } from '@/pages/electrical/useElecCalcCandidateMutationFlow';
 import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColumnPersistence';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
 import { useElecCalcColumnViewModel } from '@/pages/electrical/useElecCalcColumnViewModel';
@@ -506,28 +496,6 @@ export default function ElecCalcPage() {
     aggressiveProduct: recalc.aggressiveProduct,
     cableSizingEffectiveCableType,
   });
-  const setCableSizingCandidateApplied = useCallback((
-    candidateId: string | null,
-    appliedCandidate?: ElectricalCandidate,
-  ) => {
-    qc.setQueryData<ElectricalCandidate[]>(
-      cableSizingCandidatesQueryKey,
-      (current) => {
-        const next = current?.map((candidate) => {
-          const isApplied = candidateId !== null && candidate.id === candidateId;
-          return {
-            ...candidate,
-            ...(isApplied && appliedCandidate ? appliedCandidate : {}),
-            is_applied: isApplied,
-          };
-        });
-        if (!next || !appliedCandidate || next.some((candidate) => candidate.id === appliedCandidate.id)) {
-          return next;
-        }
-        return [{ ...appliedCandidate, is_applied: true }, ...next];
-      },
-    );
-  }, [cableSizingCandidatesQueryKey, qc]);
   const setElectricalQueryCalculation = useCallback((calculation: ElectricalCalcSummary) => {
     if (!project?.id) return;
     qc.setQueriesData<ElectricalQueryResponse>(
@@ -549,125 +517,31 @@ export default function ElecCalcPage() {
       },
     );
   }, [project?.id, qc]);
-  const invalidateCableSizingCandidates = useCallback(() => {
-    qc.invalidateQueries({
-      queryKey: ['project', project?.id, 'electrical-candidates', cableSizingModalObjectId],
-    });
-  }, [cableSizingModalObjectId, project?.id, qc]);
-  const invalidateCableSizingCandidateFolders = useCallback(() => {
-    qc.invalidateQueries({
-      queryKey: cableSizingCandidateFoldersQueryKey,
-    });
-  }, [cableSizingCandidateFoldersQueryKey, qc]);
-  const createCandidateMut = useMutation({
-    mutationFn: ({ mode, mark }: { mode: 'auto' | 'manual'; mark?: string | null }) =>
-      createElectricalCandidate({
-        project_id: project!.id,
-        object_id: cableSizingModalObjectId!,
-        variant_number: variant,
-        cable_type: cableSizingEffectiveCableType,
-        cable_source: effectiveSource,
-        mode,
-        cable_mark: mode === 'manual' ? mark ?? null : null,
-        electrical_params: cableSizingCandidateParams,
-      }),
-    onSuccess: ({ candidate, action }) => {
-      invalidateCableSizingCandidates();
-      const statusMessage = candidate.status === 'applicable'
-        ? action === 'updated'
-          ? 'Вариант обновлён'
-          : 'Вариант добавлен'
-        : candidate.reason_message || 'Вариант подбора сохранён с диагностикой';
-      message[candidate.status === 'applicable' ? 'success' : 'warning'](statusMessage);
-    },
-    onError: (error: Error) => message.error(error.message),
-  });
-  const updateCandidateMut = useMutation({
-    mutationFn: ({
-      candidateId,
-      patch,
-    }: {
-      candidateId: string;
-      patch: Partial<Pick<
-        ElectricalCandidate,
-        'priority' | 'is_recommended' | 'is_pinned' | 'status' | 'engineer_comment'
-      >>;
-    }) => updateElectricalCandidate(candidateId, patch),
-    onSuccess: invalidateCableSizingCandidates,
-    onError: (error: Error) => message.error(error.message),
-  });
-  const createCandidateFolderMut = useMutation({
-    mutationFn: () => createElectricalCandidateFolder({
-      project_id: project!.id,
-      object_id: cableSizingModalObjectId!,
-      variant_number: variant,
-      name: candidateFolderName.trim(),
-    }),
-    onSuccess: (folder) => {
-      invalidateCableSizingCandidateFolders();
-      setActiveCandidateFolderKey(candidateCustomFolderKey(folder.id));
-      closeCandidateFolderModal();
-      message.success('Папка создана');
-    },
-    onError: (error: Error) => message.error(error.message),
-  });
-  const updateCandidateFolderMut = useMutation({
-    mutationFn: ({ folderId, name }: { folderId: string; name: string }) =>
-      updateElectricalCandidateFolder(folderId, { name }),
-    onSuccess: () => {
-      invalidateCableSizingCandidateFolders();
-      closeCandidateFolderModal();
-      message.success('Папка переименована');
-    },
-    onError: (error: Error) => message.error(error.message),
-  });
-  const deleteCandidateFolderMut = useMutation({
-    mutationFn: deleteElectricalCandidateFolder,
-    onSuccess: (_result, folderId) => {
-      invalidateCableSizingCandidateFolders();
-      if (activeCandidateFolderKey === candidateCustomFolderKey(folderId)) {
-        setActiveCandidateFolderKey('all');
-      }
-      message.success('Папка удалена');
-    },
-    onError: (error: Error) => message.error(error.message),
-  });
-  const toggleCandidateFolderItemMut = useMutation({
-    mutationFn: ({
-      folderId,
-      candidateId,
-      checked,
-    }: {
-      folderId: string;
-      candidateId: string;
-      checked: boolean;
-    }) => checked
-      ? addElectricalCandidateToFolder(folderId, candidateId)
-      : removeElectricalCandidateFromFolder(folderId, candidateId),
-    onSuccess: invalidateCableSizingCandidateFolders,
-    onError: (error: Error) => message.error(error.message),
-  });
-  const applyCandidateMut = useMutation({
-    mutationFn: (candidateId: string) => applyElectricalCandidate(candidateId),
-    onMutate: async (candidateId) => {
-      await qc.cancelQueries({ queryKey: cableSizingCandidatesQueryKey });
-      const previous = qc.getQueryData<ElectricalCandidate[]>(cableSizingCandidatesQueryKey);
-      setCableSizingCandidateApplied(candidateId);
-      return { previous };
-    },
-    onSuccess: ({ candidate, calculation }) => {
-      setCableSizingCandidateApplied(String(candidate.id), candidate);
-      setElectricalQueryCalculation(calculation);
-      invalidateCableSizingCandidates();
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query'] });
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'electrical-query-capabilities'] });
-      qc.invalidateQueries({ queryKey: ['project', project?.id, 'objects', 'summary'] });
-      message.success('Кандидат применён в электрорасчёт');
-    },
-    onError: (error: Error, _candidateId, context) => {
-      if (context?.previous) qc.setQueryData(cableSizingCandidatesQueryKey, context.previous);
-      message.error(error.message);
-    },
+  const {
+    createCandidateMut,
+    updateCandidateMut,
+    createCandidateFolderMut,
+    updateCandidateFolderMut,
+    deleteCandidateFolderMut,
+    toggleCandidateFolderItemMut,
+    applyCandidateMut,
+    submitCandidateFolderModal,
+  } = useElecCalcCandidateMutationFlow({
+    projectId: project?.id,
+    variant,
+    effectiveSource,
+    cableSizingModalObjectId,
+    cableSizingEffectiveCableType,
+    cableSizingCandidateParams,
+    cableSizingCandidatesQueryKey,
+    cableSizingCandidateFoldersQueryKey,
+    candidateFolderName,
+    candidateFolderModalMode,
+    editingCandidateFolder,
+    activeCandidateFolderKey,
+    setActiveCandidateFolderKey,
+    closeCandidateFolderModal,
+    setElectricalQueryCalculation,
   });
   const manualCableMut = useMutation({
     mutationFn: async ({
@@ -1446,19 +1320,6 @@ export default function ElecCalcPage() {
         onSelectionPolicyChange={setRecalc.selectionPolicy}
       />
     );
-  }
-
-  function submitCandidateFolderModal() {
-    const name = candidateFolderName.trim();
-    if (!name) {
-      message.warning('Введите название папки');
-      return;
-    }
-    if (candidateFolderModalMode === 'rename' && editingCandidateFolder) {
-      updateCandidateFolderMut.mutate({ folderId: editingCandidateFolder.id, name });
-      return;
-    }
-    createCandidateFolderMut.mutate();
   }
 
   function showDeleteCandidateFolderConfirm(folder: ElectricalCandidateFolder) {
