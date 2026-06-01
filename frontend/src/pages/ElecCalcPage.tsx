@@ -14,7 +14,6 @@ import {
   Button,
   Card,
   Checkbox,
-  Dropdown,
   Input,
   Modal,
   Select,
@@ -29,10 +28,6 @@ import {
 import {
   CloseCircleFilled,
   CloseCircleOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  MoreOutlined,
-  PlusOutlined,
   TableOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
@@ -81,6 +76,7 @@ import CablePickerCharacteristics from '@/components/electrical/CablePickerChara
 import ElectricalCandidateColumnSettingsModal from '@/components/electrical/ElectricalCandidateColumnSettingsModal';
 import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalColumnSettingsModal';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
+import ElecCalcCandidateFolderTabs from '@/pages/electrical/ElecCalcCandidateFolderTabs';
 import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
 import ElecCalcSelectedCableSummary from '@/pages/electrical/ElecCalcSelectedCableSummary';
 import { ROUTES } from '@/routes/routes';
@@ -145,7 +141,6 @@ import {
 } from '@/pages/electrical/elecCalcQueryModel';
 import {
   candidateCustomFolderKey,
-  type CandidateFolderKey,
 } from '@/pages/electrical/elecCalcCandidateFolderModel';
 import {
   calculationVariantLabel,
@@ -1933,80 +1928,6 @@ export default function ElecCalcPage() {
     return 'Вариантов пока нет. Запустите авторасчёт или ручной расчёт.';
   }
 
-  function renderCandidateFolderButton(
-    key: CandidateFolderKey,
-    label: string,
-    count: number,
-  ) {
-    return (
-      <Button
-        key={key}
-        size="small"
-        type={activeCandidateFolderKey === key ? 'primary' : 'default'}
-        onClick={() => setActiveCandidateFolderKey(key)}
-      >
-        {label} <span className="electrical-candidate-folder-count">{count}</span>
-      </Button>
-    );
-  }
-
-  function renderCandidateFolderTabs() {
-    return (
-      <div className="electrical-candidate-folders" aria-label="Папки вариантов подбора">
-        <div className="electrical-candidate-folders__scroll">
-          {renderCandidateFolderButton('all', 'Все', candidateFolderCounts.all)}
-          {renderCandidateFolderButton('favorite', 'Избранное', candidateFolderCounts.favorite)}
-          {cableSizingCandidateFolders.map((folder) => {
-            const key = candidateCustomFolderKey(folder.id);
-            return (
-              <span key={folder.id} className="electrical-candidate-folder-tab">
-                {renderCandidateFolderButton(
-                  key,
-                  folder.name,
-                  candidateFolderCounts.custom.get(folder.id) ?? 0,
-                )}
-                <Dropdown
-                  trigger={['click']}
-                  menu={{
-                    items: [
-                      {
-                        key: 'rename',
-                        icon: <EditOutlined />,
-                        label: 'Переименовать',
-                        onClick: () => openRenameCandidateFolderModal(folder),
-                      },
-                      {
-                        key: 'delete',
-                        icon: <DeleteOutlined />,
-                        danger: true,
-                        label: 'Удалить',
-                        onClick: () => showDeleteCandidateFolderConfirm(folder),
-                      },
-                    ],
-                  }}
-                >
-                  <Button
-                    size="small"
-                    className="electrical-candidate-folder-menu"
-                    icon={<MoreOutlined />}
-                    aria-label={`Действия с папкой ${folder.name}`}
-                  />
-                </Dropdown>
-              </span>
-            );
-          })}
-        </div>
-        <Button
-          size="small"
-          icon={<PlusOutlined />}
-          onClick={openCreateCandidateFolderModal}
-        >
-          Папка
-        </Button>
-      </div>
-    );
-  }
-
   const cableSizingCandidateColumns = useElecCalcCandidateColumns({
     visibleCandidateColumnMetas,
     candidateTableViewState,
@@ -2450,7 +2371,15 @@ export default function ElecCalcPage() {
             calc={cableSizingModalCalc}
             fallbackCableType={cableSizingCableType}
           />
-          {renderCandidateFolderTabs()}
+          <ElecCalcCandidateFolderTabs
+            activeKey={activeCandidateFolderKey}
+            counts={candidateFolderCounts}
+            folders={cableSizingCandidateFolders}
+            onSelectFolder={setActiveCandidateFolderKey}
+            onCreateFolder={openCreateCandidateFolderModal}
+            onRenameFolder={openRenameCandidateFolderModal}
+            onDeleteFolder={showDeleteCandidateFolderConfirm}
+          />
           {renderCandidateCompareBar()}
           {electricalCandidateGlideEnabled ? (
             <Suspense fallback={null}>
