@@ -200,6 +200,28 @@ describe('useHeatCalcNormalTableInteractionModel', () => {
     expect(result.current.normalInfiniteLoading).toBeNull();
   });
 
+  it('keeps rowClassName stable across draft row changes while reading the latest draft', () => {
+    const first = makeObject({ id: 'pipe-1', params: { name: 'Труба 1', pipe_length: 25 } });
+    const options = makeOptions({
+      visibleTableRows: [{ record: first, sourceIndex: 0 }],
+    });
+    const { result, rerender } = renderHook(
+      (props: ReturnType<typeof makeOptions>) => useHeatCalcNormalTableInteractionModel(props),
+      { initialProps: options },
+    );
+    const rowClassName = result.current.tableRowClassName;
+
+    expect(rowClassName(first)).toBe('');
+
+    rerender({
+      ...options,
+      draftRowsById: { [first.id]: makeDraft(first) },
+    });
+
+    expect(result.current.tableRowClassName).toBe(rowClassName);
+    expect(rowClassName(first)).toContain('row-dirty');
+  });
+
   it('delegates load more and page change to table state callbacks with current query result', () => {
     const loadNextNormalPage = vi.fn();
     const changeNormalTablePage = vi.fn();

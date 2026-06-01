@@ -106,6 +106,7 @@ interface HeatCalcNormalGlideGridProps {
   onPageChange: (page: number) => void;
   onLoadMore: () => void;
   onCellAction?: (record: ProjectObject, columnKey: string, actionKey: string) => void;
+  onRegisterDraftInvalidator?: (invalidateRows: HeatCalcNormalGlideDraftInvalidator) => () => void;
   fillAvailableWidth?: boolean;
   renderFilterDropdown?: (props: {
     column: HeatCalcGlideGridColumn;
@@ -128,6 +129,8 @@ export interface HeatCalcNormalInfiniteLoading {
   hasNextPage: boolean;
   loading?: boolean;
 }
+
+export type HeatCalcNormalGlideDraftInvalidator = (rowIds?: readonly string[] | null) => void;
 
 type NormalGlideEditingCell = {
   cell: Item;
@@ -579,6 +582,7 @@ function HeatCalcNormalGlideGrid({
   onPageChange,
   onLoadMore,
   onCellAction,
+  onRegisterDraftInvalidator,
   fillAvailableWidth = false,
   renderFilterDropdown,
 }: HeatCalcNormalGlideGridProps) {
@@ -598,6 +602,11 @@ function HeatCalcNormalGlideGrid({
     () => gridColumns.filter((column) => !NORMAL_GLIDE_HIDDEN_COLUMN_KEYS.has(column.key)),
     [gridColumns],
   );
+  const rowIndexById = useMemo(() => {
+    const result = new Map<string, number>();
+    rows.forEach((row, index) => result.set(row.id, index));
+    return result;
+  }, [rows]);
   const hiddenColumnWidth = useMemo(
     () => gridColumns.reduce(
       (sum, column) => (NORMAL_GLIDE_HIDDEN_COLUMN_KEYS.has(column.key) ? sum + column.width : sum),
@@ -661,6 +670,12 @@ function HeatCalcNormalGlideGrid({
     () => buildRowSelection(rows, selectedRowKeys, activeCell),
     [activeCell, rows, selectedRowKeys],
   );
+  const rowsRef = useRef(rows);
+  const rowIndexByIdRef = useRef(rowIndexById);
+  const visibleGridColumnsRef = useRef(visibleGridColumns);
+  rowsRef.current = rows;
+  rowIndexByIdRef.current = rowIndexById;
+  visibleGridColumnsRef.current = visibleGridColumns;
   const modelCellCacheScope = useMemo(() => ({
     getCellState,
     rows,
@@ -691,6 +706,26 @@ function HeatCalcNormalGlideGrid({
     modelCellCacheRef.current.set(cacheKey, { ...modelCell, version: modelCellCacheScope.version });
     return modelCell;
   }, [modelCellCacheScope]);
+  const invalidateDraftRows = useCallback<HeatCalcNormalGlideDraftInvalidator>((rowIds) => {
+    modelCellCacheRef.current.clear();
+    const editor = editorRef.current;
+    if (!editor) return;
+    const columns = visibleGridColumnsRef.current;
+    if (columns.length === 0) return;
+    const targetRowIndexes = rowIds && rowIds.length > 0
+      ? Array.from(new Set(rowIds
+        .map((rowId) => rowIndexByIdRef.current.get(rowId))
+        .filter((rowIndex): rowIndex is number => rowIndex != null)))
+      : rowsRef.current.map((_row, rowIndex) => rowIndex);
+    if (targetRowIndexes.length === 0) return;
+    editor.updateCells(targetRowIndexes.flatMap((rowIndex) => (
+      columns.map((_column, columnIndex) => ({ cell: [columnIndex, rowIndex] as Item }))
+    )));
+  }, []);
+  useEffect(() => {
+    if (!onRegisterDraftInvalidator) return undefined;
+    return onRegisterDraftInvalidator(invalidateDraftRows);
+  }, [invalidateDraftRows, onRegisterDraftInvalidator]);
   const getCellContent = useCallback((cell: Item): GridCell => {
     const [columnIndex, rowIndex] = cell;
     const modelCell = getModelCell(columnIndex, rowIndex);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { message as antdMessage, type TableProps } from 'antd';
 
 import type { HeatCalcNormalInfiniteLoading } from '@/components/heatcalc/HeatCalcObjectsTableCard';
@@ -100,15 +100,18 @@ export function useHeatCalcNormalTableInteractionModel({
     void antdMessage.success(message);
   },
 }: UseHeatCalcNormalTableInteractionModelOptions) {
+  const draftRowsByIdRef = useRef(draftRowsById);
+  draftRowsByIdRef.current = draftRowsById;
+
   const tableRowClassName = useCallback((record: ProjectObject) => (
     buildHeatCalcNormalTableRowClassName({
-      draftRowsById,
+      draftRowsById: draftRowsByIdRef.current,
       excelModeEnabled,
       isSavableDraftRow,
       record,
       selectedRowId,
     })
-  ), [draftRowsById, excelModeEnabled, isSavableDraftRow, selectedRowId]);
+  ), [excelModeEnabled, isSavableDraftRow, selectedRowId]);
 
   const normalTablePagination = useMemo<TableProps<ProjectObject>['pagination']>(() => ({
     current: activeTablePage,

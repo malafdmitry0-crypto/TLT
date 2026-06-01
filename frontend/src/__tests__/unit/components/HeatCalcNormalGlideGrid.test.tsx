@@ -6,6 +6,7 @@ import type { ProjectObject } from '@/types/project';
 
 const normalGlideMock = vi.hoisted(() => ({
   props: null as Record<string, unknown> | null,
+  updateCells: vi.fn(),
 }));
 
 vi.mock('@glideapps/glide-data-grid', () => {
@@ -34,6 +35,7 @@ vi.mock('@glideapps/glide-data-grid', () => {
     DataEditor: React.forwardRef((props: Record<string, unknown>, ref) => {
       React.useImperativeHandle(ref, () => ({
         getBounds: () => ({ x: 10, y: 20, width: 180, height: 30 }),
+        updateCells: normalGlideMock.updateCells,
       }));
       normalGlideMock.props = props;
       return React.createElement('div', { 'data-testid': 'normal-glide-data-editor' });
@@ -218,6 +220,56 @@ describe('HeatCalcNormalGlideGrid', () => {
     }, vi.fn());
 
     expect(getCellState).toHaveBeenCalledTimes(1);
+  });
+
+  it('registers an imperative draft invalidator for targeted row redraws', () => {
+    normalGlideMock.updateCells.mockClear();
+    let invalidateRows: ((rowIds?: readonly string[] | null) => void) | null = null;
+    const onRegisterDraftInvalidator = vi.fn((next: (rowIds?: readonly string[] | null) => void) => {
+      invalidateRows = next;
+      return vi.fn();
+    });
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[
+          { key: 'index', title: '№', width: 72 },
+          { key: 'name', title: 'Name', width: 180 },
+          { key: 'heat_loss_status', title: 'Status', width: 90 },
+        ]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        selectedRowKeys={[]}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={null}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={(record) => ({
+          displayValue: String(record.params?.name ?? ''),
+          editable: false,
+        })}
+        onOpenEditWizard={vi.fn()}
+        onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
+        onRegisterDraftInvalidator={onRegisterDraftInvalidator}
+      />,
+    );
+
+    expect(onRegisterDraftInvalidator).toHaveBeenCalledTimes(1);
+    act(() => invalidateRows?.(['row-2', 'missing']));
+
+    expect(normalGlideMock.updateCells).toHaveBeenCalledWith([
+      { cell: [0, 1] },
+      { cell: [1, 1] },
+    ]);
   });
 
   it('stretches columns to fill the container when requested', async () => {

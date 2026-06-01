@@ -1,6 +1,7 @@
 import {
   useCallback,
   useMemo,
+  useRef,
 } from 'react';
 
 import {
@@ -94,6 +95,9 @@ export function useHeatCalcGridModel({
   wizardBaseObject,
   wizardFormObject,
 }: UseHeatCalcGridModelOptions) {
+  const draftRowsByIdRef = useRef(draftRowsById);
+  draftRowsByIdRef.current = draftRowsById;
+
   const excelFieldInfoById = useMemo<Record<string, ExcelErrorFieldInfo>>(() => {
     const result: Record<string, ExcelErrorFieldInfo> = {};
     if (isAllObjectScope) return result;
@@ -274,7 +278,7 @@ export function useHeatCalcGridModel({
     columnKey: string,
     rowIndex: number,
   ): HeatCalcGlideGridCellState => {
-    const draftRow = draftRowsById[record.id];
+    const draftRow = draftRowsByIdRef.current[record.id];
     const renderer = columnRenderers[columnKey];
     const rendererAlign = normalizeGlideCellAlign(renderer?.align);
     if (isAllObjectScope && !isColumnApplicableToObjectType(columnKey, record.object_type)) {
@@ -312,7 +316,6 @@ export function useHeatCalcGridModel({
     };
   }, [
     columnRenderers,
-    draftRowsById,
     excelCellDisplayValue,
     fieldInputSettings,
     isAllObjectScope,

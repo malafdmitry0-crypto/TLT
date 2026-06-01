@@ -225,6 +225,31 @@ describe('useHeatCalcGridModel', () => {
     });
   });
 
+  it('keeps the normal Glide cell-state callback stable across draft row changes', () => {
+    const record = makeObject();
+    const options = makeOptions({
+      visibleTableRows: [{ record, sourceIndex: 0 }],
+      visibleSourceIndexById: new Map([[record.id, 0]]),
+    });
+    const { result, rerender } = renderHook(
+      (props: ReturnType<typeof makeOptions>) => useHeatCalcGridModel(props),
+      { initialProps: options },
+    );
+    const getNormalCellState = result.current.getNormalGlideGridCellState;
+    const draft = applyInlineCellDraft(null, record, 'name', 'Труба draft')!;
+
+    rerender({
+      ...options,
+      draftRowsById: { [record.id]: draft },
+    });
+
+    expect(result.current.getNormalGlideGridCellState).toBe(getNormalCellState);
+    expect(getNormalCellState(record, 'name', 0)).toMatchObject({
+      displayValue: 'Труба draft',
+      dirty: true,
+    });
+  });
+
   it('deduplicates selected row draft validation messages', () => {
     const record = makeObject();
     const draft = applyInlineCellDraft(null, record, 'pipe_outer_diameter', 5)!;

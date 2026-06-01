@@ -8,6 +8,9 @@ import type { ProjectObject } from '@/types/project';
 import type { ExcelCellPosition, ExcelSelectionRange } from '@/utils/heatCalcExcelMode';
 import { resolveHeatCalcExcelEngine } from '@/utils/heatCalcExcelEngine';
 import type {
+  HeatCalcNormalGlideDraftInvalidator,
+} from '@/components/heatcalc/HeatCalcNormalGlideGrid';
+import type {
   HeatCalcGlideGridCellState,
   HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
@@ -78,6 +81,7 @@ interface HeatCalcObjectsTableCardProps {
   onNormalSetSort: (columnKey: string, direction?: 'asc' | 'desc') => void;
   onNormalLoadMore: () => void;
   onNormalPageChange: (page: number) => void;
+  onRegisterNormalDraftInvalidator?: (invalidateRows: HeatCalcNormalGlideDraftInvalidator) => () => void;
   onOpenEditWizard: (record: ProjectObject) => void;
   onResetCurrentTableViewState: () => void;
   onSelectedRowKeysChange: (keys: string[]) => void;
@@ -172,6 +176,7 @@ export default function HeatCalcObjectsTableCard({
   onNormalSetSort,
   onNormalLoadMore,
   onNormalPageChange,
+  onRegisterNormalDraftInvalidator,
   onOpenEditWizard,
   onResetCurrentTableViewState,
   onSelectedRowKeysChange,
@@ -259,6 +264,7 @@ export default function HeatCalcObjectsTableCard({
             onSetColumnFilter={onNormalSetColumnFilter}
             onResetColumnFilter={onNormalResetColumnFilter}
             onSetSort={onNormalSetSort}
+            onRegisterDraftInvalidator={onRegisterNormalDraftInvalidator}
             onColumnResize={onGlideColumnResize}
             onColumnResizeEnd={onGlideColumnResizeEnd}
             onPageChange={onNormalPageChange}
