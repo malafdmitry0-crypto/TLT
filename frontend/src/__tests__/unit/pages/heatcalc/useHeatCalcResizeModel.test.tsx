@@ -125,6 +125,14 @@ function setupHook(overrides: Partial<Parameters<typeof useHeatCalcResizeModel>[
   };
 }
 
+function mockRequestAnimationFrameImmediate() {
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
+    callback(0);
+    return 1;
+  });
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
+}
+
 describe('useHeatCalcResizeModel', () => {
   afterEach(() => {
     document.body.classList.remove('heatcalc-side-resizing', 'heatcalc-column-resizing');
@@ -158,6 +166,7 @@ describe('useHeatCalcResizeModel', () => {
   });
 
   it('applies and persists side form width after mouse resize', () => {
+    mockRequestAnimationFrameImmediate();
     const { result, applySideFormWidthPct, persistTableViewOnly } = setupHook();
 
     act(() => {
@@ -182,6 +191,7 @@ describe('useHeatCalcResizeModel', () => {
   });
 
   it('updates Glide column width as draft during resize and persists on resize end', () => {
+    mockRequestAnimationFrameImmediate();
     const {
       result,
       persistTableColumnSettings,
@@ -215,11 +225,7 @@ describe('useHeatCalcResizeModel', () => {
   });
 
   it('clamps header resize drafts to the column minimum and persists final width', () => {
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
-      callback(0);
-      return 1;
-    });
-    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
+    mockRequestAnimationFrameImmediate();
     const {
       result,
       persistTableColumnSettings,

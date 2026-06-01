@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import {
   Button,
   Dropdown,
@@ -61,7 +61,7 @@ interface ElectricalBatchActionBarProps {
   onResetFilters: () => void;
 }
 
-export default function ElectricalBatchActionBar({
+function ElectricalBatchActionBar({
   variant,
   cableTypeControlLabel,
   cableTypeOptions,
@@ -267,3 +267,5 @@ export default function ElectricalBatchActionBar({
     </div>
   );
 }
+
+export default memo(ElectricalBatchActionBar);

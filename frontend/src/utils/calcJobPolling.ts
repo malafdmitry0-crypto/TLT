@@ -8,7 +8,7 @@ const ACTIVE_JOB_STATUSES: ReadonlySet<CalculationTaskStatus> = new Set<Calculat
 
 const QUEUED_JOB_POLL_MS = 2_000;
 const RUNNING_JOB_POLL_MS = 1_000;
-const BACKGROUND_JOB_POLL_MS = 5_000;
+const BACKGROUND_JOB_POLL_MS = 15_000;
 
 export function getCalcJobRefetchInterval(
   status: CalculationTaskStatus | null | undefined,

@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useRef,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -78,6 +79,19 @@ export function useHeatCalcResizeModel({
   updateTableColumnSettingsDraft,
 }: UseHeatCalcResizeModelOptions) {
   const sideResizeStateRef = useRef<SideResizeState | null>(null);
+  const glideResizeFrameRef = useRef<number | null>(null);
+  const pendingGlideResizeRef = useRef<{
+    type: HeatCalcTableColumnScope;
+    key: HeatCalcColumnKey;
+    widthPx: number;
+  } | null>(null);
+
+  useEffect(() => () => {
+    if (glideResizeFrameRef.current != null) {
+      window.cancelAnimationFrame(glideResizeFrameRef.current);
+      glideResizeFrameRef.current = null;
+    }
+  }, []);
 
   const sideFormWidthPctFromClientX = useCallback((clientX: number) => (
     resolveSideFormWidthPctFromClientX({
@@ -97,24 +111,39 @@ export function useHeatCalcResizeModel({
     if (!rect || rect.width <= 0) return;
     sideResizeStateRef.current = { placement: formPlacement, rect };
     document.body.classList.add('heatcalc-side-resizing');
+    let frameId: number | null = null;
+    let latestWidthPct = tableViewSettingsRef.current.sideFormWidthPct;
 
     const finishResize = (resizeEvent?: PointerEvent | MouseEvent) => {
       window.removeEventListener(moveEventName, handlePointerMove as EventListener);
       window.removeEventListener(upEventName, handlePointerUp as EventListener);
       if (cancelEventName) window.removeEventListener(cancelEventName, handlePointerCancel as EventListener);
+      if (frameId != null) {
+        window.cancelAnimationFrame(frameId);
+        frameId = null;
+      }
       document.body.classList.remove('heatcalc-side-resizing');
       const finalWidthPct = resizeEvent
         ? sideFormWidthPctFromClientX(resizeEvent.clientX)
-        : tableViewSettingsRef.current.sideFormWidthPct;
+        : latestWidthPct ?? tableViewSettingsRef.current.sideFormWidthPct;
       sideResizeStateRef.current = null;
       const normalizedView = applySideFormWidthPct(finalWidthPct ?? tableViewSettingsRef.current.sideFormWidthPct);
       persistTableViewOnly(normalizedView);
     };
 
+    function flushSideWidth() {
+      frameId = null;
+      if (latestWidthPct == null) return;
+      applySideFormWidthPct(latestWidthPct);
+    }
+
     function handlePointerMove(resizeEvent: PointerEvent | MouseEvent) {
       const nextWidthPct = sideFormWidthPctFromClientX(resizeEvent.clientX);
       if (nextWidthPct == null) return;
-      applySideFormWidthPct(nextWidthPct);
+      latestWidthPct = nextWidthPct;
+      if (frameId == null) {
+        frameId = window.requestAnimationFrame(flushSideWidth);
+      }
     }
 
     function handlePointerUp(resizeEvent: PointerEvent | MouseEvent) {
@@ -176,10 +205,23 @@ export function useHeatCalcResizeModel({
   }, [updateTableColumnSettingsDraft]);
 
   const handleGlideColumnResize = useCallback((key: string, widthPx: number) => {
-    updateColumnWidthDraft(activeTableColumnScope, key, widthPx);
+    pendingGlideResizeRef.current = { type: activeTableColumnScope, key, widthPx };
+    if (glideResizeFrameRef.current != null) return;
+    glideResizeFrameRef.current = window.requestAnimationFrame(() => {
+      glideResizeFrameRef.current = null;
+      const pending = pendingGlideResizeRef.current;
+      pendingGlideResizeRef.current = null;
+      if (!pending) return;
+      updateColumnWidthDraft(pending.type, pending.key, pending.widthPx);
+    });
   }, [activeTableColumnScope, updateColumnWidthDraft]);
 
   const handleGlideColumnResizeEnd = useCallback((key: string, widthPx: number) => {
+    if (glideResizeFrameRef.current != null) {
+      window.cancelAnimationFrame(glideResizeFrameRef.current);
+      glideResizeFrameRef.current = null;
+      pendingGlideResizeRef.current = null;
+    }
     applyColumnWidth(activeTableColumnScope, key, tableColumnWidthPxToPct(widthPx));
   }, [activeTableColumnScope, applyColumnWidth]);
 

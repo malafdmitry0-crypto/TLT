@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, Segmented, Space, Tag, Typography, message } from 'antd';
 import {
   FileTextOutlined,
@@ -29,6 +29,16 @@ import ReportWizard from '@/components/reports/ReportWizard';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 
 const { Paragraph, Text } = Typography;
+const REPORT_PREVIEW_DEBOUNCE_MS = 250;
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const handle = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(handle);
+  }, [delayMs, value]);
+  return debounced;
+}
 
 export default function ReportPage() {
   const project = useProjectStore((s) => s.currentProject);
@@ -45,11 +55,20 @@ export default function ReportPage() {
   const setVariant = (nextVariant: number) => {
     if (project?.id) saveVariant(project.id, nextVariant);
   };
+  const sectionsKey = useMemo(() => sections.join(','), [sections]);
+  const debouncedSectionsKey = useDebouncedValue(sectionsKey, REPORT_PREVIEW_DEBOUNCE_MS);
+  const previewSections = useMemo(
+    () => debouncedSectionsKey
+      .split(',')
+      .filter((section): section is ReportSection => REPORT_SECTIONS.includes(section as ReportSection)),
+    [debouncedSectionsKey],
+  );
 
   const { data, isLoading } = useQuery({
-    queryKey: ['report-preview', project?.id, variant, sections.join(',')],
-    queryFn: () => getReportPreview(project!.id, variant, sections),
+    queryKey: ['report-preview', project?.id, variant, debouncedSectionsKey],
+    queryFn: () => getReportPreview(project!.id, variant, previewSections),
     enabled: !!project,
+    placeholderData: (previous) => previous,
   });
 
   if (!project) {

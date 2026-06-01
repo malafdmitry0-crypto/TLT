@@ -139,8 +139,7 @@ vi.mock('@/components/electrical/ElectricalCandidateGlideGrid', async () => {
     return '';
   }
 
-  return {
-    default: (props: {
+  function MockElectricalCandidateGlideGrid(props: {
       rows: ElectricalCandidate[];
       gridColumns: Array<{ key: string; title: string; label?: string; width: number; filterable?: boolean; sortable?: boolean }>;
       tableViewState: { sort?: { columnKey: string; direction: 'asc' | 'desc' } };
@@ -161,7 +160,7 @@ vi.mock('@/components/electrical/ElectricalCandidateGlideGrid', async () => {
       onSetColumnFilter: (columnKey: string, filter?: { kind: 'text'; value: string }) => void;
       onSetSort: (columnKey: string, direction?: 'asc' | 'desc') => void;
       onColumnResizeEnd?: (columnKey: string, widthPx: number) => void;
-    }) => {
+    }) {
       const [filterColumnKey, setFilterColumnKey] = React.useState<string | null>(null);
       const [filterValue, setFilterValue] = React.useState('');
       const [menuItems, setMenuItems] = React.useState<Array<{
@@ -351,7 +350,10 @@ vi.mock('@/components/electrical/ElectricalCandidateGlideGrid', async () => {
           ),
         ],
       );
-    },
+  }
+
+  return {
+    default: MockElectricalCandidateGlideGrid,
   };
 });
 
@@ -588,7 +590,7 @@ describe('ElecCalcPage (integration)', () => {
     expect(getCalcJobRefetchInterval('queued', false)).toBe(2000);
     expect(getCalcJobRefetchInterval('enqueued', false)).toBe(2000);
     expect(getCalcJobRefetchInterval('running', false)).toBe(1000);
-    expect(getCalcJobRefetchInterval('running', true)).toBe(5000);
+    expect(getCalcJobRefetchInterval('running', true)).toBe(15000);
     expect(getCalcJobRefetchInterval('succeeded', false)).toBe(false);
   });
 

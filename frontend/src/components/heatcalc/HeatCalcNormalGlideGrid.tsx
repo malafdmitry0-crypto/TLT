@@ -1009,20 +1009,32 @@ function HeatCalcNormalGlideGrid({
 
     const element = rootRef.current;
     if (!element) return undefined;
+    let frameId: number | null = null;
 
     const updateContainerWidth = () => {
-      setContainerWidth(Math.floor(element.getBoundingClientRect().width));
+      if (frameId != null) return;
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null;
+        const nextWidth = Math.floor(element.getBoundingClientRect().width);
+        setContainerWidth((current) => (current === nextWidth ? current : nextWidth));
+      });
     };
 
     updateContainerWidth();
     if (typeof ResizeObserver === 'undefined') {
       window.addEventListener('resize', updateContainerWidth);
-      return () => window.removeEventListener('resize', updateContainerWidth);
+      return () => {
+        window.removeEventListener('resize', updateContainerWidth);
+        if (frameId != null) window.cancelAnimationFrame(frameId);
+      };
     }
 
     const observer = new ResizeObserver(updateContainerWidth);
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (frameId != null) window.cancelAnimationFrame(frameId);
+    };
   }, [fillAvailableWidth]);
   useEffect(() => {
     if (!activeRowId) {

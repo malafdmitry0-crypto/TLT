@@ -128,6 +128,42 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.getByTestId('alpha-vnesh-input')).toHaveValue('');
   });
 
+  it('лениво загружает климатический справочник только при открытии выбора климата', async () => {
+    const refs = await import('@/api/references');
+    const user = userEvent.setup();
+    renderWizard();
+
+    await waitFor(() => {
+      expect(refs.getInsulation).toHaveBeenCalledTimes(1);
+    });
+    expect(refs.getClimate).not.toHaveBeenCalled();
+
+    await user.click(screen.getByTestId('climate-select'));
+
+    await waitFor(() => {
+      expect(refs.getClimate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('лениво загружает справочник грунтов только при открытии выбора грунта', async () => {
+    const refs = await import('@/api/references');
+    const user = userEvent.setup();
+    renderWizard({
+      initialFormValues: {
+        placement: 'underground',
+      },
+    });
+
+    expect(await screen.findByTestId('ground-type-select')).toBeVisible();
+    expect(refs.getSoilConductivity).not.toHaveBeenCalled();
+
+    await user.click(screen.getByTestId('ground-type-select'));
+
+    await waitFor(() => {
+      expect(refs.getSoilConductivity).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('показывает ошибки Excel-черновика прямо в форме параметров', async () => {
     renderWizard({
       initialFormValues: {

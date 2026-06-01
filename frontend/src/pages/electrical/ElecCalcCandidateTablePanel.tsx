@@ -1,5 +1,6 @@
 import {
   lazy,
+  memo,
   Suspense,
   type ReactNode,
 } from 'react';
@@ -51,7 +52,7 @@ type ElecCalcCandidateTablePanelProps = {
   ) => void;
 };
 
-export default function ElecCalcCandidateTablePanel({
+function ElecCalcCandidateTablePanel({
   rows,
   glideColumns,
   tableScrollX,
@@ -112,3 +113,5 @@ export default function ElecCalcCandidateTablePanel({
     </>
   );
 }
+
+export default memo(ElecCalcCandidateTablePanel);

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { getInsulation } from '@/api/references';
+import type { InsulationEntry } from '@/types/reference';
 import {
   heatCalcCustomControlRequiredProps,
   heatCalcFormFieldRules,
@@ -20,7 +21,7 @@ import {
 } from '@/utils/referenceOptions';
 import HelpedControl from '../HelpedControl';
 import FieldLabel from '../FieldLabel';
-import ReferencePicker from '../ReferencePicker';
+import ReferencePicker, { type ReferencePickerOption } from '../ReferencePicker';
 import InsulationTemperatureRangeField from '../InsulationTemperatureRangeField';
 
 function withHelp(control: ReactElement, hint: string) {
@@ -38,23 +39,34 @@ function fieldHelp(fieldId: string, objectType: HeatCalcObjectType, mode?: strin
 interface Props {
   objectType: HeatCalcObjectType;
   fieldInputSettings?: HeatCalcFieldInputSettings;
+  insulationMaterials?: InsulationEntry[];
+  insulationMaterialOptions?: ReferencePickerOption[];
+  insulationMaterialsError?: boolean;
+  isInsulationMaterialsFetching?: boolean;
   onProgrammaticValuesChange?: (changedValues: Record<string, unknown>) => void;
 }
 
 export default function ThermalStep({
   objectType,
   fieldInputSettings,
+  insulationMaterials,
+  insulationMaterialOptions,
+  insulationMaterialsError,
+  isInsulationMaterialsFetching,
   onProgrammaticValuesChange,
 }: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings, form });
   const insulationMaterial = Form.useWatch('insulation_material', form);
-  const { data: materials = [], isError, isFetching } = useQuery({
+  const shouldLoadInsulation = !insulationMaterials || !insulationMaterialOptions;
+  const { data: queriedMaterials = [], isError, isFetching } = useQuery({
     queryKey: referenceQueryKeys.insulation,
     queryFn: getInsulation,
+    enabled: shouldLoadInsulation,
     ...referenceQueryOptions,
   });
+  const materials = insulationMaterials ?? queriedMaterials;
   const materialOptions = useMemo(
     () => [
       ...buildInsulationReferenceOptions(materials),
@@ -62,6 +74,9 @@ export default function ThermalStep({
     ],
     [materials],
   );
+  const effectiveMaterialOptions = insulationMaterialOptions ?? materialOptions;
+  const effectiveInsulationMaterialsError = insulationMaterialsError ?? isError;
+  const effectiveInsulationMaterialsFetching = isInsulationMaterialsFetching ?? isFetching;
   const selectedMaterial = materials.find((m) => m.material === insulationMaterial);
 
   return (
@@ -75,12 +90,12 @@ export default function ThermalStep({
         {withHelp(
           <ReferencePicker
             data-testid="insulation-material-select"
-            options={materialOptions}
+            options={effectiveMaterialOptions}
             placeholder="Выберите материал"
             modalTitle="Материал изоляции"
             searchPlaceholder="Поиск материала"
-            loading={isFetching}
-            notFoundContent={isError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
+            loading={effectiveInsulationMaterialsFetching}
+            notFoundContent={effectiveInsulationMaterialsError ? 'Не удалось загрузить справочник' : 'Нет материалов'}
             {...heatCalcCustomControlRequiredProps(form, objectType, 'insulation_material')}
           />,
           fieldHelp('insulation_material', objectType),

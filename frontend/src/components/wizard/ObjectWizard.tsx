@@ -3,6 +3,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type ReactElement,
 } from 'react';
 import { Button, Form, Input, type FormInstance } from 'antd';
@@ -225,13 +226,13 @@ export default function ObjectWizard({
   const insulationMaterial = watchedString('insulation_material');
   const placement = watchedString('placement');
   const selectedClimateKey = watchedString('climate_key');
+  const selectedGroundType = watchedString('ground_type');
   const climateBasisValue = watchedString('climate_temperature_basis');
   const outerDiameterMm = numericFormValue(watchedValue('outer_diameter_mm'));
   const climateBasis = climatePolicyBasisForObject(objectType, outerDiameterMm, climateBasisValue);
   const climateBasisDisplay = climateBasis
     ? `${climateBasisLabel(climateBasis)} · ${climatePolicyBasisReason(objectType, outerDiameterMm)}`
     : climatePolicyBasisReason(objectType, outerDiameterMm);
-  const selectedGroundType = watchedString('ground_type');
   const secondInsulationMaterial = watchedString('second_insulation_material');
   const thirdInsulationMaterial = watchedString('third_insulation_material');
   const layerCount = Math.min(Math.max(Number(insulationLayerCount || '1') || 1, 1), 3);
@@ -241,6 +242,8 @@ export default function ObjectWizard({
   const showAlphaField = placement === 'outdoor'
     || placement === 'indoor'
     || (objectType === 'tank' && isUnderground);
+  const [climateReferenceRequested, setClimateReferenceRequested] = useState(false);
+  const [soilReferenceRequested, setSoilReferenceRequested] = useState(false);
   const { data: insulationMaterials = [], isError: insulationMaterialsError, isFetching: isInsulationMaterialsFetching } = useQuery({
     queryKey: referenceQueryKeys.insulation,
     queryFn: getInsulation,
@@ -254,11 +257,13 @@ export default function ObjectWizard({
   const { data: climateEntries = [], isFetching: isClimateFetching } = useQuery({
     queryKey: referenceQueryKeys.climate,
     queryFn: getClimate,
+    enabled: climateReferenceRequested || selectedClimateKey.length > 0,
     ...referenceQueryOptions,
   });
   const { data: soilEntries = [], isFetching: isSoilFetching } = useQuery({
     queryKey: referenceQueryKeys.soilConductivity,
     queryFn: getSoilConductivity,
+    enabled: soilReferenceRequested || selectedGroundType.length > 0,
     ...referenceQueryOptions,
   });
   const insulationMaterialOptions = useMemo(
@@ -629,6 +634,7 @@ export default function ObjectWizard({
             objectType={heatCalcObjectType}
             fieldInputSettings={fieldInputSettings}
             isSoilFetching={isSoilFetching}
+            onSoilPickerOpen={() => setSoilReferenceRequested(true)}
             soilOptions={soilOptions}
           />
           <ElectricalAndFittingsStep
@@ -647,6 +653,7 @@ export default function ObjectWizard({
             objectType={heatCalcObjectType}
             fieldInputSettings={fieldInputSettings}
             layerCount={layerCount}
+            insulationMaterials={insulationMaterials}
             insulationMaterialOptions={insulationMaterialOptions}
             insulationMaterialsError={insulationMaterialsError}
             isInsulationMaterialsFetching={isInsulationMaterialsFetching}
@@ -669,6 +676,7 @@ export default function ObjectWizard({
             fieldInputSettings={fieldInputSettings}
             climateOptions={climateOptions}
             isClimateFetching={isClimateFetching}
+            onClimatePickerOpen={() => setClimateReferenceRequested(true)}
             hasClimate={hasClimate}
             climateBasisDisplay={climateBasisDisplay}
             watchedValues={watchedValues}

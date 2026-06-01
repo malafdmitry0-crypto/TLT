@@ -632,7 +632,12 @@ export default function ElecCalcPage() {
     setActiveCandidateFolderKey('all');
     closeCandidateFolderModal();
     setCandidateColumnSettingsOpen(false);
-  }, [closeCandidateFolderModal, resetCableSizingModalState, resetMarkedCableSizingCandidates]);
+  }, [
+    closeCandidateFolderModal,
+    resetCableSizingModalState,
+    resetMarkedCableSizingCandidates,
+    setActiveCandidateFolderKey,
+  ]);
   const openCableSizingModal = useCallback((obj: ProjectObject) => {
     activateRowId(obj.id);
     openCableSizingModalState(obj);
@@ -642,6 +647,7 @@ export default function ElecCalcPage() {
     activateRowId,
     openCableSizingModalState,
     resetMarkedCableSizingCandidates,
+    setActiveCandidateFolderKey,
   ]);
   const {
     fieldCapabilityByKey,
@@ -994,6 +1000,42 @@ export default function ElecCalcPage() {
     getColumnAlign: getElectricalCandidateGlideColumnAlign,
     getCellActions: getElectricalCandidateGlideCellActions,
   });
+  const cableTypeOptions = useMemo(() => availableCableTypeKeys.map((k) => ({
+    label: commercialFeaturesAvailable
+      ? CABLE_TYPE_LABEL[k]
+      : <Tooltip title="Расширенные типы кабеля закрыты feature flag">{CABLE_TYPE_LABEL[k]}</Tooltip>,
+    value: k,
+  })), [availableCableTypeKeys, commercialFeaturesAvailable]);
+  const cableSourceOptions = useMemo<Array<{ label: string; value: ElectricalCalculationCableSource }>>(() => [
+    { label: 'Встроенная', value: 'builtin' },
+    ...(isEmployee
+      ? [
+          { label: 'Внешняя', value: 'extended' as ElectricalCalculationCableSource },
+          { label: 'Все', value: 'all' as ElectricalCalculationCableSource },
+        ]
+      : []),
+  ], [isEmployee]);
+  const copyVariantMenuItems = useMemo(() => [1, 2, 3, 4]
+    .filter((targetVariant) => targetVariant !== variant)
+    .map((targetVariant) => ({
+      key: String(targetVariant),
+      label: `Скопировать СО${variant} в СО${targetVariant}`,
+      disabled: copyVariantMut.isPending || isJobActive,
+    })), [copyVariantMut.isPending, isJobActive, variant]);
+  const defaultElectricalTypeControls = useMemo(() => (
+    <ElecCalcElectricalTypeControls
+      cableType={cableTypes.visibleCableTypeControl}
+      recalc={recalc}
+      setRecalc={setRecalc}
+    />
+  ), [cableTypes.visibleCableTypeControl, recalc, setRecalc]);
+  const cableSizingCandidateTableScrollX = useMemo(() => Math.max(
+    920,
+    visibleCandidateColumnMetas.reduce(
+      (sum, column) => sum + Math.max(column.width, column.minWidthPx),
+      0,
+    ),
+  ), [visibleCandidateColumnMetas]);
 
   if (!project) {
     return (
@@ -1004,29 +1046,6 @@ export default function ElecCalcPage() {
       />
     );
   }
-
-  const cableTypeOptions = availableCableTypeKeys.map((k) => ({
-    label: commercialFeaturesAvailable
-      ? CABLE_TYPE_LABEL[k]
-      : <Tooltip title="Расширенные типы кабеля закрыты feature flag">{CABLE_TYPE_LABEL[k]}</Tooltip>,
-    value: k,
-  }));
-  const cableSourceOptions: Array<{ label: string; value: ElectricalCalculationCableSource }> = [
-    { label: 'Встроенная', value: 'builtin' },
-    ...(isEmployee
-      ? [
-          { label: 'Внешняя', value: 'extended' as ElectricalCalculationCableSource },
-          { label: 'Все', value: 'all' as ElectricalCalculationCableSource },
-        ]
-      : []),
-  ];
-  const copyVariantMenuItems = [1, 2, 3, 4]
-    .filter((targetVariant) => targetVariant !== variant)
-    .map((targetVariant) => ({
-      key: String(targetVariant),
-      label: `Скопировать СО${variant} в СО${targetVariant}`,
-      disabled: copyVariantMut.isPending || isJobActive,
-    }));
 
   function showCopyVariantConfirm(targetVariant: number) {
     Modal.confirm({
@@ -1101,14 +1120,6 @@ export default function ElecCalcPage() {
     return 'Вариантов пока нет. Запустите авторасчёт или ручной расчёт.';
   }
 
-  const cableSizingCandidateTableScrollX = Math.max(
-    920,
-    visibleCandidateColumnMetas.reduce(
-      (sum, column) => sum + Math.max(column.width, column.minWidthPx),
-      0,
-    ),
-  );
-
   return (
     <>
       <div ref={tableScrollRegionsRef}>
@@ -1169,7 +1180,7 @@ export default function ElecCalcPage() {
           cableTypeControlLabel={cableTypeControlLabel}
           cableTypeOptions={cableTypeOptions}
           visibleCableTypeControl={cableTypes.visibleCableTypeControl}
-          typeControls={renderElectricalTypeControls()}
+          typeControls={defaultElectricalTypeControls}
           commercialFeaturesAvailable={commercialFeaturesAvailable}
           copyVariantMenuItems={copyVariantMenuItems}
           copyVariantPending={copyVariantMut.isPending}

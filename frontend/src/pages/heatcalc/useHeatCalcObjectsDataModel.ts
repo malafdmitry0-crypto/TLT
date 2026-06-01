@@ -212,7 +212,7 @@ export function useHeatCalcObjectsDataModel({
     : FINDABILITY_DISABLED_TABLE_VIEW_STATE;
 
   const objectQueryRequest = useMemo(
-    () => (isAllObjectScope
+    () => (isAllObjectScope || excelModeEnabled
       ? null
       : buildObjectQueryRequest(
         activeTableObjectType,
@@ -227,6 +227,7 @@ export function useHeatCalcObjectsDataModel({
       activeTableObjectType,
       activeTablePage,
       effectiveActiveTableViewState,
+      excelModeEnabled,
       isAllObjectScope,
       objectQueryCapabilities,
     ],

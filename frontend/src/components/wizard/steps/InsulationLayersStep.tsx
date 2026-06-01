@@ -38,6 +38,7 @@ interface Props {
   objectType: HeatCalcObjectType;
   fieldInputSettings?: HeatCalcFieldInputSettings;
   layerCount: number;
+  insulationMaterials: InsulationEntry[];
   insulationMaterialOptions: ReferencePickerOption[];
   insulationMaterialsError: boolean;
   isInsulationMaterialsFetching: boolean;
@@ -52,6 +53,7 @@ export default function InsulationLayersStep({
   objectType,
   fieldInputSettings,
   layerCount,
+  insulationMaterials,
   insulationMaterialOptions,
   insulationMaterialsError,
   isInsulationMaterialsFetching,
@@ -90,7 +92,11 @@ export default function InsulationLayersStep({
         <ThermalStep
           objectType={objectType}
           fieldInputSettings={fieldInputSettings}
+          insulationMaterials={insulationMaterials}
           onProgrammaticValuesChange={onProgrammaticValuesChange}
+          insulationMaterialOptions={insulationMaterialOptions}
+          insulationMaterialsError={insulationMaterialsError}
+          isInsulationMaterialsFetching={isInsulationMaterialsFetching}
         />
       </div>
       {layerCount >= 2 && (

@@ -90,7 +90,8 @@ function defaultFontSize(): HeatCalcTableFontSize {
   return HEATCALC_FORCED_TABLE_FONT_SIZE;
 }
 
-function normalizeFontSize(_value: unknown): HeatCalcTableFontSize {
+function normalizeFontSize(value: unknown): HeatCalcTableFontSize {
+  void value;
   return HEATCALC_FORCED_TABLE_FONT_SIZE;
 }
 

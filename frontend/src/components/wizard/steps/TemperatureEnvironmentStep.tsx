@@ -53,6 +53,7 @@ interface Props {
   fieldInputSettings?: HeatCalcFieldInputSettings;
   climateOptions: ReferencePickerOption[];
   isClimateFetching: boolean;
+  onClimatePickerOpen?: () => void;
   hasClimate: boolean;
   climateBasisDisplay: string;
   watchedValues?: Record<string, unknown>;
@@ -67,6 +68,7 @@ export default function TemperatureEnvironmentStep({
   fieldInputSettings,
   climateOptions,
   isClimateFetching,
+  onClimatePickerOpen,
   hasClimate,
   climateBasisDisplay,
   watchedValues,
@@ -95,6 +97,7 @@ export default function TemperatureEnvironmentStep({
             allowClear
             options={climateOptions}
             loading={isClimateFetching}
+            onOpen={onClimatePickerOpen}
             placeholder="Выберите город"
             modalTitle="Климат"
             searchPlaceholder="Город или регион"

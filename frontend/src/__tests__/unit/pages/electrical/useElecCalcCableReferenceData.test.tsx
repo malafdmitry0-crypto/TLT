@@ -126,16 +126,13 @@ describe('useElecCalcCableReferenceData', () => {
     });
   });
 
-  it('keeps self-regulating reference queries active without a selected project', async () => {
+  it('skips cable reference queries without a selected project', () => {
     renderReferenceData({
       projectSelected: false,
       commercialFeaturesAvailable: true,
     });
 
-    await waitFor(() => {
-      expect(listCables).toHaveBeenCalledWith('all', 'self_regulating');
-      expect(listCables).toHaveBeenCalledWith('builtin', 'self_regulating');
-    });
+    expect(listCables).not.toHaveBeenCalled();
     expect(getCablesTt).not.toHaveBeenCalled();
     expect(getResistiveCables).not.toHaveBeenCalled();
   });

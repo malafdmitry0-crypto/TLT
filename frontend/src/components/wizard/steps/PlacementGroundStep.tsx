@@ -36,6 +36,7 @@ interface Props {
   objectType: HeatCalcObjectType;
   fieldInputSettings?: HeatCalcFieldInputSettings;
   isSoilFetching: boolean;
+  onSoilPickerOpen?: () => void;
   soilOptions: SoilReferenceOption[];
 }
 
@@ -43,6 +44,7 @@ export default function PlacementGroundStep({
   objectType,
   fieldInputSettings,
   isSoilFetching,
+  onSoilPickerOpen,
   soilOptions,
 }: Props) {
   const form = Form.useFormInstance();
@@ -100,6 +102,7 @@ export default function PlacementGroundStep({
               <ReferencePicker
                 data-testid="ground-type-select"
                 loading={isSoilFetching}
+                onOpen={onSoilPickerOpen}
                 placeholder="Выберите грунт"
                 modalTitle="Грунт"
                 searchPlaceholder="Поиск грунта"

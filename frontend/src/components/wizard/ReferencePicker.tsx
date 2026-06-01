@@ -23,6 +23,7 @@ interface ReferencePickerProps {
   loading?: boolean;
   disabled?: boolean;
   allowClear?: boolean;
+  onOpen?: () => void;
   required?: boolean;
   groupFilterPlaceholder?: string;
   notFoundContent?: ReactNode;
@@ -52,6 +53,7 @@ export default function ReferencePicker({
   loading = false,
   disabled = false,
   allowClear = false,
+  onOpen,
   required = false,
   groupFilterPlaceholder,
   notFoundContent = 'Ничего не найдено',
@@ -91,6 +93,7 @@ export default function ReferencePicker({
 
   function openModal() {
     if (disabled) return;
+    onOpen?.();
     setSearch('');
     setSelectedGroup(undefined);
     setOpen(true);

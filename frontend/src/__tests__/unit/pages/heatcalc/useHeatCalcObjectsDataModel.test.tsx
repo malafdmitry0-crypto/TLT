@@ -363,6 +363,27 @@ describe('useHeatCalcObjectsDataModel', () => {
     expect(result.current.visibleAllTableRows.map(({ record }) => record.id)).toEqual(['pipe-a']);
   });
 
+  it('uses the full object list in Excel mode without also running the paginated typed query', async () => {
+    const fullList = [
+      makeObject({ id: 'pipe-a', sort_order: 1, params: { name: 'Alpha pipe' } }),
+      makeObject({ id: 'pipe-b', sort_order: 2, params: { name: 'Beta pipe' } }),
+    ];
+    (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue(fullList);
+
+    const { result } = setupHook({
+      excelModeEnabled: true,
+    });
+
+    await waitFor(() => {
+      expect(listObjects).toHaveBeenCalledWith('project-1');
+      expect(result.current.allProjectObjects).toEqual(fullList);
+    });
+
+    expect(getObjectQueryCapabilities).toHaveBeenCalledWith('project-1', 'pipe');
+    expect(queryObjects).not.toHaveBeenCalled();
+    expect(result.current.objectQueryRequest).toBeNull();
+  });
+
   it('ignores filters and sorting when table findability is feature-flagged off', async () => {
     setupHook({
       activeTableViewState: {

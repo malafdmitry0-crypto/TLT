@@ -21,7 +21,7 @@ vi.mock('@glideapps/glide-data-grid', () => ({
       toArray: () => [],
     }),
   },
-  DataEditor: React.forwardRef((props: Record<string, unknown>, _ref) => {
+  DataEditor: React.forwardRef((props: Record<string, unknown>) => {
     glideMock.props = props;
     return React.createElement('div', { 'data-testid': 'glide-data-editor' });
   }),
