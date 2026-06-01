@@ -133,6 +133,7 @@ interface UseHeatCalcTableColumnsOptions {
   ) => void;
   beginExcelColumnSelection: (columnIndex: number, event: ReactPointerEvent<HTMLElement>) => void;
   beginExcelRowSelection: (rowIndex: number, event: ReactPointerEvent<HTMLElement>) => void;
+  buildTableColumns?: boolean;
   columnRenderers: Record<HeatCalcColumnKey, HeatCalcTableColumnRenderSpec>;
   commitInlineCell: (record: ProjectObject, columnKey: string, value: unknown) => string | null;
   draftRowsById: DraftRowsById;
@@ -188,6 +189,7 @@ export function useHeatCalcTableColumns({
   beginExcelCellSelection,
   beginExcelColumnSelection,
   beginExcelRowSelection,
+  buildTableColumns = true,
   columnRenderers,
   commitInlineCell,
   draftRowsById,
@@ -228,7 +230,7 @@ export function useHeatCalcTableColumns({
   const normalizedExcelRange = excelSelectionLookup.normalizedRange;
 
   const sourceColumns = useMemo<ColumnType<ProjectObject>[]>(
-    () => sourceColumnMetas.map((meta, columnIndex) => {
+    () => (buildTableColumns ? sourceColumnMetas : []).map((meta, columnIndex) => {
       const renderer = columnRenderers[meta.key];
       const capability = fieldCapabilityByKey.get(meta.key);
       const filterEnabled = tableFindabilityEnabled
@@ -375,6 +377,7 @@ export function useHeatCalcTableColumns({
       activeTableViewState,
       beginExcelCellSelection,
       beginExcelColumnSelection,
+      buildTableColumns,
       columnRenderers,
       commitInlineCell,
       draftRowsById,
@@ -404,7 +407,7 @@ export function useHeatCalcTableColumns({
   );
 
   const excelRowHeaderColumn = useMemo<ColumnType<ProjectObject> | null>(() => {
-    if (!excelModeEnabled) return null;
+    if (!buildTableColumns || !excelModeEnabled) return null;
     return {
       key: '__excel_row_header__',
       title: (
@@ -490,6 +493,7 @@ export function useHeatCalcTableColumns({
     };
   }, [
     beginExcelRowSelection,
+    buildTableColumns,
     draftRowsById,
     excelModeEnabled,
     extendExcelRowSelection,
@@ -503,10 +507,13 @@ export function useHeatCalcTableColumns({
   ]);
 
   const tableColumns = useMemo<ColumnType<ProjectObject>[]>(
-    () => (excelModeEnabled && excelRowHeaderColumn
-      ? [excelRowHeaderColumn, ...sourceColumns]
-      : sourceColumns),
-    [excelModeEnabled, excelRowHeaderColumn, sourceColumns],
+    () => {
+      if (!buildTableColumns) return [];
+      return excelModeEnabled && excelRowHeaderColumn
+        ? [excelRowHeaderColumn, ...sourceColumns]
+        : sourceColumns;
+    },
+    [buildTableColumns, excelModeEnabled, excelRowHeaderColumn, sourceColumns],
   );
 
   const tableScrollX = useMemo(

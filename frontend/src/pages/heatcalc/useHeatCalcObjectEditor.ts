@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type Dispatch,
   type SetStateAction,
@@ -62,6 +63,11 @@ export function useHeatCalcObjectEditor({
   const [wizardState, setWizardState] = useState<WizardState | null>({ type: 'pipe' });
   const [newWizardRevision, setNewWizardRevision] = useState(0);
   const [lastSavedObject, setLastSavedObject] = useState<ProjectObject | null>(null);
+  const draftRowsByIdRef = useRef(draftRowsById);
+
+  useEffect(() => {
+    draftRowsByIdRef.current = draftRowsById;
+  }, [draftRowsById]);
 
   useEffect(() => {
     onScopeChanged();
@@ -130,12 +136,12 @@ export function useHeatCalcObjectEditor({
 
   const openEditWizard = useCallback((obj: ProjectObject) => {
     if (!canOpenObjectWizard(obj)) return;
-    if (!excelModeEnabled && isDraftRowDirty(draftRowsById[obj.id])) {
+    if (!excelModeEnabled && isDraftRowDirty(draftRowsByIdRef.current[obj.id])) {
       onDirtyEditBlocked(obj);
       return;
     }
     setWizardState({ type: obj.object_type, editingObject: obj });
-  }, [draftRowsById, excelModeEnabled, onDirtyEditBlocked]);
+  }, [excelModeEnabled, onDirtyEditBlocked]);
 
   const forceOpenEditWizard = useCallback((obj: ProjectObject) => {
     if (!canOpenObjectWizard(obj)) return;

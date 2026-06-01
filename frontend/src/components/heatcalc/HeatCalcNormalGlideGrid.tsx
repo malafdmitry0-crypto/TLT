@@ -144,6 +144,16 @@ type NormalGlideEditingCell = {
   error?: string | null;
 };
 
+type NormalModelCell = {
+  column: HeatCalcGlideGridColumn;
+  record: ProjectObject;
+  state: HeatCalcGlideGridCellState;
+};
+
+type NormalModelCellCacheEntry = NormalModelCell & {
+  version: object;
+};
+
 function isErrorRowClassName(className: string) {
   return className.includes('row-invalid')
     || className.includes('row-excel-error')
@@ -651,19 +661,36 @@ function HeatCalcNormalGlideGrid({
     () => buildRowSelection(rows, selectedRowKeys, activeCell),
     [activeCell, rows, selectedRowKeys],
   );
+  const modelCellCacheScope = useMemo(() => ({
+    getCellState,
+    rows,
+    version: {},
+    visibleGridColumns,
+  }), [getCellState, rows, visibleGridColumns]);
+  const modelCellCacheRef = useRef(new Map<string, NormalModelCellCacheEntry>());
+  useEffect(() => {
+    modelCellCacheRef.current.clear();
+  }, [modelCellCacheScope]);
   const setCellEditorElement = useCallback((element: HTMLInputElement | HTMLSelectElement | null) => {
     cellEditorElementRef.current = element;
   }, []);
   const getModelCell = useCallback((columnIndex: number, rowIndex: number) => {
-    const column = visibleGridColumns[columnIndex];
-    const record = rows[rowIndex];
+    const column = modelCellCacheScope.visibleGridColumns[columnIndex];
+    const record = modelCellCacheScope.rows[rowIndex];
     if (!column || !record) return null;
-    return {
+    const cacheKey = `${columnIndex}:${rowIndex}`;
+    const cached = modelCellCacheRef.current.get(cacheKey);
+    if (cached?.version === modelCellCacheScope.version && cached.column === column && cached.record === record) {
+      return cached;
+    }
+    const modelCell: NormalModelCell = {
       column,
       record,
-      state: getCellState(record, column.key, rowIndex),
+      state: modelCellCacheScope.getCellState(record, column.key, rowIndex),
     };
-  }, [getCellState, rows, visibleGridColumns]);
+    modelCellCacheRef.current.set(cacheKey, { ...modelCell, version: modelCellCacheScope.version });
+    return modelCell;
+  }, [modelCellCacheScope]);
   const getCellContent = useCallback((cell: Item): GridCell => {
     const [columnIndex, rowIndex] = cell;
     const modelCell = getModelCell(columnIndex, rowIndex);
@@ -721,9 +748,8 @@ function HeatCalcNormalGlideGrid({
     }
     if (currentCell) {
       setActiveCell(currentCell);
-      syncActiveRecordFromCell(currentCell);
     }
-  }, [onSelectedRowKeysChange, rows, syncActiveRecordFromCell]);
+  }, [onSelectedRowKeysChange, rows]);
   const updateRowSelectionFromClick = useCallback((
     rowIndex: number,
     event: Pick<CellClickedEventArgs, 'ctrlKey' | 'metaKey' | 'shiftKey'>,

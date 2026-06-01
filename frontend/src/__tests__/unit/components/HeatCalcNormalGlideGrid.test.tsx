@@ -166,6 +166,60 @@ describe('HeatCalcNormalGlideGrid', () => {
     expect(screen.queryByText(/Страница/)).not.toBeInTheDocument();
   });
 
+  it('reuses the model cell state between content and custom draw callbacks', () => {
+    const getCellState = vi.fn((record: ProjectObject) => ({
+      displayValue: String(record.params?.name ?? ''),
+      editable: false,
+    }));
+    render(
+      <HeatCalcNormalGlideGrid
+        rows={rows}
+        gridColumns={[{ key: 'name', title: 'Name', width: 180 }]}
+        tableScrollX={640}
+        tableScrollY="360px"
+        fontSizeKey="compact"
+        selectedRowKeys={[]}
+        tableViewState={{ filters: {} }}
+        infiniteLoading={null}
+        pagination={false}
+        emptyContent={null}
+        rowClassName={() => ''}
+        getCellState={getCellState}
+        onOpenEditWizard={vi.fn()}
+        onSelectedRowKeysChange={vi.fn()}
+        onStartCellEdit={vi.fn()}
+        onCommitCell={vi.fn(() => null)}
+        onSetColumnFilter={vi.fn()}
+        onResetColumnFilter={vi.fn()}
+        onSetSort={vi.fn()}
+        onPageChange={vi.fn()}
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    const getCellContent = normalGlideMock.props?.getCellContent as ((cell: [number, number]) => unknown);
+    const drawCell = normalGlideMock.props?.drawCell as (
+      args: {
+        ctx: Record<string, unknown>;
+        cell: unknown;
+        col: number;
+        row: number;
+        rect: { x: number; y: number; width: number; height: number };
+      },
+      drawContent: () => void,
+    ) => void;
+    const cell = getCellContent([0, 0]);
+    drawCell({
+      ctx: {},
+      cell,
+      col: 0,
+      row: 0,
+      rect: { x: 10, y: 20, width: 180, height: 30 },
+    }, vi.fn());
+
+    expect(getCellState).toHaveBeenCalledTimes(1);
+  });
+
   it('stretches columns to fill the container when requested', async () => {
     const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
     HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
@@ -593,7 +647,7 @@ describe('HeatCalcNormalGlideGrid', () => {
     expect(onCommitCell).toHaveBeenCalledWith(rows[0], 'name', 'Pipe edited');
   });
 
-  it('syncs active row from Glide keyboard/focus selection without changing checkbox selection semantics', () => {
+  it('keeps Glide keyboard/focus selection local without changing checkbox selection semantics', () => {
     const onOpenEditWizard = vi.fn();
     const onSelectedRowKeysChange = vi.fn();
     render(
@@ -636,7 +690,7 @@ describe('HeatCalcNormalGlideGrid', () => {
     }));
 
     expect(onSelectedRowKeysChange).toHaveBeenCalledWith(['row-1']);
-    expect(onOpenEditWizard).toHaveBeenCalledWith(rows[1]);
+    expect(onOpenEditWizard).not.toHaveBeenCalled();
     expect((normalGlideMock.props?.gridSelection as { current?: { cell: [number, number] } }).current?.cell).toEqual([0, 1]);
   });
 
@@ -683,7 +737,7 @@ describe('HeatCalcNormalGlideGrid', () => {
     }));
 
     expect(onSelectedRowKeysChange).not.toHaveBeenCalled();
-    expect(onOpenEditWizard).toHaveBeenCalledWith(rows[1]);
+    expect(onOpenEditWizard).not.toHaveBeenCalled();
   });
 
   it('lets Glide row marker clicks drive checkbox selection without replacing it from click handler', () => {

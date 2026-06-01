@@ -209,7 +209,6 @@ export function useElecCalcCandidateMutationFlow({
       setCableSizingCandidateApplied(String(candidate.id), candidate);
       setElectricalQueryCalculation(calculation);
       invalidateCableSizingCandidates();
-      qc.invalidateQueries({ queryKey: ['project', projectId, 'electrical-query'] });
       qc.invalidateQueries({ queryKey: ['project', projectId, 'electrical-query-capabilities'] });
       qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
       message.success('Кандидат применён в электрорасчёт');

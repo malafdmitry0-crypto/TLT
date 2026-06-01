@@ -73,6 +73,7 @@ export function useHeatCalcInlineDraftModel({
   const [activeInlineCell, setActiveInlineCell] = useState<HeatCalcExcelCellRef>(null);
   const [draftRowsById, setDraftRowsById] = useState<DraftRowsById>({});
   const [excelLocalRows, setExcelLocalRows] = useState<ExcelLocalProjectObject[]>([]);
+  const draftRowsByIdRef = useRef<DraftRowsById>({});
   const excelNewRowSeqRef = useRef(0);
   const pendingExcelInputRowsRef = useRef<{
     objectType: HeatCalcObjectType;
@@ -86,10 +87,15 @@ export function useHeatCalcInlineDraftModel({
   }, [onProjectReset]);
 
   useEffect(() => {
+    draftRowsByIdRef.current = draftRowsById;
+  }, [draftRowsById]);
+
+  useEffect(() => {
     excelNewRowSeqRef.current = 0;
     pendingExcelInputRowsRef.current = null;
     setExcelLocalRows([]);
     setActiveInlineCell(null);
+    draftRowsByIdRef.current = {};
     setDraftRowsById({});
     onProjectResetRef.current?.();
   }, [projectId]);
@@ -182,7 +188,7 @@ export function useHeatCalcInlineDraftModel({
       ? getInlineEditFieldConfig(record.object_type, columnKey)
       : null;
     if (!config) return 'Поле недоступно для редактирования';
-    const currentDraftRow = draftRowsById[record.id] ?? null;
+    const currentDraftRow = draftRowsByIdRef.current[record.id] ?? null;
     const draftRowForResult = applyInlineCellDraft(currentDraftRow, record, columnKey, value);
     if (!draftRowForResult) return null;
     const commitError = draftRowForResult.errors[config.fieldId] ?? null;
@@ -192,13 +198,15 @@ export function useHeatCalcInlineDraftModel({
         ? draftRowForResult
         : applyInlineCellDraft(current[record.id] ?? null, record, columnKey, value);
       if (!nextRow) return current;
-      return applyExcelDraftRowPatch(current, record.id, nextRow);
+      const next = applyExcelDraftRowPatch(current, record.id, nextRow);
+      draftRowsByIdRef.current = next;
+      return next;
     });
     if (!commitError) {
       setActiveInlineCell(null);
     }
     return commitError;
-  }, [draftRowsById]);
+  }, []);
 
   const handleWizardDraftValuesChange = useCallback((
     record: ProjectObject | null | undefined,

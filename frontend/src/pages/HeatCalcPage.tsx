@@ -609,6 +609,7 @@ export default function HeatCalcPage() {
     beginExcelCellSelection,
     beginExcelColumnSelection,
     beginExcelRowSelection,
+    buildTableColumns: excelModeEnabled,
     columnRenderers,
     commitInlineCell,
     draftRowsById,

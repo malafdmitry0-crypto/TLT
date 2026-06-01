@@ -72,11 +72,14 @@ export function useElecCalcCableSelectionMutationFlow({
 }: UseElecCalcCableSelectionMutationFlowOptions) {
   const qc = useQueryClient();
 
-  const invalidateElectricalQueries = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ['project', projectId, 'electrical-query'] });
+  const invalidateElectricalSidecars = useCallback(() => {
     qc.invalidateQueries({ queryKey: ['project', projectId, 'electrical-query-capabilities'] });
     qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
   }, [projectId, qc]);
+
+  const applyReturnedCalculations = useCallback((calculations: ElectricalCalcSummary[]) => {
+    calculations.forEach((calculation) => setElectricalQueryCalculation(calculation));
+  }, [setElectricalQueryCalculation]);
 
   const buildSelectionOptions = useCallback((
     cableType: CableTypeKey,
@@ -134,8 +137,9 @@ export function useElecCalcCableSelectionMutationFlow({
         options,
       );
     },
-    onSuccess: (_result, variables) => {
-      invalidateElectricalQueries();
+    onSuccess: (calculations, variables) => {
+      applyReturnedCalculations(calculations);
+      invalidateElectricalSidecars();
       const targetLabel = calculationVariantLabel(variables.targetVariants);
       message.success(`Кабель выбран, расчёт обновлён${targetLabel ? `: ${targetLabel}` : ''}`);
     },
@@ -159,8 +163,9 @@ export function useElecCalcCableSelectionMutationFlow({
         options,
       );
     },
-    onSuccess: (_result, variables) => {
-      invalidateElectricalQueries();
+    onSuccess: (calculations, variables) => {
+      applyReturnedCalculations(calculations);
+      invalidateElectricalSidecars();
       const targetLabel = calculationVariantLabel(variables.targetVariants);
       message.success(`Автоподбор выполнен${targetLabel ? `: ${targetLabel}` : ''}`);
     },
@@ -190,8 +195,8 @@ export function useElecCalcCableSelectionMutationFlow({
       );
     },
     onSuccess: (calculations) => {
-      calculations.forEach((calculation) => setElectricalQueryCalculation(calculation));
-      invalidateElectricalQueries();
+      applyReturnedCalculations(calculations);
+      invalidateElectricalSidecars();
       message.success('Параметры укладки сохранены, расчёт обновлён');
     },
     onError: (e: Error) => message.error(e.message),

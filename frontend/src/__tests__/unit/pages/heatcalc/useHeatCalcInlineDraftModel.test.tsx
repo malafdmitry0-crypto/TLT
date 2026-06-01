@@ -206,6 +206,18 @@ describe('useHeatCalcInlineDraftModel', () => {
     expect(result.current.draftRowsById['obj-1'].dirtyFields.name).toBe('Труба inline');
   });
 
+  it('keeps the inline commit callback stable across draft changes', () => {
+    const { result } = renderHook(() => useHeatCalcInlineDraftModel(makeOptions()));
+    const firstCommit = result.current.commitInlineCell;
+
+    act(() => {
+      result.current.commitInlineCell(makeObject(), 'name', 'Труба inline');
+    });
+
+    expect(result.current.commitInlineCell).toBe(firstCommit);
+    expect(result.current.draftRowsById['obj-1'].dirtyFields.name).toBe('Труба inline');
+  });
+
   it('updates wizard drafts only for real form changes', () => {
     const record = makeObject();
     const { result } = renderHook(() => useHeatCalcInlineDraftModel(makeOptions()));

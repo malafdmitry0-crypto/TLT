@@ -134,7 +134,7 @@ describe('useElecCalcCableSelectionMutationFlow', () => {
   });
 
   it('sends manual cable selection payload with target variants and selected source', async () => {
-    const { result } = setup();
+    const { result, setElectricalQueryCalculation } = setup();
 
     await act(async () => {
       await result.current.manualCableMut.mutateAsync({
@@ -165,11 +165,14 @@ describe('useElecCalcCableSelectionMutationFlow', () => {
         aggressiveProduct: true,
       },
     );
+    expect(setElectricalQueryCalculation).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'calc-1' }),
+    );
     expect(message.success).toHaveBeenCalledWith('Кабель выбран, расчёт обновлён: СО2, СО4');
   });
 
   it('falls back auto selection to the active variant and effective source', async () => {
-    const { result } = setup({ effectiveSource: 'builtin' });
+    const { result, setElectricalQueryCalculation } = setup({ effectiveSource: 'builtin' });
 
     await act(async () => {
       await result.current.autoCableMut.mutateAsync({
@@ -190,6 +193,9 @@ describe('useElecCalcCableSelectionMutationFlow', () => {
         selectionPolicy: 'technical_minimum',
         connectionType: 'line_1ph',
       }),
+    );
+    expect(setElectricalQueryCalculation).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'calc-1' }),
     );
     expect(message.success).toHaveBeenCalledWith('Автоподбор выполнен');
   });
