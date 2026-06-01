@@ -82,6 +82,7 @@ import ElectricalCandidateColumnSettingsModal from '@/components/electrical/Elec
 import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalColumnSettingsModal';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
 import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
+import ElecCalcSelectedCableSummary from '@/pages/electrical/ElecCalcSelectedCableSummary';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject } from '@/types/project';
 import type {
@@ -140,9 +141,6 @@ import {
   isTargetVariantNotEmptyError,
 } from '@/pages/electrical/elecCalcApiResponseGuards';
 import {
-  candidateOrderCableLengthValue,
-} from '@/pages/electrical/elecCalcCandidateCompareModel';
-import {
   buildElectricalQueryRequest,
 } from '@/pages/electrical/elecCalcQueryModel';
 import {
@@ -184,10 +182,6 @@ import {
 import {
   getCableMark,
   getCableMarkSource,
-  numberText,
-  orderCableLengthValue,
-  powerText,
-  valueText,
 } from '@/pages/electrical/elecCalcResultValueModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
@@ -1883,45 +1877,6 @@ export default function ElecCalcPage() {
     );
   }
 
-  function renderSelectedCableSummary() {
-    const appliedCandidate = appliedCableSizingCandidate;
-    const calc = cableSizingModalCalc;
-    const mark = appliedCandidate?.cable_mark ?? getCableMark(calc);
-    const cableType = (appliedCandidate?.cable_type ?? calc?.cable_type ?? cableSizingCableType) as CableTypeKey;
-    const results = appliedCandidate?.results ?? calc?.results;
-    const orderLength = appliedCandidate
-      ? candidateOrderCableLengthValue(appliedCandidate)
-      : orderCableLengthValue(calc);
-
-    if (!mark) {
-      return (
-        <div className="electrical-selected-cable-summary">
-          <Text strong>Выбранный кабель:</Text>
-          <Text type="secondary">Кабель не выбран</Text>
-        </div>
-      );
-    }
-
-    return (
-      <div className="electrical-selected-cable-summary">
-        <Text strong>Выбранный кабель:</Text>
-        <Tag color="blue" className="electrical-selected-cable-summary__mark">
-          {mark}
-        </Tag>
-        <Text type="secondary">{CABLE_TYPE_LABEL[cableType] ?? valueText(cableType)}</Text>
-        <Text type="secondary">
-          P: <strong>{powerText(results?.total_power)}</strong>
-        </Text>
-        <Text type="secondary">
-          Заказ: <strong>{numberText(orderLength, 1)} м</strong>
-        </Text>
-        <Text type="secondary">
-          I: <strong>{numberText(results?.current, 2)} А</strong>
-        </Text>
-      </div>
-    );
-  }
-
   function renderCandidateCompareBar() {
     if (!cableSizingCandidateCompareActive) return null;
     const diffCount = candidateCompareDiffColumnKeys.size;
@@ -2490,7 +2445,11 @@ export default function ElecCalcPage() {
             </Button>
           </div>
           {renderElectricalTypeControls(cableSizingEffectiveCableType, { block: true })}
-          {renderSelectedCableSummary()}
+          <ElecCalcSelectedCableSummary
+            appliedCandidate={appliedCableSizingCandidate}
+            calc={cableSizingModalCalc}
+            fallbackCableType={cableSizingCableType}
+          />
           {renderCandidateFolderTabs()}
           {renderCandidateCompareBar()}
           {electricalCandidateGlideEnabled ? (
