@@ -15,16 +15,12 @@ import {
   Checkbox,
   Input,
   Modal,
-  Select,
-  Segmented,
   Space,
   Table,
   Tooltip,
   Typography,
 } from 'antd';
 import {
-  CloseCircleOutlined,
-  TableOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -45,16 +41,12 @@ import { areCommercialFeaturesEnabled } from '@/config/featureFlags';
 import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
-import CablePickerCharacteristics from '@/components/electrical/CablePickerCharacteristics';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
 import ElecCalcCableMarkModal from '@/pages/electrical/ElecCalcCableMarkModal';
-import ElecCalcCandidateCompareBar from '@/pages/electrical/ElecCalcCandidateCompareBar';
-import ElecCalcCandidateFolderTabs from '@/pages/electrical/ElecCalcCandidateFolderTabs';
-import ElecCalcCandidateTablePanel from '@/pages/electrical/ElecCalcCandidateTablePanel';
+import ElecCalcCableSizingModal from '@/pages/electrical/ElecCalcCableSizingModal';
 import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
 import ElecCalcErrorSummary from '@/pages/electrical/ElecCalcErrorSummary';
 import ElecCalcRecalculationSettings from '@/pages/electrical/ElecCalcRecalculationSettings';
-import ElecCalcSelectedCableSummary from '@/pages/electrical/ElecCalcSelectedCableSummary';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject } from '@/types/project';
 import type {
@@ -95,7 +87,6 @@ import {
 } from '@/pages/electrical/elecCalcLayoutModel';
 import {
   CABLE_TYPE_LABEL,
-  objectDisplayName,
   type CableTypeKey,
 } from '@/pages/electrical/elecCalcMainTableModel';
 import {
@@ -377,14 +368,9 @@ export default function ElecCalcPage() {
   });
   const {
     objectId: cableSizingModalObjectId,
-    mode: cableSizingMode,
-    setMode: setCableSizingMode,
-    cableType: cableSizingCableType,
     setCableType: setCableSizingCableType,
     manualMark: cableSizingManualMark,
-    setManualMark: setCableSizingManualMark,
     effectiveCableType: cableSizingEffectiveCableType,
-    object: cableSizingModalObject,
     calc: cableSizingModalCalc,
     resetModalState: resetCableSizingModalState,
     openModalState: openCableSizingModalState,
@@ -441,40 +427,7 @@ export default function ElecCalcPage() {
       },
     );
   }, [project?.id, qc]);
-  const {
-    activeCandidateFolderKey,
-    setActiveCandidateFolderKey,
-    candidateFolderModalMode,
-    candidateFolderModalOpen,
-    candidateFolderName,
-    setCandidateFolderName,
-    closeCandidateFolderModal,
-    openCreateCandidateFolderModal,
-    openRenameCandidateFolderModal,
-    createCandidateMut,
-    updateCandidateMut,
-    createCandidateFolderMut,
-    updateCandidateFolderMut,
-    deleteCandidateFolderMut,
-    toggleCandidateFolderItemMut,
-    applyCandidateMut,
-    submitCandidateFolderModal,
-    cableSizingCandidates,
-    isCableSizingCandidatesFetching,
-    cableSizingCandidateFolders,
-    activeCustomCandidateFolder,
-    candidateFolderCounts,
-    markedCableSizingCandidateSet,
-    candidateColumnValueAccessors,
-    resetMarkedCableSizingCandidates,
-    toggleElectricalCandidateGlideMarked,
-    displayedCableSizingCandidates,
-    displayedMarkedCableSizingCandidates,
-    cableSizingCandidateCompareActive,
-    candidateCompareDiffColumnKeys,
-    cableSizingCandidateRowClassName,
-    appliedCableSizingCandidate,
-  } = useElecCalcCandidateState({
+  const candidate = useElecCalcCandidateState({
     projectId: project?.id,
     variant,
     effectiveSource,
@@ -483,6 +436,30 @@ export default function ElecCalcPage() {
     candidateTableViewState,
     visibleCandidateColumnMetas,
   });
+  const {
+    activeCandidateFolderKey,
+    setActiveCandidateFolderKey,
+    candidateFolderModalMode,
+    candidateFolderModalOpen,
+    candidateFolderName,
+    setCandidateFolderName,
+    closeCandidateFolderModal,
+    updateCandidateMut,
+    createCandidateFolderMut,
+    updateCandidateFolderMut,
+    deleteCandidateFolderMut,
+    toggleCandidateFolderItemMut,
+    applyCandidateMut,
+    submitCandidateFolderModal,
+    cableSizingCandidates,
+    cableSizingCandidateFolders,
+    activeCustomCandidateFolder,
+    markedCableSizingCandidateSet,
+    candidateColumnValueAccessors,
+    resetMarkedCableSizingCandidates,
+    cableSizingCandidateCompareActive,
+    candidateCompareDiffColumnKeys,
+  } = candidate;
 
   const findCableRowForMark = useCallback((
     type: CableTypeKey,
@@ -1302,150 +1279,35 @@ export default function ElecCalcPage() {
         onApply={applyCableMarkModal}
         onCancel={closeCableMarkModal}
       />
-      <Modal
-        open={!!cableSizingModalObject}
-        width="100vw"
-        style={{ top: 0, maxWidth: 'none', paddingBottom: 0 }}
-        className="electrical-cable-picker-dialog electrical-cable-sizing-dialog"
-        title={cableSizingModalObject ? `Подбор кабеля для ${objectDisplayName(cableSizingModalObject)}` : 'Подбор'}
-        footer={null}
-        onCancel={closeCableSizingModal}
-      >
-        <div className="electrical-cable-sizing-body">
-          {cableSizingModalObject && (
-            <CablePickerCharacteristics
-              object={cableSizingModalObject}
-              cable={cableSizingModalSelectedCable}
-              cableType={cableSizingEffectiveCableType}
-              showCable={false}
-              objectColumnCount={4}
-            />
-          )}
-          <div className="electrical-cable-sizing-controls">
-            <Segmented<'auto' | 'manual'>
-              aria-label="Режим подбора кабеля"
-              size="small"
-              value={cableSizingMode}
-              onChange={setCableSizingMode}
-              options={[
-                { label: 'Авторасчёт', value: 'auto' },
-                { label: 'Ручной расчёт', value: 'manual' },
-              ]}
-            />
-            <Select<CableTypeKey>
-              aria-label="Тип кабеля для подбора"
-              size="small"
-              value={cableSizingEffectiveCableType}
-              disabled={!commercialFeaturesAvailable}
-              onChange={(nextType) => {
-                setCableSizingCableType(cableTypes.normalizeAvailableCableType(nextType));
-                setCableSizingManualMark(null);
-                setRecalc.connectionType('line_1ph');
-              }}
-              options={cableTypeOptions}
-              style={{ minWidth: 220 }}
-            />
-            {cableSizingMode === 'manual' && (
-              <Select
-                aria-label="Марка ручного кандидата"
-                showSearch
-                size="small"
-                value={cableSizingManualMark ?? undefined}
-                placeholder="Марка"
-                options={cableSizingManualOptions
-                  .filter((option) => option.mark)
-                  .map((option) => ({
-                    ...option,
-                    value: option.mark!,
-                  }))}
-                optionFilterProp="searchLabel"
-                style={{ minWidth: 280 }}
-                onChange={setCableSizingManualMark}
-              />
-            )}
-            <Button
-              size="small"
-              type="primary"
-              loading={createCandidateMut.isPending}
-              disabled={
-                !cableSizingModalObject ||
-                (cableSizingMode === 'manual' && !cableSizingManualMark)
-              }
-              onClick={() => createCandidateMut.mutate({
-                mode: cableSizingMode,
-                mark: cableSizingManualMark,
-              })}
-            >
-              {cableSizingMode === 'auto' ? 'Запустить авторасчёт' : 'Рассчитать вариант'}
-            </Button>
-            <Button
-              size="small"
-              icon={<TableOutlined />}
-              aria-label="Настройки таблицы"
-              onClick={() => openCandidateColumnSettings()}
-            >
-              Настройки таблицы
-            </Button>
-            <Button
-              size="small"
-              icon={<CloseCircleOutlined />}
-              aria-label="Сбросить фильтры таблицы кандидатов"
-              disabled={!candidateTableViewActive}
-              onClick={resetCandidateTableViewState}
-            >
-              Сбросить фильтры
-            </Button>
-          </div>
-          {renderElectricalTypeControls(cableSizingEffectiveCableType, { block: true })}
-          <ElecCalcSelectedCableSummary
-            appliedCandidate={appliedCableSizingCandidate}
-            calc={cableSizingModalCalc}
-            fallbackCableType={cableSizingCableType}
-          />
-          <ElecCalcCandidateFolderTabs
-            activeKey={activeCandidateFolderKey}
-            counts={candidateFolderCounts}
-            folders={cableSizingCandidateFolders}
-            onSelectFolder={setActiveCandidateFolderKey}
-            onCreateFolder={openCreateCandidateFolderModal}
-            onRenameFolder={openRenameCandidateFolderModal}
-            onDeleteFolder={showDeleteCandidateFolderConfirm}
-          />
-          <ElecCalcCandidateCompareBar
-            active={cableSizingCandidateCompareActive}
-            markedCount={displayedMarkedCableSizingCandidates.length}
-            diffCount={candidateCompareDiffColumnKeys.size}
-            onReset={resetMarkedCableSizingCandidates}
-          />
-          <ElecCalcCandidateTablePanel
-            rows={displayedCableSizingCandidates}
-            glideColumns={electricalCandidateGlideColumns}
-            tableScrollX={cableSizingCandidateTableScrollX}
-            fontSizeKey={resolvedTableFontSize.key}
-            loading={isCableSizingCandidatesFetching}
-            tableViewState={candidateTableViewState}
-            emptyContent={candidateFolderEmptyText()}
-            rowClassName={cableSizingCandidateRowClassName}
-            getCellState={getElectricalCandidateGlideCellState}
-            onToggleMarked={toggleElectricalCandidateGlideMarked}
-            onCellAction={handleElectricalCandidateGlideCellAction}
-            getActionMenuItems={getElectricalCandidateGlideActionMenuItems}
-            onSetColumnFilter={setCandidateColumnFilter}
-            onResetColumnFilter={resetCandidateColumnFilter}
-            onSetSort={setCandidateTableSort}
-            onColumnResize={applyElectricalCandidateGlideColumnDraftWidth}
-            onColumnResizeEnd={commitElectricalCandidateGlideColumnWidth}
-            appliedCandidate={appliedCableSizingCandidate}
-            onAppliedCandidateCommentBlur={(candidate, nextComment) => {
-              if ((candidate.engineer_comment ?? '') === nextComment) return;
-              updateCandidateMut.mutate({
-                candidateId: candidate.id,
-                patch: { engineer_comment: nextComment },
-              });
-            }}
-          />
-        </div>
-      </Modal>
+      <ElecCalcCableSizingModal
+        cableSizingModal={cableSizingModal}
+        candidate={candidate}
+        selectedCable={cableSizingModalSelectedCable}
+        commercialFeaturesAvailable={commercialFeaturesAvailable}
+        cableTypeOptions={cableTypeOptions}
+        cableSizingManualOptions={cableSizingManualOptions}
+        candidateTableScrollX={cableSizingCandidateTableScrollX}
+        candidateFontSizeKey={resolvedTableFontSize.key}
+        electricalCandidateGlideColumns={electricalCandidateGlideColumns}
+        candidateTableViewState={candidateTableViewState}
+        candidateTableViewActive={candidateTableViewActive}
+        normalizeAvailableCableType={cableTypes.normalizeAvailableCableType}
+        onClose={closeCableSizingModal}
+        onResetConnectionType={() => setRecalc.connectionType('line_1ph')}
+        onOpenCandidateColumnSettings={openCandidateColumnSettings}
+        onResetCandidateTableViewState={resetCandidateTableViewState}
+        renderTypeControls={renderElectricalTypeControls}
+        candidateFolderEmptyText={candidateFolderEmptyText}
+        onDeleteCandidateFolder={showDeleteCandidateFolderConfirm}
+        getCandidateCellState={getElectricalCandidateGlideCellState}
+        onCandidateCellAction={handleElectricalCandidateGlideCellAction}
+        getCandidateActionMenuItems={getElectricalCandidateGlideActionMenuItems}
+        onSetCandidateColumnFilter={setCandidateColumnFilter}
+        onResetCandidateColumnFilter={resetCandidateColumnFilter}
+        onSetCandidateSort={setCandidateTableSort}
+        onCandidateColumnResize={applyElectricalCandidateGlideColumnDraftWidth}
+        onCandidateColumnResizeEnd={commitElectricalCandidateGlideColumnWidth}
+      />
       <Modal
         open={candidateFolderModalOpen}
         title={candidateFolderModalMode === 'rename' ? 'Переименовать папку' : 'Новая папка'}
