@@ -21,6 +21,22 @@ export type ApiError = Error & {
   detail?: ApiErrorDetail;
 };
 
+/**
+ * Человекочитаемое сообщение об ошибке для UI.
+ *
+ * Response-interceptor уже нормализует ошибки FastAPI в Error с человекочитаемым
+ * `message`, поэтому обычно достаточно `error.message`; здесь добавлен лишь
+ * защитный fallback для не-Error отклонений и пустых сообщений.
+ */
+export function extractApiErrorMessage(
+  error: unknown,
+  fallback = 'Произошла ошибка. Попробуйте ещё раз.'
+): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string' && error) return error;
+  return fallback;
+}
+
 type RetryableConfig = NonNullable<AxiosError['config']> & {
   _authRetry?: boolean;
   _guestRetry?: boolean;

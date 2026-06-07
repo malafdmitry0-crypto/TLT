@@ -7,6 +7,7 @@ import {
   Col,
   Row,
   Segmented,
+  Skeleton,
   Space,
   Steps,
   Tag,
@@ -36,6 +37,7 @@ import {
   useCalculationVariantStore,
 } from '@/store/calculationVariantStore';
 import ReportPreview from '@/components/reports/ReportPreview';
+import QueryError from '@/components/common/QueryError';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -70,7 +72,7 @@ export default function ReportWizardPage() {
   const [step, setStep] = useState(0);
   const [exporting, setExporting] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['report-preview-wizard', project?.id, variant, sections.join(',')],
     queryFn: () => getReportPreview(project!.id, variant, sections),
     enabled: !!project,
@@ -303,10 +305,20 @@ export default function ReportWizardPage() {
 
           <Col flex="1" style={{ minWidth: 0 }}>
             <Card size="small" title="Предпросмотр HTML">
-              {isLoading && (
-                <Paragraph type="secondary">Загрузка предпросмотра…</Paragraph>
+              {isError && !data && (
+                <QueryError
+                  error={error}
+                  title="Не удалось загрузить предпросмотр"
+                  onRetry={() => refetch()}
+                  retrying={isFetching}
+                />
               )}
-              {!isLoading && sections.length === 0 && (
+              {isLoading && !isError && (
+                <div aria-busy="true" aria-label="Загрузка предпросмотра отчёта">
+                  <Skeleton active title={{ width: '40%' }} paragraph={{ rows: 8 }} />
+                </div>
+              )}
+              {!isLoading && !isError && sections.length === 0 && (
                 <Alert
                   type="info"
                   showIcon

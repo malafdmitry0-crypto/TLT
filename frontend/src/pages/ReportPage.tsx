@@ -25,6 +25,7 @@ import {
   useCalculationVariantStore,
 } from '@/store/calculationVariantStore';
 import ReportPreview from '@/components/reports/ReportPreview';
+import QueryError from '@/components/common/QueryError';
 import ReportWizard from '@/components/reports/ReportWizard';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 
@@ -64,7 +65,7 @@ export default function ReportPage() {
     [debouncedSectionsKey],
   );
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['report-preview', project?.id, variant, debouncedSectionsKey],
     queryFn: () => getReportPreview(project!.id, variant, previewSections),
     enabled: !!project,
@@ -204,7 +205,15 @@ export default function ReportPage() {
           </div>
         )}
 
-        {isLoading && (
+        {isError && !data && (
+          <QueryError
+            error={error}
+            title="Не удалось загрузить предпросмотр отчёта"
+            onRetry={() => refetch()}
+            retrying={isFetching}
+          />
+        )}
+        {isLoading && !isError && (
           <div aria-busy="true" aria-label="Загрузка предпросмотра отчёта">
             <Skeleton active title={{ width: '40%' }} paragraph={{ rows: 10 }} />
           </div>

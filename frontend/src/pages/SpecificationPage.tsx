@@ -38,6 +38,7 @@ import {
 } from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
 import SpecTable from '@/components/specification/SpecTable';
+import QueryError from '@/components/common/QueryError';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import { ROUTES } from '@/routes/routes';
 import type { SpecificationItem } from '@/types/specification';
@@ -70,6 +71,9 @@ export default function SpecificationPage() {
     data: spec,
     refetch,
     isLoading: specLoading,
+    isError: specError,
+    error: specErrorObj,
+    isFetching: specFetching,
   } = useQuery({
     queryKey: ['spec', project?.id, variant],
     queryFn: () => getSpecification(project!.id, variant),
@@ -262,7 +266,14 @@ export default function SpecificationPage() {
               />
             )}
 
-            {specLoading ? (
+            {specError && !spec ? (
+              <QueryError
+                error={specErrorObj}
+                title="Не удалось загрузить спецификацию"
+                onRetry={() => refetch()}
+                retrying={specFetching}
+              />
+            ) : specLoading ? (
               <div aria-busy="true" aria-label="Загрузка спецификации">
                 <Skeleton active title={false} paragraph={{ rows: 6 }} />
               </div>

@@ -32,6 +32,20 @@ export const useCalculationVariantStore = create<CalculationVariantState>()(
     }),
     {
       name: 'tlt-active-calculation-variant',
+      version: 1,
+      // Прогоняем сохранённую карту projectId→variant через нормализацию,
+      // чтобы устаревшие/битые значения не утекли в UI как валидные.
+      migrate: (persisted) => {
+        const state = persisted as Partial<CalculationVariantState> | undefined;
+        const raw = state?.variantByProject;
+        const variantByProject: Record<string, CalculationVariant> = {};
+        if (raw && typeof raw === 'object') {
+          for (const [projectId, variant] of Object.entries(raw)) {
+            variantByProject[projectId] = normalizeCalculationVariant(variant);
+          }
+        }
+        return { variantByProject };
+      },
     }
   )
 );

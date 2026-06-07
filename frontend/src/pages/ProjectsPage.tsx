@@ -34,6 +34,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { OBJECT_TYPE_LABELS, type ObjectType } from '@/constants/objectTypes';
 import type { Project } from '@/types/project';
+import QueryError from '@/components/common/QueryError';
 
 const { Text } = Typography;
 
@@ -85,7 +86,13 @@ export default function ProjectsPage() {
   const setCurrent = useProjectStore((s) => s.setCurrentProject);
   const { user, role } = useAuthStore();
 
-  const { data: projects = [] } = useQuery({
+  const {
+    data: projects = [],
+    isError: projectsError,
+    error: projectsErrorObj,
+    refetch: refetchProjects,
+    isFetching: projectsFetching,
+  } = useQuery({
     queryKey: ['projects'],
     queryFn: listProjects,
   });
@@ -560,6 +567,16 @@ export default function ProjectsPage() {
               </Space>
             }
           >
+            {projectsError && projects.length === 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <QueryError
+                  error={projectsErrorObj}
+                  title="Не удалось загрузить список проектов"
+                  onRetry={() => refetchProjects()}
+                  retrying={projectsFetching}
+                />
+              </div>
+            )}
             <Table<Project>
               rowKey="id"
               columns={columns}
