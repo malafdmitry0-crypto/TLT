@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import io
 import json
@@ -1166,6 +1167,32 @@ async def import_objects_from_csv(
     }
 
 
+def _parse_excel_workbook(content: bytes) -> list[tuple[str, str, list[dict[str, Any]]]]:
+    """Синхронный разбор xlsx: открыть книгу, проверить лимит листов и прочитать
+    листы трубопроводов/резервуаров.
+
+    openpyxl полностью блокирующий (parsing + распаковка XML), поэтому функция
+    запускается в отдельном потоке через ``asyncio.to_thread`` и не должна
+    держать event loop на время разбора файла (см. import_objects_from_excel).
+    Возвращает список ``(sheet_label, object_type, rows)`` по найденным листам.
+    """
+    try:
+        wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+    except Exception as exc:
+        raise ExcelImportError(f"Не удалось открыть файл: {exc}") from exc
+    if len(wb.sheetnames) > settings.MAX_IMPORT_SHEETS:
+        raise ExcelImportError(f"Превышен лимит листов импорта: {settings.MAX_IMPORT_SHEETS}")
+
+    parsed_sheets: list[tuple[str, str, list[dict[str, Any]]]] = []
+    for sheet in wb.sheetnames:
+        norm = _norm(sheet)
+        if norm in PIPE_SHEET_NAMES:
+            parsed_sheets.append((sheet, "pipe", _read_sheet(wb[sheet], PIPE_HEADERS)))
+        elif norm in TANK_SHEET_NAMES:
+            parsed_sheets.append((sheet, "tank", _read_sheet(wb[sheet], TANK_HEADERS)))
+    return parsed_sheets
+
+
 async def import_objects_from_excel(
     db: AsyncSession,
     project_id: UUID,
@@ -1179,12 +1206,10 @@ async def import_objects_from_excel(
     """
     import_mode = _validate_import_mode(mode)
     _validate_xlsx_archive(content)
-    try:
-        wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
-    except Exception as exc:
-        raise ExcelImportError(f"Не удалось открыть файл: {exc}") from exc
-    if len(wb.sheetnames) > settings.MAX_IMPORT_SHEETS:
-        raise ExcelImportError(f"Превышен лимит листов импорта: {settings.MAX_IMPORT_SHEETS}")
+
+    # Блокирующий разбор openpyxl уводим в поток, чтобы не стопорить event loop
+    # на время парсинга (как уже сделано для генерации отчётов).
+    parsed_sheets = await asyncio.to_thread(_parse_excel_workbook, content)
 
     # Проверяем доступ к проекту
     try:
@@ -1197,23 +1222,8 @@ async def import_objects_from_excel(
     skipped_limit = 0
     errors: list[dict[str, Any]] = []
     created_object_ids: list[UUID] = []
-    found_sheet = False
-    parsed_sheets: list[tuple[str, str, list[dict[str, Any]]]] = []
 
-    for sheet in wb.sheetnames:
-        norm = _norm(sheet)
-        if norm in PIPE_SHEET_NAMES:
-            found_sheet = True
-            ws = wb[sheet]
-            rows = _read_sheet(ws, PIPE_HEADERS)
-            parsed_sheets.append((sheet, "pipe", rows))
-        elif norm in TANK_SHEET_NAMES:
-            found_sheet = True
-            ws = wb[sheet]
-            rows = _read_sheet(ws, TANK_HEADERS)
-            parsed_sheets.append((sheet, "tank", rows))
-
-    if not found_sheet:
+    if not parsed_sheets:
         raise ExcelImportError(
             "В файле не найдены листы «Трубопроводы» или «Резервуары». "
             "Используйте шаблон (кнопка «Скачать шаблон»)."
