@@ -676,12 +676,17 @@ function HeatCalcNormalGlideGrid({
   rowsRef.current = rows;
   rowIndexByIdRef.current = rowIndexById;
   visibleGridColumnsRef.current = visibleGridColumns;
+  // `rows` is intentionally NOT part of the cache scope: a new `rows` reference
+  // (infinite-scroll append, row reorder, optimistic row swap) must not wipe the
+  // whole per-cell cache. Reuse is driven per-entry by record/column identity
+  // below; `getCellState` stays the correctness version guard (its identity
+  // changes when cell computation changes), so the scope-clear effect only fires
+  // on a genuine "everything changed" signal.
   const modelCellCacheScope = useMemo(() => ({
     getCellState,
-    rows,
     version: {},
     visibleGridColumns,
-  }), [getCellState, rows, visibleGridColumns]);
+  }), [getCellState, visibleGridColumns]);
   const modelCellCacheRef = useRef(new Map<string, NormalModelCellCacheEntry>());
   useEffect(() => {
     modelCellCacheRef.current.clear();
@@ -691,7 +696,7 @@ function HeatCalcNormalGlideGrid({
   }, []);
   const getModelCell = useCallback((columnIndex: number, rowIndex: number) => {
     const column = modelCellCacheScope.visibleGridColumns[columnIndex];
-    const record = modelCellCacheScope.rows[rowIndex];
+    const record = rowsRef.current[rowIndex];
     if (!column || !record) return null;
     const cacheKey = `${columnIndex}:${rowIndex}`;
     const cached = modelCellCacheRef.current.get(cacheKey);
