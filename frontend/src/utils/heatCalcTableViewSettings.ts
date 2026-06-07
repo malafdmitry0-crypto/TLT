@@ -1,4 +1,6 @@
 import defaultConfig from '@/config/heatcalc-table-view.default.json';
+import { readStorageJson } from '@/utils/storage';
+import { isRecord } from '@/utils/typeGuards';
 
 export type HeatCalcTableFontSize = 'compact' | 'standard' | 'comfortable' | 'large';
 export type HeatCalcFormPlacement = 'top' | 'bottom' | 'left' | 'right';
@@ -51,10 +53,6 @@ export const HEATCALC_TABLE_LABEL_FORMAT_OPTIONS: Array<{ key: HeatCalcTableLabe
   { key: 'short', label: 'Краткие' },
   { key: 'compact', label: 'Компактные' },
 ];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function normalizeFontSizeOption(key: string, value: unknown): HeatCalcResolvedTableFontSize | null {
   if (key !== 'compact' && key !== 'standard' && key !== 'comfortable' && key !== 'large') return null;
@@ -205,17 +203,6 @@ export function resolveTableFontSizeByKey(
     lineHeight: 1.18,
     cellPaddingY: 1,
   };
-}
-
-function readStorageJson(key: string): unknown {
-  if (typeof localStorage === 'undefined') return null;
-  const raw = localStorage.getItem(key);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return null;
-  }
 }
 
 export function readGuestTableViewSettings() {

@@ -34,6 +34,7 @@ import {
   type HeatCalcGlideGridColumn,
 } from '@/utils/heatCalcGlideGrid';
 import { resolveTableFontSizeByKey } from '@/utils/heatCalcTableViewSettings';
+import { blankCell, isDirtyRowClassName, isErrorRowClassName } from '@/utils/glideGridPrimitives';
 
 const GLIDE_ROW_MARKER_WIDTH = 50;
 const GLIDE_MIN_COLUMN_WIDTH = 48;
@@ -88,17 +89,6 @@ function toSyntheticMouseEvent(event: CellClickedEventArgs): MouseEvent<HTMLElem
   } as unknown as MouseEvent<HTMLElement>;
 }
 
-function blankCell(): GridCell {
-  return {
-    kind: GridCellKind.Text,
-    allowOverlay: false,
-    readonly: true,
-    data: '',
-    displayData: '',
-    copyData: '',
-  };
-}
-
 function contentAlign(
   column: HeatCalcGlideGridColumn,
   state: HeatCalcGlideGridCellState,
@@ -106,16 +96,6 @@ function contentAlign(
   if (state.align) return state.align;
   if (column.align) return column.align;
   return state.editor === 'number' ? 'right' : 'left';
-}
-
-function isErrorRowClassName(className: string) {
-  return className.includes('row-invalid')
-    || className.includes('row-excel-error')
-    || className.includes('row-error');
-}
-
-function isDirtyRowClassName(className: string) {
-  return className.includes('row-excel-dirty') || className.includes('row-dirty');
 }
 
 function clampGlideColumnWidth(column: HeatCalcGlideGridColumn, widthPx: number) {

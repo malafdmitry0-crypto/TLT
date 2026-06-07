@@ -7,6 +7,8 @@ import {
   type ElectricalRegistryTableColumn,
 } from '@/domain/electricalFieldRegistry';
 import type { ElectricalTableLabelFormat } from '@/utils/electricalTableViewSettings';
+import { readStorageJson } from '@/utils/storage';
+import { isRecord } from '@/utils/typeGuards';
 
 export type ElectricalColumnKey = string;
 
@@ -121,10 +123,6 @@ export const ELECTRICAL_TABLE_COLUMN_CATALOG: ElectricalColumnMeta[] =
   getElectricalTableColumnRegistry()
     .map(normalizeRegistryColumn)
     .filter((column): column is ElectricalColumnMeta => column != null);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function unique(values: ElectricalColumnKey[]) {
   return [...new Set(values)];
@@ -259,17 +257,6 @@ export function getDefaultVisibleElectricalTableColumnKeys() {
   return getVisibleElectricalTableColumnMetas(
     getDefaultElectricalTableColumnSettings(),
   ).map((column) => column.key);
-}
-
-function readStorageJson(key: string): unknown {
-  if (typeof localStorage === 'undefined') return null;
-  const raw = localStorage.getItem(key);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return null;
-  }
 }
 
 export function readGuestElectricalTableColumnSettings() {

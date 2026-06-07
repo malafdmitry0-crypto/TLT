@@ -1,3 +1,6 @@
+import { readStorageJson } from '@/utils/storage';
+import { isRecord } from '@/utils/typeGuards';
+
 export type HeatCalcCalculationDetailPreset = 'brief' | 'standard' | 'detailed' | 'custom';
 
 export type HeatCalcCalculationDetailMetric =
@@ -116,10 +119,6 @@ const PRESET_METRICS: Record<
 
 const ALL_METRIC_KEYS = new Set(HEATCALC_CALCULATION_DETAIL_METRIC_OPTIONS.map((option) => option.key));
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function uniqueMetrics(metrics: unknown): HeatCalcCalculationDetailMetric[] {
   if (!Array.isArray(metrics)) return [];
   const result: HeatCalcCalculationDetailMetric[] = [];
@@ -216,17 +215,6 @@ export function isDefaultCalculationDetailsSettings(settings: HeatCalcCalculatio
   const defaults = getDefaultCalculationDetailsSettings();
   return normalized.preset === defaults.preset
     && sameMetricSet(normalized.visibleMetrics, defaults.visibleMetrics);
-}
-
-function readStorageJson(key: string): unknown {
-  if (typeof localStorage === 'undefined') return null;
-  const raw = localStorage.getItem(key);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return null;
-  }
 }
 
 export function readGuestCalculationDetailsSettings() {

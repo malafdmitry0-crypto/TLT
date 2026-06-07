@@ -2,6 +2,7 @@ import type { CableSource } from '@/api/calculations';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { CableCatalogRow } from '@/utils/cableCatalogSourceLabels';
 import { visibleCableRowsForSource } from '@/utils/cableCatalogSourceLabels';
+import { isRecord } from '@/utils/typeGuards';
 import { normalizeCableSource } from '@/pages/electrical/elecCalcCableOptionModel';
 import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
 
@@ -42,10 +43,6 @@ type ResolveCableRowForMarkInput = {
   rows: CableStatusRow[];
   selectedSource?: CableSource | null;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 export function hasCommercialData(row: CableStatusRow) {
   return row.price_per_meter != null

@@ -1,5 +1,6 @@
 import fieldRegistryConfig from '@/config/heatcalc-fields.default.json';
 import type { HeatCalcObjectType } from '@/types/project';
+import { isRecord } from '@/utils/typeGuards';
 
 export type HeatCalcFieldId = string;
 export type HeatCalcTableScope = HeatCalcObjectType | 'all';
@@ -94,10 +95,6 @@ export interface HeatCalcFieldDescriptionOptions {
 }
 
 const OBJECT_TYPES: HeatCalcObjectType[] = ['pipe', 'tank'];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function stringValue(value: unknown) {
   return typeof value === 'string' ? value : undefined;

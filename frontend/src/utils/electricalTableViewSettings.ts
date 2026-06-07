@@ -1,4 +1,6 @@
 import defaultConfig from '@/config/heatcalc-table-view.default.json';
+import { readStorageJson } from '@/utils/storage';
+import { isRecord } from '@/utils/typeGuards';
 
 export type ElectricalTableFontSize = 'compact' | 'standard' | 'comfortable' | 'large';
 export type ElectricalTableLabelFormat = 'full' | 'short' | 'compact';
@@ -38,10 +40,6 @@ export const ELECTRICAL_TABLE_LABEL_FORMAT_OPTIONS: Array<{
   { key: 'short', label: 'Краткие' },
   { key: 'compact', label: 'Компактные' },
 ];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function normalizeFontSizeOption(
   key: string,
@@ -140,17 +138,6 @@ export function resolveElectricalTableFontSize(
     lineHeight: 1.22,
     cellPaddingY: 2,
   };
-}
-
-function readStorageJson(key: string): unknown {
-  if (typeof localStorage === 'undefined') return null;
-  const raw = localStorage.getItem(key);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return null;
-  }
 }
 
 export function readGuestElectricalTableViewSettings() {

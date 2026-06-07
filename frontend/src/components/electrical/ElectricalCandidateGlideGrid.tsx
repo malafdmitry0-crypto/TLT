@@ -38,15 +38,18 @@ import {
   type HeatCalcTableViewState,
 } from '@/utils/heatCalcTableFindability';
 import { resolveTableFontSizeByKey } from '@/utils/heatCalcTableViewSettings';
+import {
+  blankCell,
+  drawFilterIndicator,
+  drawSortIndicator,
+  headerControlWidth,
+  nextSortDirection,
+} from '@/utils/glideGridPrimitives';
 
 const CANDIDATE_GLIDE_MIN_COLUMN_WIDTH = 48;
 const CANDIDATE_GLIDE_MAX_COLUMN_WIDTH = 620;
 const CANDIDATE_HEADER_FILTER_HIT_WIDTH = 28;
-const CANDIDATE_HEADER_CONTROL_PADDING = 6;
 const CANDIDATE_HEADER_CONTROL_BG = '#f3f6f4';
-const CANDIDATE_HEADER_CONTROL_MUTED = '#7a8b99';
-const CANDIDATE_HEADER_CONTROL_FAINT = '#b8c2cc';
-const CANDIDATE_HEADER_CONTROL_ACTIVE = '#1a5276';
 const CANDIDATE_ERROR_ROW_BG = '#fff1f0';
 const CANDIDATE_COMPARED_ROW_BG = '#f7fbff';
 const CANDIDATE_DIFF_CELL_BG = '#fff7d6';
@@ -110,97 +113,6 @@ function isComparedRowClassName(className: string) {
 function candidateRowHeight(fontSizeKey: string) {
   const fontSize = resolveTableFontSizeByKey(fontSizeKey);
   return Math.max(24, Math.round(fontSize.fontSizePx * fontSize.lineHeight + fontSize.cellPaddingY * 2 + 7));
-}
-
-function blankCell(): GridCell {
-  return {
-    kind: GridCellKind.Text,
-    allowOverlay: false,
-    readonly: true,
-    data: '',
-    displayData: '',
-    copyData: '',
-  };
-}
-
-function headerControlWidth(column: HeatCalcGlideGridColumn) {
-  if (!column.sortable && !column.filterable) return 0;
-  return CANDIDATE_HEADER_CONTROL_PADDING
-    + (column.sortable ? 18 : 0)
-    + (column.filterable ? 22 : 0);
-}
-
-function drawTriangle(
-  ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  direction: 'up' | 'down',
-  color: string,
-) {
-  ctx.beginPath();
-  if (direction === 'up') {
-    ctx.moveTo(centerX, centerY - 4);
-    ctx.lineTo(centerX - 4, centerY + 2);
-    ctx.lineTo(centerX + 4, centerY + 2);
-  } else {
-    ctx.moveTo(centerX, centerY + 4);
-    ctx.lineTo(centerX - 4, centerY - 2);
-    ctx.lineTo(centerX + 4, centerY - 2);
-  }
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-}
-
-function drawSortIndicator(
-  ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  direction?: 'asc' | 'desc',
-) {
-  drawTriangle(
-    ctx,
-    centerX,
-    centerY - 4,
-    'up',
-    direction === 'asc' ? CANDIDATE_HEADER_CONTROL_ACTIVE : CANDIDATE_HEADER_CONTROL_FAINT,
-  );
-  drawTriangle(
-    ctx,
-    centerX,
-    centerY + 4,
-    'down',
-    direction === 'desc' ? CANDIDATE_HEADER_CONTROL_ACTIVE : CANDIDATE_HEADER_CONTROL_FAINT,
-  );
-}
-
-function drawFilterIndicator(
-  ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  active: boolean,
-) {
-  const color = active ? CANDIDATE_HEADER_CONTROL_ACTIVE : CANDIDATE_HEADER_CONTROL_MUTED;
-  ctx.beginPath();
-  ctx.moveTo(centerX - 6, centerY - 6);
-  ctx.lineTo(centerX + 6, centerY - 6);
-  ctx.lineTo(centerX + 2, centerY - 1);
-  ctx.lineTo(centerX + 2, centerY + 5);
-  ctx.lineTo(centerX - 2, centerY + 5);
-  ctx.lineTo(centerX - 2, centerY - 1);
-  ctx.closePath();
-  ctx.lineWidth = 1.4;
-  ctx.strokeStyle = color;
-  ctx.stroke();
-}
-
-function nextSortDirection(
-  tableViewState: HeatCalcTableViewState,
-  columnKey: string,
-): 'asc' | 'desc' | undefined {
-  if (tableViewState.sort?.columnKey !== columnKey) return 'asc';
-  if (tableViewState.sort.direction === 'asc') return 'desc';
-  return undefined;
 }
 
 function actionWidth(action: HeatCalcGlideGridCellAction) {

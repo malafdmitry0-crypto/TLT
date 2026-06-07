@@ -41,16 +41,21 @@ import {
   type HeatCalcColumnFilter,
   type HeatCalcTableViewState,
 } from '@/utils/heatCalcTableFindability';
+import {
+  blankCell,
+  drawFilterIndicator,
+  drawSortIndicator,
+  headerControlWidth,
+  isDirtyRowClassName,
+  isErrorRowClassName,
+  nextSortDirection,
+} from '@/utils/glideGridPrimitives';
 
 const NORMAL_ROW_MARKER_WIDTH = 52;
 const NORMAL_GLIDE_HIDDEN_COLUMN_KEYS = new Set(['index']);
 const NORMAL_INFINITE_LOAD_THRESHOLD_ROWS = 12;
 const NORMAL_HEADER_FILTER_HIT_WIDTH = 28;
-const NORMAL_HEADER_CONTROL_PADDING = 6;
 const NORMAL_HEADER_CONTROL_BG = '#f3f6f4';
-const NORMAL_HEADER_CONTROL_MUTED = '#7a8b99';
-const NORMAL_HEADER_CONTROL_FAINT = '#b8c2cc';
-const NORMAL_HEADER_CONTROL_ACTIVE = '#1a5276';
 const NORMAL_STATUS_COLUMN_KEYS = new Set(['heat_loss_status', 'electrical_status']);
 const NORMAL_STATUS_BADGE_MIN_RADIUS = 6;
 const NORMAL_STATUS_BADGE_MAX_RADIUS = 8;
@@ -157,33 +162,12 @@ type NormalModelCellCacheEntry = NormalModelCell & {
   version: object;
 };
 
-function isErrorRowClassName(className: string) {
-  return className.includes('row-invalid')
-    || className.includes('row-excel-error')
-    || className.includes('row-error');
-}
-
-function isDirtyRowClassName(className: string) {
-  return className.includes('row-excel-dirty') || className.includes('row-dirty');
-}
-
 function isActiveRowClassName(className: string) {
   return className.includes('row-selected');
 }
 
 function clampNormalGlideColumnWidth(column: HeatCalcGlideGridColumn, widthPx: number) {
   return Math.max(column.minWidthPx ?? NORMAL_GLIDE_MIN_COLUMN_WIDTH, widthPx);
-}
-
-function blankCell(): GridCell {
-  return {
-    kind: GridCellKind.Text,
-    allowOverlay: false,
-    readonly: true,
-    data: '',
-    displayData: '',
-    copyData: '',
-  };
 }
 
 function getGridCellEditedValue(newValue: EditableGridCell): unknown {
@@ -243,86 +227,6 @@ function normalRowMarkerStartIndex(pagination: TableProps<ProjectObject>['pagina
   const pageSize = Number(pageConfig?.pageSize ?? 0);
   if (!Number.isFinite(current) || current < 1 || !Number.isFinite(pageSize) || pageSize < 1) return 1;
   return (current - 1) * pageSize + 1;
-}
-
-function nextSortDirection(
-  tableViewState: HeatCalcTableViewState,
-  columnKey: string,
-): 'asc' | 'desc' | undefined {
-  if (tableViewState.sort?.columnKey !== columnKey) return 'asc';
-  if (tableViewState.sort.direction === 'asc') return 'desc';
-  return undefined;
-}
-
-function headerControlWidth(column: HeatCalcGlideGridColumn) {
-  if (!column.sortable && !column.filterable) return 0;
-  return NORMAL_HEADER_CONTROL_PADDING
-    + (column.sortable ? 18 : 0)
-    + (column.filterable ? 22 : 0);
-}
-
-function drawTriangle(
-  ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  direction: 'up' | 'down',
-  color: string,
-) {
-  ctx.beginPath();
-  if (direction === 'up') {
-    ctx.moveTo(centerX, centerY - 4);
-    ctx.lineTo(centerX - 4, centerY + 2);
-    ctx.lineTo(centerX + 4, centerY + 2);
-  } else {
-    ctx.moveTo(centerX, centerY + 4);
-    ctx.lineTo(centerX - 4, centerY - 2);
-    ctx.lineTo(centerX + 4, centerY - 2);
-  }
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-}
-
-function drawSortIndicator(
-  ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  direction?: 'asc' | 'desc',
-) {
-  drawTriangle(
-    ctx,
-    centerX,
-    centerY - 4,
-    'up',
-    direction === 'asc' ? NORMAL_HEADER_CONTROL_ACTIVE : NORMAL_HEADER_CONTROL_FAINT,
-  );
-  drawTriangle(
-    ctx,
-    centerX,
-    centerY + 4,
-    'down',
-    direction === 'desc' ? NORMAL_HEADER_CONTROL_ACTIVE : NORMAL_HEADER_CONTROL_FAINT,
-  );
-}
-
-function drawFilterIndicator(
-  ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  active: boolean,
-) {
-  const color = active ? NORMAL_HEADER_CONTROL_ACTIVE : NORMAL_HEADER_CONTROL_MUTED;
-  ctx.beginPath();
-  ctx.moveTo(centerX - 6, centerY - 6);
-  ctx.lineTo(centerX + 6, centerY - 6);
-  ctx.lineTo(centerX + 2, centerY - 1);
-  ctx.lineTo(centerX + 2, centerY + 5);
-  ctx.lineTo(centerX - 2, centerY + 5);
-  ctx.lineTo(centerX - 2, centerY - 1);
-  ctx.closePath();
-  ctx.lineWidth = 1.4;
-  ctx.strokeStyle = color;
-  ctx.stroke();
 }
 
 function normalStatusVisualFromValue(value: unknown): NormalStatusVisual | null {

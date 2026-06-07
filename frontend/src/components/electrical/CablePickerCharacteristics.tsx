@@ -1,6 +1,7 @@
 import type { ProjectObject } from '@/types/project';
 import type { CableCatalogRow } from '@/utils/cableCatalogSourceLabels';
 import { formatNumber, formatPower } from '@/utils/formatters';
+import { isRecord } from '@/utils/typeGuards';
 import type { CSSProperties } from 'react';
 
 type CablePickerCableRow = CableCatalogRow & {
@@ -223,10 +224,6 @@ const CABLE_FIELD_ORDER_BY_TYPE: Record<string, string[]> = {
     'max_length',
   ],
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function valueText(value: unknown) {
   if (value === null || value === undefined || value === '') return '—';

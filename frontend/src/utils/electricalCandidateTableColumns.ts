@@ -10,6 +10,8 @@ import {
   type ElectricalColumnMeta,
 } from '@/utils/electricalTableColumns';
 import type { ElectricalTableLabelFormat } from '@/utils/electricalTableViewSettings';
+import { readStorageJson } from '@/utils/storage';
+import { isRecord } from '@/utils/typeGuards';
 
 export type ElectricalCandidateColumnKey = string;
 
@@ -225,10 +227,6 @@ export const ELECTRICAL_CANDIDATE_TABLE_COLUMN_CATALOG: ElectricalCandidateColum
     .map(normalizeCandidateColumn),
 ];
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function unique(values: ElectricalCandidateColumnKey[]) {
   return [...new Set(values)];
 }
@@ -443,17 +441,6 @@ export function createElectricalCandidateTableColumnSettingsPatch(
     ...settings,
     visibleOrder,
   });
-}
-
-function readStorageJson(key: string): unknown {
-  if (typeof localStorage === 'undefined') return null;
-  const raw = localStorage.getItem(key);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return null;
-  }
 }
 
 export function readGuestElectricalCandidateTableColumnSettings() {

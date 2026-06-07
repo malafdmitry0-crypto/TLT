@@ -9,6 +9,8 @@ import {
   type HeatCalcRegistryTableColumn,
 } from '@/domain/heatCalcFields';
 import type { HeatCalcTableLabelFormat } from '@/utils/heatCalcTableViewSettings';
+import { readStorageJson } from '@/utils/storage';
+import { isRecord } from '@/utils/typeGuards';
 
 export type HeatCalcObjectType = 'pipe' | 'tank';
 export type HeatCalcTableColumnScope = HeatCalcObjectType | 'all';
@@ -168,10 +170,6 @@ export const HEATCALC_TABLE_COLUMN_CATALOG: Record<HeatCalcTableColumnScope, Hea
   tank: tankColumnCatalog,
   all: buildAllObjectColumnCatalog(),
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function unique(values: HeatCalcColumnKey[]) {
   return [...new Set(values)];
@@ -395,17 +393,6 @@ export function getVisibleTableColumnMetas(
 
 export function getDefaultVisibleTableColumnKeys(type: HeatCalcTableColumnScope) {
   return getVisibleTableColumnMetas(type, getDefaultTableColumnSettings()).map((column) => column.key);
-}
-
-function readStorageJson(key: string): unknown {
-  if (typeof localStorage === 'undefined') return null;
-  const raw = localStorage.getItem(key);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return null;
-  }
 }
 
 export function readGuestTableColumnSettings() {

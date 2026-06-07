@@ -4,6 +4,8 @@ import {
   type HeatCalcFieldId,
 } from '@/domain/heatCalcFields';
 import type { HeatCalcObjectType } from '@/types/project';
+import { readStorageJson } from '@/utils/storage';
+import { isRecord } from '@/utils/typeGuards';
 
 export interface HeatCalcFieldInputLayout {
   step?: number;
@@ -33,10 +35,6 @@ interface RegisteredFieldInputCache {
 export const HEATCALC_FIELD_INPUT_SETTINGS_VERSION = getHeatCalcFieldInputSettingsVersion();
 export const HEATCALC_GUEST_FIELD_INPUT_STORAGE_KEY = 'heatcalc.fieldInputs.v1.guest';
 export const HEATCALC_REGISTERED_FIELD_INPUT_CACHE_KEY = 'heatcalc.fieldInputs.v1.registered.cache';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 export function getDefaultFieldInputSettings(): HeatCalcFieldInputSettings {
   return {
@@ -102,17 +100,6 @@ export function getHeatCalcFieldStepSettingItems(
   void objectType;
   void settings;
   return [];
-}
-
-function readStorageJson(key: string): unknown {
-  if (typeof localStorage === 'undefined') return null;
-  const raw = localStorage.getItem(key);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return null;
-  }
 }
 
 export function readGuestFieldInputSettings() {
