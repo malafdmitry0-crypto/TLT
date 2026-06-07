@@ -23,7 +23,11 @@ JSON-справочники под `@lru_cache`, references API с ETag + HTTP-�
 
 ### HIGH
 
-**B1. Синхронный `openpyxl` в async-эндпоинте — импорт Excel блокирует event loop**
+**B1. Синхронный `openpyxl` в async-эндпоинте — импорт Excel блокирует event loop — ✅ ИСПРАВЛЕНО (2026-06-07)**
+- **Закрыто.** Синхронный разбор вынесен в `_parse_excel_workbook` и
+  вызывается через `asyncio.to_thread` в `import_objects_from_excel`, по образцу
+  генерации отчётов. Порядок ошибок (открытие файла / лимит листов / доступ /
+  нет листов) сохранён; unit + integration тесты импорта зелёные.
 - **Файл:** `backend/app/services/excel_import_service.py:1183`
   ```python
   wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)

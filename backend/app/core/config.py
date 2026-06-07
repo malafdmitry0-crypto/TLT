@@ -30,7 +30,9 @@ class Settings(BaseSettings):
     ACCESS_COOKIE_NAME: str = "access_token"
     REFRESH_COOKIE_NAME: str = "refresh_token"
     CSRF_COOKIE_NAME: str = "csrf_token"
-    AUTH_COOKIE_SECURE: bool = False
+    # None → авто: secure-cookie включается в production и выключается в
+    # dev/demo (локальный HTTP). Явный bool в env переопределяет автоматику.
+    AUTH_COOKIE_SECURE: bool | None = None
     AUTH_COOKIE_SAMESITE: str = "lax"
     TRUSTED_PROXY_IPS: str = ""
 
@@ -124,6 +126,17 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.APP_ENV.strip().lower() in {"prod", "production"}
 
+    @property
+    def auth_cookie_secure(self) -> bool:
+        """Фактический флаг Secure для auth-cookie.
+
+        Если AUTH_COOKIE_SECURE не задан явно — secure включается в production
+        (где фронт под HTTPS) и выключается в dev/demo (локальный HTTP).
+        """
+        if self.AUTH_COOKIE_SECURE is not None:
+            return self.AUTH_COOKIE_SECURE
+        return self.is_production
+
     def validate_runtime_security(self) -> None:
         if not self.is_production:
             return
@@ -136,6 +149,8 @@ class Settings(BaseSettings):
             errors.append("FIRST_ADMIN_PASSWORD must be changed in production")
         if len(self.FIRST_ADMIN_PASSWORD) < 12:
             errors.append("FIRST_ADMIN_PASSWORD must be at least 12 characters in production")
+        if not self.auth_cookie_secure:
+            errors.append("AUTH_COOKIE_SECURE must be True in production (HTTPS cookies)")
         if errors:
             raise RuntimeError("; ".join(errors))
 

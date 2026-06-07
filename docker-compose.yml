@@ -61,6 +61,10 @@ services:
     container_name: heatcalc_backend
     restart: unless-stopped
     environment:
+      # production по умолчанию → validate_runtime_security() требует реальный
+      # SECRET_KEY/FIRST_ADMIN_PASSWORD и включает Secure-cookie. Dev-override
+      # (docker-compose.dev.yml) переопределяет на development.
+      APP_ENV: ${APP_ENV:-production}
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db}
       TEST_DATABASE_URL: ${TEST_DATABASE_URL:-postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test}
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
@@ -115,6 +119,7 @@ services:
     restart: unless-stopped
     command: ["python", "-m", "app.worker"]
     environment:
+      APP_ENV: ${APP_ENV:-production}
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db}
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
