@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
+import PageSkeleton from '@/components/common/PageSkeleton';
 import ProtectedRoute from './ProtectedRoute';
 import { ROUTES } from './routes';
 
@@ -28,7 +28,7 @@ const AdminHelpPage = lazy(() => import('@/pages/help/AdminHelpPage'));
 
 export default function AppRoutes() {
   return (
-    <Suspense fallback={<LoadingSpinner />}>
+    <Suspense fallback={<PageSkeleton />}>
       <Routes>
         <Route path={ROUTES.home} element={<HomePage />} />
         <Route path={ROUTES.login} element={<LoginPage />} />

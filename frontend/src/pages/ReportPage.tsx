@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Segmented, Space, Tag, Typography, message } from 'antd';
+import { Button, Card, Segmented, Skeleton, Space, Tag, Typography, message } from 'antd';
 import {
   FileTextOutlined,
   FilePdfOutlined,
@@ -204,7 +204,11 @@ export default function ReportPage() {
           </div>
         )}
 
-        {isLoading && <Paragraph type="secondary">Загрузка предпросмотра…</Paragraph>}
+        {isLoading && (
+          <div aria-busy="true" aria-label="Загрузка предпросмотра отчёта">
+            <Skeleton active title={{ width: '40%' }} paragraph={{ rows: 10 }} />
+          </div>
+        )}
         {data && <ReportPreview html={data.html} />}
       </Card>
 

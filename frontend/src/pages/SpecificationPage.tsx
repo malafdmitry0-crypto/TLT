@@ -9,6 +9,7 @@ import {
   Row,
   Segmented,
   Select,
+  Skeleton,
   Space,
   Typography,
   message,
@@ -65,7 +66,11 @@ export default function SpecificationPage() {
   const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null);
   const [qty, setQty] = useState<number>(1);
 
-  const { data: spec, refetch } = useQuery({
+  const {
+    data: spec,
+    refetch,
+    isLoading: specLoading,
+  } = useQuery({
     queryKey: ['spec', project?.id, variant],
     queryFn: () => getSpecification(project!.id, variant),
     enabled: !!project,
@@ -257,33 +262,41 @@ export default function SpecificationPage() {
               />
             )}
 
-            {!hasItems && (
-              <Alert
-                className="specification-empty-alert"
-                type="warning"
-                showIcon
-                message="Спецификация не сформирована"
-                description="Убедитесь, что для всех объектов выполнен электрорасчёт (шаг 2), затем нажмите «Сформировать»."
-                style={{ marginBottom: 16 }}
-                action={
-                  <Button
-                    size="small"
-                    icon={<ThunderboltOutlined />}
-                    onClick={() => navigate(ROUTES.elecCalc)}
-                  >
-                    К электрорасчёту
-                  </Button>
-                }
-              />
-            )}
+            {specLoading ? (
+              <div aria-busy="true" aria-label="Загрузка спецификации">
+                <Skeleton active title={false} paragraph={{ rows: 6 }} />
+              </div>
+            ) : (
+              <>
+                {!hasItems && (
+                  <Alert
+                    className="specification-empty-alert"
+                    type="warning"
+                    showIcon
+                    message="Спецификация не сформирована"
+                    description="Убедитесь, что для всех объектов выполнен электрорасчёт (шаг 2), затем нажмите «Сформировать»."
+                    style={{ marginBottom: 16 }}
+                    action={
+                      <Button
+                        size="small"
+                        icon={<ThunderboltOutlined />}
+                        onClick={() => navigate(ROUTES.elecCalc)}
+                      >
+                        К электрорасчёту
+                      </Button>
+                    }
+                  />
+                )}
 
-            <SpecTable
-              items={items}
-              groupBy={groupBy}
-              canDelete={isEmployee && hasItems}
-              isStale={isSpecStale}
-              onDelete={handleDelete}
-            />
+                <SpecTable
+                  items={items}
+                  groupBy={groupBy}
+                  canDelete={isEmployee && hasItems}
+                  isStale={isSpecStale}
+                  onDelete={handleDelete}
+                />
+              </>
+            )}
 
             {/* Переключатель вариантов системы (по эскизу Прил. 4 Рис. 3) */}
             <div
