@@ -26,9 +26,6 @@ export default defineConfig({
           ) {
             return 'query-vendor';
           }
-          if (id.includes('node_modules/@dnd-kit')) {
-            return 'dnd-vendor';
-          }
           return undefined;
         },
       },

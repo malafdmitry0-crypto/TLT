@@ -50,8 +50,6 @@ import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollR
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import CablePickerCharacteristics from '@/components/electrical/CablePickerCharacteristics';
-import ElectricalCandidateColumnSettingsModal from '@/components/electrical/ElectricalCandidateColumnSettingsModal';
-import ElectricalColumnSettingsModal from '@/components/electrical/ElectricalColumnSettingsModal';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
 import ElecCalcCableMarkModal from '@/pages/electrical/ElecCalcCableMarkModal';
 import ElecCalcCandidateCompareBar from '@/pages/electrical/ElecCalcCandidateCompareBar';
@@ -146,6 +144,12 @@ import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableVi
 
 const { Text } = Typography;
 const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
+const ElectricalCandidateColumnSettingsModal = lazy(
+  () => import('@/components/electrical/ElectricalCandidateColumnSettingsModal'),
+);
+const ElectricalColumnSettingsModal = lazy(
+  () => import('@/components/electrical/ElectricalColumnSettingsModal'),
+);
 
 export default function ElecCalcPage() {
   const project = useProjectStore((s) => s.currentProject);
@@ -1550,46 +1554,50 @@ export default function ElecCalcPage() {
         />
       </Modal>
       {candidateColumnSettingsOpen && (
-        <ElectricalCandidateColumnSettingsModal
-          open={candidateColumnSettingsOpen}
-          settings={draftCandidateTableColumnSettings}
-          settingsLabelFormat={normalizedTableViewSettings.settingsLabelFormat}
-          confirmLoading={updateCandidateTableColumnPreference.isPending}
-          onOk={applyCandidateColumnSettings}
-          onCancel={() => setCandidateColumnSettingsOpen(false)}
-          onSelectAllColumns={selectAllDraftCandidateColumns}
-          onResetColumns={resetDraftCandidateColumns}
-          onVisibleChange={updateDraftCandidateColumn}
-          onOrderChange={updateDraftCandidateColumnOrder}
-          onColumnReorder={reorderDraftCandidateColumn}
-          onWidthChange={updateDraftCandidateColumnWidth}
-          onResetWidth={resetDraftCandidateColumnWidth}
-        />
+        <Suspense fallback={null}>
+          <ElectricalCandidateColumnSettingsModal
+            open={candidateColumnSettingsOpen}
+            settings={draftCandidateTableColumnSettings}
+            settingsLabelFormat={normalizedTableViewSettings.settingsLabelFormat}
+            confirmLoading={updateCandidateTableColumnPreference.isPending}
+            onOk={applyCandidateColumnSettings}
+            onCancel={() => setCandidateColumnSettingsOpen(false)}
+            onSelectAllColumns={selectAllDraftCandidateColumns}
+            onResetColumns={resetDraftCandidateColumns}
+            onVisibleChange={updateDraftCandidateColumn}
+            onOrderChange={updateDraftCandidateColumnOrder}
+            onColumnReorder={reorderDraftCandidateColumn}
+            onWidthChange={updateDraftCandidateColumnWidth}
+            onResetWidth={resetDraftCandidateColumnWidth}
+          />
+        </Suspense>
       )}
       {columnSettingsOpen && (
-        <ElectricalColumnSettingsModal
-          open={columnSettingsOpen}
-          settings={draftTableColumnSettings}
-          viewSettings={draftTableViewSettings}
-          confirmLoading={
-            updateTableColumnPreference.isPending || updateTableSettingsPreference.isPending
-          }
-          onOk={applyColumnSettings}
-          onCancel={() => setColumnSettingsOpen(false)}
-          onSelectAllColumns={selectAllDraftColumns}
-          onResetColumns={resetDraftColumns}
-          onVisibleChange={updateDraftColumn}
-          onOrderChange={updateDraftColumnOrder}
-          onColumnReorder={reorderDraftColumn}
-          onWidthChange={updateDraftColumnWidth}
-          onResetWidth={resetDraftColumnWidth}
-          onFontSizeChange={updateDraftTableFontSize}
-          onTableLabelFormatChange={updateDraftTableLabelFormat}
-          onSettingsLabelFormatChange={updateDraftSettingsLabelFormat}
-          onResetFontSize={resetDraftTableFontSize}
-          onResetLabelFormats={resetDraftLabelFormats}
-          recalculationSettings={renderRecalculationSettings()}
-        />
+        <Suspense fallback={null}>
+          <ElectricalColumnSettingsModal
+            open={columnSettingsOpen}
+            settings={draftTableColumnSettings}
+            viewSettings={draftTableViewSettings}
+            confirmLoading={
+              updateTableColumnPreference.isPending || updateTableSettingsPreference.isPending
+            }
+            onOk={applyColumnSettings}
+            onCancel={() => setColumnSettingsOpen(false)}
+            onSelectAllColumns={selectAllDraftColumns}
+            onResetColumns={resetDraftColumns}
+            onVisibleChange={updateDraftColumn}
+            onOrderChange={updateDraftColumnOrder}
+            onColumnReorder={reorderDraftColumn}
+            onWidthChange={updateDraftColumnWidth}
+            onResetWidth={resetDraftColumnWidth}
+            onFontSizeChange={updateDraftTableFontSize}
+            onTableLabelFormatChange={updateDraftTableLabelFormat}
+            onSettingsLabelFormatChange={updateDraftSettingsLabelFormat}
+            onResetFontSize={resetDraftTableFontSize}
+            onResetLabelFormats={resetDraftLabelFormats}
+            recalculationSettings={renderRecalculationSettings()}
+          />
+        </Suspense>
       )}
     </>
   );
