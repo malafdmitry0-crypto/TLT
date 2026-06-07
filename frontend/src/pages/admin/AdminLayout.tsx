@@ -3,6 +3,7 @@ import { QuestionCircleOutlined } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { logout as logoutApi } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
+import { RouteErrorBoundary } from '@/components/common/ErrorBoundary';
 
 const { Header, Sider, Content } = Layout;
 
@@ -44,7 +45,9 @@ export default function AdminLayout() {
           />
         </Sider>
         <Content style={{ padding: 24 }}>
-          <Outlet />
+          <RouteErrorBoundary>
+            <Outlet />
+          </RouteErrorBoundary>
         </Content>
       </Layout>
     </Layout>

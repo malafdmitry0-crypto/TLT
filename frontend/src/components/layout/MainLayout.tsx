@@ -4,6 +4,7 @@ import { DatabaseOutlined, FireFilled, LogoutOutlined, QuestionCircleOutlined } 
 import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ProjectMenu from './ProjectMenu';
+import { RouteErrorBoundary } from '@/components/common/ErrorBoundary';
 import { logout as logoutApi } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
@@ -78,7 +79,9 @@ export default function MainLayout({ children }: Props) {
         <WorkspaceHeaderContextRow />
       </Header>
       <Layout className="heatcalc-main-layout">
-        <Content className="heatcalc-content">{children ?? <Outlet />}</Content>
+        <Content className="heatcalc-content">
+          <RouteErrorBoundary>{children ?? <Outlet />}</RouteErrorBoundary>
+        </Content>
       </Layout>
     </Layout>
   );
