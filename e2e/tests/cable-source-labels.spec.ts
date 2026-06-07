@@ -7,6 +7,12 @@ import {
   TEST_EMPLOYEE_EMAIL,
   TEST_EMPLOYEE_PASSWORD,
 } from './helpers/employee';
+import {
+  COMMERCIAL_FEATURE_SKIP_REASON,
+  e2eCommercialFeaturesEnabled,
+} from './helpers/feature-flags';
+
+const commercialFeaturesEnabled = e2eCommercialFeaturesEnabled();
 
 test.beforeAll(async () => {
   await ensureTestEmployee(API_BASE);
@@ -128,6 +134,8 @@ async function expectOptionExternalLabel(
 }
 
 test.describe('cable source labels', () => {
+  test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
+
   test('режим Все показывает внеш. только для технически уникальных внешних кабелей', async ({
     page,
   }) => {

@@ -15,6 +15,12 @@ import {
   expectElectricalGridHasNoOpenEditor,
   fetchElectricalCalcs,
 } from './helpers/electrical-glide';
+import {
+  COMMERCIAL_FEATURE_SKIP_REASON,
+  e2eCommercialFeaturesEnabled,
+} from './helpers/feature-flags';
+
+const commercialFeaturesEnabled = e2eCommercialFeaturesEnabled();
 
 async function selectDropdownOption(page: Page, optionText: string) {
   const dropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last();
@@ -241,6 +247,8 @@ test.describe('business flow: cable layout controls', () => {
   });
 
   test('ТТН/ТТВ/ТТХ проходит через UI-параметры и сохраняет тип расчёта', async ({ page }) => {
+    test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
+
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E TT pipe ${Date.now()}`;
@@ -269,6 +277,8 @@ test.describe('business flow: cable layout controls', () => {
   test('резистивный одножильный кабель считается из UI с параметрами подключения', async ({
     page,
   }) => {
+    test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
+
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E R1 pipe ${Date.now()}`;
@@ -296,6 +306,8 @@ test.describe('business flow: cable layout controls', () => {
   test('резистивный трёхжильный кабель считается из UI и фиксирует свой тип', async ({
     page,
   }) => {
+    test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
+
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E R3 pipe ${Date.now()}`;
@@ -318,6 +330,8 @@ test.describe('business flow: cable layout controls', () => {
   });
 
   test('коммерческая база скрыта, встроенная база остаётся доступной', async ({ page }) => {
+    test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
+
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E builtin source ${Date.now()}`;
@@ -353,6 +367,8 @@ test.describe('business flow: cable layout controls', () => {
   test('новый тип кабеля работает после перехода из теплопотерь в электрорасчёт', async ({
     page,
   }) => {
+    test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
+
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E heat R3 ${Date.now()}`;
@@ -378,6 +394,8 @@ test.describe('business flow: cable layout controls', () => {
   test('ТТ-кабель попадает в спецификацию и отчёт после полного пользовательского пути', async ({
     page,
   }) => {
+    test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
+
     await loginAsGuest(page);
     const { projectId, sessionId } = await currentGuestContext(page);
     const pipeName = `E2E TT spec ${Date.now()}`;

@@ -12,6 +12,7 @@
     "qa-agent:app-tests": "tsx src/index.ts --app-tests",
     "qa-agent:security": "tsx src/index.ts --security",
     "qa-agent:llm-extract": "tsx src/index.ts --llm-extract",
+    "qa-agent:codex-core": "tsx src/index.ts --codex-core",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

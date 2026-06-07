@@ -6,6 +6,12 @@ import {
   currentGuestContext,
   loginAsGuest,
 } from './helpers/workspace';
+import {
+  COMMERCIAL_FEATURE_SKIP_REASON,
+  e2eCommercialFeaturesEnabled,
+} from './helpers/feature-flags';
+
+const commercialFeaturesEnabled = e2eCommercialFeaturesEnabled();
 
 async function openExcelCellEditor(row: Locator, cellName: string) {
   await row.getByRole('button', { name: cellName, exact: true }).click();
@@ -111,6 +117,8 @@ async function selectedRowBlueScores(canvas: Locator, rowIndex: number, metrics:
 }
 
 test.describe('Excel-режим таблицы теплопотерь', () => {
+  test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
+
   test('выбор через номера строк в Glide Excel выделяет строки полностью и фокусирует форму', async ({ page }) => {
     await loginAsGuest(page);
     const firstName = `E2E excel row marker ${Date.now()}`;

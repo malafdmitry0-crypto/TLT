@@ -131,6 +131,13 @@ import {
   buildAuditJournalEntries,
   createAuditRunId,
 } from './domain/AuditJournal';
+import {
+  createCodexCorePlan,
+  renderCodexCoreBoardMarkdown,
+  renderCodexCorePlanMarkdown,
+  renderCodexCoreTicketsMarkdown,
+  type CodexCoreMode,
+} from './codex-core';
 
 export * from './comparison/NumericComparator';
 export * from './documentation/MarkdownDocumentationParser';
@@ -167,6 +174,7 @@ export * from './domain/FlakinessDetector';
 export * from './domain/AuditOwnershipPlanner';
 export * from './domain/BusinessCorrectnessAuditor';
 export * from './domain/AuditJournal';
+export * from './codex-core';
 
 class ExampleRequirementExtractor implements RequirementExtractor {
   extract(): Requirement[] {
@@ -258,6 +266,74 @@ async function runControlledLlmExtraction() {
 function intEnv(name: string, fallback: number): number {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
+}
+
+function parseCodexCoreMode(value: string | undefined): CodexCoreMode | undefined {
+  if (
+    value === 'audit_only' ||
+    value === 'fix_focused' ||
+    value === 'ui_proof' ||
+    value === 'release_gate'
+  ) {
+    return value;
+  }
+  return undefined;
+}
+
+function parseArgValue(names: string[]): string | undefined {
+  for (const arg of process.argv) {
+    for (const name of names) {
+      const prefix = `${name}=`;
+      if (arg.startsWith(prefix)) return arg.slice(prefix.length);
+    }
+  }
+  return undefined;
+}
+
+async function runCodexCorePlan() {
+  const qaRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const repoRoot = path.resolve(qaRoot, '..');
+  const scope =
+    parseArgValue(['--scope', '--codex-core-scope']) ??
+    process.env.QA_AGENT_CODEX_CORE_SCOPE ??
+    'functional accuracy operating system';
+  const mode = parseCodexCoreMode(parseArgValue(['--mode', '--codex-core-mode']) ?? process.env.QA_AGENT_CODEX_CORE_MODE);
+  const outputDir = process.env.QA_AGENT_CODEX_CORE_OUTPUT_DIR ?? path.join(repoRoot, 'codex-workspace');
+  const planPath = path.join(outputDir, 'plan.md');
+  const ticketsPath = path.join(outputDir, 'tickets.md');
+  const boardPath = path.join(outputDir, 'board.md');
+  const jsonPath = path.join(outputDir, 'plan.json');
+  const plan = createCodexCorePlan({
+    scope,
+    mode,
+    repoRoot,
+  });
+
+  writeUtf8FileUnderRoot(repoRoot, planPath, renderCodexCorePlanMarkdown(plan), 'Codex core local plan path');
+  writeUtf8FileUnderRoot(repoRoot, ticketsPath, renderCodexCoreTicketsMarkdown(plan), 'Codex core local tickets path');
+  writeUtf8FileUnderRoot(repoRoot, boardPath, renderCodexCoreBoardMarkdown(plan), 'Codex core local board path');
+  if (process.env.QA_AGENT_CODEX_CORE_WRITE_JSON === '1') {
+    writeUtf8FileUnderRoot(repoRoot, jsonPath, `${JSON.stringify(plan, null, 2)}\n`, 'Codex core optional JSON report path');
+  }
+
+  console.log(
+    JSON.stringify(
+      {
+        scope: plan.scope,
+        mode: plan.mode,
+        planPath,
+        ticketsPath,
+        boardPath,
+        jsonPath: process.env.QA_AGENT_CODEX_CORE_WRITE_JSON === '1' ? jsonPath : undefined,
+        docs: plan.docs.length,
+        commands: plan.verificationCommands.map((command) => command.id),
+        tickets: plan.ticketDrafts.map((ticket) => ticket.id),
+        findings: plan.findings.length,
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 async function runTltAiCases() {
@@ -791,6 +867,11 @@ async function runSecurityPentestAgent() {
 
 if (process.argv.includes('--llm-extract')) {
   runControlledLlmExtraction().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+} else if (process.argv.includes('--codex-core')) {
+  runCodexCorePlan().catch((error) => {
     console.error(error);
     process.exitCode = 1;
   });

@@ -5,6 +5,12 @@ import {
   expectElectricalGlideReady,
   fetchElectricalCalcs,
 } from './helpers/electrical-glide';
+import {
+  COMMERCIAL_FEATURE_SKIP_REASON,
+  e2eCommercialFeaturesEnabled,
+} from './helpers/feature-flags';
+
+const commercialFeaturesEnabled = e2eCommercialFeaturesEnabled();
 
 test.describe('4.3 Расчёт тепловых потерь', () => {
   test('пустой проект показывает рабочий экран теплопотерь и блокирует электрорасчёт', async ({
@@ -191,6 +197,8 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
   });
 
   test('Excel-режим показывает числовые разряды как обычная таблица', async ({ page }) => {
+    test.skip(!commercialFeaturesEnabled, COMMERCIAL_FEATURE_SKIP_REASON);
+
     await loginAsGuest(page);
     const pipeName = `E2E heat excel digits ${Date.now()}`;
     await createCalculatedPipe(page, pipeName, {

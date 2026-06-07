@@ -43,6 +43,8 @@ Report Generator
 
 ## What Is Working
 
+- Codex-core planner for local evidence-driven work: scope -> docs to read ->
+  rg searches -> verification commands -> Markdown tickets -> Markdown board.
 - Markdown documentation parser.
 - LLM-isolated requirement extractor interface.
 - YAML/JSON formula and algorithm registries.
@@ -80,6 +82,36 @@ LLM is only allowed for:
 
 Numerical correctness is decided by deterministic oracle + deterministic
 comparator. The LLM judge is skipped for deterministic numeric pass/fail.
+
+## Codex Core Planner
+
+`src/codex-core/` is the local operating layer for the larger system we are
+building around Codex. It does not use Jira, GitHub issues, Linear or other
+external trackers. It prepares the local Markdown work package for a functional
+accuracy task:
+
+- required TLT documentation and current availability;
+- implementation searches for docs, backend, frontend, database and tests;
+- minimum verification commands;
+- draft findings when required sources are missing;
+- local Markdown tickets and board columns;
+- a `Functional Accuracy Report` template.
+
+Run:
+
+```bash
+npm run qa-agent:codex-core -- --scope="pipe heat loss formula"
+```
+
+The command writes local repository artifacts outside ignored report folders:
+
+- `../codex-workspace/plan.md`
+- `../codex-workspace/tickets.md`
+- `../codex-workspace/board.md`
+
+Use `QA_AGENT_CODEX_CORE_SCOPE` or `--scope="..."` to change the feature scope.
+Set `QA_AGENT_CODEX_CORE_WRITE_JSON=1` only if a machine-readable debug artifact
+is explicitly needed.
 
 ## Add A Formula
 
