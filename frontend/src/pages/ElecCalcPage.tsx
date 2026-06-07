@@ -19,12 +19,10 @@ import {
   Segmented,
   Space,
   Table,
-  Tag,
   Tooltip,
   Typography,
 } from 'antd';
 import {
-  CloseCircleFilled,
   CloseCircleOutlined,
   TableOutlined,
   ThunderboltOutlined,
@@ -56,6 +54,7 @@ import ElecCalcCandidateCompareBar from '@/pages/electrical/ElecCalcCandidateCom
 import ElecCalcCandidateFolderTabs from '@/pages/electrical/ElecCalcCandidateFolderTabs';
 import ElecCalcCandidateTablePanel from '@/pages/electrical/ElecCalcCandidateTablePanel';
 import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
+import ElecCalcErrorSummary from '@/pages/electrical/ElecCalcErrorSummary';
 import ElecCalcRecalculationSettings from '@/pages/electrical/ElecCalcRecalculationSettings';
 import ElecCalcSelectedCableSummary from '@/pages/electrical/ElecCalcSelectedCableSummary';
 import { ROUTES } from '@/routes/routes';
@@ -1136,48 +1135,12 @@ export default function ElecCalcPage() {
             {bannerStats}
           </span>
         </div>
-        {failedCount > 0 && (
-          <div className="electrical-error-summary" aria-label="Сообщения ошибок электрорасчёта">
-            <div className="electrical-error-summary__header">
-              <Tag color="error" icon={<CloseCircleFilled />}>
-                Ошибок: {failedCount}
-              </Tag>
-            </div>
-            {activeElectricalErrorItem?.error ? (
-              <div className="electrical-error-summary__record">
-                <Tooltip title={activeElectricalErrorItem.error}>
-                  <Text type="secondary" ellipsis className="electrical-error-summary__message">
-                    {activeElectricalErrorItem.error}
-                  </Text>
-                </Tooltip>
-                {activeElectricalErrorItem.fallback && (
-                  <Text type="secondary" className="electrical-error-summary__hint">
-                    Показана первая ошибка на текущей странице. Выберите строку, чтобы переключить сообщение.
-                  </Text>
-                )}
-                {activeElectricalErrorGuidance && (
-                  <div className="electrical-error-summary__suggestions" aria-label="Предложения по исправлению ошибки">
-                    <Tag color={activeElectricalErrorGuidance.tagColor} className="electrical-error-summary__kind">
-                      {activeElectricalErrorGuidance.label}
-                    </Tag>
-                    <Text type="secondary" className="electrical-error-summary__suggestion-label">
-                      Что попробовать:
-                    </Text>
-                    {activeElectricalErrorGuidance.suggestions.map((suggestion) => (
-                      <Tag key={suggestion} className="electrical-error-summary__suggestion-tag">
-                        {suggestion}
-                      </Tag>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : !activeRowId && !activeElectricalErrorItem ? (
-              <Text type="secondary" className="electrical-error-summary__empty">
-                Ошибки есть вне текущей страницы таблицы.
-              </Text>
-            ) : null}
-          </div>
-        )}
+        <ElecCalcErrorSummary
+          failedCount={failedCount}
+          activeRowId={activeRowId}
+          item={activeElectricalErrorItem}
+          guidance={activeElectricalErrorGuidance}
+        />
 
         <ElectricalBatchActionBar
           variant={variant}
