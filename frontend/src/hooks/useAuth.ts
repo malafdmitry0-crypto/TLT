@@ -7,7 +7,12 @@ import type { Role } from '@/constants/roles';
 type LoginRole = Extract<Role, 'employee' | 'admin'>;
 
 export function useAuth() {
-  const store = useAuthStore();
+  // Field-селекторы на стабильные экшены — без подписки на весь стор,
+  // чтобы refresh access-токена не ре-рендерил потребителей useAuth.
+  const setGuest = useAuthStore((s) => s.setGuest);
+  const setAccessToken = useAuthStore((s) => s.setAccessToken);
+  const setEmployee = useAuthStore((s) => s.setEmployee);
+  const logout = useAuthStore((s) => s.logout);
   const setCurrentProject = useProjectStore((s) => s.setCurrentProject);
 
   const loginAsGuest = useCallback(async () => {
@@ -15,29 +20,29 @@ export function useAuth() {
     // старый currentProject принадлежит предыдущей сессии и вызовет 403
     setCurrentProject(null);
     const { session_id, project } = await createGuestSession();
-    store.setGuest(session_id);
+    setGuest(session_id);
     // У пользователя ровно один авто-проект — сразу делаем его текущим,
     // чтобы UI не показывал «создать/выбрать проект».
     setCurrentProject(project);
-  }, [store, setCurrentProject]);
+  }, [setGuest, setCurrentProject]);
 
   const loginAsRole = useCallback(
     async (email: string, password: string, role: LoginRole) => {
       setCurrentProject(null);
       const tokens = await loginApi({ email, password, role });
-      store.setAccessToken(tokens.access_token);
+      setAccessToken(tokens.access_token);
       localStorage.setItem('role', role);
       const user = await getMe();
       if (user.role !== role) {
-        store.logout();
+        logout();
         throw new Error('Пользователь не соответствует выбранной роли');
       }
-      store.setEmployee(user, {
+      setEmployee(user, {
         access: tokens.access_token,
         refresh: tokens.refresh_token,
       });
     },
-    [store, setCurrentProject]
+    [setAccessToken, setEmployee, logout, setCurrentProject]
   );
 
   const loginAsEmployee = useCallback(
@@ -51,7 +56,6 @@ export function useAuth() {
   );
 
   return {
-    ...store,
     loginAsGuest,
     loginAsEmployee,
     loginAsAdmin,

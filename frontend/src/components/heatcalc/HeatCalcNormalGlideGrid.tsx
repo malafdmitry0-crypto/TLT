@@ -664,7 +664,9 @@ function HeatCalcNormalGlideGrid({
       hasMenu: false,
       style: isColumnFilterActive(tableViewState.filters[column.key]) ? 'highlight' : 'normal',
     })),
-    [stretchedColumnWidths, tableViewState, visibleGridColumns],
+    // Зависит только от filters (sort здесь не читается); filters сохраняет ссылку
+    // при смене sort, поэтому сортировка не пересобирает колонки.
+    [stretchedColumnWidths, tableViewState.filters, visibleGridColumns],
   );
   const gridSelection = useMemo(
     () => buildRowSelection(rows, selectedRowKeys, activeCell),
@@ -952,7 +954,7 @@ function HeatCalcNormalGlideGrid({
       drawSortIndicator(ctx, cursorX, centerY, sortDirection);
     }
     ctx.restore();
-  }, [filterPopup?.columnIndex, hoveredHeaderColumnIndex, tableViewState, visibleGridColumns]);
+  }, [filterPopup?.columnIndex, hoveredHeaderColumnIndex, tableViewState.filters, tableViewState.sort, visibleGridColumns]);
   const handleVisibleRegionChanged = useCallback((range: Rectangle) => {
     if (!infiniteLoading?.hasNextPage || infiniteLoading.loading || rows.length === 0) return;
     const visibleRowEnd = range.y + range.height;

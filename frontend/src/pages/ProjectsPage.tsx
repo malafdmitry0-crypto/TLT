@@ -84,7 +84,8 @@ export default function ProjectsPage() {
   const qc         = useQueryClient();
   const navigate   = useNavigate();
   const setCurrent = useProjectStore((s) => s.setCurrentProject);
-  const { user, role } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const role = useAuthStore((s) => s.role);
 
   const {
     data: projects = [],

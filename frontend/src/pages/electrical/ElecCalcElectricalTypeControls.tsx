@@ -1,9 +1,34 @@
+import { memo } from 'react';
 import { Checkbox, InputNumber, Select, Typography } from 'antd';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
 
 const { Text } = Typography;
+
+// Стабильные литералы на уровне модуля — иначе пересоздаются на каждый рендер
+// (компонент перерисовывается на каждый InputNumber.onChange родителя).
+const WRAP_STYLE: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' };
+const HINT_STYLE: CSSProperties = { fontSize: 11, color: '#607080', alignSelf: 'center' };
+const AGGR_LABEL_STYLE: CSSProperties = { fontSize: 12 };
+const SELECT_W118: CSSProperties = { width: 118 };
+const INPUT_W92: CSSProperties = { width: 92 };
+const INPUT_W76: CSSProperties = { width: 76 };
+const INPUT_W72: CSSProperties = { width: 72 };
+
+const SINGLE_CORE_CONNECTION_OPTIONS = [
+  { value: 'line_1ph', label: 'Линия' },
+  { value: 'loop_1ph', label: 'Петля' },
+  { value: 'star_3ph', label: 'Звезда' },
+];
+
+const THREE_CORE_CONNECTION_OPTIONS = [
+  { value: 'line_1ph', label: 'Линия' },
+  { value: 'loop_2x3', label: 'Петля 2×3' },
+  { value: 'loop_1x3', label: 'Петля 1×3' },
+  { value: 'star_3x3', label: 'Звезда 3×3' },
+  { value: 'star_1x3', label: 'Звезда 1×3' },
+];
 
 type ElecCalcTypeControlValues = {
   aggressiveProduct: boolean;
@@ -34,7 +59,7 @@ type ElecCalcElectricalTypeControlsProps = {
   setRecalc: ElecCalcTypeControlSetters;
 };
 
-export default function ElecCalcElectricalTypeControls({
+function ElecCalcElectricalTypeControls({
   cableType,
   block = false,
   recalc,
@@ -44,54 +69,40 @@ export default function ElecCalcElectricalTypeControls({
   if (cableType === 'self_regulating') return null;
 
   const wrap = (content: ReactNode) =>
-    block ? (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-        {content}
-      </div>
-    ) : content;
+    block ? <div style={WRAP_STYLE}>{content}</div> : content;
 
   if (cableType === 'self_regulating_tt') {
     return wrap(
       <>
-        <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>T проп., °C:</Text>
+        <Text style={HINT_STYLE}>T проп., °C:</Text>
         <InputNumber<number>
           aria-label="T пропарки"
           size="small"
           value={recalc.vaporTemperature}
           onChange={setRecalc.vaporTemperature}
-          style={{ width: 92 }}
+          style={INPUT_W92}
         />
-        <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>T3, °C:</Text>
+        <Text style={HINT_STYLE}>T3, °C:</Text>
         <InputNumber<number>
           aria-label="T3 поддержания"
           size="small"
           value={recalc.maintainTemperature}
           onChange={setRecalc.maintainTemperature}
-          style={{ width: 92 }}
+          style={INPUT_W92}
         />
         <Checkbox
           checked={recalc.aggressiveProduct}
           onChange={(event) => setRecalc.aggressiveProduct(event.target.checked)}
         >
-          <span style={{ fontSize: 12 }}>агр.</span>
+          <span style={AGGR_LABEL_STYLE}>агр.</span>
         </Checkbox>
       </>,
     );
   }
   if (cableType === 'single_core' || cableType === 'three_core') {
     const connectionOptions = cableType === 'single_core'
-      ? [
-          { value: 'line_1ph', label: 'Линия' },
-          { value: 'loop_1ph', label: 'Петля' },
-          { value: 'star_3ph', label: 'Звезда' },
-        ]
-      : [
-          { value: 'line_1ph', label: 'Линия' },
-          { value: 'loop_2x3', label: 'Петля 2×3' },
-          { value: 'loop_1x3', label: 'Петля 1×3' },
-          { value: 'star_3x3', label: 'Звезда 3×3' },
-          { value: 'star_1x3', label: 'Звезда 1×3' },
-        ];
+      ? SINGLE_CORE_CONNECTION_OPTIONS
+      : THREE_CORE_CONNECTION_OPTIONS;
     return wrap(
       <>
         <Select
@@ -100,18 +111,20 @@ export default function ElecCalcElectricalTypeControls({
           value={recalc.connectionType}
           onChange={setRecalc.connectionType}
           options={connectionOptions}
-          style={{ width: 118 }}
+          style={SELECT_W118}
         />
-        <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>U:</Text>
-        <InputNumber<number> size="small" min={1} value={recalc.supplyVoltage} onChange={setRecalc.supplyVoltage} style={{ width: 76 }} />
-        <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>w:</Text>
-        <InputNumber<number> size="small" min={1} max={1.5} step={0.05} value={recalc.windingCoefficient} onChange={setRecalc.windingCoefficient} style={{ width: 72 }} />
-        <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>h:</Text>
-        <InputNumber<number> size="small" min={0} step={0.1} value={recalc.heatingHeight} onChange={setRecalc.heatingHeight} style={{ width: 76 }} />
-        <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>шаг:</Text>
-        <InputNumber<number> size="small" min={0.1} max={0.4} step={0.01} value={recalc.layingStep} onChange={setRecalc.layingStep} style={{ width: 76 }} />
+        <Text style={HINT_STYLE}>U:</Text>
+        <InputNumber<number> size="small" min={1} value={recalc.supplyVoltage} onChange={setRecalc.supplyVoltage} style={INPUT_W76} />
+        <Text style={HINT_STYLE}>w:</Text>
+        <InputNumber<number> size="small" min={1} max={1.5} step={0.05} value={recalc.windingCoefficient} onChange={setRecalc.windingCoefficient} style={INPUT_W72} />
+        <Text style={HINT_STYLE}>h:</Text>
+        <InputNumber<number> size="small" min={0} step={0.1} value={recalc.heatingHeight} onChange={setRecalc.heatingHeight} style={INPUT_W76} />
+        <Text style={HINT_STYLE}>шаг:</Text>
+        <InputNumber<number> size="small" min={0.1} max={0.4} step={0.01} value={recalc.layingStep} onChange={setRecalc.layingStep} style={INPUT_W76} />
       </>,
     );
   }
   return null;
 }
+
+export default memo(ElecCalcElectricalTypeControls);
