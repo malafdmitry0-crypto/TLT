@@ -47,7 +47,7 @@ vi.mock('@glideapps/glide-data-grid', () => {
   };
 });
 
-vi.mock('@/pages/heatcalc/HeatCalcColumnFilterDropdown', () => ({
+vi.mock('@/components/heatcalc/HeatCalcColumnFilterDropdown', () => ({
   default: (props: {
     title: string;
     onApply: (filter?: { kind: 'text'; value: string }) => void;

@@ -17,7 +17,7 @@ import {
 import type { HeatCalcObjectType } from '@/utils/heatCalcTableColumns';
 import type { HeatCalcIndexedTableRow } from '@/utils/heatCalcTableFindability';
 import type { ActiveObjectScope } from '@/pages/heatcalc/useHeatCalcTableState';
-import { DEFAULT_OBJECT_QUERY_PAGE_SIZE } from '@/pages/heatcalc/heatCalcPageUtils';
+import { DEFAULT_OBJECT_QUERY_PAGE_SIZE } from '@/utils/heatCalcPageUtils';
 
 interface DuplicateObjectPayload {
   object_type: HeatCalcObjectType;

@@ -51,7 +51,7 @@ import {
   filterKindForColumn,
   insulationEntryLabel,
   isColumnApplicableToObjectType,
-} from '@/pages/heatcalc/heatCalcPageUtils';
+} from '@/utils/heatCalcPageUtils';
 import { buildHeatCalcColumnRenderers } from '@/pages/heatcalc/heatCalcColumnRenderers';
 import type {
   ActiveObjectScope,

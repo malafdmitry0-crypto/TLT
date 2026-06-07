@@ -5,7 +5,7 @@ import type {
   HeatCalcColumnKey,
   HeatCalcObjectType,
 } from '@/utils/heatCalcTableColumns';
-import { escapeTableRowKey } from '@/pages/heatcalc/heatCalcPageUtils';
+import { escapeTableRowKey } from '@/utils/heatCalcPageUtils';
 import type { ActiveObjectScope } from '@/pages/heatcalc/useHeatCalcTableState';
 
 export type HeatCalcPageTableEditingMode = 'normal' | 'excel';

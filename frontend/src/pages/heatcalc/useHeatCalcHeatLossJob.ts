@@ -6,7 +6,7 @@ import { cancelCalcTask, enqueueHeatLossBatchJob, getCalcTask } from '@/api/calc
 import type { ProjectObject } from '@/types/project';
 import { getCalcJobRefetchInterval, isActiveCalcJobStatus } from '@/utils/calcJobPolling';
 import type { HeatCalcIndexedTableRow } from '@/utils/heatCalcTableFindability';
-import { isBatchHeatLossResponse } from '@/pages/heatcalc/heatCalcPageUtils';
+import { isBatchHeatLossResponse } from '@/utils/heatCalcPageUtils';
 
 interface UseHeatCalcHeatLossJobOptions {
   dirtyDraftRowCount: number;

@@ -13,7 +13,7 @@ import type {
   HeatCalcColumnKey,
   HeatCalcResolvedColumnMeta,
 } from '@/utils/heatCalcTableColumns';
-import { INAPPLICABLE_TABLE_VALUE } from '@/pages/heatcalc/heatCalcPageUtils';
+import { INAPPLICABLE_TABLE_VALUE } from '@/utils/heatCalcPageUtils';
 
 function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
   return {

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import ColumnFilterDropdown from '@/pages/heatcalc/HeatCalcColumnFilterDropdown';
+import ColumnFilterDropdown from '@/components/heatcalc/HeatCalcColumnFilterDropdown';
 
 describe('HeatCalcColumnFilterDropdown', () => {
   it('применяет текстовый фильтр по Enter и закрывает dropdown', () => {

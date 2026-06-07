@@ -32,7 +32,7 @@ import {
   removeDraftRowsByIds,
   type ExcelLocalProjectObject,
 } from '@/utils/heatCalcExcelRows';
-import { draftRowFingerprint } from '@/pages/heatcalc/heatCalcPageUtils';
+import { draftRowFingerprint } from '@/utils/heatCalcPageUtils';
 
 type SetDraftRowsById = Dispatch<SetStateAction<DraftRowsById>>;
 type SetExcelLocalRows = Dispatch<SetStateAction<ExcelLocalProjectObject[]>>;

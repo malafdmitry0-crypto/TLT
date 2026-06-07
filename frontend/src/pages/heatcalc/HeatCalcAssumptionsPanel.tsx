@@ -5,7 +5,7 @@ import {
   type HeatCalcCalculationDetailMetric,
   type HeatCalcCalculationDetailsSettings,
 } from '@/utils/heatCalcCalculationDetailsSettings';
-import { sourceSuffix, sourceText } from '@/pages/heatcalc/heatCalcPageUtils';
+import { sourceSuffix, sourceText } from '@/utils/heatCalcPageUtils';
 
 interface HeatCalcAssumptionsPanelProps {
   calculationDetailsSettings: HeatCalcCalculationDetailsSettings;

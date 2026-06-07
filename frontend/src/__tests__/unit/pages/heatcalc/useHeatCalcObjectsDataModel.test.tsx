@@ -32,7 +32,7 @@ import {
   type HeatCalcResolvedColumnMeta,
 } from '@/utils/heatCalcTableColumns';
 import { getDefaultTableViewSettings } from '@/utils/heatCalcTableViewSettings';
-import { INAPPLICABLE_TABLE_VALUE } from '@/pages/heatcalc/heatCalcPageUtils';
+import { INAPPLICABLE_TABLE_VALUE } from '@/utils/heatCalcPageUtils';
 
 vi.mock('@/api/projects', () => ({
   getObjectQueryCapabilities: vi.fn(),

@@ -28,7 +28,7 @@ import {
 } from '@glideapps/glide-data-grid';
 import '@glideapps/glide-data-grid/dist/index.css';
 
-import ColumnFilterDropdown from '@/pages/heatcalc/HeatCalcColumnFilterDropdown';
+import ColumnFilterDropdown from '@/components/heatcalc/HeatCalcColumnFilterDropdown';
 import type { ProjectObject } from '@/types/project';
 import type {
   HeatCalcGlideGridCellAction,

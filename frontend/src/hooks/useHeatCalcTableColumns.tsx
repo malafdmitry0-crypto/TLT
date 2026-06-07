@@ -46,13 +46,13 @@ import type {
   HeatCalcExcelCellCoordinates,
   HeatCalcExcelCellRef,
 } from '@/hooks/useHeatCalcExcelSelection';
-import ColumnFilterDropdown from '@/pages/heatcalc/HeatCalcColumnFilterDropdown';
+import ColumnFilterDropdown from '@/components/heatcalc/HeatCalcColumnFilterDropdown';
 import {
   INAPPLICABLE_TABLE_VALUE,
   filterKindForColumn,
   heatLossCalcStatus,
   isColumnApplicableToObjectType,
-} from '@/pages/heatcalc/heatCalcPageUtils';
+} from '@/utils/heatCalcPageUtils';
 
 const { Text } = Typography;
 

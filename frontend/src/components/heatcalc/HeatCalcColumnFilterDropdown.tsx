@@ -4,7 +4,7 @@ import { Button, Checkbox, Input, InputNumber, Select, Typography } from 'antd';
 import {
   toInputNumberValue,
   type HeatCalcFilterKind,
-} from '@/pages/heatcalc/heatCalcPageUtils';
+} from '@/utils/heatCalcPageUtils';
 import type { HeatCalcColumnFilter } from '@/utils/heatCalcTableFindability';
 
 const { Text } = Typography;

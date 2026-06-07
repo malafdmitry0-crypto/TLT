@@ -54,7 +54,7 @@ import {
   isColumnApplicableToObjectType,
   normalizeGlideCellAlign,
   uniqueErrorMessages,
-} from '@/pages/heatcalc/heatCalcPageUtils';
+} from '@/utils/heatCalcPageUtils';
 
 interface UseHeatCalcGridModelOptions {
   activeTableObjectType: HeatCalcObjectType;

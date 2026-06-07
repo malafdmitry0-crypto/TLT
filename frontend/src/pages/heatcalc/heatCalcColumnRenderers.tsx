@@ -37,7 +37,7 @@ import {
   tankDimensions,
   tankShapeLabel,
   zoneLabel,
-} from './heatCalcPageUtils';
+} from '@/utils/heatCalcPageUtils';
 
 export interface HeatCalcColumnRendererDeps {
   insulationLabel: (material: unknown) => string;

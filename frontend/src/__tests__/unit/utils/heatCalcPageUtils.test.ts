@@ -42,7 +42,7 @@ import {
   toInputNumberValue,
   uniqueErrorMessages,
   zoneLabel,
-} from '@/pages/heatcalc/heatCalcPageUtils';
+} from '@/utils/heatCalcPageUtils';
 import type { HeatCalcTableViewState } from '@/utils/heatCalcTableFindability';
 import type { DraftRowState } from '@/utils/heatCalcInlineEdit';
 

@@ -24,7 +24,7 @@ import {
   INAPPLICABLE_TABLE_VALUE,
   heatLossCalcStatus,
   isColumnApplicableToObjectType,
-} from '@/pages/heatcalc/heatCalcPageUtils';
+} from '@/utils/heatCalcPageUtils';
 
 interface UseHeatCalcNormalTableInteractionModelOptions {
   activeTablePage: number;
