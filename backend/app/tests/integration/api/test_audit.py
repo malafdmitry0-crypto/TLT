@@ -51,3 +51,44 @@ async def test_client_audit_events_are_persisted_and_sanitized(
     assert event.details["path"] == "/workspace"
     assert event.details["password"] == "[REDACTED]"
     assert event.details["nested"]["access_token"] == "[REDACTED]"
+
+
+async def test_object_created_audit_event_is_staged_in_business_commit(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    guest_session: str,
+):
+    """object.created пишется в той же транзакции, что и сам объект (stage)."""
+    project_id = (
+        await client.get("/api/v1/projects", headers={"X-Session-Id": guest_session})
+    ).json()[0]["id"]
+
+    resp = await client.post(
+        f"/api/v1/projects/{project_id}/objects",
+        json={
+            "object_type": "pipe",
+            "sort_order": 0,
+            "params": {
+                "outer_diameter": 0.1,
+                "insulation_thickness": 0.05,
+                "insulation_material": "mineral_wool_boards_120",
+                "insulation_temperature_basis": "outdoor_winter",
+                "ambient_temperature": -20,
+                "process_temperature": 80,
+                "pipe_length": 10,
+            },
+        },
+        headers={"X-Session-Id": guest_session},
+    )
+    assert resp.status_code == 201, resp.text
+    object_id = resp.json()["id"]
+
+    event = (
+        await db_session.execute(
+            select(AuditEvent).where(AuditEvent.event_type == "object.created")
+        )
+    ).scalar_one()
+    assert str(event.object_id) == object_id
+    assert event.category == "object"
+    assert event.session_id == guest_session
+    assert event.after_state["object_type"] == "pipe"

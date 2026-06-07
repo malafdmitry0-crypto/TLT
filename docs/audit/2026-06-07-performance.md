@@ -45,7 +45,15 @@ JSON-справочники под `@lru_cache`, references API с ETag + HTTP-�
 
 ### MEDIUM
 
-**B2. Лишний commit на каждую мутацию объекта ради audit-лога**
+**B2. Лишний commit на каждую мутацию объекта ради audit-лога — ✅ ИСПРАВЛЕНО (2026-06-07)**
+- **Закрыто.** В `AuditService` выделен `_build_event` (чистая сборка payload) и
+  добавлен `stage()` — кладёт событие в текущую транзакцию без собственного
+  commit. Горячие хендлеры `add_object`/`update_object`/`delete_object` теперь
+  делают `stage(...)` ДО единственного `db.commit()` → один round-trip вместо
+  двух. Fail-open сохранён для реалистичного отказа (ошибка сборки/сериализации
+  payload изолируется); жёсткий сбой БД — общая судьба бизнес-commit, что
+  корректно. `reorder`/`import`/`export` (редкие/read-only) оставлены на
+  `try_record`. Regression: новый `test_object_created_audit_event_is_staged_in_business_commit`.
 - **Файл:** `backend/app/api/v1/objects.py:154-170` (а также `add_object`,
   `update_object`, `delete_object`, `reorder_objects`).
 - **Проблема:** handler делает `await db.commit()` для бизнес-изменения, затем

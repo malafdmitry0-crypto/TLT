@@ -151,9 +151,9 @@ async def add_object(
             object_ids=[obj.id],
             operation="create",
         )
-        await db.commit()
-        await db.refresh(obj)
-        await AuditService(db).try_record(
+        # Аудит кладём в ту же транзакцию (stage до commit) — один round-trip
+        # вместо двух. obj уже сфлашен сервисом, поэтому id/params/results доступны.
+        await AuditService(db).stage(
             event_type="object.created",
             category="object",
             principal=principal,
@@ -168,6 +168,8 @@ async def add_object(
             },
             message="Создан объект проекта и выполнен первичный расчёт",
         )
+        await db.commit()
+        await db.refresh(obj)
         return obj
     except ProjectLimitError as exc:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
@@ -411,9 +413,8 @@ async def update_object(
                 object_ids=[object_id],
                 operation="update",
             )
-        await db.commit()
-        await db.refresh(obj)
-        await AuditService(db).try_record(
+        # Аудит в той же транзакции (stage до commit) — один round-trip.
+        await AuditService(db).stage(
             event_type="object.updated",
             category="object",
             principal=principal,
@@ -433,6 +434,8 @@ async def update_object(
             },
             message="Обновлён объект проекта и выполнен автопересчёт",
         )
+        await db.commit()
+        await db.refresh(obj)
         return obj
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -461,17 +464,18 @@ async def delete_object(
             object_ids=[object_id],
             operation="delete",
         )
+        # Аудит в той же транзакции (stage до commit) — один round-trip.
+        await AuditService(db).stage(
+            event_type="object.deleted",
+            category="object",
+            principal=principal,
+            project_id=project_id,
+            object_id=object_id,
+            severity="warning",
+            message="Удалён объект проекта",
+        )
         await db.commit()
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
-    await AuditService(db).try_record(
-        event_type="object.deleted",
-        category="object",
-        principal=principal,
-        project_id=project_id,
-        object_id=object_id,
-        severity="warning",
-        message="Удалён объект проекта",
-    )
