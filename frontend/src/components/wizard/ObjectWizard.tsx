@@ -287,13 +287,33 @@ export default function ObjectWizard({
     })),
     [climateEntries],
   );
-  const selectedClimate = climateEntries.find((entry) => climateKey(entry) === selectedClimateKey);
+  // Lookup-таблица вместо линейного .find по 539 городам на каждый рендер формы.
+  const climateByKey = useMemo(() => {
+    const map = new Map<string, (typeof climateEntries)[number]>();
+    for (const entry of climateEntries) map.set(climateKey(entry), entry);
+    return map;
+  }, [climateEntries]);
+  const selectedClimate = useMemo(
+    () => (selectedClimateKey ? climateByKey.get(selectedClimateKey) : undefined),
+    [climateByKey, selectedClimateKey],
+  );
   const soilOptions = useMemo(
     () => buildSoilReferenceOptions(soilEntries),
     [soilEntries],
   );
-  const selectedSecondInsulation = insulationMaterials.find((m) => m.material === secondInsulationMaterial);
-  const selectedThirdInsulation = insulationMaterials.find((m) => m.material === thirdInsulationMaterial);
+  const insulationByMaterial = useMemo(() => {
+    const map = new Map<string, (typeof insulationMaterials)[number]>();
+    for (const material of insulationMaterials) map.set(material.material, material);
+    return map;
+  }, [insulationMaterials]);
+  const selectedSecondInsulation = useMemo(
+    () => (secondInsulationMaterial ? insulationByMaterial.get(secondInsulationMaterial) : undefined),
+    [insulationByMaterial, secondInsulationMaterial],
+  );
+  const selectedThirdInsulation = useMemo(
+    () => (thirdInsulationMaterial ? insulationByMaterial.get(thirdInsulationMaterial) : undefined),
+    [insulationByMaterial, thirdInsulationMaterial],
+  );
 
   useEffect(() => {
     if (!formAlreadyHasValues(form, formInitialValues as Record<string, unknown>)) {
