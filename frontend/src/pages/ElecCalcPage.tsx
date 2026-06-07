@@ -31,8 +31,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
-  listElectricalCandidateFolders,
-  listElectricalCandidates,
   getElectricalQueryCapabilities,
   queryElectrical,
   type CableSource,
@@ -111,11 +109,8 @@ import { useElecCalcCableMarkModalState } from '@/pages/electrical/useElecCalcCa
 import { useElecCalcCableSizingModalState } from '@/pages/electrical/useElecCalcCableSizingModalState';
 import { useElecCalcCableTypeState } from '@/pages/electrical/useElecCalcCableTypeState';
 import { useElecCalcBatchJobOrchestration } from '@/pages/electrical/useElecCalcBatchJobOrchestration';
-import { useElecCalcCandidateCompareState } from '@/pages/electrical/useElecCalcCandidateCompareState';
-import { useElecCalcCandidateFolderUiState } from '@/pages/electrical/useElecCalcCandidateFolderUiState';
-import { useElecCalcCandidateFolderViewModel } from '@/pages/electrical/useElecCalcCandidateFolderViewModel';
 import { useElecCalcCandidateGlideActions } from '@/pages/electrical/useElecCalcCandidateGlideActions';
-import { useElecCalcCandidateMutationFlow } from '@/pages/electrical/useElecCalcCandidateMutationFlow';
+import { useElecCalcCandidateState } from '@/pages/electrical/useElecCalcCandidateState';
 import { useElecCalcCableSelectionMutationFlow } from '@/pages/electrical/useElecCalcCableSelectionMutationFlow';
 import { useElecCalcColumnPersistence } from '@/pages/electrical/useElecCalcColumnPersistence';
 import { useElecCalcColumnSettingsDraftState } from '@/pages/electrical/useElecCalcColumnSettingsDraftState';
@@ -194,18 +189,6 @@ export default function ElecCalcPage() {
     rememberNextCursor,
     loadNextElectricalGlidePage,
   } = useElecCalcPaginationState();
-  const {
-    activeCandidateFolderKey,
-    setActiveCandidateFolderKey,
-    candidateFolderModalMode,
-    candidateFolderModalOpen,
-    candidateFolderName,
-    setCandidateFolderName,
-    editingCandidateFolder,
-    closeCandidateFolderModal,
-    openCreateCandidateFolderModal,
-    openRenameCandidateFolderModal,
-  } = useElecCalcCandidateFolderUiState();
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [candidateColumnSettingsOpen, setCandidateColumnSettingsOpen] = useState(false);
   const {
@@ -401,9 +384,6 @@ export default function ElecCalcPage() {
     manualMark: cableSizingManualMark,
     setManualMark: setCableSizingManualMark,
     effectiveCableType: cableSizingEffectiveCableType,
-    candidateParams: cableSizingCandidateParams,
-    candidatesQueryKey: cableSizingCandidatesQueryKey,
-    candidateFoldersQueryKey: cableSizingCandidateFoldersQueryKey,
     object: cableSizingModalObject,
     calc: cableSizingModalCalc,
     resetModalState: resetCableSizingModalState,
@@ -462,6 +442,15 @@ export default function ElecCalcPage() {
     );
   }, [project?.id, qc]);
   const {
+    activeCandidateFolderKey,
+    setActiveCandidateFolderKey,
+    candidateFolderModalMode,
+    candidateFolderModalOpen,
+    candidateFolderName,
+    setCandidateFolderName,
+    closeCandidateFolderModal,
+    openCreateCandidateFolderModal,
+    openRenameCandidateFolderModal,
     createCandidateMut,
     updateCandidateMut,
     createCandidateFolderMut,
@@ -470,69 +459,30 @@ export default function ElecCalcPage() {
     toggleCandidateFolderItemMut,
     applyCandidateMut,
     submitCandidateFolderModal,
-  } = useElecCalcCandidateMutationFlow({
+    cableSizingCandidates,
+    isCableSizingCandidatesFetching,
+    cableSizingCandidateFolders,
+    activeCustomCandidateFolder,
+    candidateFolderCounts,
+    markedCableSizingCandidateSet,
+    candidateColumnValueAccessors,
+    resetMarkedCableSizingCandidates,
+    toggleElectricalCandidateGlideMarked,
+    displayedCableSizingCandidates,
+    displayedMarkedCableSizingCandidates,
+    cableSizingCandidateCompareActive,
+    candidateCompareDiffColumnKeys,
+    cableSizingCandidateRowClassName,
+    appliedCableSizingCandidate,
+  } = useElecCalcCandidateState({
     projectId: project?.id,
     variant,
     effectiveSource,
-    cableSizingModalObjectId,
-    cableSizingEffectiveCableType,
-    cableSizingCandidateParams,
-    cableSizingCandidatesQueryKey,
-    cableSizingCandidateFoldersQueryKey,
-    candidateFolderName,
-    candidateFolderModalMode,
-    editingCandidateFolder,
-    activeCandidateFolderKey,
-    setActiveCandidateFolderKey,
-    closeCandidateFolderModal,
     setElectricalQueryCalculation,
-  });
-  const {
-    data: cableSizingCandidates = [],
-    isFetching: isCableSizingCandidatesFetching,
-  } = useQuery({
-    queryKey: cableSizingCandidatesQueryKey,
-    queryFn: () =>
-      listElectricalCandidates(project!.id, cableSizingModalObjectId!, variant),
-    enabled: !!project && !!cableSizingModalObjectId,
-  });
-  const { data: cableSizingCandidateFolders = [] } = useQuery({
-    queryKey: cableSizingCandidateFoldersQueryKey,
-    queryFn: () =>
-      listElectricalCandidateFolders(project!.id, cableSizingModalObjectId!, variant),
-    enabled: !!project && !!cableSizingModalObjectId,
-  });
-  const {
-    activeCustomCandidateFolder,
-    candidatesByActiveFolder: cableSizingCandidatesByActiveFolder,
-    candidateFolderCounts,
-  } = useElecCalcCandidateFolderViewModel({
-    activeCandidateFolderKey,
-    setActiveCandidateFolderKey,
-    candidates: cableSizingCandidates,
-    candidateFolders: cableSizingCandidateFolders,
-  });
-  const candidateCompare = useElecCalcCandidateCompareState({
-    candidatesByActiveFolder: cableSizingCandidatesByActiveFolder,
+    cableSizingModal,
     candidateTableViewState,
     visibleCandidateColumnMetas,
-    resetKey: activeCandidateFolderKey,
   });
-  const {
-    markedCandidateSet: markedCableSizingCandidateSet,
-    candidateColumnValueAccessors,
-    resetMarkedCandidates: resetMarkedCableSizingCandidates,
-    toggleCandidateMarkedByRow: toggleElectricalCandidateGlideMarked,
-    displayedCandidates: displayedCableSizingCandidates,
-    displayedMarkedCandidates: displayedMarkedCableSizingCandidates,
-    compareActive: cableSizingCandidateCompareActive,
-    diffColumnKeys: candidateCompareDiffColumnKeys,
-    candidateRowClassName: cableSizingCandidateRowClassName,
-  } = candidateCompare;
-  const appliedCableSizingCandidate = useMemo(
-    () => cableSizingCandidates.find((candidate) => candidate.is_applied) ?? null,
-    [cableSizingCandidates],
-  );
 
   const findCableRowForMark = useCallback((
     type: CableTypeKey,
