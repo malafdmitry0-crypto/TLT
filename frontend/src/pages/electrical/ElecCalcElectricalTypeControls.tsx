@@ -66,10 +66,27 @@ function ElecCalcElectricalTypeControls({
   setRecalc,
 }: ElecCalcElectricalTypeControlsProps) {
   if (!cableType) return null;
-  if (cableType === 'self_regulating') return null;
 
   const wrap = (content: ReactNode) =>
     block ? <div style={WRAP_STYLE}>{content}</div> : content;
+
+  const voltageControl = (
+    <>
+      <Text style={HINT_STYLE}>U, В:</Text>
+      <InputNumber<number>
+        aria-label="Напряжение питания"
+        size="small"
+        min={1}
+        value={recalc.supplyVoltage}
+        onChange={setRecalc.supplyVoltage}
+        style={INPUT_W76}
+      />
+    </>
+  );
+
+  if (cableType === 'self_regulating') {
+    return wrap(voltageControl);
+  }
 
   if (cableType === 'self_regulating_tt') {
     return wrap(
@@ -96,6 +113,7 @@ function ElecCalcElectricalTypeControls({
         >
           <span style={AGGR_LABEL_STYLE}>агр.</span>
         </Checkbox>
+        {voltageControl}
       </>,
     );
   }

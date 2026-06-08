@@ -38,20 +38,28 @@ function setup(overrides: Partial<Parameters<typeof ElecCalcElectricalTypeContro
 }
 
 describe('ElecCalcElectricalTypeControls', () => {
-  it('does not render controls for absent or self-regulating cable type', () => {
+  it('does not render controls for absent cable type', () => {
     const empty = setup({ cableType: null });
     expect(empty.container).toBeEmptyDOMElement();
-
-    empty.unmount();
-    const selfRegulating = setup({ cableType: 'self_regulating' });
-    expect(selfRegulating.container).toBeEmptyDOMElement();
   });
 
-  it('renders TT controls and keeps aggressive flag callback', async () => {
+  it('renders supply voltage control for self-regulating (ТЛТ)', async () => {
+    const { setRecalc } = setup({ cableType: 'self_regulating' });
+
+    const voltage = screen.getByLabelText('Напряжение питания');
+    expect(voltage).toBeInTheDocument();
+    expect(screen.getByText('U, В:')).toBeInTheDocument();
+
+    await userEvent.type(voltage, '0');
+    expect(setRecalc.supplyVoltage).toHaveBeenCalled();
+  });
+
+  it('renders TT controls (incl. supply voltage) and keeps aggressive flag callback', async () => {
     const { setRecalc } = setup();
 
     expect(screen.getByLabelText('T пропарки')).toBeInTheDocument();
     expect(screen.getByLabelText('T3 поддержания')).toBeInTheDocument();
+    expect(screen.getByLabelText('Напряжение питания')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'агр.' }));
     expect(setRecalc.aggressiveProduct).toHaveBeenCalledWith(true);
