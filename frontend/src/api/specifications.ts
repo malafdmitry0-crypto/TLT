@@ -12,13 +12,24 @@ export async function getSpecification(
   return data;
 }
 
+export interface SpecificationOptions {
+  reserve_coefficient?: number;
+  ex_zone?: boolean;
+  indication_on_boxes?: boolean;
+  end_section_indication?: boolean;
+  top_indication?: boolean;
+  min_length_for_end_indication?: number;
+}
+
 export async function generateSpecification(
   projectId: string,
   variant: number = 1,
+  mode: 'basic' | 'full' = 'basic',
+  options?: SpecificationOptions,
 ): Promise<{ project_id: string; items: SpecificationItem[] }> {
   const { data } = await apiClient.post(
     `/specifications/${projectId}/generate`,
-    null,
+    { mode, options: options ?? null },
     { params: { variant } }
   );
   return data;

@@ -250,6 +250,16 @@ def list_basic_accessories() -> list[dict[str, Any]]:
     return list(_accessories())
 
 
+@lru_cache
+def _spec_accessory_rules() -> list[dict[str, Any]]:
+    return cast(list[dict[str, Any]], _load_json("spec_accessories.json")["accessories"])
+
+
+def list_spec_accessory_rules() -> list[dict[str, Any]]:
+    """Условные правила BOM аксессуаров (полная спецификация ТНП)."""
+    return list(_spec_accessory_rules())
+
+
 def list_pipe_materials() -> list[dict[str, Any]]:
     return list(_pipe_materials())
 

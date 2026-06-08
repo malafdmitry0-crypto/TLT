@@ -19,6 +19,39 @@ class SpecificationItem(BaseModel):
     source: str | None = None
 
 
+class SpecificationOptions(BaseModel):
+    """Опции полного расчёта спецификации (ТНП BOM).
+
+    Параметры, которых пока нет в карточке объекта, берутся с дефолтами и могут
+    переопределяться сотрудником на странице спецификации.
+    """
+
+    reserve_coefficient: float = Field(
+        default=1.0,
+        ge=1.0,
+        le=3.0,
+        description="R,гр — коэффициент горячего резервирования секций",
+    )
+    ex_zone: bool = Field(
+        default=False,
+        description="Ex — взрывоопасная зона (бронированный кабельный ввод вместо пластикового)",
+    )
+    indication_on_boxes: bool = Field(
+        default=False, description="К1i — индикация питания на коробках"
+    )
+    end_section_indication: bool = Field(
+        default=False, description="К2i — доп. индикация в конце нагревательной секции"
+    )
+    top_indication: bool = Field(
+        default=False, description="Кiu — доп. индикация сверху коробки"
+    )
+    min_length_for_end_indication: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="L,К2i — мин. длина секции для применения К2i, м",
+    )
+
+
 class SpecificationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -32,6 +65,17 @@ class SpecificationResponse(BaseModel):
     stale_details: dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class SpecificationGenerateRequest(BaseModel):
+    """Тело запроса генерации спецификации.
+
+    mode='basic' — кабель + минимум аксессуаров (MVP/Гость);
+    mode='full' — полный условный BOM по ТНП (полная версия/Сотрудник).
+    """
+
+    mode: str = Field(default="basic", pattern="^(basic|full)$")
+    options: SpecificationOptions | None = None
 
 
 class SpecificationGenerateResponse(BaseModel):

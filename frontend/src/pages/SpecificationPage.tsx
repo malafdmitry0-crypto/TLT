@@ -66,6 +66,11 @@ export default function SpecificationPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null);
   const [qty, setQty] = useState<number>(1);
+  // Режим спецификации: базовая (кабель + минимум) или полная (условный BOM ТНП).
+  // Полная доступна только Сотруднику/Админу.
+  const [specMode, setSpecMode] = useState<'basic' | 'full'>('basic');
+  const [exZone, setExZone] = useState(false);
+  const [reserveCoeff, setReserveCoeff] = useState<number>(1);
 
   const {
     data: spec,
@@ -87,10 +92,21 @@ export default function SpecificationPage() {
     ...referenceQueryOptions,
   });
 
+  const effectiveMode = isEmployee ? specMode : 'basic';
   const mut = useMutation({
-    mutationFn: () => generateSpecification(project!.id, variant),
+    mutationFn: () =>
+      generateSpecification(
+        project!.id,
+        variant,
+        effectiveMode,
+        effectiveMode === 'full'
+          ? { ex_zone: exZone, reserve_coefficient: reserveCoeff }
+          : undefined
+      ),
     onSuccess: () => {
-      message.success(`Спецификация для CO${variant} сгенерирована`);
+      message.success(
+        `Спецификация (${effectiveMode === 'full' ? 'полная' : 'базовая'}) для CO${variant} сгенерирована`
+      );
       refetch();
     },
     onError: (e: Error) => message.error(e.message),
@@ -177,6 +193,64 @@ export default function SpecificationPage() {
               >
                 {hasItems ? 'Пересчитать' : 'Сформировать'}
               </Button>
+
+              {isEmployee && (
+                <div>
+                  <Text style={{ fontSize: 11, color: '#888' }}>Режим</Text>
+                  <Segmented<'basic' | 'full'>
+                    block
+                    size="small"
+                    value={specMode}
+                    onChange={setSpecMode}
+                    options={[
+                      { label: 'Базовая', value: 'basic' },
+                      { label: 'Полная', value: 'full' },
+                    ]}
+                    style={{ marginTop: 4 }}
+                  />
+                </div>
+              )}
+
+              {isEmployee && specMode === 'full' && (
+                <div
+                  style={{
+                    padding: '6px 8px',
+                    background: '#f6f8fa',
+                    borderRadius: 6,
+                    border: '1px solid #e8e8e8',
+                  }}
+                >
+                  <Text style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
+                    Параметры полного BOM
+                  </Text>
+                  <div style={{ marginBottom: 6 }}>
+                    <Text style={{ fontSize: 11, color: '#888' }}>Взрывозона (Ex)</Text>
+                    <Segmented<'no' | 'yes'>
+                      block
+                      size="small"
+                      value={exZone ? 'yes' : 'no'}
+                      onChange={(v) => setExZone(v === 'yes')}
+                      options={[
+                        { label: 'Нет', value: 'no' },
+                        { label: 'Да', value: 'yes' },
+                      ]}
+                      style={{ marginTop: 2 }}
+                    />
+                  </div>
+                  <div>
+                    <Text style={{ fontSize: 11, color: '#888' }}>Резерв R,гр</Text>
+                    <InputNumber
+                      min={1}
+                      max={3}
+                      step={0.1}
+                      size="small"
+                      value={reserveCoeff}
+                      onChange={(v) => setReserveCoeff(Number(v ?? 1))}
+                      style={{ width: '100%', marginTop: 2 }}
+                    />
+                  </div>
+                </div>
+              )}
 
               {isEmployee && (
                 <Button

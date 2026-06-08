@@ -9,10 +9,11 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.formulas.specification.builder import build_basic_specification
+from app.formulas.specification.full_builder import build_full_specification
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
-from app.schemas.specification import SpecificationItem
+from app.schemas.specification import SpecificationItem, SpecificationOptions
 
 
 class SpecificationService:
@@ -36,6 +37,8 @@ class SpecificationService:
         variant_number: int = 1,
         *,
         commit: bool = True,
+        mode: str = "basic",
+        options: SpecificationOptions | None = None,
     ) -> list[SpecificationItem]:
         # Сохраняем ручные позиции (source='manual'), если они есть в текущей спецификации
         existing_q = await self.db.execute(
@@ -69,19 +72,43 @@ class SpecificationService:
                 "cable_mark": c.cable_mark,
                 "cable_type": c.cable_type,
                 "cable_snapshot": c.cable_snapshot,
+                "object_id": str(c.object_id),
             }
             for c in calcs
         ]
 
-        # Общее число объектов проекта — аксессуары заказываются на каждый
-        # заявленный объект, даже если электрорасчёт для него не выполнен.
-        total_objects = await self.db.scalar(
-            select(func.count(ProjectObject.id)).where(ProjectObject.project_id == project_id)
-        )
-        auto_items = build_basic_specification(
-            electrical_results,
-            total_objects_count=int(total_objects or 0),
-        )
+        if mode == "full":
+            # Полный условный BOM (ТНП) — нужны параметры объектов (dтр, Lтр).
+            objects_q = await self.db.execute(
+                select(ProjectObject).where(ProjectObject.project_id == project_id)
+            )
+            objects = list(objects_q.scalars().all())
+            objects_by_id = {
+                str(obj.id): {
+                    "outer_diameter": (obj.params or {}).get("outer_diameter"),
+                    "pipe_length": (obj.results or {}).get("effective_length")
+                    or (obj.params or {}).get("pipe_length")
+                    or (obj.params or {}).get("height"),
+                }
+                for obj in objects
+            }
+            auto_items = build_full_specification(
+                electrical_results,
+                objects_by_id,
+                options=options or SpecificationOptions(),
+            )
+        else:
+            # Общее число объектов проекта — аксессуары заказываются на каждый
+            # заявленный объект, даже если электрорасчёт для него не выполнен.
+            total_objects = await self.db.scalar(
+                select(func.count(ProjectObject.id)).where(
+                    ProjectObject.project_id == project_id
+                )
+            )
+            auto_items = build_basic_specification(
+                electrical_results,
+                total_objects_count=int(total_objects or 0),
+            )
         # Помечаем источник, чтобы фронт мог их отличать
         for item in auto_items:
             item.source = "auto"
