@@ -67,7 +67,6 @@ function ElectricalBatchActionBar({
   cableTypeOptions,
   visibleCableTypeControl,
   typeControls,
-  commercialFeaturesAvailable,
   copyVariantMenuItems,
   copyVariantPending,
   isJobActive,
@@ -139,7 +138,7 @@ function ElectricalBatchActionBar({
           size="small"
           value={visibleCableTypeControl ?? undefined}
           placeholder="Несколько типов"
-          disabled={isJobActive || !commercialFeaturesAvailable}
+          disabled={isJobActive}
           onChange={onCableTypeChange}
           options={cableTypeOptions}
           style={{ width: 210 }}

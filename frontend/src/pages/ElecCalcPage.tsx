@@ -17,7 +17,6 @@ import {
   Modal,
   Space,
   Table,
-  Tooltip,
   Typography,
 } from 'antd';
 import {
@@ -150,7 +149,6 @@ export default function ElecCalcPage() {
     electricalGlideEnabled,
     navigationActiveJobId,
   } = useElecCalcBootViewState({
-    commercialFeaturesAvailable,
     location,
   });
   const storedVariant = useCalculationVariantStore((s) =>
@@ -931,11 +929,9 @@ export default function ElecCalcPage() {
     getCellActions: getElectricalCandidateGlideCellActions,
   });
   const cableTypeOptions = useMemo(() => availableCableTypeKeys.map((k) => ({
-    label: commercialFeaturesAvailable
-      ? CABLE_TYPE_LABEL[k]
-      : <Tooltip title="Расширенные типы кабеля закрыты feature flag">{CABLE_TYPE_LABEL[k]}</Tooltip>,
+    label: CABLE_TYPE_LABEL[k],
     value: k,
-  })), [availableCableTypeKeys, commercialFeaturesAvailable]);
+  })), [availableCableTypeKeys]);
   const cableSourceOptions = useMemo<Array<{ label: string; value: ElectricalCalculationCableSource }>>(() => [
     { label: 'Встроенная', value: 'builtin' },
     ...(isEmployee

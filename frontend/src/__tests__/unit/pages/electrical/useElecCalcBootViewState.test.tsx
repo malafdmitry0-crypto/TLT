@@ -4,13 +4,11 @@ import { describe, expect, it } from 'vitest';
 import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
 
 function renderBootViewState(options: {
-  commercialFeaturesAvailable?: boolean;
   search?: string;
   state?: unknown;
 } = {}) {
   return renderHook(
     (props: Required<typeof options>) => useElecCalcBootViewState({
-      commercialFeaturesAvailable: props.commercialFeaturesAvailable,
       location: {
         search: props.search,
         state: props.state,
@@ -18,7 +16,6 @@ function renderBootViewState(options: {
     }),
     {
       initialProps: {
-        commercialFeaturesAvailable: false,
         search: '',
         state: null,
         ...options,
@@ -28,18 +25,8 @@ function renderBootViewState(options: {
 }
 
 describe('useElecCalcBootViewState', () => {
-  it('limits available cable types for the MVP mode', () => {
+  it('exposes the full cable type set regardless of commercial feature flag', () => {
     const { result } = renderBootViewState();
-
-    expect(result.current.availableCableTypeKeys).toEqual(['self_regulating']);
-    expect([...result.current.availableCableTypes]).toEqual(['self_regulating']);
-    expect(result.current.availableCableTypes.has('single_core')).toBe(false);
-  });
-
-  it('exposes the full cable type set when commercial features are enabled', () => {
-    const { result } = renderBootViewState({
-      commercialFeaturesAvailable: true,
-    });
 
     expect(result.current.availableCableTypeKeys).toEqual([
       'self_regulating',
@@ -49,6 +36,7 @@ describe('useElecCalcBootViewState', () => {
     ]);
     expect(result.current.availableCableTypes.has('self_regulating_tt')).toBe(true);
     expect(result.current.availableCableTypes.has('single_core')).toBe(true);
+    expect(result.current.availableCableTypes.has('three_core')).toBe(true);
   });
 
   it('resolves main table engine, glide flag and navigation active job from route state', () => {

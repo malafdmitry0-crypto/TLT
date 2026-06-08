@@ -5,7 +5,6 @@ import { TltSelect } from '@/components/form-controls';
 import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
-  heatCalcSelectInputProps,
   heatCalcSelectOptions,
 } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
@@ -44,40 +43,23 @@ export default function ElectricalAndFittingsStep({ objectType, fieldInputSettin
     fieldInputSettings,
     form,
   });
-  const selectInputProps = (fieldId: string) =>
-    heatCalcSelectInputProps(objectType, fieldId, { form });
 
   return (
     <>
-      <Form.Item
-        className="numeric-form-item temperature-number-form-item helped-form-item"
-        label={fieldLabel('min_switch_temperature', objectType)}
-        name="min_switch_temperature"
-        rules={heatCalcFormFieldRules(form, objectType, 'min_switch_temperature')}
-      >
-        {withHelp(
-          <UnitInputNumber
-            data-testid="min-switch-temperature-input"
-            {...numberInputProps('min_switch_temperature')}
-            unit="°C"
-          />,
-          fieldHelp('min_switch_temperature', objectType),
-        )}
+      {/* Электрические параметры (supply_voltage, min_switch_temperature,
+          steam_tracing, vapor_temperature) не относятся к теплорасчёту и
+          вынесены со страницы «Электрорасчёт» (recalc-контролы). Здесь они
+          держатся скрытыми только для сохранения значения при редактировании
+          объекта (round-trip) — в секции «Геометрия трубы» их видимый ввод
+          намеренно убран. */}
+      <Form.Item name="min_switch_temperature" hidden>
+        <UnitInputNumber data-testid="min-switch-temperature-input" unit="°C" />
       </Form.Item>
-      <Form.Item
-        className="compact-select-form-item helped-form-item"
-        label={fieldLabel('supply_voltage', objectType)}
-        name="supply_voltage"
-      >
-        {withHelp(
-          <TltSelect
-            data-testid="supply-voltage-select"
-            {...selectInputProps('supply_voltage')}
-            options={heatCalcSelectOptions(objectType, 'supply_voltage')}
-            placeholder="Выберите"
-          />,
-          fieldHelp('supply_voltage', objectType),
-        )}
+      <Form.Item name="supply_voltage" hidden>
+        <TltSelect
+          data-testid="supply-voltage-select"
+          options={heatCalcSelectOptions(objectType, 'supply_voltage')}
+        />
       </Form.Item>
       <Form.Item
         className="numeric-form-item coefficient-form-item helped-form-item"
@@ -111,35 +93,14 @@ export default function ElectricalAndFittingsStep({ objectType, fieldInputSettin
           )}
         </Form.Item>
       )}
-      <Form.Item
-        className="compact-select-form-item helped-form-item"
-        label={fieldLabel('steam_tracing', objectType)}
-        name="steam_tracing"
-      >
-        {withHelp(
-          <TltSelect
-            data-testid="steam-tracing-select"
-            {...selectInputProps('steam_tracing')}
-            options={heatCalcSelectOptions(objectType, 'steam_tracing')}
-            placeholder="Выберите"
-          />,
-          fieldHelp('steam_tracing', objectType),
-        )}
+      <Form.Item name="steam_tracing" hidden>
+        <TltSelect
+          data-testid="steam-tracing-select"
+          options={heatCalcSelectOptions(objectType, 'steam_tracing')}
+        />
       </Form.Item>
-      <Form.Item
-        className="numeric-form-item temperature-number-form-item helped-form-item"
-        label={fieldLabel('vapor_temperature', objectType)}
-        name="vapor_temperature"
-        rules={heatCalcFormFieldRules(form, objectType, 'vapor_temperature')}
-      >
-        {withHelp(
-          <UnitInputNumber
-            data-testid="vapor-temperature-input"
-            {...numberInputProps('vapor_temperature')}
-            unit="°C"
-          />,
-          fieldHelp('vapor_temperature', objectType),
-        )}
+      <Form.Item name="vapor_temperature" hidden>
+        <UnitInputNumber data-testid="vapor-temperature-input" unit="°C" />
       </Form.Item>
       {objectType === 'pipe' && (
         <>

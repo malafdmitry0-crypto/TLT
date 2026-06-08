@@ -1,9 +1,6 @@
 import { useMemo } from 'react';
 
-import {
-  FULL_FEATURE_CABLE_TYPES,
-  MVP_CABLE_TYPES,
-} from '@/pages/electrical/elecCalcCableTypeModel';
+import { FULL_FEATURE_CABLE_TYPES } from '@/pages/electrical/elecCalcCableTypeModel';
 import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
 import type { ElectricalNavigationState } from '@/pages/electrical/elecCalcPageModel';
 import {
@@ -16,18 +13,16 @@ type ElecCalcBootLocation = {
 };
 
 type UseElecCalcBootViewStateOptions = {
-  commercialFeaturesAvailable: boolean;
   location: ElecCalcBootLocation;
 };
 
 export function useElecCalcBootViewState({
-  commercialFeaturesAvailable,
   location,
 }: UseElecCalcBootViewStateOptions) {
-  const availableCableTypeKeys = useMemo(
-    () => (commercialFeaturesAvailable ? FULL_FEATURE_CABLE_TYPES : MVP_CABLE_TYPES),
-    [commercialFeaturesAvailable],
-  );
+  // Набор расчётных типов кабеля больше не гейтится коммерческим фича-флагом:
+  // все рассчитываемые типы (ТЛТ, ТТН/ТТВ/ТТХ, ТТ Р1, ТТ Р3) доступны всегда.
+  // Коммерческие функции (внешняя БД, цены, ранжирование) гейтятся отдельно.
+  const availableCableTypeKeys = FULL_FEATURE_CABLE_TYPES;
   const availableCableTypes = useMemo(
     () => new Set<CableTypeKey>(availableCableTypeKeys),
     [availableCableTypeKeys],
