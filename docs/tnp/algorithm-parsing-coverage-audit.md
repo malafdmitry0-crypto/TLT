@@ -84,8 +84,9 @@ Backend проверяет explicit/geometric `Kn` как hard-limit. Для н�
 - VSDX различает `T1`, `T2`, `T3`; backend/API отражает это как
   `process_temperature`/`vapor_temperature`/`maintain_temperature`; при
   отсутствии T3 применяется совместимый fallback `T3=T1`;
-- ветка `R=1 -> F="СР"` конфликтует с доменной трактовкой
-  `aggressive_product -> СТ`;
+- ветка `R=1 -> F="СР"` подтверждена первоисточником
+  `Расчет_спецификации_трубы_самрег29_05_26.xlsx`: действующий контракт —
+  `aggressive_product -> СР`;
 - схема выбирает максимальный номинал серии и считает `N`, backend следует
   этому full-version правилу без искусственного `threads <= 3`.
 
@@ -95,8 +96,9 @@ Backend проверяет explicit/geometric `Kn` как hard-limit. Для н�
 - `docs/tnp/project-reconciliation-audit.md`: fixed policy по `N` и suffix;
 - `qa-agent/docs/tlt-formula-algorithm-inventory.md`: backend/current algorithm.
 
-Что остается помнить: ветка `R=1 -> СР` помечена как неоднозначность OCR/VSDX,
-а рабочий контракт закрепляет `aggressive_product -> СТ`.
+Что остается помнить: ветка `R=1 -> СР` подтверждена первоисточником
+(`Расчет_спецификации_трубы_самрег29_05_26.xlsx`), действующий контракт —
+`aggressive_product -> СР`, иначе `СТ` (фикс 2026-06-07).
 
 ### `ALG-RES`: резистивный подбор
 

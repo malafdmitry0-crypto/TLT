@@ -14,7 +14,7 @@
 | `/api/v1/projects` | CRUD проектов (лимиты для гостей) |
 | `/api/v1/projects/{id}/objects` | CRUD объектов + `reorder`, `import-excel`, `import-template`, `export-excel` |
 | `/api/v1/calc/electrical/*` | Батч-электрорасчёт, настройки подбора |
-| `/api/v1/specifications/*` | Генерация/просмотр спецификации |
+| `/api/v1/specifications/*` | Генерация/просмотр спецификации. `POST /{id}/generate` принимает `mode=basic\|full` (+`options`: R,гр, Ex, К1i/К2i/Кiu, L,К2i); `full` — полный условный BOM ТНП, только сотрудник (гостю 403). Ответ: `items`, `mode`, `skipped_objects`; GET возвращает `generation_mode`/`generation_options` последней генерации |
 | `/api/v1/reports/{id}/{preview,export/{fmt}}` | HTML-превью и экспорт PDF/DOCX/XLSX по явно выбранному CO-варианту |
 | `/api/v1/audit/client-events` | Приём frontend-событий бизнес-аудита |
 | `/api/v1/references/*` | Встроенные справочники (climate, insulation, pipe-materials, soil-conductivity, cables, resistive-cables, accessories) |

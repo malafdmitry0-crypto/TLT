@@ -112,6 +112,8 @@ describe('useElecCalcCableMarkOptions', () => {
   });
 
   it('builds TT suffixes from aggressive product mode and exposes sizing options', () => {
+    // Первоисточник (Расчет_спецификации_трубы_самрег29_05_26.xlsx):
+    // агрессивная среда → -СР, неагрессивная → -СТ.
     const { result } = renderOptions({
       available: ['self_regulating_tt'],
       ttCables: [ttCable()],
@@ -122,10 +124,22 @@ describe('useElecCalcCableMarkOptions', () => {
     const manualOptions = result.current.manualCableOptionsForType('self_regulating_tt');
 
     expect(manualOptions).toHaveLength(1);
-    expect(manualOptions[0].mark).toBe('30ТТВ2-СТ');
-    expect(manualOptions[0].searchLabel).toBe('30ТТВ2-СТ · ТТВ · 30 Вт/м');
+    expect(manualOptions[0].mark).toBe('30ТТВ2-СР');
+    expect(manualOptions[0].searchLabel).toBe('30ТТВ2-СР · ТТВ · 30 Вт/м');
     expect(result.current.cableSizingManualOptions.map((option) => option.mark))
-      .toEqual(['30ТТВ2-СТ']);
+      .toEqual(['30ТТВ2-СР']);
+  });
+
+  it('builds TT suffix -СТ for non-aggressive product', () => {
+    const { result } = renderOptions({
+      available: ['self_regulating_tt'],
+      ttCables: [ttCable()],
+      aggressiveProduct: false,
+      cableSizingEffectiveCableType: 'self_regulating_tt',
+    });
+
+    const manualOptions = result.current.manualCableOptionsForType('self_regulating_tt');
+    expect(manualOptions.map((option) => option.mark)).toEqual(['30ТТВ2-СТ']);
   });
 
   it('adds auto and project options before catalog options when snapshot is missing or changed', () => {

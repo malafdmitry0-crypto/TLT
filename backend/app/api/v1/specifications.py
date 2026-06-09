@@ -69,22 +69,35 @@ async def generate_specification(
 
     req = data or SpecificationGenerateRequest()
     # Полная спецификация (условный BOM ТНП) — функция полной версии (Сотрудник).
-    mode = req.mode
-    if mode == "full" and getattr(principal, "role", None) == "guest":
-        mode = "basic"
+    # Явный 403 вместо тихого даунгрейда: клиент должен знать, что режим недоступен.
+    if req.mode == "full" and getattr(principal, "role", None) == "guest":
+        raise HTTPException(
+            status_code=403,
+            detail="Полная спецификация доступна только сотруднику",
+        )
 
-    items = await SpecificationService(db).generate(
-        project_id, variant, mode=mode, options=req.options
+    result = await SpecificationService(db).generate(
+        project_id, variant, mode=req.mode, options=req.options
     )
     await AuditService(db).try_record(
         event_type="specification.generated",
         category="specification",
         principal=principal,
         project_id=project_id,
-        details={"variant": variant, "item_count": len(items), "mode": mode},
+        details={
+            "variant": variant,
+            "item_count": len(result.items),
+            "mode": result.mode,
+            "skipped_objects": result.skipped_objects,
+        },
         message="Сгенерирована спецификация",
     )
-    return SpecificationGenerateResponse(project_id=project_id, items=items)
+    return SpecificationGenerateResponse(
+        project_id=project_id,
+        items=result.items,
+        mode=result.mode,
+        skipped_objects=result.skipped_objects,
+    )
 
 
 @router.put(

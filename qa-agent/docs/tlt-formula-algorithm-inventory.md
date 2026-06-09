@@ -210,8 +210,9 @@ Engineering review:
   drives `q_b(T3)`.
 - Parsed VSDX counts `N = ceil(Pоб / Pi.ном(T3))` after max nominal selection;
   backend now follows this full-version rule for TTН/TTВ/TTХ auto-selection.
-- Parsed `R=1 -> СР` conflicts with the accepted domain interpretation.
-  Current contract explicitly fixes `aggressive_product -> СТ`, otherwise `СР`.
+- Parsed `R=1 -> СР` was confirmed by the primary source
+  (`Расчет_спецификации_трубы_самрег29_05_26.xlsx`). Current contract fixes
+  `aggressive_product -> СР`, otherwise `СТ` (fixed 2026-06-07).
 - Negative or zero `q_b` must be treated as invalid, not as a selectable cable.
 
 ## Electrical: Resistive TT R1 / TT R3

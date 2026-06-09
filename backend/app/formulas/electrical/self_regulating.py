@@ -306,7 +306,9 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
     """Подбор саморегулирующегося кабеля ТТН/ТТВ/ТТХ.
 
     Формула мощности: q_б(T3) = q1 × T3 + q2  [Вт/м]
-    Марка: <мощность>ТТН/ТТВ/ТТХ2-СР (агрессивная среда → СТ)
+    Марка: <мощность>ТТН/ТТВ/ТТХ2-СТ (агрессивная среда → СР).
+    Суффикс по первоисточнику (Расчет_спецификации_трубы_самрег29_05_26.xlsx):
+    -СТ = среда не агрессивная, -СР = агрессивная.
     Количество ниток: N = задано пользователем или
     ceil(q_required / (q_б × k_навива))
 
@@ -315,7 +317,7 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
     N = ceil(q_required / (q_б × k_навива)) без эскалации серии только из-за
     мощности.
     """
-    suffix = "СТ" if params.aggressive_product else "СР"
+    suffix = "СР" if params.aggressive_product else "СТ"
     q_required = params.required_power_per_meter * params.safety_factor
     selected_threads: int | None = None
     t3 = (

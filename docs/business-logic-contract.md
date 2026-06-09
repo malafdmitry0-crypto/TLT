@@ -47,7 +47,7 @@ machine-readable registry QA-agent.
 | `tlt_tt_series_limits_inclusive` | Температурные пределы ТТН/ТТВ/ТТХ включительные: `65/85`, `120/210`, `150/250` | `docs/tnp/algorithms/self-regulating-pipe-selection.md` | `backend/app/formulas/electrical/self_regulating.py` | `qa-agent/tests/AlgorithmOracle.test.ts`, `backend/app/tests/unit/formulas/test_self_regulating_tt.py` |
 | `tlt_tt_t3_power_curve` | Для ТТН/ТТВ/ТТХ `T1=process_temperature` и `T2=vapor_temperature` выбирают серию, а паспортная мощность считается отдельно: `q_b(T3)=q1*T3+q2`; `maintain_temperature` опционален, при отсутствии используется `T1` для совместимости старых запросов; ток считается по паспортному `voltage` выбранной строки кабеля, `supply_voltage` — только fallback при отсутствии `voltage` | `docs/tnp/algorithms/self-regulating-pipe-selection.md` | `backend/app/schemas/calculation.py`, `backend/app/formulas/electrical/self_regulating.py`, `frontend/src/pages/ElecCalcPage.tsx`, `qa-agent/src/oracle/FormulaOracle.ts` | `backend/app/tests/unit/formulas/test_self_regulating_tt.py`, `backend/app/tests/unit/services/test_calculation_service_unit.py`, `qa-agent/tests/FormulaOracle.test.ts` |
 | `tlt_tt_thread_count_policy` | Серия выбирается по температурам; проверка покрытия использует `Pi.ном(T3) × k_навива × N`; если мощности линейки не хватает, используется максимальный номинал серии и `N = ceil(Pоб / (Pi.ном(T3) × k_навива))`, без эскалации серии только из-за ограничения ниток | `docs/tnp/algorithms/self-regulating-pipe-selection.md`, `docs/context/formulas-summary.md` | `backend/app/formulas/electrical/self_regulating.py`, `backend/app/schemas/calculation.py` | `backend/app/tests/unit/formulas/test_self_regulating_tt.py` |
-| `tlt_tt_mark_suffix_policy` | Принятое инженерное решение: `aggressive_product -> СТ`, иначе `СР`; parsed `R=1 -> СР` считается неоднозначностью схемы/OCR | `docs/tnp/algorithms/self-regulating-pipe-selection.md`, `docs/tnp/correctness-review.md` | `backend/app/formulas/electrical/self_regulating.py`, `frontend/src/pages/ElecCalcPage.tsx` | `backend/app/tests/unit/formulas/test_self_regulating_tt.py` |
+| `tlt_tt_mark_suffix_policy` | По первоисточнику `Расчет_спецификации_трубы_самрег29_05_26.xlsx`: `aggressive_product -> СР`, иначе `СТ` (фикс 2026-06-07, см. `docs/audit/2026-06-07-primary-sources-vs-code.md`); parsed `R=1 -> СР` подтверждён первоисточником | `docs/tnp/algorithms/self-regulating-pipe-selection.md`, `docs/tnp/correctness-review.md`, `docs/audit/2026-06-07-primary-sources-vs-code.md` | `backend/app/formulas/electrical/self_regulating.py`, `frontend/src/pages/electrical/useElecCalcCableMarkOptions.tsx` | `backend/app/tests/unit/formulas/test_self_regulating_tt.py`, `frontend/src/__tests__/unit/pages/electrical/useElecCalcCableMarkOptions.test.tsx` |
 
 Подробная оценка качества парсинга VSDX/PDF-алгоритмов:
 `docs/tnp/algorithm-parsing-coverage-audit.md`.
@@ -80,6 +80,18 @@ machine-readable registry QA-agent.
 `standard_supply_voltage_v = 380` для `ТТ Р3` остается legacy field из прежнего
 справочника. `max_linear_power_w_m = 50` подтвержден как hard default cap
 линейного тепловыделения для `ТТ Р3`.
+
+## Specification BOM
+
+| ID | Правило | Источник | Реализация | Evidence |
+|---|---|---|---|---|
+| `tlt_spec_full_bom_rules` | Полный условный BOM аксессуаров самрега (`mode="full"`): кабель `Σ L,секц×N,секц×R,гр`; КСН-1/КСВ-1 `Σ N×R`; КСН-2/КСВ-2 `Σ N×R×2` только для секций с `L,секц >= L,К2i` при `К2i=да`; КСР `ceil(ΣL/150)`; коробки СКВ `Σ ceil(N/3)` в 12 корзин по `dтр≷57 / К1i / К2i / Кiu / N≥3`; этикетка `Σ ceil(Lтр/3.5)` | `ТНП/Расчет_спецификации_трубы_самрег29_05_26.xlsx` («Список материалов Самрег»), `docs/audit/spec-bom-oracle.md` | `backend/app/formulas/specification/full_builder.py`, `backend/app/reference_data/spec_accessories.json` | `backend/app/tests/unit/formulas/test_spec_full_builder.py` |
+| `tlt_spec_bom_package_factor` | Количество штучных позиций с упаковочным коэффициентом (колонка I источника) = `ceil(формула × package_factor)`: ХК30/ЛКС/ЛКВ `×0.0333334` (рулон 30 м), ЛА `×0.02`, клей NEO `×0.14`, герметик ГС `×0.25`, Z-профиль `×0.5` | `ТНП/Расчет_спецификации_трубы_самрег29_05_26.xlsx`, ячейка I2 и строки 48–57 | `backend/app/reference_data/spec_accessories.json`, `backend/app/formulas/specification/full_builder.py` | `backend/app/tests/unit/formulas/test_spec_full_builder.py::TestFullSpecificationDerived::test_package_factor_converts_to_packages` |
+| `tlt_spec_full_bom_scope` | Полный BOM применяется только к саморегулирующимся типам (`self_regulating`, `self_regulating_tt`); позиции других типов кабеля пропускаются и учитываются в `skipped_objects`. Гостю режим `full` недоступен (403). Режим и опции последней генерации персистятся (`generation_mode`/`generation_options`) и переиспользуются фоновым пересчётом | app policy (2026-06-09) | `backend/app/formulas/specification/full_builder.py`, `backend/app/services/specification_service.py`, `backend/app/api/v1/specifications.py` | `backend/app/tests/unit/formulas/test_spec_full_builder.py`, `backend/app/tests/integration/api/test_specifications.py` |
+
+Открытые вопросы полного BOM (секционирование `N,секц` vs нитки, темп-класс
+ТЛТ, граница `dтр=57`, приоритет К2i/К1i, BOM для резервуаров, базы длины
+кабеля basic vs full): `docs/analysis/spec-bom-open-issues-2026-06-09.md`.
 
 ## Known Algorithm Gaps
 

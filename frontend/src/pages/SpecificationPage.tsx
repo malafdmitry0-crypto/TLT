@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Col,
   InputNumber,
   Modal,
@@ -71,6 +72,11 @@ export default function SpecificationPage() {
   const [specMode, setSpecMode] = useState<'basic' | 'full'>('basic');
   const [exZone, setExZone] = useState(false);
   const [reserveCoeff, setReserveCoeff] = useState<number>(1);
+  // Опции индикации ТНП: К1i / К2i / Кiu / L,К2i
+  const [indicationOnBoxes, setIndicationOnBoxes] = useState(false);
+  const [endSectionIndication, setEndSectionIndication] = useState(false);
+  const [topIndication, setTopIndication] = useState(false);
+  const [minLengthK2i, setMinLengthK2i] = useState<number>(0);
 
   const {
     data: spec,
@@ -92,6 +98,26 @@ export default function SpecificationPage() {
     ...referenceQueryOptions,
   });
 
+  // Восстанавливаем режим и опции последней генерации после reload/смены CO,
+  // чтобы «Пересчитать» не подменял полный BOM базовым.
+  useEffect(() => {
+    if (!spec) return;
+    if (spec.generation_mode === 'full' || spec.generation_mode === 'basic') {
+      setSpecMode(spec.generation_mode);
+    }
+    const opts = spec.generation_options;
+    if (opts) {
+      setExZone(Boolean(opts.ex_zone));
+      setReserveCoeff(Number(opts.reserve_coefficient ?? 1));
+      setIndicationOnBoxes(Boolean(opts.indication_on_boxes));
+      setEndSectionIndication(Boolean(opts.end_section_indication));
+      setTopIndication(Boolean(opts.top_indication));
+      setMinLengthK2i(Number(opts.min_length_for_end_indication ?? 0));
+    }
+    // Перезапускаем только при смене сохранённого режима/записи, не при каждом refetch
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spec?.id, spec?.generation_mode]);
+
   const effectiveMode = isEmployee ? specMode : 'basic';
   const mut = useMutation({
     mutationFn: () =>
@@ -100,13 +126,25 @@ export default function SpecificationPage() {
         variant,
         effectiveMode,
         effectiveMode === 'full'
-          ? { ex_zone: exZone, reserve_coefficient: reserveCoeff }
+          ? {
+              ex_zone: exZone,
+              reserve_coefficient: reserveCoeff,
+              indication_on_boxes: indicationOnBoxes,
+              end_section_indication: endSectionIndication,
+              top_indication: topIndication,
+              min_length_for_end_indication: minLengthK2i,
+            }
           : undefined
       ),
-    onSuccess: () => {
+    onSuccess: (result) => {
       message.success(
-        `Спецификация (${effectiveMode === 'full' ? 'полная' : 'базовая'}) для CO${variant} сгенерирована`
+        `Спецификация (${result.mode === 'full' ? 'полная' : 'базовая'}) для CO${variant} сгенерирована`
       );
+      if (result.mode === 'full' && result.skipped_objects > 0) {
+        message.warning(
+          `Объектов без успешного электрорасчёта: ${result.skipped_objects} — они не вошли в полную спецификацию`
+        );
+      }
       refetch();
     },
     onError: (e: Error) => message.error(e.message),
@@ -237,7 +275,7 @@ export default function SpecificationPage() {
                       style={{ marginTop: 2 }}
                     />
                   </div>
-                  <div>
+                  <div style={{ marginBottom: 6 }}>
                     <Text style={{ fontSize: 11, color: '#888' }}>Резерв R,гр</Text>
                     <InputNumber
                       min={1}
@@ -249,6 +287,41 @@ export default function SpecificationPage() {
                       style={{ width: '100%', marginTop: 2 }}
                     />
                   </div>
+                  <div style={{ marginBottom: 6 }}>
+                    <Checkbox
+                      checked={indicationOnBoxes}
+                      onChange={(e) => setIndicationOnBoxes(e.target.checked)}
+                    >
+                      <Text style={{ fontSize: 11 }}>Индикация питания (К1i)</Text>
+                    </Checkbox>
+                    <Checkbox
+                      checked={endSectionIndication}
+                      onChange={(e) => setEndSectionIndication(e.target.checked)}
+                    >
+                      <Text style={{ fontSize: 11 }}>Индикация конца секции (К2i)</Text>
+                    </Checkbox>
+                    <Checkbox
+                      checked={topIndication}
+                      onChange={(e) => setTopIndication(e.target.checked)}
+                    >
+                      <Text style={{ fontSize: 11 }}>Индикация сверху коробки (Кiu)</Text>
+                    </Checkbox>
+                  </div>
+                  {endSectionIndication && (
+                    <div>
+                      <Text style={{ fontSize: 11, color: '#888' }}>
+                        Мин. длина секции для К2i (L,К2i), м
+                      </Text>
+                      <InputNumber
+                        min={0}
+                        step={10}
+                        size="small"
+                        value={minLengthK2i}
+                        onChange={(v) => setMinLengthK2i(Number(v ?? 0))}
+                        style={{ width: '100%', marginTop: 2 }}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 

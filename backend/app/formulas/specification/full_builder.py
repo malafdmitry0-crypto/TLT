@@ -6,6 +6,13 @@
 по условиям диаметра/количества секций/индикации/Ex-зоны, кабельные вводы,
 крепёж, ленты, герметики, маркировка.
 
+Алгоритм источника описывает только саморегулирующиеся кабели; позиции с
+другим ``cable_type`` (резистивные ТТ Р1/ТТ Р3, mineral, skin) пропускаются.
+
+Количества штучных позиций перед округлением вверх умножаются на
+``package_factor`` правила (колонка I источника — коэффициент пересчёта в
+упаковку производителя: рулоны лент, картриджи клея и т.п.).
+
 Не входят (проектные/ручные позиции без формул в источнике): КИП
 (термопреобразователи, шкаф управления), монтажные кабели/лотки/трубы, ЗИП.
 
@@ -24,9 +31,35 @@ from app.schemas.specification import SpecificationItem, SpecificationOptions
 
 PI = math.pi
 
+# BOM источника описывает только саморегулирующиеся кабели. Отсутствие
+# cable_type (legacy-результаты) трактуем как саморег для обратной совместимости.
+_SELF_REGULATING_TYPES = {"self_regulating", "self_regulating_tt"}
+
 
 def _is_successful(result: dict[str, Any]) -> bool:
     return is_successful_electrical_result(None, result)
+
+
+def _ceil(value: float) -> float:
+    """Округление вверх с гашением накопленной float-ошибки (1.3×10 → 13, не 14)."""
+    return float(math.ceil(round(value, 9)))
+
+
+def contributes_to_full_bom(result: dict[str, Any]) -> bool:
+    """Даёт ли позиция электрорасчёта вклад в полный BOM.
+
+    Используется и в основном цикле, и сервисом — чтобы честно посчитать
+    объекты, не вошедшие в полную спецификацию (ошибка расчёта, неподдержанный
+    тип кабеля, отсутствие марки или длины).
+    """
+    if not _is_successful(result):
+        return False
+    cable_type = result.get("cable_type")
+    if cable_type is not None and cable_type not in _SELF_REGULATING_TYPES:
+        return False
+    if not (result.get("cable_mark") or result.get("selected_cable")):
+        return False
+    return _num(result.get("installed_cable_length") or result.get("cable_length")) > 0
 
 
 def _num(value: Any, default: float = 0.0) -> float:
@@ -44,10 +77,6 @@ def _temp_class(mark: str) -> str:
     if "ТТВ" in upper or "ТТХ" in upper:
         return "high"
     return "low"
-
-
-def _is_aggressive(mark: str) -> bool:
-    return (mark or "").upper().endswith("-СР")
 
 
 def _box_bucket(*, d_large: bool, n_ge3: bool, k1i: bool, k2i_active: bool, kiu: bool) -> str:
@@ -90,6 +119,8 @@ def build_full_specification(
     length_high = 0.0  # ΣL2
     n_low = 0.0  # Σ N,секц (низк.) с резервом
     n_high = 0.0  # Σ N,секц (выс.) с резервом
+    n_low_k2i = 0.0  # Σ N,секц (низк.) с резервом — только секции с активным К2i
+    n_high_k2i = 0.0  # Σ N,секц (выс.) с резервом — только секции с активным К2i
     boxes: dict[str, float] = defaultdict(float)  # Nk1..Nk12
     homut = 0.0  # Kr3
     tape_low = 0.0  # Kr1 (ЛКС)
@@ -97,13 +128,10 @@ def build_full_specification(
     label_warning = 0.0  # MrEl1
 
     for result in electrical_results:
-        if not _is_successful(result):
+        if not contributes_to_full_bom(result):
             continue
-        mark = result.get("cable_mark") or result.get("selected_cable")
-        if not mark:
-            continue
-        mark = str(mark)
-        n_sec = int(_num(result.get("num_circuits"), 1) or 1)
+        mark = str(result.get("cable_mark") or result.get("selected_cable"))
+        n_sec = max(1, int(round(_num(result.get("num_circuits"), 1) or 1)))
         section_total = _num(
             result.get("installed_cable_length") or result.get("cable_length")
         )
@@ -111,27 +139,38 @@ def build_full_specification(
         d_mm = _num(obj.get("outer_diameter")) * 1000.0
         l_tr = _num(obj.get("pipe_length"))
         tclass = _temp_class(mark)
+        # L,секц — длина одной нагревательной секции (для порога К2i)
+        section_length = section_total / n_sec
 
         # Кабель (с резервом R,гр)
         cable_qty = section_total * r_res
         cable_by_mark[mark] += cable_qty
         cable_meta.setdefault(mark, {"temp_class": tclass})
 
+        # К2i применяется по длине секции: L,секц >= L,К2i (ТНП, K35–K38)
+        k2i_active = (
+            opt.end_section_indication
+            and section_length >= opt.min_length_for_end_indication
+        )
+
         # Соединительные комплекты и длины по классу
         if tclass == "low":
             length_low += cable_qty
             n_low += n_sec * r_res
+            if k2i_active:
+                n_low_k2i += n_sec * r_res
             tape_low += (PI * d_mm * 2.5 / 1000.0) * (cable_qty / 0.3) * 1.1 if d_mm > 0 else 0.0
         else:
             length_high += cable_qty
             n_high += n_sec * r_res
+            if k2i_active:
+                n_high_k2i += n_sec * r_res
             tape_high += (PI * d_mm * 2.5 / 1000.0) * (cable_qty / 0.3) * 1.1 if d_mm > 0 else 0.0
 
         # Коробки: ceil(N,секц/3) в корзину по условиям
-        box_count = math.ceil(n_sec / 3) if n_sec > 0 else 0
+        box_count = math.ceil(n_sec / 3)
         d_large = d_mm > 57.0
         n_ge3 = n_sec >= 3
-        k2i_active = opt.end_section_indication and section_total >= opt.min_length_for_end_indication
         bucket = _box_bucket(
             d_large=d_large,
             n_ge3=n_ge3,
@@ -157,9 +196,9 @@ def build_full_specification(
     nk_large_k1i = b("Nk3") + b("Nk4")
     nk_small_plain = b("Nk7") + b("Nk8")
     fl1 = n_low  # КСН-1
-    fl2 = n_low * 2 if opt.end_section_indication else 0.0  # КСН-2
+    fl2 = n_low_k2i * 2  # КСН-2 — только секции, прошедшие порог L,К2i
     fl3 = n_high  # КСВ-1
-    fl4 = n_high * 2 if opt.end_section_indication else 0.0  # КСВ-2
+    fl4 = n_high_k2i * 2  # КСВ-2 — только секции, прошедшие порог L,К2i
 
     # Значения по правилам
     rule_values: dict[str, float] = {
@@ -167,8 +206,8 @@ def build_full_specification(
         "connector_kit_low_2": fl2,
         "connector_kit_high_1": fl3,
         "connector_kit_high_2": fl4,
-        "repair_kit_low": math.ceil(length_low / 150.0) if length_low > 0 else 0.0,
-        "repair_kit_high": math.ceil(length_high / 150.0) if length_high > 0 else 0.0,
+        "repair_kit_low": _ceil(length_low / 150.0) if length_low > 0 else 0.0,
+        "repair_kit_high": _ceil(length_high / 150.0) if length_high > 0 else 0.0,
         "box_Nk1": b("Nk1"),
         "box_Nk2": b("Nk2"),
         "box_Nk3": b("Nk3"),
@@ -222,9 +261,15 @@ def build_full_specification(
         value = rule_values.get(rule["rule"], 0.0)
         if value is None or value <= 0:
             continue
+        # Колонка I источника: пересчёт расчётного количества в упаковки производителя
+        package_factor = rule.get("package_factor")
+        if package_factor:
+            value *= float(package_factor)
         unit = rule.get("unit", "шт.")
-        quantity = round(value, 2) if unit == "м" else float(math.ceil(value))
+        quantity = round(value, 2) if unit == "м" else _ceil(value)
         params: dict[str, Any] = {}
+        if package_factor:
+            params["package_factor"] = package_factor
         if rule.get("mass_kg") is not None:
             params["mass_kg"] = rule["mass_kg"]
         if rule.get("code"):

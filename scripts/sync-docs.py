@@ -97,6 +97,88 @@ GENERATORS = {
 
 
 # ---------------------------------------------------------------------------
+# Drift-guard манифеста (E2E-MANIFEST.md §11) — проверка фактических утверждений
+# ---------------------------------------------------------------------------
+
+MANIFEST = ROOT / "e2e" / "E2E-MANIFEST.md"
+
+# §1.3 — функции, которые манифест обещает в e2e/tests/helpers/*.ts
+EXPECTED_HELPERS = [
+    "loginAsGuest", "currentGuestContext", "fetchProjectObjects",
+    "createCalculatedPipe", "createCalculatedTank",
+    "ensureTestEmployee", "loginAsTestEmployee",
+    "expectElectricalGlideReady", "editFirstElectricalGridLayoutCell",
+    "expectElectricalCalcForObject",
+    "e2eCommercialFeaturesEnabled",
+]
+
+# §6 — backend-тесты/скрипты, на которые ссылается манифест
+EXPECTED_BACKEND_FILES = [
+    "backend/app/tests/integration/api/test_performance_nfr.py",
+    "backend/app/tests/integration/db/test_query_counts.py",
+    "backend/app/tests/integration/db/test_race_conditions.py",
+    "backend/app/tests/integration/api/test_idempotency.py",
+    "backend/app/tests/integration/api/test_security_boundaries.py",
+    "backend/app/tests/integration/db/test_cascade_integrity.py",
+    "scripts/db-business-invariants.sql",
+]
+
+_EXPORT_RE = re.compile(r"export\s+(?:async\s+)?(?:function|const)\s+(\w+)")
+_BACKTICK_RE = re.compile(r"`([a-z0-9][a-z0-9.\-]*)`")
+
+
+def _exported_helper_names() -> set[str]:
+    names: set[str] = set()
+    helpers = ROOT / "e2e" / "tests" / "helpers"
+    for ts in helpers.glob("*.ts"):
+        names.update(_EXPORT_RE.findall(ts.read_text()))
+    return names
+
+
+def _manifest_section(text: str, start: str, end: str | None) -> str:
+    s = text.find(start)
+    if s == -1:
+        return ""
+    rest = text[s + len(start):]
+    if end:
+        e = rest.find(end)
+        if e != -1:
+            rest = rest[:e]
+    return rest
+
+
+def verify_manifest() -> list[str]:
+    """Возвращает список расхождений манифест ↔ код (пусто = всё сходится)."""
+    problems: list[str] = []
+    if not MANIFEST.exists():
+        return [f"манифест не найден: {MANIFEST.relative_to(ROOT)}"]
+    text = MANIFEST.read_text()
+
+    # 1) Хелперы §1.3 реально экспортируются
+    exported = _exported_helper_names()
+    for fn in EXPECTED_HELPERS:
+        if fn not in exported:
+            problems.append(f"§1.3: хелпер `{fn}` не экспортируется из e2e/tests/helpers/")
+
+    # 2) Файлы §6 существуют
+    for rel in EXPECTED_BACKEND_FILES:
+        if not (ROOT / rel).exists():
+            problems.append(f"§6: файл не найден — {rel}")
+
+    # 3) Карта спеков §10 ↔ e2e/tests/*.spec.ts (двусторонне)
+    spec_files = {p.name[: -len(".spec.ts")]
+                  for p in (ROOT / "e2e" / "tests").glob("*.spec.ts")}
+    map_block = _manifest_section(text, "## 10. Карта существующих спеков", "### 10.1")
+    mapped = set(_BACKTICK_RE.findall(map_block))
+    for base in sorted(spec_files - mapped):
+        problems.append(f"§10: спек `{base}` есть в e2e/tests, но не указан в карте")
+    for base in sorted(mapped - spec_files):
+        problems.append(f"§10: карта ссылается на `{base}`, а файла {base}.spec.ts нет")
+
+    return problems
+
+
+# ---------------------------------------------------------------------------
 # Обработка файлов
 # ---------------------------------------------------------------------------
 
@@ -135,13 +217,22 @@ def main() -> int:
     ap.add_argument("--check", action="store_true", help="Только проверка (без записи)")
     args = ap.parse_args()
 
-    targets = [ROOT / "README.md", ROOT / "CLAUDE.MD"]
+    targets = [ROOT / "README.md", ROOT / "CLAUDE.MD", MANIFEST]
     drift = [p for p in targets if sync_file(p, check_only=args.check)]
 
-    if args.check and drift:
-        print("Дрейф в:", ", ".join(str(p.relative_to(ROOT)) for p in drift),
+    manifest_problems = verify_manifest()
+    if manifest_problems:
+        print("Расхождения манифеста (E2E-MANIFEST.md §11 drift-guard):",
               file=sys.stderr)
-        print("Запустите: scripts/sync-docs.py", file=sys.stderr)
+        for prob in manifest_problems:
+            print(f"  - {prob}", file=sys.stderr)
+
+    if args.check and (drift or manifest_problems):
+        if drift:
+            print("Дрейф цифр в:",
+                  ", ".join(str(p.relative_to(ROOT)) for p in drift),
+                  file=sys.stderr)
+            print("Запустите: scripts/sync-docs.py", file=sys.stderr)
         return 1
 
     if drift:
@@ -149,6 +240,8 @@ def main() -> int:
             print(f"updated: {p.relative_to(ROOT)}")
     else:
         print("docs up to date")
+    if not manifest_problems:
+        print("manifest facts: ok")
     return 0
 
 

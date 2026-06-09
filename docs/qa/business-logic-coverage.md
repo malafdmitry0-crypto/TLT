@@ -46,7 +46,7 @@ UI/API workflow считается gap до полного соответств�
 | `tlt_resistive_temperature_correction_gap` | Да: `docs/analysis/resistive-temperature-tz-deviation.md` | Да | Нет: known issue зафиксирован, код не менялся | Да через резистивный подбор | Нет focused golden на hot `R_T` | Needs correction |
 | `tlt_tt_t3_temperature_policy` | Да | Да | Да, T3 опционален с fallback на `process_temperature` | Да | Да | Covered |
 | `tlt_tt_thread_count_policy` | Да | Частично | Да, auto `N=ceil(Pоб/Pi)` без лимита 3 для ТТ | Нет отдельного policy control | Да | Covered |
-| `tlt_tt_mark_suffix_policy` | Да | Нет | Да, принято `aggressive_product -> СТ`, иначе `СР` | Да через поле агрессивности | Да | Covered |
+| `tlt_tt_mark_suffix_policy` | Да | Да (`Расчет_спецификации_трубы_самрег29_05_26.xlsx`) | Да, по первоисточнику `aggressive_product -> СР`, иначе `СТ` (фикс 2026-06-07) | Да через поле агрессивности | Да | Covered |
 | `tlt_insulation_lambda_tm` | Да | Да | Да, `lambda(tm)` + конкретный материал/плотность + `insulation_temperature_basis` | Да, отдельное поле режима `tm` | Да | Covered |
 | `tlt_heat_loss_location_factor_source_gap` | Частично: задокументировано как app policy, не найдено в первичных ТНП DOCX/XLSX | Нет | Да, `location_indoor/location_outdoor` умножают итоговое `Q`; для трубы electrical input берет `q*location_factor` без `K` | Да, отображается в деталях расчёта как `Kразм примен.` | Да | Needs business decision |
 

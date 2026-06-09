@@ -164,7 +164,8 @@ describe('useElecCalcCableReferenceData', () => {
 
     expect(result.current.manualCableOptionsForType('self_regulating').map((option) => option.mark))
       .toEqual(['ТЛТ-30']);
-    expect(result.current.cableSizingManualOptions[0].mark).toBe('30ТТВ2-СТ');
+    // Агрессивная среда → -СР (первоисточник: Расчет_спецификации_трубы_самрег29_05_26.xlsx)
+    expect(result.current.cableSizingManualOptions[0].mark).toBe('30ТТВ2-СР');
     expect(result.current.commercialDataStatus.label).toBe('Коммерческие данные есть');
     expect(result.current.technicalDataStatus.label).toBe('Техданные полные');
   });

@@ -1435,7 +1435,9 @@ describe('ElecCalcPage (integration)', () => {
         .getPropertyValue('--cable-picker-characteristics-column-count'),
       ).toBe('4');
     expect(within(sizingDialog).getByRole('radio', { name: 'Авторасчёт' })).toBeChecked();
-    expect(within(sizingDialog).getAllByText('Пометка').length).toBeGreaterThan(0);
+    // findAllByText: таблица кандидатов рендерится асинхронно — под нагрузкой
+    // полного прогона getAllByText успевал отработать до её появления (flaky).
+    expect((await within(sizingDialog).findAllByText('Пометка')).length).toBeGreaterThan(0);
     expect(within(sizingDialog).getAllByText('Действия').length).toBeGreaterThan(0);
     expect(within(sizingDialog).queryByRole('columnheader', { name: 'Статус' })).not.toBeInTheDocument();
     expect(within(sizingDialog).getAllByText('T3, °C').length).toBeGreaterThan(0);
@@ -1796,7 +1798,7 @@ describe('ElecCalcPage (integration)', () => {
     expect(within(sizingDialog).queryByRole('columnheader', { name: 'Статус' })).not.toBeInTheDocument();
     expect(within(sizingDialog).queryByText('Готов')).not.toBeInTheDocument();
     expect(within(sizingDialog).queryByLabelText('Готов')).not.toBeInTheDocument();
-    expect(within(sizingDialog).getAllByText('Пометка').length).toBeGreaterThan(0);
+    expect((await within(sizingDialog).findAllByText('Пометка')).length).toBeGreaterThan(0);
     expect(within(sizingDialog).getByRole('button', { name: /Все/ })).toBeInTheDocument();
     expect(within(sizingDialog).getByRole('button', { name: /Избранное/ })).toBeInTheDocument();
     expect(within(sizingDialog).getByTestId('candidate-row-cand-applied')).not.toHaveClass(

@@ -268,14 +268,20 @@ approval-gate `commercial_balanced_weights_approved` (`0` — fallback,
 ---
 
 ### specifications
-| Колонка        | Тип         | Ограничения                              | Описание                     |
-|----------------|-------------|------------------------------------------|------------------------------|
-| id             | UUID        | PK                                       |                              |
-| project_id     | UUID        | FK → projects.id ON DELETE CASCADE, INDEX | Проект                      |
-| variant_number | INTEGER     | NOT NULL, default 1                      | Номер варианта               |
-| items          | JSONB       | NOT NULL, default []                     | Позиции спецификации         |
-| created_at     | TIMESTAMPTZ | server default                           |                              |
-| updated_at     | TIMESTAMPTZ | auto-update                              |                              |
+| Колонка            | Тип         | Ограничения                              | Описание                     |
+|--------------------|-------------|------------------------------------------|------------------------------|
+| id                 | UUID        | PK                                       |                              |
+| project_id         | UUID        | FK → projects.id ON DELETE CASCADE, INDEX | Проект                      |
+| variant_number     | INTEGER     | NOT NULL, default 1, UNIQUE(project_id, variant_number) | Номер варианта |
+| items              | JSONB       | NOT NULL, default []                     | Позиции спецификации         |
+| generation_mode    | VARCHAR(10) | NULL                                     | Режим последней генерации: basic / full (миграция 0026) |
+| generation_options | JSONB       | NULL                                     | Опции полного BOM (R,гр, Ex, К1i/К2i/Кiu, L,К2i) |
+| is_stale           | BOOLEAN     | NOT NULL, default false                  | Спецификация устарела после изменения объектов |
+| stale_reason       | VARCHAR(100)| NULL                                     | Причина устаревания          |
+| stale_at           | TIMESTAMPTZ | NULL                                     | Когда помечена устаревшей    |
+| stale_details      | JSONB       | NULL                                     | Детали (operation, object_ids) |
+| created_at         | TIMESTAMPTZ | server default                           |                              |
+| updated_at         | TIMESTAMPTZ | auto-update                              |                              |
 
 ---
 
@@ -334,3 +340,4 @@ audit_events хранит ссылки на id без FK, чтобы событ�
 - `reference_data/cables_tlt.json` — каталог кабелей ТЛТ (марка, мощность, мин. температура)
 - `reference_data/resistive_cables.json` — резистивные кабели ТТ Р1/ТТ Р3
 - `reference_data/accessories.json` — базовые аксессуары
+- `reference_data/spec_accessories.json` — правила полного условного BOM ТНП (mode="full"): артикулы СКВ/КСН/КСВ/КСР, упаковочные коэффициенты `package_factor`

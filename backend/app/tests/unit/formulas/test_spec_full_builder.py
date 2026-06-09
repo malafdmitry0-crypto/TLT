@@ -123,12 +123,157 @@ class TestFullSpecificationDerived:
         items = build_full_specification(elec, objs)
         # этикетка: ceil(50/3.5)+ceil(90/3.5) = 15+26 = 41
         assert _qty(items, "ЭТ-ВЭ") == 41
-        # алюминиевая лента = L1+L2 = 180
-        assert _qty(items, "ЛА") == 180.0
-        # клей = Fl1+Fl3 = 6
-        assert _qty(items, "NEO CONTACT MIX600") == 6
-        # крепёжный элемент = (Nk1+Nk2)*2 = (1+2)*2 = 6
+        # алюминиевая лента: (L1+L2)=180 м × упаковочный коэф. 0.02 → 3.6 → 4 рулона
+        assert _qty(items, "ЛА") == 4
+        # клей: (Fl1+Fl3)=6 заделок × 0.14 → 0.84 → 1 картридж
+        assert _qty(items, "NEO CONTACT MIX600") == 1
+        # крепёжный элемент = (Nk1+Nk2)*2 = (1+2)*2 = 6 (без упаковочного коэф.)
         assert _qty(items, "КЭ-хомут") == 6
+
+    def test_package_factor_converts_to_packages(self):
+        """Колонка I ТНП: метры/заделки пересчитываются в упаковки производителя."""
+        elec, objs = _two_object_case()
+        items = build_full_specification(elec, objs)
+        # ХК30: метры ленты (≈3.51) × 0.0333334 → 1 рулон, не ceil(3.51)=4
+        assert _qty(items, "ХК30") == 1
+        # ЛКС: ≈186.6 м × 0.0333334 → ceil(6.22) = 7 рулонов
+        assert _qty(items, "ЛКС 12") == 7
+        # ГС: 3 коробки × 0.25 → 1 шт.
+        assert _qty(items, "ГС") == 1
+        factor_item = next(i for i in items if i.article == "ХК30")
+        assert factor_item.params.get("package_factor") == 0.0333334
+        assert factor_item.unit == "шт."
 
     def test_empty_input_yields_no_items(self):
         assert build_full_specification([], {}) == []
+
+
+class TestFullSpecificationRobustness:
+    def test_float_accumulation_does_not_inflate_ceil(self):
+        """Regression: 10 секций × R=1.3 → КСН-1 = 13, а не 14 (float-хвост)."""
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "num_circuits": 1,
+                "installed_cable_length": 10.0,
+                "object_id": f"o{i}",
+            }
+            for i in range(10)
+        ]
+        objs = {f"o{i}": {"outer_diameter": 0.108, "pipe_length": 10.0} for i in range(10)}
+        items = build_full_specification(
+            elec, objs, options=SpecificationOptions(reserve_coefficient=1.3)
+        )
+        assert _qty(items, "КСН-1") == 13
+
+    def test_non_self_regulating_cable_types_skipped(self):
+        """BOM источника описывает только саморег: резистивные позиции пропускаются."""
+        elec = [
+            {
+                "cable_mark": "ТТ Р1 1x2.5",
+                "cable_type": "single_core",
+                "num_circuits": 1,
+                "installed_cable_length": 50.0,
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 50.0}}
+        assert build_full_specification(elec, objs) == []
+
+    def test_missing_cable_type_treated_as_self_regulating(self):
+        """Legacy-результаты без cable_type продолжают попадать в BOM."""
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "num_circuits": 1,
+                "installed_cable_length": 50.0,
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 50.0}}
+        items = build_full_specification(elec, objs)
+        assert _qty(items, "КСН-1") == 1
+
+    def test_zero_length_position_adds_nothing(self):
+        """Нет длины кабеля — нет ни кабеля, ни коробок/комплектов на позицию."""
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "num_circuits": 2,
+                "installed_cable_length": 0.0,
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 50.0}}
+        assert build_full_specification(elec, objs) == []
+
+    def test_invalid_num_circuits_clamped(self):
+        """Отрицательные нитки не уменьшают чужие комплекты; дробные округляются."""
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "num_circuits": -2,
+                "installed_cable_length": 30.0,
+                "object_id": "o1",
+            },
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "num_circuits": 2.9,
+                "installed_cable_length": 30.0,
+                "object_id": "o2",
+            },
+        ]
+        objs = {
+            "o1": {"outer_diameter": 0.108, "pipe_length": 30.0},
+            "o2": {"outer_diameter": 0.108, "pipe_length": 30.0},
+        }
+        items = build_full_specification(elec, objs)
+        # -2 → 1 секция, 2.9 → 3 секции; КСН-1 = 1 + 3 = 4
+        assert _qty(items, "КСН-1") == 4
+
+
+class TestK2iSectionLengthThreshold:
+    def test_k2i_requires_section_length_not_total(self):
+        """ТНП K35–K38: порог L,К2i сравнивается с длиной ОДНОЙ секции."""
+        # 4 секции × 30 м (суммарно 120) при пороге 100 — К2i не активен
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "num_circuits": 4,
+                "installed_cable_length": 120.0,
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 100.0}}
+        items = build_full_specification(
+            elec,
+            objs,
+            options=SpecificationOptions(
+                end_section_indication=True, min_length_for_end_indication=100.0
+            ),
+        )
+        assert _qty(items, "КСН-2") is None
+        # коробки остаются в обычной корзине (СКВ 1601: d>57, N>=3)
+        assert _qty(items, "СКВ 1601") == 2
+
+    def test_k2i_active_for_long_single_section(self):
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "num_circuits": 1,
+                "installed_cable_length": 120.0,
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 100.0}}
+        items = build_full_specification(
+            elec,
+            objs,
+            options=SpecificationOptions(
+                end_section_indication=True, min_length_for_end_indication=100.0
+            ),
+        )
+        # КСН-2 = N × R × 2 = 2; коробка уходит в К2i-корзину СКВ 1201-С (Nk5)
+        assert _qty(items, "КСН-2") == 2
+        assert _qty(items, "СКВ 1201-С") == 1
+        assert _qty(items, "СКВ 1201") is None

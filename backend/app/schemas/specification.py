@@ -59,6 +59,9 @@ class SpecificationResponse(BaseModel):
     project_id: UUID
     variant_number: int
     items: list[dict[str, Any]]
+    # Режим и опции последней генерации — чтобы UI восстанавливал их после reload
+    generation_mode: str | None = None
+    generation_options: dict[str, Any] | None = None
     is_stale: bool
     stale_reason: str | None = None
     stale_at: datetime | None = None
@@ -81,6 +84,11 @@ class SpecificationGenerateRequest(BaseModel):
 class SpecificationGenerateResponse(BaseModel):
     project_id: UUID
     items: list[SpecificationItem]
+    # Фактически применённый режим генерации
+    mode: str = "basic"
+    # Объекты проекта без успешного электрорасчёта, не вошедшие в полный BOM.
+    # В basic-режиме всегда 0: там аксессуары заказываются на все объекты.
+    skipped_objects: int = 0
 
 
 class SpecificationUpdateRequest(BaseModel):

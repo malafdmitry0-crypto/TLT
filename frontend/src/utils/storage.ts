@@ -5,10 +5,12 @@
  * таблиц — теперь единый источник.
  */
 export function readStorageJson(key: string): unknown {
-  if (typeof localStorage === 'undefined') return null;
-  const raw = localStorage.getItem(key);
-  if (!raw) return null;
+  // Сам доступ к localStorage может бросить SecurityError (Safari с блокировкой
+  // cookie, sandboxed iframe), поэтому он тоже внутри try.
   try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
     return JSON.parse(raw) as unknown;
   } catch {
     return null;

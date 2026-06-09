@@ -21,12 +21,21 @@ export interface SpecificationOptions {
   min_length_for_end_indication?: number;
 }
 
+export interface SpecificationGenerateResult {
+  project_id: string;
+  items: SpecificationItem[];
+  /** Фактически применённый режим генерации. */
+  mode: 'basic' | 'full';
+  /** Объекты без успешного электрорасчёта, не вошедшие в полный BOM. */
+  skipped_objects: number;
+}
+
 export async function generateSpecification(
   projectId: string,
   variant: number = 1,
   mode: 'basic' | 'full' = 'basic',
   options?: SpecificationOptions,
-): Promise<{ project_id: string; items: SpecificationItem[] }> {
+): Promise<SpecificationGenerateResult> {
   const { data } = await apiClient.post(
     `/specifications/${projectId}/generate`,
     { mode, options: options ?? null },

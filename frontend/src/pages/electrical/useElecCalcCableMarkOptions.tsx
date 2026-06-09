@@ -100,7 +100,9 @@ export function useElecCalcCableMarkOptions({
     if (!availableCableTypes.has(type)) return [];
     if (type === 'self_regulating') return cableOptions;
     if (type === 'self_regulating_tt') {
-      const suffix = aggressiveProduct ? 'СТ' : 'СР';
+      // Первоисточник (Расчет_спецификации_трубы_самрег29_05_26.xlsx):
+      // -СР = агрессивная среда, -СТ = неагрессивная.
+      const suffix = aggressiveProduct ? 'СР' : 'СТ';
       return ttCables.map((c) => {
         const value = `${c.model}-${suffix}`;
         return cableMarkOption(
@@ -186,9 +188,22 @@ export function useElecCalcCableMarkOptions({
           savedSource ?? matchingCatalogOption?.cableSource ?? effectiveSource,
         )
       : null;
+    // Сохранённая марка может не совпасть ни с одной сгенерированной опцией
+    // (например, суффикс -СР/-СТ из расчёта при другом положении переключателя
+    // агрессивности) — без fallback модалка теряла кабель и характеристики.
+    const savedMarkFallbackOption = mark && !matchingCatalogOption && !projectOption
+      ? cableMarkOption(
+          mark,
+          `${mark} · сохранён в расчёте`,
+          savedSource ?? effectiveSource,
+          false,
+          savedSource ?? effectiveSource,
+        )
+      : null;
     return [
       autoCableMarkOption(),
       ...(projectOption ? [projectOption] : []),
+      ...(savedMarkFallbackOption ? [savedMarkFallbackOption] : []),
       ...manualOptions,
     ];
   }, [autoCableMarkOption, cableMarkOption, effectiveSource, manualCableOptionsForType]);
