@@ -540,23 +540,6 @@ html, body, #root {
   --inline-control-height: 24px;
 }
 
-.heatcalc-cable-algorithm-section {
-  display: grid;
-  grid-template-columns: 1fr;
-  align-content: start;
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid #dbe6f2;
-  border-radius: 7px;
-  background: #fff;
-  padding: 3px 3px 0;
-  margin-bottom: 2px;
-}
-
-.heatcalc-cable-algorithm-section h4 {
-  margin-bottom: 0;
-}
-
 .heatcalc-object-diagnostic {
   display: flex;
   align-items: flex-start;
@@ -1614,12 +1597,6 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   height: var(--heatcalc-top-form-height);
-}
-
-.heatcalc-form-pane--top .heatcalc-cable-algorithm-section {
-  flex: 0 0 22px;
-  min-height: 22px;
-  margin-bottom: 2px;
 }
 
 .heatcalc-form-pane--top .form-grid-srs {

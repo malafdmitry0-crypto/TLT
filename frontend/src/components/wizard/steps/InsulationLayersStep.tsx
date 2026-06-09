@@ -37,6 +37,8 @@ function fieldHelp(fieldId: string, objectType: HeatCalcObjectType, mode?: strin
 interface Props {
   objectType: HeatCalcObjectType;
   fieldInputSettings?: HeatCalcFieldInputSettings;
+  /** Наблюдаемые значения формы — для динамических опций режима tm. */
+  watchedValues?: Record<string, unknown>;
   layerCount: number;
   insulationMaterials: InsulationEntry[];
   insulationMaterialOptions: ReferencePickerOption[];
@@ -52,6 +54,7 @@ interface Props {
 export default function InsulationLayersStep({
   objectType,
   fieldInputSettings,
+  watchedValues,
   layerCount,
   insulationMaterials,
   insulationMaterialOptions,
@@ -71,7 +74,7 @@ export default function InsulationLayersStep({
 
   return (
     <>
-      <h4 data-step={3}><span>Теплоизоляция</span></h4>
+      <h4 data-step={2}><span>Теплоизоляция</span></h4>
       <Form.Item
         className="layer-count-form-item insulation-layer-count-form-item helped-form-item"
         label={fieldLabel('insulation_layer_count', objectType)}
@@ -86,6 +89,26 @@ export default function InsulationLayersStep({
             placeholder="Выберите"
           />,
           fieldHelp('insulation_layer_count', objectType),
+        )}
+      </Form.Item>
+      <Form.Item
+        className="fixed-select-form-item insulation-temperature-basis-form-item helped-form-item"
+        label={fieldLabel('insulation_temperature_basis', objectType)}
+        name="insulation_temperature_basis"
+        rules={heatCalcFormFieldRules(form, objectType, 'insulation_temperature_basis')}
+      >
+        {withHelp(
+          <TltSelect
+            data-testid="insulation-temperature-basis-select"
+            {...selectInputProps('insulation_temperature_basis')}
+            placeholder="Выберите режим tm"
+            options={heatCalcSelectOptions(
+              objectType,
+              'insulation_temperature_basis',
+              watchedValues,
+            )}
+          />,
+          fieldHelp('insulation_temperature_basis', objectType),
         )}
       </Form.Item>
       <div className="insulation-layer-group">
@@ -245,20 +268,14 @@ export default function InsulationLayersStep({
           />
         </div>
       )}
-      <Form.Item
-        className="fixed-select-form-item reduced-select-form-item insulation-cover-form-item helped-form-item"
-        label={fieldLabel('insulation_cover_material', objectType)}
-        name="insulation_cover_material"
-      >
-        {withHelp(
-          <TltSelect
-            data-testid="insulation-cover-material-select"
-            {...selectInputProps('insulation_cover_material')}
-            options={heatCalcSelectOptions(objectType, 'insulation_cover_material')}
-            placeholder="Не указано"
-          />,
-          fieldHelp('insulation_cover_material', objectType),
-        )}
+      {/* Материал покрытия изоляции отсутствует в ТНП «Список переменных» и
+          в формуле теплопотерь не участвует — скрыт (round-trip метаданные).
+          См. docs/analysis/sc03-heat-form-cleanup-2026-06-10.md. */}
+      <Form.Item name="insulation_cover_material" hidden>
+        <TltSelect
+          data-testid="insulation-cover-material-select"
+          options={heatCalcSelectOptions(objectType, 'insulation_cover_material')}
+        />
       </Form.Item>
     </>
   );

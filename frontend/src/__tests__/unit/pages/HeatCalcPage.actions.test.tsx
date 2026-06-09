@@ -203,7 +203,7 @@ describe('HeatCalcPage actions', () => {
       await waitFor(() => {
         expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
       });
-      expect(screen.getByText('Геометрия трубы')).toBeInTheDocument();
+      expect(screen.getByText('Геометрия и размещение трубы')).toBeInTheDocument();
       await waitFor(() => {
         expect(screen.getByDisplayValue('Труба DN100 сервер')).toBeInTheDocument();
       });

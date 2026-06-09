@@ -5,7 +5,6 @@ import { TltSelect } from '@/components/form-controls';
 import {
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
-  heatCalcSelectInputProps,
   heatCalcSelectOptions,
 } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
@@ -56,7 +55,6 @@ interface Props {
   onClimatePickerOpen?: () => void;
   hasClimate: boolean;
   climateBasisDisplay: string;
-  watchedValues?: Record<string, unknown>;
   showWindField: boolean;
   showAlphaField: boolean;
   ambientTemperatureSourceFallback?: unknown;
@@ -71,7 +69,6 @@ export default function TemperatureEnvironmentStep({
   onClimatePickerOpen,
   hasClimate,
   climateBasisDisplay,
-  watchedValues,
   showWindField,
   showAlphaField,
   ambientTemperatureSourceFallback,
@@ -80,12 +77,10 @@ export default function TemperatureEnvironmentStep({
   const form = Form.useFormInstance();
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps(objectType, fieldId, { fieldInputSettings, form });
-  const selectInputProps = (fieldId: string) =>
-    heatCalcSelectInputProps(objectType, fieldId, { form });
 
   return (
     <>
-      <h4 data-step={4}><span>Температура и среда</span></h4>
+      <h4 data-step={3}><span>Климат и температуры</span></h4>
       <Form.Item
         className="fixed-select-form-item reduced-select-form-item helped-form-item"
         label={fieldLabel('climate_key', objectType)}
@@ -121,26 +116,6 @@ export default function TemperatureEnvironmentStep({
           )}
         </Form.Item>
       )}
-      <Form.Item
-        className="fixed-select-form-item insulation-temperature-basis-form-item helped-form-item"
-        label={fieldLabel('insulation_temperature_basis', objectType)}
-        name="insulation_temperature_basis"
-        rules={heatCalcFormFieldRules(form, objectType, 'insulation_temperature_basis')}
-      >
-        {withHelp(
-          <TltSelect
-            data-testid="insulation-temperature-basis-select"
-            {...selectInputProps('insulation_temperature_basis')}
-            placeholder="Выберите режим tm"
-            options={heatCalcSelectOptions(
-              objectType,
-              'insulation_temperature_basis',
-              watchedValues,
-            )}
-          />,
-          fieldHelp('insulation_temperature_basis', objectType),
-        )}
-      </Form.Item>
       <Form.Item
         className="numeric-form-item temperature-number-form-item helped-form-item"
         label={fieldLabel('ambient_temperature', objectType)}
@@ -222,80 +197,33 @@ export default function TemperatureEnvironmentStep({
           )}
         </Form.Item>
       )}
-      <Form.Item
-        className="numeric-form-item temperature-number-form-item max-ambient-temperature-form-item helped-form-item"
-        label={fieldLabel('max_ambient_temperature', objectType)}
-        name="max_ambient_temperature"
-        rules={heatCalcFormFieldRules(form, objectType, 'max_ambient_temperature')}
-      >
-        {withHelp(
-          <UnitInputNumber
-            data-testid="max-ambient-temperature-input"
-            {...numberInputProps('max_ambient_temperature')}
-            unit="°C"
-          />,
-          fieldHelp('max_ambient_temperature', objectType),
-        )}
+      {/* Поля ниже не участвуют в формуле теплопотерь (по ТНП «Список
+          переменных» это входы алгоритма выбора кабеля / спецификации) и
+          скрыты из формы SC-03. Хранятся для round-trip значения в params;
+          куда они должны переехать — docs/analysis/sc03-heat-form-cleanup-2026-06-10.md. */}
+      <Form.Item name="max_ambient_temperature" hidden>
+        <UnitInputNumber data-testid="max-ambient-temperature-input" unit="°C" />
       </Form.Item>
-      <Form.Item
-        className="numeric-form-item temperature-number-form-item helped-form-item"
-        label={fieldLabel('max_process_temperature', objectType)}
-        name="max_process_temperature"
-        rules={heatCalcFormFieldRules(form, objectType, 'max_process_temperature')}
-      >
-        {withHelp(
-          <UnitInputNumber
-            data-testid="max-process-temperature-input"
-            {...numberInputProps('max_process_temperature')}
-            unit="°C"
-          />,
-          fieldHelp('max_process_temperature', objectType),
-        )}
+      <Form.Item name="max_process_temperature" hidden>
+        <UnitInputNumber data-testid="max-process-temperature-input" unit="°C" />
       </Form.Item>
-      <Form.Item
-        className="medium-select-form-item environment-form-item helped-form-item"
-        label={fieldLabel('environment', objectType)}
-        name="environment"
-      >
-        {withHelp(
-          <TltSelect
-            data-testid="environment-select"
-            {...selectInputProps('environment')}
-            options={heatCalcSelectOptions(objectType, 'environment')}
-            placeholder="Выберите среду"
-          />,
-          fieldHelp('environment', objectType),
-        )}
+      <Form.Item name="environment" hidden>
+        <TltSelect
+          data-testid="environment-select"
+          options={heatCalcSelectOptions(objectType, 'environment')}
+        />
       </Form.Item>
-      <Form.Item
-        className="medium-select-form-item zone-classification-form-item helped-form-item"
-        label={fieldLabel('zone_classification', objectType)}
-        name="zone_classification"
-      >
-        {withHelp(
-          <TltSelect
-            data-testid="zone-classification-select"
-            {...selectInputProps('zone_classification')}
-            options={heatCalcSelectOptions(objectType, 'zone_classification')}
-            placeholder="Выберите зону"
-          />,
-          fieldHelp('zone_classification', objectType),
-        )}
+      <Form.Item name="zone_classification" hidden>
+        <TltSelect
+          data-testid="zone-classification-select"
+          options={heatCalcSelectOptions(objectType, 'zone_classification')}
+        />
       </Form.Item>
-      <Form.Item
-        className="temperature-group-form-item helped-form-item"
-        label={fieldLabel('temperature_group', objectType)}
-        name="temperature_group"
-      >
-        {withHelp(
-          <TltSelect
-            data-testid="temperature-group-select"
-            {...selectInputProps('temperature_group')}
-            options={heatCalcSelectOptions(objectType, 'temperature_group')}
-            placeholder="Выберите"
-          />,
-          fieldHelp('temperature_group', objectType),
-        )}
+      <Form.Item name="temperature_group" hidden>
+        <TltSelect
+          data-testid="temperature-group-select"
+          options={heatCalcSelectOptions(objectType, 'temperature_group')}
+        />
       </Form.Item>
     </>
   );

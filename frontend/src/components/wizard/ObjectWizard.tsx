@@ -616,9 +616,6 @@ export default function ObjectWizard({
       <Form.Item name="safety_factor_source" hidden noStyle>
         <Input type="hidden" />
       </Form.Item>
-      <div className="form-col-srs heatcalc-cable-algorithm-section">
-        {renderSectionTitle('алгоритм выбора кабеля', 1)}
-      </div>
       <div className="form-grid-srs" ref={formGridRef}>
 
         {/* ── Геометрия ──────────────────────────────────────────────── */}
@@ -626,7 +623,12 @@ export default function ObjectWizard({
           className="form-col-srs form-col-srs--primary"
           style={sectionStyle(0)}
         >
-          {renderSectionTitle(objectType === 'pipe' ? 'Геометрия трубы' : 'Форма и геометрия резервуара', 2)}
+          {renderSectionTitle(
+            objectType === 'pipe'
+              ? 'Геометрия и размещение трубы'
+              : 'Геометрия и размещение резервуара',
+            1,
+          )}
           <Form.Item
             className="name-form-item helped-form-item"
             label={fieldLabel('name', heatCalcObjectType)}
@@ -672,6 +674,7 @@ export default function ObjectWizard({
           <InsulationLayersStep
             objectType={heatCalcObjectType}
             fieldInputSettings={fieldInputSettings}
+            watchedValues={watchedValues}
             layerCount={layerCount}
             insulationMaterials={insulationMaterials}
             insulationMaterialOptions={insulationMaterialOptions}
@@ -699,7 +702,6 @@ export default function ObjectWizard({
             onClimatePickerOpen={() => setClimateReferenceRequested(true)}
             hasClimate={hasClimate}
             climateBasisDisplay={climateBasisDisplay}
-            watchedValues={watchedValues}
             showWindField={showWindField}
             showAlphaField={showAlphaField}
             ambientTemperatureSourceFallback={watchedValue('ambient_temperature_source')}

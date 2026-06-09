@@ -48,10 +48,10 @@ export default function ElectricalAndFittingsStep({ objectType, fieldInputSettin
     <>
       {/* Электрические параметры (supply_voltage, min_switch_temperature,
           steam_tracing, vapor_temperature) не относятся к теплорасчёту и
-          вынесены со страницы «Электрорасчёт» (recalc-контролы). Здесь они
+          вводятся на странице «Электрорасчёт» (recalc-контролы). Здесь они
           держатся скрытыми только для сохранения значения при редактировании
-          объекта (round-trip) — в секции «Геометрия трубы» их видимый ввод
-          намеренно убран. */}
+          объекта (round-trip) — видимый ввод из SC-03 намеренно убран.
+          См. docs/analysis/sc03-heat-form-cleanup-2026-06-10.md. */}
       <Form.Item name="min_switch_temperature" hidden>
         <UnitInputNumber data-testid="min-switch-temperature-input" unit="°C" />
       </Form.Item>
