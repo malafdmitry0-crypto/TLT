@@ -190,66 +190,40 @@ x_validate_positive__mutmut_mutants : ClassVar[MutantDict] = { # type: ignore
 x_validate_positive__mutmut_orig.__name__ = 'x_validate_positive'
 
 
-def validate_temperature_range(
-    ambient: float, process: float
-) -> None:
+def validate_temperature_range(ambient: float, process: float) -> None:
     args = [ambient, process]# type: ignore
     kwargs = {}# type: ignore
     return _mutmut_trampoline(x_validate_temperature_range__mutmut_orig, x_validate_temperature_range__mutmut_mutants, args, kwargs, None)
 
 
-def x_validate_temperature_range__mutmut_orig(
-    ambient: float, process: float
-) -> None:
+def x_validate_temperature_range__mutmut_orig(ambient: float, process: float) -> None:
     if process <= ambient:
-        raise ValueError(
-            "Температура продукта должна быть выше температуры окружающей среды"
-        )
+        raise ValueError("Температура продукта должна быть выше температуры окружающей среды")
 
 
-def x_validate_temperature_range__mutmut_1(
-    ambient: float, process: float
-) -> None:
+def x_validate_temperature_range__mutmut_1(ambient: float, process: float) -> None:
     if process < ambient:
-        raise ValueError(
-            "Температура продукта должна быть выше температуры окружающей среды"
-        )
+        raise ValueError("Температура продукта должна быть выше температуры окружающей среды")
 
 
-def x_validate_temperature_range__mutmut_2(
-    ambient: float, process: float
-) -> None:
+def x_validate_temperature_range__mutmut_2(ambient: float, process: float) -> None:
     if process <= ambient:
-        raise ValueError(
-            None
-        )
+        raise ValueError(None)
 
 
-def x_validate_temperature_range__mutmut_3(
-    ambient: float, process: float
-) -> None:
+def x_validate_temperature_range__mutmut_3(ambient: float, process: float) -> None:
     if process <= ambient:
-        raise ValueError(
-            "XXТемпература продукта должна быть выше температуры окружающей средыXX"
-        )
+        raise ValueError("XXТемпература продукта должна быть выше температуры окружающей средыXX")
 
 
-def x_validate_temperature_range__mutmut_4(
-    ambient: float, process: float
-) -> None:
+def x_validate_temperature_range__mutmut_4(ambient: float, process: float) -> None:
     if process <= ambient:
-        raise ValueError(
-            "температура продукта должна быть выше температуры окружающей среды"
-        )
+        raise ValueError("температура продукта должна быть выше температуры окружающей среды")
 
 
-def x_validate_temperature_range__mutmut_5(
-    ambient: float, process: float
-) -> None:
+def x_validate_temperature_range__mutmut_5(ambient: float, process: float) -> None:
     if process <= ambient:
-        raise ValueError(
-            "ТЕМПЕРАТУРА ПРОДУКТА ДОЛЖНА БЫТЬ ВЫШЕ ТЕМПЕРАТУРЫ ОКРУЖАЮЩЕЙ СРЕДЫ"
-        )
+        raise ValueError("ТЕМПЕРАТУРА ПРОДУКТА ДОЛЖНА БЫТЬ ВЫШЕ ТЕМПЕРАТУРЫ ОКРУЖАЮЩЕЙ СРЕДЫ")
 
 x_validate_temperature_range__mutmut_mutants : ClassVar[MutantDict] = { # type: ignore
 'x_validate_temperature_range__mutmut_1': x_validate_temperature_range__mutmut_1, 

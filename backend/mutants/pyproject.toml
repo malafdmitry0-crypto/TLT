@@ -7,10 +7,24 @@ requires-python = ">=3.11"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+exclude = [".local", "mutants"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "B", "UP", "SIM", "RUF"]
-ignore = ["E501"]
+ignore = [
+    "E501",    # длинные строки
+    "RUF001",  # кириллица в строках (проект русскоязычный)
+    "RUF002",  # кириллица в docstrings
+    "RUF003",  # кириллица в комментариях
+    "B008",    # FastAPI-идиома: Depends() в default-аргументах
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Формулы: физические величины (A, B, L, K, R) — по ТЗ/formules.md
+"app/formulas/**" = ["N806"]
+"app/services/excel_import_service.py" = ["N806"]
+# Тесты: физические имена в кейсах (DN100, K, L_times_K), compact-стиль
+"app/tests/**" = ["N802", "N806", "E702", "E402", "B017", "B023", "N817", "RUF012"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -30,11 +44,13 @@ addopts = "-ra -q --cov=app --cov-fail-under=85 --cov-report=term-missing:skip-c
 
 [tool.mutmut]
 # Mutation testing — проверка качества тестов, не их количества.
-# Цель: критичные формулы (расчёт теплопотерь / подбор кабеля).
-# Запуск: mutmut run; mutmut results
+# Цель: критичные формулы (расчет теплопотерь / подбор кабеля).
+# Запуск: scripts/formula-qa.sh mutation
 paths_to_mutate = ["app/formulas/"]
 runner = "python -m pytest -x --no-cov -q app/tests/unit/formulas"
-tests_dir = "app/tests/unit/formulas"
+pytest_add_cli_args = ["--no-cov"]
+tests_dir = ["app/tests/unit/formulas"]
+also_copy = ["app"]
 backup = false
 
 [tool.bandit]
