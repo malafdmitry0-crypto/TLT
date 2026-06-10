@@ -45,6 +45,7 @@ import ElecCalcCableMarkModal from '@/pages/electrical/ElecCalcCableMarkModal';
 import ElecCalcCableSizingModal from '@/pages/electrical/ElecCalcCableSizingModal';
 import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
 import ElecCalcErrorSummary from '@/pages/electrical/ElecCalcErrorSummary';
+import ElecCalcParamsPanel from '@/pages/electrical/ElecCalcParamsPanel';
 import ElecCalcRecalculationSettings from '@/pages/electrical/ElecCalcRecalculationSettings';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject } from '@/types/project';
@@ -125,6 +126,9 @@ import { useElecCalcTableProjection } from '@/pages/electrical/useElecCalcTableP
 import { useElecCalcTableDimensions } from '@/pages/electrical/useElecCalcTableDimensions';
 import { useElecCalcTableNavigation } from '@/pages/electrical/useElecCalcTableNavigation';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
+import { readStorageJson } from '@/utils/storage';
+
+const ELECCALC_PARAMS_PANEL_STORAGE_KEY = 'tlt-eleccalc-params-panel';
 
 const { Text } = Typography;
 const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
@@ -232,6 +236,19 @@ export default function ElecCalcPage() {
     : 'builtin';
   const effectiveSource: CableSource = commercialFeaturesAvailable ? cableSource : 'builtin';
   const [overwriteManualChoices, setOverwriteManualChoices] = useState(false);
+  // Блок заполнения параметров (аналог SC-03); пока виден — компактные
+  // контролы в тулбаре скрываются, чтобы не дублировать одни и те же поля.
+  const [paramsPanelVisible, setParamsPanelVisible] = useState<boolean>(
+    () => readStorageJson(ELECCALC_PARAMS_PANEL_STORAGE_KEY) !== false,
+  );
+  const toggleParamsPanel = useCallback((visible: boolean) => {
+    setParamsPanelVisible(visible);
+    try {
+      localStorage.setItem(ELECCALC_PARAMS_PANEL_STORAGE_KEY, JSON.stringify(visible));
+    } catch {
+      // localStorage может быть недоступен — настройка останется на сессию
+    }
+  }, []);
   const tableScrollRegionsRef = useRef<HTMLDivElement | null>(null);
   useFocusableTableScrollRegions(
     tableScrollRegionsRef,
@@ -999,6 +1016,26 @@ export default function ElecCalcPage() {
     });
   }
 
+  function handleCableTypeControlChange(next: CableTypeKey) {
+    const nextType = cableTypes.normalizeAvailableCableType(next);
+    if (selectedRowKeys.length === 0) {
+      cableTypes.setDefaultCableType(nextType);
+    } else {
+      cableTypes.setCableTypeDraftByObjectId((prev) => {
+        const nextDrafts = { ...prev };
+        for (const objectId of selectedRowKeys) {
+          if (nextType === cableTypes.getSavedCableTypeForObject(objectId)) {
+            delete nextDrafts[objectId];
+          } else {
+            nextDrafts[objectId] = nextType;
+          }
+        }
+        return nextDrafts;
+      });
+    }
+    setRecalc.connectionType('line_1ph');
+  }
+
   function renderElectricalTypeControls(
     cableType: CableTypeKey | null = cableTypes.visibleCableTypeControl,
     options: { block?: boolean } = {},
@@ -1052,12 +1089,32 @@ export default function ElecCalcPage() {
         <Space direction="vertical" size={5} style={{ width: '100%' }}>
 
         {/* Summary banner */}
-        <div className="common-data-banner">
+        <div
+          className="common-data-banner"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
+        >
           <span>
             <span className="label">СО{variant} · {bannerCableTypeLabel} · </span>
             {bannerStats}
           </span>
+          <Checkbox
+            className="actionbar-form-toggle"
+            checked={paramsPanelVisible}
+            onChange={(event) => toggleParamsPanel(event.target.checked)}
+          >
+            Показать блок заполнения параметров
+          </Checkbox>
         </div>
+
+        {paramsPanelVisible && (
+          <ElecCalcParamsPanel
+            cableType={cableTypes.visibleCableTypeControl}
+            cableTypeOptions={cableTypeOptions}
+            onCableTypeChange={handleCableTypeControlChange}
+            recalc={recalc}
+            setRecalc={setRecalc}
+          />
+        )}
         <ElecCalcErrorSummary
           failedCount={failedCount}
           activeRowId={activeRowId}
@@ -1070,7 +1127,7 @@ export default function ElecCalcPage() {
           cableTypeControlLabel={cableTypeControlLabel}
           cableTypeOptions={cableTypeOptions}
           visibleCableTypeControl={cableTypes.visibleCableTypeControl}
-          typeControls={defaultElectricalTypeControls}
+          typeControls={paramsPanelVisible ? null : defaultElectricalTypeControls}
           commercialFeaturesAvailable={commercialFeaturesAvailable}
           copyVariantMenuItems={copyVariantMenuItems}
           copyVariantPending={copyVariantMut.isPending}
@@ -1095,25 +1152,7 @@ export default function ElecCalcPage() {
             setVariant(nextVariant);
           }}
           onCopyVariant={showCopyVariantConfirm}
-          onCableTypeChange={(next) => {
-            const nextType = cableTypes.normalizeAvailableCableType(next);
-            if (selectedRowKeys.length === 0) {
-              cableTypes.setDefaultCableType(nextType);
-            } else {
-              cableTypes.setCableTypeDraftByObjectId((prev) => {
-                const nextDrafts = { ...prev };
-                for (const objectId of selectedRowKeys) {
-                  if (nextType === cableTypes.getSavedCableTypeForObject(objectId)) {
-                    delete nextDrafts[objectId];
-                  } else {
-                    nextDrafts[objectId] = nextType;
-                  }
-                }
-                return nextDrafts;
-              });
-            }
-            setRecalc.connectionType('line_1ph');
-          }}
+          onCableTypeChange={handleCableTypeControlChange}
           onManualOverwritePromptOpen={() => setOverwriteManualChoices(false)}
           onRecalculateSelected={(skipManual) =>
             batchMut.mutate({

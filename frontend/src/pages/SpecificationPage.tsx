@@ -42,9 +42,12 @@ import SpecTable from '@/components/specification/SpecTable';
 import QueryError from '@/components/common/QueryError';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import { ROUTES } from '@/routes/routes';
+import { readStorageJson } from '@/utils/storage';
 import type { SpecificationItem } from '@/types/specification';
 
 const { Text } = Typography;
+
+const SPEC_PARAMS_PANEL_STORAGE_KEY = 'tlt-spec-params-panel';
 
 type GroupBy = 'none' | 'category' | 'unit';
 
@@ -77,6 +80,18 @@ export default function SpecificationPage() {
   const [endSectionIndication, setEndSectionIndication] = useState(false);
   const [topIndication, setTopIndication] = useState(false);
   const [minLengthK2i, setMinLengthK2i] = useState<number>(0);
+  // Блок заполнения параметров (аналог SC-03) — только для сотрудника
+  const [paramsPanelVisible, setParamsPanelVisible] = useState<boolean>(
+    () => readStorageJson(SPEC_PARAMS_PANEL_STORAGE_KEY) !== false,
+  );
+  const toggleParamsPanel = (visible: boolean) => {
+    setParamsPanelVisible(visible);
+    try {
+      localStorage.setItem(SPEC_PARAMS_PANEL_STORAGE_KEY, JSON.stringify(visible));
+    } catch {
+      // localStorage может быть недоступен — настройка останется на сессию
+    }
+  };
 
   const {
     data: spec,
@@ -208,8 +223,139 @@ export default function SpecificationPage() {
 
   const categoriesCount = new Set(items.map((i) => i.category)).size;
 
+  const fullModeActive = specMode === 'full';
+
   return (
     <>
+      {isEmployee && (
+        <div
+          className="common-data-banner"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            marginBottom: 5,
+          }}
+        >
+          <span>
+            <span className="label">
+              СО{variant} · спецификация: {fullModeActive ? 'полная (BOM ТНП)' : 'базовая'} ·{' '}
+            </span>
+            позиций: {items.length}
+          </span>
+          <Checkbox
+            className="actionbar-form-toggle"
+            checked={paramsPanelVisible}
+            onChange={(event) => toggleParamsPanel(event.target.checked)}
+          >
+            Показать блок заполнения параметров
+          </Checkbox>
+        </div>
+      )}
+
+      {isEmployee && paramsPanelVisible && (
+        <div
+          className="form-grid-srs workflow-params-panel"
+          data-testid="spec-params-panel"
+          style={{ marginBottom: 5 }}
+        >
+          <div className="form-col-srs">
+            <h4 data-step={1}><span>Режим и резерв</span></h4>
+            <div className="workflow-params-row">
+              <Text className="workflow-params-label">Режим спецификации</Text>
+              <Segmented<'basic' | 'full'>
+                size="small"
+                value={specMode}
+                onChange={setSpecMode}
+                options={[
+                  { label: 'Базовая', value: 'basic' },
+                  { label: 'Полная', value: 'full' },
+                ]}
+              />
+            </div>
+            <div className="workflow-params-row">
+              <Text className="workflow-params-label">Резерв R,гр (1–3)</Text>
+              <InputNumber
+                aria-label="Резерв R,гр"
+                min={1}
+                max={3}
+                step={0.1}
+                size="small"
+                disabled={!fullModeActive}
+                value={reserveCoeff}
+                onChange={(v) => setReserveCoeff(Number(v ?? 1))}
+                style={{ width: 110 }}
+              />
+            </div>
+            {!fullModeActive && (
+              <Text className="workflow-params-hint">
+                Базовая: кабель + минимум аксессуаров. Полная — условный BOM по
+                ТНП (коробки СКВ, комплекты КСН/КСВ/КСР, вводы, крепёж, ленты).
+              </Text>
+            )}
+          </div>
+          <div className="form-col-srs">
+            <h4 data-step={2}><span>Требования ТНП (Ex и индикация)</span></h4>
+            <div className="workflow-params-row">
+              <Checkbox
+                disabled={!fullModeActive}
+                checked={exZone}
+                onChange={(e) => setExZone(e.target.checked)}
+              >
+                <span style={{ fontSize: 12 }}>Взрывоопасная зона (Ex)</span>
+              </Checkbox>
+            </div>
+            <div className="workflow-params-row">
+              <Checkbox
+                disabled={!fullModeActive}
+                checked={indicationOnBoxes}
+                onChange={(e) => setIndicationOnBoxes(e.target.checked)}
+              >
+                <span style={{ fontSize: 12 }}>Индикация питания на коробках (К1i)</span>
+              </Checkbox>
+            </div>
+            <div className="workflow-params-row">
+              <Checkbox
+                disabled={!fullModeActive}
+                checked={endSectionIndication}
+                onChange={(e) => setEndSectionIndication(e.target.checked)}
+              >
+                <span style={{ fontSize: 12 }}>Индикация в конце нагр. секции (К2i)</span>
+              </Checkbox>
+            </div>
+            <div className="workflow-params-row">
+              <Checkbox
+                disabled={!fullModeActive}
+                checked={topIndication}
+                onChange={(e) => setTopIndication(e.target.checked)}
+              >
+                <span style={{ fontSize: 12 }}>Индикация сверху коробки (Кiu)</span>
+              </Checkbox>
+            </div>
+            {fullModeActive && endSectionIndication && (
+              <div className="workflow-params-row">
+                <Text className="workflow-params-label">L,К2i — мин. длина секции, м</Text>
+                <InputNumber
+                  aria-label="Мин. длина секции для К2i"
+                  min={0}
+                  step={10}
+                  size="small"
+                  value={minLengthK2i}
+                  onChange={(v) => setMinLengthK2i(Number(v ?? 0))}
+                  style={{ width: 110 }}
+                />
+              </div>
+            )}
+            {!fullModeActive && (
+              <Text className="workflow-params-hint">
+                Требования применяются в режиме «Полная».
+              </Text>
+            )}
+          </div>
+        </div>
+      )}
+
       <Row className="specification-page-layout" gutter={12} align="top">
         <Col className="specification-page-sidebar" flex="0 0 240px">
           <Card size="small" style={{ height: '100%' }}>
@@ -232,98 +378,8 @@ export default function SpecificationPage() {
                 {hasItems ? 'Пересчитать' : 'Сформировать'}
               </Button>
 
-              {isEmployee && (
-                <div>
-                  <Text style={{ fontSize: 11, color: '#888' }}>Режим</Text>
-                  <Segmented<'basic' | 'full'>
-                    block
-                    size="small"
-                    value={specMode}
-                    onChange={setSpecMode}
-                    options={[
-                      { label: 'Базовая', value: 'basic' },
-                      { label: 'Полная', value: 'full' },
-                    ]}
-                    style={{ marginTop: 4 }}
-                  />
-                </div>
-              )}
-
-              {isEmployee && specMode === 'full' && (
-                <div
-                  style={{
-                    padding: '6px 8px',
-                    background: '#f6f8fa',
-                    borderRadius: 6,
-                    border: '1px solid #e8e8e8',
-                  }}
-                >
-                  <Text style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
-                    Параметры полного BOM
-                  </Text>
-                  <div style={{ marginBottom: 6 }}>
-                    <Text style={{ fontSize: 11, color: '#888' }}>Взрывозона (Ex)</Text>
-                    <Segmented<'no' | 'yes'>
-                      block
-                      size="small"
-                      value={exZone ? 'yes' : 'no'}
-                      onChange={(v) => setExZone(v === 'yes')}
-                      options={[
-                        { label: 'Нет', value: 'no' },
-                        { label: 'Да', value: 'yes' },
-                      ]}
-                      style={{ marginTop: 2 }}
-                    />
-                  </div>
-                  <div style={{ marginBottom: 6 }}>
-                    <Text style={{ fontSize: 11, color: '#888' }}>Резерв R,гр</Text>
-                    <InputNumber
-                      min={1}
-                      max={3}
-                      step={0.1}
-                      size="small"
-                      value={reserveCoeff}
-                      onChange={(v) => setReserveCoeff(Number(v ?? 1))}
-                      style={{ width: '100%', marginTop: 2 }}
-                    />
-                  </div>
-                  <div style={{ marginBottom: 6 }}>
-                    <Checkbox
-                      checked={indicationOnBoxes}
-                      onChange={(e) => setIndicationOnBoxes(e.target.checked)}
-                    >
-                      <Text style={{ fontSize: 11 }}>Индикация питания (К1i)</Text>
-                    </Checkbox>
-                    <Checkbox
-                      checked={endSectionIndication}
-                      onChange={(e) => setEndSectionIndication(e.target.checked)}
-                    >
-                      <Text style={{ fontSize: 11 }}>Индикация конца секции (К2i)</Text>
-                    </Checkbox>
-                    <Checkbox
-                      checked={topIndication}
-                      onChange={(e) => setTopIndication(e.target.checked)}
-                    >
-                      <Text style={{ fontSize: 11 }}>Индикация сверху коробки (Кiu)</Text>
-                    </Checkbox>
-                  </div>
-                  {endSectionIndication && (
-                    <div>
-                      <Text style={{ fontSize: 11, color: '#888' }}>
-                        Мин. длина секции для К2i (L,К2i), м
-                      </Text>
-                      <InputNumber
-                        min={0}
-                        step={10}
-                        size="small"
-                        value={minLengthK2i}
-                        onChange={(v) => setMinLengthK2i(Number(v ?? 0))}
-                        style={{ width: '100%', marginTop: 2 }}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Режим и параметры полного BOM — в блоке заполнения параметров
+                  над таблицей (workflow-params-panel), как на SC-03. */}
 
               {isEmployee && (
                 <Button

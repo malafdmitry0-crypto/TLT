@@ -1,0 +1,178 @@
+import { memo } from 'react';
+import { Checkbox, InputNumber, Select, Typography } from 'antd';
+
+import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
+import {
+  SINGLE_CORE_CONNECTION_OPTIONS,
+  THREE_CORE_CONNECTION_OPTIONS,
+  type ElecCalcTypeControlSetters,
+  type ElecCalcTypeControlValues,
+} from '@/pages/electrical/elecCalcTypeControlModel';
+
+const { Text } = Typography;
+
+type ElecCalcParamsPanelProps = {
+  cableType: CableTypeKey | null;
+  cableTypeOptions: Array<{ label: string; value: CableTypeKey }>;
+  onCableTypeChange: (next: CableTypeKey) => void;
+  recalc: ElecCalcTypeControlValues;
+  setRecalc: ElecCalcTypeControlSetters;
+};
+
+function row(label: string, control: React.ReactNode) {
+  return (
+    <div className="workflow-params-row">
+      <Text className="workflow-params-label">{label}</Text>
+      {control}
+    </div>
+  );
+}
+
+/**
+ * Блок заполнения параметров электрорасчёта — оранжевый блок листа ТНП
+ * «Список переменных» (алгоритм выбора кабеля). Визуально повторяет секции
+ * SC-03 на теплорасчёте. Пишет в тот же recalc-state, что и компактные
+ * контролы тулбара (которые скрываются, пока панель видима).
+ */
+function ElecCalcParamsPanel({
+  cableType,
+  cableTypeOptions,
+  onCableTypeChange,
+  recalc,
+  setRecalc,
+}: ElecCalcParamsPanelProps) {
+  const isTt = cableType === 'self_regulating_tt';
+  const isResistive = cableType === 'single_core' || cableType === 'three_core';
+  const connectionOptions = cableType === 'single_core'
+    ? SINGLE_CORE_CONNECTION_OPTIONS
+    : THREE_CORE_CONNECTION_OPTIONS;
+
+  return (
+    <div className="form-grid-srs workflow-params-panel" data-testid="eleccalc-params-panel">
+      <div className="form-col-srs">
+        <h4 data-step={1}><span>Кабель и схема подключения</span></h4>
+        {row('Тип кабеля', (
+          <Select<CableTypeKey>
+            aria-label="Тип кабеля"
+            size="small"
+            value={cableType ?? undefined}
+            onChange={onCableTypeChange}
+            options={cableTypeOptions}
+            style={{ minWidth: 150, flex: 1 }}
+          />
+        ))}
+        {isResistive && row('Схема соединения', (
+          <Select
+            aria-label="Схема подключения"
+            size="small"
+            value={recalc.connectionType}
+            onChange={setRecalc.connectionType}
+            options={connectionOptions}
+            style={{ minWidth: 150, flex: 1 }}
+          />
+        ))}
+        {!isResistive && (
+          <Text className="workflow-params-hint">
+            Марка кабеля — авторасчёт или ручной выбор по объекту
+            (кнопки «Выбор» / «Подбор» в таблице).
+          </Text>
+        )}
+      </div>
+
+      <div className="form-col-srs">
+        <h4 data-step={2}><span>Электропитание и температуры</span></h4>
+        {row('Напряжение U, В', (
+          <InputNumber<number>
+            aria-label="Напряжение питания"
+            size="small"
+            min={1}
+            value={recalc.supplyVoltage}
+            onChange={setRecalc.supplyVoltage}
+            style={{ width: 110 }}
+          />
+        ))}
+        {isTt && (
+          <>
+            {row('T пропарки (T2), °C', (
+              <InputNumber<number>
+                aria-label="T пропарки"
+                size="small"
+                value={recalc.vaporTemperature}
+                onChange={setRecalc.vaporTemperature}
+                style={{ width: 110 }}
+              />
+            ))}
+            {row('T поддержания (T3), °C', (
+              <InputNumber<number>
+                aria-label="T3 поддержания"
+                size="small"
+                value={recalc.maintainTemperature}
+                onChange={setRecalc.maintainTemperature}
+                style={{ width: 110 }}
+              />
+            ))}
+            {row('Среда (продукт)', (
+              <Checkbox
+                checked={recalc.aggressiveProduct}
+                onChange={(event) => setRecalc.aggressiveProduct(event.target.checked)}
+              >
+                <span style={{ fontSize: 12 }}>агрессивная (-СР)</span>
+              </Checkbox>
+            ))}
+          </>
+        )}
+      </div>
+
+      <div className="form-col-srs">
+        <h4 data-step={3}><span>Укладка кабеля</span></h4>
+        {isResistive ? (
+          <>
+            {row('Коэф. навива w (1–1,5)', (
+              <InputNumber<number>
+                aria-label="Коэффициент навива"
+                size="small"
+                min={1}
+                max={1.5}
+                step={0.05}
+                value={recalc.windingCoefficient}
+                onChange={setRecalc.windingCoefficient}
+                style={{ width: 110 }}
+              />
+            ))}
+            {row('Высота обогрева h, м', (
+              <InputNumber<number>
+                aria-label="Высота обогрева"
+                size="small"
+                min={0}
+                step={0.1}
+                value={recalc.heatingHeight}
+                onChange={setRecalc.heatingHeight}
+                style={{ width: 110 }}
+              />
+            ))}
+            {row('Шаг укладки, м', (
+              <InputNumber<number>
+                aria-label="Шаг укладки"
+                size="small"
+                min={0.1}
+                max={0.4}
+                step={0.01}
+                value={recalc.layingStep}
+                onChange={setRecalc.layingStep}
+                style={{ width: 110 }}
+              />
+            ))}
+          </>
+        ) : (
+          <Text className="workflow-params-hint">
+            Шаг навива и количество ниток задаются для каждого объекта
+            (колонки таблицы или модалка «Подбор»). Лимит Kn по диаметру —
+            по таблице ТНП.
+          </Text>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default memo(ElecCalcParamsPanel);
