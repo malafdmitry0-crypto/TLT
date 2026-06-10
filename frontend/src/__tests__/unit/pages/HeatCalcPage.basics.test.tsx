@@ -101,13 +101,15 @@ describe('HeatCalcPage basics', () => {
       renderPage();
 
       const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
-      expect(await screen.findByText('Геометрия и размещение трубы')).toBeInTheDocument();
+      expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
       // Пустая секция «алгоритм выбора кабеля» удалена из SC-03 (2026-06-10).
       expect(screen.queryByText('алгоритм выбора кабеля')).not.toBeInTheDocument();
       expect(screen.queryByText('Электропараметры и арматура')).not.toBeInTheDocument();
-      expect([...document.querySelectorAll('.form-grid-srs .form-col-srs > h4')].map((title) =>
+      // Три заголовка секций слиты в один баннер «Расчёт теплопотерь» (2026-06-10).
+      expect(document.querySelectorAll('.form-grid-srs .form-col-srs > h4')).toHaveLength(0);
+      expect([...document.querySelectorAll('.inline-form-section-banner')].map((title) =>
         title.textContent?.replace(/\s+/g, ' ').trim(),
-      )).toEqual(['Геометрия и размещение трубы', 'Теплоизоляция', 'Климат и температуры']);
+      )).toEqual(['Расчёт теплопотерь']);
       expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       await user.click(await within(typeToolbar).findByRole('button', { name: /Резервуар:/ }));
       expect(within(typeToolbar).getByRole('button', { name: /Резервуар:/ })).toHaveAttribute('aria-pressed', 'true');
@@ -131,11 +133,11 @@ describe('HeatCalcPage basics', () => {
       expect(screen.queryByText('Зад.')).not.toBeInTheDocument();
       expect(document.body.textContent).toMatch(/3\s*000.*2\s*000.*1\s*500 мм/);
       expect(screen.queryByText('алгоритм выбора кабеля')).not.toBeInTheDocument();
-      expect(screen.getByText('Геометрия и размещение резервуара')).toBeInTheDocument();
+      expect(screen.getByTestId('tank-shape-select')).toBeInTheDocument();
       expect(screen.queryByText('Электропараметры и арматура')).not.toBeInTheDocument();
-      expect([...document.querySelectorAll('.form-grid-srs .form-col-srs > h4')].map((title) =>
+      expect([...document.querySelectorAll('.inline-form-section-banner')].map((title) =>
         title.textContent?.replace(/\s+/g, ' ').trim(),
-      )).toEqual(['Геометрия и размещение резервуара', 'Теплоизоляция', 'Климат и температуры']);
+      )).toEqual(['Расчёт теплопотерь']);
 
       await user.click(screen.getByText('Резервуар прямоугольный'));
       await waitFor(() => {
@@ -147,7 +149,8 @@ describe('HeatCalcPage basics', () => {
       await waitFor(() => {
         expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       });
-      expect(screen.getByText('Геометрия и размещение трубы')).toBeInTheDocument();
+      expect(screen.getByTestId('pipe-lambda-mode-select')).toBeInTheDocument();
+      expect(screen.queryByTestId('tank-shape-select')).not.toBeInTheDocument();
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('режим «Все» показывает трубопроводы и резервуары в одной таблице', async () => {
@@ -298,7 +301,7 @@ describe('HeatCalcPage basics', () => {
 
       const formActionsToolbar = screen.getByRole('toolbar', { name: 'Действия блока заполнения' });
       const addButton = within(formActionsToolbar).getByRole('button', { name: 'Добавить' });
-      expect(await screen.findByText('Геометрия и размещение трубы')).toBeInTheDocument();
+      expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
       await user.type(screen.getByTestId('object-name-input'), 'Черновик трубы');
       await user.click(addButton);
       await waitFor(() => {
@@ -308,7 +311,7 @@ describe('HeatCalcPage basics', () => {
       await user.click(screen.getByRole('button', { name: /Резервуар:/ }));
       await user.click(addButton);
 
-      expect(await screen.findByText('Геометрия и размещение резервуара')).toBeInTheDocument();
+      expect(await screen.findByTestId('tank-shape-select')).toBeInTheDocument();
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('основные действия toolbar доступны по имени при icon-only отображении', async () => {
@@ -372,7 +375,7 @@ describe('HeatCalcPage basics', () => {
       expect(within(typeToolbar).getByRole('button', { name: /Резервуар:\s*0/ })).toBeInTheDocument();
       expect(within(typeToolbar).getByRole('button', { name: /Все:\s*0/ })).toBeInTheDocument();
       expect(screen.queryByLabelText('Количество объектов')).not.toBeInTheDocument();
-      expect(await screen.findByText('Геометрия и размещение трубы')).toBeInTheDocument();
+      expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Сбросить' })).not.toBeInTheDocument();
     });
 
@@ -389,7 +392,7 @@ describe('HeatCalcPage basics', () => {
       });
       expect(visibilityToggle).toBeChecked();
       expect(paramsBlock()).toBeVisible();
-      expect(await screen.findByText('Геометрия и размещение трубы')).toBeInTheDocument();
+      expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
       await user.type(screen.getByTestId('object-name-input'), 'Черновик трубы');
       expect(screen.getByTestId('object-name-input')).toHaveValue('Черновик трубы');
 
@@ -406,7 +409,7 @@ describe('HeatCalcPage basics', () => {
 
       await user.click(visibilityToggle);
       expect(visibilityToggle).toBeChecked();
-      expect(await screen.findByText('Геометрия и размещение трубы')).toBeInTheDocument();
+      expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
       expect(screen.getByRole('toolbar', { name: 'Действия блока заполнения' })).toBeInTheDocument();
       expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       expect(screen.getByTestId('object-name-input')).toHaveValue('');
@@ -453,7 +456,7 @@ describe('HeatCalcPage basics', () => {
         .toBeChecked();
       expect(within(formActionsToolbar).getByRole('button', { name: 'Добавить' })).toBeVisible();
       expect(within(tableActionsToolbar).getByRole('button', { name: 'Настройки отображения' })).toBeVisible();
-      expect(await screen.findByText('Геометрия и размещение трубы')).toBeInTheDocument();
+      expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
     });
   });
 });

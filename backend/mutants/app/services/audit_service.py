@@ -78,7 +78,7 @@ class AuditService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def record(
+    def _build_event(
         self,
         *,
         event_type: str,
@@ -100,8 +100,13 @@ class AuditService:
         after_state: dict[str, Any] | None = None,
         error_code: str | None = None,
         message: str | None = None,
-        commit: bool = False,
     ) -> AuditEvent | None:
+        """Собирает ORM-объект события (редакция + валидация payload).
+
+        Чистая работа в памяти, без обращения к БД — именно здесь возможны
+        реалистичные «аудит-специфичные» сбои (сериализация params/results),
+        которые isolating-обёртки ловят, чтобы не срывать бизнес-операцию.
+        """
         if not settings.AUDIT_ENABLED:
             return None
         actor_fields = _actor_fields(principal)
@@ -132,13 +137,40 @@ class AuditService:
             message=message,
             **actor_fields,
         )
-        event = AuditEvent(**payload.model_dump())
+        return AuditEvent(**payload.model_dump())
+
+    async def record(self, *, commit: bool = False, **kwargs: Any) -> AuditEvent | None:
+        event = self._build_event(**kwargs)
+        if event is None:
+            return None
         self.db.add(event)
         if commit:
             await self.db.commit()
             await self.db.refresh(event)
         else:
             await self.db.flush()
+        return event
+
+    async def stage(self, **kwargs: Any) -> AuditEvent | None:
+        """Добавляет событие в ТЕКУЩУЮ транзакцию без собственного commit/flush.
+
+        Бизнес-хендлер коммитит один раз — событие и бизнес-изменение ложатся в
+        одну транзакцию (один round-trip вместо двух у try_record). Сбой сборки
+        payload изолируется (fail-open при AUDIT_FAIL_CLOSED=false), как и у
+        try_record; жёсткий сбой БД остаётся общей судьбой бизнес-commit.
+        """
+        if not settings.AUDIT_ENABLED:
+            return None
+        try:
+            event = self._build_event(**kwargs)
+        except Exception:
+            logger.exception("Failed to build audit event")
+            if settings.AUDIT_FAIL_CLOSED:
+                raise
+            return None
+        if event is None:
+            return None
+        self.db.add(event)
         return event
 
     async def try_record(self, **kwargs: Any) -> AuditEvent | None:

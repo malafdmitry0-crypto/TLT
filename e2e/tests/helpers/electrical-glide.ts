@@ -25,11 +25,32 @@ export async function expectElectricalGridHasNoOpenEditor(page: Page) {
   await expect(page.locator('.electrical-spreadsheet--glide .ant-select-selector')).toHaveCount(0);
 }
 
-const FIRST_ROW_CENTER_Y = 52;
-const LAYOUT_COLUMN_CENTER_X: Record<'winding_pitch_mm' | 'number_of_threads', number> = {
-  winding_pitch_mm: 708,
-  number_of_threads: 775,
-};
+async function electricalGridCellCenter(
+  page: Page,
+  column: 'winding_pitch_mm' | 'number_of_threads',
+) {
+  const grid = page.locator('.electrical-spreadsheet--glide').first();
+  return grid.evaluate((element, targetColumn) => {
+    const rawColumns = element.getAttribute('data-glide-visible-columns') ?? '';
+    const rowMarkerWidth = Number(element.getAttribute('data-glide-row-marker-width') ?? '52');
+    const rowHeight = Number(element.getAttribute('data-glide-row-height') ?? '30');
+    let left = Number.isFinite(rowMarkerWidth) ? rowMarkerWidth : 52;
+
+    for (const rawColumn of rawColumns.split('|')) {
+      const [key, rawWidth] = rawColumn.split(':');
+      const width = Number(rawWidth);
+      if (!key || !Number.isFinite(width) || width <= 0) continue;
+      if (key === targetColumn) {
+        return {
+          x: left + width / 2,
+          y: (Number.isFinite(rowHeight) ? rowHeight : 30) + 8 + (Number.isFinite(rowHeight) ? rowHeight : 30) / 2,
+        };
+      }
+      left += width;
+    }
+    return null;
+  }, column);
+}
 
 export async function editFirstElectricalGridLayoutCell(
   page: Page,
@@ -40,7 +61,10 @@ export async function editFirstElectricalGridLayoutCell(
   const canvas = page.locator('.electrical-spreadsheet--glide canvas').first();
   const box = await canvas.boundingBox();
   expect(box).toBeTruthy();
-  await page.mouse.click(box!.x + LAYOUT_COLUMN_CENTER_X[column], box!.y + FIRST_ROW_CENTER_Y);
+  const center = await electricalGridCellCenter(page, column);
+  expect(center).toBeTruthy();
+  expect(center!.x).toBeLessThan(box!.width);
+  await page.mouse.click(box!.x + center!.x, box!.y + center!.y);
   const editor = page.getByTestId('heatcalc-normal-glide-cell-editor');
   await expect(editor).toBeVisible();
   await editor.fill(value);

@@ -30,6 +30,10 @@ class Specification(Base, TimestampMixin):
     )
     variant_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     items: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list)
+    # Режим последней генерации ('basic'/'full') и её опции (R,гр, Ex, К1i/К2i/Кiu).
+    # Нужны, чтобы «Пересчитать» не подменял полный BOM базовым после перезагрузки UI.
+    generation_mode: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    generation_options: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     is_stale: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

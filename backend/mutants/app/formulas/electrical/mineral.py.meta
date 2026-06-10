@@ -6,10 +6,10 @@
         "app.formulas.electrical.mineral.x_calc_mineral__mutmut_4": 1
     },
     "durations_by_key": {
-        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_1": 0.103514,
-        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_2": 0.103353,
-        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_3": 0.112847,
-        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_4": 0.114901
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_2": 0.112825,
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_1": 0.149194,
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_3": 0.14536,
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_4": 0.149477
     },
     "type_check_error_by_key": {},
     "estimated_durations_by_key": {

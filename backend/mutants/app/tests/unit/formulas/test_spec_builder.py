@@ -188,7 +188,7 @@ class TestSpecBuilder:
         assert cables[0].quantity == 44.0
 
     def test_tt_cable_uses_full_order_mark_with_suffix(self):
-        """Для агрессивной среды в спецификацию должна попасть марка -СТ, не база."""
+        """В спецификацию попадает полная марка с суффиксом (-СТ/-СР), не база."""
         results = [
             {
                 "selected_cable": "30ТТВ2",

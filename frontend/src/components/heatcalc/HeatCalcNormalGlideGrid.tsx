@@ -988,7 +988,15 @@ function HeatCalcNormalGlideGrid({
   }
 
   return (
-    <div ref={rootRef} className={`calc-spreadsheet heatcalc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`}>
+    <div
+      ref={rootRef}
+      className={`calc-spreadsheet heatcalc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`}
+      data-glide-row-marker-width={NORMAL_ROW_MARKER_WIDTH}
+      data-glide-row-height={rowHeight}
+      data-glide-visible-columns={editorColumns
+        .map((column) => `${column.id}:${Math.round(Number(column.width) || 0)}`)
+        .join('|')}
+    >
       <DataEditor
         className="heatcalc-glide-editor"
         ref={editorRef}

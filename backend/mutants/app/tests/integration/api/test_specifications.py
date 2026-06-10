@@ -142,6 +142,40 @@ class TestSpecification:
         assert resp.status_code in (200, 404)
         # Если 200 — должен быть пустой массив, если 404 — нет данных
 
+    async def test_guest_full_mode_returns_403(self, client: AsyncClient, guest_session: str):
+        """Полная спецификация — функция сотрудника: гостю явный 403, не тихий даунгрейд."""
+        p = (await client.get("/api/v1/projects", headers={"X-Session-Id": guest_session})).json()[
+            0
+        ]
+        resp = await client.post(
+            f"/api/v1/specifications/{p['id']}/generate",
+            json={"mode": "full"},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert resp.status_code == 403
+
+    async def test_generate_response_reports_mode_and_persists_it(
+        self, client: AsyncClient, employee_token: str
+    ):
+        """Ответ содержит фактический режим; режим сохраняется и виден в GET."""
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        p = (
+            await client.post("/api/v1/projects", json={"name": "Spec-Mode"}, headers=headers)
+        ).json()
+        resp = await client.post(
+            f"/api/v1/specifications/{p['id']}/generate",
+            json={"mode": "full", "options": {"reserve_coefficient": 1.2}},
+            headers=headers,
+        )
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["mode"] == "full"
+        assert "skipped_objects" in body
+
+        spec = (await client.get(f"/api/v1/specifications/{p['id']}", headers=headers)).json()
+        assert spec["generation_mode"] == "full"
+        assert spec["generation_options"]["reserve_coefficient"] == 1.2
+
     async def test_save_items_replaces_completely(self, client: AsyncClient, employee_token: str):
         headers = {"Authorization": f"Bearer {employee_token}"}
         p = (

@@ -1515,6 +1515,45 @@ html, body, #root {
   gap: 2px;
 }
 
+/* ── Единая секция SC-03 «Расчёт теплопотерь» ────────────────────
+   Один заголовок-баннер над сеткой вместо трёх заголовков колонок;
+   колонки сохраняют свою логику, но визуально сливаются в один блок. */
+.inline-object-form .inline-form-section-banner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+  margin: 0;
+  font-size: 8px;
+  color: #2f3d4f;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  padding: 2px 6px;
+  background: #f8fbff;
+  border: 1px solid #dbe6f2;
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+}
+
+.inline-form-section-banner span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.form-grid-srs--merged {
+  border: 1px solid #dbe6f2;
+  border-radius: 0 0 7px 7px;
+  background: #fff;
+}
+
+.form-grid-srs--merged .form-col-srs {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .form-grid-srs .form-col-srs {
   display: grid;
   --field-pair-min-width: 260px;
@@ -1579,14 +1618,14 @@ html, body, #root {
 }
 
 .inline-object-form .form-col-srs--primary > .reduced-select-form-item .ant-form-item-row {
-  grid-template-columns: var(--field-label-width, 82px) minmax(var(--field-input-min-width, 128px), 1fr);
+  grid-template-columns: minmax(var(--field-label-width, 82px), 1fr) minmax(var(--field-input-min-width, 128px), 1.3fr);
 }
 
 .inline-object-form .form-col-srs--primary > .fit-label-form-item .ant-form-item-row,
 .inline-object-form .form-col-srs--primary > .numeric-form-item .ant-form-item-row,
 .inline-object-form .form-col-srs--primary > .compact-select-form-item .ant-form-item-row,
 .inline-object-form .form-col-srs--primary > .medium-select-form-item .ant-form-item-row {
-  grid-template-columns: var(--compact-field-label-width, 74px) max-content;
+  grid-template-columns: minmax(var(--compact-field-label-width, 74px), 1fr) max-content;
 }
 
 .heatcalc-form-pane--top .inline-form-srs {
@@ -1759,7 +1798,7 @@ html, body, #root {
 
 .inline-object-form .ant-form-item-row {
   display: grid;
-  grid-template-columns: var(--field-label-width, 104px) minmax(var(--field-input-min-width, 160px), 1fr);
+  grid-template-columns: minmax(var(--field-label-width, 104px), 1.1fr) minmax(var(--field-input-min-width, 160px), 1.4fr);
   column-gap: 3px;
   align-items: start;
   width: 100%;
@@ -1769,7 +1808,8 @@ html, body, #root {
 /* ── Лейбл ────────────────────────────────────────────────────── */
 .inline-object-form .ant-form-item-label {
   padding: 0;
-  width: var(--field-label-width, 104px);
+  width: auto;
+  min-width: 0;
   overflow: visible;
   line-height: 1.15;
   grid-column: 1;
@@ -2454,7 +2494,7 @@ html, body, #root {
 .inline-object-form .compact-select-form-item .ant-form-item-row,
 .inline-object-form .medium-select-form-item .ant-form-item-row,
 .inline-object-form .layer-count-form-item .ant-form-item-row {
-  grid-template-columns: var(--compact-field-label-width, 84px) max-content;
+  grid-template-columns: minmax(var(--compact-field-label-width, 84px), 1fr) max-content;
 }
 
 .inline-object-form .fit-label-form-item .ant-form-item-label,
@@ -2462,7 +2502,8 @@ html, body, #root {
 .inline-object-form .compact-select-form-item .ant-form-item-label,
 .inline-object-form .medium-select-form-item .ant-form-item-label,
 .inline-object-form .layer-count-form-item .ant-form-item-label {
-  width: var(--compact-field-label-width, 84px);
+  width: auto;
+  min-width: 0;
 }
 
 .inline-object-form .fit-label-form-item .ant-form-item-control,
@@ -2600,7 +2641,8 @@ html, body, #root {
 
 .inline-object-form .pipe-material-form-item .ant-form-item-label,
 .inline-object-form .fixed-select-form-item .ant-form-item-label {
-  width: var(--field-label-width, 104px);
+  width: auto;
+  min-width: 0;
 }
 
 .inline-object-form .pipe-material-form-item .ant-select,
@@ -2617,11 +2659,12 @@ html, body, #root {
 }
 
 .inline-object-form .insulation-temperature-basis-form-item .ant-form-item-row {
-  grid-template-columns: 112px minmax(180px, 1fr);
+  grid-template-columns: minmax(112px, 1fr) minmax(180px, 1.3fr);
 }
 
 .inline-object-form .insulation-temperature-basis-form-item .ant-form-item-label {
-  width: 112px;
+  width: auto;
+  min-width: 0;
 }
 
 .inline-object-form .insulation-temperature-basis-form-item .ant-select {
@@ -2634,7 +2677,7 @@ html, body, #root {
 }
 
 .inline-object-form .reduced-select-form-item .ant-form-item-row {
-  grid-template-columns: var(--field-label-width, 104px) minmax(var(--field-input-min-width, 160px), 52%);
+  grid-template-columns: minmax(var(--field-label-width, 104px), 1fr) minmax(var(--field-input-min-width, 160px), 1.2fr);
 }
 
 .inline-object-form .insulation-layer-count-form-item {
@@ -4475,22 +4518,39 @@ html, body, #root {
 /* ── Панель заполнения параметров (электрорасчёт, спецификация) ──
    Переиспользует form-grid-srs/form-col-srs из SC-03 для единого вида. */
 .workflow-params-panel .form-col-srs {
-  flex: 1 1 0;
-  grid-template-columns: 1fr;
+  flex: 1 1 260px;
+  min-width: min(100%, 240px);
+  grid-template-columns: 1fr !important;
+  overflow: visible;
+}
+
+.workflow-params-panel .form-col-srs > h4,
+.workflow-params-panel .workflow-params-row,
+.workflow-params-panel .workflow-params-hint {
+  grid-column: 1 / -1;
 }
 
 .workflow-params-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 2px 6px;
   padding: 1px 4px;
   min-height: 26px;
 }
 
 .workflow-params-label {
-  flex: 0 0 150px;
+  flex: 1 1 160px;
+  min-width: 120px;
   font-size: 11px;
+  line-height: 1.25;
   color: #4a5a6a;
+}
+
+.workflow-params-row .workflow-params-input {
+  flex: 0 1 110px;
+  width: 110px;
+  min-width: 88px;
 }
 
 .workflow-params-hint {
@@ -4498,5 +4558,17 @@ html, body, #root {
   padding: 2px 6px 4px;
   font-size: 10px;
   line-height: 1.35;
-  color: #8a98a8;
+  color: #5d6b7a;
+}
+
+@media (max-width: 1180px) {
+  .workflow-params-panel {
+    flex-direction: column;
+  }
+
+  .workflow-params-panel .form-col-srs {
+    flex: 0 0 auto;
+    width: 100% !important;
+    min-width: 0;
+  }
 }

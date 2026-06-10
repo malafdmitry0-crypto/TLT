@@ -81,37 +81,37 @@ function ElecCalcParamsPanel({
 
       <div className="form-col-srs">
         <h4 data-step={2}><span>Электропитание и температуры</span></h4>
-        {row('Напряжение U, В', (
+        {row('Напряжение питания U, В', (
           <InputNumber<number>
             aria-label="Напряжение питания"
             size="small"
             min={1}
             value={recalc.supplyVoltage}
             onChange={setRecalc.supplyVoltage}
-            style={{ width: 110 }}
+            className="workflow-params-input"
           />
         ))}
         {isTt && (
           <>
-            {row('T пропарки (T2), °C', (
+            {row('Температура пропарки (T2), °C', (
               <InputNumber<number>
                 aria-label="T пропарки"
                 size="small"
                 value={recalc.vaporTemperature}
                 onChange={setRecalc.vaporTemperature}
-                style={{ width: 110 }}
+                className="workflow-params-input"
               />
             ))}
-            {row('T поддержания (T3), °C', (
+            {row('Температура поддержания (T3), °C', (
               <InputNumber<number>
                 aria-label="T3 поддержания"
                 size="small"
                 value={recalc.maintainTemperature}
                 onChange={setRecalc.maintainTemperature}
-                style={{ width: 110 }}
+                className="workflow-params-input"
               />
             ))}
-            {row('Среда (продукт)', (
+            {row('Среда воздействия на кабель (продукт)', (
               <Checkbox
                 checked={recalc.aggressiveProduct}
                 onChange={(event) => setRecalc.aggressiveProduct(event.target.checked)}
@@ -127,7 +127,7 @@ function ElecCalcParamsPanel({
         <h4 data-step={3}><span>Укладка кабеля</span></h4>
         {isResistive ? (
           <>
-            {row('Коэф. навива w (1–1,5)', (
+            {row('Коэффициент навива w (1–1,5)', (
               <InputNumber<number>
                 aria-label="Коэффициент навива"
                 size="small"
@@ -136,7 +136,7 @@ function ElecCalcParamsPanel({
                 step={0.05}
                 value={recalc.windingCoefficient}
                 onChange={setRecalc.windingCoefficient}
-                style={{ width: 110 }}
+                className="workflow-params-input"
               />
             ))}
             {row('Высота обогрева h, м', (
@@ -147,7 +147,7 @@ function ElecCalcParamsPanel({
                 step={0.1}
                 value={recalc.heatingHeight}
                 onChange={setRecalc.heatingHeight}
-                style={{ width: 110 }}
+                className="workflow-params-input"
               />
             ))}
             {row('Шаг укладки, м', (
@@ -159,7 +159,7 @@ function ElecCalcParamsPanel({
                 step={0.01}
                 value={recalc.layingStep}
                 onChange={setRecalc.layingStep}
-                style={{ width: 110 }}
+                className="workflow-params-input"
               />
             ))}
           </>

@@ -81,7 +81,7 @@ class TestCableSelection:
         )
         assert r.series == "ТТН"
         assert r.selected_cable == "15ТТН2"
-        assert r.cable_mark == "15ТТН2-СР"
+        assert r.cable_mark == "15ТТН2-СТ"
         assert r.num_circuits == 1
         assert r.power_per_meter * r.num_circuits >= 5.0 * 1.1
 
@@ -218,13 +218,15 @@ class TestCableSelection:
         assert r.num_circuits == 2
         assert r.power_per_meter * r.num_circuits >= 30.0
 
-    def test_suffix_sr_for_non_aggressive(self):
+    def test_suffix_st_for_non_aggressive(self):
+        # Первоисточник: -СТ = среда не агрессивная
         r = calc_self_regulating_tt(_params(aggressive_product=False))
-        assert r.cable_mark.endswith("-СР")
-
-    def test_suffix_st_for_aggressive(self):
-        r = calc_self_regulating_tt(_params(aggressive_product=True))
         assert r.cable_mark.endswith("-СТ")
+
+    def test_suffix_sr_for_aggressive(self):
+        # Первоисточник: -СР = среда агрессивная
+        r = calc_self_regulating_tt(_params(aggressive_product=True))
+        assert r.cable_mark.endswith("-СР")
 
     def test_cable_length_uses_winding_coefficient(self):
         r = calc_self_regulating_tt(_params(pipe_length=100.0, winding_coefficient=1.2))

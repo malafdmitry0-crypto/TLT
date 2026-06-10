@@ -275,7 +275,7 @@ export default function SpecificationPage() {
               />
             </div>
             <div className="workflow-params-row">
-              <Text className="workflow-params-label">Резерв R,гр (1–3)</Text>
+              <Text className="workflow-params-label">Коэффициент горячего резервирования R,гр (1–3)</Text>
               <InputNumber
                 aria-label="Резерв R,гр"
                 min={1}
@@ -285,7 +285,7 @@ export default function SpecificationPage() {
                 disabled={!fullModeActive}
                 value={reserveCoeff}
                 onChange={(v) => setReserveCoeff(Number(v ?? 1))}
-                style={{ width: 110 }}
+                className="workflow-params-input"
               />
             </div>
             {!fullModeActive && (
@@ -321,7 +321,7 @@ export default function SpecificationPage() {
                 checked={endSectionIndication}
                 onChange={(e) => setEndSectionIndication(e.target.checked)}
               >
-                <span style={{ fontSize: 12 }}>Индикация в конце нагр. секции (К2i)</span>
+                <span style={{ fontSize: 12 }}>Индикация в конце нагревательной секции (К2i)</span>
               </Checkbox>
             </div>
             <div className="workflow-params-row">
@@ -335,7 +335,7 @@ export default function SpecificationPage() {
             </div>
             {fullModeActive && endSectionIndication && (
               <div className="workflow-params-row">
-                <Text className="workflow-params-label">L,К2i — мин. длина секции, м</Text>
+                <Text className="workflow-params-label">Минимальная длина нагревательной секции для К2i (L,К2i), м</Text>
                 <InputNumber
                   aria-label="Мин. длина секции для К2i"
                   min={0}
@@ -343,7 +343,7 @@ export default function SpecificationPage() {
                   size="small"
                   value={minLengthK2i}
                   onChange={(v) => setMinLengthK2i(Number(v ?? 0))}
-                  style={{ width: 110 }}
+                  className="workflow-params-input"
                 />
               </div>
             )}

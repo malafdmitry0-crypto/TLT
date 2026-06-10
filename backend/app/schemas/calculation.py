@@ -620,7 +620,8 @@ class SelfRegulatingTTParams(BaseModel):
         description="T2 — температура пропарки для выбора серии ТТН/ТТВ/ТТХ, °C",
     )
     aggressive_product: bool = Field(
-        default=False, description="Агрессивная среда → суффикс -СТ в марке"
+        default=False,
+        description="Агрессивная среда → суффикс -СР; неагрессивная → -СТ в марке",
     )
     winding_coefficient: float = Field(
         default=1.1,

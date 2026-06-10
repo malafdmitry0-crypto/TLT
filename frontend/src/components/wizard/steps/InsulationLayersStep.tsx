@@ -74,7 +74,6 @@ export default function InsulationLayersStep({
 
   return (
     <>
-      <h4 data-step={2}><span>Теплоизоляция</span></h4>
       <Form.Item
         className="layer-count-form-item insulation-layer-count-form-item helped-form-item"
         label={fieldLabel('insulation_layer_count', objectType)}

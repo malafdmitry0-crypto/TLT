@@ -110,7 +110,7 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.getByTestId('flange-count-input')).toHaveValue('');
     expect(screen.getByTestId('support-count-input')).toHaveValue('');
     expect(screen.getByTestId('local-element-equiv-length-input')).toHaveValue('');
-    expect(screen.getByTestId('pipe-lambda-mode-select')).toHaveTextContent('Справ.');
+    expect(screen.getByTestId('pipe-lambda-mode-select')).toHaveTextContent('Справочник');
     expect(screen.getByTestId('placement-select')).toHaveTextContent('На открытом воздухе');
     expect(screen.getByTestId('insulation-layer-count-select')).toHaveTextContent('1 слой');
     expect(screen.getByTestId('insulation-cover-material-select')).toHaveTextContent('Не указано');

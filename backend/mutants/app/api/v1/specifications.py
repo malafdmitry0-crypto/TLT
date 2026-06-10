@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any, require_employee
 from app.schemas.specification import (
+    SpecificationGenerateRequest,
     SpecificationGenerateResponse,
     SpecificationItem,
     SpecificationResponse,
@@ -55,6 +56,7 @@ async def get_specification(
 async def generate_specification(
     project_id: UUID,
     variant: int = 1,
+    data: SpecificationGenerateRequest | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -65,16 +67,37 @@ async def generate_specification(
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
-    items = await SpecificationService(db).generate(project_id, variant)
+    req = data or SpecificationGenerateRequest()
+    # Полная спецификация (условный BOM ТНП) — функция полной версии (Сотрудник).
+    # Явный 403 вместо тихого даунгрейда: клиент должен знать, что режим недоступен.
+    if req.mode == "full" and getattr(principal, "role", None) == "guest":
+        raise HTTPException(
+            status_code=403,
+            detail="Полная спецификация доступна только сотруднику",
+        )
+
+    result = await SpecificationService(db).generate(
+        project_id, variant, mode=req.mode, options=req.options
+    )
     await AuditService(db).try_record(
         event_type="specification.generated",
         category="specification",
         principal=principal,
         project_id=project_id,
-        details={"variant": variant, "item_count": len(items)},
+        details={
+            "variant": variant,
+            "item_count": len(result.items),
+            "mode": result.mode,
+            "skipped_objects": result.skipped_objects,
+        },
         message="Сгенерирована спецификация",
     )
-    return SpecificationGenerateResponse(project_id=project_id, items=items)
+    return SpecificationGenerateResponse(
+        project_id=project_id,
+        items=result.items,
+        mode=result.mode,
+        skipped_objects=result.skipped_objects,
+    )
 
 
 @router.put(

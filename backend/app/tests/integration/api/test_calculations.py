@@ -1889,9 +1889,29 @@ class TestElectricalCalculationContinued:
         assert resp.status_code == 200, resp.text
         result = resp.json()["result"]
         assert "cable_mark" in result
-        assert result["cable_mark"].endswith("-СР")
+        assert result["cable_mark"].endswith("-СТ")
         assert result["series"] in ("ТТН", "ТТВ", "ТТХ")
         assert result["power_per_meter"] > 0
+
+        aggressive_resp = await client.post(
+            "/api/v1/calc/electrical",
+            json={
+                "object_id": obj["id"],
+                "cable_type": "self_regulating_tt",
+                "data": {
+                    "required_power_per_meter": 18.0,
+                    "pipe_length": 50.0,
+                    "process_temperature": 50.0,
+                    "maintain_temperature": 50.0,
+                    "safety_factor": 1.1,
+                    "aggressive_product": True,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert aggressive_resp.status_code == 200, aggressive_resp.text
+        aggressive_result = aggressive_resp.json()["result"]
+        assert aggressive_result["cable_mark"].endswith("-СР")
 
     async def test_single_core_resistive_calc(self, client: AsyncClient, guest_session: str):
         """single_core: возвращает selected_cable и conductor_cross_section."""

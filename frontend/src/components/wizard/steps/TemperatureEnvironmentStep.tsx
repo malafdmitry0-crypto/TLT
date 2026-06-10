@@ -80,7 +80,6 @@ export default function TemperatureEnvironmentStep({
 
   return (
     <>
-      <h4 data-step={3}><span>Климат и температуры</span></h4>
       <Form.Item
         className="fixed-select-form-item reduced-select-form-item helped-form-item"
         label={fieldLabel('climate_key', objectType)}

@@ -301,15 +301,15 @@ test.describe('inline form dependencies', () => {
     await expect(page.getByTestId('pipe-material-select')).toHaveCount(0);
     await expect(page.getByTestId('pipe-lambda-input')).toHaveCount(0);
 
-    await selectOption(page, 'pipe-lambda-mode-select', 'Справ.');
+    await selectOption(page, 'pipe-lambda-mode-select', 'Справочник');
     await expect(page.getByTestId('pipe-material-select')).toBeVisible();
     await expect(page.getByTestId('pipe-lambda-input')).toHaveCount(0);
 
-    await selectOption(page, 'pipe-lambda-mode-select', 'Вручн.');
+    await selectOption(page, 'pipe-lambda-mode-select', 'Вручную');
     await expect(page.getByTestId('pipe-lambda-input')).toBeVisible();
     await expect(page.getByTestId('pipe-material-select')).toHaveCount(0);
 
-    await selectOption(page, 'pipe-lambda-mode-select', 'Справ.');
+    await selectOption(page, 'pipe-lambda-mode-select', 'Справочник');
     await expect(page.getByTestId('pipe-material-select')).toBeVisible();
     await expect(page.getByTestId('pipe-lambda-input')).toHaveCount(0);
 
@@ -347,7 +347,7 @@ test.describe('inline form dependencies', () => {
     await fillInput(page, 'outer-diameter-input', '114');
     await fillInput(page, 'pipe-length-input', '5');
     await fillInput(page, 'wall-thickness-input', '0.8');
-    await selectOption(page, 'pipe-lambda-mode-select', 'Справ.');
+    await selectOption(page, 'pipe-lambda-mode-select', 'Справочник');
     await selectSearchOption(page, 'pipe-material-select', 'Углеродистая', /Углеродистая/);
     await selectOption(page, 'placement-select', 'На открытом воздухе');
     await fillInput(page, 'ambient-temperature-input', '-20');
@@ -540,7 +540,7 @@ test.describe('inline form dependencies', () => {
     await fillInput(page, 'flange-count-input', '4');
     await fillInput(page, 'support-count-input', '5');
 
-    await selectOption(page, 'pipe-lambda-mode-select', 'Вручн.');
+    await selectOption(page, 'pipe-lambda-mode-select', 'Вручную');
     await fillInput(page, 'pipe-lambda-input', '51');
 
     await selectOption(page, 'placement-select', 'Подземно');
@@ -557,7 +557,7 @@ test.describe('inline form dependencies', () => {
     await fillInput(page, 'third-insulation-thickness-input', '10');
     await fillInput(page, 'third-insulation-lambda-input', '0.06');
 
-    await selectOption(page, 'pipe-lambda-mode-select', 'Справ.');
+    await selectOption(page, 'pipe-lambda-mode-select', 'Справочник');
     await selectFirstOption(page, 'pipe-material-select');
     await selectOption(page, 'placement-select', 'На открытом воздухе');
     await selectFirstOption(page, 'insulation-material-select');
@@ -612,7 +612,7 @@ test.describe('inline form dependencies', () => {
     await expect(page.getByTestId('wind-speed-input')).toHaveCount(0);
     await expect(page.getByTestId('alpha-vnesh-input')).toHaveCount(0);
 
-    await selectOption(page, 'pipe-lambda-mode-select', 'Вручн.');
+    await selectOption(page, 'pipe-lambda-mode-select', 'Вручную');
     await expect(page.getByTestId('pipe-lambda-input')).toBeVisible();
     await expect(page.getByTestId('pipe-material-select')).toHaveCount(0);
 
@@ -631,7 +631,7 @@ test.describe('inline form dependencies', () => {
     await fillInput(page, 'outer-diameter-input', '108');
     await fillInput(page, 'pipe-length-input', '30');
     await fillInput(page, 'wall-thickness-input', '6');
-    await selectOption(page, 'pipe-lambda-mode-select', 'Справ.');
+    await selectOption(page, 'pipe-lambda-mode-select', 'Справочник');
     await selectSearchOption(page, 'pipe-material-select', 'Углеродистая', /Углеродистая/);
     await selectOption(page, 'placement-select', 'На открытом воздухе');
     await fillInput(page, 'insulation-thickness-input', '40');

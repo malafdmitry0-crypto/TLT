@@ -64,8 +64,9 @@ class TestGenerate:
         db.commit = AsyncMock()
         db.add = MagicMock()
 
-        items = await SpecificationService(db).generate(uuid.uuid4())
-        assert items == []
+        result = await SpecificationService(db).generate(uuid.uuid4())
+        assert result.items == []
+        assert result.mode == "basic"
         db.add.assert_not_called()
         assert db.execute.await_count == 3
         db.commit.assert_awaited_once()
@@ -112,7 +113,7 @@ class TestGenerate:
         db.commit = AsyncMock()
         db.add = MagicMock()
 
-        items = await SpecificationService(db).generate(uuid.uuid4())
+        items = (await SpecificationService(db).generate(uuid.uuid4())).items
         # Только Good пройдёт (broken отфильтруется, Auto-old не manual)
         assert any(i.name == "Good" and i.source == "manual" for i in items)
         assert not any(i.name == "broken" for i in items)
@@ -144,7 +145,7 @@ class TestGenerate:
         db.commit = AsyncMock()
         db.add = MagicMock()
 
-        items = await SpecificationService(db).generate(uuid.uuid4())
+        items = (await SpecificationService(db).generate(uuid.uuid4())).items
         accessories = [i for i in items if i.category != "Кабель"]
         assert accessories, "Аксессуары должны быть"
         for acc in accessories:
@@ -175,7 +176,7 @@ class TestGenerate:
         db.commit = AsyncMock()
         db.add = MagicMock()
 
-        items = await SpecificationService(db).generate(uuid.uuid4())
+        items = (await SpecificationService(db).generate(uuid.uuid4())).items
         cables = [i for i in items if i.category == "Кабель"]
         assert len(cables) == 1
         assert cables[0].article == "30ТТВ2-СТ"
@@ -209,7 +210,7 @@ class TestGenerate:
         db.commit = AsyncMock()
         db.add = MagicMock()
 
-        items = await SpecificationService(db).generate(uuid.uuid4())
+        items = (await SpecificationService(db).generate(uuid.uuid4())).items
         assert [i for i in items if i.category == "Кабель"] == []
         assert [i for i in items if i.category != "Кабель"]
 

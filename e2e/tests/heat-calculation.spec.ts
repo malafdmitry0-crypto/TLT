@@ -11,6 +11,7 @@ import {
 } from './helpers/feature-flags';
 
 const commercialFeaturesEnabled = e2eCommercialFeaturesEnabled();
+const HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY = 'heatcalc.tableView.v2.guest';
 
 test.describe('4.3 Расчёт тепловых потерь', () => {
   test('пустой проект показывает рабочий экран теплопотерь и блокирует электрорасчёт', async ({
@@ -31,7 +32,7 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     await expect(visibilityToggle).toBeChecked();
     await expect(paramsBlock).toBeVisible();
     await expect(page.locator('.inline-object-form')).toBeVisible();
-    await expect(page.getByText('ГЕОМЕТРИЯ ТРУБЫ')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Расчёт теплопотерь' })).toBeVisible();
     await expect(formActionsToolbar).toBeVisible();
     await expect(tableActionsToolbar).toBeVisible();
     await expect(formActionsToolbar.getByRole('button', { name: 'Добавить' })).toBeVisible();
@@ -83,9 +84,9 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
 
   test('скрытый боковой блок параметров не оставляет пустую правую область', async ({ page }) => {
     await loginAsGuest(page);
-    await page.evaluate(() => {
-      localStorage.setItem('heatcalc.tableView.v1.guest', JSON.stringify({
-        version: 1,
+    await page.evaluate((storageKey) => {
+      localStorage.setItem(storageKey, JSON.stringify({
+        version: 2,
         fontSize: 'standard',
         tableLabelFormat: 'short',
         settingsLabelFormat: 'full',
@@ -94,7 +95,7 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
         sideFormWidthPct: 34,
         formSectionWeights: [1.655, 1.35, 1.2],
       }));
-    });
+    }, HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY);
     await page.reload({ waitUntil: 'networkidle' });
 
     const layout = page.locator('.heatcalc-workspace-layout--right');
@@ -163,8 +164,8 @@ test.describe('4.3 Расчёт тепловых потерь', () => {
     await page.getByRole('toolbar', { name: 'Действия блока заполнения' }).getByRole('button', { name: 'Добавить' }).click();
     await expect(page.locator('.inline-object-form')).toBeVisible();
     await expect(typeToolbar.getByText('Режим: добавление')).toBeVisible();
-    await expect(page.getByText('ГЕОМЕТРИЯ ТРУБЫ')).toBeVisible();
-    await expect(page.getByLabel(/Наружный Ø/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Расчёт теплопотерь' })).toBeVisible();
+    await expect(page.getByLabel(/Наружный диаметр/i)).toBeVisible();
     await expect(page.locator('#inline-object-save')).toBeAttached();
   });
 

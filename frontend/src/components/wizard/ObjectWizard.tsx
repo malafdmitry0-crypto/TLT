@@ -583,10 +583,6 @@ export default function ObjectWizard({
   function renderSectionResizeHandle(handleIndex: number) {
     return <div className="form-col-resize-handle" {...resizeHandleProps(handleIndex)} />;
   }
-
-  function renderSectionTitle(title: string, step: number) {
-    return <h4 data-step={step}><span>{title}</span></h4>;
-  }
   // ──────────────────────────────────────────────────────────────────────────
 
   return (
@@ -616,19 +612,14 @@ export default function ObjectWizard({
       <Form.Item name="safety_factor_source" hidden noStyle>
         <Input type="hidden" />
       </Form.Item>
-      <div className="form-grid-srs" ref={formGridRef}>
+      <h4 className="inline-form-section-banner"><span>Расчёт теплопотерь</span></h4>
+      <div className="form-grid-srs form-grid-srs--merged" ref={formGridRef}>
 
         {/* ── Геометрия ──────────────────────────────────────────────── */}
         <div
           className="form-col-srs form-col-srs--primary"
           style={sectionStyle(0)}
         >
-          {renderSectionTitle(
-            objectType === 'pipe'
-              ? 'Геометрия и размещение трубы'
-              : 'Геометрия и размещение резервуара',
-            1,
-          )}
           <Form.Item
             className="name-form-item helped-form-item"
             label={fieldLabel('name', heatCalcObjectType)}
