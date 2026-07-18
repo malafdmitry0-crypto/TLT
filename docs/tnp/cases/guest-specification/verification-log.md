@@ -51,7 +51,7 @@
 | Kontur `run-static-ui-checks.sh` | INFRA FAIL: скрипт ошибочно ищет `/Users/dmalafey/.codex/plugins/cache/personal/frontend/package.json`. Эквивалентные команды выполнены напрямую. |
 | `npm --prefix frontend run lint` | FAIL: существующая `_omit` не используется в `projectStore.test.ts:49`. |
 | `npm --prefix frontend run typecheck` | PASS. |
-| `npm --prefix frontend run test -- --run` | FAIL: 926/927 tests pass; не найден separator в `HeatCalcPage.settings.test.tsx:321`. |
+| `npm --prefix frontend run test -- --run` | FAIL: 925 passed, 1 failed, 1 skipped; не найден accessible separator в `HeatCalcPage.settings.test.tsx:321`. |
 | Focused rerun упавшего HeatCalc settings test | FAIL воспроизводимо: 1 failed, 10 skipped; accessible separator отсутствует. |
 | `npm --prefix frontend run build` | PASS. |
 | Focused backend specification/auth/security, `--no-cov` | PASS: все выбранные assertions прошли; warnings о JWT HMAC key 23 bytes. |
@@ -109,3 +109,80 @@ page-level horizontal overflow не обнаружены. На mobile права
 Runtime воспроизводит 401 к stale project id, затем `POST /auth/guest` 201 и
 успешные запросы нового проекта; следом приходят 404 для уже невалидного старого
 project id. Также остаются favicon 404 и Ant Design static-message warning.
+
+## Phase 1 backend/DB final checkpoint
+
+Дата: 18.07.2026. Ветка:
+`feature/tnp-dynamic-electrical-variants`. Статус:
+**PASS — backend/DB Phase 1 checkpoint complete**.
+
+В отличие от исторического `/audit-only` и Phase 0, на этой итерации изменены
+DB/backend и тесты. Полное описание границы находится в
+[phase-1-checkpoint.md](phase-1-checkpoint.md).
+
+| Проверка | Результат |
+|---|---|
+| Working DB Alembic current | **PASS: `0028`**. |
+| Alembic 0027/0028 + metadata lifecycle | **PASS: 5 tests**. |
+| Dynamic-ER integration full suite | **PASS: 21 collected**; оба candidate apply/delete race order — **2/2 PASS**, ordinary apply flows isolated PASS. |
+| Project I/O + Excel import | **PASS: 46 tests**. Доказаны sparse `ЭР1 + ЭР4`, UUID FK, complete assignments, stale imported spec, zero-ЭР и atomic invalid slot. |
+| Legacy adapter + specification | **PASS: 15 tests** (`3` new legacy write tests + `12` specification tests). Objectless generate возвращает 409 и не оставляет rows. |
+| Project duplicate flow | **PASS: full `test_projects.py` 21 tests; focused duplicate class 4 tests**. Ready copy создаёт `ЭР1`/UUID до batch; not-ready copy возвращается heat-only без ER/electrical rows. |
+| Calculation integration full suite | **PASS: 73 tests**. |
+| Calculation/specification unit suites | **PASS: 114 tests**. |
+| Task service unit suite | **PASS: 56 tests**. |
+| Calculation jobs | **PASS: 14 tests**. |
+| Reports | **PASS: 11 tests**. Numeric fresh slot 4 создаёт только `ЭР1 + ЭР4`. |
+| Focused task matrix | **PASS: 56 unit + 25 integration** (`14` calc jobs + `11` reports). Проверены heat terminal-transition serialization, truthful replay audit, selector-null и changed payload/ER conflicts. |
+| Full backend unit gate | **PASS: exit 0; exactly 1069 collected**. |
+| Full backend integration gate | **PASS: clean single-process run, exit 0; exactly 421 collected**. Единственный expected skip — `test_performance_nfr.py:467`, `sample_import.csv` unavailable. Два overlapping backend-int run были infrastructure-invalid и superseded этим чистым результатом. |
+| `scripts/formula-qa.sh quick` | **PASS** для legacy formula registry; не является доказательством heating sections/PDF-BOM Phase 4. |
+| `scripts/codex-functional-audit.sh contracts` | **PASS: 5 legacy contracts / 5 commands**; новые sections/BOM contracts отсутствуют. |
+| `scripts/codex-functional-audit.sh docs` | Проходил после generated-doc sync; root повторно запускает gate после этого финального docs-only diff. |
+| `scripts/codex-functional-audit.sh db-invariants` | **PASS: 28 checks, 0 violations** на финальном head. |
+| Smoke gate | **PASS: 18/18**. |
+| Scale proof | **PASS:** `500 objects × 5 ER = 2500 assignments`; постоянные **69 SQL statements** ниже ceiling `80`. |
+| Fresh `0001 → 0028` + seed | **PASS:** 19 calculations, 10 specifications, 10 variants, 28 assignments, 0 nullable UUID, 0 scope mismatch. |
+| Static/model gates | **PASS:** Ruff, pre-commit, formatter (`40` changed Python files) и mapper checks. |
+| Full frontend gate | **NOT GREEN: 925 passed, 1 failed, 1 skipped**. Неизменённый `HeatCalcPage.settings.test.tsx:321` не находит accessible separator. Isolated rerun: **1 failed, 10 skipped**. Дефект pre-existing и вне backend/DB Phase 1, поэтому не является regression Phase 1; он остаётся blocker общего product release. |
+| `alembic check` | **NOT GREEN вне ER-среза:** только ранее существовавший metadata drift (`correction_coefficients`, `guest_sessions`, `insulation_materials`, trigram indexes `project_objects`, legacy `specifications` index, `users`); dynamic-ER drift не обнаружен. |
+| `scripts/security-scan.sh` | **NOT GREEN вне Phase 1 diff:** Bandit без findings; dependency audit — 15 Python advisories и 7 npm vulnerabilities; frontend lint — существующий `_omit` error в `projectStore.test.ts:49`. Общий release blocker. |
+
+### Доказанный контракт
+
+- Lifecycle/readiness API создаёт первый active `ЭР1` только для готового
+  проекта, поддерживает до пяти именованных UUID ЭР, copy/rename/activate/delete
+  и owner/admin write guard.
+- 0027 создаёт `electrical_variants`, `electrical_variant_objects`, UUID bridge
+  downstream-таблиц и sync triggers; 0028 добавляет некаскадный UUID trace
+  фоновых electrical/report задач.
+- Новые task payloads UUID-first (`payload_version=3`); numeric selector
+  `1…4` остаётся deprecated adapter и историческим v2 worker bridge.
+- Все обычные numeric write paths и seeds readiness-gated до записи и получают
+  project-scoped UUID; sparse slot 4 создаёт только `ЭР1 + ЭР4`.
+- Project duplicate готовит `ЭР1`/UUID до batch только после успешной heat
+  readiness; неготовая копия остаётся heat-only graph без ER/electrical rows.
+- Явный task `Idempotency-Key` namespaced по principal/type/project и binding-ит
+  полный payload/ЭР; exact/terminal retry возвращает исходную задачу, reuse с
+  другим payload/ЭР даёт `409 TASK_IDEMPOTENCY_KEY_REUSED`. Heat lookup/insert
+  project-locked; replay audit содержит фактический task status/result.
+- Electrical job: omitted selector → legacy slot `1`; UUID-only очищает implicit
+  default; explicit `variant_number:null` → стабильный 422 без ER side effect.
+- Candidate apply/delete сериализованы общей project lock; apply перечитывает
+  mapping и возвращает stable 404/409 вместо восстановления ЭР или 500.
+- Project CSV v2 строит sparse UUID graph и импортирует legacy specifications
+  stale, не выдавая их за sections-ready результат.
+
+### Остаточные ограничения
+
+- Frontend всё ещё отображает fixed `СО1…СО4`; Phase 2 pending.
+- Direct candidates/folders/specification/report preview/sync export остаются
+  numeric; пятый ЭР пока lifecycle-only и не имеет legacy расчётного графа.
+- MEDIUM residual, intentional Phase 3 boundary: normal legacy calculation
+  получает UUID, но assignment может остаться `unassigned/system_type=null`;
+  consumers не используют state как authoritative до Phase 3 sync.
+- Phase 3 и Phase 5 pending; Phase 4 заблокирована PDL-ER-15.
+- Full frontend, dependency security и общий Alembic metadata-drift gates
+  остаются не-green вне backend/DB Phase 1 diff.
+- Общий PDF/DoD, product release и ранее найденные guest
+  specification/report/mobile defects не закрыты этим backend/DB checkpoint.

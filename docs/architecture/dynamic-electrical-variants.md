@@ -1,14 +1,15 @@
 # ADR: динамические именованные электротехнические решения
 
-- Статус: **Accepted for Phase 1–3 / Phase 4 blocked by data contract**
+- Статус ADR: **Accepted for Phase 1–3 / Phase 4 blocked by data contract**
+- Статус backend/DB Phase 1: **PASS — backend/DB Phase 1 checkpoint complete**
 - Дата: 18.07.2026
 - Ветка: `feature/tnp-dynamic-electrical-variants`
 - Область: DB → backend API/services → frontend → specification/report → CSV → tests
 
 ## Контекст
 
-Текущая система использует четыре заранее существующих integer-слота
-`variant_number=1…4`, которые UI называет `СО1…СО4`. PDF редакции 4 от
+Исходная система использовала четыре заранее существующих integer-слота
+`variant_number=1…4`, которые текущий UI всё ещё называет `СО1…СО4`. PDF редакции 4 от
 07.07.2026 и решения PDL-ER-01…08 требуют до пяти создаваемых пользователем
 именованных ЭР с постоянными UUID, независимыми распределениями объектов,
 расчётами, спецификациями и отчётами.
@@ -16,6 +17,9 @@
 Этот ADR зафиксировал Phase 0. Решения `OPEN-ER-01…09` утверждены пользователем
 18.07.2026 как рекомендованные варианты и зарегистрированы PDL-ER-09…17.
 Production Phase 1–3 разрешены; Phase 4 не начинается без данных PDL-ER-15.
+Backend/DB foundation Phase 1 завершена и проверена; граница и evidence
+зафиксированы в
+`docs/tnp/cases/guest-specification/phase-1-checkpoint.md`.
 
 ## Приоритет источников
 
@@ -59,13 +63,13 @@ Production Phase 1–3 разрешены; Phase 4 не начинается б�
 
 | Слой | Текущий источник истины | Найденное расхождение |
 |---|---|---|
-| DB | `electrical_calculations`, `electrical_candidates`, `electrical_candidate_folders`, `specifications` содержат `variant_number`; constraints/indexes ограничивают `1…4`. | Нет сущности ЭР, имени, active-state, assignments и sections. |
-| Backend schema/API | Pydantic и query/body параметры используют `int`, `ge=1, le=4`, `variant_numbers` максимум 4. | Lifecycle resource и UUID ownership validation отсутствуют. |
-| Services/tasks | Calculation/query/copy/spec/report/task/project-I/O scoped по integer. Текущий copy копирует только calculation rows и по умолчанию регенерирует specification. | Нет deep-copy графа; обычные electrical mutations не делают spec stale. |
+| DB | 0027 добавляет `electrical_variants`, `electrical_variant_objects`, project initialization timestamp и nullable UUID bridge в calculations/candidates/folders/specifications; 0028 добавляет task UUID trace. | Legacy `variant_number=1…4` и nullable expand columns ещё не удалены; `heating_sections` отсутствует. |
+| Backend schema/API | Readiness и UUID lifecycle list/create/copy/rename/activate/delete реализованы с ownership, limit/concurrency и stable error codes. | Assignment API, UUID direct calculation/candidate/spec/report preview и fifth-ER graph относятся к следующим фазам. |
+| Services/tasks | Lifecycle deep-copy переносит assignments/calculations/candidates/folders без spec; новые electrical/report tasks UUID-first v3. Все normal numeric writes, project duplicate batch и seeds readiness-gated через единый UUID adapter; task key binding учитывает principal/type/project/full payload/ER. Project CSV v2 строит sparse UUID graph. | Direct service internals остаются numeric; обычные electrical mutations всё ещё не делают spec stale; worker временно преобразует UUID в legacy slot. |
 | Frontend | Zustand хранит `[1,2,3,4]` в `tlt-active-calculation-variant`; страницы показывают `СО1…СО4`. | Selected и backend active слиты; URL `?er=` и lifecycle отсутствуют. |
-| Specification/report | Одна операция и preview на один integer; guest full запрещён; print отсутствует. | Нет explicit multi-select, full guest BOM и UUID isolation. |
-| CSV | `schema_version=2`, секции `electrical/specifications` содержат `variant_number`. | Имена, active, assignments и sections не экспортируются. |
-| Tests/docs | Golden/e2e закрепляют integer slots и часть legacy BOM. | Green baseline не доказывает PDF-BOM-01…07 или dynamic ER. |
+| Specification/report | Specification хранит UUID bridge/state, async report task принимает UUID; direct generation/preview/sync export остаются integer. Guest full запрещён; print отсутствует. | Нет explicit multi-select, full guest BOM и end-to-end UUID isolation. |
+| CSV | Import v2 валидирует sparse slots, создаёт UUID variants/assignments, связывает rows и stale-ит legacy specs. Export v2 остаётся numeric. | Имена, active, assignments, fifth ER и sections не экспортируются; CSV v3 отложен до Phase 5. |
+| Tests/docs | Alembic current 0028; migration/metadata 5, dynamic-ER integration 21, project I/O+Excel 46, calculations 73, calc/spec unit 114, task unit/integration 56+25, smoke 18/18, backend unit 1069/integration 421, DB invariants 28/0. | Frontend, dependency security и общий Alembic drift gates не green; backend/DB Phase 1 не доказывает PDF-BOM-01…07 или полный dynamic-ER UX. |
 
 Отдельный critical baseline finding: `ElecCalcPage.tsx` обновляет широким
 `setQueriesData` кэши всех вариантов, а `useElectricalStats.ts` выбирает расчёт
@@ -74,7 +78,7 @@ Production Phase 1–3 разрешены; Phase 4 не начинается б�
 данные предыдущего варианта во время переключения. UUID query keys обязаны
 исключить оба поведения.
 
-## Предлагаемая доменная модель
+## Доменная модель Phase 1 и целевой контракт
 
 ### `electrical_variants`
 
@@ -85,7 +89,7 @@ Production Phase 1–3 разрешены; Phase 4 не начинается б�
 | `name varchar` | `trim`, непустое; unique внутри project после `casefold`. |
 | `sort_order integer` | Порядок вкладок, не бизнес-ID. |
 | `is_active boolean` | Не более одного active на проект через partial unique index. |
-| `copied_from_id UUID null` | Self-FK/traceability, при удалении source — `SET NULL`. |
+| `copied_from_id UUID null` | Same-project self-FK/traceability; lifecycle service явно detach-ит direct copies при удалении source. |
 | `legacy_variant_number integer null` | Только backfill/compatibility trace, не writable API key. |
 | timestamps | Audit/optimistic concurrency. |
 
@@ -105,30 +109,42 @@ Max 5 обеспечивается транзакцией с блокировк�
 | `system_type` | `self_regulating/resistive/skin/mineral`, nullable до назначения; skin/mineral disabled. |
 | `assignment_state` | `unassigned/ready/unsupported/stale/error`, отдельно от типа системы. |
 | `requested_cable_type` | Сохраняет lossless legacy diagnostic/source value. |
-| `object_version` | Snapshot/version для stale detection. |
+| `object_version_snapshot` | Snapshot/version для stale detection. |
 | diagnostics/timestamps | `error_code`, details, created/updated. |
 
 Обязательны unique `(electrical_variant_id, object_id)` и проверка, что ЭР и
 объект принадлежат одному project. Новый объект добавляется во все существующие
 ЭР; unassign удаляет только scoped electrical graph и сохраняет heat data.
 
+Intentional MEDIUM residual до Phase 3: successful normal legacy calculation
+уже связан UUID, но pre-created assignment может остаться
+`unassigned/system_type=null`. Assignment state не является authoritative для
+consumers до атомарной calculation→assignment синхронизации Phase 3.
+
 ### Downstream scope
 
 - `electrical_calculations`, `electrical_candidates` и
-  `electrical_candidate_folders` получают обязательный
-  `electrical_variant_id` и composite FK/constraint к assignment scope
-  `(electrical_variant_id, object_id)`.
-- `specifications` получает обязательный `electrical_variant_id` и unique
-  `(project_id, electrical_variant_id)`.
-- Tasks/jobs, audit events и report/spec payloads сохраняют UUID ЭР.
-- Background task получает indexed UUID scope и versioned payload; перед
-  удалением ЭР проверяются active jobs. Audit UUID не должен каскадно исчезать.
+  `electrical_candidate_folders` получили expand-window nullable
+  `electrical_variant_id`, same-project/slot FK и composite FK к assignment
+  scope `(electrical_variant_id, object_id)`. NOT NULL — отдельный contract step.
+- `specifications` получила nullable `electrical_variant_id`, same-project/slot
+  FK и partial unique `(project_id, electrical_variant_id)`.
+- Новые electrical/report background tasks сохраняют UUID ЭР в колонке и
+  versioned payload v3. Колонка намеренно без FK для сохранения terminal history;
+  active jobs блокируют lifecycle delete.
+- Explicit task idempotency namespaced по principal/type/project и binding-ит
+  полный payload/ER. Exact active/terminal retry возвращает исходную task;
+  changed payload/ER возвращает `409 TASK_IDEMPOTENCY_KEY_REUSED`. Heat path
+  project-lock-ит lookup/insert через terminal transition; replay audit отражает
+  фактический durable result.
+- Audit lifecycle/task events сохраняют UUID в details, но direct spec/report
+  payloads ещё не переведены полностью.
 - `heating_sections` вводится только после закрытия formula/data contract:
   `id`, assignment/variant/object scope, `sort_order`, source inputs,
   calculated length/current/power, status, formula/source traceability.
 - `num_circuits` нельзя backfill-ить как число нагревательных секций.
 
-## Предлагаемый API
+## API: реализованный lifecycle и будущие assignments
 
 ```text
 GET    /api/v1/projects/{project_id}/electrical-readiness
@@ -140,22 +156,28 @@ PATCH  /api/v1/projects/{project_id}/electrical-variants/{id}
 POST   /api/v1/projects/{project_id}/electrical-variants/{id}/activate
 DELETE /api/v1/projects/{project_id}/electrical-variants/{id}
 
+# Phase 3, ещё не реализовано:
+
 GET    /api/v1/projects/{project_id}/electrical-variants/{id}/assignments
 PATCH  /api/v1/projects/{project_id}/electrical-variants/{id}/assignments
 POST   /api/v1/projects/{project_id}/electrical-variants/{id}/unassign
 ```
 
-Calculation/query/candidate/folder/spec/report/task APIs получают
-`electrical_variant_id: UUID`. Multi-operation получает уникальный список
+Lifecycle реализован. Новые electrical/report task APIs принимают
+`electrical_variant_id: UUID`; deprecated numeric selector разрешается в UUID и
+не попадает в новый v3 payload. Direct calculation/query/candidate/folder/spec,
+report preview и sync export всё ещё numeric. Все их normal write paths, а
+также seeds, вызывают readiness-gated adapter до записи; fresh slot `4` создаёт
+только `ЭР1 + ЭР4`. Целевой multi-operation получает уникальный список
 `electrical_variant_ids` длиной 1…5 и валидирует весь список и ownership до
 первой записи.
 
-Mutation endpoints используют write/owner guard. Это обязательно исправляет
-текущий дефект: specification generation/save вызывают read-level
-`get_project_basic`, поэтому employee может изменить доступный, но чужой
-проект. Такой же audit нужен для enqueue/cancel background tasks: текущие пути
-также опираются на project read-access. PostgreSQL RLS в проекте нет, поэтому
-изоляция полностью зависит от application-level ownership checks.
+Mutation endpoints, specification generation/save и task enqueue используют
+write/owner guard. PostgreSQL RLS в проекте нет, поэтому изоляция по-прежнему
+полностью зависит от application-level ownership checks и их regression tests.
+Candidate apply/delete дополнительно разделяют lifecycle project-row lock;
+apply перечитывает candidate/mapping после lock, не пересоздаёт удалённый ЭР и
+возвращает stable 404/409 при проигранной гонке.
 
 ## Frontend state и query isolation
 
@@ -186,40 +208,51 @@ Mutation endpoints используют write/owner guard. Это обязате
 - Guest report: HTML + print CSS; employee/admin: server exports.
 - CSV v3 содержит variants, assignments, calculations, sections,
   specifications и settings snapshots со стабильными file-local keys.
-- Import v2 маппит slots 1…4 в `ЭР1…ЭР4`; один project graph импортируется
-  атомарно.
-- Import обязан полностью parse/validate graph до замены текущего guest project;
-  текущий v2 flow удаляет его слишком рано и silently пропускает неизвестный
-  `object_key`.
+- Import v2 реализован: валидирует slots `1…4` до замены guest project, создаёт
+  active `ЭР1` плюс только занятые slots, complete assignments и явные UUID у
+  calculations/specifications; legacy specs становятся stale/not-ready.
+- Bulk v2 использует savepoint на project graph. Неизвестный electrical
+  `object_key` пока silently пропускается и остаётся переходным риском.
+- Export v2 остаётся numeric и не может losslessly перенести произвольные имена,
+  active-state, assignments, fifth ER или sections.
 
 ## Expand/backfill/validate/contract
 
-Проверенный Alembic head: `0026`.
+Проверенный working DB Alembic current: `0028` (`0026 → 0027 → 0028`).
 
-1. Expand: создать новые таблицы/индексы; добавить nullable UUID FK в legacy
-   downstream tables; legacy columns пока не удалять.
-2. Backfill: собрать union slots из calculations/candidates/folders/specs.
-   Каждый project получает минимум `ЭР1`; остальные ЭР создаются только для
-   реально занятых slots.
-3. Создать assignments для каждого project object во всех созданных ЭР.
+1. **Выполнено 0027:** создать новые таблицы/индексы; добавить nullable UUID FK
+   в legacy downstream tables; legacy columns пока не удалять.
+2. **Выполнено 0027:** собрать union slots из
+   calculations/candidates/folders/specs и v2 task payloads. Каждый существующий
+   project получает минимум `ЭР1`; остальные ЭР создаются только для занятых
+   slots.
+3. **Выполнено 0027:** создать assignments для каждого project object во всех созданных ЭР.
    `self_regulating/self_regulating_tt` маппятся в self-reg,
    `single_core/three_core` — в resistive; mineral/unknown сохраняются как
    requested type со state `unsupported`.
    Failed/stale legacy calculations сохраняются как diagnostic history у
    assignment со state `unassigned/unsupported/stale`, но никогда не считаются
    successful и не входят в BOM.
-4. Проставить downstream UUID; старые результаты без доказанных sections
+4. **Выполнено 0027:** проставить downstream UUID; старые результаты без доказанных sections
    отметить `sections_not_ready`, зависимые specs — stale.
-5. Validate counts, nulls, duplicates, cross-project links, active count,
+5. **Выполнено migrations/tests:** validate counts, nulls, duplicates, cross-project links, active count,
    cascade и project ownership.
-6. После доказанного backfill включить NOT NULL/new unique/FK constraints.
-7. Перевести backend/frontend/tasks/CSV на UUID как единственный writable key.
-8. Удалить legacy columns/constraints только отдельной contract migration и
+6. **Частично:** UUID unique/FK constraints включены, но downstream columns
+   остаются nullable до полного cutover.
+7. **Частично:** lifecycle и background tasks UUID-first; frontend, direct
+   services и CSV export остаются на compatibility layer.
+8. **Pending:** удалить legacy columns/constraints только отдельной contract migration и
    после observation window.
 
-Перед contract cutover очередь v2 tasks должна быть дренирована либо worker
-обязан временно читать `payload_version=2` через legacy mapping. Одновременная
-работа старого worker и UUID-only schema запрещена.
+Worker временно читает no-version/v2 task payload через backfilled UUID mapping,
+а новые/replayed задачи пишет как v3 UUID-first. Перед contract cutover очередь
+v2 всё равно должна быть дренирована; одновременная работа старого worker и
+UUID-only schema запрещена.
+
+Object-insert trigger берёт per-project `FOR NO KEY UPDATE` перед созданием
+assignments; lifecycle берёт `FOR UPDATE` на той же строке. Эта lock-order
+сериализует гонки object/ER без global/advisory lock и доказана двумя
+конкурентными сценариями.
 
 Read-only snapshot локальной БД перед миграцией:
 
@@ -274,6 +307,41 @@ Production Phase 1–3 разрешены. Phase 4 остаётся gated PDL-ER
 - Before UI: curated desktop/mobile screenshots, snapshots, geometry, console
   и network evidence находятся в
   `docs/tnp/cases/guest-specification/{assets/ui,evidence}`.
+
+## Phase 1 final backend/DB evidence
+
+- Working DB Alembic current — **0028**.
+- Alembic 0027/0028 + metadata — **5 passed**; dynamic-ER integration —
+  **21 collected**, включая candidate apply/delete race **2/2 PASS**; project
+  I/O + Excel — **46 passed**.
+- Legacy adapter/spec — **15 passed**; calculations full — **73 passed**;
+  calculation/spec units — **114 passed**.
+- Project flow — **21 passed**, включая focused duplicate **4 passed**.
+- Task unit — **56 passed**; calculation jobs — **14 passed**; reports —
+  **11 passed**; focused integration — **25 passed**. Heat terminal-transition
+  race, selector-null и truthful replay audit входят в matrix.
+- Full backend unit — **exit 0, exactly 1069 collected**. Clean single-process
+  backend integration — **exit 0, exactly 421 collected**; only expected skip
+  `test_performance_nfr.py:467` because `sample_import.csv` unavailable. Two
+  overlapping runs were infrastructure-invalid and superseded.
+- Formula quick — **PASS**; contracts — **5 legacy contracts / 5 commands
+  PASS**. Они не доказывают PDF sections/BOM.
+- Docs gate passed after generated-doc sync and is rerun after this final docs
+  diff; DB invariants — **28 checks, 0 violations**; smoke — **18/18 PASS**.
+- Scale proof — **500 objects × 5 ER = 2500 assignments**, постоянные **69 SQL
+  statements** ниже ceiling `80`.
+- Fresh `0001 → 0028` seed proof — 19 calculations, 10 specifications,
+  10 variants, 28 assignments, **0 nullable UUID**, **0 scope mismatch**.
+- Ruff, pre-commit, formatter (`40` changed Python files) и mapper gates —
+  **PASS**.
+- Frontend full gate — **925 passed, 1 failed, 1 skipped**. Неизменённый
+  `HeatCalcPage.settings.test.tsx:321` воспроизводимо не находит accessible
+  separator; isolated run — **1 failed, 10 skipped**. Это pre-existing дефект
+  вне backend/DB Phase 1 и не regression Phase 1, но blocker общего release.
+- Dependency security gate и общий metadata Alembic drift остаются не-green
+  вне Phase 1 diff; они также блокируют общий release.
+- Frontend по-прежнему fixed `СО1…СО4`; Phase 2/3/5 pending, Phase 4 blocked
+  PDL-ER-15. Общий PDF/DoD и product release не завершены.
 
 ## Закрытые решения Phase 0
 
