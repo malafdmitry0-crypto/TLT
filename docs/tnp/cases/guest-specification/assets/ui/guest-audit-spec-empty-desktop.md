@@ -1,0 +1,106 @@
+- generic [ref=e1] [box=0,0,1440,1000]:
+  - generic [ref=e621] [box=-1,-1,1,1]:
+    - log [box=-1,-1,1,0]
+    - log [box=-1,-1,1,0]
+  - generic [ref=e94] [box=0,0,1440,1000]:
+    - banner [ref=e95] [box=0,0,1440,26]:
+      - generic [ref=e96] [box=10,0,1420,25]:
+        - generic "HeatCalc" [ref=e97] [box=10,5,86,15]:
+          - img "fire" [ref=e98] [box=10,5,15,15]
+          - heading "HeatCalc" [level=2] [ref=e101] [box=31,6,65,14]
+        - navigation "Разделы проекта" [ref=e102] [box=105,1,910,23]:
+          - menu [ref=e103] [box=105,1,910,23]:
+            - menuitem "fire Расчёт тепловых потерь check-circle 1" [ref=e3440] [cursor=pointer] [box=107,1,246,24]:
+              - img "fire" [ref=e105] [box=115,7,14,12]
+              - generic [ref=e109] [box=139,6,206,15]:
+                - text: Расчёт тепловых потерь
+                - img "check-circle" [ref=e3441] [box=292,7,14,12]
+                - superscript [ref=e3445] [box=320,6,24,15]:
+                  - generic [ref=e3446] [box=330,7,5,12]: "1"
+            - menuitem "thunderbolt Электротехнический расчёт" [ref=e110] [cursor=pointer] [box=356,1,215,24]:
+              - img "thunderbolt" [ref=e111] [box=364,7,14,12]
+              - generic [ref=e114] [box=388,7,175,12]: Электротехнический расчёт
+            - menuitem "unordered-list Спецификация" [active] [ref=e116] [cursor=pointer] [box=576,1,132,24]:
+              - img "unordered-list" [ref=e117] [box=584,7,14,12]
+              - generic [ref=e120] [box=608,7,92,12]: Спецификация
+            - separator [box=354,2,0,21]
+            - menuitem "file-text Отчёт" [ref=e121] [cursor=pointer] [box=712,1,76,24]:
+              - img "file-text" [ref=e122] [box=720,7,14,12]
+              - generic [ref=e125] [box=744,7,36,12]: Отчёт
+            - menuitem [disabled] [box=123,0,30,24]
+        - generic [ref=e126] [box=1023,1,407,24]:
+          - generic [ref=e127] [box=1023,1,241,24]:
+            - generic [ref=e129] [box=1023,1,72,24]:
+              - img "folder-open" [ref=e131] [box=1023,9,10,10]
+              - generic "Мой проект" [ref=e135] [box=1036,1,59,22]
+            - button "download Скачать" [ref=e137] [cursor=pointer] [box=1102,2,73,22]:
+              - img "download" [ref=e139] [box=1110,7,11,11]
+              - generic [ref=e142] [box=1127,8,40,10]: Скачать
+            - button "upload Загрузить" [ref=e144] [cursor=pointer] [box=1178,2,83,22]:
+              - img "upload" [ref=e146] [box=1186,7,11,11]
+              - generic [ref=e149] [box=1203,8,50,10]: Загрузить
+          - generic [ref=e150] [box=1270,2,160,22]:
+            - button "question-circle Инструкция" [ref=e152] [cursor=pointer] [box=1270,2,92,22]:
+              - img "question-circle" [ref=e154] [box=1278,7,11,11]
+              - generic [ref=e158] [box=1295,8,60,10]: Инструкция
+            - button "logout Выход" [ref=e160] [cursor=pointer] [box=1366,2,64,22]:
+              - img "logout" [ref=e162] [box=1374,7,11,11]
+              - generic [ref=e165] [box=1390,8,32,10]: Выход
+    - main [ref=e167] [box=0,26,1440,974]:
+      - generic [ref=e3925] [box=0,28,1440,207]:
+        - generic [ref=e3928] [box=7,29,226,199]:
+          - strong [ref=e3931] [box=19,44,117,16]:
+            - img "unordered-list" [ref=e3932] [box=19,46,13,13]
+            - text: Спецификация
+          - generic [ref=e3935] [box=19,73,202,143]:
+            - button "reload Сформировать" [ref=e3937] [cursor=pointer] [box=19,77,202,17]:
+              - img "reload" [ref=e3939] [box=75,80,10,10]
+              - generic [ref=e3942] [box=91,80,74,11]: Сформировать
+            - generic [ref=e3944] [box=19,103,202,50]:
+              - text: Группировка
+              - radiogroup "segmented control" [ref=e3945] [box=19,129,202,24]:
+                - generic [ref=e3946] [box=21,131,198,20]:
+                  - generic [ref=e3947] [cursor=pointer] [box=21,131,66,20]:
+                    - radio "Нет" [box=26,134,0,0]
+                    - generic "Нет" [ref=e3948] [box=21,131,66,20]
+                  - generic [ref=e3949] [cursor=pointer] [box=87,131,66,20]:
+                    - radio "Кат." [checked] [box=92,134,0,0]
+                    - generic "Кат." [ref=e3950] [box=87,131,66,20]
+                  - generic [ref=e3951] [cursor=pointer] [box=153,131,66,20]:
+                    - radio "Ед." [box=158,134,0,0]
+                    - generic "Ед." [ref=e3952] [box=153,131,66,20]
+            - generic [ref=e3954] [box=19,167,202,49]:
+              - generic [ref=e3955] [box=28,174,184,17]:
+                - text: "Позиций:"
+                - strong [ref=e3956] [box=82,176,7,13]: "0"
+              - generic [ref=e3957] [box=28,191,184,17]:
+                - text: "Категорий:"
+                - strong [ref=e3958] [box=92,193,7,13]: "0"
+        - generic [ref=e3960] [box=246,28,1188,207]:
+          - strong [ref=e3965] [box=259,39,144,17]: Окно спецификаций
+          - generic [ref=e3966] [box=247,66,1186,168]:
+            - alert [ref=e3967] [box=259,74,1162,97]:
+              - img "exclamation-circle" [ref=e3968] [box=284,95,24,24]
+              - generic [ref=e3971] [box=320,95,952,55]:
+                - generic [ref=e3972] [box=320,95,952,25]: Спецификация не сформирована
+                - generic [ref=e3973] [box=320,128,952,22]: Убедитесь, что для всех объектов выполнен электрорасчёт (шаг 2), затем нажмите «Сформировать».
+              - button "thunderbolt К электрорасчёту" [ref=e3975] [cursor=pointer] [box=1280,99,116,17]:
+                - img "thunderbolt" [ref=e3977] [box=1286,102,10,10]
+                - generic [ref=e3980] [box=1302,102,89,11]: К электрорасчёту
+            - generic [ref=e3981] [box=259,187,1162,35]:
+              - generic [ref=e3982] [box=259,202,100,17]: "Вариант системы:"
+              - radiogroup "segmented control" [ref=e3983] [box=367,198,175,24]:
+                - generic [ref=e3984] [box=369,200,171,20]:
+                  - generic [ref=e3985] [cursor=pointer] [box=369,200,41,20]:
+                    - radio "СО1" [checked] [box=374,203,0,0]
+                    - generic "СО1" [ref=e3986] [box=369,200,41,20]
+                  - generic [ref=e3987] [cursor=pointer] [box=410,200,43,20]:
+                    - radio "СО2" [box=415,203,0,0]
+                    - generic "СО2" [ref=e3988] [box=410,200,43,20]
+                  - generic [ref=e3989] [cursor=pointer] [box=453,200,43,20]:
+                    - radio "СО3" [box=458,203,0,0]
+                    - generic "СО3" [ref=e3990] [box=453,200,43,20]
+                  - generic [ref=e3991] [cursor=pointer] [box=496,200,44,20]:
+                    - radio "СО4" [box=501,203,0,0]
+                    - generic "СО4" [ref=e3992] [box=496,200,44,20]
+              - generic [ref=e3993] [box=549,202,387,17]: Спецификация и расчёт сохраняются отдельно для каждого варианта.

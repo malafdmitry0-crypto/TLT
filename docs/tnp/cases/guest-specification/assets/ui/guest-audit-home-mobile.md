@@ -1,0 +1,36 @@
+- generic [ref=f3e27] [box=1,1,388,992]:
+  - heading "HeatCalc" [level=2] [ref=f3e28] [box=41,66,308,38]
+  - generic [ref=f3e29] [box=41,108,308,66]: Расчёт тепловых потерь и подбор систем электрообогрева трубопроводов и резервуаров
+  - generic [ref=f3e30] [box=41,206,308,748]:
+    - generic [ref=f3e32] [box=41,206,308,239]:
+      - generic [ref=f3e33] [box=66,227,258,134]:
+        - img "user" [ref=f3e35] [box=66,229,20,20]
+        - generic [ref=f3e39] [box=94,227,230,134]:
+          - strong [ref=f3e41] [box=94,229,175,18]: Войти без регистрации
+          - text: Быстрый доступ к расчётам — регистрация не нужна. Работа ведётся в одном проекте; после 20 мин неактивности все данные автоматически удаляются.
+      - button "Начать без регистрации" [ref=f3e42] [cursor=pointer] [box=66,372,258,28]
+      - button "question-circle Инструкция для гостей" [ref=f3e44] [cursor=pointer] [box=66,406,258,17]:
+        - img "question-circle" [ref=f3e46] [box=130,410,10,10]
+        - generic [ref=f3e50] [box=145,409,114,11]: Инструкция для гостей
+    - separator [ref=f3e52] [box=41,461,308,25]:
+      - generic [ref=f3e53] [box=165,461,60,25]: или
+    - generic [ref=f3e55] [box=41,502,308,217]:
+      - generic [ref=f3e56] [box=66,523,258,112]:
+        - img "team" [ref=f3e58] [box=66,525,20,20]
+        - generic [ref=f3e62] [box=94,523,230,112]:
+          - strong [ref=f3e64] [box=94,525,157,18]: Войти как сотрудник
+          - text: "Полный доступ: сохранение проектов, история расчётов, экспорт отчётов. Требуется учётная запись."
+      - button "Войти с паролем" [ref=f3e65] [cursor=pointer] [box=66,647,258,28]
+      - button "question-circle Инструкция для сотрудников" [ref=f3e67] [cursor=pointer] [box=66,681,258,17]:
+        - img "question-circle" [ref=f3e69] [box=115,684,10,10]
+        - generic [ref=f3e73] [box=131,684,144,11]: Инструкция для сотрудников
+    - generic [ref=f3e75] [box=41,736,308,217]:
+      - generic [ref=f3e76] [box=66,757,258,112]:
+        - img "safety-certificate" [ref=f3e78] [box=66,759,20,20]
+        - generic [ref=f3e82] [box=94,757,230,112]:
+          - strong [ref=f3e84] [box=94,759,195,18]: Войти как администратор
+          - text: Управление сотрудниками, коэффициентами и справочниками. Требуется учётная запись администратора.
+      - button "Войти в админку" [ref=f3e85] [cursor=pointer] [box=66,881,258,28]
+      - button "question-circle Инструкция для администратора" [ref=f3e87] [cursor=pointer] [box=66,915,258,17]:
+        - img "question-circle" [ref=f3e89] [box=105,918,10,10]
+        - generic [ref=f3e93] [box=121,917,164,11]: Инструкция для администратора

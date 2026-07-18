@@ -1,0 +1,165 @@
+- generic [ref=e1] [box=0,0,1440,1000]:
+  - generic [ref=e621] [box=-1,-1,1,1]:
+    - log [box=-1,-1,1,0]
+    - log [box=-1,-1,1,0]
+  - generic [ref=e94] [box=0,0,1440,1000]:
+    - banner [ref=e95] [box=0,0,1440,26]:
+      - generic [ref=e96] [box=10,0,1420,25]:
+        - generic "HeatCalc" [ref=e97] [box=10,5,86,15]:
+          - img "fire" [ref=e98] [box=10,5,15,15]
+          - heading "HeatCalc" [level=2] [ref=e101] [box=31,6,65,14]
+        - navigation "Разделы проекта" [ref=e102] [box=105,1,910,23]:
+          - menu [ref=e103] [box=105,1,910,23]:
+            - menuitem "fire Расчёт тепловых потерь check-circle 1" [ref=e3440] [cursor=pointer] [box=107,1,246,24]:
+              - img "fire" [ref=e105] [box=115,7,14,12]
+              - generic [ref=e109] [box=139,6,206,15]:
+                - text: Расчёт тепловых потерь
+                - img "check-circle" [ref=e3441] [box=292,7,14,12]
+                - superscript [ref=e3445] [box=320,6,24,15]:
+                  - generic [ref=e3446] [box=330,7,5,12]: "1"
+            - menuitem "thunderbolt Электротехнический расчёт" [ref=e110] [cursor=pointer] [box=356,1,215,24]:
+              - img "thunderbolt" [ref=e111] [box=364,7,14,12]
+              - generic [ref=e114] [box=388,7,175,12]: Электротехнический расчёт
+            - menuitem "unordered-list Спецификация" [ref=e116] [cursor=pointer] [box=576,1,132,24]:
+              - img "unordered-list" [ref=e117] [box=584,7,14,12]
+              - generic [ref=e120] [box=608,7,92,12]: Спецификация
+            - separator [box=354,2,0,21]
+            - menuitem "file-text Отчёт" [ref=e121] [cursor=pointer] [box=712,1,76,24]:
+              - img "file-text" [ref=e122] [box=720,7,14,12]
+              - generic [ref=e125] [box=744,7,36,12]: Отчёт
+            - menuitem [disabled] [box=123,0,30,24]
+        - generic [ref=e126] [box=1023,1,407,24]:
+          - generic [ref=e127] [box=1023,1,241,24]:
+            - generic [ref=e129] [box=1023,1,72,24]:
+              - img "folder-open" [ref=e131] [box=1023,9,10,10]
+              - generic "Мой проект" [ref=e135] [box=1036,1,59,22]
+            - button "download Скачать" [ref=e137] [cursor=pointer] [box=1102,2,73,22]:
+              - img "download" [ref=e139] [box=1110,7,11,11]
+              - generic [ref=e142] [box=1127,8,40,10]: Скачать
+            - button "upload Загрузить" [ref=e144] [cursor=pointer] [box=1178,2,83,22]:
+              - img "upload" [ref=e146] [box=1186,7,11,11]
+              - generic [ref=e149] [box=1203,8,50,10]: Загрузить
+          - generic [ref=e150] [box=1270,2,160,22]:
+            - button "question-circle Инструкция" [ref=e152] [cursor=pointer] [box=1270,2,92,22]:
+              - img "question-circle" [ref=e154] [box=1278,7,11,11]
+              - generic [ref=e158] [box=1295,8,60,10]: Инструкция
+            - button "logout Выход" [ref=e160] [cursor=pointer] [box=1366,2,64,22]:
+              - img "logout" [ref=e162] [box=1374,7,11,11]
+              - generic [ref=e165] [box=1390,8,32,10]: Выход
+    - main [ref=e167] [box=0,26,1440,974]:
+      - generic [ref=e3925] [box=0,28,1440,590]:
+        - generic [ref=e3928] [box=7,29,226,199]:
+          - strong [ref=e3931] [box=19,44,117,16]:
+            - img "unordered-list" [ref=e3932] [box=19,46,13,13]
+            - text: Спецификация
+          - generic [ref=e3935] [box=19,73,202,143]:
+            - button "reload Пересчитать" [active] [ref=e3994] [cursor=pointer] [box=19,77,202,17]:
+              - img "reload" [ref=e3996] [box=81,80,10,10]
+              - generic [ref=e3942] [box=96,80,63,11]: Пересчитать
+            - generic [ref=e3944] [box=19,103,202,50]:
+              - text: Группировка
+              - radiogroup "segmented control" [ref=e3945] [box=19,129,202,24]:
+                - generic [ref=e3946] [box=21,131,198,20]:
+                  - generic [ref=e3947] [cursor=pointer] [box=21,131,66,20]:
+                    - radio "Нет" [box=26,134,0,0]
+                    - generic "Нет" [ref=e3948] [box=21,131,66,20]
+                  - generic [ref=e3949] [cursor=pointer] [box=87,131,66,20]:
+                    - radio "Кат." [checked] [box=92,134,0,0]
+                    - generic "Кат." [ref=e3950] [box=87,131,66,20]
+                  - generic [ref=e3951] [cursor=pointer] [box=153,131,66,20]:
+                    - radio "Ед." [box=158,134,0,0]
+                    - generic "Ед." [ref=e3952] [box=153,131,66,20]
+            - generic [ref=e3954] [box=19,167,202,49]:
+              - generic [ref=e3955] [box=28,174,184,17]:
+                - text: "Позиций:"
+                - strong [ref=e3956] [box=82,176,7,13]: "6"
+              - generic [ref=e3957] [box=28,191,184,17]:
+                - text: "Категорий:"
+                - strong [ref=e3958] [box=92,193,7,13]: "3"
+        - generic [ref=e3960] [box=246,28,1188,590]:
+          - strong [ref=e3965] [box=259,39,144,17]: Окно спецификаций
+          - generic [ref=e3966] [box=247,66,1186,551]:
+            - generic [ref=e3999] [box=259,74,1162,484]:
+              - generic [ref=e4000] [box=259,74,1162,114]:
+                - generic [ref=e4001] [box=259,74,1162,32]:
+                  - strong [ref=e4002] [box=272,82,128,16]: "Категория: Защита"
+                  - generic [ref=e4003] [box=408,82,67,16]: "позиций: 1"
+                - table [ref=e4010] [box=259,110,1162,78]:
+                  - rowgroup [ref=e4016] [box=259,110,1162,39]:
+                    - row "Наименование Артикул Ед. Кол-во" [ref=e4017] [box=259,110,1162,39]:
+                      - columnheader "Наименование" [ref=e4018] [cursor=pointer] [box=259,110,593,39]
+                      - columnheader "Артикул" [ref=e4029] [cursor=pointer] [box=852,110,389,39]
+                      - columnheader "Ед." [ref=e4040] [cursor=pointer] [box=1241,110,80,39]
+                      - columnheader "Кол-во" [ref=e4051] [cursor=pointer] [box=1321,110,100,39]
+                  - rowgroup [ref=e4062] [box=259,149,1162,39]:
+                    - row "УЗО 30 мА УЗО-30 шт. 1" [ref=e4063] [box=259,149,1162,39]:
+                      - cell "УЗО 30 мА" [ref=e4064] [box=259,149,593,39]
+                      - cell "УЗО-30" [ref=e4067] [box=852,149,389,39]
+                      - cell "шт." [ref=e4068] [box=1241,149,80,39]
+                      - cell "1" [ref=e4069] [box=1321,149,100,39]
+              - generic [ref=e4070] [box=259,200,1162,192]:
+                - generic [ref=e4071] [box=259,200,1162,32]:
+                  - strong [ref=e4072] [box=272,208,190,16]: "Категория: Комплектующие"
+                  - generic [ref=e4073] [box=470,208,69,16]: "позиций: 3"
+                - table [ref=e4080] [box=259,237,1162,156]:
+                  - rowgroup [ref=e4086] [box=259,237,1162,39]:
+                    - row "Наименование Артикул Ед. Кол-во" [ref=e4087] [box=259,237,1162,39]:
+                      - columnheader "Наименование" [ref=e4088] [cursor=pointer] [box=259,237,706,39]
+                      - columnheader "Артикул" [ref=e4099] [cursor=pointer] [box=965,237,276,39]
+                      - columnheader "Ед." [ref=e4110] [cursor=pointer] [box=1241,237,80,39]
+                      - columnheader "Кол-во" [ref=e4121] [cursor=pointer] [box=1321,237,100,39]
+                  - rowgroup [ref=e4132] [box=259,276,1162,117]:
+                    - row "Комплект концевой заделки КЗ-01 шт. 1" [ref=e4133] [box=259,276,1162,39]:
+                      - cell "Комплект концевой заделки" [ref=e4134] [box=259,276,706,39]
+                      - cell "КЗ-01" [ref=e4137] [box=965,276,276,39]
+                      - cell "шт." [ref=e4138] [box=1241,276,80,39]
+                      - cell "1" [ref=e4139] [box=1321,276,100,39]
+                    - row "Комплект соединительный КС-01 шт. 1" [ref=e4140] [box=259,315,1162,39]:
+                      - cell "Комплект соединительный" [ref=e4141] [box=259,315,706,39]
+                      - cell "КС-01" [ref=e4144] [box=965,315,276,39]
+                      - cell "шт." [ref=e4145] [box=1241,315,80,39]
+                      - cell "1" [ref=e4146] [box=1321,315,100,39]
+                    - row "Лента крепёжная алюминиевая ЛКА-50 м 2" [ref=e4147] [box=259,354,1162,39]:
+                      - cell "Лента крепёжная алюминиевая" [ref=e4148] [box=259,354,706,39]
+                      - cell "ЛКА-50" [ref=e4151] [box=965,354,276,39]
+                      - cell "м" [ref=e4152] [box=1241,354,80,39]
+                      - cell "2" [ref=e4153] [box=1321,354,100,39]
+              - generic [ref=e4154] [box=259,405,1162,153]:
+                - generic [ref=e4155] [box=259,405,1162,32]:
+                  - strong [ref=e4156] [box=272,413,158,16]: "Категория: Управление"
+                  - generic [ref=e4157] [box=438,413,69,16]: "позиций: 2"
+                - table [ref=e4164] [box=259,441,1162,117]:
+                  - rowgroup [ref=e4170] [box=259,441,1162,39]:
+                    - row "Наименование Артикул Ед. Кол-во" [ref=e4171] [box=259,441,1162,39]:
+                      - columnheader "Наименование" [ref=e4172] [cursor=pointer] [box=259,441,697,39]
+                      - columnheader "Артикул" [ref=e4183] [cursor=pointer] [box=956,441,285,39]
+                      - columnheader "Ед." [ref=e4194] [cursor=pointer] [box=1241,441,80,39]
+                      - columnheader "Кол-во" [ref=e4205] [cursor=pointer] [box=1321,441,100,39]
+                  - rowgroup [ref=e4216] [box=259,480,1162,78]:
+                    - row "Датчик температуры NTC ДТ-NTC шт. 1" [ref=e4217] [box=259,480,1162,39]:
+                      - cell "Датчик температуры NTC" [ref=e4218] [box=259,480,697,39]
+                      - cell "ДТ-NTC" [ref=e4221] [box=956,480,285,39]
+                      - cell "шт." [ref=e4222] [box=1241,480,80,39]
+                      - cell "1" [ref=e4223] [box=1321,480,100,39]
+                    - row "Терморегулятор электронный ТР-220 шт. 1" [ref=e4224] [box=259,519,1162,39]:
+                      - cell "Терморегулятор электронный" [ref=e4225] [box=259,519,697,39]
+                      - cell "ТР-220" [ref=e4228] [box=956,519,285,39]
+                      - cell "шт." [ref=e4229] [box=1241,519,80,39]
+                      - cell "1" [ref=e4230] [box=1321,519,100,39]
+            - generic [ref=e3981] [box=259,570,1162,35]:
+              - generic [ref=e3982] [box=259,585,100,17]: "Вариант системы:"
+              - radiogroup "segmented control" [ref=e3983] [box=367,581,175,24]:
+                - generic [ref=e3984] [box=369,583,171,20]:
+                  - generic [ref=e3985] [cursor=pointer] [box=369,583,41,20]:
+                    - radio "СО1" [checked] [box=374,586,0,0]
+                    - generic "СО1" [ref=e3986] [box=369,583,41,20]
+                  - generic [ref=e3987] [cursor=pointer] [box=410,583,43,20]:
+                    - radio "СО2" [box=415,586,0,0]
+                    - generic "СО2" [ref=e3988] [box=410,583,43,20]
+                  - generic [ref=e3989] [cursor=pointer] [box=453,583,43,20]:
+                    - radio "СО3" [box=458,586,0,0]
+                    - generic "СО3" [ref=e3990] [box=453,583,43,20]
+                  - generic [ref=e3991] [cursor=pointer] [box=496,583,44,20]:
+                    - radio "СО4" [box=501,586,0,0]
+                    - generic "СО4" [ref=e3992] [box=496,583,44,20]
+              - generic [ref=e3993] [box=549,585,387,17]: Спецификация и расчёт сохраняются отдельно для каждого варианта.
