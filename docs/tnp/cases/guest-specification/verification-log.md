@@ -72,3 +72,40 @@
 Существующий layout e2e green не опровергает mobile finding: он проверяет в
 основном empty workspace и исключает элементы с `text-overflow: ellipsis`, тогда
 как ручной verifier проверил populated form, clipped units и page scroll.
+
+## Phase 0 запуска супер-промпта
+
+Дата: 18.07.2026. Ветка:
+`feature/tnp-dynamic-electrical-variants`. Production behavior не менялся.
+
+| Проверка | Результат |
+|---|---|
+| `git log -1 --oneline --decorate` | PASS: `c4d9a2f`, main и feature branch указывают на подготовительный docs commit. |
+| `docker exec heatcalc_backend alembic heads` | PASS: `0026 (head)`. |
+| Focused backend: calculations, specifications, reports, project I/O, `--no-cov` | PASS. Warnings только о тестовом JWT HMAC key длиной 23 bytes. |
+| Focused frontend: ElecCalcPage, SpecificationPage, ReportPage, variant model | PASS: 4 files, 65 tests. |
+| `scripts/formula-qa.sh quick` | PASS. |
+| `scripts/codex-functional-audit.sh contracts` | PASS: 5 legacy contracts; не является proof нового PDF BOM. |
+| `scripts/codex-functional-audit.sh db-invariants` | PASS: 11 checks, 0 violations. |
+| Kontur static wrapper | INFRA FAIL: ищет `package.json` в plugin cache, а не в TLT. |
+
+### Electrical before evidence
+
+- Desktop `1440x1000`: [screenshot](assets/ui/phase0-before-electrical-desktop.png),
+  [snapshot](assets/ui/phase0-before-electrical-desktop.md),
+  [geometry](evidence/layout/phase0-before-electrical-desktop-geometry.json).
+- Mobile `390x844`: [screenshot](assets/ui/phase0-before-electrical-mobile.png),
+  [snapshot](assets/ui/phase0-before-electrical-mobile.md),
+  [geometry](evidence/layout/phase0-before-electrical-mobile-geometry.json),
+  [action bar geometry](evidence/layout/phase0-before-electrical-mobile-toolbar-geometry.json).
+- Runtime: [console](evidence/logs/phase0-before-electrical-console.log),
+  [network](evidence/logs/phase0-before-electrical-network.md).
+
+Оба viewport показывают ровно четыре fixed buttons `СО1…СО4`; overlap и
+page-level horizontal overflow не обнаружены. На mobile правая часть action bar
+находится вне viewport, но доступна через локальный container с
+`overflow-x:auto` (`scrollWidth=1347`, `clientWidth=376`).
+
+Runtime воспроизводит 401 к stale project id, затем `POST /auth/guest` 201 и
+успешные запросы нового проекта; следом приходят 404 для уже невалидного старого
+project id. Также остаются favicon 404 и Ant Design static-message warning.

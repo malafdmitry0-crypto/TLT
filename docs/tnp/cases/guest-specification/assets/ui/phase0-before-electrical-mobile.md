@@ -1,0 +1,110 @@
+- generic [ref=f4e25] [box=0,0,390,844]:
+  - banner [ref=f4e26] [box=0,0,390,98]:
+    - generic [ref=f4e27] [box=6,0,378,97]:
+      - generic "HeatCalc" [ref=f4e28] [box=6,2,378,15]:
+        - img "fire" [ref=f4e29] [box=6,2,15,15]
+        - heading "HeatCalc" [level=2] [ref=f4e32] [box=27,3,65,14]
+      - navigation "Разделы проекта" [ref=f4e33] [box=6,72,378,23]:
+        - menu [ref=f4e34] [box=6,72,378,23]:
+          - menuitem "fire Расчёт тепловых потерь" [ref=f4e35] [cursor=pointer] [box=8,72,190,24]:
+            - img "fire" [ref=f4e36] [box=16,78,14,12]
+            - generic [ref=f4e39] [box=40,78,150,12]: Расчёт тепловых потерь
+          - generic [box=40,6,175,12]: Электротехнический расчёт
+          - generic [box=40,6,92,12]: Спецификация
+          - separator [box=200,73,0,21]
+          - generic [box=40,6,36,12]: Отчёт
+          - menuitem [ref=f4e193] [cursor=pointer] [box=218,72,30,24]:
+            - img "ellipsis" [ref=f4e194] [box=226,76,14,14]
+      - generic [ref=f4e57] [box=6,20,378,49]:
+        - generic [ref=f4e58] [box=6,20,237,24]:
+          - generic [ref=f4e60] [box=6,20,72,24]:
+            - img "folder-open" [ref=f4e62] [box=6,28,10,10]
+            - generic "Мой проект" [ref=f4e66] [box=19,20,59,22]
+          - button "download Скачать" [ref=f4e68] [cursor=pointer] [box=85,21,71,22]:
+            - img "download" [ref=f4e70] [box=92,27,11,11]
+            - generic [ref=f4e73] [box=109,27,40,10]: Скачать
+          - button "upload Загрузить" [ref=f4e75] [cursor=pointer] [box=159,21,81,22]:
+            - img "upload" [ref=f4e77] [box=166,27,11,11]
+            - generic [ref=f4e80] [box=183,27,50,10]: Загрузить
+        - generic [ref=f4e81] [box=6,47,156,22]:
+          - button "question-circle Инструкция" [ref=f4e83] [cursor=pointer] [box=6,47,90,22]:
+            - img "question-circle" [ref=f4e85] [box=13,53,11,11]
+            - generic [ref=f4e89] [box=30,53,60,10]: Инструкция
+          - button "logout Выход" [ref=f4e91] [cursor=pointer] [box=99,47,62,22]:
+            - img "logout" [ref=f4e93] [box=106,53,11,11]
+            - generic [ref=f4e96] [box=123,53,32,10]: Выход
+  - main [ref=f4e98] [box=0,98,390,746]:
+    - generic [ref=f4e100] [box=6,100,378,544]:
+      - generic [ref=f4e102] [box=6,100,378,70]:
+        - generic [ref=f4e103] [box=20,105,110,60]:
+          - generic [ref=f4e104] [box=20,105,74,30]: СО1 · тип по объектам ·
+          - text: расчёт не выполнен
+        - generic [ref=f4e105] [cursor=pointer] [box=138,126,236,17]:
+          - checkbox "Показать блок заполнения параметров" [checked] [ref=f4e107] [box=138,127,16,16]
+          - generic [ref=f4e109] [box=154,126,220,17]: Показать блок заполнения параметров
+      - generic [ref=f4e111] [box=6,175,378,222]:
+        - generic [ref=f4e112] [box=6,175,378,89]:
+          - heading "1 Кабель и схема подключения" [level=4] [ref=f4e113] [box=7,176,376,19]:
+            - text: "1"
+            - generic [ref=f4e114] [box=31,180,150,10]: Кабель и схема подключения
+          - generic [ref=f4e115] [box=10,200,370,26]:
+            - generic [ref=f4e116] [box=14,206,206,14]: Тип кабеля
+            - generic "Тип кабеля" [ref=f4e117] [cursor=pointer] [box=226,201,150,24]:
+              - generic [ref=f4e119] [box=234,202,134,22]:
+                - combobox "Тип кабеля" [ref=f4e121] [box=234,202,116,22]
+                - generic "Саморегулирующийся" [ref=f4e122] [box=234,202,134,22]
+          - generic [ref=f4e123] [box=10,228,370,33]: Марка кабеля — авторасчёт или ручной выбор по объекту (кнопки «Выбор» / «Подбор» в таблице).
+        - generic [ref=f4e124] [box=6,266,378,54]:
+          - heading "2 Электропитание и температуры" [level=4] [ref=f4e125] [box=7,267,376,19]:
+            - text: "2"
+            - generic [ref=f4e126] [box=31,271,161,10]: Электропитание и температуры
+          - generic [ref=f4e127] [box=10,291,370,26]:
+            - generic [ref=f4e128] [box=14,297,246,14]: Напряжение питания U, В
+            - generic [ref=f4e129] [box=266,292,110,24]:
+              - generic [box=375,293,0,22]:
+                - button "Increase Value" [ref=f4e130] [cursor=pointer] [box=375,293,1,11]:
+                  - img "up" [ref=f4e131] [box=373,295,7,7]
+                - button "Decrease Value" [ref=f4e134] [cursor=pointer] [box=375,304,1,11]:
+                  - img "down" [ref=f4e135] [box=373,307,7,7]
+              - spinbutton "Напряжение питания" [ref=f4e139] [box=267,293,108,22]: "220"
+        - generic [ref=f4e140] [box=6,322,378,75]:
+          - heading "3 Укладка кабеля" [level=4] [ref=f4e141] [box=7,323,376,19]:
+            - text: "3"
+            - generic [ref=f4e142] [box=31,327,80,10]: Укладка кабеля
+          - generic [ref=f4e143] [box=10,347,370,47]: Шаг навива и количество ниток задаются для каждого объекта (колонки таблицы или модалка «Подбор»). Лимит Kn по диаметру — по таблице ТНП.
+      - generic [ref=f4e145] [box=6,402,378,30]:
+        - generic [ref=f4e146] [box=13,405,697,24]:
+          - button "СО1" [ref=f4e147] [cursor=pointer] [box=13,406,42,22]
+          - button "СО2" [ref=f4e149] [cursor=pointer] [box=60,406,43,22]
+          - button "СО3" [ref=f4e151] [cursor=pointer] [box=108,406,44,22]
+          - button "СО4" [ref=f4e153] [cursor=pointer] [box=156,406,44,22]
+          - button "copy Создать на основании" [ref=f4e155] [cursor=pointer] [box=205,406,168,22]:
+            - img "copy" [ref=f4e157] [box=214,410,12,12]
+            - generic [ref=f4e160] [box=232,411,133,12]: Создать на основании
+          - generic [ref=f4e162] [box=390,408,105,17]: "Тип для пересчёта:"
+          - generic "Тип кабеля для пересчёта" [ref=f4e163] [cursor=pointer] [box=500,405,210,24]:
+            - generic [ref=f4e165] [box=508,406,194,22]:
+              - combobox "Тип кабеля для пересчёта" [ref=f4e167] [box=508,406,176,22]
+              - generic "Саморегулирующийся" [ref=f4e168] [box=508,406,194,22]
+        - generic [ref=f4e169] [box=715,406,633,22]:
+          - button "reload Пересчитать выбранные (0)" [disabled] [ref=f4e171] [box=722,406,202,22]:
+            - generic [box=731,410,12,13]:
+              - img "reload" [box=731,410,12,12]
+            - generic [box=749,411,166,12]: Пересчитать выбранные (0)
+          - button "reload Пересчитать все СО1" [disabled] [ref=f4e172] [box=929,406,162,22]:
+            - generic [box=938,410,12,13]:
+              - img "reload" [box=938,410,12,12]
+            - generic [box=956,411,127,12]: Пересчитать все СО1
+          - button "Настройки" [ref=f4e173] [cursor=pointer] [box=1096,406,100,22]:
+            - img "table" [ref=f4e175] [box=1105,410,12,12]
+          - button "Сбросить фильтры таблицы" [disabled] [ref=f4e180] [box=1201,406,147,22]:
+            - generic [box=1210,410,12,13]:
+              - img "close-circle" [box=1210,410,12,12]
+            - generic [box=1228,411,111,12]: Сбросить фильтры
+      - generic [ref=f4e183] [box=7,450,376,194]:
+        - alert [ref=f4e184] [box=19,450,352,119]:
+          - img "exclamation-circle" [ref=f4e185] [box=44,471,24,24]
+          - generic [ref=f4e188] [box=80,471,266,77]:
+            - generic [ref=f4e189] [box=80,471,266,25]: Нет объектов
+            - generic [ref=f4e190] [box=80,504,266,44]: Добавьте объекты на шаге «Теплопотери».
+        - generic [ref=f4e191] [box=7,581,376,63]: ⓘ Красная строка = ошибка подбора кабеля, серый статус = не применимо. Отметьте строки для пересчёта выбранных или используйте «Пересчитать все».
