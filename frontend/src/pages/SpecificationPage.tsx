@@ -33,11 +33,8 @@ import {
 } from '@/api/specifications';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
 import { useAuthStore } from '@/store/authStore';
-import {
-  normalizeCalculationVariant,
-  useCalculationVariantStore,
-} from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
+import { useLegacyElectricalVariantContext } from '@/pages/electrical/useLegacyElectricalVariantContext';
 import SpecTable from '@/components/specification/SpecTable';
 import QueryError from '@/components/common/QueryError';
 import EmptyProjectState from '@/components/common/EmptyProjectState';
@@ -51,20 +48,49 @@ const SPEC_PARAMS_PANEL_STORAGE_KEY = 'tlt-spec-params-panel';
 
 type GroupBy = 'none' | 'category' | 'unit';
 
+type SpecificationMutationScope = {
+  projectId: string;
+  electricalVariantId: string;
+  electricalVariantName: string;
+  legacyVariantNumber: number;
+  queryKey: readonly unknown[];
+};
+
+type GenerateSpecificationVariables = SpecificationMutationScope & {
+  mode: 'basic' | 'full';
+  options?: Parameters<typeof generateSpecification>[4];
+};
+
+type SaveSpecificationVariables = SpecificationMutationScope & {
+  items: SpecificationItem[];
+};
+
 export default function SpecificationPage() {
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const sessionId = useAuthStore((s) => s.sessionId);
   const isEmployee = role === 'employee' || role === 'admin';
+  const canMutateProject = Boolean(project && (
+    role === 'admin'
+    || (role === 'employee' && project.user_id === userId)
+    || (role === 'guest' && project.session_id === sessionId)
+  ));
+  const canManuallyEdit = canMutateProject && isEmployee;
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const storedVariant = useCalculationVariantStore((s) =>
-    project?.id ? s.variantByProject[project.id] : undefined
+  const variantContext = useLegacyElectricalVariantContext(project?.id);
+  const selectedElectricalVariant = variantContext.selectedVariant;
+  const variant = variantContext.legacyVariantNumber ?? 1;
+  const legacyDataPlaneEnabled = Boolean(
+    project && selectedElectricalVariant && variantContext.legacyVariantNumber != null,
   );
-  const saveVariant = useCalculationVariantStore((s) => s.setVariant);
-  const variant = normalizeCalculationVariant(storedVariant);
-  const setVariant = (nextVariant: number) => {
-    if (project?.id) saveVariant(project.id, nextVariant);
-  };
+  const specificationQueryKey = [
+    'spec',
+    project?.id,
+    selectedElectricalVariant?.id,
+    variant,
+  ] as const;
 
   const [groupBy, setGroupBy] = useState<GroupBy>('category');
   const [addOpen, setAddOpen] = useState(false);
@@ -101,15 +127,19 @@ export default function SpecificationPage() {
     error: specErrorObj,
     isFetching: specFetching,
   } = useQuery({
-    queryKey: ['spec', project?.id, variant],
-    queryFn: () => getSpecification(project!.id, variant),
-    enabled: !!project,
+    queryKey: specificationQueryKey,
+    queryFn: () => getSpecification(
+      project!.id,
+      variant,
+      selectedElectricalVariant!.id,
+    ),
+    enabled: legacyDataPlaneEnabled,
   });
 
   const { data: accessories = [] } = useQuery({
     queryKey: referenceQueryKeys.accessoriesExtended,
     queryFn: listAccessoriesExtended,
-    enabled: isEmployee,
+    enabled: canManuallyEdit,
     ...referenceQueryOptions,
   });
 
@@ -133,43 +163,76 @@ export default function SpecificationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spec?.id, spec?.generation_mode]);
 
-  const effectiveMode = isEmployee ? specMode : 'basic';
+  const effectiveMode = canManuallyEdit ? specMode : 'basic';
+  const snapshotMutationScope = (): SpecificationMutationScope => {
+    if (!project || !selectedElectricalVariant || variantContext.legacyVariantNumber == null) {
+      throw new Error('Выбранный ЭР недоступен для спецификации');
+    }
+    return {
+      projectId: project.id,
+      electricalVariantId: selectedElectricalVariant.id,
+      electricalVariantName: selectedElectricalVariant.name,
+      legacyVariantNumber: variantContext.legacyVariantNumber,
+      queryKey: [
+        'spec',
+        project.id,
+        selectedElectricalVariant.id,
+        variantContext.legacyVariantNumber,
+      ],
+    };
+  };
   const mut = useMutation({
-    mutationFn: () =>
-      generateSpecification(
-        project!.id,
-        variant,
-        effectiveMode,
-        effectiveMode === 'full'
-          ? {
-              ex_zone: exZone,
-              reserve_coefficient: reserveCoeff,
-              indication_on_boxes: indicationOnBoxes,
-              end_section_indication: endSectionIndication,
-              top_indication: topIndication,
-              min_length_for_end_indication: minLengthK2i,
-            }
-          : undefined
-      ),
-    onSuccess: (result) => {
+    mutationFn: ({
+      projectId,
+      electricalVariantId,
+      legacyVariantNumber,
+      mode,
+      options,
+    }: GenerateSpecificationVariables) => {
+      if (!canMutateProject) {
+        throw new Error('Недостаточно прав для изменения спецификации');
+      }
+      return generateSpecification(
+        projectId,
+        legacyVariantNumber,
+        electricalVariantId,
+        mode,
+        options,
+      );
+    },
+    onSuccess: (result, variables) => {
       message.success(
-        `Спецификация (${result.mode === 'full' ? 'полная' : 'базовая'}) для CO${variant} сгенерирована`
+        `Спецификация (${result.mode === 'full' ? 'полная' : 'базовая'}) для «${variables.electricalVariantName}» сгенерирована`
       );
       if (result.mode === 'full' && result.skipped_objects > 0) {
         message.warning(
           `Объектов без успешного электрорасчёта: ${result.skipped_objects} — они не вошли в полную спецификацию`
         );
       }
-      refetch();
+      qc.invalidateQueries({ queryKey: variables.queryKey, exact: true });
     },
     onError: (e: Error) => message.error(e.message),
   });
 
   const saveMut = useMutation({
-    mutationFn: (items: SpecificationItem[]) =>
-      saveSpecificationItems(project!.id, items, variant),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['spec', project?.id, variant] });
+    mutationFn: ({
+      projectId,
+      electricalVariantId,
+      legacyVariantNumber,
+      items,
+    }: SaveSpecificationVariables) => {
+      if (!canManuallyEdit) {
+        throw new Error('Недостаточно прав для ручного изменения спецификации');
+      }
+      return saveSpecificationItems(
+        projectId,
+        items,
+        legacyVariantNumber,
+        electricalVariantId,
+      );
+    },
+    onSuccess: (_result, variables) => {
+      qc.invalidateQueries({ queryKey: variables.queryKey, exact: true });
     },
     onError: (e: Error) => message.error(e.message),
   });
@@ -179,6 +242,23 @@ export default function SpecificationPage() {
     [spec]
   );
   const isSpecStale = spec?.is_stale === true;
+  const runGenerate = () => {
+    const scope = snapshotMutationScope();
+    mut.mutate({
+      ...scope,
+      mode: effectiveMode,
+      options: effectiveMode === 'full'
+        ? {
+            ex_zone: exZone,
+            reserve_coefficient: reserveCoeff,
+            indication_on_boxes: indicationOnBoxes,
+            end_section_indication: endSectionIndication,
+            top_indication: topIndication,
+            min_length_for_end_indication: minLengthK2i,
+          }
+        : undefined,
+    });
+  };
 
   if (!project) {
     return (
@@ -190,9 +270,53 @@ export default function SpecificationPage() {
     );
   }
 
+  if (variantContext.isLoading) {
+    return (
+      <Card size="small" aria-busy="true" aria-label="Загрузка списка ЭР">
+        <Skeleton active title paragraph={{ rows: 4 }} />
+      </Card>
+    );
+  }
+
+  if (variantContext.isError) {
+    return (
+      <QueryError
+        error={variantContext.error}
+        title="Не удалось загрузить список ЭР"
+        onRetry={() => variantContext.refetch()}
+        retrying={variantContext.isFetching}
+      />
+    );
+  }
+
+  if (!selectedElectricalVariant) {
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        message="ЭР ещё не создан"
+        description="Завершите теплорасчёт и создайте первый ЭР на шаге 2."
+        action={<Button onClick={() => navigate(ROUTES.elecCalc)}>К электрорасчёту</Button>}
+      />
+    );
+  }
+
+  if (variantContext.legacyVariantNumber == null) {
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        message={`«${selectedElectricalVariant.name}»: спецификация временно недоступна`}
+        description="UUID-версия спецификации относится к Phase 5. Данные другого ЭР не подставляются."
+        action={<Button onClick={() => navigate(ROUTES.elecCalc)}>Выбрать другой ЭР</Button>}
+      />
+    );
+  }
+
   const hasItems = items.length > 0;
 
   const handleAdd = () => {
+    if (!canManuallyEdit) return;
     const acc = accessories.find((a) => a.id === selectedAccessoryId);
     if (!acc || !qty || qty <= 0) return;
     const newItem: SpecificationItem = {
@@ -204,7 +328,10 @@ export default function SpecificationPage() {
       params: { source_id: acc.id },
       source: 'manual',
     };
-    saveMut.mutate([...items, newItem], {
+    saveMut.mutate({
+      ...snapshotMutationScope(),
+      items: [...items, newItem],
+    }, {
       onSuccess: () => {
         message.success('Позиция добавлена');
         setAddOpen(false);
@@ -215,8 +342,12 @@ export default function SpecificationPage() {
   };
 
   const handleDelete = (index: number) => {
+    if (!canManuallyEdit) return;
     const next = items.filter((_, i) => i !== index);
-    saveMut.mutate(next, {
+    saveMut.mutate({
+      ...snapshotMutationScope(),
+      items: next,
+    }, {
       onSuccess: () => message.success('Позиция удалена'),
     });
   };
@@ -227,6 +358,16 @@ export default function SpecificationPage() {
 
   return (
     <>
+      {!canMutateProject && (
+        <Alert
+          type="info"
+          showIcon
+          message="Режим просмотра"
+          description="Изменять или пересчитывать спецификацию может только владелец проекта или администратор."
+          style={{ marginBottom: 8 }}
+        />
+      )}
+
       {isEmployee && (
         <div
           className="common-data-banner"
@@ -240,7 +381,7 @@ export default function SpecificationPage() {
         >
           <span>
             <span className="label">
-              СО{variant} · спецификация: {fullModeActive ? 'полная (BOM ТНП)' : 'базовая'} ·{' '}
+              {selectedElectricalVariant.name} · спецификация: {fullModeActive ? 'полная (BOM ТНП)' : 'базовая'} ·{' '}
             </span>
             позиций: {items.length}
           </span>
@@ -267,6 +408,7 @@ export default function SpecificationPage() {
               <Segmented<'basic' | 'full'>
                 size="small"
                 value={specMode}
+                disabled={!canManuallyEdit}
                 onChange={setSpecMode}
                 options={[
                   { label: 'Базовая', value: 'basic' },
@@ -282,7 +424,7 @@ export default function SpecificationPage() {
                 max={3}
                 step={0.1}
                 size="small"
-                disabled={!fullModeActive}
+                disabled={!canManuallyEdit || !fullModeActive}
                 value={reserveCoeff}
                 onChange={(v) => setReserveCoeff(Number(v ?? 1))}
                 className="workflow-params-input"
@@ -299,7 +441,7 @@ export default function SpecificationPage() {
             <h4 data-step={2}><span>Требования ТНП (Ex и индикация)</span></h4>
             <div className="workflow-params-row">
               <Checkbox
-                disabled={!fullModeActive}
+                disabled={!canManuallyEdit || !fullModeActive}
                 checked={exZone}
                 onChange={(e) => setExZone(e.target.checked)}
               >
@@ -308,7 +450,7 @@ export default function SpecificationPage() {
             </div>
             <div className="workflow-params-row">
               <Checkbox
-                disabled={!fullModeActive}
+                disabled={!canManuallyEdit || !fullModeActive}
                 checked={indicationOnBoxes}
                 onChange={(e) => setIndicationOnBoxes(e.target.checked)}
               >
@@ -317,7 +459,7 @@ export default function SpecificationPage() {
             </div>
             <div className="workflow-params-row">
               <Checkbox
-                disabled={!fullModeActive}
+                disabled={!canManuallyEdit || !fullModeActive}
                 checked={endSectionIndication}
                 onChange={(e) => setEndSectionIndication(e.target.checked)}
               >
@@ -326,7 +468,7 @@ export default function SpecificationPage() {
             </div>
             <div className="workflow-params-row">
               <Checkbox
-                disabled={!fullModeActive}
+                disabled={!canManuallyEdit || !fullModeActive}
                 checked={topIndication}
                 onChange={(e) => setTopIndication(e.target.checked)}
               >
@@ -341,6 +483,7 @@ export default function SpecificationPage() {
                   min={0}
                   step={10}
                   size="small"
+                  disabled={!canManuallyEdit}
                   value={minLengthK2i}
                   onChange={(v) => setMinLengthK2i(Number(v ?? 0))}
                   className="workflow-params-input"
@@ -373,7 +516,8 @@ export default function SpecificationPage() {
                 block
                 size="small"
                 loading={mut.isPending}
-                onClick={() => mut.mutate()}
+                disabled={!canMutateProject}
+                onClick={runGenerate}
               >
                 {hasItems ? 'Пересчитать' : 'Сформировать'}
               </Button>
@@ -381,7 +525,7 @@ export default function SpecificationPage() {
               {/* Режим и параметры полного BOM — в блоке заполнения параметров
                   над таблицей (workflow-params-panel), как на SC-03. */}
 
-              {isEmployee && (
+              {canManuallyEdit && (
                 <Button
                   icon={<PlusOutlined />}
                   block
@@ -461,7 +605,8 @@ export default function SpecificationPage() {
                     type="primary"
                     icon={<ReloadOutlined />}
                     loading={mut.isPending}
-                    onClick={() => mut.mutate()}
+                    disabled={!canMutateProject}
+                    onClick={runGenerate}
                   >
                     Сформировать заново
                   </Button>
@@ -505,7 +650,7 @@ export default function SpecificationPage() {
                 <SpecTable
                   items={items}
                   groupBy={groupBy}
-                  canDelete={isEmployee && hasItems}
+                  canDelete={canManuallyEdit && hasItems}
                   isStale={isSpecStale}
                   onDelete={handleDelete}
                 />
@@ -523,13 +668,20 @@ export default function SpecificationPage() {
                 gap: 8,
               }}
             >
-              <Text style={{ fontSize: 11, color: '#888' }}>Вариант системы:</Text>
-              <Segmented<number>
-                value={variant}
-                onChange={(v) => setVariant(Number(v))}
-                size="small"
-                options={[1, 2, 3, 4].map((n) => ({ label: `СО${n}`, value: n }))}
-              />
+              <Text style={{ fontSize: 11, color: '#888' }}>ЭР:</Text>
+              <div style={{ maxWidth: '100%', overflowX: 'auto', paddingBottom: 4 }}>
+                <Segmented<string>
+                  value={selectedElectricalVariant.id}
+                  onChange={variantContext.selectVariant}
+                  disabled={mut.isPending || saveMut.isPending}
+                  size="small"
+                  options={variantContext.variants.map((item) => ({
+                    label: item.name,
+                    value: item.id,
+                    disabled: item.legacy_variant_number == null,
+                  }))}
+                />
+              </div>
               <Text type="secondary" style={{ fontSize: 11 }}>
                 Спецификация и расчёт сохраняются отдельно для каждого варианта.
               </Text>

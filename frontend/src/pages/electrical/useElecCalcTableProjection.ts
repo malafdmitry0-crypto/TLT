@@ -9,6 +9,7 @@ import {
 import type { ElectricalQueryResponse } from '@/types/calculation';
 
 type UseElecCalcTableProjectionOptions = {
+  selectedLegacyVariantNumber?: number;
   electricalGlideEnabled: boolean;
   electricalPage?: ElectricalQueryResponse;
   electricalInfinitePages: Record<number, ElectricalQueryResponse>;
@@ -17,6 +18,7 @@ type UseElecCalcTableProjectionOptions = {
 };
 
 export function useElecCalcTableProjection({
+  selectedLegacyVariantNumber,
   electricalGlideEnabled,
   electricalPage,
   electricalInfinitePages,
@@ -47,7 +49,7 @@ export function useElecCalcTableProjection({
     [electricalGlideEnabled, electricalLoadedPages, electricalPage],
   );
   const electricalDisplayOffset = electricalGlideEnabled ? 0 : (electricalPage?.page_info?.offset ?? 0);
-  const stats = useElectricalStats(objects, elecCalcs);
+  const stats = useElectricalStats(objects, elecCalcs, selectedLegacyVariantNumber);
 
   return {
     electricalLoadedPages,

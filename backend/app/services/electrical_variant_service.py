@@ -109,6 +109,8 @@ class ElectricalVariantService:
         project_id: UUID,
         principal: CurrentPrincipal,
         legacy_variant_number: int,
+        *,
+        expected_electrical_variant_id: UUID | None = None,
     ) -> ElectricalVariant:
         """Resolve the deprecated numeric selector, creating its UUID mapping if needed.
 
@@ -120,6 +122,11 @@ class ElectricalVariantService:
             project_id,
             principal,
             [legacy_variant_number],
+            expected_electrical_variant_ids=(
+                {legacy_variant_number: expected_electrical_variant_id}
+                if expected_electrical_variant_id is not None
+                else None
+            ),
         )
         return variants[legacy_variant_number]
 
@@ -128,6 +135,8 @@ class ElectricalVariantService:
         project_id: UUID,
         principal: CurrentPrincipal,
         legacy_variant_numbers: list[int],
+        *,
+        expected_electrical_variant_ids: dict[int, UUID] | None = None,
     ) -> dict[int, ElectricalVariant]:
         """Atomically prepare all deprecated numeric selectors under one lock."""
         return await self._run_mutation(
@@ -135,7 +144,30 @@ class ElectricalVariantService:
                 project_id,
                 principal,
                 legacy_variant_numbers,
+                expected_electrical_variant_ids=expected_electrical_variant_ids,
             )
+        )
+
+    async def validate_legacy_variant_for_read(
+        self,
+        project_id: UUID,
+        principal: CurrentPrincipal,
+        legacy_variant_number: int,
+        expected_electrical_variant_id: UUID,
+    ) -> ElectricalVariant:
+        """Pin a numeric read to the UUID identity observed by the client.
+
+        The project row lock serializes this validation with lifecycle delete/create
+        operations.  It remains held for the surrounding request transaction, so a
+        deleted ER slot cannot be reused between validation and the numeric read.
+        """
+        await ProjectService(self.db).get_project_basic(project_id, principal)
+        await self._locked_project(project_id)
+        variants = await self._load_variants(project_id)
+        return self._validate_expected_legacy_variant(
+            variants,
+            legacy_variant_number,
+            expected_electrical_variant_id,
         )
 
     async def create_empty(
@@ -143,10 +175,16 @@ class ElectricalVariantService:
         project_id: UUID,
         principal: CurrentPrincipal,
         *,
+        idempotency_key: str | None = None,
         name: str | None = None,
     ) -> ElectricalVariantResponse:
         return await self._run_mutation(
-            lambda: self._create_empty(project_id, principal, name=name)
+            lambda: self._create_empty(
+                project_id,
+                principal,
+                idempotency_key=idempotency_key,
+                name=name,
+            )
         )
 
     async def copy_variant(
@@ -305,6 +343,8 @@ class ElectricalVariantService:
         project_id: UUID,
         principal: CurrentPrincipal,
         legacy_variant_numbers: list[int],
+        *,
+        expected_electrical_variant_ids: dict[int, UUID] | None = None,
     ) -> dict[int, ElectricalVariant]:
         requested_numbers = list(dict.fromkeys(legacy_variant_numbers))
         if not requested_numbers or any(
@@ -318,6 +358,20 @@ class ElectricalVariantService:
 
         project = await self._guard_and_lock_project(project_id, principal)
         variants = await self._load_variants(project_id)
+        expected_ids = expected_electrical_variant_ids or {}
+        unexpected_numbers = set(expected_ids).difference(requested_numbers)
+        if unexpected_numbers:
+            raise ElectricalVariantServiceError(
+                "ELECTRICAL_VARIANT_SCOPE_INVALID",
+                "UUID-сопоставление содержит номер ЭР вне запрошенного набора",
+                status_code=422,
+            )
+        for legacy_variant_number, expected_id in expected_ids.items():
+            self._validate_expected_legacy_variant(
+                variants,
+                legacy_variant_number,
+                expected_id,
+            )
         created: list[ElectricalVariant] = []
         if not variants:
             readiness = await self._evaluate_readiness(project_id)
@@ -401,11 +455,43 @@ class ElectricalVariantService:
         project_id: UUID,
         principal: CurrentPrincipal,
         *,
+        idempotency_key: str | None,
         name: str | None,
     ) -> ElectricalVariantResponse:
         project = await self._guard_and_lock_project(project_id, principal)
         variants = await self._load_variants(project_id)
         self._require_initialized(project, variants)
+        idempotency_key_hash = (
+            self._creation_idempotency_key_hash(idempotency_key)
+            if idempotency_key is not None
+            else None
+        )
+        retry_target = next(
+            (
+                variant
+                for variant in variants
+                if idempotency_key_hash is not None
+                and variant.creation_idempotency_key_hash == idempotency_key_hash
+            ),
+            None,
+        )
+        if retry_target is not None:
+            requested_name = self._validate_name(name) if name is not None else None
+            if retry_target.copied_from_id is not None or (
+                requested_name is not None and retry_target.name != requested_name
+            ):
+                raise ElectricalVariantServiceError(
+                    "ELECTRICAL_VARIANT_IDEMPOTENCY_KEY_REUSED",
+                    "Idempotency-Key уже использован для другой операции с ЭР",
+                    status_code=409,
+                )
+            await self.db.commit()
+            await self.db.refresh(retry_target)
+            return self._response(
+                retry_target,
+                await self._specification_state(project_id, retry_target.id),
+            )
+
         self._require_capacity(variants)
 
         display_name = self._prepare_name(name, variants)
@@ -416,6 +502,7 @@ class ElectricalVariantService:
             sort_order=self._next_sort_order(variants),
             is_active=False,
             legacy_variant_number=self._next_legacy_variant_number(variants),
+            creation_idempotency_key_hash=idempotency_key_hash,
         )
         self.db.add(variant)
         await self.db.flush()
@@ -432,6 +519,7 @@ class ElectricalVariantService:
                 "name": variant.name,
                 "assignments_created": assignments_created,
                 "bound_legacy_rows": bound_legacy_rows,
+                "idempotency_key_present": idempotency_key is not None,
             },
             message="Создан пустой ЭР",
         )
@@ -899,6 +987,29 @@ class ElectricalVariantService:
                 status_code=404,
             )
         return variant
+
+    @staticmethod
+    def _validate_expected_legacy_variant(
+        variants: list[ElectricalVariant],
+        legacy_variant_number: int,
+        expected_electrical_variant_id: UUID,
+    ) -> ElectricalVariant:
+        """Reject a stale UUID -> numeric-slot assumption without falling back."""
+        by_number = next(
+            (
+                item
+                for item in variants
+                if item.legacy_variant_number == legacy_variant_number
+            ),
+            None,
+        )
+        if by_number is None or by_number.id != expected_electrical_variant_id:
+            raise ElectricalVariantServiceError(
+                "ELECTRICAL_VARIANT_SCOPE_MISMATCH",
+                "Выбранный ЭР был удалён или его расчётный слот изменился; обновите список ЭР",
+                status_code=409,
+            )
+        return by_number
 
     @staticmethod
     def _require_initialized(project: Project, variants: list[ElectricalVariant]) -> None:

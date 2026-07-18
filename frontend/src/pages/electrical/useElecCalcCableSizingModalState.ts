@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import type { SelectionPolicy } from '@/api/calculations';
+import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
 import type { CalculationVariant } from '@/store/calculationVariantStore';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
@@ -30,6 +31,7 @@ export type ElecCalcCableSizingParams = {
 
 type UseElecCalcCableSizingModalStateOptions = {
   projectId?: string;
+  electricalVariantId: string;
   variant: CalculationVariant;
   objects: readonly ProjectObject[];
   calcByObjectId: Record<string, ElectricalCalcSummary | undefined>;
@@ -40,7 +42,7 @@ type UseElecCalcCableSizingModalStateOptions = {
 
 export function useElecCalcCableSizingModalState({
   projectId,
-  variant,
+  electricalVariantId,
   objects,
   calcByObjectId,
   recalc,
@@ -76,20 +78,22 @@ export function useElecCalcCableSizingModalState({
     recalc.vaporTemperature,
     recalc.windingCoefficient,
   ]);
-  const candidatesQueryKey = useMemo(() => [
-    'project',
-    projectId,
-    'electrical-candidates',
-    objectId,
-    variant,
-  ] as const, [objectId, projectId, variant]);
-  const candidateFoldersQueryKey = useMemo(() => [
-    'project',
-    projectId,
-    'electrical-candidate-folders',
-    objectId,
-    variant,
-  ] as const, [objectId, projectId, variant]);
+  const candidatesQueryKey = useMemo(
+    () => electricalDataQueryKeys.candidates(
+      projectId ?? 'no-project',
+      electricalVariantId,
+      objectId,
+    ),
+    [electricalVariantId, objectId, projectId],
+  );
+  const candidateFoldersQueryKey = useMemo(
+    () => electricalDataQueryKeys.candidateFolders(
+      projectId ?? 'no-project',
+      electricalVariantId,
+      objectId,
+    ),
+    [electricalVariantId, objectId, projectId],
+  );
   const object = objectId
     ? objects.find((candidateObject) => candidateObject.id === objectId) ?? null
     : null;

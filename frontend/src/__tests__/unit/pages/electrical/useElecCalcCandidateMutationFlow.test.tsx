@@ -14,6 +14,7 @@ import {
   updateElectricalCandidate,
   updateElectricalCandidateFolder,
 } from '@/api/calculations';
+import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
 import { useElecCalcCandidateMutationFlow } from '@/pages/electrical/useElecCalcCandidateMutationFlow';
 import type {
   ElectricalCalcSummary,
@@ -130,8 +131,10 @@ function setup(
   const setActiveCandidateFolderKey = vi.fn();
   const closeCandidateFolderModal = vi.fn();
   const setElectricalQueryCalculation = vi.fn();
-  const options = {
+  const options: Parameters<typeof useElecCalcCandidateMutationFlow>[0] = {
     projectId: 'project-1',
+    electricalVariantId: '22222222-2222-4222-8222-222222222222',
+    canMutate: true,
     variant: 2 as const,
     effectiveSource: 'all' as const,
     cableSizingModalObjectId: 'object-1',
@@ -200,6 +203,7 @@ describe('useElecCalcCandidateMutationFlow', () => {
       project_id: 'project-1',
       object_id: 'object-1',
       variant_number: 2,
+      electrical_variant_id: '22222222-2222-4222-8222-222222222222',
       cable_type: 'self_regulating_tt',
       cable_source: 'all',
       mode: 'manual',
@@ -215,6 +219,7 @@ describe('useElecCalcCandidateMutationFlow', () => {
 
   it('applies candidate with optimistic cache update and calculation callback', async () => {
     const { result, queryClient, setElectricalQueryCalculation } = setup();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     queryClient.setQueryData<ElectricalCandidate[]>(candidatesQueryKey, [
       candidate({ id: 'candidate-1', is_applied: true }),
       candidate({ id: 'candidate-2', is_applied: false, cable_mark: 'ТЛТ-30' }),
@@ -233,6 +238,18 @@ describe('useElecCalcCandidateMutationFlow', () => {
     expect(setElectricalQueryCalculation).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'calc-applied', cable_mark: 'ТЛТ-30' }),
     );
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: electricalDataQueryKeys.queries(
+        'project-1',
+        '22222222-2222-4222-8222-222222222222',
+      ),
+    });
+    expect(invalidate).not.toHaveBeenCalledWith({
+      queryKey: electricalDataQueryKeys.queries(
+        'project-1',
+        '11111111-1111-4111-8111-111111111111',
+      ),
+    });
     expect(message.success).toHaveBeenCalledWith('Кандидат применён в электрорасчёт');
   });
 
@@ -270,6 +287,7 @@ describe('useElecCalcCandidateMutationFlow', () => {
       project_id: 'project-1',
       object_id: 'object-1',
       variant_number: 2,
+      electrical_variant_id: '22222222-2222-4222-8222-222222222222',
       name: 'Новый набор',
     });
     expect(setActiveCandidateFolderKey).toHaveBeenCalledWith('custom:folder-1');
@@ -329,5 +347,46 @@ describe('useElecCalcCandidateMutationFlow', () => {
 
     expect(addElectricalCandidateToFolder).toHaveBeenCalledWith('folder-1', 'candidate-1');
     expect(removeElectricalCandidateFromFolder).toHaveBeenCalledWith('folder-1', 'candidate-1');
+  });
+
+  it('rejects direct candidate and folder mutations when the project is read-only', async () => {
+    const { result } = setup({ canMutate: false });
+    const denied = 'Недостаточно прав для изменения вариантов подбора';
+
+    await act(async () => {
+      await expect(result.current.createCandidateMut.mutateAsync({ mode: 'auto' }))
+        .rejects.toThrow(denied);
+      await expect(result.current.updateCandidateMut.mutateAsync({
+        candidateId: 'candidate-1',
+        patch: { is_pinned: true },
+      })).rejects.toThrow(denied);
+      await expect(result.current.applyCandidateMut.mutateAsync('candidate-1'))
+        .rejects.toThrow(denied);
+      await expect(result.current.createCandidateFolderMut.mutateAsync())
+        .rejects.toThrow(denied);
+      await expect(result.current.updateCandidateFolderMut.mutateAsync({
+        folderId: 'folder-1',
+        name: 'Новое имя',
+      })).rejects.toThrow(denied);
+      await expect(result.current.deleteCandidateFolderMut.mutateAsync('folder-1'))
+        .rejects.toThrow(denied);
+      await expect(result.current.toggleCandidateFolderItemMut.mutateAsync({
+        folderId: 'folder-1',
+        candidateId: 'candidate-1',
+        checked: true,
+      })).rejects.toThrow(denied);
+    });
+
+    act(() => result.current.submitCandidateFolderModal());
+
+    expect(createElectricalCandidate).not.toHaveBeenCalled();
+    expect(updateElectricalCandidate).not.toHaveBeenCalled();
+    expect(applyElectricalCandidate).not.toHaveBeenCalled();
+    expect(createElectricalCandidateFolder).not.toHaveBeenCalled();
+    expect(updateElectricalCandidateFolder).not.toHaveBeenCalled();
+    expect(deleteElectricalCandidateFolder).not.toHaveBeenCalled();
+    expect(addElectricalCandidateToFolder).not.toHaveBeenCalled();
+    expect(removeElectricalCandidateFromFolder).not.toHaveBeenCalled();
+    expect(message.warning).toHaveBeenCalledWith(expect.stringContaining(denied));
   });
 });

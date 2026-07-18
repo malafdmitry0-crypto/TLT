@@ -38,6 +38,7 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
 | `frontend/src/hooks/` | Query/mutation hooks и UI-оркестрация |
 | `docs/` | SRS, QA, API, схема БД, playbooks |
 | `docs/tnp/cases/guest-specification/phase-1-checkpoint.md` | Candidate-evidence и переходные ограничения dynamic-ER Phase 1 |
+| `docs/tnp/cases/guest-specification/phase-2-checkpoint.md` | Frontend/consumer evidence dynamic-ER Phase 2 и границы UUID cutover |
 | `e2e/tests/` | Playwright-сценарии по пользовательским потокам |
 
 ## Пользовательский поток
@@ -46,9 +47,10 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
 2. `WorkspacePage` ведёт в рабочий стол проекта.
 3. `HeatCalcPage` добавляет трубы/резервуары через встроенную SC-03 форму,
    импортирует Excel/CSV и пересчитывает теплопотери.
-4. `ElecCalcPage` пока управляет legacy `СО1…СО4`, базой подбора, типом кабеля
-   и запускает электрорасчёт. Backend Phase 1 уже содержит readiness и lifecycle
-   именованных UUID ЭР, но frontend-переход относится к Phase 2.
+4. `ElecCalcPage` управляет до пяти именованных UUID ЭР: создаёт, копирует,
+   переименовывает, активирует и удаляет их. Legacy calculation graph `1…4`
+   остаётся переходным; каждый consumer проверяет точную пару `UUID ↔ slot`, а
+   пятый ЭР показывает fail-closed state вместо данных другого варианта.
 5. `SpecificationPage` показывает и редактирует спецификацию в рамках роли.
 6. `ReportPage` показывает HTML-превью и экспортирует отчёт для сотрудника.
 
@@ -69,7 +71,7 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
 | Assignment state до Phase 3 не authoritative: legacy calculation UUID может сосуществовать с `unassigned/system_type=null` | `backend/app/models/electrical_variant.py`, `docs/architecture/dynamic-electrical-variants.md` |
 | Task `Idempotency-Key`: namespace principal/type/project, binding full payload/ER, heat terminal lock, truthful replay audit, changed binding → 409 | `backend/app/services/task_service.py`, `docs/api.md` |
 | Candidate apply/delete используют общую project lock; проигранная гонка даёт stable 404/409 | `backend/app/services/calculation_service.py`, `backend/app/tests/integration/api/test_electrical_variants.py` |
-| Спецификация имеет UUID bridge, но direct API/UI пока зависит от `variant_number` | `backend/app/models/specification.py`, `frontend/src/api/specifications.ts` |
+| Direct calculation/specification/report consumers передают UUID вместе с переходным number и получают 409 при несовпадении; report jobs UUID-only | `backend/app/services/electrical_variant_service.py`, `frontend/src/api/calculations.ts`, `frontend/src/api/specifications.ts`, `frontend/src/api/reports.ts` |
 | Project CSV v2 строит sparse UUID graph, но export не переносит full dynamic state | `backend/app/services/project_io_service.py`, `docs/api.md` |
 | Отчёт принимает набор секций | `frontend/src/components/reports/ReportWizard.tsx`, `backend/app/reports/` |
 | Бизнес-аудит мутаций хранится в Postgres | `backend/app/models/audit_event.py`, `backend/app/services/audit_service.py`, `docs/db_schema.md` |
@@ -82,10 +84,13 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
 Перед изменением всё равно сверять конкретный контракт с текущим кодом и
 тестами.
 
-Dynamic-ER backend/DB Phase 1 имеет статус
-**PASS — backend/DB Phase 1 checkpoint complete**. Working DB Alembic current —
-`0028`; финальные backend/DB gates, smoke и scale proof прошли. Frontend
-остаётся fixed `СО1…СО4`, а full frontend gate не green из-за pre-existing
-missing accessible separator test. Dependency security gate и общий Alembic
-metadata drift также не green вне Phase 1 diff. Phase 2/3/5 pending, Phase 4
-заблокирована PDL-ER-15. Общий PDF/DoD и product release не завершены.
+Dynamic-ER Phase 1 и Phase 2 имеют статус **PASS**: backend/DB foundation и
+frontend/consumer bridge завершены. Working DB Alembic current — `0028`;
+backend/DB gates, smoke, scale proof, focused frontend suites, typecheck и
+desktop/mobile UI proof прошли. Full frontend gate не green только из-за
+pre-existing missing accessible separator test. Dependency security gate и
+общий Alembic metadata drift также не green вне dynamic-ER diff. Phase 3/5
+pending, Phase 4 заблокирована PDL-ER-15/18 до официального числового
+section-каталога;
+семантика обработки данных утверждена PDL-ER-18…25. Общий PDF/DoD и product
+release не завершены.

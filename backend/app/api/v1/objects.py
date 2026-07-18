@@ -32,6 +32,7 @@ from app.services.object_query_service import ObjectQueryService, ObjectQueryVal
 from app.services.project_service import (
     ProjectAccessError,
     ProjectConflictError,
+    ProjectElectricalVariantNotFoundError,
     ProjectLimitError,
     ProjectNotFoundError,
     ProjectService,
@@ -70,15 +71,28 @@ async def list_objects(
 )
 async def objects_summary(
     project_id: UUID,
+    electrical_variant_id: UUID | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        return await ProjectService(db).objects_summary(project_id, principal)
+        return await ProjectService(db).objects_summary(
+            project_id,
+            principal,
+            electrical_variant_id=electrical_variant_id,
+        )
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ProjectElectricalVariantNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "ELECTRICAL_VARIANT_NOT_FOUND",
+                "message": str(exc),
+            },
+        ) from exc
 
 
 @router.get(

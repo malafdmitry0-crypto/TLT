@@ -12,6 +12,7 @@ import {
 const { Text } = Typography;
 
 type ElecCalcParamsPanelProps = {
+  disabled?: boolean;
   cableType: CableTypeKey | null;
   cableTypeOptions: Array<{ label: string; value: CableTypeKey }>;
   onCableTypeChange: (next: CableTypeKey) => void;
@@ -35,6 +36,7 @@ function row(label: string, control: React.ReactNode) {
  * контролы тулбара (которые скрываются, пока панель видима).
  */
 function ElecCalcParamsPanel({
+  disabled = false,
   cableType,
   cableTypeOptions,
   onCableTypeChange,
@@ -54,21 +56,23 @@ function ElecCalcParamsPanel({
         {row('Тип кабеля', (
           <Select<CableTypeKey>
             aria-label="Тип кабеля"
+            disabled={disabled}
             size="small"
             value={cableType ?? undefined}
             onChange={onCableTypeChange}
             options={cableTypeOptions}
-            style={{ minWidth: 150, flex: 1 }}
+            style={{ minWidth: 190, flex: 1 }}
           />
         ))}
         {isResistive && row('Схема соединения', (
           <Select
             aria-label="Схема подключения"
+            disabled={disabled}
             size="small"
             value={recalc.connectionType}
             onChange={setRecalc.connectionType}
             options={connectionOptions}
-            style={{ minWidth: 150, flex: 1 }}
+            style={{ minWidth: 190, flex: 1 }}
           />
         ))}
         {!isResistive && (
@@ -84,6 +88,7 @@ function ElecCalcParamsPanel({
         {row('Напряжение питания U, В', (
           <InputNumber<number>
             aria-label="Напряжение питания"
+            disabled={disabled}
             size="small"
             min={1}
             value={recalc.supplyVoltage}
@@ -96,6 +101,7 @@ function ElecCalcParamsPanel({
             {row('Температура пропарки (T2), °C', (
               <InputNumber<number>
                 aria-label="T пропарки"
+                disabled={disabled}
                 size="small"
                 value={recalc.vaporTemperature}
                 onChange={setRecalc.vaporTemperature}
@@ -105,6 +111,7 @@ function ElecCalcParamsPanel({
             {row('Температура поддержания (T3), °C', (
               <InputNumber<number>
                 aria-label="T3 поддержания"
+                disabled={disabled}
                 size="small"
                 value={recalc.maintainTemperature}
                 onChange={setRecalc.maintainTemperature}
@@ -113,6 +120,7 @@ function ElecCalcParamsPanel({
             ))}
             {row('Среда воздействия на кабель (продукт)', (
               <Checkbox
+                disabled={disabled}
                 checked={recalc.aggressiveProduct}
                 onChange={(event) => setRecalc.aggressiveProduct(event.target.checked)}
               >
@@ -130,6 +138,7 @@ function ElecCalcParamsPanel({
             {row('Коэффициент навива w (1–1,5)', (
               <InputNumber<number>
                 aria-label="Коэффициент навива"
+                disabled={disabled}
                 size="small"
                 min={1}
                 max={1.5}
@@ -142,6 +151,7 @@ function ElecCalcParamsPanel({
             {row('Высота обогрева h, м', (
               <InputNumber<number>
                 aria-label="Высота обогрева"
+                disabled={disabled}
                 size="small"
                 min={0}
                 step={0.1}
@@ -153,6 +163,7 @@ function ElecCalcParamsPanel({
             {row('Шаг укладки, м', (
               <InputNumber<number>
                 aria-label="Шаг укладки"
+                disabled={disabled}
                 size="small"
                 min={0.1}
                 max={0.4}

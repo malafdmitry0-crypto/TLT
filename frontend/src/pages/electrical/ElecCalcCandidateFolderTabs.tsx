@@ -22,6 +22,7 @@ type CandidateFolderCounts = {
 };
 
 type ElecCalcCandidateFolderTabsProps = {
+  canMutate: boolean;
   activeKey: CandidateFolderKey;
   counts: CandidateFolderCounts;
   folders: readonly ElectricalCandidateFolder[];
@@ -32,6 +33,7 @@ type ElecCalcCandidateFolderTabsProps = {
 };
 
 export default function ElecCalcCandidateFolderTabs({
+  canMutate,
   activeKey,
   counts,
   folders,
@@ -70,6 +72,7 @@ export default function ElecCalcCandidateFolderTabs({
                 counts.custom.get(folder.id) ?? 0,
               )}
               <Dropdown
+                disabled={!canMutate}
                 trigger={['click']}
                 menu={{
                   items: [
@@ -77,6 +80,7 @@ export default function ElecCalcCandidateFolderTabs({
                       key: 'rename',
                       icon: <EditOutlined />,
                       label: 'Переименовать',
+                      disabled: !canMutate,
                       onClick: () => onRenameFolder(folder),
                     },
                     {
@@ -84,6 +88,7 @@ export default function ElecCalcCandidateFolderTabs({
                       icon: <DeleteOutlined />,
                       danger: true,
                       label: 'Удалить',
+                      disabled: !canMutate,
                       onClick: () => onDeleteFolder(folder),
                     },
                   ],
@@ -94,6 +99,7 @@ export default function ElecCalcCandidateFolderTabs({
                   className="electrical-candidate-folder-menu"
                   icon={<MoreOutlined />}
                   aria-label={`Действия с папкой ${folder.name}`}
+                  disabled={!canMutate}
                 />
               </Dropdown>
             </span>
@@ -103,6 +109,7 @@ export default function ElecCalcCandidateFolderTabs({
       <Button
         size="small"
         icon={<PlusOutlined />}
+        disabled={!canMutate}
         onClick={onCreateFolder}
       >
         Папка

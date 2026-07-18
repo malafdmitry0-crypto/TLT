@@ -10,6 +10,10 @@ import {
 import type { CableStatusRow } from '@/pages/electrical/elecCalcCableCatalogModel';
 import type { ProjectObject } from '@/types/project';
 
+const ER_1_ID = '11111111-1111-4111-8111-111111111111';
+const ER_2_ID = '22222222-2222-4222-8222-222222222222';
+const ER_5_ID = '55555555-5555-4555-8555-555555555555';
+
 function projectObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
   return {
     id: 'object-1',
@@ -81,10 +85,15 @@ function setup(overrides: Partial<Parameters<typeof ElecCalcCableMarkModal>[0]> 
     pending: false,
     value: markOptions[1].value,
     markOptions,
-    targetVariants: [1 as const],
+    targetVariants: [ER_1_ID],
     targetVariantOptions: [
-      { label: 'СО1', value: 1 as const },
-      { label: 'СО2', value: 2 as const },
+      { label: 'ЭР1', value: ER_1_ID, disabled: false },
+      { label: 'ЭР «Лето»', value: ER_2_ID, disabled: false },
+      {
+        label: 'ЭР «Резерв» — недоступен: перенос марки ещё не поддерживает этот ЭР',
+        value: ER_5_ID,
+        disabled: true,
+      },
     ],
     renderTypeControls: vi.fn(() => <div data-testid="type-controls">type controls</div>),
     onCableTypeChange: vi.fn(),
@@ -101,7 +110,7 @@ function setup(overrides: Partial<Parameters<typeof ElecCalcCableMarkModal>[0]> 
 }
 
 describe('ElecCalcCableMarkModal', () => {
-  it('renders cable mark dialog controls and target CO options', () => {
+  it('renders named UUID-backed ER targets and an accessible compatibility explanation', () => {
     const { props } = setup();
 
     const dialog = screen.getByRole('dialog', { name: /Выбор марки кабеля/ });
@@ -110,32 +119,66 @@ describe('ElecCalcCableMarkModal', () => {
     expect(within(dialog).getAllByLabelText('Тип кабеля для выбора марки').length)
       .toBeGreaterThan(0);
     expect(within(dialog).getAllByText('Марка').length).toBeGreaterThan(0);
-    expect(within(dialog).getByText('Сохранить в СО')).toBeInTheDocument();
-    expect(within(dialog).getByRole('checkbox', { name: 'СО1' })).toBeChecked();
-    expect(within(dialog).getByRole('checkbox', { name: 'СО2' })).not.toBeChecked();
-    expect(within(dialog).getByText(/Авто.*автоподбор/)).toBeInTheDocument();
+    expect(within(dialog).getByText('Сохранить в ЭР')).toBeInTheDocument();
+
+    const targetGroup = within(dialog).getByRole('group', { name: 'Сохранить в ЭР' });
+    expect(targetGroup).toHaveAttribute(
+      'aria-describedby',
+      'electrical-cable-target-variants-help',
+    );
+    expect(within(targetGroup).getByRole('checkbox', { name: 'ЭР1' })).toBeChecked();
+    expect(within(targetGroup).getByRole('checkbox', { name: 'ЭР «Лето»' }))
+      .not.toBeChecked();
+    expect(within(targetGroup).getByRole('checkbox', { name: /ЭР «Резерв».*недоступен/ }))
+      .toBeDisabled();
+    expect(within(dialog).getByText(/Авто.*автоподбор.*выбранных ЭР/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Недоступные ЭР.*расчётном сервисе/)).toBeInTheDocument();
     expect(within(dialog).getByTestId('type-controls')).toBeInTheDocument();
     expect(props.renderTypeControls).toHaveBeenCalledWith('self_regulating');
   });
 
-  it('keeps apply disabled when object is invalid or no target variants are selected', () => {
-    setup({
+  it('keeps apply disabled for invalid objects, no targets, or lifecycle-only targets', () => {
+    const { rerender, props } = setup({
       object: projectObject({ is_valid: false }),
       targetVariants: [],
     });
 
     expect(screen.getByRole('button', { name: 'Применить' })).toBeDisabled();
+
+    rerender(
+      <ElecCalcCableMarkModal
+        {...props}
+        object={projectObject()}
+        targetVariants={[ER_1_ID, ER_5_ID]}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Применить' })).toBeDisabled();
   });
 
-  it('delegates cancel and target variant changes to callbacks', async () => {
+  it('delegates cancel and UUID target changes to callbacks', async () => {
     const user = userEvent.setup();
     const { props } = setup();
     const dialog = screen.getByRole('dialog', { name: /Выбор марки кабеля/ });
 
-    await user.click(within(dialog).getByRole('checkbox', { name: 'СО2' }));
-    expect(props.onTargetVariantsChange).toHaveBeenCalledWith([1, 2]);
+    await user.click(within(dialog).getByRole('checkbox', { name: 'ЭР «Лето»' }));
+    expect(props.onTargetVariantsChange).toHaveBeenCalledWith([ER_1_ID, ER_2_ID]);
 
     await user.click(screen.getByRole('button', { name: 'Отмена' }));
     expect(props.onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the modal inspectable but disables every write control in read-only mode', () => {
+    const { props } = setup({ projectSelected: false });
+    const dialog = screen.getByRole('dialog', { name: /Выбор марки кабеля/ });
+
+    expect(within(dialog).getByText('Труба-1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Применить' })).toBeDisabled();
+    expect(within(dialog).getAllByLabelText('Тип кабеля для выбора марки')[0])
+      .toHaveClass('ant-select-disabled');
+    expect(within(dialog).getByRole('checkbox', { name: 'ЭР1' })).toBeDisabled();
+
+    expect(props.onApply).not.toHaveBeenCalled();
+    expect(props.onCableTypeChange).not.toHaveBeenCalled();
+    expect(props.onTargetVariantsChange).not.toHaveBeenCalled();
   });
 });

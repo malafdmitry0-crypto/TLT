@@ -56,6 +56,7 @@ function setup(
       getCalculatedCableTypeForObject: () => 'self_regulating',
       isCableMarkPending: false,
       projectSelected: true,
+      canMutate: true,
       recalc: {
         aggressiveProduct: false,
         connectionType: 'line_1ph',
@@ -115,6 +116,27 @@ describe('useElecCalcElectricalColumnRenderers', () => {
     render(<>{noProject.result.current.cable_mark.render(undefined, projectObject(), 0)}</>);
     expect(screen.getByRole('button', { name: 'Выбор' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Подбор' })).toBeDisabled();
+  });
+
+  it('disables cable writes but keeps candidate inspection for read-only projects', async () => {
+    const row = projectObject();
+    const { result, openCableMarkModal, openCableSizingModal } = setup({
+      activeRowId: row.id,
+      canMutate: false,
+    });
+
+    render(<>{result.current.cable_mark.render(undefined, row, 0)}</>);
+
+    const choose = screen.getByRole('button', { name: 'Выбор' });
+    const sizing = screen.getByRole('button', { name: 'Подбор' });
+    expect(choose).toBeDisabled();
+    expect(sizing).not.toBeDisabled();
+
+    await userEvent.click(choose);
+    await userEvent.click(sizing);
+
+    expect(openCableMarkModal).not.toHaveBeenCalled();
+    expect(openCableSizingModal).toHaveBeenCalledWith(row);
   });
 
   it('keeps electrical status labels for success, unsupported, stale, error and empty states', () => {

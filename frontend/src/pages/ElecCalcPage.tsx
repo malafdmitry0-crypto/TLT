@@ -30,10 +30,11 @@ import {
   queryElectrical,
   type CableSource,
 } from '@/api/calculations';
+import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
 import { useAuthStore } from '@/store/authStore';
 import {
-  normalizeCalculationVariant,
   useCalculationVariantStore,
+  type CalculationVariant,
 } from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
 import { areCommercialFeaturesEnabled } from '@/config/featureFlags';
@@ -41,6 +42,10 @@ import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollR
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
+import ElectricalVariantTabs, {
+  electricalVariantPanelId,
+  electricalVariantTabId,
+} from '@/pages/electrical/ElectricalVariantTabs';
 import ElecCalcCableMarkModal from '@/pages/electrical/ElecCalcCableMarkModal';
 import ElecCalcCableSizingModal from '@/pages/electrical/ElecCalcCableSizingModal';
 import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
@@ -49,6 +54,7 @@ import ElecCalcParamsPanel from '@/pages/electrical/ElecCalcParamsPanel';
 import ElecCalcRecalculationSettings from '@/pages/electrical/ElecCalcRecalculationSettings';
 import { ROUTES } from '@/routes/routes';
 import type { ProjectObject } from '@/types/project';
+import type { ElectricalVariant } from '@/types/electricalVariant';
 import type {
   ElectricalCandidateFolder,
   ElectricalCalcSummary,
@@ -72,6 +78,7 @@ import {
 } from '@/pages/electrical/elecCalcCableCatalogModel';
 import {
   buildElectricalQueryRequest,
+  updateElectricalQueryPageCalculation,
 } from '@/pages/electrical/elecCalcQueryModel';
 import {
   buildElectricalErrorItems,
@@ -89,10 +96,12 @@ import {
   CABLE_TYPE_LABEL,
   type CableTypeKey,
 } from '@/pages/electrical/elecCalcMainTableModel';
+import type { ElectricalNavigationState } from '@/pages/electrical/elecCalcPageModel';
 import {
   getCableMark,
   getCableMarkSource,
 } from '@/pages/electrical/elecCalcResultValueModel';
+import type { LegacyElectricalVariantTarget } from '@/pages/electrical/elecCalcVariantModel';
 import { useElecCalcAntTableHandlers } from '@/pages/electrical/useElecCalcAntTableHandlers';
 import { useElecCalcBootViewState } from '@/pages/electrical/useElecCalcBootViewState';
 import { useElecCalcCableReferenceData } from '@/pages/electrical/useElecCalcCableReferenceData';
@@ -126,9 +135,18 @@ import { useElecCalcTableProjection } from '@/pages/electrical/useElecCalcTableP
 import { useElecCalcTableDimensions } from '@/pages/electrical/useElecCalcTableDimensions';
 import { useElecCalcTableNavigation } from '@/pages/electrical/useElecCalcTableNavigation';
 import { useElecCalcTableViewState } from '@/pages/electrical/useElecCalcTableViewState';
+import { useElectricalVariantSelection } from '@/pages/electrical/useElectricalVariantSelection';
+import {
+  useElectricalBatchJobTracker,
+  type ElectricalBatchJobCompletion,
+  type RegisterElectricalBatchJob,
+  type TrackedElectricalBatchJob,
+} from '@/pages/electrical/useElectricalBatchJobTracker';
 import { readStorageJson } from '@/utils/storage';
 
 const ELECCALC_PARAMS_PANEL_STORAGE_KEY = 'tlt-eleccalc-params-panel';
+const ELECCALC_READ_ONLY_MESSAGE =
+  'Проект открыт в режиме просмотра. Изменять электрорасчёт может только владелец или администратор.';
 
 const { Text } = Typography;
 const ElectricalGlideGrid = lazy(() => import('@/components/electrical/ElectricalGlideGrid'));
@@ -139,7 +157,142 @@ const ElectricalColumnSettingsModal = lazy(
   () => import('@/components/electrical/ElectricalColumnSettingsModal'),
 );
 
+type ElecCalcWorkspaceProps = {
+  projectId: string;
+  electricalVariant: ElectricalVariant;
+  electricalVariants: ElectricalVariant[];
+  canMutate: boolean;
+  trackedJob: TrackedElectricalBatchJob | null;
+  completion: ElectricalBatchJobCompletion | null;
+  registerJob: RegisterElectricalBatchJob;
+};
+
 export default function ElecCalcPage() {
+  const project = useProjectStore((state) => state.currentProject);
+  const role = useAuthStore((state) => state.role);
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+  const sessionId = useAuthStore((state) => state.sessionId);
+
+  if (!project) {
+    return (
+      <EmptyProjectState
+        icon={<ThunderboltOutlined style={{ marginRight: 8, color: '#faad14' }} />}
+        title="Электротехнический расчёт"
+        description="Шаг 2 из 4. Результаты автоподбора греющего кабеля ТЛТ для каждого объекта."
+      />
+    );
+  }
+
+  const canMutate = role === 'admin'
+    || (role === 'employee' && project.user_id === userId)
+    || (role === 'guest' && project.session_id === sessionId);
+
+  return <ElecCalcProject key={project.id} projectId={project.id} canMutate={canMutate} />;
+}
+
+function ElecCalcProject({
+  projectId,
+  canMutate,
+}: {
+  projectId: string;
+  canMutate: boolean;
+}) {
+  const location = useLocation();
+  const controller = useElectricalVariantSelection({ projectId });
+  const {
+    registerJob,
+    registerJobId,
+    trackedJobs,
+    completionByVariant,
+  } = useElectricalBatchJobTracker();
+  const registeredNavigationJobIdsRef = useRef(new Set<string>());
+  const setLegacyVariant = useCalculationVariantStore((state) => state.setVariant);
+  const clearLegacyVariant = useCalculationVariantStore((state) => state.clearVariant);
+  const selectedVariant = controller.selectedVariant;
+  const navigationActiveJobId =
+    (location.state as ElectricalNavigationState | null | undefined)?.activeJobId ?? null;
+
+  useEffect(() => {
+    if (!navigationActiveJobId || !selectedVariant) return;
+    if (registeredNavigationJobIdsRef.current.has(navigationActiveJobId)) return;
+    registeredNavigationJobIdsRef.current.add(navigationActiveJobId);
+    registerJobId(navigationActiveJobId, {
+      projectId,
+      electricalVariantId: selectedVariant.id,
+      electricalVariantName: selectedVariant.name,
+      scope: 'all',
+    });
+  }, [
+    navigationActiveJobId,
+    projectId,
+    registerJobId,
+    selectedVariant,
+  ]);
+
+  useEffect(() => {
+    const legacyVariantNumber = selectedVariant?.legacy_variant_number;
+    if (legacyVariantNumber == null) {
+      clearLegacyVariant(projectId);
+      return;
+    }
+    setLegacyVariant(projectId, legacyVariantNumber);
+  }, [clearLegacyVariant, projectId, selectedVariant?.legacy_variant_number, setLegacyVariant]);
+
+  return (
+    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+      <ElectricalVariantTabs controller={controller} canMutate={canMutate} />
+      {selectedVariant?.legacy_variant_number == null && selectedVariant && (
+        <div
+          id={electricalVariantPanelId(selectedVariant.id)}
+          role="tabpanel"
+          aria-labelledby={electricalVariantTabId(selectedVariant.id)}
+        >
+          <Alert
+            type="warning"
+            showIcon
+            message={`«${selectedVariant.name}»: расчётные действия временно недоступны`}
+            description={(
+              <span>
+                Для этого ЭР ещё нет UUID-совместимого расчётного контура. Расчёт, кандидаты,
+                спецификация и отчёт отключены; данные другого ЭР не подставляются.
+              </span>
+            )}
+          />
+        </div>
+      )}
+      {selectedVariant?.legacy_variant_number != null && (
+        <div
+          id={electricalVariantPanelId(selectedVariant.id)}
+          role="tabpanel"
+          aria-labelledby={electricalVariantTabId(selectedVariant.id)}
+        >
+          <ElecCalcWorkspace
+            key={selectedVariant.id}
+            projectId={projectId}
+            electricalVariant={selectedVariant}
+            electricalVariants={controller.variants}
+            canMutate={canMutate}
+            trackedJob={trackedJobs.find(
+              (job) => job.electricalVariantId === selectedVariant.id,
+            ) ?? null}
+            completion={completionByVariant[selectedVariant.id] ?? null}
+            registerJob={registerJob}
+          />
+        </div>
+      )}
+    </Space>
+  );
+}
+
+function ElecCalcWorkspace({
+  projectId,
+  electricalVariant,
+  electricalVariants,
+  canMutate,
+  trackedJob,
+  completion,
+  registerJob,
+}: ElecCalcWorkspaceProps) {
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
   const registeredUserId = useAuthStore((s) => s.user?.id ?? null);
@@ -151,21 +304,14 @@ export default function ElecCalcPage() {
     availableCableTypeKeys,
     availableCableTypes,
     electricalGlideEnabled,
-    navigationActiveJobId,
   } = useElecCalcBootViewState({
     location,
   });
-  const storedVariant = useCalculationVariantStore((s) =>
-    project?.id ? s.variantByProject[project.id] : undefined
-  );
-  const saveVariant = useCalculationVariantStore((s) => s.setVariant);
-  const variant = normalizeCalculationVariant(storedVariant);
-  const setVariant = useCallback(
-    (nextVariant: number) => {
-      if (project?.id) saveVariant(project.id, nextVariant);
-    },
-    [project?.id, saveVariant],
-  );
+  // The parent mounts this workspace only for variants that still have a
+  // temporary numeric adapter. UUID remains the identity everywhere else.
+  const variant = electricalVariant.legacy_variant_number as CalculationVariant;
+  const electricalVariantId = electricalVariant.id;
+  const electricalVariantName = electricalVariant.name;
 
   const { values: recalc, setters: setRecalc } = useElecCalcRecalculationParams();
   const {
@@ -177,7 +323,6 @@ export default function ElecCalcPage() {
     setTablePageSize,
     resetTablePage,
     resetPaginationCache,
-    resetTablePageAndCursors,
     rememberElectricalPage,
     rememberNextCursor,
     loadNextElectricalGlidePage,
@@ -259,9 +404,18 @@ export default function ElecCalcPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: electricalQueryCapabilities } = useQuery({
-    queryKey: ['project', project?.id, 'electrical-query-capabilities', variant],
-    queryFn: () => getElectricalQueryCapabilities(project!.id, variant),
+  const {
+    data: electricalQueryCapabilities,
+    error: electricalCapabilitiesError,
+    isError: isElectricalCapabilitiesError,
+    refetch: retryElectricalCapabilities,
+  } = useQuery({
+    queryKey: electricalDataQueryKeys.capabilities(project!.id, electricalVariantId),
+    queryFn: () => getElectricalQueryCapabilities(
+      project!.id,
+      variant,
+      electricalVariantId,
+    ),
     enabled: !!project,
     staleTime: 60_000,
   });
@@ -269,6 +423,7 @@ export default function ElecCalcPage() {
     () => (project
       ? buildElectricalQueryRequest(
         project.id,
+        electricalVariantId,
         variant,
         cableSource,
         tableViewState,
@@ -281,6 +436,7 @@ export default function ElecCalcPage() {
     [
       electricalPageCursor,
       electricalQueryCapabilities,
+      electricalVariantId,
       project,
       cableSource,
       tablePage,
@@ -293,11 +449,17 @@ export default function ElecCalcPage() {
     data: electricalPage,
     isFetching: isElectricalPageFetching,
     isPlaceholderData: isElectricalPagePlaceholderData,
+    error: electricalPageError,
+    isError: isElectricalPageError,
+    refetch: retryElectricalPage,
   } = useQuery({
-    queryKey: ['project', project?.id, 'electrical-query', electricalQueryRequest],
+    queryKey: electricalDataQueryKeys.page(
+      project!.id,
+      electricalVariantId,
+      electricalQueryRequest,
+    ),
     queryFn: () => queryElectrical(electricalQueryRequest!),
     enabled: !!project && electricalQueryRequest != null && !!electricalQueryCapabilities,
-    placeholderData: (previous) => previous,
   });
   const pageSummary = electricalPage?.summary;
   const pageInfo = electricalPage?.page_info;
@@ -308,6 +470,7 @@ export default function ElecCalcPage() {
     electricalDisplayOffset,
     stats,
   } = useElecCalcTableProjection({
+    selectedLegacyVariantNumber: variant,
     electricalGlideEnabled,
     electricalPage,
     electricalInfinitePages,
@@ -322,7 +485,7 @@ export default function ElecCalcPage() {
     openElectricalRow,
   } = useElecCalcRowSelectionState({
     projectId: project?.id,
-    variant,
+    variant: electricalVariantId,
     tablePage,
     tablePageSize,
     objects,
@@ -332,20 +495,21 @@ export default function ElecCalcPage() {
     calcByObjectId: stats.calcByObjectId,
     selectedRowKeys,
     projectId: project?.id,
-    variant,
+    variant: electricalVariantId,
   });
   const {
     activeJob,
     activeJobId,
-    setActiveJobId,
-    setActiveBatchScope,
     batchMut,
-    copyVariantMut,
     cancelJobMut,
   } = useElecCalcBatchJobOrchestration({
-    initialActiveJobId: navigationActiveJobId,
-    projectId: project?.id,
-    variant,
+    canMutate,
+    projectId,
+    electricalVariantId,
+    electricalVariantName,
+    trackedJob,
+    completion,
+    registerJob,
     effectiveSource,
     recalc,
     selectedCableType: cableTypes.selectedCableType,
@@ -354,26 +518,21 @@ export default function ElecCalcPage() {
     normalizeAvailableCableType: cableTypes.normalizeAvailableCableType,
     objectOverridesForIds: cableTypes.objectOverridesForIds,
     setCableTypeDraftByObjectId: cableTypes.setCableTypeDraftByObjectId,
-    resetTablePageAndCursors,
-    setSelectedRowKeys,
-    setVariant,
   });
 
   useElecCalcPageScopeEffects({
     projectId: project?.id,
-    variant,
+    variant: electricalVariantId,
     effectiveSource,
     tablePageSize,
     tableViewState,
-    navigationActiveJobId,
     resetTablePage,
     resetPaginationCache,
-    setActiveJobId,
-    setActiveBatchScope,
   });
 
   const cableSizingModal = useElecCalcCableSizingModalState({
     projectId: project?.id,
+    electricalVariantId,
     variant,
     objects,
     calcByObjectId: stats.calcByObjectId,
@@ -421,29 +580,26 @@ export default function ElecCalcPage() {
     aggressiveProduct: recalc.aggressiveProduct,
     cableSizingEffectiveCableType,
   });
-  const setElectricalQueryCalculation = useCallback((calculation: ElectricalCalcSummary) => {
+  const setElectricalQueryCalculation = useCallback((
+    calculation: ElectricalCalcSummary,
+    target?: LegacyElectricalVariantTarget,
+  ) => {
     if (!project?.id) return;
+    const targetVariantId = target?.id ?? electricalVariantId;
+    const targetLegacyVariantNumber = target?.legacyVariantNumber ?? variant;
+    if (calculation.variant_number !== targetLegacyVariantNumber) return;
     qc.setQueriesData<ElectricalQueryResponse>(
-      { queryKey: ['project', project.id, 'electrical-query'] },
+      { queryKey: electricalDataQueryKeys.queries(project.id, targetVariantId) },
       (current) => {
         if (!current) return current;
-        const replaced = current.calculations.some((calc) =>
-          calc.object_id === calculation.object_id &&
-          calc.variant_number === calculation.variant_number,
-        );
-        const calculations = replaced
-          ? current.calculations.map((calc) =>
-              calc.object_id === calculation.object_id &&
-              calc.variant_number === calculation.variant_number
-                ? calculation
-                : calc)
-          : [...current.calculations, calculation];
-        return { ...current, calculations };
+        return updateElectricalQueryPageCalculation(current, calculation);
       },
     );
-  }, [project?.id, qc]);
+  }, [electricalVariantId, project?.id, qc, variant]);
   const candidate = useElecCalcCandidateState({
     projectId: project?.id,
+    electricalVariantId,
+    canMutate,
     variant,
     effectiveSource,
     setElectricalQueryCalculation,
@@ -521,7 +677,8 @@ export default function ElecCalcPage() {
   const cableMarkModal = useElecCalcCableMarkModalState({
     objects,
     calcByObjectId: stats.calcByObjectId,
-    variant,
+    electricalVariants,
+    electricalVariantId,
     getSavedCableTypeForObject: cableTypes.getSavedCableTypeForObject,
     normalizeAvailableCableType: cableTypes.normalizeAvailableCableType,
     cableMarkOptionsFor,
@@ -554,6 +711,9 @@ export default function ElecCalcPage() {
     applyCableMarkModal,
   } = useElecCalcCableSelectionMutationFlow({
     projectId: project?.id,
+    electricalVariantId,
+    electricalVariantName,
+    canMutate,
     variant,
     effectiveSource,
     recalc,
@@ -620,6 +780,7 @@ export default function ElecCalcPage() {
     getCalculatedCableTypeForObject: cableTypes.getCalculatedCableTypeForObject,
     isCableMarkPending,
     projectSelected: Boolean(project),
+    canMutate,
     recalc,
     openCableMarkModal,
     openCableSizingModal,
@@ -733,12 +894,18 @@ export default function ElecCalcPage() {
     return resolveElectricalLayoutCellEditable({
       obj,
       columnKey,
-      projectSelected: Boolean(project),
+      projectSelected: Boolean(project) && canMutate,
       isCableMarkPending,
       calcByObjectId: stats.calcByObjectId,
       getCableTypeForObject: cableTypes.getSavedCableTypeForObject,
     });
-  }, [cableTypes.getSavedCableTypeForObject, isCableMarkPending, project, stats.calcByObjectId]);
+  }, [
+    cableTypes.getSavedCableTypeForObject,
+    canMutate,
+    isCableMarkPending,
+    project,
+    stats.calcByObjectId,
+  ]);
 
   const {
     getElectricalGlideCellActions,
@@ -746,6 +913,7 @@ export default function ElecCalcPage() {
   } = useElecCalcGlideActions({
     activeRowId,
     projectSelected: Boolean(project),
+    canMutate,
     isCableMarkPending,
     onOpenCableMarkModal: openCableMarkModal,
     onOpenCableSizingModal: openCableSizingModal,
@@ -768,6 +936,7 @@ export default function ElecCalcPage() {
     columnKey: string,
     value: unknown,
   ) => {
+    if (!canMutate) return ELECCALC_READ_ONLY_MESSAGE;
     const validation = validateElectricalLayoutCellCommit({
       obj,
       columnKey,
@@ -795,6 +964,7 @@ export default function ElecCalcPage() {
     effectiveSource,
     electricalLayoutMutate,
     cableTypes.getSavedCableTypeForObject,
+    canMutate,
     project,
     stats.calcByObjectId,
   ]);
@@ -837,7 +1007,7 @@ export default function ElecCalcPage() {
     setTablePage,
     loadNextElectricalGlidePage,
   });
-  const activeJobStatus = activeJob?.status ?? null;
+  const activeJobStatus = activeJob?.status ?? (activeJobId ? 'queued' : null);
   const {
     validObjectsCount,
     selectedValidObjectsCount,
@@ -855,8 +1025,6 @@ export default function ElecCalcPage() {
     selectedRecalcTooltip,
     selectedRecalcCountLabel,
     jobProgressLabel,
-    sourceVariantCalculationCount,
-    projectObjectsForCopyCount,
   } = useMemo(
     () => buildElecCalcSummaryViewModel({
       pageSummary,
@@ -885,14 +1053,17 @@ export default function ElecCalcPage() {
           Найдено ручных выборов: {manualCount}. По умолчанию они будут сохранены и пропущены.
         </Text>
         <Checkbox
+          disabled={!canMutate}
           checked={overwriteManualChoices}
-          onChange={(event) => setOverwriteManualChoices(event.target.checked)}
+          onChange={(event) => {
+            if (canMutate) setOverwriteManualChoices(event.target.checked);
+          }}
         >
           Перезаписать ручные выборы ({manualCount})
         </Checkbox>
       </>
     );
-  }, [overwriteManualChoices]);
+  }, [canMutate, overwriteManualChoices]);
   const electricalErrorItems = useMemo(
     () => buildElectricalErrorItems({
       objects,
@@ -927,6 +1098,7 @@ export default function ElecCalcPage() {
     getElectricalCandidateGlideActionMenuItems,
   } = useElecCalcCandidateGlideActions({
     candidateFolders: cableSizingCandidateFolders,
+    canMutate,
     applyCandidatePending: applyCandidateMut.isPending,
     updateCandidatePending: updateCandidateMut.isPending,
     toggleCandidateFolderItemPending: toggleCandidateFolderItemMut.isPending,
@@ -958,20 +1130,14 @@ export default function ElecCalcPage() {
         ]
       : []),
   ], [isEmployee]);
-  const copyVariantMenuItems = useMemo(() => [1, 2, 3, 4]
-    .filter((targetVariant) => targetVariant !== variant)
-    .map((targetVariant) => ({
-      key: String(targetVariant),
-      label: `Скопировать СО${variant} в СО${targetVariant}`,
-      disabled: copyVariantMut.isPending || isJobActive,
-    })), [copyVariantMut.isPending, isJobActive, variant]);
   const defaultElectricalTypeControls = useMemo(() => (
     <ElecCalcElectricalTypeControls
+      disabled={!canMutate}
       cableType={cableTypes.visibleCableTypeControl}
       recalc={recalc}
       setRecalc={setRecalc}
     />
-  ), [cableTypes.visibleCableTypeControl, recalc, setRecalc]);
+  ), [cableTypes.visibleCableTypeControl, canMutate, recalc, setRecalc]);
   const cableSizingCandidateTableScrollX = useMemo(() => Math.max(
     920,
     visibleCandidateColumnMetas.reduce(
@@ -990,33 +1156,8 @@ export default function ElecCalcPage() {
     );
   }
 
-  function showCopyVariantConfirm(targetVariant: number) {
-    Modal.confirm({
-      title: `Создать СО${targetVariant} на основании СО${variant}?`,
-      content: (
-        <Space direction="vertical" size={6}>
-          <Text>
-            Скопируются {sourceVariantCalculationCount} объектов с расчётами в СО{variant}.
-          </Text>
-          {sourceVariantCalculationCount < projectObjectsForCopyCount && (
-            <Text type="secondary">
-              В проекте объектов: {projectObjectsForCopyCount}. Остальные в СО{targetVariant}
-              {' '}останутся не рассчитаны.
-            </Text>
-          )}
-          <Text type="secondary">
-            Система проверит скопированные марки на текущих данных, но не заменит их более
-            оптимальным кабелем.
-          </Text>
-        </Space>
-      ),
-      okText: 'Создать',
-      cancelText: 'Отмена',
-      onOk: () => copyVariantMut.mutate({ targetVariant }),
-    });
-  }
-
   function handleCableTypeControlChange(next: CableTypeKey) {
+    if (!canMutate) return;
     const nextType = cableTypes.normalizeAvailableCableType(next);
     if (selectedRowKeys.length === 0) {
       cableTypes.setDefaultCableType(nextType);
@@ -1067,6 +1208,7 @@ export default function ElecCalcPage() {
   }
 
   function showDeleteCandidateFolderConfirm(folder: ElectricalCandidateFolder) {
+    if (!canMutate) return;
     Modal.confirm({
       title: `Удалить папку «${folder.name}»?`,
       content: 'Варианты останутся в списке. Удалится только фильтр-папка.',
@@ -1085,7 +1227,7 @@ export default function ElecCalcPage() {
 
   return (
     <>
-      <div ref={tableScrollRegionsRef}>
+      <div id="electrical-variant-workspace" ref={tableScrollRegionsRef}>
         <Space direction="vertical" size={5} style={{ width: '100%' }}>
 
         {/* Summary banner */}
@@ -1094,7 +1236,7 @@ export default function ElecCalcPage() {
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
         >
           <span>
-            <span className="label">СО{variant} · {bannerCableTypeLabel} · </span>
+            <span className="label">{electricalVariantName} · {bannerCableTypeLabel} · </span>
             {bannerStats}
           </span>
           <Checkbox
@@ -1108,6 +1250,7 @@ export default function ElecCalcPage() {
 
         {paramsPanelVisible && (
           <ElecCalcParamsPanel
+            disabled={!canMutate}
             cableType={cableTypes.visibleCableTypeControl}
             cableTypeOptions={cableTypeOptions}
             onCableTypeChange={handleCableTypeControlChange}
@@ -1122,15 +1265,39 @@ export default function ElecCalcPage() {
           guidance={activeElectricalErrorGuidance}
         />
 
+        {(isElectricalCapabilitiesError || isElectricalPageError) && (
+          <Alert
+            type="error"
+            showIcon
+            message="Не удалось загрузить данные выбранного ЭР"
+            description={(
+              electricalPageError instanceof Error
+                ? electricalPageError.message
+                : electricalCapabilitiesError instanceof Error
+                  ? electricalCapabilitiesError.message
+                  : 'Повторите запрос.'
+            )}
+            action={(
+              <Button
+                size="small"
+                onClick={() => {
+                  if (isElectricalCapabilitiesError) void retryElectricalCapabilities();
+                  if (isElectricalPageError) void retryElectricalPage();
+                }}
+              >
+                Повторить
+              </Button>
+            )}
+          />
+        )}
+
         <ElectricalBatchActionBar
-          variant={variant}
+          canMutate={canMutate}
+          variantName={electricalVariantName}
           cableTypeControlLabel={cableTypeControlLabel}
           cableTypeOptions={cableTypeOptions}
           visibleCableTypeControl={cableTypes.visibleCableTypeControl}
           typeControls={paramsPanelVisible ? null : defaultElectricalTypeControls}
-          commercialFeaturesAvailable={commercialFeaturesAvailable}
-          copyVariantMenuItems={copyVariantMenuItems}
-          copyVariantPending={copyVariantMut.isPending}
           isJobActive={isJobActive}
           selectedManualCableCount={selectedManualCableCount}
           selectedValidObjectsCount={selectedValidObjectsCount}
@@ -1147,25 +1314,26 @@ export default function ElecCalcPage() {
           cancelJobPending={cancelJobMut.isPending}
           currentTableViewActive={currentTableViewActive}
           renderManualOverwriteControl={renderManualOverwriteControl}
-          onVariantChange={(nextVariant) => {
-            resetTablePage();
-            setVariant(nextVariant);
-          }}
-          onCopyVariant={showCopyVariantConfirm}
           onCableTypeChange={handleCableTypeControlChange}
           onManualOverwritePromptOpen={() => setOverwriteManualChoices(false)}
-          onRecalculateSelected={(skipManual) =>
+          onRecalculateSelected={(skipManual) => {
+            if (!canMutate) return;
             batchMut.mutate({
               scope: 'selected',
               objectIds: selectedRowKeys,
               skipManual,
-            })}
-          onRecalculateAll={(skipManual) =>
+            });
+          }}
+          onRecalculateAll={(skipManual) => {
+            if (!canMutate) return;
             batchMut.mutate({
               scope: 'all',
               skipManual,
-            })}
-          onCancelJob={() => cancelJobMut.mutate()}
+            });
+          }}
+          onCancelJob={() => {
+            if (canMutate) cancelJobMut.mutate();
+          }}
           onOpenColumnSettings={openColumnSettings}
           onResetFilters={resetCurrentTableViewState}
         />
@@ -1300,7 +1468,7 @@ export default function ElecCalcPage() {
         cableType={cableMarkModalCableType}
         cableTypeOptions={cableTypeOptions}
         commercialFeaturesAvailable={commercialFeaturesAvailable}
-        projectSelected={Boolean(project)}
+        projectSelected={Boolean(project) && canMutate}
         pending={isCableMarkPending}
         value={cableMarkModalValue}
         markOptions={cableMarkModalOptions}
@@ -1315,6 +1483,7 @@ export default function ElecCalcPage() {
         onCancel={closeCableMarkModal}
       />
       <ElecCalcCableSizingModal
+        canMutate={canMutate}
         cableSizingModal={cableSizingModal}
         candidate={candidate}
         selectedCable={cableSizingModalSelectedCable}
@@ -1349,7 +1518,7 @@ export default function ElecCalcPage() {
         okText={candidateFolderModalMode === 'rename' ? 'Сохранить' : 'Создать'}
         cancelText="Отмена"
         confirmLoading={createCandidateFolderMut.isPending || updateCandidateFolderMut.isPending}
-        okButtonProps={{ disabled: candidateFolderName.trim().length === 0 }}
+        okButtonProps={{ disabled: !canMutate || candidateFolderName.trim().length === 0 }}
         onOk={submitCandidateFolderModal}
         onCancel={closeCandidateFolderModal}
       >
@@ -1359,6 +1528,7 @@ export default function ElecCalcPage() {
           value={candidateFolderName}
           placeholder="Название папки"
           aria-label="Название папки вариантов"
+          disabled={!canMutate}
           onChange={(event) => setCandidateFolderName(event.target.value)}
           onPressEnter={submitCandidateFolderModal}
         />

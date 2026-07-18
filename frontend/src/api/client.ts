@@ -74,6 +74,24 @@ function isIdempotentMethod(method?: string): boolean {
   return ['get', 'head', 'options'].includes((method ?? 'get').toLowerCase());
 }
 
+function projectIdFromAuthoritativeRead403(
+  error: AxiosError,
+  config?: RetryableConfig,
+): string | null {
+  if (error.response?.status !== 403 || !['get', 'head'].includes(
+    (config?.method ?? 'get').toLowerCase(),
+  )) {
+    return null;
+  }
+  const match = (config?.url ?? '').match(/\/projects\/([^/?#]+)(?:[/?#]|$)/);
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
 function retryDelay(ms: number): Promise<void> {
   return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 }
@@ -227,15 +245,16 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // 403 на проектном endpoint — сохранённый проект устарел (сессия сменилась).
-    // Очищаем его, чтобы пользователь попал на экран выбора проекта.
-    if (error.response?.status === 403) {
-      const url = (error.config as { url?: string })?.url ?? '';
-      if (url.includes('/projects/')) {
-        localStorage.removeItem('tlt-current-project');
-        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/workspace')) {
-          window.location.href = '/workspace';
-        }
+    // A write-403 does not imply loss of read access (a read-only employee may
+    // list an ER but cannot rename it). A GET/HEAD 403 under an exact project,
+    // however, is authoritative evidence that the persisted project is stale.
+    const deniedProjectId = projectIdFromAuthoritativeRead403(error, originalConfig);
+    const currentProject = useProjectStore.getState().currentProject;
+    if (deniedProjectId && (!currentProject || currentProject.id === deniedProjectId)) {
+      useProjectStore.getState().setCurrentProject(null);
+      localStorage.removeItem('tlt-current-project');
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/workspace')) {
+        window.location.href = '/workspace';
       }
     }
 

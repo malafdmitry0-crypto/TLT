@@ -370,6 +370,125 @@ class TestElectricalReadinessAndInitialization:
 
 
 class TestElectricalVariantLifecycle:
+    async def test_object_summary_is_exact_variant_scoped_and_rejects_foreign_uuid(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+    ):
+        project = await _guest_project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        obj = await _add_ready_pipe(client, project["id"], headers)
+        first = (await _initialize(client, project["id"], headers))["variant"]
+        second_response = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            json={"name": "ЭР2"},
+            headers=headers,
+        )
+        assert second_response.status_code == 201, second_response.text
+        second = second_response.json()
+        db_session.add_all(
+            [
+                ElectricalCalculation(
+                    project_id=UUID(project["id"]),
+                    object_id=UUID(obj["id"]),
+                    variant_number=1,
+                    electrical_variant_id=UUID(first["id"]),
+                    cable_type="self_regulating",
+                    cable_mark="HTM",
+                    results={"selected_cable": {"mark": "HTM"}},
+                ),
+                ElectricalCalculation(
+                    project_id=UUID(project["id"]),
+                    object_id=UUID(obj["id"]),
+                    variant_number=2,
+                    electrical_variant_id=UUID(second["id"]),
+                    cable_type="self_regulating",
+                    cable_mark="HTM",
+                    results={
+                        "error_code": "POWER_TOO_HIGH",
+                        "category": "formula",
+                    },
+                ),
+            ]
+        )
+        foreign_project = Project(name="Другой проект", session_id=guest_session)
+        db_session.add(foreign_project)
+        await db_session.flush()
+        foreign_variant = ElectricalVariant(
+            project_id=foreign_project.id,
+            name="Чужой ЭР",
+            name_normalized="чужой эр",
+            sort_order=0,
+            is_active=True,
+            legacy_variant_number=1,
+        )
+        db_session.add(foreign_variant)
+        await db_session.commit()
+
+        first_summary = await client.get(
+            f"/api/v1/projects/{project['id']}/objects/summary",
+            params={"electrical_variant_id": first["id"]},
+            headers=headers,
+        )
+        second_summary = await client.get(
+            f"/api/v1/projects/{project['id']}/objects/summary",
+            params={"electrical_variant_id": second["id"]},
+            headers=headers,
+        )
+        foreign = await client.get(
+            f"/api/v1/projects/{project['id']}/objects/summary",
+            params={"electrical_variant_id": str(foreign_variant.id)},
+            headers=headers,
+        )
+
+        assert first_summary.status_code == 200, first_summary.text
+        assert first_summary.json()["successful_electrical_calculations"] == 1
+        assert first_summary.json()["failed_electrical_calculations"] == 0
+        assert second_summary.status_code == 200, second_summary.text
+        assert second_summary.json()["successful_electrical_calculations"] == 0
+        assert second_summary.json()["failed_electrical_calculations"] == 1
+        assert foreign.status_code == 404, foreign.text
+        assert foreign.json()["detail"]["code"] == "ELECTRICAL_VARIANT_NOT_FOUND"
+
+    async def test_create_idempotency_returns_same_variant_and_rejects_key_reuse(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        project = await _guest_project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        await _add_ready_pipe(client, project["id"], headers)
+        await _initialize(client, project["id"], headers)
+        url = f"/api/v1/projects/{project['id']}/electrical-variants"
+        create_headers = {**headers, "Idempotency-Key": "same-empty-create-click"}
+
+        first = await client.post(
+            url,
+            json={"name": "Повторяемый пустой ЭР"},
+            headers=create_headers,
+        )
+        retry = await client.post(
+            url,
+            json={"name": "Повторяемый пустой ЭР"},
+            headers=create_headers,
+        )
+        mismatch = await client.post(
+            url,
+            json={"name": "Другой пустой ЭР"},
+            headers=create_headers,
+        )
+
+        assert first.status_code == 201, first.text
+        assert retry.status_code == 201, retry.text
+        assert retry.json()["id"] == first.json()["id"]
+        assert mismatch.status_code == 409, mismatch.text
+        assert mismatch.json()["detail"]["code"] == (
+            "ELECTRICAL_VARIANT_IDEMPOTENCY_KEY_REUSED"
+        )
+        listing = await client.get(url, headers=headers)
+        assert len(listing.json()) == 2
+
     async def test_unicode_casefold_name_conflict_and_limit_have_stable_codes(
         self,
         client: AsyncClient,
@@ -550,6 +669,130 @@ class TestElectricalVariantLifecycle:
 
 
 class TestElectricalVariantConcurrency:
+    async def test_stale_uuid_precondition_blocks_reused_legacy_slot_without_write(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+    ):
+        project = await _guest_project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        obj = await _add_ready_pipe(client, project["id"], headers)
+        first_variant = (await _initialize(client, project["id"], headers))["variant"]
+        stale_variant_response = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            json={"name": "Удаляемый ЭР"},
+            headers=headers,
+        )
+        assert stale_variant_response.status_code == 201, stale_variant_response.text
+        stale_variant = stale_variant_response.json()
+        assert stale_variant["legacy_variant_number"] == 2
+
+        deleted = await client.delete(
+            f"/api/v1/projects/{project['id']}/electrical-variants/{stale_variant['id']}",
+            headers=headers,
+        )
+        assert deleted.status_code == 200, deleted.text
+        replacement_response = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            json={"name": "Новый владелец слота"},
+            headers=headers,
+        )
+        assert replacement_response.status_code == 201, replacement_response.text
+        replacement = replacement_response.json()
+        assert replacement["legacy_variant_number"] == 2
+        assert replacement["id"] != stale_variant["id"]
+
+        stale_read = await client.get(
+            "/api/v1/calc/electrical/query-capabilities",
+            params={
+                "project_id": project["id"],
+                "variant_number": 2,
+                "electrical_variant_id": stale_variant["id"],
+            },
+            headers=headers,
+        )
+        stale_specification_read = await client.get(
+            f"/api/v1/specifications/{project['id']}",
+            params={
+                "variant": 2,
+                "electrical_variant_id": stale_variant["id"],
+            },
+            headers=headers,
+        )
+        stale_report_read = await client.get(
+            f"/api/v1/reports/{project['id']}/preview",
+            params={
+                "variant_number": 2,
+                "electrical_variant_id": stale_variant["id"],
+            },
+            headers=headers,
+        )
+        stale_write = await client.post(
+            "/api/v1/calc/electrical/candidates",
+            json={
+                "project_id": project["id"],
+                "object_id": obj["id"],
+                "variant_number": 2,
+                "electrical_variant_id": stale_variant["id"],
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "manual",
+                "cable_mark": "ТЛТ-75",
+            },
+            headers=headers,
+        )
+        stale_multi_write = await client.post(
+            "/api/v1/calc/electrical/select-cable/variants",
+            json={
+                "object_id": obj["id"],
+                "cable_mark": None,
+                "cable_source": "builtin",
+                "variant_numbers": [1, 2],
+                "electrical_variant_ids": {
+                    "1": first_variant["id"],
+                    "2": stale_variant["id"],
+                },
+                "cable_type": "self_regulating",
+            },
+            headers=headers,
+        )
+
+        for response in (
+            stale_read,
+            stale_specification_read,
+            stale_report_read,
+            stale_write,
+            stale_multi_write,
+        ):
+            assert response.status_code == 409, response.text
+            assert response.json()["detail"]["code"] == (
+                "ELECTRICAL_VARIANT_SCOPE_MISMATCH"
+            )
+        candidates_for_replacement = await db_session.scalar(
+            select(func.count(ElectricalCandidate.id)).where(
+                ElectricalCandidate.electrical_variant_id == UUID(replacement["id"])
+            )
+        )
+        assert candidates_for_replacement == 0
+        calculation_count = await db_session.scalar(
+            select(func.count(ElectricalCalculation.id)).where(
+                ElectricalCalculation.project_id == UUID(project["id"])
+            )
+        )
+        assert calculation_count == 0
+
+        current_read = await client.get(
+            "/api/v1/calc/electrical/query-capabilities",
+            params={
+                "project_id": project["id"],
+                "variant_number": 2,
+                "electrical_variant_id": replacement["id"],
+            },
+            headers=headers,
+        )
+        assert current_read.status_code == 200, current_read.text
+
     async def test_legacy_row_is_bound_before_write_and_cascades_on_slot_reuse(
         self,
         client: AsyncClient,

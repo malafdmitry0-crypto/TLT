@@ -2,7 +2,7 @@
 
 - Статус ADR: **Accepted for Phase 1–3 / Phase 4 blocked by data contract**
 - Статус backend/DB Phase 1: **PASS — backend/DB Phase 1 checkpoint complete**
-- Дата: 18.07.2026
+- Дата: 18.07.2026; section decisions дополнены 19.07.2026
 - Ветка: `feature/tnp-dynamic-electrical-variants`
 - Область: DB → backend API/services → frontend → specification/report → CSV → tests
 
@@ -16,14 +16,16 @@
 
 Этот ADR зафиксировал Phase 0. Решения `OPEN-ER-01…09` утверждены пользователем
 18.07.2026 как рекомендованные варианты и зарегистрированы PDL-ER-09…17.
-Production Phase 1–3 разрешены; Phase 4 не начинается без данных PDL-ER-15.
+Правила section data contract PDL-ER-18…25 утверждены пользователем 19.07.2026
+как варианты А. Production Phase 1–3 разрешены; Phase 4 не начинается без
+фактического официального числового источника PDL-ER-15/18.
 Backend/DB foundation Phase 1 завершена и проверена; граница и evidence
 зафиксированы в
 `docs/tnp/cases/guest-specification/phase-1-checkpoint.md`.
 
 ## Приоритет источников
 
-1. Явные решения пользователя PDL-ER-01…08 в
+1. Явные решения пользователя PDL-ER-01…25 в
    `docs/tnp/cases/guest-specification/product-decisions.md`.
 2. Нормализованные однозначные требования PDF в
    `docs/tnp/cases/guest-specification/pdf-requirements.md`.
@@ -37,7 +39,7 @@ Backend/DB foundation Phase 1 завершена и проверена; гран
 Если источники расходятся, expected/golden не меняются до явного выбора
 источника новой истины.
 
-## Уже утверждено: PDL-ER-01…17
+## Уже утверждено: PDL-ER-01…25
 
 | ID | Зафиксированный результат |
 |---|---|
@@ -58,6 +60,14 @@ Backend/DB foundation Phase 1 завершена и проверена; гран
 | PDL-ER-15 | Phase 4 ждёт утверждённые `Lmax`/пусковые/токовые данные; defaults запрещены. |
 | PDL-ER-16 | PDF 07.07 задаёт BOM semantics; XLSX 29.05 — только непротиворечащие каталог/данные. |
 | PDL-ER-17 | Expand window → one-way UUID cutover → backup/restore recovery point. |
+| PDL-ER-18 | Section data берутся только из официального каталога/утверждённой методики производителя ТЛТ с source/version traceability. |
+| PDL-ER-19 | Отсутствующее обязательное значение блокирует расчёт с error code; defaults и nearest fallback запрещены. |
+| PDL-ER-20 | `Iдоп`, А, хранится явно по марке и напряжению; не выводится из автомата и не является глобальной константой. |
+| PDL-ER-21 | Используется прямой `Iст.уд`, А/м, из источника; общий `kпуск` не вводится. |
+| PDL-ER-22 | Для выбора строки используется минимальная расчётная температура объекта/климата. |
+| PDL-ER-23 | Section limits раздельны для каждого напряжения и не переносятся между ними. |
+| PDL-ER-24 | `Lогр` округляется вниз только по правилу официального источника; отсутствие правила блокирует расчёт. |
+| PDL-ER-25 | Новый section contract применяется только к саморегулирующемуся кабелю. |
 
 ## Текущая цепочка реализации
 
@@ -291,7 +301,8 @@ Read-only snapshot локальной БД перед миграцией:
 | 5 | Spec/report/settings/CSV v3 + guest print/full BOM. | No-mixing, RBAC, round-trip, browser and DB proof. |
 | 6 | Legacy contract removal + docs/SRS/API updates. | Search gate and full functional audit. |
 
-Production Phase 1–3 разрешены. Phase 4 остаётся gated PDL-ER-15.
+Production Phase 1–3 разрешены. Семантика Phase 4 утверждена PDL-ER-18…25,
+но реализация остаётся gated PDL-ER-15/18 до официального числового артефакта.
 
 ## Phase 0 baseline
 
@@ -369,4 +380,6 @@ Production Phase 1–3 разрешены. Phase 4 остаётся gated PDL-ER
 
 Phase 1–3 можно выполнять вертикальными slices. Phase 4 и зависимую генерацию
 реальных sections нельзя принимать или обходить defaults, пока не предоставлен
-утверждённый источник `Lmax`, пускового тока/`kпуск` и токовых ограничений.
+официальный источник производителя ТЛТ с `Lmax`, `Iдоп`, прямым `Iст.уд`,
+напряжениями, температурами холодного пуска и правилом округления. Утверждение
+PDL-ER-18…25 закрывает семантические вопросы, но не заменяет числовой источник.

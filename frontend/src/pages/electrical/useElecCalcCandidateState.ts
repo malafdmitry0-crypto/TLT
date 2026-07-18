@@ -21,6 +21,8 @@ type ElectricalColumnViewModel = ReturnType<typeof useElecCalcColumnViewModel>;
 
 type UseElecCalcCandidateStateOptions = {
   projectId: string | undefined;
+  electricalVariantId: string;
+  canMutate: boolean;
   variant: CalculationVariant;
   effectiveSource: CableSource;
   setElectricalQueryCalculation: (calculation: ElectricalCalcSummary) => void;
@@ -41,6 +43,8 @@ type UseElecCalcCandidateStateOptions = {
  */
 export function useElecCalcCandidateState({
   projectId,
+  electricalVariantId,
+  canMutate,
   variant,
   effectiveSource,
   setElectricalQueryCalculation,
@@ -80,6 +84,8 @@ export function useElecCalcCandidateState({
     submitCandidateFolderModal,
   } = useElecCalcCandidateMutationFlow({
     projectId,
+    electricalVariantId,
+    canMutate,
     variant,
     effectiveSource,
     cableSizingModalObjectId,
@@ -102,13 +108,23 @@ export function useElecCalcCandidateState({
   } = useQuery({
     queryKey: cableSizingCandidatesQueryKey,
     queryFn: () =>
-      listElectricalCandidates(projectId!, cableSizingModalObjectId!, variant),
+      listElectricalCandidates(
+        projectId!,
+        cableSizingModalObjectId!,
+        variant,
+        electricalVariantId,
+      ),
     enabled: !!projectId && !!cableSizingModalObjectId,
   });
   const { data: cableSizingCandidateFolders = [] } = useQuery({
     queryKey: cableSizingCandidateFoldersQueryKey,
     queryFn: () =>
-      listElectricalCandidateFolders(projectId!, cableSizingModalObjectId!, variant),
+      listElectricalCandidateFolders(
+        projectId!,
+        cableSizingModalObjectId!,
+        variant,
+        electricalVariantId,
+      ),
     enabled: !!projectId && !!cableSizingModalObjectId,
   });
 

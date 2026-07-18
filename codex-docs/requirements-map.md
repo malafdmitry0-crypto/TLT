@@ -18,9 +18,10 @@
 | `TO_DO.md` | Рабочий статус пробелов и отложенных задач |
 | `docs/analysis/` | Бизнес-правила, персоны, story map, диаграммы |
 | `docs/qa/` | Чек-листы и ручные тест-кейсы |
-| `docs/tnp/cases/guest-specification/product-decisions.md` | Утверждённые PDL-ER-01…17 для dynamic-ER/PDF-кейса |
+| `docs/tnp/cases/guest-specification/product-decisions.md` | Утверждённые PDL-ER-01…25 для dynamic-ER/PDF-кейса |
 | `docs/architecture/dynamic-electrical-variants.md` | ADR, phase plan и UUID cutover contract |
 | `docs/tnp/cases/guest-specification/phase-1-checkpoint.md` | Финальное evidence backend/DB Phase 1 и переходные ограничения |
+| `docs/tnp/cases/guest-specification/phase-2-checkpoint.md` | Финальное frontend/consumer evidence Phase 2 и UUID/legacy boundary |
 
 ## Текущие границы реализации
 
@@ -35,10 +36,11 @@
 - теплопотери труб/резервуаров с материалами, климатом, грунтом,
   1/2/3 слоями изоляции и подземным резервуаром;
 - саморегулирующийся кабель ТЛТ как расчётно поддержанный тип;
-- CO1..CO4 и выбор базы/типа кабеля на SC-04;
-- backend/DB foundation именованных UUID ЭР: readiness, lifecycle до пяти,
-  persisted assignments, UUID-first electrical/report tasks и sparse CSV v2
-  import; статус **PASS — backend/DB Phase 1 checkpoint complete**;
+- до пяти динамических именованных UUID ЭР на SC-04 с lifecycle, URL selection,
+  UUID query/cache identity и контролируемым fail-closed состоянием пятого ЭР;
+- backend/DB foundation именованных UUID ЭР: readiness, persisted assignments,
+  UUID-first electrical/report tasks и sparse CSV v2 import; Phase 1 и
+  frontend/consumer Phase 2 имеют статус **PASS**;
 - импорт Excel/CSV;
 - базовая/расширяемая спецификация;
 - HTML-превью отчёта и экспорт PDF/DOCX/XLSX для сотрудника;
@@ -52,15 +54,15 @@
 | Зона | Что проверить перед задачей |
 |---|---|
 | Другие типы кабеля | `single_core` и `three_core` согласованы с full-version VSDX fallback policy; для MI и skin нужны отдельные методики |
-| Dynamic ЭР / legacy СО | Проверять одновременно UUID и deprecated `variant_number`: lifecycle/tasks уже UUID-first, но frontend, direct candidates/folders/spec/report preview/sync export остаются numeric |
+| Dynamic ЭР / legacy СО | Frontend lifecycle/cache/URL UUID-first. Direct legacy calculation/candidate/folder/spec/report consumers временно передают UUID вместе с deprecated `variant_number`; backend обязан проверить точное соответствие пары до чтения/записи |
 | Legacy write adapter | Calculation/candidate/folder/select/spec writes и seeds обязаны readiness-gated подготовить UUID mapping до доменной записи; sparse slot не заполняет промежуточные ЭР |
 | Project duplicate | После heat recalc ready copy готовит `ЭР1`/UUID до electrical batch; not-ready copy остаётся без ER/electrical rows и явно audit-ится |
 | Assignment semantics | До Phase 3 `assignment_state/system_type` не authoritative для normal legacy calculation; UUID mapping и успешный calculation не подразумевают state transition |
 | Task idempotency | Explicit key scoped по principal/type/project и навсегда binding-ит полный payload/ER; heat lookup/insert project-locked; exact terminal retry возвращает original и truthful replay audit, changed binding даёт `TASK_IDEMPOTENCY_KEY_REUSED` |
 | Electrical job selector | Omitted numeric selector → slot 1; UUID-only clears implicit default; explicit null → stable 422 до ER side effect |
 | Candidate apply/delete | Общая lifecycle project lock, re-read candidate/mapping после lock, stable 404/409 без ER recreation или integrity 500 |
-| Пятый ЭР | Сейчас lifecycle-only без legacy calculation/candidate/spec/report graph; нельзя принимать как полнофункциональный ЭР до cutover |
-| Heating sections | Phase 4 заблокирована PDL-ER-15 до утверждённых `Lmax`, пусковых и токовых данных; defaults запрещены |
+| Пятый ЭР | Доступен lifecycle и отдельный UI scope, но legacy calculation/candidate/spec/report graph отсутствует; UI обязан fail-closed и не подставлять данные ЭР1…ЭР4 до полного UUID-only cutover |
+| Heating sections | Семантика утверждена PDL-ER-18…25: официальный источник ТЛТ, explicit `Iдоп` по марке/напряжению, direct `Iст.уд`, minimum object/climate start temperature, voltage isolation, source-defined rounding, self-reg only, fail closed при пробеле. Phase 4 остаётся blocked PDL-ER-15/18 до фактического числового артефакта |
 | Расширенные типы объектов | Для pump/platform/other нужны формы, схемы, формулы, импорт, отчёты и тесты |
 | Безопасность раздела 5 ТЗ | Обфускация, шифрование формул/справочников, ротация ключей пока отдельный риск |
 | Табличный UX | TSV-копирование есть; Excel-like bulk edit и эскизы Приложения 4 проверять по `TO_DO.md` |
@@ -81,8 +83,11 @@
 - автотест покрывает основной успешный сценарий и хотя бы один риск.
 
 Для dynamic-ER Phase 1 migration/backfill evidence, final-head DB invariants и
-проверка переходных numeric consumers завершены. Это не закрывает Phase 2/3/5,
-общий PDF/DoD или product release; Phase 4 остаётся blocked PDL-ER-15. Full
+проверка переходных numeric consumers завершены. Phase 2 дополнительно закрыла
+именованный UUID frontend lifecycle, cache/URL identity, direct consumer bridge
+и desktop/mobile UI proof. Это не закрывает Phase 3/5, общий PDF/DoD или
+product release; семантика Phase 4 закрыта PDL-ER-18…25, но
+сама фаза остаётся blocked PDL-ER-15/18 до официального числового источника. Full
 frontend gate не green из-за pre-existing missing accessible separator test,
-который не является regression backend/DB Phase 1. Dependency security gate и
+который не является regression dynamic-ER Phase 2. Dependency security gate и
 общий Alembic metadata drift вне dynamic-ER diff также блокируют release.

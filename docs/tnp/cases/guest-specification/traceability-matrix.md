@@ -14,12 +14,12 @@
 (`docs/business-logic-contract.md:18-24`). Поэтому новый PDF не используется
 для молчаливой замены существующих golden-значений.
 
-Phase 1 backend/DB имеет статус
-**PASS — backend/DB Phase 1 checkpoint complete**; его evidence и переходные
-ограничения вынесены в
-[phase-1-checkpoint.md](phase-1-checkpoint.md). `PARTIAL` ниже не означает
-готовность PDF-flow: frontend, sections, specification/report UUID cutover и
-CSV v3 ещё отсутствуют.
+Phase 1 backend/DB и Phase 2 frontend/consumer имеют статус **PASS** в своих
+границах; evidence и переходные ограничения вынесены в
+[phase-1-checkpoint.md](phase-1-checkpoint.md) и
+[phase-2-checkpoint.md](phase-2-checkpoint.md). `PARTIAL` ниже не означает
+готовность полного PDF-flow: assignments, sections, UUID-only data plane,
+multi-ЭР specification и CSV v3 ещё отсутствуют.
 
 ## Гость, сессия и проект
 
@@ -40,7 +40,7 @@ CSV v3 ещё отсутствуют.
 | PDF-NFR-01 | PARTIAL | Docker stack присутствует. | `make dev-d`, `make ps`: frontend/backend/DB/Redis healthy; core flow работал локально. Полный offline cold-start не проверялся. |
 | PDF-NFR-02 | NOT VERIFIED | В репозитории нет полного обязательного browser gate Chrome/Firefox/Opera/Яндекс. | Проверен Chromium только. |
 | PDF-NFR-03 | PARTIAL | Lifecycle scale proof создаёт `500 objects × 5 ER = 2500 assignments` за постоянные 69 SQL statements при ceiling 80. | PDF wall-clock thresholds 500 объектов ≤30 секунд и specification ≤30 секунд не измерялись. |
-| PDF-NFR-04 | PARTIAL / FAIL limit | Backend lifecycle допускает пять UUID ЭР, но direct legacy graph и frontend ограничены slots/`СО1…СО4`; лимит объектов остаётся 50. | Пятый ЭР доказан только как lifecycle/empty-assignment entity. PDF требует также полный расчётный граф и ≥500 объектов. |
+| PDF-NFR-04 | PARTIAL / FAIL limit | Backend и frontend допускают пять именованных UUID ЭР; direct legacy calculation graph всё ещё ограничен slots `1…4`, а лимит объектов остаётся 50. | Desktop/mobile proof показывает пять отдельных tabs и fail-closed пятый ЭР без подстановки данных. PDF всё ещё требует полный расчётный граф пятого ЭР и ≥500 объектов. |
 | PDF-NFR-05 | PARTIAL | Explicit task key namespaced по principal/type/project и binding-ит full payload/ER; exact active/terminal retry возвращает исходную задачу, changed payload/ER даёт `409 TASK_IDEMPOTENCY_KEY_REUSED`. Heat path сериализован через terminal transition; replay audit показывает actual result. | Focused task matrix: 56 unit + 25 integration (`14` calc jobs + `11` reports). Остаются без полного oracle новый BOM и весь import/reorder partial-success flow. |
 | PDF-NFR-06 | FAIL | Heat/object mutations могут stale spec, но обычные electrical calculate/select/batch не вызывают `mark_project_specifications_stale`; `backend/app/services/calculation_service.py:1260-1293,3502-3537,3720-3958`. | Нет теста `electrical change → stale spec`; существующие stale tests покрывают object/heat/delete. |
 | PDF-NFR-07 | PARTIAL | Audit model хранит actor/session/project/object/request/error, но events не содержат полного formula/catalog/version trace. | Browser показал loading/empty/success, однако Heat/Elec initial query errors маскируются под empty; structured log completeness не доказана. |
@@ -58,16 +58,16 @@ CSV v3 ещё отсутствуют.
 | PDF-HEAT-07 | PARTIAL | Column settings представлены в UI и local state. | Финальный frontend gate не green: `HeatCalcPage.settings.test.tsx:321` воспроизводимо не находит accessible separator. Это pre-existing дефект вне backend/DB Phase 1, но blocker общего release. |
 | PDF-HEAT-08 | PARTIAL | Backend reorder endpoint/sort order есть, UI DnD строк отсутствует. | Нет UI/e2e round trip reorder→reload→export/import. |
 | PDF-HEAT-09 | FAIL | `Sidebar` всегда навигирует по ключу: `frontend/src/components/layout/Sidebar.tsx:53-98`. | Live: electrical/spec/report открылись без electrical readiness; блокирующей кнопки «Далее» нет. |
-| PDF-HEAT-10 | PARTIAL | 0027 добавляет project-scoped `electrical_variants` и `electrical_variant_objects.assignment_state`; readiness initialization создаёт `ЭР1` и полную матрицу `unassigned`. | Frontend не подключён к lifecycle/assignments: live screen всё ещё показывает плоский `СО1` и фиксированные `СО1…СО4`. |
+| PDF-HEAT-10 | PARTIAL | 0027 добавляет project-scoped `electrical_variants` и `electrical_variant_objects.assignment_state`; readiness initialization создаёт `ЭР1` и полную матрицу `unassigned`. Frontend подключён к UUID lifecycle/readiness. | Live Phase 2 screen показывает именованный `ЭР1` и lifecycle до пяти ЭР; отдельное отображение/управление `unassigned` относится к Phase 3. |
 
 ## Электротехнические расчёты и секции
 
 | PDF ID | Статус | Backend/frontend trace | Evidence |
 |---|---|---|---|
-| PDF-ER-01 | PARTIAL | Phase 1 реализует UUID entity, readiness/list/create/copy/rename/activate/delete и лимит 5. Все normal numeric writes readiness-gated через UUID adapter; fresh slot `4` создаёт только `ЭР1 + ЭР4`. Legacy calculation graph остаётся `1…4`. | Adapter/spec 15, calculations 73 и report/task matrix проходят; frontend store/tabs остаются numeric `СО1…СО4`, пользовательский lifecycle и пятый расчётный ЭР недоступны. |
+| PDF-ER-01 | PARTIAL | UUID entity, readiness/list/create/copy/rename/activate/delete и лимит 5 реализованы. Frontend tabs, URL и query/cache identity UUID-first; direct numeric consumers требуют точную пару `UUID ↔ slot`. Legacy calculation graph остаётся `1…4`. | Focused frontend 77/77, stale-slot backend oracle и live desktop/mobile proof проходят. Пятый ЭР доступен как самостоятельная lifecycle entity, но его расчётный data plane намеренно fail-closed до Phase 5. |
 | PDF-ER-02 | PARTIAL | `electrical_variant_objects` хранит отдельные `system_type`, `assignment_state`, lossless `requested_cable_type`; initialization и import создают полную матрицу. Normal legacy calculation уже получает UUID, но assignment пока может остаться `unassigned/system_type=null`. | MEDIUM intentional Phase 3 boundary: consumers не считают assignment state authoritative до атомарной синхронизации; assignment service/UI и действие распределения относятся к Phase 3. |
-| PDF-ER-03 | PARTIAL | UUID lifecycle copy создаёт новый ЭР и идемпотентно копирует assignments/calculations/candidates/folders без specification. Legacy fixed-slot copy также временно сохранён. | UI всё ещё вызывает numeric «Создать на основании»; copy непустого графа в пятый ЭР блокируется до UUID-only cutover. |
-| PDF-ER-04 | PARTIAL | DB/API хранят имя и обеспечивают уникальность после `trim + casefold`; PATCH переименовывает ЭР. | Inline rename/Enter/Esc и синхронное отображение имени в spec/report UI отсутствуют. |
+| PDF-ER-03 | PARTIAL | UUID lifecycle copy создаёт новый ЭР и идемпотентно копирует assignments/calculations/candidates/folders без specification. UI вызывает UUID copy, показывает limit 5 и подробное delete confirmation. | Live создано пять ЭР копированием; источник не изменён. Heating sections ещё отсутствуют, а расчётный graph пятого ЭР fail-closed до UUID-only cutover. |
+| PDF-ER-04 | PARTIAL | DB/API хранят имя и обеспечивают уникальность после `trim + casefold`; UI поддерживает inline rename, Enter/Esc, invalid/empty state и persistence. Имя используется в electrical/spec/report selectors. | Unit tests и live long-name proof проходят; full Phase 5 multi-ЭР specification wizard и end-to-end reload всех downstream artifacts ещё отсутствуют. |
 | PDF-ER-05 | FAIL | Текущий screen имеет одну строку summary. | Нет четырёх independent summaries и секционного количества; screenshot `assets/ui/guest-audit-electrical-empty-desktop.png`. |
 | PDF-ER-06 | PARTIAL | Assignment model различает `unassigned`, `ready`, `unsupported`, `stale`, `error` и system type, но legacy write adapter пока гарантирует UUID mapping, а не authoritative state transition. | Tabs, assignment mutations, DnD и atomic calculation→assignment sync отсутствуют до Phase 3. |
 | PDF-ER-07 | PARTIAL / CONFLICT | Backfill/import нормализуют self-reg/resistive, сохраняют `skin/mineral` как unsupported и исходный requested type. | UI остаётся на legacy cable-type flow; PDF disabled future tabs и текущая full-version policy всё ещё расходятся. |
@@ -85,7 +85,7 @@ CSV v3 ещё отсутствуют.
 
 | PDF ID | Статус | Backend/frontend trace | Tests / live result |
 |---|---|---|---|
-| PDF-SPEC-01 | PARTIAL | 0027 добавляет `specifications.electrical_variant_id`, same-project/slot FK и unique `(project_id, electrical_variant_id)`; numeric generate/save теперь readiness-gated и записывают UUID. | Fresh `0001→0028` seed: 10 specs, 0 nullable UUID, 0 scope mismatch. Generation/read UI и service всё ещё выбирают numeric `variant_number`; именованных UUID tabs нет до Phase 5. |
+| PDF-SPEC-01 | PARTIAL | `specifications.electrical_variant_id`, same-project/slot FK и unique `(project_id, electrical_variant_id)` отделяют спецификации. UI показывает именованный UUID selector; переходные generate/read/save запросы передают UUID+slot и backend отклоняет mismatch. | Fresh seed и focused spec tests не находят nullable/scope mismatch; live network показывает точный UUID. Пятый ЭР и multi-ЭР wizard остаются fail-closed/pending до Phase 5. |
 | PDF-SPEC-02 | FAIL | Endpoint принимает один `variant`; UI selector фиксирован `[1,2,3,4]`: `SpecificationPage.tsx:515-536`. | Multi-ЭР wizard отсутствует. |
 | PDF-SPEC-03 | **FAIL** | Objectless generation теперь readiness-blocked: 409 и 0 variant/spec rows. Но при существующем объекте builder всё ещё использует `object_count=len(all project objects)` и может добавить аксессуары без successful electrical. | Новая objectless atomic проверка проходит; исторический live flow с одним объектом и zero electrical вернул 201, 6 items, `skipped_objects=0`. Partial sections-aware guard/confirm flow не реализован. |
 | PDF-SPEC-04 | FAIL | Full options schema существует, guest `mode=full` получает 403: `schemas/specification.py:22-81`, `api/v1/specifications.py:70-77`. | Guest UI принудительно basic; PDF settings недоступны. |
@@ -123,15 +123,15 @@ CSV v3 ещё отсутствуют.
 
 ## Итог матрицы
 
-Phase 1 добавляет backend/DB foundation: именованные UUID ЭР, readiness,
-lifecycle, persisted assignments, UUID task trace и sparse v2 import. Однако
-пользовательский поток остаётся `СО1…СО4`, а equal-section hierarchy,
-assignment UI, UUID specification/report flow, multi-ЭР wizard, CSV v3 и новый
-data-driven BOM не реализованы. Действующий basic builder по-прежнему нарушает
+Phase 1 добавила backend/DB foundation, а Phase 2 перевела пользовательский
+lifecycle, URL/cache identity и direct consumer bridge на именованные UUID ЭР.
+Однако assignment UI, equal-section hierarchy, полный UUID-only data plane,
+multi-ЭР wizard, CSV v3 и новый data-driven BOM не реализованы. Действующий
+basic builder по-прежнему нарушает
 текущий guest SRS, потому что создаёт закупочные позиции без успешного
 electrical result. Поэтому общий PDF/DoD не закрыт.
 
-Backend/DB Phase 1 checkpoint завершён, но Phase 2/3/5 pending, Phase 4
-blocked PDL-ER-15, а общий product release дополнительно блокирует не-green
-frontend gate (`925 passed, 1 failed, 1 skipped`), dependency security gate и
+Phase 1/2 checkpoints завершены, но Phase 3/5 pending, Phase 4 blocked
+PDL-ER-15/18, а общий product release дополнительно блокирует не-green
+frontend gate (`1033 passed, 1 failed`), dependency security gate и
 общий Alembic metadata drift вне dynamic-ER diff.

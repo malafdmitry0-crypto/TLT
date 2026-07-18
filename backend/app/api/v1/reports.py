@@ -17,7 +17,10 @@ from app.core.rate_limit import enforce_principal_rate_limit, job_enqueue_limite
 from app.schemas.calculation import CalculationTaskResponse
 from app.schemas.report import ReportExportJobRequest, ReportPreviewResponse
 from app.services.audit_service import AuditService
-from app.services.electrical_variant_service import ElectricalVariantServiceError
+from app.services.electrical_variant_service import (
+    ElectricalVariantService,
+    ElectricalVariantServiceError,
+)
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 from app.services.report_artifact_service import report_artifact_path
 from app.services.report_service import ReportError, ReportService
@@ -79,6 +82,7 @@ async def preview(
     request: Request,
     sections: list[str] | None = Query(default=None),
     variant_number: int | None = Query(default=None, ge=1, le=4),
+    electrical_variant_id: UUID | None = Query(default=None),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -96,12 +100,21 @@ async def preview(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="variant_number is required",
             )
+        if electrical_variant_id is not None:
+            await ElectricalVariantService(db).validate_legacy_variant_for_read(
+                project_id,
+                principal,
+                variant_number,
+                electrical_variant_id,
+            )
         result = await service.preview(
             project_id,
             sections,
             principal=principal,
             variant_number=variant_number,
         )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except ReportError as exc:
@@ -127,6 +140,7 @@ async def export(
     request: Request,
     sections: list[str] | None = Query(default=None),
     variant_number: int = Query(..., ge=1, le=4),
+    electrical_variant_id: UUID | None = Query(default=None),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -143,6 +157,13 @@ async def export(
         )
     service = ReportService(db)
     try:
+        if electrical_variant_id is not None:
+            await ElectricalVariantService(db).validate_legacy_variant_for_read(
+                project_id,
+                principal,
+                variant_number,
+                electrical_variant_id,
+            )
         data = await service.export(
             project_id,
             format,
@@ -150,6 +171,8 @@ async def export(
             principal=principal,
             variant_number=variant_number,
         )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except ReportError as exc:

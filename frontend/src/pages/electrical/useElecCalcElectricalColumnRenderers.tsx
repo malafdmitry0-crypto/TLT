@@ -66,6 +66,7 @@ type UseElecCalcElectricalColumnRenderersOptions = {
   getCalculatedCableTypeForObject: (objectId: string) => CableTypeKey | null;
   isCableMarkPending: boolean;
   projectSelected: boolean;
+  canMutate: boolean;
   recalc: ElecCalcRendererRecalculationValues;
   openCableMarkModal: (obj: ProjectObject) => void;
   openCableSizingModal: (obj: ProjectObject) => void;
@@ -78,6 +79,7 @@ export function useElecCalcElectricalColumnRenderers({
   getCalculatedCableTypeForObject,
   isCableMarkPending,
   projectSelected,
+  canMutate,
   recalc,
   openCableMarkModal,
   openCableSizingModal,
@@ -227,7 +229,7 @@ export function useElecCalcElectricalColumnRenderers({
               <Button
                 className="electrical-cable-mark-action"
                 size="small"
-                disabled={!obj.is_valid || !projectSelected}
+                disabled={!canMutate || !obj.is_valid || !projectSelected}
                 loading={isCableMarkPending}
                 onClick={() => openCableMarkModal(obj)}
               >
@@ -444,6 +446,7 @@ export function useElecCalcElectricalColumnRenderers({
   }), [
     activeRowId,
     calcByObjectId,
+    canMutate,
     electricalDisplayOffset,
     getCalculatedCableTypeForObject,
     isCableMarkPending,

@@ -22,6 +22,7 @@ type ToggleCandidateFolderItemArgs = {
 
 type UseElecCalcCandidateGlideActionsOptions = {
   candidateFolders: readonly ElectricalCandidateFolder[];
+  canMutate: boolean;
   applyCandidatePending: boolean;
   updateCandidatePending: boolean;
   toggleCandidateFolderItemPending: boolean;
@@ -32,6 +33,7 @@ type UseElecCalcCandidateGlideActionsOptions = {
 
 export function useElecCalcCandidateGlideActions({
   candidateFolders,
+  canMutate,
   applyCandidatePending,
   updateCandidatePending,
   toggleCandidateFolderItemPending,
@@ -48,21 +50,22 @@ export function useElecCalcCandidateGlideActions({
       {
         key: 'apply',
         label: candidate.is_applied ? 'Выбран' : 'Выбрать',
-        disabled: candidate.status !== 'applicable' || applyCandidatePending,
+        disabled: !canMutate || candidate.status !== 'applicable' || applyCandidatePending,
       },
       {
         key: 'folder',
         label: 'Папка',
-        disabled: toggleCandidateFolderItemPending,
+        disabled: !canMutate || toggleCandidateFolderItemPending,
       },
       {
         key: 'exclude',
         label: candidate.status === 'excluded' ? 'Вернуть' : 'Искл.',
-        disabled: updateCandidatePending,
+        disabled: !canMutate || updateCandidatePending,
       },
     ];
   }, [
     applyCandidatePending,
+    canMutate,
     toggleCandidateFolderItemPending,
     updateCandidatePending,
   ]);
@@ -73,6 +76,7 @@ export function useElecCalcCandidateGlideActions({
     actionKey: string,
   ) => {
     if (columnKey !== 'actions') return;
+    if (!canMutate) return;
     if (actionKey === 'apply') {
       if (candidate.status !== 'applicable' || candidate.is_applied) return;
       onApplyCandidate(candidate.id);
@@ -86,19 +90,22 @@ export function useElecCalcCandidateGlideActions({
         },
       });
     }
-  }, [onApplyCandidate, onUpdateCandidate]);
+  }, [canMutate, onApplyCandidate, onUpdateCandidate]);
 
   const candidateFolderMenuItems = useCallback((candidate: ElectricalCandidate): MenuProps['items'] => {
     const favoriteItem = {
       key: 'favorite',
       label: `${candidate.is_pinned ? '✓ ' : ''}Избранное`,
-      disabled: updateCandidatePending,
-      onClick: () => onUpdateCandidate({
-        candidateId: candidate.id,
-        patch: {
-          is_pinned: !candidate.is_pinned,
-        },
-      }),
+      disabled: !canMutate || updateCandidatePending,
+      onClick: () => {
+        if (!canMutate) return;
+        onUpdateCandidate({
+          candidateId: candidate.id,
+          patch: {
+            is_pinned: !candidate.is_pinned,
+          },
+        });
+      },
     };
     const customFolderItems = candidateFolders.length > 0
       ? candidateFolders.map((folder) => {
@@ -106,11 +113,15 @@ export function useElecCalcCandidateGlideActions({
           return {
             key: folder.id,
             label: `${checked ? '✓ ' : ''}${folder.name}`,
-            onClick: () => onToggleCandidateFolderItem({
-              folderId: folder.id,
-              candidateId: candidate.id,
-              checked: !checked,
-            }),
+            disabled: !canMutate || toggleCandidateFolderItemPending,
+            onClick: () => {
+              if (!canMutate) return;
+              onToggleCandidateFolderItem({
+                folderId: folder.id,
+                candidateId: candidate.id,
+                checked: !checked,
+              });
+            },
           };
         })
       : [{ key: 'empty', label: 'Создайте папку', disabled: true }];
@@ -121,8 +132,10 @@ export function useElecCalcCandidateGlideActions({
     ];
   }, [
     candidateFolders,
+    canMutate,
     onToggleCandidateFolderItem,
     onUpdateCandidate,
+    toggleCandidateFolderItemPending,
     updateCandidatePending,
   ]);
 

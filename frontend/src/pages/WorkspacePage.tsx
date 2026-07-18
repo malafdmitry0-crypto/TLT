@@ -13,23 +13,52 @@ import { useProjectStore } from '@/store/projectStore';
 import { getObjectsSummary } from '@/api/projects';
 import { getSpecification } from '@/api/specifications';
 import { ROUTES } from '@/routes/routes';
+import { useLegacyElectricalVariantContext } from '@/pages/electrical/useLegacyElectricalVariantContext';
 
 const { Title, Paragraph } = Typography;
 
 export default function WorkspacePage() {
   const navigate = useNavigate();
   const project = useProjectStore((s) => s.currentProject);
+  const variantContext = useLegacyElectricalVariantContext(project?.id);
+  const selectedElectricalVariant = variantContext.selectedVariant;
+  const selectedElectricalVariantId = selectedElectricalVariant?.id ?? null;
+  const legacyVariantNumber = variantContext.legacyVariantNumber;
 
   const { data: summary } = useQuery({
-    queryKey: ['project', project?.id, 'objects', 'summary'],
-    queryFn: () => getObjectsSummary(project!.id),
-    enabled: !!project,
+    queryKey: [
+      'project',
+      project?.id,
+      'objects',
+      'summary',
+      selectedElectricalVariantId ?? 'no-electrical-variant',
+    ],
+    queryFn: () => getObjectsSummary(
+      project!.id,
+      selectedElectricalVariantId ?? undefined,
+    ),
+    enabled: !!project && !variantContext.isLoading && !variantContext.isError,
   });
 
   const { data: spec } = useQuery({
-    queryKey: ['spec', project?.id],
-    queryFn: () => getSpecification(project!.id),
-    enabled: !!project,
+    queryKey: [
+      'spec',
+      project?.id,
+      selectedElectricalVariantId,
+      legacyVariantNumber,
+    ],
+    queryFn: () => getSpecification(
+      project!.id,
+      legacyVariantNumber!,
+      selectedElectricalVariant!.id,
+    ),
+    enabled: Boolean(
+      project
+      && selectedElectricalVariantId
+      && legacyVariantNumber != null
+      && !variantContext.isLoading
+      && !variantContext.isError,
+    ),
   });
 
   if (!project) {
@@ -54,9 +83,13 @@ export default function WorkspacePage() {
   // Подсчёт прогресса
   const totalObjects = summary?.total ?? 0;
   const validObjects = summary?.valid ?? 0;
-  const elecCalcCount = summary?.objects_with_successful_electrical_calculation ?? 0;
-  const failedCalcCount = summary?.failed_electrical_calculations ?? 0;
-  const hasSpec = (spec?.items?.length ?? 0) > 0;
+  const elecCalcCount = selectedElectricalVariantId
+    ? summary?.objects_with_successful_electrical_calculation ?? 0
+    : 0;
+  const failedCalcCount = selectedElectricalVariantId
+    ? summary?.failed_electrical_calculations ?? 0
+    : 0;
+  const hasSpec = legacyVariantNumber != null && (spec?.items?.length ?? 0) > 0;
   const hasActualSpec = hasSpec && spec?.is_stale !== true;
 
   // Текущий шаг (0-based)

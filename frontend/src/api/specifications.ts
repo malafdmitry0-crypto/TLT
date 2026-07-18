@@ -4,10 +4,11 @@ import type { Specification, SpecificationItem } from '@/types/specification';
 export async function getSpecification(
   projectId: string,
   variant: number = 1,
+  electricalVariantId?: string,
 ): Promise<Specification | null> {
   const { data } = await apiClient.get<Specification | null>(
     `/specifications/${projectId}`,
-    { params: { variant } }
+    { params: { variant, electrical_variant_id: electricalVariantId } }
   );
   return data;
 }
@@ -33,13 +34,14 @@ export interface SpecificationGenerateResult {
 export async function generateSpecification(
   projectId: string,
   variant: number = 1,
+  electricalVariantId?: string,
   mode: 'basic' | 'full' = 'basic',
   options?: SpecificationOptions,
 ): Promise<SpecificationGenerateResult> {
   const { data } = await apiClient.post(
     `/specifications/${projectId}/generate`,
     { mode, options: options ?? null },
-    { params: { variant } }
+    { params: { variant, electrical_variant_id: electricalVariantId } }
   );
   return data;
 }
@@ -48,11 +50,12 @@ export async function saveSpecificationItems(
   projectId: string,
   items: SpecificationItem[],
   variant: number = 1,
+  electricalVariantId?: string,
 ): Promise<{ project_id: string; items: SpecificationItem[] }> {
   const { data } = await apiClient.put(
     `/specifications/${projectId}/items`,
     { items },
-    { params: { variant } }
+    { params: { variant, electrical_variant_id: electricalVariantId } }
   );
   return data;
 }

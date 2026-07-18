@@ -1,5 +1,9 @@
 import type { CableSource } from '@/api/calculations';
-import type { ElectricalQueryRequest } from '@/types/calculation';
+import type {
+  ElectricalCalcSummary,
+  ElectricalQueryRequest,
+  ElectricalQueryResponse,
+} from '@/types/calculation';
 import type {
   ObjectQueryFieldCapability,
   ObjectQueryFilter,
@@ -52,6 +56,7 @@ export function backendFilterFromElectricalColumnFilter(
 
 export function buildElectricalQueryRequest(
   projectId: string,
+  electricalVariantId: string,
   variant: number,
   cableSource: CableSource,
   state: HeatCalcTableViewState,
@@ -69,6 +74,7 @@ export function buildElectricalQueryRequest(
   const sortCapability = state.sort ? capabilityByKey.get(state.sort.columnKey) : undefined;
   return {
     project_id: projectId,
+    electrical_variant_id: electricalVariantId,
     variant_number: variant,
     cable_source: cableSource,
     page,
@@ -83,4 +89,25 @@ export function buildElectricalQueryRequest(
       ? { key: state.sort.columnKey, dir: state.sort.direction }
       : null,
   };
+}
+
+export function updateElectricalQueryPageCalculation(
+  page: ElectricalQueryResponse,
+  calculation: ElectricalCalcSummary,
+): ElectricalQueryResponse {
+  const pageContainsObject = page.items.some((object) => object.id === calculation.object_id);
+  if (!pageContainsObject) return page;
+
+  const hasCurrentCalculation = page.calculations.some((current) =>
+    current.object_id === calculation.object_id
+    && current.variant_number === calculation.variant_number,
+  );
+  const calculations = hasCurrentCalculation
+    ? page.calculations.map((current) =>
+        current.object_id === calculation.object_id
+        && current.variant_number === calculation.variant_number
+          ? calculation
+          : current)
+    : [...page.calculations, calculation];
+  return { ...page, calculations };
 }

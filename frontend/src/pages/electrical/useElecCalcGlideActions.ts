@@ -6,6 +6,7 @@ import type { HeatCalcGlideGridCellAction } from '@/utils/heatCalcGlideGrid';
 type UseElecCalcGlideActionsOptions = {
   activeRowId: string | null;
   projectSelected: boolean;
+  canMutate: boolean;
   isCableMarkPending: boolean;
   onOpenCableMarkModal: (obj: ProjectObject) => void;
   onOpenCableSizingModal: (obj: ProjectObject) => void;
@@ -14,6 +15,7 @@ type UseElecCalcGlideActionsOptions = {
 export function useElecCalcGlideActions({
   activeRowId,
   projectSelected,
+  canMutate,
   isCableMarkPending,
   onOpenCableMarkModal,
   onOpenCableSizingModal,
@@ -27,7 +29,7 @@ export function useElecCalcGlideActions({
       {
         key: 'choose',
         label: 'Выбор',
-        disabled: !obj.is_valid || !projectSelected || isCableMarkPending,
+        disabled: !canMutate || !obj.is_valid || !projectSelected || isCableMarkPending,
       },
       {
         key: 'size',
@@ -37,6 +39,7 @@ export function useElecCalcGlideActions({
     ];
   }, [
     activeRowId,
+    canMutate,
     isCableMarkPending,
     projectSelected,
   ]);
@@ -48,7 +51,7 @@ export function useElecCalcGlideActions({
   ) => {
     if (columnKey !== 'cable_mark') return;
     if (actionKey === 'choose') {
-      if (!obj.is_valid || !projectSelected || isCableMarkPending) return;
+      if (!canMutate || !obj.is_valid || !projectSelected || isCableMarkPending) return;
       onOpenCableMarkModal(obj);
       return;
     }
@@ -57,6 +60,7 @@ export function useElecCalcGlideActions({
       onOpenCableSizingModal(obj);
     }
   }, [
+    canMutate,
     isCableMarkPending,
     onOpenCableMarkModal,
     onOpenCableSizingModal,

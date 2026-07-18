@@ -948,6 +948,7 @@ class ElectricalRequest(BaseModel):
     cable_type: ElectricalCableType
     data: dict[str, Any]
     variant_number: int = 1
+    electrical_variant_id: UUID | None = None
 
 
 class ElectricalResponse(BaseModel):
@@ -979,6 +980,7 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
     cable_mark: str | None = None
     cable_source: ElectricalCableSource = "builtin"
     variant_numbers: list[int] = Field(default_factory=lambda: [1], min_length=1, max_length=4)
+    electrical_variant_ids: dict[int, UUID] = Field(default_factory=dict)
     cable_type: ElectricalCableType = "self_regulating"
     selection_mode: Literal["auto", "manual"] | None = None
     supply_voltage: float | None = None
@@ -1002,6 +1004,12 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
         if not normalized_variants:
             raise ValueError("Нужно выбрать хотя бы одно СО")
         self.variant_numbers = normalized_variants
+        if self.electrical_variant_ids and set(self.electrical_variant_ids) != set(
+            normalized_variants
+        ):
+            raise ValueError(
+                "electrical_variant_ids должны точно соответствовать variant_numbers"
+            )
         if isinstance(self.cable_mark, str):
             mark = self.cable_mark.strip()
             self.cable_mark = mark or None
@@ -1034,6 +1042,7 @@ class ElectricalCandidateCreateRequest(BaseModel):
     project_id: UUID
     object_id: UUID
     variant_number: int = Field(default=1, ge=1, le=4)
+    electrical_variant_id: UUID | None = None
     cable_type: ElectricalCableType = "self_regulating"
     cable_source: ElectricalCableSource = "builtin"
     mode: ElectricalCandidateMode = "auto"
@@ -1111,6 +1120,7 @@ class ElectricalCandidateFolderCreateRequest(BaseModel):
     project_id: UUID
     object_id: UUID
     variant_number: int = Field(default=1, ge=1, le=4)
+    electrical_variant_id: UUID | None = None
     name: str = Field(min_length=1, max_length=64)
     color: str | None = Field(default=None, max_length=32)
 
@@ -1175,6 +1185,7 @@ class ElectricalQueryRequest(BaseModel):
 
     project_id: UUID
     variant_number: int = 1
+    electrical_variant_id: UUID | None = None
     cable_source: ElectricalCableSource = "builtin"
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=50, ge=1, le=200)

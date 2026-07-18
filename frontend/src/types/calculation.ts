@@ -158,6 +158,7 @@ export interface ElectricalRequest {
     | 'mineral'
     | 'skin';
   variant_number?: number;
+  electrical_variant_id?: string;
   data: Record<string, unknown>;
 }
 
@@ -230,6 +231,7 @@ export interface ElectricalCandidateCreateRequest {
   project_id: string;
   object_id: string;
   variant_number: number;
+  electrical_variant_id?: string;
   cable_type: ElectricalRequest['cable_type'];
   cable_source?: 'builtin' | 'commercial' | 'extended' | 'all';
   mode: ElectricalCandidateMode;
@@ -264,6 +266,7 @@ export interface ElectricalCandidateFolderCreateRequest {
   project_id: string;
   object_id: string;
   variant_number: number;
+  electrical_variant_id?: string;
   name: string;
   color?: string | null;
 }
@@ -297,6 +300,7 @@ export interface ElectricalPageResponse {
 export interface ElectricalQueryRequest {
   project_id: string;
   variant_number?: number;
+  electrical_variant_id?: string;
   cable_source?: 'builtin' | 'commercial' | 'extended' | 'all';
   page?: number;
   page_size?: number;
@@ -385,6 +389,7 @@ export interface CalculationTaskResponse {
   type: string;
   status: CalculationTaskStatus;
   project_id: string | null;
+  electrical_variant_id?: string | null;
   progress: CalculationTaskProgress;
   result: BatchElectricalResponse | BatchHeatLossResponse | ReportExportTaskResult | null;
   error_message: string | null;

@@ -7,6 +7,26 @@ import { useAuthStore } from '@/store/authStore';
 import { useCalculationVariantStore } from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
 import type { Project } from '@/types/project';
+import type { ElectricalVariant } from '@/types/electricalVariant';
+
+const listElectricalVariantsMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/api/electricalVariants', () => ({
+  electricalVariantQueryKeys: {
+    list: (projectId: string) => ['project', projectId, 'electrical-variants'],
+    readiness: (projectId: string) => ['project', projectId, 'electrical-readiness'],
+    detail: (projectId: string, variantId: string) =>
+      ['project', projectId, 'electrical-variant', variantId],
+  },
+  listElectricalVariants: listElectricalVariantsMock,
+  getElectricalVariantReadiness: vi.fn(),
+  initializeElectricalVariants: vi.fn(),
+  createEmptyElectricalVariant: vi.fn(),
+  copyElectricalVariant: vi.fn(),
+  renameElectricalVariant: vi.fn(),
+  activateElectricalVariant: vi.fn(),
+  deleteElectricalVariant: vi.fn(),
+}));
 
 vi.mock('@/api/reports', () => ({
   getReportPreview: vi.fn(),
@@ -35,11 +55,42 @@ const mockProject: Project = {
   updated_at: '2026-01-01T00:00:00Z',
 };
 
-function renderPage() {
+const firstVariant: ElectricalVariant = {
+  id: '11111111-1111-4111-8111-111111111111',
+  project_id: mockProject.id,
+  name: 'ЭР1',
+  sort_order: 0,
+  is_active: true,
+  copied_from_id: null,
+  legacy_variant_number: 1,
+  specification_state: 'not_generated',
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+};
+
+const thirdVariant: ElectricalVariant = {
+  ...firstVariant,
+  id: '33333333-3333-4333-8333-333333333333',
+  name: 'Резервный ЭР',
+  sort_order: 2,
+  is_active: false,
+  legacy_variant_number: 3,
+};
+
+const fifthVariant: ElectricalVariant = {
+  ...firstVariant,
+  id: '55555555-5555-4555-8555-555555555555',
+  name: 'ЭР5',
+  sort_order: 4,
+  is_active: false,
+  legacy_variant_number: null,
+};
+
+function renderPage(initialEntry = '/workspace/report') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <TestMemoryRouter>
+      <TestMemoryRouter initialEntries={[initialEntry]}>
         <ReportPage />
       </TestMemoryRouter>
     </QueryClientProvider>
@@ -49,12 +100,20 @@ function renderPage() {
 describe('ReportPage (integration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    listElectricalVariantsMock.mockResolvedValue([
+      firstVariant,
+      thirdVariant,
+      fifthVariant,
+    ]);
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:report-test');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
     localStorage.clear();
     useProjectStore.getState().setCurrentProject(null);
-    useCalculationVariantStore.setState({ variantByProject: {} });
+    useCalculationVariantStore.setState({
+      selectedVariantIdByProject: {},
+      variantByProject: {},
+    });
   });
 
   afterEach(() => {
@@ -122,8 +181,66 @@ describe('ReportPage (integration)', () => {
     await waitFor(() => screen.getByRole('button', { name: /PDF/i }));
     await userEvent.click(screen.getByRole('button', { name: /PDF/i }));
     await waitFor(() =>
-      expect(exportReport).toHaveBeenCalledWith('p-1', 'pdf', 1, expect.any(Array))
+      expect(exportReport).toHaveBeenCalledWith(
+        'p-1',
+        'pdf',
+        firstVariant.id,
+        expect.any(Array),
+      )
     );
+  });
+
+  it('фиксирует UUID и имя ЭР на время экспорта и блокирует смену scope', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const { getReportPreview, exportReport } = await import('@/api/reports');
+    let resolveExport!: (value: Blob) => void;
+    const pendingExport = new Promise<Blob>((resolve) => {
+      resolveExport = resolve;
+    });
+    (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
+      project_id: mockProject.id,
+      html: '<div></div>',
+      sections: [],
+      variant_number: 3,
+    });
+    (exportReport as ReturnType<typeof vi.fn>).mockReturnValue(pendingExport);
+    let downloadedName = '';
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function captureName(
+      this: HTMLAnchorElement,
+    ) {
+      downloadedName = this.download;
+    });
+    useAuthStore.setState({
+      role: 'employee',
+      user: { id: 'u', email: 'e@x', full_name: null, role: 'employee', is_active: true },
+      sessionId: null,
+      accessToken: 'a',
+      refreshToken: 'r',
+    });
+    useCalculationVariantStore.getState().setSelectedVariantId(mockProject.id, thirdVariant.id);
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /PDF/i }));
+    await waitFor(() => {
+      expect(exportReport).toHaveBeenCalledWith(
+        mockProject.id,
+        'pdf',
+        thirdVariant.id,
+        expect.any(Array),
+      );
+    });
+    const scopeGroup = screen.getAllByRole('radiogroup').find((group) =>
+      group.textContent?.includes(firstVariant.name)
+      && group.textContent.includes(thirdVariant.name));
+    const selectedScopeInput = Array.from(
+      scopeGroup?.querySelectorAll<HTMLInputElement>('input') ?? [],
+    )[1];
+    expect(selectedScopeInput).toBeDisabled();
+
+    resolveExport(new Blob(['report'], { type: 'application/pdf' }));
+    await waitFor(() => expect(selectedScopeInput).not.toBeDisabled());
+    expect(downloadedName).toBe(`${mockProject.name}-${thirdVariant.name}.pdf`);
   });
 
   it('сотрудник: открывает модалку «Состав отчёта»', async () => {
@@ -142,6 +259,34 @@ describe('ReportPage (integration)', () => {
     await waitFor(() => screen.getByRole('button', { name: /Состав отчёта/i }));
     await userEvent.click(screen.getByRole('button', { name: /Состав отчёта/i }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+  });
+
+  it('passes the exact selected ER UUID to the standalone report wizard URL', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default;
+    const { getReportPreview } = await import('@/api/reports');
+    (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
+      project_id: 'p-1', html: '<div></div>', sections: [], variant_number: 3,
+    });
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+    useAuthStore.setState({
+      role: 'employee',
+      user: { id: 'u', email: 'e@x', full_name: null, role: 'employee', is_active: true },
+      sessionId: null, accessToken: 'a', refreshToken: 'r',
+    });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    useCalculationVariantStore.getState().setSelectedVariantId(
+      mockProject.id,
+      thirdVariant.id,
+    );
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: /Мастер в новом окне/i }));
+
+    expect(openSpy).toHaveBeenCalledWith(
+      `/report-wizard?er=${thirdVariant.id}`,
+      'tlt-report-wizard',
+      'width=1280,height=860,toolbar=no,menubar=no,location=no,status=no',
+    );
   });
 
   it('гостю кнопки экспорта не показываются', async () => {
@@ -172,7 +317,7 @@ describe('ReportPage (integration)', () => {
     ).toBeInTheDocument();
   });
 
-  it('использует активный CO-вариант для предпросмотра отчёта', async () => {
+  it('использует выбранный именованный ЭР для предпросмотра отчёта', async () => {
     const { getReportPreview } = await import('@/api/reports');
     (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
       project_id: 'p-1',
@@ -188,13 +333,86 @@ describe('ReportPage (integration)', () => {
       refreshToken: null,
     });
     useProjectStore.getState().setCurrentProject(mockProject);
-    useCalculationVariantStore.getState().setVariant('p-1', 3);
+    useCalculationVariantStore.getState().setSelectedVariantId(
+      'p-1',
+      thirdVariant.id,
+    );
 
     renderPage();
 
     await waitFor(() => {
-      expect(getReportPreview).toHaveBeenCalledWith('p-1', 3, expect.any(Array));
+      expect(getReportPreview).toHaveBeenCalledWith(
+        'p-1',
+        3,
+        thirdVariant.id,
+        expect.any(Array),
+      );
     });
-    expect(screen.getByText('СО3')).toBeInTheDocument();
+    expect(screen.getByText('Резервный ЭР')).toBeInTheDocument();
+  });
+
+  it('uses the canonical deep-link UUID on direct report entry', async () => {
+    const { getReportPreview } = await import('@/api/reports');
+    (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
+      project_id: 'p-1', html: '<div></div>', sections: [], variant_number: 3,
+    });
+    useAuthStore.setState({
+      role: 'guest', user: null, sessionId: 'sid', accessToken: null, refreshToken: null,
+    });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    useCalculationVariantStore.getState().setSelectedVariantId(mockProject.id, firstVariant.id);
+
+    renderPage(`/workspace/report?er=${thirdVariant.id}`);
+
+    await waitFor(() => {
+      expect(getReportPreview).toHaveBeenCalledWith(
+        'p-1',
+        3,
+        thirdVariant.id,
+        expect.any(Array),
+      );
+    });
+    expect(screen.getByText('Резервный ЭР')).toBeInTheDocument();
+  });
+
+  it('не подменяет ЭР5 данными ЭР1, если legacy-привязки ещё нет', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default;
+    const { getReportPreview } = await import('@/api/reports');
+    (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
+      project_id: mockProject.id,
+      html: '<div>ЭР1</div>',
+      sections: [],
+      variant_number: 1,
+    });
+    useAuthStore.setState({
+      role: 'guest',
+      user: null,
+      sessionId: 'sid',
+      accessToken: null,
+      refreshToken: null,
+    });
+    useCalculationVariantStore.getState().setSelectedVariantId(
+      mockProject.id,
+      fifthVariant.id,
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/«ЭР5»: отчёт временно недоступен/i))
+        .toBeInTheDocument();
+    });
+    expect(getReportPreview).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Выбрать ЭР1' }));
+    await waitFor(() => {
+      expect(getReportPreview).toHaveBeenCalledWith(
+        mockProject.id,
+        1,
+        firstVariant.id,
+        expect.any(Array),
+      );
+    });
   });
 });

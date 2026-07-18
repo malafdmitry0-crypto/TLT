@@ -100,6 +100,12 @@ async def list_electrical_variants(
 async def create_electrical_variant(
     project_id: UUID,
     data: ElectricalVariantCreateRequest | None = None,
+    idempotency_key: str | None = Header(
+        default=None,
+        alias="Idempotency-Key",
+        min_length=1,
+        max_length=256,
+    ),
     principal: CurrentPrincipal = Depends(_require_any),
     db: AsyncSession = Depends(get_db),
 ) -> ElectricalVariantResponse:
@@ -107,6 +113,7 @@ async def create_electrical_variant(
         return await ElectricalVariantService(db).create_empty(
             project_id,
             principal,
+            idempotency_key=idempotency_key,
             name=data.name if data is not None else None,
         )
     except (ElectricalVariantServiceError, ProjectNotFoundError, ProjectAccessError) as exc:

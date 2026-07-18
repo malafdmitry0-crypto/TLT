@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Segmented, Skeleton, Space, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Segmented, Skeleton, Space, Tag, Typography, message } from 'antd';
 import {
   FileTextOutlined,
   FilePdfOutlined,
@@ -19,11 +19,7 @@ import {
 } from '@/api/reports';
 import { useProjectStore } from '@/store/projectStore';
 import { useAuthStore } from '@/store/authStore';
-import {
-  CALCULATION_VARIANTS,
-  normalizeCalculationVariant,
-  useCalculationVariantStore,
-} from '@/store/calculationVariantStore';
+import { useLegacyElectricalVariantContext } from '@/pages/electrical/useLegacyElectricalVariantContext';
 import ReportPreview from '@/components/reports/ReportPreview';
 import QueryError from '@/components/common/QueryError';
 import ReportWizard from '@/components/reports/ReportWizard';
@@ -44,18 +40,19 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 export default function ReportPage() {
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
-  const isEmployee = role === 'employee';
+  const isEmployee = role === 'employee' || role === 'admin';
   const [sections, setSections] = useState<ReportSection[]>([...REPORT_SECTIONS]);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<'pdf' | 'docx' | 'xlsx' | null>(null);
-  const storedVariant = useCalculationVariantStore((s) =>
-    project?.id ? s.variantByProject[project.id] : undefined
+  const variantContext = useLegacyElectricalVariantContext(project?.id);
+  const selectedElectricalVariant = variantContext.selectedVariant;
+  const firstSupportedVariant = variantContext.variants.find(
+    (item) => item.legacy_variant_number != null,
+  ) ?? null;
+  const variant = variantContext.legacyVariantNumber ?? 1;
+  const legacyDataPlaneEnabled = Boolean(
+    project && selectedElectricalVariant && variantContext.legacyVariantNumber != null,
   );
-  const saveVariant = useCalculationVariantStore((s) => s.setVariant);
-  const variant = normalizeCalculationVariant(storedVariant);
-  const setVariant = (nextVariant: number) => {
-    if (project?.id) saveVariant(project.id, nextVariant);
-  };
   const sectionsKey = useMemo(() => sections.join(','), [sections]);
   const debouncedSectionsKey = useDebouncedValue(sectionsKey, REPORT_PREVIEW_DEBOUNCE_MS);
   const previewSections = useMemo(
@@ -66,10 +63,20 @@ export default function ReportPage() {
   );
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['report-preview', project?.id, variant, debouncedSectionsKey],
-    queryFn: () => getReportPreview(project!.id, variant, previewSections),
-    enabled: !!project,
-    placeholderData: (previous) => previous,
+    queryKey: [
+      'report-preview',
+      project?.id,
+      selectedElectricalVariant?.id,
+      variant,
+      debouncedSectionsKey,
+    ],
+    queryFn: () => getReportPreview(
+      project!.id,
+      variant,
+      selectedElectricalVariant!.id,
+      previewSections,
+    ),
+    enabled: legacyDataPlaneEnabled,
   });
 
   if (!project) {
@@ -82,18 +89,78 @@ export default function ReportPage() {
     );
   }
 
+  if (variantContext.isLoading) {
+    return (
+      <Card size="small" aria-busy="true" aria-label="Загрузка списка ЭР">
+        <Skeleton active title paragraph={{ rows: 6 }} />
+      </Card>
+    );
+  }
+
+  if (variantContext.isError) {
+    return (
+      <QueryError
+        error={variantContext.error}
+        title="Не удалось загрузить список ЭР"
+        onRetry={() => variantContext.refetch()}
+        retrying={variantContext.isFetching}
+      />
+    );
+  }
+
+  if (!selectedElectricalVariant) {
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        message="ЭР ещё не создан"
+        description="Создайте первый ЭР на шаге электротехнического расчёта."
+      />
+    );
+  }
+
+  if (variantContext.legacyVariantNumber == null) {
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        message={`«${selectedElectricalVariant.name}»: отчёт временно недоступен`}
+        description="UUID-версия отчёта относится к Phase 5. Данные другого ЭР не подставляются."
+        action={firstSupportedVariant && (
+          <Button onClick={() => variantContext.selectVariant(firstSupportedVariant.id)}>
+            Выбрать {firstSupportedVariant.name}
+          </Button>
+        )}
+      />
+    );
+  }
+
   const download = async (fmt: 'pdf' | 'docx' | 'xlsx') => {
+    const scope = {
+      electricalVariantId: selectedElectricalVariant.id,
+      electricalVariantName: selectedElectricalVariant.name,
+      legacyVariantNumber: variant,
+      sections: [...sections],
+    };
     try {
       setExportingFormat(fmt);
       message.loading({ content: 'Формирование отчёта...', key: 'report-export', duration: 0 });
-      const blob = await exportReport(project.id, fmt, variant, sections);
+      const blob = await exportReport(
+        project.id,
+        fmt,
+        scope.electricalVariantId,
+        scope.sections,
+      );
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${project.name}.${fmt}`;
+      a.download = `${project.name}-${scope.electricalVariantName}.${fmt}`;
       a.click();
       URL.revokeObjectURL(url);
-      message.success({ content: 'Отчёт готов', key: 'report-export' });
+      message.success({
+        content: `Отчёт для «${scope.electricalVariantName}» готов`,
+        key: 'report-export',
+      });
     } catch {
       message.error({ content: 'Не удалось скачать отчёт', key: 'report-export' });
     } finally {
@@ -117,6 +184,7 @@ export default function ReportPage() {
             {isEmployee && (
               <Button
                 icon={<SettingOutlined />}
+                disabled={exportingFormat !== null}
                 onClick={() => setWizardOpen(true)}
               >
                 Состав отчёта
@@ -125,9 +193,10 @@ export default function ReportPage() {
             {isEmployee && (
               <Button
                 icon={<ExportOutlined />}
+                disabled={exportingFormat !== null}
                 onClick={() =>
                   window.open(
-                    ROUTES.reportWizard,
+                    `${ROUTES.reportWizard}?er=${encodeURIComponent(selectedElectricalVariant.id)}`,
                     'tlt-report-wizard',
                     'width=1280,height=860,toolbar=no,menubar=no,location=no,status=no'
                   )
@@ -178,12 +247,19 @@ export default function ReportPage() {
           <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>
             Вариант отчёта:
           </Text>
-          <Segmented<number>
-            size="small"
-            value={variant}
-            onChange={(v) => setVariant(Number(v))}
-            options={CALCULATION_VARIANTS.map((n) => ({ label: `СО${n}`, value: n }))}
-          />
+          <div style={{ maxWidth: '100%', overflowX: 'auto', paddingBottom: 4 }}>
+            <Segmented<string>
+              size="small"
+              value={selectedElectricalVariant.id}
+              onChange={variantContext.selectVariant}
+              disabled={exportingFormat !== null}
+              options={variantContext.variants.map((item) => ({
+                label: item.name,
+                value: item.id,
+                disabled: item.legacy_variant_number == null,
+              }))}
+            />
+          </div>
         </div>
 
         {isEmployee && (
@@ -224,11 +300,16 @@ export default function ReportPage() {
       <ReportWizard
         open={wizardOpen}
         initialSections={sections}
-        initialVariant={variant}
+        initialVariantId={selectedElectricalVariant.id}
+        variantOptions={variantContext.variants.map((item) => ({
+          label: item.name,
+          value: item.id,
+          disabled: item.legacy_variant_number == null,
+        }))}
         onCancel={() => setWizardOpen(false)}
-        onConfirm={(s, nextVariant) => {
+        onConfirm={(s, nextVariantId) => {
           setSections(s);
-          setVariant(nextVariant);
+          variantContext.selectVariant(nextVariantId);
           setWizardOpen(false);
         }}
       />

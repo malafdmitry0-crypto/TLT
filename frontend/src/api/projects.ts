@@ -92,9 +92,15 @@ export async function listObjects(projectId: string): Promise<ProjectObject[]> {
   return data;
 }
 
-export async function getObjectsSummary(projectId: string): Promise<ProjectObjectsSummary> {
+export async function getObjectsSummary(
+  projectId: string,
+  electricalVariantId?: string,
+): Promise<ProjectObjectsSummary> {
   const { data } = await apiClient.get<ProjectObjectsSummary>(
-    `/projects/${projectId}/objects/summary`
+    `/projects/${projectId}/objects/summary`,
+    electricalVariantId
+      ? { params: { electrical_variant_id: electricalVariantId } }
+      : undefined,
   );
   return data;
 }

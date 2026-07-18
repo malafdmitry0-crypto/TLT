@@ -1,11 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import type { CableSource } from '@/api/calculations';
-import {
-  CALCULATION_VARIANTS,
-  type CalculationVariant,
-} from '@/store/calculationVariantStore';
 import type { ElectricalCalcSummary } from '@/types/calculation';
+import type { ElectricalVariant } from '@/types/electricalVariant';
 import type { ProjectObject } from '@/types/project';
 import {
   AUTO_CABLE_MARK_VALUE,
@@ -19,13 +16,18 @@ import {
   currentElectricalCalc,
   getCableMark,
 } from '@/pages/electrical/elecCalcResultValueModel';
-import { normalizeCalculationVariantList } from '@/pages/electrical/elecCalcVariantModel';
+import {
+  electricalVariantTargetOptions,
+  legacyElectricalVariantTargetsForIds,
+  normalizeElectricalVariantIdList,
+} from '@/pages/electrical/elecCalcVariantModel';
 import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
 
 type UseElecCalcCableMarkModalStateOptions = {
   objects: readonly ProjectObject[];
   calcByObjectId: Record<string, ElectricalCalcSummary | undefined>;
-  variant: CalculationVariant;
+  electricalVariants: readonly ElectricalVariant[];
+  electricalVariantId: string;
   getSavedCableTypeForObject: (objectId: string) => CableTypeKey;
   normalizeAvailableCableType: (type: CableTypeKey) => CableTypeKey;
   cableMarkOptionsFor: (
@@ -51,7 +53,8 @@ type UseElecCalcCableMarkModalStateOptions = {
 export function useElecCalcCableMarkModalState({
   objects,
   calcByObjectId,
-  variant,
+  electricalVariants,
+  electricalVariantId,
   getSavedCableTypeForObject,
   normalizeAvailableCableType,
   cableMarkOptionsFor,
@@ -63,7 +66,7 @@ export function useElecCalcCableMarkModalState({
   const [objectId, setObjectId] = useState<string | null>(null);
   const [cableType, setCableType] = useState<CableTypeKey | null>(null);
   const [value, setValue] = useState<string | null>(null);
-  const [targetVariants, setTargetVariants] = useState<CalculationVariant[]>([]);
+  const [targetVariants, setTargetVariants] = useState<string[]>([]);
 
   const object = objectId
     ? objects.find((candidateObject) => candidateObject.id === objectId) ?? null
@@ -97,13 +100,16 @@ export function useElecCalcCableMarkModalState({
     );
   }, [cableType, calc, findCableRowForMark, selectedOption]);
   const targetVariantOptions = useMemo(
-    () => CALCULATION_VARIANTS.map((targetVariant) => ({
-      label: `СО${targetVariant}`,
-      value: targetVariant,
-    })),
-    [],
+    () => electricalVariantTargetOptions(electricalVariants),
+    [electricalVariants],
   );
-  const targetVariantsForSubmit = targetVariants.length > 0 ? targetVariants : [variant];
+  const targetVariantsForSubmit = useMemo(
+    () => legacyElectricalVariantTargetsForIds(
+      targetVariants,
+      electricalVariants,
+    ),
+    [electricalVariants, targetVariants],
+  );
 
   const close = useCallback(() => {
     setObjectId(null);
@@ -115,17 +121,21 @@ export function useElecCalcCableMarkModalState({
     const nextCalc = calcByObjectId[nextObject.id];
     const currentCalc = currentElectricalCalc(nextCalc);
     const nextType = getSavedCableTypeForObject(nextObject.id);
+    const selectedVariantExists = electricalVariants.some(
+      (electricalVariant) => electricalVariant.id === electricalVariantId,
+    );
     onOpenObject?.(nextObject);
     setObjectId(nextObject.id);
     setCableType(nextType);
-    setTargetVariants([variant]);
+    setTargetVariants(selectedVariantExists ? [electricalVariantId] : []);
     setValue(cableMarkValueForCalc(nextType, getCableMark(currentCalc), currentCalc));
   }, [
     calcByObjectId,
     cableMarkValueForCalc,
+    electricalVariantId,
+    electricalVariants,
     getSavedCableTypeForObject,
     onOpenObject,
-    variant,
   ]);
   const changeCableType = useCallback((nextType: CableTypeKey) => {
     setCableType(normalizeAvailableCableType(nextType));
@@ -136,8 +146,8 @@ export function useElecCalcCableMarkModalState({
     setCableType((current) => current == null ? null : normalizeAvailableCableType(current));
   }, [normalizeAvailableCableType]);
   const setTargetVariantsFromValues = useCallback((values: readonly unknown[]) => {
-    setTargetVariants(normalizeCalculationVariantList(values));
-  }, []);
+    setTargetVariants(normalizeElectricalVariantIdList(values, electricalVariants));
+  }, [electricalVariants]);
 
   return {
     objectId,

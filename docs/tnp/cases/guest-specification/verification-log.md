@@ -186,3 +186,56 @@ DB/backend и тесты. Полное описание границы нахо�
   остаются не-green вне backend/DB Phase 1 diff.
 - Общий PDF/DoD, product release и ранее найденные guest
   specification/report/mobile defects не закрыты этим backend/DB checkpoint.
+
+## Phase 2 frontend/consumer final checkpoint
+
+Дата: 18.07.2026. Ветка:
+`feature/tnp-dynamic-electrical-variants`. Статус:
+**PASS — frontend/consumer Phase 2 complete**.
+
+Полная граница и findings: [phase-2-checkpoint.md](phase-2-checkpoint.md).
+
+| Проверка | Результат |
+|---|---|
+| Backend focused dynamic-ER integration/schema suites | **PASS**. |
+| Stale UUID + reused legacy slot oracle | **PASS:** expected UUID precondition вернул stable 409 и не изменил новый graph. |
+| Focused backend Ruff | **PASS**. |
+| `npm --prefix frontend run typecheck` | **PASS**. |
+| `npm --prefix frontend run build` | **PASS**. |
+| Focused `ElecCalcPage` + `ElectricalVariantTabs` | **PASS: 77/77 tests**. |
+| Full frontend Vitest | **NOT GREEN: 1033 passed, 1 failed**. Единственный failure — прежний `HeatCalcPage.settings.test.tsx:321`, missing accessible separator. |
+| Isolated HeatCalc settings rerun | **FAIL reproduced:** тот же separator defect, вне dynamic-ER diff. |
+| `scripts/codex-functional-audit.sh db-invariants` после live UI | **PASS: 28 checks, 0 violations**. |
+| Desktop `1440×1000`, один и пять ЭР | **PASS:** нет unexpected clipping/overlap/page overflow; выбранный tab видим полностью. |
+| Mobile `390×844`, пять ЭР | **PASS:** локальный horizontal tab scroll, один controlled ellipsis с полным accessible name, нет page overflow. |
+| Invalid `?er=<uuid>` reconciliation | **PASS:** selection и URL восстановлены к authoritative active ЭР. |
+| Delete confirmation | **PASS:** перечислены связанные assignment/calculation/cable/candidate/folder/spec данные. |
+| Console / network | **PASS:** 0 errors, 0 warnings; UUID виден в lifecycle и direct consumer запросах. |
+| `scripts/codex-functional-audit.sh docs` после sync | **PASS:** docs up to date, manifest facts OK. |
+
+UI evidence находится в
+[evidence/phase-2-ui](evidence/phase-2-ui/): before/after desktop/mobile,
+геометрия, long-name, delete confirmation, invalid URL recovery, console и
+network trace.
+
+### Доказанный Phase 2 контракт
+
+- UI показывает до пяти именованных project-scoped UUID ЭР и поддерживает
+  create/copy/inline rename/activate/delete.
+- Selected и active ER разделены; deep link использует UUID, неизвестный UUID
+  не создаёт скрытую selection и reconciled к server truth.
+- Query/cache identity, background tracker и mutation snapshots используют UUID;
+  поздний ответ другого ЭР не подменяет текущий экран.
+- Пока direct data plane numeric, каждый запрос передаёт expected UUID, а
+  backend под project lock проверяет точную пару UUID↔slot до чтения/записи.
+- Пятый ЭР fail-closed для legacy calculations/spec/report и не показывает
+  данные другого ЭР.
+- ARIA tabs, keyboard focus, full long-name title, mobile local scroll,
+  loading/error/retry/read-only и limit-5 states покрыты focused tests.
+
+### Остаточные ограничения после Phase 2
+
+- Phase 3 assignments и Phase 5 full UUID-only/multi-ЭР flow pending.
+- Phase 4 blocked PDL-ER-15/18 до официального числового источника.
+- Full frontend, dependency security и общий Alembic metadata drift остаются
+  не-green вне Phase 2 diff и блокируют общий release.

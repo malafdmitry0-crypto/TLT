@@ -1,0 +1,120 @@
+- generic [ref=f20e25] [box=0,0,1440,1180]:
+  - banner [ref=f20e26] [box=0,0,1440,26]:
+    - generic [ref=f20e27] [box=10,0,1420,25]:
+      - generic "HeatCalc" [ref=f20e28] [box=10,5,86,15]:
+        - img "fire" [ref=f20e29] [box=10,5,15,15]
+        - heading "HeatCalc" [level=2] [ref=f20e32] [box=31,6,65,14]
+      - navigation "Разделы проекта" [ref=f20e33] [box=105,1,910,23]:
+        - menu [ref=f20e34] [box=105,1,910,23]:
+          - menuitem "fire Расчёт тепловых потерь check-circle 1" [ref=f20e35] [cursor=pointer] [box=107,1,246,24]:
+            - img "fire" [ref=f20e36] [box=115,7,14,12]
+            - generic [ref=f20e40] [box=139,6,206,15]:
+              - text: Расчёт тепловых потерь
+              - img "check-circle" [ref=f20e123] [box=292,7,14,12]
+              - superscript [ref=f20e127] [box=320,6,24,15]:
+                - generic [ref=f20e128] [box=330,7,5,12]: "1"
+          - menuitem "thunderbolt Электротехнический расчёт" [ref=f20e48] [cursor=pointer] [box=356,1,215,24]:
+            - img "thunderbolt" [ref=f20e49] [box=364,7,14,12]
+            - generic [ref=f20e52] [box=388,7,175,12]: Электротехнический расчёт
+          - menuitem "unordered-list Спецификация" [ref=f20e54] [cursor=pointer] [box=576,1,132,24]:
+            - img "unordered-list" [ref=f20e55] [box=584,7,14,12]
+            - generic [ref=f20e58] [box=608,7,92,12]: Спецификация
+          - separator [box=354,2,0,21]
+          - menuitem "file-text Отчёт" [ref=f20e59] [cursor=pointer] [box=712,1,76,24]:
+            - img "file-text" [ref=f20e60] [box=720,7,14,12]
+            - generic [ref=f20e63] [box=744,7,36,12]: Отчёт
+          - menuitem [disabled] [box=123,0,30,24]
+      - generic [ref=f20e64] [box=1023,1,407,24]:
+        - generic [ref=f20e65] [box=1023,1,241,24]:
+          - generic [ref=f20e67] [box=1023,1,72,24]:
+            - img "folder-open" [ref=f20e69] [box=1023,9,10,10]
+            - generic "Мой проект" [ref=f20e73] [box=1036,1,59,22]
+          - button "download Скачать" [ref=f20e75] [cursor=pointer] [box=1102,2,73,22]:
+            - img "download" [ref=f20e77] [box=1110,7,11,11]
+            - generic [ref=f20e80] [box=1127,8,40,10]: Скачать
+          - button "upload Загрузить" [ref=f20e82] [cursor=pointer] [box=1178,2,83,22]:
+            - img "upload" [ref=f20e84] [box=1186,7,11,11]
+            - generic [ref=f20e87] [box=1203,8,50,10]: Загрузить
+        - generic [ref=f20e88] [box=1270,2,160,22]:
+          - button "question-circle Инструкция" [ref=f20e90] [cursor=pointer] [box=1270,2,92,22]:
+            - img "question-circle" [ref=f20e92] [box=1278,7,11,11]
+            - generic [ref=f20e96] [box=1295,8,60,10]: Инструкция
+          - button "logout Выход" [ref=f20e98] [cursor=pointer] [box=1366,2,64,22]:
+            - img "logout" [ref=f20e100] [box=1374,7,11,11]
+            - generic [ref=f20e103] [box=1390,8,32,10]: Выход
+  - main [ref=f20e105] [box=0,26,1440,1154]:
+    - generic [ref=f20e106] [box=6,34,1428,1138]:
+      - generic [ref=f20e130] [box=6,34,1428,167]:
+        - generic [ref=f20e131] [box=7,35,1426,38]: Электротехнические решения
+        - generic [ref=f20e135] [box=19,84,1402,104]:
+          - tablist "Электротехнические решения" [ref=f20e137] [box=19,84,1402,38]:
+            - tab "ЭР1, активный ЭР" [selected] [ref=f20e138] [cursor=pointer] [box=21,86,121,30]:
+              - generic [ref=f20e139] [box=33,90,98,22]:
+                - generic [ref=f20e140] [box=33,95,18,11]: ЭР1
+                - generic [ref=f20e141] [box=57,90,74,22]: Активный
+          - generic [ref=f20e143] [box=19,132,1402,22]: "Выбрано: ЭР1. Активный ЭР: ЭР1."
+          - generic [ref=f20e146] [box=19,164,1402,24]:
+            - button "Добавить пустой ЭР" [ref=f20e148] [cursor=pointer] [box=19,165,123,22]
+            - button "Создать копию выбранного ЭР «ЭР1»" [ref=f20e151] [cursor=pointer] [box=150,165,98,22]:
+              - generic [ref=f20e152] [box=162,171,75,11]: Создать копию
+            - button "Переименовать ЭР «ЭР1»" [ref=f20e153] [cursor=pointer] [box=256,164,101,22]:
+              - generic [ref=f20e154] [box=267,169,78,11]: Переименовать
+            - button "ЭР «ЭР1» уже активный" [disabled] [ref=f20e155] [box=365,164,115,22]:
+              - generic [box=376,169,92,11]: Сделать активным
+            - button "Нельзя удалить последний ЭР «ЭР1»" [disabled] [ref=f20e156] [box=488,164,63,22]:
+              - generic [box=499,169,40,11]: Удалить
+      - tabpanel "ЭР1, активный ЭР" [ref=f20e158] [box=6,208,1428,964]:
+        - generic [ref=f20e160] [box=6,208,1428,964]:
+          - generic [ref=f20e162] [box=6,208,1428,27]:
+            - generic [ref=f20e163] [box=20,214,264,15]:
+              - generic [ref=f20e164] [box=20,214,145,15]: ЭР1 · тип по объектам ·
+              - text: расчёт не выполнен
+            - generic [ref=f20e165] [cursor=pointer] [box=1188,213,236,17]:
+              - checkbox "Показать блок заполнения параметров" [checked] [ref=f20e167] [box=1188,214,16,16]
+              - generic [ref=f20e169] [box=1204,213,220,17]: Показать блок заполнения параметров
+          - generic [ref=f20e171] [box=6,240,1428,89]:
+            - generic [ref=f20e172] [box=6,240,475,89]:
+              - heading "1 Кабель и схема подключения" [level=4] [ref=f20e173] [box=7,241,473,19]:
+                - text: "1"
+                - generic [ref=f20e174] [box=31,245,150,10]: Кабель и схема подключения
+              - generic [ref=f20e175] [box=10,265,467,26]:
+                - generic [ref=f20e176] [box=14,272,303,14]: Тип кабеля
+                - generic "Тип кабеля" [ref=f20e177] [cursor=pointer] [box=323,266,150,24]:
+                  - generic [ref=f20e179] [box=331,267,134,22]
+              - generic [ref=f20e183] [box=10,293,467,33]: Марка кабеля — авторасчёт или ручной выбор по объекту (кнопки «Выбор» / «Подбор» в таблице).
+            - generic [ref=f20e184] [box=483,240,475,89]:
+              - heading "2 Электропитание и температуры" [level=4] [ref=f20e185] [box=484,241,473,19]:
+                - text: "2"
+                - generic [ref=f20e186] [box=508,245,161,10]: Электропитание и температуры
+              - generic [ref=f20e187] [box=487,265,467,26]:
+                - generic [ref=f20e188] [box=491,272,343,14]: Напряжение питания U, В
+                - generic [ref=f20e189] [box=839,266,110,24]:
+                  - generic [box=948,267,0,22]
+                  - spinbutton "Напряжение питания" [ref=f20e199] [box=840,267,108,22]: "220"
+            - generic [ref=f20e200] [box=959,240,475,89]:
+              - heading "3 Укладка кабеля" [level=4] [ref=f20e201] [box=960,241,473,19]:
+                - text: "3"
+                - generic [ref=f20e202] [box=984,245,80,10]: Укладка кабеля
+              - generic [ref=f20e203] [box=963,265,467,33]: Шаг навива и количество ниток задаются для каждого объекта (колонки таблицы или модалка «Подбор»). Лимит Kn по диаметру — по таблице ТНП.
+          - generic [ref=f20e205] [box=6,334,1428,30]:
+            - generic [ref=f20e206] [box=13,337,320,24]:
+              - generic [ref=f20e207] [box=13,341,105,17]: "Тип для пересчёта:"
+              - generic "Тип кабеля для пересчёта" [ref=f20e208] [cursor=pointer] [box=123,337,210,24]:
+                - generic [ref=f20e210] [box=131,338,194,22]:
+                  - combobox "Тип кабеля для пересчёта" [ref=f20e212] [box=131,338,176,22]
+                  - generic "Саморегулирующийся" [ref=f20e213] [box=131,338,194,22]
+            - generic [ref=f20e214] [box=338,338,638,22]:
+              - button "reload Пересчитать выбранные (0)" [disabled] [ref=f20e216] [box=345,338,202,22]:
+                - generic [box=354,343,12,13]:
+                  - img "reload" [box=354,343,12,12]
+                - generic [box=372,343,166,12]: Пересчитать выбранные (0)
+              - button "reload Пересчитать все · ЭР1" [ref=f20e217] [cursor=pointer] [box=552,338,168,22]:
+                - img "reload" [ref=f20e219] [box=561,343,12,12]
+                - generic [ref=f20e222] [box=579,343,132,12]: Пересчитать все · ЭР1
+              - button "Настройки" [ref=f20e223] [cursor=pointer] [box=725,338,100,22]:
+                - img "table" [ref=f20e225] [box=734,343,12,12]
+              - button "Сбросить фильтры таблицы" [disabled] [ref=f20e230] [box=829,338,147,22]:
+                - generic [box=838,343,12,13]:
+                  - img "close-circle" [box=838,343,12,12]
+                - generic [box=856,343,111,12]: Сбросить фильтры
+          - generic [ref=f20e231] [box=6,369,1428,802]: ⓘ Красная строка = ошибка подбора кабеля, серый статус = не применимо. Отметьте строки для пересчёта выбранных или используйте «Пересчитать все».

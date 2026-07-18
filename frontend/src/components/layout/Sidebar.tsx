@@ -11,6 +11,7 @@ import { ROUTES } from '@/routes/routes';
 import { useProjectStore } from '@/store/projectStore';
 import { useQuery } from '@tanstack/react-query';
 import { getObjectsSummary } from '@/api/projects';
+import { useLegacyElectricalVariantContext } from '@/pages/electrical/useLegacyElectricalVariantContext';
 
 function StepLabel({
   text,
@@ -37,16 +38,29 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const project = useProjectStore((s) => s.currentProject);
+  const variantContext = useLegacyElectricalVariantContext(project?.id);
+  const selectedElectricalVariantId = variantContext.selectedVariant?.id ?? null;
 
   const { data: summary } = useQuery({
-    queryKey: ['project', project?.id, 'objects', 'summary'],
-    queryFn: () => getObjectsSummary(project!.id),
-    enabled: !!project,
+    queryKey: [
+      'project',
+      project?.id,
+      'objects',
+      'summary',
+      selectedElectricalVariantId ?? 'no-electrical-variant',
+    ],
+    queryFn: () => getObjectsSummary(
+      project!.id,
+      selectedElectricalVariantId ?? undefined,
+    ),
+    enabled: !!project && !variantContext.isLoading && !variantContext.isError,
     staleTime: 30_000,
   });
 
   const validObjectCount = summary?.valid ?? 0;
-  const elecCalcCount = summary?.objects_with_successful_electrical_calculation ?? 0;
+  const elecCalcCount = selectedElectricalVariantId
+    ? summary?.objects_with_successful_electrical_calculation ?? 0
+    : 0;
   const heatDone = validObjectCount > 0;
   const elecDone = validObjectCount > 0 && elecCalcCount === validObjectCount;
 

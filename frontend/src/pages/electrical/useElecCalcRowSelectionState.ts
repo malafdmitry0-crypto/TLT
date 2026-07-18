@@ -7,7 +7,7 @@ import type { ProjectObject } from '@/types/project';
 
 type UseElecCalcRowSelectionStateOptions = {
   projectId?: string;
-  variant: number;
+  variant: string | number;
   tablePage: number;
   tablePageSize: number;
   objects: readonly ProjectObject[];

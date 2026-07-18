@@ -26,20 +26,33 @@ export interface ReportPreview {
   variant_number: number;
 }
 
-function reportParams(variantNumber: number, sections?: ReportSection[]) {
+function reportParams(
+  variantNumber: number,
+  electricalVariantId: string,
+  sections?: ReportSection[],
+) {
   return {
     ...(sections && sections.length > 0 ? { sections } : {}),
     variant_number: variantNumber,
+    electrical_variant_id: electricalVariantId,
+  };
+}
+
+function reportJobParams(electricalVariantId: string, sections?: ReportSection[]) {
+  return {
+    ...(sections && sections.length > 0 ? { sections } : {}),
+    electrical_variant_id: electricalVariantId,
   };
 }
 
 export async function getReportPreview(
   projectId: string,
   variantNumber: number,
+  electricalVariantId: string,
   sections?: ReportSection[],
 ): Promise<ReportPreview> {
   const { data } = await apiClient.get<ReportPreview>(`/reports/${projectId}/preview`, {
-    params: reportParams(variantNumber, sections),
+    params: reportParams(variantNumber, electricalVariantId, sections),
     paramsSerializer: { indexes: null },
   });
   return data;
@@ -48,10 +61,10 @@ export async function getReportPreview(
 export async function exportReport(
   projectId: string,
   format: 'pdf' | 'docx' | 'xlsx',
-  variantNumber: number,
+  electricalVariantId: string,
   sections?: ReportSection[],
 ): Promise<Blob> {
-  const task = await enqueueReportExportJob(projectId, format, variantNumber, sections);
+  const task = await enqueueReportExportJob(projectId, format, electricalVariantId, sections);
   const completed = await waitReportExportTask(task.id);
   if (completed.status !== 'succeeded') {
     throw new Error(completed.error_message || 'Не удалось сформировать отчёт');
@@ -65,14 +78,14 @@ export async function exportReport(
 export async function enqueueReportExportJob(
   projectId: string,
   format: 'pdf' | 'docx' | 'xlsx',
-  variantNumber: number,
+  electricalVariantId: string,
   sections?: ReportSection[],
 ): Promise<CalculationTaskResponse> {
   const { data } = await apiClient.post<CalculationTaskResponse>(
     `/reports/${projectId}/export/${format}/jobs`,
     null,
     withIdempotencyKey({
-      params: reportParams(variantNumber, sections),
+      params: reportJobParams(electricalVariantId, sections),
       paramsSerializer: { indexes: null },
     }),
   );
@@ -107,11 +120,12 @@ export async function exportReportDirect(
   projectId: string,
   format: 'pdf' | 'docx' | 'xlsx',
   variantNumber: number,
+  electricalVariantId: string,
   sections?: ReportSection[],
 ): Promise<Blob> {
   const { data } = await apiClient.get(`/reports/${projectId}/export/${format}`, {
     responseType: 'blob',
-    params: reportParams(variantNumber, sections),
+    params: reportParams(variantNumber, electricalVariantId, sections),
     paramsSerializer: { indexes: null },
   });
   return data as Blob;

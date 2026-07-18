@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -37,11 +37,21 @@ router = APIRouter()
 async def get_specification(
     project_id: UUID,
     variant: int = 1,
+    electrical_variant_id: UUID | None = Query(default=None),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
+        if electrical_variant_id is not None:
+            await ElectricalVariantService(db).validate_legacy_variant_for_read(
+                project_id,
+                principal,
+                variant,
+                electrical_variant_id,
+            )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
@@ -60,6 +70,7 @@ async def get_specification(
 async def generate_specification(
     project_id: UUID,
     variant: int = 1,
+    electrical_variant_id: UUID | None = Query(default=None),
     data: SpecificationGenerateRequest | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
@@ -82,7 +93,10 @@ async def generate_specification(
 
     try:
         electrical_variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
-            project_id, principal, variant
+            project_id,
+            principal,
+            variant,
+            expected_electrical_variant_id=electrical_variant_id,
         )
         result = await SpecificationService(db).generate(
             project_id,
@@ -124,6 +138,7 @@ async def save_specification_items(
     project_id: UUID,
     data: SpecificationUpdateRequest,
     variant: int = 1,
+    electrical_variant_id: UUID | None = Query(default=None),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
 ):
@@ -136,7 +151,10 @@ async def save_specification_items(
 
     try:
         electrical_variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
-            project_id, principal, variant
+            project_id,
+            principal,
+            variant,
+            expected_electrical_variant_id=electrical_variant_id,
         )
         items: list[SpecificationItem] = await SpecificationService(db).save_items(
             project_id,

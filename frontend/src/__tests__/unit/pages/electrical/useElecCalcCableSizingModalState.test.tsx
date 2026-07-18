@@ -53,6 +53,7 @@ describe('useElecCalcCableSizingModalState', () => {
   it('opens and resets modal state around the selected object', () => {
     const { result } = renderHook(() => useElecCalcCableSizingModalState({
       projectId: 'project-1',
+      electricalVariantId: '22222222-2222-4222-8222-222222222222',
       variant: 2,
       objects: [object],
       calcByObjectId: { [object.id]: calc },
@@ -74,16 +75,18 @@ describe('useElecCalcCableSizingModalState', () => {
     expect(result.current.candidatesQueryKey).toEqual([
       'project',
       'project-1',
-      'electrical-candidates',
+      'electrical-variant',
+      '22222222-2222-4222-8222-222222222222',
+      'candidates',
       object.id,
-      2,
     ]);
     expect(result.current.candidateFoldersQueryKey).toEqual([
       'project',
       'project-1',
-      'electrical-candidate-folders',
+      'electrical-variant',
+      '22222222-2222-4222-8222-222222222222',
+      'candidate-folders',
       object.id,
-      2,
     ]);
 
     act(() => {
@@ -100,6 +103,7 @@ describe('useElecCalcCableSizingModalState', () => {
     const normalizeAvailableCableType = (type: CableTypeKey) => type;
     const { result } = renderHook(() => useElecCalcCableSizingModalState({
       projectId: 'project-1',
+      electricalVariantId: '11111111-1111-4111-8111-111111111111',
       variant: 1,
       objects: [],
       calcByObjectId: {},

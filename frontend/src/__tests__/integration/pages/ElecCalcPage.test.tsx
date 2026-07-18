@@ -7,7 +7,13 @@ import ElecCalcPage from '@/pages/ElecCalcPage';
 import { useAuthStore } from '@/store/authStore';
 import { useCalculationVariantStore } from '@/store/calculationVariantStore';
 import { useProjectStore } from '@/store/projectStore';
-import type { ElectricalCalcSummary, ElectricalCandidate, ElectricalPageResponse } from '@/types/calculation';
+import type {
+  CalculationTaskResponse,
+  CalculationTaskStatus,
+  ElectricalCalcSummary,
+  ElectricalCandidate,
+  ElectricalPageResponse,
+} from '@/types/calculation';
 import type { Project, ProjectObject } from '@/types/project';
 import { getCalcJobRefetchInterval } from '@/utils/calcJobPolling';
 import { ELECTRICAL_GUEST_TABLE_COLUMN_STORAGE_KEY } from '@/utils/electricalTableColumns';
@@ -18,6 +24,7 @@ import {
 import {
   ELECTRICAL_TABLE_ENGINE_STORAGE_KEY,
 } from '@/utils/electricalTableEngine';
+import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
 
 const apiMocks = vi.hoisted(() => {
   const field = (
@@ -38,6 +45,8 @@ const apiMocks = vi.hoisted(() => {
       : null,
   });
   return {
+    enqueueBatch: vi.fn(),
+    enqueueVariantBatch: vi.fn(),
     electricalPage: vi.fn(),
     electricalCapabilities: vi.fn().mockResolvedValue({
       version: 1,
@@ -68,6 +77,86 @@ const apiMocks = vi.hoisted(() => {
     }),
   };
 });
+
+const electricalVariantApiMocks = vi.hoisted(() => ({
+  list: vi.fn().mockResolvedValue([
+    {
+      id: '11111111-1111-4111-8111-111111111111',
+      project_id: 'p-1',
+      name: 'ЭР1',
+      sort_order: 0,
+      is_active: true,
+      copied_from_id: null,
+      legacy_variant_number: 1,
+      specification_state: 'not_generated',
+      created_at: '2026-07-18T10:00:00Z',
+      updated_at: '2026-07-18T10:00:00Z',
+    },
+    {
+      id: '22222222-2222-4222-8222-222222222222',
+      project_id: 'p-1',
+      name: 'ЭР2',
+      sort_order: 1,
+      is_active: false,
+      copied_from_id: null,
+      legacy_variant_number: 2,
+      specification_state: 'not_generated',
+      created_at: '2026-07-18T10:00:00Z',
+      updated_at: '2026-07-18T10:00:00Z',
+    },
+    {
+      id: '33333333-3333-4333-8333-333333333333',
+      project_id: 'p-1',
+      name: 'ЭР3',
+      sort_order: 2,
+      is_active: false,
+      copied_from_id: null,
+      legacy_variant_number: 3,
+      specification_state: 'not_generated',
+      created_at: '2026-07-18T10:00:00Z',
+      updated_at: '2026-07-18T10:00:00Z',
+    },
+    {
+      id: '44444444-4444-4444-8444-444444444444',
+      project_id: 'p-1',
+      name: 'ЭР4',
+      sort_order: 3,
+      is_active: false,
+      copied_from_id: null,
+      legacy_variant_number: 4,
+      specification_state: 'not_generated',
+      created_at: '2026-07-18T10:00:00Z',
+      updated_at: '2026-07-18T10:00:00Z',
+    },
+  ]),
+  readiness: vi.fn(),
+  initialize: vi.fn(),
+  create: vi.fn(),
+  copy: vi.fn(),
+  rename: vi.fn(),
+  activate: vi.fn(),
+  remove: vi.fn(),
+}));
+
+const defaultElectricalVariantListImplementation =
+  electricalVariantApiMocks.list.getMockImplementation();
+
+vi.mock('@/api/electricalVariants', () => ({
+  electricalVariantQueryKeys: {
+    list: (projectId: string) => ['project', projectId, 'electrical-variants'] as const,
+    readiness: (projectId: string) => ['project', projectId, 'electrical-readiness'] as const,
+    detail: (projectId: string, variantId: string) =>
+      ['project', projectId, 'electrical-variant', variantId] as const,
+  },
+  listElectricalVariants: electricalVariantApiMocks.list,
+  getElectricalVariantReadiness: electricalVariantApiMocks.readiness,
+  initializeElectricalVariants: electricalVariantApiMocks.initialize,
+  createEmptyElectricalVariant: electricalVariantApiMocks.create,
+  copyElectricalVariant: electricalVariantApiMocks.copy,
+  renameElectricalVariant: electricalVariantApiMocks.rename,
+  activateElectricalVariant: electricalVariantApiMocks.activate,
+  deleteElectricalVariant: electricalVariantApiMocks.remove,
+}));
 
 const electricalGlideGridMock = vi.hoisted(() => ({
   props: null as null | {
@@ -370,7 +459,25 @@ vi.mock('@/api/calculations', () => ({
   createElectricalCandidate: vi.fn(),
   createElectricalCandidateFolder: vi.fn(),
   deleteElectricalCandidateFolder: vi.fn(),
-  enqueueElectricalBatchJob: vi.fn(),
+  enqueueElectricalBatchJob: apiMocks.enqueueBatch,
+  enqueueElectricalVariantBatchJob: (
+    projectId: string,
+    electricalVariantId: string,
+    cableSource: string,
+    cableType: string,
+    options: Record<string, unknown>,
+  ) => {
+    apiMocks.enqueueVariantBatch(
+      projectId,
+      electricalVariantId,
+      cableSource,
+      cableType,
+      options,
+    );
+    // Existing calculation-detail assertions remain focused on their numeric
+    // adapter payload while the raw UUID call is asserted separately below.
+    return apiMocks.enqueueBatch(projectId, cableSource, 1, cableType, options);
+  },
   listElectricalCandidateFolders: vi.fn().mockResolvedValue([]),
   listElectricalCandidates: vi.fn().mockResolvedValue([]),
   getCalcTask: vi.fn().mockResolvedValue({
@@ -378,6 +485,7 @@ vi.mock('@/api/calculations', () => ({
     type: 'electrical_batch',
     status: 'running',
     project_id: 'p-1',
+    electrical_variant_id: '11111111-1111-4111-8111-111111111111',
     progress: { current: 0, total: 1, phase: 'running', percent: 0 },
     result: null,
     error_message: null,
@@ -524,15 +632,42 @@ function makeElectricalPage(
   };
 }
 
-function renderPage(state?: { activeJobId?: string }) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
+function makeCalcTask(
+  id: string,
+  electricalVariantId: string,
+  status: CalculationTaskStatus,
+  overrides: Partial<CalculationTaskResponse> = {},
+): CalculationTaskResponse {
+  return {
+    id,
+    type: 'electrical_batch',
+    status,
+    project_id: 'p-1',
+    electrical_variant_id: electricalVariantId,
+    progress: { current: 0, total: 1, phase: status, percent: 0 },
+    result: null,
+    error_message: null,
+    cancel_requested: false,
+    created_at: '2026-01-01T00:00:00Z',
+    started_at: null,
+    finished_at: null,
+    links: { status: '', result: '', cancel: '' },
+    ...overrides,
+  };
+}
+
+function renderPage(
+  state?: { activeJobId?: string },
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
+  const view = render(
+    <QueryClientProvider client={queryClient}>
       <TestMemoryRouter initialEntries={[{ pathname: '/workspace/elec-calc', state }]}>
         <ElecCalcPage />
       </TestMemoryRouter>
     </QueryClientProvider>
   );
+  return { ...view, queryClient };
 }
 
 async function openElectricalTableSettingsOtherTab(
@@ -550,6 +685,17 @@ async function openElectricalTableSettingsOtherTab(
 describe('ElecCalcPage (integration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    electricalVariantApiMocks.list.mockReset();
+    electricalVariantApiMocks.list.mockImplementation(
+      defaultElectricalVariantListImplementation!,
+    );
+    electricalVariantApiMocks.readiness.mockReset();
+    electricalVariantApiMocks.initialize.mockReset();
+    electricalVariantApiMocks.create.mockReset();
+    electricalVariantApiMocks.copy.mockReset();
+    electricalVariantApiMocks.rename.mockReset();
+    electricalVariantApiMocks.activate.mockReset();
+    electricalVariantApiMocks.remove.mockReset();
     vi.unstubAllEnvs();
     vi.stubEnv('VITE_COMMERCIAL_FEATURES_ENABLED', 'true');
     electricalGlideGridMock.props = null;
@@ -557,8 +703,12 @@ describe('ElecCalcPage (integration)', () => {
     // Main table uses AntD DOM here; candidate table is mocked through its Glide props.
     localStorage.setItem(ELECTRICAL_TABLE_ENGINE_STORAGE_KEY, 'table');
     useAuthStore.getState().logout();
+    useAuthStore.getState().setGuest('sid');
     useProjectStore.getState().setCurrentProject(null);
-    useCalculationVariantStore.setState({ variantByProject: {} });
+    useCalculationVariantStore.setState({
+      selectedVariantIdByProject: {},
+      variantByProject: {},
+    });
   });
 
   it('показывает заглушку без проекта', () => {
@@ -586,6 +736,63 @@ describe('ElecCalcPage (integration)', () => {
     });
   });
 
+  it('продолжает polling исходного ЭР после переключения и инвалидирует только его UUID', async () => {
+    const { getCalcTask, getElectricalPage } = await import('@/api/calculations');
+    const getCalcTaskMock = getCalcTask as ReturnType<typeof vi.fn>;
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([]));
+    getCalcTaskMock
+      .mockResolvedValueOnce(makeCalcTask(
+        'task-er-1',
+        '11111111-1111-4111-8111-111111111111',
+        'running',
+      ))
+      .mockResolvedValueOnce(makeCalcTask(
+        'task-er-1',
+        '11111111-1111-4111-8111-111111111111',
+        'succeeded',
+        {
+          finished_at: '2026-01-01T00:00:02Z',
+          result: {
+            scope: 'all',
+            calculated: 1,
+            skipped: 0,
+            heat_loss_failed: 0,
+            errors: [],
+            results: [],
+          },
+        },
+      ));
+    useProjectStore.getState().setCurrentProject(mockProject);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderPage({ activeJobId: 'task-er-1' }, queryClient);
+
+    await waitFor(() => {
+      expect(getCalcTaskMock).toHaveBeenCalledTimes(1);
+    });
+    await user.click(screen.getByRole('tab', { name: 'ЭР2' }));
+    expect(screen.getByRole('tab', { name: 'ЭР2' })).toHaveAttribute('aria-selected', 'true');
+
+    await waitFor(() => {
+      expect(getCalcTaskMock).toHaveBeenCalledTimes(2);
+    }, { timeout: 4_000 });
+    await waitFor(() => {
+      expect(invalidate).toHaveBeenCalledWith({
+        queryKey: electricalDataQueryKeys.variant(
+          'p-1',
+          '11111111-1111-4111-8111-111111111111',
+        ),
+      });
+    });
+    expect(invalidate).not.toHaveBeenCalledWith({
+      queryKey: electricalDataQueryKeys.variant(
+        'p-1',
+        '22222222-2222-4222-8222-222222222222',
+      ),
+    });
+  });
+
   it('использует редкий polling для очереди и фоновой вкладки', () => {
     expect(getCalcJobRefetchInterval('queued', false)).toBe(2000);
     expect(getCalcJobRefetchInterval('enqueued', false)).toBe(2000);
@@ -594,16 +801,15 @@ describe('ElecCalcPage (integration)', () => {
     expect(getCalcJobRefetchInterval('succeeded', false)).toBe(false);
   });
 
-  it('переключатель вариантов СО1..СО4 присутствует', async () => {
+  it('строит именованные вкладки ЭР из lifecycle API', async () => {
     const { getElectricalPage } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([]));
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'СО1' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /ЭР1.*активный ЭР/i })).toBeInTheDocument();
     });
-    expect(screen.getAllByRole('button').some((b) => b.textContent === 'СО1')).toBe(true);
-    expect(screen.getAllByRole('button').some((b) => b.textContent === 'СО4')).toBe(true);
+    expect(screen.getByRole('tab', { name: 'ЭР4' })).toBeInTheDocument();
   });
 
   it('запрашивает электрорасчёты только для выбранного варианта СО', async () => {
@@ -622,7 +828,7 @@ describe('ElecCalcPage (integration)', () => {
       }));
     });
 
-    await user.click(screen.getByRole('button', { name: 'СО2' }));
+    await user.click(screen.getByRole('tab', { name: 'ЭР2' }));
 
     await waitFor(() => {
       expect(getElectricalPage).toHaveBeenCalledWith(expect.objectContaining({
@@ -641,8 +847,62 @@ describe('ElecCalcPage (integration)', () => {
     renderPage();
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Пересчитать выбранные \(0\)/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Пересчитать все СО1/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeInTheDocument();
     });
+  });
+
+  it('сохраняет таблицы и настройки, но блокирует project-write действия для чужого employee', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const {
+      createElectricalCandidate,
+      getElectricalPage,
+      selectCableForVariants,
+    } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject()]),
+    );
+    useAuthStore.getState().setEmployee({
+      id: 'viewer-1',
+      email: 'viewer@example.test',
+      full_name: null,
+      role: 'employee',
+      is_active: true,
+    }, { access: 'token' });
+    useProjectStore.getState().setCurrentProject({
+      ...mockProject,
+      user_id: 'owner-2',
+      session_id: null,
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Режим просмотра')).toBeInTheDocument();
+    expect(await screen.findByText('Труба-1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Пересчитать выбранные \(0\)/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Настройки' })).not.toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Тип кабеля' })).toBeDisabled();
+    expect(screen.getByLabelText('Напряжение питания')).toBeDisabled();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Показать блок заполнения параметров' }));
+    expect(screen.getByRole('combobox', { name: 'Тип кабеля для пересчёта' })).toBeDisabled();
+    expect(screen.getByLabelText('Напряжение питания')).toBeDisabled();
+
+    await user.click(screen.getByText('Труба-1'));
+    expect(await screen.findByRole('button', { name: 'Выбор' })).toBeDisabled();
+    const sizing = screen.getByRole('button', { name: 'Подбор' });
+    expect(sizing).not.toBeDisabled();
+    await user.click(sizing);
+
+    expect(await screen.findByRole('dialog', { name: /Подбор кабеля для Труба-1/ }))
+      .toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Запустить авторасчёт' })).toBeDisabled();
+    expect(screen.getByLabelText('Комментарий к выбранному кандидату')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Настройки таблицы' })).not.toBeDisabled();
+
+    expect(apiMocks.enqueueVariantBatch).not.toHaveBeenCalled();
+    expect(selectCableForVariants).not.toHaveBeenCalled();
+    expect(createElectricalCandidate).not.toHaveBeenCalled();
   });
 
   it('показывает ошибку теплопотерь круглым icon-tag, а не текстовым badge', async () => {
@@ -934,6 +1194,7 @@ describe('ElecCalcPage (integration)', () => {
       type: 'electrical_batch',
       status: 'enqueued',
       project_id: 'p-1',
+      electrical_variant_id: '11111111-1111-4111-8111-111111111111',
       progress: { current: 0, total: null, phase: 'enqueued', percent: null },
       result: null,
       error_message: null,
@@ -972,15 +1233,24 @@ describe('ElecCalcPage (integration)', () => {
         }),
       );
     });
+    expect(apiMocks.enqueueVariantBatch).toHaveBeenCalledWith(
+      'p-1',
+      '11111111-1111-4111-8111-111111111111',
+      'builtin',
+      'self_regulating',
+      expect.any(Object),
+    );
     const options = (enqueueElectricalBatchJob as ReturnType<typeof vi.fn>).mock.calls[0][4];
     expect(options.objectOverrides).toBeUndefined();
   });
 
-  it('создаёт СО на основании текущего без запуска batch-пересчёта', async () => {
+  it('копирует выбранный ЭР по UUID без запуска batch-пересчёта', async () => {
     const {
-      copyElectricalVariant,
       enqueueElectricalBatchJob,
       getElectricalPage,
+      listElectricalCandidateFolders,
+      listElectricalCandidates,
+      selectCableForVariants,
     } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage(
       [makeObject()],
@@ -1001,73 +1271,84 @@ describe('ElecCalcPage (integration)', () => {
       ],
       { total_objects: 2, electrical_calculations_total: 1 },
     ));
-    (copyElectricalVariant as ReturnType<typeof vi.fn>).mockResolvedValue({
+    const fifthVariant = {
+      id: '55555555-5555-4555-8555-555555555555',
       project_id: 'p-1',
-      source_variant_number: 1,
-      target_variant_number: 2,
-      copied_count: 1,
-      project_objects_count: 2,
-      deleted_target_count: 0,
-      overwrite_applied: false,
-      specification_regenerated: true,
+      name: 'Копия ЭР1',
+      sort_order: 4,
+      is_active: false,
+      copied_from_id: '11111111-1111-4111-8111-111111111111',
+      legacy_variant_number: null,
+      specification_state: 'not_generated',
+      created_at: '2026-07-18T10:00:00Z',
+      updated_at: '2026-07-18T10:00:00Z',
+    };
+    const defaultList = electricalVariantApiMocks.list.getMockImplementation();
+    const initialVariants = await defaultList!();
+    let copyCreated = false;
+    electricalVariantApiMocks.list.mockImplementation(async () =>
+      copyCreated ? [...initialVariants, fifthVariant] : initialVariants);
+    electricalVariantApiMocks.copy.mockImplementation(async () => {
+      copyCreated = true;
+      return fifthVariant;
     });
     useProjectStore.getState().setCurrentProject(mockProject);
     const user = (await import('@testing-library/user-event')).default.setup();
     renderPage();
 
-    await user.click(await screen.findByRole('button', { name: /Создать на основании/i }));
-    await user.click(await screen.findByText('Скопировать СО1 в СО2'));
-    await user.click(await screen.findByRole('button', { name: 'Создать' }));
+    const copyButton = await screen.findByRole('button', {
+      name: /Создать копию выбранного ЭР «ЭР1»/i,
+    });
+    const pageCallsBeforeCopy = (getElectricalPage as ReturnType<typeof vi.fn>).mock.calls.length;
+    const capabilityCallsBeforeCopy = apiMocks.electricalCapabilities.mock.calls.length;
+    const candidateCallsBeforeCopy = (listElectricalCandidates as ReturnType<typeof vi.fn>)
+      .mock.calls.length;
+    const folderCallsBeforeCopy = (listElectricalCandidateFolders as ReturnType<typeof vi.fn>)
+      .mock.calls.length;
+
+    await user.click(copyButton);
 
     await waitFor(() => {
-      expect(copyElectricalVariant).toHaveBeenCalledWith({
-        project_id: 'p-1',
-        source_variant_number: 1,
-        target_variant_number: 2,
-        overwrite: false,
-        regenerate_specification: true,
-      });
+      expect(electricalVariantApiMocks.copy).toHaveBeenCalledWith(
+        'p-1',
+        '11111111-1111-4111-8111-111111111111',
+        {},
+        expect.any(String),
+      );
     });
+    expect(await screen.findByText(/«Копия ЭР1»: расчётные действия временно недоступны/))
+      .toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Копия ЭР1' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(document.querySelector('#electrical-variant-workspace')).toBeNull();
+    expect((getElectricalPage as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(
+      pageCallsBeforeCopy,
+    );
+    expect(apiMocks.electricalCapabilities).toHaveBeenCalledTimes(capabilityCallsBeforeCopy);
+    expect(listElectricalCandidates).toHaveBeenCalledTimes(candidateCallsBeforeCopy);
+    expect(listElectricalCandidateFolders).toHaveBeenCalledTimes(folderCallsBeforeCopy);
+    expect(selectCableForVariants).not.toHaveBeenCalled();
     expect(enqueueElectricalBatchJob).not.toHaveBeenCalled();
   });
 
-  it('при занятом target просит подтверждение и повторяет copy с overwrite=true', async () => {
-    const { copyElectricalVariant, getElectricalPage } = await import('@/api/calculations');
-    const targetNotEmpty = Object.assign(new Error('СО2 уже содержит расчёты'), {
-      status: 409,
-      code: 'target_not_empty',
-    });
+  it('показывает lifecycle error и не повторяет copy с новой семантикой', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
     (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(makeElectricalPage([makeObject()]));
-    (copyElectricalVariant as ReturnType<typeof vi.fn>)
-      .mockRejectedValueOnce(targetNotEmpty)
-      .mockResolvedValueOnce({
-        project_id: 'p-1',
-        source_variant_number: 1,
-        target_variant_number: 2,
-        copied_count: 1,
-        project_objects_count: 1,
-        deleted_target_count: 1,
-        overwrite_applied: true,
-        specification_regenerated: true,
-      });
+    electricalVariantApiMocks.copy.mockRejectedValueOnce(
+      new Error('Копирование требует UUID cutover'),
+    );
     useProjectStore.getState().setCurrentProject(mockProject);
     const user = (await import('@testing-library/user-event')).default.setup();
     renderPage();
 
-    await user.click(await screen.findByRole('button', { name: /Создать на основании/i }));
-    await user.click(await screen.findByText('Скопировать СО1 в СО2'));
-    await user.click(await screen.findByRole('button', { name: 'Создать' }));
-    await user.click(await screen.findByRole('button', { name: 'Заменить' }));
+    await user.click(await screen.findByRole('button', {
+      name: /Создать копию выбранного ЭР «ЭР1»/i,
+    }));
 
-    await waitFor(() => {
-      expect(copyElectricalVariant).toHaveBeenCalledTimes(2);
-    });
-    expect((copyElectricalVariant as ReturnType<typeof vi.fn>).mock.calls[1][0]).toMatchObject({
-      project_id: 'p-1',
-      source_variant_number: 1,
-      target_variant_number: 2,
-      overwrite: true,
-    });
+    expect(await screen.findByText('Копирование требует UUID cutover')).toBeInTheDocument();
+    expect(electricalVariantApiMocks.copy).toHaveBeenCalledTimes(1);
   });
 
   it('при выключенных commercial features оставляет только саморегулирующийся ТЛТ', async () => {
@@ -1101,7 +1382,7 @@ describe('ElecCalcPage (integration)', () => {
     expect(getCablesTt).not.toHaveBeenCalled();
     expect(getResistiveCables).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: /Пересчитать все СО1/i }));
+    await user.click(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i }));
     await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));
 
     await waitFor(() => {
@@ -1182,7 +1463,7 @@ describe('ElecCalcPage (integration)', () => {
     await user.click(cableTypeSelect as HTMLElement);
     await user.click(await screen.findByText('ТТН/ТТВ/ТТХ'));
     await user.type(await screen.findByLabelText('T3 поддержания'), '50');
-    await user.click(screen.getByRole('button', { name: /Пересчитать все СО1/i }));
+    await user.click(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i }));
     await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));
 
     await waitFor(() => {
@@ -1447,7 +1728,12 @@ describe('ElecCalcPage (integration)', () => {
     expect(within(sizingDialog).getAllByText('Ток, А').length).toBeGreaterThan(0);
     expect(within(sizingDialog).getAllByText('U расч., В').length).toBeGreaterThan(0);
     await waitFor(() => {
-      expect(listElectricalCandidates).toHaveBeenCalledWith('p-1', 'o-1', 1);
+      expect(listElectricalCandidates).toHaveBeenCalledWith(
+        'p-1',
+        'o-1',
+        1,
+        '11111111-1111-4111-8111-111111111111',
+      );
     });
     expect(createElectricalCandidate).not.toHaveBeenCalled();
     const autoButton = within(sizingDialog).getByRole('button', { name: 'Запустить авторасчёт' });
@@ -1459,6 +1745,7 @@ describe('ElecCalcPage (integration)', () => {
         project_id: 'p-1',
         object_id: 'o-1',
         variant_number: 1,
+        electrical_variant_id: '11111111-1111-4111-8111-111111111111',
         cable_type: 'three_core',
         mode: 'auto',
         cable_mark: null,
@@ -2015,6 +2302,7 @@ describe('ElecCalcPage (integration)', () => {
         name: 'Согласовать',
         object_id: 'o-1',
         variant_number: 1,
+        electrical_variant_id: '11111111-1111-4111-8111-111111111111',
       }));
     });
 
@@ -2288,7 +2576,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
-    await user.click(screen.getByRole('button', { name: /Пересчитать все СО1/i }));
+    await user.click(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i }));
     expect(await screen.findByText(/Найдено ручных выборов: 1/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Да, пересчитать все/i }));
 
@@ -2342,7 +2630,7 @@ describe('ElecCalcPage (integration)', () => {
     await waitFor(() => {
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
     });
-    await user.click(screen.getByRole('button', { name: /Пересчитать все СО1/i }));
+    await user.click(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i }));
     await user.click(await screen.findByRole('checkbox', { name: /Перезаписать ручные выборы/i }));
     await user.click(screen.getByRole('button', { name: /Да, пересчитать все/i }));
 
@@ -2845,6 +3133,7 @@ describe('ElecCalcPage (integration)', () => {
           windingPitchMm: 400,
           numberOfThreads: null,
         }),
+        { 1: '11111111-1111-4111-8111-111111111111' },
       );
     });
     (selectCableForVariants as ReturnType<typeof vi.fn>).mockClear();
@@ -2859,6 +3148,7 @@ describe('ElecCalcPage (integration)', () => {
         expect.objectContaining({
           numberOfThreads: 2,
         }),
+        { 1: '11111111-1111-4111-8111-111111111111' },
       );
     });
   });
@@ -3055,15 +3345,15 @@ describe('ElecCalcPage (integration)', () => {
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
 
-    await user.click(await screen.findByRole('button', { name: 'СО2' }));
+    await user.click(await screen.findByRole('tab', { name: 'ЭР2' }));
     const row = await screen.findByRole('row', { name: /Труба-1/ });
     fireEvent.click(row);
     await user.click(within(row).getByRole('button', { name: 'Выбор' }));
     const dialog = await screen.findByRole('dialog', { name: /Выбор марки кабеля/ });
 
-    expect(within(dialog).getByRole('checkbox', { name: 'СО1' })).not.toBeChecked();
-    expect(within(dialog).getByRole('checkbox', { name: 'СО2' })).toBeChecked();
-    await user.click(within(dialog).getByRole('checkbox', { name: 'СО4' }));
+    expect(within(dialog).getByRole('checkbox', { name: 'ЭР1' })).not.toBeChecked();
+    expect(within(dialog).getByRole('checkbox', { name: 'ЭР2' })).toBeChecked();
+    await user.click(within(dialog).getByRole('checkbox', { name: 'ЭР4' }));
     await user.click(within(dialog).getByRole('button', { name: 'Применить' }));
 
     await waitFor(() => {
@@ -3071,6 +3361,11 @@ describe('ElecCalcPage (integration)', () => {
     });
     expect((selectCableForVariants as ReturnType<typeof vi.fn>).mock.calls[0][3])
       .toEqual([2, 4]);
+    expect((selectCableForVariants as ReturnType<typeof vi.fn>).mock.calls[0][6])
+      .toEqual({
+        2: '22222222-2222-4222-8222-222222222222',
+        4: '44444444-4444-4444-8444-444444444444',
+      });
   });
 
   it('показывает характеристики объекта и выбранного кабеля в модалке выбора марки', async () => {
@@ -3355,7 +3650,8 @@ describe('ElecCalcPage (integration)', () => {
       ]);
     });
 
-    useProjectStore.getState().setCurrentProject(mockProject);
+    const employeeProject = { ...mockProject, user_id: 'u-1', session_id: null };
+    useProjectStore.getState().setCurrentProject(employeeProject);
     const firstRender = renderPage();
 
     await waitFor(() => {
@@ -3384,7 +3680,7 @@ describe('ElecCalcPage (integration)', () => {
     });
 
     firstRender.unmount();
-    useProjectStore.getState().setCurrentProject(mockProject);
+    useProjectStore.getState().setCurrentProject(employeeProject);
     renderPage();
     await waitFor(() => {
       expect(screen.getByText('Труба-1')).toBeInTheDocument();
@@ -3485,7 +3781,7 @@ describe('ElecCalcPage (integration)', () => {
     await user.click(cableTypeSelect as HTMLElement);
     await user.click(await screen.findByText('ТТН/ТТВ/ТТХ'));
     await user.type(await screen.findByLabelText('T3 поддержания'), '50');
-    await user.click(screen.getByRole('button', { name: /Пересчитать все СО1/i }));
+    await user.click(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i }));
     await user.click(await screen.findByRole('button', { name: /Да, пересчитать все/i }));
 
     await waitFor(() => {
