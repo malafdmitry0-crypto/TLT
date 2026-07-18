@@ -1,6 +1,6 @@
 # ADR: динамические именованные электротехнические решения
 
-- Статус: **Draft / blocked before production Phase 1**
+- Статус: **Accepted for Phase 1–3 / Phase 4 blocked by data contract**
 - Дата: 18.07.2026
 - Ветка: `feature/tnp-dynamic-electrical-variants`
 - Область: DB → backend API/services → frontend → specification/report → CSV → tests
@@ -13,8 +13,9 @@
 именованных ЭР с постоянными UUID, независимыми распределениями объектов,
 расчётами, спецификациями и отчётами.
 
-Этот ADR фиксирует Phase 0. Он **не разрешает production-изменения**, пока не
-закрыты решения `OPEN-ER-*` в конце документа.
+Этот ADR зафиксировал Phase 0. Решения `OPEN-ER-01…09` утверждены пользователем
+18.07.2026 как рекомендованные варианты и зарегистрированы PDL-ER-09…17.
+Production Phase 1–3 разрешены; Phase 4 не начинается без данных PDL-ER-15.
 
 ## Приоритет источников
 
@@ -32,7 +33,7 @@
 Если источники расходятся, expected/golden не меняются до явного выбора
 источника новой истины.
 
-## Уже утверждено: PDL-ER-01…08
+## Уже утверждено: PDL-ER-01…17
 
 | ID | Зафиксированный результат |
 |---|---|
@@ -44,6 +45,15 @@
 | PDL-ER-06 | Создаваемые типы объектов MVP: `pipe` и `tank`; `Бочка/barrel` нормализуется в `tank`; `floor` disabled. |
 | PDL-ER-07 | Настройки — versioned project defaults; generation хранит immutable snapshot и применяется только к явно выбранным ЭР. |
 | PDL-ER-08 | Ветка большого диаметра начинается включительно с `dтр >= 57 мм`. |
+| PDL-ER-09 | Имена уникальны внутри project после `trim + casefold`. |
+| PDL-ER-10 | Действующий resistive flow сохраняется; `single_core/three_core -> resistive`. |
+| PDL-ER-11 | `system_type` отделён от `assignment_state`; исходный cable type сохраняется, mineral/MI disabled. |
+| PDL-ER-12 | Первый active `ЭР1` создаётся только readiness-gated mutation. |
+| PDL-ER-13 | Specification при copy не копируется и не генерируется; target `not_generated`. |
+| PDL-ER-14 | Multi-ЭР generation атомарна между ЭР; object partial только после подтверждения. |
+| PDL-ER-15 | Phase 4 ждёт утверждённые `Lmax`/пусковые/токовые данные; defaults запрещены. |
+| PDL-ER-16 | PDF 07.07 задаёт BOM semantics; XLSX 29.05 — только непротиворечащие каталог/данные. |
+| PDL-ER-17 | Expand window → one-way UUID cutover → backup/restore recovery point. |
 
 ## Текущая цепочка реализации
 
@@ -72,7 +82,7 @@
 |---|---|
 | `id UUID PK` | Постоянный публичный ID. |
 | `project_id UUID FK` | `projects.id`, `ON DELETE CASCADE`. |
-| `name varchar` | `trim`, непустое; duplicate policy открыта. |
+| `name varchar` | `trim`, непустое; unique внутри project после `casefold`. |
 | `sort_order integer` | Порядок вкладок, не бизнес-ID. |
 | `is_active boolean` | Не более одного active на проект через partial unique index. |
 | `copied_from_id UUID null` | Self-FK/traceability, при удалении source — `SET NULL`. |
@@ -92,8 +102,8 @@ Max 5 обеспечивается транзакцией с блокировк�
 | `id UUID PK` | ID assignment. |
 | `electrical_variant_id UUID FK` | `ON DELETE CASCADE`. |
 | `object_id UUID FK` | `ON DELETE CASCADE`. |
-| `system_type` | Финальный enum зависит от `OPEN-ER-03`. |
-| `assignment_state` | Предлагается отделить `unassigned/ready/unsupported/stale/error` от типа системы. |
+| `system_type` | `self_regulating/resistive/skin/mineral`, nullable до назначения; skin/mineral disabled. |
+| `assignment_state` | `unassigned/ready/unsupported/stale/error`, отдельно от типа системы. |
 | `requested_cable_type` | Сохраняет lossless legacy diagnostic/source value. |
 | `object_version` | Snapshot/version для stale detection. |
 | diagnostics/timestamps | `error_code`, details, created/updated. |
@@ -193,8 +203,8 @@ Mutation endpoints используют write/owner guard. Это обязате
    реально занятых slots.
 3. Создать assignments для каждого project object во всех созданных ЭР.
    `self_regulating/self_regulating_tt` маппятся в self-reg,
-   `single_core/three_core` — в resistive; unsupported mapping зависит от
-   `OPEN-ER-03`.
+   `single_core/three_core` — в resistive; mineral/unknown сохраняются как
+   requested type со state `unsupported`.
    Failed/stale legacy calculations сохраняются как diagnostic history у
    assignment со state `unassigned/unsupported/stale`, но никогда не считаются
    successful и не входят в BOM.
@@ -234,7 +244,7 @@ Read-only snapshot локальной БД перед миграцией:
 - после этой точки rollback — только restore к объявленному recovery point;
 - притворно безопасный Alembic downgrade запрещён.
 
-Стратегия требует решения `OPEN-ER-09`.
+Стратегия утверждена PDL-ER-17.
 
 ## Phase plan и disjoint write sets
 
@@ -248,7 +258,7 @@ Read-only snapshot локальной БД перед миграцией:
 | 5 | Spec/report/settings/CSV v3 + guest print/full BOM. | No-mixing, RBAC, round-trip, browser and DB proof. |
 | 6 | Legacy contract removal + docs/SRS/API updates. | Search gate and full functional audit. |
 
-Production Phase 1 не начинается, пока обязательные решения ниже не закрыты.
+Production Phase 1–3 разрешены. Phase 4 остаётся gated PDL-ER-15.
 
 ## Phase 0 baseline
 
@@ -265,19 +275,19 @@ Production Phase 1 не начинается, пока обязательные 
   и network evidence находятся в
   `docs/tnp/cases/guest-specification/{assets/ui,evidence}`.
 
-## Открытые решения
+## Закрытые решения Phase 0
 
-| ID | Решение, которое нельзя угадать | Рекомендуемый вариант |
+| ID | Утверждённый вариант А | PDL |
 |---|---|---|
-| OPEN-ER-01 | Допустимы ли одинаковые имена ЭР? | Нет; unique по `trim + casefold` внутри project. |
-| OPEN-ER-02 | Сохранять ли уже работающий resistive flow? | Да; `single_core/three_core -> resistive`. Disabled только MI/skin. |
-| OPEN-ER-03 | Как losslessly хранить legacy `mineral`/unsupported? | Разделить `system_type` и `assignment_state`; сохранить `requested_cable_type`, `mineral` disabled. |
-| OPEN-ER-04 | Когда создавать первый `ЭР1`? | При первом readiness-gated переходе в электрический расчёт; mutation повторно валидирует объекты под project lock и атомарно создаёт active `ЭР1` с assignments. |
-| OPEN-ER-05 | Что делать со specification при copy ЭР? | Не копировать; target получает `not_generated`, нужна явная generation. |
-| OPEN-ER-06 | Атомарность генерации нескольких ЭР? | Одна транзакция для списка ЭР; partial только внутри ЭР после явного подтверждения. |
-| OPEN-ER-07 | Откуда взять `Lmax`, пусковой ток/`kпуск` для sections? | Остановить Phase 4 до предоставления утверждённого источника; не вводить defaults. |
-| OPEN-ER-08 | PDF или XLSX определяет конфликтующие BOM-формулы? | PDF 07.07 задаёт семантику; XLSX 29.05 используется только как каталог/данные там, где не противоречит PDF. |
-| OPEN-ER-09 | Допустим ли one-way cutover с backup/restore rollback? | Да: expand window, затем one-way contract migration и recovery point. |
+| OPEN-ER-01 | Unique `trim + casefold`. | PDL-ER-09 |
+| OPEN-ER-02 | Сохранить resistive. | PDL-ER-10 |
+| OPEN-ER-03 | Отделить system type/state, сохранить requested type. | PDL-ER-11 |
+| OPEN-ER-04 | Readiness-gated initialization. | PDL-ER-12 |
+| OPEN-ER-05 | Не копировать specification. | PDL-ER-13 |
+| OPEN-ER-06 | Atomic multi-ЭР generation. | PDL-ER-14 |
+| OPEN-ER-07 | Остановить Phase 4 до утверждённых данных. | PDL-ER-15 |
+| OPEN-ER-08 | PDF semantics, XLSX non-conflicting data. | PDL-ER-16 |
+| OPEN-ER-09 | One-way cutover с recovery point. | PDL-ER-17 |
 
 ## Отложено вне текущего scope
 
@@ -289,6 +299,6 @@ Production Phase 1 не начинается, пока обязательные 
 
 ## Stop condition
 
-Статус остаётся **blocked before production Phase 1**, пока пользователь явно
-не закроет как минимум OPEN-ER-01…04 и OPEN-ER-09. Phase 4 блокирует
-OPEN-ER-07; Phase 5 — OPEN-ER-06 и OPEN-ER-08.
+Phase 1–3 можно выполнять вертикальными slices. Phase 4 и зависимую генерацию
+реальных sections нельзя принимать или обходить defaults, пока не предоставлен
+утверждённый источник `Lmax`, пускового тока/`kпуск` и токовых ограничений.

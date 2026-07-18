@@ -120,7 +120,8 @@ context warning.
 
 ## 9. Новые blockers
 
-Production Phase 1 не начинается до явных решений:
+На момент первоначального checkpoint production Phase 1 не начинался до явных
+решений:
 
 1. Duplicate names ЭР.
 2. Сохранение или намеренное отключение действующего resistive flow.
@@ -132,5 +133,14 @@ Production Phase 1 не начинается до явных решений:
 8. Приоритет PDF/XLSX для конфликтующих BOM-формул.
 9. One-way rollback/backup strategy.
 
-Рекомендованные варианты перечислены как `OPEN-ER-01…09` в ADR. До ответа
-статус: **blocked before production Phase 1**.
+Рекомендованные варианты перечислены как `OPEN-ER-01…09` в ADR.
+
+## 10. Решение пользователя
+
+18.07.2026 пользователь явно утвердил вариант **А** для OPEN-ER-01…09.
+Решения зарегистрированы как PDL-ER-09…17. Статус после ответа:
+
+- Phase 1–3: **approved to implement**;
+- Phase 4: **blocked by approved data stop** до источника `Lmax`, пускового
+  тока/`kпуск` и токовых ограничений;
+- зависимые section/BOM acceptance gates нельзя подменять defaults.
