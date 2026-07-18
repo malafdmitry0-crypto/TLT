@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import ANY, AsyncMock, MagicMock
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.core.dependencies import CurrentPrincipal
 from app.models.background_task import BackgroundTask
@@ -16,6 +17,8 @@ from app.schemas.report import ReportExportJobRequest
 from app.services.calculation_service import BatchProgress
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 from app.services.task_service import (
+    ELECTRICAL_VARIANT_LEGACY_ADAPTER_UNAVAILABLE,
+    ELECTRICAL_VARIANT_NOT_FOUND,
     MAX_TASK_ERROR_MESSAGE_LENGTH,
     TASK_ELECTRICAL_BATCH,
     TASK_HEAT_LOSS_BATCH,
@@ -23,6 +26,7 @@ from app.services.task_service import (
     ProgressThrottler,
     ProgressWritePolicy,
     TaskAccessError,
+    TaskIdempotencyConflictError,
     TaskLimitError,
     TaskNotFoundError,
     TaskService,
@@ -78,6 +82,26 @@ def _allow_active_task_limits(service: TaskService) -> None:
     service._active_global_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
     service._active_project_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
     service._active_principal_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
+
+
+def _allow_electrical_variant(
+    service: TaskService,
+    project_id: uuid.UUID,
+    *,
+    electrical_variant_id: uuid.UUID | None = None,
+    legacy_variant_number: int | None = 1,
+) -> SimpleNamespace:
+    variant = SimpleNamespace(
+        id=electrical_variant_id or uuid.uuid4(),
+        project_id=project_id,
+        legacy_variant_number=legacy_variant_number,
+    )
+    service._lock_project_for_electrical_task = AsyncMock()  # type: ignore[method-assign]
+    service._resolve_electrical_variant = AsyncMock(return_value=variant)  # type: ignore[method-assign]
+    service._prepare_legacy_variant_for_enqueue = AsyncMock(  # type: ignore[method-assign]
+        return_value=variant
+    )
+    return variant
 
 
 class ManualClock:
@@ -291,7 +315,7 @@ class TestDeadLetterReplay:
     async def test_replay_dead_letter_resets_failed_task_and_reenqueues(self, mock_db):
         task = BackgroundTask(
             id=uuid.uuid4(),
-            type=TASK_ELECTRICAL_BATCH,
+            type=TASK_HEAT_LOSS_BATCH,
             status="failed",
             session_id="sid",
             request_payload={},
@@ -308,7 +332,7 @@ class TestDeadLetterReplay:
             finished_at=datetime.now(UTC),
         )
         mock_db.get = AsyncMock(return_value=task)
-        queue = DeadLetterQueueOk(task.id)
+        queue = DeadLetterQueueOk(task.id, TASK_HEAT_LOSS_BATCH)
 
         replayed, removed = await TaskService(mock_db).replay_dead_letter("9-0", queue=queue)
 
@@ -328,6 +352,83 @@ class TestDeadLetterReplay:
         assert task.arq_job_id is not None
         assert queue.deleted == ["9-0"]
         assert mock_db.commit.await_count == 2
+
+    async def test_replay_dead_letter_upgrades_exact_v2_variant_to_v3(self, mock_db):
+        project_id = uuid.uuid4()
+        variant_id = uuid.uuid4()
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_ELECTRICAL_BATCH,
+            status="failed",
+            project_id=project_id,
+            electrical_variant_id=variant_id,
+            session_id="sid",
+            request_payload={
+                "project_id": str(project_id),
+                "variant_number": 4,
+                "include_errors": True,
+            },
+            progress_current=0,
+        )
+        mock_db.get = AsyncMock(return_value=task)
+        service = TaskService(mock_db)
+        service._lock_project_for_electrical_task = AsyncMock()  # type: ignore[method-assign]
+        service._resolve_electrical_variant = AsyncMock(  # type: ignore[method-assign]
+            return_value=SimpleNamespace(
+                id=variant_id,
+                project_id=project_id,
+                legacy_variant_number=4,
+            )
+        )
+        queue = DeadLetterQueueOk(task.id)
+
+        replayed, removed = await service.replay_dead_letter("9-0", queue=queue)
+
+        assert removed is True
+        assert replayed.request_payload == {
+            "payload_version": 3,
+            "project_id": str(project_id),
+            "electrical_variant_id": str(variant_id),
+            "include_errors": True,
+        }
+        service._lock_project_for_electrical_task.assert_awaited_once_with(project_id)  # type: ignore[attr-defined]
+        service._resolve_electrical_variant.assert_awaited_once_with(  # type: ignore[attr-defined]
+            project_id,
+            electrical_variant_id=variant_id,
+            legacy_variant_number=None,
+        )
+
+    async def test_replay_dead_letter_refuses_deleted_exact_variant(self, mock_db):
+        project_id = uuid.uuid4()
+        variant_id = uuid.uuid4()
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_REPORT_EXPORT,
+            status="failed",
+            project_id=project_id,
+            electrical_variant_id=variant_id,
+            session_id="sid",
+            request_payload={
+                "payload_version": 3,
+                "project_id": str(project_id),
+                "electrical_variant_id": str(variant_id),
+                "format": "pdf",
+            },
+            progress_current=0,
+        )
+        mock_db.get = AsyncMock(return_value=task)
+        service = TaskService(mock_db)
+        service._lock_project_for_electrical_task = AsyncMock()  # type: ignore[method-assign]
+        service._resolve_electrical_variant = AsyncMock(  # type: ignore[method-assign]
+            side_effect=TaskNotFoundError(ELECTRICAL_VARIANT_NOT_FOUND)
+        )
+        queue = DeadLetterQueueOk(task.id, TASK_REPORT_EXPORT)
+
+        with pytest.raises(TaskNotFoundError, match=ELECTRICAL_VARIANT_NOT_FOUND):
+            await service.replay_dead_letter("9-0", queue=queue)
+
+        assert queue.deleted == []
+        mock_db.commit.assert_not_awaited()
 
     async def test_replay_dead_letter_rejects_active_task(self, mock_db):
         task = BackgroundTask(
@@ -349,6 +450,64 @@ class TestDeadLetterReplay:
 
 
 class TestTaskCreation:
+    @pytest.mark.parametrize(
+        ("task_status", "audit_result"),
+        [
+            ("queued", "queued"),
+            ("enqueued", "queued"),
+            ("running", "queued"),
+            ("succeeded", "success"),
+            ("failed", "failure"),
+            ("cancelled", "cancelled"),
+        ],
+    )
+    def test_task_audit_result_matches_durable_status(self, task_status, audit_result):
+        task = BackgroundTask(
+            type=TASK_HEAT_LOSS_BATCH,
+            status=task_status,
+            session_id="sid",
+            request_payload={},
+            progress_current=0,
+        )
+
+        assert TaskService.audit_result_for_task(task) == audit_result
+
+    def test_electrical_request_keeps_omitted_legacy_one_but_rejects_dual_selector(
+        self,
+    ):
+        project_id = uuid.uuid4()
+        variant_id = uuid.uuid4()
+
+        assert ElectricalBatchJobRequest(project_id=project_id).variant_number == 1
+        with pytest.raises(ValueError, match="ELECTRICAL_VARIANT_SELECTOR_REQUIRED"):
+            ElectricalBatchJobRequest(project_id=project_id, variant_number=None)
+        uuid_request = ElectricalBatchJobRequest(
+            project_id=project_id,
+            electrical_variant_id=variant_id,
+        )
+        assert uuid_request.variant_number is None
+        with pytest.raises(ValueError, match="ELECTRICAL_VARIANT_SELECTOR_CONFLICT"):
+            ElectricalBatchJobRequest(
+                project_id=project_id,
+                electrical_variant_id=variant_id,
+                variant_number=4,
+            )
+
+    def test_report_request_rejects_dual_selector(self):
+        with pytest.raises(ValueError, match="electrical_variant_id or deprecated"):
+            ReportExportJobRequest(
+                project_id=uuid.uuid4(),
+                format="pdf",
+                variant_number=None,
+            )
+        with pytest.raises(ValueError, match="ELECTRICAL_VARIANT_SELECTOR_CONFLICT"):
+            ReportExportJobRequest(
+                project_id=uuid.uuid4(),
+                format="pdf",
+                electrical_variant_id=uuid.uuid4(),
+                variant_number=1,
+            )
+
     @pytest.mark.parametrize(
         ("project_error", "task_error"),
         [
@@ -376,6 +535,93 @@ class TestTaskCreation:
                 guest_principal,
             )
 
+    async def test_resolve_variant_hides_cross_project_and_unknown_uuid(self, mock_db):
+        mock_db.execute = AsyncMock(return_value=ResultRows([]))
+
+        with pytest.raises(TaskNotFoundError, match=ELECTRICAL_VARIANT_NOT_FOUND):
+            await TaskService(mock_db)._resolve_electrical_variant(
+                uuid.uuid4(),
+                electrical_variant_id=uuid.uuid4(),
+                legacy_variant_number=None,
+            )
+
+    async def test_resolve_variant_rejects_ambiguous_internal_selectors(self, mock_db):
+        with pytest.raises(ValueError, match="ELECTRICAL_VARIANT_SELECTOR_CONFLICT"):
+            await TaskService(mock_db)._resolve_electrical_variant(
+                uuid.uuid4(),
+                electrical_variant_id=uuid.uuid4(),
+                legacy_variant_number=1,
+            )
+
+        mock_db.execute.assert_not_awaited()
+
+    async def test_resolve_fifth_variant_fails_without_inventing_legacy_slot(self, mock_db):
+        variant = SimpleNamespace(
+            id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            legacy_variant_number=None,
+        )
+        mock_db.execute = AsyncMock(return_value=ResultRows([variant]))
+
+        with pytest.raises(
+            ValueError,
+            match=ELECTRICAL_VARIANT_LEGACY_ADAPTER_UNAVAILABLE,
+        ):
+            await TaskService(mock_db)._resolve_electrical_variant(
+                variant.project_id,
+                electrical_variant_id=variant.id,
+                legacy_variant_number=None,
+            )
+
+    async def test_enqueue_guards_then_locks_project_before_variant_resolution(
+        self,
+        mock_db,
+        guest_principal: CurrentPrincipal,
+    ):
+        project_id = uuid.uuid4()
+        events: list[str] = []
+        existing = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_ELECTRICAL_BATCH,
+            status="queued",
+            project_id=project_id,
+            session_id="sid",
+            request_payload={},
+            progress_current=0,
+        )
+        service = TaskService(mock_db)
+
+        async def guard(*args, **kwargs):
+            events.append("guard")
+
+        async def lock(*args, **kwargs):
+            events.append("lock")
+
+        async def resolve(*args, **kwargs):
+            events.append("resolve")
+            return SimpleNamespace(
+                id=uuid.uuid4(),
+                project_id=project_id,
+                legacy_variant_number=1,
+            )
+
+        service._require_project_write = AsyncMock(side_effect=guard)  # type: ignore[method-assign]
+        service._lock_project_for_electrical_task = AsyncMock(side_effect=lock)  # type: ignore[method-assign]
+        service._resolve_electrical_variant = AsyncMock(side_effect=resolve)  # type: ignore[method-assign]
+        service._find_active_by_dedupe = AsyncMock(return_value=existing)  # type: ignore[method-assign]
+
+        result = await service.create_electrical_batch_task(
+            ElectricalBatchJobRequest(
+                project_id=project_id,
+                electrical_variant_id=uuid.uuid4(),
+            ),
+            guest_principal,
+            queue=QueueOk(),
+        )
+
+        assert result is existing
+        assert events == ["guard", "lock", "resolve"]
+
     async def test_create_electrical_batch_task_enqueues_and_persists_payload(
         self,
         mock_db,
@@ -387,11 +633,18 @@ class TestTaskCreation:
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
         _allow_active_task_limits(service)
         project_id = uuid.uuid4()
+        requested_variant_id = uuid.uuid4()
+        variant = _allow_electrical_variant(
+            service,
+            project_id,
+            electrical_variant_id=requested_variant_id,
+            legacy_variant_number=2,
+        )
 
         task = await service.create_electrical_batch_task(
             ElectricalBatchJobRequest(
                 project_id=project_id,
-                variant_number=2,
+                electrical_variant_id=requested_variant_id,
                 winding_pitch=120,
                 force_cable_type=True,
                 include_errors=False,
@@ -402,14 +655,26 @@ class TestTaskCreation:
         )
 
         assert task.status == "enqueued"
+        assert TaskService.is_idempotency_replay(task) is False
         assert task.session_id == "sid"
+        assert task.electrical_variant_id == variant.id
         assert task.request_payload["project_id"] == str(project_id)
-        assert task.request_payload["variant_number"] == 2
+        assert task.request_payload["payload_version"] == 3
+        assert task.request_payload["electrical_variant_id"] == str(requested_variant_id)
+        assert "variant_number" not in task.request_payload
         assert task.request_payload["force_cable_type"] is True
         assert task.request_payload["skip_manual"] is True
         assert task.request_payload["electrical_params"]["winding_pitch"] == 120
         assert task.request_payload["include_errors"] is False
         assert task.arq_job_id is not None
+        service._resolve_electrical_variant.assert_awaited_once_with(  # type: ignore[attr-defined]
+            project_id,
+            electrical_variant_id=requested_variant_id,
+            legacy_variant_number=None,
+        )
+        service._lock_project_for_electrical_task.assert_awaited_once_with(  # type: ignore[attr-defined]
+            project_id
+        )
         mock_db.add.assert_called_once()
 
     async def test_create_electrical_batch_task_allows_explicit_manual_overwrite(
@@ -423,6 +688,7 @@ class TestTaskCreation:
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
         _allow_active_task_limits(service)
         project_id = uuid.uuid4()
+        variant = _allow_electrical_variant(service, project_id)
 
         task = await service.create_electrical_batch_task(
             ElectricalBatchJobRequest(
@@ -435,6 +701,12 @@ class TestTaskCreation:
         )
 
         assert task.request_payload["skip_manual"] is False
+        assert task.request_payload["electrical_variant_id"] == str(variant.id)
+        service._prepare_legacy_variant_for_enqueue.assert_awaited_once_with(  # type: ignore[attr-defined]
+            project_id,
+            guest_principal,
+            1,
+        )
         mock_db.add.assert_called_once()
 
     async def test_create_returns_existing_active_task(
@@ -454,14 +726,72 @@ class TestTaskCreation:
         )
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=existing)  # type: ignore[method-assign]
+        project_id = uuid.uuid4()
+        _allow_electrical_variant(service, project_id)
 
         task = await service.create_electrical_batch_task(
-            ElectricalBatchJobRequest(project_id=uuid.uuid4()),
+            ElectricalBatchJobRequest(project_id=project_id),
             guest_principal,
             queue=QueueOk(),
         )
 
         assert task is existing
+        assert TaskService.is_idempotency_replay(task) is True
+        mock_db.add.assert_not_called()
+
+    async def test_explicit_idempotency_key_rejects_different_electrical_variant(
+        self,
+        mock_db,
+        guest_principal: CurrentPrincipal,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
+        project_id = uuid.uuid4()
+        first_variant_id = uuid.uuid4()
+        second_variant_id = uuid.uuid4()
+        first_request = ElectricalBatchJobRequest(
+            project_id=project_id,
+            electrical_variant_id=first_variant_id,
+        )
+        existing = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_ELECTRICAL_BATCH,
+            status="enqueued",
+            project_id=project_id,
+            electrical_variant_id=first_variant_id,
+            session_id="sid",
+            request_payload=TaskService._electrical_payload(
+                first_request,
+                electrical_variant_id=first_variant_id,
+                object_ids=None,
+                object_overrides=None,
+            ),
+            progress_current=0,
+        )
+        service = TaskService(mock_db)
+        service._find_active_by_dedupe = AsyncMock(return_value=existing)  # type: ignore[method-assign]
+        _allow_electrical_variant(
+            service,
+            project_id,
+            electrical_variant_id=second_variant_id,
+            legacy_variant_number=2,
+        )
+
+        with pytest.raises(TaskIdempotencyConflictError) as exc_info:
+            await service.create_electrical_batch_task(
+                ElectricalBatchJobRequest(
+                    project_id=project_id,
+                    electrical_variant_id=second_variant_id,
+                ),
+                guest_principal,
+                queue=QueueOk(),
+                idempotency_key="one-click-one-operation",
+            )
+
+        assert exc_info.value.as_detail() == {
+            "code": "TASK_IDEMPOTENCY_KEY_REUSED",
+            "message": "Idempotency-Key уже использован для другой операции",
+        }
         mock_db.add.assert_not_called()
 
     async def test_create_rejects_when_project_active_task_limit_reached(
@@ -479,10 +809,12 @@ class TestTaskCreation:
         service._active_global_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
         service._active_project_task_count = AsyncMock(return_value=1)  # type: ignore[method-assign]
         service._active_principal_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
+        project_id = uuid.uuid4()
+        _allow_electrical_variant(service, project_id)
 
         with pytest.raises(TaskLimitError, match="активных задач для проекта"):
             await service.create_electrical_batch_task(
-                ElectricalBatchJobRequest(project_id=uuid.uuid4()),
+                ElectricalBatchJobRequest(project_id=project_id),
                 guest_principal,
                 queue=QueueOk(),
             )
@@ -504,6 +836,7 @@ class TestTaskCreation:
         service._active_global_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
         service._active_project_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
         service._active_principal_task_count = AsyncMock(return_value=1)  # type: ignore[method-assign]
+        service._lock_project_for_electrical_task = AsyncMock()  # type: ignore[method-assign]
 
         with pytest.raises(TaskLimitError, match="активных задач для пользователя"):
             await service.create_heat_loss_batch_task(
@@ -527,11 +860,13 @@ class TestTaskCreation:
         service._active_global_task_count = AsyncMock(return_value=1)  # type: ignore[method-assign]
         service._active_project_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
         service._active_principal_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
+        project_id = uuid.uuid4()
+        _allow_electrical_variant(service, project_id)
 
         with pytest.raises(TaskLimitError, match="Очередь задач перегружена"):
             await service.create_report_export_task(
                 ReportExportJobRequest(
-                    project_id=uuid.uuid4(),
+                    project_id=project_id,
                     format="pdf",
                     variant_number=1,
                 ),
@@ -550,6 +885,7 @@ class TestTaskCreation:
         monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
+        service._lock_project_for_electrical_task = AsyncMock()  # type: ignore[method-assign]
         _allow_active_task_limits(service)
         project_id = uuid.uuid4()
 
@@ -568,7 +904,86 @@ class TestTaskCreation:
             "include_errors": False,
         }
         assert task.arq_job_id is not None
+        assert TaskService.is_idempotency_replay(task) is False
+        service._lock_project_for_electrical_task.assert_awaited_once_with(project_id)  # type: ignore[attr-defined]
         mock_db.add.assert_called_once()
+
+    async def test_heat_loss_idempotency_key_rejects_changed_payload(
+        self,
+        mock_db,
+        guest_principal: CurrentPrincipal,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
+        project_id = uuid.uuid4()
+        first_request = HeatLossBatchJobRequest(
+            project_id=project_id,
+            include_errors=False,
+        )
+        existing = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_HEAT_LOSS_BATCH,
+            status="succeeded",
+            project_id=project_id,
+            session_id="sid",
+            request_payload=TaskService._heat_loss_payload(first_request),
+            progress_current=0,
+        )
+        service = TaskService(mock_db)
+        service._find_active_by_dedupe = AsyncMock(return_value=existing)  # type: ignore[method-assign]
+        service._lock_project_for_electrical_task = AsyncMock()  # type: ignore[method-assign]
+
+        with pytest.raises(TaskIdempotencyConflictError) as exc_info:
+            await service.create_heat_loss_batch_task(
+                HeatLossBatchJobRequest(
+                    project_id=project_id,
+                    include_errors=True,
+                ),
+                guest_principal,
+                queue=QueueOk(),
+                idempotency_key="heat-one-key-one-operation",
+            )
+
+        assert exc_info.value.code == "TASK_IDEMPOTENCY_KEY_REUSED"
+        mock_db.add.assert_not_called()
+
+    async def test_heat_loss_integrity_recovery_is_marked_as_idempotency_replay(
+        self,
+        mock_db,
+        guest_principal: CurrentPrincipal,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
+        project_id = uuid.uuid4()
+        request = HeatLossBatchJobRequest(project_id=project_id, include_errors=False)
+        existing = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_HEAT_LOSS_BATCH,
+            status="enqueued",
+            project_id=project_id,
+            session_id="sid",
+            request_payload=TaskService._heat_loss_payload(request),
+            progress_current=0,
+        )
+        service = TaskService(mock_db)
+        service._lock_project_for_electrical_task = AsyncMock()  # type: ignore[method-assign]
+        service._find_active_by_dedupe = AsyncMock(  # type: ignore[method-assign]
+            side_effect=[None, existing]
+        )
+        _allow_active_task_limits(service)
+        mock_db.commit.side_effect = [IntegrityError("duplicate", {}, Exception())]
+
+        task = await service.create_heat_loss_batch_task(
+            request,
+            guest_principal,
+            queue=QueueOk(),
+            idempotency_key="same-heat-race",
+        )
+
+        assert task is existing
+        assert TaskService.is_idempotency_replay(task) is True
+        mock_db.rollback.assert_awaited_once()
+        assert service._find_active_by_dedupe.await_count == 2  # type: ignore[attr-defined]
 
     async def test_create_report_export_task_enqueues_and_persists_payload(
         self,
@@ -581,6 +996,11 @@ class TestTaskCreation:
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
         _allow_active_task_limits(service)
         project_id = uuid.uuid4()
+        variant = _allow_electrical_variant(
+            service,
+            project_id,
+            legacy_variant_number=2,
+        )
 
         task = await service.create_report_export_task(
             ReportExportJobRequest(
@@ -597,13 +1017,22 @@ class TestTaskCreation:
         assert task.status == "enqueued"
         assert task.type == TASK_REPORT_EXPORT
         assert task.user_id == employee_principal.user_id
+        assert task.electrical_variant_id == variant.id
         assert task.progress_total == 3
         assert task.request_payload == {
+            "payload_version": 3,
             "project_id": str(project_id),
+            "electrical_variant_id": str(variant.id),
             "format": "pdf",
-            "variant_number": 2,
             "sections": ["summary", "electrical"],
         }
+        service._prepare_legacy_variant_for_enqueue.assert_awaited_once_with(  # type: ignore[attr-defined]
+            project_id,
+            employee_principal,
+            2,
+        )
+        service._lock_project_for_electrical_task.assert_not_awaited()  # type: ignore[attr-defined]
+        service._resolve_electrical_variant.assert_not_awaited()  # type: ignore[attr-defined]
         assert task.arq_job_id is not None
         mock_db.add.assert_called_once()
 
@@ -640,6 +1069,73 @@ class TestTaskCreation:
 
 
 class TestTaskStateTransitions:
+    async def test_v3_worker_uses_uuid_and_ignores_numeric_payload_key(self, mock_db):
+        project_id = uuid.uuid4()
+        variant_id = uuid.uuid4()
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_ELECTRICAL_BATCH,
+            status="running",
+            project_id=project_id,
+            electrical_variant_id=variant_id,
+            session_id="sid",
+            request_payload={},
+            progress_current=0,
+        )
+        service = TaskService(mock_db)
+        service._resolve_electrical_variant = AsyncMock(  # type: ignore[method-assign]
+            return_value=SimpleNamespace(
+                id=variant_id,
+                project_id=project_id,
+                legacy_variant_number=2,
+            )
+        )
+
+        resolved = await service._resolve_worker_electrical_variant(
+            task,
+            {
+                "payload_version": 3,
+                "project_id": str(project_id),
+                "electrical_variant_id": str(variant_id),
+                "variant_number": 4,
+            },
+            db=mock_db,
+            default_legacy_variant_number=1,
+        )
+
+        assert resolved == (2, variant_id)
+        service._resolve_electrical_variant.assert_awaited_once_with(  # type: ignore[attr-defined]
+            project_id,
+            electrical_variant_id=variant_id,
+            legacy_variant_number=None,
+            db=mock_db,
+        )
+
+    async def test_no_version_worker_payload_remains_v2_compatible(self, mock_db):
+        variant_id = uuid.uuid4()
+        task = BackgroundTask(
+            id=uuid.uuid4(),
+            type=TASK_ELECTRICAL_BATCH,
+            status="running",
+            project_id=uuid.uuid4(),
+            electrical_variant_id=variant_id,
+            session_id="sid",
+            request_payload={},
+            progress_current=0,
+        )
+        service = TaskService(mock_db)
+        service._resolve_electrical_variant = AsyncMock()  # type: ignore[method-assign]
+
+        resolved = await service._resolve_worker_electrical_variant(
+            task,
+            {"project_id": str(task.project_id), "variant_number": 3},
+            db=mock_db,
+            default_legacy_variant_number=1,
+        )
+
+        assert resolved == (3, variant_id)
+        service._resolve_electrical_variant.assert_not_awaited()  # type: ignore[attr-defined]
+
     async def test_run_task_cancel_requested_marks_cancelled(self, mock_db):
         task = BackgroundTask(
             id=uuid.uuid4(),
@@ -968,6 +1464,7 @@ class TestTaskStateTransitions:
         assert task.result_payload == {
             "project_id": str(project_id),
             "format": "pdf",
+            "electrical_variant_id": None,
             "variant_number": 2,
             "filename": "report.pdf",
             "media_type": "application/pdf",
@@ -1069,11 +1566,13 @@ class TestTaskResponse:
     def test_to_response_includes_progress_result_and_links(self):
         task_id = uuid.uuid4()
         object_id = uuid.uuid4()
+        variant_id = uuid.uuid4()
         task = BackgroundTask(
             id=task_id,
             type=TASK_ELECTRICAL_BATCH,
             status="succeeded",
             project_id=uuid.uuid4(),
+            electrical_variant_id=variant_id,
             session_id="sid",
             request_payload={},
             result_payload={
@@ -1101,6 +1600,7 @@ class TestTaskResponse:
         response = TaskService.to_response(task)
 
         assert response.progress.percent == 100
+        assert response.electrical_variant_id == variant_id
         assert response.result is not None
         assert response.result.calculated == 1
         assert response.result.results[0].object_id == object_id
@@ -1136,16 +1636,19 @@ class TestTaskResponse:
     def test_to_response_supports_report_export_result(self):
         task_id = uuid.uuid4()
         project_id = uuid.uuid4()
+        variant_id = uuid.uuid4()
         task = BackgroundTask(
             id=task_id,
             type=TASK_REPORT_EXPORT,
             status="succeeded",
             project_id=project_id,
+            electrical_variant_id=variant_id,
             user_id=uuid.uuid4(),
             request_payload={},
             result_payload={
                 "project_id": str(project_id),
                 "format": "pdf",
+                "electrical_variant_id": str(variant_id),
                 "variant_number": 1,
                 "filename": "report.pdf",
                 "media_type": "application/pdf",
@@ -1162,7 +1665,9 @@ class TestTaskResponse:
         response = TaskService.to_response(task)
 
         assert response.progress.percent == 100
+        assert response.electrical_variant_id == variant_id
         assert response.result is not None
+        assert response.result.electrical_variant_id == variant_id
         assert response.result.filename == "report.pdf"
         assert response.links.status.endswith(f"/reports/jobs/{task_id}")
         assert response.links.result.endswith(f"/reports/jobs/{task_id}/download")

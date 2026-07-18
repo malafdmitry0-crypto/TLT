@@ -20,6 +20,8 @@ from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.dependencies import CurrentPrincipal
 from app.models.background_task import BackgroundTask
+from app.models.electrical_variant import ElectricalVariant
+from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.schemas.calculation import (
     BatchCalcResponse,
@@ -35,6 +37,7 @@ from app.schemas.calculation import (
 from app.schemas.report import ReportExportJobRequest, ReportExportTaskResult
 from app.services.audit_service import AuditService
 from app.services.calculation_service import BatchCancelledError, BatchProgress, CalculationService
+from app.services.electrical_variant_service import ElectricalVariantService
 from app.services.project_service import (
     ProjectAccessError,
     ProjectNotFoundError,
@@ -53,6 +56,10 @@ ACTIVE_STATUSES = ("queued", "enqueued", "running")
 TERMINAL_STATUSES = ("succeeded", "failed", "cancelled")
 MAX_TASK_ERROR_MESSAGE_LENGTH = 4_000
 MAX_AUDIT_MESSAGE_LENGTH = 1_000
+ELECTRICAL_VARIANT_NOT_FOUND = "ELECTRICAL_VARIANT_NOT_FOUND"
+ELECTRICAL_VARIANT_LEGACY_ADAPTER_UNAVAILABLE = "ELECTRICAL_VARIANT_LEGACY_ADAPTER_UNAVAILABLE"
+TASK_IDEMPOTENCY_KEY_REUSED = "TASK_IDEMPOTENCY_KEY_REUSED"
+_IDEMPOTENCY_REPLAY_ATTR = "_idempotency_replay"
 WorkerFailureAction = Literal["ack", "retry", "dead_letter"]
 
 
@@ -147,6 +154,19 @@ class TaskLimitError(Exception):
     pass
 
 
+class TaskIdempotencyConflictError(Exception):
+    """An explicit key was already bound to a different operation payload."""
+
+    code = TASK_IDEMPOTENCY_KEY_REUSED
+    message = "Idempotency-Key уже использован для другой операции"
+
+    def __init__(self) -> None:
+        super().__init__(self.message)
+
+    def as_detail(self) -> dict[str, str]:
+        return {"code": self.code, "message": self.message}
+
+
 class TaskService:
     def __init__(
         self,
@@ -156,6 +176,35 @@ class TaskService:
     ) -> None:
         self.db = db
         self.session_factory = session_factory
+
+    @staticmethod
+    def is_idempotency_replay(task: BackgroundTask) -> bool:
+        """Tell API callers whether create returned an existing task binding."""
+        return bool(getattr(task, _IDEMPOTENCY_REPLAY_ATTR, False))
+
+    @staticmethod
+    def audit_result_for_task(
+        task: BackgroundTask,
+    ) -> Literal["success", "failure", "queued", "cancelled"]:
+        """Map durable task state to the constrained audit result vocabulary."""
+        if task.status in ACTIVE_STATUSES:
+            return "queued"
+        if task.status == "succeeded":
+            return "success"
+        if task.status == "failed":
+            return "failure"
+        if task.status == "cancelled":
+            return "cancelled"
+        raise ValueError(f"Unsupported background task status: {task.status}")
+
+    @staticmethod
+    def _mark_idempotency_replay(
+        task: BackgroundTask,
+        *,
+        replay: bool,
+    ) -> BackgroundTask:
+        setattr(task, _IDEMPOTENCY_REPLAY_ATTR, replay)
+        return task
 
     async def _require_project_write(
         self,
@@ -168,6 +217,72 @@ class TaskService:
             raise TaskNotFoundError(str(exc)) from exc
         except ProjectAccessError as exc:
             raise TaskAccessError(str(exc)) from exc
+
+    async def _resolve_electrical_variant(
+        self,
+        project_id: UUID,
+        *,
+        electrical_variant_id: UUID | None,
+        legacy_variant_number: int | None,
+        db: AsyncSession | None = None,
+    ) -> ElectricalVariant:
+        """Resolve one ER inside its project and expose only the legacy bridge."""
+        if electrical_variant_id is not None and legacy_variant_number is not None:
+            raise ValueError("ELECTRICAL_VARIANT_SELECTOR_CONFLICT")
+        stmt = select(ElectricalVariant).where(ElectricalVariant.project_id == project_id)
+        if electrical_variant_id is not None:
+            stmt = stmt.where(ElectricalVariant.id == electrical_variant_id)
+        elif legacy_variant_number is not None:
+            stmt = stmt.where(ElectricalVariant.legacy_variant_number == legacy_variant_number)
+        else:
+            raise ValueError("electrical_variant_id or deprecated variant_number is required")
+
+        result = await (db or self.db).execute(stmt)
+        variant = result.scalar_one_or_none()
+        if variant is None:
+            # Unknown and cross-project UUIDs intentionally have the same result.
+            raise TaskNotFoundError(ELECTRICAL_VARIANT_NOT_FOUND)
+        if variant.legacy_variant_number is None:
+            raise ValueError(ELECTRICAL_VARIANT_LEGACY_ADAPTER_UNAVAILABLE)
+        return variant
+
+    async def _lock_project_for_electrical_task(self, project_id: UUID) -> None:
+        """Serialize enqueue with ER lifecycle mutations on the project row."""
+        result = await self.db.execute(
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if result.scalar_one_or_none() is None:
+            raise TaskNotFoundError(f"Проект {project_id} не найден")
+
+    async def _prepare_legacy_variant_for_enqueue(
+        self,
+        project_id: UUID,
+        principal: CurrentPrincipal,
+        legacy_variant_number: int,
+    ) -> ElectricalVariant:
+        return await ElectricalVariantService(self.db).prepare_legacy_variant_for_write(
+            project_id,
+            principal,
+            legacy_variant_number,
+        )
+
+    async def has_active_tasks_for_electrical_variant(
+        self,
+        project_id: UUID,
+        electrical_variant_id: UUID,
+    ) -> bool:
+        """Lifecycle hook: only active tasks block deletion of an ER."""
+        result = await self.db.execute(
+            select(func.count(BackgroundTask.id)).where(
+                BackgroundTask.project_id == project_id,
+                BackgroundTask.electrical_variant_id == electrical_variant_id,
+                BackgroundTask.status.in_(ACTIVE_STATUSES),
+            )
+        )
+        return int(result.scalar_one()) > 0
 
     async def create_electrical_batch_task(
         self,
@@ -183,6 +298,25 @@ class TaskService:
             "admin",
         ):
             raise TaskAccessError("Расширенный каталог доступен только сотрудникам")
+        # Lifecycle delete takes the same project lock before checking active
+        # tasks. Keep it until the queued task row is committed below.
+        request_values = request.model_dump()
+        legacy_variant_number = request_values["variant_number"]
+        if request.electrical_variant_id is None:
+            if legacy_variant_number is None:
+                raise ValueError("ELECTRICAL_VARIANT_SELECTOR_REQUIRED")
+            variant = await self._prepare_legacy_variant_for_enqueue(
+                request.project_id,
+                principal,
+                legacy_variant_number,
+            )
+        else:
+            await self._lock_project_for_electrical_task(request.project_id)
+            variant = await self._resolve_electrical_variant(
+                request.project_id,
+                electrical_variant_id=request.electrical_variant_id,
+                legacy_variant_number=None,
+            )
         object_ids = await self._validate_object_ids_belong_to_project(
             request.project_id,
             request.object_ids,
@@ -195,6 +329,7 @@ class TaskService:
 
         payload = self._electrical_payload(
             request,
+            electrical_variant_id=variant.id,
             object_ids=object_ids,
             object_overrides=object_overrides,
         )
@@ -205,15 +340,29 @@ class TaskService:
             payload=payload,
             idempotency_key=idempotency_key,
         )
-        existing = await self._find_active_by_dedupe(dedupe_key)
+        explicit_idempotency = bool(idempotency_key)
+        existing = await self._find_active_by_dedupe(
+            dedupe_key,
+            include_terminal=explicit_idempotency,
+        )
         if existing is not None:
-            return existing
+            self._require_matching_idempotency_binding(
+                existing,
+                explicit_idempotency=explicit_idempotency,
+                task_type=TASK_ELECTRICAL_BATCH,
+                project_id=request.project_id,
+                electrical_variant_id=variant.id,
+                payload=payload,
+            )
+            await self.db.commit()
+            return self._mark_idempotency_replay(existing, replay=True)
         await self._enforce_active_task_limits(request.project_id, principal)
 
         task = BackgroundTask(
             type=TASK_ELECTRICAL_BATCH,
             status="queued",
             project_id=request.project_id,
+            electrical_variant_id=variant.id,
             user_id=principal.user_id,
             session_id=principal.session_id,
             request_payload=payload,
@@ -230,15 +379,26 @@ class TaskService:
             await self.db.commit()
         except IntegrityError:
             await self.db.rollback()
-            existing = await self._find_active_by_dedupe(dedupe_key)
+            existing = await self._find_active_by_dedupe(
+                dedupe_key,
+                include_terminal=explicit_idempotency,
+            )
             if existing is None:
                 raise
-            return existing
+            self._require_matching_idempotency_binding(
+                existing,
+                explicit_idempotency=explicit_idempotency,
+                task_type=TASK_ELECTRICAL_BATCH,
+                project_id=request.project_id,
+                electrical_variant_id=variant.id,
+                payload=payload,
+            )
+            return self._mark_idempotency_replay(existing, replay=True)
         await self.db.refresh(task)
 
         queue = queue or TaskQueue()
         await self.enqueue_existing_task(task, queue=queue)
-        return task
+        return self._mark_idempotency_replay(task, replay=False)
 
     async def create_heat_loss_batch_task(
         self,
@@ -249,6 +409,10 @@ class TaskService:
         idempotency_key: str | None = None,
     ) -> BackgroundTask:
         await self._require_project_write(request.project_id, principal)
+        # Keep the dedupe lookup and insert in one project-scoped critical
+        # section. Otherwise an explicit-key retry can observe no active
+        # binding after the first request turns terminal and create a duplicate.
+        await self._lock_project_for_electrical_task(request.project_id)
 
         payload = self._heat_loss_payload(request)
         dedupe_key = self._dedupe_key(
@@ -258,9 +422,22 @@ class TaskService:
             payload=payload,
             idempotency_key=idempotency_key,
         )
-        existing = await self._find_active_by_dedupe(dedupe_key)
+        explicit_idempotency = bool(idempotency_key)
+        existing = await self._find_active_by_dedupe(
+            dedupe_key,
+            include_terminal=explicit_idempotency,
+        )
         if existing is not None:
-            return existing
+            self._require_matching_idempotency_binding(
+                existing,
+                explicit_idempotency=explicit_idempotency,
+                task_type=TASK_HEAT_LOSS_BATCH,
+                project_id=request.project_id,
+                electrical_variant_id=None,
+                payload=payload,
+            )
+            await self.db.commit()
+            return self._mark_idempotency_replay(existing, replay=True)
         await self._enforce_active_task_limits(request.project_id, principal)
 
         task = BackgroundTask(
@@ -283,15 +460,26 @@ class TaskService:
             await self.db.commit()
         except IntegrityError:
             await self.db.rollback()
-            existing = await self._find_active_by_dedupe(dedupe_key)
+            existing = await self._find_active_by_dedupe(
+                dedupe_key,
+                include_terminal=explicit_idempotency,
+            )
             if existing is None:
                 raise
-            return existing
+            self._require_matching_idempotency_binding(
+                existing,
+                explicit_idempotency=explicit_idempotency,
+                task_type=TASK_HEAT_LOSS_BATCH,
+                project_id=request.project_id,
+                electrical_variant_id=None,
+                payload=payload,
+            )
+            return self._mark_idempotency_replay(existing, replay=True)
         await self.db.refresh(task)
 
         queue = queue or TaskQueue()
         await self.enqueue_existing_task(task, queue=queue)
-        return task
+        return self._mark_idempotency_replay(task, replay=False)
 
     async def create_report_export_task(
         self,
@@ -305,7 +493,28 @@ class TaskService:
             raise TaskAccessError("Экспорт отчёта доступен только сотрудникам")
         await self._require_project_write(request.project_id, principal)
 
-        payload = self._report_export_payload(request)
+        request_values = request.model_dump()
+        legacy_variant_number = request_values["variant_number"]
+        if request.electrical_variant_id is None:
+            if legacy_variant_number is None:
+                raise ValueError("ELECTRICAL_VARIANT_SELECTOR_REQUIRED")
+            variant = await self._prepare_legacy_variant_for_enqueue(
+                request.project_id,
+                principal,
+                legacy_variant_number,
+            )
+        else:
+            await self._lock_project_for_electrical_task(request.project_id)
+            variant = await self._resolve_electrical_variant(
+                request.project_id,
+                electrical_variant_id=request.electrical_variant_id,
+                legacy_variant_number=None,
+            )
+
+        payload = self._report_export_payload(
+            request,
+            electrical_variant_id=variant.id,
+        )
         dedupe_key = self._dedupe_key(
             task_type=TASK_REPORT_EXPORT,
             project_id=request.project_id,
@@ -313,15 +522,29 @@ class TaskService:
             payload=payload,
             idempotency_key=idempotency_key,
         )
-        existing = await self._find_active_by_dedupe(dedupe_key)
+        explicit_idempotency = bool(idempotency_key)
+        existing = await self._find_active_by_dedupe(
+            dedupe_key,
+            include_terminal=explicit_idempotency,
+        )
         if existing is not None:
-            return existing
+            self._require_matching_idempotency_binding(
+                existing,
+                explicit_idempotency=explicit_idempotency,
+                task_type=TASK_REPORT_EXPORT,
+                project_id=request.project_id,
+                electrical_variant_id=variant.id,
+                payload=payload,
+            )
+            await self.db.commit()
+            return self._mark_idempotency_replay(existing, replay=True)
         await self._enforce_active_task_limits(request.project_id, principal)
 
         task = BackgroundTask(
             type=TASK_REPORT_EXPORT,
             status="queued",
             project_id=request.project_id,
+            electrical_variant_id=variant.id,
             user_id=principal.user_id,
             session_id=principal.session_id,
             request_payload=payload,
@@ -338,15 +561,26 @@ class TaskService:
             await self.db.commit()
         except IntegrityError:
             await self.db.rollback()
-            existing = await self._find_active_by_dedupe(dedupe_key)
+            existing = await self._find_active_by_dedupe(
+                dedupe_key,
+                include_terminal=explicit_idempotency,
+            )
             if existing is None:
                 raise
-            return existing
+            self._require_matching_idempotency_binding(
+                existing,
+                explicit_idempotency=explicit_idempotency,
+                task_type=TASK_REPORT_EXPORT,
+                project_id=request.project_id,
+                electrical_variant_id=variant.id,
+                payload=payload,
+            )
+            return self._mark_idempotency_replay(existing, replay=True)
         await self.db.refresh(task)
 
         queue = queue or TaskQueue()
         await self.enqueue_existing_task(task, queue=queue)
-        return task
+        return self._mark_idempotency_replay(task, replay=False)
 
     async def get_task_for_principal(
         self,
@@ -602,6 +836,9 @@ class TaskService:
         if task.status in ACTIVE_STATUSES:
             raise TaskLimitError("Задача уже находится в очереди или выполняется")
 
+        if task.type in (TASK_ELECTRICAL_BATCH, TASK_REPORT_EXPORT):
+            await self._validate_and_upgrade_replayed_electrical_task(task)
+
         now = datetime.now(UTC)
         task.status = "queued"
         task.result_payload = None
@@ -628,6 +865,60 @@ class TaskService:
             removed = await queue.delete_dead_letter(stream_id) > 0
         return task, removed
 
+    async def _validate_and_upgrade_replayed_electrical_task(
+        self,
+        task: BackgroundTask,
+    ) -> None:
+        """Serialize replay with deletion and normalize representable v2 payloads."""
+        if task.project_id is None or task.electrical_variant_id is None:
+            raise ValueError("ELECTRICAL_VARIANT_REPLAY_SCOPE_MISSING")
+
+        await self._lock_project_for_electrical_task(task.project_id)
+        await self.db.refresh(task)
+        if task.status in ACTIVE_STATUSES:
+            raise TaskLimitError("Задача уже находится в очереди или выполняется")
+
+        payload = dict(task.request_payload or {})
+        try:
+            payload_project_id = UUID(str(payload["project_id"]))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("ELECTRICAL_VARIANT_TASK_SCOPE_MISMATCH") from exc
+        if payload_project_id != task.project_id:
+            raise ValueError("ELECTRICAL_VARIANT_TASK_SCOPE_MISMATCH")
+
+        variant = await self._resolve_electrical_variant(
+            task.project_id,
+            electrical_variant_id=task.electrical_variant_id,
+            legacy_variant_number=None,
+        )
+        raw_version = payload.get("payload_version")
+        if raw_version is None or raw_version == 2:
+            raw_variant_number = payload.get(
+                "variant_number",
+                1 if task.type == TASK_ELECTRICAL_BATCH else None,
+            )
+            try:
+                legacy_variant_number = int(raw_variant_number)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("ELECTRICAL_VARIANT_TASK_SCOPE_MISMATCH") from exc
+            if variant.legacy_variant_number != legacy_variant_number:
+                raise ValueError("ELECTRICAL_VARIANT_TASK_SCOPE_MISMATCH")
+        elif raw_version == 3:
+            try:
+                payload_variant_id = UUID(str(payload["electrical_variant_id"]))
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError("ELECTRICAL_VARIANT_TASK_SCOPE_MISMATCH") from exc
+            if payload_variant_id != task.electrical_variant_id:
+                raise ValueError("ELECTRICAL_VARIANT_TASK_SCOPE_MISMATCH")
+        else:
+            raise ValueError(f"UNSUPPORTED_TASK_PAYLOAD_VERSION: {raw_version}")
+
+        payload["payload_version"] = 3
+        payload["project_id"] = str(task.project_id)
+        payload["electrical_variant_id"] = str(task.electrical_variant_id)
+        payload.pop("variant_number", None)
+        task.request_payload = payload
+
     async def _run_electrical_batch(self, task_id: UUID) -> None:
         task = await self.db.get(BackgroundTask, task_id)
         if task is None:
@@ -648,6 +939,15 @@ class TaskService:
                 for item in payload.get("object_overrides") or []
             ]
             async with self.session_factory() as calc_db:
+                (
+                    variant_number,
+                    electrical_variant_id,
+                ) = await self._resolve_worker_electrical_variant(
+                    task,
+                    payload,
+                    db=calc_db,
+                    default_legacy_variant_number=1,
+                )
                 service = CalculationService(calc_db)
                 (
                     calculated,
@@ -658,7 +958,7 @@ class TaskService:
                 ) = await service.batch_calc_electrical(
                     UUID(payload["project_id"]),
                     payload.get("cable_source", "builtin"),
-                    int(payload.get("variant_number", 1)),
+                    variant_number,
                     payload.get("cable_type", "self_regulating"),
                     payload.get("electrical_params") or {},
                     skip_manual=bool(payload.get("skip_manual", True)),
@@ -682,6 +982,10 @@ class TaskService:
         include_errors = bool(payload.get("include_errors", True))
         include_results = bool(payload.get("include_results", False))
         result_payload = {
+            "electrical_variant_id": (
+                str(electrical_variant_id) if electrical_variant_id is not None else None
+            ),
+            "variant_number": variant_number,
             "calculated": calculated,
             "skipped": skipped,
             "scope": "selected" if payload.get("object_ids") else "all",
@@ -752,12 +1056,20 @@ class TaskService:
             project_id = UUID(payload["project_id"])
             fmt = payload["format"]
             sections = payload.get("sections")
-            variant_number = int(payload["variant_number"])
             await self._update_progress(task_id, BatchProgress(current=1, total=3, phase="load"))
             if await self._should_cancel(task_id):
                 await self._mark_cancelled(task_id)
                 return
             async with self.session_factory() as report_db:
+                (
+                    variant_number,
+                    electrical_variant_id,
+                ) = await self._resolve_worker_electrical_variant(
+                    task,
+                    payload,
+                    db=report_db,
+                    default_legacy_variant_number=None,
+                )
                 data = await ReportService(report_db).export_trusted(
                     project_id,
                     fmt,
@@ -780,6 +1092,9 @@ class TaskService:
         result_payload = {
             "project_id": str(project_id),
             "format": fmt,
+            "electrical_variant_id": (
+                str(electrical_variant_id) if electrical_variant_id is not None else None
+            ),
             "variant_number": variant_number,
             "filename": filename,
             "media_type": _REPORT_MEDIA_TYPES[fmt],
@@ -787,6 +1102,46 @@ class TaskService:
             **artifact,
         }
         await self._mark_succeeded(task_id, result_payload)
+
+    async def _resolve_worker_electrical_variant(
+        self,
+        task: BackgroundTask,
+        payload: dict[str, Any],
+        *,
+        db: AsyncSession,
+        default_legacy_variant_number: int | None,
+    ) -> tuple[int, UUID | None]:
+        """Resolve v3 UUID payloads; keep no-version/v2 task replay compatible."""
+        raw_version = payload.get("payload_version")
+        if raw_version is None or raw_version == 2:
+            raw_variant_number = payload.get(
+                "variant_number",
+                default_legacy_variant_number,
+            )
+            if raw_variant_number is None:
+                raise ValueError("deprecated variant_number is required for v2 task payload")
+            return int(raw_variant_number), task.electrical_variant_id
+        if raw_version != 3:
+            raise ValueError(f"UNSUPPORTED_TASK_PAYLOAD_VERSION: {raw_version}")
+
+        try:
+            project_id = UUID(str(payload["project_id"]))
+            electrical_variant_id = UUID(str(payload["electrical_variant_id"]))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("INVALID_ELECTRICAL_VARIANT_V3_PAYLOAD") from exc
+        if task.project_id != project_id or task.electrical_variant_id != electrical_variant_id:
+            raise ValueError("ELECTRICAL_VARIANT_TASK_SCOPE_MISMATCH")
+
+        variant = await self._resolve_electrical_variant(
+            project_id,
+            electrical_variant_id=electrical_variant_id,
+            legacy_variant_number=None,
+            db=db,
+        )
+        # The legacy implementation still requires the bridge number. The UUID
+        # is re-resolved on every worker run and any numeric v3 key is ignored.
+        assert variant.legacy_variant_number is not None
+        return variant.legacy_variant_number, variant.id
 
     async def _update_progress(self, task_id: UUID, progress: BatchProgress) -> None:
         async with self.session_factory() as db:
@@ -922,6 +1277,7 @@ class TaskService:
             "skipped",
             "heat_loss_failed",
             "format",
+            "electrical_variant_id",
             "variant_number",
         )
         summary = {key: result_payload[key] for key in summary_keys if key in result_payload}
@@ -933,17 +1289,37 @@ class TaskService:
             summary["artifact_name"] = result_payload["artifact_name"]
         return summary
 
-    async def _find_active_by_dedupe(self, dedupe_key: str) -> BackgroundTask | None:
-        result = await self.db.execute(
-            select(BackgroundTask)
-            .where(
-                BackgroundTask.idempotency_key == dedupe_key,
-                BackgroundTask.status.in_(ACTIVE_STATUSES),
-            )
-            .order_by(BackgroundTask.created_at.desc())
-            .limit(1)
-        )
+    async def _find_active_by_dedupe(
+        self,
+        dedupe_key: str,
+        *,
+        include_terminal: bool = False,
+    ) -> BackgroundTask | None:
+        stmt = select(BackgroundTask).where(BackgroundTask.idempotency_key == dedupe_key)
+        if not include_terminal:
+            stmt = stmt.where(BackgroundTask.status.in_(ACTIVE_STATUSES))
+        result = await self.db.execute(stmt.order_by(BackgroundTask.created_at.desc()).limit(1))
         return result.scalar_one_or_none()
+
+    @staticmethod
+    def _require_matching_idempotency_binding(
+        task: BackgroundTask,
+        *,
+        explicit_idempotency: bool,
+        task_type: str,
+        project_id: UUID,
+        electrical_variant_id: UUID | None,
+        payload: dict[str, Any],
+    ) -> None:
+        if not explicit_idempotency:
+            return
+        if (
+            task.type != task_type
+            or task.project_id != project_id
+            or task.electrical_variant_id != electrical_variant_id
+            or task.request_payload != payload
+        ):
+            raise TaskIdempotencyConflictError
 
     async def _enforce_active_task_limits(
         self,
@@ -1063,13 +1439,15 @@ class TaskService:
     def _electrical_payload(
         request: ElectricalBatchJobRequest,
         *,
+        electrical_variant_id: UUID,
         object_ids: list[UUID] | None,
         object_overrides: list[dict[str, str]] | None,
     ) -> dict[str, Any]:
         payload = {
+            "payload_version": 3,
             "project_id": str(request.project_id),
+            "electrical_variant_id": str(electrical_variant_id),
             "cable_source": request.cable_source,
-            "variant_number": request.variant_number,
             "cable_type": request.cable_type,
             "force_cable_type": request.force_cable_type,
             "electrical_params": request.electrical_params(),
@@ -1094,11 +1472,16 @@ class TaskService:
         return payload
 
     @staticmethod
-    def _report_export_payload(request: ReportExportJobRequest) -> dict[str, Any]:
+    def _report_export_payload(
+        request: ReportExportJobRequest,
+        *,
+        electrical_variant_id: UUID,
+    ) -> dict[str, Any]:
         payload = {
+            "payload_version": 3,
             "project_id": str(request.project_id),
+            "electrical_variant_id": str(electrical_variant_id),
             "format": request.format,
-            "variant_number": request.variant_number,
         }
         if request.sections is not None:
             payload["sections"] = request.sections
@@ -1113,6 +1496,9 @@ class TaskService:
         payload: dict[str, Any],
         idempotency_key: str | None,
     ) -> str:
+        # An explicit key is scoped by task type + project + principal. The
+        # payload stays out of this group hash deliberately: a changed ER or
+        # payload must find the original binding and produce a stable 409.
         owner = (
             f"session:{principal.session_id}"
             if principal.role == "guest"
@@ -1161,6 +1547,11 @@ class TaskService:
                 result = ReportExportTaskResult(
                     project_id=UUID(str(task.result_payload["project_id"])),
                     format=task.result_payload["format"],
+                    electrical_variant_id=(
+                        UUID(str(task.result_payload["electrical_variant_id"]))
+                        if task.result_payload.get("electrical_variant_id") is not None
+                        else task.electrical_variant_id
+                    ),
                     variant_number=int(task.result_payload["variant_number"]),
                     filename=task.result_payload["filename"],
                     media_type=task.result_payload["media_type"],
@@ -1178,6 +1569,7 @@ class TaskService:
             type=task.type,
             status=task.status,
             project_id=task.project_id,
+            electrical_variant_id=task.electrical_variant_id,
             progress=CalculationTaskProgress(
                 current=task.progress_current,
                 total=total,

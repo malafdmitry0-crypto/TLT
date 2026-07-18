@@ -2,12 +2,18 @@
 
 import enum
 import uuid
+from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.electrical_variant import ElectricalVariant
+    from app.models.project_object import ProjectObject
 
 
 class ProjectStatus(str, enum.Enum):
@@ -49,9 +55,18 @@ class Project(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(
         project_status_enum, default=ProjectStatus.draft.value, nullable=False
     )
+    electrical_initialized_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
-    objects: Mapped[list["ProjectObject"]] = relationship(  # noqa: F821
+    objects: Mapped[list["ProjectObject"]] = relationship(
         back_populates="project",
         cascade="all, delete-orphan",
         order_by="ProjectObject.sort_order",
+    )
+    electrical_variants: Mapped[list["ElectricalVariant"]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="ElectricalVariant.sort_order",
     )

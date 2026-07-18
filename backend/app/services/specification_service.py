@@ -52,6 +52,7 @@ class SpecificationService:
         commit: bool = True,
         mode: str | None = None,
         options: SpecificationOptions | None = None,
+        electrical_variant_id: UUID | None = None,
     ) -> SpecificationGenerateResult:
         """Генерирует спецификацию.
 
@@ -139,9 +140,7 @@ class SpecificationService:
             # Общее число объектов проекта — аксессуары заказываются на каждый
             # заявленный объект, даже если электрорасчёт для него не выполнен.
             total_objects = await self.db.scalar(
-                select(func.count(ProjectObject.id)).where(
-                    ProjectObject.project_id == project_id
-                )
+                select(func.count(ProjectObject.id)).where(ProjectObject.project_id == project_id)
             )
             auto_items = build_basic_specification(
                 electrical_results,
@@ -159,21 +158,22 @@ class SpecificationService:
             items_payload=[i.model_dump() for i in items],
             generation_mode=mode,
             generation_options=(options.model_dump() if options else None),
+            electrical_variant_id=electrical_variant_id,
         )
 
         if commit:
             await self.db.commit()
         else:
             await self.db.flush()
-        return SpecificationGenerateResult(
-            items=items, mode=mode, skipped_objects=skipped_objects
-        )
+        return SpecificationGenerateResult(items=items, mode=mode, skipped_objects=skipped_objects)
 
     async def save_items(
         self,
         project_id: UUID,
         items: list[SpecificationItem],
         variant_number: int = 1,
+        *,
+        electrical_variant_id: UUID | None = None,
     ) -> list[SpecificationItem]:
         """Полностью замещает items спецификации варианта (или создаёт её)."""
         payload = [i.model_dump() for i in items]
@@ -181,6 +181,7 @@ class SpecificationService:
             project_id=project_id,
             variant_number=variant_number,
             items_payload=payload,
+            electrical_variant_id=electrical_variant_id,
         )
         await self.db.commit()
         return items
@@ -233,6 +234,7 @@ class SpecificationService:
         items_payload: list[dict[str, Any]],
         generation_mode: str | None = None,
         generation_options: dict[str, Any] | None = None,
+        electrical_variant_id: UUID | None = None,
     ) -> Specification:
         """Upsert спецификации.
 
@@ -242,6 +244,7 @@ class SpecificationService:
         values: dict[str, Any] = dict(
             project_id=project_id,
             variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
             items=items_payload,
             is_stale=False,
             stale_reason=None,
@@ -263,6 +266,8 @@ class SpecificationService:
         if generation_mode is not None:
             set_["generation_mode"] = insert_stmt.excluded["generation_mode"]
             set_["generation_options"] = insert_stmt.excluded["generation_options"]
+        if electrical_variant_id is not None:
+            set_["electrical_variant_id"] = insert_stmt.excluded["electrical_variant_id"]
         upsert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=["project_id", "variant_number"],
             set_=set_,

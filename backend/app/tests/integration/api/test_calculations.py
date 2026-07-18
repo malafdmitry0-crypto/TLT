@@ -1040,9 +1040,9 @@ class TestElectricalCandidateDedupe:
                 "mode": "manual",
                 "cable_mark": auto_candidate["cable_mark"],
                 "electrical_params": {
-                    "number_of_threads": (
-                        auto_candidate.get("results", {}) or {}
-                    ).get("num_circuits")
+                    "number_of_threads": (auto_candidate.get("results", {}) or {}).get(
+                        "num_circuits"
+                    )
                     or (auto_candidate.get("results", {}) or {}).get("applied_number_of_threads"),
                 },
             },
@@ -1445,6 +1445,85 @@ class TestElectricalCandidateDedupe:
 
 
 class TestElectricalCalculationContinued:
+    async def test_legacy_sync_batch_prepares_only_er1_and_requested_er4(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        project = await _create_project(client, guest_session)
+        await _create_pipe_object(client, project["id"], guest_session)
+
+        response = await client.post(
+            "/api/v1/calc/electrical/batch",
+            params={"project_id": project["id"], "variant_number": 4},
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert response.status_code == 200, response.text
+        variants = await client.get(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert variants.status_code == 200, variants.text
+        assert [item["legacy_variant_number"] for item in variants.json()] == [1, 4]
+
+    async def test_legacy_multi_select_prepares_slots_one_and_four_atomically(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        project = await _create_project(client, guest_session)
+        obj = await _create_pipe_object(client, project["id"], guest_session)
+
+        response = await client.post(
+            "/api/v1/calc/electrical/select-cable/variants",
+            json={
+                "object_id": obj["id"],
+                "variant_numbers": [1, 4],
+                "cable_mark": None,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert response.status_code == 200, response.text
+        assert {item["variant_number"] for item in response.json()} == {1, 4}
+        variants = await client.get(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert [item["legacy_variant_number"] for item in variants.json()] == [1, 4]
+
+    async def test_legacy_copy_prepares_target_er4_without_er2_or_er3(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        project = await _create_project(client, guest_session)
+        await _create_pipe_object(client, project["id"], guest_session)
+        batch = await client.post(
+            "/api/v1/calc/electrical/batch",
+            params={"project_id": project["id"], "variant_number": 1},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert batch.status_code == 200, batch.text
+
+        response = await client.post(
+            "/api/v1/calc/electrical/variants/copy",
+            json={
+                "project_id": project["id"],
+                "source_variant_number": 1,
+                "target_variant_number": 4,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert response.status_code == 200, response.text
+        variants = await client.get(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert [item["legacy_variant_number"] for item in variants.json()] == [1, 4]
+
     async def test_copy_electrical_variant_validates_exact_copied_choice_without_autopick(
         self, client: AsyncClient, guest_session: str
     ):

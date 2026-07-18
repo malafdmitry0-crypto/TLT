@@ -17,11 +17,13 @@ from app.core.rate_limit import enforce_principal_rate_limit, job_enqueue_limite
 from app.schemas.calculation import CalculationTaskResponse
 from app.schemas.report import ReportExportJobRequest, ReportPreviewResponse
 from app.services.audit_service import AuditService
+from app.services.electrical_variant_service import ElectricalVariantServiceError
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 from app.services.report_artifact_service import report_artifact_path
 from app.services.report_service import ReportError, ReportService
 from app.services.task_service import (
     TaskAccessError,
+    TaskIdempotencyConflictError,
     TaskLimitError,
     TaskNotFoundError,
     TaskService,
@@ -37,6 +39,13 @@ MEDIA_TYPES = {
 
 
 def _raise_task_error(exc: Exception) -> None:
+    if isinstance(exc, ElectricalVariantServiceError):
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+    if isinstance(exc, TaskIdempotencyConflictError):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=exc.as_detail(),
+        ) from exc
     if isinstance(exc, TaskNotFoundError):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     if isinstance(exc, TaskAccessError):
@@ -176,7 +185,8 @@ async def enqueue_export_job(
     format: str,
     request: Request,
     sections: list[str] | None = Query(default=None),
-    variant_number: int = Query(..., ge=1, le=4),
+    electrical_variant_id: UUID | None = Query(default=None),
+    variant_number: int | None = Query(default=None, ge=1, le=4, deprecated=True),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
@@ -192,10 +202,24 @@ async def enqueue_export_job(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Неподдерживаемый формат: {format}",
         )
+    if electrical_variant_id is None and variant_number is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="electrical_variant_id or deprecated variant_number is required",
+        )
+    if electrical_variant_id is not None and variant_number is not None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "code": "ELECTRICAL_VARIANT_SELECTOR_CONFLICT",
+                "message": "Передайте только electrical_variant_id или variant_number",
+            },
+        )
     job_request = ReportExportJobRequest(
         project_id=project_id,
         format=format,
         sections=sections,
+        electrical_variant_id=electrical_variant_id,
         variant_number=variant_number,
     )
     try:
@@ -206,20 +230,33 @@ async def enqueue_export_job(
         )
     except Exception as exc:
         _raise_task_error(exc)
+    idempotency_replay = TaskService.is_idempotency_replay(task)
     await AuditService(db).try_record(
-        event_type="task.report_export.queued",
+        event_type=(
+            "task.report_export.idempotency_replayed"
+            if idempotency_replay
+            else "task.report_export.queued"
+        ),
         category="task",
         principal=principal,
         project_id=project_id,
         task_id=task.id,
-        result="queued",
+        result=TaskService.audit_result_for_task(task),
         details={
             "format": format,
             "sections": sections,
-            "variant_number": variant_number,
+            "electrical_variant_id": (
+                str(task.electrical_variant_id) if task.electrical_variant_id is not None else None
+            ),
             "idempotency_key_present": bool(idempotency_key),
+            "idempotency_replay": idempotency_replay,
+            "task_status": task.status,
         },
-        message="Поставлен в очередь экспорт отчёта",
+        message=(
+            "Идемпотентный повтор вернул существующую задачу экспорта отчёта"
+            if idempotency_replay
+            else "Поставлен в очередь экспорт отчёта"
+        ),
     )
     return TaskService.to_response(task)
 

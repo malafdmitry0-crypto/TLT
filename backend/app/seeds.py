@@ -26,6 +26,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 
 from app.core.database import AsyncSessionLocal
+from app.core.dependencies import CurrentPrincipal
 from app.core.security import hash_password
 from app.formulas.electrical.self_regulating import calc_self_regulating
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
@@ -52,6 +53,7 @@ from app.schemas.calculation import (
     SelfRegulatingParams,
     TankHeatLossParams,
 )
+from app.services.electrical_variant_service import ElectricalVariantService
 
 logger = logging.getLogger("seeds")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -1477,6 +1479,7 @@ async def seed_objects_and_calculations(
     db,
     projects: list[Project],
     coefficients_list: list[CorrectionCoefficient],
+    principal: CurrentPrincipal,
 ) -> None:
     """Создаёт объекты с реальными расчётами теплопотерь и электрорасчётами."""
     coefficients = _get_coefficients_dict(coefficients_list)
@@ -1588,6 +1591,13 @@ async def seed_objects_and_calculations(
 
         await db.flush()
 
+        # Seed writes follow the same readiness-gated numeric compatibility
+        # adapter as the API.  This creates the project-scoped UUID variant and
+        # all object assignments before any downstream row is inserted.
+        electrical_variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
+            project.id, principal, 1
+        )
+
         # Электрорасчёт только для pipe-объектов этого проекта
         pipe_objects_result = await db.execute(
             select(ProjectObject).where(
@@ -1648,6 +1658,7 @@ async def seed_objects_and_calculations(
                 project_id=project.id,
                 object_id=pipe_obj.id,
                 variant_number=1,
+                electrical_variant_id=electrical_variant.id,
                 cable_type="self_regulating",
                 cable_mark=cable_mark,
                 params={
@@ -1664,7 +1675,11 @@ async def seed_objects_and_calculations(
         await db.flush()
 
 
-async def seed_specifications(db, projects: list[Project]) -> None:
+async def seed_specifications(
+    db,
+    projects: list[Project],
+    principal: CurrentPrincipal,
+) -> None:
     """Генерирует спецификации для проектов, у которых есть электрорасчёты."""
     for project in projects:
         # Собираем результаты электрорасчётов
@@ -1674,6 +1689,10 @@ async def seed_specifications(db, projects: list[Project]) -> None:
         calcs = list(calcs_result.scalars().all())
         if not calcs:
             continue
+
+        electrical_variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
+            project.id, principal, 1
+        )
 
         electrical_results = [c.results or {} for c in calcs]
         items = build_basic_specification(electrical_results)
@@ -1690,6 +1709,7 @@ async def seed_specifications(db, projects: list[Project]) -> None:
             spec = Specification(
                 project_id=project.id,
                 variant_number=1,
+                electrical_variant_id=electrical_variant.id,
                 items=items_payload,
             )
             db.add(spec)
@@ -1698,13 +1718,15 @@ async def seed_specifications(db, projects: list[Project]) -> None:
                 project.name,
                 len(items_payload),
             )
-        elif existing.items != items_payload:
-            existing.items = items_payload
-            logger.info(
-                "  ~ refresh specification for '%s' (%d позиций)",
-                project.name,
-                len(items_payload),
-            )
+        else:
+            existing.electrical_variant_id = electrical_variant.id
+            if existing.items != items_payload:
+                existing.items = items_payload
+                logger.info(
+                    "  ~ refresh specification for '%s' (%d позиций)",
+                    project.name,
+                    len(items_payload),
+                )
 
     await db.flush()
 
@@ -1722,6 +1744,13 @@ async def run_seeds() -> None:
         admin_result = await db.execute(select(User).where(User.role == "admin").limit(1))
         admin = admin_result.scalar_one_or_none()
         admin_id = admin.id if admin else None
+        if admin is None:
+            raise RuntimeError("Seed requires an admin principal")
+        seed_principal = CurrentPrincipal(
+            role="admin",
+            user_id=admin.id,
+            email=admin.email,
+        )
 
         logger.info("=== Seed: correction coefficients ===")
         coefficients = await seed_coefficients(db, admin_id)
@@ -1739,10 +1768,15 @@ async def run_seeds() -> None:
         projects = await seed_projects(db, users)
 
         logger.info("=== Seed: project_objects + heat_loss + electrical_calculations ===")
-        await seed_objects_and_calculations(db, projects, coefficients)
+        await seed_objects_and_calculations(
+            db,
+            projects,
+            coefficients,
+            seed_principal,
+        )
 
         logger.info("=== Seed: specifications ===")
-        await seed_specifications(db, projects)
+        await seed_specifications(db, projects, seed_principal)
 
         await db.commit()
         logger.info("=== Seeds complete ===")

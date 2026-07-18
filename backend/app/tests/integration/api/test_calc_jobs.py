@@ -1,12 +1,19 @@
 """Integration tests for asynchronous calculation tasks."""
 
+import asyncio
 from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.services.task_service import TaskService
+from app.core.dependencies import CurrentPrincipal
+from app.models.audit_event import AuditEvent
+from app.models.background_task import BackgroundTask
+from app.models.project import Project
+from app.schemas.calculation import HeatLossBatchJobRequest
+from app.services.task_service import TASK_HEAT_LOSS_BATCH, TaskService
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -48,12 +55,147 @@ async def _create_pipe(client: AsyncClient, project_id: str, session_id: str) ->
     return resp.json()
 
 
+async def _initialize_electrical_variants(
+    client: AsyncClient,
+    project_id: str,
+    session_id: str,
+) -> dict:
+    resp = await client.post(
+        f"/api/v1/projects/{project_id}/electrical-variants/initialize",
+        headers={"X-Session-Id": session_id},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["project_id"] == project_id
+    assert body["variant"]["legacy_variant_number"] == 1
+    return body["variant"]
+
+
 class TestCalcJobs:
-    async def test_enqueue_status_and_idempotency(
-        self, client: AsyncClient, guest_session: str, monkeypatch: pytest.MonkeyPatch
+    async def test_first_legacy_numeric_one_enqueue_initializes_er1_atomically(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
         project = await _guest_project(client, guest_session)
+        await _create_pipe(client, project["id"], guest_session)
+
+        response = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json={"project_id": project["id"], "variant_number": 1},
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert response.status_code == 202, response.text
+        variants = await client.get(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert variants.status_code == 200, variants.text
+        assert [item["legacy_variant_number"] for item in variants.json()] == [1]
+        assert response.json()["electrical_variant_id"] == variants.json()[0]["id"]
+        assert variants.json()[0]["is_active"] is True
+
+    async def test_first_legacy_numeric_four_enqueue_creates_only_er1_and_er4(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        project = await _guest_project(client, guest_session)
+        await _create_pipe(client, project["id"], guest_session)
+
+        response = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json={"project_id": project["id"], "variant_number": 4},
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert response.status_code == 202, response.text
+        variants = await client.get(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert variants.status_code == 200, variants.text
+        body = variants.json()
+        assert [item["legacy_variant_number"] for item in body] == [1, 4]
+        assert response.json()["electrical_variant_id"] == body[1]["id"]
+
+    async def test_first_legacy_numeric_enqueue_returns_structured_readiness_error(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        project = await _guest_project(client, guest_session)
+
+        response = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json={"project_id": project["id"], "variant_number": 1},
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert response.status_code == 409, response.text
+        assert response.json()["detail"]["code"] == "ELECTRICAL_READINESS_FAILED"
+        assert response.json()["detail"]["issues"]
+
+    async def test_enqueue_rejects_ambiguous_uuid_and_legacy_number(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        project = await _guest_project(client, guest_session)
+
+        response = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json={
+                "project_id": project["id"],
+                "electrical_variant_id": "00000000-0000-0000-0000-000000000001",
+                "variant_number": 1,
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert response.status_code == 422, response.text
+        assert "ELECTRICAL_VARIANT_SELECTOR_CONFLICT" in response.text
+
+    async def test_enqueue_rejects_explicit_null_variant_selector(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        project = await _guest_project(client, guest_session)
+
+        response = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json={"project_id": project["id"], "variant_number": None},
+            headers={"X-Session-Id": guest_session},
+        )
+
+        assert response.status_code == 422, response.text
+        assert "ELECTRICAL_VARIANT_SELECTOR_REQUIRED" in response.text
+        variants = await client.get(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            headers={"X-Session-Id": guest_session},
+        )
+        assert variants.status_code == 200, variants.text
+        assert variants.json() == []
+
+    async def test_enqueue_status_and_idempotency(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        project = await _guest_project(client, guest_session)
+        await _create_pipe(client, project["id"], guest_session)
+        await _initialize_electrical_variants(client, project["id"], guest_session)
         payload = {"project_id": project["id"], "variant_number": 1}
         headers = {"X-Session-Id": guest_session, "Idempotency-Key": "same-click"}
 
@@ -80,11 +222,104 @@ class TestCalcJobs:
         assert status_resp.status_code == 200, status_resp.text
         assert status_resp.json()["links"]["cancel"].endswith("/cancel")
 
+        persisted = await db_session.get(BackgroundTask, UUID(first.json()["id"]))
+        assert persisted is not None
+        persisted.status = "succeeded"
+        await db_session.commit()
+        terminal_retry = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json=payload,
+            headers=headers,
+        )
+        assert terminal_retry.status_code == 202, terminal_retry.text
+        assert terminal_retry.json()["id"] == first.json()["id"]
+        assert terminal_retry.json()["status"] == "succeeded"
+
+        terminal_replay_audit = await db_session.scalar(
+            select(AuditEvent).where(
+                AuditEvent.event_type == "task.electrical_batch.idempotency_replayed",
+                AuditEvent.task_id == UUID(first.json()["id"]),
+                AuditEvent.result == "success",
+            )
+        )
+        assert terminal_replay_audit is not None
+        assert terminal_replay_audit.message == (
+            "Идемпотентный повтор вернул существующую задачу электрорасчёта"
+        )
+        assert terminal_replay_audit.details["idempotency_replay"] is True
+        assert terminal_replay_audit.details["task_status"] == "succeeded"
+
+    async def test_project_scoped_idempotency_key_rejects_different_er_or_payload(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        project = await _guest_project(client, guest_session)
+        await _create_pipe(client, project["id"], guest_session)
+        first_variant = await _initialize_electrical_variants(
+            client,
+            project["id"],
+            guest_session,
+        )
+        second_variant_response = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            json={"name": "ЭР2"},
+            headers={"X-Session-Id": guest_session},
+        )
+        assert second_variant_response.status_code == 201, second_variant_response.text
+        second_variant = second_variant_response.json()
+        headers = {
+            "X-Session-Id": guest_session,
+            "Idempotency-Key": "electrical-one-key-one-operation",
+        }
+        first_payload = {
+            "project_id": project["id"],
+            "electrical_variant_id": first_variant["id"],
+        }
+
+        first = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json=first_payload,
+            headers=headers,
+        )
+        retry = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json=first_payload,
+            headers=headers,
+        )
+        different_er = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json={
+                "project_id": project["id"],
+                "electrical_variant_id": second_variant["id"],
+            },
+            headers=headers,
+        )
+        different_payload = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json={**first_payload, "skip_manual": False},
+            headers=headers,
+        )
+
+        assert first.status_code == 202, first.text
+        assert retry.status_code == 202, retry.text
+        assert retry.json()["id"] == first.json()["id"]
+        for conflict in (different_er, different_payload):
+            assert conflict.status_code == 409, conflict.text
+            assert conflict.json()["detail"] == {
+                "code": "TASK_IDEMPOTENCY_KEY_REUSED",
+                "message": "Idempotency-Key уже использован для другой операции",
+            }
+
     async def test_cancel_enqueued_task(
         self, client: AsyncClient, guest_session: str, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
         project = await _guest_project(client, guest_session)
+        await _create_pipe(client, project["id"], guest_session)
+        await _initialize_electrical_variants(client, project["id"], guest_session)
         job = (
             await client.post(
                 "/api/v1/calc/electrical/batch/jobs",
@@ -103,10 +338,15 @@ class TestCalcJobs:
         assert cancel_resp.json()["cancel_requested"] is True
 
     async def test_enqueue_heat_loss_batch_job(
-        self, client: AsyncClient, guest_session: str, monkeypatch: pytest.MonkeyPatch
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
         project = await _guest_project(client, guest_session)
+        obj = await _create_pipe(client, project["id"], guest_session)
         payload = {"project_id": project["id"], "include_errors": False}
         headers = {"X-Session-Id": guest_session, "Idempotency-Key": "same-heat-click"}
 
@@ -127,6 +367,153 @@ class TestCalcJobs:
         assert first.json()["type"] == "heat_loss_batch"
         assert first.json()["status"] == "enqueued"
 
+        changed_include_errors = await client.post(
+            "/api/v1/calc/heat-loss/batch/jobs",
+            json={"project_id": project["id"], "include_errors": True},
+            headers=headers,
+        )
+        changed_object_ids = await client.post(
+            "/api/v1/calc/heat-loss/batch/jobs",
+            json={**payload, "object_ids": [obj["id"]]},
+            headers=headers,
+        )
+        for conflict in (changed_include_errors, changed_object_ids):
+            assert conflict.status_code == 409, conflict.text
+            assert conflict.json()["detail"]["code"] == "TASK_IDEMPOTENCY_KEY_REUSED"
+
+        persisted = await db_session.get(BackgroundTask, UUID(first.json()["id"]))
+        assert persisted is not None
+        persisted.status = "succeeded"
+        await db_session.commit()
+        terminal_retry = await client.post(
+            "/api/v1/calc/heat-loss/batch/jobs",
+            json=payload,
+            headers=headers,
+        )
+        assert terminal_retry.status_code == 202, terminal_retry.text
+        assert terminal_retry.json()["id"] == first.json()["id"]
+        assert terminal_retry.json()["status"] == "succeeded"
+        assert "payload_version" not in persisted.request_payload
+
+        terminal_replay_audit = await db_session.scalar(
+            select(AuditEvent).where(
+                AuditEvent.event_type == "task.heat_loss_batch.idempotency_replayed",
+                AuditEvent.task_id == UUID(first.json()["id"]),
+                AuditEvent.result == "success",
+            )
+        )
+        assert terminal_replay_audit is not None
+        assert terminal_replay_audit.message == (
+            "Идемпотентный повтор вернул существующую задачу пересчёта теплопотерь"
+        )
+        assert terminal_replay_audit.details["idempotency_replay"] is True
+        assert terminal_replay_audit.details["task_status"] == "succeeded"
+
+    async def test_heat_loss_explicit_key_is_serialized_across_terminal_transition(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        test_engine,
+    ):
+        project = await _guest_project(client, guest_session)
+        project_id = UUID(project["id"])
+        request = HeatLossBatchJobRequest(project_id=project_id, include_errors=False)
+        principal = CurrentPrincipal(role="guest", session_id=guest_session)
+        idempotency_key = "heat-two-session-terminal-race"
+        payload = TaskService._heat_loss_payload(request)
+        dedupe_key = TaskService._dedupe_key(
+            task_type=TASK_HEAT_LOSS_BATCH,
+            project_id=project_id,
+            principal=principal,
+            payload=payload,
+            idempotency_key=idempotency_key,
+        )
+        session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
+        access_checked = asyncio.Event()
+        lookup_finished = asyncio.Event()
+        resume_retry = asyncio.Event()
+
+        async with session_factory() as first_db, session_factory() as retry_db:
+            await first_db.execute(
+                select(Project).where(Project.id == project_id).with_for_update()
+            )
+
+            retry_service = TaskService(retry_db, session_factory=session_factory)
+            original_require_project_write = retry_service._require_project_write
+            original_find = retry_service._find_active_by_dedupe
+
+            async def require_then_signal(project_id_arg, principal_arg):
+                await original_require_project_write(project_id_arg, principal_arg)
+                access_checked.set()
+
+            async def pause_after_lookup(*args, **kwargs):
+                found = await original_find(*args, **kwargs)
+                lookup_finished.set()
+                await resume_retry.wait()
+                return found
+
+            retry_service._require_project_write = require_then_signal  # type: ignore[method-assign]
+            retry_service._find_active_by_dedupe = pause_after_lookup  # type: ignore[method-assign]
+            retry_create = asyncio.create_task(
+                retry_service.create_heat_loss_batch_task(
+                    request,
+                    principal,
+                    queue=FakeTaskQueue(),
+                    idempotency_key=idempotency_key,
+                )
+            )
+
+            await asyncio.wait_for(access_checked.wait(), timeout=3)
+            lookup_bypassed_project_lock = False
+            try:
+                await asyncio.wait_for(
+                    asyncio.shield(lookup_finished.wait()),
+                    timeout=0.2,
+                )
+            except TimeoutError:
+                pass
+            else:
+                lookup_bypassed_project_lock = True
+
+            terminal_binding = BackgroundTask(
+                type=TASK_HEAT_LOSS_BATCH,
+                status="enqueued",
+                project_id=project_id,
+                session_id=guest_session,
+                request_payload=payload,
+                progress_current=0,
+                progress_phase="enqueued",
+                idempotency_key=dedupe_key,
+                cancel_requested=False,
+                attempts=0,
+                enqueue_attempts=1,
+            )
+            first_db.add(terminal_binding)
+            await first_db.flush()
+            terminal_binding.status = "succeeded"
+            terminal_binding.progress_phase = "succeeded"
+            await first_db.commit()
+            resume_retry.set()
+
+            replayed = await asyncio.wait_for(retry_create, timeout=5)
+
+        async with session_factory() as verify_db:
+            matching_tasks = (
+                (
+                    await verify_db.execute(
+                        select(BackgroundTask).where(BackgroundTask.idempotency_key == dedupe_key)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+        assert lookup_bypassed_project_lock is False
+        assert replayed.id == terminal_binding.id
+        assert replayed.status == "succeeded"
+        assert TaskService.is_idempotency_replay(replayed) is True
+        assert [task.id for task in matching_tasks] == [terminal_binding.id]
+
     async def test_worker_executes_enqueued_electrical_batch(
         self,
         client: AsyncClient,
@@ -137,6 +524,7 @@ class TestCalcJobs:
         monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
         project = await _guest_project(client, guest_session)
         await _create_pipe(client, project["id"], guest_session)
+        await _initialize_electrical_variants(client, project["id"], guest_session)
         job_resp = await client.post(
             "/api/v1/calc/electrical/batch/jobs",
             json={"project_id": project["id"], "include_results": False},
@@ -179,6 +567,7 @@ class TestCalcJobs:
         project = await _guest_project(client, guest_session)
         selected = await _create_pipe(client, project["id"], guest_session)
         skipped = await _create_pipe(client, project["id"], guest_session)
+        await _initialize_electrical_variants(client, project["id"], guest_session)
         job_resp = await client.post(
             "/api/v1/calc/electrical/batch/jobs",
             json={
@@ -236,6 +625,7 @@ class TestCalcJobs:
         project = await _guest_project(client, guest_session)
         first = await _create_pipe(client, project["id"], guest_session)
         second = await _create_pipe(client, project["id"], guest_session)
+        await _initialize_electrical_variants(client, project["id"], guest_session)
 
         selected_resp = await client.post(
             "/api/v1/calc/electrical/batch/jobs",

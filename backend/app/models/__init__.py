@@ -12,6 +12,7 @@ from app.models.electrical_candidate_folder import (
     ElectricalCandidateFolder,
     ElectricalCandidateFolderItem,
 )
+from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.guest_session import GuestSession
 from app.models.insulation_material import InsulationMaterial
 from app.models.project import Project, ProjectStatus
@@ -39,6 +40,8 @@ __all__ = [
     "ElectricalCandidate",
     "ElectricalCandidateFolder",
     "ElectricalCandidateFolderItem",
+    "ElectricalVariant",
+    "ElectricalVariantObject",
     "Specification",
     "CorrectionCoefficient",
     "CableExtended",

@@ -351,13 +351,29 @@ class TestApplyProjectData:
     async def test_electrical_links_via_object_key(self):
         from types import SimpleNamespace
         from unittest.mock import AsyncMock, MagicMock
+        from uuid import uuid4
 
+        from app.models.electrical_calculation import ElectricalCalculation
+        from app.models.electrical_variant import (
+            ElectricalVariant,
+            ElectricalVariantObject,
+        )
+        from app.models.project_object import ProjectObject
         from app.services.project_io_service import _apply_project_data
 
         project = SimpleNamespace(id="pid")
+        added: list[object] = []
         db = AsyncMock()
-        db.add = MagicMock()
-        db.flush = AsyncMock()
+        db.add = MagicMock(side_effect=added.append)
+
+        async def fake_flush():
+            for item in added:
+                if isinstance(item, ElectricalVariant | ProjectObject) and item.id is None:
+                    item.id = uuid4()
+                if isinstance(item, ProjectObject) and item.version is None:
+                    item.version = 1
+
+        db.flush = AsyncMock(side_effect=fake_flush)
         await _apply_project_data(
             db,
             project,
@@ -387,8 +403,28 @@ class TestApplyProjectData:
             ],
             spec_rows=[],
         )
-        # 1 object + 1 electrical → 2 add()
-        assert db.add.call_count == 2
+
+        objects = [item for item in added if isinstance(item, ProjectObject)]
+        variants = [item for item in added if isinstance(item, ElectricalVariant)]
+        assignments = [item for item in added if isinstance(item, ElectricalVariantObject)]
+        calculations = [item for item in added if isinstance(item, ElectricalCalculation)]
+        assert len(objects) == len(variants) == len(assignments) == len(calculations) == 1
+
+        obj = objects[0]
+        variant = variants[0]
+        assignment = assignments[0]
+        calculation = calculations[0]
+        assert variant.name == "ЭР1"
+        assert variant.name_normalized == "эр1"
+        assert variant.legacy_variant_number == 1
+        assert variant.is_active is True
+        assert assignment.object_id == obj.id
+        assert assignment.electrical_variant_id == variant.id
+        assert assignment.assignment_state == "ready"
+        assert calculation.object_id == obj.id
+        assert calculation.variant_number == 1
+        assert calculation.electrical_variant_id == variant.id
+        assert calculation.cable_mark == "ТЛТ-25"
 
     async def test_electrical_prefers_stable_object_key_over_duplicate_name(self):
         from types import SimpleNamespace
@@ -540,13 +576,23 @@ class TestApplyProjectData:
     async def test_specifications_added(self):
         from types import SimpleNamespace
         from unittest.mock import AsyncMock, MagicMock
+        from uuid import uuid4
 
+        from app.models.electrical_variant import ElectricalVariant
+        from app.models.specification import Specification
         from app.services.project_io_service import _apply_project_data
 
         project = SimpleNamespace(id="pid")
+        added: list[object] = []
         db = AsyncMock()
-        db.add = MagicMock()
-        db.flush = AsyncMock()
+        db.add = MagicMock(side_effect=added.append)
+
+        async def fake_flush():
+            for item in added:
+                if isinstance(item, ElectricalVariant) and item.id is None:
+                    item.id = uuid4()
+
+        db.flush = AsyncMock(side_effect=fake_flush)
         await _apply_project_data(
             db,
             project,
@@ -559,4 +605,19 @@ class TestApplyProjectData:
                 }
             ],
         )
-        db.add.assert_called_once()
+
+        variants = [item for item in added if isinstance(item, ElectricalVariant)]
+        specifications = [item for item in added if isinstance(item, Specification)]
+        assert len(variants) == len(specifications) == 1
+
+        variant = variants[0]
+        specification = specifications[0]
+        assert variant.name == "ЭР1"
+        assert variant.legacy_variant_number == 1
+        assert specification.variant_number == 1
+        assert specification.electrical_variant_id == variant.id
+        assert specification.items == [{"name": "X", "quantity": 1}]
+        assert specification.is_stale is True
+        assert specification.stale_reason == "electrical_sections_not_ready"
+        assert specification.stale_details["sections_status"] == "not_ready"
+        assert specification.stale_details["error_code"] == "ELECTRICAL_SECTIONS_NOT_READY"

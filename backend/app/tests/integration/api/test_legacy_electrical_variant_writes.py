@@ -1,0 +1,277 @@
+"""PostgreSQL proof for legacy numeric writes during the UUID expand window."""
+
+from uuid import UUID
+
+import pytest
+from httpx import AsyncClient
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_candidate import ElectricalCandidate
+from app.models.electrical_candidate_folder import ElectricalCandidateFolder
+from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
+from app.models.specification import Specification
+
+pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+MINERAL_WOOL = "mineral_wool_boards_120"
+
+
+async def _create_project(client: AsyncClient, token: str, name: str) -> dict:
+    response = await client.post(
+        "/api/v1/projects",
+        json={"name": name},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+async def _create_ready_pipe(
+    client: AsyncClient,
+    token: str,
+    project_id: str,
+) -> dict:
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/objects",
+        json={
+            "object_type": "pipe",
+            "params": {
+                "outer_diameter": 0.108,
+                "insulation_thickness": 0.05,
+                "insulation_material": MINERAL_WOOL,
+                "insulation_temperature_basis": "outdoor_winter",
+                "ambient_temperature": -30,
+                "process_temperature": 80,
+                "pipe_length": 50,
+            },
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code in (200, 201), response.text
+    return response.json()
+
+
+class TestLegacyElectricalVariantWrites:
+    async def test_all_normal_numeric_writes_persist_project_scoped_uuid(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        db_session: AsyncSession,
+    ) -> None:
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        project = await _create_project(client, employee_token, "Legacy UUID write bridge")
+        obj = await _create_ready_pipe(client, employee_token, project["id"])
+
+        direct_calc = await client.post(
+            "/api/v1/calc/electrical",
+            json={
+                "object_id": obj["id"],
+                "variant_number": 1,
+                "cable_type": "self_regulating",
+                "data": {
+                    "required_power_per_meter": 20,
+                    "cable_mark": "ТЛТ-25",
+                    "supply_voltage": 220,
+                    "ambient_temperature": -30,
+                    "pipe_length": 50,
+                    "safety_factor": 1.1,
+                },
+            },
+            headers=headers,
+        )
+        assert direct_calc.status_code == 200, direct_calc.text
+
+        candidate_response = await client.post(
+            "/api/v1/calc/electrical/candidates",
+            json={
+                "project_id": project["id"],
+                "object_id": obj["id"],
+                "variant_number": 2,
+                "cable_type": "self_regulating",
+                "cable_source": "builtin",
+                "mode": "auto",
+            },
+            headers=headers,
+        )
+        assert candidate_response.status_code == 200, candidate_response.text
+        candidate_id = candidate_response.json()["candidate"]["id"]
+
+        folder_response = await client.post(
+            "/api/v1/calc/electrical/candidate-folders",
+            json={
+                "project_id": project["id"],
+                "object_id": obj["id"],
+                "variant_number": 3,
+                "name": "UUID bridge",
+            },
+            headers=headers,
+        )
+        assert folder_response.status_code == 200, folder_response.text
+        folder_id = folder_response.json()["id"]
+
+        manual_calc = await client.post(
+            "/api/v1/calc/electrical/select-cable",
+            params={
+                "object_id": obj["id"],
+                "variant_number": 4,
+                "cable_mark": "ТЛТ-60",
+            },
+            headers=headers,
+        )
+        assert manual_calc.status_code == 200, manual_calc.text
+
+        generated_spec = await client.post(
+            f"/api/v1/specifications/{project['id']}/generate",
+            params={"variant": 1},
+            headers=headers,
+        )
+        assert generated_spec.status_code == 201, generated_spec.text
+
+        saved_spec = await client.put(
+            f"/api/v1/specifications/{project['id']}/items",
+            params={"variant": 2},
+            json={
+                "items": [
+                    {
+                        "category": "manual",
+                        "name": "Ручная позиция",
+                        "unit": "шт",
+                        "quantity": 1,
+                        "source": "manual",
+                    }
+                ]
+            },
+            headers=headers,
+        )
+        assert saved_spec.status_code == 200, saved_spec.text
+
+        project_id = UUID(project["id"])
+        object_id = UUID(obj["id"])
+        variants = list(
+            (
+                await db_session.execute(
+                    select(ElectricalVariant)
+                    .where(ElectricalVariant.project_id == project_id)
+                    .order_by(ElectricalVariant.legacy_variant_number)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert [item.legacy_variant_number for item in variants] == [1, 2, 3, 4]
+        variants_by_slot = {item.legacy_variant_number: item.id for item in variants}
+
+        calculations = list(
+            (
+                await db_session.execute(
+                    select(ElectricalCalculation).where(
+                        ElectricalCalculation.project_id == project_id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert {item.variant_number: item.electrical_variant_id for item in calculations} == {
+            1: variants_by_slot[1],
+            4: variants_by_slot[4],
+        }
+
+        candidate = await db_session.get(ElectricalCandidate, UUID(candidate_id))
+        folder = await db_session.get(ElectricalCandidateFolder, UUID(folder_id))
+        assert candidate is not None
+        assert folder is not None
+        assert candidate.electrical_variant_id == variants_by_slot[2]
+        assert folder.electrical_variant_id == variants_by_slot[3]
+
+        specifications = list(
+            (
+                await db_session.execute(
+                    select(Specification).where(Specification.project_id == project_id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert {item.variant_number: item.electrical_variant_id for item in specifications} == {
+            1: variants_by_slot[1],
+            2: variants_by_slot[2],
+        }
+
+        assignments = list(
+            (
+                await db_session.execute(
+                    select(ElectricalVariantObject).where(
+                        ElectricalVariantObject.object_id == object_id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert {item.electrical_variant_id for item in assignments} == set(
+            variants_by_slot.values()
+        )
+
+        for model in (
+            ElectricalCalculation,
+            ElectricalCandidate,
+            ElectricalCandidateFolder,
+            Specification,
+        ):
+            null_count = await db_session.scalar(
+                select(func.count())
+                .select_from(model)
+                .where(
+                    model.project_id == project_id,
+                    model.electrical_variant_id.is_(None),
+                )
+            )
+            assert null_count == 0, model.__tablename__
+
+    @pytest.mark.parametrize(
+        ("endpoint", "payload"),
+        [
+            (
+                "/api/v1/calc/electrical/candidates",
+                {
+                    "variant_number": 1,
+                    "cable_type": "self_regulating",
+                    "cable_source": "builtin",
+                    "mode": "auto",
+                },
+            ),
+            (
+                "/api/v1/calc/electrical/candidate-folders",
+                {"variant_number": 1, "name": "Wrong project"},
+            ),
+        ],
+    )
+    async def test_cross_project_object_is_rejected_before_variant_creation(
+        self,
+        endpoint: str,
+        payload: dict,
+        client: AsyncClient,
+        employee_token: str,
+        db_session: AsyncSession,
+    ) -> None:
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        object_project = await _create_project(client, employee_token, "Object project")
+        obj = await _create_ready_pipe(client, employee_token, object_project["id"])
+        claimed_project = await _create_project(client, employee_token, "Claimed project")
+
+        response = await client.post(
+            endpoint,
+            json={
+                **payload,
+                "project_id": claimed_project["id"],
+                "object_id": obj["id"],
+            },
+            headers=headers,
+        )
+
+        assert response.status_code == 404, response.text
+        variant_count = await db_session.scalar(select(func.count(ElectricalVariant.id)))
+        assert variant_count == 0

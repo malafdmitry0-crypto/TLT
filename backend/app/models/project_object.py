@@ -2,13 +2,16 @@
 
 import enum
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, ForeignKey, Index, Integer
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.project import Project
 
 
 class ObjectType(str, enum.Enum):
@@ -30,6 +33,11 @@ object_type_enum = ENUM(
 class ProjectObject(Base, TimestampMixin):
     __tablename__ = "project_objects"
     __table_args__ = (
+        UniqueConstraint(
+            "id",
+            "project_id",
+            name="uq_project_objects_id_project",
+        ),
         Index(
             "ix_project_objects_project_sort",
             "project_id",
@@ -60,4 +68,4 @@ class ProjectObject(Base, TimestampMixin):
     is_valid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     validation_errors: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
-    project: Mapped["Project"] = relationship(back_populates="objects")  # noqa: F821
+    project: Mapped["Project"] = relationship(back_populates="objects")

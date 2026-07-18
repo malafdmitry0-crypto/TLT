@@ -16,6 +16,8 @@ import io
 import json
 import logging
 from collections import defaultdict
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -24,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
@@ -40,6 +43,8 @@ SCHEMA_VERSION = "2"
 DELIMITER = ";"  # экспорт всегда `;`; импорт определяет сам
 VALID_CABLE_TYPE_SOURCES = {"auto", "manual", "bulk"}
 VALID_CABLE_MARK_SOURCES = {"auto", "manual"}
+LEGACY_VARIANT_NUMBERS = range(1, 5)
+SECTIONS_NOT_READY_CODE = "ELECTRICAL_SECTIONS_NOT_READY"
 
 
 class ProjectImportError(Exception):
@@ -397,6 +402,137 @@ def _normalize_source(value: str | None, valid_values: set[str]) -> str | None:
     return normalized if normalized in valid_values else None
 
 
+def _legacy_variant_number(row: dict[str, str], *, section: str) -> int:
+    raw = (row.get("variant_number") or "1").strip()
+    try:
+        variant_number = int(raw)
+    except ValueError as exc:
+        raise ProjectImportError(
+            f"Некорректный variant_number в секции {section}: {raw!r}"
+        ) from exc
+    if variant_number not in LEGACY_VARIANT_NUMBERS:
+        raise ProjectImportError(
+            f"variant_number в секции {section} должен быть в диапазоне 1..4: "
+            f"получено {variant_number}"
+        )
+    return variant_number
+
+
+def _occupied_legacy_slots(
+    electrical_rows: list[dict[str, str]],
+    spec_rows: list[dict[str, str]],
+) -> set[int]:
+    """Validate v2 slots before writes and return their sparse occupied set."""
+    occupied = {_legacy_variant_number(row, section="electrical") for row in electrical_rows}
+    occupied.update(_legacy_variant_number(row, section="specifications") for row in spec_rows)
+    return occupied
+
+
+def _is_successful_legacy_result(
+    cable_mark: str | None,
+    results: dict[str, Any] | None,
+) -> bool:
+    """Mirror the 0027 persisted-result success contract for v2 imports."""
+    if not results:
+        return False
+    if results.get("error_code") or results.get("category") or results.get("stale") is True:
+        return False
+    snapshot = results.get("cable_snapshot")
+    snapshot_mark = snapshot.get("cable_mark") if isinstance(snapshot, dict) else None
+    return bool(
+        cable_mark or results.get("cable_mark") or results.get("selected_cable") or snapshot_mark
+    )
+
+
+def _legacy_assignment_projection(
+    cable_type: str | None,
+    cable_mark: str | None,
+    results: dict[str, Any] | None,
+) -> tuple[str | None, str]:
+    """Map lossless requested cable type to normalized system/state fields."""
+    normalized_type = (cable_type or "").strip().lower()
+    if normalized_type in {"skin", "mineral"}:
+        return normalized_type, "unsupported"
+
+    result = results or {}
+    if result.get("category") == "stale" or result.get("stale") is True:
+        return None, "stale"
+    if result.get("category") == "unsupported":
+        return None, "unsupported"
+    if result.get("error_code") or result.get("category"):
+        return None, "error"
+    if not _is_successful_legacy_result(cable_mark, results):
+        return None, "unassigned"
+    if normalized_type in {"self_regulating", "self_regulating_tt"}:
+        return "self_regulating", "ready"
+    if normalized_type in {"single_core", "three_core"}:
+        return "resistive", "ready"
+    return None, "unassigned"
+
+
+@dataclass(slots=True)
+class _ImportedElectricalRow:
+    object: ProjectObject
+    variant_number: int
+    cable_type: str
+    cable_type_source: str
+    cable_mark: str | None
+    cable_mark_source: str
+    cable_snapshot: Any
+    params: dict[str, Any]
+    results: dict[str, Any] | None
+
+
+def _assignment_diagnostics(
+    variant_number: int,
+    imported: _ImportedElectricalRow | None,
+) -> dict[str, Any]:
+    results = imported.results if imported is not None else None
+    result = results or {}
+    values = {
+        "import_schema_version": SCHEMA_VERSION,
+        "legacy_variant_number": variant_number,
+        "legacy_cable_type": imported.cable_type if imported is not None else None,
+        "legacy_result_category": result.get("category"),
+        "legacy_error_code": result.get("error_code"),
+        "legacy_stale": result.get("stale"),
+        "legacy_success": _is_successful_legacy_result(
+            imported.cable_mark if imported is not None else None,
+            results,
+        ),
+        "sections_status": "not_ready",
+        "sections_error_code": SECTIONS_NOT_READY_CODE,
+    }
+    return {key: value for key, value in values.items() if value is not None}
+
+
+async def _create_imported_variants(
+    db: AsyncSession,
+    project: Project,
+    occupied_slots: set[int],
+) -> dict[int, ElectricalVariant]:
+    if not occupied_slots:
+        return {}
+
+    ordered_slots = sorted({1, *occupied_slots})
+    variants: dict[int, ElectricalVariant] = {}
+    for sort_order, variant_number in enumerate(ordered_slots):
+        name = f"ЭР{variant_number}"
+        variant = ElectricalVariant(
+            project_id=project.id,
+            name=name,
+            name_normalized=name.casefold(),
+            sort_order=sort_order,
+            is_active=variant_number == 1,
+            legacy_variant_number=variant_number,
+        )
+        db.add(variant)
+        variants[variant_number] = variant
+    project.electrical_initialized_at = datetime.now(UTC)
+    await db.flush()
+    return variants
+
+
 async def _apply_project_data(
     db: AsyncSession,
     project: Project,
@@ -405,6 +541,11 @@ async def _apply_project_data(
     spec_rows: list[dict[str, str]],
 ) -> None:
     """Заполняет пустой `project` данными из распарсенных секций."""
+    # Validate the complete v2 payload before staging graph writes. Electrical
+    # rows with an unknown object_key retain the legacy "skip" behaviour and
+    # therefore must not create an otherwise orphaned ER slot.
+    _occupied_legacy_slots(electrical_rows, spec_rows)
+
     # объекты
     obj_by_key: dict[str, ProjectObject] = {}
     for idx, row in enumerate(objects_rows):
@@ -432,12 +573,14 @@ async def _apply_project_data(
         obj_by_key[object_key] = obj
     await db.flush()
 
-    # electrical
+    imported_electrical: list[_ImportedElectricalRow] = []
+    imported_by_scope: dict[tuple[UUID, int], _ImportedElectricalRow] = {}
     for row in electrical_rows:
         key = row.get("object_key", "")
         obj = obj_by_key.get(key)
         if obj is None:
             continue  # расчёт ссылается на объект не из этого CSV
+        variant_number = _legacy_variant_number(row, section="electrical")
         cable_mark = row.get("cable_mark", "").strip() or None
         cable_mark_source = _normalize_source(
             row.get("cable_mark_source"),
@@ -453,10 +596,9 @@ async def _apply_project_data(
         cable_snapshot = _parse_json_or_empty(row.get("cable_snapshot", ""), None)
         if isinstance(cable_snapshot, dict):
             cable_snapshot = {**cable_snapshot, "origin": "imported_project"}
-        calc = ElectricalCalculation(
-            project_id=project.id,
-            object_id=obj.id,
-            variant_number=int(row.get("variant_number", "1") or "1"),
+        imported = _ImportedElectricalRow(
+            object=obj,
+            variant_number=variant_number,
             cable_type=row.get("cable_type", "").strip() or "self_regulating",
             cable_type_source=cable_type_source,
             cable_mark=cable_mark,
@@ -465,14 +607,80 @@ async def _apply_project_data(
             params=_parse_json_or_empty(row.get("params", ""), {}),
             results=_parse_json_or_empty(row.get("results", ""), None),
         )
-        db.add(calc)
+        scope = (obj.id, variant_number)
+        if scope in imported_by_scope:
+            raise ProjectImportError(
+                "Дублирующийся электрический расчёт для object_key="
+                f"{key!r}, variant_number={variant_number}"
+            )
+        imported_by_scope[scope] = imported
+        imported_electrical.append(imported)
+
+    occupied_slots = {item.variant_number for item in imported_electrical}
+    occupied_slots.update(
+        _legacy_variant_number(row, section="specifications") for row in spec_rows
+    )
+    variants_by_slot = await _create_imported_variants(db, project, occupied_slots)
+
+    for variant_number, variant in variants_by_slot.items():
+        for obj in obj_by_key.values():
+            imported = imported_by_scope.get((obj.id, variant_number))
+            system_type, assignment_state = _legacy_assignment_projection(
+                imported.cable_type if imported is not None else None,
+                imported.cable_mark if imported is not None else None,
+                imported.results if imported is not None else None,
+            )
+            db.add(
+                ElectricalVariantObject(
+                    project_id=project.id,
+                    electrical_variant_id=variant.id,
+                    object_id=obj.id,
+                    system_type=system_type,
+                    assignment_state=assignment_state,
+                    requested_cable_type=(imported.cable_type if imported is not None else None),
+                    object_version_snapshot=obj.version,
+                    diagnostics=_assignment_diagnostics(variant_number, imported),
+                )
+            )
+    if variants_by_slot and obj_by_key:
+        await db.flush()
+
+    for imported in imported_electrical:
+        variant = variants_by_slot[imported.variant_number]
+        db.add(
+            ElectricalCalculation(
+                project_id=project.id,
+                object_id=imported.object.id,
+                variant_number=imported.variant_number,
+                electrical_variant_id=variant.id,
+                cable_type=imported.cable_type,
+                cable_type_source=imported.cable_type_source,
+                cable_mark=imported.cable_mark,
+                cable_mark_source=imported.cable_mark_source,
+                cable_snapshot=imported.cable_snapshot,
+                params=imported.params,
+                results=imported.results,
+            )
+        )
 
     # specifications
     for row in spec_rows:
+        variant_number = _legacy_variant_number(row, section="specifications")
+        variant = variants_by_slot[variant_number]
         spec = Specification(
             project_id=project.id,
-            variant_number=int(row.get("variant_number", "1") or "1"),
+            variant_number=variant_number,
+            electrical_variant_id=variant.id,
             items=_parse_json_or_empty(row.get("items", ""), []),
+            is_stale=True,
+            stale_reason="electrical_sections_not_ready",
+            stale_at=datetime.now(UTC),
+            stale_details={
+                "import_schema_version": SCHEMA_VERSION,
+                "legacy_variant_number": variant_number,
+                "sections_status": "not_ready",
+                "error_code": SECTIONS_NOT_READY_CODE,
+            },
         )
         db.add(spec)
 
@@ -484,6 +692,13 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
     meta = _section_key_values(sections, "metadata")
     if not meta.get("name"):
         raise ProjectImportError("В секции [SECTION];metadata пустое имя проекта")
+
+    objects_rows = _rows_to_dicts(sections.get("objects", []))
+    electrical_rows = _rows_to_dicts(sections.get("electrical", []))
+    spec_rows = _rows_to_dicts(sections.get("specifications", []))
+    # Guest import replaces its current project, so reject an invalid slot before
+    # staging any delete or insert in the session.
+    _occupied_legacy_slots(electrical_rows, spec_rows)
 
     if principal.role == "guest":
         # Замещаем единственный авто-проект
@@ -517,9 +732,9 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
     await _apply_project_data(
         db,
         project,
-        _rows_to_dicts(sections.get("objects", [])),
-        _rows_to_dicts(sections.get("electrical", [])),
-        _rows_to_dicts(sections.get("specifications", [])),
+        objects_rows,
+        electrical_rows,
+        spec_rows,
     )
     await db.commit()
     await db.refresh(project)

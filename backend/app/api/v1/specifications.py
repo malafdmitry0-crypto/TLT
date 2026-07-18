@@ -15,6 +15,10 @@ from app.schemas.specification import (
     SpecificationUpdateRequest,
 )
 from app.services.audit_service import AuditService
+from app.services.electrical_variant_service import (
+    ElectricalVariantService,
+    ElectricalVariantServiceError,
+)
 from app.services.project_service import (
     ProjectAccessError,
     ProjectNotFoundError,
@@ -76,9 +80,19 @@ async def generate_specification(
             detail="Полная спецификация доступна только сотруднику",
         )
 
-    result = await SpecificationService(db).generate(
-        project_id, variant, mode=req.mode, options=req.options
-    )
+    try:
+        electrical_variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
+            project_id, principal, variant
+        )
+        result = await SpecificationService(db).generate(
+            project_id,
+            variant,
+            mode=req.mode,
+            options=req.options,
+            electrical_variant_id=electrical_variant.id,
+        )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     await AuditService(db).try_record(
         event_type="specification.generated",
         category="specification",
@@ -86,6 +100,7 @@ async def generate_specification(
         project_id=project_id,
         details={
             "variant": variant,
+            "electrical_variant_id": str(electrical_variant.id),
             "item_count": len(result.items),
             "mode": result.mode,
             "skipped_objects": result.skipped_objects,
@@ -119,15 +134,28 @@ async def save_specification_items(
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
-    items: list[SpecificationItem] = await SpecificationService(db).save_items(
-        project_id, data.items, variant
-    )
+    try:
+        electrical_variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
+            project_id, principal, variant
+        )
+        items: list[SpecificationItem] = await SpecificationService(db).save_items(
+            project_id,
+            data.items,
+            variant,
+            electrical_variant_id=electrical_variant.id,
+        )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     await AuditService(db).try_record(
         event_type="specification.items_saved",
         category="specification",
         principal=principal,
         project_id=project_id,
-        details={"variant": variant, "item_count": len(items)},
+        details={
+            "variant": variant,
+            "electrical_variant_id": str(electrical_variant.id),
+            "item_count": len(items),
+        },
         message="Сохранены позиции спецификации",
     )
     return SpecificationGenerateResponse(project_id=project_id, items=items)

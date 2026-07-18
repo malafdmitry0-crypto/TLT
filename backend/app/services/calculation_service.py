@@ -45,6 +45,8 @@ from app.models.electrical_candidate_folder import (
     ElectricalCandidateFolder,
     ElectricalCandidateFolderItem,
 )
+from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
+from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.reference_data.loader import (
     get_climate_entry,
@@ -124,6 +126,25 @@ class ElectricalVariantCopyError(CalculationError):
         self.message = message
         self.status_code = status_code
         self.details = details or {}
+
+
+class ElectricalCandidateApplyError(CalculationError):
+    """Expected candidate-apply failure with a stable API contract."""
+
+    def __init__(
+        self,
+        *,
+        code: str,
+        message: str,
+        status_code: int,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.status_code = status_code
+
+    def as_detail(self) -> dict[str, str]:
+        return {"code": self.code, "message": self.message}
 
 
 def _clean_exception_message(exc: Exception) -> str:
@@ -990,7 +1011,9 @@ class CalculationService:
         try:
             obj.params = prepare_project_object_params(obj.object_type, obj.params)
             obj.params = self._apply_climate_policy(obj.object_type, obj.params)
-            resolved_coefficients = coefficients if coefficients is not None else await self.get_coefficients()
+            resolved_coefficients = (
+                coefficients if coefficients is not None else await self.get_coefficients()
+            )
             result = self._calc_heat_loss_with_coefficients(
                 obj.object_type,
                 obj.params,
@@ -1262,6 +1285,7 @@ class CalculationService:
         request: ElectricalRequest,
         *,
         commit: bool = True,
+        electrical_variant_id: UUID | None = None,
     ) -> ElectricalCalculation:
         # Получаем объект, чтобы узнать project_id
         obj_result = await self.db.execute(
@@ -1285,6 +1309,7 @@ class CalculationService:
             cable_mark=cable_mark,
             result_dict=result_dict,
             cable_snapshot=cable_snapshot,
+            electrical_variant_id=electrical_variant_id,
         )
         if not commit:
             return calc
@@ -1403,6 +1428,7 @@ class CalculationService:
         cable_mark: str | None,
         result_dict: dict[str, Any],
         cable_snapshot: dict[str, Any] | None,
+        electrical_variant_id: UUID | None = None,
     ) -> ElectricalCalculation:
         cable_type_source = self._normalize_cable_type_source(request.data.get("cable_type_source"))
         cable_mark_source = self._resolve_cable_mark_source(request.data)
@@ -1412,6 +1438,7 @@ class CalculationService:
                     "project_id": obj.project_id,
                     "object_id": obj.id,
                     "variant_number": request.variant_number,
+                    "electrical_variant_id": electrical_variant_id,
                     "cable_type": request.cable_type,
                     "cable_type_source": cable_type_source,
                     "cable_mark": cable_mark,
@@ -1561,19 +1588,22 @@ class CalculationService:
         return_calcs: bool,
     ) -> list[ElectricalCalculation]:
         insert_stmt = pg_insert(ElectricalCalculation).values(rows)
+        update_values: dict[str, Any] = {
+            "project_id": insert_stmt.excluded.project_id,
+            "cable_type": insert_stmt.excluded.cable_type,
+            "cable_type_source": insert_stmt.excluded.cable_type_source,
+            "cable_mark": insert_stmt.excluded.cable_mark,
+            "cable_mark_source": insert_stmt.excluded.cable_mark_source,
+            "cable_snapshot": insert_stmt.excluded.cable_snapshot,
+            "params": insert_stmt.excluded.params,
+            "results": insert_stmt.excluded.results,
+            "updated_at": func.now(),
+        }
+        if all(row.get("electrical_variant_id") is not None for row in rows):
+            update_values["electrical_variant_id"] = insert_stmt.excluded.electrical_variant_id
         upsert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=["object_id", "variant_number"],
-            set_={
-                "project_id": insert_stmt.excluded.project_id,
-                "cable_type": insert_stmt.excluded.cable_type,
-                "cable_type_source": insert_stmt.excluded.cable_type_source,
-                "cable_mark": insert_stmt.excluded.cable_mark,
-                "cable_mark_source": insert_stmt.excluded.cable_mark_source,
-                "cable_snapshot": insert_stmt.excluded.cable_snapshot,
-                "params": insert_stmt.excluded.params,
-                "results": insert_stmt.excluded.results,
-                "updated_at": func.now(),
-            },
+            set_=update_values,
         )
         if not return_calcs:
             await self.db.execute(upsert_stmt)
@@ -2659,9 +2689,7 @@ class CalculationService:
         data["winding_pitch"] = self._winding_pitch_mm(overrides, params)
         if cable_type == "self_regulating":
             data["cable_catalog"] = tlt_catalog
-            data["winding_coefficient"] = self._winding_coefficient(
-                obj, overrides, params, 1.0
-            )
+            data["winding_coefficient"] = self._winding_coefficient(obj, overrides, params, 1.0)
             data.update(
                 self._number_of_threads_payload(
                     overrides,
@@ -2670,14 +2698,10 @@ class CalculationService:
                 )
             )
         elif cable_type == "self_regulating_tt":
-            data["winding_coefficient"] = self._winding_coefficient(
-                obj, overrides, params, 1.1
-            )
+            data["winding_coefficient"] = self._winding_coefficient(obj, overrides, params, 1.1)
             data.update(self._number_of_threads_payload(overrides, params, None))
         elif cable_type in ("single_core", "three_core"):
-            data["winding_coefficient"] = self._winding_coefficient(
-                obj, overrides, params, 1.0
-            )
+            data["winding_coefficient"] = self._winding_coefficient(obj, overrides, params, 1.0)
             data["cable_catalog"] = (
                 self._resistive_manual_catalog(cable_type, cable_mark, resistive_catalog)
                 if cable_mark is not None
@@ -2808,14 +2832,18 @@ class CalculationService:
             )
         )
         folders = list(result.scalars().all())
-        item_result = await self.db.execute(
-            select(
-                ElectricalCandidateFolderItem.folder_id,
-                ElectricalCandidateFolderItem.candidate_id,
-            ).where(
-                ElectricalCandidateFolderItem.folder_id.in_([folder.id for folder in folders])
+        item_result = (
+            await self.db.execute(
+                select(
+                    ElectricalCandidateFolderItem.folder_id,
+                    ElectricalCandidateFolderItem.candidate_id,
+                ).where(
+                    ElectricalCandidateFolderItem.folder_id.in_([folder.id for folder in folders])
+                )
             )
-        ) if folders else None
+            if folders
+            else None
+        )
         folder_items: dict[UUID, list[UUID]] = {folder.id: [] for folder in folders}
         if item_result is not None:
             for folder_id, candidate_id in item_result.all():
@@ -2842,6 +2870,7 @@ class CalculationService:
         project_id: UUID,
         object_id: UUID,
         variant_number: int,
+        electrical_variant_id: UUID | None = None,
         name: str,
         color: str | None,
         created_by_user_id: UUID | None,
@@ -2862,6 +2891,7 @@ class CalculationService:
             project_id=project_id,
             object_id=object_id,
             variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
             name=self._normalize_candidate_folder_name(name),
             color=color,
             sort_order=next_sort,
@@ -3003,6 +3033,7 @@ class CalculationService:
         object_id: UUID,
         object_type: str,
         variant_number: int,
+        electrical_variant_id: UUID | None,
         cable_type: str,
         cable_source: CableSource,
         mode: str,
@@ -3034,6 +3065,7 @@ class CalculationService:
             project_id=project_id,
             object_id=object_id,
             variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
             cable_type=cable_type,
             cable_source=cable_source,
             cable_mark=cable_mark,
@@ -3130,6 +3162,8 @@ class CalculationService:
             dedupe_key=candidate.dedupe_key,
         )
         if existing is not None:
+            if candidate.electrical_variant_id is not None:
+                existing.electrical_variant_id = candidate.electrical_variant_id
             self._apply_candidate_upsert(
                 existing,
                 params=candidate.params,
@@ -3192,6 +3226,7 @@ class CalculationService:
         project_id: UUID,
         object_id: UUID,
         variant_number: int = 1,
+        electrical_variant_id: UUID | None = None,
         cable_type: str = "self_regulating",
         cable_source: CableSource = "builtin",
         mode: str = "auto",
@@ -3216,6 +3251,7 @@ class CalculationService:
                 object_id=object_id,
                 object_type=object_type,
                 variant_number=variant_number,
+                electrical_variant_id=electrical_variant_id,
                 cable_type=cable_type,
                 cable_source=cable_source,
                 mode=mode,
@@ -3321,6 +3357,7 @@ class CalculationService:
             project_id=project_id,
             object_id=object_id,
             variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
             cable_type=cable_type,
             cable_source=cable_source,
             cable_mark=selected_mark,
@@ -3381,39 +3418,127 @@ class CalculationService:
         )
         candidate = result.scalar_one_or_none()
         if candidate is None:
-            raise CalculationError("Кандидат подбора не найден")
+            raise ElectricalCandidateApplyError(
+                code="ELECTRICAL_CANDIDATE_NOT_FOUND",
+                message="Кандидат подбора не найден",
+                status_code=404,
+            )
         return candidate
+
+    async def _lock_project_for_candidate_apply(self, project_id: UUID) -> None:
+        """Serialize candidate apply with the ER lifecycle mutation lock."""
+        result = await self.db.execute(
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if result.scalar_one_or_none() is None:
+            raise ElectricalCandidateApplyError(
+                code="ELECTRICAL_CANDIDATE_NOT_FOUND",
+                message="Кандидат подбора не найден",
+                status_code=404,
+            )
+
+    async def _candidate_for_apply(
+        self,
+        candidate_id: UUID,
+        project_id: UUID,
+    ) -> ElectricalCandidate:
+        result = await self.db.execute(
+            select(ElectricalCandidate)
+            .where(
+                ElectricalCandidate.id == candidate_id,
+                ElectricalCandidate.project_id == project_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        candidate = result.scalar_one_or_none()
+        if candidate is None:
+            raise ElectricalCandidateApplyError(
+                code="ELECTRICAL_CANDIDATE_NOT_FOUND",
+                message="Кандидат подбора не найден",
+                status_code=404,
+            )
+        return candidate
+
+    async def _existing_variant_for_candidate(
+        self,
+        candidate: ElectricalCandidate,
+    ) -> ElectricalVariant:
+        result = await self.db.execute(
+            select(ElectricalVariant)
+            .join(
+                ElectricalVariantObject,
+                and_(
+                    ElectricalVariantObject.electrical_variant_id == ElectricalVariant.id,
+                    ElectricalVariantObject.project_id == ElectricalVariant.project_id,
+                ),
+            )
+            .where(
+                ElectricalVariant.project_id == candidate.project_id,
+                ElectricalVariant.legacy_variant_number == candidate.variant_number,
+                ElectricalVariantObject.object_id == candidate.object_id,
+            )
+        )
+        variant = result.scalar_one_or_none()
+        if variant is None or candidate.electrical_variant_id not in (None, variant.id):
+            raise ElectricalCandidateApplyError(
+                code="ELECTRICAL_CANDIDATE_VARIANT_UNAVAILABLE",
+                message="ЭР кандидата удалён или больше не связан с объектом",
+                status_code=409,
+            )
+        return variant
 
     async def apply_electrical_candidate(
         self,
         candidate_id: UUID,
+        *,
+        project_id: UUID,
     ) -> tuple[ElectricalCandidate, ElectricalCalculation]:
-        candidate = await self.get_electrical_candidate(candidate_id)
-        if candidate.status != ELECTRICAL_CANDIDATE_STATUS_APPLICABLE:
-            raise CalculationError("Можно применить только применимый кандидат")
-        if not candidate.cable_mark:
-            raise CalculationError("У кандидата нет выбранной марки кабеля")
+        try:
+            await self._lock_project_for_candidate_apply(project_id)
+            candidate = await self._candidate_for_apply(candidate_id, project_id)
+            variant = await self._existing_variant_for_candidate(candidate)
+            if candidate.status != ELECTRICAL_CANDIDATE_STATUS_APPLICABLE:
+                raise CalculationError("Можно применить только применимый кандидат")
+            if not candidate.cable_mark:
+                raise CalculationError("У кандидата нет выбранной марки кабеля")
 
-        calc = await self.select_cable_manual(
-            candidate.object_id,
-            candidate.cable_mark,
-            candidate.cable_source,
-            candidate.variant_number,
-            candidate.cable_type,
-            candidate.params,
-        )
-        await self.db.execute(
-            update(ElectricalCandidate)
-            .where(
-                ElectricalCandidate.object_id == candidate.object_id,
-                ElectricalCandidate.variant_number == candidate.variant_number,
+            # Legacy rows may still have a NULL UUID during the expand phase.
+            # Bind only to the mapping that already exists under the project lock;
+            # candidate apply must never recreate a lifecycle-deleted ER.
+            candidate.electrical_variant_id = variant.id
+            calc = await self.select_cable_manual(
+                candidate.object_id,
+                candidate.cable_mark,
+                candidate.cable_source,
+                candidate.variant_number,
+                candidate.cable_type,
+                candidate.params,
+                commit=False,
+                electrical_variant_id=variant.id,
             )
-            .values(is_applied=False)
-        )
-        candidate.is_applied = True
-        candidate.status = ELECTRICAL_CANDIDATE_STATUS_APPLICABLE
-        await self.db.commit()
-        await self.db.refresh(candidate)
+            await self.db.execute(
+                update(ElectricalCandidate)
+                .where(
+                    ElectricalCandidate.object_id == candidate.object_id,
+                    ElectricalCandidate.variant_number == candidate.variant_number,
+                )
+                .values(is_applied=False)
+            )
+            candidate.is_applied = True
+            candidate.status = ELECTRICAL_CANDIDATE_STATUS_APPLICABLE
+            # Materialize server-managed fields while the project lock still
+            # prevents a lifecycle delete from cascading these rows.
+            await self.db.flush()
+            await self.db.refresh(candidate)
+            await self.db.refresh(calc)
+            await self.db.commit()
+        except Exception:
+            await self.db.rollback()
+            raise
         return candidate, calc
 
     async def unapply_electrical_candidate(self, candidate_id: UUID) -> ElectricalCandidate:
@@ -3448,6 +3573,7 @@ class CalculationService:
         cable_type: str,
         electrical_params: dict[str, Any] | None,
         commit: bool,
+        electrical_variant_id: UUID | None = None,
     ) -> ElectricalCalculation:
         """Выбор/автоподбор кабеля для одной пары объект+СО."""
         catalog = await self.load_cable_catalog(cable_source)
@@ -3476,7 +3602,11 @@ class CalculationService:
             variant_number=variant_number,
             data=data,
         )
-        return await self.calc_electrical(request, commit=commit)
+        return await self.calc_electrical(
+            request,
+            commit=commit,
+            electrical_variant_id=electrical_variant_id,
+        )
 
     async def _load_selectable_object(self, object_id: UUID) -> ProjectObject:
         obj_result = await self.db.execute(
@@ -3546,6 +3676,7 @@ class CalculationService:
         electrical_params: dict[str, Any] | None = None,
         *,
         commit: bool = True,
+        electrical_variant_id: UUID | None = None,
     ) -> ElectricalCalculation:
         """Ручной выбор кабеля: берёт параметры из объекта, пересчитывает, upsert."""
         obj = await self._load_selectable_object(object_id)
@@ -3557,6 +3688,7 @@ class CalculationService:
             cable_type=cable_type,
             electrical_params=electrical_params,
             commit=commit,
+            electrical_variant_id=electrical_variant_id,
         )
 
     async def _electrical_batch_counts(

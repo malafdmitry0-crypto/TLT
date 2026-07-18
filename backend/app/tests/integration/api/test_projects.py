@@ -1,9 +1,16 @@
 """Integration-тесты CRUD проектов."""
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.audit_event import AuditEvent
+from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
+from app.models.project_object import ProjectObject
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -176,7 +183,12 @@ class TestProjectDuplicate:
         )
         assert resp.status_code == 403
 
-    async def test_employee_duplicates_with_objects(self, client: AsyncClient, employee_token: str):
+    async def test_employee_duplicates_with_objects(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        db_session: AsyncSession,
+    ):
         headers = {"Authorization": f"Bearer {employee_token}"}
         src = (
             await client.post(
@@ -224,6 +236,198 @@ class TestProjectDuplicate:
         # Теплорасчёт выполняется автоматически при дублировании
         assert objs[0]["is_valid"] is True
         assert objs[0]["results"] is not None
+
+        duplicate_project_id = UUID(dup["id"])
+        duplicate_object_id = UUID(objs[0]["id"])
+        variants = list(
+            (
+                await db_session.execute(
+                    select(ElectricalVariant).where(
+                        ElectricalVariant.project_id == duplicate_project_id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(variants) == 1
+        variant = variants[0]
+        assert variant.name == "ЭР1"
+        assert variant.legacy_variant_number == 1
+        assert variant.is_active is True
+
+        calculations = list(
+            (
+                await db_session.execute(
+                    select(ElectricalCalculation).where(
+                        ElectricalCalculation.project_id == duplicate_project_id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(calculations) == 1
+        assert calculations[0].object_id == duplicate_object_id
+        assert calculations[0].variant_number == 1
+        assert calculations[0].electrical_variant_id == variant.id
+
+        assignments = list(
+            (
+                await db_session.execute(
+                    select(ElectricalVariantObject).where(
+                        ElectricalVariantObject.project_id == duplicate_project_id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(assignments) == 1
+        assert assignments[0].object_id == duplicate_object_id
+        assert assignments[0].electrical_variant_id == variant.id
+
+        null_uuid_count = await db_session.scalar(
+            select(func.count())
+            .select_from(ElectricalCalculation)
+            .where(
+                ElectricalCalculation.project_id == duplicate_project_id,
+                ElectricalCalculation.electrical_variant_id.is_(None),
+            )
+        )
+        assert null_uuid_count == 0
+
+        calculation_scope_mismatches = await db_session.scalar(
+            select(func.count())
+            .select_from(ElectricalCalculation)
+            .join(
+                ElectricalVariant,
+                ElectricalVariant.id == ElectricalCalculation.electrical_variant_id,
+            )
+            .join(ProjectObject, ProjectObject.id == ElectricalCalculation.object_id)
+            .where(
+                ElectricalCalculation.project_id == duplicate_project_id,
+                (
+                    (ElectricalVariant.project_id != ElectricalCalculation.project_id)
+                    | (ProjectObject.project_id != ElectricalCalculation.project_id)
+                ),
+            )
+        )
+        assignment_scope_mismatches = await db_session.scalar(
+            select(func.count())
+            .select_from(ElectricalVariantObject)
+            .join(
+                ElectricalVariant,
+                ElectricalVariant.id == ElectricalVariantObject.electrical_variant_id,
+            )
+            .join(ProjectObject, ProjectObject.id == ElectricalVariantObject.object_id)
+            .where(
+                ElectricalVariantObject.project_id == duplicate_project_id,
+                (
+                    (ElectricalVariant.project_id != ElectricalVariantObject.project_id)
+                    | (ProjectObject.project_id != ElectricalVariantObject.project_id)
+                ),
+            )
+        )
+        assert calculation_scope_mismatches == 0
+        assert assignment_scope_mismatches == 0
+
+        duplicate_audit = await db_session.scalar(
+            select(AuditEvent).where(
+                AuditEvent.event_type == "project.duplicated",
+                AuditEvent.project_id == duplicate_project_id,
+            )
+        )
+        assert duplicate_audit is not None
+        assert duplicate_audit.details["electrical_status"] == "initialized"
+        assert duplicate_audit.details["electrical_variant_id"] == str(variant.id)
+        assert duplicate_audit.details["legacy_variant_number"] == 1
+        assert duplicate_audit.details["electrical_readiness_issue_codes"] == []
+
+    async def test_employee_duplicate_not_ready_remains_heat_only_project(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        db_session: AsyncSession,
+    ):
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        source = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "Неготовый исходный проект"},
+                headers=headers,
+            )
+        ).json()
+        invalid_object = await client.post(
+            f"/api/v1/projects/{source['id']}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.1,
+                    "wall_thickness": None,
+                    "pipe_material": None,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 10,
+                },
+            },
+            headers=headers,
+        )
+        assert invalid_object.status_code == 201, invalid_object.text
+        assert invalid_object.json()["is_valid"] is False
+
+        response = await client.post(
+            f"/api/v1/projects/{source['id']}/duplicate",
+            headers=headers,
+        )
+
+        assert response.status_code == 201, response.text
+        duplicate_project_id = UUID(response.json()["id"])
+        duplicated_objects = (
+            await client.get(
+                f"/api/v1/projects/{duplicate_project_id}/objects",
+                headers=headers,
+            )
+        ).json()
+        assert len(duplicated_objects) == 1
+        assert duplicated_objects[0]["is_valid"] is False
+        assert duplicated_objects[0]["results"] is None
+
+        variant_count = await db_session.scalar(
+            select(func.count(ElectricalVariant.id)).where(
+                ElectricalVariant.project_id == duplicate_project_id
+            )
+        )
+        assignment_count = await db_session.scalar(
+            select(func.count(ElectricalVariantObject.id)).where(
+                ElectricalVariantObject.project_id == duplicate_project_id
+            )
+        )
+        calculation_count = await db_session.scalar(
+            select(func.count(ElectricalCalculation.id)).where(
+                ElectricalCalculation.project_id == duplicate_project_id
+            )
+        )
+        assert variant_count == 0
+        assert assignment_count == 0
+        assert calculation_count == 0
+
+        duplicate_audit = await db_session.scalar(
+            select(AuditEvent).where(
+                AuditEvent.event_type == "project.duplicated",
+                AuditEvent.project_id == duplicate_project_id,
+            )
+        )
+        assert duplicate_audit is not None
+        assert duplicate_audit.details["electrical_status"] == "skipped_not_ready"
+        assert duplicate_audit.details["electrical_variant_id"] is None
+        assert duplicate_audit.details["legacy_variant_number"] is None
+        assert duplicate_audit.details["electrical_readiness_issue_codes"] == [
+            "ELECTRICAL_OBJECT_NOT_READY"
+        ]
 
     async def test_duplicate_nonexistent_returns_404(
         self, client: AsyncClient, employee_token: str
