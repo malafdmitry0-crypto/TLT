@@ -14,7 +14,7 @@ from app.models.background_task import BackgroundTask
 from app.schemas.calculation import ElectricalBatchJobRequest, HeatLossBatchJobRequest
 from app.schemas.report import ReportExportJobRequest
 from app.services.calculation_service import BatchProgress
-from app.services.project_service import ProjectService
+from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 from app.services.task_service import (
     MAX_TASK_ERROR_MESSAGE_LENGTH,
     TASK_ELECTRICAL_BATCH,
@@ -24,6 +24,7 @@ from app.services.task_service import (
     ProgressWritePolicy,
     TaskAccessError,
     TaskLimitError,
+    TaskNotFoundError,
     TaskService,
 )
 
@@ -129,7 +130,7 @@ def mock_db():
     return db
 
 
-async def _allow_project_access(self, project_id, principal):
+async def _allow_project_write(self, project_id, principal):
     return SimpleNamespace(id=project_id)
 
 
@@ -348,13 +349,40 @@ class TestDeadLetterReplay:
 
 
 class TestTaskCreation:
+    @pytest.mark.parametrize(
+        ("project_error", "task_error"),
+        [
+            (ProjectAccessError("forbidden"), TaskAccessError),
+            (ProjectNotFoundError("missing"), TaskNotFoundError),
+        ],
+    )
+    async def test_project_write_errors_are_normalized_for_task_endpoints(
+        self,
+        mock_db,
+        guest_principal: CurrentPrincipal,
+        monkeypatch: pytest.MonkeyPatch,
+        project_error: Exception,
+        task_error: type[Exception],
+    ):
+        monkeypatch.setattr(
+            ProjectService,
+            "get_project_for_write",
+            AsyncMock(side_effect=project_error),
+        )
+
+        with pytest.raises(task_error):
+            await TaskService(mock_db)._require_project_write(
+                uuid.uuid4(),
+                guest_principal,
+            )
+
     async def test_create_electrical_batch_task_enqueues_and_persists_payload(
         self,
         mock_db,
         guest_principal: CurrentPrincipal,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
         _allow_active_task_limits(service)
@@ -390,7 +418,7 @@ class TestTaskCreation:
         guest_principal: CurrentPrincipal,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
         _allow_active_task_limits(service)
@@ -415,7 +443,7 @@ class TestTaskCreation:
         guest_principal: CurrentPrincipal,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
         existing = BackgroundTask(
             id=uuid.uuid4(),
             type=TASK_ELECTRICAL_BATCH,
@@ -442,7 +470,7 @@ class TestTaskCreation:
         guest_principal: CurrentPrincipal,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
         monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_GLOBAL", 200)
         monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_PER_PROJECT", 1)
         monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_PER_PRINCIPAL", 5)
@@ -467,7 +495,7 @@ class TestTaskCreation:
         guest_principal: CurrentPrincipal,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
         monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_GLOBAL", 200)
         monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_PER_PROJECT", 3)
         monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_PER_PRINCIPAL", 1)
@@ -492,7 +520,7 @@ class TestTaskCreation:
         employee_principal: CurrentPrincipal,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
         monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_GLOBAL", 1)
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
@@ -519,7 +547,7 @@ class TestTaskCreation:
         guest_principal: CurrentPrincipal,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
         _allow_active_task_limits(service)
@@ -548,7 +576,7 @@ class TestTaskCreation:
         employee_principal: CurrentPrincipal,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
         _allow_active_task_limits(service)
@@ -601,7 +629,7 @@ class TestTaskCreation:
         guest_principal: CurrentPrincipal,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr(ProjectService, "get_project_basic", _allow_project_access)
+        monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
 
         with pytest.raises(TaskAccessError):
             await TaskService(mock_db).create_electrical_batch_task(

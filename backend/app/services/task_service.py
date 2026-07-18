@@ -35,7 +35,11 @@ from app.schemas.calculation import (
 from app.schemas.report import ReportExportJobRequest, ReportExportTaskResult
 from app.services.audit_service import AuditService
 from app.services.calculation_service import BatchCancelledError, BatchProgress, CalculationService
-from app.services.project_service import ProjectService
+from app.services.project_service import (
+    ProjectAccessError,
+    ProjectNotFoundError,
+    ProjectService,
+)
 from app.services.report_artifact_service import write_report_artifact
 from app.services.report_service import ReportService
 from app.services.task_queue import TaskQueue
@@ -153,6 +157,18 @@ class TaskService:
         self.db = db
         self.session_factory = session_factory
 
+    async def _require_project_write(
+        self,
+        project_id: UUID,
+        principal: CurrentPrincipal,
+    ) -> None:
+        try:
+            await ProjectService(self.db).get_project_for_write(project_id, principal)
+        except ProjectNotFoundError as exc:
+            raise TaskNotFoundError(str(exc)) from exc
+        except ProjectAccessError as exc:
+            raise TaskAccessError(str(exc)) from exc
+
     async def create_electrical_batch_task(
         self,
         request: ElectricalBatchJobRequest,
@@ -161,7 +177,7 @@ class TaskService:
         queue: TaskQueue | None = None,
         idempotency_key: str | None = None,
     ) -> BackgroundTask:
-        await ProjectService(self.db).get_project_basic(request.project_id, principal)
+        await self._require_project_write(request.project_id, principal)
         if request.cable_source in ("extended", "all") and principal.role not in (
             "employee",
             "admin",
@@ -232,7 +248,7 @@ class TaskService:
         queue: TaskQueue | None = None,
         idempotency_key: str | None = None,
     ) -> BackgroundTask:
-        await ProjectService(self.db).get_project_basic(request.project_id, principal)
+        await self._require_project_write(request.project_id, principal)
 
         payload = self._heat_loss_payload(request)
         dedupe_key = self._dedupe_key(
@@ -287,7 +303,7 @@ class TaskService:
     ) -> BackgroundTask:
         if principal.role not in ("employee", "admin"):
             raise TaskAccessError("Экспорт отчёта доступен только сотрудникам")
-        await ProjectService(self.db).get_project_basic(request.project_id, principal)
+        await self._require_project_write(request.project_id, principal)
 
         payload = self._report_export_payload(request)
         dedupe_key = self._dedupe_key(
@@ -361,6 +377,8 @@ class TaskService:
         principal: CurrentPrincipal,
     ) -> BackgroundTask:
         task = await self.get_task_for_principal(task_id, principal)
+        if task.project_id is not None:
+            await self._require_project_write(task.project_id, principal)
         if task.status in TERMINAL_STATUSES:
             return task
         now = datetime.now(UTC)

@@ -12,6 +12,11 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 MINERAL_WOOL = "mineral_wool_boards_120"
 
 
+class FakeTaskQueue:
+    async def enqueue(self, task_id, task_type: str) -> str:
+        return f"security-test:{task_id}:{task_type}"
+
+
 async def _guest_project_with_object(client: AsyncClient) -> tuple[str, dict, dict]:
     sid = (await client.post("/api/v1/auth/guest")).json()["session_id"]
     project = (await client.get("/api/v1/projects", headers={"X-Session-Id": sid})).json()[0]
@@ -185,6 +190,45 @@ class TestGuestIsolation:
         )
         assert resp.status_code in (403, 404)
 
+    async def test_guest_cannot_enqueue_or_cancel_task_for_foreign_session_project(
+        self,
+        client: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        sid_a = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+        project_a = (
+            await client.get("/api/v1/projects", headers={"X-Session-Id": sid_a})
+        ).json()[0]
+        sid_b = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+
+        foreign_enqueue = await client.post(
+            "/api/v1/calc/heat-loss/batch/jobs",
+            json={"project_id": project_a["id"]},
+            headers={"X-Session-Id": sid_b},
+        )
+        assert foreign_enqueue.status_code == 403
+
+        owner_enqueue = await client.post(
+            "/api/v1/calc/heat-loss/batch/jobs",
+            json={"project_id": project_a["id"]},
+            headers={"X-Session-Id": sid_a},
+        )
+        assert owner_enqueue.status_code == 202, owner_enqueue.text
+        task_id = owner_enqueue.json()["id"]
+
+        foreign_cancel = await client.post(
+            f"/api/v1/calc/jobs/{task_id}/cancel",
+            headers={"X-Session-Id": sid_b},
+        )
+        assert foreign_cancel.status_code == 403
+
+        owner_cancel = await client.post(
+            f"/api/v1/calc/jobs/{task_id}/cancel",
+            headers={"X-Session-Id": sid_a},
+        )
+        assert owner_cancel.status_code == 200, owner_cancel.text
+
 
 class TestGuestCannotAccessEmployeeFeatures:
     """Гость не должен дёргать сотруднические endpoints даже зная URL."""
@@ -296,6 +340,164 @@ class TestEmployeeCannotEditOthersProjects:
             headers={"Authorization": f"Bearer {employee_token}"},
         )
         assert resp.status_code == 403
+
+    async def test_employee_can_read_but_cannot_mutate_admin_project_specification(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        admin_token: str,
+    ):
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        employee_headers = {"Authorization": f"Bearer {employee_token}"}
+        project = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "Чужая спецификация"},
+                headers=admin_headers,
+            )
+        ).json()
+
+        read_resp = await client.get(
+            f"/api/v1/specifications/{project['id']}",
+            headers=employee_headers,
+        )
+        assert read_resp.status_code == 200
+
+        generate_resp = await client.post(
+            f"/api/v1/specifications/{project['id']}/generate",
+            headers=employee_headers,
+        )
+        save_resp = await client.put(
+            f"/api/v1/specifications/{project['id']}/items",
+            json={"items": []},
+            headers=employee_headers,
+        )
+
+        assert generate_resp.status_code == 403
+        assert save_resp.status_code == 403
+
+        read_after = await client.get(
+            f"/api/v1/specifications/{project['id']}",
+            headers=employee_headers,
+        )
+        assert read_after.status_code == 200
+        assert read_after.json() is None
+
+    async def test_employee_cannot_enqueue_admin_project_tasks(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        admin_token: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        employee_headers = {"Authorization": f"Bearer {employee_token}"}
+        project = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "Чужие фоновые задачи"},
+                headers=admin_headers,
+            )
+        ).json()
+
+        heat_resp = await client.post(
+            "/api/v1/calc/heat-loss/batch/jobs",
+            json={"project_id": project["id"]},
+            headers=employee_headers,
+        )
+        electrical_resp = await client.post(
+            "/api/v1/calc/electrical/batch/jobs",
+            json={"project_id": project["id"]},
+            headers=employee_headers,
+        )
+        report_resp = await client.post(
+            f"/api/v1/reports/{project['id']}/export/pdf/jobs",
+            params={"variant_number": 1},
+            headers=employee_headers,
+        )
+
+        assert heat_resp.status_code == 403
+        assert electrical_resp.status_code == 403
+        assert report_resp.status_code == 403
+
+    async def test_employee_can_read_but_cannot_cancel_admin_project_task(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        admin_token: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        employee_headers = {"Authorization": f"Bearer {employee_token}"}
+        project = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "Чужая отмена задачи"},
+                headers=admin_headers,
+            )
+        ).json()
+
+        owner_enqueue = await client.post(
+            "/api/v1/calc/heat-loss/batch/jobs",
+            json={"project_id": project["id"]},
+            headers=admin_headers,
+        )
+        assert owner_enqueue.status_code == 202, owner_enqueue.text
+        task_id = owner_enqueue.json()["id"]
+
+        read_resp = await client.get(
+            f"/api/v1/calc/jobs/{task_id}",
+            headers=employee_headers,
+        )
+        assert read_resp.status_code == 200
+
+        cancel_resp = await client.post(
+            f"/api/v1/calc/jobs/{task_id}/cancel",
+            headers=employee_headers,
+        )
+        assert cancel_resp.status_code == 403
+
+        owner_status = await client.get(
+            f"/api/v1/calc/jobs/{task_id}",
+            headers=admin_headers,
+        )
+        assert owner_status.status_code == 200
+        assert owner_status.json()["status"] == "enqueued"
+        assert owner_status.json()["cancel_requested"] is False
+
+    async def test_admin_keeps_write_access_to_employee_project_tasks(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        admin_token: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        employee_headers = {"Authorization": f"Bearer {employee_token}"}
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        project = (
+            await client.post(
+                "/api/v1/projects",
+                json={"name": "Проект под сопровождением"},
+                headers=employee_headers,
+            )
+        ).json()
+
+        enqueue_resp = await client.post(
+            "/api/v1/calc/heat-loss/batch/jobs",
+            json={"project_id": project["id"]},
+            headers=admin_headers,
+        )
+        assert enqueue_resp.status_code == 202, enqueue_resp.text
+
+        cancel_resp = await client.post(
+            f"/api/v1/calc/jobs/{enqueue_resp.json()['id']}/cancel",
+            headers=admin_headers,
+        )
+        assert cancel_resp.status_code == 200, cancel_resp.text
+        assert cancel_resp.json()["status"] == "cancelled"
 
 
 class TestEmployeeNotAdmin:

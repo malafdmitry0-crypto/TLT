@@ -61,7 +61,7 @@ async def generate_specification(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        await ProjectService(db).get_project_basic(project_id, principal)
+        await ProjectService(db).get_project_for_write(project_id, principal)
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
@@ -113,7 +113,7 @@ async def save_specification_items(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        await ProjectService(db).get_project_basic(project_id, principal)
+        await ProjectService(db).get_project_for_write(project_id, principal)
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
