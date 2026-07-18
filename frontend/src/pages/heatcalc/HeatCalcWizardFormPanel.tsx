@@ -3,6 +3,7 @@ import {
   Suspense,
 } from 'react';
 
+import type { ObjectWizardLayoutVariant } from '@/components/wizard/ObjectWizardPanelTypes';
 import type { ProjectObject } from '@/types/project';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type {
@@ -57,9 +58,13 @@ export default function HeatCalcWizardFormPanel({
   onFormSectionWeightsCommit,
   onDraftValuesChange,
 }: HeatCalcWizardFormPanelProps) {
+  const layoutVariant: ObjectWizardLayoutVariant =
+    formPlacement === 'left' || formPlacement === 'right' ? 'side' : 'wide';
+
   return (
     <div
-      className={`inline-form-shell heatcalc-form-pane heatcalc-form-pane--${formPlacement}`}
+      className={`inline-form-shell heatcalc-form-pane heatcalc-form-pane--${formPlacement} heatcalc-form-pane--${layoutVariant}`}
+      data-layout={layoutVariant}
       aria-label="Блок заполнения параметров"
       hidden={!formBlockVisible}
     >
@@ -79,8 +84,9 @@ export default function HeatCalcWizardFormPanel({
               validationErrors={wizardFormObject?.validation_errors}
               fieldErrors={wizardDraftFieldErrors}
               fieldInputSettings={fieldInputSettings}
+              layoutVariant={layoutVariant}
               formSectionWeights={formSectionWeights}
-              sectionResizeEnabled={formPlacement === 'top' || formPlacement === 'bottom'}
+              sectionResizeEnabled={false}
               onFormSectionWeightsChange={onFormSectionWeightsChange}
               onFormSectionWeightsCommit={onFormSectionWeightsCommit}
               onDraftValuesChange={wizardBaseObject ? onDraftValuesChange : undefined}

@@ -1,0 +1,569 @@
+import { expect, test, type Page } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+const BASE_URL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:3003';
+const HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY = 'heatcalc.tableView.v2.guest';
+const OUT_DIR = 'test-results/ui-proof-heat-form-split-after';
+
+type FormPlacement = 'top' | 'bottom' | 'right';
+
+async function loginAsGuest(page: Page) {
+  await page.goto(BASE_URL);
+  await page.getByRole('button', { name: 'Начать без регистрации' }).click();
+  await page.waitForURL(/\/workspace\/heat-calc/);
+  await page.waitForLoadState('networkidle').catch(() => undefined);
+}
+
+async function openHeatFormVariant(page: Page, placement: FormPlacement, viewport: { width: number; height: number }) {
+  await page.setViewportSize(viewport);
+  await loginAsGuest(page);
+  await page.evaluate(
+    ([storageKey, formPlacement]) => {
+      localStorage.setItem(storageKey, JSON.stringify({
+        version: 2,
+        fontSize: 'standard',
+        tableLabelFormat: 'short',
+        settingsLabelFormat: 'full',
+        formPlacement,
+        sideFormWidthPct: 34,
+        formSectionWeights: [1.655, 1.35, 1.2],
+      }));
+    },
+    [HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY, placement],
+  );
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
+}
+
+async function setInsulationLayerCount(page: Page, label: string) {
+  await page.getByTestId('insulation-layer-count-select').click();
+  const option = page.locator('.tlt-select__option, [role="option"]').filter({ hasText: label }).last();
+  await expect(option).toBeVisible();
+  await option.click();
+  await expect(page.getByTestId('insulation-layer-count-select')).toContainText(label);
+  await page.waitForTimeout(200);
+}
+
+async function clearHover(page: Page) {
+  await page.mouse.move(4, 4);
+  await page.waitForTimeout(100);
+}
+
+async function inspectHeatForm(page: Page) {
+  return page.evaluate(() => {
+    type Issue = { type: string; selector: string; details: string };
+
+    const issues: Issue[] = [];
+    const labelPlacementIssues: Issue[] = [];
+    const wideLabelFlowIssues: Issue[] = [];
+    const wideLayerRowIssues: Issue[] = [];
+    const wideCompactIssues: Issue[] = [];
+    const wideSectionLayoutIssues: Issue[] = [];
+    const form = document.querySelector<HTMLElement>('.inline-object-form');
+    const visible = (el: Element) => {
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      return rect.width > 1
+        && rect.height > 1
+        && style.display !== 'none'
+        && style.visibility !== 'hidden'
+        && Number(style.opacity || '1') > 0.01;
+    };
+    const describe = (el: Element) => {
+      const id = el.id ? `#${el.id}` : '';
+      const testId = el.getAttribute('data-testid');
+      const className = String(el.getAttribute('class') || '')
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 3)
+        .map((name) => `.${name}`)
+        .join('');
+      const text = (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+      return `${el.tagName.toLowerCase()}${id}${className}${testId ? `[data-testid="${testId}"]` : text ? ` "${text}"` : ''}`;
+    };
+
+    if (!form) {
+      return {
+        formClass: null,
+        shellLayout: null,
+        formLayout: null,
+        widePanelCount: 0,
+        sidePanelCount: 0,
+        wideGridCount: 0,
+        sideGridCount: 0,
+        visibleResizeHandleCount: 0,
+        sideSectionCount: 0,
+        labelPlacementIssues,
+        wideLabelFlowIssues,
+        wideLayerRowIssues,
+        wideCompactIssues,
+        wideSectionLayoutIssues,
+        issues: [{ type: 'missing-form', selector: '.inline-object-form', details: 'form not found' }],
+      };
+    }
+
+    const formLayout = form.dataset.layout ?? null;
+
+    const documentOverflow =
+      Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) -
+      document.documentElement.clientWidth;
+    if (documentOverflow > 2) {
+      issues.push({
+        type: 'page-horizontal-overflow',
+        selector: 'document',
+        details: `overflow=${documentOverflow}px`,
+      });
+    }
+
+    if (form.scrollWidth - form.clientWidth > 2) {
+      issues.push({
+        type: 'form-horizontal-overflow',
+        selector: describe(form),
+        details: `scrollWidth=${form.scrollWidth}, clientWidth=${form.clientWidth}`,
+      });
+    }
+
+    const textNodes = Array.from(form.querySelectorAll<HTMLElement>([
+      'label',
+      '.reference-picker-value',
+      '.tlt-select__value',
+      '.ant-select-selection-item',
+      '.ant-select-selection-placeholder',
+      '.unit-input-number__addon',
+    ].join(','))).filter(visible);
+    for (const el of textNodes) {
+      const style = window.getComputedStyle(el);
+      if (style.textOverflow === 'ellipsis') continue;
+      if (el.scrollWidth - el.clientWidth > 4) {
+        issues.push({
+          type: 'text-horizontal-clipping',
+          selector: describe(el),
+          details: `scrollWidth=${el.scrollWidth}, clientWidth=${el.clientWidth}`,
+        });
+      }
+      if (el.scrollHeight - el.clientHeight > 4 && style.overflowY !== 'visible') {
+        issues.push({
+          type: 'text-vertical-clipping',
+          selector: describe(el),
+          details: `scrollHeight=${el.scrollHeight}, clientHeight=${el.clientHeight}`,
+        });
+      }
+    }
+
+    const controlSelector = [
+      'input',
+      'button',
+      '.ant-input-number',
+      '.reference-picker-control',
+      '.tlt-select__trigger',
+      '.ant-select-selector',
+    ].join(',');
+    const controls = Array.from(form.querySelectorAll<HTMLElement>(controlSelector)).filter(visible);
+    for (let i = 0; i < controls.length; i += 1) {
+      const a = controls[i];
+      const aRect = a.getBoundingClientRect();
+      for (let j = i + 1; j < controls.length; j += 1) {
+        const b = controls[j];
+        if (a.contains(b) || b.contains(a)) continue;
+        if (a.closest('.ant-form-item') === b.closest('.ant-form-item')) continue;
+        const bRect = b.getBoundingClientRect();
+        const x = Math.max(0, Math.min(aRect.right, bRect.right) - Math.max(aRect.left, bRect.left));
+        const y = Math.max(0, Math.min(aRect.bottom, bRect.bottom) - Math.max(aRect.top, bRect.top));
+        if (x <= 2 || y <= 2) continue;
+        const overlap = x * y;
+        const smaller = Math.min(aRect.width * aRect.height, bRect.width * bRect.height);
+        if (smaller > 0 && overlap / smaller > 0.35) {
+          issues.push({
+            type: 'interactive-overlap',
+            selector: `${describe(a)} <-> ${describe(b)}`,
+            details: `overlap=${Math.round(overlap)}px2`,
+          });
+        }
+      }
+    }
+
+    const formItems = Array.from(form.querySelectorAll<HTMLElement>('.ant-form-item')).filter(visible);
+    const labeledTargets: Array<{
+      item: HTMLElement;
+      label: HTMLElement;
+      labelRect: DOMRect;
+      controlTarget?: HTMLElement;
+      controlRect?: DOMRect;
+    }> = [];
+    for (const item of formItems) {
+      const row = item.querySelector<HTMLElement>(':scope > .ant-form-item-row');
+      const label = row?.querySelector<HTMLElement>(':scope > .ant-form-item-label > label');
+      const control = row?.querySelector<HTMLElement>(':scope > .ant-form-item-control');
+      if (!row || !label || !control || !visible(label)) continue;
+      const controlTarget = Array.from(control.querySelectorAll<HTMLElement>(controlSelector)).find(visible);
+      if (!controlTarget) continue;
+      const labelRect = label.getBoundingClientRect();
+      const controlRect = controlTarget.getBoundingClientRect();
+      labeledTargets.push({ item, label, labelRect, controlTarget, controlRect });
+
+      if (labelRect.bottom - controlRect.top > 2) {
+        labelPlacementIssues.push({
+          type: 'label-not-above-control',
+          selector: describe(item),
+          details: `labelBottom=${Math.round(labelRect.bottom)}, controlTop=${Math.round(controlRect.top)}`,
+        });
+      }
+
+      if (formLayout === 'wide') {
+        const labelText = label.querySelector<HTMLElement>('span') ?? label;
+        const labelTextRect = labelText.getBoundingClientRect();
+        const labelTextStyle = window.getComputedStyle(labelText);
+        const labelLineHeight = Number.parseFloat(labelTextStyle.lineHeight)
+          || Number.parseFloat(labelTextStyle.fontSize) * 1.2
+          || 12;
+        if (labelTextRect.height - labelLineHeight > 3) {
+          wideLabelFlowIssues.push({
+            type: 'wide-label-wrapped',
+            selector: describe(item),
+            details: `labelHeight=${Math.round(labelTextRect.height)}, lineHeight=${Math.round(labelLineHeight)}`,
+          });
+        }
+      }
+    }
+
+    if (formLayout === 'wide') {
+      const wideColumns = Array.from(form.querySelectorAll<HTMLElement>('.object-wizard-wide-panel .form-col-srs'));
+      const primaryPanel = form.querySelector<HTMLElement>('.object-wizard-wide-panel .form-col-srs--primary');
+      const fittingsPanel = form.querySelector<HTMLElement>('.object-wizard-wide-panel .form-col-srs--fittings');
+      const temperaturePanel = form.querySelector<HTMLElement>('.object-wizard-wide-panel .form-col-srs--climate');
+      const insulationPanel = form.querySelector<HTMLElement>('.object-wizard-wide-panel .form-col-srs--insulation');
+      const pipeMaterial = primaryPanel?.querySelector<HTMLElement>('.pipe-material-form-item');
+      const primaryPlacement = primaryPanel
+        ?.querySelector<HTMLElement>('[data-testid="placement-select"]')
+        ?.closest<HTMLElement>('.ant-form-item');
+      const primarySafetyFactor = primaryPanel
+        ?.querySelector<HTMLElement>('[data-testid="safety-factor-input"]')
+        ?.closest<HTMLElement>('.ant-form-item');
+      const temperaturePlacement = temperaturePanel
+        ?.querySelector<HTMLElement>('[data-testid="placement-select"]')
+        ?.closest<HTMLElement>('.ant-form-item');
+      const temperatureSafetyFactor = temperaturePanel
+        ?.querySelector<HTMLElement>('[data-testid="safety-factor-input"]')
+        ?.closest<HTMLElement>('.ant-form-item');
+
+      if (primaryPlacement && visible(primaryPlacement)) {
+        wideCompactIssues.push({
+          type: 'wide-field-in-wrong-column',
+          selector: describe(primaryPlacement),
+          details: 'placement must be in climate/temperature column',
+        });
+      }
+      if (primarySafetyFactor && visible(primarySafetyFactor)) {
+        wideCompactIssues.push({
+          type: 'wide-field-in-wrong-column',
+          selector: describe(primarySafetyFactor),
+          details: 'safety_factor must be in climate/temperature column',
+        });
+      }
+      if (!temperaturePlacement || !visible(temperaturePlacement)) {
+        wideCompactIssues.push({
+          type: 'wide-field-missing-in-temperature-column',
+          selector: '.object-wizard-wide-panel .form-col-srs--climate [data-testid="placement-select"]',
+          details: 'placement not found in climate/temperature column',
+        });
+      }
+      if (!temperatureSafetyFactor || !visible(temperatureSafetyFactor)) {
+        wideCompactIssues.push({
+          type: 'wide-field-missing-in-temperature-column',
+          selector: '.object-wizard-wide-panel .form-col-srs--climate [data-testid="safety-factor-input"]',
+          details: 'safety_factor not found in climate/temperature column',
+        });
+      }
+
+      for (const [name, item, maxWidth] of [
+        ['pipe-material', pipeMaterial, 430],
+        ['placement', temperaturePlacement, 390],
+      ] as const) {
+        if (!item || !visible(item)) continue;
+        const rect = item.getBoundingClientRect();
+        if (rect.width > maxWidth) {
+          wideCompactIssues.push({
+            type: 'wide-field-too-wide',
+            selector: describe(item),
+            details: `${name} width=${Math.round(rect.width)}, max=${maxWidth}`,
+          });
+        }
+      }
+
+      const layerCount = form.querySelector<HTMLElement>('.object-wizard-wide-panel .insulation-layer-count-form-item');
+      const temperatureBasis = form.querySelector<HTMLElement>('.object-wizard-wide-panel .insulation-temperature-basis-form-item');
+      if (layerCount && temperatureBasis && visible(layerCount) && visible(temperatureBasis)) {
+        const countRect = layerCount.getBoundingClientRect();
+        const basisRect = temperatureBasis.getBoundingClientRect();
+        if (Math.abs(countRect.top - basisRect.top) > 3 || Math.abs(countRect.bottom - basisRect.bottom) > 3) {
+          wideCompactIssues.push({
+            type: 'wide-insulation-settings-not-one-row',
+            selector: `${describe(layerCount)} <-> ${describe(temperatureBasis)}`,
+            details: `tops=${Math.round(countRect.top)}/${Math.round(basisRect.top)}, bottoms=${Math.round(countRect.bottom)}/${Math.round(basisRect.bottom)}`,
+          });
+        }
+      }
+
+      const layerGroups = Array.from(
+        form.querySelectorAll<HTMLElement>('.object-wizard-wide-panel .insulation-layer-group'),
+      ).filter(visible);
+      if (window.innerWidth >= 1180 && insulationPanel && visible(insulationPanel) && layerGroups.length === 1) {
+        const groupRect = layerGroups[0].getBoundingClientRect();
+        const insulationRect = insulationPanel.getBoundingClientRect();
+        if (groupRect.width > insulationRect.width * 0.45) {
+          wideSectionLayoutIssues.push({
+            type: 'wide-single-insulation-layer-too-wide',
+            selector: '.object-wizard-wide-panel .insulation-layer-group',
+            details: `groupWidth=${Math.round(groupRect.width)}, insulationWidth=${Math.round(insulationRect.width)}`,
+          });
+        }
+      }
+      if (window.innerWidth >= 1180 && layerGroups.length >= 2) {
+        const groupRects = layerGroups.map((group) => group.getBoundingClientRect());
+        const minTop = Math.min(...groupRects.map((rect) => rect.top));
+        const maxTop = Math.max(...groupRects.map((rect) => rect.top));
+        if (maxTop - minTop > 3) {
+          wideSectionLayoutIssues.push({
+            type: 'wide-insulation-layer-groups-not-one-row',
+            selector: '.object-wizard-wide-panel .insulation-layer-group',
+            details: `tops=${groupRects.map((rect) => Math.round(rect.top)).join('/')}`,
+          });
+        }
+      }
+      layerGroups.forEach((group, groupIndex) => {
+        const rowItems = [
+          group.querySelector<HTMLElement>('.short-number-form-item'),
+          group.querySelector<HTMLElement>('.coefficient-form-item'),
+          group.querySelector<HTMLElement>('.insulation-temperature-range-form-item'),
+        ].filter((item): item is HTMLElement => Boolean(item && visible(item)));
+        if (rowItems.length !== 3) return;
+        const rects = rowItems.map((item) => item.getBoundingClientRect());
+        const minTop = Math.min(...rects.map((rect) => rect.top));
+        const maxTop = Math.max(...rects.map((rect) => rect.top));
+        const minBottom = Math.min(...rects.map((rect) => rect.bottom));
+        const maxBottom = Math.max(...rects.map((rect) => rect.bottom));
+        if (maxTop - minTop > 3 || maxBottom - minBottom > 3) {
+          wideLayerRowIssues.push({
+            type: 'wide-layer-fields-not-one-row',
+            selector: describe(group),
+            details: `group=${groupIndex + 1}, tops=${rects.map((rect) => Math.round(rect.top)).join('/')}, bottoms=${rects.map((rect) => Math.round(rect.bottom)).join('/')}`,
+          });
+        }
+      });
+
+      if (
+        primaryPanel && fittingsPanel && temperaturePanel && insulationPanel
+        && visible(primaryPanel)
+        && visible(fittingsPanel)
+        && visible(temperaturePanel)
+        && visible(insulationPanel)
+      ) {
+        const topRects = [primaryPanel, fittingsPanel, temperaturePanel].map((section) => section.getBoundingClientRect());
+        const insulationRect = insulationPanel.getBoundingClientRect();
+        const gridRect = form.querySelector<HTMLElement>('.object-wizard-wide-panel .form-grid-srs')?.getBoundingClientRect();
+        const minTop = Math.min(...topRects.map((rect) => rect.top));
+        const maxTop = Math.max(...topRects.map((rect) => rect.top));
+        const maxFirstRowBottom = Math.max(...topRects.map((rect) => rect.bottom));
+        if (maxTop - minTop > 3) {
+          wideSectionLayoutIssues.push({
+            type: 'wide-top-sections-not-one-row',
+            selector: '.object-wizard-wide-panel .form-col-srs--primary/.form-col-srs--fittings/.form-col-srs--climate',
+            details: `tops=${topRects.map((rect) => Math.round(rect.top)).join('/')}`,
+          });
+        }
+        if (insulationRect.top - maxFirstRowBottom < -3) {
+          wideSectionLayoutIssues.push({
+            type: 'wide-insulation-not-below-top-row',
+            selector: '.object-wizard-wide-panel .form-col-srs--insulation',
+            details: `insulationTop=${Math.round(insulationRect.top)}, topBottom=${Math.round(maxFirstRowBottom)}`,
+          });
+        }
+        if (gridRect && (
+          Math.abs(insulationRect.left - gridRect.left) > 3
+          || Math.abs(insulationRect.right - gridRect.right) > 3
+        )) {
+          wideSectionLayoutIssues.push({
+            type: 'wide-insulation-not-full-width',
+            selector: '.object-wizard-wide-panel .form-col-srs--insulation',
+            details: `insulation=${Math.round(insulationRect.left)}/${Math.round(insulationRect.right)}, grid=${Math.round(gridRect.left)}/${Math.round(gridRect.right)}`,
+          });
+        }
+      }
+    }
+
+    const overlapArea = (left: DOMRect, right: DOMRect) => {
+      const x = Math.max(0, Math.min(left.right, right.right) - Math.max(left.left, right.left));
+      const y = Math.max(0, Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top));
+      return { x, y, area: x * y };
+    };
+    for (let i = 0; i < labeledTargets.length; i += 1) {
+      const current = labeledTargets[i];
+      for (let j = 0; j < labeledTargets.length; j += 1) {
+        if (i === j) continue;
+        const other = labeledTargets[j];
+        const labelControlOverlap = other.controlRect
+          ? overlapArea(current.labelRect, other.controlRect)
+          : { x: 0, y: 0, area: 0 };
+        if (labelControlOverlap.x > 2 && labelControlOverlap.y > 2 && labelControlOverlap.area > 12) {
+          issues.push({
+            type: 'label-control-overlap',
+            selector: `${describe(current.item)} -> ${describe(other.controlTarget ?? other.item)}`,
+            details: `overlap=${Math.round(labelControlOverlap.area)}px2`,
+          });
+        }
+
+        const labelLabelOverlap = overlapArea(current.labelRect, other.labelRect);
+        if (labelLabelOverlap.x > 2 && labelLabelOverlap.y > 2 && labelLabelOverlap.area > 12) {
+          issues.push({
+            type: 'label-label-overlap',
+            selector: `${describe(current.item)} -> ${describe(other.item)}`,
+            details: `overlap=${Math.round(labelLabelOverlap.area)}px2`,
+          });
+        }
+      }
+    }
+
+    return {
+      formClass: form.getAttribute('class'),
+      shellLayout: document.querySelector<HTMLElement>('[aria-label="Блок заполнения параметров"]')?.dataset.layout ?? null,
+      formLayout: form.dataset.layout ?? null,
+      widePanelCount: form.querySelectorAll('.object-wizard-wide-panel[data-panel="wide"]').length,
+      sidePanelCount: form.querySelectorAll('.object-wizard-side-panel[data-panel="side"]').length,
+      wideSectionCount: form.querySelectorAll('.object-wizard-wide-panel .form-col-srs').length,
+      wideBannerCount: form.querySelectorAll('.object-wizard-wide-panel .inline-form-section-banner').length,
+      wideHeadings: Array
+        .from(form.querySelectorAll<HTMLElement>('.form-col-srs > h4'))
+        .map((el) => el.textContent?.replace(/\s+/g, ' ').trim() ?? ''),
+      sideHeadings: Array
+        .from(form.querySelectorAll<HTMLElement>('.side-form-section > h4'))
+        .map((el) => el.textContent?.replace(/\s+/g, ' ').trim() ?? ''),
+      wideGridCount: form.querySelectorAll('.form-grid-srs').length,
+      sideGridCount: form.querySelectorAll('.side-form-grid-srs').length,
+      visibleResizeHandleCount: Array
+        .from(form.querySelectorAll<HTMLElement>('.form-col-resize-handle'))
+        .filter((el) => getComputedStyle(el).display !== 'none').length,
+      sideSectionCount: form.querySelectorAll('.side-form-section').length,
+      labelPlacementIssues,
+      wideLabelFlowIssues,
+      wideLayerRowIssues,
+      wideCompactIssues,
+      wideSectionLayoutIssues,
+      issues,
+    };
+  });
+}
+
+test('SC-03 has independent wide and side form layouts', async ({ page }) => {
+  mkdirSync(OUT_DIR, { recursive: true });
+
+  await openHeatFormVariant(page, 'top', { width: 1366, height: 768 });
+  await setInsulationLayerCount(page, '3 слоя');
+  const wide = await inspectHeatForm(page);
+  await clearHover(page);
+  await page.screenshot({ path: join(OUT_DIR, 'after-wide-1366.png'), fullPage: false });
+
+  expect(wide.shellLayout).toBe('wide');
+  expect(wide.formLayout).toBe('wide');
+  expect(wide.formClass).toContain('inline-object-form--wide');
+  expect(wide.widePanelCount).toBe(1);
+  expect(wide.sidePanelCount).toBe(0);
+  expect(wide.wideSectionCount).toBe(4);
+  expect(wide.wideBannerCount).toBe(0);
+  expect(wide.wideHeadings).toEqual([]);
+  expect(wide.sideHeadings).toEqual([]);
+  expect(wide.wideGridCount).toBe(1);
+  expect(wide.sideGridCount).toBe(0);
+  expect(wide.visibleResizeHandleCount).toBe(0);
+  expect(wide.labelPlacementIssues).toEqual([]);
+  expect(wide.wideLabelFlowIssues).toEqual([]);
+  expect(wide.wideLayerRowIssues).toEqual([]);
+  expect(wide.wideCompactIssues).toEqual([]);
+  expect(wide.wideSectionLayoutIssues).toEqual([]);
+  expect(wide.issues).toEqual([]);
+
+  await openHeatFormVariant(page, 'top', { width: 2048, height: 768 });
+  const wideLargeSingleLayer = await inspectHeatForm(page);
+  await clearHover(page);
+  await page.screenshot({ path: join(OUT_DIR, 'after-wide-2048-one-layer.png'), fullPage: false });
+
+  expect(wideLargeSingleLayer.shellLayout).toBe('wide');
+  expect(wideLargeSingleLayer.formLayout).toBe('wide');
+  expect(wideLargeSingleLayer.wideSectionCount).toBe(4);
+  expect(wideLargeSingleLayer.visibleResizeHandleCount).toBe(0);
+  expect(wideLargeSingleLayer.labelPlacementIssues).toEqual([]);
+  expect(wideLargeSingleLayer.wideLabelFlowIssues).toEqual([]);
+  expect(wideLargeSingleLayer.wideLayerRowIssues).toEqual([]);
+  expect(wideLargeSingleLayer.wideCompactIssues).toEqual([]);
+  expect(wideLargeSingleLayer.wideSectionLayoutIssues).toEqual([]);
+  expect(wideLargeSingleLayer.issues).toEqual([]);
+
+  await setInsulationLayerCount(page, '3 слоя');
+  const wideLarge = await inspectHeatForm(page);
+  await clearHover(page);
+  await page.screenshot({ path: join(OUT_DIR, 'after-wide-2048.png'), fullPage: false });
+
+  expect(wideLarge.shellLayout).toBe('wide');
+  expect(wideLarge.formLayout).toBe('wide');
+  expect(wideLarge.wideSectionCount).toBe(4);
+  expect(wideLarge.visibleResizeHandleCount).toBe(0);
+  expect(wideLarge.labelPlacementIssues).toEqual([]);
+  expect(wideLarge.wideLabelFlowIssues).toEqual([]);
+  expect(wideLarge.wideLayerRowIssues).toEqual([]);
+  expect(wideLarge.wideCompactIssues).toEqual([]);
+  expect(wideLarge.wideSectionLayoutIssues).toEqual([]);
+  expect(wideLarge.issues).toEqual([]);
+
+  await openHeatFormVariant(page, 'bottom', { width: 1366, height: 768 });
+  await setInsulationLayerCount(page, '3 слоя');
+  const bottomWide = await inspectHeatForm(page);
+  await clearHover(page);
+  await page
+    .locator('[aria-label="Блок заполнения параметров"]')
+    .screenshot({ path: join(OUT_DIR, 'after-bottom-1366.png') });
+
+  expect(bottomWide.shellLayout).toBe('wide');
+  expect(bottomWide.formLayout).toBe('wide');
+  expect(bottomWide.formClass).toContain('inline-object-form--wide');
+  expect(bottomWide.widePanelCount).toBe(1);
+  expect(bottomWide.sidePanelCount).toBe(0);
+  expect(bottomWide.wideSectionCount).toBe(4);
+  expect(bottomWide.wideBannerCount).toBe(0);
+  expect(bottomWide.wideHeadings).toEqual([]);
+  expect(bottomWide.sideHeadings).toEqual([]);
+  expect(bottomWide.wideGridCount).toBe(1);
+  expect(bottomWide.sideGridCount).toBe(0);
+  expect(bottomWide.visibleResizeHandleCount).toBe(0);
+  expect(bottomWide.labelPlacementIssues).toEqual([]);
+  expect(bottomWide.wideLabelFlowIssues).toEqual([]);
+  expect(bottomWide.wideLayerRowIssues).toEqual([]);
+  expect(bottomWide.wideCompactIssues).toEqual([]);
+  expect(bottomWide.wideSectionLayoutIssues).toEqual([]);
+  expect(bottomWide.issues).toEqual([]);
+
+  await openHeatFormVariant(page, 'right', { width: 1280, height: 900 });
+  await setInsulationLayerCount(page, '3 слоя');
+  const side = await inspectHeatForm(page);
+  await clearHover(page);
+  await page.screenshot({ path: join(OUT_DIR, 'after-side-1280.png'), fullPage: false });
+
+  expect(side.shellLayout).toBe('side');
+  expect(side.formLayout).toBe('side');
+  expect(side.formClass).toContain('inline-object-form--side');
+  expect(side.widePanelCount).toBe(0);
+  expect(side.sidePanelCount).toBe(1);
+  expect(side.wideSectionCount).toBe(0);
+  expect(side.wideBannerCount).toBe(0);
+  expect(side.wideHeadings).toEqual([]);
+  expect(side.sideHeadings).toEqual(['Геометрия и размещение трубы', 'Теплоизоляция', 'Климат и температуры']);
+  expect(side.wideGridCount).toBe(0);
+  expect(side.sideGridCount).toBe(1);
+  expect(side.sideSectionCount).toBe(3);
+  expect(side.visibleResizeHandleCount).toBe(0);
+  expect(side.labelPlacementIssues).toEqual([]);
+  expect(side.wideLabelFlowIssues).toEqual([]);
+  expect(side.wideLayerRowIssues).toEqual([]);
+  expect(side.wideCompactIssues).toEqual([]);
+  expect(side.wideSectionLayoutIssues).toEqual([]);
+  expect(side.issues).toEqual([]);
+});

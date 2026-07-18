@@ -127,10 +127,27 @@ describe('HeatCalcWizardFormPanel', () => {
     expect(wizardMock.latestProps?.initialParams).toMatchObject({ name: 'Черновик трубы' });
     expect(wizardMock.latestProps?.initialFormValues).toMatchObject({ name: 'Черновик трубы' });
     expect(wizardMock.latestProps?.fieldErrors).toEqual({ name: 'Ошибка имени' });
-    expect(wizardMock.latestProps?.sectionResizeEnabled).toBe(true);
+    expect(wizardMock.latestProps?.layoutVariant).toBe('wide');
+    expect(wizardMock.latestProps?.sectionResizeEnabled).toBe(false);
 
     fireEvent.click(wizard);
 
     expect(onDraftValuesChange).toHaveBeenCalledWith({ name: 'draft' }, { name: 'draft' });
+  });
+
+  it('uses a separate side form variant without wide-section resize', async () => {
+    render(<HeatCalcWizardFormPanel {...makeProps({
+      formPlacement: 'right',
+    })}
+    />);
+
+    const shell = screen.getByLabelText('Блок заполнения параметров');
+    expect(shell).toHaveClass('heatcalc-form-pane--right');
+    expect(shell).toHaveClass('heatcalc-form-pane--side');
+    expect(shell).toHaveAttribute('data-layout', 'side');
+
+    await screen.findByTestId('fake-object-wizard');
+    expect(wizardMock.latestProps?.layoutVariant).toBe('side');
+    expect(wizardMock.latestProps?.sectionResizeEnabled).toBe(false);
   });
 });

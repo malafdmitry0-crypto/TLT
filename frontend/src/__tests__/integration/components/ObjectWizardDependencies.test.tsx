@@ -100,6 +100,36 @@ describe('ObjectWizard dependencies', () => {
     await mockReferences();
   });
 
+  it('рендерит wide и side формы через разные layout roots', async () => {
+    renderWizard({ layoutVariant: 'wide' });
+
+    expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
+    expect(screen.queryByText('Расчёт теплопотерь')).not.toBeInTheDocument();
+    expect(document.querySelector('.inline-object-form--wide .object-wizard-wide-panel[data-panel="wide"]')).toBeInTheDocument();
+    expect(document.querySelector('.inline-object-form--wide .object-wizard-side-panel')).not.toBeInTheDocument();
+    expect(document.querySelector('.inline-object-form--wide .form-grid-srs')).toBeInTheDocument();
+    expect(document.querySelector('.inline-object-form--wide .side-form-grid-srs')).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.inline-object-form--wide .form-col-srs')).toHaveLength(4);
+    expect(document.querySelectorAll('.inline-object-form--wide .form-col-resize-handle')).toHaveLength(0);
+    expect([...document.querySelectorAll('.inline-object-form--wide .form-col-srs > h4')].map((title) =>
+      title.textContent?.replace(/\s+/g, ' ').trim(),
+    )).toEqual([]);
+
+    cleanup();
+    await mockReferences();
+    renderWizard({ layoutVariant: 'side' });
+
+    expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
+    expect(document.querySelector('.inline-object-form--side .object-wizard-side-panel[data-panel="side"]')).toBeInTheDocument();
+    expect(document.querySelector('.inline-object-form--side .object-wizard-wide-panel')).not.toBeInTheDocument();
+    expect(document.querySelector('.inline-object-form--side .side-form-grid-srs')).toBeInTheDocument();
+    expect(document.querySelector('.inline-object-form--side .form-grid-srs')).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.inline-object-form--side .form-col-resize-handle')).toHaveLength(0);
+    expect([...document.querySelectorAll('.inline-object-form--side .side-form-section > h4')].map((title) =>
+      title.textContent?.replace(/\s+/g, ' ').trim(),
+    )).toEqual(['Геометрия и размещение трубы', 'Теплоизоляция', 'Климат и температуры']);
+  });
+
   it('дефолтит однозначные select-поля новой трубы, но не подставляет числовые инженерные значения', async () => {
     renderWizard();
 

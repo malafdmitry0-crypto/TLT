@@ -203,7 +203,7 @@ describe('HeatCalcPage actions', () => {
       await waitFor(() => {
         expect(screen.getByText('Режим: изменение')).toBeInTheDocument();
       });
-      expect(screen.getByText('Расчёт теплопотерь')).toBeInTheDocument();
+      expect(screen.getByTestId('object-name-input')).toBeInTheDocument();
       await waitFor(() => {
         expect(screen.getByDisplayValue('Труба DN100 сервер')).toBeInTheDocument();
       });

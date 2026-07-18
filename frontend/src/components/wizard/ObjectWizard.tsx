@@ -10,7 +10,7 @@ import { Button, Form, Input, type FormInstance } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import type { ObjectType } from '@/constants/objectTypes';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
-import ElectricalAndFittingsStep from './steps/ElectricalAndFittingsStep';
+import ElectricalAndFittingsStep, { SafetyFactorField } from './steps/ElectricalAndFittingsStep';
 import InsulationLayersStep from './steps/InsulationLayersStep';
 import PlacementGroundStep from './steps/PlacementGroundStep';
 import PipeGeometryStep from './steps/PipeGeometryStep';
@@ -74,6 +74,9 @@ import {
   normalizeFieldErrorsForForm,
   REQUIRED_FIELD_ERROR_MESSAGE,
 } from './objectWizardValidationModel';
+import ObjectWizardSidePanel from './ObjectWizardSidePanel';
+import type { ObjectWizardLayoutVariant } from './ObjectWizardPanelTypes';
+import ObjectWizardWidePanel from './ObjectWizardWidePanel';
 import { useObjectWizardSectionResize } from './useObjectWizardSectionResize';
 
 interface Props {
@@ -88,6 +91,7 @@ interface Props {
   validationErrors?: ProjectObject['validation_errors'];
   fieldErrors?: Record<string, string>;
   fieldInputSettings?: HeatCalcFieldInputSettings;
+  layoutVariant?: ObjectWizardLayoutVariant;
   formSectionWeights?: HeatCalcFormSectionWeights;
   sectionResizeEnabled?: boolean;
   onFormSectionWeightsChange?: (weights: HeatCalcFormSectionWeights) => void;
@@ -164,6 +168,7 @@ export default function ObjectWizard({
   validationErrors,
   fieldErrors,
   fieldInputSettings,
+  layoutVariant = 'wide',
   formSectionWeights,
   sectionResizeEnabled = false,
   onFormSectionWeightsChange,
@@ -172,7 +177,7 @@ export default function ObjectWizard({
 }: Props) {
   const [form] = Form.useForm();
   const heatCalcObjectType = objectType as HeatCalcObjectType;
-  const { formGridRef, resizeHandleProps, sectionStyle } = useObjectWizardSectionResize({
+  const { formGridRef, sectionStyle } = useObjectWizardSectionResize({
     formSectionWeights,
     sectionResizeEnabled,
     onFormSectionWeightsChange,
@@ -580,9 +585,119 @@ export default function ObjectWizard({
       : currentFieldNames.filter((fieldName) => !namesToClear.includes(fieldName));
   }
 
-  function renderSectionResizeHandle(handleIndex: number) {
-    return <div className="form-col-resize-handle" {...resizeHandleProps(handleIndex)} />;
+  function renderGeometrySection() {
+    return (
+      <>
+        <Form.Item
+          className="name-form-item helped-form-item"
+          label={fieldLabel('name', heatCalcObjectType)}
+          name="name"
+          rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'name')}
+        >
+          {withHelp(
+            <Input
+              data-testid="object-name-input"
+              {...heatCalcTextInputProps(heatCalcObjectType, 'name')}
+            />,
+            fieldHelp('name', heatCalcObjectType),
+          )}
+        </Form.Item>
+        {objectType === 'pipe'
+          ? <PipeGeometryStep fieldInputSettings={fieldInputSettings} />
+          : <TankGeometryStep fieldInputSettings={fieldInputSettings} />}
+        {objectType === 'pipe' && (
+          <PipeWallMaterialStep
+            fieldInputSettings={fieldInputSettings}
+            pipeMaterialOptions={pipeMaterialOptions}
+          />
+        )}
+        {layoutVariant !== 'wide' && (
+          <PlacementGroundStep
+            objectType={heatCalcObjectType}
+            fieldInputSettings={fieldInputSettings}
+            isSoilFetching={isSoilFetching}
+            onSoilPickerOpen={() => setSoilReferenceRequested(true)}
+            soilOptions={soilOptions}
+          />
+        )}
+        {layoutVariant !== 'wide' && (
+          <ElectricalAndFittingsStep
+            objectType={heatCalcObjectType}
+            fieldInputSettings={fieldInputSettings}
+          />
+        )}
+      </>
+    );
   }
+
+  function renderFittingsSection() {
+    return (
+      <ElectricalAndFittingsStep
+        objectType={heatCalcObjectType}
+        fieldInputSettings={fieldInputSettings}
+        showSafetyFactor={false}
+      />
+    );
+  }
+
+  function renderInsulationSection() {
+    return (
+      <InsulationLayersStep
+        objectType={heatCalcObjectType}
+        fieldInputSettings={fieldInputSettings}
+        watchedValues={watchedValues}
+        layerCount={layerCount}
+        insulationMaterials={insulationMaterials}
+        insulationMaterialOptions={insulationMaterialOptions}
+        insulationMaterialsError={insulationMaterialsError}
+        isInsulationMaterialsFetching={isInsulationMaterialsFetching}
+        secondInsulationMaterial={secondInsulationMaterial}
+        thirdInsulationMaterial={thirdInsulationMaterial}
+        selectedSecondInsulation={selectedSecondInsulation}
+        selectedThirdInsulation={selectedThirdInsulation}
+        onProgrammaticValuesChange={syncProgrammaticValuesChange}
+      />
+    );
+  }
+
+  function renderTemperatureSection() {
+    return (
+      <>
+        {layoutVariant === 'wide' && (
+          <>
+            <PlacementGroundStep
+              objectType={heatCalcObjectType}
+              fieldInputSettings={fieldInputSettings}
+              isSoilFetching={isSoilFetching}
+              onSoilPickerOpen={() => setSoilReferenceRequested(true)}
+              soilOptions={soilOptions}
+            />
+            <SafetyFactorField
+              objectType={heatCalcObjectType}
+              fieldInputSettings={fieldInputSettings}
+            />
+          </>
+        )}
+        <TemperatureEnvironmentStep
+          objectType={heatCalcObjectType}
+          fieldInputSettings={fieldInputSettings}
+          climateOptions={climateOptions}
+          isClimateFetching={isClimateFetching}
+          onClimatePickerOpen={() => setClimateReferenceRequested(true)}
+          hasClimate={hasClimate}
+          climateBasisDisplay={climateBasisDisplay}
+          showWindField={showWindField}
+          showAlphaField={showAlphaField}
+          ambientTemperatureSourceFallback={watchedValue('ambient_temperature_source')}
+          windSpeedSourceFallback={watchedValue('wind_speed_source')}
+        />
+      </>
+    );
+  }
+
+  const geometryTitle = objectType === 'pipe'
+    ? 'Геометрия и размещение трубы'
+    : 'Форма и геометрия резервуара';
   // ──────────────────────────────────────────────────────────────────────────
 
   return (
@@ -591,7 +706,8 @@ export default function ObjectWizard({
       layout="vertical"
       requiredMark={false}
       initialValues={formInitialValues}
-      className="inline-object-form"
+      className={`inline-object-form inline-object-form--${layoutVariant}`}
+      data-layout={layoutVariant}
       onValuesChange={handleValuesChange}
     >
       <Form.Item name="climate_city" hidden noStyle>
@@ -612,95 +728,23 @@ export default function ObjectWizard({
       <Form.Item name="safety_factor_source" hidden noStyle>
         <Input type="hidden" />
       </Form.Item>
-      <h4 className="inline-form-section-banner"><span>Расчёт теплопотерь</span></h4>
-      <div className="form-grid-srs form-grid-srs--merged" ref={formGridRef}>
-
-        {/* ── Геометрия ──────────────────────────────────────────────── */}
-        <div
-          className="form-col-srs form-col-srs--primary"
-          style={sectionStyle(0)}
-        >
-          <Form.Item
-            className="name-form-item helped-form-item"
-            label={fieldLabel('name', heatCalcObjectType)}
-            name="name"
-            rules={heatCalcFormFieldRules(form, heatCalcObjectType, 'name')}
-          >
-            {withHelp(
-              <Input
-                data-testid="object-name-input"
-                {...heatCalcTextInputProps(heatCalcObjectType, 'name')}
-              />,
-              fieldHelp('name', heatCalcObjectType),
-            )}
-          </Form.Item>
-          {objectType === 'pipe'
-            ? <PipeGeometryStep fieldInputSettings={fieldInputSettings} />
-            : <TankGeometryStep fieldInputSettings={fieldInputSettings} />}
-          {objectType === 'pipe' && (
-            <PipeWallMaterialStep
-              fieldInputSettings={fieldInputSettings}
-              pipeMaterialOptions={pipeMaterialOptions}
-            />
-          )}
-          <PlacementGroundStep
-            objectType={heatCalcObjectType}
-            fieldInputSettings={fieldInputSettings}
-            isSoilFetching={isSoilFetching}
-            onSoilPickerOpen={() => setSoilReferenceRequested(true)}
-            soilOptions={soilOptions}
-          />
-          <ElectricalAndFittingsStep
-            objectType={heatCalcObjectType}
-            fieldInputSettings={fieldInputSettings}
-          />
-        </div>
-
-        {renderSectionResizeHandle(0)}
-
-        <div
-          className="form-col-srs"
-          style={sectionStyle(1)}
-        >
-          <InsulationLayersStep
-            objectType={heatCalcObjectType}
-            fieldInputSettings={fieldInputSettings}
-            watchedValues={watchedValues}
-            layerCount={layerCount}
-            insulationMaterials={insulationMaterials}
-            insulationMaterialOptions={insulationMaterialOptions}
-            insulationMaterialsError={insulationMaterialsError}
-            isInsulationMaterialsFetching={isInsulationMaterialsFetching}
-            secondInsulationMaterial={secondInsulationMaterial}
-            thirdInsulationMaterial={thirdInsulationMaterial}
-            selectedSecondInsulation={selectedSecondInsulation}
-            selectedThirdInsulation={selectedThirdInsulation}
-            onProgrammaticValuesChange={syncProgrammaticValuesChange}
-          />
-        </div>
-
-        {renderSectionResizeHandle(1)}
-
-        <div
-          className="form-col-srs"
-          style={sectionStyle(2)}
-        >
-          <TemperatureEnvironmentStep
-            objectType={heatCalcObjectType}
-            fieldInputSettings={fieldInputSettings}
-            climateOptions={climateOptions}
-            isClimateFetching={isClimateFetching}
-            onClimatePickerOpen={() => setClimateReferenceRequested(true)}
-            hasClimate={hasClimate}
-            climateBasisDisplay={climateBasisDisplay}
-            showWindField={showWindField}
-            showAlphaField={showAlphaField}
-            ambientTemperatureSourceFallback={watchedValue('ambient_temperature_source')}
-            windSpeedSourceFallback={watchedValue('wind_speed_source')}
-          />
-        </div>
-
-      </div>
+      {layoutVariant === 'side' ? (
+        <ObjectWizardSidePanel
+          geometryTitle={geometryTitle}
+          renderGeometrySection={renderGeometrySection}
+          renderInsulationSection={renderInsulationSection}
+          renderTemperatureSection={renderTemperatureSection}
+        />
+      ) : (
+        <ObjectWizardWidePanel
+          formGridRef={formGridRef}
+          sectionStyle={sectionStyle}
+          renderGeometrySection={renderGeometrySection}
+          renderFittingsSection={renderFittingsSection}
+          renderInsulationSection={renderInsulationSection}
+          renderTemperatureSection={renderTemperatureSection}
+        />
+      )}
       <div className="hidden-submit">
         <Button id="inline-object-save" type="primary" onClick={handleFinish} loading={submitting}>
           {isEditMode ? 'Сохранить изменения' : 'Добавить объект'}

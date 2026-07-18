@@ -2,10 +2,12 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useCallback,
   type CSSProperties,
   type HTMLAttributes,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type RefCallback,
 } from 'react';
 import {
   HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT,
@@ -20,6 +22,7 @@ const SECTION_RESIZE_HANDLE_COUNT = SECTION_FIELD_PAIR_MIN_WIDTHS.length - 1;
 const SECTION_GRID_GAP_COUNT = SECTION_FIELD_PAIR_MIN_WIDTHS.length + SECTION_RESIZE_HANDLE_COUNT - 1;
 const SECTION_FIELD_GRID =
   'repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr))';
+const FIXED_FORM_SECTION_WEIGHTS = [1.45, 1.85, 1.5] as const;
 
 interface UseObjectWizardSectionResizeOptions {
   formSectionWeights?: HeatCalcFormSectionWeights;
@@ -60,10 +63,17 @@ export function useObjectWizardSectionResize({
   onFormSectionWeightsChange,
   onFormSectionWeightsCommit,
 }: UseObjectWizardSectionResizeOptions) {
-  const formGridRef = useRef<HTMLDivElement | null>(null);
+  const formGridElementRef = useRef<HTMLDivElement | null>(null);
+  const formGridRef = useCallback<RefCallback<HTMLDivElement>>((node) => {
+    formGridElementRef.current = node;
+  }, []);
   const resolvedFormSectionWeights = useMemo(
-    () => normalizeFormSectionWeights(formSectionWeights ?? HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT),
-    [formSectionWeights],
+    () => normalizeFormSectionWeights(
+      sectionResizeEnabled
+        ? formSectionWeights ?? HEATCALC_FORM_SECTION_WEIGHTS_DEFAULT
+        : FIXED_FORM_SECTION_WEIGHTS,
+    ),
+    [formSectionWeights, sectionResizeEnabled],
   );
   const formSectionWeightsRef = useRef<HeatCalcFormSectionWeights>(resolvedFormSectionWeights);
 
@@ -81,7 +91,7 @@ export function useObjectWizardSectionResize({
     if (!sectionResizeEnabled || !onFormSectionWeightsChange) return;
     const handleWeightsChange: (weights: HeatCalcFormSectionWeights) => void = onFormSectionWeightsChange;
     const handleWeightsCommit = onFormSectionWeightsCommit;
-    const rect = formGridRef.current?.getBoundingClientRect();
+    const rect = formGridElementRef.current?.getBoundingClientRect();
     if (!rect || rect.width <= 0) return;
     const startWeights = formSectionWeightsRef.current;
     const availableWidth = Math.max(
@@ -157,6 +167,17 @@ export function useObjectWizardSectionResize({
   }
 
   function sectionStyle(idx: number): CSSProperties {
+    if (!sectionResizeEnabled) {
+      const style = {
+        gridTemplateColumns: SECTION_FIELD_GRID,
+      } as CSSProperties & Record<string, string>;
+      style['--field-pair-min-width'] = `${SECTION_FIELD_PAIR_MIN_WIDTHS[Math.min(idx, SECTION_FIELD_PAIR_MIN_WIDTHS.length - 1)]}px`;
+      if (idx >= 2) {
+        style['--compact-field-label-width'] = '104px';
+      }
+      return style;
+    }
+
     const expandedWeight = resolvedFormSectionWeights.reduce(
       (total, weight) => total + weight,
       0,

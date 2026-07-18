@@ -572,6 +572,12 @@ function HeatCalcNormalGlideGrid({
     // при смене sort, поэтому сортировка не пересобирает колонки.
     [stretchedColumnWidths, tableViewState.filters, visibleGridColumns],
   );
+  const visibleColumnWidthSignature = useMemo(
+    () => visibleGridColumns
+      .map((column) => `${column.key}:${Math.round(stretchedColumnWidths.get(column.key) ?? column.width)}`)
+      .join('|'),
+    [stretchedColumnWidths, visibleGridColumns],
+  );
   const gridSelection = useMemo(
     () => buildRowSelection(rows, selectedRowKeys, activeCell),
     [activeCell, rows, selectedRowKeys],
@@ -993,9 +999,7 @@ function HeatCalcNormalGlideGrid({
       className={`calc-spreadsheet heatcalc-spreadsheet calc-spreadsheet--${fontSizeKey} calc-spreadsheet--glide calc-spreadsheet--normal-glide${className ? ` ${className}` : ''}`}
       data-glide-row-marker-width={NORMAL_ROW_MARKER_WIDTH}
       data-glide-row-height={rowHeight}
-      data-glide-visible-columns={editorColumns
-        .map((column) => `${column.id}:${Math.round(Number(column.width) || 0)}`)
-        .join('|')}
+      data-glide-visible-columns={visibleColumnWidthSignature}
     >
       <DataEditor
         className="heatcalc-glide-editor"

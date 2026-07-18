@@ -101,15 +101,19 @@ describe('HeatCalcPage basics', () => {
       renderPage();
 
       const typeToolbar = screen.getByRole('toolbar', { name: 'Тип объекта и блок параметров' });
-      expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
+      expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
       // Пустая секция «алгоритм выбора кабеля» удалена из SC-03 (2026-06-10).
       expect(screen.queryByText('алгоритм выбора кабеля')).not.toBeInTheDocument();
       expect(screen.queryByText('Электропараметры и арматура')).not.toBeInTheDocument();
-      // Три заголовка секций слиты в один баннер «Расчёт теплопотерь» (2026-06-10).
-      expect(document.querySelectorAll('.form-grid-srs .form-col-srs > h4')).toHaveLength(0);
+      // В широком варианте SC-03 top/bottom форма работает без визуальных заголовков секций.
+      expect(document.querySelector('.object-wizard-wide-panel[data-panel="wide"]')).toBeInTheDocument();
+      expect(document.querySelector('.object-wizard-side-panel')).not.toBeInTheDocument();
+      expect([...document.querySelectorAll('.form-grid-srs .form-col-srs > h4')].map((title) =>
+        title.textContent?.replace(/\s+/g, ' ').trim(),
+      )).toEqual([]);
       expect([...document.querySelectorAll('.inline-form-section-banner')].map((title) =>
         title.textContent?.replace(/\s+/g, ' ').trim(),
-      )).toEqual(['Расчёт теплопотерь']);
+      )).toEqual([]);
       expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       await user.click(await within(typeToolbar).findByRole('button', { name: /Резервуар:/ }));
       expect(within(typeToolbar).getByRole('button', { name: /Резервуар:/ })).toHaveAttribute('aria-pressed', 'true');
@@ -137,7 +141,7 @@ describe('HeatCalcPage basics', () => {
       expect(screen.queryByText('Электропараметры и арматура')).not.toBeInTheDocument();
       expect([...document.querySelectorAll('.inline-form-section-banner')].map((title) =>
         title.textContent?.replace(/\s+/g, ' ').trim(),
-      )).toEqual(['Расчёт теплопотерь']);
+      )).toEqual([]);
 
       await user.click(screen.getByText('Резервуар прямоугольный'));
       await waitFor(() => {
@@ -301,7 +305,7 @@ describe('HeatCalcPage basics', () => {
 
       const formActionsToolbar = screen.getByRole('toolbar', { name: 'Действия блока заполнения' });
       const addButton = within(formActionsToolbar).getByRole('button', { name: 'Добавить' });
-      expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
+      expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
       await user.type(screen.getByTestId('object-name-input'), 'Черновик трубы');
       await user.click(addButton);
       await waitFor(() => {
@@ -375,7 +379,7 @@ describe('HeatCalcPage basics', () => {
       expect(within(typeToolbar).getByRole('button', { name: /Резервуар:\s*0/ })).toBeInTheDocument();
       expect(within(typeToolbar).getByRole('button', { name: /Все:\s*0/ })).toBeInTheDocument();
       expect(screen.queryByLabelText('Количество объектов')).not.toBeInTheDocument();
-      expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
+      expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Сбросить' })).not.toBeInTheDocument();
     });
 
@@ -392,7 +396,7 @@ describe('HeatCalcPage basics', () => {
       });
       expect(visibilityToggle).toBeChecked();
       expect(paramsBlock()).toBeVisible();
-      expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
+      expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
       await user.type(screen.getByTestId('object-name-input'), 'Черновик трубы');
       expect(screen.getByTestId('object-name-input')).toHaveValue('Черновик трубы');
 
@@ -409,7 +413,7 @@ describe('HeatCalcPage basics', () => {
 
       await user.click(visibilityToggle);
       expect(visibilityToggle).toBeChecked();
-      expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
+      expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
       expect(screen.getByRole('toolbar', { name: 'Действия блока заполнения' })).toBeInTheDocument();
       expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       expect(screen.getByTestId('object-name-input')).toHaveValue('');
@@ -456,7 +460,7 @@ describe('HeatCalcPage basics', () => {
         .toBeChecked();
       expect(within(formActionsToolbar).getByRole('button', { name: 'Добавить' })).toBeVisible();
       expect(within(tableActionsToolbar).getByRole('button', { name: 'Настройки отображения' })).toBeVisible();
-      expect(await screen.findByText('Расчёт теплопотерь')).toBeInTheDocument();
+      expect(await screen.findByTestId('object-name-input')).toBeInTheDocument();
     });
   });
 });

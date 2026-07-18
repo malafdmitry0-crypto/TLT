@@ -1380,53 +1380,6 @@ html, body, #root {
   margin-left: auto;
 }
 
-.heatcalc-workspace-layout--left .form-grid-srs,
-.heatcalc-workspace-layout--right .form-grid-srs {
-  flex-direction: column;
-  align-items: stretch;
-  overflow: visible;
-}
-
-.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs,
-.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs {
-  width: 100% !important;
-  min-width: 0;
-  --compact-field-label-width: 88px !important;
-  --field-pair-min-width: 204px;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 2px;
-}
-
-.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs .ant-form-item-row,
-.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs .ant-form-item-row {
-  column-gap: 2px;
-}
-
-.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs > .name-form-item,
-.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs > .fixed-select-form-item,
-.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs > .pipe-material-form-item,
-.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs > .wide-select-form-item,
-.heatcalc-workspace-layout--left .form-grid-srs .form-col-srs > .layer-material-form-item,
-.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs > .name-form-item,
-.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs > .fixed-select-form-item,
-.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs > .pipe-material-form-item,
-.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs > .wide-select-form-item,
-.heatcalc-workspace-layout--right .form-grid-srs .form-col-srs > .layer-material-form-item {
-  grid-column: 1 / -1;
-}
-
-.heatcalc-workspace-layout--left .form-col-resize-handle,
-.heatcalc-workspace-layout--right .form-col-resize-handle {
-  display: none;
-}
-
-@media (max-width: 720px) {
-  .heatcalc-workspace-layout--left .form-grid-srs .form-col-srs,
-  .heatcalc-workspace-layout--right .form-grid-srs .form-col-srs {
-    grid-template-columns: 1fr !important;
-  }
-}
-
 @media (max-width: 1180px) {
   .heatcalc-workspace-layout--left,
   .heatcalc-workspace-layout--right {
@@ -1628,31 +1581,207 @@ html, body, #root {
   grid-template-columns: minmax(var(--compact-field-label-width, 74px), 1fr) max-content;
 }
 
-.heatcalc-form-pane--top .inline-form-srs {
-  --heatcalc-top-form-height: clamp(260px, 31.5vh, 292px);
+.heatcalc-form-pane--wide .inline-form-srs {
+  --heatcalc-top-form-height: clamp(360px, 42vh, 420px);
 }
 
-.heatcalc-form-pane--top .inline-object-form {
+.heatcalc-form-pane--wide .inline-object-form--wide {
   display: flex;
   flex-direction: column;
-  height: var(--heatcalc-top-form-height);
+  height: auto;
+  min-height: var(--heatcalc-top-form-height);
 }
 
-.heatcalc-form-pane--top .form-grid-srs {
+.inline-object-form--wide .object-wizard-wide-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-areas:
+    "geometry fittings climate"
+    "insulation insulation insulation";
   flex: 1 1 auto;
   height: auto;
   min-height: 0;
   max-height: none;
   align-items: stretch;
-  overflow: hidden;
+  overflow: visible;
 }
 
-.heatcalc-form-pane--top .form-grid-srs > .form-col-srs {
-  height: 100%;
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs > .form-col-srs {
+  flex: none;
+  width: auto;
+  height: auto;
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+  overflow-y: hidden;
+  scrollbar-gutter: auto;
+}
+
+.heatcalc-form-pane--wide .inline-object-form--wide .form-col-srs--primary {
+  grid-area: geometry;
+}
+
+.heatcalc-form-pane--wide .inline-object-form--wide .form-col-srs--fittings {
+  grid-area: fittings;
+}
+
+.heatcalc-form-pane--wide .inline-object-form--wide .form-col-srs--climate {
+  grid-area: climate;
+}
+
+.heatcalc-form-pane--wide .inline-object-form--wide .form-col-srs--insulation {
+  grid-area: insulation;
+}
+
+.inline-object-form--side {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.inline-object-form--side .object-wizard-side-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.inline-object-form--side .side-form-section-banner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+  margin: 0;
+  padding: 2px 6px;
+  color: #2f3d4f;
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  background: #f8fbff;
+  border: 1px solid #dbe6f2;
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+}
+
+.inline-object-form--side .side-form-section-banner span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inline-object-form--side .side-form-grid-srs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  min-width: 0;
+  padding: 3px;
+  border: 1px solid #dbe6f2;
+  border-radius: 0 0 7px 7px;
+  background: #fff;
+}
+
+.inline-object-form--side .side-form-section {
+  display: grid;
+  --field-label-width: 84px;
+  --compact-field-label-width: 88px;
+  --field-input-min-width: 128px;
+  --numeric-value-width: 6ch;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  align-items: start;
+  gap: 2px;
+  min-width: 0;
+  padding: 3px 3px 2px;
+  border: 1px solid #dbe6f2;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.inline-object-form--side .side-form-section--primary {
+  --field-label-width: 82px;
+  --compact-field-label-width: 88px;
+}
+
+.inline-object-form--side .side-form-section .ant-form-item-row {
+  column-gap: 2px;
+}
+
+.inline-object-form--side .side-form-section > h4 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  grid-column: 1 / -1;
+  min-height: 18px;
+  margin: -3px -3px 3px;
+  padding: 2px 6px;
+  color: #2f3d4f;
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  background: #f8fbff;
+  border-bottom: 1px solid #dbe6f2;
+}
+
+.inline-object-form--side .side-form-section > h4::before {
+  content: attr(data-step);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #2457d6;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 3px 8px rgb(36 87 214 / 16%);
+}
+
+.inline-object-form--side .side-form-section > h4 span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inline-object-form--side .side-form-section > .name-form-item,
+.inline-object-form--side .side-form-section > .fixed-select-form-item,
+.inline-object-form--side .side-form-section > .pipe-material-form-item,
+.inline-object-form--side .side-form-section > .wide-select-form-item,
+.inline-object-form--side .side-form-section > .layer-material-form-item,
+.inline-object-form--side .side-form-section > .insulation-layer-count-form-item,
+.inline-object-form--side .side-form-section > .insulation-temperature-basis-form-item,
+.inline-object-form--side .side-form-section > .insulation-layer-group {
+  grid-column: 1 / -1;
+}
+
+.inline-object-form--side .name-form-item .field-control-with-help {
+  width: 100%;
+}
+
+.inline-object-form--side .side-form-section--primary > .pipe-material-form-item,
+.inline-object-form--side .side-form-section--primary > .fixed-select-form-item {
+  grid-column: 1 / -1;
+}
+
+.inline-object-form--side .form-col-resize-handle {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .inline-object-form--side .side-form-section {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 1180px) {
@@ -1674,20 +1803,73 @@ html, body, #root {
     flex-wrap: wrap;
   }
 
-  .heatcalc-form-pane--top .inline-object-form {
+  .heatcalc-form-pane--wide .inline-object-form--wide {
     height: auto;
   }
 
-  .heatcalc-form-pane--top .form-grid-srs {
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      "geometry fittings climate"
+      "insulation insulation insulation";
     height: auto;
     min-height: 0;
     max-height: none;
+    align-items: stretch;
     overflow: visible;
   }
 
-  .heatcalc-form-pane--top .form-grid-srs > .form-col-srs {
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs > .form-col-srs {
+    flex: none;
+    width: auto !important;
+    max-width: none;
     height: auto;
+    --field-input-min-width: 0px;
     overflow: hidden;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .field-control-with-help,
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-input,
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-select,
+  .heatcalc-form-pane--wide .inline-object-form--wide .tlt-select,
+  .heatcalc-form-pane--wide .inline-object-form--wide .reference-picker-control,
+  .heatcalc-form-pane--wide .inline-object-form--wide .fixed-select-form-item .tlt-select,
+  .heatcalc-form-pane--wide .inline-object-form--wide .fixed-select-form-item .reference-picker-control,
+  .heatcalc-form-pane--wide .inline-object-form--wide .pipe-material-form-item .reference-picker-control {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .fixed-select-form-item .tlt-select,
+  .heatcalc-form-pane--wide .inline-object-form--wide .fixed-select-form-item .reference-picker-control,
+  .heatcalc-form-pane--wide .inline-object-form--wide .pipe-material-form-item .reference-picker-control {
+    width: 100%;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-form-item-label > label {
+    display: block;
+    height: auto;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-form-item-label > label > span {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .field-label-two-line {
+    display: block !important;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .field-label-two-line > span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
   }
 
   .form-col-resize-handle {
@@ -2925,6 +3107,251 @@ html, body, #root {
 
 .inline-object-form .fitting-count-form-item .ant-input-number {
   width: 52px;
+}
+
+/* New SC-03 panels keep labels above controls; wide top/bottom labels stay one-line. */
+.inline-object-form--wide .object-wizard-wide-panel .ant-form-item-row,
+.inline-object-form--side .object-wizard-side-panel .ant-form-item-row {
+  grid-template-columns: minmax(0, 1fr) !important;
+  row-gap: 2px;
+  column-gap: 0;
+  align-items: stretch;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs,
+.inline-object-form--side .object-wizard-side-panel .side-form-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
+  gap: 6px 8px;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary {
+  gap: 6px 8px;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs > h4,
+.inline-object-form--side .object-wizard-side-panel .side-form-section > h4 {
+  flex: 0 0 100%;
+  width: 100%;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .ant-form-item,
+.inline-object-form--side .object-wizard-side-panel .ant-form-item {
+  flex: 1 1 calc(50% - 8px);
+  min-height: 33px;
+  padding: 2px 2px 3px;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .name-form-item,
+.inline-object-form--wide .object-wizard-wide-panel .wide-select-form-item,
+.inline-object-form--wide .object-wizard-wide-panel .layer-material-form-item,
+.inline-object-form--side .object-wizard-side-panel .name-form-item,
+.inline-object-form--side .object-wizard-side-panel .fixed-select-form-item,
+.inline-object-form--side .object-wizard-side-panel .pipe-material-form-item,
+.inline-object-form--side .object-wizard-side-panel .wide-select-form-item,
+.inline-object-form--side .object-wizard-side-panel .layer-material-form-item,
+.inline-object-form--side .object-wizard-side-panel .insulation-layer-count-form-item,
+.inline-object-form--side .object-wizard-side-panel .insulation-temperature-basis-form-item {
+  flex-basis: 100%;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .pipe-material-form-item {
+  flex: 0 1 380px;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .fixed-select-form-item {
+  flex: 0 1 340px;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .local-element-equiv-length-form-item {
+  flex: 0 0 240px;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item {
+  flex: 0 0 220px;
+  min-width: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-temperature-basis-form-item {
+  flex: 1 1 calc(100% - 228px);
+  min-width: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--insulation {
+  gap: 6px 8px;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group,
+.inline-object-form--side .object-wizard-side-panel .insulation-layer-group {
+  flex: 0 0 100%;
+  gap: 6px 8px;
+  padding-top: 6px;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group {
+  flex: 0 1 calc((100% - 16px) / 3);
+  min-width: 0;
+  max-width: calc((100% - 16px) / 3);
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--insulation:not(:has(.second-layer-material-form-item)) > .insulation-layer-group {
+  flex-basis: min(680px, calc((100% - 16px) / 3));
+  max-width: min(680px, calc((100% - 16px) / 3));
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--insulation:has(.second-layer-material-form-item):not(:has(.third-layer-material-form-item)) > .insulation-layer-group {
+  flex-basis: calc((100% - 8px) / 2);
+  max-width: calc((100% - 8px) / 2);
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .ant-form-item,
+.inline-object-form--side .object-wizard-side-panel .insulation-layer-group .ant-form-item {
+  min-height: 33px;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .short-number-form-item,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .coefficient-form-item,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group .insulation-temperature-range-form-item {
+  flex: 1 1 calc((100% - 16px) / 3);
+  width: auto;
+  min-width: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .ant-form-item-label,
+.inline-object-form--side .object-wizard-side-panel .ant-form-item-label {
+  grid-column: 1;
+  width: 100% !important;
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.1;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .ant-form-item-label > label,
+.inline-object-form--side .object-wizard-side-panel .ant-form-item-label > label {
+  align-items: flex-end;
+  min-height: 12px;
+  padding-top: 0;
+  padding-bottom: 2px;
+  line-height: 1.1;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .ant-form-item-control,
+.inline-object-form--side .object-wizard-side-panel .ant-form-item-control,
+.inline-object-form--wide .object-wizard-wide-panel .field-control-with-help,
+.inline-object-form--side .object-wizard-side-panel .field-control-with-help,
+.inline-object-form--wide .object-wizard-wide-panel .ant-form-item-explain,
+.inline-object-form--side .object-wizard-side-panel .ant-form-item-explain,
+.inline-object-form--wide .object-wizard-wide-panel .ant-form-item-extra,
+.inline-object-form--side .object-wizard-side-panel .ant-form-item-extra {
+  grid-column: 1;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .ant-form-item-label > label > span {
+  overflow: visible;
+  hyphens: none;
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .field-label-two-line {
+  display: inline-flex !important;
+  flex-direction: row;
+  gap: 3px;
+  max-width: none;
+  white-space: nowrap;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .field-label-two-line > span {
+  display: inline;
+  max-width: none;
+  hyphens: none;
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-form-item-label > label {
+    display: block;
+    height: auto;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-form-item-label > label > span {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .field-label-two-line {
+    display: block !important;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .field-label-two-line > span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 720px) {
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item,
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-temperature-basis-form-item {
+    flex: 0 0 100%;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-group {
+    flex: 0 0 100%;
+    max-width: none;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .ant-form-item-label > label > span {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .field-label-two-line {
+    display: block !important;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .field-label-two-line > span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+  }
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .helped-form-item .ant-form-item-control,
+.inline-object-form--side .object-wizard-side-panel .helped-form-item .ant-form-item-control {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .helped-form-item .ant-form-item-control-input,
+.inline-object-form--side .object-wizard-side-panel .helped-form-item .ant-form-item-control-input,
+.inline-object-form--wide .object-wizard-wide-panel .helped-form-item .ant-form-item-control-input-content,
+.inline-object-form--side .object-wizard-side-panel .helped-form-item .ant-form-item-control-input-content {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .name-form-item .field-control-with-help,
+.inline-object-form--side .object-wizard-side-panel .name-form-item .field-control-with-help {
+  width: 100%;
 }
 
 

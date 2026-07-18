@@ -31,9 +31,43 @@ function fieldHelp(fieldId: string, objectType: HeatCalcObjectType) {
 interface Props {
   objectType: HeatCalcObjectType;
   fieldInputSettings?: HeatCalcFieldInputSettings;
+  showSafetyFactor?: boolean;
 }
 
-export default function ElectricalAndFittingsStep({ objectType, fieldInputSettings }: Props) {
+export function SafetyFactorField({ objectType, fieldInputSettings }: Pick<Props, 'objectType' | 'fieldInputSettings'>) {
+  const form = Form.useFormInstance();
+  const numberInputProps = (
+    fieldId: string,
+    options: { includeStep?: boolean } = {},
+  ) => heatCalcNumberInputProps(objectType, fieldId, {
+    ...options,
+    fieldInputSettings,
+    form,
+  });
+
+  return (
+    <Form.Item
+      className="numeric-form-item coefficient-form-item safety-factor-form-item helped-form-item"
+      label={fieldLabel('safety_factor', objectType)}
+      name="safety_factor"
+      rules={heatCalcFormFieldRules(form, objectType, 'safety_factor')}
+    >
+      {withHelp(
+        <InputNumber
+          data-testid="safety-factor-input"
+          {...numberInputProps('safety_factor')}
+        />,
+        fieldHelp('safety_factor', objectType),
+      )}
+    </Form.Item>
+  );
+}
+
+export default function ElectricalAndFittingsStep({
+  objectType,
+  fieldInputSettings,
+  showSafetyFactor = true,
+}: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (
     fieldId: string,
@@ -61,20 +95,12 @@ export default function ElectricalAndFittingsStep({ objectType, fieldInputSettin
           options={heatCalcSelectOptions(objectType, 'supply_voltage')}
         />
       </Form.Item>
-      <Form.Item
-        className="numeric-form-item coefficient-form-item helped-form-item"
-        label={fieldLabel('safety_factor', objectType)}
-        name="safety_factor"
-        rules={heatCalcFormFieldRules(form, objectType, 'safety_factor')}
-      >
-        {withHelp(
-          <InputNumber
-            data-testid="safety-factor-input"
-            {...numberInputProps('safety_factor')}
-          />,
-          fieldHelp('safety_factor', objectType),
-        )}
-      </Form.Item>
+      {showSafetyFactor && (
+        <SafetyFactorField
+          objectType={objectType}
+          fieldInputSettings={fieldInputSettings}
+        />
+      )}
       {objectType === 'tank' && (
         <Form.Item
           className="numeric-form-item coefficient-form-item helped-form-item"
@@ -150,7 +176,7 @@ export default function ElectricalAndFittingsStep({ objectType, fieldInputSettin
             )}
           </Form.Item>
           <Form.Item
-            className="numeric-form-item coefficient-form-item helped-form-item"
+            className="numeric-form-item coefficient-form-item local-element-equiv-length-form-item helped-form-item"
             label={fieldLabel('local_element_equiv_length', objectType)}
             name="local_element_equiv_length"
             rules={heatCalcFormFieldRules(form, objectType, 'local_element_equiv_length')}
