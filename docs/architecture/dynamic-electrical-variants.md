@@ -2,7 +2,7 @@
 
 - Статус ADR: **Implemented through Phase 3 / Phase 4 blocked by data contract**
 - Статус Phase 1–3: **PASS**; Phase 4 blocked official numeric data contract
-- Дата: 18.07.2026; product decisions PDL-ER-01…25 утверждены 18.07.2026
+- Даты: 18–19.07.2026; product decisions PDL-ER-01…28 утверждены пользователем
 - Ветка: `feature/tnp-dynamic-electrical-variants`
 - Область: DB → backend API/services → frontend → specification/report → CSV → tests
 
@@ -17,14 +17,16 @@
 Этот ADR зафиксировал Phase 0. Решения `OPEN-ER-01…09` утверждены пользователем
 18.07.2026 как рекомендованные варианты и зарегистрированы PDL-ER-09…17.
 Правила section data contract PDL-ER-18…25 утверждены пользователем 18.07.2026
-как варианты А. Production Phase 1–3 разрешены и реализованы; Phase 4 не
-начинается без фактического официального числового источника PDL-ER-15/18.
+как варианты А. Guest TTL, целевой лимит 500 и обязательность фактического
+официального numeric artifact утверждены 19.07.2026 в PDL-ER-26…28.
+Production Phase 1–3 разрешены и реализованы; Phase 4 не начинается без самого
+официального числового источника PDL-ER-15/18/28.
 Границы и evidence зафиксированы в Phase 1, Phase 2 и Phase 3 checkpoints в
 `docs/tnp/cases/guest-specification/`.
 
 ## Приоритет источников
 
-1. Явные решения пользователя PDL-ER-01…25 в
+1. Явные решения пользователя PDL-ER-01…28 в
    `docs/tnp/cases/guest-specification/product-decisions.md`.
 2. Нормализованные однозначные требования PDF в
    `docs/tnp/cases/guest-specification/pdf-requirements.md`.
@@ -38,7 +40,7 @@
 Если источники расходятся, expected/golden не меняются до явного выбора
 источника новой истины.
 
-## Уже утверждено: PDL-ER-01…25
+## Уже утверждено: PDL-ER-01…28
 
 | ID | Зафиксированный результат |
 |---|---|
@@ -67,6 +69,9 @@
 | PDL-ER-23 | Section limits раздельны для каждого напряжения и не переносятся между ними. |
 | PDL-ER-24 | `Lогр` округляется вниз только по правилу официального источника; отсутствие правила блокирует расчёт. |
 | PDL-ER-25 | Новый section contract применяется только к саморегулирующемуся кабелю. |
+| PDL-ER-26 | Guest project временно хранится в PostgreSQL 3 дня после последней активности, изолирован по session и удаляется cleanup после TTL. |
+| PDL-ER-27 | Целевой предел — 500 объектов на проект; runtime limit 50 повышается только после полного performance gate. |
+| PDL-ER-28 | Phase 4 ждёт фактический официальный каталог/«Таблицу Виктора»; неполные PDF/XLSX не снимают data blocker. |
 
 ## Текущая цепочка реализации
 
@@ -342,12 +347,13 @@ Read-only snapshot локальной БД перед миграцией:
 | 1 | PASS | Alembic/models/schemas + новый variant service/router + backend tests. | Migration, RBAC, audit, concurrency; legacy UI adapter only. |
 | 2 | PASS | Frontend variant API/store/query factory/tabs + focused frontend/e2e. | UUID isolation, reload/deep-link, before/after UI proof. |
 | 3 | PASS | Assignment model/service/UI + scoped stale cleanup. | Cross-ER isolation, races, browser and DB invariants. |
-| 4 | BLOCKED PDL-ER-15/18 | Formula contracts + persisted sections + hierarchy. | Independent golden/boundary/metamorphic/mutation evidence. |
+| 4 | BLOCKED PDL-ER-15/18/28 | Formula contracts + persisted sections + hierarchy. | Independent golden/boundary/metamorphic/mutation evidence. |
 | 5 | Pending | Spec/report/settings/CSV v3 + guest print/full BOM. | No-mixing, RBAC, round-trip, browser and DB proof. |
 | 6 | Pending | Legacy contract removal + docs/SRS/API updates. | Search gate and full functional audit. |
 
-Production Phase 1–3 разрешены и реализованы. Семантика Phase 4 утверждена PDL-ER-18…25,
-но реализация остаётся gated PDL-ER-15/18 до официального числового артефакта.
+Production Phase 1–3 разрешены и реализованы. Семантика Phase 4 утверждена
+PDL-ER-18…25, но реализация остаётся gated PDL-ER-15/18/28 до фактического
+официального числового артефакта.
 
 ## Phase 0 baseline
 
@@ -433,10 +439,12 @@ sections/BOM, Phase 5 UUID-only spec/report/CSV или общий PDF/DoD.
 | OPEN-ER-08 | PDF semantics, XLSX non-conflicting data. | PDL-ER-16 |
 | OPEN-ER-09 | One-way cutover с recovery point. | PDL-ER-17 |
 
-## Отложено вне текущего scope
+## Утверждено, но не реализуется в текущем scope
 
-- Guest TTL/хранение 3 дня против текущих 20 минут.
-- Повышение продуктового лимита с 50 до 500 объектов.
+- PDL-ER-26: guest TTL/хранение в PostgreSQL — 3 дня с последней активности;
+  текущие 20 минут остаются implementation gap.
+- PDL-ER-27: целевой лимит 500 объектов; текущий rollout guard 50 нельзя снимать
+  до полного performance gate.
 - Формулы MI/skin, `floor`, pump/platform/other.
 - Пользовательский reorder ЭР.
 - Полная cross-browser/performance сертификация PDF.
@@ -447,4 +455,5 @@ Phase 1–3 можно выполнять вертикальными slices. Pha
 реальных sections нельзя принимать или обходить defaults, пока не предоставлен
 официальный источник производителя ТЛТ с `Lmax`, `Iдоп`, прямым `Iст.уд`,
 напряжениями, температурами холодного пуска и правилом округления. Утверждение
-PDL-ER-18…25 закрывает семантические вопросы, но не заменяет числовой источник.
+PDL-ER-18…25 и PDL-ER-28 закрывает семантический выбор, но не заменяет числовой
+источник.

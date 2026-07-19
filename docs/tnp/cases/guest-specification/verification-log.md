@@ -236,7 +236,7 @@ network trace.
 ### Остаточные ограничения после Phase 2
 
 - Phase 3 assignments и Phase 5 full UUID-only/multi-ЭР flow pending.
-- Phase 4 blocked PDL-ER-15/18 до официального числового источника.
+- Phase 4 blocked PDL-ER-15/18/28 до официального числового источника.
 - Full frontend, dependency security и общий Alembic metadata drift остаются
   не-green вне Phase 2 diff и блокируют общий release.
 
@@ -294,5 +294,5 @@ network trace.
 
 Обязательные Phase 3 browser proof и post-scenario DB invariants получены;
 Phase 3 имеет PASS в своей границе. Phase 4 отдельно остаётся
-**BLOCKED PDL-ER-15/18** до официального числового каталога/методики;
+**BLOCKED PDL-ER-15/18/28** до официального числового каталога/методики;
 PDL-ER-18…25 задают семантику, но не заменяют numeric artifact.

@@ -3,7 +3,7 @@
 Dynamic-ER migrations `0027`/`0028` создают UUID foundation, а `0029` делает
 assignments authoritative и добавляет их optimistic revision contract. Legacy
 `variant_number=1…4` пока не удалён; nullable UUID columns и sync triggers
-образуют expand-window. Phase 4 blocked PDL-ER-15/18 до официального числового
+образуют expand-window. Phase 4 blocked PDL-ER-15/18/28 до официального числового
 каталога, Phase 5 pending; общий PDF/DoD и product release не завершены.
 
 ## Таблицы

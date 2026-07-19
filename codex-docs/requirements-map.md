@@ -18,7 +18,7 @@
 | `TO_DO.md` | Рабочий статус пробелов и отложенных задач |
 | `docs/analysis/` | Бизнес-правила, персоны, story map, диаграммы |
 | `docs/qa/` | Чек-листы и ручные тест-кейсы |
-| `docs/tnp/cases/guest-specification/product-decisions.md` | Утверждённые PDL-ER-01…25 для dynamic-ER/PDF-кейса |
+| `docs/tnp/cases/guest-specification/product-decisions.md` | Утверждённые PDL-ER-01…28 для dynamic-ER/PDF-кейса |
 | `docs/architecture/dynamic-electrical-variants.md` | ADR, phase plan и UUID cutover contract |
 | `docs/tnp/cases/guest-specification/phase-1-checkpoint.md` | Финальное evidence backend/DB Phase 1 и переходные ограничения |
 | `docs/tnp/cases/guest-specification/phase-2-checkpoint.md` | Финальное frontend/consumer evidence Phase 2 и UUID/legacy boundary |
@@ -69,7 +69,9 @@
 | Electrical job selector | Omitted numeric selector → slot 1; UUID-only clears implicit default; explicit null → stable 422 до ER side effect |
 | Candidate apply/delete | Общая lifecycle project lock, re-read candidate/mapping после lock, stable 404/409 без ER recreation или integrity 500 |
 | Пятый ЭР | Доступен lifecycle, assignment API/UI и отдельный scope, но legacy calculation/candidate/spec/report graph отсутствует; UI обязан fail-closed до полного UUID-only cutover |
-| Heating sections | Семантика утверждена PDL-ER-18…25: официальный источник ТЛТ, explicit `Iдоп` по марке/напряжению, direct `Iст.уд`, minimum object/climate start temperature, voltage isolation, source-defined rounding, self-reg only, fail closed при пробеле. Phase 4 остаётся blocked PDL-ER-15/18 до фактического числового артефакта |
+| Guest persistence | PDL-ER-26 разрешает временное PostgreSQL-хранение на 3 дня с последней активности, session isolation и auto-cleanup. Текущие 20 минут — implementation gap, а не целевой контракт |
+| Масштаб проекта | PDL-ER-27 фиксирует цель 500 объектов. Runtime guard 50 сохраняется до performance evidence импорта, batch-расчёта, UI, спецификации и отчёта |
+| Heating sections | Семантика утверждена PDL-ER-18…25: официальный источник ТЛТ, explicit `Iдоп` по марке/напряжению, direct `Iст.уд`, minimum object/climate start temperature, voltage isolation, source-defined rounding, self-reg only, fail closed при пробеле. PDL-ER-28 подтверждает обязательность фактического артефакта; Phase 4 остаётся blocked PDL-ER-15/18/28 до его предоставления |
 | Расширенные типы объектов | Для pump/platform/other нужны формы, схемы, формулы, импорт, отчёты и тесты |
 | Безопасность раздела 5 ТЗ | Обфускация, шифрование формул/справочников, ротация ключей пока отдельный риск |
 | Табличный UX | TSV-копирование есть; Excel-like bulk edit и эскизы Приложения 4 проверять по `TO_DO.md` |
@@ -96,8 +98,8 @@ desktop/mobile UI proof. Phase 3 реализовала и доказала root
 authoritative assignment API/UI, exact UUID calculation scope, optimistic
 races, confirmed cleanup, live reload и post-UI DB invariants. Это не
 закрывает Phase 5, общий PDF/DoD или product release; семантика Phase 4 закрыта
-PDL-ER-18…25, но
-сама фаза остаётся blocked PDL-ER-15/18 до официального числового источника. Full
+PDL-ER-18…25, а guest TTL/scale решения закрыты PDL-ER-26/27. Сама Phase 4
+остаётся blocked PDL-ER-15/18/28 до официального числового источника. Full
 frontend gate не green из-за pre-existing missing accessible separator test,
 который не является regression dynamic-ER Phase 3. Dependency security gate и
 общий Alembic metadata drift вне dynamic-ER diff также блокируют release.

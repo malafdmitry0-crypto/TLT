@@ -12,7 +12,7 @@ Direct calculation, candidate, specification и часть report API пока �
 deprecated numeric adapter `variant_number=1…4`, но backend mutation обязана
 разрешить и проверить точный `electrical_variant_id` (UUID-aware clients
 передают его явно); отсутствующее или несовместимое
-назначение отклоняется fail-closed. Phase 4 blocked PDL-ER-15/18 до
+назначение отклоняется fail-closed. Phase 4 blocked PDL-ER-15/18/28 до
 официального числового каталога, Phase 5 pending; общий PDF/DoD и product
 release не завершены.
 

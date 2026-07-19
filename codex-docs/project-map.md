@@ -100,6 +100,7 @@ assignments проверены root backend/browser/DB gate. Schema head Phase 3
 то есть не green только из-за
 missing accessible separator test. Dependency security gate и общий Alembic metadata drift также
 не green вне dynamic-ER diff. Phase 5 pending, Phase 4 заблокирована
-PDL-ER-15/18 до официального числового section-каталога;
-семантика обработки данных утверждена PDL-ER-18…25. Общий PDF/DoD и product
+PDL-ER-15/18/28 до официального числового section-каталога;
+семантика обработки данных утверждена PDL-ER-18…25, guest TTL и целевой лимит
+500 объектов — PDL-ER-26/27. Общий PDF/DoD и product
 release не завершены.

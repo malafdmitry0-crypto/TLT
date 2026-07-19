@@ -19,7 +19,8 @@ specification `not_generated` по PDL-ER-13. Row/batch/inline compatibility
 остаётся строгой, но fresh supported resistive assignment открывает
 `Выбор`/`Подбор` с безопасным `single_core`, а не наследует self-reg default.
 Phase 5, общий PDF/DoD и product release не завершены, Phase 4 заблокирована
-PDL-ER-15/18.
+PDL-ER-15/18/28. Guest TTL 3 дня и целевой лимит 500 объектов утверждены
+PDL-ER-26/27, но ещё не реализованы.
 Full frontend gate Phase 3: `1052 passed, 1 failed`; неизменённый
 `HeatCalcPage.settings.test.tsx:321` не находит accessible separator. Это
 pre-existing дефект вне dynamic-ER Phase 3 и blocker общего release.

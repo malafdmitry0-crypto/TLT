@@ -135,6 +135,6 @@ basic builder по-прежнему нарушает
 electrical result. Поэтому общий PDF/DoD не закрыт.
 
 Phase 1/2/3 checkpoints завершены, Phase 5 pending, Phase 4 blocked
-PDL-ER-15/18, а общий product release дополнительно блокирует не-green
+PDL-ER-15/18/28, а общий product release дополнительно блокирует не-green
 frontend gate (`1052 passed, 1 failed`), dependency security gate и
 общий Alembic metadata drift вне dynamic-ER diff.
