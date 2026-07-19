@@ -1672,6 +1672,29 @@ html, body, #root {
   margin: 0 0 10px;
 }
 
+.electrical-system-scope {
+  padding: 10px 12px 12px;
+  background: #fff;
+  border: 1px solid #e6edf5;
+  border-radius: 10px;
+}
+
+.electrical-system-scope__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.electrical-system-scope__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+
 .assignment-drop-zones {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

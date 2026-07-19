@@ -44,11 +44,18 @@ import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollR
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import ElectricalSummary from '@/components/electrical/ElectricalSummary';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
-import ElectricalAssignmentPanel from '@/pages/electrical/ElectricalAssignmentPanel';
+import ElectricalAssignmentPanel, {
+  ASSIGNMENT_DND_MIME,
+} from '@/pages/electrical/ElectricalAssignmentPanel';
 import ElectricalVariantTabs, {
   electricalVariantPanelId,
   electricalVariantTabId,
 } from '@/pages/electrical/ElectricalVariantTabs';
+import {
+  filterObjectsBySystemView,
+  systemViewLabel,
+  type ElectricalSystemView,
+} from '@/pages/electrical/elecCalcSystemViewModel';
 import ElecCalcCableMarkModal from '@/pages/electrical/ElecCalcCableMarkModal';
 import ElecCalcCableSizingModal from '@/pages/electrical/ElecCalcCableSizingModal';
 import ElecCalcElectricalTypeControls from '@/pages/electrical/ElecCalcElectricalTypeControls';
@@ -177,6 +184,7 @@ type ElecCalcWorkspaceProps = {
   trackedJob: TrackedElectricalBatchJob | null;
   completion: ElectricalBatchJobCompletion | null;
   registerJob: RegisterElectricalBatchJob;
+  onAssignmentsChanged?: () => void;
 };
 
 export default function ElecCalcPage() {
@@ -257,15 +265,6 @@ function ElecCalcProject({
   return (
     <Space direction="vertical" size={8} style={{ width: '100%' }}>
       <ElectricalVariantTabs controller={controller} canMutate={canMutate} />
-      {selectedVariant && (
-        <ElectricalAssignmentPanel
-          key={selectedVariant.id}
-          projectId={projectId}
-          electricalVariant={selectedVariant}
-          canMutate={canMutate}
-          onAssignmentsChanged={markAssignmentDataChanged}
-        />
-      )}
       {selectedVariant?.legacy_variant_number == null && selectedVariant && (
         <div
           id={electricalVariantPanelId(selectedVariant.id)}
@@ -302,6 +301,7 @@ function ElecCalcProject({
             ) ?? null}
             completion={completionByVariant[selectedVariant.id] ?? null}
             registerJob={registerJob}
+            onAssignmentsChanged={markAssignmentDataChanged}
           />
         </div>
       )}
@@ -317,6 +317,7 @@ function ElecCalcWorkspace({
   trackedJob,
   completion,
   registerJob,
+  onAssignmentsChanged,
 }: ElecCalcWorkspaceProps) {
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
@@ -325,6 +326,9 @@ function ElecCalcWorkspace({
   const isRegisteredUser = isEmployee;
   const commercialFeaturesAvailable = areCommercialFeaturesEnabled();
   const location = useLocation();
+  /** One system tab for the whole workspace (assign chrome + filtered table). */
+  const [systemView, setSystemView] = useState<ElectricalSystemView>('all');
+  const [tableDragging, setTableDragging] = useState(false);
   const {
     availableCableTypeKeys,
     availableCableTypes,
@@ -527,6 +531,27 @@ function ElecCalcWorkspace({
     () => electricalAssignmentProjectionMap(electricalLoadedPages),
     [electricalLoadedPages],
   );
+  const versionByObjectId = useMemo(() => {
+    const map = new Map<string, number>();
+    assignmentByObjectId.forEach((assignment, objectId) => {
+      if (Number.isFinite(assignment.version)) map.set(objectId, assignment.version);
+    });
+    return map;
+  }, [assignmentByObjectId]);
+
+  /** Single object list: filtered by shared systemView (no second assignment table). */
+  const scopedObjects = useMemo(
+    () => filterObjectsBySystemView(objects, assignmentByObjectId, systemView),
+    [assignmentByObjectId, objects, systemView],
+  );
+  useEffect(() => {
+    // Drop selection that is no longer visible after tab change / reassignment.
+    setSelectedRowKeys((prev) => {
+      const visible = new Set(scopedObjects.map((obj) => obj.id));
+      const next = prev.filter((id) => visible.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [scopedObjects, setSelectedRowKeys]);
   const batchCableType = cableTypes.cableTypeForRecalculation;
   const compatibleSelectedRowKeys = useMemo(
     () => compatibleAssignedObjectIds(
@@ -537,6 +562,12 @@ function ElecCalcWorkspace({
     [assignmentByObjectId, batchCableType, selectedRowKeys],
   );
   const handleAssignmentAwareSelectionChange = useCallback((keys: string[]) => {
+    // Unassigned tab: select freely for assign/DnD.
+    if (systemView === 'unassigned') {
+      setSelectedRowKeys(keys);
+      return;
+    }
+    // «Все» and system tabs: only calc-compatible selection (fail-closed batch).
     const compatible = compatibleAssignedObjectIds(
       keys,
       assignmentByObjectId,
@@ -548,11 +579,12 @@ function ElecCalcWorkspace({
       );
     }
     setSelectedRowKeys(compatible);
-  }, [assignmentByObjectId, batchCableType, setSelectedRowKeys]);
+  }, [assignmentByObjectId, batchCableType, setSelectedRowKeys, systemView]);
   useEffect(() => {
+    if (systemView === 'unassigned') return;
     if (compatibleSelectedRowKeys.length === selectedRowKeys.length) return;
     setSelectedRowKeys(compatibleSelectedRowKeys);
-  }, [compatibleSelectedRowKeys, selectedRowKeys.length, setSelectedRowKeys]);
+  }, [compatibleSelectedRowKeys, selectedRowKeys.length, setSelectedRowKeys, systemView]);
   const objectActionCableType = cableTypes.getSavedCableTypeForObject;
   const getObjectActionDisabledReason = useCallback((obj: ProjectObject) => (
     electricalAssignmentAvailabilityReason(assignmentByObjectId.get(obj.id))
@@ -1365,12 +1397,57 @@ function ElecCalcWorkspace({
     return 'Вариантов пока нет. Запустите авторасчёт или ручной расчёт.';
   }
 
+  const handleTableRowDragStart = (
+    event: React.DragEvent,
+    objectId: string,
+  ) => {
+    if (!canMutate) {
+      event.preventDefault();
+      return;
+    }
+    const ids = selectedRowKeys.includes(objectId) && selectedRowKeys.length > 0
+      ? selectedRowKeys
+      : [objectId];
+    const payload = JSON.stringify(ids);
+    event.dataTransfer.setData(ASSIGNMENT_DND_MIME, payload);
+    event.dataTransfer.setData('text/plain', payload);
+    event.dataTransfer.effectAllowed = 'move';
+    setTableDragging(true);
+  };
+
+  const handleTableRowDragEnd = () => {
+    setTableDragging(false);
+  };
+
   return (
     <>
       <div id="electrical-variant-workspace" ref={tableScrollRegionsRef}>
-        <Space direction="vertical" size={5} style={{ width: '100%' }}>
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
 
-        {/* Slim chrome: no double totals (summary cards below). Params panel off by default. */}
+        {/* PDF order: summary → system scope → one filtered table */}
+        <ElectricalSummary
+          systems={stats.systemSummaries}
+          totalCableLength={totalCableLength}
+          totalPower={Number(stats.totalPower)}
+          totalCurrent={totalCurrent}
+          calcedCount={calculatedCount}
+          totalObjects={totalObjects}
+        />
+
+        <ElectricalAssignmentPanel
+          projectId={projectId}
+          electricalVariant={electricalVariant}
+          canMutate={canMutate}
+          systemView={systemView}
+          onSystemViewChange={setSystemView}
+          selectedObjectIds={selectedRowKeys}
+          onSelectedObjectIdsChange={setSelectedRowKeys}
+          versionByObjectId={versionByObjectId}
+          onAssignmentsChanged={onAssignmentsChanged}
+          tableDragging={tableDragging}
+        />
+
+        {/* Optional advanced params (default off). */}
         <div
           className="elec-workspace-chrome"
           data-testid="elec-workspace-chrome"
@@ -1500,18 +1577,8 @@ function ElecCalcWorkspace({
           />
         )}
 
-        {/* PDF UI-PDF-02: four system summary cards ABOVE the table */}
-        <ElectricalSummary
-          systems={stats.systemSummaries}
-          totalCableLength={totalCableLength}
-          totalPower={Number(stats.totalPower)}
-          totalCurrent={totalCurrent}
-          calcedCount={calculatedCount}
-          totalObjects={totalObjects}
-        />
-
-        {/* Table */}
-        <Card size="small" className="workspace-table-card srs-table-wrap">
+        {/* Table: single list filtered by systemView */}
+        <Card size="small" className="workspace-table-card srs-table-wrap" data-testid="electrical-unified-table">
           {electricalPage && totalObjects === 0 ? (
             <Alert
               type="warning"
@@ -1523,17 +1590,26 @@ function ElecCalcWorkspace({
           ) : electricalGlideEnabled ? (
             <Suspense fallback={null}>
               <ElectricalGlideGrid
-                rows={objects}
+                rows={scopedObjects}
                 gridColumns={electricalGlideColumns}
                 tableScrollX={electricalTableScrollX}
                 tableScrollY={electricalTableScrollY}
                 fontSizeKey={resolvedTableFontSize.key}
                 activeRowId={activeRowId}
-                selectedRowKeys={compatibleSelectedRowKeys}
+                selectedRowKeys={systemView === 'unassigned'
+                  ? selectedRowKeys
+                  : compatibleSelectedRowKeys}
                 tableViewState={tableViewState}
                 pagination={electricalPagination}
                 infiniteLoading={electricalInfiniteLoading}
-                emptyContent={currentTableViewActive && totalObjects > 0 ? (
+                emptyContent={
+                  scopedObjects.length === 0 && totalObjects > 0 ? (
+                    <div className="table-filter-empty">
+                      <Text type="secondary">
+                        В разделе «{systemViewLabel(systemView)}» объектов нет
+                      </Text>
+                    </div>
+                  ) : currentTableViewActive && totalObjects > 0 ? (
                   <div className="table-filter-empty">
                     <Text type="secondary">Нет строк по текущим фильтрам</Text>
                     <Button size="small" onClick={resetCurrentTableViewState}>
@@ -1564,21 +1640,35 @@ function ElecCalcWorkspace({
               size="small"
               loading={isElectricalPageFetching}
               pagination={electricalPagination}
-              dataSource={objects}
+              dataSource={scopedObjects}
               onChange={handleElectricalTableChange}
               scroll={{ x: electricalTableScrollX }}
               rowClassName={electricalRowClassName}
               onRow={(obj) => ({
+                draggable: canMutate,
+                onDragStart: (event) => handleTableRowDragStart(event, obj.id),
+                onDragEnd: handleTableRowDragEnd,
                 onClick: (event) => {
                   if ((event.target as HTMLElement).closest('.ant-table-selection-column')) return;
                   activateRowId(obj.id);
                 },
+                style: canMutate ? { cursor: 'grab' } : undefined,
+                'data-testid': `electrical-object-row-${obj.id}`,
               })}
               rowSelection={{
                 type: 'checkbox',
-                selectedRowKeys: compatibleSelectedRowKeys,
+                selectedRowKeys: systemView === 'unassigned'
+                  ? selectedRowKeys
+                  : compatibleSelectedRowKeys,
                 onChange: (keys) => handleAssignmentAwareSelectionChange(keys as string[]),
                 getCheckboxProps: (obj) => {
+                  // Unassigned tab: select for assign; other tabs: calc-compatible only.
+                  if (systemView === 'unassigned') {
+                    return {
+                      disabled: !canMutate,
+                      'aria-label': `Выбрать ${objectDisplayName(obj)} для назначения`,
+                    };
+                  }
                   const reason = electricalAssignmentCompatibilityReason(
                     assignmentByObjectId.get(obj.id),
                     cableTypes.cableTypeForRecalculation,
@@ -1595,7 +1685,13 @@ function ElecCalcWorkspace({
               }}
               columns={electricalColumns}
               locale={{
-                emptyText: currentTableViewActive && totalObjects > 0 ? (
+                emptyText: scopedObjects.length === 0 && totalObjects > 0 ? (
+                  <div className="table-filter-empty">
+                    <Text type="secondary">
+                      В разделе «{systemViewLabel(systemView)}» объектов нет
+                    </Text>
+                  </div>
+                ) : currentTableViewActive && totalObjects > 0 ? (
                   <div className="table-filter-empty">
                     <Text type="secondary">Нет строк по текущим фильтрам</Text>
                     <Button size="small" onClick={resetCurrentTableViewState}>
@@ -1607,12 +1703,11 @@ function ElecCalcWorkspace({
             />
           )}
 
-          {/* Legend + CTA (totals live in summary cards above — no double footer) */}
+          {/* Legend + CTA */}
           <div className="legend-row-srs">
             <span>
-              ⓘ Красная строка = ошибка подбора кабеля, серый статус = не применимо.
-              Выбор и расчёт доступны только для объектов, назначенных в совместимую
-              систему этого ЭР.
+              ⓘ Таблица фильтруется вкладкой системы. Перетащите строку на зону назначения
+              или используйте кнопки. Расчёт — для объектов в совместимой системе ЭР.
             </span>
             {calculatedCount > 0 && (
               <Button

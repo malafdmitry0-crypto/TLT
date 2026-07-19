@@ -55,6 +55,7 @@ function controller(
     isMutating: false,
     pendingOperation: null,
     selectVariant: vi.fn(),
+    selectAndActivateVariant: vi.fn().mockResolvedValue(ER_2),
     retryList: vi.fn().mockResolvedValue(undefined),
     retryReadiness: vi.fn().mockResolvedValue(undefined),
     initializeVariant: vi.fn().mockResolvedValue(ER_1),
@@ -69,14 +70,14 @@ function controller(
 }
 
 describe('ElectricalVariantTabs', () => {
-  it('renders backend names and distinguishes selected from backend active', () => {
+  it('renders ER names; current tab is selected (no separate ★ active UX)', () => {
     render(<ElectricalVariantTabs controller={controller()} />);
 
     const tablist = screen.getByRole('tablist', { name: 'Электротехнические решения' });
-    const activeTab = within(tablist).getByRole('tab', { name: /Рабочее решение.*активный/i });
+    const otherTab = within(tablist).getByRole('tab', { name: 'Рабочее решение' });
     const selectedTab = within(tablist).getByRole('tab', { name: /Альтернатива Ω/i });
 
-    expect(activeTab).toHaveAttribute('aria-selected', 'false');
+    expect(otherTab).toHaveAttribute('aria-selected', 'false');
     expect(selectedTab).toHaveAttribute('aria-selected', 'true');
     expect(selectedTab).toHaveAttribute('id', `electrical-variant-tab-${ER_2_ID}`);
     expect(selectedTab).toHaveAttribute(
@@ -84,17 +85,17 @@ describe('ElectricalVariantTabs', () => {
       `electrical-variant-panel-${ER_2_ID}`,
     );
     expect(selectedTab).toHaveAttribute('title', ER_2.name);
-    // Selection summary line removed (tabs + «Активный» tag are enough).
-    expect(screen.queryByText(/Выбрано:/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Активный')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Сделать.*активным/i })).not.toBeInTheDocument();
   });
 
-  it('supports keyboard tab navigation', () => {
+  it('supports keyboard tab navigation via selectAndActivate', () => {
     const model = controller({ selectedVariant: ER_1 });
-    render(<ElectricalVariantTabs controller={model} />);
+    render(<ElectricalVariantTabs controller={model} canMutate />);
     const tabs = screen.getAllByRole('tab');
 
     fireEvent.keyDown(tabs[0], { key: 'ArrowRight' });
-    expect(model.selectVariant).toHaveBeenCalledWith(ER_2_ID);
+    expect(model.selectAndActivateVariant).toHaveBeenCalledWith(ER_2_ID);
     expect(tabs[1]).toHaveFocus();
   });
 
@@ -265,7 +266,7 @@ describe('ElectricalVariantTabs', () => {
 
     expect(screen.getByRole('button', { name: 'Добавить пустой ЭР' })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Создать копию выбранного ЭР/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Сделать ЭР.*активным/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Сделать.*активным/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Удалить ЭР/i })).toBeDisabled();
   });
 
@@ -298,7 +299,7 @@ describe('ElectricalVariantTabs', () => {
 
     expect(screen.getAllByRole('tab').filter((tab) =>
       tab.getAttribute('aria-selected') === 'true')).toHaveLength(1);
-    expect(screen.getByRole('tab', { name: /Рабочее решение.*активный/i }))
+    expect(screen.getByRole('tab', { name: 'Рабочее решение' }))
       .toHaveAttribute('aria-selected', 'true');
 
     const externalButton = screen.getByRole('button', { name: 'Внешнее действие' });
@@ -396,7 +397,7 @@ describe('ElectricalVariantTabs', () => {
     expect(screen.getByRole('button', { name: 'Добавить пустой ЭР' })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Создать копию выбранного ЭР/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Переименовать ЭР/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Сделать ЭР.*активным/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Сделать.*активным/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Удалить ЭР/i })).toBeDisabled();
   });
 

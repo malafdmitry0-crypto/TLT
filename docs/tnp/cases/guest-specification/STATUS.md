@@ -8,7 +8,7 @@
 |---|---|
 | Ветка | local `main` (Desktop TLT) |
 | HEAD (на момент записи) | local WIP UI-PDF quality redemption |
-| Обновлено | 2026-07-19 (elec chrome noise cut: params off, no double banner) |
+| Обновлено | 2026-07-19 (ER: selected tab = working ER; no ★ active UX) |
 
 ## Правила оценки
 
@@ -56,6 +56,8 @@ Evidence anchors: `phase-5-checkpoint.md`, `actionable-close-remaining.md`, comm
 
 | ID | Что | Где |
 |---|---|---|
+| ~~CODE-ARCH-01~~ | ~~Два контура assign table + calc table~~ | **fixed** (WIP tree): shared `systemView`, one table |
+| ~~CODE-ARCH-02~~ | ~~selected ≠ is_active «Сделать активным»~~ | **fixed**: tab click / create / copy → select+activate; no ★ button |
 | CODE-01 | ER5: candidate / candidate_folder create — guard `variant_number > 4` (только 1…4) | `calculation_service.py` |
 | CODE-02 | Import CSV: нет warn «заменят данные» + confirm (PDF §5.11) | `ProjectMenu.tsx` |
 | CODE-03 | Лимит объектов **50**, не 500; wall-clock gate 500 не закрыт | config + perf |
@@ -98,7 +100,7 @@ Nсек-зависимый BOM по-прежнему **fail-closed** пока SE
 |---|---|---|
 | **UI-PDF-01** | Heat: 3 колонки (тепло / кабель / spec) + Пол disabled + **Далее** gate | **quality-fixed** — CSS grid heat/cable/spec + card columns |
 | **UI-PDF-02** | Elec: 4 summary cards Самрег/Резистив/Скин/Итого | **quality-fixed** — cards над таблицей; yellow banner totals removed; params panel **default off** |
-| **UI-PDF-03** | Elec: DnD assign (+ кнопки) | **quality-fixed** — visible drop zones + drag handle (`@dnd-kit`), tabs = navigation only |
+| **UI-PDF-03** | Elec: DnD assign (+ кнопки) | **arch-fixed** — shared system tabs + HTML5 row drag to zones; **one** object table |
 | **UI-PDF-04** | Hierarchy object→sections (shell до SEEDS; full после) | **shell quality-fixed** — engineer copy, no SEEDS jargon; full after SEEDS-01 |
 | **UI-PDF-05** | Spec: Поставщик + Ед. поставки + код; разделы pipe/tank/common | **quality-fixed** — PDF columns (no «Категория» in section group) |
 

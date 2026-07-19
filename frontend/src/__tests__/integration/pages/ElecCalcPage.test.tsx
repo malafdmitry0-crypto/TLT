@@ -234,6 +234,9 @@ const electricalAssignmentPanelMock = vi.hoisted(() => ({
     projectId: string;
     electricalVariant: { id: string; name: string; legacy_variant_number: number | null };
     canMutate: boolean;
+    systemView?: string;
+    onSystemViewChange?: (view: string) => void;
+    selectedObjectIds?: string[];
     onAssignmentsChanged?: () => void;
   },
 }));
@@ -246,7 +249,7 @@ vi.mock('@/pages/electrical/ElectricalAssignmentPanel', async () => {
       return React.createElement(
         'div',
         { 'data-testid': 'electrical-assignment-panel' },
-        `Назначение объектов · ${props.electricalVariant.name}`,
+        `Система обогрева · ${props.electricalVariant.name}`,
       );
     },
   };
@@ -908,7 +911,7 @@ describe('ElecCalcPage (integration)', () => {
     useProjectStore.getState().setCurrentProject(mockProject);
     renderPage();
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: /ЭР1.*активный ЭР/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'ЭР1' })).toBeInTheDocument();
     });
     expect(screen.getByRole('tab', { name: 'ЭР4' })).toBeInTheDocument();
   });
@@ -1582,17 +1585,8 @@ describe('ElecCalcPage (integration)', () => {
     });
     expect(await screen.findByText(/«Копия ЭР1»: расчётные действия временно недоступны/))
       .toBeInTheDocument();
-    expect(screen.getByTestId('electrical-assignment-panel')).toHaveTextContent(
-      'Назначение объектов · Копия ЭР1',
-    );
-    expect(electricalAssignmentPanelMock.props).toMatchObject({
-      projectId: 'p-1',
-      electricalVariant: {
-        id: fifthVariant.id,
-        legacy_variant_number: null,
-      },
-      canMutate: true,
-    });
+    // Unified scope chrome lives inside calc workspace; UUID-only ER has no workspace yet.
+    expect(screen.queryByTestId('electrical-assignment-panel')).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Копия ЭР1' })).toHaveAttribute(
       'aria-selected',
       'true',

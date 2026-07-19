@@ -67,13 +67,18 @@ export interface ElectricalVariantSelectionController {
   isMutating: boolean;
   pendingOperation: ElectricalVariantPendingOperation;
   selectVariant: (variantId: string) => void;
+  /** Select tab and sync backend is_active (current tab = working ER). */
+  selectAndActivateVariant: (variantId: string) => Promise<ElectricalVariant | void>;
   retryList: () => Promise<void>;
   retryReadiness: () => Promise<void>;
   initializeVariant: () => Promise<ElectricalVariant>;
   createVariant: (name?: string) => Promise<ElectricalVariant>;
   copySelectedVariant: (name?: string) => Promise<ElectricalVariant>;
   renameVariant: (variantId: string, name: string) => Promise<ElectricalVariant>;
-  activateVariant: (variantId: string) => Promise<ElectricalVariant>;
+  activateVariant: (
+    variantId: string,
+    options?: { silent?: boolean },
+  ) => Promise<ElectricalVariant>;
   deleteVariant: (variantId: string) => Promise<void>;
   clearMutationError: () => void;
 }
@@ -414,6 +419,7 @@ export function useElectricalVariantSelection({
     mutationFn: (variantId: string) =>
       activateElectricalVariant(normalizedProjectId as string, variantId),
     onSuccess: (activated) => {
+      if (!activated?.id) return;
       updateVariantList((current = []) => sortVariants(current.map((variant) =>
         variant.id === activated.id
           ? activated
@@ -540,8 +546,21 @@ export function useElectricalVariantSelection({
     );
     createIntentRef.current = null;
     commitSelection(created.id);
+    // Opened ER is the working ER — keep is_active aligned with selection.
+    if (!created.is_active) {
+      await runMutation(
+        () => activateMutation.mutateAsync(created.id),
+        (authoritative) => {
+          const recovered = authoritative.find((variant) => (
+            variant.id === created.id && variant.is_active
+          ));
+          return { recovered: recovered !== undefined, value: recovered! };
+        },
+        null,
+      );
+    }
     return created;
-  }, [commitSelection, createMutation, ensureProject, runMutation]);
+  }, [activateMutation, commitSelection, createMutation, ensureProject, runMutation]);
 
   const copySelectedVariant = useCallback(async (name?: string) => {
     ensureProject();
@@ -565,8 +584,20 @@ export function useElectricalVariantSelection({
     );
     copyIntentRef.current = null;
     commitSelection(created.id);
+    if (!created.is_active) {
+      await runMutation(
+        () => activateMutation.mutateAsync(created.id),
+        (authoritative) => {
+          const recovered = authoritative.find((variant) => (
+            variant.id === created.id && variant.is_active
+          ));
+          return { recovered: recovered !== undefined, value: recovered! };
+        },
+        null,
+      );
+    }
     return created;
-  }, [commitSelection, copyMutation, ensureProject, runMutation, selectedVariantId]);
+  }, [activateMutation, commitSelection, copyMutation, ensureProject, runMutation, selectedVariantId]);
 
   const renameVariant = useCallback(async (variantId: string, name: string) => {
     ensureProject();
@@ -586,10 +617,14 @@ export function useElectricalVariantSelection({
     );
   }, [ensureProject, renameMutation, runMutation, variants]);
 
-  const activateVariant = useCallback(async (variantId: string) => {
+  const activateVariant = useCallback(async (
+    variantId: string,
+    options?: { silent?: boolean },
+  ) => {
     ensureProject();
     const target = findVariant(variants, variantId);
     if (!target) throw new Error('ЭР не найден');
+    if (target.is_active) return target;
     return runMutation(
       () => activateMutation.mutateAsync(target.id),
       (authoritative) => {
@@ -598,9 +633,23 @@ export function useElectricalVariantSelection({
         ));
         return { recovered: recovered !== undefined, value: recovered! };
       },
-      'Активный ЭР изменён; результат подтверждён после сверки с сервером.',
+      options?.silent
+        ? null
+        : 'Текущий ЭР обновлён.',
     );
   }, [activateMutation, ensureProject, runMutation, variants]);
+
+  /**
+   * Product rule: opened tab = working ER. Selection + backend is_active stay
+   * the same — no separate "★ make active" UX.
+   */
+  const selectAndActivateVariant = useCallback(async (variantId: string) => {
+    const target = findVariant(variants, variantId);
+    if (!target) return;
+    commitSelection(target.id);
+    if (target.is_active) return target;
+    return activateVariant(target.id, { silent: true });
+  }, [activateVariant, commitSelection, variants]);
 
   const deleteVariant = useCallback(async (variantId: string) => {
     ensureProject();
@@ -661,6 +710,7 @@ export function useElectricalVariantSelection({
     isMutating: pendingOperation !== null,
     pendingOperation,
     selectVariant,
+    selectAndActivateVariant,
     retryList,
     retryReadiness,
     initializeVariant,

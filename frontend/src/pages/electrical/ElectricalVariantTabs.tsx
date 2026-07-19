@@ -9,7 +9,6 @@ import {
   Popconfirm,
   Space,
   Spin,
-  Tag,
   Tooltip,
   Typography,
 } from 'antd';
@@ -37,7 +36,7 @@ const PENDING_OPERATION_LABELS: Record<
   create: 'Создаём пустой ЭР…',
   copy: 'Копируем выбранный ЭР…',
   rename: 'Сохраняем новое название ЭР…',
-  activate: 'Назначаем активный ЭР…',
+  activate: 'Переключаем текущий ЭР…',
   delete: 'Удаляем выбранный ЭР…',
   reconcile: 'Сверяем список ЭР с сервером…',
 };
@@ -377,7 +376,12 @@ export default function ElectricalVariantTabs({
 
     event.preventDefault();
     const targetVariant = controller.variants[targetIndex];
-    controller.selectVariant(targetVariant.id);
+    // Current tab = working ER (selected + is_active when allowed).
+    if (canMutate) {
+      ignoreHandledError(controller.selectAndActivateVariant(targetVariant.id));
+    } else {
+      controller.selectVariant(targetVariant.id);
+    }
     const tablist = event.currentTarget.closest('[role="tablist"]');
     const tabs = tablist?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
     tabs?.[targetIndex]?.focus();
@@ -458,7 +462,7 @@ export default function ElectricalVariantTabs({
                     role="tab"
                     aria-selected={isSelected}
                     aria-controls={electricalVariantPanelId(variant.id)}
-                    aria-label={`${variant.name}${variant.is_active ? ', активный ЭР' : ''}`}
+                    aria-label={variant.name}
                     tabIndex={-1}
                     type={isSelected ? 'primary' : 'default'}
                     data-electrical-variant-id={variant.id}
@@ -524,12 +528,18 @@ export default function ElectricalVariantTabs({
                 role="tab"
                 aria-selected={isSelected}
                 aria-controls={electricalVariantPanelId(variant.id)}
-                aria-label={`${variant.name}${variant.is_active ? ', активный ЭР' : ''}`}
+                aria-label={variant.name}
                 tabIndex={isSelected ? 0 : -1}
                 type={isSelected ? 'primary' : 'default'}
                 data-electrical-variant-id={variant.id}
                 title={variant.name}
-                onClick={() => controller.selectVariant(variant.id)}
+                onClick={() => {
+                  if (canMutate) {
+                    ignoreHandledError(controller.selectAndActivateVariant(variant.id));
+                  } else {
+                    controller.selectVariant(variant.id);
+                  }
+                }}
                 onKeyDown={(event) => handleTabKeyDown(index, event)}
                 style={{
                   flex: '0 0 auto',
@@ -540,27 +550,14 @@ export default function ElectricalVariantTabs({
               >
                 <span
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
+                    display: 'block',
                     minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  <span
-                    style={{
-                      minWidth: 0,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {variant.name}
-                  </span>
-                  {variant.is_active && (
-                    <Tag color={isSelected ? 'cyan' : 'green'} style={{ marginInlineEnd: 0 }}>
-                      Активный
-                    </Tag>
-                  )}
+                  {variant.name}
                 </span>
               </Button>
             );
@@ -609,19 +606,6 @@ export default function ElectricalVariantTabs({
             onClick={startRename}
           >
             Переименовать
-          </Button>
-
-          <Button
-            loading={controller.pendingOperation === 'activate'}
-            disabled={!canMutate || selected.is_active || lifecycleWriteLocked}
-            aria-label={
-              selected.is_active
-                ? `ЭР «${selected.name}» уже активный`
-                : `Сделать ЭР «${selected.name}» активным`
-            }
-            onClick={() => ignoreHandledError(controller.activateVariant(selected.id))}
-          >
-            Сделать активным
           </Button>
 
           <Popconfirm

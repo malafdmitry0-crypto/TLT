@@ -122,6 +122,11 @@ beforeEach(() => {
     variantByProject: {},
   });
   apiMocks.list.mockResolvedValue([ER_1, ER_2]);
+  apiMocks.activate.mockImplementation(async (_projectId: string, id: string) => ({
+    ...ER_1,
+    id,
+    is_active: true,
+  }));
   apiMocks.readiness.mockResolvedValue({
     project_id: PROJECT_ID,
     ready: false,
