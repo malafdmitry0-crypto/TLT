@@ -74,8 +74,9 @@ class Settings(BaseSettings):
     # Поток: зашёл → один авто-проект → поработал → ушёл → через TTL+интервал всё чистится.
     GUEST_MAX_PROJECTS: int = 1  # у пользователя ровно один проект
     GUEST_MAX_OBJECTS_PER_PROJECT: int = 50  # максимум объектов в одном проекте
-    GUEST_SESSION_TTL_MINUTES: int = 20  # неактивная сессия чистится после N мин
-    GUEST_CLEANUP_INTERVAL_MINUTES: int = 10  # периодичность фонового cleanup
+    # PDL-ER-26: временное хранение гостевого проекта — 3 суток sliding TTL.
+    GUEST_SESSION_TTL_MINUTES: int = 4320  # 3 дня; неактивная сессия чистится после N мин
+    GUEST_CLEANUP_INTERVAL_MINUTES: int = 60  # периодичность фонового cleanup
     GUEST_MAX_SESSIONS_PER_IP: int = 10  # максимум новых сессий с одного IP за 1 час
     GUEST_ACTIVITY_TOUCH_INTERVAL_SECONDS: int = 60  # throttle UPDATE last_activity
     LOGIN_MAX_ATTEMPTS_PER_IP: int = 10  # максимум попыток логина с одного IP за 1 час

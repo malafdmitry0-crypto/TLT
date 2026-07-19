@@ -327,6 +327,7 @@ describe('SpecificationPage (integration)', () => {
       firstVariant.id,
       'basic',
       undefined,
+      [firstVariant.id],
     );
     const scopeGroup = screen.getAllByRole('radiogroup').find((group) =>
       group.textContent?.includes(firstVariant.name)

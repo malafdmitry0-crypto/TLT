@@ -58,6 +58,7 @@ class SpecificationResponse(BaseModel):
     id: UUID
     project_id: UUID
     variant_number: int
+    electrical_variant_id: UUID | None = None
     items: list[dict[str, Any]]
     # Режим и опции последней генерации — чтобы UI восстанавливал их после reload
     generation_mode: str | None = None
@@ -73,12 +74,27 @@ class SpecificationResponse(BaseModel):
 class SpecificationGenerateRequest(BaseModel):
     """Тело запроса генерации спецификации.
 
-    mode='basic' — кабель + минимум аксессуаров (MVP/Гость);
-    mode='full' — полный условный BOM по ТНП (полная версия/Сотрудник).
+    mode='basic' — кабель + минимум аксессуаров;
+    mode='full' — полный условный BOM по ТНП (PDL-ER-04: доступен и гостю).
+
+    electrical_variant_ids — явный список UUID ЭР (PDL-ER-01). UI «Выбрать все»
+    разворачивается в полный список текущих UUID, а не в implicit all-on-open.
     """
 
     mode: str = Field(default="basic", pattern="^(basic|full)$")
     options: SpecificationOptions | None = None
+    electrical_variant_ids: list[UUID] | None = Field(
+        default=None,
+        max_length=5,
+        description="Явно выбранные UUID ЭР (1…5). Пустой/None — legacy single slot.",
+    )
+
+
+class SpecificationGenerateVariantResult(BaseModel):
+    electrical_variant_id: UUID
+    items: list[SpecificationItem]
+    mode: str = "basic"
+    skipped_objects: int = 0
 
 
 class SpecificationGenerateResponse(BaseModel):
@@ -89,6 +105,9 @@ class SpecificationGenerateResponse(BaseModel):
     # Объекты проекта без успешного электрорасчёта, не вошедшие в полный BOM.
     # В basic-режиме всегда 0: там аксессуары заказываются на все объекты.
     skipped_objects: int = 0
+    electrical_variant_id: UUID | None = None
+    # Multi-ЭР atomic generation: per-variant results (PDL-ER-01/14).
+    results: list[SpecificationGenerateVariantResult] | None = None
 
 
 class SpecificationUpdateRequest(BaseModel):

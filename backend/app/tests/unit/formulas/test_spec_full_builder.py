@@ -84,6 +84,31 @@ class TestFullSpecificationBoxes:
         assert _qty(items, "СКВ 1202") == 1
         assert _qty(items, "СКВ 1201") is None
 
+    def test_box_threshold_inclusive_57_mm(self):
+        """PDL-ER-08: dтр ≥ 57 мм inclusive — boundary at exactly 57 mm is large."""
+        base = {
+            "cable_mark": "10ТТН2-СТ",
+            "num_circuits": 1,
+            "installed_cable_length": 20.0,
+        }
+        just_below = build_full_specification(
+            [{**base, "object_id": "o_below"}],
+            {"o_below": {"outer_diameter": 0.056999, "pipe_length": 20.0}},
+        )
+        exact = build_full_specification(
+            [{**base, "object_id": "o_exact"}],
+            {"o_exact": {"outer_diameter": 0.057, "pipe_length": 20.0}},
+        )
+        just_above = build_full_specification(
+            [{**base, "object_id": "o_above"}],
+            {"o_above": {"outer_diameter": 0.057001, "pipe_length": 20.0}},
+        )
+        assert _qty(just_below, "СКВ 1202") == 1  # small
+        assert _qty(just_below, "СКВ 1201") is None
+        assert _qty(exact, "СКВ 1201") == 1  # large inclusive
+        assert _qty(exact, "СКВ 1202") is None
+        assert _qty(just_above, "СКВ 1201") == 1
+
 
 class TestFullSpecificationKits:
     def test_connector_and_repair_kits(self):

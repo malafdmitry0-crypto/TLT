@@ -57,7 +57,11 @@ async def get_specification(
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
-    spec = await SpecificationService(db).get_specification(project_id, variant)
+    spec = await SpecificationService(db).get_specification(
+        project_id,
+        variant,
+        electrical_variant_id=electrical_variant_id,
+    )
     return spec
 
 
@@ -83,15 +87,68 @@ async def generate_specification(
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
     req = data or SpecificationGenerateRequest()
-    # Полная спецификация (условный BOM ТНП) — функция полной версии (Сотрудник).
-    # Явный 403 вместо тихого даунгрейда: клиент должен знать, что режим недоступен.
-    if req.mode == "full" and getattr(principal, "role", None) == "guest":
-        raise HTTPException(
-            status_code=403,
-            detail="Полная спецификация доступна только сотруднику",
-        )
+    # PDL-ER-04: полный автоматический BOM доступен гостю; manual items — только
+    # сотруднику/админу (см. PUT /items + frontend canManuallyEdit).
 
     try:
+        # PDL-ER-01: explicit multi-ER list wins over single legacy slot params.
+        requested_ids = list(dict.fromkeys(req.electrical_variant_ids or []))
+        # Single-query compatibility: UUID param alone still works.
+        if (
+            electrical_variant_id is not None
+            and electrical_variant_id not in requested_ids
+            and not requested_ids
+        ):
+            requested_ids = [electrical_variant_id]
+
+        if requested_ids:
+            if len(requested_ids) > 5:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "error_code": "ELECTRICAL_VARIANT_LIMIT_REACHED",
+                        "message": "Можно выбрать не более 5 ЭР для генерации",
+                    },
+                )
+            results = await SpecificationService(db).generate_for_electrical_variants(
+                project_id,
+                principal,
+                requested_ids,
+                mode=req.mode,
+                options=req.options,
+            )
+            primary = results[0]
+            await AuditService(db).try_record(
+                event_type="specification.generated",
+                category="specification",
+                principal=principal,
+                project_id=project_id,
+                details={
+                    "electrical_variant_ids": [str(item.electrical_variant_id) for item in results],
+                    "item_count": len(primary.items),
+                    "mode": primary.mode,
+                    "skipped_objects": primary.skipped_objects,
+                    "generated_count": len(results),
+                },
+                message="Сгенерирована спецификация (multi-ЭР)",
+            )
+            return SpecificationGenerateResponse(
+                project_id=project_id,
+                items=primary.items,
+                mode=primary.mode,
+                skipped_objects=primary.skipped_objects,
+                electrical_variant_id=primary.electrical_variant_id,
+                results=[
+                    {
+                        "electrical_variant_id": item.electrical_variant_id,
+                        "items": item.items,
+                        "mode": item.mode,
+                        "skipped_objects": item.skipped_objects,
+                    }
+                    for item in results
+                ],
+            )
+
         electrical_variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
             project_id,
             principal,
@@ -126,6 +183,7 @@ async def generate_specification(
         items=result.items,
         mode=result.mode,
         skipped_objects=result.skipped_objects,
+        electrical_variant_id=electrical_variant.id,
     )
 
 

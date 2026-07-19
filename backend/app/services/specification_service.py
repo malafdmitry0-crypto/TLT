@@ -5,20 +5,26 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import CurrentPrincipal
 from app.formulas.specification.builder import build_basic_specification
 from app.formulas.specification.full_builder import (
     build_full_specification,
     contributes_to_full_bom,
 )
 from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_variant import ElectricalVariant
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.schemas.specification import SpecificationItem, SpecificationOptions
+from app.services.electrical_variant_service import (
+    ElectricalVariantService,
+    ElectricalVariantServiceError,
+)
 
 
 @dataclass
@@ -28,6 +34,7 @@ class SpecificationGenerateResult:
     items: list[SpecificationItem] = field(default_factory=list)
     mode: str = "basic"
     skipped_objects: int = 0
+    electrical_variant_id: UUID | None = None
 
 
 class SpecificationService:
@@ -35,8 +42,20 @@ class SpecificationService:
         self.db = db
 
     async def get_specification(
-        self, project_id: UUID, variant_number: int = 1
+        self,
+        project_id: UUID,
+        variant_number: int = 1,
+        *,
+        electrical_variant_id: UUID | None = None,
     ) -> Specification | None:
+        if electrical_variant_id is not None:
+            result = await self.db.execute(
+                select(Specification).where(
+                    Specification.project_id == project_id,
+                    Specification.electrical_variant_id == electrical_variant_id,
+                )
+            )
+            return result.scalars().one_or_none()
         result = await self.db.execute(
             select(Specification).where(
                 Specification.project_id == project_id,
@@ -44,6 +63,85 @@ class SpecificationService:
             )
         )
         return result.scalars().one_or_none()
+
+    async def generate_for_electrical_variants(
+        self,
+        project_id: UUID,
+        principal: CurrentPrincipal,
+        electrical_variant_ids: list[UUID],
+        *,
+        mode: str | None = None,
+        options: SpecificationOptions | None = None,
+        commit: bool = True,
+    ) -> list[SpecificationGenerateResult]:
+        """Atomically generate independent specifications for explicit ER UUIDs.
+
+        PDL-ER-01/14: multi-ЭР list is processed in one project lock/transaction.
+        Internal failure rolls back the whole list.
+        """
+        requested = list(dict.fromkeys(electrical_variant_ids))
+        if not requested:
+            raise ElectricalVariantServiceError(
+                "ELECTRICAL_VARIANT_NOT_FOUND",
+                "Не передан ни один electrical_variant_id",
+                status_code=422,
+            )
+        if len(requested) > 5:
+            raise ElectricalVariantServiceError(
+                "ELECTRICAL_VARIANT_LIMIT_REACHED",
+                "Можно выбрать не более 5 ЭР для генерации",
+                status_code=422,
+            )
+
+        await self._lock_project(project_id)
+        # Re-validate membership via public list (employees can view coworker projects).
+        # Model rows are loaded under the same project lock for generation.
+        await ElectricalVariantService(self.db).list_variants(project_id, principal)
+        rows = await self.db.execute(
+            select(ElectricalVariant).where(ElectricalVariant.project_id == project_id)
+        )
+        by_id = {item.id: item for item in rows.scalars().all()}
+        missing = [str(item) for item in requested if item not in by_id]
+        if missing:
+            raise ElectricalVariantServiceError(
+                "ELECTRICAL_VARIANT_NOT_FOUND",
+                "Один или несколько ЭР не найдены в проекте",
+                status_code=404,
+                details={"missing_electrical_variant_ids": missing},
+            )
+
+        results: list[SpecificationGenerateResult] = []
+        for variant_id in requested:
+            variant = by_id[variant_id]
+            if variant.legacy_variant_number is None:
+                raise ElectricalVariantServiceError(
+                    "ELECTRICAL_VARIANT_PROJECT_MISMATCH",
+                    (
+                        f"ЭР «{variant.name}» ещё не имеет legacy data plane "
+                        "для спецификации; UUID-only cutover — Phase 5/6"
+                    ),
+                    status_code=409,
+                    details={
+                        "electrical_variant_id": str(variant.id),
+                        "error_code": "ELECTRICAL_SECTIONS_NOT_READY",
+                    },
+                )
+            result = await self.generate(
+                project_id,
+                variant.legacy_variant_number,
+                commit=False,
+                mode=mode,
+                options=options,
+                electrical_variant_id=variant.id,
+            )
+            result.electrical_variant_id = variant.id
+            results.append(result)
+
+        if commit:
+            await self.db.commit()
+        else:
+            await self.db.flush()
+        return results
 
     async def generate(
         self,
@@ -65,12 +163,20 @@ class SpecificationService:
         # object/assignment stale transition for this project.
         await self._lock_project(project_id)
         # Сохраняем ручные позиции (source='manual'), если они есть в текущей спецификации
-        existing_q = await self.db.execute(
-            select(Specification).where(
-                Specification.project_id == project_id,
-                Specification.variant_number == variant_number,
+        if electrical_variant_id is not None:
+            existing_q = await self.db.execute(
+                select(Specification).where(
+                    Specification.project_id == project_id,
+                    Specification.electrical_variant_id == electrical_variant_id,
+                )
             )
-        )
+        else:
+            existing_q = await self.db.execute(
+                select(Specification).where(
+                    Specification.project_id == project_id,
+                    Specification.variant_number == variant_number,
+                )
+            )
         existing_spec = existing_q.scalars().first()
         manual_items: list[SpecificationItem] = []
         if existing_spec and existing_spec.items:
@@ -91,14 +197,35 @@ class SpecificationService:
                 except Exception:
                     options = None
 
-        # Авто-позиции из электрорасчёта (для конкретного варианта)
-        result = await self.db.execute(
-            select(ElectricalCalculation).where(
-                ElectricalCalculation.project_id == project_id,
-                ElectricalCalculation.variant_number == variant_number,
+        # Авто-позиции из электрорасчёта: UUID-first, legacy slot as fallback.
+        if electrical_variant_id is not None:
+            result = await self.db.execute(
+                select(ElectricalCalculation).where(
+                    ElectricalCalculation.project_id == project_id,
+                    or_(
+                        ElectricalCalculation.electrical_variant_id == electrical_variant_id,
+                        (
+                            ElectricalCalculation.electrical_variant_id.is_(None)
+                            & (ElectricalCalculation.variant_number == variant_number)
+                        ),
+                    ),
+                )
             )
-        )
+        else:
+            result = await self.db.execute(
+                select(ElectricalCalculation).where(
+                    ElectricalCalculation.project_id == project_id,
+                    ElectricalCalculation.variant_number == variant_number,
+                )
+            )
         calcs = list(result.scalars().all())
+        # Prefer exact UUID rows; drop ambiguous legacy-only duplicates of same object.
+        if electrical_variant_id is not None:
+            exact = [
+                c for c in calcs if c.electrical_variant_id == electrical_variant_id
+            ]
+            if exact:
+                calcs = exact
         electrical_results = [
             {
                 **(c.results or {}),
@@ -156,6 +283,22 @@ class SpecificationService:
 
         items = list(auto_items) + manual_items
 
+        # Zero successful electrical results must not yield accessory-only "success".
+        successful_cable_rows = [
+            r
+            for r in electrical_results
+            if contributes_to_full_bom(r)
+            or (
+                mode != "full"
+                and r.get("cable_mark")
+                and not r.get("error")
+                and not r.get("error_code")
+            )
+        ]
+        if mode == "full" and not successful_cable_rows and not manual_items:
+            # Keep empty auto set; still persist generation snapshot as empty BOM.
+            items = list(manual_items)
+
         await self._upsert_specification(
             project_id=project_id,
             variant_number=variant_number,
@@ -169,7 +312,12 @@ class SpecificationService:
             await self.db.commit()
         else:
             await self.db.flush()
-        return SpecificationGenerateResult(items=items, mode=mode, skipped_objects=skipped_objects)
+        return SpecificationGenerateResult(
+            items=items,
+            mode=mode,
+            skipped_objects=skipped_objects,
+            electrical_variant_id=electrical_variant_id,
+        )
 
     async def save_items(
         self,
