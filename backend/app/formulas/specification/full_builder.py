@@ -142,8 +142,23 @@ def build_full_specification(
         # L,секц — длина одной нагревательной секции (для порога К2i)
         section_length = section_total / n_sec
 
-        # Кабель (с резервом R,гр)
-        cable_qty = section_total * r_res
+        # PDL-ER-02/31: закупочная длина кабеля = order/commercial length (10%+round),
+        # not Rгр. Rгр applies only to section-count kit rules below.
+        commercial = result.get("commercial") if isinstance(result.get("commercial"), dict) else {}
+        snapshot = (
+            result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
+        )
+        snap_ctx = (
+            snapshot.get("commercial_context")
+            if isinstance(snapshot.get("commercial_context"), dict)
+            else {}
+        )
+        order_len = _num(
+            result.get("order_cable_length")
+            or commercial.get("required_order_length")
+            or snap_ctx.get("required_order_length")
+        )
+        cable_qty = order_len if order_len > 0 else section_total
         cable_by_mark[mark] += cable_qty
         cable_meta.setdefault(mark, {"temp_class": tclass})
 
@@ -153,15 +168,16 @@ def build_full_specification(
             and section_length >= opt.min_length_for_end_indication
         )
 
-        # Соединительные комплекты и длины по классу
+        # Соединительные комплекты: Rгр масштабирует число секций (hot reserve),
+        # не закупочную длину кабеля.
         if tclass == "low":
-            length_low += cable_qty
+            length_low += section_total
             n_low += n_sec * r_res
             if k2i_active:
                 n_low_k2i += n_sec * r_res
             tape_low += (PI * d_mm * 2.5 / 1000.0) * (cable_qty / 0.3) * 1.1 if d_mm > 0 else 0.0
         else:
-            length_high += cable_qty
+            length_high += section_total
             n_high += n_sec * r_res
             if k2i_active:
                 n_high_k2i += n_sec * r_res

@@ -2,6 +2,8 @@
 
 import math
 
+import pytest
+
 from app.formulas.specification.full_builder import build_full_specification
 from app.schemas.specification import SpecificationOptions
 
@@ -44,14 +46,19 @@ class TestFullSpecificationCable:
         cables = {i.article: i.quantity for i in items if i.category == "Кабель"}
         assert cables == {"25ТТН2-СТ": 60.0, "45ТТХ2-СР": 120.0}
 
-    def test_reserve_coefficient_scales_cable(self):
+    def test_rgr_does_not_scale_cable_procurement_length(self):
+        """PDL-ER-31: Rгр is not the 10% order reserve and must not multiply cable BOM."""
         elec, objs = _two_object_case()
-        items = build_full_specification(
+        base = build_full_specification(elec, objs)
+        scaled = build_full_specification(
             elec, objs, options=SpecificationOptions(reserve_coefficient=1.5)
         )
-        cables = {i.article: i.quantity for i in items if i.category == "Кабель"}
-        assert cables["25ТТН2-СТ"] == 90.0
-        assert cables["45ТТХ2-СР"] == 180.0
+        base_cables = {i.article: i.quantity for i in base if i.category == "Кабель"}
+        scaled_cables = {i.article: i.quantity for i in scaled if i.category == "Кабель"}
+        assert scaled_cables == base_cables == {"25ТТН2-СТ": 60.0, "45ТТХ2-СР": 120.0}
+        # Rгр still scales section-count kits (КСН/КСВ).
+        assert _qty(scaled, "КСН-1") == pytest.approx(_qty(base, "КСН-1") * 1.5)
+        assert _qty(scaled, "КСВ-1") == pytest.approx(_qty(base, "КСВ-1") * 1.5)
 
     def test_failed_results_skipped(self):
         elec, objs = _two_object_case()

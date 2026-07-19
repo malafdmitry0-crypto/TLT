@@ -19,11 +19,12 @@
 | **PDL-ER-29 full-only product mode** | **PASS** | UI switcher removed; API/service coerce `basic`→`full`; tests |
 | **PDL-ER-37 stale out of report/export/print** | **PASS** | report context strips items when stale; red UI banner; print CSS hide table |
 | **PDL-ER-36 preflight + confirm partial** | **PASS** | 409 PREFLIGHT_CONFIRMATION_REQUIRED + confirm_partial; UI Modal |
+| **PDL-ER-41 guest manual import reject** | **PASS** | import blocks guest+manual BOM rows |
+| **PDL-ER-31 Rгр ≠ cable order reserve** | **PASS** | full_builder cable qty without Rгр; kits still use Rгр |
 
 ## Still open
 
 - PDL-ER-30 desktop ≥1280 warning
-- PDL-ER-31 Rгр vs 10% order reserve semantics fix
 - PDL-ER-32 proven-only tank/resistive partial
 - PDL-ER-33 catalog identity
 - PDL-ER-34 PDF-first formula source
@@ -31,7 +32,6 @@
 - PDL-ER-38 pipe/tank/common grouping
 - PDL-ER-39 multi-ЭР report chapters
 - PDL-ER-40 print CSS corporate scope (partial functional ok)
-- PDL-ER-41 guest manual import reject / source mismatch trust
 - PDL-ER-07 settings snapshots
 - PDL-ER-27 perf 50→500
 - ER5 write cutover

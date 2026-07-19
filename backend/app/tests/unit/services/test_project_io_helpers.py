@@ -18,6 +18,7 @@ from app.services.project_io_service import (
     _require_schema_version,
     _rows_to_dicts,
     _safe_csv_cell,
+    _spec_rows_contain_manual_items,
     _suggest_filename,
 )
 
@@ -708,3 +709,23 @@ class TestSchemaV3Helpers:
         assert "[SECTION];electrical_variants" in text
         assert "[SECTION];electrical_assignments" in text
         assert "ЭР1" in text
+
+
+class TestGuestManualBomReject:
+    def test_detects_manual_items_in_spec_rows(self):
+        rows = [
+            {
+                "variant_key": "v1",
+                "items": '[{"name": "X", "quantity": 1, "source": "manual"}]',
+            }
+        ]
+        assert _spec_rows_contain_manual_items(rows) is True
+
+    def test_auto_only_is_clean(self):
+        rows = [
+            {
+                "variant_key": "v1",
+                "items": '[{"name": "Y", "quantity": 2, "source": "auto"}]',
+            }
+        ]
+        assert _spec_rows_contain_manual_items(rows) is False

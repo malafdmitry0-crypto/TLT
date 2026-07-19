@@ -80,6 +80,7 @@ class ProjectImportError(Exception):
     """Ошибка импорта проекта."""
 
 
+
 # ----------------------------------------------------------------------------
 # Экспорт
 # ----------------------------------------------------------------------------
@@ -592,6 +593,18 @@ def _parse_json_or_empty(raw: str, default: Any) -> Any:
         return json.loads(raw)
     except json.JSONDecodeError as exc:
         raise ProjectImportError(f"Некорректный JSON: {exc}") from exc
+
+
+def _spec_rows_contain_manual_items(spec_rows: list[dict[str, str]]) -> bool:
+    """True if any specification row embeds source=manual positions (PDL-ER-41)."""
+    for row in spec_rows:
+        items = _parse_json_or_empty(row.get("items", ""), [])
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if isinstance(item, dict) and str(item.get("source") or "").lower() == "manual":
+                return True
+    return False
 
 
 def _normalize_source(value: str | None, valid_values: set[str]) -> str | None:
@@ -1205,6 +1218,11 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
         raise ProjectImportError(
             "schema_version=3 требует секцию electrical_variants, "
             "если есть electrical/specifications"
+        )
+
+    if principal.role == "guest" and _spec_rows_contain_manual_items(spec_rows):
+        raise ProjectImportError(
+            "Гостю запрещён импорт спецификации с ручными (manual) позициями (PDL-ER-41)"
         )
 
     if principal.role == "guest":
