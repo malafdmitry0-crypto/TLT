@@ -46,13 +46,10 @@ export default function ReportPage() {
   const [exportingFormat, setExportingFormat] = useState<'pdf' | 'docx' | 'xlsx' | null>(null);
   const variantContext = useLegacyElectricalVariantContext(project?.id);
   const selectedElectricalVariant = variantContext.selectedVariant;
-  const firstSupportedVariant = variantContext.variants.find(
-    (item) => item.legacy_variant_number != null,
-  ) ?? null;
-  const variant = variantContext.legacyVariantNumber ?? 1;
-  const legacyDataPlaneEnabled = Boolean(
-    project && selectedElectricalVariant && variantContext.legacyVariantNumber != null,
-  );
+  const firstSupportedVariant = variantContext.variants[0] ?? null;
+  const variant = variantContext.legacyVariantNumber ?? null;
+  // Phase 5: report scopes by UUID; legacy slot is optional compatibility metadata.
+  const reportDataPlaneEnabled = Boolean(project && selectedElectricalVariant);
   const sectionsKey = useMemo(() => sections.join(','), [sections]);
   const debouncedSectionsKey = useDebouncedValue(sectionsKey, REPORT_PREVIEW_DEBOUNCE_MS);
   const previewSections = useMemo(
@@ -76,7 +73,7 @@ export default function ReportPage() {
       selectedElectricalVariant!.id,
       previewSections,
     ),
-    enabled: legacyDataPlaneEnabled,
+    enabled: reportDataPlaneEnabled,
   });
 
   if (!project) {
@@ -115,22 +112,6 @@ export default function ReportPage() {
         showIcon
         message="ЭР ещё не создан"
         description="Создайте первый ЭР на шаге электротехнического расчёта."
-      />
-    );
-  }
-
-  if (variantContext.legacyVariantNumber == null) {
-    return (
-      <Alert
-        type="warning"
-        showIcon
-        message={`«${selectedElectricalVariant.name}»: отчёт временно недоступен`}
-        description="UUID-версия отчёта относится к Phase 5. Данные другого ЭР не подставляются."
-        action={firstSupportedVariant && (
-          <Button onClick={() => variantContext.selectVariant(firstSupportedVariant.id)}>
-            Выбрать {firstSupportedVariant.name}
-          </Button>
-        )}
       />
     );
   }
@@ -256,7 +237,7 @@ export default function ReportPage() {
               options={variantContext.variants.map((item) => ({
                 label: item.name,
                 value: item.id,
-                disabled: item.legacy_variant_number == null,
+                disabled: false,
               }))}
             />
           </div>
@@ -304,7 +285,7 @@ export default function ReportPage() {
         variantOptions={variantContext.variants.map((item) => ({
           label: item.name,
           value: item.id,
-          disabled: item.legacy_variant_number == null,
+          disabled: false,
         }))}
         onCancel={() => setWizardOpen(false)}
         onConfirm={(s, nextVariantId) => {

@@ -94,24 +94,37 @@ async def preview(
     )
     service = ReportService(db)
     try:
-        if variant_number is None:
+        if electrical_variant_id is None and variant_number is None:
             await ProjectService(db).get_project_basic(project_id, principal)
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="variant_number is required",
+                detail="electrical_variant_id or variant_number is required",
             )
-        if electrical_variant_id is not None:
-            await ElectricalVariantService(db).validate_legacy_variant_for_read(
+        variant = None
+        if electrical_variant_id is not None and variant_number is not None:
+            variant = await ElectricalVariantService(db).validate_legacy_variant_for_read(
                 project_id,
                 principal,
                 variant_number,
                 electrical_variant_id,
             )
+        elif electrical_variant_id is not None:
+            variant = await ElectricalVariantService(db).require_variant_for_read(
+                project_id,
+                principal,
+                electrical_variant_id,
+            )
+            if variant.legacy_variant_number is not None:
+                variant_number = variant.legacy_variant_number
         result = await service.preview(
             project_id,
             sections,
             principal=principal,
             variant_number=variant_number,
+            electrical_variant_id=(
+                variant.id if variant is not None else electrical_variant_id
+            ),
+            electrical_variant_name=(variant.name if variant is not None else None),
         )
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
@@ -124,7 +137,15 @@ async def preview(
         category="report",
         principal=principal,
         project_id=project_id,
-        details={"sections": sections, "variant_number": variant_number},
+        details={
+            "sections": sections,
+            "variant_number": variant_number,
+            "electrical_variant_id": (
+                str(result.get("electrical_variant_id"))
+                if result.get("electrical_variant_id") is not None
+                else None
+            ),
+        },
         message="Сформирован HTML-предпросмотр отчёта",
     )
     return ReportPreviewResponse(**result)
@@ -157,8 +178,9 @@ async def export(
         )
     service = ReportService(db)
     try:
+        variant = None
         if electrical_variant_id is not None:
-            await ElectricalVariantService(db).validate_legacy_variant_for_read(
+            variant = await ElectricalVariantService(db).validate_legacy_variant_for_read(
                 project_id,
                 principal,
                 variant_number,
@@ -170,6 +192,10 @@ async def export(
             sections,
             principal=principal,
             variant_number=variant_number,
+            electrical_variant_id=(
+                variant.id if variant is not None else electrical_variant_id
+            ),
+            electrical_variant_name=(variant.name if variant is not None else None),
         )
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc

@@ -174,6 +174,30 @@ class ElectricalVariantService:
             expected_electrical_variant_id,
         )
 
+    async def require_variant_for_read(
+        self,
+        project_id: UUID,
+        principal: CurrentPrincipal,
+        electrical_variant_id: UUID,
+    ) -> ElectricalVariant:
+        """Resolve a project-scoped ЭР by UUID for read paths (report/spec/export).
+
+        Does not require a legacy slot. Cross-project or missing UUID raises
+        ELECTRICAL_VARIANT_NOT_FOUND without leaking foreign existence.
+        """
+        await ProjectService(self.db).get_project_basic(project_id, principal)
+        await self._locked_project(project_id)
+        variants = await self._load_variants(project_id)
+        for item in variants:
+            if item.id == electrical_variant_id:
+                return item
+        raise ElectricalVariantServiceError(
+            "ELECTRICAL_VARIANT_NOT_FOUND",
+            "Электротехническое решение не найдено",
+            status_code=404,
+            details={"electrical_variant_id": str(electrical_variant_id)},
+        )
+
     async def create_empty(
         self,
         project_id: UUID,

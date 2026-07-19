@@ -56,13 +56,9 @@ export default function ReportWizardPage() {
   const isEmployee = role === 'employee' || role === 'admin';
   const variantContext = useLegacyElectricalVariantContext(project?.id);
   const selectedElectricalVariant = variantContext.selectedVariant;
-  const firstSupportedVariant = variantContext.variants.find(
-    (item) => item.legacy_variant_number != null,
-  ) ?? null;
-  const variant = variantContext.legacyVariantNumber ?? 1;
-  const legacyDataPlaneEnabled = Boolean(
-    project && selectedElectricalVariant && variantContext.legacyVariantNumber != null,
-  );
+  const firstSupportedVariant = variantContext.variants[0] ?? null;
+  const variant = variantContext.legacyVariantNumber ?? null;
+  const reportDataPlaneEnabled = Boolean(project && selectedElectricalVariant);
 
   const [sections, setSections] = useState<ReportSection[]>([...REPORT_SECTIONS]);
   const [format, setFormat] = useState<Format>('pdf');
@@ -83,7 +79,7 @@ export default function ReportWizardPage() {
       selectedElectricalVariant!.id,
       sections,
     ),
-    enabled: legacyDataPlaneEnabled,
+    enabled: reportDataPlaneEnabled,
   });
 
   if (!project) {
@@ -133,16 +129,14 @@ export default function ReportWizardPage() {
     );
   }
 
-  if (!selectedElectricalVariant || variantContext.legacyVariantNumber == null) {
+  if (!selectedElectricalVariant) {
     return (
       <Card style={{ margin: 24 }}>
         <Alert
           type="warning"
           showIcon
-          message={selectedElectricalVariant
-            ? `«${selectedElectricalVariant.name}»: экспорт временно недоступен`
-            : 'ЭР ещё не создан'}
-          description="Данные другого ЭР не подставляются. Выберите поддерживаемый ЭР в основном окне."
+          message="ЭР ещё не создан"
+          description="Создайте первый ЭР на шаге электротехнического расчёта."
           action={firstSupportedVariant && (
             <Button onClick={() => variantContext.selectVariant(firstSupportedVariant.id)}>
               Выбрать {firstSupportedVariant.name}
@@ -243,7 +237,7 @@ export default function ReportWizardPage() {
                     options={variantContext.variants.map((item) => ({
                       label: item.name,
                       value: item.id,
-                      disabled: item.legacy_variant_number == null,
+                      disabled: false,
                     }))}
                   />
                 </div>

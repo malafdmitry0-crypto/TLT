@@ -195,30 +195,28 @@ describe('ReportWizardPage', () => {
     });
   });
 
-  it('does not call report APIs for ER5 and offers a mapped recovery action', async () => {
+  it('loads ER5 report preview by UUID without a legacy slot', async () => {
     const { getReportPreview, exportReport } = await import('@/api/reports');
     (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
       project_id: project.id,
-      html: '<div>Зимний режим</div>',
+      html: '<div>ЭР5 wizard preview</div>',
       sections: [],
-      variant_number: 3,
+      variant_number: null,
+      electrical_variant_id: fifthVariant.id,
+      electrical_variant_name: fifthVariant.name,
     });
     useCalculationVariantStore.getState().setSelectedVariantId(project.id, fifthVariant.id);
     renderPage();
 
-    expect(await screen.findByText(/«ЭР5»: экспорт временно недоступен/i))
-      .toBeInTheDocument();
-    expect(getReportPreview).not.toHaveBeenCalled();
-    expect(exportReport).not.toHaveBeenCalled();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Выбрать Зимний режим' }));
     await waitFor(() => {
       expect(getReportPreview).toHaveBeenCalledWith(
         project.id,
-        3,
-        mappedVariant.id,
+        null,
+        fifthVariant.id,
         expect.any(Array),
       );
     });
+    expect(await screen.findByText('ЭР5 wizard preview')).toBeInTheDocument();
+    expect(exportReport).not.toHaveBeenCalled();
   });
 });

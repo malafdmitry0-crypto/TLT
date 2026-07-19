@@ -375,14 +375,15 @@ describe('ReportPage (integration)', () => {
     expect(screen.getByText('Резервный ЭР')).toBeInTheDocument();
   });
 
-  it('не подменяет ЭР5 данными ЭР1, если legacy-привязки ещё нет', async () => {
-    const userEvent = (await import('@testing-library/user-event')).default;
+  it('запрашивает отчёт ЭР5 по UUID без legacy-слота и не подставляет данные ЭР1', async () => {
     const { getReportPreview } = await import('@/api/reports');
     (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
       project_id: mockProject.id,
-      html: '<div>ЭР1</div>',
+      html: '<div>ЭР5 UUID preview</div>',
       sections: [],
-      variant_number: 1,
+      variant_number: null,
+      electrical_variant_id: fifthVariant.id,
+      electrical_variant_name: fifthVariant.name,
     });
     useAuthStore.setState({
       role: 'guest',
@@ -400,19 +401,19 @@ describe('ReportPage (integration)', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/«ЭР5»: отчёт временно недоступен/i))
-        .toBeInTheDocument();
-    });
-    expect(getReportPreview).not.toHaveBeenCalled();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Выбрать ЭР1' }));
-    await waitFor(() => {
       expect(getReportPreview).toHaveBeenCalledWith(
         mockProject.id,
-        1,
-        firstVariant.id,
+        null,
+        fifthVariant.id,
         expect.any(Array),
       );
     });
+    expect(screen.getByText('ЭР5 UUID preview')).toBeInTheDocument();
+    expect(getReportPreview).not.toHaveBeenCalledWith(
+      mockProject.id,
+      1,
+      firstVariant.id,
+      expect.any(Array),
+    );
   });
 });

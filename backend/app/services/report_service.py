@@ -42,7 +42,9 @@ class ReportService:
         sections: list[str] | None = None,
         *,
         principal: CurrentPrincipal | None,
-        variant_number: int = 1,
+        variant_number: int | None = 1,
+        electrical_variant_id: UUID | None = None,
+        electrical_variant_name: str | None = None,
     ) -> dict:
         enabled_sections = self._normalize_sections(sections)
 
@@ -81,12 +83,16 @@ class ReportService:
             "stale_details": None,
         }
         if "specification" in enabled_sections:
-            spec_result = await self.db.execute(
-                select(Specification).where(
-                    Specification.project_id == project_id,
-                    Specification.variant_number == variant_number,
+            spec_stmt = select(Specification).where(Specification.project_id == project_id)
+            if electrical_variant_id is not None:
+                spec_stmt = spec_stmt.where(
+                    Specification.electrical_variant_id == electrical_variant_id
                 )
-            )
+            elif variant_number is not None:
+                spec_stmt = spec_stmt.where(Specification.variant_number == variant_number)
+            else:
+                spec_stmt = spec_stmt.where(False)  # no selector → empty
+            spec_result = await self.db.execute(spec_stmt)
             spec = spec_result.scalars().first()
             if spec:
                 spec_items = spec.items or []
@@ -104,12 +110,20 @@ class ReportService:
 
         latest_by_object: dict[str, ElectricalCalculation] = {}
         if {"summary", "electrical"}.intersection(enabled_sections):
-            elec_result = await self.db.execute(
-                select(ElectricalCalculation).where(
-                    ElectricalCalculation.project_id == project_id,
-                    ElectricalCalculation.variant_number == variant_number,
-                )
+            elec_stmt = select(ElectricalCalculation).where(
+                ElectricalCalculation.project_id == project_id
             )
+            if electrical_variant_id is not None:
+                elec_stmt = elec_stmt.where(
+                    ElectricalCalculation.electrical_variant_id == electrical_variant_id
+                )
+            elif variant_number is not None:
+                elec_stmt = elec_stmt.where(
+                    ElectricalCalculation.variant_number == variant_number
+                )
+            else:
+                elec_stmt = elec_stmt.where(False)
+            elec_result = await self.db.execute(elec_stmt)
             elec_rows = list(elec_result.scalars().all())
             for e in elec_rows:
                 latest_by_object[str(e.object_id)] = e
@@ -129,6 +143,10 @@ class ReportService:
             "specification": specification_context,
             "sections": enabled_sections,
             "variant_number": variant_number,
+            "electrical_variant_id": (
+                str(electrical_variant_id) if electrical_variant_id is not None else None
+            ),
+            "electrical_variant_name": electrical_variant_name,
         }
 
     def _normalize_sections(self, sections: list[str] | None) -> list[str]:
@@ -242,13 +260,17 @@ class ReportService:
         sections: list[str] | None = None,
         *,
         principal: CurrentPrincipal,
-        variant_number: int = 1,
+        variant_number: int | None = 1,
+        electrical_variant_id: UUID | None = None,
+        electrical_variant_name: str | None = None,
     ) -> dict:
         ctx = await self._load_context(
             project_id,
             sections,
             principal=principal,
             variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
+            electrical_variant_name=electrical_variant_name,
         )
         html = render_html(ctx)
         return {
@@ -256,6 +278,8 @@ class ReportService:
             "html": html,
             "sections": ctx["sections"],
             "variant_number": variant_number,
+            "electrical_variant_id": ctx.get("electrical_variant_id"),
+            "electrical_variant_name": electrical_variant_name,
         }
 
     async def export(
@@ -265,7 +289,9 @@ class ReportService:
         sections: list[str] | None = None,
         *,
         principal: CurrentPrincipal,
-        variant_number: int = 1,
+        variant_number: int | None = 1,
+        electrical_variant_id: UUID | None = None,
+        electrical_variant_name: str | None = None,
     ) -> bytes:
         return await self._export(
             project_id,
@@ -273,6 +299,8 @@ class ReportService:
             sections,
             principal=principal,
             variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
+            electrical_variant_name=electrical_variant_name,
         )
 
     async def export_trusted(
@@ -281,7 +309,9 @@ class ReportService:
         fmt: str,
         sections: list[str] | None = None,
         *,
-        variant_number: int = 1,
+        variant_number: int | None = 1,
+        electrical_variant_id: UUID | None = None,
+        electrical_variant_name: str | None = None,
     ) -> bytes:
         return await self._export(
             project_id,
@@ -289,6 +319,8 @@ class ReportService:
             sections,
             principal=None,
             variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
+            electrical_variant_name=electrical_variant_name,
         )
 
     async def _export(
@@ -298,7 +330,9 @@ class ReportService:
         sections: list[str] | None = None,
         *,
         principal: CurrentPrincipal | None,
-        variant_number: int = 1,
+        variant_number: int | None = 1,
+        electrical_variant_id: UUID | None = None,
+        electrical_variant_name: str | None = None,
     ) -> bytes:
         if fmt not in {"pdf", "docx", "xlsx"}:
             raise ReportError(f"Неизвестный формат: {fmt}")
@@ -308,6 +342,8 @@ class ReportService:
             sections,
             principal=principal,
             variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
+            electrical_variant_name=electrical_variant_name,
         )
         if fmt == "pdf":
             return await asyncio.to_thread(generate_pdf, ctx)

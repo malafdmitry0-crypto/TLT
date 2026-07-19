@@ -183,6 +183,29 @@ class TestReports:
         )
         assert resp.status_code == 422
 
+    async def test_preview_by_electrical_variant_id_alone(
+        self, client: AsyncClient, guest_session: str
+    ):
+        """Phase 5: UUID is sufficient; legacy variant_number is optional."""
+        headers = {"X-Session-Id": guest_session}
+        pid = await _project_with_object(client, guest_session)
+        init = await client.post(
+            f"/api/v1/projects/{pid}/electrical-variants/initialize",
+            headers=headers,
+        )
+        assert init.status_code in (200, 201), init.text
+        er = init.json()["variant"]
+        resp = await client.get(
+            f"/api/v1/reports/{pid}/preview",
+            params={"electrical_variant_id": er["id"]},
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["electrical_variant_id"] == er["id"]
+        assert body["electrical_variant_name"] == er["name"]
+        assert "<html" in body["html"]
+
     async def test_guest_cannot_export(self, client: AsyncClient, guest_session: str):
         pid = await _project_with_object(client, guest_session)
         resp = await client.get(

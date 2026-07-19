@@ -23,17 +23,19 @@ export interface ReportPreview {
   project_id: string;
   html: string;
   sections: string[];
-  variant_number: number;
+  variant_number: number | null;
+  electrical_variant_id?: string | null;
+  electrical_variant_name?: string | null;
 }
 
 function reportParams(
-  variantNumber: number,
+  variantNumber: number | null | undefined,
   electricalVariantId: string,
   sections?: ReportSection[],
 ) {
   return {
     ...(sections && sections.length > 0 ? { sections } : {}),
-    variant_number: variantNumber,
+    ...(variantNumber != null ? { variant_number: variantNumber } : {}),
     electrical_variant_id: electricalVariantId,
   };
 }
@@ -47,7 +49,7 @@ function reportJobParams(electricalVariantId: string, sections?: ReportSection[]
 
 export async function getReportPreview(
   projectId: string,
-  variantNumber: number,
+  variantNumber: number | null | undefined,
   electricalVariantId: string,
   sections?: ReportSection[],
 ): Promise<ReportPreview> {

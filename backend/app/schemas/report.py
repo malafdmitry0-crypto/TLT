@@ -10,7 +10,10 @@ class ReportPreviewResponse(BaseModel):
     project_id: str
     html: str
     sections: list[str]
-    variant_number: int = Field(ge=1, le=4)
+    # Legacy slot may be null for dynamic ЭР without expand mapping (Phase 5).
+    variant_number: int | None = Field(default=None, ge=1, le=4)
+    electrical_variant_id: UUID | None = None
+    electrical_variant_name: str | None = None
 
 
 ReportFormat = Literal["pdf", "docx", "xlsx"]
