@@ -116,6 +116,8 @@ export default function SpecificationPage() {
   const [endSectionIndication, setEndSectionIndication] = useState(false);
   const [topIndication, setTopIndication] = useState(false);
   const [minLengthK2i, setMinLengthK2i] = useState<number>(0);
+  /** PDL-ER-44: PDF §7.10 sections per connector kit (1→КСН-1, 2→КСН-2). */
+  const [connectorKitSectionsPerKit, setConnectorKitSectionsPerKit] = useState<1 | 2>(1);
   // Блок заполнения параметров (аналог SC-03) — только для сотрудника
   const [paramsPanelVisible, setParamsPanelVisible] = useState<boolean>(
     () => readStorageJson(SPEC_PARAMS_PANEL_STORAGE_KEY) !== false,
@@ -171,6 +173,10 @@ export default function SpecificationPage() {
     setEndSectionIndication(Boolean(opts.end_section_indication));
     setTopIndication(Boolean(opts.top_indication));
     setMinLengthK2i(Number(opts.min_length_for_end_indication ?? 0));
+    {
+      const cap = Number(opts.connector_kit_sections_per_kit ?? 1);
+      setConnectorKitSectionsPerKit(cap === 2 ? 2 : 1);
+    }
     if (typeof opts.merge_identical === 'boolean') {
       setMergeIdentical(opts.merge_identical);
     }
@@ -353,6 +359,7 @@ export default function SpecificationPage() {
     end_section_indication: endSectionIndication,
     top_indication: topIndication,
     min_length_for_end_indication: minLengthK2i,
+    connector_kit_sections_per_kit: connectorKitSectionsPerKit,
     group_by: groupBy,
     merge_identical: mergeIdentical,
   });
@@ -604,8 +611,25 @@ export default function SpecificationPage() {
                 className="workflow-params-input"
               />
             </div>
+            <div className="workflow-params-row">
+              <Text className="workflow-params-label">
+                Соединительный комплект: секций на 1 шт. (PDF §7.10)
+              </Text>
+              <Select
+                size="small"
+                style={{ width: '100%' }}
+                disabled={!canMutateProject || !fullModeActive}
+                value={connectorKitSectionsPerKit}
+                onChange={(v: 1 | 2) => setConnectorKitSectionsPerKit(v)}
+                options={[
+                  { value: 1, label: '1 — КСН-1 / КСВ-1 (по умолчанию)' },
+                  { value: 2, label: '2 — КСН-2 / КСВ-2' },
+                ]}
+                aria-label="Секций на соединительный комплект"
+              />
+            </div>
             <Text className="workflow-params-hint">
-              Полный BOM: кабель, коробки СКВ, комплекты, вводы, крепёж, ленты (ТНП).
+              Полный BOM: кабель, коробки СКВ, комплекты, вводы, крепёж, ленты (ТНП). Комплект — один на группу (PDL-ER-44).
             </Text>
           </div>
           <div className="form-col-srs">

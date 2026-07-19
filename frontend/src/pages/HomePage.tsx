@@ -57,7 +57,7 @@ export default function HomePage() {
                 <Text strong style={{ fontSize: 15 }}>Войти без регистрации</Text>
                 <br />
                 <Text type="secondary" style={{ fontSize: 13, color: '#595959' }}>
-                  Быстрый доступ к расчётам — регистрация не нужна. Работа ведётся в одном временном проекте; он хранится 3 дня после последней активности. Скачайте файл проекта, если нужно сохранить дольше.
+                  Быстрый доступ без аккаунта: один временный проект на сервере (не «Мои проекты»), 3 дня после последней активности. Дольше — скачайте файл проекта (PDL-ER-42).
                 </Text>
               </div>
             </Space>
@@ -112,8 +112,9 @@ export default function HomePage() {
             </Button>
           </div>
 
-          {/* Администратор */}
+          {/* Admin system role — PDL-ER-43: third card approved (not guest-case scope) */}
           <div
+            data-testid="home-admin-entry"
             style={{
               border: '1px solid #d9d9d9',
               borderRadius: 8,
@@ -128,7 +129,7 @@ export default function HomePage() {
                 <Text strong style={{ fontSize: 15 }}>Войти как администратор</Text>
                 <br />
                 <Text type="secondary" style={{ fontSize: 13, color: '#595959' }}>
-                  Управление сотрудниками, коэффициентами и справочниками. Требуется учётная запись администратора.
+                  Системная роль: пользователи, коэффициенты, справочники. Не заменяет вход инженера (гость / сотрудник).
                 </Text>
               </div>
             </Space>

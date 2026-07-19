@@ -36,14 +36,25 @@ describe('HomePage', () => {
     expect(screen.getAllByText(/как администратор/i)[0]).toBeInTheDocument();
   });
 
-  it('FA-11: guest TTL copy says 3 days, not 20 minutes', () => {
+  it('FA-11 / PDL-ER-42: guest TTL 3 days; temporary server project, not account catalog', () => {
     render(
       <TestMemoryRouter>
         <HomePage />
       </TestMemoryRouter>
     );
     expect(screen.getByText(/3 дня/i)).toBeInTheDocument();
+    expect(screen.getByText(/временный проект/i)).toBeInTheDocument();
     expect(screen.queryByText(/20 мин/i)).not.toBeInTheDocument();
+  });
+
+  it('PDL-ER-43: admin system entry is present as third card', () => {
+    render(
+      <TestMemoryRouter>
+        <HomePage />
+      </TestMemoryRouter>
+    );
+    expect(screen.getByTestId('home-admin-entry')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Войти в админку/i })).toBeInTheDocument();
   });
 
   it('разводит вход сотрудника и администратора по разным режимам логина', async () => {

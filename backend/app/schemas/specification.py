@@ -61,6 +61,17 @@ class SpecificationOptions(BaseModel):
         default=False,
         description="PDL-ER-38: merge identical catalog base+code after per-type calc",
     )
+    # PDL-ER-44 / PDF §7.10: pick one connector kit capacity (sections per kit).
+    # 1 → default КСН-1 / КСВ-1; 2 → КСН-2 / КСВ-2. Not dual XLSX emission.
+    connector_kit_sections_per_kit: int = Field(
+        default=1,
+        ge=1,
+        le=2,
+        description=(
+            "PDF §7.10 / PDL-ER-44: sections covered by one connector kit "
+            "(1=КСН-1/КСВ-1 default, 2=КСН-2/КСВ-2). qty=ceil(Nсек/capacity)."
+        ),
+    )
 
 
 class SpecificationSettingsResponse(BaseModel):

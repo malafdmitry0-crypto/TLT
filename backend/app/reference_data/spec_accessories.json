@@ -13,12 +13,14 @@
       "catalog_base": "connector_kit_low_1",
       "catalog_source": "spec_accessories",
       "catalog_version": "1",
-      "temperature_group": "low"
+      "temperature_group": "low",
+      "sections_per_kit": 1,
+      "is_default": true
     },
     {
       "rule": "connector_kit_low_2",
       "category": "Соединительные комплекты",
-      "name": "Комплект соединительный для низкотемпературных саморегулирующихся кабелей (с концевой коробкой)",
+      "name": "Комплект соединительный для низкотемпературных саморегулирующихся кабелей",
       "article": "КСН-2",
       "code": "001-004-002",
       "unit": "шт.",
@@ -27,7 +29,9 @@
       "catalog_base": "connector_kit_low_2",
       "catalog_source": "spec_accessories",
       "catalog_version": "1",
-      "temperature_group": "low"
+      "temperature_group": "low",
+      "sections_per_kit": 2,
+      "is_default": false
     },
     {
       "rule": "connector_kit_high_1",
@@ -41,12 +45,14 @@
       "catalog_base": "connector_kit_high_1",
       "catalog_source": "spec_accessories",
       "catalog_version": "1",
-      "temperature_group": "high"
+      "temperature_group": "high",
+      "sections_per_kit": 1,
+      "is_default": true
     },
     {
       "rule": "connector_kit_high_2",
       "category": "Соединительные комплекты",
-      "name": "Комплект соединительный для высокотемпературных саморегулирующихся кабелей (с концевой коробкой)",
+      "name": "Комплект соединительный для высокотемпературных саморегулирующихся кабелей",
       "article": "КСВ-2",
       "code": "001-005-002",
       "unit": "шт.",
@@ -55,7 +61,9 @@
       "catalog_base": "connector_kit_high_2",
       "catalog_source": "spec_accessories",
       "catalog_version": "1",
-      "temperature_group": "high"
+      "temperature_group": "high",
+      "sections_per_kit": 2,
+      "is_default": false
     },
     {
       "rule": "repair_kit_low",

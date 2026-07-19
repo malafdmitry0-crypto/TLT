@@ -1,14 +1,17 @@
 # Аудит «1 Кейс — гостевая спецификация»
 
+> **Актуальный статус — один файл:** [`STATUS.md`](STATUS.md).  
+> Не плодить новые сводные отчёты; обновлять `STATUS.md`.
+
 Статус исходного PDF-аудита: **FAIL — Needs correction + Needs business
 decision**.
 
 Статус backend/DB Phase 1: **PASS — backend/DB Phase 1 checkpoint complete**.
 Статус frontend/consumer Phase 2:
-**PASS — dynamic named ER frontend bridge complete**. Пользовательский поток
-использует именованные UUID ЭР1…ЭР5; legacy graph `1…4` остаётся переходным и
-проверяется строгой парой `UUID ↔ slot`, а пятый ЭР fail-closed для ещё не
-переведённых расчётов. Статус Phase 3:
+**PASS — dynamic named ER frontend bridge complete**. На том историческом
+checkpoint legacy graph ещё был `1…4`, а пятый ЭР fail-closed. Этот факт
+superseded migration `0031`: normal runtime теперь использует slots `1…5`.
+Статус Phase 3:
 **PASS — root backend/frontend/browser/DB gate complete**. Authoritative
 assignments работают по exact UUID, имеют
 optimistic version, assignment-aware calculation scope и confirmed cleanup.
@@ -21,7 +24,9 @@ specification `not_generated` по PDL-ER-13. Row/batch/inline compatibility
 Phase 5 checkpoint (`phase-5-checkpoint.md`): guest full BOM, multi-ЭР generate,
 d≥57, guest TTL 3d defaults, CSV v3, report UUID-first, settings snapshots,
 catalog identity, PDF mapping, ER5 slots 1…5, actionable A evidence pack —
-**partial PASS**. Product contract утверждён до PDL-ER-41. Phase 4 blocked
+**partial PASS**. ER5 calculation/copy/spec/report/CSV работают, но создание
+candidate и candidate folder для slot 5 остаётся отдельным 4-slot service gap.
+Product contract утверждён до PDL-ER-41. Phase 4 blocked
 PDL-ER-15/18/28. Остаются: PDL-ER-27 full 500 wall-clock gate, PDL-ER-35
 matrix **data**, Phase 6 UUID-only cutover execute, corporate template (40).
 HeatCalc settings separator residual (wide layout without section-resize
@@ -42,8 +47,8 @@ dynamic-ER diff и должны проверяться перед production rel
 9. [Impact matrix integer/СО path](../../../architecture/dynamic-electrical-variants-impact-matrix.md).
 10. [Постраничный индекс 81 страницы](pdf-page-index.md).
 11. [Нормализованные требования PDF](pdf-requirements.md).
-12. [Матрица PDF → backend → frontend → tests](traceability-matrix.md).
-13. [Итоговый Functional Accuracy Report](functional-accuracy-report.md).
+12. [Историческая матрица PDF → backend → frontend → tests до Phase 5](traceability-matrix.md).
+13. [Исторический исходный Functional Accuracy Report](functional-accuracy-report.md).
 14. [Журнал команд и UI/API evidence](verification-log.md).
 15. [Воспроизводимые BOM probes](formula-probes.md).
 

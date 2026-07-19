@@ -237,20 +237,37 @@ class TestFullSpecificationBoxes:
 
 class TestFullSpecificationKits:
     def test_connector_and_repair_kits(self, enable_sections):
+        """PDL-ER-44 default capacity=1 → КСН-1/КСВ-1 only, qty=ceil(N/1)."""
         elec, objs = _two_object_case()
         items = build_full_specification(elec, objs)
-        assert _qty(items, "КСН-1") == 2  # Σ N низк.
-        assert _qty(items, "КСВ-1") == 4  # Σ N выс.
+        assert _qty(items, "КСН-1") == 2  # N low
+        assert _qty(items, "КСВ-1") == 4  # N high
+        assert _qty(items, "КСН-2") is None  # pick-one: not dual emit
+        assert _qty(items, "КСВ-2") is None
         assert _qty(items, "КСР-1") == math.ceil(60 / 150)  # =1
         assert _qty(items, "КСР-2") == math.ceil(120 / 150)  # =1
 
-    def test_k2i_adds_end_connector_kits(self, enable_sections):
-        elec, objs = _two_object_case()
+    def test_pdf_connector_kit_capacity_two(self, enable_sections):
+        """PDF §7.10 oracle: N=9, capacity=2 (КСН-2) → ceil(9/2)=5."""
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "selected_cable": "25ТТН2",
+                "temperature_group": "low",
+                "num_circuits": 9,
+                "installed_cable_length": 729.0,
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 100.0, "object_type": "pipe"}}
         items = build_full_specification(
-            elec, objs, options=SpecificationOptions(end_section_indication=True)
+            elec,
+            objs,
+            options=SpecificationOptions(connector_kit_sections_per_kit=2),
         )
-        assert _qty(items, "КСН-2") == 4  # Σ N низк. × 2
-        assert _qty(items, "КСВ-2") == 8  # Σ N выс. × 2
+        assert _qty(items, "КСН-2") == 5
+        assert _qty(items, "КСН-1") is None
+        assert _qty(items, "КСР-1") == math.ceil(729 / 150)  # 5
 
 
 class TestFullSpecificationEntriesAndExZone:
@@ -446,6 +463,7 @@ class TestK2iSectionLengthThreshold:
         assert _qty(items, "СКВ 1601") == 2
 
     def test_k2i_active_for_long_single_section(self, enable_box_matrix):
+        """K2i switches box bucket; connector kits stay pick-one (PDL-ER-44)."""
         elec = [
             {
                 "cable_mark": "25ТТН2-СТ",
@@ -462,7 +480,9 @@ class TestK2iSectionLengthThreshold:
                 end_section_indication=True, min_length_for_end_indication=100.0
             ),
         )
-        # КСН-2 = N × R × 2 = 2; коробка уходит в К2i-корзину СКВ 1201-С (Nk5)
-        assert _qty(items, "КСН-2") == 2
+        # Default capacity=1 → КСН-1 only; K2i does not dual-emit КСН-2 as end kits.
+        assert _qty(items, "КСН-1") == 1
+        assert _qty(items, "КСН-2") is None
+        # Box moves to K2i basket СКВ 1201-С (Nk5)
         assert _qty(items, "СКВ 1201-С") == 1
         assert _qty(items, "СКВ 1201") is None

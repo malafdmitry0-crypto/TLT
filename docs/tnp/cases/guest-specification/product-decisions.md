@@ -54,6 +54,10 @@ PDL-ER-18…25 фиксируют восемь ответов **А**, явно �
 | PDL-ER-39 | Multi-ЭР report | Пользователь передаёт явный список UUID ЭР. Формируется один отчёт с независимой главой и specification каждого выбранного ЭР; успешные суммы разных ЭР не объединяются. Ошибки, stale/unsupported и подтверждённые исключения показываются отдельными диагностическими разделами. | Report preview/job не берёт active/localStorage selection неявно. Названия ЭР читаются по UUID; ни таблицы, ни итоги, ни спецификации разных ЭР не смешиваются. |
 | PDL-ER-40 | Scope оформления отчёта Phase 5 | Отсутствие финального корпоративного шаблона не блокирует Phase 5. Принимаются функциональный HTML preview и browser print; логотипы, подписи, фирменные шрифты, колонтитулы и финальная корпоративная вёрстка остаются отдельным report brief. | Phase 5 требует корректного состава, no-mixing, diagnostics, accessibility и print CSS. Текущий шаблон не объявляется окончательным корпоративным артефактом; Q-04…Q-25 продолжают блокировать только соответствующую финальную приёмку employee exports. |
 | PDL-ER-41 | CSV v3 compatibility и trust | Project export после Phase 5 создаётся только в v3. V2 остаётся import-only boundary adapter до отдельного решения об удалении. При несовпадении/отсутствии formula или catalog version граф и inputs восстанавливаются, но calculations/sections/specifications помечаются `stale`/`unsupported`, а не актуальными. Guest import с manual BOM rows отклоняется атомарно. | Нельзя экспортировать новый state обратно в lossy v2, доверять импортированному calculated snapshot без доступного source contract или обходить guest manual-write RBAC через файл. Ошибки не приводят к silent drop и не заменяют текущий проект. |
+| PDL-ER-42 | Guest «не в БД» vs session | Уточняет PDL-ER-26: формулировка PDF «данные не сохраняются в БД системы» означает **нет постоянного проекта в аккаунте / нет «Мои проекты» для гостя**, а **не** запрет временного server-side store. Канон: PostgreSQL guest session + 1 temp project + TTL 3 дня + file save/open. | Документация/Home/SRS не должны обещать «только localStorage без сервера». Acceptance: session isolation, TTL cleanup, no cross-session; file — перенос между сессиями. Не считать session Postgres нарушением PDF guest case. |
+| PDL-ER-43 | Home: 2 vs 3 входа | PDF §4 описывает инженерный guest/employee path (`Начать без регистрации` / `Войти с паролем`). **Третья карточка «Администратор» утверждена** как отдельный system role (не engineering MVP). | UI Home: 3 role cards — PASS. Не требовать удаление admin entry «ради 1:1 PDF». PDF-GUEST-02 в матрицах трактовать: два **инженерных** действия + admin entry вне guest case scope. |
+| PDL-ER-44 | Соединительные комплекты (после SEEDS) | После регистрации section-каталога (SEEDS) **PDF §7.10** — канон: по temp group **одна** позиция комплекта (catalog default **или** явный выбор инженера, PDL-ER-33); `qty = ceil(Nсек / sections_per_kit)`. Dual emission «КСН-1=ΣN и КСН-2=N×2 как end-kits» — legacy XLSX, **не** Phase 5 oracle. K2i/end-section kit, если нужен, — **отдельное** catalog rule/PDL, не подмена PDF «комплект на 2 секции». | Пока SEEDS пусты — fail-closed (не выдумывать Nсек). После SEEDS: переписать emission под pick-one + sections_per_kit; golden PDF 9/2→5; XLSX dual golden не блокируют. |
+| PDL-ER-45 | IA vs макеты PDF 21/35/49/56 | Утверждена **текущая product IA**: wizard 4 шага (heat / electrical / specification / report), denser SC-03 tables, UUID ЭР chips, assignment panel. Макеты PDF — **иллюстрации требований**, не pixel-spec. Обязательны: семантика PDF/PDL, readiness, partial/stale honesty, multi-ЭР, print. Не обязательны: 3-колоночная heat form 1:1, 4 summary cards pixel-copy, mock HTL-brand table chrome. | Layout/IA audits не FAIL за «не как page-21.png». FAIL только при нарушении утверждённой семантики/PDL. Mock assets = reference, не acceptance oracle. |
 
 ## Дополнительные правила интерпретации
 
@@ -108,12 +112,17 @@ PDL-ER-18…25 фиксируют восемь ответов **А**, явно �
   отсутствующий корпоративный шаблон employee exports.
 - PDL-ER-41 сохраняет v2 только как входной migration adapter; numeric slot не
   возвращается в authoritative domain model.
+- PDL-ER-42 закрывает CONFLICT «PDF не в БД»: session store = temp, не account.
+- PDL-ER-43: admin Home card — утверждённый system entry, не drift guest PDF.
+- PDL-ER-44: kit BOM после SEEDS = PDF pick-one; не dual XLSX без нового PDL.
+- PDL-ER-45: mock PNG PDF ≠ wireframe acceptance; IA = текущий wizard.
 
 ## Что этими решениями не разрешено
 
-Продуктовые вопросы guest persistence/TTL, целевого лимита 500 объектов и
-контракта Phase 5 закрыты PDL-ER-26/27 и PDL-ER-29…41, но соответствующая
-реализация, performance и UI/print evidence ещё не выполнены. Внешними data
+Продуктовые вопросы guest persistence/TTL, целевого лимита 500 объектов,
+контракта Phase 5 и PROD-01…04 (PDL-ER-42…45) закрыты PDL-ER-26/27,
+PDL-ER-29…41 и PDL-ER-42…45. Реализация ER5 residual / import confirm / 500
+gate / Phase 6 execute — отдельные CODE-пункты `STATUS.md`. Внешними data
 deliverables остаются:
 
 - официальный section-каталог для PDL-ER-15, PDL-ER-18…24 и PDL-ER-28;

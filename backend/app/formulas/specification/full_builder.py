@@ -1,29 +1,14 @@
-"""Полный условный расчёт спецификации (BOM) по алгоритму ТНП.
+"""Полный условный расчёт спецификации (BOM) по PDF / PDL Phase 5.
 
-Источник: `ТНП/Расчет_спецификации_трубы_самрег29_05_26.xlsx`, лист
-«Список материалов Самрег». Реализована формульная (авто-считаемая) часть:
-кабель с резервом, соединительные/ремонтные комплекты, взрывозащищённые коробки
-по условиям диаметра/количества секций/индикации, кабельные вводы,
-крепёж, ленты, герметики, маркировка.
+Канон: PDF 07.07.2026 + PDL-ER-16/34; XLSX — catalog identity only where
+PDF-approved. PDL-ER-44: соединительные комплекты — pick-one
+``qty = ceil(Nсек / sections_per_kit)``, не dual XLSX emission.
 
-PDL-ER-32: для tank/resistive включаются только доказанные позиции (кабель с
-успешным электрорасчётом). Pipe self-reg accessories не переносятся на tank и
-не применяются к resistive — исключённые группы дают partial.
+PDL-ER-32: tank/resistive — только доказанный кабель.
+PDL-ER-35: box matrix missing → fail-closed.
+SEEDS: sections/matrix empty → partial diagnostics, no invented quantities.
 
-PDL-ER-35: per-row матрица условий коробок Ex/Rгр официально не зарегистрирована.
-Пока `BOX_EX_RGR_MATRIX` пуста, зависимые коробки и box-derived позиции
-fail-closed (не считаются, не заполняются defaults из XLSX).
-
-Количества штучных позиций перед округлением вверх умножаются на
-``package_factor`` правила (колонка I источника — коэффициент пересчёта в
-упаковку производителя: рулоны лент, картриджи клея и т.п.).
-
-Не входят (проектные/ручные позиции без формул в источнике): КИП
-(термопреобразователи, шкаф управления), монтажные кабели/лотки/трубы, ЗИП.
-
-Параметры на позицию электрорасчёта:
-  M,секц = марка; L,секц·N,секц = installed_cable_length; N,секц = num_circuits;
-  T,секц = температурный класс (низк./выс.); dтр = наружный диаметр; Lтр = длина.
+Количества штучных позиций: ``package_factor`` каталога перед ceil (ленты/клей).
 """
 
 from __future__ import annotations
@@ -279,8 +264,6 @@ def build_full_specification_detailed(
     length_high = 0.0  # ΣL2
     n_low = 0.0  # Σ N,секц (низк.) с резервом
     n_high = 0.0  # Σ N,секц (выс.) с резервом
-    n_low_k2i = 0.0
-    n_high_k2i = 0.0
     boxes: dict[str, float] = defaultdict(float)
     homut = 0.0
     tape_low = 0.0
@@ -349,8 +332,6 @@ def build_full_specification_detailed(
             length_low += section_total
             if sections_ready:
                 n_low += n_sec * r_res
-                if k2i_active:
-                    n_low_k2i += n_sec * r_res
             # FA-04 glass tape: PDF already includes ×1.1; use installed length once.
             tape_low += (
                 (PI * d_mm * 2.5 / 1000.0) * (section_total / 0.3) * 1.1 if d_mm > 0 else 0.0
@@ -359,8 +340,6 @@ def build_full_specification_detailed(
             length_high += section_total
             if sections_ready:
                 n_high += n_sec * r_res
-                if k2i_active:
-                    n_high_k2i += n_sec * r_res
             tape_high += (
                 (PI * d_mm * 2.5 / 1000.0) * (section_total / 0.3) * 1.1 if d_mm > 0 else 0.0
             )
@@ -427,15 +406,26 @@ def build_full_specification_detailed(
     nk_large_plain = b("Nk1") + b("Nk2")
     nk_large_k1i = b("Nk3") + b("Nk4")
     nk_small_plain = b("Nk7") + b("Nk8")
-    fl1 = n_low if sections_ready else 0.0
-    fl2 = n_low_k2i * 2 if sections_ready else 0.0
-    fl3 = n_high if sections_ready else 0.0
-    fl4 = n_high_k2i * 2 if sections_ready else 0.0
+    # PDL-ER-44 / PDF §7.10: pick ONE kit capacity per temp group.
+    # qty = ceil(Nсек / sections_per_kit); default capacity=1 (КСН-1/КСВ-1).
+    # Dual XLSX «КСН-1=N and КСН-2=N×2 end-kits» is not the PDF oracle.
+    kit_cap = int(getattr(opt, "connector_kit_sections_per_kit", 1) or 1)
+    if kit_cap not in (1, 2):
+        kit_cap = 1
+    conn_low = (
+        _ceil(n_low / float(kit_cap)) if sections_ready and n_low > 0 else 0.0
+    )
+    conn_high = (
+        _ceil(n_high / float(kit_cap)) if sections_ready and n_high > 0 else 0.0
+    )
+    # Emit only the selected capacity rule; other capacity stays 0.
+    fl1 = conn_low if kit_cap == 1 else 0.0
+    fl2 = conn_low if kit_cap == 2 else 0.0
+    fl3 = conn_high if kit_cap == 1 else 0.0
+    fl4 = conn_high if kit_cap == 2 else 0.0
     repair_low = _ceil(length_low / 150.0) if length_low > 0 else 0.0
     repair_high = _ceil(length_high / 150.0) if length_high > 0 else 0.0
-    # FA-04 glue: PDF qty = ceil((connector_kits + repair_kits) / 7).
-    # Catalog package_factor≈0.14 implements /7 before ceil in emission.
-    # Without real connectors (sections blocked), glue still covers repair kits.
+    # FA-04 / PDF §7.12: ceil((connector_kits + repair_kits) / 7) via package_factor.
     glue_kits = fl1 + fl2 + fl3 + fl4 + repair_low + repair_high
 
     rule_values: dict[str, float] = {
