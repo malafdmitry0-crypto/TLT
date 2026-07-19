@@ -18,6 +18,7 @@
 | Report UUID-first preview | PASS | electrical_variant_id alone |
 | **PDL-ER-29 full-only product mode** | **PASS** | UI switcher removed; API/service coerce `basic`→`full`; tests |
 | **PDL-ER-37 stale out of report/export/print** | **PASS** | report context strips items when stale; red UI banner; print CSS hide table |
+| **PDL-ER-36 preflight + confirm partial** | **PASS** | 409 PREFLIGHT_CONFIRMATION_REQUIRED + confirm_partial; UI Modal |
 
 ## Still open
 
@@ -27,7 +28,6 @@
 - PDL-ER-33 catalog identity
 - PDL-ER-34 PDF-first formula source
 - PDL-ER-35 Ex/Rгр matrix data-blocked
-- PDL-ER-36 preflight + confirm multi-ЭР
 - PDL-ER-38 pipe/tank/common grouping
 - PDL-ER-39 multi-ЭР report chapters
 - PDL-ER-40 print CSS corporate scope (partial functional ok)

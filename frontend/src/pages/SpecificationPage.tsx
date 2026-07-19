@@ -100,6 +100,12 @@ export default function SpecificationPage() {
   // Manual item CRUD remains employee/admin only (PDL-ER-04).
   // PDL-ER-01: explicit multi-ЭР selection for generation; never implicit all-on-open.
   const [selectedGenerateErIds, setSelectedGenerateErIds] = useState<string[]>([]);
+  const [preflightOpen, setPreflightOpen] = useState(false);
+  const [preflightSummary, setPreflightSummary] = useState<string>('');
+  const [pendingGenerate, setPendingGenerate] = useState<{
+    generateVariantIds: string[];
+    options?: Parameters<typeof generateSpecification>[4];
+  } | null>(null);
   const [exZone, setExZone] = useState(false);
   const [reserveCoeff, setReserveCoeff] = useState<number>(1);
   // Опции индикации ТНП: К1i / К2i / Кiu / L,К2i
@@ -203,7 +209,11 @@ export default function SpecificationPage() {
       mode,
       options,
       generateVariantIds,
-    }: GenerateSpecificationVariables & { generateVariantIds: string[] }) => {
+      confirmPartial = false,
+    }: GenerateSpecificationVariables & {
+      generateVariantIds: string[];
+      confirmPartial?: boolean;
+    }) => {
       if (!canMutateProject) {
         throw new Error('Недостаточно прав для изменения спецификации');
       }
@@ -214,9 +224,12 @@ export default function SpecificationPage() {
         mode,
         options,
         generateVariantIds,
+        confirmPartial,
       );
     },
     onSuccess: (result, variables) => {
+      setPreflightOpen(false);
+      setPendingGenerate(null);
       const generatedCount = result.results?.length ?? 1;
       message.success(
         generatedCount > 1
@@ -228,7 +241,6 @@ export default function SpecificationPage() {
           `Объектов без успешного электрорасчёта: ${result.skipped_objects} — они не вошли в полную спецификацию`
         );
       }
-      // Invalidate all selected ER specs after multi-generate.
       for (const id of variables.generateVariantIds) {
         qc.invalidateQueries({
           queryKey: ['spec', variables.projectId, id],
@@ -236,7 +248,33 @@ export default function SpecificationPage() {
         });
       }
     },
-    onError: (e: Error) => message.error(e.message),
+    onError: (e: Error & { code?: string; detail?: { preflight?: {
+      total_skipped_objects?: number;
+      variants?: Array<{
+        electrical_variant_name?: string | null;
+        skipped_objects?: number;
+      }>;
+    } } }) => {
+      if (e.code === 'SPECIFICATION_PREFLIGHT_CONFIRMATION_REQUIRED') {
+        const pf = e.detail?.preflight;
+        const lines = (pf?.variants ?? [])
+          .filter((v) => (v.skipped_objects ?? 0) > 0)
+          .map(
+            (v) =>
+              `«${v.electrical_variant_name || 'ЭР'}»: исключено объектов ${v.skipped_objects}`,
+          );
+        setPreflightSummary(
+          [
+            `Всего исключений: ${pf?.total_skipped_objects ?? 0}.`,
+            'После подтверждения partial generation выполнится атомарно (PDL-ER-36).',
+            ...lines,
+          ].join('\n'),
+        );
+        setPreflightOpen(true);
+        return;
+      }
+      message.error(e.message);
+    },
   });
 
   const saveMut = useMutation({
@@ -267,25 +305,45 @@ export default function SpecificationPage() {
     [spec]
   );
   const isSpecStale = spec?.is_stale === true;
-  const runGenerate = () => {
+  const buildGenerateOptions = () => ({
+    ex_zone: exZone,
+    reserve_coefficient: reserveCoeff,
+    indication_on_boxes: indicationOnBoxes,
+    end_section_indication: endSectionIndication,
+    top_indication: topIndication,
+    min_length_for_end_indication: minLengthK2i,
+  });
+
+  const runGenerate = (confirmPartial = false) => {
     const scope = snapshotMutationScope();
     const generateVariantIds = selectedGenerateErIds.length > 0
       ? selectedGenerateErIds
       : [scope.electricalVariantId];
+    const options = buildGenerateOptions();
+    if (!confirmPartial) {
+      setPendingGenerate({ generateVariantIds, options });
+    }
     mut.mutate({
       ...scope,
       generateVariantIds,
       mode: effectiveMode,
-      options: effectiveMode === 'full'
-        ? {
-            ex_zone: exZone,
-            reserve_coefficient: reserveCoeff,
-            indication_on_boxes: indicationOnBoxes,
-            end_section_indication: endSectionIndication,
-            top_indication: topIndication,
-            min_length_for_end_indication: minLengthK2i,
-          }
-        : undefined,
+      options,
+      confirmPartial,
+    });
+  };
+
+  const confirmPartialGenerate = () => {
+    if (!pendingGenerate) {
+      runGenerate(true);
+      return;
+    }
+    const scope = snapshotMutationScope();
+    mut.mutate({
+      ...scope,
+      generateVariantIds: pendingGenerate.generateVariantIds,
+      mode: effectiveMode,
+      options: pendingGenerate.options,
+      confirmPartial: true,
     });
   };
 
@@ -556,7 +614,7 @@ export default function SpecificationPage() {
                 size="small"
                 loading={mut.isPending}
                 disabled={!canMutateProject}
-                onClick={runGenerate}
+                onClick={() => runGenerate(false)}
               >
                 {hasItems ? 'Пересчитать' : 'Сформировать'}
               </Button>
@@ -645,7 +703,7 @@ export default function SpecificationPage() {
                     icon={<ReloadOutlined />}
                     loading={mut.isPending}
                     disabled={!canMutateProject}
-                    onClick={runGenerate}
+                    onClick={() => runGenerate(false)}
                   >
                     Сформировать заново
                   </Button>
@@ -768,6 +826,23 @@ export default function SpecificationPage() {
           </Text>
         </Space>
       </Modal>
+      <Modal
+        title="Подтверждение partial-генерации"
+        open={preflightOpen}
+        onCancel={() => {
+          setPreflightOpen(false);
+          setPendingGenerate(null);
+        }}
+        onOk={confirmPartialGenerate}
+        okText="Подтвердить и сформировать"
+        cancelText="Отмена"
+        confirmLoading={mut.isPending}
+      >
+        <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit' }}>
+          {preflightSummary}
+        </pre>
+      </Modal>
+
     </>
   );
 }

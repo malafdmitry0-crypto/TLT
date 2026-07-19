@@ -11,6 +11,7 @@ from app.schemas.specification import (
     SpecificationGenerateRequest,
     SpecificationGenerateResponse,
     SpecificationItem,
+    SpecificationPreflightResponse,
     SpecificationResponse,
     SpecificationUpdateRequest,
 )
@@ -112,7 +113,41 @@ async def generate_specification(
                         "message": "Можно выбрать не более 5 ЭР для генерации",
                     },
                 )
-            results = await SpecificationService(db).generate_for_electrical_variants(
+            spec_service = SpecificationService(db)
+            preflight = await spec_service.preflight_for_electrical_variants(
+                project_id,
+                principal,
+                requested_ids,
+            )
+            total_skipped = sum(item.skipped_objects for item in preflight)
+            if total_skipped > 0 and not req.confirm_partial:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "code": "SPECIFICATION_PREFLIGHT_CONFIRMATION_REQUIRED",
+                        "message": (
+                            "Часть объектов будет исключена из полной спецификации. "
+                            "Подтвердите partial generation."
+                        ),
+                        "preflight": SpecificationPreflightResponse(
+                            project_id=project_id,
+                            requires_confirmation=True,
+                            total_skipped_objects=total_skipped,
+                            variants=[
+                                {
+                                    "electrical_variant_id": item.electrical_variant_id,
+                                    "electrical_variant_name": item.electrical_variant_name,
+                                    "total_objects": item.total_objects,
+                                    "contributing_objects": item.contributing_objects,
+                                    "skipped_objects": item.skipped_objects,
+                                    "excluded_object_ids": item.excluded_object_ids,
+                                }
+                                for item in preflight
+                            ],
+                        ).model_dump(mode="json"),
+                    },
+                )
+            results = await spec_service.generate_for_electrical_variants(
                 project_id,
                 principal,
                 requested_ids,
@@ -157,7 +192,40 @@ async def generate_specification(
             variant,
             expected_electrical_variant_id=electrical_variant_id,
         )
-        result = await SpecificationService(db).generate(
+        spec_service = SpecificationService(db)
+        preflight_one = await spec_service.preflight_variant(
+            project_id,
+            variant_number=electrical_variant.legacy_variant_number or variant,
+            electrical_variant_id=electrical_variant.id,
+            electrical_variant_name=electrical_variant.name,
+        )
+        if preflight_one.skipped_objects > 0 and not req.confirm_partial:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "SPECIFICATION_PREFLIGHT_CONFIRMATION_REQUIRED",
+                    "message": (
+                        "Часть объектов будет исключена из полной спецификации. "
+                        "Подтвердите partial generation."
+                    ),
+                    "preflight": SpecificationPreflightResponse(
+                        project_id=project_id,
+                        requires_confirmation=True,
+                        total_skipped_objects=preflight_one.skipped_objects,
+                        variants=[
+                            {
+                                "electrical_variant_id": preflight_one.electrical_variant_id,
+                                "electrical_variant_name": preflight_one.electrical_variant_name,
+                                "total_objects": preflight_one.total_objects,
+                                "contributing_objects": preflight_one.contributing_objects,
+                                "skipped_objects": preflight_one.skipped_objects,
+                                "excluded_object_ids": preflight_one.excluded_object_ids,
+                            }
+                        ],
+                    ).model_dump(mode="json"),
+                },
+            )
+        result = await spec_service.generate(
             project_id,
             variant,
             mode=generate_mode,

@@ -87,6 +87,7 @@ class TestSpecification:
         ).json()[0]
         resp = await client.post(
             f"/api/v1/specifications/{p['id']}/generate",
+            json={"confirm_partial": True},
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 409, resp.text
@@ -118,6 +119,7 @@ class TestSpecification:
         )
         await client.post(
             f"/api/v1/specifications/{p['id']}/generate",
+            json={"confirm_partial": True},
             headers={"X-Session-Id": guest_session},
         )
         resp = await client.get(
@@ -139,6 +141,7 @@ class TestSpecification:
         # Сначала генерируем базовую спецификацию готового проекта.
         await client.post(
             f"/api/v1/specifications/{p['id']}/generate",
+            json={"confirm_partial": True},
             headers=headers,
         )
         # Сохраняем manual-позицию
@@ -161,6 +164,7 @@ class TestSpecification:
         # Регенерируем — manual должен сохраниться
         resp = await client.post(
             f"/api/v1/specifications/{p['id']}/generate",
+            json={"confirm_partial": True},
             headers=headers,
         )
         items = resp.json()["items"]
@@ -190,7 +194,7 @@ class TestSpecification:
         await self._add_pipe(client, p["id"], headers)
         resp = await client.post(
             f"/api/v1/specifications/{p['id']}/generate",
-            json={"mode": "full"},
+            json={"mode": "full", "confirm_partial": True},
             headers=headers,
         )
         assert resp.status_code == 201, resp.text
@@ -215,6 +219,33 @@ class TestSpecification:
         assert manual.status_code == 403
 
 
+
+    async def test_generate_requires_confirm_partial_when_exclusions(
+        self, client: AsyncClient, guest_session: str
+    ):
+        """PDL-ER-36: preflight blocks write until confirm_partial=true."""
+        headers = {"X-Session-Id": guest_session}
+        project = (await client.get("/api/v1/projects", headers=headers)).json()[0]
+        await self._add_pipe(client, project["id"], headers)
+        blocked = await client.post(
+            f"/api/v1/specifications/{project['id']}/generate",
+            json={"mode": "full", "confirm_partial": False},
+            headers=headers,
+        )
+        assert blocked.status_code == 409, blocked.text
+        detail = blocked.json()["detail"]
+        assert detail["code"] == "SPECIFICATION_PREFLIGHT_CONFIRMATION_REQUIRED"
+        assert detail["preflight"]["requires_confirmation"] is True
+        assert detail["preflight"]["total_skipped_objects"] >= 1
+
+        confirmed = await client.post(
+            f"/api/v1/specifications/{project['id']}/generate",
+            json={"mode": "full", "confirm_partial": True},
+            headers=headers,
+        )
+        assert confirmed.status_code == 201, confirmed.text
+        assert confirmed.json()["mode"] == "full"
+
     async def test_generate_basic_mode_coerced_to_full(
         self, client: AsyncClient, guest_session: str
     ):
@@ -224,7 +255,7 @@ class TestSpecification:
         await self._add_pipe(client, p["id"], headers)
         resp = await client.post(
             f"/api/v1/specifications/{p['id']}/generate",
-            json={"mode": "basic"},
+            json={"mode": "basic", "confirm_partial": True},
             headers=headers,
         )
         assert resp.status_code == 201, resp.text
@@ -241,7 +272,7 @@ class TestSpecification:
         await self._add_pipe(client, p["id"], headers)
         resp = await client.post(
             f"/api/v1/specifications/{p['id']}/generate",
-            json={"mode": "full", "options": {"reserve_coefficient": 1.2}},
+            json={"mode": "full", "options": {"reserve_coefficient": 1.2}, "confirm_partial": True},
             headers=headers,
         )
         assert resp.status_code == 201, resp.text
@@ -313,6 +344,7 @@ class TestSpecification:
 
         regen = await client.post(
             f"/api/v1/specifications/{project['id']}/generate",
+            json={"confirm_partial": True},
             headers=headers,
         )
         assert regen.status_code == 201, regen.text
@@ -430,6 +462,7 @@ class TestSpecification:
             json={
                 "mode": "full",
                 "electrical_variant_ids": [er1["id"], er2["id"]],
+                "confirm_partial": True,
             },
             headers=headers,
         )
@@ -501,6 +534,7 @@ class TestSpecAccessoryCountForAllObjects:
 
         resp = await client.post(
             f"/api/v1/specifications/{p['id']}/generate",
+            json={"confirm_partial": True},
             headers=headers,
         )
         assert resp.status_code == 201, resp.text

@@ -92,6 +92,13 @@ class SpecificationGenerateRequest(BaseModel):
         max_length=5,
         description="Явно выбранные UUID ЭР (1…5). Пустой/None — legacy single slot.",
     )
+    confirm_partial: bool = Field(
+        default=False,
+        description=(
+            "PDL-ER-36: true after user confirms preflight exclusions. "
+            "If false and any ER would exclude objects, API returns 409."
+        ),
+    )
 
 
 class SpecificationGenerateVariantResult(BaseModel):
@@ -111,6 +118,22 @@ class SpecificationGenerateResponse(BaseModel):
     electrical_variant_id: UUID | None = None
     # Multi-ЭР atomic generation: per-variant results (PDL-ER-01/14).
     results: list[SpecificationGenerateVariantResult] | None = None
+
+
+class SpecificationPreflightVariantResult(BaseModel):
+    electrical_variant_id: UUID
+    electrical_variant_name: str | None = None
+    total_objects: int = 0
+    contributing_objects: int = 0
+    skipped_objects: int = 0
+    excluded_object_ids: list[UUID] = Field(default_factory=list)
+
+
+class SpecificationPreflightResponse(BaseModel):
+    project_id: UUID
+    requires_confirmation: bool
+    total_skipped_objects: int = 0
+    variants: list[SpecificationPreflightVariantResult] = Field(default_factory=list)
 
 
 class SpecificationUpdateRequest(BaseModel):

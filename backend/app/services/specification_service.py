@@ -37,6 +37,16 @@ class SpecificationGenerateResult:
     electrical_variant_id: UUID | None = None
 
 
+@dataclass
+class SpecificationPreflightVariant:
+    electrical_variant_id: UUID
+    electrical_variant_name: str | None
+    total_objects: int
+    contributing_objects: int
+    skipped_objects: int
+    excluded_object_ids: list[UUID]
+
+
 class SpecificationService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -63,6 +73,136 @@ class SpecificationService:
             )
         )
         return result.scalars().one_or_none()
+
+
+    async def _electrical_results_for_variant(
+        self,
+        project_id: UUID,
+        *,
+        variant_number: int,
+        electrical_variant_id: UUID | None,
+    ) -> list[dict[str, Any]]:
+        if electrical_variant_id is not None:
+            result = await self.db.execute(
+                select(ElectricalCalculation).where(
+                    ElectricalCalculation.project_id == project_id,
+                    or_(
+                        ElectricalCalculation.electrical_variant_id == electrical_variant_id,
+                        (
+                            ElectricalCalculation.electrical_variant_id.is_(None)
+                            & (ElectricalCalculation.variant_number == variant_number)
+                        ),
+                    ),
+                )
+            )
+        else:
+            result = await self.db.execute(
+                select(ElectricalCalculation).where(
+                    ElectricalCalculation.project_id == project_id,
+                    ElectricalCalculation.variant_number == variant_number,
+                )
+            )
+        calcs = list(result.scalars().all())
+        if electrical_variant_id is not None:
+            exact = [c for c in calcs if c.electrical_variant_id == electrical_variant_id]
+            if exact:
+                calcs = exact
+        return [
+            {
+                **(c.results or {}),
+                "cable_mark": c.cable_mark,
+                "cable_type": c.cable_type,
+                "cable_snapshot": c.cable_snapshot,
+                "object_id": str(c.object_id),
+            }
+            for c in calcs
+        ]
+
+    async def preflight_variant(
+        self,
+        project_id: UUID,
+        *,
+        variant_number: int,
+        electrical_variant_id: UUID,
+        electrical_variant_name: str | None = None,
+    ) -> SpecificationPreflightVariant:
+        """Side-effect-free exclusion scan for one ER (PDL-ER-36)."""
+        objects_q = await self.db.execute(
+            select(ProjectObject).where(ProjectObject.project_id == project_id)
+        )
+        objects = list(objects_q.scalars().all())
+        electrical_results = await self._electrical_results_for_variant(
+            project_id,
+            variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
+        )
+        contributing_ids = {
+            str(r.get("object_id"))
+            for r in electrical_results
+            if contributes_to_full_bom(r)
+        }
+        excluded = [obj.id for obj in objects if str(obj.id) not in contributing_ids]
+        return SpecificationPreflightVariant(
+            electrical_variant_id=electrical_variant_id,
+            electrical_variant_name=electrical_variant_name,
+            total_objects=len(objects),
+            contributing_objects=len(objects) - len(excluded),
+            skipped_objects=len(excluded),
+            excluded_object_ids=excluded,
+        )
+
+    async def preflight_for_electrical_variants(
+        self,
+        project_id: UUID,
+        principal: CurrentPrincipal,
+        electrical_variant_ids: list[UUID],
+    ) -> list[SpecificationPreflightVariant]:
+        """PDL-ER-36: one side-effect-free preflight for the explicit ER list."""
+        requested = list(dict.fromkeys(electrical_variant_ids))
+        if not requested:
+            raise ElectricalVariantServiceError(
+                "ELECTRICAL_VARIANT_NOT_FOUND",
+                "Не передан ни один electrical_variant_id",
+                status_code=422,
+            )
+        if len(requested) > 5:
+            raise ElectricalVariantServiceError(
+                "ELECTRICAL_VARIANT_LIMIT_REACHED",
+                "Можно выбрать не более 5 ЭР для генерации",
+                status_code=422,
+            )
+        await ElectricalVariantService(self.db).list_variants(project_id, principal)
+        rows = await self.db.execute(
+            select(ElectricalVariant).where(ElectricalVariant.project_id == project_id)
+        )
+        by_id = {item.id: item for item in rows.scalars().all()}
+        missing = [str(item) for item in requested if item not in by_id]
+        if missing:
+            raise ElectricalVariantServiceError(
+                "ELECTRICAL_VARIANT_NOT_FOUND",
+                "Один или несколько ЭР не найдены в проекте",
+                status_code=404,
+                details={"missing_electrical_variant_ids": missing},
+            )
+        out: list[SpecificationPreflightVariant] = []
+        for variant_id in requested:
+            variant = by_id[variant_id]
+            if variant.legacy_variant_number is None:
+                raise ElectricalVariantServiceError(
+                    "ELECTRICAL_VARIANT_PROJECT_MISMATCH",
+                    f"ЭР «{variant.name}» без legacy data plane для спецификации",
+                    status_code=409,
+                    details={"electrical_variant_id": str(variant.id)},
+                )
+            out.append(
+                await self.preflight_variant(
+                    project_id,
+                    variant_number=variant.legacy_variant_number,
+                    electrical_variant_id=variant.id,
+                    electrical_variant_name=variant.name,
+                )
+            )
+        return out
 
     async def generate_for_electrical_variants(
         self,

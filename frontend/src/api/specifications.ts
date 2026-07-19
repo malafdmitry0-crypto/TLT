@@ -38,6 +38,22 @@ export interface SpecificationGenerateResult {
   }>;
 }
 
+export interface SpecificationPreflightVariant {
+  electrical_variant_id: string;
+  electrical_variant_name?: string | null;
+  total_objects: number;
+  contributing_objects: number;
+  skipped_objects: number;
+  excluded_object_ids: string[];
+}
+
+export interface SpecificationPreflight {
+  project_id: string;
+  requires_confirmation: boolean;
+  total_skipped_objects: number;
+  variants: SpecificationPreflightVariant[];
+}
+
 export async function generateSpecification(
   projectId: string,
   variant: number = 1,
@@ -45,6 +61,7 @@ export async function generateSpecification(
   mode: 'basic' | 'full' = 'full',
   options?: SpecificationOptions,
   electricalVariantIds?: string[],
+  confirmPartial: boolean = false,
 ): Promise<SpecificationGenerateResult> {
   const explicitIds = electricalVariantIds?.length
     ? electricalVariantIds
@@ -57,6 +74,7 @@ export async function generateSpecification(
       mode,
       options: options ?? null,
       electrical_variant_ids: explicitIds ?? null,
+      confirm_partial: confirmPartial,
     },
     { params: { variant, electrical_variant_id: electricalVariantId } }
   );
