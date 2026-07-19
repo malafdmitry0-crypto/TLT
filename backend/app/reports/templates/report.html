@@ -71,7 +71,15 @@
   {# sections может быть None/пусто — тогда показываем все. Иначе — только перечисленные. #}
   {% set enabled = sections if sections is defined and sections else ['summary', 'pipes', 'tanks', 'electrical', 'specification'] %}
 
-  {# ─────────── Сводка ─────────── #}
+  
+  {% if multi_er is defined and multi_er and chapters is defined and chapters %}
+  <p class="muted">Отчёт по {{ chapters|length }} ЭР. Итоги каждого ЭР независимы (PDL-ER-39).</p>
+  {% for chapter in chapters %}
+    <h2 style="page-break-before: auto;">Глава: {{ chapter.electrical_variant_name or chapter.electrical_variant_id }}</h2>
+    {% set objects = chapter.objects %}
+    {% set electrical = chapter.electrical %}
+    {% set specification = chapter.specification %}
+{# ─────────── Сводка ─────────── #}
   {% set valid_objs = objects | selectattr('is_valid') | list %}
   {% set electrical_ctx = electrical if electrical is defined else {} %}
   {% set electrical_summary = electrical_ctx.get('summary', {}) %}
@@ -321,6 +329,261 @@
     Отчёт сформирован программным комплексом HeatCalc · Система расчёта систем электрообогрева ТЛТ
   </p>
 
+
+  {% endfor %}
+  {% else %}
+{# ─────────── Сводка ─────────── #}
+  {% set valid_objs = objects | selectattr('is_valid') | list %}
+  {% set electrical_ctx = electrical if electrical is defined else {} %}
+  {% set electrical_summary = electrical_ctx.get('summary', {}) %}
+  {% set elec_objs = electrical_ctx.get('valid', []) %}
+  {% set elec_failed = electrical_ctx.get('failed', []) %}
+  {% set elec_unsupported = electrical_ctx.get('unsupported', []) %}
+  {% set elec_stale = electrical_ctx.get('stale', []) %}
+  {% set elec_excluded = elec_failed + elec_unsupported + elec_stale %}
+  {% set total_heat = valid_objs | map(attribute='results') | map('default', {}) | map(attribute='total_heat_loss', default=0) | sum %}
+  {% set total_power = electrical_summary.get('total_power', 0) %}
+  {% set total_cable = electrical_summary.get('total_cable', 0) %}
+  {% set total_current = electrical_summary.get('total_current', 0) %}
+
+  {% if 'summary' in enabled %}
+  <div class="summary">
+    <div class="row"><span class="lbl">Объектов</span><span class="val">{{ objects|length }}</span></div>
+    <div class="row"><span class="lbl">Рассчитано теплопотерь</span><span class="val">{{ valid_objs|length }}</span></div>
+    <div class="row"><span class="lbl">Подобрано кабелей</span><span class="val">{{ elec_objs|length }}</span></div>
+    {% if elec_excluded %}<div class="row"><span class="lbl">Не включено в сводку</span><span class="val">{{ elec_excluded|length }}</span></div>{% endif %}
+    <div class="row"><span class="lbl">Суммарные теплопотери</span><span class="val">{{ kwt(total_heat) }}</span></div>
+    <div class="row"><span class="lbl">Суммарная мощность кабелей</span><span class="val">{{ kwt(total_power) }}</span></div>
+    <div class="row"><span class="lbl">Длина кабеля</span><span class="val">{{ fmt(total_cable, 1) }} м</span></div>
+    <div class="row"><span class="lbl">Суммарный ток</span><span class="val">{{ fmt(total_current, 2) }} А</span></div>
+  </div>
+  {% endif %}
+
+  {# ─────────── Трубопроводы ─────────── #}
+  {% if 'pipes' in enabled %}
+  {% set pipes = objects | selectattr('object_type', 'equalto', 'pipe') | list %}
+  <h2>Трубопроводы ({{ pipes|length }})</h2>
+  {% if pipes %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Наименование</th>
+        <th class="num">Ø, мм</th><th class="num">Длина, м</th>
+        <th class="num">δ изол., мм</th><th>Материал</th>
+        <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
+        <th class="num">q, Вт/м</th><th class="num">Q, Вт</th>
+        <th>Статус</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in pipes %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ o.params.get('name') or '—' }}</td>
+        <td class="num">{{ mm(o.params.get('outer_diameter')) }}</td>
+        <td class="num">{{ fmt(o.params.get('pipe_length'), 1) }}</td>
+        <td class="num">{{ mm(o.params.get('insulation_thickness')) }}</td>
+        <td>{{ MATERIALS.get(o.params.get('insulation_material'), o.params.get('insulation_material') or '—') }}</td>
+        <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
+        <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_meter'), 1) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss'), 0) }}{% else %}—{% endif %}</td>
+        <td>{% if o.is_valid %}<span class="badge-ok">✓ ОК</span>{% else %}<span class="badge-err">✗ Ошибка</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="section-empty">Трубопроводы не добавлены</p>
+  {% endif %}
+  {% endif %}
+
+  {# ─────────── Резервуары ─────────── #}
+  {% if 'tanks' in enabled %}
+  {% set tanks = objects | selectattr('object_type', 'equalto', 'tank') | list %}
+  <h2>Резервуары ({{ tanks|length }})</h2>
+  {% if tanks %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Наименование</th><th>Форма</th>
+        <th>Габариты</th>
+        <th class="num">δ изол., мм</th><th>Материал</th>
+        <th class="num">T₀, °C</th><th class="num">Tподд., °C</th>
+        <th class="num">S, м²</th><th class="num">q, Вт/м²</th><th class="num">Qдоп, Вт</th><th class="num">Q, Вт</th>
+        <th>Статус</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in tanks %}
+      {% set shape = o.params.get('shape') %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ o.params.get('name') or '—' }}</td>
+        <td>{{ SHAPES.get(shape, shape or '—') }}</td>
+        <td>
+          {% if shape == 'cylindrical' %}
+            Ø{{ mm(o.params.get('diameter')) }} × H{{ mm(o.params.get('height')) }} мм
+          {% elif shape == 'rectangular' %}
+            {{ mm(o.params.get('length')) }} × {{ mm(o.params.get('width')) }} × {{ mm(o.params.get('height')) }} мм
+          {% elif shape == 'spherical' %}
+            Ø{{ mm(o.params.get('diameter')) }} мм
+          {% else %}—{% endif %}
+        </td>
+        <td class="num">{{ mm(o.params.get('insulation_thickness')) }}</td>
+        <td>{{ MATERIALS.get(o.params.get('insulation_material'), o.params.get('insulation_material') or '—') }}</td>
+        <td class="num">{{ fmt(o.params.get('ambient_temperature'), 1) }}</td>
+        <td class="num">{{ fmt(o.params.get('process_temperature'), 1) }}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('surface_area'), 2) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('heat_loss_per_m2'), 1) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('q_additional', o.params.get('q_additional')), 0) }}{% else %}{{ fmt(o.params.get('q_additional'), 0) }}{% endif %}</td>
+        <td class="num">{% if o.results %}{{ fmt(o.results.get('total_heat_loss'), 0) }}{% else %}—{% endif %}</td>
+        <td>{% if o.is_valid %}<span class="badge-ok">✓ ОК</span>{% else %}<span class="badge-err">✗ Ошибка</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="section-empty">Резервуары не добавлены</p>
+  {% endif %}
+  {% endif %}
+
+  {# ─────────── Электрорасчёт ─────────── #}
+  {% if 'electrical' in enabled %}
+  <h2>Электротехнический расчёт ({{ elec_objs|length }})</h2>
+  {% if elec_objs %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Объект</th><th>Марка кабеля</th>
+        <th>Критерий</th>
+        <th>Применено</th>
+        <th class="num">Длина кабеля, м</th>
+        <th class="num">Уд. мощность, Вт/м</th>
+        <th class="num">Суммарная мощность</th>
+        <th class="num">Ток, А</th>
+        <th class="num">U, В</th>
+        <th class="num">Стоимость кабеля</th>
+        <th>Склад / срок</th>
+        <th>Причина выбора</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in elec_objs %}
+      {% set r = o.electrical.results %}
+      {% set commercial = r.get('commercial') or {} %}
+      {% set p_meter = r.get('power_per_meter') or r.get('power_at_operating_temp') or r.get('required_power_per_meter') %}
+      {% if not p_meter and r.get('total_power') and r.get('installed_cable_length') %}
+        {% set p_meter = r.get('total_power') / r.get('installed_cable_length') %}
+      {% endif %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ o.params.get('name') or TYPES.get(o.object_type, o.object_type) }}</td>
+        <td><strong>{{ o.electrical.cable_mark or r.get('selected_cable') or '—' }}</strong></td>
+        <td>{{ POLICIES.get(r.get('selection_policy'), r.get('selection_policy') or '—') }}</td>
+        <td>{{ POLICIES.get(r.get('applied_selection_policy'), r.get('applied_selection_policy') or '—') }}</td>
+        <td class="num">{{ fmt(r.get('installed_cable_length'), 1) }}</td>
+        <td class="num">{{ fmt(p_meter, 1) }}</td>
+        <td class="num">{{ kwt(r.get('total_power')) }}</td>
+        <td class="num">{{ fmt(r.get('current'), 2) }}</td>
+        <td class="num">{{ r.get('voltage', 220) }}</td>
+        <td class="num">
+          {% if commercial.get('total_cost') is number %}
+            {{ fmt(commercial.get('total_cost'), 2) }} {{ commercial.get('currency') or 'RUB' }}
+            <br><span class="muted">только кабель</span>
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {{ STOCK.get(commercial.get('stock_status'), commercial.get('stock_status') or '—') }}
+          {% if commercial.get('lead_time_days') is number %}<br><span class="muted">{{ commercial.get('lead_time_days') }} дн.</span>{% endif %}
+        </td>
+        <td>
+          {{ r.get('selection_reason') or '—' }}
+          {% if r.get('warnings') %}
+            <br><span class="badge-err">{{ r.get('warnings') | join('; ') }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% elif elec_excluded %}
+  <p class="section-empty">Успешных электрорасчётов нет</p>
+  {% else %}
+  <p class="section-empty">Электрорасчёт не выполнен</p>
+  {% endif %}
+  {% if elec_excluded %}
+  <h3>Не включено в сводку электрорасчёта ({{ elec_excluded|length }})</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Объект</th><th>Статус</th><th>Причина</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in elec_excluded %}
+      {% set r = o.electrical.results %}
+      {% set category = r.get('category') %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ o.params.get('name') or TYPES.get(o.object_type, o.object_type) }}</td>
+        <td>
+          {% if category == 'unsupported' %}
+            Не применимо
+          {% elif category == 'stale' %}
+            Требует пересчёта
+          {% else %}
+            Ошибка
+          {% endif %}
+        </td>
+        <td>{{ r.get('message') or r.get('error_code') or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% endif %}
+
+  {# ─────────── Спецификация ─────────── #}
+  {% if 'specification' in enabled %}
+  <h2>Спецификация</h2>
+  {% if specification.get('is_stale') %}
+  <p class="section-empty" style="color:#9A3412;font-weight:600;">
+    Спецификация устарела (PDL-ER-37). Закупочные позиции исключены из отчёта и печати.
+    Сформируйте спецификацию заново.
+    {% if specification.get('retained_item_count') %}
+    (сохранённый snapshot: {{ specification.retained_item_count }} поз., только в UI)
+    {% endif %}
+  </p>
+  {% elif specification['items'] %}
+  <table>
+    <thead>
+      <tr><th>#</th><th>Категория</th><th>Наименование</th><th>Артикул</th><th>Ед.</th><th class="num">Кол-во</th></tr>
+    </thead>
+    <tbody>
+      {% for item in specification['items'] %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ item.category }}</td>
+        <td>{{ item.name }}</td>
+        <td>{{ item.article or '—' }}</td>
+        <td>{{ item.unit }}</td>
+        <td class="num">{{ item.quantity }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="section-empty">Спецификация не сформирована. Выполните шаг «Спецификация» в приложении.</p>
+  {% endif %}
+  {% endif %}
+
+  <p class="muted" style="margin-top: 24px; text-align: center;">
+    Отчёт сформирован программным комплексом HeatCalc · Система расчёта систем электрообогрева ТЛТ
+  </p>
+
+
+  {% endif %}
 </div>
 </body>
 </html>

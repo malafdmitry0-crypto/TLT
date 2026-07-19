@@ -6,6 +6,12 @@ from uuid import UUID
 from pydantic import BaseModel, Field, model_validator
 
 
+class ReportChapterMeta(BaseModel):
+    electrical_variant_id: UUID | None = None
+    electrical_variant_name: str | None = None
+    variant_number: int | None = Field(default=None, ge=1, le=4)
+
+
 class ReportPreviewResponse(BaseModel):
     project_id: str
     html: str
@@ -14,6 +20,7 @@ class ReportPreviewResponse(BaseModel):
     variant_number: int | None = Field(default=None, ge=1, le=4)
     electrical_variant_id: UUID | None = None
     electrical_variant_name: str | None = None
+    chapters: list[ReportChapterMeta] | None = None
 
 
 ReportFormat = Literal["pdf", "docx", "xlsx"]

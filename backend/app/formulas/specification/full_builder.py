@@ -284,7 +284,10 @@ def build_full_specification(
             value *= float(package_factor)
         unit = rule.get("unit", "шт.")
         quantity = round(value, 2) if unit == "м" else _ceil(value)
-        params: dict[str, Any] = {}
+        params: dict[str, Any] = {
+            "bom_section": "common",
+            "catalog_base": rule.get("rule") or rule.get("name"),
+        }
         if package_factor:
             params["package_factor"] = package_factor
         if rule.get("mass_kg") is not None:

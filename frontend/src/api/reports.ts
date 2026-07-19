@@ -30,13 +30,19 @@ export interface ReportPreview {
 
 function reportParams(
   variantNumber: number | null | undefined,
-  electricalVariantId: string,
+  electricalVariantId: string | string[],
   sections?: ReportSection[],
 ) {
+  const ids = Array.isArray(electricalVariantId)
+    ? electricalVariantId
+    : electricalVariantId
+      ? [electricalVariantId]
+      : [];
   return {
     ...(sections && sections.length > 0 ? { sections } : {}),
-    ...(variantNumber != null ? { variant_number: variantNumber } : {}),
-    electrical_variant_id: electricalVariantId,
+    ...(variantNumber != null && ids.length <= 1 ? { variant_number: variantNumber } : {}),
+    ...(ids.length === 1 ? { electrical_variant_id: ids[0] } : {}),
+    ...(ids.length > 1 ? { electrical_variant_ids: ids } : {}),
   };
 }
 
@@ -50,7 +56,7 @@ function reportJobParams(electricalVariantId: string, sections?: ReportSection[]
 export async function getReportPreview(
   projectId: string,
   variantNumber: number | null | undefined,
-  electricalVariantId: string,
+  electricalVariantId: string | string[],
   sections?: ReportSection[],
 ): Promise<ReportPreview> {
   const { data } = await apiClient.get<ReportPreview>(`/reports/${projectId}/preview`, {

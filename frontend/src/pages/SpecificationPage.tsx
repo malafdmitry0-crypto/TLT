@@ -46,7 +46,7 @@ const { Text } = Typography;
 
 const SPEC_PARAMS_PANEL_STORAGE_KEY = 'tlt-spec-params-panel';
 
-type GroupBy = 'none' | 'category' | 'unit';
+type GroupBy = 'none' | 'category' | 'unit' | 'object_section';
 
 type SpecificationMutationScope = {
   projectId: string;
@@ -92,7 +92,8 @@ export default function SpecificationPage() {
     variant,
   ] as const;
 
-  const [groupBy, setGroupBy] = useState<GroupBy>('category');
+  const [groupBy, setGroupBy] = useState<GroupBy>('object_section');
+  const [mergeIdentical, setMergeIdentical] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null);
   const [qty, setQty] = useState<number>(1);
@@ -642,12 +643,21 @@ export default function SpecificationPage() {
                   value={groupBy}
                   onChange={setGroupBy}
                   options={[
-                    { label: 'Нет', value: 'none' },
+                    { label: 'Тип', value: 'object_section' },
                     { label: 'Кат.', value: 'category' },
                     { label: 'Ед.', value: 'unit' },
+                    { label: 'Нет', value: 'none' },
                   ]}
                   style={{ marginTop: 4 }}
                 />
+                <Checkbox
+                  checked={mergeIdentical}
+                  onChange={(e) => setMergeIdentical(e.target.checked)}
+                  style={{ fontSize: 12, marginTop: 6 }}
+                >
+                  Объединить одинаковые (base+код)
+                </Checkbox>
+
               </div>
 
               <div
@@ -748,6 +758,7 @@ export default function SpecificationPage() {
                   <SpecTable
                     items={items}
                     groupBy={groupBy}
+                    mergeIdentical={mergeIdentical}
                     canDelete={canManuallyEdit && hasItems}
                     isStale={isSpecStale}
                     onDelete={handleDelete}

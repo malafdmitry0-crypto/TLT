@@ -287,6 +287,74 @@ class ReportService:
             "electrical_variant_name": electrical_variant_name,
         }
 
+    async def preview_multi(
+        self,
+        project_id: UUID,
+        chapters: list[dict],
+        sections: list[str] | None = None,
+        *,
+        principal: CurrentPrincipal,
+    ) -> dict:
+        """PDL-ER-39: one report with independent chapter per ER UUID; no cross-sums."""
+        built: list[dict] = []
+        for chapter in chapters:
+            ctx = await self._load_context(
+                project_id,
+                sections,
+                principal=principal,
+                variant_number=chapter.get("variant_number"),
+                electrical_variant_id=chapter.get("electrical_variant_id"),
+                electrical_variant_name=chapter.get("electrical_variant_name"),
+            )
+            built.append(
+                {
+                    "electrical_variant_id": chapter.get("electrical_variant_id"),
+                    "electrical_variant_name": chapter.get("electrical_variant_name"),
+                    "variant_number": chapter.get("variant_number"),
+                    "objects": ctx["objects"],
+                    "electrical": ctx["electrical"],
+                    "specification": ctx["specification"],
+                }
+            )
+        # Shared project meta from first context
+        first = await self._load_context(
+            project_id,
+            ["summary"],
+            principal=principal,
+            variant_number=chapters[0].get("variant_number") if chapters else None,
+            electrical_variant_id=chapters[0].get("electrical_variant_id") if chapters else None,
+        )
+        multi_ctx = {
+            "project": first["project"],
+            "sections": self._normalize_sections(sections),
+            "chapters": built,
+            "multi_er": True,
+            # Keep single-ER keys empty so template does not mix totals.
+            "objects": [],
+            "electrical": {"valid": [], "failed": [], "unsupported": [], "stale": [], "summary": {}},
+            "specification": {"items": [], "is_stale": False},
+            "variant_number": None,
+            "electrical_variant_id": None,
+            "electrical_variant_name": None,
+        }
+        html = render_html(multi_ctx)
+        return {
+            "project_id": str(project_id),
+            "html": html,
+            "sections": multi_ctx["sections"],
+            "variant_number": None,
+            "electrical_variant_id": None,
+            "electrical_variant_name": None,
+            "chapters": [
+                {
+                    "electrical_variant_id": c.get("electrical_variant_id"),
+                    "electrical_variant_name": c.get("electrical_variant_name"),
+                    "variant_number": c.get("variant_number"),
+                }
+                for c in built
+            ],
+        }
+
     async def export(
         self,
         project_id: UUID,

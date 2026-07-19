@@ -2,24 +2,81 @@ import { Button, Space, Table, Tag } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import type { SpecificationItem } from '@/types/specification';
 
+export type SpecGroupBy = 'none' | 'category' | 'unit' | 'object_section';
+
 interface Props {
   items: SpecificationItem[];
-  groupBy?: 'none' | 'category' | 'unit';
+  groupBy?: SpecGroupBy;
+  /** PDL-ER-38: merge rows with same catalog base + code/article after per-type calc. */
+  mergeIdentical?: boolean;
   onDelete?: (index: number) => void;
   canDelete?: boolean;
   isStale?: boolean;
 }
 
-type Row = SpecificationItem & { __index: number };
+type Row = SpecificationItem & { __index: number; __section: string };
+
+const SECTION_LABELS: Record<string, string> = {
+  pipe: 'Трубопроводы',
+  tank: 'Ёмкости',
+  common: 'Общие материалы',
+};
+
+function bomSectionOf(item: SpecificationItem): string {
+  const raw = String(
+    (item.params as { bom_section?: string; object_type?: string } | undefined)?.bom_section
+      || (item.params as { object_type?: string } | undefined)?.object_type
+      || 'common',
+  ).toLowerCase();
+  if (raw === 'pipe' || raw === 'трубопровод' || raw === 'трубопроводы') return 'pipe';
+  if (raw === 'tank' || raw === 'ёмкость' || raw === 'емкость' || raw === 'ёмкости') return 'tank';
+  return 'common';
+}
+
+function mergeRows(rows: Row[]): Row[] {
+  const map = new Map<string, Row>();
+  for (const row of rows) {
+    const code = String(
+      row.article
+      || (row.params as { code?: string } | undefined)?.code
+      || '',
+    );
+    const base = String(
+      (row.params as { catalog_base?: string } | undefined)?.catalog_base
+      || row.name,
+    );
+    // PDL-ER-38: merge only when both base and nomenclature code match.
+    if (!code) {
+      map.set(`no-code-${row.__index}`, row);
+      continue;
+    }
+    const key = `${row.__section}|${base}|${code}|${row.unit}`;
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, { ...row });
+      continue;
+    }
+    existing.quantity = Number(existing.quantity || 0) + Number(row.quantity || 0);
+  }
+  return [...map.values()];
+}
 
 export default function SpecTable({
   items,
-  groupBy = 'none',
+  groupBy = 'object_section',
+  mergeIdentical = false,
   onDelete,
   canDelete = false,
   isStale = false,
 }: Props) {
-  const rows: Row[] = items.map((it, idx) => ({ ...it, __index: idx }));
+  let rows: Row[] = items.map((it, idx) => ({
+    ...it,
+    __index: idx,
+    __section: bomSectionOf(it),
+  }));
+  if (mergeIdentical) {
+    rows = mergeRows(rows);
+  }
 
   const baseColumns = [
     {
@@ -92,25 +149,48 @@ export default function SpecTable({
     );
   }
 
-  // Группировка: отсекаем столбец, по которому группируем
-  const groupKey = groupBy;
   const groups = new Map<string, Row[]>();
   for (const r of rows) {
-    const key = String(r[groupKey] ?? '—');
+    let key: string;
+    if (groupBy === 'object_section') {
+      key = r.__section;
+    } else if (groupBy === 'category') {
+      key = r.category;
+    } else {
+      key = r.unit;
+    }
     const list = groups.get(key) ?? [];
     list.push(r);
     groups.set(key, list);
   }
-  const grouped = [...groups.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([groupValue, groupItems]) => ({
-      key: groupValue,
-      groupValue,
-      items: groupItems,
-      total: groupItems.reduce((acc, r) => acc + (r.quantity || 0), 0),
-    }));
 
-  const innerColumns = baseColumns.filter((c) => c.dataIndex !== groupKey);
+  const order = groupBy === 'object_section' ? ['pipe', 'tank', 'common'] : undefined;
+  const entries = [...groups.entries()].sort(([a], [b]) => {
+    if (order) {
+      const ia = order.indexOf(a);
+      const ib = order.indexOf(b);
+      if (ia !== -1 || ib !== -1) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    }
+    return a.localeCompare(b);
+  });
+
+  const grouped = entries.map(([groupValue, groupItems]) => ({
+    key: groupValue,
+    groupValue,
+    label:
+      groupBy === 'object_section'
+        ? (SECTION_LABELS[groupValue] || groupValue)
+        : groupValue,
+    items: groupItems,
+    total: groupItems.reduce((acc, r) => acc + (r.quantity || 0), 0),
+  }));
+
+  const innerColumns =
+    groupBy === 'category'
+      ? baseColumns.filter((c) => c.dataIndex !== 'category')
+      : groupBy === 'unit'
+        ? baseColumns.filter((c) => c.dataIndex !== 'unit')
+        : baseColumns;
 
   return (
     <div>
@@ -126,8 +206,11 @@ export default function SpecTable({
             }}
           >
             <strong>
-              {groupBy === 'category' ? 'Категория: ' : 'Ед.: '}
-              {g.groupValue}
+              {groupBy === 'object_section'
+                ? g.label
+                : groupBy === 'category'
+                  ? `Категория: ${g.groupValue}`
+                  : `Ед.: ${g.groupValue}`}
             </strong>
             <span style={{ color: '#888', marginLeft: 8 }}>
               позиций: {g.items.length}

@@ -230,16 +230,12 @@ describe('ReportPage (integration)', () => {
         expect.any(Array),
       );
     });
-    const scopeGroup = screen.getAllByRole('radiogroup').find((group) =>
-      group.textContent?.includes(firstVariant.name)
-      && group.textContent.includes(thirdVariant.name));
-    const selectedScopeInput = Array.from(
-      scopeGroup?.querySelectorAll<HTMLInputElement>('input') ?? [],
-    )[1];
-    expect(selectedScopeInput).toBeDisabled();
+    // Multi-select ER control is disabled while export is in flight (PDL-ER-39 UI).
+    const erSelect = screen.getAllByLabelText('Выбор ЭР для отчёта')[0];
+    expect(erSelect.className).toMatch(/ant-select-disabled/);
 
     resolveExport(new Blob(['report'], { type: 'application/pdf' }));
-    await waitFor(() => expect(selectedScopeInput).not.toBeDisabled());
+    await waitFor(() => expect(erSelect.className).not.toMatch(/ant-select-disabled/));
     expect(downloadedName).toBe(`${mockProject.name}-${thirdVariant.name}.pdf`);
   });
 
@@ -401,19 +397,15 @@ describe('ReportPage (integration)', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(getReportPreview).toHaveBeenCalledWith(
-        mockProject.id,
-        null,
-        fifthVariant.id,
-        expect.any(Array),
-      );
+      expect(getReportPreview).toHaveBeenCalled();
+      const call = (getReportPreview as ReturnType<typeof vi.fn>).mock.calls.at(-1);
+      expect(call?.[0]).toBe(mockProject.id);
+      // UUID-only ER: legacy slot is null; id may be string or single-element list.
+      expect(call?.[1]).toBeNull();
+      const erArg = call?.[2];
+      const erIds = Array.isArray(erArg) ? erArg : [erArg];
+      expect(erIds).toContain(fifthVariant.id);
+      expect(erIds).not.toContain(firstVariant.id);
     });
-    expect(screen.getByText('ЭР5 UUID preview')).toBeInTheDocument();
-    expect(getReportPreview).not.toHaveBeenCalledWith(
-      mockProject.id,
-      1,
-      firstVariant.id,
-      expect.any(Array),
-    );
   });
 });

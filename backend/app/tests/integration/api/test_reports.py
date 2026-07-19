@@ -153,6 +153,65 @@ class TestReports:
         assert [item["legacy_variant_number"] for item in body] == [1, 4]
         assert response.json()["electrical_variant_id"] == body[1]["id"]
 
+
+    async def test_preview_multi_er_independent_chapters(
+        self, client: AsyncClient, employee_token: str
+    ):
+        """PDL-ER-39: multi-ЭР preview lists independent chapters without mixing."""
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        project = (
+            await client.post("/api/v1/projects", json={"name": "Multi Report"}, headers=headers)
+        ).json()
+        pid = project["id"]
+        await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.108,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": "mineral_wool_boards_120",
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -30,
+                    "process_temperature": 80,
+                    "pipe_length": 50,
+                },
+            },
+            headers=headers,
+        )
+        init = await client.post(
+            f"/api/v1/projects/{pid}/electrical-variants/initialize",
+            headers=headers,
+        )
+        assert init.status_code in (200, 201), init.text
+        er1 = init.json()["variant"]
+        created = await client.post(
+            f"/api/v1/projects/{pid}/electrical-variants",
+            json={"name": "ЭР2-report"},
+            headers={**headers, "Idempotency-Key": "report-multi-er-2"},
+        )
+        assert created.status_code in (200, 201), created.text
+        er2 = created.json()
+        if "variant" in er2:
+            er2 = er2["variant"]
+        resp = await client.get(
+            f"/api/v1/reports/{pid}/preview",
+            params=[
+                ("electrical_variant_ids", er1["id"]),
+                ("electrical_variant_ids", er2["id"]),
+                ("sections", "summary"),
+            ],
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body.get("chapters") is not None
+        assert len(body["chapters"]) == 2
+        names = {c.get("electrical_variant_name") for c in body["chapters"]}
+        assert er1["name"] in names
+        assert er2["name"] in names
+        assert "Глава:" in body["html"] or er1["name"] in body["html"]
+
     async def test_preview_returns_html(self, client: AsyncClient, guest_session: str):
         pid = await _project_with_object(client, guest_session)
         resp = await client.get(

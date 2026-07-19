@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Segmented, Skeleton, Space, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Select, Segmented, Skeleton, Space, Tag, Typography, message } from 'antd';
 import {
   FileTextOutlined,
   FilePdfOutlined,
@@ -44,12 +44,18 @@ export default function ReportPage() {
   const [sections, setSections] = useState<ReportSection[]>([...REPORT_SECTIONS]);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<'pdf' | 'docx' | 'xlsx' | null>(null);
+  const [reportErIds, setReportErIds] = useState<string[]>([]);
   const variantContext = useLegacyElectricalVariantContext(project?.id);
   const selectedElectricalVariant = variantContext.selectedVariant;
   const firstSupportedVariant = variantContext.variants[0] ?? null;
   const variant = variantContext.legacyVariantNumber ?? null;
   // Phase 5: report scopes by UUID; legacy slot is optional compatibility metadata.
   const reportDataPlaneEnabled = Boolean(project && selectedElectricalVariant);
+  useEffect(() => {
+    if (!selectedElectricalVariant?.id) return;
+    setReportErIds((prev) => (prev.length ? prev : [selectedElectricalVariant.id]));
+  }, [selectedElectricalVariant?.id]);
+
   const sectionsKey = useMemo(() => sections.join(','), [sections]);
   const debouncedSectionsKey = useDebouncedValue(sectionsKey, REPORT_PREVIEW_DEBOUNCE_MS);
   const previewSections = useMemo(
@@ -64,13 +70,14 @@ export default function ReportPage() {
       'report-preview',
       project?.id,
       selectedElectricalVariant?.id,
+      reportErIds.join(','),
       variant,
       debouncedSectionsKey,
     ],
     queryFn: () => getReportPreview(
       project!.id,
-      variant,
-      selectedElectricalVariant!.id,
+      reportErIds.length > 1 ? null : variant,
+      reportErIds.length ? reportErIds : selectedElectricalVariant!.id,
       previewSections,
     ),
     enabled: reportDataPlaneEnabled,
@@ -226,20 +233,36 @@ export default function ReportPage() {
 
         <div style={{ marginBottom: 12 }}>
           <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>
-            Вариант отчёта:
+            ЭР в отчёте (PDL-ER-39):
           </Text>
-          <div style={{ maxWidth: '100%', overflowX: 'auto', paddingBottom: 4 }}>
-            <Segmented<string>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            <Select
+              mode="multiple"
               size="small"
-              value={selectedElectricalVariant.id}
-              onChange={variantContext.selectVariant}
+              style={{ minWidth: 280, maxWidth: '100%' }}
+              placeholder="Выберите ЭР"
+              value={reportErIds}
               disabled={exportingFormat !== null}
+              onChange={(ids: string[]) => {
+                setReportErIds(ids);
+                if (ids[0]) variantContext.selectVariant(ids[0]);
+              }}
               options={variantContext.variants.map((item) => ({
                 label: item.name,
                 value: item.id,
-                disabled: false,
               }))}
+              aria-label="Выбор ЭР для отчёта"
             />
+            <Button
+              size="small"
+              disabled={exportingFormat !== null || variantContext.variants.length === 0}
+              onClick={() => {
+                const ids = variantContext.variants.map((item) => item.id);
+                setReportErIds(ids);
+              }}
+            >
+              Выбрать все
+            </Button>
           </div>
         </div>
 

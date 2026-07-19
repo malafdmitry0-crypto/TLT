@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { Button, Layout, Space } from 'antd';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Alert, Button, Layout, Space } from 'antd';
 import { DatabaseOutlined, FireFilled, LogoutOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
@@ -10,6 +10,9 @@ import { useAuthStore } from '@/store/authStore';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 
 const { Header, Content } = Layout;
+
+/** PDL-ER-30: interactive product flow is officially supported from 1280px. */
+const MIN_SUPPORTED_VIEWPORT_PX = 1280;
 
 interface Props {
   children?: ReactNode;
@@ -60,6 +63,17 @@ function WorkspaceHeaderContextRow() {
 }
 
 export default function MainLayout({ children }: Props) {
+  const [narrowViewport, setNarrowViewport] = useState(false);
+
+  useEffect(() => {
+    const update = () => {
+      setNarrowViewport(window.innerWidth < MIN_SUPPORTED_VIEWPORT_PX);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header className="heatcalc-header">
@@ -78,6 +92,16 @@ export default function MainLayout({ children }: Props) {
         </div>
         <WorkspaceHeaderContextRow />
       </Header>
+      {narrowViewport && (
+        <Alert
+          className="viewport-min-width-warning"
+          type="warning"
+          showIcon
+          banner
+          message="Рекомендуемая ширина окна — от 1280 px"
+          description="Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30). На меньшей ширине возможны ограничения раскладки; печать остаётся адаптивной."
+        />
+      )}
       <Layout className="heatcalc-main-layout">
         <Content className="heatcalc-content">
           <RouteErrorBoundary>{children ?? <Outlet />}</RouteErrorBoundary>
