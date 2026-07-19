@@ -21,6 +21,10 @@ from app.schemas.project import (
 )
 from app.services.audit_service import AuditService
 from app.services.calculation_service import CalculationService
+from app.services.electrical_variant_service import (
+    ElectricalVariantService,
+    ElectricalVariantServiceError,
+)
 from app.services.project_io_service import (
     ProjectImportError,
     export_project,
@@ -253,15 +257,40 @@ async def duplicate_project(
 
     calc_service = CalculationService(db)
     await calc_service.batch_recalculate(new_project.id)
-    await calc_service.batch_calc_electrical(new_project.id)
+    variant_service = ElectricalVariantService(db)
+    electrical_readiness = await variant_service.get_readiness(new_project.id, principal)
+    electrical_variant = None
+    if electrical_readiness.ready:
+        try:
+            electrical_variant = await variant_service.prepare_legacy_variant_for_write(
+                new_project.id,
+                principal,
+                1,
+            )
+        except ElectricalVariantServiceError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     project = await service.get_project_summary(new_project.id, principal)
     await AuditService(db).try_record(
         event_type="project.duplicated",
         category="project",
         principal=principal,
         project_id=project.id,
-        details={"source_project_id": str(project_id)},
-        message="Проект скопирован с пересчётом",
+        details={
+            "source_project_id": str(project_id),
+            "electrical_status": (
+                "initialized_unassigned"
+                if electrical_variant is not None
+                else "skipped_not_ready"
+            ),
+            "electrical_variant_id": (
+                str(electrical_variant.id) if electrical_variant is not None else None
+            ),
+            "legacy_variant_number": 1 if electrical_variant is not None else None,
+            "electrical_readiness_issue_codes": sorted(
+                {issue.code for issue in electrical_readiness.issues}
+            ),
+        },
+        message="Проект скопирован с теплорасчётом и неназначенным ЭР1",
     )
     return project
 

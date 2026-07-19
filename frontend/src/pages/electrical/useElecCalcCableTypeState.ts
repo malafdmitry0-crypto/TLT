@@ -17,7 +17,7 @@ type UseElecCalcCableTypeStateOptions = {
   calcByObjectId: Record<string, ElectricalCalcSummary | undefined>;
   selectedRowKeys: string[];
   projectId?: string;
-  variant: number;
+  variant: string | number;
 };
 
 export function useElecCalcCableTypeState({

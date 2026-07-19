@@ -5,16 +5,21 @@ import {
   REPORT_SECTION_LABELS,
   type ReportSection,
 } from '@/api/reports';
-import { CALCULATION_VARIANTS } from '@/store/calculationVariantStore';
-
 const { Text } = Typography;
+
+type ElectricalVariantOption = {
+  label: string;
+  value: string;
+  disabled?: boolean;
+};
 
 interface Props {
   open: boolean;
   initialSections: ReportSection[];
-  initialVariant: number;
+  initialVariantId: string;
+  variantOptions: ElectricalVariantOption[];
   onCancel: () => void;
-  onConfirm: (sections: ReportSection[], variantNumber: number) => void;
+  onConfirm: (sections: ReportSection[], electricalVariantId: string) => void;
 }
 
 /**
@@ -25,20 +30,21 @@ interface Props {
 export default function ReportWizard({
   open,
   initialSections,
-  initialVariant,
+  initialVariantId,
+  variantOptions,
   onCancel,
   onConfirm,
 }: Props) {
   const [selected, setSelected] = useState<ReportSection[]>(initialSections);
-  const [variant, setVariant] = useState(initialVariant);
+  const [variantId, setVariantId] = useState(initialVariantId);
 
   // Синхронизируем при повторном открытии
   useEffect(() => {
     if (open) {
       setSelected(initialSections);
-      setVariant(initialVariant);
+      setVariantId(initialVariantId);
     }
-  }, [open, initialSections, initialVariant]);
+  }, [open, initialSections, initialVariantId]);
 
   const toggleAll = () =>
     setSelected(selected.length === REPORT_SECTIONS.length ? [] : [...REPORT_SECTIONS]);
@@ -48,7 +54,7 @@ export default function ReportWizard({
       title="Мастер: состав отчёта"
       open={open}
       onCancel={onCancel}
-      onOk={() => onConfirm(selected, variant)}
+      onOk={() => onConfirm(selected, variantId)}
       okText="Применить"
       cancelText="Отмена"
       okButtonProps={{ disabled: selected.length === 0 }}
@@ -62,11 +68,11 @@ export default function ReportWizard({
         <Text type="secondary" style={{ fontSize: 12 }}>
           Вариант расчёта:
         </Text>
-        <Segmented<number>
+        <Segmented<string>
           size="small"
-          value={variant}
-          onChange={(v) => setVariant(Number(v))}
-          options={CALCULATION_VARIANTS.map((n) => ({ label: `СО${n}`, value: n }))}
+          value={variantId}
+          onChange={setVariantId}
+          options={variantOptions}
         />
         <Button size="small" type="link" onClick={toggleAll} style={{ padding: 0 }}>
           {selected.length === REPORT_SECTIONS.length ? 'Снять все' : 'Выбрать все'}

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   selectCableForVariants,
 } from '@/api/calculations';
+import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
 import {
   AUTO_CABLE_MARK_VALUE,
   cableMarkOptionValue,
@@ -14,13 +15,13 @@ import {
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
 import { useElecCalcCableSelectionMutationFlow } from '@/pages/electrical/useElecCalcCableSelectionMutationFlow';
-import type { CalculationVariant } from '@/store/calculationVariantStore';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
 
 vi.mock('antd', () => ({
   message: {
     success: vi.fn(),
+    warning: vi.fn(),
     error: vi.fn(),
   },
 }));
@@ -29,13 +30,21 @@ vi.mock('@/api/calculations', () => ({
   selectCableForVariants: vi.fn(),
 }));
 
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
+const ER_1_ID = '11111111-1111-4111-8111-111111111111';
+const ER_2_ID = '22222222-2222-4222-8222-222222222222';
+const ER_4_ID = '44444444-4444-4444-8444-444444444444';
+const ER_2_TARGET = {
+  id: ER_2_ID,
+  name: 'Летний ЭР',
+  legacyVariantNumber: 2 as const,
+};
+const ER_4_TARGET = {
+  id: ER_4_ID,
+  name: 'Пиковый ЭР',
+  legacyVariantNumber: 4 as const,
+};
+
+function createWrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
@@ -90,11 +99,20 @@ function option(
 function setup(
   overrides: Partial<Parameters<typeof useElecCalcCableSelectionMutationFlow>[0]> = {},
 ) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
   const closeCableMarkModal = vi.fn();
   const setElectricalQueryCalculation = vi.fn();
   const defaultOption = option('extended', '30ТТВ2-СР');
-  const options = {
+  const options: Parameters<typeof useElecCalcCableSelectionMutationFlow>[0] = {
     projectId: 'project-1',
+    electricalVariantId: ER_2_ID,
+    electricalVariantName: ER_2_TARGET.name,
+    canMutate: true,
     variant: 2 as const,
     effectiveSource: 'all' as const,
     recalc: {
@@ -113,7 +131,7 @@ function setup(
     cableMarkModalObject: projectObject(),
     cableMarkModalCableType: 'self_regulating_tt' as CableTypeKey,
     cableMarkModalValue: defaultOption[0],
-    cableMarkModalTargetVariantsForSubmit: [2, 4] as CalculationVariant[],
+    cableMarkModalTargetVariantsForSubmit: [ER_2_TARGET, ER_4_TARGET],
     cableMarkModalOptionByValue: new Map([defaultOption]),
     closeCableMarkModal,
     ...overrides,
@@ -121,8 +139,9 @@ function setup(
   return {
     closeCableMarkModal,
     setElectricalQueryCalculation,
+    queryClient,
     ...renderHook(() => useElecCalcCableSelectionMutationFlow(options), {
-      wrapper: createWrapper(),
+      wrapper: createWrapper(queryClient),
     }),
   };
 }
@@ -134,7 +153,19 @@ describe('useElecCalcCableSelectionMutationFlow', () => {
   });
 
   it('sends manual cable selection payload with target variants and selected source', async () => {
-    const { result, setElectricalQueryCalculation } = setup();
+    const { result, setElectricalQueryCalculation, queryClient } = setup();
+    queryClient.setQueryData(
+      electricalDataQueryKeys.variant('project-1', ER_1_ID),
+      { marker: 'unrelated' },
+    );
+    queryClient.setQueryData(
+      electricalDataQueryKeys.variant('project-1', ER_2_ID),
+      { marker: 'target-2' },
+    );
+    queryClient.setQueryData(
+      electricalDataQueryKeys.variant('project-1', ER_4_ID),
+      { marker: 'target-4' },
+    );
 
     await act(async () => {
       await result.current.manualCableMut.mutateAsync({
@@ -142,7 +173,7 @@ describe('useElecCalcCableSelectionMutationFlow', () => {
         mark: '30ТТВ2-СР',
         cableType: 'self_regulating_tt',
         cableSource: 'extended',
-        targetVariants: [2, 4],
+        targetVariants: [ER_2_TARGET, ER_4_TARGET],
       });
     });
 
@@ -164,11 +195,27 @@ describe('useElecCalcCableSelectionMutationFlow', () => {
         vaporTemperature: 140,
         aggressiveProduct: true,
       },
+      {
+        2: ER_2_ID,
+        4: ER_4_ID,
+      },
     );
     expect(setElectricalQueryCalculation).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'calc-1' }),
+      ER_2_TARGET,
     );
-    expect(message.success).toHaveBeenCalledWith('Кабель выбран, расчёт обновлён: СО2, СО4');
+    expect(queryClient.getQueryState(
+      electricalDataQueryKeys.variant('project-1', ER_2_ID),
+    )?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(
+      electricalDataQueryKeys.variant('project-1', ER_4_ID),
+    )?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(
+      electricalDataQueryKeys.variant('project-1', ER_1_ID),
+    )?.isInvalidated).toBe(false);
+    expect(message.success).toHaveBeenCalledWith(
+      'Кабель выбран, расчёт обновлён: Летний ЭР, Пиковый ЭР',
+    );
   });
 
   it('falls back auto selection to the active variant and effective source', async () => {
@@ -193,9 +240,11 @@ describe('useElecCalcCableSelectionMutationFlow', () => {
         selectionPolicy: 'technical_minimum',
         connectionType: 'line_1ph',
       }),
+      { 2: ER_2_ID },
     );
     expect(setElectricalQueryCalculation).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'calc-1' }),
+      ER_2_TARGET,
     );
     expect(message.success).toHaveBeenCalledWith('Автоподбор выполнен');
   });
@@ -229,9 +278,11 @@ describe('useElecCalcCableSelectionMutationFlow', () => {
         layingStep: 0.12,
         aggressiveProduct: true,
       }),
+      { 2: ER_2_ID },
     );
     expect(setElectricalQueryCalculation).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'calc-updated' }),
+      ER_2_TARGET,
     );
     expect(message.success).toHaveBeenCalledWith('Параметры укладки сохранены, расчёт обновлён');
   });
@@ -255,6 +306,10 @@ describe('useElecCalcCableSelectionMutationFlow', () => {
         [2, 4],
         'self_regulating_tt',
         expect.any(Object),
+        {
+          2: ER_2_ID,
+          4: ER_4_ID,
+        },
       );
       expect(closeCableMarkModal).toHaveBeenCalledTimes(1);
     });
@@ -275,5 +330,39 @@ describe('useElecCalcCableSelectionMutationFlow', () => {
       expect(message.error).toHaveBeenCalledWith('auto failed');
     });
     expect(closeCableMarkModal).not.toHaveBeenCalled();
+  });
+
+  it('rejects direct cable and layout mutations when the project is read-only', async () => {
+    const { result, closeCableMarkModal } = setup({ canMutate: false });
+    const denied = 'Недостаточно прав для изменения электрорасчёта';
+
+    await act(async () => {
+      await expect(result.current.manualCableMut.mutateAsync({
+        objectId: 'object-1',
+        mark: '30ТТВ2-СР',
+        cableType: 'self_regulating_tt',
+        cableSource: 'extended',
+        targetVariants: [ER_2_TARGET],
+      })).rejects.toThrow(denied);
+      await expect(result.current.autoCableMut.mutateAsync({
+        objectId: 'object-1',
+        cableType: 'self_regulating',
+        targetVariants: [ER_2_TARGET],
+      })).rejects.toThrow(denied);
+      await expect(result.current.electricalLayoutMut.mutateAsync({
+        objectId: 'object-1',
+        cableMark: null,
+        cableSource: 'builtin',
+        cableType: 'self_regulating',
+        windingPitchMm: 300,
+        numberOfThreads: 2,
+      })).rejects.toThrow(denied);
+    });
+
+    act(() => result.current.applyCableMarkModal());
+
+    expect(selectCableForVariants).not.toHaveBeenCalled();
+    expect(closeCableMarkModal).not.toHaveBeenCalled();
+    expect(message.warning).toHaveBeenCalledWith(expect.stringContaining(denied));
   });
 });

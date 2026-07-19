@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
@@ -360,6 +361,76 @@ async def test_electrical_query_search_uses_sql_page_not_python_project_fallback
     assert len(page_selects) == 1
     assert "LIMIT" in page_selects[0]
     assert "OFFSET" not in page_selects[0]
+
+
+async def test_electrical_query_assignment_projection_is_one_bounded_query(
+    db_session: AsyncSession,
+    employee_user: User,
+    test_engine: AsyncEngine,
+):
+    project, objects = await _seed_project(
+        db_session,
+        employee_user,
+        per_type=250,
+        with_electrical=True,
+    )
+    variants = [
+        ElectricalVariant(
+            project_id=project.id,
+            name=f"ER{index + 1} query count",
+            name_normalized=f"er{index + 1} query count",
+            sort_order=index,
+            is_active=index == 0,
+            legacy_variant_number=index + 1 if index < 4 else None,
+        )
+        for index in range(5)
+    ]
+    db_session.add_all(variants)
+    await db_session.flush()
+    db_session.add_all(
+        ElectricalVariantObject(
+            project_id=project.id,
+            electrical_variant_id=variant.id,
+            object_id=obj.id,
+            system_type=(
+                "self_regulating" if variant_index % 2 == 0 else "resistive"
+            ),
+            assignment_state="ready",
+            version=1,
+            object_version_snapshot=obj.version,
+        )
+        for variant_index, variant in enumerate(variants)
+        for obj in objects
+    )
+    await db_session.commit()
+
+    for variant_index, variant in enumerate(variants):
+        with count_sql(test_engine) as statements:
+            response = await ElectricalQueryService(db_session).query(
+                ElectricalQueryRequest(
+                    project_id=project.id,
+                    electrical_variant_id=variant.id,
+                    search={"text": "Pipe-1", "columns": ["object_name"]},
+                ),
+                _principal(employee_user),
+            )
+
+        assert len(response.assignments) == len(response.items)
+        assert {assignment.system_type for assignment in response.assignments} == {
+            "self_regulating" if variant_index % 2 == 0 else "resistive"
+        }
+        assignment_selects = [
+            statement
+            for statement in statements
+            if "FROM electrical_variant_objects" in statement
+        ]
+        assert len(assignment_selects) == 1
+        assert (
+            "electrical_variant_objects.electrical_variant_id"
+            in assignment_selects[0]
+        )
+        assert "electrical_variant_objects.object_id IN" in assignment_selects[0]
+        _assert_query_count(statements, 8)
 
 
 async def test_electrical_query_sorted_next_page_uses_keyset_without_offset(

@@ -1,7 +1,14 @@
 """Integration-тесты спецификации."""
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.electrical_variant import ElectricalVariant
+from app.models.specification import Specification
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -9,16 +16,14 @@ MINERAL_WOOL = "mineral_wool_boards_120"
 
 
 class TestSpecification:
-    async def _create_project_with_pipe(
-        self, client: AsyncClient, headers: dict[str, str]
-    ) -> tuple[dict, dict]:
-        project = (
-            await client.post(
-                "/api/v1/projects", json={"name": "Spec stale project"}, headers=headers
-            )
-        ).json()
+    async def _add_pipe(
+        self,
+        client: AsyncClient,
+        project_id: str,
+        headers: dict[str, str],
+    ) -> dict:
         obj_resp = await client.post(
-            f"/api/v1/projects/{project['id']}/objects",
+            f"/api/v1/projects/{project_id}/objects",
             json={
                 "object_type": "pipe",
                 "params": {
@@ -34,7 +39,17 @@ class TestSpecification:
             headers=headers,
         )
         assert obj_resp.status_code in (200, 201), obj_resp.text
-        return project, obj_resp.json()
+        return obj_resp.json()
+
+    async def _create_project_with_pipe(
+        self, client: AsyncClient, headers: dict[str, str]
+    ) -> tuple[dict, dict]:
+        project = (
+            await client.post(
+                "/api/v1/projects", json={"name": "Spec stale project"}, headers=headers
+            )
+        ).json()
+        return project, await self._add_pipe(client, project["id"], headers)
 
     async def _save_manual_spec(
         self, client: AsyncClient, project_id: str, headers: dict[str, str]
@@ -57,7 +72,13 @@ class TestSpecification:
         )
         assert resp.status_code == 200, resp.text
 
-    async def test_generate_empty_specification(self, client: AsyncClient, guest_session: str):
+    async def test_generate_objectless_specification_is_readiness_blocked_atomically(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+    ):
+        """PDL-ER-12: a downstream write cannot create the first ER before readiness."""
         p = (
             await client.get(
                 "/api/v1/projects",
@@ -68,8 +89,20 @@ class TestSpecification:
             f"/api/v1/specifications/{p['id']}/generate",
             headers={"X-Session-Id": guest_session},
         )
-        assert resp.status_code == 201
-        assert resp.json()["items"] == []
+        assert resp.status_code == 409, resp.text
+        assert resp.json()["detail"]["code"] == "ELECTRICAL_READINESS_FAILED"
+
+        project_id = UUID(p["id"])
+        variant_count = await db_session.scalar(
+            select(func.count(ElectricalVariant.id)).where(
+                ElectricalVariant.project_id == project_id
+            )
+        )
+        specification_count = await db_session.scalar(
+            select(func.count(Specification.id)).where(Specification.project_id == project_id)
+        )
+        assert variant_count == 0
+        assert specification_count == 0
 
     async def test_get_specification_after_generate(self, client: AsyncClient, guest_session: str):
         p = (
@@ -78,6 +111,11 @@ class TestSpecification:
                 headers={"X-Session-Id": guest_session},
             )
         ).json()[0]
+        await self._add_pipe(
+            client,
+            p["id"],
+            {"X-Session-Id": guest_session},
+        )
         await client.post(
             f"/api/v1/specifications/{p['id']}/generate",
             headers={"X-Session-Id": guest_session},
@@ -97,7 +135,8 @@ class TestSpecification:
         p = (
             await client.post("/api/v1/projects", json={"name": "Spec-MM"}, headers=headers)
         ).json()
-        # Сначала генерируем (пусто, объектов нет)
+        await self._add_pipe(client, p["id"], headers)
+        # Сначала генерируем базовую спецификацию готового проекта.
         await client.post(
             f"/api/v1/specifications/{p['id']}/generate",
             headers=headers,
@@ -162,6 +201,7 @@ class TestSpecification:
         p = (
             await client.post("/api/v1/projects", json={"name": "Spec-Mode"}, headers=headers)
         ).json()
+        await self._add_pipe(client, p["id"], headers)
         resp = await client.post(
             f"/api/v1/specifications/{p['id']}/generate",
             json={"mode": "full", "options": {"reserve_coefficient": 1.2}},
@@ -181,6 +221,7 @@ class TestSpecification:
         p = (
             await client.post("/api/v1/projects", json={"name": "Spec-Replace"}, headers=headers)
         ).json()
+        await self._add_pipe(client, p["id"], headers)
         # Первый save — 2 позиции
         await client.put(
             f"/api/v1/specifications/{p['id']}/items",

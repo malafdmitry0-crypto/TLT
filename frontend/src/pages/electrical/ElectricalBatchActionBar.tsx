@@ -1,18 +1,15 @@
 import { memo, type ReactNode } from 'react';
 import {
   Button,
-  Dropdown,
   Popconfirm,
   Select,
   Space,
   Tooltip,
   Typography,
-  type MenuProps,
   type SelectProps,
 } from 'antd';
 import {
   CloseCircleOutlined,
-  CopyOutlined,
   ReloadOutlined,
   StopOutlined,
   TableOutlined,
@@ -26,14 +23,12 @@ import {
 const { Text } = Typography;
 
 interface ElectricalBatchActionBarProps {
-  variant: number;
+  canMutate: boolean;
+  variantName: string;
   cableTypeControlLabel: string;
   cableTypeOptions: SelectProps<CableTypeKey>['options'];
   visibleCableTypeControl?: CableTypeKey | null;
   typeControls: ReactNode;
-  commercialFeaturesAvailable: boolean;
-  copyVariantMenuItems: MenuProps['items'];
-  copyVariantPending: boolean;
   isJobActive: boolean;
   selectedManualCableCount: number;
   selectedValidObjectsCount: number;
@@ -50,8 +45,6 @@ interface ElectricalBatchActionBarProps {
   cancelJobPending: boolean;
   currentTableViewActive: boolean;
   renderManualOverwriteControl: (manualCount: number) => ReactNode;
-  onVariantChange: (variant: number) => void;
-  onCopyVariant: (targetVariant: number) => void;
   onCableTypeChange: (nextType: CableTypeKey) => void;
   onManualOverwritePromptOpen: () => void;
   onRecalculateSelected: (skipManual: boolean) => void;
@@ -62,13 +55,12 @@ interface ElectricalBatchActionBarProps {
 }
 
 function ElectricalBatchActionBar({
-  variant,
+  canMutate,
+  variantName,
   cableTypeControlLabel,
   cableTypeOptions,
   visibleCableTypeControl,
   typeControls,
-  copyVariantMenuItems,
-  copyVariantPending,
   isJobActive,
   selectedManualCableCount,
   selectedValidObjectsCount,
@@ -85,8 +77,6 @@ function ElectricalBatchActionBar({
   cancelJobPending,
   currentTableViewActive,
   renderManualOverwriteControl,
-  onVariantChange,
-  onCopyVariant,
   onCableTypeChange,
   onManualOverwritePromptOpen,
   onRecalculateSelected,
@@ -102,34 +92,6 @@ function ElectricalBatchActionBar({
   return (
     <div className="actionbar-srs electrical-actionbar">
       <div className="electrical-actionbar-row electrical-actionbar-row--setup">
-        {[1, 2, 3, 4].map((n) => (
-          <Button
-            key={n}
-            size="small"
-            type={variant === n ? 'primary' : 'default'}
-            onClick={() => onVariantChange(n)}
-          >
-            СО{n}
-          </Button>
-        ))}
-        <Dropdown
-          trigger={['click']}
-          disabled={copyVariantPending || isJobActive}
-          menu={{
-            items: copyVariantMenuItems,
-            onClick: ({ key }) => onCopyVariant(Number(key)),
-          }}
-        >
-          <Button
-            size="small"
-            icon={<CopyOutlined />}
-            loading={copyVariantPending}
-            disabled={copyVariantPending || isJobActive}
-          >
-            Создать на основании
-          </Button>
-        </Dropdown>
-        <span className="sep" />
         <Text style={{ fontSize: 11, color: '#607080', alignSelf: 'center' }}>
           {cableTypeControlLabel}
         </Text>
@@ -138,7 +100,7 @@ function ElectricalBatchActionBar({
           size="small"
           value={visibleCableTypeControl ?? undefined}
           placeholder="Несколько типов"
-          disabled={isJobActive}
+          disabled={!canMutate || isJobActive}
           onChange={onCableTypeChange}
           options={cableTypeOptions}
           style={{ width: 210 }}
@@ -167,16 +129,16 @@ function ElectricalBatchActionBar({
             cancelText="Отмена"
             onOpenChange={resetManualOverwriteWhenOpen}
             onConfirm={() => onRecalculateSelected(!overwriteManualChoices)}
-            disabled={selectedRecalcDisabled}
+            disabled={!canMutate || selectedRecalcDisabled}
           >
-            <Tooltip title={selectedRecalcTooltip}>
+            <Tooltip title={canMutate ? selectedRecalcTooltip : 'Только владелец проекта или администратор может пересчитывать ЭР'}>
               <span>
                 <Button
                   size="small"
                   type="primary"
                   icon={<ReloadOutlined />}
                   loading={batchPending || isJobActive}
-                  disabled={selectedRecalcDisabled}
+                  disabled={!canMutate || selectedRecalcDisabled}
                 >
                   Пересчитать выбранные ({selectedRecalcCountLabel})
                 </Button>
@@ -184,14 +146,14 @@ function ElectricalBatchActionBar({
             </Tooltip>
           </Popconfirm>
         ) : (
-          <Tooltip title={selectedRecalcTooltip}>
+          <Tooltip title={canMutate ? selectedRecalcTooltip : 'Только владелец проекта или администратор может пересчитывать ЭР'}>
             <span>
               <Button
                 size="small"
                 type="primary"
                 icon={<ReloadOutlined />}
                 loading={batchPending || isJobActive}
-                disabled={selectedRecalcDisabled}
+                disabled={!canMutate || selectedRecalcDisabled}
                 onClick={() => onRecalculateSelected(true)}
               >
                 Пересчитать выбранные ({selectedRecalcCountLabel})
@@ -200,15 +162,16 @@ function ElectricalBatchActionBar({
           </Tooltip>
         )}
         <Popconfirm
-          title={`Пересчитать все объекты СО${variant}?`}
+          title={`Пересчитать все объекты «${variantName}»?`}
           description={(
             <Space direction="vertical" size={8}>
               <Text>
                 {manualCableCount > 0
-                  ? `Строки без ручной марки в СО${variant} будут пересчитаны с типом `
-                  : `Все объекты СО${variant} будут пересчитаны с типом `}
-                «{CABLE_TYPE_LABEL[cableTypeForRecalculation]}». Тип кабеля у пересчитываемых
-                строк будет заменён.
+                  ? `Назначенные строки без ручной марки в «${variantName}» будут пересчитаны с типом `
+                  : `Назначенные объекты в «${variantName}» будут пересчитаны с типом `}
+                «{CABLE_TYPE_LABEL[cableTypeForRecalculation]}». Backend ограничит операцию
+                точным UUID ЭР и совместимой системой; нераспределённые и другие системы
+                останутся без изменений.
               </Text>
               {renderManualOverwriteControl(manualCableCount)}
             </Space>
@@ -218,16 +181,16 @@ function ElectricalBatchActionBar({
           cancelText="Отмена"
           onOpenChange={resetManualOverwriteWhenOpen}
           onConfirm={() => onRecalculateAll(!overwriteManualChoices)}
-          disabled={validObjectsCount === 0 || isJobActive}
+          disabled={!canMutate || validObjectsCount === 0 || isJobActive}
         >
           <Button
             size="small"
             danger
             icon={<ReloadOutlined />}
             loading={batchPending || isJobActive}
-            disabled={validObjectsCount === 0 || isJobActive}
+            disabled={!canMutate || validObjectsCount === 0 || isJobActive}
           >
-            Пересчитать все СО{variant}
+            Пересчитать все · {variantName}
           </Button>
         </Popconfirm>
         {isJobActive && activeJobId && (
@@ -236,6 +199,7 @@ function ElectricalBatchActionBar({
             danger
             icon={<StopOutlined />}
             loading={cancelJobPending}
+            disabled={!canMutate}
             onClick={onCancelJob}
           >
             Отменить

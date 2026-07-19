@@ -67,6 +67,7 @@ function setup(
     onToggleCandidateFolderItem,
     ...renderHook(() => useElecCalcCandidateGlideActions({
       candidateFolders: [folder()],
+      canMutate: true,
       applyCandidatePending: false,
       updateCandidatePending: false,
       toggleCandidateFolderItemPending: false,
@@ -192,5 +193,40 @@ describe('useElecCalcCandidateGlideActions', () => {
       label: 'Создайте папку',
       disabled: true,
     });
+  });
+
+  it('disables and guards every candidate write in read-only mode', () => {
+    const {
+      result,
+      onApplyCandidate,
+      onUpdateCandidate,
+      onToggleCandidateFolderItem,
+    } = setup({ canMutate: false });
+    const row = candidate();
+
+    expect(result.current.getElectricalCandidateGlideCellActions(row, 'actions')).toEqual([
+      { key: 'apply', label: 'Выбрать', disabled: true },
+      { key: 'folder', label: 'Папка', disabled: true },
+      { key: 'exclude', label: 'Искл.', disabled: true },
+    ]);
+
+    result.current.handleElectricalCandidateGlideCellAction(row, 'actions', 'apply');
+    result.current.handleElectricalCandidateGlideCellAction(row, 'actions', 'exclude');
+
+    const items = result.current.getElectricalCandidateGlideActionMenuItems(
+      row,
+      'actions',
+      'folder',
+    );
+    const favorite = menuItem(items, 'favorite');
+    const customFolder = menuItem(items, 'folder-1');
+    expect(favorite).toMatchObject({ disabled: true });
+    expect(customFolder).toMatchObject({ disabled: true });
+    if ('onClick' in favorite) favorite.onClick?.({} as Parameters<NonNullable<typeof favorite.onClick>>[0]);
+    if ('onClick' in customFolder) customFolder.onClick?.({} as Parameters<NonNullable<typeof customFolder.onClick>>[0]);
+
+    expect(onApplyCandidate).not.toHaveBeenCalled();
+    expect(onUpdateCandidate).not.toHaveBeenCalled();
+    expect(onToggleCandidateFolderItem).not.toHaveBeenCalled();
   });
 });

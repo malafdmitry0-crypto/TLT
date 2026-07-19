@@ -6,6 +6,10 @@ import type {
   ProjectObject,
   ProjectObjectsPageInfo,
 } from './project';
+import type {
+  ElectricalAssignmentState,
+  ElectricalSystemType,
+} from './electricalVariant';
 
 export type InsulationTemperatureBasis =
   | 'indoor'
@@ -158,6 +162,7 @@ export interface ElectricalRequest {
     | 'mineral'
     | 'skin';
   variant_number?: number;
+  electrical_variant_id?: string;
   data: Record<string, unknown>;
 }
 
@@ -203,6 +208,7 @@ export interface ElectricalCandidate {
   project_id: string;
   object_id: string;
   variant_number: number;
+  electrical_variant_id?: string | null;
   cable_type: string;
   cable_source: string;
   cable_mark: string | null;
@@ -230,6 +236,7 @@ export interface ElectricalCandidateCreateRequest {
   project_id: string;
   object_id: string;
   variant_number: number;
+  electrical_variant_id?: string;
   cable_type: ElectricalRequest['cable_type'];
   cable_source?: 'builtin' | 'commercial' | 'extended' | 'all';
   mode: ElectricalCandidateMode;
@@ -252,6 +259,7 @@ export interface ElectricalCandidateFolder {
   project_id: string;
   object_id: string;
   variant_number: number;
+  electrical_variant_id?: string | null;
   name: string;
   color?: string | null;
   sort_order: number;
@@ -264,6 +272,7 @@ export interface ElectricalCandidateFolderCreateRequest {
   project_id: string;
   object_id: string;
   variant_number: number;
+  electrical_variant_id?: string;
   name: string;
   color?: string | null;
 }
@@ -297,6 +306,7 @@ export interface ElectricalPageResponse {
 export interface ElectricalQueryRequest {
   project_id: string;
   variant_number?: number;
+  electrical_variant_id?: string;
   cable_source?: 'builtin' | 'commercial' | 'extended' | 'all';
   page?: number;
   page_size?: number;
@@ -315,7 +325,16 @@ export interface ElectricalQueryCounts {
   filtered: number;
 }
 
+export interface ElectricalQueryAssignment {
+  object_id: string;
+  // Optional only for defensive compatibility; the current API returns explicit null.
+  system_type?: ElectricalSystemType | null;
+  assignment_state: ElectricalAssignmentState;
+  version: number;
+}
+
 export interface ElectricalQueryResponse extends ElectricalPageResponse {
+  assignments?: ElectricalQueryAssignment[];
   counts: ElectricalQueryCounts;
   query: {
     variant_number: number;
@@ -385,6 +404,7 @@ export interface CalculationTaskResponse {
   type: string;
   status: CalculationTaskStatus;
   project_id: string | null;
+  electrical_variant_id?: string | null;
   progress: CalculationTaskProgress;
   result: BatchElectricalResponse | BatchHeatLossResponse | ReportExportTaskResult | null;
   error_message: string | null;

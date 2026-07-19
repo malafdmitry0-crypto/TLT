@@ -42,11 +42,16 @@ from app.services.audit_service import AuditService
 from app.services.calculation_service import (
     CalculationError,
     CalculationService,
+    ElectricalCandidateApplyError,
     ElectricalVariantCopyError,
 )
 from app.services.electrical_query_service import (
     ElectricalQueryService,
     ElectricalQueryValidationError,
+)
+from app.services.electrical_variant_service import (
+    ElectricalVariantService,
+    ElectricalVariantServiceError,
 )
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 
@@ -143,7 +148,18 @@ async def calc_electrical(
     service = CalculationService(db)
     try:
         obj = await ProjectService(db).get_object_for_write(request.object_id, principal)
-        calc = await service.calc_electrical(request)
+        variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
+            obj.project_id,
+            principal,
+            request.variant_number,
+            expected_electrical_variant_id=request.electrical_variant_id,
+        )
+        calc = await service.calc_electrical(
+            request,
+            electrical_variant_id=variant.id,
+        )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except (ValueError, ValidationError) as exc:
@@ -165,6 +181,7 @@ async def calc_electrical(
             "cable_type": calc.cable_type,
             "cable_mark": calc.cable_mark,
             "variant_number": calc.variant_number,
+            "electrical_variant_id": str(variant.id),
             "result_category": (calc.results or {}).get("category"),
             "error_code": (calc.results or {}).get("error_code"),
         },
@@ -268,15 +285,25 @@ async def electrical_page(
 async def electrical_query_capabilities(
     project_id: UUID,
     variant_number: int = 1,
+    electrical_variant_id: UUID | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
     try:
+        if electrical_variant_id is not None:
+            await ElectricalVariantService(db).validate_legacy_variant_for_read(
+                project_id,
+                principal,
+                variant_number,
+                electrical_variant_id,
+            )
         return await ElectricalQueryService(db).capabilities(
             project_id,
             variant_number,
             principal,
         )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except ElectricalQueryValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -291,7 +318,6 @@ async def electrical_query_capabilities(
 @router.post(
     "/electrical/query",
     response_model=ElectricalQueryResponse,
-    response_model_exclude_none=True,
     summary="Постраничный backend-query таблицы электрорасчёта",
 )
 async def query_electrical(
@@ -304,7 +330,16 @@ async def query_electrical(
             status_code=403, detail="Расширенный каталог доступен только сотрудникам"
         )
     try:
+        if data.electrical_variant_id is not None:
+            await ElectricalVariantService(db).validate_legacy_variant_for_read(
+                data.project_id,
+                principal,
+                data.variant_number,
+                data.electrical_variant_id,
+            )
         return await ElectricalQueryService(db).query(data, principal)
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except ElectricalQueryValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -326,15 +361,34 @@ async def copy_electrical_variant(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
+    if data.regenerate_specification:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "ELECTRICAL_VARIANT_SPECIFICATION_COPY_FORBIDDEN",
+                "message": (
+                    "Спецификация не копируется и не регенерируется вместе с ЭР. "
+                    "Сформируйте её отдельно после проверки расчётов."
+                ),
+            },
+        )
     try:
-        await ProjectService(db).get_project_for_write(data.project_id, principal)
+        variants = await ElectricalVariantService(db).prepare_legacy_variants_for_write(
+            data.project_id,
+            principal,
+            [data.source_variant_number, data.target_variant_number],
+        )
         result = await CalculationService(db).copy_electrical_variant(
             data.project_id,
             source_variant_number=data.source_variant_number,
             target_variant_number=data.target_variant_number,
+            source_electrical_variant_id=variants[data.source_variant_number].id,
+            target_electrical_variant_id=variants[data.target_variant_number].id,
             overwrite=data.overwrite,
             regenerate_specification=data.regenerate_specification,
         )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except ElectricalVariantCopyError as exc:
@@ -355,6 +409,8 @@ async def copy_electrical_variant(
         details={
             "source_variant_number": result.source_variant_number,
             "target_variant_number": result.target_variant_number,
+            "source_electrical_variant_id": str(variants[result.source_variant_number].id),
+            "target_electrical_variant_id": str(variants[result.target_variant_number].id),
             "copied_count": result.copied_count,
             "project_objects_count": result.project_objects_count,
             "not_copied_uncalculated_count": result.not_copied_uncalculated_count,
@@ -392,18 +448,34 @@ async def list_electrical_candidates(
     project_id: UUID,
     object_id: UUID | None = None,
     variant_number: int | None = Query(default=None, ge=1, le=4),
+    electrical_variant_id: UUID | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
+        if electrical_variant_id is not None:
+            if variant_number is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="variant_number is required with electrical_variant_id",
+                )
+            await ElectricalVariantService(db).validate_legacy_variant_for_read(
+                project_id,
+                principal,
+                variant_number,
+                electrical_variant_id,
+            )
+        return await CalculationService(db).list_electrical_candidates(
+            project_id,
+            object_id=object_id,
+            variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
+        )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
-    return await CalculationService(db).list_electrical_candidates(
-        project_id,
-        object_id=object_id,
-        variant_number=variant_number,
-    )
 
 
 @router.post(
@@ -425,16 +497,25 @@ async def create_electrical_candidate(
         obj = await ProjectService(db).get_object_for_write(data.object_id, principal)
         if obj.project_id != data.project_id:
             raise HTTPException(status_code=404, detail="Объект не найден в проекте")
+        variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
+            data.project_id,
+            principal,
+            data.variant_number,
+            expected_electrical_variant_id=data.electrical_variant_id,
+        )
         candidate, action = await service.create_electrical_candidate(
             project_id=data.project_id,
             object_id=data.object_id,
             variant_number=data.variant_number,
+            electrical_variant_id=variant.id,
             cable_type=data.cable_type,
             cable_source=data.cable_source,
             mode=data.mode,
             cable_mark=data.cable_mark,
             electrical_params=data.electrical_params,
         )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except (ValueError, ValidationError) as exc:
@@ -459,6 +540,7 @@ async def create_electrical_candidate(
             "action": action,
             "dedupe_key": candidate.dedupe_key,
             "variant_number": candidate.variant_number,
+            "electrical_variant_id": str(variant.id),
             "cable_type": candidate.cable_type,
             "cable_mark": candidate.cable_mark,
             "mode": candidate.mode,
@@ -508,18 +590,29 @@ async def list_electrical_candidate_folders(
     project_id: UUID,
     object_id: UUID,
     variant_number: int = Query(default=1, ge=1, le=4),
+    electrical_variant_id: UUID | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
+        if electrical_variant_id is not None:
+            await ElectricalVariantService(db).validate_legacy_variant_for_read(
+                project_id,
+                principal,
+                variant_number,
+                electrical_variant_id,
+            )
+        return await CalculationService(db).list_electrical_candidate_folders(
+            project_id,
+            object_id=object_id,
+            variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
+        )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
-    return await CalculationService(db).list_electrical_candidate_folders(
-        project_id,
-        object_id=object_id,
-        variant_number=variant_number,
-    )
 
 
 @router.post(
@@ -536,15 +629,24 @@ async def create_electrical_candidate_folder(
         obj = await ProjectService(db).get_object_for_write(data.object_id, principal)
         if obj.project_id != data.project_id:
             raise HTTPException(status_code=404, detail="Объект не найден в проекте")
+        variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
+            data.project_id,
+            principal,
+            data.variant_number,
+            expected_electrical_variant_id=data.electrical_variant_id,
+        )
         return await CalculationService(db).create_electrical_candidate_folder(
             project_id=data.project_id,
             object_id=data.object_id,
             variant_number=data.variant_number,
+            electrical_variant_id=variant.id,
             name=data.name,
             color=data.color,
             created_by_user_id=principal.user_id,
             created_by_session_id=principal.session_id,
         )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except CalculationError as exc:
@@ -616,6 +718,8 @@ async def add_electrical_candidate_folder_item(
             folder_id=folder_id,
             candidate_id=data.candidate_id,
         )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except CalculationError as exc:
@@ -661,9 +765,16 @@ async def apply_electrical_candidate(
     try:
         candidate = await service.get_electrical_candidate(candidate_id)
         await ProjectService(db).get_project_for_write(candidate.project_id, principal)
-        applied_candidate, calc = await service.apply_electrical_candidate(candidate_id)
+        applied_candidate, calc = await service.apply_electrical_candidate(
+            candidate_id,
+            project_id=candidate.project_id,
+        )
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+    except ElectricalCandidateApplyError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except CalculationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     summary = (await service.electrical_calc_summaries([calc], applied_candidate.cable_source))[0]
@@ -701,6 +812,8 @@ async def unapply_electrical_candidate(
         unapplied_candidate = await service.unapply_electrical_candidate(candidate_id)
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except CalculationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -731,6 +844,7 @@ async def select_cable(
     cable_mark: str,
     cable_source: str = "builtin",
     variant_number: int = 1,
+    electrical_variant_id: UUID | None = None,
     cable_type: str = "self_regulating",
     supply_voltage: float | None = None,
     connection_type: str | None = None,
@@ -759,6 +873,12 @@ async def select_cable(
     service = CalculationService(db)
     try:
         obj = await ProjectService(db).get_object_for_write(object_id, principal)
+        variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
+            obj.project_id,
+            principal,
+            variant_number,
+            expected_electrical_variant_id=electrical_variant_id,
+        )
         calc = await service.select_cable_manual(
             object_id,
             cable_mark,
@@ -778,7 +898,10 @@ async def select_cable(
                 "aggressive_product": aggressive_product,
                 "selection_policy": selection_policy,
             },
+            electrical_variant_id=variant.id,
         )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except (ValueError, ValidationError) as exc:
@@ -797,6 +920,7 @@ async def select_cable(
             "cable_source": cable_source,
             "cable_type": calc.cable_type,
             "variant_number": variant_number,
+            "electrical_variant_id": str(variant.id),
             "result_category": (calc.results or {}).get("category"),
             "error_code": (calc.results or {}).get("error_code"),
         },
@@ -827,6 +951,12 @@ async def select_cable_variants(
     service = CalculationService(db)
     try:
         obj = await ProjectService(db).get_object_for_write(data.object_id, principal)
+        variants = await ElectricalVariantService(db).prepare_legacy_variants_for_write(
+            obj.project_id,
+            principal,
+            data.variant_numbers,
+            expected_electrical_variant_ids=data.electrical_variant_ids or None,
+        )
         calcs = await service.select_cable_for_variants(
             data.object_id,
             data.cable_mark,
@@ -834,7 +964,10 @@ async def select_cable_variants(
             data.variant_numbers,
             data.cable_type,
             data.electrical_params(),
+            electrical_variant_ids={number: variants[number].id for number in data.variant_numbers},
         )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except (ValueError, ValidationError) as exc:
@@ -853,6 +986,9 @@ async def select_cable_variants(
             "cable_source": data.cable_source,
             "cable_type": data.cable_type,
             "variant_numbers": data.variant_numbers,
+            "electrical_variant_ids": {
+                str(number): str(variants[number].id) for number in data.variant_numbers
+            },
             "atomic": True,
             "result_categories": [(calc.results or {}).get("category") for calc in calcs],
             "error_codes": [(calc.results or {}).get("error_code") for calc in calcs],
@@ -865,7 +1001,7 @@ async def select_cable_variants(
 @router.post(
     "/electrical/batch",
     response_model=BatchElectricalResponse,
-    summary="Пакетный автоподбор кабеля для всех объектов проекта",
+    summary="Пакетный автоподбор для назначенных объектов выбранного ЭР и системы",
 )
 async def batch_calc_electrical(
     project_id: UUID,
@@ -893,8 +1029,10 @@ async def batch_calc_electrical(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
-    """Автоматически подбирает кабель для каждого валидного объекта проекта.
-    Использует результаты теплопотерь и выбранный `cable_type`.
+    """Подбирает кабель только в exact UUID scope выбранного ЭР.
+
+    Без `object_ids` обрабатывает объекты, явно назначенные в совместимую
+    электрическую систему этого ЭР. Явный список валидируется атомарно.
     """
     await enforce_principal_rate_limit(
         batch_limiter,
@@ -909,7 +1047,11 @@ async def batch_calc_electrical(
     selected_object_ids = object_ids or object_ids_brackets
     service = CalculationService(db)
     try:
-        await ProjectService(db).get_project_for_write(project_id, principal)
+        variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
+            project_id,
+            principal,
+            variant_number,
+        )
         calculated, skipped, heat_loss_failed, errors, calcs = await service.batch_calc_electrical(
             project_id,
             cable_source,
@@ -932,7 +1074,10 @@ async def batch_calc_electrical(
             return_calcs=include_results,
             object_ids=selected_object_ids,
             force_cable_type=force_cable_type,
+            electrical_variant_id=variant.id,
         )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except CalculationError as exc:
@@ -962,6 +1107,7 @@ async def batch_calc_electrical(
             "scope": "selected" if selected_object_ids else "all",
             "skip_manual": skip_manual,
             "force_cable_type": force_cable_type,
+            "electrical_variant_id": str(variant.id),
         },
         message="Выполнен пакетный автоподбор кабеля",
     )

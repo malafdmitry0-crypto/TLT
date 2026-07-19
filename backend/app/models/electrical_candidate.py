@@ -3,7 +3,17 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+    Text,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,6 +26,25 @@ class ElectricalCandidate(Base, TimestampMixin):
         CheckConstraint(
             "variant_number >= 1 AND variant_number <= 4",
             name="ck_electrical_candidates_variant_number",
+        ),
+        ForeignKeyConstraint(
+            ["electrical_variant_id", "project_id", "variant_number"],
+            [
+                "electrical_variants.id",
+                "electrical_variants.project_id",
+                "electrical_variants.legacy_variant_number",
+            ],
+            name="fk_electrical_candidates_variant_project_legacy",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["electrical_variant_id", "object_id"],
+            [
+                "electrical_variant_objects.electrical_variant_id",
+                "electrical_variant_objects.object_id",
+            ],
+            name="fk_electrical_candidates_variant_object_assignment",
+            ondelete="CASCADE",
         ),
         CheckConstraint(
             "mode IN ('auto', 'manual')",
@@ -45,6 +74,27 @@ class ElectricalCandidate(Base, TimestampMixin):
             "dedupe_key",
             unique=True,
         ),
+        Index(
+            "ix_electrical_candidates_project_object_electrical_variant",
+            "project_id",
+            "object_id",
+            "electrical_variant_id",
+        ),
+        Index(
+            "ux_electrical_candidates_applied_object_electrical_variant",
+            "object_id",
+            "electrical_variant_id",
+            unique=True,
+            postgresql_where=text("is_applied AND electrical_variant_id IS NOT NULL"),
+        ),
+        Index(
+            "ux_electrical_candidates_object_electrical_variant_dedupe",
+            "object_id",
+            "electrical_variant_id",
+            "dedupe_key",
+            unique=True,
+            postgresql_where=text("electrical_variant_id IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -59,6 +109,10 @@ class ElectricalCandidate(Base, TimestampMixin):
         nullable=False,
     )
     variant_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    electrical_variant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+    )
     cable_type: Mapped[str] = mapped_column(String(64), nullable=False)
     cable_source: Mapped[str] = mapped_column(String(32), default="builtin", nullable=False)
     cable_mark: Mapped[str | None] = mapped_column(String(128), nullable=True)

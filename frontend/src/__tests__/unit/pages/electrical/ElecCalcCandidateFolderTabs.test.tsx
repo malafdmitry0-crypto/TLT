@@ -20,8 +20,11 @@ function folder(overrides: Partial<ElectricalCandidateFolder> = {}): ElectricalC
   } as ElectricalCandidateFolder;
 }
 
-function setup() {
-  const props = {
+function setup(
+  overrides: Partial<Parameters<typeof ElecCalcCandidateFolderTabs>[0]> = {},
+) {
+  const props: Parameters<typeof ElecCalcCandidateFolderTabs>[0] = {
+    canMutate: true,
     activeKey: 'all' as const,
     counts: {
       all: 4,
@@ -35,6 +38,7 @@ function setup() {
     onCreateFolder: vi.fn(),
     onRenameFolder: vi.fn(),
     onDeleteFolder: vi.fn(),
+    ...overrides,
   };
   return {
     props,
@@ -76,5 +80,23 @@ describe('ElecCalcCandidateFolderTabs', () => {
     await user.click(screen.getByRole('button', { name: 'Действия с папкой Проектные' }));
     await user.click(await screen.findByText('Удалить'));
     expect(props.onDeleteFolder).toHaveBeenCalledWith(props.folders[0]);
+  });
+
+  it('keeps folder browsing but disables folder writes in read-only mode', async () => {
+    const { props, user } = setup({ canMutate: false });
+
+    await user.click(screen.getByRole('button', { name: /Проектные 3/ }));
+    expect(props.onSelectFolder).toHaveBeenCalledWith('custom:folder-1');
+
+    const actions = screen.getByRole('button', { name: 'Действия с папкой Проектные' });
+    const create = screen.getByRole('button', { name: /Папка/ });
+    expect(actions).toBeDisabled();
+    expect(create).toBeDisabled();
+
+    await user.click(actions);
+    await user.click(create);
+    expect(props.onCreateFolder).not.toHaveBeenCalled();
+    expect(props.onRenameFolder).not.toHaveBeenCalled();
+    expect(props.onDeleteFolder).not.toHaveBeenCalled();
   });
 });

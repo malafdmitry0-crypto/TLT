@@ -11,6 +11,10 @@ from app.formulas.heat_loss.insulation import (
     validate_insulation_temperature_basis_for_placement,
 )
 from app.reference_data.loader import get_insulation_temperature_range
+from app.schemas.electrical_variant import (
+    ElectricalAssignmentState,
+    ElectricalSystemType,
+)
 from app.schemas.project import (
     ObjectQueryDefaultSort,
     ObjectQueryFieldCapability,
@@ -948,6 +952,7 @@ class ElectricalRequest(BaseModel):
     cable_type: ElectricalCableType
     data: dict[str, Any]
     variant_number: int = 1
+    electrical_variant_id: UUID | None = None
 
 
 class ElectricalResponse(BaseModel):
@@ -979,6 +984,7 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
     cable_mark: str | None = None
     cable_source: ElectricalCableSource = "builtin"
     variant_numbers: list[int] = Field(default_factory=lambda: [1], min_length=1, max_length=4)
+    electrical_variant_ids: dict[int, UUID] = Field(default_factory=dict)
     cable_type: ElectricalCableType = "self_regulating"
     selection_mode: Literal["auto", "manual"] | None = None
     supply_voltage: float | None = None
@@ -1002,6 +1008,12 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
         if not normalized_variants:
             raise ValueError("Нужно выбрать хотя бы одно СО")
         self.variant_numbers = normalized_variants
+        if self.electrical_variant_ids and set(self.electrical_variant_ids) != set(
+            normalized_variants
+        ):
+            raise ValueError(
+                "electrical_variant_ids должны точно соответствовать variant_numbers"
+            )
         if isinstance(self.cable_mark, str):
             mark = self.cable_mark.strip()
             self.cable_mark = mark or None
@@ -1034,6 +1046,7 @@ class ElectricalCandidateCreateRequest(BaseModel):
     project_id: UUID
     object_id: UUID
     variant_number: int = Field(default=1, ge=1, le=4)
+    electrical_variant_id: UUID | None = None
     cable_type: ElectricalCableType = "self_regulating"
     cable_source: ElectricalCableSource = "builtin"
     mode: ElectricalCandidateMode = "auto"
@@ -1068,6 +1081,7 @@ class ElectricalCandidateResponse(BaseModel):
     project_id: UUID
     object_id: UUID
     variant_number: int
+    electrical_variant_id: UUID | None = None
     cable_type: str
     cable_source: str
     cable_mark: str | None
@@ -1111,6 +1125,7 @@ class ElectricalCandidateFolderCreateRequest(BaseModel):
     project_id: UUID
     object_id: UUID
     variant_number: int = Field(default=1, ge=1, le=4)
+    electrical_variant_id: UUID | None = None
     name: str = Field(min_length=1, max_length=64)
     color: str | None = Field(default=None, max_length=32)
 
@@ -1132,6 +1147,7 @@ class ElectricalCandidateFolderResponse(BaseModel):
     project_id: UUID
     object_id: UUID
     variant_number: int
+    electrical_variant_id: UUID | None = None
     name: str
     color: str | None = None
     sort_order: int
@@ -1175,6 +1191,7 @@ class ElectricalQueryRequest(BaseModel):
 
     project_id: UUID
     variant_number: int = 1
+    electrical_variant_id: UUID | None = None
     cable_source: ElectricalCableSource = "builtin"
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=50, ge=1, le=200)
@@ -1202,11 +1219,21 @@ class ElectricalQueryEcho(BaseModel):
     sort: ObjectQuerySort | None = None
 
 
+class ElectricalQueryAssignment(BaseModel):
+    """Assignment snapshot for one object on the current electrical page."""
+
+    object_id: UUID
+    system_type: ElectricalSystemType | None
+    assignment_state: ElectricalAssignmentState
+    version: int = Field(ge=1)
+
+
 class ElectricalQueryResponse(BaseModel):
     """Постраничные данные электрорасчёта после поиска/фильтрации/сортировки."""
 
     items: list[ProjectObjectResponse]
     calculations: list[ElectricalCalcSummary]
+    assignments: list[ElectricalQueryAssignment] = Field(default_factory=list)
     summary: ElectricalPageSummary
     page_info: ProjectObjectsPageInfo
     counts: ElectricalQueryCounts
@@ -1225,7 +1252,7 @@ class ElectricalQueryCapabilitiesResponse(BaseModel):
 
 
 class BatchElectricalResponse(BaseModel):
-    """Результат пакетного электрорасчёта всех объектов проекта."""
+    """Результат расчёта назначенного exact ER/system scope."""
 
     calculated: int
     skipped: int
@@ -1239,17 +1266,17 @@ class BatchElectricalResponse(BaseModel):
 
 
 class CopyElectricalVariantRequest(BaseModel):
-    """Запрос копирования одного CO-варианта электрорасчёта в другой."""
+    """Legacy-запрос копирования расчётов и назначений одного ЭР в другой."""
 
     project_id: UUID
     source_variant_number: int = Field(ge=1, le=4)
     target_variant_number: int = Field(ge=1, le=4)
     overwrite: bool = False
-    regenerate_specification: bool = True
+    regenerate_specification: bool = False
 
 
 class CopyElectricalVariantResponse(BaseModel):
-    """Результат копирования CO-варианта электрорасчёта."""
+    """Результат legacy-копирования ЭР без копирования спецификации."""
 
     project_id: UUID
     source_variant_number: int
@@ -1281,7 +1308,8 @@ class ElectricalBatchJobRequest(BaseModel):
     project_id: UUID
     object_ids: list[UUID] | None = Field(default=None, min_length=1)
     cable_source: str = "builtin"
-    variant_number: int = Field(default=1, ge=1, le=4)
+    electrical_variant_id: UUID | None = None
+    variant_number: int | None = Field(default=1, ge=1, le=4, deprecated=True)
     cable_type: ElectricalCableType = "self_regulating"
     selection_policy: SelectionPolicy = "technical_minimum"
     object_overrides: list[ElectricalObjectBatchOverride] | None = None
@@ -1299,6 +1327,18 @@ class ElectricalBatchJobRequest(BaseModel):
     skip_manual: bool = True
     include_results: bool = False
     include_errors: bool = True
+
+    @model_validator(mode="after")
+    def normalize_electrical_variant_selector(self) -> "ElectricalBatchJobRequest":
+        """Keep omitted legacy requests on slot 1, but never accept two selectors."""
+        if self.electrical_variant_id is not None:
+            if "variant_number" not in self.model_fields_set:
+                self.variant_number = None
+            elif self.variant_number is not None:
+                raise ValueError("ELECTRICAL_VARIANT_SELECTOR_CONFLICT")
+        elif self.variant_number is None:
+            raise ValueError("ELECTRICAL_VARIANT_SELECTOR_REQUIRED")
+        return self
 
     def electrical_params(self) -> dict[str, Any]:
         return {
@@ -1344,6 +1384,7 @@ class CalculationTaskResponse(BaseModel):
     type: str
     status: TaskStatus
     project_id: UUID | None = None
+    electrical_variant_id: UUID | None = None
     progress: CalculationTaskProgress
     result: BatchElectricalResponse | BatchCalcResponse | ReportExportTaskResult | None = None
     error_message: str | None = None

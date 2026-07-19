@@ -1,0 +1,127 @@
+- generic [ref=f3e25] [box=0,0,390,1161]:
+  - banner [ref=f3e26] [box=0,0,390,98]:
+    - generic [ref=f3e27] [box=6,0,378,97]:
+      - generic "HeatCalc" [ref=f3e28] [box=6,2,378,15]:
+        - img "fire" [ref=f3e29] [box=6,2,15,15]
+        - heading "HeatCalc" [level=2] [ref=f3e32] [box=27,3,65,14]
+      - navigation "Разделы проекта" [ref=f3e33] [box=6,72,378,23]:
+        - menu [ref=f3e34] [box=6,72,378,23]:
+          - menuitem "fire Расчёт тепловых потерь check-circle 1" [ref=f3e35] [cursor=pointer] [box=8,72,246,24]:
+            - img "fire" [ref=f3e36] [box=16,78,14,12]
+            - generic [ref=f3e40] [box=40,77,206,15]:
+              - text: Расчёт тепловых потерь
+              - img "check-circle" [ref=f3e41] [box=194,78,14,12]
+              - superscript [ref=f3e45] [box=222,77,24,15]:
+                - generic [ref=f3e46] [box=231,78,5,12]: "1"
+          - generic [box=40,6,175,12]: Электротехнический расчёт
+          - generic [box=40,6,92,12]: Спецификация
+          - separator [box=256,73,0,21]
+          - generic [box=40,6,36,12]: Отчёт
+          - menuitem [ref=f3e48] [cursor=pointer] [box=274,72,30,24]:
+            - img "ellipsis" [ref=f3e49] [box=282,76,14,14]
+      - generic [ref=f3e52] [box=6,20,378,49]:
+        - generic [ref=f3e53] [box=6,20,237,24]:
+          - generic [ref=f3e55] [box=6,20,72,24]:
+            - img "folder-open" [ref=f3e57] [box=6,28,10,10]
+            - generic "Мой проект" [ref=f3e61] [box=19,20,59,22]
+          - button "download Скачать" [ref=f3e63] [cursor=pointer] [box=85,21,71,22]:
+            - img "download" [ref=f3e65] [box=92,27,11,11]
+            - generic [ref=f3e68] [box=109,27,40,10]: Скачать
+          - button "upload Загрузить" [ref=f3e70] [cursor=pointer] [box=159,21,81,22]:
+            - img "upload" [ref=f3e72] [box=166,27,11,11]
+            - generic [ref=f3e75] [box=183,27,50,10]: Загрузить
+        - generic [ref=f3e76] [box=6,47,156,22]:
+          - button "question-circle Инструкция" [ref=f3e78] [cursor=pointer] [box=6,47,90,22]:
+            - img "question-circle" [ref=f3e80] [box=13,53,11,11]
+            - generic [ref=f3e84] [box=30,53,60,10]: Инструкция
+          - button "logout Выход" [ref=f3e86] [cursor=pointer] [box=99,47,62,22]:
+            - img "logout" [ref=f3e88] [box=106,53,11,11]
+            - generic [ref=f3e91] [box=123,53,32,10]: Выход
+  - main [ref=f3e93] [box=0,98,390,1063]:
+    - generic [ref=f3e94] [box=6,106,378,1047]:
+      - generic [ref=f3e96] [box=6,106,378,241]:
+        - generic [ref=f3e97] [box=7,107,376,38]: Электротехнические решения
+        - generic [ref=f3e101] [box=19,156,352,178]:
+          - tablist "Электротехнические решения" [ref=f3e103] [box=19,156,352,38]:
+            - tab "ЭР1, активный ЭР" [ref=f3e104] [cursor=pointer] [box=21,158,121,30]:
+              - generic [ref=f3e105] [box=33,162,98,22]:
+                - generic [ref=f3e106] [box=33,167,18,11]: ЭР1
+                - generic [ref=f3e107] [box=57,162,74,22]: Активный
+            - tab "ЭР2" [ref=f3e108] [cursor=pointer] [box=150,158,43,30]
+            - tab "ЭР3" [ref=f3e111] [cursor=pointer] [box=201,158,43,30]
+            - tab "ЭР4" [ref=f3e114] [cursor=pointer] [box=252,158,43,30]
+            - tab "ЭР5 · Северный участок — резервная линия с очень длинным названием" [selected] [ref=f3e117] [cursor=pointer] [box=303,158,281,30]
+          - generic [ref=f3e120] [box=19,204,352,66]: "Выбрано: ЭР5 · Северный участок — резервная линия с очень длинным названием. Активный ЭР: ЭР1."
+          - generic [ref=f3e123] [box=19,280,352,54]:
+            - button "Добавить пустой ЭР — достигнут лимит 5" [disabled] [ref=f3e125] [box=19,281,123,22]:
+              - generic [box=31,287,100,11]: Добавить пустой ЭР
+            - button "Создать копию «ЭР5 · Северный участок — резервная линия с очень длинным названием» — достигнут лимит 5" [disabled] [ref=f3e127] [box=150,281,98,22]:
+              - generic [box=162,287,75,11]: Создать копию
+            - button "Переименовать ЭР «ЭР5 · Северный участок — резервная линия с очень длинным названием»" [ref=f3e128] [cursor=pointer] [box=256,280,101,22]:
+              - generic [ref=f3e129] [box=267,285,78,11]: Переименовать
+            - button "Сделать ЭР «ЭР5 · Северный участок — резервная линия с очень длинным названием» активным" [ref=f3e130] [cursor=pointer] [box=19,311,115,22]:
+              - generic [ref=f3e131] [box=31,317,92,11]: Сделать активным
+            - button "Удалить ЭР «ЭР5 · Северный участок — резервная линия с очень длинным названием»" [ref=f3e132] [cursor=pointer] [box=142,311,63,22]:
+              - generic [ref=f3e133] [box=153,317,40,11]: Удалить
+      - generic [ref=f3e135] [box=6,355,378,552]:
+        - generic [ref=f3e137] [box=19,363,352,22]:
+          - generic [ref=f3e138] [box=19,363,298,22]: Назначение объектов · ЭР5 · Северный участок — резервная линия с очень длинным названием
+          - generic [ref=f3e140] [box=317,363,54,22]: "Всего: 1"
+        - generic [ref=f3e143] [box=19,405,352,489]:
+          - generic [ref=f3e144] [box=19,405,352,66]: Выберите объекты и назначьте поддерживаемый тип системы. Назначение сохраняется отдельно для каждого ЭР.
+          - generic [ref=f3e146] [box=19,479,352,62]:
+            - tablist [ref=f3e147] [box=19,479,352,46]:
+              - generic [ref=f3e149] [box=19,479,627,46]:
+                - tab "Нераспределённые0 объектов" [ref=f3e151] [cursor=pointer] [box=19,491,159,22]:
+                  - generic [ref=f3e152] [box=19,493,159,17]: Нераспределённые0
+                - tab "Самрег1 объектов" [active] [selected] [ref=f3e154] [cursor=pointer] [box=210,491,74,22]:
+                  - generic [ref=f3e155] [box=210,493,74,17]: Самрег1
+                - tab "Резистив0 объектов" [ref=f3e157] [cursor=pointer] [box=316,491,88,22]:
+                  - generic [ref=f3e158] [box=316,493,88,17]: Резистив0
+                - tab "Скин0 объектов" [ref=f3e160] [cursor=pointer] [box=435,491,59,22]:
+                  - generic [ref=f3e161] [box=435,493,59,17]: Скин0
+                - tab "Минеральный0 объектов" [ref=f3e163] [cursor=pointer] [box=526,491,120,22]:
+                  - generic [ref=f3e164] [box=526,493,120,17]: Минеральный0
+              - button "ellipsis" [ref=f3e166] [box=326,479,45,46]:
+                - img "ellipsis" [ref=f3e167] [box=342,494,13,13]
+            - generic [box=19,541,352,0]:
+              - generic [box=19,541,352,0]:
+                - tabpanel "Самрег1 объектов" [box=19,541,352,0]
+          - generic [ref=f3e170] [box=19,549,352,110]: Назначать новые объекты в неподдерживаемые системы нельзя. Вкладки «Скин» и «Минеральный» показывают сохранённые legacy-назначения, чтобы их можно было с подтверждением вернуть в нераспределённые.
+          - toolbar "Действия с назначениями" [ref=f3e172] [box=19,667,352,53]:
+            - generic [ref=f3e173] [box=19,667,77,22]: "Выбрано: 0"
+            - 'button "Назначить: Самрег" [disabled] [ref=f3e174] [box=104,667,118,22]'
+            - 'button "Назначить: Резистив" [disabled] [ref=f3e175] [box=230,667,127,22]'
+            - button "Вернуть в нераспределённые" [disabled] [ref=f3e176] [box=19,697,170,22]
+          - table [ref=f3e185] [box=19,727,900,166]:
+            - rowgroup [ref=f3e193] [box=19,727,900,39]:
+              - row "Select all № Объект Тип объекта Система Состояние Диагностика" [ref=f3e194] [box=19,727,900,39]:
+                - columnheader "Select all" [ref=f3e195] [box=19,727,40,39]:
+                  - checkbox "Select all" [ref=f3e218] [cursor=pointer] [box=31,738,16,16]
+                - columnheader "№" [ref=f3e198] [box=59,727,52,39]
+                - columnheader "Объект" [ref=f3e199] [box=111,727,260,39]
+                - columnheader "Тип объекта" [ref=f3e200] [box=371,727,140,39]
+                - columnheader "Система" [ref=f3e201] [box=511,727,130,39]
+                - columnheader "Состояние" [ref=f3e202] [box=641,727,165,39]
+                - columnheader "Диагностика" [ref=f3e203] [box=806,727,113,39]
+            - rowgroup [ref=f3e204] [box=19,766,900,127]:
+              - generic [box=27,766,16,22]:
+                - generic [box=27,766,16,22]:
+                  - generic [box=27,769,16,16]:
+                    - checkbox [box=27,769,16,16]
+              - row "1 Phase 3 · трубопровод назначения Трубопровод Самрег Требуется пересчёт После назначения требуется электрический расчёт" [ref=f3e220] [box=19,766,900,127]:
+                - cell [ref=f3e221] [box=19,766,40,127]:
+                  - checkbox [ref=f3e224] [cursor=pointer] [box=31,821,16,16]
+                - cell "1" [ref=f3e226] [box=59,766,52,127]
+                - cell "Phase 3 · трубопровод назначения" [ref=f3e227] [box=111,766,260,127]:
+                  - strong [ref=f3e229] [box=119,820,244,17]: Phase 3 · трубопровод назначения
+                - cell "Трубопровод" [ref=f3e230] [box=371,766,140,127]
+                - cell "Самрег" [ref=f3e231] [box=511,766,130,127]
+                - cell "Требуется пересчёт" [ref=f3e232] [box=641,766,165,127]
+                - cell "После назначения требуется электрический расчёт" [ref=f3e234] [box=806,766,113,127]
+      - tabpanel "ЭР5 · Северный участок — резервная линия с очень длинным названием" [ref=f3e209] [box=6,914,378,239]:
+        - alert [ref=f3e210] [box=6,914,378,239]:
+          - img "exclamation-circle" [ref=f3e211] [box=31,935,24,24]
+          - generic [ref=f3e214] [box=67,935,292,197]:
+            - generic [ref=f3e215] [box=67,935,292,101]: "«ЭР5 · Северный участок — резервная линия с очень длинным названием»: расчётные действия временно недоступны"
+            - generic [ref=f3e216] [box=67,1044,292,88]: Для этого ЭР ещё нет UUID-совместимого расчётного контура. Расчёт, кандидаты, спецификация и отчёт отключены; данные другого ЭР не подставляются.

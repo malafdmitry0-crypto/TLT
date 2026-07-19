@@ -17,9 +17,11 @@ from app.schemas.calculation import (
 )
 from app.schemas.report import ReportExportTaskResult
 from app.services.audit_service import AuditService
+from app.services.electrical_variant_service import ElectricalVariantServiceError
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError
 from app.services.task_service import (
     TaskAccessError,
+    TaskIdempotencyConflictError,
     TaskLimitError,
     TaskNotFoundError,
     TaskService,
@@ -29,6 +31,13 @@ router = APIRouter()
 
 
 def _raise_task_error(exc: Exception) -> None:
+    if isinstance(exc, ElectricalVariantServiceError):
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+    if isinstance(exc, TaskIdempotencyConflictError):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=exc.as_detail(),
+        ) from exc
     if isinstance(exc, TaskNotFoundError | ProjectNotFoundError):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     if isinstance(exc, TaskAccessError | ProjectAccessError):
@@ -71,15 +80,29 @@ async def enqueue_heat_loss_batch_job(
         )
     except Exception as exc:
         _raise_task_error(exc)
+    idempotency_replay = TaskService.is_idempotency_replay(task)
     await AuditService(db).try_record(
-        event_type="task.heat_loss_batch.queued",
+        event_type=(
+            "task.heat_loss_batch.idempotency_replayed"
+            if idempotency_replay
+            else "task.heat_loss_batch.queued"
+        ),
         category="task",
         principal=principal,
         project_id=request.project_id,
         task_id=task.id,
-        result="queued",
-        details={"idempotency_key_present": bool(idempotency_key), "payload": task.request_payload},
-        message="Поставлен в очередь пакетный пересчёт теплопотерь",
+        result=TaskService.audit_result_for_task(task),
+        details={
+            "idempotency_key_present": bool(idempotency_key),
+            "idempotency_replay": idempotency_replay,
+            "task_status": task.status,
+            "payload": task.request_payload,
+        },
+        message=(
+            "Идемпотентный повтор вернул существующую задачу пересчёта теплопотерь"
+            if idempotency_replay
+            else "Поставлен в очередь пакетный пересчёт теплопотерь"
+        ),
     )
     return TaskService.to_response(task)
 
@@ -111,15 +134,32 @@ async def enqueue_electrical_batch_job(
         )
     except Exception as exc:
         _raise_task_error(exc)
+    idempotency_replay = TaskService.is_idempotency_replay(task)
     await AuditService(db).try_record(
-        event_type="task.electrical_batch.queued",
+        event_type=(
+            "task.electrical_batch.idempotency_replayed"
+            if idempotency_replay
+            else "task.electrical_batch.queued"
+        ),
         category="task",
         principal=principal,
         project_id=request.project_id,
         task_id=task.id,
-        result="queued",
-        details={"idempotency_key_present": bool(idempotency_key), "payload": task.request_payload},
-        message="Поставлен в очередь пакетный электрорасчёт",
+        result=TaskService.audit_result_for_task(task),
+        details={
+            "electrical_variant_id": (
+                str(task.electrical_variant_id) if task.electrical_variant_id is not None else None
+            ),
+            "idempotency_key_present": bool(idempotency_key),
+            "idempotency_replay": idempotency_replay,
+            "task_status": task.status,
+            "payload": task.request_payload,
+        },
+        message=(
+            "Идемпотентный повтор вернул существующую задачу электрорасчёта"
+            if idempotency_replay
+            else "Поставлен в очередь пакетный электрорасчёт"
+        ),
     )
     return TaskService.to_response(task)
 

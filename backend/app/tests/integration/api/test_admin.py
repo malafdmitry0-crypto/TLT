@@ -1,5 +1,7 @@
 """Integration-тесты админки: users + coefficients + cables + accessories."""
 
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -331,12 +333,60 @@ class TestAdminAccessories:
 
 
 class TestAdminDeadLetter:
-    async def _failed_task(self, db_session: AsyncSession, admin_user: User) -> BackgroundTask:
+    async def _failed_task(
+        self,
+        client: AsyncClient,
+        admin_token: str,
+        db_session: AsyncSession,
+        admin_user: User,
+    ) -> tuple[BackgroundTask, str, str]:
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        project_response = await client.post(
+            "/api/v1/projects",
+            json={"name": "Dead-letter ER scope"},
+            headers=headers,
+        )
+        assert project_response.status_code == 201, project_response.text
+        project = project_response.json()
+        object_response = await client.post(
+            f"/api/v1/projects/{project['id']}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.108,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 25,
+                },
+            },
+            headers=headers,
+        )
+        assert object_response.status_code == 201, object_response.text
+        initialized = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants/initialize",
+            headers=headers,
+        )
+        assert initialized.status_code == 200, initialized.text
+        second = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            json={"name": "DLQ ER2"},
+            headers=headers,
+        )
+        assert second.status_code == 201, second.text
+        variant = second.json()
         task = BackgroundTask(
             type=TASK_ELECTRICAL_BATCH,
             status="failed",
+            project_id=UUID(project["id"]),
+            electrical_variant_id=UUID(variant["id"]),
             user_id=admin_user.id,
-            request_payload={"project_id": "00000000-0000-0000-0000-000000000001"},
+            request_payload={
+                "project_id": project["id"],
+                "variant_number": 2,
+            },
             error_message="RuntimeError: boom",
             progress_current=3,
             progress_total=3,
@@ -346,7 +396,7 @@ class TestAdminDeadLetter:
         db_session.add(task)
         await db_session.commit()
         await db_session.refresh(task)
-        return task
+        return task, project["id"], variant["id"]
 
     async def test_admin_can_list_dead_letter_entries(
         self,
@@ -356,7 +406,12 @@ class TestAdminDeadLetter:
         db_session: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        task = await self._failed_task(db_session, admin_user)
+        task, _project_id, _variant_id = await self._failed_task(
+            client,
+            admin_token,
+            db_session,
+            admin_user,
+        )
         FakeDeadLetterQueue.entries = [
             (
                 "9-0",
@@ -392,7 +447,12 @@ class TestAdminDeadLetter:
         db_session: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        task = await self._failed_task(db_session, admin_user)
+        task, _project_id, _variant_id = await self._failed_task(
+            client,
+            admin_token,
+            db_session,
+            admin_user,
+        )
         FakeDeadLetterQueue.entries = [
             (
                 "9-0",
@@ -419,7 +479,54 @@ class TestAdminDeadLetter:
         assert body["task"]["status"] == "enqueued"
         assert task.status == "enqueued"
         assert task.error_message is None
+        assert task.request_payload["payload_version"] == 3
+        assert task.request_payload["electrical_variant_id"] == str(task.electrical_variant_id)
+        assert "variant_number" not in task.request_payload
         assert FakeDeadLetterQueue.deleted == ["9-0"]
+
+    async def test_admin_replay_refuses_task_for_deleted_exact_variant(
+        self,
+        client: AsyncClient,
+        admin_token: str,
+        admin_user: User,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        task, project_id, variant_id = await self._failed_task(
+            client,
+            admin_token,
+            db_session,
+            admin_user,
+        )
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        deleted = await client.delete(
+            f"/api/v1/projects/{project_id}/electrical-variants/{variant_id}",
+            headers=headers,
+        )
+        assert deleted.status_code == 200, deleted.text
+        FakeDeadLetterQueue.entries = [
+            (
+                "9-0",
+                {
+                    "task_id": str(task.id),
+                    "type": TASK_ELECTRICAL_BATCH,
+                    "dead_letter_reason": "worker_attempts_exhausted",
+                },
+            )
+        ]
+        FakeDeadLetterQueue.deleted = []
+        monkeypatch.setattr("app.api.v1.admin.TaskQueue", FakeDeadLetterQueue)
+
+        response = await client.post(
+            "/api/v1/admin/dead-letter/9-0/replay",
+            headers=headers,
+        )
+        await db_session.refresh(task)
+
+        assert response.status_code == 404, response.text
+        assert response.json()["detail"] == "ELECTRICAL_VARIANT_NOT_FOUND"
+        assert task.status == "failed"
+        assert FakeDeadLetterQueue.deleted == []
 
     async def test_employee_cannot_view_dead_letter_entries(
         self,

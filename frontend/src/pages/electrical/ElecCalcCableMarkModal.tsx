@@ -8,7 +8,6 @@ import {
 } from 'antd';
 
 import CablePickerCharacteristics from '@/components/electrical/CablePickerCharacteristics';
-import type { CalculationVariant } from '@/store/calculationVariantStore';
 import type { ProjectObject } from '@/types/project';
 import {
   AUTO_CABLE_MARK_VALUE,
@@ -19,17 +18,13 @@ import {
   objectDisplayName,
   type CableTypeKey,
 } from '@/pages/electrical/elecCalcMainTableModel';
+import type { ElectricalVariantTargetOption } from '@/pages/electrical/elecCalcVariantModel';
 
 const { Text } = Typography;
 
 type CableTypeSelectOption = {
   label: ReactNode;
   value: CableTypeKey;
-};
-
-type CalculationVariantOption = {
-  label: string;
-  value: CalculationVariant;
 };
 
 type ElecCalcCableMarkModalProps = {
@@ -42,8 +37,8 @@ type ElecCalcCableMarkModalProps = {
   pending: boolean;
   value: string | null;
   markOptions: CableMarkSelectOption[];
-  targetVariants: CalculationVariant[];
-  targetVariantOptions: CalculationVariantOption[];
+  targetVariants: string[];
+  targetVariantOptions: ElectricalVariantTargetOption[];
   renderTypeControls: (cableType: CableTypeKey) => ReactNode;
   onCableTypeChange: (nextType: CableTypeKey) => void;
   onMarkChange: (nextValue: string) => void;
@@ -71,6 +66,11 @@ export default function ElecCalcCableMarkModal({
   onApply,
   onCancel,
 }: ElecCalcCableMarkModalProps) {
+  const allTargetsAreSubmittable = targetVariants.length > 0 && targetVariants.every(
+    (targetVariantId) =>
+    targetVariantOptions.some((option) =>
+      option.value === targetVariantId && !option.disabled),
+  );
   const title = (
     <div className="electrical-cable-picker-title">
       <span className="electrical-cable-picker-title-text">Выбор марки кабеля</span>
@@ -96,7 +96,7 @@ export default function ElecCalcCableMarkModal({
       cancelText="Отмена"
       confirmLoading={pending}
       okButtonProps={{
-        disabled: !object?.is_valid || !value || targetVariants.length === 0,
+        disabled: !projectSelected || !object?.is_valid || !value || !allTargetsAreSubmittable,
       }}
       onOk={onApply}
       onCancel={onCancel}
@@ -116,14 +116,22 @@ export default function ElecCalcCableMarkModal({
               aria-label="Тип кабеля для выбора марки"
               size="small"
               value={cableType}
-              disabled={pending || !commercialFeaturesAvailable}
+              disabled={!projectSelected || pending || !commercialFeaturesAvailable}
               onChange={onCableTypeChange}
               options={cableTypeOptions}
               style={{ width: '100%', marginTop: 4 }}
             />
           </div>
         )}
-        {cableType && renderTypeControls(cableType)}
+        {cableType && (
+          projectSelected
+            ? renderTypeControls(cableType)
+            : (
+              <fieldset disabled style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+                {renderTypeControls(cableType)}
+              </fieldset>
+            )
+        )}
         <div>
           <Text type="secondary">Марка</Text>
           <Select
@@ -140,19 +148,31 @@ export default function ElecCalcCableMarkModal({
           />
         </div>
         <div>
-          <Text type="secondary">Сохранить в СО</Text>
-          <Checkbox.Group
-            aria-label="СО для сохранения выбора марки"
-            options={targetVariantOptions}
-            value={targetVariants}
-            disabled={pending}
-            onChange={onTargetVariantsChange}
-            style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}
-          />
+          <Text id="electrical-cable-target-variants-label" type="secondary">
+            Сохранить в ЭР
+          </Text>
+          <div
+            role="group"
+            aria-labelledby="electrical-cable-target-variants-label"
+            aria-describedby="electrical-cable-target-variants-help"
+          >
+            <Checkbox.Group<string>
+              options={targetVariantOptions}
+              value={targetVariants}
+              disabled={!projectSelected || pending}
+              onChange={onTargetVariantsChange}
+              style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}
+            />
+          </div>
         </div>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          «Авто» запустит автоподбор для выбранных СО. Выбор конкретной марки сохранит ручной
-          подбор в отмеченных СО.
+        <Text
+          id="electrical-cable-target-variants-help"
+          type="secondary"
+          style={{ fontSize: 12 }}
+        >
+          «Авто» запустит автоподбор для выбранных ЭР. Выбор конкретной марки сохранит
+          ручной подбор в отмеченных ЭР. Недоступные ЭР ещё не поддерживают перенос
+          марки в текущем расчётном сервисе.
         </Text>
       </Space>
     </Modal>

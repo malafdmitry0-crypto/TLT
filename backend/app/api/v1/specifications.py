@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -15,6 +15,10 @@ from app.schemas.specification import (
     SpecificationUpdateRequest,
 )
 from app.services.audit_service import AuditService
+from app.services.electrical_variant_service import (
+    ElectricalVariantService,
+    ElectricalVariantServiceError,
+)
 from app.services.project_service import (
     ProjectAccessError,
     ProjectNotFoundError,
@@ -33,11 +37,21 @@ router = APIRouter()
 async def get_specification(
     project_id: UUID,
     variant: int = 1,
+    electrical_variant_id: UUID | None = Query(default=None),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
+        if electrical_variant_id is not None:
+            await ElectricalVariantService(db).validate_legacy_variant_for_read(
+                project_id,
+                principal,
+                variant,
+                electrical_variant_id,
+            )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
@@ -56,12 +70,13 @@ async def get_specification(
 async def generate_specification(
     project_id: UUID,
     variant: int = 1,
+    electrical_variant_id: UUID | None = Query(default=None),
     data: SpecificationGenerateRequest | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        await ProjectService(db).get_project_basic(project_id, principal)
+        await ProjectService(db).get_project_for_write(project_id, principal)
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
@@ -76,9 +91,22 @@ async def generate_specification(
             detail="Полная спецификация доступна только сотруднику",
         )
 
-    result = await SpecificationService(db).generate(
-        project_id, variant, mode=req.mode, options=req.options
-    )
+    try:
+        electrical_variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
+            project_id,
+            principal,
+            variant,
+            expected_electrical_variant_id=electrical_variant_id,
+        )
+        result = await SpecificationService(db).generate(
+            project_id,
+            variant,
+            mode=req.mode,
+            options=req.options,
+            electrical_variant_id=electrical_variant.id,
+        )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     await AuditService(db).try_record(
         event_type="specification.generated",
         category="specification",
@@ -86,6 +114,7 @@ async def generate_specification(
         project_id=project_id,
         details={
             "variant": variant,
+            "electrical_variant_id": str(electrical_variant.id),
             "item_count": len(result.items),
             "mode": result.mode,
             "skipped_objects": result.skipped_objects,
@@ -109,25 +138,42 @@ async def save_specification_items(
     project_id: UUID,
     data: SpecificationUpdateRequest,
     variant: int = 1,
+    electrical_variant_id: UUID | None = Query(default=None),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        await ProjectService(db).get_project_basic(project_id, principal)
+        await ProjectService(db).get_project_for_write(project_id, principal)
     except ProjectNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ProjectAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
-    items: list[SpecificationItem] = await SpecificationService(db).save_items(
-        project_id, data.items, variant
-    )
+    try:
+        electrical_variant = await ElectricalVariantService(db).prepare_legacy_variant_for_write(
+            project_id,
+            principal,
+            variant,
+            expected_electrical_variant_id=electrical_variant_id,
+        )
+        items: list[SpecificationItem] = await SpecificationService(db).save_items(
+            project_id,
+            data.items,
+            variant,
+            electrical_variant_id=electrical_variant.id,
+        )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     await AuditService(db).try_record(
         event_type="specification.items_saved",
         category="specification",
         principal=principal,
         project_id=project_id,
-        details={"variant": variant, "item_count": len(items)},
+        details={
+            "variant": variant,
+            "electrical_variant_id": str(electrical_variant.id),
+            "item_count": len(items),
+        },
         message="Сохранены позиции спецификации",
     )
     return SpecificationGenerateResponse(project_id=project_id, items=items)

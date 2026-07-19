@@ -92,17 +92,15 @@ describe('useElectricalStats', () => {
     expect(result.current.totalCableLength).toBe(11);
   });
 
-  it('берёт последний вариант расчёта (с наибольшим variant_number)', () => {
+  it('изолирует статистику явно выбранным legacy-слотом', () => {
     const objects = [makeObj('a')];
     const calcs = [
       makeCalc('a', 1, { selected_cable: 'ТЛТ-10', order_cable_length: 5 }),
       makeCalc('a', 2, { selected_cable: 'ТЛТ-25', order_cable_length: 10 }),
     ];
-    const { result } = renderHook(() => useElectricalStats(objects, calcs));
-    // мапа содержит последний вариант
-    expect(result.current.calcByObjectId['a'].variant_number).toBe(2);
-    // сумма — по обоим расчётам (их два, оба считаются успешными)
-    expect(result.current.totalCableLength).toBe(15);
+    const { result } = renderHook(() => useElectricalStats(objects, calcs, 1));
+    expect(result.current.calcByObjectId['a'].variant_number).toBe(1);
+    expect(result.current.totalCableLength).toBe(5);
   });
 
   it('не считает ошибочные расчёты в calcedCount, считает в failedCount', () => {

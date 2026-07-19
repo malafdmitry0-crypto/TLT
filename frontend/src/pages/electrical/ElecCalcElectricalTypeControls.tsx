@@ -23,6 +23,7 @@ const INPUT_W76: CSSProperties = { width: 76 };
 const INPUT_W72: CSSProperties = { width: 72 };
 
 type ElecCalcElectricalTypeControlsProps = {
+  disabled?: boolean;
   cableType: CableTypeKey | null;
   block?: boolean;
   recalc: ElecCalcTypeControlValues;
@@ -30,6 +31,7 @@ type ElecCalcElectricalTypeControlsProps = {
 };
 
 function ElecCalcElectricalTypeControls({
+  disabled = false,
   cableType,
   block = false,
   recalc,
@@ -45,6 +47,7 @@ function ElecCalcElectricalTypeControls({
       <Text style={HINT_STYLE}>U, В:</Text>
       <InputNumber<number>
         aria-label="Напряжение питания"
+        disabled={disabled}
         size="small"
         min={1}
         value={recalc.supplyVoltage}
@@ -64,6 +67,7 @@ function ElecCalcElectricalTypeControls({
         <Text style={HINT_STYLE}>T проп., °C:</Text>
         <InputNumber<number>
           aria-label="T пропарки"
+          disabled={disabled}
           size="small"
           value={recalc.vaporTemperature}
           onChange={setRecalc.vaporTemperature}
@@ -72,12 +76,14 @@ function ElecCalcElectricalTypeControls({
         <Text style={HINT_STYLE}>T3, °C:</Text>
         <InputNumber<number>
           aria-label="T3 поддержания"
+          disabled={disabled}
           size="small"
           value={recalc.maintainTemperature}
           onChange={setRecalc.maintainTemperature}
           style={INPUT_W92}
         />
         <Checkbox
+          disabled={disabled}
           checked={recalc.aggressiveProduct}
           onChange={(event) => setRecalc.aggressiveProduct(event.target.checked)}
         >
@@ -95,6 +101,7 @@ function ElecCalcElectricalTypeControls({
       <>
         <Select
           aria-label="Схема подключения"
+          disabled={disabled}
           size="small"
           value={recalc.connectionType}
           onChange={setRecalc.connectionType}
@@ -102,13 +109,13 @@ function ElecCalcElectricalTypeControls({
           style={SELECT_W118}
         />
         <Text style={HINT_STYLE}>U:</Text>
-        <InputNumber<number> size="small" min={1} value={recalc.supplyVoltage} onChange={setRecalc.supplyVoltage} style={INPUT_W76} />
+        <InputNumber<number> disabled={disabled} size="small" min={1} value={recalc.supplyVoltage} onChange={setRecalc.supplyVoltage} style={INPUT_W76} />
         <Text style={HINT_STYLE}>w:</Text>
-        <InputNumber<number> size="small" min={1} max={1.5} step={0.05} value={recalc.windingCoefficient} onChange={setRecalc.windingCoefficient} style={INPUT_W72} />
+        <InputNumber<number> disabled={disabled} size="small" min={1} max={1.5} step={0.05} value={recalc.windingCoefficient} onChange={setRecalc.windingCoefficient} style={INPUT_W72} />
         <Text style={HINT_STYLE}>h:</Text>
-        <InputNumber<number> size="small" min={0} step={0.1} value={recalc.heatingHeight} onChange={setRecalc.heatingHeight} style={INPUT_W76} />
+        <InputNumber<number> disabled={disabled} size="small" min={0} step={0.1} value={recalc.heatingHeight} onChange={setRecalc.heatingHeight} style={INPUT_W76} />
         <Text style={HINT_STYLE}>шаг:</Text>
-        <InputNumber<number> size="small" min={0.1} max={0.4} step={0.01} value={recalc.layingStep} onChange={setRecalc.layingStep} style={INPUT_W76} />
+        <InputNumber<number> disabled={disabled} size="small" min={0.1} max={0.4} step={0.01} value={recalc.layingStep} onChange={setRecalc.layingStep} style={INPUT_W76} />
       </>,
     );
   }

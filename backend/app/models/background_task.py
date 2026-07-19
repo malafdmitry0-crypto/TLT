@@ -32,6 +32,18 @@ class BackgroundTask(Base, TimestampMixin):
             "user_id IS NOT NULL OR session_id IS NOT NULL",
             name="ck_background_tasks_owner_present",
         ),
+        CheckConstraint(
+            "type NOT IN ('electrical_batch', 'report_export') OR ("
+            "electrical_variant_id IS NOT NULL AND ("
+            "request_payload ->> 'payload_version' IS DISTINCT FROM '3' OR ("
+            "project_id IS NOT NULL AND "
+            "request_payload ->> 'project_id' IS NOT NULL AND "
+            "request_payload ->> 'project_id' = project_id::text AND "
+            "request_payload ->> 'electrical_variant_id' IS NOT NULL AND "
+            "lower(request_payload ->> 'electrical_variant_id') = "
+            "electrical_variant_id::text)))",
+            name="ck_background_tasks_electrical_variant_trace",
+        ),
         Index("ix_background_tasks_status_next_retry", "status", "next_retry_at"),
         Index("ix_background_tasks_project_status", "project_id", "status"),
         Index("ix_background_tasks_user_created", "user_id", "created_at"),
@@ -52,6 +64,13 @@ class BackgroundTask(Base, TimestampMixin):
     project_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    # Deliberately not a foreign key: completed task history must retain the
+    # selected ER UUID even after that electrical variant is deleted.
+    electrical_variant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
         nullable=True,
         index=True,
     )

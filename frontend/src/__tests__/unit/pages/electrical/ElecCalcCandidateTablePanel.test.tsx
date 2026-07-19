@@ -62,6 +62,7 @@ function setup(overrides: Partial<Parameters<typeof ElecCalcCandidateTablePanel>
     engineer_comment: 'Старый комментарий',
   });
   const props: Parameters<typeof ElecCalcCandidateTablePanel>[0] = {
+    canMutate: true,
     rows: [appliedCandidate, candidate()],
     glideColumns: [{ key: 'cable_mark', title: 'Марка', width: 120 }],
     tableScrollX: 920,
@@ -117,6 +118,22 @@ describe('ElecCalcCandidateTablePanel', () => {
     setup({ appliedCandidate: null });
 
     expect(screen.getByLabelText('Комментарий к выбранному кандидату')).toBeDisabled();
+  });
+
+  it('shows candidate rows but guards engineer comment writes in read-only mode', async () => {
+    const onAppliedCandidateCommentBlur = vi.fn();
+    setup({
+      canMutate: false,
+      onAppliedCandidateCommentBlur,
+    });
+
+    expect(await screen.findByTestId('candidate-glide-grid-mock')).toHaveTextContent('glide:2');
+    const comment = screen.getByLabelText('Комментарий к выбранному кандидату');
+    expect(comment).toHaveValue('Старый комментарий');
+    expect(comment).toBeDisabled();
+
+    fireEvent.blur(comment);
+    expect(onAppliedCandidateCommentBlur).not.toHaveBeenCalled();
   });
 
   it('forwards Glide action callbacks', async () => {

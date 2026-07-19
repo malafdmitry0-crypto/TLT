@@ -66,7 +66,9 @@ type UseElecCalcElectricalColumnRenderersOptions = {
   getCalculatedCableTypeForObject: (objectId: string) => CableTypeKey | null;
   isCableMarkPending: boolean;
   projectSelected: boolean;
+  canMutate: boolean;
   recalc: ElecCalcRendererRecalculationValues;
+  getObjectActionDisabledReason?: (obj: ProjectObject) => string | null;
   openCableMarkModal: (obj: ProjectObject) => void;
   openCableSizingModal: (obj: ProjectObject) => void;
 };
@@ -78,7 +80,9 @@ export function useElecCalcElectricalColumnRenderers({
   getCalculatedCableTypeForObject,
   isCableMarkPending,
   projectSelected,
+  canMutate,
   recalc,
+  getObjectActionDisabledReason = () => null,
   openCableMarkModal,
   openCableSizingModal,
 }: UseElecCalcElectricalColumnRenderersOptions) {
@@ -200,6 +204,7 @@ export function useElecCalcElectricalColumnRenderers({
         const currentCalc = currentElectricalCalc(calc);
         const mark = getCableMark(currentCalc);
         const isActive = activeRowId === obj.id;
+        const assignmentDisabledReason = getObjectActionDisabledReason(obj);
 
         if (!isActive) {
           return (
@@ -224,23 +229,36 @@ export function useElecCalcElectricalColumnRenderers({
               </Text>
             </span>
             <span className="electrical-cable-mark-actions">
-              <Button
-                className="electrical-cable-mark-action"
-                size="small"
-                disabled={!obj.is_valid || !projectSelected}
-                loading={isCableMarkPending}
-                onClick={() => openCableMarkModal(obj)}
-              >
-                Выбор
-              </Button>
-              <Button
-                className="electrical-cable-mark-action"
-                size="small"
-                disabled={!projectSelected}
-                onClick={() => openCableSizingModal(obj)}
-              >
-                Подбор
-              </Button>
+              <Tooltip title={assignmentDisabledReason ?? undefined}>
+                <span>
+                  <Button
+                    className="electrical-cable-mark-action"
+                    size="small"
+                    disabled={
+                      !canMutate
+                      || !obj.is_valid
+                      || !projectSelected
+                      || assignmentDisabledReason != null
+                    }
+                    loading={isCableMarkPending}
+                    onClick={() => openCableMarkModal(obj)}
+                  >
+                    Выбор
+                  </Button>
+                </span>
+              </Tooltip>
+              <Tooltip title={assignmentDisabledReason ?? undefined}>
+                <span>
+                  <Button
+                    className="electrical-cable-mark-action"
+                    size="small"
+                    disabled={!projectSelected || assignmentDisabledReason != null}
+                    onClick={() => openCableSizingModal(obj)}
+                  >
+                    Подбор
+                  </Button>
+                </span>
+              </Tooltip>
             </span>
           </div>
         );
@@ -444,8 +462,10 @@ export function useElecCalcElectricalColumnRenderers({
   }), [
     activeRowId,
     calcByObjectId,
+    canMutate,
     electricalDisplayOffset,
     getCalculatedCableTypeForObject,
+    getObjectActionDisabledReason,
     isCableMarkPending,
     openCableMarkModal,
     openCableSizingModal,

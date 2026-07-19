@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.dependencies import CurrentPrincipal
 from app.electrical_result_status import is_successful_electrical_result
 from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_variant import ElectricalVariant
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.user import User
@@ -41,6 +42,10 @@ class ProjectValidationError(Exception):
 
 class ProjectConflictError(Exception):
     """Объект был изменён параллельно."""
+
+
+class ProjectElectricalVariantNotFoundError(Exception):
+    """UUID ЭР не существует в указанном проекте."""
 
 
 class ProjectService:
@@ -157,9 +162,9 @@ class ProjectService:
 
         Доступно только зарегистрированному пользователю (employee/admin).
         Копируются только `params` объектов; `results`, `is_valid`,
-        `validation_errors` очищаются — теплорасчёт выполняется заново
-        вызывающей стороной (`CalculationService.batch_recalculate` +
-        `batch_calc_electrical`).
+        `validation_errors` очищаются. Вызывающая сторона заново выполняет
+        теплорасчёт; электрический расчёт не запускается до явного назначения
+        объекта в систему ЭР.
         """
         if principal.role not in ("employee", "admin"):
             raise ProjectAccessError(
@@ -205,9 +210,25 @@ class ProjectService:
         return list(result.scalars().all())
 
     async def objects_summary(
-        self, project_id: UUID, principal: CurrentPrincipal
+        self,
+        project_id: UUID,
+        principal: CurrentPrincipal,
+        *,
+        electrical_variant_id: UUID | None = None,
     ) -> dict[str, object]:
         await self.get_project_basic(project_id, principal)
+
+        if electrical_variant_id is not None:
+            variant_id = await self.db.scalar(
+                select(ElectricalVariant.id).where(
+                    ElectricalVariant.id == electrical_variant_id,
+                    ElectricalVariant.project_id == project_id,
+                )
+            )
+            if variant_id is None:
+                raise ProjectElectricalVariantNotFoundError(
+                    f"ЭР {electrical_variant_id} не найден в проекте {project_id}",
+                )
 
         object_rows = await self.db.execute(
             select(
@@ -233,13 +254,16 @@ class ProjectService:
             if is_valid:
                 valid += count_int
 
-        calc_rows = await self.db.execute(
-            select(
-                ElectricalCalculation.object_id,
-                ElectricalCalculation.cable_mark,
-                ElectricalCalculation.results,
-            ).where(ElectricalCalculation.project_id == project_id)
-        )
+        calculation_scope = select(
+            ElectricalCalculation.object_id,
+            ElectricalCalculation.cable_mark,
+            ElectricalCalculation.results,
+        ).where(ElectricalCalculation.project_id == project_id)
+        if electrical_variant_id is not None:
+            calculation_scope = calculation_scope.where(
+                ElectricalCalculation.electrical_variant_id == electrical_variant_id,
+            )
+        calc_rows = await self.db.execute(calculation_scope)
         electrical_total = 0
         electrical_success = 0
         electrical_unsupported = 0
@@ -317,6 +341,12 @@ class ProjectService:
         """
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
+        await self.db.execute(
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         obj = await self._get_object(project_id, object_id)
         update_data = data.model_dump(exclude_unset=True, exclude={"version"})
         if "params" in update_data:
@@ -354,6 +384,12 @@ class ProjectService:
     ) -> None:
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
+        await self.db.execute(
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         obj = await self._get_object(project_id, object_id)
         await self.db.delete(obj)
         await self.db.flush()

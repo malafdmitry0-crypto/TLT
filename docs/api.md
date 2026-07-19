@@ -6,6 +6,16 @@
 
 Полная сводка эндпоинтов — в `CLAUDE.MD` §8 (корневой).
 
+Dynamic-ER Phase 1–3 реализуют backend/DB foundation, именованный UUID
+lifecycle во frontend и authoritative assignments объектов внутри каждого ЭР.
+Direct calculation, candidate, specification и часть report API пока сохраняют
+deprecated numeric adapter `variant_number=1…4`, но backend mutation обязана
+разрешить и проверить точный `electrical_variant_id` (UUID-aware clients
+передают его явно); отсутствующее или несовместимое
+назначение отклоняется fail-closed. Phase 4 blocked PDL-ER-15/18/28 до
+официального числового каталога, Phase 5 pending; общий PDF/DoD и product
+release не завершены.
+
 ## Основные группы эндпоинтов
 
 | Префикс | Назначение |
@@ -13,6 +23,7 @@
 | `/api/v1/auth/*` | `guest`, `login`, `me` — аутентификация, гостевые сессии |
 | `/api/v1/projects` | CRUD проектов (лимиты для гостей) |
 | `/api/v1/projects/{id}/objects` | CRUD объектов + `reorder`, `import-excel`, `import-template`, `export-excel` |
+| `/api/v1/projects/{id}/electrical-readiness`, `/electrical-variants` | Readiness, lifecycle именованных UUID ЭР и assignments объектов (Phase 1–3) |
 | `/api/v1/calc/electrical/*` | Батч-электрорасчёт, настройки подбора |
 | `/api/v1/specifications/*` | Генерация/просмотр спецификации. `POST /{id}/generate` принимает `mode=basic\|full` (+`options`: R,гр, Ex, К1i/К2i/Кiu, L,К2i); `full` — полный условный BOM ТНП, только сотрудник (гостю 403). Ответ: `items`, `mode`, `skipped_objects`; GET возвращает `generation_mode`/`generation_options` последней генерации |
 | `/api/v1/reports/{id}/{preview,export/{fmt}}` | HTML-превью и экспорт PDF/DOCX/XLSX по явно выбранному CO-варианту |
@@ -60,6 +71,13 @@ Backend валидирует список известных колонок, о�
 - Изменение и удаление чужого проекта для сотрудника запрещено; такие операции
   доступны владельцу проекта или администратору.
 - **Администратор** видит все проекты для сопровождения.
+
+**`POST /projects/{project_id}/duplicate`** после копирования объектов заново
+считает heat loss. Если копия готова к electrical, endpoint readiness-gated
+создаёт `ЭР1`/UUID и полную матрицу `unassigned`, но не угадывает тип системы и
+не запускает batch electrical. Неготовая копия возвращается `201` как
+heat-only project без ЭР, assignments и electrical rows; audit содержит
+electrical status и readiness issue codes.
 
 ## Rate limits
 
@@ -157,6 +175,40 @@ Async job endpoints принимают заголовок `Idempotency-Key` и �
 - `POST /calc/heat-loss/batch/jobs`
 - `POST /reports/{project_id}/export/{format}/jobs`
 
+Для `electrical_batch` и `report_export` новый task payload имеет версию 3 и
+содержит `project_id` + `electrical_variant_id`. UUID также возвращается в
+`CalculationTaskResponse.electrical_variant_id`; report task result повторяет
+его для traceability. `variant_number=1…4` во входном запросе остаётся
+deprecated compatibility adapter: backend разрешает его в project-scoped UUID,
+но не принимает одновременно UUID и number. Worker продолжает читать
+исторические payload без версии/v2, тогда как новые и replay-upgraded задачи
+UUID-first.
+
+Явный ключ namespaced по `principal + task type + project`; одна и та же строка
+ключа разных principals, типов задач или проектов не пересекается. Внутри
+namespace первый вызов binding-ит полный нормализованный payload и UUID ЭР.
+Точный retry возвращает исходную задачу, даже если она уже terminal. Повтор
+ключа с изменённым payload или ЭР возвращает `409` с
+`detail.code="TASK_IDEMPOTENCY_KEY_REUSED"`. Контракт одинаков для
+electrical-batch, report-export и heat-loss jobs; для heat-задачи сравнивается
+полный payload без ER scope. Heat lookup/insert сериализован project-row lock,
+поэтому retry не создаёт вторую binding при переходе первой задачи в terminal.
+API помечает возврат существующей задачи событием
+`task.<type>.idempotency_replayed` и записывает её фактический durable
+status/result; ложное повторное `*.queued` событие не создаётся.
+
+Selector contract `POST /calc/electrical/batch/jobs`:
+
+- если `variant_number` omitted и UUID нет, сохраняется legacy default `1`;
+- если передан только `electrical_variant_id`, implicit default number
+  очищается;
+- явный `variant_number:null` без UUID возвращает `422`, response содержит
+  `ELECTRICAL_VARIANT_SELECTOR_REQUIRED`;
+- ненулевые UUID и number одновременно возвращают selector conflict.
+
+Invalid selector отклоняется schema validation до readiness adapter и не
+создаёт ЭР/assignments/task.
+
 Клиент генерирует новый UUID-ключ на пользовательское действие и повторно
 использует тот же HTTP config при transport retry. Сетевые retry включены
 только для идемпотентных `GET`, `HEAD`, `OPTIONS` при 5xx/timeout.
@@ -199,7 +251,141 @@ Admin-only endpoints для DLQ:
 с примерами. Материалы и формы принимают и русские названия, и англ. коды
 (детали — `docs/samples/README.md`).
 
+## Project CSV v2 и динамические ЭР
+
+**`GET /projects/{id}/export-csv`**, **`POST /projects/import-csv`**,
+**`GET /projects/export-csv-bulk?ids=...`** и
+**`POST /projects/import-csv-bulk`** сохраняют формат `schema_version=2`.
+Секции `electrical` и `specifications` используют `variant_number=1…4`.
+
+Import валидирует все занятые slots до записей. Если electrical/spec data есть,
+он создаёт active `ЭР1` плюс только реально занятые slots, полную матрицу
+assignments для импортированных объектов и явно записывает
+`electrical_variant_id` в calculations/specifications. Например, файл со
+slots `1` и `4` не создаёт `ЭР2/ЭР3`. Legacy cable types сохраняются в
+`requested_cable_type` и нормализуются в system/state; imported specification
+не регенерируется и помечается stale с
+`ELECTRICAL_SECTIONS_NOT_READY`. Проект без electrical/spec rows остаётся без
+ЭР.
+
+Неверный slot отклоняется до замены текущего guest project. Bulk-import
+использует savepoint на каждый project graph: ошибка одного проекта не отменяет
+корректные проекты. Export v2 по-прежнему числовой и не переносит произвольные
+имена, active-state, assignments, пятый ЭР или sections; это ограничение до CSV
+v3 в Phase 5.
+
+## Lifecycle именованных ЭР и assignments (Phase 1–3)
+
+**`GET /projects/{project_id}/electrical-readiness`** возвращает:
+
+```json
+{
+  "project_id": "00000000-0000-0000-0000-000000000000",
+  "ready": false,
+  "total_objects": 1,
+  "ready_objects": 0,
+  "issues": [
+    {
+      "code": "ELECTRICAL_OBJECT_NOT_READY",
+      "message": "Сначала исправьте данные и выполните расчёт теплопотерь объекта",
+      "object_id": "00000000-0000-0000-0000-000000000001",
+      "details": {}
+    }
+  ]
+}
+```
+
+Readiness требует хотя бы один объект, тип `pipe` или `tank`, `is_valid=true` и
+конечный положительный `results.total_heat_loss` для каждого объекта.
+
+**`POST /projects/{project_id}/electrical-variants/initialize`** —
+идемпотентно создаёт первый active `ЭР1`, assignments всех объектов и
+`electrical_initialized_at`. Неуспешная readiness возвращает `409` с
+`detail.code="ELECTRICAL_READINESS_FAILED"` и массивом `issues`.
+
+Остальной lifecycle:
+
+- **`GET /projects/{project_id}/electrical-variants`** — список в
+  `sort_order`; read policy совпадает с чтением проекта;
+- **`POST /projects/{project_id}/electrical-variants`** — создать пустой ЭР
+  после initialization, optional body `{ "name": "..." }`;
+- **`POST /projects/{project_id}/electrical-variants/{variant_id}/copy`** —
+  deep copy графа с обязательным `Idempotency-Key`, но без specification;
+- **`PATCH /projects/{project_id}/electrical-variants/{variant_id}`** — rename,
+  body `{ "name": "..." }`;
+- **`POST /projects/{project_id}/electrical-variants/{variant_id}/activate`** —
+  атомарно сменить единственный active;
+- **`DELETE /projects/{project_id}/electrical-variants/{variant_id}`** — удалить
+  с детерминированным active fallback.
+
+Мутации доступны владельцу проекта и администратору; сотрудник с read-доступом
+к чужому registered project может только читать readiness/list. Лимит — пять
+ЭР. Имена непустые, максимум 128 символов и уникальны после `trim + casefold`.
+Нельзя удалить последний ЭР или ЭР с задачей в `queued/enqueued/running`.
+
+Пятый ЭР имеет `legacy_variant_number=null`: lifecycle и assignment API/UI
+работают по UUID, но legacy calculation/candidate/specification/report data
+plane для него остаётся fail-closed. Deep copy непустого
+calculation/candidate/folder graph в него возвращает `409` с
+`ELECTRICAL_VARIANT_COPY_REQUIRES_UUID_CUTOVER`. Heating sections и полный
+UUID-only data plane относятся к Phase 4/5.
+
+Assignments являются project-scoped матрицей `ЭР × объект`; публичный контракт
+всегда использует точный UUID ЭР:
+
+- **`GET /projects/{project_id}/electrical-variants/{variant_id}/assignments`** —
+  список с `view=all|unassigned|self_regulating|resistive|skin|mineral`,
+  optional `assignment_state`, `page`, `page_size`. Ответ содержит отдельные
+  `system_type`, `assignment_state`, `version`, diagnostics, object snapshot и
+  счётчики по типам/состояниям;
+- **`PATCH /projects/{project_id}/electrical-variants/{variant_id}/assignments`** —
+  атомарно назначить 1…500 объектов в `self_regulating` или `resistive`:
+  `{system_type, items:[{object_id, expected_version}]}`;
+- **`POST /projects/{project_id}/electrical-variants/{variant_id}/unassign`** —
+  подтверждённый возврат:
+  `{confirm:true, items:[{object_id, expected_version}]}`.
+
+`skin` и `mineral` не принимаются как target assignment: кнопки назначения для
+них disabled. При этом их вкладки доступны для просмотра migrated unsupported
+строк и confirmed unassign, иначе исторические данные оказались бы stranded.
+Новое поддержанное назначение получает `assignment_state=stale` и
+`ELECTRICAL_CALCULATION_REQUIRED`, а не фиктивный `ready`. Повторное назначение
+в ту же систему идемпотентно (`changed_count=0`, версия и audit не меняются).
+Смена `self_regulating ↔ resistive` требует сначала подтвердить unassign;
+устаревший `expected_version` возвращает
+`409 ELECTRICAL_ASSIGNMENT_VERSION_CONFLICT` и откатывает весь список.
+
+Confirmed unassign удаляет только exact
+`project + electrical_variant_id + object_id` graph:
+`electrical_calculations`, candidates, candidate folders и folder items.
+Assignment остаётся как `unassigned/system_type=null`; heat object/results и
+данные других ЭР сохраняются. Спецификация только этого ЭР помечается stale.
+Если unassigned assignment содержит exact-UUID legacy graph, новый assign
+возвращает `409 ELECTRICAL_ASSIGNMENT_CLEANUP_REQUIRED`. UI показывает
+отдельный handshake: пользователь подтверждает scoped cleanup с сохранением
+heat, после чего явно повторяет назначение. NULL/mismatched legacy UUID,
+cross-ER folder item и пересекающаяся active heat/electrical/report job дают
+стабильный `409` до удаления данных и не очищаются numeric fallback-ом.
+
 ## Электрорасчёт
+
+Ниже описаны действующие direct/legacy endpoints. Их numeric selector остаётся
+deprecated adapter: перед записью backend создаёт или разрешает тот же
+project-scoped UUID ЭР, но расчётный сервис всё ещё получает slot `1…4`.
+Adapter readiness-gated и используется всеми обычными write paths:
+calculation/batch/copy/select, candidate create/apply/unapply, folder create,
+specification generate/save, numeric electrical/report jobs и seed data. Если
+mapping ещё нет, готовый проект получает active `ЭР1` и только явно
+запрошенные sparse slots; запрос slot `4` не создаёт `ЭР2/ЭР3`. Неготовый
+проект получает атомарный `409 ELECTRICAL_READINESS_FAILED` до доменной записи.
+
+После миграции `0029` assignments authoritative: direct/batch/task/copy flow
+должен иметь совместимое назначение точного ЭР до записи. Поддержанная
+нормализация: `self_regulating/self_regulating_tt → self_regulating`,
+`single_core/three_core → resistive`. Успешный/ошибочный расчёт атомарно
+переводит только target assignment в `ready/error/stale/unsupported`, обновляет
+diagnostics, `object_version_snapshot` и optimistic `version`; runtime sync не
+создаёт назначение автоматически.
 
 **`POST /calc/electrical/batch`** — автоподбор выбранного расчётного типа
 кабеля для всех валидных объектов проекта: ТЛТ (`self_regulating`),
@@ -210,6 +396,12 @@ Admin-only endpoints для DLQ:
 `results.hint`. Допустимые категории:
 `validation`, `formula`, `unsupported`, `external`; причина видна на UI после
 reload.
+
+При UUID selector `scope=all` означает только объекты, назначенные в
+совместимую систему выбранного ЭР. Explicit `object_ids` валидируются одним
+атомарным preflight; unassigned, unsupported и назначенные в другую систему
+объекты дают стабильный `409`, а не молча исключаются. Та же семантика
+применяется к `POST /calc/electrical/batch/jobs`.
 
 Успешность сохранённого электрорасчёта определяется единым правилом:
 есть выбранный кабель (`cable_mark` или `results.selected_cable`) и нет
@@ -302,13 +494,21 @@ cable_mark?, electrical_params}`. Ответ:
 `cable_snapshot.fingerprint.technical_hash`, затем `catalog_entry_id`, затем
 `actual_catalog_source + mark`, а не значением `all`. `mode=auto` запускает
 один явный расчёт по кнопке без `cable_mark`; `mode=manual` проверяет указанную
-марку. Endpoint не обещает multi-candidate генерацию: если для типа кабеля нет
-поддержанной формулы/генератора,
-сохраняется диагностический кандидат `status=not_applicable`,
-`reason_code=no_candidate_generator`, без фиктивных рекомендаций. Успешный
-кандидат имеет `status=applicable` и может быть помечен инженером как
+марку. Endpoint не обещает multi-candidate генерацию. В authoritative
+assignment flow запрошенный тип обязан принадлежать поддержанной и назначенной
+системе. `mineral`/`skin` отклоняются до dedupe/upsert с
+`409 ELECTRICAL_SYSTEM_UNSUPPORTED`; диагностический candidate row при этом не
+создаётся. Поля `status=not_applicable` и
+`reason_code=no_candidate_generator` остаются частью модели диагностических
+результатов, но не разрешают обход этого preflight для unsupported system.
+Успешный кандидат имеет `status=applicable` и может быть помечен инженером как
 приоритетный/закреплённый/исключённый. Статус `excluded` при повторном
 идентичном расчёте сохраняется.
+
+Candidate create и folder create требуют live compatible assignment exact UUID;
+сохранённая parent-строка `unassigned` разрешением не является. Folder item
+дополнительно обязан иметь тот же project/object/variant number/UUID, что
+folder и candidate; несовпадение отклоняется до связи.
 
 `dedupe_key` строится по матрице `cable_type × object_type`:
 
@@ -320,7 +520,7 @@ cable_mark?, electrical_params}`. Ответ:
 | `self_regulating_tt` | резервуар | поля резервуара + resolved `maintain_temperature`, `vapor_temperature`, `aggressive_product` |
 | `single_core` / `three_core` | труба | `technical/catalog identity`, марка, напряжение, `scheme_count`, `scheme_threads`, `connection_type`, `winding_pitch`, `winding_coefficient` |
 | `single_core` / `three_core` | резервуар | `technical/catalog identity`, марка, напряжение, `scheme_count`, `scheme_threads`, `connection_type`, `heating_height`, resolved `laying_step`, `winding_coefficient` |
-| `mineral` / `skin` | любой | только diagnostic fingerprint; применимый variant не создаётся до появления методики |
+| `mineral` / `skin` | любой | active create отклоняется `409 ELECTRICAL_SYSTEM_UNSUPPORTED` до dedupe; candidate row не создаётся |
 
 Для резервуаров `winding_pitch` сам по себе не является отдельной
 идентичностью, если он только alias для `laying_step = winding_pitch / 1000`.
@@ -362,7 +562,11 @@ cable_mark?, electrical_params}`. Ответ:
 **`POST /calc/electrical/candidates/{id}/apply`** — применить кандидат в
 основной электрорасчёт выбранного объекта и СО. Backend пересчитывает текущие
 данные объекта через существующий manual-flow и помечает единственный кандидат
-на `(object_id, variant_number)` как `is_applied=true`.
+на `(object_id, variant_number)` как `is_applied=true`. Apply и lifecycle delete
+сериализованы общей project-row lock; после lock candidate и UUID mapping
+перечитываются. Если ЭР уже удалён, apply не создаёт его заново и возвращает
+стабильный `404/409` (`ELECTRICAL_CANDIDATE_NOT_FOUND` или
+`ELECTRICAL_CANDIDATE_VARIANT_UNAVAILABLE`) вместо integrity `500`.
 
 **`POST /calc/electrical/variants/copy`** — создать целевой CO-вариант на
 основании другого CO без нового автоподбора. Backend берёт только сохранённые
@@ -379,7 +583,7 @@ cable_mark?, electrical_params}`. Ответ:
 
 Запрос:
 `{project_id, source_variant_number, target_variant_number, overwrite=false,
-regenerate_specification=true}`.
+regenerate_specification=false}`.
 
 Ответ:
 `{project_id, source_variant_number, target_variant_number, copied_count,
@@ -393,6 +597,14 @@ validation_failed_count, preserved_without_validation_count}`.
 Пустой source CO возвращает `422` с `detail.code="source_empty"`, одинаковые
 source/target — `422` с `detail.code="same_variant"`.
 
+В Phase 3 это действие является явным пользовательским copy intent: backend
+проверяет source assignment и staging compatible target assignment до записи
+скопированных calculation rows. Это не скрытая auto-assignment политика для
+обычного calculation или project duplicate. По PDL-ER-13 specification не
+копируется и не регенерируется: target получает `not_generated`, а explicit
+`regenerate_specification=true` отклоняется fail-closed до mutation. Успешный
+ответ Phase 3 всегда возвращает `specification_regenerated=false`.
+
 **`POST /calc/electrical/query`** возвращает страницу таблицы электрорасчёта.
 Для стандартной сортировки `(sort_order, id)` и SQL-поддерживаемых
 фильтров/сортировок ответ может содержать
@@ -403,9 +615,33 @@ pagination. При произвольном переходе на страниц
 ограниченный offset fallback, а Python fallback для неподдерживаемых полей
 запрещён на больших проектах.
 
+При переданном `electrical_variant_id` ответ дополнительно содержит
+`assignments` только для объектов текущей страницы:
+`{object_id, system_type|null, assignment_state, version}`. Projection читается
+одним bounded query. Отсутствующее, `unassigned` или unsupported назначение
+fail-closed блокирует row select, manual/candidate flow, inline edit и
+recalculation. Несовпадение текущего saved/draft cable type с поддержанным
+assignment по-прежнему блокирует row/batch/inline/selected-recalculation для
+этого типа, но не само открытие `Выбор`/`Подбор`: модалка берёт безопасный тип
+назначенной системы. Для свежего `resistive` assignment без расчёта или со
+старым self-regulating type это `single_core`; список типов содержит только
+resistive-варианты (`single_core`/`three_core`, если они доступны), без
+self-regulating. `system_type:null` передаётся явно; defensive optional handling
+во frontend не означает иной backend-контракт.
+
 **`GET /references/cables?source=commercial`** и
 **`GET /references/cables/commercial`** — публичный commercial catalog для всех
 ролей. `source=extended|all` по-прежнему доступен только сотруднику/админу.
+
+## Спецификация: legacy write adapter
+
+`POST /specifications/{project_id}/generate?variant=N` и employee-only
+`PUT /specifications/{project_id}/items?variant=N` остаются numeric `1…4`, но
+перед generate/save проходят тот же readiness-gated UUID adapter и записывают
+`electrical_variant_id`. Для проекта без объектов generation возвращает
+`409` с `detail.code="ELECTRICAL_READINESS_FAILED"`; variant и specification
+rows не создаются. Этот guard не означает реализацию multi-ЭР generation,
+sections-aware partial flow или исправление всех PDF-BOM требований.
 
 ## Отчёты
 
@@ -413,7 +649,13 @@ pagination. При произвольном переходе на страниц
 отчёта по одному CO-варианту. `variant_number` обязателен, допустимо `1..4`.
 Backend фильтрует электрорасчёты и спецификацию по этому варианту.
 
-**`GET /reports/{project_id}/export/{pdf|docx|xlsx}?variant_number=N`** и
-**`POST /reports/{project_id}/export/{pdf|docx|xlsx}/jobs?variant_number=N`** —
-экспорт отчёта сотрудником. `variant_number` обязателен и попадает в payload
-фоновой задачи; worker формирует файл только по указанному варианту.
+**`GET /reports/{project_id}/export/{pdf|docx|xlsx}?variant_number=N`** —
+синхронный экспорт отчёта сотрудником; direct service остаётся numeric `1…4`.
+
+**`POST /reports/{project_id}/export/{pdf|docx|xlsx}/jobs`** — async export
+принимает ровно один selector: предпочтительный `electrical_variant_id=<uuid>`
+или deprecated `variant_number=N`. Task сохраняется как UUID-first payload v3,
+а worker временно разрешает UUID обратно в representable legacy slot. Numeric
+enqueue проходит readiness adapter: на свежем готовом проекте slot `4` создаёт
+только `ЭР1 + ЭР4`. Report preview и синхронный export остаются read-only
+numeric до Phase 5.

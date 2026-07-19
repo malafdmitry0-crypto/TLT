@@ -17,6 +17,7 @@ import type { ElectricalCandidateFolder } from '@/types/calculation';
 type CandidateTablePanelProps = ComponentProps<typeof ElecCalcCandidateTablePanel>;
 
 type ElecCalcCableSizingModalProps = {
+  canMutate: boolean;
   cableSizingModal: ReturnType<typeof useElecCalcCableSizingModalState>;
   candidate: ReturnType<typeof useElecCalcCandidateState>;
   selectedCable: CableStatusRow | null;
@@ -48,6 +49,7 @@ type ElecCalcCableSizingModalProps = {
 
 /** Модалка подбора кабеля (cable sizing) с таблицей кандидатов, папками и compare. */
 export default function ElecCalcCableSizingModal({
+  canMutate,
   cableSizingModal,
   candidate,
   selectedCable,
@@ -113,6 +115,7 @@ export default function ElecCalcCableSizingModal({
             aria-label="Режим подбора кабеля"
             size="small"
             value={mode}
+            disabled={!canMutate}
             onChange={setMode}
             options={[
               { label: 'Авторасчёт', value: 'auto' },
@@ -123,7 +126,7 @@ export default function ElecCalcCableSizingModal({
             aria-label="Тип кабеля для подбора"
             size="small"
             value={effectiveCableType}
-            disabled={!commercialFeaturesAvailable}
+            disabled={!canMutate || !commercialFeaturesAvailable}
             onChange={(nextType) => {
               setCableType(normalizeAvailableCableType(nextType));
               setManualMark(null);
@@ -139,6 +142,7 @@ export default function ElecCalcCableSizingModal({
               size="small"
               value={manualMark ?? undefined}
               placeholder="Марка"
+              disabled={!canMutate}
               options={cableSizingManualOptions
                 .filter((option) => option.mark)
                 .map((option) => ({
@@ -155,6 +159,7 @@ export default function ElecCalcCableSizingModal({
             type="primary"
             loading={candidate.createCandidateMut.isPending}
             disabled={
+              !canMutate ||
               !object ||
               (mode === 'manual' && !manualMark)
             }
@@ -183,13 +188,20 @@ export default function ElecCalcCableSizingModal({
             Сбросить фильтры
           </Button>
         </div>
-        {renderTypeControls(effectiveCableType, { block: true })}
+        {canMutate ? (
+          renderTypeControls(effectiveCableType, { block: true })
+        ) : (
+          <fieldset disabled style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+            {renderTypeControls(effectiveCableType, { block: true })}
+          </fieldset>
+        )}
         <ElecCalcSelectedCableSummary
           appliedCandidate={candidate.appliedCableSizingCandidate}
           calc={calc}
           fallbackCableType={cableType}
         />
         <ElecCalcCandidateFolderTabs
+          canMutate={canMutate}
           activeKey={candidate.activeCandidateFolderKey}
           counts={candidate.candidateFolderCounts}
           folders={candidate.cableSizingCandidateFolders}
@@ -205,6 +217,7 @@ export default function ElecCalcCableSizingModal({
           onReset={candidate.resetMarkedCableSizingCandidates}
         />
         <ElecCalcCandidateTablePanel
+          canMutate={canMutate}
           rows={candidate.displayedCableSizingCandidates}
           glideColumns={electricalCandidateGlideColumns}
           tableScrollX={candidateTableScrollX}

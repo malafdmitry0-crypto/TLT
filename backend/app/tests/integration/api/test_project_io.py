@@ -1,9 +1,20 @@
 """Integration-тесты экспорта/импорта проектов в CSV."""
 
 import uuid
+from datetime import UTC, datetime
+from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
+from app.models.project import Project
+from app.models.project_object import ProjectObject
+from app.models.specification import Specification
+from app.models.user import User
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -29,6 +40,244 @@ async def _add_pipe(client: AsyncClient, project_id: str, headers: dict):
         json={"object_type": "pipe", "sort_order": 0, "params": PIPE_PARAMS},
         headers=headers,
     )
+
+
+async def _seed_sparse_v2_export_graph(
+    db_session: AsyncSession,
+    owner: User,
+    *,
+    suffix: str,
+) -> Project:
+    project = Project(
+        name=f"Sparse ER {suffix}",
+        task_number=f"SPARSE-{suffix}",
+        user_id=owner.id,
+        electrical_initialized_at=datetime.now(UTC),
+    )
+    db_session.add(project)
+    await db_session.flush()
+
+    first = ProjectObject(
+        project_id=project.id,
+        object_type="pipe",
+        sort_order=0,
+        params={**PIPE_PARAMS, "name": "Труба ЭР1"},
+        results={"total_heat_loss": 100.0},
+        is_valid=True,
+    )
+    second = ProjectObject(
+        project_id=project.id,
+        object_type="pipe",
+        sort_order=1,
+        params={**PIPE_PARAMS, "name": "Труба ЭР4", "pipe_length": 75.0},
+        results={"total_heat_loss": 150.0},
+        is_valid=True,
+    )
+    db_session.add_all([first, second])
+    await db_session.flush()
+
+    er1 = ElectricalVariant(
+        project_id=project.id,
+        name="ЭР1",
+        name_normalized="эр1",
+        sort_order=0,
+        is_active=True,
+        legacy_variant_number=1,
+    )
+    er4 = ElectricalVariant(
+        project_id=project.id,
+        name="ЭР4",
+        name_normalized="эр4",
+        sort_order=1,
+        is_active=False,
+        legacy_variant_number=4,
+    )
+    db_session.add_all([er1, er4])
+    await db_session.flush()
+
+    assignments = [
+        ElectricalVariantObject(
+            project_id=project.id,
+            electrical_variant_id=variant.id,
+            object_id=obj.id,
+            system_type=system_type,
+            assignment_state=state,
+            requested_cable_type=requested_type,
+            object_version_snapshot=obj.version,
+            diagnostics={"source": "roundtrip-fixture"},
+        )
+        for variant, obj, system_type, state, requested_type in (
+            (er1, first, "self_regulating", "ready", "self_regulating_tt"),
+            (er1, second, None, "unassigned", None),
+            (er4, first, "mineral", "unsupported", "mineral"),
+            (er4, second, "resistive", "ready", "single_core"),
+        )
+    ]
+    db_session.add_all(assignments)
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            ElectricalCalculation(
+                project_id=project.id,
+                object_id=first.id,
+                variant_number=1,
+                electrical_variant_id=er1.id,
+                cable_type="self_regulating_tt",
+                cable_type_source="manual",
+                cable_mark="TLT-SR-1",
+                cable_mark_source="manual",
+                params={"source": "v2-roundtrip"},
+                results={"selected_cable": "TLT-SR-1", "total_power": 120.0},
+            ),
+            ElectricalCalculation(
+                project_id=project.id,
+                object_id=first.id,
+                variant_number=4,
+                electrical_variant_id=er4.id,
+                cable_type="mineral",
+                cable_type_source="manual",
+                cable_mark=None,
+                cable_mark_source="auto",
+                params={"source": "v2-roundtrip"},
+                results={
+                    "category": "unsupported",
+                    "error_code": "UNSUPPORTED_CABLE_TYPE",
+                },
+            ),
+            ElectricalCalculation(
+                project_id=project.id,
+                object_id=second.id,
+                variant_number=4,
+                electrical_variant_id=er4.id,
+                cable_type="single_core",
+                cable_type_source="manual",
+                cable_mark="TLT-R-4",
+                cable_mark_source="manual",
+                params={"source": "v2-roundtrip"},
+                results={"selected_cable": "TLT-R-4", "total_power": 180.0},
+            ),
+            Specification(
+                project_id=project.id,
+                variant_number=4,
+                electrical_variant_id=er4.id,
+                items=[{"name": "Legacy item", "quantity": 2}],
+            ),
+        ]
+    )
+    await db_session.commit()
+    return project
+
+
+async def _assert_sparse_imported_graph(
+    db_session: AsyncSession,
+    project_id: UUID,
+) -> None:
+    project = await db_session.get(Project, project_id)
+    assert project is not None
+    assert project.electrical_initialized_at is not None
+
+    variants = list(
+        (
+            await db_session.execute(
+                select(ElectricalVariant)
+                .where(ElectricalVariant.project_id == project_id)
+                .order_by(ElectricalVariant.sort_order)
+            )
+        ).scalars()
+    )
+    assert [variant.legacy_variant_number for variant in variants] == [1, 4]
+    assert [variant.name for variant in variants] == ["ЭР1", "ЭР4"]
+    assert [variant.is_active for variant in variants] == [True, False]
+
+    objects = list(
+        (
+            await db_session.execute(
+                select(ProjectObject)
+                .where(ProjectObject.project_id == project_id)
+                .order_by(ProjectObject.sort_order)
+            )
+        ).scalars()
+    )
+    assignments = list(
+        (
+            await db_session.execute(
+                select(ElectricalVariantObject).where(
+                    ElectricalVariantObject.project_id == project_id
+                )
+            )
+        ).scalars()
+    )
+    assert len(objects) == 2
+    assert len(assignments) == len(objects) * len(variants) == 4
+    assignment_by_scope = {
+        (assignment.electrical_variant_id, assignment.object_id): assignment
+        for assignment in assignments
+    }
+    er1, er4 = variants
+    first, second = objects
+    first_er1 = assignment_by_scope[(er1.id, first.id)]
+    second_er1 = assignment_by_scope[(er1.id, second.id)]
+    first_er4 = assignment_by_scope[(er4.id, first.id)]
+    second_er4 = assignment_by_scope[(er4.id, second.id)]
+    assert (first_er1.system_type, first_er1.assignment_state) == (
+        "self_regulating",
+        "ready",
+    )
+    assert first_er1.requested_cable_type == "self_regulating_tt"
+    assert (second_er4.system_type, second_er4.assignment_state) == (
+        "resistive",
+        "ready",
+    )
+    assert second_er4.requested_cable_type == "single_core"
+    assert (second_er1.system_type, second_er1.assignment_state) == (None, "unassigned")
+    assert (first_er4.system_type, first_er4.assignment_state) == (
+        "mineral",
+        "unsupported",
+    )
+    assert first_er4.requested_cable_type == "mineral"
+
+    calculations = list(
+        (
+            await db_session.execute(
+                select(ElectricalCalculation)
+                .where(ElectricalCalculation.project_id == project_id)
+                .order_by(
+                    ElectricalCalculation.variant_number,
+                    ElectricalCalculation.object_id,
+                )
+            )
+        ).scalars()
+    )
+    assert sorted(calculation.variant_number for calculation in calculations) == [1, 4, 4]
+    assert all(calculation.electrical_variant_id is not None for calculation in calculations)
+    calculation_by_scope = {
+        (calculation.object_id, calculation.variant_number): calculation
+        for calculation in calculations
+    }
+    assert calculation_by_scope[(first.id, 1)].electrical_variant_id == er1.id
+    assert calculation_by_scope[(first.id, 4)].electrical_variant_id == er4.id
+    assert calculation_by_scope[(second.id, 4)].electrical_variant_id == er4.id
+
+    specs = list(
+        (
+            await db_session.execute(
+                select(Specification).where(Specification.project_id == project_id)
+            )
+        ).scalars()
+    )
+    assert len(specs) == 1
+    spec = specs[0]
+    assert spec.variant_number == 4
+    assert spec.electrical_variant_id == er4.id
+    assert spec.is_stale is True
+    assert spec.stale_reason == "electrical_sections_not_ready"
+    assert spec.stale_details == {
+        "import_schema_version": "2",
+        "legacy_variant_number": 4,
+        "sections_status": "not_ready",
+        "error_code": "ELECTRICAL_SECTIONS_NOT_READY",
+    }
 
 
 class TestSingleExportImport:
@@ -196,6 +445,131 @@ class TestSingleExportImport:
         assert listing[0]["cable_mark"] == "ТЛТ-60"
         assert listing[0]["cable_mark_source"] == "manual"
 
+    async def test_roundtrip_sparse_legacy_slots_reconstructs_uuid_graph(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        employee_user: User,
+        db_session: AsyncSession,
+    ):
+        suffix = uuid.uuid4().hex[:8]
+        source = await _seed_sparse_v2_export_graph(
+            db_session,
+            employee_user,
+            suffix=suffix,
+        )
+        headers = {"Authorization": f"Bearer {employee_token}"}
+
+        exported = await client.get(
+            f"/api/v1/projects/{source.id}/export-csv",
+            headers=headers,
+        )
+        assert exported.status_code == 200, exported.text
+        text = exported.content.decode("utf-8-sig")
+        assert "[SECTION];electrical" in text
+        assert "[SECTION];specifications" in text
+
+        imported = await client.post(
+            "/api/v1/projects/import-csv",
+            files={"file": ("sparse.csv", exported.content, "text/csv")},
+            headers=headers,
+        )
+        assert imported.status_code == 201, imported.text
+
+        await _assert_sparse_imported_graph(
+            db_session,
+            UUID(imported.json()["id"]),
+        )
+
+    async def test_roundtrip_empty_project_keeps_zero_electrical_variants(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        employee_user: User,
+        db_session: AsyncSession,
+    ):
+        suffix = uuid.uuid4().hex[:8]
+        source = Project(
+            name=f"Empty ER {suffix}",
+            task_number=f"EMPTY-ER-{suffix}",
+            user_id=employee_user.id,
+        )
+        db_session.add(source)
+        await db_session.commit()
+        headers = {"Authorization": f"Bearer {employee_token}"}
+
+        exported = await client.get(
+            f"/api/v1/projects/{source.id}/export-csv",
+            headers=headers,
+        )
+        assert exported.status_code == 200, exported.text
+        imported = await client.post(
+            "/api/v1/projects/import-csv",
+            files={"file": ("empty-er.csv", exported.content, "text/csv")},
+            headers=headers,
+        )
+        assert imported.status_code == 201, imported.text
+        imported_id = UUID(imported.json()["id"])
+
+        imported_project = await db_session.get(Project, imported_id)
+        assert imported_project is not None
+        assert imported_project.electrical_initialized_at is None
+        variants = list(
+            (
+                await db_session.execute(
+                    select(ElectricalVariant).where(ElectricalVariant.project_id == imported_id)
+                )
+            ).scalars()
+        )
+        assert variants == []
+
+    @pytest.mark.parametrize(
+        "invalid_section",
+        [
+            (
+                "[SECTION];electrical\n"
+                "object_key;variant_number;cable_type;cable_type_source;"
+                "cable_mark;cable_mark_source;cable_snapshot;params;results\n"
+                "missing;5;self_regulating;auto;;auto;;{};\n"
+            ),
+            ("[SECTION];specifications\n" "variant_number;items\n" "0;[]\n"),
+        ],
+        ids=["electrical-slot-5", "specification-slot-0"],
+    )
+    async def test_guest_import_invalid_slot_is_atomic(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        invalid_section: str,
+    ):
+        headers = {"X-Session-Id": guest_session}
+        original = (await client.get("/api/v1/projects", headers=headers)).json()
+        assert len(original) == 1
+        original_id = original[0]["id"]
+        csv_payload = (
+            "[SECTION];metadata\n"
+            "key;value\n"
+            "schema_version;2\n"
+            "name;Invalid legacy slot\n"
+            "\n"
+            "[SECTION];objects\n"
+            "object_key;type;name;sort_order;params;results;is_valid;"
+            "validation_errors\n"
+            "\n"
+            f"{invalid_section}"
+        ).encode()
+
+        response = await client.post(
+            "/api/v1/projects/import-csv",
+            files={"file": ("invalid-slot.csv", csv_payload, "text/csv")},
+            headers=headers,
+        )
+
+        assert response.status_code == 422, response.text
+        assert "1..4" in response.json()["detail"]
+        remaining = (await client.get("/api/v1/projects", headers=headers)).json()
+        assert [project["id"] for project in remaining] == [original_id]
+
 
 class TestBulkExportImport:
     async def test_guest_cannot_bulk_export(self, client: AsyncClient, guest_session: str):
@@ -258,6 +632,110 @@ class TestBulkExportImport:
         names = {p["name"] for p in listing}
         assert "Проект А (импорт)" in names
         assert "Проект Б (импорт)" in names
+
+    async def test_bulk_roundtrip_sparse_slots_reconstructs_uuid_graph(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        employee_user: User,
+        db_session: AsyncSession,
+    ):
+        suffix = uuid.uuid4().hex[:8]
+        source = await _seed_sparse_v2_export_graph(
+            db_session,
+            employee_user,
+            suffix=f"bulk-{suffix}",
+        )
+        headers = {"Authorization": f"Bearer {employee_token}"}
+
+        exported = await client.get(
+            f"/api/v1/projects/export-csv-bulk?ids={source.id}",
+            headers=headers,
+        )
+        assert exported.status_code == 200, exported.text
+        imported = await client.post(
+            "/api/v1/projects/import-csv-bulk",
+            files={"file": ("sparse-bulk.csv", exported.content, "text/csv")},
+            headers=headers,
+        )
+        assert imported.status_code == 200, imported.text
+        assert imported.json() == {"imported": 1, "errors": []}
+
+        imported_project = await db_session.scalar(
+            select(Project).where(
+                Project.user_id == employee_user.id,
+                Project.task_number == f"{source.task_number}-импорт",
+            )
+        )
+        assert imported_project is not None
+        await _assert_sparse_imported_graph(db_session, imported_project.id)
+
+    async def test_bulk_invalid_slot_rolls_back_project_and_continues(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        employee_user: User,
+        db_session: AsyncSession,
+    ):
+        suffix = uuid.uuid4().hex[:8]
+        bad_task = f"BAD-SLOT-{suffix}"
+        good_task = f"GOOD-EMPTY-{suffix}"
+        csv_payload = (
+            "[SECTION];meta\n"
+            "key;value\n"
+            "schema_version;2\n"
+            "\n"
+            "[SECTION];projects\n"
+            "project_key;name;task_number;description;status\n"
+            f"bad;Bad slot;{bad_task};;draft\n"
+            f"good;Good empty;{good_task};;draft\n"
+            "\n"
+            "[SECTION];electrical\n"
+            "project_key;object_key;variant_number;cable_type;cable_type_source;"
+            "cable_mark;cable_mark_source;cable_snapshot;params;results\n"
+            "bad;missing;5;self_regulating;auto;;auto;;{};\n"
+        ).encode()
+        headers = {"Authorization": f"Bearer {employee_token}"}
+
+        response = await client.post(
+            "/api/v1/projects/import-csv-bulk",
+            files={"file": ("invalid-slot-bulk.csv", csv_payload, "text/csv")},
+            headers=headers,
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["imported"] == 1
+        assert response.json()["errors"] == [
+            {
+                "project_key": "bad",
+                "error": "variant_number в секции electrical должен быть "
+                "в диапазоне 1..4: получено 5",
+            }
+        ]
+
+        projects = list(
+            (
+                await db_session.execute(
+                    select(Project).where(
+                        Project.user_id == employee_user.id,
+                        Project.task_number.in_([bad_task, good_task]),
+                    )
+                )
+            ).scalars()
+        )
+        assert [project.task_number for project in projects] == [good_task]
+        imported_empty = projects[0]
+        assert imported_empty.electrical_initialized_at is None
+        variants = list(
+            (
+                await db_session.execute(
+                    select(ElectricalVariant).where(
+                        ElectricalVariant.project_id == imported_empty.id
+                    )
+                )
+            ).scalars()
+        )
+        assert variants == []
 
     async def test_employee_bulk_import_empty_section(
         self, client: AsyncClient, employee_token: str

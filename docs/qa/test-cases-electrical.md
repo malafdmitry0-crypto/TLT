@@ -268,6 +268,8 @@
 | 6 | В `CO1` выбран валидный, но не минимальный кабель | В `CO2` сохранена та же марка; система не заменяет её оптимальным автоподбором |
 | 7 | В `CO1` критерий подбора `technical_minimum` / commercial ranking | В `CO2` сохранён тот же `applied_selection_policy` и `selection_reason`, не `manual_selection` |
 | 8 | Скопированная марка больше не проходит текущие условия объекта | В `CO2` сохраняется structured error с `copy_validation.autoselection_used=false`, другая марка не подбирается |
+| 9 | Проверить specification target после copy | По PDL-ER-13 target `not_generated`: specification не копируется и не регенерируется |
+| 10 | Явно передать `regenerate_specification=true` | Запрос отклоняется fail-closed до mutation; target assignment/calculation/spec graph не меняется |
 
 ---
 
@@ -405,6 +407,7 @@
 | 8 | `cable_source=all` для двух запросов с одним фактическим кабелем | Один вариант (ключ по `technical_hash` / фактическому источнику, не `all`) |
 | 9 | Та же марка, но разная инженерная конфигурация из матрицы `cable_type × object_type` | Создаются разные варианты в `electrical_candidates` |
 | 10 | Применить два разных кандидата по очереди | В `electrical_calculations` остаётся одна строка для `(object_id, variant_number)`, применён только последний кандидат |
+| 11 | Отправить candidate create с `cable_type=mineral` или `skin` | HTTP 409 `ELECTRICAL_SYSTEM_UNSUPPORTED`; candidate row не создаётся, dedupe/upsert не выполняется |
 
 Матрица уникальности:
 
@@ -416,7 +419,7 @@
 | `self_regulating_tt` | резервуар | критерии резервуара + resolved T3, пропарка, агрессивная среда |
 | `single_core` / `three_core` | труба | марка/technical identity, напряжение, схема (`scheme_count`, `scheme_threads`, `connection_type`), шаг/коэффициент навива |
 | `single_core` / `three_core` | резервуар | марка/technical identity, напряжение, схема, высота обогрева, resolved шаг укладки, коэффициент навива |
-| `mineral` / `skin` | любой | diagnostic fingerprint; применимый вариант не создаётся |
+| `mineral` / `skin` | любой | active create отклоняется до dedupe; candidate row не создаётся |
 
 ---
 
@@ -438,3 +441,58 @@
 | 5 | Перейти в `Согласовать` | Таблица показывает только связанные варианты |
 | 6 | Удалить папку | Связи удаляются, сами варианты остаются в `Все` |
 | 7 | Повторно выполнить идентичный upsert кандидата | Связи с папками и `Избранное` не сбрасываются |
+
+---
+
+## TC-ELEC-17: Authoritative assignments внутри именованного ЭР
+
+**Автоматизировано:** ✅ (backend integration)
+`test_electrical_assignments.py::TestElectricalAssignmentApi` и
+`TestElectricalAssignmentCalculationSync`<br>
+**Автоматизировано:** ✅ (migration)
+`test_electrical_assignment_migration.py`<br>
+**Автоматизировано:** ✅ (frontend)
+`electricalAssignments.test.ts`, `ElectricalAssignmentPanel.test.tsx`,
+`elecCalcAssignmentScopeModel.test.ts`, `ElecCalcPage.test.tsx`.<br>
+**Семантический regression:**
+`elecCalcAssignmentScopeModel.test.ts` — «открывает manual/candidate flow для
+свежего resistive assignment и выбирает безопасный тип»;
+`ElecCalcPage.test.tsx` — «fail-closed ограничивает row actions и explicit
+selected payload назначениями ЭР» одновременно проверяет доступный `Подбор`
+для mismatch supported assignment и auto-select `single_core`.
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Инициализировать готовый проект и открыть именованный ЭР по UUID | Для каждого объекта есть assignment `unassigned`, `system_type=null`, `version>=1`; type и state не смешаны |
+| 2 | В панели выбрать объекты и назначить `self_regulating` | PATCH отправляет exact project/ER UUID и `expected_version`; ответ `stale` + `ELECTRICAL_CALCULATION_REQUIRED`, не фиктивный `ready` |
+| 3 | Повторить то же назначение с текущей версией | Идемпотентный no-op: `changed_count=0`, version и audit не увеличиваются |
+| 4 | Попытаться сразу назначить `resistive` | HTTP 409 `ELECTRICAL_ASSIGNMENT_REASSIGN_REQUIRES_UNASSIGN`; исходная строка не меняется |
+| 5 | Отправить bulk mutation, где одна `expected_version` устарела | HTTP 409 `ELECTRICAL_ASSIGNMENT_VERSION_CONFLICT`; весь список откатывается |
+| 6 | Открыть migrated `skin`/`mineral` и попытаться назначить новый объект в эту систему | Tabs доступны для просмотра unsupported rows и confirmed unassign; target action disabled, прямой API даёт 409 `ELECTRICAL_SYSTEM_UNSUPPORTED` |
+| 7 | Запустить compatible calculation для exact UUID | Только target assignment переходит в `ready/error/stale/unsupported`; diagnostics, object snapshot и version обновлены атомарно |
+| 8 | Запустить calculation/candidate/folder для unassigned или другой системы | Stable 409 `ELECTRICAL_ASSIGNMENT_REQUIRED` / `ELECTRICAL_ASSIGNMENT_SYSTEM_MISMATCH`; runtime не auto-assign |
+| 8A | Запросить candidate create с `cable_type=mineral` или `skin` | Stable 409 `ELECTRICAL_SYSTEM_UNSUPPORTED` до записи; diagnostic candidate не создаётся |
+| 9 | Выбрать `Пересчитать все` | Backend берёт только объекты compatible system выбранного ЭР; explicit несовместимые IDs дают 409 |
+| 10 | Проверить response `POST /calc/electrical/query` | `assignments` содержит exact UUID projection только объектов текущей страницы; `system_type:null` передаётся явно |
+| 11 | Проверить frontend на missing/unassigned/unsupported projection | Row select, manual/candidate, inline edit и recalc disabled fail-closed с объяснением |
+| 11A | Для supported assignment выбрать в строке cable type другой системы | Row select, batch/inline edit и selected recalc остаются disabled как несовместимые; `Выбор` и `Подбор` доступны, потому что назначение поддержано |
+| 11B | Открыть `Выбор` и `Подбор` у свежего `resistive` assignment без расчёта либо с saved/default `self_regulating` | Обе модалки автоматически используют `single_core`; селектор содержит только resistive-типы (`single_core`/`three_core`, если доступны) и не содержит self-regulating options |
+| 12 | Подтвердить unassign объекта с calculation/candidates/folders/items | Удалён только exact `project + ER UUID + object` graph; assignment остаётся `unassigned`, heat и другой ЭР сохранены, exact-ER specification stale |
+| 12A | Попытаться назначить unassigned row с exact legacy calculation/candidate/folder graph | Сначала 409 `ELECTRICAL_ASSIGNMENT_CLEANUP_REQUIRED`; UI показывает отдельное подтверждение scoped cleanup, сохраняет heat и не выдаёт assign за успешный |
+| 13 | Повторить unassign уже чистого unassigned объекта | Идемпотентный результат без version bump; confirmation всё равно обязательна |
+| 14 | Создать NULL/mismatched UUID или cross-ER folder-item fixture | 409 `ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT` до удаления любой строки |
+| 15 | Запустить пересекающуюся active heat/electrical/report task и mutation | 409 `ELECTRICAL_ASSIGNMENT_JOB_CONFLICT`; cancel-requested active task всё ещё блокирует mutation |
+| 16 | Повторить assign/unassign одновременно с одной исходной version | Ровно один запрос выигрывает revision; второй получает version conflict |
+| 17 | Открыть пятый ЭР (`legacy_variant_number=null`) | Assignment GET/PATCH/unassign работает по UUID; calculation/spec/report остаются fail-closed до Phase 5 |
+| 18 | Прямой запрос другого guest/employee без write ownership | Backend 403; read-only UI не является единственным RBAC guard |
+
+Migration `0029` отдельно проверяет upgrade/downgrade, exact-UUID reconciliation,
+semantic CHECK, lookup index и отсутствие ложного `ready` для
+error/stale/unsupported rows. UI proof Phase 3 обязан включать desktop/mobile
+before/after, clipping/overflow/overlap/readability, disabled controls, console,
+network UUID и `db-invariants` после сценария.
+
+Финальный Phase 3 run выполнил этот gate: desktop `1440×1000`, mobile
+`390×844`, exact-UUID assign/unassign/reload, 0 console errors/warnings и
+post-UI DB invariants **28/28 PASS**. Evidence:
+`docs/tnp/cases/guest-specification/evidence/phase-3-assignments/`.

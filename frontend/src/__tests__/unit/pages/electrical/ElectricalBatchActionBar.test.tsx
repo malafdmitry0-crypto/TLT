@@ -11,14 +11,12 @@ function makeProps(
   overrides: Partial<Parameters<typeof ElectricalBatchActionBar>[0]> = {},
 ) {
   return {
-    variant: 1,
+    canMutate: true,
+    variantName: 'Основное ЭР',
     cableTypeControlLabel: 'Тип для пересчёта:',
     cableTypeOptions: [{ value: 'self_regulating' as const, label: 'Саморегулирующийся' }],
     visibleCableTypeControl: 'self_regulating' as const,
     typeControls: null,
-    commercialFeaturesAvailable: true,
-    copyVariantMenuItems: [{ key: '2', label: 'Скопировать СО1 в СО2' }],
-    copyVariantPending: false,
     isJobActive: false,
     selectedManualCableCount: 0,
     selectedValidObjectsCount: 2,
@@ -40,8 +38,6 @@ function makeProps(
         <input type="checkbox" aria-label="Перезаписать ручные выборы" />
       </label>
     )),
-    onVariantChange: vi.fn(),
-    onCopyVariant: vi.fn(),
     onCableTypeChange: vi.fn(),
     onManualOverwritePromptOpen: vi.fn(),
     onRecalculateSelected: vi.fn(),
@@ -58,14 +54,13 @@ describe('ElectricalBatchActionBar', () => {
     vi.clearAllMocks();
   });
 
-  it('routes calculation variant button clicks without touching batch handlers', () => {
+  it('does not render lifecycle tabs or copy controls inside the calculation action bar', () => {
     const props = makeProps();
 
     render(<ElectricalBatchActionBar {...props} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'СО3' }));
-
-    expect(props.onVariantChange).toHaveBeenCalledWith(3);
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    expect(screen.queryByText('Создать на основании')).not.toBeInTheDocument();
     expect(props.onRecalculateSelected).not.toHaveBeenCalled();
     expect(props.onRecalculateAll).not.toHaveBeenCalled();
   });
@@ -109,8 +104,8 @@ describe('ElectricalBatchActionBar', () => {
 
     render(<ElectricalBatchActionBar {...props} />);
 
-    fireEvent.click(buttonByText(/Пересчитать все СО1/)!);
-    const popup = await screen.findByText('Пересчитать все объекты СО1?');
+    fireEvent.click(buttonByText(/Пересчитать все · Основное ЭР/)!);
+    const popup = await screen.findByText('Пересчитать все объекты «Основное ЭР»?');
     fireEvent.click(within(popup.closest('.ant-popover') as HTMLElement).getByRole('button', { name: 'Да, пересчитать все' }));
 
     expect(props.onManualOverwritePromptOpen).toHaveBeenCalledTimes(1);
@@ -129,5 +124,31 @@ describe('ElectricalBatchActionBar', () => {
     fireEvent.click(buttonByText(/Отменить/)!);
 
     expect(props.onCancelJob).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps table settings available while project mutations are read-only', () => {
+    const props = makeProps({
+      canMutate: false,
+      activeJobId: 'job-1',
+      isJobActive: true,
+      currentTableViewActive: true,
+    });
+
+    render(<ElectricalBatchActionBar {...props} />);
+
+    expect(buttonByText(/Пересчитать выбранные/)).toBeDisabled();
+    expect(buttonByText(/Пересчитать все/)).toBeDisabled();
+    expect(buttonByText(/Отменить/)).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Настройки' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Сбросить фильтры таблицы' })).not.toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Настройки' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить фильтры таблицы' }));
+
+    expect(props.onOpenColumnSettings).toHaveBeenCalledTimes(1);
+    expect(props.onResetFilters).toHaveBeenCalledTimes(1);
+    expect(props.onRecalculateSelected).not.toHaveBeenCalled();
+    expect(props.onRecalculateAll).not.toHaveBeenCalled();
+    expect(props.onCancelJob).not.toHaveBeenCalled();
   });
 });

@@ -136,8 +136,9 @@ SHA-256: 5bf9a5f12f1ea609e7889f12dbbf4dbc24be8653258ea0e65f3d691d19fc978d
 ### 5. Утверждённые продуктовые решения
 
 Product Decision Log зафиксирован в
-`docs/tnp/cases/guest-specification/product-decisions.md`. Решения получены от
-пользователя 18.07.2026 и не являются открытыми gates:
+`docs/tnp/cases/guest-specification/product-decisions.md`. PDL-ER-01…17
+получены от пользователя 18.07.2026; они не
+являются открытыми gates:
 
 | ID | Утверждённый контракт |
 |---|---|
@@ -149,15 +150,37 @@ Product Decision Log зафиксирован в
 | PDL-ER-06 | MVP: `Трубопровод` и `Ёмкость`; `Бочка` — синоним ёмкости, не отдельный backend type. `Пол` — вне MVP/disabled future option. |
 | PDL-ER-07 | Настройки — project defaults; генерация сохраняет snapshot и применяет текущие defaults только к явно выбранным ЭР. |
 | PDL-ER-08 | Порог коробок включительный: `dтр ≥ 57 мм`. |
+| PDL-ER-09 | Имена ЭР уникальны внутри project после `trim + casefold`. |
+| PDL-ER-10 | Действующий resistive flow сохраняется; `single_core/three_core` нормализуются в `resistive`. |
+| PDL-ER-11 | `system_type` отделяется от `assignment_state`; исходный requested cable type сохраняется, mineral/MI disabled. |
+| PDL-ER-12 | Первый active `ЭР1` создаётся readiness-gated mutation при первом переходе в электрический расчёт. |
+| PDL-ER-13 | Specification при copy не копируется и не регенерируется; target получает `not_generated`. |
+| PDL-ER-14 | Multi-ЭР generation атомарна между выбранными ЭР; object partial только после явного подтверждения. |
+| PDL-ER-15 | Phase 4 остановлена до утверждённых `Lmax`, пусковых и токовых данных; defaults запрещены. |
+| PDL-ER-16 | PDF 07.07 задаёт BOM semantics; XLSX 29.05 используется только как непротиворечащий каталог/источник данных. |
+| PDL-ER-17 | Expand window завершается one-way UUID cutover с проверенным backup/recovery point. |
+| PDL-ER-18 | Источник section data — только официальный каталог/утверждённая методика производителя ТЛТ с зафиксированной версией. |
+| PDL-ER-19 | Неполная строка данных блокирует расчёт секций с диагностируемой ошибкой; defaults и ближайшие значения запрещены. |
+| PDL-ER-20 | `Iдоп`, А, задаётся явно для марки и напряжения, не выводится из автомата и не является глобальной константой. |
+| PDL-ER-21 | Используется прямой `Iст.уд`, А/м, из источника; общий `kпуск` не вводится. |
+| PDL-ER-22 | Строка каталога выбирается по минимальной расчётной температуре конкретного объекта/климата. |
+| PDL-ER-23 | `Lmax`, `Iдоп` и `Iст.уд` хранятся и проверяются отдельно для каждого напряжения. |
+| PDL-ER-24 | `Lогр` округляется вниз только по правилу официального источника; отсутствие правила блокирует расчёт. |
+| PDL-ER-25 | Новый section contract Phase 4 применяется только к саморегулирующемуся кабелю. |
+| PDL-ER-26 | Guest project временно хранится в PostgreSQL 3 дня с последней активности, изолирован по session и автоматически удаляется после TTL. |
+| PDL-ER-27 | Целевой предел — 500 объектов на проект; переход с 50 разрешён только после performance gate полного flow. |
+| PDL-ER-28 | Phase 4 требует фактический официальный каталог/«Таблицу Виктора»; имеющиеся неполные PDF/XLSX не заменяют numeric artifact. |
 
 Эти решения сильнее расходящихся legacy SRS, текущего кода и старых golden.
 Golden values можно менять только с прямой ссылкой на соответствующий PDL,
-формулу/каталог и независимый oracle. Не возвращай PDL-ER-01…08 в статус
+формулу/каталог и независимый oracle. Не возвращай PDL-ER-01…28 в статус
 «нужно решение» без нового явного указания пользователя.
 
-Открытыми остаются только вопросы, прямо перечисленные в конце
-`product-decisions.md`, в том числе guest persistence/TTL и rollback
-необратимой миграции. Они не должны молча расширять scope этой реализации.
+PDL-ER-09…17 явно утверждены пользователем 18.07.2026 как варианты А;
+PDL-ER-18…25 — 18.07.2026 также как варианты А; PDL-ER-26…28 — 19.07.2026
+как варианты А. Продуктовые вопросы guest persistence/TTL и лимита 500 закрыты,
+но их реализация остаётся pending. Фактический numeric artifact PDL-ER-15/18/28
+по-прежнему должен быть предоставлен и не может быть заменён предположениями.
 
 ### 6. Зафиксированный целевой контракт ЭР
 
@@ -183,14 +206,15 @@ Golden values можно менять только с прямой ссылко�
 - от 1 до 5 ЭР на проект после создания первого ЭР;
 - не более одного active ЭР на проект на уровне БД;
 - сервис гарантирует ровно один active ЭР, когда у проекта есть ЭР;
-- первый ЭР получает имя `ЭР1` и становится active;
+- до readiness initialization у проекта допустимо 0 ЭР;
+- первый ЭР создаётся при первом успешном readiness-gated переходе, получает
+  имя `ЭР1` и становится active;
 - UUID, а не позиция/имя, связывает расчёты и downstream-данные;
 - `sort_order` не используется как бизнес-ID;
 - имя после rename синхронно отображается на вкладке спецификации и в отчёте
   через связь с сущностью, а не копированием текста по таблицам;
 - пустое имя отклоняется;
-- политика duplicate names должна быть явно зафиксирована в ADR. Рекомендуемый
-  default — уникальность внутри проекта без учёта регистра;
+- имя уникально внутри проекта после `trim + casefold`;
 - создание шестого ЭР атомарно отклоняется, включая конкурентные запросы;
 - последний ЭР удалить нельзя;
 - при удалении active ЭР active становится ближайший по `sort_order`, а при
@@ -231,9 +255,8 @@ Copy должен создавать независимую глубокую к�
 - диагностических полей.
 
 Не копировать UUID дочерних сущностей. Изменение target после copy не должно
-менять source. Спецификацию не считать актуальной автоматически: либо создать
-её как stale copy, либо не копировать и потребовать явную генерацию. Решение
-зафиксировать тестом и ADR.
+менять source. Specification и manual items не копируются; target получает
+`not_generated` и требует отдельной явной generation (PDL-ER-13).
 
 #### 6.3. Объект внутри ЭР
 
@@ -242,8 +265,9 @@ Copy должен создавать независимую глубокую к�
 - `id: UUID`;
 - `electrical_variant_id`;
 - `object_id`;
-- `system_type`:
-  `unassigned | self_regulating | resistive | skin`;
+- `system_type`: `self_regulating | resistive | skin | mineral | null`;
+- `assignment_state`: `unassigned | ready | unsupported | stale | error`;
+- `requested_cable_type` для lossless legacy trace;
 - snapshot/version исходного объекта, достаточный для stale detection;
 - timestamps и необходимые диагностические поля.
 
@@ -255,9 +279,8 @@ Copy должен создавать независимую глубокую к�
 - новый объект проекта появляется как `unassigned` во всех существующих ЭР;
 - удаление объекта каскадно удаляет его данные во всех ЭР;
 - новый первый ЭР получает все готовые объекты как `unassigned`;
-- `self_regulating` доступен в MVP;
-- `resistive` и `skin` видимы как unsupported/disabled, пока их контракт не
-  утверждён;
+- `self_regulating` и существующий `resistive` доступны;
+- `skin` и `mineral` видимы как unsupported/disabled;
 - назначение и массовое назначение атомарны;
 - возврат в `unassigned` требует подтверждения и удаляет только в выбранном ЭР:
   assignment-specific calculation, candidates, sections и electrical fields;
@@ -332,9 +355,24 @@ Lфакт = Lсек × N >= Lтреб
 пример: 200 / 67 -> 3 × 67 = 201
 ```
 
-До реализации проверить, что каталог реально содержит `Iдоп`, удельный
-стартовый ток, `Lмакс` и температурные условия. Если данных нет, не подставлять
-фиктивные defaults: оформить blocker/data-contract gap.
+PDL-ER-18…25 фиксируют section data contract:
+
+- source of truth — официальный каталог/утверждённая методика производителя
+  ТЛТ с названием, версией, датой и точной ссылкой на строку/страницу;
+- строка данных обязана явно содержать `Lмакс`, `Iдоп` в А, `Iст.уд` в А/м,
+  напряжение, температуру холодного пуска и правило округления вниз;
+- `Iдоп` выбирается по марке и напряжению, `Iст.уд` берётся непосредственно из
+  источника, а температура холодного пуска равна минимальной расчётной
+  температуре конкретного объекта/климата;
+- значения разных напряжений не взаимозаменяемы;
+- если строка или правило округления отсутствуют, вернуть структурированную
+  ошибку и не создавать секции; defaults, nearest-value fallback и общий
+  `kпуск` запрещены;
+- этот новый section contract применяется только к саморегулирующемуся кабелю.
+
+Выбор семантики утверждён, но фактический официальный числовой артефакт пока не
+предоставлен. До его регистрации в formula/data contract Phase 4 остаётся
+blocked; нельзя превращать PDL-ER-18…25 в вымышленные значения.
 
 Прямое редактирование длины, количества или состава auto-секций запрещено
 (PDL-ER-03). Разрешены только марка кабеля и навив/шаг; их изменение должно
@@ -345,6 +383,8 @@ Lфакт = Lсек × N >= Lтреб
 Сначала оформить OpenAPI/ADR. Предпочтительный ресурсный API:
 
 ```text
+GET    /api/v1/projects/{project_id}/electrical-readiness
+POST   /api/v1/projects/{project_id}/electrical-variants/initialize
 GET    /api/v1/projects/{project_id}/electrical-variants
 POST   /api/v1/projects/{project_id}/electrical-variants
 POST   /api/v1/projects/{project_id}/electrical-variants/{id}/copy
@@ -451,9 +491,9 @@ legacy path после успешной миграции и тестов.
 - concurrent create не позволяет создать шестой ЭР.
 
 Пятый ЭР и пользовательские имена нельзя losslessly вернуть в модель 1…4.
-Не писать притворно безопасный downgrade. До contract migration зафиксировать
-стратегию rollback: DB backup/restore либо dual-read window. One-way migration
-должна быть явно задокументирована и одобрена.
+Не писать притворно безопасный downgrade. Утверждена стратегия PDL-ER-17:
+expand compatibility window, затем one-way UUID cutover с проверенным
+backup/recovery point; rollback после cutover только restore.
 
 ### 9. Export/import проекта
 
@@ -731,15 +771,19 @@ baseline после каждого.
 
 #### Phase 3 — assignments и system tabs
 
-- unassigned/self-reg domain;
+- unassigned/self-reg/resistive domain;
 - массовые операции и confirmation;
-- disabled future systems;
+- disabled future skin/mineral systems;
 - scoped stale/spec side effects;
 - backend/frontend/e2e proof.
 
 #### Phase 4 — sections
 
-- утвердить formula/data contract;
+- семантика источника и обработки данных утверждена PDL-ER-18…25;
+- остановиться до фактического предоставления официального числового каталога/
+  методики с `Lmax`, `Iдоп`, `Iст.уд`, напряжениями, температурами и правилом
+  округления по PDL-ER-15/18/28; не вводить defaults;
+- после получения данных зарегистрировать formula/data contract;
 - independent golden, boundary и metamorphic oracles;
 - persisted sections + hierarchical UI + summaries;
 - formula QA and mutation evidence.
@@ -753,6 +797,8 @@ baseline после каждого.
 - `pipe/tank` taxonomy и `barrel -> tank` normalization;
 - inclusive `dтр ≥ 57 мм` boundary;
 - CSV v3 + v2 migration;
+- guest persistence: PostgreSQL, sliding TTL 3 дня, cleanup и session isolation;
+- подготовка к 500 объектам без снятия rollout guard до performance gate;
 - no-mixing and round-trip tests.
 
 #### Phase 6 — legacy removal и release gate
@@ -761,6 +807,7 @@ baseline после каждого.
 - удалить fixed arrays/labels;
 - обновить docs/API/SRS/QA/contracts;
 - проверить search остаточных legacy usages;
+- доказать PDF thresholds на 500 объектах до повышения runtime limit;
 - выполнить функциональные gates и DB invariants после UI flow.
 
 После каждой phase дай checkpoint report и не переходи дальше при красном
@@ -972,7 +1019,7 @@ variant=99
 - before/after UI screenshots и verifier зелёные;
 - Playwright flow и последующий `db-invariants` зелёные;
 - docs, API, SRS, QA и formula contracts обновлены;
-- PDL-ER-01…08 реализованы без скрытых альтернативных semantics;
+- PDL-ER-01…28 реализованы без скрытых альтернативных semantics;
 - никакие assertions/golden values не ослаблены без источника новой правды;
 - все in-scope failures исправлены либо итог честно помечен blocked/fail.
 
@@ -980,7 +1027,7 @@ variant=99
 
 Остановись и запроси решение, если:
 
-- обнаружена новая необходимая семантика вне PDL-ER-01…08 и действующих
+- обнаружена новая необходимая семантика вне PDL-ER-01…28 и действующих
   контрактов; уже утверждённые решения не переоткрывать молча;
 - миграция может потерять или неверно связать существующие данные;
 - невозможно однозначно отличить `num_circuits` от `Nсек`;
@@ -1031,7 +1078,7 @@ Residual risk: ...
 
 1. текущая ветка/worktree и dirty-state;
 2. подтверждённый source-of-truth;
-3. подтверждение применения PDL-ER-01…08 и список только новых blockers;
+3. подтверждение применения PDL-ER-01…28 и список только новых blockers;
 4. точная текущая цепочка
    `DB -> backend API -> frontend store/pages -> spec/report/CSV -> tests`;
 5. предлагаемая схема таблиц и API;

@@ -4,9 +4,11 @@ from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.models.audit_event import AuditEvent
 from app.models.background_task import BackgroundTask
 from app.models.user import User
 from app.services.report_artifact_service import write_report_artifact
@@ -14,6 +16,11 @@ from app.services.report_artifact_service import write_report_artifact
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 MINERAL_WOOL = "mineral_wool_boards_120"
+
+
+class FakeTaskQueue:
+    async def enqueue(self, task_id, task_type: str) -> str:
+        return f"stream:{task_id}:{task_type}"
 
 
 async def _project_with_object(client: AsyncClient, session_id: str) -> str:
@@ -70,7 +77,82 @@ async def _employee_project_with_object(client: AsyncClient, token: str) -> str:
     return p["id"]
 
 
+async def _initialize_and_create_second_variant(
+    client: AsyncClient,
+    project_id: str,
+    token: str,
+) -> dict:
+    headers = {"Authorization": f"Bearer {token}"}
+    initialized = await client.post(
+        f"/api/v1/projects/{project_id}/electrical-variants/initialize",
+        headers=headers,
+    )
+    assert initialized.status_code == 200, initialized.text
+    assert initialized.json()["variant"]["legacy_variant_number"] == 1
+
+    created = await client.post(
+        f"/api/v1/projects/{project_id}/electrical-variants",
+        json={"name": "ЭР2"},
+        headers=headers,
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["project_id"] == project_id
+    assert body["legacy_variant_number"] == 2
+    return body
+
+
 class TestReports:
+    async def test_report_job_rejects_ambiguous_uuid_and_legacy_number(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+    ):
+        pid = await _employee_project_with_object(client, employee_token)
+        variant = await _initialize_and_create_second_variant(
+            client,
+            pid,
+            employee_token,
+        )
+
+        response = await client.post(
+            f"/api/v1/reports/{pid}/export/xlsx/jobs",
+            params={
+                "electrical_variant_id": variant["id"],
+                "variant_number": 2,
+            },
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+
+        assert response.status_code == 422, response.text
+        assert response.json()["detail"]["code"] == "ELECTRICAL_VARIANT_SELECTOR_CONFLICT"
+
+    async def test_fresh_project_numeric_report_prepares_only_er1_and_er4(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        pid = await _employee_project_with_object(client, employee_token)
+        headers = {"Authorization": f"Bearer {employee_token}"}
+
+        response = await client.post(
+            f"/api/v1/reports/{pid}/export/xlsx/jobs",
+            params={"variant_number": 4},
+            headers=headers,
+        )
+
+        assert response.status_code == 202, response.text
+        variants = await client.get(
+            f"/api/v1/projects/{pid}/electrical-variants",
+            headers=headers,
+        )
+        assert variants.status_code == 200, variants.text
+        body = variants.json()
+        assert [item["legacy_variant_number"] for item in body] == [1, 4]
+        assert response.json()["electrical_variant_id"] == body[1]["id"]
+
     async def test_preview_returns_html(self, client: AsyncClient, guest_session: str):
         pid = await _project_with_object(client, guest_session)
         resp = await client.get(
@@ -123,9 +205,13 @@ class TestReports:
         )
 
     async def test_employee_can_enqueue_report_export_job(
-        self, client: AsyncClient, employee_token: str
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        db_session: AsyncSession,
     ):
         pid = await _employee_project_with_object(client, employee_token)
+        variant = await _initialize_and_create_second_variant(client, pid, employee_token)
         resp = await client.post(
             f"/api/v1/reports/{pid}/export/xlsx/jobs",
             params={"variant_number": 2},
@@ -135,7 +221,18 @@ class TestReports:
         task = resp.json()
         assert task["type"] == "report_export"
         assert task["project_id"] == pid
+        assert task["electrical_variant_id"] == variant["id"]
         assert task["links"]["result"].endswith(f"/reports/jobs/{task['id']}/download")
+
+        audit = await db_session.scalar(
+            select(AuditEvent).where(
+                AuditEvent.event_type == "task.report_export.queued",
+                AuditEvent.task_id == UUID(task["id"]),
+            )
+        )
+        assert audit is not None
+        assert audit.details["electrical_variant_id"] == variant["id"]
+        assert "variant_number" not in audit.details
 
         status_resp = await client.get(
             f"/api/v1/reports/jobs/{task['id']}",
@@ -143,6 +240,88 @@ class TestReports:
         )
         assert status_resp.status_code == 200
         assert status_resp.json()["id"] == task["id"]
+
+    async def test_project_scoped_report_key_rejects_different_er_or_payload(
+        self,
+        client: AsyncClient,
+        employee_token: str,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        pid = await _employee_project_with_object(client, employee_token)
+        second_variant = await _initialize_and_create_second_variant(
+            client,
+            pid,
+            employee_token,
+        )
+        headers = {
+            "Authorization": f"Bearer {employee_token}",
+            "Idempotency-Key": "report-one-key-one-operation",
+        }
+        variants = await client.get(
+            f"/api/v1/projects/{pid}/electrical-variants",
+            headers=headers,
+        )
+        assert variants.status_code == 200, variants.text
+        first_variant = variants.json()[0]
+        url = f"/api/v1/reports/{pid}/export/xlsx/jobs"
+        first_params = [
+            ("electrical_variant_id", first_variant["id"]),
+            ("sections", "summary"),
+        ]
+
+        first = await client.post(url, params=first_params, headers=headers)
+        retry = await client.post(url, params=first_params, headers=headers)
+        different_er = await client.post(
+            url,
+            params=[
+                ("electrical_variant_id", second_variant["id"]),
+                ("sections", "summary"),
+            ],
+            headers=headers,
+        )
+        different_payload = await client.post(
+            url,
+            params=[
+                ("electrical_variant_id", first_variant["id"]),
+                ("sections", "pipes"),
+            ],
+            headers=headers,
+        )
+
+        assert first.status_code == 202, first.text
+        assert retry.status_code == 202, retry.text
+        assert retry.json()["id"] == first.json()["id"]
+        for conflict in (different_er, different_payload):
+            assert conflict.status_code == 409, conflict.text
+            assert conflict.json()["detail"] == {
+                "code": "TASK_IDEMPOTENCY_KEY_REUSED",
+                "message": "Idempotency-Key уже использован для другой операции",
+            }
+
+        persisted = await db_session.get(BackgroundTask, UUID(first.json()["id"]))
+        assert persisted is not None
+        persisted.status = "succeeded"
+        await db_session.commit()
+        terminal_retry = await client.post(url, params=first_params, headers=headers)
+
+        assert terminal_retry.status_code == 202, terminal_retry.text
+        assert terminal_retry.json()["id"] == first.json()["id"]
+        assert terminal_retry.json()["status"] == "succeeded"
+        terminal_replay_audit = await db_session.scalar(
+            select(AuditEvent).where(
+                AuditEvent.event_type == "task.report_export.idempotency_replayed",
+                AuditEvent.task_id == UUID(first.json()["id"]),
+                AuditEvent.result == "success",
+            )
+        )
+        assert terminal_replay_audit is not None
+        assert terminal_replay_audit.message == (
+            "Идемпотентный повтор вернул существующую задачу экспорта отчёта"
+        )
+        assert terminal_replay_audit.details["idempotency_replay"] is True
+        assert terminal_replay_audit.details["task_status"] == "succeeded"
 
     async def test_employee_can_download_finished_report_job(
         self,
@@ -155,6 +334,12 @@ class TestReports:
     ):
         monkeypatch.setattr(settings, "REPORT_ARTIFACT_DIR", str(tmp_path))
         pid = await _employee_project_with_object(client, employee_token)
+        initialized = await client.post(
+            f"/api/v1/projects/{pid}/electrical-variants/initialize",
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+        assert initialized.status_code == 200, initialized.text
+        variant_id = UUID(initialized.json()["variant"]["id"])
         task_id = uuid4()
         artifact = write_report_artifact(task_id, "xlsx", b"report-bytes")
         task = BackgroundTask(
@@ -162,6 +347,7 @@ class TestReports:
             type="report_export",
             status="succeeded",
             project_id=UUID(pid),
+            electrical_variant_id=variant_id,
             user_id=employee_user.id,
             request_payload={
                 "project_id": pid,
@@ -204,14 +390,26 @@ class TestReports:
         db_session: AsyncSession,
     ):
         pid = await _employee_project_with_object(client, employee_token)
+        initialized = await client.post(
+            f"/api/v1/projects/{pid}/electrical-variants/initialize",
+            headers={"Authorization": f"Bearer {employee_token}"},
+        )
+        assert initialized.status_code == 200, initialized.text
+        variant_id = UUID(initialized.json()["variant"]["id"])
         task_id = uuid4()
         task = BackgroundTask(
             id=task_id,
             type="report_export",
             status="running",
             project_id=UUID(pid),
+            electrical_variant_id=variant_id,
             user_id=employee_user.id,
-            request_payload={"project_id": pid, "format": "xlsx", "sections": None},
+            request_payload={
+                "project_id": pid,
+                "variant_number": 1,
+                "format": "xlsx",
+                "sections": None,
+            },
             progress_current=1,
             progress_total=3,
             progress_phase="render",

@@ -71,6 +71,7 @@ export default function SpecTable({
               danger
               icon={<DeleteOutlined />}
               size="small"
+              aria-label={`Удалить ${row.name}`}
               onClick={() => onDelete?.(row.__index)}
             />
           ),

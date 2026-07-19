@@ -20,6 +20,7 @@ const ElectricalCandidateGlideGrid = lazy(() => import('@/components/electrical/
 const CANDIDATE_TABLE_SCROLL_Y = 'calc(100vh - 332px)';
 
 type ElecCalcCandidateTablePanelProps = {
+  canMutate: boolean;
   rows: ElectricalCandidate[];
   glideColumns: HeatCalcGlideGridColumn[];
   tableScrollX: number;
@@ -53,6 +54,7 @@ type ElecCalcCandidateTablePanelProps = {
 };
 
 function ElecCalcCandidateTablePanel({
+  canMutate,
   rows,
   glideColumns,
   tableScrollX,
@@ -103,10 +105,10 @@ function ElecCalcCandidateTablePanel({
         rows={2}
         maxLength={2000}
         placeholder="Комментарий инженера к выбранному варианту"
-        disabled={!appliedCandidate}
+        disabled={!canMutate || !appliedCandidate}
         defaultValue={appliedCandidate?.engineer_comment ?? ''}
         onBlur={(event) => {
-          if (!appliedCandidate) return;
+          if (!canMutate || !appliedCandidate) return;
           onAppliedCandidateCommentBlur(appliedCandidate, event.currentTarget.value);
         }}
       />

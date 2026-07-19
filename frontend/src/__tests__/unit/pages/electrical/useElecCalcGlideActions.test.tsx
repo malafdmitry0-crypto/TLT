@@ -33,6 +33,7 @@ function setup(
     ...renderHook(() => useElecCalcGlideActions({
       activeRowId: 'object-1',
       projectSelected: true,
+      canMutate: true,
       isCableMarkPending: false,
       onOpenCableMarkModal,
       onOpenCableSizingModal,
@@ -109,5 +110,23 @@ describe('useElecCalcGlideActions', () => {
     }), 'cable_mark', 'choose');
 
     expect(pending.onOpenCableMarkModal).not.toHaveBeenCalled();
+  });
+
+  it('keeps sizing inspection available but blocks cable writes in read-only mode', () => {
+    const row = projectObject();
+    const { result, onOpenCableMarkModal, onOpenCableSizingModal } = setup({
+      canMutate: false,
+    });
+
+    expect(result.current.getElectricalGlideCellActions(row, 'cable_mark')).toEqual([
+      { key: 'choose', label: 'Выбор', disabled: true },
+      { key: 'size', label: 'Подбор', disabled: false },
+    ]);
+
+    result.current.handleElectricalGlideCellAction(row, 'cable_mark', 'choose');
+    result.current.handleElectricalGlideCellAction(row, 'cable_mark', 'size');
+
+    expect(onOpenCableMarkModal).not.toHaveBeenCalled();
+    expect(onOpenCableSizingModal).toHaveBeenCalledWith(row);
   });
 });

@@ -31,11 +31,7 @@ import {
 } from '@/api/reports';
 import { useProjectStore } from '@/store/projectStore';
 import { useAuthStore } from '@/store/authStore';
-import {
-  CALCULATION_VARIANTS,
-  normalizeCalculationVariant,
-  useCalculationVariantStore,
-} from '@/store/calculationVariantStore';
+import { useLegacyElectricalVariantContext } from '@/pages/electrical/useLegacyElectricalVariantContext';
 import ReportPreview from '@/components/reports/ReportPreview';
 import QueryError from '@/components/common/QueryError';
 
@@ -58,14 +54,15 @@ export default function ReportWizardPage() {
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
   const isEmployee = role === 'employee' || role === 'admin';
-  const storedVariant = useCalculationVariantStore((s) =>
-    project?.id ? s.variantByProject[project.id] : undefined
+  const variantContext = useLegacyElectricalVariantContext(project?.id);
+  const selectedElectricalVariant = variantContext.selectedVariant;
+  const firstSupportedVariant = variantContext.variants.find(
+    (item) => item.legacy_variant_number != null,
+  ) ?? null;
+  const variant = variantContext.legacyVariantNumber ?? 1;
+  const legacyDataPlaneEnabled = Boolean(
+    project && selectedElectricalVariant && variantContext.legacyVariantNumber != null,
   );
-  const saveVariant = useCalculationVariantStore((s) => s.setVariant);
-  const variant = normalizeCalculationVariant(storedVariant);
-  const setVariant = (nextVariant: number) => {
-    if (project?.id) saveVariant(project.id, nextVariant);
-  };
 
   const [sections, setSections] = useState<ReportSection[]>([...REPORT_SECTIONS]);
   const [format, setFormat] = useState<Format>('pdf');
@@ -73,9 +70,20 @@ export default function ReportWizardPage() {
   const [exporting, setExporting] = useState(false);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['report-preview-wizard', project?.id, variant, sections.join(',')],
-    queryFn: () => getReportPreview(project!.id, variant, sections),
-    enabled: !!project,
+    queryKey: [
+      'report-preview-wizard',
+      project?.id,
+      selectedElectricalVariant?.id,
+      variant,
+      sections.join(','),
+    ],
+    queryFn: () => getReportPreview(
+      project!.id,
+      variant,
+      selectedElectricalVariant!.id,
+      sections,
+    ),
+    enabled: legacyDataPlaneEnabled,
   });
 
   if (!project) {
@@ -104,18 +112,74 @@ export default function ReportWizardPage() {
     );
   }
 
+  if (variantContext.isLoading) {
+    return (
+      <Card style={{ margin: 24 }} aria-busy="true" aria-label="Загрузка списка ЭР">
+        <Skeleton active title paragraph={{ rows: 5 }} />
+      </Card>
+    );
+  }
+
+  if (variantContext.isError) {
+    return (
+      <Card style={{ margin: 24 }}>
+        <QueryError
+          error={variantContext.error}
+          title="Не удалось загрузить список ЭР"
+          onRetry={() => variantContext.refetch()}
+          retrying={variantContext.isFetching}
+        />
+      </Card>
+    );
+  }
+
+  if (!selectedElectricalVariant || variantContext.legacyVariantNumber == null) {
+    return (
+      <Card style={{ margin: 24 }}>
+        <Alert
+          type="warning"
+          showIcon
+          message={selectedElectricalVariant
+            ? `«${selectedElectricalVariant.name}»: экспорт временно недоступен`
+            : 'ЭР ещё не создан'}
+          description="Данные другого ЭР не подставляются. Выберите поддерживаемый ЭР в основном окне."
+          action={firstSupportedVariant && (
+            <Button onClick={() => variantContext.selectVariant(firstSupportedVariant.id)}>
+              Выбрать {firstSupportedVariant.name}
+            </Button>
+          )}
+        />
+      </Card>
+    );
+  }
+
   const handleExport = async () => {
+    const scope = {
+      electricalVariantId: selectedElectricalVariant.id,
+      electricalVariantName: selectedElectricalVariant.name,
+      legacyVariantNumber: variant,
+      sections: [...sections],
+      format,
+    };
     try {
       setExporting(true);
       message.loading({ content: 'Формирование отчёта...', key: 'report-export', duration: 0 });
-      const blob = await exportReport(project.id, format, variant, sections);
+      const blob = await exportReport(
+        project.id,
+        scope.format,
+        scope.electricalVariantId,
+        scope.sections,
+      );
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${project.name}.${format}`;
+      a.download = `${project.name}-${scope.electricalVariantName}.${scope.format}`;
       a.click();
       URL.revokeObjectURL(url);
-      message.success({ content: `Файл ${project.name}.${format} скачан`, key: 'report-export' });
+      message.success({
+        content: `Файл для «${scope.electricalVariantName}» скачан`,
+        key: 'report-export',
+      });
     } catch {
       message.error({ content: 'Не удалось скачать отчёт', key: 'report-export' });
     } finally {
@@ -135,7 +199,7 @@ export default function ReportWizardPage() {
             <FileTextOutlined />
             <Text strong>Мастер формирования отчёта</Text>
             <Tag color="blue">{project.name}</Tag>
-            <Tag color="geekblue">СО{variant}</Tag>
+            <Tag color="geekblue">{selectedElectricalVariant.name}</Tag>
           </Space>
         }
         extra={
@@ -151,7 +215,7 @@ export default function ReportWizardPage() {
         <Steps
           size="small"
           current={step}
-          onChange={setStep}
+          onChange={exporting ? undefined : setStep}
           style={{ marginBottom: 16 }}
           items={[
             { title: 'Разделы' },
@@ -170,19 +234,26 @@ export default function ReportWizardPage() {
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   Вариант расчёта:
                 </Text>
-                <Segmented<number>
-                  size="small"
-                  value={variant}
-                  onChange={(v) => setVariant(Number(v))}
-                  options={CALCULATION_VARIANTS.map((n) => ({ label: `СО${n}`, value: n }))}
-                  style={{ display: 'flex', margin: '4px 0 10px' }}
-                />
+                <div style={{ maxWidth: '100%', overflowX: 'auto', margin: '4px 0 10px' }}>
+                  <Segmented<string>
+                    size="small"
+                    value={selectedElectricalVariant.id}
+                    onChange={variantContext.selectVariant}
+                    disabled={exporting}
+                    options={variantContext.variants.map((item) => ({
+                      label: item.name,
+                      value: item.id,
+                      disabled: item.legacy_variant_number == null,
+                    }))}
+                  />
+                </div>
                 <Button
                   type="link"
                   size="small"
                   onClick={() =>
                     setSections(allSelected ? [] : [...REPORT_SECTIONS])
                   }
+                  disabled={exporting}
                   style={{ padding: 0, marginBottom: 8 }}
                 >
                   {allSelected ? 'Снять все' : 'Выбрать все'}
@@ -190,6 +261,7 @@ export default function ReportWizardPage() {
                 <Checkbox.Group
                   value={sections}
                   onChange={(v) => setSections(v as ReportSection[])}
+                  disabled={exporting}
                   style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
                 >
                   {REPORT_SECTIONS.map((s) => (
@@ -224,6 +296,7 @@ export default function ReportWizardPage() {
                       size="small"
                       type={format === f ? 'primary' : 'default'}
                       icon={FORMAT_LABEL[f].icon}
+                      disabled={exporting}
                       onClick={() => setFormat(f)}
                     >
                       {FORMAT_LABEL[f].label}
@@ -231,10 +304,10 @@ export default function ReportWizardPage() {
                   ))}
                 </Space>
                 <Space style={{ marginTop: 12, width: '100%' }}>
-                  <Button size="small" onClick={() => setStep(0)}>
+                  <Button size="small" disabled={exporting} onClick={() => setStep(0)}>
                     ← Назад
                   </Button>
-                  <Button type="primary" size="small" onClick={() => setStep(2)}>
+                  <Button type="primary" size="small" disabled={exporting} onClick={() => setStep(2)}>
                     Далее: предпросмотр →
                   </Button>
                 </Space>
@@ -263,7 +336,7 @@ export default function ReportWizardPage() {
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     Вариант:
                   </Text>{' '}
-                  <Tag color="geekblue">СО{variant}</Tag>
+                  <Tag color="geekblue">{selectedElectricalVariant.name}</Tag>
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <Text type="secondary" style={{ fontSize: 12 }}>
@@ -287,6 +360,7 @@ export default function ReportWizardPage() {
                   block
                   size="small"
                   style={{ marginTop: 8 }}
+                  disabled={exporting}
                   onClick={() => setStep(1)}
                 >
                   ← Изменить формат
@@ -295,6 +369,7 @@ export default function ReportWizardPage() {
                   block
                   size="small"
                   style={{ marginTop: 4 }}
+                  disabled={exporting}
                   onClick={() => setStep(0)}
                 >
                   ← Изменить разделы

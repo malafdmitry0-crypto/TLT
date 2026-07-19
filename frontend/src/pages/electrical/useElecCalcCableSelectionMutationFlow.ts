@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { message } from 'antd';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -6,6 +6,7 @@ import {
   selectCableForVariants,
   type CableSource,
 } from '@/api/calculations';
+import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
 import type { CalculationVariant } from '@/store/calculationVariantStore';
 import type { ElectricalCalcSummary } from '@/types/calculation';
 import type { ProjectObject } from '@/types/project';
@@ -15,7 +16,10 @@ import {
 } from '@/pages/electrical/elecCalcCableOptionModel';
 import { isResistiveCableType } from '@/pages/electrical/elecCalcCableTypeModel';
 import type { CableTypeKey } from '@/pages/electrical/elecCalcMainTableModel';
-import { calculationVariantLabel } from '@/pages/electrical/elecCalcVariantModel';
+import {
+  electricalVariantNamesLabel,
+  type LegacyElectricalVariantTarget,
+} from '@/pages/electrical/elecCalcVariantModel';
 import type { ElecCalcCableSizingParams } from '@/pages/electrical/useElecCalcCableSizingModalState';
 
 type ManualCableMutationArgs = {
@@ -23,13 +27,13 @@ type ManualCableMutationArgs = {
   mark: string;
   cableType: CableTypeKey;
   cableSource?: CableSource;
-  targetVariants: CalculationVariant[];
+  targetVariants: LegacyElectricalVariantTarget[];
 };
 
 type AutoCableMutationArgs = {
   objectId: string;
   cableType: CableTypeKey;
-  targetVariants: CalculationVariant[];
+  targetVariants: LegacyElectricalVariantTarget[];
 };
 
 type ElectricalLayoutMutationArgs = {
@@ -43,21 +47,37 @@ type ElectricalLayoutMutationArgs = {
 
 type UseElecCalcCableSelectionMutationFlowOptions = {
   projectId?: string;
+  electricalVariantId: string;
+  electricalVariantName: string;
+  canMutate: boolean;
   variant: CalculationVariant;
   effectiveSource: CableSource;
   recalc: ElecCalcCableSizingParams;
   normalizeAvailableCableType: (type: CableTypeKey) => CableTypeKey;
-  setElectricalQueryCalculation: (calculation: ElectricalCalcSummary) => void;
+  setElectricalQueryCalculation: (
+    calculation: ElectricalCalcSummary,
+    target?: LegacyElectricalVariantTarget,
+  ) => void;
   cableMarkModalObject: ProjectObject | null;
   cableMarkModalCableType: CableTypeKey | null;
   cableMarkModalValue: string | null;
-  cableMarkModalTargetVariantsForSubmit: CalculationVariant[];
+  cableMarkModalTargetVariantsForSubmit: LegacyElectricalVariantTarget[];
   cableMarkModalOptionByValue: Map<string, CableMarkSelectOption>;
   closeCableMarkModal: () => void;
 };
 
+const CABLE_SELECTION_READ_ONLY_ERROR =
+  'Недостаточно прав для изменения электрорасчёта в этом проекте';
+
+function requireCableMutation(canMutate: boolean) {
+  if (!canMutate) throw new Error(CABLE_SELECTION_READ_ONLY_ERROR);
+}
+
 export function useElecCalcCableSelectionMutationFlow({
   projectId,
+  electricalVariantId,
+  electricalVariantName,
+  canMutate,
   variant,
   effectiveSource,
   recalc,
@@ -72,13 +92,36 @@ export function useElecCalcCableSelectionMutationFlow({
 }: UseElecCalcCableSelectionMutationFlowOptions) {
   const qc = useQueryClient();
 
-  const invalidateElectricalSidecars = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ['project', projectId, 'electrical-query-capabilities'] });
+  const currentTarget = useMemo<LegacyElectricalVariantTarget>(() => ({
+    id: electricalVariantId,
+    name: electricalVariantName,
+    legacyVariantNumber: variant,
+  }), [electricalVariantId, electricalVariantName, variant]);
+
+  const invalidateElectricalSidecars = useCallback((
+    targets: readonly LegacyElectricalVariantTarget[],
+  ) => {
+    if (projectId) {
+      for (const target of targets) {
+        qc.invalidateQueries({
+          queryKey: electricalDataQueryKeys.variant(projectId, target.id),
+        });
+      }
+    }
     qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });
   }, [projectId, qc]);
 
-  const applyReturnedCalculations = useCallback((calculations: ElectricalCalcSummary[]) => {
-    calculations.forEach((calculation) => setElectricalQueryCalculation(calculation));
+  const applyReturnedCalculations = useCallback((
+    calculations: ElectricalCalcSummary[],
+    targets: readonly LegacyElectricalVariantTarget[],
+  ) => {
+    const targetByLegacyNumber = new Map(
+      targets.map((target) => [target.legacyVariantNumber, target]),
+    );
+    calculations.forEach((calculation) => {
+      const target = targetByLegacyNumber.get(calculation.variant_number as CalculationVariant);
+      if (target) setElectricalQueryCalculation(calculation, target);
+    });
   }, [setElectricalQueryCalculation]);
 
   const buildSelectionOptions = useCallback((
@@ -126,21 +169,28 @@ export function useElecCalcCableSelectionMutationFlow({
       cableSource,
       targetVariants,
     }: ManualCableMutationArgs) => {
-      const variantsToUpdate = targetVariants.length > 0 ? targetVariants : [variant];
+      requireCableMutation(canMutate);
+      const targetsToUpdate = targetVariants.length > 0 ? targetVariants : [currentTarget];
+      const variantsToUpdate = targetsToUpdate.map((target) => target.legacyVariantNumber);
+      const expectedVariantIds = Object.fromEntries(
+        targetsToUpdate.map((target) => [target.legacyVariantNumber, target.id]),
+      );
       const { effectiveCableType, options } = buildSelectionOptions(cableType);
-      return selectCableForVariants(
+      const calculations = await selectCableForVariants(
         objectId,
         mark,
         cableSource ?? effectiveSource,
         variantsToUpdate,
         effectiveCableType,
         options,
+        expectedVariantIds,
       );
+      return { calculations, targets: targetsToUpdate };
     },
-    onSuccess: (calculations, variables) => {
-      applyReturnedCalculations(calculations);
-      invalidateElectricalSidecars();
-      const targetLabel = calculationVariantLabel(variables.targetVariants);
+    onSuccess: ({ calculations, targets }, variables) => {
+      applyReturnedCalculations(calculations, targets);
+      invalidateElectricalSidecars(targets);
+      const targetLabel = electricalVariantNamesLabel(variables.targetVariants);
       message.success(`Кабель выбран, расчёт обновлён${targetLabel ? `: ${targetLabel}` : ''}`);
     },
     onError: (e: Error) => message.error(e.message),
@@ -152,21 +202,28 @@ export function useElecCalcCableSelectionMutationFlow({
       cableType,
       targetVariants,
     }: AutoCableMutationArgs) => {
-      const variantsToUpdate = targetVariants.length > 0 ? targetVariants : [variant];
+      requireCableMutation(canMutate);
+      const targetsToUpdate = targetVariants.length > 0 ? targetVariants : [currentTarget];
+      const variantsToUpdate = targetsToUpdate.map((target) => target.legacyVariantNumber);
+      const expectedVariantIds = Object.fromEntries(
+        targetsToUpdate.map((target) => [target.legacyVariantNumber, target.id]),
+      );
       const { effectiveCableType, options } = buildSelectionOptions(cableType);
-      return selectCableForVariants(
+      const calculations = await selectCableForVariants(
         objectId,
         null,
         effectiveSource,
         variantsToUpdate,
         effectiveCableType,
         options,
+        expectedVariantIds,
       );
+      return { calculations, targets: targetsToUpdate };
     },
-    onSuccess: (calculations, variables) => {
-      applyReturnedCalculations(calculations);
-      invalidateElectricalSidecars();
-      const targetLabel = calculationVariantLabel(variables.targetVariants);
+    onSuccess: ({ calculations, targets }, variables) => {
+      applyReturnedCalculations(calculations, targets);
+      invalidateElectricalSidecars(targets);
+      const targetLabel = electricalVariantNamesLabel(variables.targetVariants);
       message.success(`Автоподбор выполнен${targetLabel ? `: ${targetLabel}` : ''}`);
     },
     onError: (e: Error) => message.error(e.message),
@@ -181,6 +238,7 @@ export function useElecCalcCableSelectionMutationFlow({
       windingPitchMm,
       numberOfThreads,
     }: ElectricalLayoutMutationArgs) => {
+      requireCableMutation(canMutate);
       const { effectiveCableType, options } = buildSelectionOptions(cableType, {
         windingPitchMm,
         numberOfThreads,
@@ -192,17 +250,22 @@ export function useElecCalcCableSelectionMutationFlow({
         [variant],
         effectiveCableType,
         options,
+        { [variant]: electricalVariantId },
       );
     },
     onSuccess: (calculations) => {
-      applyReturnedCalculations(calculations);
-      invalidateElectricalSidecars();
+      applyReturnedCalculations(calculations, [currentTarget]);
+      invalidateElectricalSidecars([currentTarget]);
       message.success('Параметры укладки сохранены, расчёт обновлён');
     },
     onError: (e: Error) => message.error(e.message),
   });
 
   const applyCableMarkModal = useCallback(() => {
+    if (!canMutate) {
+      message.warning(CABLE_SELECTION_READ_ONLY_ERROR);
+      return;
+    }
     if (!cableMarkModalObject || !cableMarkModalCableType) return;
     const targetVariants = cableMarkModalTargetVariantsForSubmit;
     const selectedMark = cableMarkModalValue ?? AUTO_CABLE_MARK_VALUE;
@@ -229,6 +292,7 @@ export function useElecCalcCableSelectionMutationFlow({
     });
   }, [
     autoCableMut,
+    canMutate,
     cableMarkModalCableType,
     cableMarkModalObject,
     cableMarkModalOptionByValue,

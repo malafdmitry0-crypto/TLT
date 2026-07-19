@@ -1,0 +1,14 @@
+152. [GET] http://localhost:8000/api/v1/projects/83e68451-7f2d-4e72-9cbd-62f63483fe00/electrical-variants/17784d60-4880-4f51-b945-c76fec6ead67/assignments?view=unassigned&page=1&page_size=50 => [200] OK
+153. [GET] http://localhost:8000/api/v1/calc/electrical/query-capabilities?project_id=83e68451-7f2d-4e72-9cbd-62f63483fe00&variant_number=1&electrical_variant_id=17784d60-4880-4f51-b945-c76fec6ead67 => [200] OK
+157. [POST] http://localhost:8000/api/v1/calc/electrical/query => [200] OK
+170. [PATCH] http://localhost:8000/api/v1/projects/83e68451-7f2d-4e72-9cbd-62f63483fe00/electrical-variants/17784d60-4880-4f51-b945-c76fec6ead67/assignments => [200] OK
+171. [GET] http://localhost:8000/api/v1/projects/83e68451-7f2d-4e72-9cbd-62f63483fe00/electrical-variants/17784d60-4880-4f51-b945-c76fec6ead67/assignments?view=unassigned&page=1&page_size=50 => [200] OK
+172. [GET] http://localhost:8000/api/v1/calc/electrical/query-capabilities?project_id=83e68451-7f2d-4e72-9cbd-62f63483fe00&variant_number=1&electrical_variant_id=17784d60-4880-4f51-b945-c76fec6ead67 => [200] OK
+173. [POST] http://localhost:8000/api/v1/calc/electrical/query => [200] OK
+174. [GET] http://localhost:8000/api/v1/projects/83e68451-7f2d-4e72-9cbd-62f63483fe00/electrical-variants/17784d60-4880-4f51-b945-c76fec6ead67/assignments?view=resistive&page=1&page_size=50 => [200] OK
+175. [POST] http://localhost:8000/api/v1/projects/83e68451-7f2d-4e72-9cbd-62f63483fe00/electrical-variants/17784d60-4880-4f51-b945-c76fec6ead67/unassign => [200] OK
+176. [GET] http://localhost:8000/api/v1/calc/electrical/query-capabilities?project_id=83e68451-7f2d-4e72-9cbd-62f63483fe00&variant_number=1&electrical_variant_id=17784d60-4880-4f51-b945-c76fec6ead67 => [200] OK
+177. [POST] http://localhost:8000/api/v1/calc/electrical/query => [200] OK
+178. [GET] http://localhost:8000/api/v1/projects/83e68451-7f2d-4e72-9cbd-62f63483fe00/electrical-variants/17784d60-4880-4f51-b945-c76fec6ead67/assignments?view=resistive&page=1&page_size=50 => [200] OK
+
+Note: 163 static requests not shown, run with "static" option to see them.

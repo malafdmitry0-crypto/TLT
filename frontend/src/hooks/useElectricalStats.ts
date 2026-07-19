@@ -18,7 +18,7 @@ function orderCableLength(calc: ElectricalCalcSummary) {
 }
 
 export interface ElectricalStats {
-  /** Мапа object_id → последний (с наибольшим variant_number) расчёт. */
+  /** Мапа object_id → расчёт только выбранного ЭР. */
   calcByObjectId: Record<string, ElectricalCalcSummary>;
   /** Объекты, прошедшие теплотехнический расчёт (is_valid). */
   validObjects: ProjectObject[];
@@ -42,14 +42,18 @@ export interface ElectricalStats {
 export function useElectricalStats(
   objects: ProjectObject[],
   elecCalcs: ElectricalCalcSummary[],
+  selectedLegacyVariantNumber?: number,
 ): ElectricalStats {
   return useMemo(() => {
-    const calcByObjectId = elecCalcs.reduce<Record<string, ElectricalCalcSummary>>(
+    // Backend query is expected to be variant-scoped. The explicit guard also
+    // prevents stale/foreign rows from influencing totals if a legacy response
+    // or an accidentally broad cache contains more than one numeric slot.
+    const scopedCalcs = selectedLegacyVariantNumber == null
+      ? elecCalcs
+      : elecCalcs.filter((calc) => calc.variant_number === selectedLegacyVariantNumber);
+    const calcByObjectId = scopedCalcs.reduce<Record<string, ElectricalCalcSummary>>(
       (acc, c) => {
-        const prev = acc[String(c.object_id)];
-        if (!prev || c.variant_number > prev.variant_number) {
-          acc[String(c.object_id)] = c;
-        }
+        acc[String(c.object_id)] = c;
         return acc;
       },
       {},
@@ -69,7 +73,7 @@ export function useElectricalStats(
     ).length;
     const allCalced = calcedCount > 0 && calcedCount === validObjects.length;
 
-    const successCalcs = elecCalcs.filter((c) => isElectricalCalcSuccess(c));
+    const successCalcs = scopedCalcs.filter((c) => isElectricalCalcSuccess(c));
     const totalCableLength = successCalcs.reduce(
       (sum, c) => sum + orderCableLength(c),
       0,
@@ -93,5 +97,5 @@ export function useElectricalStats(
       totalPower,
       totalCurrent,
     };
-  }, [objects, elecCalcs]);
+  }, [objects, elecCalcs, selectedLegacyVariantNumber]);
 }

@@ -83,6 +83,7 @@ export async function getElectricalPage(
 export async function getElectricalQueryCapabilities(
   projectId: string,
   variantNumber: number = 1,
+  electricalVariantId?: string,
 ): Promise<ElectricalQueryCapabilities> {
   const { data } = await apiClient.get<ElectricalQueryCapabilities>(
     '/calc/electrical/query-capabilities',
@@ -90,6 +91,7 @@ export async function getElectricalQueryCapabilities(
       params: {
         project_id: projectId,
         variant_number: variantNumber,
+        electrical_variant_id: electricalVariantId,
       },
     },
   );
@@ -110,12 +112,14 @@ export async function listElectricalCandidates(
   projectId: string,
   objectId: string,
   variantNumber: number,
+  electricalVariantId?: string,
 ): Promise<ElectricalCandidate[]> {
   const { data } = await apiClient.get<ElectricalCandidate[]>('/calc/electrical/candidates', {
     params: {
       project_id: projectId,
       object_id: objectId,
       variant_number: variantNumber,
+      electrical_variant_id: electricalVariantId,
     },
   });
   return data;
@@ -168,6 +172,7 @@ export async function listElectricalCandidateFolders(
   projectId: string,
   objectId: string,
   variantNumber: number,
+  electricalVariantId?: string,
 ): Promise<ElectricalCandidateFolder[]> {
   const { data } = await apiClient.get<ElectricalCandidateFolder[]>(
     '/calc/electrical/candidate-folders',
@@ -176,6 +181,7 @@ export async function listElectricalCandidateFolders(
         project_id: projectId,
         object_id: objectId,
         variant_number: variantNumber,
+        electrical_variant_id: electricalVariantId,
       },
     },
   );
@@ -271,7 +277,6 @@ export interface CopyElectricalVariantRequest {
   source_variant_number: number;
   target_variant_number: number;
   overwrite?: boolean;
-  regenerate_specification?: boolean;
 }
 
 export interface CopyElectricalVariantResponse {
@@ -358,6 +363,36 @@ export async function enqueueElectricalBatchJob(
   return data;
 }
 
+/**
+ * UUID-first electrical batch entrypoint used by the dynamic ER workspace.
+ * It intentionally omits the deprecated `variant_number` selector because
+ * backend rejects ambiguous requests containing both selectors.
+ */
+export async function enqueueElectricalVariantBatchJob(
+  projectId: string,
+  electricalVariantId: string,
+  cableSource: CableSource = 'builtin',
+  cableType: CableType = 'self_regulating',
+  options: ElectricalBatchOptions = {},
+): Promise<CalculationTaskResponse> {
+  const { data } = await apiClient.post<CalculationTaskResponse>(
+    '/calc/electrical/batch/jobs',
+    {
+      project_id: projectId,
+      electrical_variant_id: electricalVariantId,
+      cable_source: cableSource,
+      include_results: false,
+      include_errors: true,
+      ...electricalParams(cableType, options),
+      object_ids: options.objectIds,
+      force_cable_type: options.forceCableType,
+      object_overrides: options.objectOverrides,
+    },
+    withIdempotencyKey(),
+  );
+  return data;
+}
+
 export async function enqueueHeatLossBatchJob(
   projectId: string,
   includeErrors: boolean = true,
@@ -381,8 +416,9 @@ export async function copyElectricalVariant(
   const { data } = await apiClient.post<CopyElectricalVariantResponse>(
     '/calc/electrical/variants/copy',
     {
-      regenerate_specification: true,
       ...payload,
+      // PDL-ER-13: an ER/calculation copy never carries or regenerates a BOM.
+      regenerate_specification: false,
     },
     withIdempotencyKey(),
   );
@@ -415,6 +451,7 @@ export async function selectCableManual(
   variantNumber: number = 1,
   cableType: CableType = 'self_regulating',
   options: ElectricalBatchOptions = {},
+  electricalVariantId?: string,
 ): Promise<ElectricalCalcSummary> {
   const { data } = await apiClient.post<ElectricalCalcSummary>(
     '/calc/electrical/select-cable',
@@ -425,6 +462,7 @@ export async function selectCableManual(
         cable_mark: cableMark,
         cable_source: cableSource,
         variant_number: variantNumber,
+        electrical_variant_id: electricalVariantId,
         ...electricalParams(cableType, options),
       },
     }
@@ -439,6 +477,7 @@ export async function selectCableForVariants(
   variantNumbers: number[] = [1],
   cableType: CableType = 'self_regulating',
   options: ElectricalBatchOptions = {},
+  electricalVariantIds: Record<number, string> = {},
 ): Promise<ElectricalCalcSummary[]> {
   const { data } = await apiClient.post<ElectricalCalcSummary[]>(
     '/calc/electrical/select-cable/variants',
@@ -447,6 +486,7 @@ export async function selectCableForVariants(
       cable_mark: cableMark,
       cable_source: cableSource,
       variant_numbers: variantNumbers,
+      electrical_variant_ids: electricalVariantIds,
       cable_type: cableType,
       selection_mode: options.selectionMode ?? null,
       supply_voltage: options.supplyVoltage ?? null,
