@@ -155,6 +155,24 @@ class ElectricalVariantObject(Base, TimestampMixin):
             "object_version_snapshot >= 1",
             name="ck_electrical_variant_objects_version_positive",
         ),
+        CheckConstraint(
+            "version >= 1",
+            name="ck_electrical_variant_objects_assignment_version_positive",
+        ),
+        CheckConstraint(
+            "assignment_state <> 'unassigned' OR system_type IS NULL",
+            name="ck_electrical_variant_objects_unassigned_system_null",
+        ),
+        CheckConstraint(
+            "assignment_state <> 'ready' "
+            "OR system_type IN ('self_regulating', 'resistive')",
+            name="ck_electrical_variant_objects_ready_supported_system",
+        ),
+        CheckConstraint(
+            "system_type NOT IN ('skin', 'mineral') "
+            "OR assignment_state = 'unsupported'",
+            name="ck_electrical_variant_objects_unsupported_system_state",
+        ),
         ForeignKeyConstraint(
             ["electrical_variant_id", "project_id"],
             ["electrical_variants.id", "electrical_variants.project_id"],
@@ -182,6 +200,12 @@ class ElectricalVariantObject(Base, TimestampMixin):
             "electrical_variant_id",
             "assignment_state",
         ),
+        Index(
+            "ix_electrical_variant_objects_variant_system_state",
+            "electrical_variant_id",
+            "system_type",
+            "assignment_state",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -196,6 +220,15 @@ class ElectricalVariantObject(Base, TimestampMixin):
         server_default=text("'unassigned'"),
     )
     requested_cable_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Assignment revision for optimistic concurrency. This is deliberately
+    # independent from object_version_snapshot, which tracks heat/object input
+    # freshness rather than concurrent edits to this ER assignment.
+    version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default=text("1"),
+    )
     object_version_snapshot: Mapped[int] = mapped_column(
         Integer,
         nullable=False,

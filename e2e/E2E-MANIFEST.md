@@ -13,7 +13,7 @@
 **Числа тестовой базы** (автоген `scripts/sync-docs.py` — не править руками; цифры
 считаются по `def test_` / `it(` / `test(`, без учёта `parametrize`-размножения):
 <!-- AUTO:test-counts -->
-**1391 backend** (981 unit + 410 integration) ✅ · **1030 frontend vitest** ✅ · **103 e2e Playwright** ✅
+**1412 backend** (981 unit + 431 integration) ✅ · **1048 frontend vitest** ✅ · **103 e2e Playwright** ✅
 <!-- /AUTO -->
 Самопроверку фактических утверждений манифеста (хелперы/файлы §6/карта спеков)
 держит §11.

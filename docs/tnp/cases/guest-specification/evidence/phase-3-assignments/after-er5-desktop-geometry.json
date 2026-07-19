@@ -1,0 +1,206 @@
+{
+  "url": "http://localhost:5173/workspace/elec-calc?er=c472e1f8-7a64-4271-af44-0ddb7236b469",
+  "viewport": {
+    "width": 1440,
+    "height": 1000,
+    "documentScrollWidth": 1440,
+    "documentClientWidth": 1440,
+    "bodyScrollWidth": 1440
+  },
+  "horizontalPageOverflow": false,
+  "assignmentPanel": {
+    "rect": {
+      "x": 6,
+      "y": 208.203125,
+      "width": 1428,
+      "height": 324.390625,
+      "right": 1434,
+      "bottom": 532.59375
+    },
+    "text": "Назначение объектов · ЭР5 · Северный участок — резервная линия с очень длинным названиемВсего: 1Выберите объекты и назначьте поддерживаемый тип системы. Назначение сохраняется отдельно для каждого ЭР.Нераспределённые0Самрег1Резистив0Скин0Минеральный0Назначать новые объекты в неподдерживаемые системы нельзя. Вкладки «Скин» и «Минеральный» показывают сохранённые legacy-назначения, чтобы их можно был",
+    "clientWidth": 1426,
+    "scrollWidth": 1426
+  },
+  "variantTabs": [
+    {
+      "id": "17784d60-4880-4f51-b945-c76fec6ead67",
+      "name": "ЭР1, активный ЭР",
+      "selected": "false",
+      "rect": {
+        "x": 21,
+        "y": 85.5,
+        "width": 120.96875,
+        "height": 30,
+        "right": 141.96875,
+        "bottom": 115.5
+      }
+    },
+    {
+      "id": "5df6ac49-35c2-45a1-ad5d-5f36aee2c16f",
+      "name": "ЭР2",
+      "selected": "false",
+      "rect": {
+        "x": 149.96875,
+        "y": 85.5,
+        "width": 42.828125,
+        "height": 30,
+        "right": 192.796875,
+        "bottom": 115.5
+      }
+    },
+    {
+      "id": "db838bba-bb0b-4f60-89f2-9f247e9e8322",
+      "name": "ЭР3",
+      "selected": "false",
+      "rect": {
+        "x": 200.796875,
+        "y": 85.5,
+        "width": 43.0625,
+        "height": 30,
+        "right": 243.859375,
+        "bottom": 115.5
+      }
+    },
+    {
+      "id": "e813a9c0-0b4a-48e9-a2c4-527f943e8a9e",
+      "name": "ЭР4",
+      "selected": "false",
+      "rect": {
+        "x": 251.859375,
+        "y": 85.5,
+        "width": 43.03125,
+        "height": 30,
+        "right": 294.890625,
+        "bottom": 115.5
+      }
+    },
+    {
+      "id": "c472e1f8-7a64-4271-af44-0ddb7236b469",
+      "name": "ЭР5 · Северный участок — резервная линия с очень длинным названием",
+      "selected": "true",
+      "rect": {
+        "x": 302.890625,
+        "y": 85.5,
+        "width": 385.4375,
+        "height": 30,
+        "right": 688.328125,
+        "bottom": 115.5
+      }
+    }
+  ],
+  "assignmentTabs": [
+    {
+      "name": "Нераспределённые0",
+      "selected": "false",
+      "rect": {
+        "x": 19,
+        "y": 300.203125,
+        "width": 158.65625,
+        "height": 22,
+        "right": 177.65625,
+        "bottom": 322.203125
+      }
+    },
+    {
+      "name": "Самрег1",
+      "selected": "true",
+      "rect": {
+        "x": 209.65625,
+        "y": 300.203125,
+        "width": 74.140625,
+        "height": 22,
+        "right": 283.796875,
+        "bottom": 322.203125
+      }
+    },
+    {
+      "name": "Резистив0",
+      "selected": "false",
+      "rect": {
+        "x": 315.796875,
+        "y": 300.203125,
+        "width": 87.5,
+        "height": 22,
+        "right": 403.296875,
+        "bottom": 322.203125
+      }
+    },
+    {
+      "name": "Скин0",
+      "selected": "false",
+      "rect": {
+        "x": 435.296875,
+        "y": 300.203125,
+        "width": 59.015625,
+        "height": 22,
+        "right": 494.3125,
+        "bottom": 322.203125
+      }
+    },
+    {
+      "name": "Минеральный0",
+      "selected": "false",
+      "rect": {
+        "x": 526.3125,
+        "y": 300.203125,
+        "width": 119.609375,
+        "height": 22,
+        "right": 645.921875,
+        "bottom": 322.203125
+      }
+    }
+  ],
+  "scrollRegions": [],
+  "expectedClippedText": [],
+  "unexpectedClippedText": [],
+  "expectedOutsideViewport": [],
+  "controlsOutsideViewportUnexpected": [],
+  "expectedOverlaps": [
+    {
+      "left": "Select all",
+      "right": "INPUT",
+      "width": 12,
+      "height": 7.5,
+      "reason": "checkbox internals"
+    }
+  ],
+  "unexpectedOverlaps": [],
+  "disabledControls": [
+    {
+      "aria": null,
+      "text": "Назначить: Самрег",
+      "rect": {
+        "x": 103.765625,
+        "y": 410.203125,
+        "width": 118.0625,
+        "height": 22.390625,
+        "right": 221.828125,
+        "bottom": 432.59375
+      }
+    },
+    {
+      "aria": null,
+      "text": "Назначить: Резистив",
+      "rect": {
+        "x": 229.828125,
+        "y": 410.203125,
+        "width": 126.59375,
+        "height": 22.390625,
+        "right": 356.421875,
+        "bottom": 432.59375
+      }
+    },
+    {
+      "aria": null,
+      "text": "Вернуть в нераспределённые",
+      "rect": {
+        "x": 364.421875,
+        "y": 410.203125,
+        "width": 170.34375,
+        "height": 22.390625,
+        "right": 534.765625,
+        "bottom": 432.59375
+      }
+    }
+  ]
+}

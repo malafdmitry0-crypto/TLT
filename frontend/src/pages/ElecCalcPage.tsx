@@ -18,6 +18,7 @@ import {
   Space,
   Table,
   Typography,
+  message,
 } from 'antd';
 import {
   ThunderboltOutlined,
@@ -42,6 +43,7 @@ import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollR
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
+import ElectricalAssignmentPanel from '@/pages/electrical/ElectricalAssignmentPanel';
 import ElectricalVariantTabs, {
   electricalVariantPanelId,
   electricalVariantTabId,
@@ -86,6 +88,14 @@ import {
   resolveActiveElectricalErrorItem,
 } from '@/pages/electrical/elecCalcErrorSummaryModel';
 import {
+  compatibleAssignedObjectIds,
+  electricalAssignmentAvailabilityReason,
+  electricalAssignmentCompatibilityReason,
+  electricalAssignmentProjectionMap,
+  electricalSystemForCableType,
+  preferredCableTypeForElectricalAssignment,
+} from '@/pages/electrical/elecCalcAssignmentScopeModel';
+import {
   buildElecCalcSummaryViewModel,
 } from '@/pages/electrical/elecCalcSummaryModel';
 import {
@@ -94,6 +104,7 @@ import {
 } from '@/pages/electrical/elecCalcLayoutModel';
 import {
   CABLE_TYPE_LABEL,
+  objectDisplayName,
   type CableTypeKey,
 } from '@/pages/electrical/elecCalcMainTableModel';
 import type { ElectricalNavigationState } from '@/pages/electrical/elecCalcPageModel';
@@ -209,6 +220,10 @@ function ElecCalcProject({
   const setLegacyVariant = useCalculationVariantStore((state) => state.setVariant);
   const clearLegacyVariant = useCalculationVariantStore((state) => state.clearVariant);
   const selectedVariant = controller.selectedVariant;
+  const [assignmentDataEpoch, setAssignmentDataEpoch] = useState(0);
+  const markAssignmentDataChanged = useCallback(() => {
+    setAssignmentDataEpoch((current) => current + 1);
+  }, []);
   const navigationActiveJobId =
     (location.state as ElectricalNavigationState | null | undefined)?.activeJobId ?? null;
 
@@ -241,6 +256,15 @@ function ElecCalcProject({
   return (
     <Space direction="vertical" size={8} style={{ width: '100%' }}>
       <ElectricalVariantTabs controller={controller} canMutate={canMutate} />
+      {selectedVariant && (
+        <ElectricalAssignmentPanel
+          key={selectedVariant.id}
+          projectId={projectId}
+          electricalVariant={selectedVariant}
+          canMutate={canMutate}
+          onAssignmentsChanged={markAssignmentDataChanged}
+        />
+      )}
       {selectedVariant?.legacy_variant_number == null && selectedVariant && (
         <div
           id={electricalVariantPanelId(selectedVariant.id)}
@@ -267,7 +291,7 @@ function ElecCalcProject({
           aria-labelledby={electricalVariantTabId(selectedVariant.id)}
         >
           <ElecCalcWorkspace
-            key={selectedVariant.id}
+            key={`${selectedVariant.id}:${assignmentDataEpoch}`}
             projectId={projectId}
             electricalVariant={selectedVariant}
             electricalVariants={controller.variants}
@@ -465,6 +489,7 @@ function ElecCalcWorkspace({
   const pageInfo = electricalPage?.page_info;
   const nextElectricalPageCursor = pageInfo?.next_cursor;
   const {
+    electricalLoadedPages,
     objects,
     elecCalcs,
     electricalDisplayOffset,
@@ -497,6 +522,52 @@ function ElecCalcWorkspace({
     projectId: project?.id,
     variant: electricalVariantId,
   });
+  const assignmentByObjectId = useMemo(
+    () => electricalAssignmentProjectionMap(electricalLoadedPages),
+    [electricalLoadedPages],
+  );
+  const batchCableType = cableTypes.cableTypeForRecalculation;
+  const compatibleSelectedRowKeys = useMemo(
+    () => compatibleAssignedObjectIds(
+      selectedRowKeys,
+      assignmentByObjectId,
+      batchCableType,
+    ),
+    [assignmentByObjectId, batchCableType, selectedRowKeys],
+  );
+  const handleAssignmentAwareSelectionChange = useCallback((keys: string[]) => {
+    const compatible = compatibleAssignedObjectIds(
+      keys,
+      assignmentByObjectId,
+      batchCableType,
+    );
+    if (compatible.length !== keys.length) {
+      message.warning(
+        'Можно выбрать только объекты, назначенные в совместимую систему текущего ЭР.',
+      );
+    }
+    setSelectedRowKeys(compatible);
+  }, [assignmentByObjectId, batchCableType, setSelectedRowKeys]);
+  useEffect(() => {
+    if (compatibleSelectedRowKeys.length === selectedRowKeys.length) return;
+    setSelectedRowKeys(compatibleSelectedRowKeys);
+  }, [compatibleSelectedRowKeys, selectedRowKeys.length, setSelectedRowKeys]);
+  const objectActionCableType = cableTypes.getSavedCableTypeForObject;
+  const getObjectActionDisabledReason = useCallback((obj: ProjectObject) => (
+    electricalAssignmentAvailabilityReason(assignmentByObjectId.get(obj.id))
+  ), [assignmentByObjectId]);
+  const getObjectCalculationDisabledReason = useCallback((obj: ProjectObject) => (
+    electricalAssignmentCompatibilityReason(
+      assignmentByObjectId.get(obj.id),
+      objectActionCableType(obj.id),
+    )
+  ), [assignmentByObjectId, objectActionCableType]);
+  const preferredObjectActionCableType = useCallback((obj: ProjectObject) => (
+    preferredCableTypeForElectricalAssignment(
+      assignmentByObjectId.get(obj.id),
+      objectActionCableType(obj.id),
+    )
+  ), [assignmentByObjectId, objectActionCableType]);
   const {
     activeJob,
     activeJobId,
@@ -699,11 +770,29 @@ function ElecCalcWorkspace({
     selectedCable: cableMarkModalSelectedCable,
     targetVariantOptions: cableMarkModalTargetVariantOptions,
     close: closeCableMarkModal,
-    open: openCableMarkModal,
+    open: openCableMarkModalState,
     changeCableType: changeCableMarkModalCableType,
     normalizeSelectedCableType: normalizeCableMarkModalCableType,
     setTargetVariantsFromValues: setCableMarkModalTargetVariantsFromValues,
   } = cableMarkModal;
+  const openCableMarkModal = useCallback((obj: ProjectObject) => {
+    const reason = getObjectActionDisabledReason(obj);
+    if (reason) {
+      message.warning(reason);
+      return;
+    }
+    openCableMarkModalState(obj);
+    const preferredType = preferredObjectActionCableType(obj);
+    if (preferredType && preferredType !== objectActionCableType(obj.id)) {
+      changeCableMarkModalCableType(preferredType);
+    }
+  }, [
+    changeCableMarkModalCableType,
+    getObjectActionDisabledReason,
+    objectActionCableType,
+    openCableMarkModalState,
+    preferredObjectActionCableType,
+  ]);
 
   const {
     electricalLayoutMutate,
@@ -744,14 +833,31 @@ function ElecCalcWorkspace({
     setActiveCandidateFolderKey,
   ]);
   const openCableSizingModal = useCallback((obj: ProjectObject) => {
+    const reason = getObjectActionDisabledReason(obj);
+    if (reason) {
+      message.warning(reason);
+      return;
+    }
     activateRowId(obj.id);
     openCableSizingModalState(obj);
+    const preferredType = preferredObjectActionCableType(obj);
+    if (preferredType) {
+      setCableSizingCableType(preferredType);
+      if (preferredType !== objectActionCableType(obj.id)) {
+        setRecalc.connectionType('line_1ph');
+      }
+    }
     resetMarkedCableSizingCandidates();
     setActiveCandidateFolderKey('all');
   }, [
     activateRowId,
+    getObjectActionDisabledReason,
     openCableSizingModalState,
+    objectActionCableType,
+    preferredObjectActionCableType,
     resetMarkedCableSizingCandidates,
+    setCableSizingCableType,
+    setRecalc,
     setActiveCandidateFolderKey,
   ]);
   const {
@@ -782,6 +888,7 @@ function ElecCalcWorkspace({
     projectSelected: Boolean(project),
     canMutate,
     recalc,
+    getObjectActionDisabledReason,
     openCableMarkModal,
     openCableSizingModal,
   });
@@ -891,6 +998,7 @@ function ElecCalcWorkspace({
   });
 
   const isElectricalLayoutCellEditable = useCallback((obj: ProjectObject, columnKey: string) => {
+    if (getObjectCalculationDisabledReason(obj)) return false;
     return resolveElectricalLayoutCellEditable({
       obj,
       columnKey,
@@ -902,6 +1010,7 @@ function ElecCalcWorkspace({
   }, [
     cableTypes.getSavedCableTypeForObject,
     canMutate,
+    getObjectCalculationDisabledReason,
     isCableMarkPending,
     project,
     stats.calcByObjectId,
@@ -915,6 +1024,7 @@ function ElecCalcWorkspace({
     projectSelected: Boolean(project),
     canMutate,
     isCableMarkPending,
+    getObjectActionDisabledReason,
     onOpenCableMarkModal: openCableMarkModal,
     onOpenCableSizingModal: openCableSizingModal,
   });
@@ -937,6 +1047,8 @@ function ElecCalcWorkspace({
     value: unknown,
   ) => {
     if (!canMutate) return ELECCALC_READ_ONLY_MESSAGE;
+    const assignmentReason = getObjectCalculationDisabledReason(obj);
+    if (assignmentReason) return assignmentReason;
     const validation = validateElectricalLayoutCellCommit({
       obj,
       columnKey,
@@ -965,6 +1077,7 @@ function ElecCalcWorkspace({
     electricalLayoutMutate,
     cableTypes.getSavedCableTypeForObject,
     canMutate,
+    getObjectCalculationDisabledReason,
     project,
     stats.calcByObjectId,
   ]);
@@ -972,7 +1085,7 @@ function ElecCalcWorkspace({
   useElecCalcSelectedRowsClipboardEffect({
     electricalColumnCopyValue,
     objects,
-    selectedRowKeys,
+    selectedRowKeys: compatibleSelectedRowKeys,
     visibleElectricalColumnMetas,
   });
 
@@ -1030,7 +1143,7 @@ function ElecCalcWorkspace({
       pageSummary,
       objects,
       elecCalcsCount: elecCalcs.length,
-      selectedRowKeys,
+      selectedRowKeys: compatibleSelectedRowKeys,
       stats,
       activeJobStatus,
       jobProgress: activeJob?.progress,
@@ -1041,7 +1154,7 @@ function ElecCalcWorkspace({
       elecCalcs.length,
       objects,
       pageSummary,
-      selectedRowKeys,
+      compatibleSelectedRowKeys,
       stats,
     ],
   );
@@ -1121,6 +1234,28 @@ function ElecCalcWorkspace({
     label: CABLE_TYPE_LABEL[k],
     value: k,
   })), [availableCableTypeKeys]);
+  const cableTypeOptionsForObject = useCallback((objectId: string | undefined) => {
+    if (!objectId) return cableTypeOptions;
+    const assignedSystem = assignmentByObjectId.get(objectId)?.system_type;
+    if (assignedSystem !== 'self_regulating' && assignedSystem !== 'resistive') return [];
+    return cableTypeOptions.filter((option) =>
+      electricalSystemForCableType(option.value) === assignedSystem,
+    );
+  }, [assignmentByObjectId, cableTypeOptions]);
+  const cableMarkModalCableTypeOptions = useMemo(
+    () => cableTypeOptionsForObject(cableMarkModalObject?.id),
+    [cableMarkModalObject?.id, cableTypeOptionsForObject],
+  );
+  const cableSizingModalCableTypeOptions = useMemo(
+    () => cableTypeOptionsForObject(cableSizingModal.object?.id),
+    [cableSizingModal.object?.id, cableTypeOptionsForObject],
+  );
+  const cableMarkModalAssignmentReason = cableMarkModalObject
+    ? getObjectActionDisabledReason(cableMarkModalObject)
+    : null;
+  const cableSizingModalAssignmentReason = cableSizingModal.object
+    ? getObjectActionDisabledReason(cableSizingModal.object)
+    : null;
   const cableSourceOptions = useMemo<Array<{ label: string; value: ElectricalCalculationCableSource }>>(() => [
     { label: 'Встроенная', value: 'builtin' },
     ...(isEmployee
@@ -1162,6 +1297,17 @@ function ElecCalcWorkspace({
     if (selectedRowKeys.length === 0) {
       cableTypes.setDefaultCableType(nextType);
     } else {
+      const compatibleForNextType = compatibleAssignedObjectIds(
+        selectedRowKeys,
+        assignmentByObjectId,
+        nextType,
+      );
+      if (compatibleForNextType.length !== selectedRowKeys.length) {
+        message.warning(
+          'Выбранные объекты назначены в другую систему. Снимите выбор или выберите совместимый тип кабеля.',
+        );
+        return;
+      }
       cableTypes.setCableTypeDraftByObjectId((prev) => {
         const nextDrafts = { ...prev };
         for (const objectId of selectedRowKeys) {
@@ -1318,9 +1464,20 @@ function ElecCalcWorkspace({
           onManualOverwritePromptOpen={() => setOverwriteManualChoices(false)}
           onRecalculateSelected={(skipManual) => {
             if (!canMutate) return;
+            const objectIds = compatibleAssignedObjectIds(
+              selectedRowKeys,
+              assignmentByObjectId,
+              cableTypes.cableTypeForRecalculation,
+            );
+            if (objectIds.length !== selectedRowKeys.length) {
+              message.warning(
+                'Несовместимые или нераспределённые строки исключены. Проверьте назначения ЭР.',
+              );
+            }
+            if (objectIds.length === 0) return;
             batchMut.mutate({
               scope: 'selected',
-              objectIds: selectedRowKeys,
+              objectIds,
               skipManual,
             });
           }}
@@ -1365,7 +1522,7 @@ function ElecCalcWorkspace({
                 tableScrollY={electricalTableScrollY}
                 fontSizeKey={resolvedTableFontSize.key}
                 activeRowId={activeRowId}
-                selectedRowKeys={selectedRowKeys}
+                selectedRowKeys={compatibleSelectedRowKeys}
                 tableViewState={tableViewState}
                 pagination={electricalPagination}
                 infiniteLoading={electricalInfiniteLoading}
@@ -1380,7 +1537,7 @@ function ElecCalcWorkspace({
                 rowClassName={electricalRowClassName}
                 getCellState={getElectricalGlideCellState}
                 onOpenRow={openElectricalRow}
-                onSelectedRowKeysChange={setSelectedRowKeys}
+                onSelectedRowKeysChange={handleAssignmentAwareSelectionChange}
                 onSetColumnFilter={setColumnFilter}
                 onResetColumnFilter={resetColumnFilter}
                 onSetSort={setElectricalTableSort}
@@ -1412,8 +1569,21 @@ function ElecCalcWorkspace({
               })}
               rowSelection={{
                 type: 'checkbox',
-                selectedRowKeys,
-                onChange: (keys) => setSelectedRowKeys(keys as string[]),
+                selectedRowKeys: compatibleSelectedRowKeys,
+                onChange: (keys) => handleAssignmentAwareSelectionChange(keys as string[]),
+                getCheckboxProps: (obj) => {
+                  const reason = electricalAssignmentCompatibilityReason(
+                    assignmentByObjectId.get(obj.id),
+                    cableTypes.cableTypeForRecalculation,
+                  );
+                  return {
+                    disabled: reason != null,
+                    title: reason ?? undefined,
+                    'aria-label': reason
+                      ? `${objectDisplayName(obj)}: ${reason}`
+                      : `Выбрать ${objectDisplayName(obj)} для пересчёта`,
+                  };
+                },
                 columnWidth: 36,
               }}
               columns={electricalColumns}
@@ -1434,7 +1604,9 @@ function ElecCalcWorkspace({
           <div className="legend-row-srs">
             <span>
               ⓘ Красная строка = ошибка подбора кабеля, серый статус = не применимо.
-              Отметьте строки для пересчёта выбранных или используйте «Пересчитать все».
+              Выбор и расчёт доступны только для объектов, назначенных в совместимую
+              систему этого ЭР. «Пересчитать все» обрабатывает только назначенный
+              UUID+system scope.
             </span>
             {calculatedCount > 0 && (
               <Space size={16}>
@@ -1466,9 +1638,13 @@ function ElecCalcWorkspace({
         object={cableMarkModalObject}
         selectedCable={cableMarkModalSelectedCable}
         cableType={cableMarkModalCableType}
-        cableTypeOptions={cableTypeOptions}
+        cableTypeOptions={cableMarkModalCableTypeOptions}
         commercialFeaturesAvailable={commercialFeaturesAvailable}
-        projectSelected={Boolean(project) && canMutate}
+        projectSelected={
+          Boolean(project)
+          && canMutate
+          && cableMarkModalAssignmentReason == null
+        }
         pending={isCableMarkPending}
         value={cableMarkModalValue}
         markOptions={cableMarkModalOptions}
@@ -1483,12 +1659,12 @@ function ElecCalcWorkspace({
         onCancel={closeCableMarkModal}
       />
       <ElecCalcCableSizingModal
-        canMutate={canMutate}
+        canMutate={canMutate && cableSizingModalAssignmentReason == null}
         cableSizingModal={cableSizingModal}
         candidate={candidate}
         selectedCable={cableSizingModalSelectedCable}
         commercialFeaturesAvailable={commercialFeaturesAvailable}
-        cableTypeOptions={cableTypeOptions}
+        cableTypeOptions={cableSizingModalCableTypeOptions}
         cableSizingManualOptions={cableSizingManualOptions}
         candidateTableScrollX={cableSizingCandidateTableScrollX}
         candidateFontSizeKey={resolvedTableFontSize.key}

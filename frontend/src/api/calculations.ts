@@ -277,7 +277,6 @@ export interface CopyElectricalVariantRequest {
   source_variant_number: number;
   target_variant_number: number;
   overwrite?: boolean;
-  regenerate_specification?: boolean;
 }
 
 export interface CopyElectricalVariantResponse {
@@ -417,8 +416,9 @@ export async function copyElectricalVariant(
   const { data } = await apiClient.post<CopyElectricalVariantResponse>(
     '/calc/electrical/variants/copy',
     {
-      regenerate_specification: true,
       ...payload,
+      // PDL-ER-13: an ER/calculation copy never carries or regenerates a BOM.
+      regenerate_specification: false,
     },
     withIdempotencyKey(),
   );

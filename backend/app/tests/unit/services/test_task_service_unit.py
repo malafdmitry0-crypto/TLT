@@ -14,7 +14,8 @@ from app.core.dependencies import CurrentPrincipal
 from app.models.background_task import BackgroundTask
 from app.schemas.calculation import ElectricalBatchJobRequest, HeatLossBatchJobRequest
 from app.schemas.report import ReportExportJobRequest
-from app.services.calculation_service import BatchProgress
+from app.services.calculation_service import BatchProgress, CalculationService
+from app.services.electrical_assignment_service import ElectricalAssignmentService
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 from app.services.task_service import (
     ELECTRICAL_VARIANT_LEGACY_ADAPTER_UNAVAILABLE,
@@ -137,6 +138,28 @@ def guest_principal() -> CurrentPrincipal:
 @pytest.fixture
 def employee_principal() -> CurrentPrincipal:
     return CurrentPrincipal(role="employee", user_id=uuid.uuid4())
+
+
+@pytest.fixture(autouse=True)
+def explicit_electrical_assignment_scope(monkeypatch: pytest.MonkeyPatch) -> uuid.UUID:
+    """Keep TaskService unit tests focused beyond the DB-backed assignment boundary."""
+    object_id = uuid.uuid4()
+    monkeypatch.setattr(
+        ElectricalAssignmentService,
+        "assignment_object_ids_for_system",
+        AsyncMock(return_value=[object_id]),
+    )
+    monkeypatch.setattr(
+        ElectricalAssignmentService,
+        "validate_supported_assignment_objects",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(
+        CalculationService,
+        "_load_existing_electrical_by_object_id",
+        AsyncMock(return_value={}),
+    )
+    return object_id
 
 
 @pytest.fixture
@@ -620,7 +643,7 @@ class TestTaskCreation:
         )
 
         assert result is existing
-        assert events == ["guard", "lock", "resolve"]
+        assert events == ["guard", "lock", "resolve", "lock"]
 
     async def test_create_electrical_batch_task_enqueues_and_persists_payload(
         self,
@@ -664,6 +687,8 @@ class TestTaskCreation:
         assert "variant_number" not in task.request_payload
         assert task.request_payload["force_cable_type"] is True
         assert task.request_payload["skip_manual"] is True
+        assert task.request_payload["requested_scope"] == "all"
+        assert len(task.request_payload["object_ids"]) == 1
         assert task.request_payload["electrical_params"]["winding_pitch"] == 120
         assert task.request_payload["include_errors"] is False
         assert task.arq_job_id is not None
@@ -672,9 +697,8 @@ class TestTaskCreation:
             electrical_variant_id=requested_variant_id,
             legacy_variant_number=None,
         )
-        service._lock_project_for_electrical_task.assert_awaited_once_with(  # type: ignore[attr-defined]
-            project_id
-        )
+        assert service._lock_project_for_electrical_task.await_count == 2  # type: ignore[attr-defined]
+        service._lock_project_for_electrical_task.assert_any_await(project_id)  # type: ignore[attr-defined]
         mock_db.add.assert_called_once()
 
     async def test_create_electrical_batch_task_allows_explicit_manual_overwrite(

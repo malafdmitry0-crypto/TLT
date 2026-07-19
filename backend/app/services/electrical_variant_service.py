@@ -59,17 +59,21 @@ class ElectricalVariantServiceError(Exception):
         *,
         status_code: int,
         issues: list[ElectricalReadinessIssue] | None = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
         self.status_code = status_code
         self.issues = issues or []
+        self.details = details or {}
 
     def as_detail(self) -> dict[str, Any]:
         detail: dict[str, Any] = {"code": self.code, "message": self.message}
         if self.issues:
             detail["issues"] = [issue.model_dump(mode="json") for issue in self.issues]
+        if self.details:
+            detail["details"] = self.details
         return detail
 
 
@@ -426,7 +430,10 @@ class ElectricalVariantService:
             await self._ensure_object_assignments(variant)
         variants_to_bind = {variant.id: variant for variant in [*created, *resolved.values()]}
         for variant in variants_to_bind.values():
-            await self._bind_unmapped_legacy_rows(variant)
+            if variant.legacy_variant_number in expected_ids:
+                await self._require_no_unmapped_legacy_rows(variant)
+            else:
+                await self._bind_unmapped_legacy_rows(variant)
 
         project.electrical_initialized_at = project.electrical_initialized_at or datetime.now(UTC)
         if created:
@@ -937,6 +944,41 @@ class ElectricalVariantService:
             bound[model.__tablename__] = max(int(result.rowcount or 0), 0)
         return bound
 
+    async def _require_no_unmapped_legacy_rows(
+        self,
+        variant: ElectricalVariant,
+    ) -> None:
+        """Exact UUID writes must never repair ambiguous numeric legacy rows."""
+        if variant.legacy_variant_number is None:
+            return
+        conflicts: dict[str, list[str]] = {}
+        for model in (
+            ElectricalCalculation,
+            ElectricalCandidate,
+            ElectricalCandidateFolder,
+            Specification,
+        ):
+            result = await self.db.execute(
+                select(model.id).where(
+                    model.project_id == variant.project_id,
+                    model.variant_number == variant.legacy_variant_number,
+                    model.electrical_variant_id.is_(None),
+                )
+            )
+            ids = [str(item) for item in result.scalars().all()]
+            if ids:
+                conflicts[model.__tablename__] = ids
+        if conflicts:
+            raise ElectricalVariantServiceError(
+                "ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT",
+                "Обнаружены данные без точной привязки к выбранному ЭР",
+                status_code=409,
+                details={
+                    "electrical_variant_id": str(variant.id),
+                    "conflicts": conflicts,
+                },
+            )
+
     async def _specification_states(self, project_id: UUID) -> dict[UUID, str]:
         result = await self.db.execute(
             select(Specification.electrical_variant_id, Specification.is_stale).where(
@@ -1212,7 +1254,13 @@ class ElectricalVariantService:
             else:
                 values = self._column_values(
                     source_assignment,
-                    exclude={"id", "created_at", "updated_at", "electrical_variant_id"},
+                    exclude={
+                        "id",
+                        "created_at",
+                        "updated_at",
+                        "electrical_variant_id",
+                        "version",
+                    },
                 )
                 values["electrical_variant_id"] = target.id
             target_assignment = target_assignment_by_object.get(obj.id)

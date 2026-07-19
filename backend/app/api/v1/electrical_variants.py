@@ -3,12 +3,20 @@
 from typing import NoReturn
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentPrincipal, require_any
+from app.schemas.electrical_assignment import (
+    ElectricalAssignmentsListResponse,
+    ElectricalAssignmentsMutationResponse,
+    ElectricalAssignmentsPatchRequest,
+    ElectricalAssignmentsUnassignRequest,
+    ElectricalAssignmentView,
+)
 from app.schemas.electrical_variant import (
+    ElectricalAssignmentState,
     ElectricalReadinessResponse,
     ElectricalVariantCopyRequest,
     ElectricalVariantCreateRequest,
@@ -17,6 +25,7 @@ from app.schemas.electrical_variant import (
     ElectricalVariantRenameRequest,
     ElectricalVariantResponse,
 )
+from app.services.electrical_assignment_service import ElectricalAssignmentService
 from app.services.electrical_variant_service import (
     ElectricalVariantService,
     ElectricalVariantServiceError,
@@ -87,6 +96,83 @@ async def list_electrical_variants(
 ) -> list[ElectricalVariantResponse]:
     try:
         return await ElectricalVariantService(db).list_variants(project_id, principal)
+    except (ElectricalVariantServiceError, ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_service_error(exc)
+
+
+@router.get(
+    "/{project_id}/electrical-variants/{variant_id}/assignments",
+    response_model=ElectricalAssignmentsListResponse,
+    summary="Назначения объектов внутри выбранного ЭР",
+)
+async def list_electrical_assignments(
+    project_id: UUID,
+    variant_id: UUID,
+    view: ElectricalAssignmentView = Query(default="all"),
+    assignment_state: ElectricalAssignmentState | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+    principal: CurrentPrincipal = Depends(_require_any),
+    db: AsyncSession = Depends(get_db),
+) -> ElectricalAssignmentsListResponse:
+    try:
+        return await ElectricalAssignmentService(db).list_assignments(
+            project_id,
+            variant_id,
+            principal,
+            view=view,
+            assignment_state=assignment_state,
+            page=page,
+            page_size=page_size,
+        )
+    except (ElectricalVariantServiceError, ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_service_error(exc)
+
+
+@router.patch(
+    "/{project_id}/electrical-variants/{variant_id}/assignments",
+    response_model=ElectricalAssignmentsMutationResponse,
+    summary="Атомарно назначить объекты в систему выбранного ЭР",
+)
+async def assign_electrical_objects(
+    project_id: UUID,
+    variant_id: UUID,
+    data: ElectricalAssignmentsPatchRequest,
+    principal: CurrentPrincipal = Depends(_require_any),
+    db: AsyncSession = Depends(get_db),
+) -> ElectricalAssignmentsMutationResponse:
+    try:
+        return await ElectricalAssignmentService(db).assign(
+            project_id,
+            variant_id,
+            principal,
+            system_type=data.system_type,
+            items=data.items,
+        )
+    except (ElectricalVariantServiceError, ProjectNotFoundError, ProjectAccessError) as exc:
+        _raise_service_error(exc)
+
+
+@router.post(
+    "/{project_id}/electrical-variants/{variant_id}/unassign",
+    response_model=ElectricalAssignmentsMutationResponse,
+    summary="С подтверждением вернуть объекты в нераспределённые",
+)
+async def unassign_electrical_objects(
+    project_id: UUID,
+    variant_id: UUID,
+    data: ElectricalAssignmentsUnassignRequest,
+    principal: CurrentPrincipal = Depends(_require_any),
+    db: AsyncSession = Depends(get_db),
+) -> ElectricalAssignmentsMutationResponse:
+    try:
+        return await ElectricalAssignmentService(db).unassign(
+            project_id,
+            variant_id,
+            principal,
+            confirm=data.confirm,
+            items=data.items,
+        )
     except (ElectricalVariantServiceError, ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_service_error(exc)
 

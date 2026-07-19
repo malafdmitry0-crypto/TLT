@@ -269,7 +269,6 @@ async def duplicate_project(
             )
         except ElectricalVariantServiceError as exc:
             raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
-        await calc_service.batch_calc_electrical(new_project.id)
     project = await service.get_project_summary(new_project.id, principal)
     await AuditService(db).try_record(
         event_type="project.duplicated",
@@ -279,7 +278,9 @@ async def duplicate_project(
         details={
             "source_project_id": str(project_id),
             "electrical_status": (
-                "initialized" if electrical_variant is not None else "skipped_not_ready"
+                "initialized_unassigned"
+                if electrical_variant is not None
+                else "skipped_not_ready"
             ),
             "electrical_variant_id": (
                 str(electrical_variant.id) if electrical_variant is not None else None
@@ -289,7 +290,7 @@ async def duplicate_project(
                 {issue.code for issue in electrical_readiness.issues}
             ),
         },
-        message="Проект скопирован с пересчётом",
+        message="Проект скопирован с теплорасчётом и неназначенным ЭР1",
     )
     return project
 

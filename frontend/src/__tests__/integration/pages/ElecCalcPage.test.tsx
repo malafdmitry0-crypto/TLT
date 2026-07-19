@@ -13,6 +13,7 @@ import type {
   ElectricalCalcSummary,
   ElectricalCandidate,
   ElectricalPageResponse,
+  ElectricalQueryAssignment,
 } from '@/types/calculation';
 import type { Project, ProjectObject } from '@/types/project';
 import { getCalcJobRefetchInterval } from '@/utils/calcJobPolling';
@@ -136,6 +137,36 @@ const electricalVariantApiMocks = vi.hoisted(() => ({
   rename: vi.fn(),
   activate: vi.fn(),
   remove: vi.fn(),
+  listAssignments: vi.fn().mockImplementation(async (
+    projectId: string,
+    electricalVariantId: string,
+  ) => ({
+    project_id: projectId,
+    electrical_variant_id: electricalVariantId,
+    items: [],
+    counts: {
+      total: 0,
+      filtered: 0,
+      by_system: {
+        unassigned: 0,
+        self_regulating: 0,
+        resistive: 0,
+        skin: 0,
+        mineral: 0,
+      },
+      by_state: { unassigned: 0, ready: 0, unsupported: 0, stale: 0, error: 0 },
+    },
+    page_info: {
+      page: 1,
+      page_size: 50,
+      offset: 0,
+      total_pages: 0,
+      has_next_page: false,
+      has_previous_page: false,
+    },
+  })),
+  assignObjects: vi.fn(),
+  unassignObjects: vi.fn(),
 }));
 
 const defaultElectricalVariantListImplementation =
@@ -148,6 +179,30 @@ vi.mock('@/api/electricalVariants', () => ({
     detail: (projectId: string, variantId: string) =>
       ['project', projectId, 'electrical-variant', variantId] as const,
   },
+  electricalAssignmentQueryKeys: {
+    root: (projectId: string, variantId: string) => [
+      'project',
+      projectId,
+      'electrical-variant',
+      variantId,
+      'assignments',
+    ] as const,
+    list: (
+      projectId: string,
+      variantId: string,
+      params: { view?: string; assignment_state?: string; page?: number; page_size?: number },
+    ) => [
+      'project',
+      projectId,
+      'electrical-variant',
+      variantId,
+      'assignments',
+      params.view ?? 'all',
+      params.assignment_state ?? 'all-states',
+      params.page ?? 1,
+      params.page_size ?? 50,
+    ] as const,
+  },
   listElectricalVariants: electricalVariantApiMocks.list,
   getElectricalVariantReadiness: electricalVariantApiMocks.readiness,
   initializeElectricalVariants: electricalVariantApiMocks.initialize,
@@ -156,6 +211,9 @@ vi.mock('@/api/electricalVariants', () => ({
   renameElectricalVariant: electricalVariantApiMocks.rename,
   activateElectricalVariant: electricalVariantApiMocks.activate,
   deleteElectricalVariant: electricalVariantApiMocks.remove,
+  listElectricalVariantAssignments: electricalVariantApiMocks.listAssignments,
+  assignElectricalVariantObjects: electricalVariantApiMocks.assignObjects,
+  unassignElectricalVariantObjects: electricalVariantApiMocks.unassignObjects,
 }));
 
 const electricalGlideGridMock = vi.hoisted(() => ({
@@ -170,6 +228,29 @@ const electricalGlideGridMock = vi.hoisted(() => ({
     [key: string]: unknown;
   },
 }));
+
+const electricalAssignmentPanelMock = vi.hoisted(() => ({
+  props: null as null | {
+    projectId: string;
+    electricalVariant: { id: string; name: string; legacy_variant_number: number | null };
+    canMutate: boolean;
+    onAssignmentsChanged?: () => void;
+  },
+}));
+
+vi.mock('@/pages/electrical/ElectricalAssignmentPanel', async () => {
+  const React = await vi.importActual<typeof import('react')>('react');
+  return {
+    default: (props: NonNullable<typeof electricalAssignmentPanelMock.props>) => {
+      electricalAssignmentPanelMock.props = props;
+      return React.createElement(
+        'div',
+        { 'data-testid': 'electrical-assignment-panel' },
+        `Назначение объектов · ${props.electricalVariant.name}`,
+      );
+    },
+  };
+});
 
 vi.mock('@/components/electrical/ElectricalGlideGrid', async () => {
   const React = await vi.importActual<typeof import('react')>('react');
@@ -572,7 +653,8 @@ function makeElectricalPage(
   calculations: ElectricalCalcSummary[] = [],
   summaryOverrides: Partial<ElectricalPageResponse['summary']> = {},
   pageInfoOverrides: Partial<ElectricalPageResponse['page_info']> = {},
-): ElectricalPageResponse {
+  assignmentOverrides?: ElectricalQueryAssignment[],
+): ElectricalPageResponse & { assignments: ElectricalQueryAssignment[] } {
   const totalObjects = summaryOverrides.total_objects ?? objects.length;
   const calculated = calculations.filter(
     (calc) =>
@@ -586,6 +668,21 @@ function makeElectricalPage(
   return {
     items: objects,
     calculations,
+    assignments: assignmentOverrides ?? objects.map((obj) => {
+      const cableType = calculations.find((calc) => calc.object_id === obj.id)?.cable_type;
+      const systemType = cableType === 'single_core' || cableType === 'three_core'
+        ? 'resistive' as const
+        : cableType === 'skin' || cableType === 'mineral'
+          ? cableType
+          : 'self_regulating' as const;
+      return {
+        object_id: obj.id,
+        system_type: systemType,
+        assignment_state:
+          systemType === 'skin' || systemType === 'mineral' ? 'unsupported' : 'ready',
+        version: 1,
+      };
+    }),
     summary: {
       total_objects: totalObjects,
       valid_objects:
@@ -696,9 +793,13 @@ describe('ElecCalcPage (integration)', () => {
     electricalVariantApiMocks.rename.mockReset();
     electricalVariantApiMocks.activate.mockReset();
     electricalVariantApiMocks.remove.mockReset();
+    electricalVariantApiMocks.listAssignments.mockClear();
+    electricalVariantApiMocks.assignObjects.mockReset();
+    electricalVariantApiMocks.unassignObjects.mockReset();
     vi.unstubAllEnvs();
     vi.stubEnv('VITE_COMMERCIAL_FEATURES_ENABLED', 'true');
     electricalGlideGridMock.props = null;
+    electricalAssignmentPanelMock.props = null;
     localStorage.clear();
     // Main table uses AntD DOM here; candidate table is mocked through its Glide props.
     localStorage.setItem(ELECTRICAL_TABLE_ENGINE_STORAGE_KEY, 'table');
@@ -810,6 +911,29 @@ describe('ElecCalcPage (integration)', () => {
       expect(screen.getByRole('tab', { name: /ЭР1.*активный ЭР/i })).toBeInTheDocument();
     });
     expect(screen.getByRole('tab', { name: 'ЭР4' })).toBeInTheDocument();
+  });
+
+  it('перемонтирует workspace после изменения назначений и отбрасывает локальные страницы', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage([makeObject()]),
+    );
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    await screen.findByText('Труба-1');
+    const callsBeforeChange = (getElectricalPage as ReturnType<typeof vi.fn>).mock.calls.length;
+    act(() => electricalAssignmentPanelMock.props?.onAssignmentsChanged?.());
+
+    await waitFor(() => {
+      expect((getElectricalPage as ReturnType<typeof vi.fn>).mock.calls.length)
+        .toBeGreaterThan(callsBeforeChange);
+    });
+    expect(getElectricalPage).toHaveBeenLastCalledWith(expect.objectContaining({
+      project_id: 'p-1',
+      electrical_variant_id: '11111111-1111-4111-8111-111111111111',
+      page: 1,
+    }));
   });
 
   it('запрашивает электрорасчёты только для выбранного варианта СО', async () => {
@@ -1244,6 +1368,145 @@ describe('ElecCalcPage (integration)', () => {
     expect(options.objectOverrides).toBeUndefined();
   });
 
+  it('fail-closed ограничивает row actions и explicit selected payload назначениями ЭР', async () => {
+    const { getElectricalPage } = await import('@/api/calculations');
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const objects = [
+      makeObject({ id: 'o-compatible', params: { name: 'Совместимый объект' } }),
+      makeObject({
+        id: 'o-unassigned',
+        sort_order: 1,
+        params: { name: 'Нераспределённый объект' },
+      }),
+      makeObject({
+        id: 'o-other-system',
+        sort_order: 2,
+        params: { name: 'Объект другой системы' },
+      }),
+      makeObject({
+        id: 'o-three-core',
+        sort_order: 3,
+        params: { name: 'Трёхжильный объект' },
+      }),
+    ];
+    const calculations: ElectricalCalcSummary[] = objects.map((object, index) => ({
+      id: `calc-${index}`,
+      object_id: object.id,
+      cable_type: object.id === 'o-three-core' ? 'three_core' : 'self_regulating',
+      cable_mark: object.id === 'o-three-core' ? 'ТТ Р3 x 0,5-0,6' : 'ТЛТ-20',
+      variant_number: 1,
+      results: { selected_cable: 'ТЛТ-20' },
+    }));
+    (getElectricalPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeElectricalPage(
+        objects,
+        calculations,
+        {},
+        {},
+        [
+          {
+            object_id: 'o-compatible',
+            system_type: 'self_regulating',
+            assignment_state: 'stale',
+            version: 4,
+          },
+          {
+            object_id: 'o-unassigned',
+            system_type: null,
+            assignment_state: 'unassigned',
+            version: 2,
+          },
+          {
+            object_id: 'o-other-system',
+            system_type: 'resistive',
+            assignment_state: 'ready',
+            version: 8,
+          },
+          {
+            object_id: 'o-three-core',
+            system_type: 'resistive',
+            assignment_state: 'ready',
+            version: 3,
+          },
+        ],
+      ),
+    );
+    apiMocks.enqueueBatch.mockResolvedValue({
+      id: 'task-assignment-scope',
+      type: 'electrical_batch',
+      status: 'enqueued',
+      project_id: 'p-1',
+      electrical_variant_id: '11111111-1111-4111-8111-111111111111',
+      progress: { current: 0, total: null, phase: 'enqueued', percent: null },
+      result: null,
+      error_message: null,
+      cancel_requested: false,
+      created_at: '2026-01-01T00:00:00Z',
+      started_at: null,
+      finished_at: null,
+      links: { status: '', result: '', cancel: '' },
+    });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    const compatibleRow = await screen.findByRole('row', { name: /Совместимый объект/ });
+    const unassignedRow = screen.getByRole('row', { name: /Нераспределённый объект/ });
+    const otherSystemRow = screen.getByRole('row', { name: /Объект другой системы/ });
+    const threeCoreRow = screen.getByRole('row', { name: /Трёхжильный объект/ });
+    const compatibleCheckbox = within(compatibleRow).getByRole('checkbox');
+    const unassignedCheckbox = within(unassignedRow).getByRole('checkbox');
+    const otherSystemCheckbox = within(otherSystemRow).getByRole('checkbox');
+
+    expect(compatibleCheckbox).toBeEnabled();
+    expect(unassignedCheckbox).toBeDisabled();
+    expect(unassignedCheckbox).toHaveAccessibleName(/Сначала назначьте объект/i);
+    expect(otherSystemCheckbox).toBeDisabled();
+    expect(otherSystemCheckbox).toHaveAccessibleName(/Резистив.*совместимый тип/i);
+
+    await user.click(within(unassignedRow).getByText('Нераспределённый объект'));
+    expect(within(unassignedRow).getByRole('button', { name: 'Выбор' })).toBeDisabled();
+    expect(within(unassignedRow).getByRole('button', { name: 'Подбор' })).toBeDisabled();
+
+    await user.click(within(threeCoreRow).getByText('Трёхжильный объект'));
+    await user.click(within(threeCoreRow).getByRole('button', { name: 'Подбор' }));
+    const threeCoreDialog = await screen.findByRole('dialog', { name: /Трёхжильный объект/ });
+    const staleConnectionType = within(threeCoreDialog).getByRole('combobox', {
+      name: 'Схема подключения',
+    });
+    await user.click(staleConnectionType);
+    await user.click(await screen.findByRole('option', { name: 'Петля 2×3' }));
+    await user.keyboard('{Escape}');
+
+    await user.click(within(otherSystemRow).getByText('Объект другой системы'));
+    expect(within(otherSystemRow).getByRole('button', { name: 'Выбор' })).toBeEnabled();
+    const resistiveSizing = within(otherSystemRow).getByRole('button', { name: 'Подбор' });
+    expect(resistiveSizing).toBeEnabled();
+    await user.click(resistiveSizing);
+    const sizingDialog = await screen.findByRole('dialog', { name: /Подбор кабеля для/ });
+    const sizingType = within(sizingDialog).getByRole('combobox', {
+      name: 'Тип кабеля для подбора',
+    });
+    expect(sizingType.closest('.ant-select')).toHaveTextContent('Однож. пост. мощн.');
+    expect(within(sizingDialog).getByRole('combobox', { name: 'Схема подключения' })
+      .closest('.ant-select')).toHaveTextContent('Линия');
+    await user.keyboard('{Escape}');
+
+    fireEvent.click(compatibleCheckbox);
+    await user.click(screen.getByRole('button', { name: /Пересчитать выбранные \(1\)/i }));
+
+    await waitFor(() => {
+      expect(apiMocks.enqueueVariantBatch).toHaveBeenCalledWith(
+        'p-1',
+        '11111111-1111-4111-8111-111111111111',
+        'builtin',
+        'self_regulating',
+        expect.objectContaining({
+          objectIds: ['o-compatible'],
+        }),
+      );
+    });
+  });
+
   it('копирует выбранный ЭР по UUID без запуска batch-пересчёта', async () => {
     const {
       enqueueElectricalBatchJob,
@@ -1318,6 +1581,17 @@ describe('ElecCalcPage (integration)', () => {
     });
     expect(await screen.findByText(/«Копия ЭР1»: расчётные действия временно недоступны/))
       .toBeInTheDocument();
+    expect(screen.getByTestId('electrical-assignment-panel')).toHaveTextContent(
+      'Назначение объектов · Копия ЭР1',
+    );
+    expect(electricalAssignmentPanelMock.props).toMatchObject({
+      projectId: 'p-1',
+      electricalVariant: {
+        id: fifthVariant.id,
+        legacy_variant_number: null,
+      },
+      canMutate: true,
+    });
     expect(screen.getByRole('tab', { name: 'Копия ЭР1' })).toHaveAttribute(
       'aria-selected',
       'true',

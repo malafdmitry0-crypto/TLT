@@ -267,10 +267,7 @@ class TestProjectDuplicate:
             .scalars()
             .all()
         )
-        assert len(calculations) == 1
-        assert calculations[0].object_id == duplicate_object_id
-        assert calculations[0].variant_number == 1
-        assert calculations[0].electrical_variant_id == variant.id
+        assert calculations == []
 
         assignments = list(
             (
@@ -286,6 +283,9 @@ class TestProjectDuplicate:
         assert len(assignments) == 1
         assert assignments[0].object_id == duplicate_object_id
         assert assignments[0].electrical_variant_id == variant.id
+        assert assignments[0].system_type is None
+        assert assignments[0].assignment_state == "unassigned"
+        assert assignments[0].version == 1
 
         null_uuid_count = await db_session.scalar(
             select(func.count())
@@ -339,7 +339,7 @@ class TestProjectDuplicate:
             )
         )
         assert duplicate_audit is not None
-        assert duplicate_audit.details["electrical_status"] == "initialized"
+        assert duplicate_audit.details["electrical_status"] == "initialized_unassigned"
         assert duplicate_audit.details["electrical_variant_id"] == str(variant.id)
         assert duplicate_audit.details["legacy_variant_number"] == 1
         assert duplicate_audit.details["electrical_readiness_issue_codes"] == []

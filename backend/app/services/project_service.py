@@ -162,9 +162,9 @@ class ProjectService:
 
         Доступно только зарегистрированному пользователю (employee/admin).
         Копируются только `params` объектов; `results`, `is_valid`,
-        `validation_errors` очищаются — теплорасчёт выполняется заново
-        вызывающей стороной (`CalculationService.batch_recalculate` +
-        `batch_calc_electrical`).
+        `validation_errors` очищаются. Вызывающая сторона заново выполняет
+        теплорасчёт; электрический расчёт не запускается до явного назначения
+        объекта в систему ЭР.
         """
         if principal.role not in ("employee", "admin"):
             raise ProjectAccessError(
@@ -341,6 +341,12 @@ class ProjectService:
         """
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
+        await self.db.execute(
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         obj = await self._get_object(project_id, object_id)
         update_data = data.model_dump(exclude_unset=True, exclude={"version"})
         if "params" in update_data:
@@ -378,6 +384,12 @@ class ProjectService:
     ) -> None:
         project = await self.get_project_basic(project_id, principal)
         self._check_owner(project, principal)
+        await self.db.execute(
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         obj = await self._get_object(project_id, object_id)
         await self.db.delete(obj)
         await self.db.flush()

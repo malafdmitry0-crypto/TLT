@@ -37,6 +37,10 @@ from app.schemas.calculation import (
 from app.schemas.report import ReportExportJobRequest, ReportExportTaskResult
 from app.services.audit_service import AuditService
 from app.services.calculation_service import BatchCancelledError, BatchProgress, CalculationService
+from app.services.electrical_assignment_service import (
+    ElectricalAssignmentService,
+    ElectricalAssignmentServiceError,
+)
 from app.services.electrical_variant_service import ElectricalVariantService
 from app.services.project_service import (
     ProjectAccessError,
@@ -317,6 +321,9 @@ class TaskService:
                 electrical_variant_id=request.electrical_variant_id,
                 legacy_variant_number=None,
             )
+        # The legacy adapter may have committed while creating its ER.  Retake
+        # the common lifecycle lock and keep it through task INSERT.
+        await self._lock_project_for_electrical_task(request.project_id)
         object_ids = await self._validate_object_ids_belong_to_project(
             request.project_id,
             request.object_ids,
@@ -325,6 +332,61 @@ class TaskService:
             request.project_id,
             request.object_overrides,
             object_ids=object_ids,
+        )
+        assignment_service = ElectricalAssignmentService(self.db)
+        if object_ids is None:
+            object_ids = await assignment_service.assignment_object_ids_for_system(
+                request.project_id,
+                variant.id,
+                request.cable_type,
+                lock_project=False,
+            )
+            if not object_ids:
+                raise ElectricalAssignmentServiceError(
+                    "ELECTRICAL_ASSIGNMENT_REQUIRED",
+                    "В выбранном ЭР нет объектов для указанной системы",
+                    status_code=409,
+                    details={"electrical_variant_id": str(variant.id)},
+                )
+        override_ids = {
+            UUID(str(item["object_id"])) for item in object_overrides or []
+        }
+        outside_scope = sorted(override_ids.difference(object_ids), key=str)
+        if outside_scope:
+            raise ElectricalAssignmentServiceError(
+                "ELECTRICAL_ASSIGNMENT_SCOPE_MISMATCH",
+                "Переопределения должны входить в назначенный scope выбранного ЭР",
+                status_code=409,
+                details={
+                    "electrical_variant_id": str(variant.id),
+                    "object_ids": [str(object_id) for object_id in outside_scope],
+                },
+            )
+        override_by_id = {
+            UUID(str(item["object_id"])): str(item["cable_type"])
+            for item in object_overrides or []
+        }
+        calculation_service = CalculationService(self.db)
+        existing_scope = await calculation_service._load_existing_electrical_by_object_id(
+            request.project_id,
+            variant_number=variant.legacy_variant_number or 1,
+            object_ids=object_ids,
+            electrical_variant_id=variant.id,
+        )
+        requested_types: dict[UUID, str] = {}
+        for object_id in object_ids:
+            existing = existing_scope.get(object_id)
+            requested_types[object_id] = str(
+                request.cable_type
+                if request.force_cable_type
+                else override_by_id.get(object_id)
+                or (existing.cable_type if existing is not None else request.cable_type)
+            )
+        await assignment_service.validate_supported_assignment_objects(
+            request.project_id,
+            variant.id,
+            requested_types,
+            lock_project=False,
         )
 
         payload = self._electrical_payload(
@@ -968,6 +1030,7 @@ class TaskService:
                     object_ids=object_ids,
                     object_overrides=object_overrides,
                     force_cable_type=bool(payload.get("force_cable_type", False)),
+                    electrical_variant_id=electrical_variant_id,
                 )
         except BatchCancelledError:
             await progress_throttler.flush()
@@ -981,6 +1044,10 @@ class TaskService:
         await progress_throttler.flush()
         include_errors = bool(payload.get("include_errors", True))
         include_results = bool(payload.get("include_results", False))
+        requested_scope = str(
+            payload.get("requested_scope")
+            or ("selected" if payload.get("object_ids") else "all")
+        )
         result_payload = {
             "electrical_variant_id": (
                 str(electrical_variant_id) if electrical_variant_id is not None else None
@@ -988,7 +1055,8 @@ class TaskService:
             "variant_number": variant_number,
             "calculated": calculated,
             "skipped": skipped,
-            "scope": "selected" if payload.get("object_ids") else "all",
+            "requested_scope": requested_scope,
+            "scope": requested_scope,
             "heat_loss_failed": heat_loss_failed,
             "errors": errors if include_errors else [],
             "results": [
@@ -1279,6 +1347,8 @@ class TaskService:
             "format",
             "electrical_variant_id",
             "variant_number",
+            "requested_scope",
+            "scope",
         )
         summary = {key: result_payload[key] for key in summary_keys if key in result_payload}
         if isinstance(result_payload.get("errors"), list):
@@ -1454,6 +1524,9 @@ class TaskService:
             "skip_manual": request.skip_manual,
             "include_results": request.include_results,
             "include_errors": request.include_errors,
+            # `object_ids` is materialized for worker stability. Keep the
+            # caller's all-vs-selected intent as a separate product contract.
+            "requested_scope": "all" if request.object_ids is None else "selected",
         }
         if object_ids is not None:
             payload["object_ids"] = [str(object_id) for object_id in object_ids]

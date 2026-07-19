@@ -22,6 +22,7 @@
 | `docs/architecture/dynamic-electrical-variants.md` | ADR, phase plan и UUID cutover contract |
 | `docs/tnp/cases/guest-specification/phase-1-checkpoint.md` | Финальное evidence backend/DB Phase 1 и переходные ограничения |
 | `docs/tnp/cases/guest-specification/phase-2-checkpoint.md` | Финальное frontend/consumer evidence Phase 2 и UUID/legacy boundary |
+| `docs/tnp/cases/guest-specification/phase-3-checkpoint.md` | Authoritative assignments, exact cleanup и Phase 3 verification status |
 
 ## Текущие границы реализации
 
@@ -41,6 +42,9 @@
 - backend/DB foundation именованных UUID ЭР: readiness, persisted assignments,
   UUID-first electrical/report tasks и sparse CSV v2 import; Phase 1 и
   frontend/consumer Phase 2 имеют статус **PASS**;
+- authoritative Phase 3 assignments для каждого `объект × ЭР`: assignment
+  panel, `self_regulating/resistive`, read/unassign-only `skin/mineral`,
+  optimistic version, calculation sync и exact confirmed unassign cleanup;
 - импорт Excel/CSV;
 - базовая/расширяемая спецификация;
 - HTML-превью отчёта и экспорт PDF/DOCX/XLSX для сотрудника;
@@ -55,13 +59,16 @@
 |---|---|
 | Другие типы кабеля | `single_core` и `three_core` согласованы с full-version VSDX fallback policy; для MI и skin нужны отдельные методики |
 | Dynamic ЭР / legacy СО | Frontend lifecycle/cache/URL UUID-first. Direct legacy calculation/candidate/folder/spec/report consumers временно передают UUID вместе с deprecated `variant_number`; backend обязан проверить точное соответствие пары до чтения/записи |
-| Legacy write adapter | Calculation/candidate/folder/select/spec writes и seeds обязаны readiness-gated подготовить UUID mapping до доменной записи; sparse slot не заполняет промежуточные ЭР |
-| Project duplicate | После heat recalc ready copy готовит `ЭР1`/UUID до electrical batch; not-ready copy остаётся без ER/electrical rows и явно audit-ится |
-| Assignment semantics | До Phase 3 `assignment_state/system_type` не authoritative для normal legacy calculation; UUID mapping и успешный calculation не подразумевают state transition |
+| Legacy write adapter | Calculation/candidate/folder/select writes обязаны readiness-gated подготовить UUID mapping и затем проверить compatible assignment exact UUID; spec/seeds сохраняют профильные guards, sparse slot не заполняет промежуточные ЭР |
+| Project duplicate | После heat recalc ready copy готовит `ЭР1`/UUID и unassigned matrix, но не запускает electrical batch без явного выбора системы; not-ready copy остаётся без ER/electrical rows и явно audit-ится |
+| Assignment semantics | После 0029 type/state authoritative и независимы: assign → stale/calculation-required, same-system no-op, reassign только через confirmed unassign, dirty unassigned graph требует отдельный cleanup handshake, runtime calculation не auto-assign |
+| Assignment-aware modal | Row/batch/inline/recalculation строго проверяют совместимость текущего cable type; supported assignment не блокирует `Выбор`/`Подбор` из-за отсутствующего/несовместимого saved type. Модалка выбирает тип своей системы (`resistive → single_core`) и фильтрует варианты по assignment system |
+| Unsupported assignments | Skin/mineral нельзя выбрать как target, но tabs должны оставаться доступными для просмотра migrated unsupported rows и confirmed unassign; полностью disabled tabs запрещены из-за stranded data |
+| Copy semantics | UUID lifecycle copy и legacy calculation-copy не копируют/не регенерируют specification; target `not_generated`, explicit regeneration request fail-closed до mutation (PDL-ER-13) |
 | Task idempotency | Explicit key scoped по principal/type/project и навсегда binding-ит полный payload/ER; heat lookup/insert project-locked; exact terminal retry возвращает original и truthful replay audit, changed binding даёт `TASK_IDEMPOTENCY_KEY_REUSED` |
 | Electrical job selector | Omitted numeric selector → slot 1; UUID-only clears implicit default; explicit null → stable 422 до ER side effect |
 | Candidate apply/delete | Общая lifecycle project lock, re-read candidate/mapping после lock, stable 404/409 без ER recreation или integrity 500 |
-| Пятый ЭР | Доступен lifecycle и отдельный UI scope, но legacy calculation/candidate/spec/report graph отсутствует; UI обязан fail-closed и не подставлять данные ЭР1…ЭР4 до полного UUID-only cutover |
+| Пятый ЭР | Доступен lifecycle, assignment API/UI и отдельный scope, но legacy calculation/candidate/spec/report graph отсутствует; UI обязан fail-closed до полного UUID-only cutover |
 | Heating sections | Семантика утверждена PDL-ER-18…25: официальный источник ТЛТ, explicit `Iдоп` по марке/напряжению, direct `Iст.уд`, minimum object/climate start temperature, voltage isolation, source-defined rounding, self-reg only, fail closed при пробеле. Phase 4 остаётся blocked PDL-ER-15/18 до фактического числового артефакта |
 | Расширенные типы объектов | Для pump/platform/other нужны формы, схемы, формулы, импорт, отчёты и тесты |
 | Безопасность раздела 5 ТЗ | Обфускация, шифрование формул/справочников, ротация ключей пока отдельный риск |
@@ -83,11 +90,14 @@
 - автотест покрывает основной успешный сценарий и хотя бы один риск.
 
 Для dynamic-ER Phase 1 migration/backfill evidence, final-head DB invariants и
-проверка переходных numeric consumers завершены. Phase 2 дополнительно закрыла
-именованный UUID frontend lifecycle, cache/URL identity, direct consumer bridge
-и desktop/mobile UI proof. Это не закрывает Phase 3/5, общий PDF/DoD или
-product release; семантика Phase 4 закрыта PDL-ER-18…25, но
+проверка переходных numeric consumers завершены. Phase 2 закрыла именованный
+UUID frontend lifecycle, cache/URL identity, direct consumer bridge и
+desktop/mobile UI proof. Phase 3 реализовала и доказала root gate для
+authoritative assignment API/UI, exact UUID calculation scope, optimistic
+races, confirmed cleanup, live reload и post-UI DB invariants. Это не
+закрывает Phase 5, общий PDF/DoD или product release; семантика Phase 4 закрыта
+PDL-ER-18…25, но
 сама фаза остаётся blocked PDL-ER-15/18 до официального числового источника. Full
 frontend gate не green из-за pre-existing missing accessible separator test,
-который не является regression dynamic-ER Phase 2. Dependency security gate и
+который не является regression dynamic-ER Phase 3. Dependency security gate и
 общий Alembic metadata drift вне dynamic-ER diff также блокируют release.

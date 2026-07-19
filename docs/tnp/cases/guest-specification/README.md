@@ -8,11 +8,21 @@ decision**.
 **PASS — dynamic named ER frontend bridge complete**. Пользовательский поток
 использует именованные UUID ЭР1…ЭР5; legacy graph `1…4` остаётся переходным и
 проверяется строгой парой `UUID ↔ slot`, а пятый ЭР fail-closed для ещё не
-переведённых расчётов. Phase 3/5, общий PDF/DoD и product release не завершены,
-Phase 4 заблокирована PDL-ER-15/18.
-Full frontend gate: `1033 passed, 1 failed`; неизменённый
+переведённых расчётов. Статус Phase 3:
+**PASS — root backend/frontend/browser/DB gate complete**. Authoritative
+assignments работают по exact UUID, имеют
+optimistic version, assignment-aware calculation scope и confirmed cleanup.
+Skin/mineral tabs остаются browsable для migrated unsupported rows/unassign,
+но недоступны как target; dirty unassigned graph требует отдельный
+`CLEANUP_REQUIRED` handshake с сохранением heat. Copy оставляет target
+specification `not_generated` по PDL-ER-13. Row/batch/inline compatibility
+остаётся строгой, но fresh supported resistive assignment открывает
+`Выбор`/`Подбор` с безопасным `single_core`, а не наследует self-reg default.
+Phase 5, общий PDF/DoD и product release не завершены, Phase 4 заблокирована
+PDL-ER-15/18.
+Full frontend gate Phase 3: `1052 passed, 1 failed`; неизменённый
 `HeatCalcPage.settings.test.tsx:321` не находит accessible separator. Это
-pre-existing дефект вне dynamic-ER Phase 2 и blocker общего release.
+pre-existing дефект вне dynamic-ER Phase 3 и blocker общего release.
 Dependency security gate и общий Alembic metadata drift также остаются
 не-green вне dynamic-ER diff и блокируют общий release.
 
@@ -24,14 +34,15 @@ Dependency security gate и общий Alembic metadata drift также ост�
 4. [Checkpoint запуска: Phase 0](phase-0-checkpoint.md).
 5. [Checkpoint реализации: Phase 1](phase-1-checkpoint.md).
 6. [Checkpoint реализации: Phase 2](phase-2-checkpoint.md).
-7. [ADR динамических ЭР](../../../architecture/dynamic-electrical-variants.md).
-8. [Impact matrix integer/СО path](../../../architecture/dynamic-electrical-variants-impact-matrix.md).
-9. [Постраничный индекс 81 страницы](pdf-page-index.md).
-10. [Нормализованные требования PDF](pdf-requirements.md).
-11. [Матрица PDF → backend → frontend → tests](traceability-matrix.md).
-12. [Итоговый Functional Accuracy Report](functional-accuracy-report.md).
-13. [Журнал команд и UI/API evidence](verification-log.md).
-14. [Воспроизводимые BOM probes](formula-probes.md).
+7. [Checkpoint реализации: Phase 3](phase-3-checkpoint.md).
+8. [ADR динамических ЭР](../../../architecture/dynamic-electrical-variants.md).
+9. [Impact matrix integer/СО path](../../../architecture/dynamic-electrical-variants-impact-matrix.md).
+10. [Постраничный индекс 81 страницы](pdf-page-index.md).
+11. [Нормализованные требования PDF](pdf-requirements.md).
+12. [Матрица PDF → backend → frontend → tests](traceability-matrix.md).
+13. [Итоговый Functional Accuracy Report](functional-accuracy-report.md).
+14. [Журнал команд и UI/API evidence](verification-log.md).
+15. [Воспроизводимые BOM probes](formula-probes.md).
 
 Главное историческое baseline finding: при одном объекте и нуле электрических
 расчётов живой guest flow сформировал 6 закупочных позиций и вернул
@@ -46,6 +57,8 @@ specification теперь
 Post-fix re-audit также доказал heat terminal-transition serialization,
 truthful idempotency replay audit, selector-null 422 без ER side effect и оба
 порядка candidate apply/delete race со stable 404/409.
-MEDIUM residual оставлен Phase 3: legacy calculation может иметь корректный
-UUID при assignment `unassigned/system_type=null`; assignment state пока не
-authoritative для consumers.
+Прежний MEDIUM residual Phase 3 закрыт migration 0029 и runtime guards:
+deployed exact-UUID calculations reconciled, а новые calculation/candidate/task
+writes не могут молча auto-assign объект. Root final Phase 3 evidence завершён
+в отдельном checkpoint и каталоге `evidence/phase-3-assignments/`;
+sections/BOM и UUID-only downstream остаются дальше.

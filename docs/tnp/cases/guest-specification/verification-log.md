@@ -239,3 +239,60 @@ network trace.
 - Phase 4 blocked PDL-ER-15/18 до официального числового источника.
 - Full frontend, dependency security и общий Alembic metadata drift остаются
   не-green вне Phase 2 diff и блокируют общий release.
+
+## Phase 3 authoritative assignments checkpoint
+
+Дата product decisions: 18.07.2026. Ветка:
+`feature/tnp-dynamic-electrical-variants`. Статус:
+**PASS — root backend/frontend/browser/DB gate complete**.
+
+Полная граница: [phase-3-checkpoint.md](phase-3-checkpoint.md).
+
+| Проверка | Результат |
+|---|---|
+| Expanded backend assignment/calculation/candidate/job suites | **PASS: 249/249 agent; 167/167 relevant root suite**. |
+| Migration 0029 PostgreSQL suite | **PASS: 2/2 root**. |
+| Focused Phase 3 frontend | **PASS: 6 files / 95 tests**, root-verified. |
+| Full frontend Vitest | **NOT GREEN: 1052 passed, 1 failed**. Единственный failure — прежний `HeatCalcPage.settings.test.tsx:321` accessible separator вне Phase 3 diff. |
+| Frontend typecheck/build/changed-file ESLint | **PASS**; ESLint сообщил только deprecation warning конфигурации. |
+| Working DB 0029 + post-UI invariants | **PASS:** `0029 (head)`; **28/28**, 0 violations. |
+| Desktop/mobile assignment UI proof, geometry, console/network | **PASS:** no page overflow/unexpected clipping/overlap; exact UUID PATCH/POST 200; persisted reload; final console **0 errors / 0 warnings**. |
+| Docs sync/drift после финального docs diff | **PASS:** docs up to date; manifest facts ok. |
+
+### Реализованный Phase 3 contract
+
+- Migration 0029 добавляет independent assignment `version`, semantic checks,
+  lookup index и exact-UUID reconciliation без fake-ready.
+- GET/PATCH/unassign API работают по exact UUID ЭР; назначать можно Самрег и
+  Резистив. Скин/Минеральный не являются target, но их tabs доступны для
+  просмотра migrated rows и confirmed unassign.
+- Assign создаёт stale/calculation-required intent; same-system повтор no-op;
+  reassign требует confirmed unassign; stale revision даёт stable 409.
+- Confirmed unassign чистит только exact P+ER+object electrical graph,
+  сохраняет heat/other ER и stale-ит exact-ER specification. Dirty NULL/mismatch
+  graph и active jobs fail-closed до удаления.
+- Exact dirty graph у unassigned row возвращает `CLEANUP_REQUIRED`; UI требует
+  отдельное подтверждение scoped cleanup с сохранением heat. NULL/mismatch
+  corruption этим handshake не удаляется.
+- Calculation/candidate/folder/batch/task/copy paths требуют compatible
+  assignment. Runtime sync не auto-assign; project duplicate создаёт unassigned
+  `ЭР1` без guessed electrical batch.
+- Candidate create для requested `skin/mineral` fail-closed возвращает
+  `ELECTRICAL_SYSTEM_UNSUPPORTED` до записи; diagnostic row не создаётся.
+- По PDL-ER-13 copy не копирует и не регенерирует specification; target
+  `not_generated`, explicit regeneration request отклоняется до mutation.
+- Query response содержит bounded page assignment projection. Missing,
+  unassigned и unsupported fail-closed блокируют row/manual/candidate/recalc;
+  mismatch saved/draft type остаётся строгим для row/batch/inline/recalc, но
+  supported assignment открывает `Выбор`/`Подбор` с system-safe type
+  (`resistive → single_core`) и только resistive options.
+- Live UI дополнительно поймал static Ant Design `message`/`Modal` console
+  errors. Панель переведена на context-bound API; повторный assign →
+  confirm-unassign поток завершён с чистой консолью.
+
+### Stop conditions
+
+Обязательные Phase 3 browser proof и post-scenario DB invariants получены;
+Phase 3 имеет PASS в своей границе. Phase 4 отдельно остаётся
+**BLOCKED PDL-ER-15/18** до официального числового каталога/методики;
+PDL-ER-18…25 задают семантику, но не заменяют numeric artifact.

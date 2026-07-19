@@ -1,13 +1,10 @@
 # Схема базы данных HeatCalc
 
-Dynamic-ER migrations `0027`/`0028` имеют статус
-**PASS — backend/DB Phase 1 checkpoint complete**. Working DB Alembic current —
-`0028`; Alembic/metadata suite прошёл 5 тестов, финальные DB invariants —
-28 checks / 0 violations. Legacy `variant_number=1…4` пока не удалён; nullable
-UUID columns и sync triggers образуют expand-window. Phase 2/3/5 pending,
-Phase 4 blocked PDL-ER-15; общий PDF/DoD и product release не завершены. Full
-frontend, dependency security и общий Alembic metadata-drift gates остаются
-не-green вне dynamic-ER schema diff.
+Dynamic-ER migrations `0027`/`0028` создают UUID foundation, а `0029` делает
+assignments authoritative и добавляет их optimistic revision contract. Legacy
+`variant_number=1…4` пока не удалён; nullable UUID columns и sync triggers
+образуют expand-window. Phase 4 blocked PDL-ER-15/18 до официального числового
+каталога, Phase 5 pending; общий PDF/DoD и product release не завершены.
 
 ## Таблицы
 
@@ -101,9 +98,10 @@ frontend, dependency security и общий Alembic metadata-drift gates ост�
 
 Лимит пяти ЭР и запрет удаления последнего обеспечиваются lifecycle service под
 `SELECT ... FOR UPDATE` project row. Пятый ЭР имеет
-`legacy_variant_number=null` и пока не может содержать legacy downstream graph.
+`legacy_variant_number=null`: его assignment graph поддерживается по UUID, а
+legacy numeric downstream graph остаётся fail-closed до Phase 5.
 
-### electrical_variant_objects (0027)
+### electrical_variant_objects (0027 + 0029)
 
 | Колонка | Тип | Ограничения | Описание |
 |---|---|---|---|
@@ -111,22 +109,49 @@ frontend, dependency security и общий Alembic metadata-drift gates ост�
 | project_id | UUID | NOT NULL | Денормализованный project scope |
 | electrical_variant_id | UUID | composite FK `(electrical_variant_id, project_id)` → electrical_variants, ON DELETE CASCADE | ЭР |
 | object_id | UUID | composite FK `(object_id, project_id)` → project_objects, ON DELETE CASCADE | Объект |
-| system_type | VARCHAR(32) | nullable; CHECK `self_regulating/resistive/skin/mineral` | Нормализованная система |
+| system_type | VARCHAR(32) | nullable; CHECK `self_regulating/resistive/skin/mineral` | Нормализованная система; skin/mineral retained для migrated read/unassign, не новый target |
 | assignment_state | VARCHAR(32) | NOT NULL; CHECK `unassigned/ready/unsupported/stale/error` | Состояние отдельно от типа |
 | requested_cable_type | VARCHAR(64) | nullable | Lossless исходный legacy cable type |
 | object_version_snapshot | INTEGER | NOT NULL, CHECK `>=1` | Версия heat-object для stale detection |
 | diagnostics | JSONB | NOT NULL, default `{}` | Legacy category/error/stale и sections readiness trace |
+| version | INTEGER | NOT NULL, default 1, CHECK `>=1` | Независимая optimistic revision assignment mutation |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL | Audit timestamps |
 
 UNIQUE `(electrical_variant_id, object_id)` задаёт одну assignment на объект в
-ЭР. Индексы покрывают `(project_id, object_id)` и
-`(electrical_variant_id, assignment_state)`.
+ЭР. Индексы покрывают `(project_id, object_id)`,
+`(electrical_variant_id, assignment_state)` и Phase 3 lookup
+`(electrical_variant_id, system_type, assignment_state)`.
 
-Phase 1 гарантирует существование assignment и UUID scope, но normal legacy
-calculation ещё не синхронизирует её state/type атомарно: строка может остаться
-`unassigned` и `system_type=null` при успешном calculation. Это intentional
-MEDIUM residual Phase 3; до её реализации state не authoritative для
-downstream consumers.
+Миграция `0029` reconciles только calculation rows с точным ненулевым UUID:
+тип и state вычисляются независимо, unsupported/error/stale не превращаются в
+success, `requested_cable_type` и diagnostics сохраняются, snapshot берётся из
+текущей версии объекта. Дополнительные CHECK гарантируют:
+
+- `unassigned → system_type IS NULL`;
+- `ready → system_type IN ('self_regulating', 'resistive')`;
+- `skin/mineral → assignment_state='unsupported'`;
+- `version >= 1`.
+
+После `0029` assignment state authoritative. Runtime calculation не создаёт и
+не угадывает assignment: до upsert требуется exact compatible
+`project + electrical_variant_id + object_id`; после upsert только эта строка
+атомарно получает `ready/error/stale/unsupported`, diagnostics, object snapshot
+и новую `version`.
+
+Assignment mutation и confirmed unassign используют lock order
+`project → project_objects → electrical_variant_objects`. Same-system assign —
+no-op без version/audit bump. Reassign требует промежуточного unassign.
+Confirmed unassign сохраняет сам assignment и heat object/results, но удаляет
+только exact UUID-scoped calculations, candidates, folders и folder items;
+спецификация этого ЭР помечается stale. NULL/mismatched legacy UUID и cross-ER
+folder links блокируют cleanup до записи, чтобы numeric fallback не удалил
+чужой graph.
+
+Чистый exact-UUID downstream graph у `unassigned` row считается отдельным
+legacy cleanup state: assign возвращает `ELECTRICAL_ASSIGNMENT_CLEANUP_REQUIRED`,
+а удаление выполняется только после UI/user confirmed unassign handshake.
+`skin/mineral` rows могут быть read/unassign, хотя использовать эти значения как
+новый assignment target запрещено.
 
 ---
 
@@ -365,6 +390,10 @@ approval-gate `commercial_balanced_weights_approved` (`0` — fallback,
 `ELECTRICAL_SECTIONS_NOT_READY`; исходный stale-state сохраняется внутри
 `stale_details` для lossless-guarded downgrade. Project CSV v2 import применяет
 тот же readiness смысл, но не регенерирует specification.
+
+PDL-ER-13 действует для обоих copy flow: specification source не копируется и
+не регенерируется, target остаётся `not_generated`. Explicit legacy
+calculation-copy request с regeneration отклоняется до mutation.
 
 ---
 

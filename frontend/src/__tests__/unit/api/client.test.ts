@@ -328,6 +328,9 @@ describe('apiClient network retry and idempotency', () => {
     for (const [config] of adapter.mock.calls) {
       expect(getHeader(config.headers, 'Idempotency-Key')).toEqual(expect.any(String));
     }
+    expect(JSON.parse(String(adapter.mock.calls[3]?.[0]?.data))).toMatchObject({
+      regenerate_specification: false,
+    });
   });
 
   it('ставит электрический batch job по UUID без deprecated variant_number', async () => {

@@ -11,6 +11,10 @@ from app.formulas.heat_loss.insulation import (
     validate_insulation_temperature_basis_for_placement,
 )
 from app.reference_data.loader import get_insulation_temperature_range
+from app.schemas.electrical_variant import (
+    ElectricalAssignmentState,
+    ElectricalSystemType,
+)
 from app.schemas.project import (
     ObjectQueryDefaultSort,
     ObjectQueryFieldCapability,
@@ -1077,6 +1081,7 @@ class ElectricalCandidateResponse(BaseModel):
     project_id: UUID
     object_id: UUID
     variant_number: int
+    electrical_variant_id: UUID | None = None
     cable_type: str
     cable_source: str
     cable_mark: str | None
@@ -1142,6 +1147,7 @@ class ElectricalCandidateFolderResponse(BaseModel):
     project_id: UUID
     object_id: UUID
     variant_number: int
+    electrical_variant_id: UUID | None = None
     name: str
     color: str | None = None
     sort_order: int
@@ -1213,11 +1219,21 @@ class ElectricalQueryEcho(BaseModel):
     sort: ObjectQuerySort | None = None
 
 
+class ElectricalQueryAssignment(BaseModel):
+    """Assignment snapshot for one object on the current electrical page."""
+
+    object_id: UUID
+    system_type: ElectricalSystemType | None
+    assignment_state: ElectricalAssignmentState
+    version: int = Field(ge=1)
+
+
 class ElectricalQueryResponse(BaseModel):
     """Постраничные данные электрорасчёта после поиска/фильтрации/сортировки."""
 
     items: list[ProjectObjectResponse]
     calculations: list[ElectricalCalcSummary]
+    assignments: list[ElectricalQueryAssignment] = Field(default_factory=list)
     summary: ElectricalPageSummary
     page_info: ProjectObjectsPageInfo
     counts: ElectricalQueryCounts
@@ -1236,7 +1252,7 @@ class ElectricalQueryCapabilitiesResponse(BaseModel):
 
 
 class BatchElectricalResponse(BaseModel):
-    """Результат пакетного электрорасчёта всех объектов проекта."""
+    """Результат расчёта назначенного exact ER/system scope."""
 
     calculated: int
     skipped: int
@@ -1250,17 +1266,17 @@ class BatchElectricalResponse(BaseModel):
 
 
 class CopyElectricalVariantRequest(BaseModel):
-    """Запрос копирования одного CO-варианта электрорасчёта в другой."""
+    """Legacy-запрос копирования расчётов и назначений одного ЭР в другой."""
 
     project_id: UUID
     source_variant_number: int = Field(ge=1, le=4)
     target_variant_number: int = Field(ge=1, le=4)
     overwrite: bool = False
-    regenerate_specification: bool = True
+    regenerate_specification: bool = False
 
 
 class CopyElectricalVariantResponse(BaseModel):
-    """Результат копирования CO-варианта электрорасчёта."""
+    """Результат legacy-копирования ЭР без копирования спецификации."""
 
     project_id: UUID
     source_variant_number: int

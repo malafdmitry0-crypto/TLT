@@ -14,6 +14,7 @@ import {
   type CableSource,
 } from '@/api/calculations';
 import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
+import { electricalAssignmentQueryKeys } from '@/api/electricalVariants';
 import type { CalculationVariant } from '@/store/calculationVariantStore';
 import type {
   ElectricalCalcSummary,
@@ -248,6 +249,9 @@ export function useElecCalcCandidateMutationFlow({
         });
         qc.invalidateQueries({
           queryKey: electricalDataQueryKeys.capabilities(projectId, electricalVariantId),
+        });
+        qc.invalidateQueries({
+          queryKey: electricalAssignmentQueryKeys.root(projectId, electricalVariantId),
         });
       }
       qc.invalidateQueries({ queryKey: ['project', projectId, 'objects', 'summary'] });

@@ -90,12 +90,85 @@ async def _initialize(
     return response.json()
 
 
+async def _assign_variant_object(
+    client: AsyncClient,
+    project_id: str,
+    variant_id: str,
+    object_id: str,
+    headers: dict[str, str],
+    *,
+    system_type: str = "self_regulating",
+) -> None:
+    assignments = await client.get(
+        f"/api/v1/projects/{project_id}/electrical-variants/{variant_id}/assignments",
+        headers=headers,
+    )
+    assert assignments.status_code == 200, assignments.text
+    assignment = next(
+        item for item in assignments.json()["items"] if item["object_id"] == object_id
+    )
+    response = await client.patch(
+        f"/api/v1/projects/{project_id}/electrical-variants/{variant_id}/assignments",
+        json={
+            "system_type": system_type,
+            "items": [
+                {
+                    "object_id": object_id,
+                    "expected_version": assignment["version"],
+                }
+            ],
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
+
+
+async def _prepare_and_assign_legacy_variant(
+    client: AsyncClient,
+    project_id: str,
+    object_id: str,
+    variant_number: int,
+    headers: dict[str, str],
+) -> dict:
+    prepared = await client.post(
+        "/api/v1/calc/electrical/batch",
+        params={"project_id": project_id, "variant_number": variant_number},
+        headers=headers,
+    )
+    assert prepared.status_code == 200, prepared.text
+    variants = await client.get(
+        f"/api/v1/projects/{project_id}/electrical-variants",
+        headers=headers,
+    )
+    assert variants.status_code == 200, variants.text
+    variant = next(
+        item
+        for item in variants.json()
+        if item["legacy_variant_number"] == variant_number
+    )
+    await _assign_variant_object(
+        client,
+        project_id,
+        variant["id"],
+        object_id,
+        headers,
+    )
+    return variant
+
+
 async def _create_slot_two_candidate(
     client: AsyncClient,
     project_id: str,
     object_id: str,
     headers: dict[str, str],
 ) -> dict:
+    await _prepare_and_assign_legacy_variant(
+        client,
+        project_id,
+        object_id,
+        2,
+        headers,
+    )
     response = await client.post(
         "/api/v1/calc/electrical/candidates",
         json={
@@ -857,6 +930,14 @@ class TestElectricalVariantConcurrency:
             recreated_by_slot[expected_slot] = created.json()
             assert created.json()["legacy_variant_number"] == expected_slot
 
+        await _assign_variant_object(
+            client,
+            project["id"],
+            recreated_by_slot[4]["id"],
+            obj["id"],
+            headers,
+        )
+
         recalculated = await client.post(
             "/api/v1/calc/electrical/batch",
             params={"project_id": project["id"], "variant_number": 4},
@@ -879,7 +960,7 @@ class TestElectricalVariantConcurrency:
         assert replacement_rows[0].id != legacy_row_id
         assert replacement_rows[0].electrical_variant_id == UUID(recreated_by_slot[4]["id"])
 
-    async def test_concurrent_first_legacy_four_enqueue_is_idempotent(
+    async def test_concurrent_assigned_legacy_four_enqueue_is_idempotent(
         self,
         client: AsyncClient,
         guest_session: str,
@@ -893,7 +974,14 @@ class TestElectricalVariantConcurrency:
             "X-Session-Id": guest_session,
             "Idempotency-Key": "concurrent-legacy-four",
         }
-        await _add_ready_pipe(client, project["id"], headers)
+        obj = await _add_ready_pipe(client, project["id"], headers)
+        await _prepare_and_assign_legacy_variant(
+            client,
+            project["id"],
+            obj["id"],
+            4,
+            headers,
+        )
 
         async with _client_with_request_scoped_sessions(test_engine) as concurrent_client:
             responses = await asyncio.gather(
@@ -935,7 +1023,7 @@ class TestElectricalVariantConcurrency:
         monkeypatch.setattr("app.services.task_service.TaskQueue", _FakeTaskQueue)
         project = await _guest_project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
-        await _add_ready_pipe(client, project["id"], headers)
+        obj = await _add_ready_pipe(client, project["id"], headers)
         await _initialize(client, project["id"], headers)
         target_response = await client.post(
             f"/api/v1/projects/{project['id']}/electrical-variants",
@@ -944,6 +1032,13 @@ class TestElectricalVariantConcurrency:
         )
         assert target_response.status_code == 201, target_response.text
         target = target_response.json()
+        await _assign_variant_object(
+            client,
+            project["id"],
+            target["id"],
+            obj["id"],
+            headers,
+        )
 
         async with _client_with_request_scoped_sessions(test_engine) as concurrent_client:
             enqueue_response, delete_response = await asyncio.gather(
@@ -1087,6 +1182,13 @@ class TestElectricalVariantConcurrency:
         project_id = UUID(project["id"])
         headers = {"X-Session-Id": guest_session}
         obj = await _add_ready_pipe(client, project["id"], headers)
+        await _prepare_and_assign_legacy_variant(
+            client,
+            project["id"],
+            obj["id"],
+            1,
+            headers,
+        )
         baseline_response = await client.post(
             "/api/v1/calc/electrical/candidates",
             json={

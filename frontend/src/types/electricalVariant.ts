@@ -1,8 +1,15 @@
+import type { ProjectObject } from '@/types/project';
+
 export type ElectricalSystemType =
   | 'self_regulating'
   | 'resistive'
   | 'skin'
   | 'mineral';
+
+export type ElectricalSupportedSystemType = Extract<
+  ElectricalSystemType,
+  'self_regulating' | 'resistive'
+>;
 
 export type ElectricalAssignmentState =
   | 'unassigned'
@@ -12,6 +19,18 @@ export type ElectricalAssignmentState =
   | 'error';
 
 export type ElectricalSpecificationState = 'not_generated' | 'generated' | 'stale';
+
+export type ElectricalAssignmentView =
+  | 'all'
+  | 'unassigned'
+  | ElectricalSystemType;
+
+export type ElectricalAssignmentSystemCounts = Record<
+  'unassigned' | ElectricalSystemType,
+  number
+>;
+
+export type ElectricalAssignmentStateCounts = Record<ElectricalAssignmentState, number>;
 
 export interface ElectricalReadinessIssue {
   code: string;
@@ -73,4 +92,75 @@ export interface ElectricalVariantErrorResponse {
   code: string;
   message: string;
   issues: ElectricalReadinessIssue[];
+}
+
+export interface ElectricalAssignment {
+  id: string;
+  project_id: string;
+  electrical_variant_id: string;
+  object_id: string;
+  system_type: ElectricalSystemType | null;
+  assignment_state: ElectricalAssignmentState;
+  requested_cable_type: string | null;
+  object_version_snapshot: number;
+  version: number;
+  diagnostics: Record<string, unknown>;
+  object: ProjectObject;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ElectricalAssignmentCounts {
+  total: number;
+  filtered: number;
+  by_system: ElectricalAssignmentSystemCounts;
+  by_state: ElectricalAssignmentStateCounts;
+}
+
+export interface ElectricalAssignmentPageInfo {
+  page: number;
+  page_size: number;
+  offset: number;
+  total_pages: number;
+  has_next_page: boolean;
+  has_previous_page: boolean;
+}
+
+export interface ElectricalAssignmentListParams {
+  view?: ElectricalAssignmentView;
+  assignment_state?: ElectricalAssignmentState;
+  page?: number;
+  page_size?: number;
+}
+
+export interface ElectricalAssignmentListResponse {
+  project_id: string;
+  electrical_variant_id: string;
+  items: ElectricalAssignment[];
+  counts: ElectricalAssignmentCounts;
+  page_info: ElectricalAssignmentPageInfo;
+}
+
+export interface ElectricalAssignmentVersionItem {
+  object_id: string;
+  expected_version: number;
+}
+
+export interface ElectricalAssignmentUpdateRequest {
+  system_type: ElectricalSupportedSystemType;
+  items: ElectricalAssignmentVersionItem[];
+}
+
+export interface ElectricalAssignmentUnassignRequest {
+  confirm: true;
+  items: ElectricalAssignmentVersionItem[];
+}
+
+export interface ElectricalAssignmentMutationResponse {
+  project_id: string;
+  electrical_variant_id: string;
+  changed_count: number;
+  assignments: ElectricalAssignment[];
+  cleanup: Record<string, number>;
+  specification_state: ElectricalSpecificationState;
 }

@@ -318,7 +318,6 @@ async def electrical_query_capabilities(
 @router.post(
     "/electrical/query",
     response_model=ElectricalQueryResponse,
-    response_model_exclude_none=True,
     summary="Постраничный backend-query таблицы электрорасчёта",
 )
 async def query_electrical(
@@ -362,6 +361,17 @@ async def copy_electrical_variant(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
+    if data.regenerate_specification:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "ELECTRICAL_VARIANT_SPECIFICATION_COPY_FORBIDDEN",
+                "message": (
+                    "Спецификация не копируется и не регенерируется вместе с ЭР. "
+                    "Сформируйте её отдельно после проверки расчётов."
+                ),
+            },
+        )
     try:
         variants = await ElectricalVariantService(db).prepare_legacy_variants_for_write(
             data.project_id,
@@ -372,6 +382,8 @@ async def copy_electrical_variant(
             data.project_id,
             source_variant_number=data.source_variant_number,
             target_variant_number=data.target_variant_number,
+            source_electrical_variant_id=variants[data.source_variant_number].id,
+            target_electrical_variant_id=variants[data.target_variant_number].id,
             overwrite=data.overwrite,
             regenerate_specification=data.regenerate_specification,
         )
@@ -454,15 +466,16 @@ async def list_electrical_candidates(
                 variant_number,
                 electrical_variant_id,
             )
+        return await CalculationService(db).list_electrical_candidates(
+            project_id,
+            object_id=object_id,
+            variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
+        )
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
-    return await CalculationService(db).list_electrical_candidates(
-        project_id,
-        object_id=object_id,
-        variant_number=variant_number,
-    )
 
 
 @router.post(
@@ -590,15 +603,16 @@ async def list_electrical_candidate_folders(
                 variant_number,
                 electrical_variant_id,
             )
+        return await CalculationService(db).list_electrical_candidate_folders(
+            project_id,
+            object_id=object_id,
+            variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
+        )
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
-    return await CalculationService(db).list_electrical_candidate_folders(
-        project_id,
-        object_id=object_id,
-        variant_number=variant_number,
-    )
 
 
 @router.post(
@@ -704,6 +718,8 @@ async def add_electrical_candidate_folder_item(
             folder_id=folder_id,
             candidate_id=data.candidate_id,
         )
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
     except CalculationError as exc:
@@ -755,6 +771,8 @@ async def apply_electrical_candidate(
         )
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except ElectricalCandidateApplyError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except CalculationError as exc:
@@ -794,6 +812,8 @@ async def unapply_electrical_candidate(
         unapplied_candidate = await service.unapply_electrical_candidate(candidate_id)
     except (ProjectNotFoundError, ProjectAccessError) as exc:
         _raise_project_error(exc)
+    except ElectricalVariantServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     except CalculationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -944,6 +964,7 @@ async def select_cable_variants(
             data.variant_numbers,
             data.cable_type,
             data.electrical_params(),
+            electrical_variant_ids={number: variants[number].id for number in data.variant_numbers},
         )
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
@@ -980,7 +1001,7 @@ async def select_cable_variants(
 @router.post(
     "/electrical/batch",
     response_model=BatchElectricalResponse,
-    summary="Пакетный автоподбор кабеля для всех объектов проекта",
+    summary="Пакетный автоподбор для назначенных объектов выбранного ЭР и системы",
 )
 async def batch_calc_electrical(
     project_id: UUID,
@@ -1008,8 +1029,10 @@ async def batch_calc_electrical(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ):
-    """Автоматически подбирает кабель для каждого валидного объекта проекта.
-    Использует результаты теплопотерь и выбранный `cable_type`.
+    """Подбирает кабель только в exact UUID scope выбранного ЭР.
+
+    Без `object_ids` обрабатывает объекты, явно назначенные в совместимую
+    электрическую систему этого ЭР. Явный список валидируется атомарно.
     """
     await enforce_principal_rate_limit(
         batch_limiter,
@@ -1051,6 +1074,7 @@ async def batch_calc_electrical(
             return_calcs=include_results,
             object_ids=selected_object_ids,
             force_cable_type=force_cable_type,
+            electrical_variant_id=variant.id,
         )
     except ElectricalVariantServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc

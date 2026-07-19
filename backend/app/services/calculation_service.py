@@ -48,6 +48,7 @@ from app.models.electrical_candidate_folder import (
 from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.project import Project
 from app.models.project_object import ProjectObject
+from app.models.specification import Specification
 from app.reference_data.loader import (
     get_climate_entry,
     list_resistive_cables,
@@ -78,6 +79,10 @@ from app.services.cable_snapshot import (
     compare_cable_snapshot,
     lookup_cable_row,
     lookup_cable_row_for_snapshot,
+)
+from app.services.electrical_assignment_service import (
+    ElectricalAssignmentService,
+    ElectricalAssignmentServiceError,
 )
 from app.services.electrical_candidate_dedupe import build_dedupe_key, build_identity_payload
 from app.services.electrical_error_guidance import build_electrical_error_payload
@@ -966,6 +971,13 @@ class CalculationService:
                 {"code": STALE_ELECTRICAL_ERROR_CODE, "message": STALE_ELECTRICAL_MESSAGE},
             ]
             stale_count += 1
+        stale_count += await ElectricalAssignmentService(
+            self.db
+        ).mark_assignments_stale_for_objects(
+            project_id,
+            unique_ids,
+            reason=reason,
+        )
         if stale_count:
             await self.db.flush()
         return stale_count
@@ -1187,6 +1199,12 @@ class CalculationService:
             should_cancel,
             cancel_message="Пакетный пересчёт теплопотерь отменён",
         )
+        await self.db.execute(
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         total_count = await self._heat_batch_count(project_id, object_ids)
         updated = 0
         failed = 0
@@ -1289,7 +1307,10 @@ class CalculationService:
     ) -> ElectricalCalculation:
         # Получаем объект, чтобы узнать project_id
         obj_result = await self.db.execute(
-            select(ProjectObject).where(ProjectObject.id == request.object_id)
+            select(ProjectObject)
+            .where(ProjectObject.id == request.object_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
         obj = obj_result.scalar_one_or_none()
         if obj is None:
@@ -1469,6 +1490,8 @@ class CalculationService:
                 row.get("cable_mark_source")
             )
             row.setdefault("cable_snapshot", None)
+        assignment_service = ElectricalAssignmentService(self.db)
+        await assignment_service.validate_calculation_rows(rows)
         chunk_size = self._electrical_bulk_upsert_chunk_size(rows[0])
         calcs: list[ElectricalCalculation] = []
         for chunk in _chunked_rows(rows, chunk_size):
@@ -1478,6 +1501,7 @@ class CalculationService:
                     return_calcs=return_calcs,
                 )
             )
+        await assignment_service.sync_from_calculation_rows(rows)
         return calcs
 
     @staticmethod
@@ -1824,22 +1848,45 @@ class CalculationService:
         *,
         source_variant_number: int,
         target_variant_number: int,
+        source_electrical_variant_id: UUID,
+        target_electrical_variant_id: UUID,
         overwrite: bool = False,
-        regenerate_specification: bool = True,
+        regenerate_specification: bool = False,
     ) -> ElectricalVariantCopyResult:
-        """Копирует сохранённые строки электрорасчёта между CO-вариантами."""
+        """Копирует расчёты/назначения между ЭР, оставляя спецификацию несформированной."""
+        if regenerate_specification:
+            raise ElectricalVariantCopyError(
+                code="ELECTRICAL_VARIANT_SPECIFICATION_COPY_FORBIDDEN",
+                message=(
+                    "Спецификация не копируется и не регенерируется вместе с ЭР. "
+                    "Сформируйте её отдельно после проверки расчётов."
+                ),
+                status_code=409,
+            )
         if source_variant_number == target_variant_number:
             raise ElectricalVariantCopyError(
                 code="same_variant",
                 message="Source and target variants must differ.",
             )
 
+        # The calculation rows are the source-of-truth snapshot for the copy.
+        # Take the common project lifecycle lock before reading them so a
+        # concurrent calculation cannot commit while this transaction waits
+        # later on object/assignment locks and leave us copying stale rows.
+        await self.db.execute(
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         source_result = await self.db.execute(
             select(ElectricalCalculation, ProjectObject)
             .join(ProjectObject, ProjectObject.id == ElectricalCalculation.object_id)
             .where(
                 ElectricalCalculation.project_id == project_id,
                 ElectricalCalculation.variant_number == source_variant_number,
+                ElectricalCalculation.electrical_variant_id
+                == source_electrical_variant_id,
             )
             .order_by(ProjectObject.sort_order, ProjectObject.id)
         )
@@ -1849,6 +1896,13 @@ class CalculationService:
                 code="source_empty",
                 message=f"В СО{source_variant_number} нет расчётов для копирования.",
             )
+
+        await self._stage_copied_assignment_intent(
+            project_id,
+            source_electrical_variant_id=source_electrical_variant_id,
+            target_electrical_variant_id=target_electrical_variant_id,
+            source_entries=source_entries,
+        )
 
         project_objects_count = int(
             await self.db.scalar(
@@ -1861,6 +1915,8 @@ class CalculationService:
                 select(func.count(ElectricalCalculation.id)).where(
                     ElectricalCalculation.project_id == project_id,
                     ElectricalCalculation.variant_number == target_variant_number,
+                    ElectricalCalculation.electrical_variant_id
+                    == target_electrical_variant_id,
                 )
             )
             or 0
@@ -1882,6 +1938,8 @@ class CalculationService:
                     delete(ElectricalCalculation).where(
                         ElectricalCalculation.project_id == project_id,
                         ElectricalCalculation.variant_number == target_variant_number,
+                        ElectricalCalculation.electrical_variant_id
+                        == target_electrical_variant_id,
                     )
                 )
 
@@ -1903,6 +1961,7 @@ class CalculationService:
                             source_variant_number=source_variant_number,
                         )
                     )
+                    rows[-1]["electrical_variant_id"] = target_electrical_variant_id
                     preserved_without_validation_count += 1
                     continue
 
@@ -1947,6 +2006,7 @@ class CalculationService:
                             "project_id": calc.project_id,
                             "object_id": calc.object_id,
                             "variant_number": target_variant_number,
+                            "electrical_variant_id": target_electrical_variant_id,
                             "cable_type": calc.cable_type,
                             "cable_type_source": calc.cable_type_source,
                             "cable_mark": validated_cable_mark,
@@ -1969,18 +2029,17 @@ class CalculationService:
                             request_data=request_data,
                         )
                     )
+                    rows[-1]["electrical_variant_id"] = target_electrical_variant_id
                     validation_failed_count += 1
 
             await self._bulk_upsert_electrical_calculations(rows, return_calcs=False)
-
-            if regenerate_specification:
-                from app.services.specification_service import SpecificationService
-
-                await SpecificationService(self.db).generate(
-                    project_id,
-                    target_variant_number,
-                    commit=False,
+            await self.db.execute(
+                delete(Specification).where(
+                    Specification.project_id == project_id,
+                    Specification.variant_number == target_variant_number,
+                    Specification.electrical_variant_id == target_electrical_variant_id,
                 )
+            )
 
             await self.db.commit()
         except Exception:
@@ -1996,11 +2055,108 @@ class CalculationService:
             not_copied_uncalculated_count=max(0, project_objects_count - len(source_entries)),
             deleted_target_count=target_count if overwrite else 0,
             overwrite_applied=overwrite,
-            specification_regenerated=regenerate_specification,
+            specification_regenerated=False,
             validated_count=validated_count,
             validation_failed_count=validation_failed_count,
             preserved_without_validation_count=preserved_without_validation_count,
         )
+
+    async def _stage_copied_assignment_intent(
+        self,
+        project_id: UUID,
+        *,
+        source_electrical_variant_id: UUID,
+        target_electrical_variant_id: UUID,
+        source_entries: list[tuple[ElectricalCalculation, ProjectObject]],
+    ) -> None:
+        """Stage target assignments after the caller has locked the project."""
+        object_ids = sorted({obj.id for _calc, obj in source_entries}, key=str)
+        await self.db.execute(
+            select(ProjectObject)
+            .where(
+                ProjectObject.project_id == project_id,
+                ProjectObject.id.in_(object_ids),
+            )
+            .order_by(ProjectObject.id)
+            .with_for_update()
+        )
+        result = await self.db.execute(
+            select(ElectricalVariantObject)
+            .where(
+                ElectricalVariantObject.project_id == project_id,
+                ElectricalVariantObject.electrical_variant_id.in_(
+                    [source_electrical_variant_id, target_electrical_variant_id]
+                ),
+                ElectricalVariantObject.object_id.in_(object_ids),
+            )
+            .order_by(
+                ElectricalVariantObject.electrical_variant_id,
+                ElectricalVariantObject.object_id,
+            )
+            .with_for_update()
+        )
+        assignments = {
+            (assignment.electrical_variant_id, assignment.object_id): assignment
+            for assignment in result.scalars().all()
+        }
+        missing = [
+            {"electrical_variant_id": str(variant_id), "object_id": str(object_id)}
+            for variant_id in (
+                source_electrical_variant_id,
+                target_electrical_variant_id,
+            )
+            for object_id in object_ids
+            if (variant_id, object_id) not in assignments
+        ]
+        if missing:
+            raise ElectricalAssignmentServiceError(
+                "ELECTRICAL_ASSIGNMENT_REQUIRED",
+                "Для копирования отсутствует assignment исходного или целевого ЭР",
+                status_code=409,
+                details={"assignments": missing},
+            )
+
+        object_versions = {obj.id: obj.version for _calc, obj in source_entries}
+        for calculation, obj in source_entries:
+            source = assignments[(source_electrical_variant_id, obj.id)]
+            target = assignments[(target_electrical_variant_id, obj.id)]
+            requested_system = ElectricalAssignmentService.normalize_system_type(
+                calculation.cable_type
+            )
+            if (
+                requested_system not in {"self_regulating", "resistive"}
+                or source.system_type != requested_system
+            ):
+                raise ElectricalAssignmentServiceError(
+                    "ELECTRICAL_ASSIGNMENT_SYSTEM_MISMATCH",
+                    "Исходный расчёт не соответствует assignment исходного ЭР",
+                    status_code=409,
+                    details={
+                        "object_id": str(obj.id),
+                        "assigned_system_type": source.system_type,
+                        "requested_cable_type": calculation.cable_type,
+                    },
+                )
+            if target.system_type not in (None, source.system_type):
+                raise ElectricalAssignmentServiceError(
+                    "ELECTRICAL_ASSIGNMENT_REASSIGN_REQUIRES_UNASSIGN",
+                    "Перед копированием очистите несовместимое назначение целевого ЭР",
+                    status_code=409,
+                    details={"object_ids": [str(obj.id)]},
+                )
+            if target.system_type == source.system_type:
+                continue
+            target.system_type = source.system_type
+            target.assignment_state = "stale"
+            target.requested_cable_type = None
+            target.object_version_snapshot = object_versions[obj.id]
+            target.diagnostics = {
+                "error_code": "ELECTRICAL_CALCULATION_REQUIRED",
+                "category": "stale",
+                "reason": "electrical_variant_copy",
+                "message": "Назначение скопировано; выполняется проверка расчёта",
+            }
+            target.version += 1
 
     @staticmethod
     def _num(value: Any, default: float | None = None) -> float | None:
@@ -2753,18 +2909,95 @@ class CalculationService:
                 merged[key] = value
         return merged
 
+    async def _require_clean_candidate_scope(
+        self,
+        project_id: UUID,
+        *,
+        variant_number: int,
+        electrical_variant_id: UUID,
+        object_id: UUID | None,
+        include_candidates: bool = True,
+        include_folders: bool = True,
+    ) -> None:
+        """Reject legacy NULL/mismatched rows instead of mixing exact ER reads."""
+        candidate_ids: list[UUID] = []
+        folder_ids: list[UUID] = []
+        if include_candidates:
+            candidate_filters = [
+                ElectricalCandidate.project_id == project_id,
+                ElectricalCandidate.variant_number == variant_number,
+                ElectricalCandidate.electrical_variant_id.is_distinct_from(
+                    electrical_variant_id
+                ),
+            ]
+            if object_id is not None:
+                candidate_filters.append(ElectricalCandidate.object_id == object_id)
+            candidate_ids = list(
+                (
+                    await self.db.execute(
+                        select(ElectricalCandidate.id).where(*candidate_filters)
+                    )
+                ).scalars()
+            )
+        if include_folders:
+            folder_filters = [
+                ElectricalCandidateFolder.project_id == project_id,
+                ElectricalCandidateFolder.variant_number == variant_number,
+                ElectricalCandidateFolder.electrical_variant_id.is_distinct_from(
+                    electrical_variant_id
+                ),
+            ]
+            if object_id is not None:
+                folder_filters.append(ElectricalCandidateFolder.object_id == object_id)
+            folder_ids = list(
+                (
+                    await self.db.execute(
+                        select(ElectricalCandidateFolder.id).where(*folder_filters)
+                    )
+                ).scalars()
+            )
+        if candidate_ids or folder_ids:
+            raise ElectricalAssignmentServiceError(
+                "ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT",
+                "Обнаружены кандидаты или папки без точной привязки к выбранному ЭР",
+                status_code=409,
+                details={
+                    "electrical_variant_id": str(electrical_variant_id),
+                    "candidate_ids": [str(item) for item in candidate_ids],
+                    "folder_ids": [str(item) for item in folder_ids],
+                },
+            )
+
     async def list_electrical_candidates(
         self,
         project_id: UUID,
         *,
         object_id: UUID | None = None,
         variant_number: int | None = None,
+        electrical_variant_id: UUID | None = None,
     ) -> list[ElectricalCandidate]:
         filters = [ElectricalCandidate.project_id == project_id]
         if object_id is not None:
             filters.append(ElectricalCandidate.object_id == object_id)
         if variant_number is not None:
             filters.append(ElectricalCandidate.variant_number == variant_number)
+        if electrical_variant_id is not None:
+            if variant_number is None:
+                raise ElectricalAssignmentServiceError(
+                    "ELECTRICAL_VARIANT_SELECTOR_REQUIRED",
+                    "variant_number обязателен вместе с UUID ЭР",
+                    status_code=422,
+                )
+            await self._require_clean_candidate_scope(
+                project_id,
+                variant_number=variant_number,
+                electrical_variant_id=electrical_variant_id,
+                object_id=object_id,
+                include_folders=False,
+            )
+            filters.append(
+                ElectricalCandidate.electrical_variant_id == electrical_variant_id
+            )
         result = await self.db.execute(
             select(ElectricalCandidate)
             .where(*filters)
@@ -2804,6 +3037,7 @@ class CalculationService:
             "project_id": folder.project_id,
             "object_id": folder.object_id,
             "variant_number": folder.variant_number,
+            "electrical_variant_id": folder.electrical_variant_id,
             "name": folder.name,
             "color": folder.color,
             "sort_order": folder.sort_order,
@@ -2818,14 +3052,29 @@ class CalculationService:
         *,
         object_id: UUID,
         variant_number: int,
+        electrical_variant_id: UUID | None = None,
     ) -> list[dict[str, Any]]:
+        if electrical_variant_id is not None:
+            await self._require_clean_candidate_scope(
+                project_id,
+                variant_number=variant_number,
+                electrical_variant_id=electrical_variant_id,
+                object_id=object_id,
+                include_candidates=False,
+            )
+        filters = [
+            ElectricalCandidateFolder.project_id == project_id,
+            ElectricalCandidateFolder.object_id == object_id,
+            ElectricalCandidateFolder.variant_number == variant_number,
+        ]
+        if electrical_variant_id is not None:
+            filters.append(
+                ElectricalCandidateFolder.electrical_variant_id
+                == electrical_variant_id
+            )
         result = await self.db.execute(
             select(ElectricalCandidateFolder)
-            .where(
-                ElectricalCandidateFolder.project_id == project_id,
-                ElectricalCandidateFolder.object_id == object_id,
-                ElectricalCandidateFolder.variant_number == variant_number,
-            )
+            .where(*filters)
             .order_by(
                 ElectricalCandidateFolder.sort_order,
                 ElectricalCandidateFolder.created_at,
@@ -2854,6 +3103,7 @@ class CalculationService:
                 "project_id": folder.project_id,
                 "object_id": folder.object_id,
                 "variant_number": folder.variant_number,
+                "electrical_variant_id": folder.electrical_variant_id,
                 "name": folder.name,
                 "color": folder.color,
                 "sort_order": folder.sort_order,
@@ -2878,12 +3128,31 @@ class CalculationService:
     ) -> dict[str, Any]:
         if variant_number < 1 or variant_number > 4:
             raise CalculationError("variant_number должен быть от 1 до 4")
+        if electrical_variant_id is None:
+            raise ElectricalAssignmentServiceError(
+                "ELECTRICAL_ASSIGNMENT_REQUIRED",
+                "Для папки кандидатов требуется точный UUID ЭР",
+                status_code=409,
+            )
+        await ElectricalAssignmentService(self.db).require_supported_assignment(
+            project_id,
+            electrical_variant_id,
+            object_id,
+        )
+        await self._require_clean_candidate_scope(
+            project_id,
+            variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
+            object_id=object_id,
+        )
         await self._load_candidate_object(project_id, object_id)
         max_sort_result = await self.db.execute(
             select(func.max(ElectricalCandidateFolder.sort_order)).where(
                 ElectricalCandidateFolder.project_id == project_id,
                 ElectricalCandidateFolder.object_id == object_id,
                 ElectricalCandidateFolder.variant_number == variant_number,
+                ElectricalCandidateFolder.electrical_variant_id
+                == electrical_variant_id,
             )
         )
         next_sort = int(max_sort_result.scalar() or 0) + 10
@@ -2950,14 +3219,36 @@ class CalculationService:
         folder_id: UUID,
         candidate_id: UUID,
     ) -> dict[str, Any]:
+        # First read discovers the owning project; the second read below is an
+        # intentional post-lock TOCTOU recheck before validating the candidate.
+        folder = await self.get_electrical_candidate_folder(folder_id)
+        await self._lock_project_for_candidate_apply(folder.project_id)
         folder = await self.get_electrical_candidate_folder(folder_id)
         candidate = await self.get_electrical_candidate(candidate_id)
         if (
             candidate.project_id != folder.project_id
             or candidate.object_id != folder.object_id
             or candidate.variant_number != folder.variant_number
+            or candidate.electrical_variant_id is None
+            or folder.electrical_variant_id is None
+            or candidate.electrical_variant_id != folder.electrical_variant_id
         ):
-            raise CalculationError("Кандидат не относится к этой папке")
+            raise ElectricalAssignmentServiceError(
+                "ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT",
+                "Кандидат и папка относятся к разным объектам или ЭР",
+                status_code=409,
+                details={
+                    "folder_id": str(folder_id),
+                    "candidate_id": str(candidate_id),
+                },
+            )
+        await ElectricalAssignmentService(self.db).require_supported_assignment(
+            folder.project_id,
+            folder.electrical_variant_id,
+            folder.object_id,
+            requested_cable_type=candidate.cable_type,
+            lock_project=False,
+        )
         stmt = (
             pg_insert(ElectricalCandidateFolderItem)
             .values(folder_id=folder_id, candidate_id=candidate_id)
@@ -2992,10 +3283,13 @@ class CalculationService:
 
     async def _load_candidate_object(self, project_id: UUID, object_id: UUID) -> ProjectObject:
         result = await self.db.execute(
-            select(ProjectObject).where(
+            select(ProjectObject)
+            .where(
                 ProjectObject.project_id == project_id,
                 ProjectObject.id == object_id,
             )
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
         obj = result.scalar_one_or_none()
         if obj is None:
@@ -3100,6 +3394,7 @@ class CalculationService:
         *,
         object_id: UUID,
         variant_number: int,
+        electrical_variant_id: UUID,
         dedupe_key: str,
     ) -> ElectricalCandidate | None:
         result = await self.db.execute(
@@ -3107,9 +3402,23 @@ class CalculationService:
                 ElectricalCandidate.object_id == object_id,
                 ElectricalCandidate.variant_number == variant_number,
                 ElectricalCandidate.dedupe_key == dedupe_key,
-            )
+            ).with_for_update()
         )
-        return result.scalar_one_or_none()
+        rows = list(result.scalars().all())
+        conflicts = [
+            row for row in rows if row.electrical_variant_id != electrical_variant_id
+        ]
+        if conflicts:
+            raise ElectricalAssignmentServiceError(
+                "ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT",
+                "Кандидат с тем же ключом относится к другому или неопределённому ЭР",
+                status_code=409,
+                details={
+                    "electrical_variant_id": str(electrical_variant_id),
+                    "candidate_ids": [str(row.id) for row in conflicts],
+                },
+            )
+        return rows[0] if rows else None
 
     @staticmethod
     def _apply_candidate_upsert(
@@ -3156,14 +3465,19 @@ class CalculationService:
         self,
         candidate: ElectricalCandidate,
     ) -> tuple[ElectricalCandidate, str]:
+        if candidate.electrical_variant_id is None:
+            raise ElectricalAssignmentServiceError(
+                "ELECTRICAL_ASSIGNMENT_REQUIRED",
+                "Для кандидата требуется точный UUID ЭР",
+                status_code=409,
+            )
         existing = await self._find_electrical_candidate_by_dedupe(
             object_id=candidate.object_id,
             variant_number=candidate.variant_number,
+            electrical_variant_id=candidate.electrical_variant_id,
             dedupe_key=candidate.dedupe_key,
         )
         if existing is not None:
-            if candidate.electrical_variant_id is not None:
-                existing.electrical_variant_id = candidate.electrical_variant_id
             self._apply_candidate_upsert(
                 existing,
                 params=candidate.params,
@@ -3197,6 +3511,7 @@ class CalculationService:
             existing = await self._find_electrical_candidate_by_dedupe(
                 object_id=candidate.object_id,
                 variant_number=candidate.variant_number,
+                electrical_variant_id=candidate.electrical_variant_id,
                 dedupe_key=candidate.dedupe_key,
             )
             if existing is None:
@@ -3242,6 +3557,25 @@ class CalculationService:
             raise CalculationError("Для ручного кандидата укажите cable_mark")
         if mode == "auto" and cable_mark:
             raise CalculationError("Авторасчёт кандидата запускается без cable_mark")
+        if electrical_variant_id is None:
+            raise ElectricalAssignmentServiceError(
+                "ELECTRICAL_ASSIGNMENT_REQUIRED",
+                "Для кандидата требуется точный UUID ЭР",
+                status_code=409,
+            )
+        await ElectricalAssignmentService(self.db).require_supported_assignment(
+            project_id,
+            electrical_variant_id,
+            object_id,
+            requested_cable_type=cable_type,
+        )
+        await self._require_clean_candidate_scope(
+            project_id,
+            variant_number=variant_number,
+            electrical_variant_id=electrical_variant_id,
+            object_id=object_id,
+            include_folders=False,
+        )
 
         obj = await self._load_candidate_object(project_id, object_id)
         object_type = str(getattr(obj.object_type, "value", obj.object_type))
@@ -3483,7 +3817,7 @@ class CalculationService:
             )
         )
         variant = result.scalar_one_or_none()
-        if variant is None or candidate.electrical_variant_id not in (None, variant.id):
+        if variant is None or candidate.electrical_variant_id != variant.id:
             raise ElectricalCandidateApplyError(
                 code="ELECTRICAL_CANDIDATE_VARIANT_UNAVAILABLE",
                 message="ЭР кандидата удалён или больше не связан с объектом",
@@ -3501,6 +3835,20 @@ class CalculationService:
             await self._lock_project_for_candidate_apply(project_id)
             candidate = await self._candidate_for_apply(candidate_id, project_id)
             variant = await self._existing_variant_for_candidate(candidate)
+            await ElectricalAssignmentService(self.db).require_supported_assignment(
+                candidate.project_id,
+                variant.id,
+                candidate.object_id,
+                requested_cable_type=candidate.cable_type,
+                lock_project=False,
+            )
+            await self._require_clean_candidate_scope(
+                candidate.project_id,
+                variant_number=candidate.variant_number,
+                electrical_variant_id=variant.id,
+                object_id=candidate.object_id,
+                include_folders=False,
+            )
             if candidate.status != ELECTRICAL_CANDIDATE_STATUS_APPLICABLE:
                 raise CalculationError("Можно применить только применимый кандидат")
             if not candidate.cable_mark:
@@ -3523,8 +3871,10 @@ class CalculationService:
             await self.db.execute(
                 update(ElectricalCandidate)
                 .where(
+                    ElectricalCandidate.project_id == candidate.project_id,
                     ElectricalCandidate.object_id == candidate.object_id,
                     ElectricalCandidate.variant_number == candidate.variant_number,
+                    ElectricalCandidate.electrical_variant_id == variant.id,
                 )
                 .values(is_applied=False)
             )
@@ -3545,23 +3895,39 @@ class CalculationService:
         candidate = await self.get_electrical_candidate(candidate_id)
         if not candidate.is_applied:
             return candidate
-
-        candidate.is_applied = False
-        await self.db.execute(
-            delete(ElectricalCalculation).where(
-                ElectricalCalculation.object_id == candidate.object_id,
-                ElectricalCalculation.variant_number == candidate.variant_number,
+        try:
+            await self._lock_project_for_candidate_apply(candidate.project_id)
+            candidate = await self._candidate_for_apply(candidate_id, candidate.project_id)
+            variant = await self._existing_variant_for_candidate(candidate)
+            await self._require_clean_candidate_scope(
+                candidate.project_id,
+                variant_number=candidate.variant_number,
+                electrical_variant_id=variant.id,
+                object_id=candidate.object_id,
+                include_folders=False,
             )
-        )
-        await self.mark_project_specifications_stale(
-            candidate.project_id,
-            "electrical_candidate_unapplied",
-            object_ids=[candidate.object_id],
-            operation="candidate_unapply",
-        )
-        await self.db.commit()
-        await self.db.refresh(candidate)
-        return candidate
+            candidate.electrical_variant_id = variant.id
+            candidate.is_applied = False
+            await self.db.execute(
+                delete(ElectricalCalculation).where(
+                    ElectricalCalculation.project_id == candidate.project_id,
+                    ElectricalCalculation.object_id == candidate.object_id,
+                    ElectricalCalculation.electrical_variant_id == variant.id,
+                )
+            )
+            await ElectricalAssignmentService(self.db).mark_assignments_stale(
+                candidate.project_id,
+                variant.id,
+                [candidate.object_id],
+                reason="electrical_candidate_unapplied",
+                operation="candidate_unapply",
+            )
+            await self.db.commit()
+            await self.db.refresh(candidate)
+            return candidate
+        except Exception:
+            await self.db.rollback()
+            raise
 
     async def _select_cable_for_object(
         self,
@@ -3610,7 +3976,10 @@ class CalculationService:
 
     async def _load_selectable_object(self, object_id: UUID) -> ProjectObject:
         obj_result = await self.db.execute(
-            select(ProjectObject).where(ProjectObject.id == object_id)
+            select(ProjectObject)
+            .where(ProjectObject.id == object_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
         obj = obj_result.scalar_one_or_none()
         if obj is None:
@@ -3637,6 +4006,7 @@ class CalculationService:
         variant_numbers: list[int] | None = None,
         cable_type: str = "self_regulating",
         electrical_params: dict[str, Any] | None = None,
+        electrical_variant_ids: dict[int, UUID] | None = None,
     ) -> list[ElectricalCalculation]:
         """Атомарно применяет ручной выбор или автоподбор к нескольким СО."""
         obj = await self._load_selectable_object(object_id)
@@ -3656,6 +4026,7 @@ class CalculationService:
                         cable_type=cable_type,
                         electrical_params=electrical_params,
                         commit=False,
+                        electrical_variant_id=(electrical_variant_ids or {}).get(variant_number),
                     )
                 )
             await self.db.commit()
@@ -3820,9 +4191,19 @@ class CalculationService:
         *,
         variant_number: int,
         object_ids: list[UUID],
+        electrical_variant_id: UUID | None = None,
     ) -> dict[UUID, ElectricalCalculation]:
         if not object_ids:
             return {}
+        filters = [
+            ElectricalCalculation.project_id == project_id,
+            ElectricalCalculation.variant_number == variant_number,
+            ElectricalCalculation.object_id.in_(object_ids),
+        ]
+        if electrical_variant_id is not None:
+            filters.append(
+                ElectricalCalculation.electrical_variant_id == electrical_variant_id
+            )
         result = await self.db.execute(
             select(ElectricalCalculation)
             .options(
@@ -3837,11 +4218,7 @@ class CalculationService:
                     ElectricalCalculation.results,
                 )
             )
-            .where(
-                ElectricalCalculation.project_id == project_id,
-                ElectricalCalculation.variant_number == variant_number,
-                ElectricalCalculation.object_id.in_(object_ids),
-            )
+            .where(*filters)
         )
         return {
             calc.object_id: calc
@@ -3863,6 +4240,7 @@ class CalculationService:
         object_ids: list[UUID] | None = None,
         object_overrides: list[dict[str, Any]] | None = None,
         force_cable_type: bool = False,
+        electrical_variant_id: UUID | None = None,
     ) -> tuple[int, int, int, list[dict[str, Any]], list[ElectricalCalculation]]:
         """Автоподбор кабеля для всех валидных объектов проекта (cable_mark=None)."""
 
@@ -3872,12 +4250,45 @@ class CalculationService:
 
         cancel_checker = BatchCancelChecker(should_cancel)
 
+        assignment_service = ElectricalAssignmentService(self.db)
+        if electrical_variant_id is not None and object_ids is None:
+            object_ids = await assignment_service.assignment_object_ids_for_system(
+                project_id,
+                electrical_variant_id,
+                cable_type,
+            )
+            if not object_ids:
+                await emit_progress(BatchProgress(current=0, total=0, phase="done"))
+                return 0, 0, 0, [], []
         object_ids = await self._validate_project_object_ids(project_id, object_ids)
         object_overrides_by_id = await self._validate_electrical_object_overrides(
             project_id,
             object_overrides,
             object_ids=object_ids,
         )
+        if electrical_variant_id is not None and object_ids is not None:
+            existing_scope = await self._load_existing_electrical_by_object_id(
+                project_id,
+                variant_number=variant_number,
+                object_ids=object_ids,
+                electrical_variant_id=electrical_variant_id,
+            )
+            requested_cable_types: dict[UUID, str] = {}
+            for object_id in object_ids:
+                override_type = object_overrides_by_id.get(object_id, {}).get("cable_type")
+                existing = existing_scope.get(object_id)
+                requested_cable_types[object_id] = str(
+                    cable_type
+                    if force_cable_type
+                    else override_type
+                    or (existing.cable_type if existing is not None else cable_type)
+                )
+            await assignment_service.validate_supported_assignment_objects(
+                project_id,
+                electrical_variant_id,
+                requested_cable_types,
+                lock_project=True,
+            )
         # Считаем общее количество объектов в области пересчёта — чтобы сообщить фронту,
         # сколько объектов исключено из-за ошибок теплопотерь.
         total_count, total_valid = await self._electrical_batch_counts(
@@ -3923,6 +4334,7 @@ class CalculationService:
                 project_id,
                 variant_number=variant_number,
                 object_ids=[obj.id for obj in objects],
+                electrical_variant_id=electrical_variant_id,
             )
             successful_rows: list[dict[str, Any]] = []
 
@@ -4002,6 +4414,7 @@ class CalculationService:
                             "project_id": obj.project_id,
                             "object_id": obj.id,
                             "variant_number": request.variant_number,
+                            "electrical_variant_id": electrical_variant_id,
                             "cable_type": request.cable_type,
                             "cable_type_source": cable_type_source,
                             "cable_mark": cable_mark,
@@ -4039,6 +4452,7 @@ class CalculationService:
                         object_cable_type,
                         cable_type_source=cable_type_source,
                         request_data=error_request_data,
+                        electrical_variant_id=electrical_variant_id,
                     )
                 finally:
                     processed += 1
@@ -4099,6 +4513,7 @@ class CalculationService:
         cable_type_source: str | None = None,
         cable_mark_source: str | None = None,
         request_data: dict[str, Any] | None = None,
+        electrical_variant_id: UUID | None = None,
     ) -> ElectricalCalculation:
         normalized_source = self._normalize_cable_type_source(cable_type_source)
         normalized_mark_source = self._normalize_cable_mark_source(cable_mark_source)
@@ -4125,6 +4540,7 @@ class CalculationService:
                     "project_id": obj.project_id,
                     "object_id": obj.id,
                     "variant_number": variant_number,
+                    "electrical_variant_id": electrical_variant_id,
                     "cable_type": cable_type,
                     "cable_type_source": normalized_source,
                     "cable_mark": None,

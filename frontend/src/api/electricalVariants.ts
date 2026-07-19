@@ -1,5 +1,10 @@
 import apiClient, { withIdempotencyKey } from './client';
 import type {
+  ElectricalAssignmentListParams,
+  ElectricalAssignmentListResponse,
+  ElectricalAssignmentMutationResponse,
+  ElectricalAssignmentUnassignRequest,
+  ElectricalAssignmentUpdateRequest,
   ElectricalReadinessResponse,
   ElectricalVariant,
   ElectricalVariantCopyRequest,
@@ -16,6 +21,24 @@ export const electricalVariantQueryKeys = {
     ['project', projectId, 'electrical-readiness'] as const,
   detail: (projectId: string, electricalVariantId: string) =>
     ['project', projectId, 'electrical-variant', electricalVariantId] as const,
+};
+
+export const electricalAssignmentQueryKeys = {
+  root: (projectId: string, electricalVariantId: string) => [
+    ...electricalVariantQueryKeys.detail(projectId, electricalVariantId),
+    'assignments',
+  ] as const,
+  list: (
+    projectId: string,
+    electricalVariantId: string,
+    params: ElectricalAssignmentListParams = {},
+  ) => [
+    ...electricalAssignmentQueryKeys.root(projectId, electricalVariantId),
+    params.view ?? 'all',
+    params.assignment_state ?? 'all-states',
+    params.page ?? 1,
+    params.page_size ?? 50,
+  ] as const,
 };
 
 // Short alias for consumers that use the conventional `*Keys` naming.
@@ -105,6 +128,42 @@ export async function deleteElectricalVariant(
 ): Promise<ElectricalVariantDeleteResponse> {
   const { data } = await apiClient.delete<ElectricalVariantDeleteResponse>(
     `/projects/${projectId}/electrical-variants/${electricalVariantId}`,
+  );
+  return data;
+}
+
+export async function listElectricalVariantAssignments(
+  projectId: string,
+  electricalVariantId: string,
+  params: ElectricalAssignmentListParams = {},
+): Promise<ElectricalAssignmentListResponse> {
+  const { data } = await apiClient.get<ElectricalAssignmentListResponse>(
+    `/projects/${projectId}/electrical-variants/${electricalVariantId}/assignments`,
+    { params },
+  );
+  return data;
+}
+
+export async function assignElectricalVariantObjects(
+  projectId: string,
+  electricalVariantId: string,
+  payload: ElectricalAssignmentUpdateRequest,
+): Promise<ElectricalAssignmentMutationResponse> {
+  const { data } = await apiClient.patch<ElectricalAssignmentMutationResponse>(
+    `/projects/${projectId}/electrical-variants/${electricalVariantId}/assignments`,
+    payload,
+  );
+  return data;
+}
+
+export async function unassignElectricalVariantObjects(
+  projectId: string,
+  electricalVariantId: string,
+  payload: ElectricalAssignmentUnassignRequest,
+): Promise<ElectricalAssignmentMutationResponse> {
+  const { data } = await apiClient.post<ElectricalAssignmentMutationResponse>(
+    `/projects/${projectId}/electrical-variants/${electricalVariantId}/unassign`,
+    payload,
   );
   return data;
 }

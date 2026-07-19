@@ -53,6 +53,54 @@ async def _create_ready_pipe(
     return response.json()
 
 
+async def _prepare_assigned_legacy_variants(
+    client: AsyncClient,
+    project_id: str,
+    object_id: str,
+    headers: dict[str, str],
+) -> None:
+    initialized = await client.post(
+        f"/api/v1/projects/{project_id}/electrical-variants/initialize",
+        headers=headers,
+    )
+    assert initialized.status_code == 200, initialized.text
+    variants = [initialized.json()["variant"]]
+    for variant_number in range(2, 5):
+        created = await client.post(
+            f"/api/v1/projects/{project_id}/electrical-variants",
+            json={"name": f"ЭР{variant_number} UUID bridge"},
+            headers=headers,
+        )
+        assert created.status_code == 201, created.text
+        variants.append(created.json())
+
+    for variant in variants:
+        assignments = await client.get(
+            f"/api/v1/projects/{project_id}/electrical-variants/"
+            f"{variant['id']}/assignments",
+            headers=headers,
+        )
+        assert assignments.status_code == 200, assignments.text
+        assignment = next(
+            item for item in assignments.json()["items"] if item["object_id"] == object_id
+        )
+        assigned = await client.patch(
+            f"/api/v1/projects/{project_id}/electrical-variants/"
+            f"{variant['id']}/assignments",
+            json={
+                "system_type": "self_regulating",
+                "items": [
+                    {
+                        "object_id": object_id,
+                        "expected_version": assignment["version"],
+                    }
+                ],
+            },
+            headers=headers,
+        )
+        assert assigned.status_code == 200, assigned.text
+
+
 class TestLegacyElectricalVariantWrites:
     async def test_all_normal_numeric_writes_persist_project_scoped_uuid(
         self,
@@ -63,6 +111,12 @@ class TestLegacyElectricalVariantWrites:
         headers = {"Authorization": f"Bearer {employee_token}"}
         project = await _create_project(client, employee_token, "Legacy UUID write bridge")
         obj = await _create_ready_pipe(client, employee_token, project["id"])
+        await _prepare_assigned_legacy_variants(
+            client,
+            project["id"],
+            obj["id"],
+            headers,
+        )
 
         direct_calc = await client.post(
             "/api/v1/calc/electrical",

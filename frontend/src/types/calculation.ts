@@ -6,6 +6,10 @@ import type {
   ProjectObject,
   ProjectObjectsPageInfo,
 } from './project';
+import type {
+  ElectricalAssignmentState,
+  ElectricalSystemType,
+} from './electricalVariant';
 
 export type InsulationTemperatureBasis =
   | 'indoor'
@@ -204,6 +208,7 @@ export interface ElectricalCandidate {
   project_id: string;
   object_id: string;
   variant_number: number;
+  electrical_variant_id?: string | null;
   cable_type: string;
   cable_source: string;
   cable_mark: string | null;
@@ -254,6 +259,7 @@ export interface ElectricalCandidateFolder {
   project_id: string;
   object_id: string;
   variant_number: number;
+  electrical_variant_id?: string | null;
   name: string;
   color?: string | null;
   sort_order: number;
@@ -319,7 +325,16 @@ export interface ElectricalQueryCounts {
   filtered: number;
 }
 
+export interface ElectricalQueryAssignment {
+  object_id: string;
+  // Optional only for defensive compatibility; the current API returns explicit null.
+  system_type?: ElectricalSystemType | null;
+  assignment_state: ElectricalAssignmentState;
+  version: number;
+}
+
 export interface ElectricalQueryResponse extends ElectricalPageResponse {
+  assignments?: ElectricalQueryAssignment[];
   counts: ElectricalQueryCounts;
   query: {
     variant_number: number;

@@ -16,10 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import CurrentPrincipal
 from app.electrical_result_status import FAILED_ELECTRICAL_CATEGORIES
 from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_variant import ElectricalVariantObject
 from app.models.project_object import ProjectObject
 from app.schemas.calculation import (
     ElectricalCalcSummary,
     ElectricalPageSummary,
+    ElectricalQueryAssignment,
     ElectricalQueryCapabilitiesResponse,
     ElectricalQueryCounts,
     ElectricalQueryEcho,
@@ -929,6 +931,10 @@ class ElectricalQueryService:
             return ElectricalQueryResponse(
                 items=[self._object_summary(obj) for obj in objects],
                 calculations=calc_summaries,
+                assignments=await self._load_assignment_projection(
+                    data,
+                    [obj.id for obj in objects],
+                ),
                 summary=ElectricalPageSummary(**summary),
                 page_info=page_info,
                 counts=ElectricalQueryCounts(
@@ -965,6 +971,10 @@ class ElectricalQueryService:
         return ElectricalQueryResponse(
             items=[self._object_summary(row.obj) for row in page_rows],
             calculations=calc_summaries,
+            assignments=await self._load_assignment_projection(
+                data,
+                [row.obj.id for row in page_rows],
+            ),
             summary=ElectricalPageSummary(**summary),
             page_info=ProjectObjectsPageInfo(
                 page=page,
@@ -1035,6 +1045,7 @@ class ElectricalQueryService:
         return ElectricalQueryResponse(
             items=[self._object_summary(obj) for obj in objects],
             calculations=calc_summaries,
+            assignments=await self._load_assignment_projection(data, object_ids),
             summary=ElectricalPageSummary(**summary),
             page_info=ProjectObjectsPageInfo(
                 page=page,
@@ -1270,6 +1281,38 @@ class ElectricalQueryService:
             for obj in objects
         ]
 
+    async def _load_assignment_projection(
+        self,
+        data: ElectricalQueryRequest,
+        object_ids: list[UUID],
+    ) -> list[ElectricalQueryAssignment]:
+        """Load one exact UUID-scoped assignment page in a single bounded query."""
+
+        if data.electrical_variant_id is None or not object_ids:
+            return []
+        result = await self.db.execute(
+            select(ElectricalVariantObject).where(
+                ElectricalVariantObject.project_id == data.project_id,
+                ElectricalVariantObject.electrical_variant_id
+                == data.electrical_variant_id,
+                ElectricalVariantObject.object_id.in_(object_ids),
+            )
+        )
+        by_object_id = {
+            assignment.object_id: ElectricalQueryAssignment(
+                object_id=assignment.object_id,
+                system_type=assignment.system_type,
+                assignment_state=assignment.assignment_state,
+                version=assignment.version,
+            )
+            for assignment in result.scalars().all()
+        }
+        return [
+            by_object_id[object_id]
+            for object_id in object_ids
+            if object_id in by_object_id
+        ]
+
     def _field_capability(
         self,
         field: FieldDef,
@@ -1447,6 +1490,10 @@ class ElectricalQueryService:
         return ElectricalQueryResponse(
             items=[self._object_summary(row.obj) for row in page_rows],
             calculations=calc_summaries,
+            assignments=await self._load_assignment_projection(
+                data,
+                [row.obj.id for row in page_rows],
+            ),
             summary=ElectricalPageSummary(**summary),
             page_info=ProjectObjectsPageInfo(
                 page=page,
@@ -1521,6 +1568,10 @@ class ElectricalQueryService:
         return ElectricalQueryResponse(
             items=[self._object_summary(row.obj) for row in page_rows],
             calculations=calc_summaries,
+            assignments=await self._load_assignment_projection(
+                data,
+                [row.obj.id for row in page_rows],
+            ),
             summary=ElectricalPageSummary(**summary),
             page_info=ProjectObjectsPageInfo(
                 page=page,

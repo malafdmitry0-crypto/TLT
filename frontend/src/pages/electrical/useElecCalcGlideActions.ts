@@ -8,6 +8,7 @@ type UseElecCalcGlideActionsOptions = {
   projectSelected: boolean;
   canMutate: boolean;
   isCableMarkPending: boolean;
+  getObjectActionDisabledReason?: (obj: ProjectObject) => string | null;
   onOpenCableMarkModal: (obj: ProjectObject) => void;
   onOpenCableSizingModal: (obj: ProjectObject) => void;
 };
@@ -17,6 +18,7 @@ export function useElecCalcGlideActions({
   projectSelected,
   canMutate,
   isCableMarkPending,
+  getObjectActionDisabledReason = () => null,
   onOpenCableMarkModal,
   onOpenCableSizingModal,
 }: UseElecCalcGlideActionsOptions) {
@@ -25,21 +27,28 @@ export function useElecCalcGlideActions({
     columnKey: string,
   ): HeatCalcGlideGridCellAction[] | undefined => {
     if (columnKey !== 'cable_mark' || activeRowId !== obj.id) return undefined;
+    const assignmentDisabledReason = getObjectActionDisabledReason(obj);
     return [
       {
         key: 'choose',
         label: 'Выбор',
-        disabled: !canMutate || !obj.is_valid || !projectSelected || isCableMarkPending,
+        disabled:
+          !canMutate
+          || !obj.is_valid
+          || !projectSelected
+          || isCableMarkPending
+          || assignmentDisabledReason != null,
       },
       {
         key: 'size',
         label: 'Подбор',
-        disabled: !projectSelected,
+        disabled: !projectSelected || assignmentDisabledReason != null,
       },
     ];
   }, [
     activeRowId,
     canMutate,
+    getObjectActionDisabledReason,
     isCableMarkPending,
     projectSelected,
   ]);
@@ -50,6 +59,7 @@ export function useElecCalcGlideActions({
     actionKey: string,
   ) => {
     if (columnKey !== 'cable_mark') return;
+    if (getObjectActionDisabledReason(obj) != null) return;
     if (actionKey === 'choose') {
       if (!canMutate || !obj.is_valid || !projectSelected || isCableMarkPending) return;
       onOpenCableMarkModal(obj);
@@ -61,6 +71,7 @@ export function useElecCalcGlideActions({
     }
   }, [
     canMutate,
+    getObjectActionDisabledReason,
     isCableMarkPending,
     onOpenCableMarkModal,
     onOpenCableSizingModal,

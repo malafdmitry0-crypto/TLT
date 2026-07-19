@@ -15,6 +15,7 @@ import {
   updateElectricalCandidateFolder,
 } from '@/api/calculations';
 import { electricalDataQueryKeys } from '@/api/electricalQueryKeys';
+import { electricalAssignmentQueryKeys } from '@/api/electricalVariants';
 import { useElecCalcCandidateMutationFlow } from '@/pages/electrical/useElecCalcCandidateMutationFlow';
 import type {
   ElectricalCalcSummary,
@@ -240,6 +241,12 @@ describe('useElecCalcCandidateMutationFlow', () => {
     );
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: electricalDataQueryKeys.queries(
+        'project-1',
+        '22222222-2222-4222-8222-222222222222',
+      ),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: electricalAssignmentQueryKeys.root(
         'project-1',
         '22222222-2222-4222-8222-222222222222',
       ),

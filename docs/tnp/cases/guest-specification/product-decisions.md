@@ -21,7 +21,7 @@ PDL-ER-18…25 фиксируют восемь ответов **А**, явно �
 | PDL-ER-08 | Порог диаметра коробок | Граница включительная: `dтр ≥ 57 мм`. | Ровно 57 мм относится к ветке большого диаметра; обязательны boundary tests ниже, ровно и выше 57 мм. |
 | PDL-ER-09 | Имена ЭР | Имена уникальны внутри проекта после `trim + casefold`. | DB/API отклоняют пустые и конфликтующие имена стабильным error code; display name сохраняет пользовательский регистр. |
 | PDL-ER-10 | Резистивный расчёт | Действующий резистивный flow сохраняется. `single_core` и `three_core` нормализуются в assignment `resistive`. | Динамические ЭР не создают регрессию утверждённого резистивного расчёта; disabled остаются только неподдержанные MI/skin. |
-| PDL-ER-11 | Unsupported/mineral | `system_type` отделяется от `assignment_state`; исходный `requested_cable_type` сохраняется. Mineral/MI отображается как disabled unsupported type. | Legacy diagnostics мигрируют losslessly и не превращаются в успешный self-reg/resistive результат. |
+| PDL-ER-11 | Unsupported/mineral | `system_type` отделяется от `assignment_state`; исходный `requested_cable_type` сохраняется. Mineral/MI нельзя выбрать как новый target, но tabs migrated unsupported rows доступны для просмотра и confirmed unassign. | Legacy diagnostics мигрируют losslessly, не превращаются в успешный self-reg/resistive результат и не остаются stranded за полностью disabled вкладкой. |
 | PDL-ER-12 | Первый ЭР | `ЭР1` создаётся при первом readiness-gated переходе в электрический расчёт, а не вместе с пустым проектом. | Mutation повторно валидирует объекты под project lock и атомарно создаёт active `ЭР1` с assignments `unassigned`; при ошибке ЭР не создаётся. |
 | PDL-ER-13 | Copy specification | Готовая specification не копируется. Target ЭР получает состояние `not_generated` и требует явной generation. | Copy не переносит потенциально устаревший BOM/manual items и не запускает неявную генерацию. |
 | PDL-ER-14 | Atomicity multi-ЭР generation | Список выбранных ЭР обрабатывается одной транзакцией. Partial допускается только внутри каждого ЭР после явного подтверждения. | Internal failure откатывает весь список; исключённые objects возвращаются с IDs/error codes. |
@@ -51,8 +51,14 @@ PDL-ER-18…25 фиксируют восемь ответов **А**, явно �
 - PDL-ER-10 сильнее противоречащего PDF-предложения показать `Резистив` disabled:
   уже утверждённый и работающий резистивный расчёт нельзя отключать скрытой
   регрессией.
+- Disabled в PDL-ER-11 относится к выбору `skin/mineral` как target, а не к
+  доступности вкладки: migrated unsupported rows должны быть видимы и доступны
+  confirmed unassign.
 - PDL-ER-12 допускает 0 ЭР у проекта до успешного readiness initialization; после
   него проект всегда имеет 1…5 ЭР и ровно один active.
+- PDL-ER-13 относится и к UUID lifecycle copy, и к legacy calculation-copy:
+  target specification остаётся `not_generated`, а explicit запрос её
+  regeneration отклоняется fail-closed до mutation.
 - PDL-ER-15 блокирует только section/formula Phase 4 и зависимые от реальных
   секций BOM-фазы, но не DB/lifecycle/UUID/assignment infrastructure.
 - PDL-ER-18…25 закрывают выбор семантики источника и обработки данных, но не

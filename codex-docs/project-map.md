@@ -39,6 +39,7 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
 | `docs/` | SRS, QA, API, схема БД, playbooks |
 | `docs/tnp/cases/guest-specification/phase-1-checkpoint.md` | Candidate-evidence и переходные ограничения dynamic-ER Phase 1 |
 | `docs/tnp/cases/guest-specification/phase-2-checkpoint.md` | Frontend/consumer evidence dynamic-ER Phase 2 и границы UUID cutover |
+| `docs/tnp/cases/guest-specification/phase-3-checkpoint.md` | Authoritative assignment API/UI, scoped cleanup, races и verification status |
 | `e2e/tests/` | Playwright-сценарии по пользовательским потокам |
 
 ## Пользовательский поток
@@ -47,10 +48,17 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
 2. `WorkspacePage` ведёт в рабочий стол проекта.
 3. `HeatCalcPage` добавляет трубы/резервуары через встроенную SC-03 форму,
    импортирует Excel/CSV и пересчитывает теплопотери.
-4. `ElecCalcPage` управляет до пяти именованных UUID ЭР: создаёт, копирует,
-   переименовывает, активирует и удаляет их. Legacy calculation graph `1…4`
-   остаётся переходным; каждый consumer проверяет точную пару `UUID ↔ slot`, а
-   пятый ЭР показывает fail-closed state вместо данных другого варианта.
+4. `ElecCalcPage` управляет до пяти именованных UUID ЭР и распределяет объекты
+   выбранного ЭР в `Самрег` или `Резистив`; `Скин/Минеральный` доступны для
+   просмотра migrated unsupported rows и unassign, но disabled как target.
+   Assignment type/state независимы, mutation использует optimistic `version`,
+   а row/batch/inline/recalculation остаются strict-compatible с системой
+   назначения. `Выбор`/`Подбор` доступны для supported assignment даже без
+   сохранённого расчёта или при его несовместимом типе: модалка выбирает
+   безопасный тип системы (`resistive → single_core`) и не показывает типы
+   другой системы. Legacy graph `1…4` остаётся переходным; пятый ЭР
+   поддерживает assignments, но не подставляет расчётные данные другого
+   варианта.
 5. `SpecificationPage` показывает и редактирует спецификацию в рамках роли.
 6. `ReportPage` показывает HTML-превью и экспортирует отчёт для сотрудника.
 
@@ -64,11 +72,12 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
 | Гость видит только свои session projects; сотрудник видит user-owned проекты других сотрудников и не видит гостевые; админ видит все | `backend/app/services/project_service.py`, `backend/app/tests/integration/api/test_projects.py` |
 | Админ управляет пользователями, коэффициентами, внешней БД | `frontend/src/pages/admin/`, `backend/app/api/v1/admin.py` |
 | Dynamic-ER lifecycle/readiness: до 5 UUID ЭР, первый `ЭР1` readiness-gated | `backend/app/api/v1/electrical_variants.py`, `backend/app/services/electrical_variant_service.py` |
-| Assignment persistence: object × ЭР, type отдельно от state | `backend/app/models/electrical_variant.py`, `docs/db_schema.md` |
+| Authoritative assignment: object × ЭР, type отдельно от state, optimistic version и exact cleanup | `backend/app/services/electrical_assignment_service.py`, `backend/alembic/versions/0029_electrical_assignment_versions.py`, `docs/db_schema.md` |
 | Новые electrical/report tasks UUID-first v3; number `1…4` — deprecated adapter | `backend/app/services/task_service.py`, `backend/alembic/versions/0028_background_task_electrical_variant.py` |
-| Normal numeric writes и seeds readiness-gated; sparse slot 4 создаёт только `ЭР1 + ЭР4` | `backend/app/services/electrical_variant_service.py`, `backend/app/api/v1/calculations.py`, `backend/app/api/v1/specifications.py` |
-| Project duplicate: ready copy готовит `ЭР1`/UUID до batch, not-ready остаётся heat-only | `backend/app/api/v1/projects.py`, `backend/app/tests/integration/api/test_projects.py` |
-| Assignment state до Phase 3 не authoritative: legacy calculation UUID может сосуществовать с `unassigned/system_type=null` | `backend/app/models/electrical_variant.py`, `docs/architecture/dynamic-electrical-variants.md` |
+| Numeric compatibility writes readiness-gated; calculation/candidate flow дополнительно требует compatible assignment; sparse slot 4 создаёт только `ЭР1 + ЭР4` | `backend/app/services/electrical_variant_service.py`, `backend/app/services/electrical_assignment_service.py`, `backend/app/api/v1/calculations.py` |
+| Project duplicate: ready copy создаёт `ЭР1` и unassigned matrix без guessed electrical batch; not-ready остаётся heat-only | `backend/app/api/v1/projects.py`, `backend/app/tests/integration/api/test_projects.py` |
+| Calculation/candidate/folder/task writes требуют exact compatible assignment; state sync и specification stale ограничены UUID ЭР | `backend/app/services/electrical_assignment_service.py`, `backend/app/services/calculation_service.py`, `backend/app/services/task_service.py` |
+| Dirty unassigned graph требует `CLEANUP_REQUIRED` → UI confirmation → exact scoped cleanup с сохранением heat; copy не регенерирует spec | `backend/app/services/electrical_assignment_service.py`, `frontend/src/pages/electrical/ElectricalAssignmentPanel.tsx`, `docs/api.md` |
 | Task `Idempotency-Key`: namespace principal/type/project, binding full payload/ER, heat terminal lock, truthful replay audit, changed binding → 409 | `backend/app/services/task_service.py`, `docs/api.md` |
 | Candidate apply/delete используют общую project lock; проигранная гонка даёт stable 404/409 | `backend/app/services/calculation_service.py`, `backend/app/tests/integration/api/test_electrical_variants.py` |
 | Direct calculation/specification/report consumers передают UUID вместе с переходным number и получают 409 при несовпадении; report jobs UUID-only | `backend/app/services/electrical_variant_service.py`, `frontend/src/api/calculations.ts`, `frontend/src/api/specifications.ts`, `frontend/src/api/reports.ts` |
@@ -84,13 +93,13 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
 Перед изменением всё равно сверять конкретный контракт с текущим кодом и
 тестами.
 
-Dynamic-ER Phase 1 и Phase 2 имеют статус **PASS**: backend/DB foundation и
-frontend/consumer bridge завершены. Working DB Alembic current — `0028`;
-backend/DB gates, smoke, scale proof, focused frontend suites, typecheck и
-desktop/mobile UI proof прошли. Full frontend gate не green только из-за
-pre-existing missing accessible separator test. Dependency security gate и
-общий Alembic metadata drift также не green вне dynamic-ER diff. Phase 3/5
-pending, Phase 4 заблокирована PDL-ER-15/18 до официального числового
-section-каталога;
+Dynamic-ER Phase 1, Phase 2 и Phase 3 имеют статус **PASS**. Authoritative
+assignments проверены root backend/browser/DB gate. Schema head Phase 3 —
+`0029`; post-UI DB invariants — 28/28. Focused frontend Phase 3 —
+6 files / 95 tests PASS; full frontend — 1052 passed / 1 pre-existing failed,
+то есть не green только из-за
+missing accessible separator test. Dependency security gate и общий Alembic metadata drift также
+не green вне dynamic-ER diff. Phase 5 pending, Phase 4 заблокирована
+PDL-ER-15/18 до официального числового section-каталога;
 семантика обработки данных утверждена PDL-ER-18…25. Общий PDF/DoD и product
 release не завершены.

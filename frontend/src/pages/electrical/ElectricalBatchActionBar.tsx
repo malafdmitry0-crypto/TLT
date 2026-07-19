@@ -167,10 +167,11 @@ function ElectricalBatchActionBar({
             <Space direction="vertical" size={8}>
               <Text>
                 {manualCableCount > 0
-                  ? `Строки без ручной марки в «${variantName}» будут пересчитаны с типом `
-                  : `Все объекты в «${variantName}» будут пересчитаны с типом `}
-                «{CABLE_TYPE_LABEL[cableTypeForRecalculation]}». Тип кабеля у пересчитываемых
-                строк будет заменён.
+                  ? `Назначенные строки без ручной марки в «${variantName}» будут пересчитаны с типом `
+                  : `Назначенные объекты в «${variantName}» будут пересчитаны с типом `}
+                «{CABLE_TYPE_LABEL[cableTypeForRecalculation]}». Backend ограничит операцию
+                точным UUID ЭР и совместимой системой; нераспределённые и другие системы
+                останутся без изменений.
               </Text>
               {renderManualOverwriteControl(manualCableCount)}
             </Space>
