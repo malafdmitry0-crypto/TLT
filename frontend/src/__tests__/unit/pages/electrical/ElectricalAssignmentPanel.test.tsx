@@ -177,18 +177,51 @@ describe('ElectricalAssignmentPanel', () => {
     ]);
     expect(screen.getByRole('tab', { name: /Скин/iu })).toHaveAttribute('aria-disabled', 'false');
     expect(screen.getByRole('tab', { name: /Минеральный/iu })).toHaveAttribute('aria-disabled', 'false');
-    expect(screen.getByText(/Скин \/ Минеральный — только просмотр/iu))
+    expect(screen.getByText(/Перетащите строку таблицы на зону/iu))
       .toBeInTheDocument();
-    // Visible drop zones (not tab labels) for DnD assign
+    // Visible drop zones: on unassigned tab assign targets are live, unassign is not.
     expect(screen.getByTestId('assignment-drop-zones')).toBeInTheDocument();
-    expect(screen.getByTestId('assignment-drop-zone-self_regulating')).toBeInTheDocument();
-    expect(screen.getByTestId('assignment-drop-zone-resistive')).toBeInTheDocument();
-    expect(screen.getByTestId('assignment-drop-zone-unassigned')).toHaveAttribute('data-disabled', 'true');
+    expect(screen.getByTestId('assignment-drop-zone-self_regulating'))
+      .toHaveAttribute('data-disabled', 'false');
+    expect(screen.getByTestId('assignment-drop-zone-resistive'))
+      .toHaveAttribute('data-disabled', 'false');
+    expect(screen.getByTestId('assignment-drop-zone-unassigned'))
+      .toHaveAttribute('data-disabled', 'true');
     expect(screen.getByText('Трубопровод')).toBeInTheDocument();
     expect(apiMocks.list).toHaveBeenCalledWith('project-1', ER_ID, {
       view: 'unassigned',
       page: 1,
       page_size: 50,
+    });
+  });
+
+  it('HTML5 drop onto Самрег assigns the dragged unassigned object', async () => {
+    const { fireEvent } = await import('@testing-library/react');
+    renderPanel();
+    await screen.findByText('Трубопровод 101');
+
+    const zone = screen.getByTestId('assignment-drop-zone-self_regulating');
+    const payload = JSON.stringify(['object-1']);
+    const dataTransfer = {
+      getData: (type: string) => (
+        type === 'application/x-tlt-assignment-ids' || type === 'text/plain'
+          ? payload
+          : ''
+      ),
+      setData: vi.fn(),
+      effectAllowed: 'move',
+      dropEffect: 'move',
+      types: ['application/x-tlt-assignment-ids', 'text/plain'],
+    };
+
+    fireEvent.dragOver(zone, { dataTransfer });
+    fireEvent.drop(zone, { dataTransfer });
+
+    await waitFor(() => {
+      expect(apiMocks.assign).toHaveBeenCalledWith('project-1', ER_ID, {
+        system_type: 'self_regulating',
+        items: [{ object_id: 'object-1', expected_version: 3 }],
+      });
     });
   });
 
