@@ -32,8 +32,10 @@
 
 ## Actionable A pack (2026-07-19)
 
-See `actionable-a-progress.md`. Closed without external data:
-A1.1–A1.5, A1.7, A2.1 probe, A3 prep. A4 remaining partial.
+See `actionable-a-progress.md` and `actionable-close-remaining.md`.
+Closed without external data: A1.1–A1.5, A1.7, A2.1 probe, A3 prep,
+expanded e2e close pack, TTL expiry path, report no-mixing, perf-gate@50,
+alembic 0031 aligned, partial security bumps.
 
 ## Still open / external
 

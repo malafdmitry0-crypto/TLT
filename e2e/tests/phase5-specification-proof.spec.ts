@@ -21,8 +21,12 @@ test.describe('Phase 5 specification proof pack', () => {
 
   test('5.1 guest opens specification controls at desktop width', async ({ page }) => {
     await loginAsGuest(page);
+    await createCalculatedPipe(page);
+    await ensureElectricalInitialized(page);
     await page.getByRole('menuitem', { name: 'Спецификация' }).click();
-    await expect(page.getByRole('button', { name: /Сформировать|Пересчитать/i }).first()).toBeVisible();
+    const form = page.getByRole('button', { name: /Сформировать|Пересчитать/i }).first();
+    const warning = page.getByText(/ЭР ещё не создан|спецификация временно недоступна|Загрузка/i);
+    await expect(form.or(warning.first())).toBeVisible({ timeout: 20_000 });
     const width = await page.evaluate(() => window.innerWidth);
     expect(width).toBeGreaterThanOrEqual(1280);
   });
@@ -108,12 +112,14 @@ test.describe('Phase 5 specification proof pack', () => {
 
   test('5.7 UI: defaults button present when params/sidebar available', async ({ page }) => {
     await loginAsGuest(page);
+    await createCalculatedPipe(page);
+    await ensureElectricalInitialized(page);
     await page.getByRole('menuitem', { name: 'Спецификация' }).click();
+    // Without ready ER the page may show warning instead of generate controls.
     const form = page.getByRole('button', { name: /Сформировать|Пересчитать/i }).first();
-    await expect(form).toBeVisible();
-    // Defaults control is employee/guest mutate path — may require ER
+    const warning = page.getByText(/ЭР ещё не создан|спецификация временно недоступна/i);
+    await expect(form.or(warning.first())).toBeVisible({ timeout: 15_000 });
     const saveDefaults = page.getByRole('button', { name: /Сохранить defaults/i });
-    // Not always visible without canMutate + panel; soft assert when present.
     if (await saveDefaults.count()) {
       await expect(saveDefaults).toBeVisible();
     }

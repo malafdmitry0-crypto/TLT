@@ -11,11 +11,11 @@ pydantic-settings==2.5.2
 email-validator==2.2.0
 # Заменили python-jose (unmaintained, тянет за собой уязвимый pyasn1<0.5.0)
 # на PyJWT — активно поддерживается, без транзитивной уязвимости.
-pyjwt[crypto]==2.12.0
+pyjwt[crypto]==2.13.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 # Версия 0.0.27 закрывает актуальный pip-audit advisory GHSA-pp6c-gr5w-3c5g.
-python-multipart==0.0.27
+python-multipart==0.0.31
 python-docx==1.1.2
 openpyxl==3.1.5
 # CVE GHSA-983w-rhvv-gwmv — XSS в Floating Box. 68.0 совместим с pydyf>=0.11.
