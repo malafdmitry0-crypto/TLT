@@ -8,7 +8,7 @@
 |---|---|
 | Ветка | local `main` (Desktop TLT) |
 | HEAD (на момент записи) | local WIP UI-PDF quality redemption |
-| Обновлено | 2026-07-19 (quality redemption: prompt + UI craft) |
+| Обновлено | 2026-07-19 (elec chrome noise cut: params off, no double banner) |
 
 ## Правила оценки
 
@@ -97,7 +97,7 @@ Nсек-зависимый BOM по-прежнему **fail-closed** пока SE
 | ID | Что (PDF) | Статус |
 |---|---|---|
 | **UI-PDF-01** | Heat: 3 колонки (тепло / кабель / spec) + Пол disabled + **Далее** gate | **quality-fixed** — CSS grid heat/cable/spec + card columns |
-| **UI-PDF-02** | Elec: 4 summary cards Самрег/Резистив/Скин/Итого | **quality-fixed** — compact metric rows **над** таблицей, без double footer |
+| **UI-PDF-02** | Elec: 4 summary cards Самрег/Резистив/Скин/Итого | **quality-fixed** — cards над таблицей; yellow banner totals removed; params panel **default off** |
 | **UI-PDF-03** | Elec: DnD assign (+ кнопки) | **quality-fixed** — visible drop zones + drag handle (`@dnd-kit`), tabs = navigation only |
 | **UI-PDF-04** | Hierarchy object→sections (shell до SEEDS; full после) | **shell quality-fixed** — engineer copy, no SEEDS jargon; full after SEEDS-01 |
 | **UI-PDF-05** | Spec: Поставщик + Ед. поставки + код; разделы pipe/tank/common | **quality-fixed** — PDF columns (no «Категория» in section group) |

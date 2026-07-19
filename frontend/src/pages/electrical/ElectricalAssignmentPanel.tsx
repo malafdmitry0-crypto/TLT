@@ -555,11 +555,6 @@ export default function ElectricalAssignmentPanel({
         onDragCancel={() => setActiveDragId(null)}
       >
         <Space direction="vertical" size={8} style={{ width: '100%' }}>
-          <Typography.Text type="secondary">
-            Выберите объекты и назначьте систему кнопками или перетащите за ⋮⋮
-            на зону Самрег / Резистив. Назначение хранится отдельно для каждого ЭР.
-          </Typography.Text>
-
           {!canMutate && (
             <Alert
               type="info"
@@ -656,9 +651,8 @@ export default function ElectricalAssignmentPanel({
             </div>
           )}
 
-          <Typography.Text type="secondary" id="unsupported-electrical-systems-note">
-            Назначать в «Скин» и «Минеральный» нельзя — вкладки только для просмотра
-            legacy-назначений и возврата в нераспределённые.
+          <Typography.Text type="secondary" id="unsupported-electrical-systems-note" style={{ fontSize: 12 }}>
+            Скин / Минеральный — только просмотр и возврат в нераспределённые.
           </Typography.Text>
 
           <div

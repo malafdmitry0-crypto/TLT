@@ -567,10 +567,6 @@ export default function ElectricalVariantTabs({
           })}
         </div>
 
-        <Typography.Text className="electrical-variant-tabs__selection-summary">
-          Выбрано: {selected.name}. Активный ЭР: {controller.activeVariant?.name ?? 'не задан'}.
-        </Typography.Text>
-
         <Flex gap={8} wrap="wrap" className="electrical-variant-tabs__actions">
           <Tooltip title={reachedLimit ? 'В проекте уже создано 5 ЭР' : undefined}>
             <span>

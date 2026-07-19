@@ -1005,11 +1005,12 @@ describe('ElecCalcPage (integration)', () => {
     expect(screen.getByRole('button', { name: /Пересчитать выбранные \(0\)/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Пересчитать все · ЭР1/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Настройки' })).not.toBeDisabled();
-    expect(screen.getByRole('combobox', { name: 'Тип кабеля' })).toBeDisabled();
+    // Default: wide params panel off — compact controls in action bar.
+    expect(screen.getByRole('combobox', { name: 'Тип кабеля для пересчёта' })).toBeDisabled();
     expect(screen.getByLabelText('Напряжение питания')).toBeDisabled();
 
-    await user.click(screen.getByRole('checkbox', { name: 'Показать блок заполнения параметров' }));
-    expect(screen.getByRole('combobox', { name: 'Тип кабеля для пересчёта' })).toBeDisabled();
+    await user.click(screen.getByRole('checkbox', { name: 'Расширенные параметры' }));
+    expect(screen.getByRole('combobox', { name: 'Тип кабеля' })).toBeDisabled();
     expect(screen.getByLabelText('Напряжение питания')).toBeDisabled();
 
     await user.click(screen.getByText('Труба-1'));

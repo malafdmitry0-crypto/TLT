@@ -84,8 +84,8 @@ describe('ElectricalVariantTabs', () => {
       `electrical-variant-panel-${ER_2_ID}`,
     );
     expect(selectedTab).toHaveAttribute('title', ER_2.name);
-    expect(screen.getByText(/Выбрано: Альтернатива Ω/)).toBeInTheDocument();
-    expect(screen.getByText(/Активный ЭР: Рабочее решение/)).toBeInTheDocument();
+    // Selection summary line removed (tabs + «Активный» tag are enough).
+    expect(screen.queryByText(/Выбрано:/)).not.toBeInTheDocument();
   });
 
   it('supports keyboard tab navigation', () => {

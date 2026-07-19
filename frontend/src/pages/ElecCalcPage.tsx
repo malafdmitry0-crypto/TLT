@@ -406,10 +406,10 @@ function ElecCalcWorkspace({
     : 'builtin';
   const effectiveSource: CableSource = commercialFeaturesAvailable ? cableSource : 'builtin';
   const [overwriteManualChoices, setOverwriteManualChoices] = useState(false);
-  // Блок заполнения параметров (аналог SC-03); пока виден — компактные
-  // контролы в тулбаре скрываются, чтобы не дублировать одни и те же поля.
+  // Wide params panel optional (PDF page 35 has none). Default OFF — compact
+  // U/type controls live in the action bar. Explicit true in storage keeps open.
   const [paramsPanelVisible, setParamsPanelVisible] = useState<boolean>(
-    () => readStorageJson(ELECCALC_PARAMS_PANEL_STORAGE_KEY) !== false,
+    () => readStorageJson(ELECCALC_PARAMS_PANEL_STORAGE_KEY) === true,
   );
   const toggleParamsPanel = useCallback((visible: boolean) => {
     setParamsPanelVisible(visible);
@@ -1132,7 +1132,6 @@ function ElecCalcWorkspace({
     totalCurrent,
     manualCableCount,
     selectedManualCableCount,
-    bannerStats,
     isJobActive,
     selectedRecalcDisabled,
     selectedRecalcTooltip,
@@ -1199,11 +1198,6 @@ function ElecCalcWorkspace({
     () => electricalErrorGuidanceForItem(activeElectricalErrorItem),
     [activeElectricalErrorItem],
   );
-  const bannerCableTypeLabel = cableTypes.selectedCableTypesMixed
-    ? 'смешанные типы'
-    : cableTypes.selectedCableType
-      ? CABLE_TYPE_LABEL[cableTypes.selectedCableType]
-      : 'тип по объектам';
   const cableTypeControlLabel = 'Тип для пересчёта:';
   const {
     getElectricalCandidateGlideCellActions,
@@ -1376,21 +1370,24 @@ function ElecCalcWorkspace({
       <div id="electrical-variant-workspace" ref={tableScrollRegionsRef}>
         <Space direction="vertical" size={5} style={{ width: '100%' }}>
 
-        {/* Summary banner */}
+        {/* Slim chrome: no double totals (summary cards below). Params panel off by default. */}
         <div
-          className="common-data-banner"
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
+          className="elec-workspace-chrome"
+          data-testid="elec-workspace-chrome"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 8,
+            minHeight: 28,
+          }}
         >
-          <span>
-            <span className="label">{electricalVariantName} · {bannerCableTypeLabel} · </span>
-            {bannerStats}
-          </span>
           <Checkbox
             className="actionbar-form-toggle"
             checked={paramsPanelVisible}
             onChange={(event) => toggleParamsPanel(event.target.checked)}
           >
-            Показать блок заполнения параметров
+            Расширенные параметры
           </Checkbox>
         </div>
 

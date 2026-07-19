@@ -75,7 +75,12 @@ describe('elecCalcMainTableModel', () => {
     expect(CABLE_TYPE_LABEL.single_core).toBe('Однож. пост. мощн.');
     expect(objectDisplayName(projectObject())).toBe('Труба DN100');
     expect(objectDisplayName(projectObject({ params: {}, object_type: 'tank', id: 'tank-1' })))
-      .toBe('tank tank-1');
+      .toBe('Ёмкость tank-1');
+    expect(objectDisplayName(projectObject({
+      params: { outer_diameter: 0.108 },
+      object_type: 'pipe',
+      id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    }))).toBe('Трубопровод Ø108 мм');
   });
 
   it('maps cable snapshot status labels and tooltips', () => {

@@ -80,7 +80,19 @@ export type MainElectricalColumnCopyContext = {
 };
 
 export function objectDisplayName(obj: ProjectObject) {
-  return String(obj.params?.name ?? `${obj.object_type} ${obj.id}`);
+  const named = obj.params?.name;
+  if (typeof named === 'string' && named.trim()) return named.trim();
+
+  const params = (obj.params ?? {}) as Record<string, unknown>;
+  const objectType = obj.object_type === 'tank' ? 'Ёмкость' : 'Трубопровод';
+  const diameterM = Number(params.outer_diameter ?? params.diameter);
+  if (Number.isFinite(diameterM) && diameterM > 0) {
+    const mm = diameterM >= 10 ? diameterM : diameterM * 1000;
+    return `${objectType} Ø${Math.round(mm)} мм`;
+  }
+  // Last resort: short id, not full UUID noise in tables.
+  const shortId = String(obj.id).slice(0, 8);
+  return `${objectType} ${shortId}`;
 }
 
 export function cableSnapshotStatusTag(calc: ElectricalCalcSummary | undefined): CableSnapshotStatusTag | null {

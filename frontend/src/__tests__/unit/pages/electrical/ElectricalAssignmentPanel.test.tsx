@@ -177,7 +177,7 @@ describe('ElectricalAssignmentPanel', () => {
     ]);
     expect(screen.getByRole('tab', { name: /Скин/iu })).toHaveAttribute('aria-disabled', 'false');
     expect(screen.getByRole('tab', { name: /Минеральный/iu })).toHaveAttribute('aria-disabled', 'false');
-    expect(screen.getByText(/назначать в «Скин» и «Минеральный» нельзя/iu))
+    expect(screen.getByText(/Скин \/ Минеральный — только просмотр/iu))
       .toBeInTheDocument();
     // Visible drop zones (not tab labels) for DnD assign
     expect(screen.getByTestId('assignment-drop-zones')).toBeInTheDocument();
