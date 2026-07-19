@@ -19,11 +19,11 @@ specification `not_generated` по PDL-ER-13. Row/batch/inline compatibility
 остаётся строгой, но fresh supported resistive assignment открывает
 `Выбор`/`Подбор` с безопасным `single_core`, а не наследует self-reg default.
 Phase 5 checkpoint (`phase-5-checkpoint.md`): guest full BOM, multi-ЭР generate,
-d≥57, guest TTL 3d defaults, CSV v3, report UUID-first — **partial PASS**.
-Product contract расширен и утверждён до PDL-ER-41; PDL-ER-29…41 ещё не
-доказаны реализацией/evidence. Phase 4 blocked PDL-ER-15/18/28. PDL-ER-27
-(500 objects), PDL-ER-35 (`Ex/Rгр` data), PDL-ER-32 methods beyond partial и
-ER5 write cutover остаются implementation/data gates.
+d≥57, guest TTL 3d defaults, CSV v3, report UUID-first, settings snapshots,
+catalog identity, PDF mapping, ER5 slots 1…5, actionable A evidence pack —
+**partial PASS**. Product contract утверждён до PDL-ER-41. Phase 4 blocked
+PDL-ER-15/18/28. Остаются: PDL-ER-27 full 500 wall-clock gate, PDL-ER-35
+matrix **data**, Phase 6 UUID-only cutover execute, corporate template (40).
 Full frontend gate Phase 3: `1052 passed, 1 failed`; неизменённый
 `HeatCalcPage.settings.test.tsx:321` не находит accessible separator. Это
 pre-existing дефект вне dynamic-ER Phase 3 и blocker общего release.

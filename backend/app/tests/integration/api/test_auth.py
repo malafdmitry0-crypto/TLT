@@ -98,6 +98,65 @@ class TestGuestAuth:
             await db_session.execute(select(Project).where(Project.session_id == session_id))
         ).scalars().all() == []
 
+    async def test_cleanup_respects_configured_three_day_ttl_default(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
+        """A1.5 / PDL-ER-26: product default TTL is 3 days; short idle must not expire."""
+        from app.core.config import settings
+
+        assert settings.GUEST_SESSION_TTL_MINUTES == 4320  # 3 days
+
+        session_id = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+        session = (
+            await db_session.execute(
+                select(GuestSession).where(GuestSession.session_id == session_id)
+            )
+        ).scalar_one()
+        # Idle 1 day — still within 3-day TTL
+        session.last_activity = datetime.now(UTC) - timedelta(days=1)
+        await db_session.commit()
+
+        service = AuthService(db_session)
+        deleted = await service.cleanup_expired_guest_sessions(
+            ttl_minutes=settings.GUEST_SESSION_TTL_MINUTES
+        )
+        # May delete other fixtures, but this session must remain.
+        still = (
+            await db_session.execute(
+                select(GuestSession).where(GuestSession.session_id == session_id)
+            )
+        ).scalar_one_or_none()
+        assert still is not None
+        assert deleted >= 0
+
+    async def test_cleanup_with_product_ttl_removes_session_older_than_three_days(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
+        """A1.5: sessions older than configured TTL are removed with cascade."""
+        from app.core.config import settings
+
+        session_id = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+        session = (
+            await db_session.execute(
+                select(GuestSession).where(GuestSession.session_id == session_id)
+            )
+        ).scalar_one()
+        session.last_activity = datetime.now(UTC) - timedelta(
+            minutes=settings.GUEST_SESSION_TTL_MINUTES + 60
+        )
+        await db_session.commit()
+
+        service = AuthService(db_session)
+        deleted = await service.cleanup_expired_guest_sessions(
+            ttl_minutes=settings.GUEST_SESSION_TTL_MINUTES
+        )
+        assert deleted >= 1
+        assert (
+            await db_session.execute(
+                select(GuestSession).where(GuestSession.session_id == session_id)
+            )
+        ).scalar_one_or_none() is None
+
     async def test_cleanup_keeps_fresh_session(self, client: AsyncClient, db_session: AsyncSession):
         """Свежая сессия не трогается при cleanup."""
         session_id = (await client.post("/api/v1/auth/guest")).json()["session_id"]

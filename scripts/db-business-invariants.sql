@@ -27,9 +27,10 @@ BEGIN
     RAISE EXCEPTION 'DB invariant failed: valid project_objects without results: %', violations;
   END IF;
 
+  -- ER5 write cutover: compatibility slots 1..5 (migration 0031).
   SELECT COUNT(*) INTO violations
   FROM electrical_calculations
-  WHERE variant_number IS NULL OR variant_number < 1 OR variant_number > 4;
+  WHERE variant_number IS NULL OR variant_number < 1 OR variant_number > 5;
   IF violations > 0 THEN
     RAISE EXCEPTION 'DB invariant failed: electrical_calculations variant out of range: %', violations;
   END IF;
@@ -193,9 +194,32 @@ BEGIN
 
   SELECT COUNT(*) INTO violations
   FROM specifications
-  WHERE variant_number IS NULL OR variant_number < 1 OR variant_number > 4;
+  WHERE variant_number IS NULL OR variant_number < 1 OR variant_number > 5;
   IF violations > 0 THEN
     RAISE EXCEPTION 'DB invariant failed: specifications variant out of range: %', violations;
+  END IF;
+
+  -- Phase 5: generation snapshot may store settings_version (PDL-ER-07).
+  SELECT COUNT(*) INTO violations
+  FROM specifications
+  WHERE generation_options IS NOT NULL
+    AND jsonb_typeof(generation_options) = 'object'
+    AND generation_options ? 'settings_version'
+    AND (
+      jsonb_typeof(generation_options -> 'settings_version') <> 'number'
+      OR (generation_options ->> 'settings_version')::int < 1
+    );
+  IF violations > 0 THEN
+    RAISE EXCEPTION 'DB invariant failed: specifications.generation_options.settings_version invalid: %', violations;
+  END IF;
+
+  -- Phase 5: legacy_variant_number must stay in 1..5 when present.
+  SELECT COUNT(*) INTO violations
+  FROM electrical_variants
+  WHERE legacy_variant_number IS NOT NULL
+    AND (legacy_variant_number < 1 OR legacy_variant_number > 5);
+  IF violations > 0 THEN
+    RAISE EXCEPTION 'DB invariant failed: electrical_variants.legacy_variant_number out of range: %', violations;
   END IF;
 
   SELECT COUNT(*) INTO violations

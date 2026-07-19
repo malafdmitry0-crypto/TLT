@@ -30,15 +30,22 @@
 | PDL-ER-41 guest manual import reject | PASS | |
 | **ER5 write cutover (slots 1…5)** | **PASS** | migration 0031 + `_LEGACY_VARIANT_NUMBERS=1..5` |
 
+## Actionable A pack (2026-07-19)
+
+See `actionable-a-progress.md`. Closed without external data:
+A1.1–A1.5, A1.7, A2.1 probe, A3 prep. A4 remaining partial.
+
 ## Still open / external
 
 | Item | Status | Notes |
 |---|---|---|
 | PDL-ER-35 official matrix **data artifact** | EXTERNAL | code registry ready; needs source rows |
-| PDL-ER-27 50→500 perf gate | PARTIAL | limit stays 50; probe + skipped 500 gate test |
+| PDL-ER-27 50→500 **full** wall-clock gate | PARTIAL | limit stays 50; probe script + unit probe |
 | Phase 4 sections | BLOCKED | see phase-4-checkpoint.md |
+| Phase 6 UUID-only execute | PREP ONLY | `docs/architecture/phase-6-uuid-cutover-prep.md` |
 | PDL-ER-40 corporate template | OUT OF SCOPE | functional print ok |
-| Full Playwright 1–17 pack | PARTIAL | `phase5-specification-proof.spec.ts` added |
+| Full Playwright matrix beyond proof pack | PARTIAL | expanded `phase5-specification-proof.spec.ts` |
+| A4 release hygiene | PARTIAL | HeatCalc settings fail / security drift outside ER slice |
 
 ## Commits (local main, no push)
 

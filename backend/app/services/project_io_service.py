@@ -47,7 +47,8 @@ SUPPORTED_SCHEMA_VERSIONS = {LEGACY_SCHEMA_VERSION, SCHEMA_VERSION}
 DELIMITER = ";"  # экспорт всегда `;`; импорт определяет сам
 VALID_CABLE_TYPE_SOURCES = {"auto", "manual", "bulk"}
 VALID_CABLE_MARK_SOURCES = {"auto", "manual"}
-LEGACY_VARIANT_NUMBERS = range(1, 5)
+# ER5 write cutover: CSV/import legacy slots align with DB 1..5.
+LEGACY_VARIANT_NUMBERS = range(1, 6)
 SECTIONS_NOT_READY_CODE = "ELECTRICAL_SECTIONS_NOT_READY"
 VALID_ASSIGNMENT_SYSTEM_TYPES = {
     "self_regulating",
@@ -624,7 +625,7 @@ def _legacy_variant_number(row: dict[str, str], *, section: str) -> int:
         ) from exc
     if variant_number not in LEGACY_VARIANT_NUMBERS:
         raise ProjectImportError(
-            f"variant_number в секции {section} должен быть в диапазоне 1..4: "
+            f"variant_number в секции {section} должен быть в диапазоне 1..5: "
             f"получено {variant_number}"
         )
     return variant_number
@@ -944,7 +945,7 @@ async def _create_imported_variants_v3(
                 ) from exc
             if legacy_number not in LEGACY_VARIANT_NUMBERS:
                 raise ProjectImportError(
-                    f"legacy_variant_number должен быть 1..4 или пустым: {legacy_number}"
+                    f"legacy_variant_number должен быть 1..5 или пустым: {legacy_number}"
                 )
 
         try:
