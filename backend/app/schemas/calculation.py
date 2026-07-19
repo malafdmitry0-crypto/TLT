@@ -115,7 +115,7 @@ class InsulationLayer(BaseModel):
     conductivity: float | None = Field(
         default=None,
         gt=0,
-        le=400.0,
+        le=500.0,
         description="λ слоя, Вт/(м·К) — используется только для материала 'other'",
     )
     temperature_range: tuple[float, float] | None = Field(
@@ -170,7 +170,7 @@ class PipeHeatLossParams(BaseModel):
     pipe_lambda: float | None = Field(
         default=None,
         gt=0,
-        le=400,
+        le=500,
         description="lambda_tp — ручное задание теплопроводности трубы, Вт/(м·К)",
     )
 
@@ -405,7 +405,7 @@ class TankHeatLossParams(BaseModel):
     wall_lambda: float | None = Field(
         default=None,
         gt=0,
-        le=400,
+        le=500,
         description="λ_р — теплопроводность стенки резервуара, Вт/(м·К)",
     )
     burial_depth: float | None = Field(
@@ -592,6 +592,10 @@ class SelfRegulatingResult(BaseModel):
     winding_pitch: float
     winding_coefficient: float
     num_circuits: int
+    # PDL-ER-33: explicit catalog identity fields (no mark prefix inference).
+    cable_model: str | None = None
+    temperature_group: Literal["low", "high"] = "low"
+    series: str | None = "ТЛТ"
     requested_number_of_threads: int | None = None
     applied_number_of_threads: int
     number_of_threads_source: Literal["manual", "auto", "default", "previous_result"] = "auto"
@@ -659,6 +663,9 @@ class SelfRegulatingTTResult(BaseModel):
     selected_cable: str
     cable_mark: str
     series: str
+    # PDL-ER-33: explicit fields for BOM temperature-group routing.
+    cable_model: str | None = None
+    temperature_group: Literal["low", "high"] | None = None
     cable_length: float
     installed_cable_length: float
     order_cable_length: float
@@ -983,7 +990,7 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
     object_id: UUID
     cable_mark: str | None = None
     cable_source: ElectricalCableSource = "builtin"
-    variant_numbers: list[int] = Field(default_factory=lambda: [1], min_length=1, max_length=4)
+    variant_numbers: list[int] = Field(default_factory=lambda: [1], min_length=1, max_length=5)
     electrical_variant_ids: dict[int, UUID] = Field(default_factory=dict)
     cable_type: ElectricalCableType = "self_regulating"
     selection_mode: Literal["auto", "manual"] | None = None
@@ -1002,9 +1009,9 @@ class ElectricalCableSelectionVariantsRequest(BaseModel):
     @model_validator(mode="after")
     def normalize_variants_and_mark(self) -> "ElectricalCableSelectionVariantsRequest":
         normalized_variants = list(dict.fromkeys(int(value) for value in self.variant_numbers))
-        invalid = [value for value in normalized_variants if value < 1 or value > 4]
+        invalid = [value for value in normalized_variants if value < 1 or value > 5]
         if invalid:
-            raise ValueError("variant_numbers должны быть от 1 до 4")
+            raise ValueError("variant_numbers должны быть от 1 до 5")
         if not normalized_variants:
             raise ValueError("Нужно выбрать хотя бы одно СО")
         self.variant_numbers = normalized_variants
@@ -1045,7 +1052,7 @@ class ElectricalCandidateCreateRequest(BaseModel):
 
     project_id: UUID
     object_id: UUID
-    variant_number: int = Field(default=1, ge=1, le=4)
+    variant_number: int = Field(default=1, ge=1, le=5)
     electrical_variant_id: UUID | None = None
     cable_type: ElectricalCableType = "self_regulating"
     cable_source: ElectricalCableSource = "builtin"
@@ -1124,7 +1131,7 @@ class ElectricalCandidateFolderCreateRequest(BaseModel):
 
     project_id: UUID
     object_id: UUID
-    variant_number: int = Field(default=1, ge=1, le=4)
+    variant_number: int = Field(default=1, ge=1, le=5)
     electrical_variant_id: UUID | None = None
     name: str = Field(min_length=1, max_length=64)
     color: str | None = Field(default=None, max_length=32)
@@ -1269,8 +1276,8 @@ class CopyElectricalVariantRequest(BaseModel):
     """Legacy-запрос копирования расчётов и назначений одного ЭР в другой."""
 
     project_id: UUID
-    source_variant_number: int = Field(ge=1, le=4)
-    target_variant_number: int = Field(ge=1, le=4)
+    source_variant_number: int = Field(ge=1, le=5)
+    target_variant_number: int = Field(ge=1, le=5)
     overwrite: bool = False
     regenerate_specification: bool = False
 
@@ -1309,7 +1316,7 @@ class ElectricalBatchJobRequest(BaseModel):
     object_ids: list[UUID] | None = Field(default=None, min_length=1)
     cable_source: str = "builtin"
     electrical_variant_id: UUID | None = None
-    variant_number: int | None = Field(default=1, ge=1, le=4, deprecated=True)
+    variant_number: int | None = Field(default=1, ge=1, le=5, deprecated=True)
     cable_type: ElectricalCableType = "self_regulating"
     selection_policy: SelectionPolicy = "technical_minimum"
     object_overrides: list[ElectricalObjectBatchOverride] | None = None

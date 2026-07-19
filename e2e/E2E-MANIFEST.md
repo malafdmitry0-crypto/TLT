@@ -13,7 +13,7 @@
 **Числа тестовой базы** (автоген `scripts/sync-docs.py` — не править руками; цифры
 считаются по `def test_` / `it(` / `test(`, без учёта `parametrize`-размножения):
 <!-- AUTO:test-counts -->
-**1434 backend** (996 unit + 438 integration) ✅ · **1048 frontend vitest** ✅ · **103 e2e Playwright** ✅
+**1446 backend** (1005 unit + 441 integration) ✅ · **1048 frontend vitest** ✅ · **106 e2e Playwright** ✅
 <!-- /AUTO -->
 Самопроверку фактических утверждений манифеста (хелперы/файлы §6/карта спеков)
 держит §11.
@@ -429,7 +429,8 @@ boundary-тестами):
 `inline-form-dependencies` · `elec-calculation` ·
 `electrical-candidate-selection` · `electrical-candidate-glide-default` ·
 `cable-business-flows` · `cable-source-labels` ·
-`electrical-clickthrough.manual` (@manual) · `specification` · `reports` ·
+`electrical-clickthrough.manual` (@manual) · `specification` ·
+`phase5-specification-proof` · `reports` ·
 `project-csv` · `project-interaction` · `admin` · `admin-formulas-sandbox` ·
 `accessibility` (a11y-gate) · `layout-regression` (адаптив DOM-аудит) ·
 `visual-regression` (скриншоты).

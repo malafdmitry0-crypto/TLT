@@ -14,7 +14,8 @@ services:
       # Высокий лимит для dev/E2E — продакшен оставляет дефолт 10
       GUEST_MAX_SESSIONS_PER_IP: "500"
       LOGIN_MAX_ATTEMPTS_PER_IP: "500"
-      GUEST_MAX_OBJECTS_PER_PROJECT: "500"
+      # PDL-ER-27: keep 50 rollout guard until full 500-object perf gate is green.
+      GUEST_MAX_OBJECTS_PER_PROJECT: "50"
 
   worker:
     build:
@@ -30,7 +31,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       WORKER_QUEUE_CONSUMER: worker-dev
       GUEST_MAX_SESSIONS_PER_IP: "500"
-      GUEST_MAX_OBJECTS_PER_PROJECT: "500"
+      # PDL-ER-27: keep 50 rollout guard until full 500-object perf gate is green.
+      GUEST_MAX_OBJECTS_PER_PROJECT: "50"
 
   frontend:
     build:

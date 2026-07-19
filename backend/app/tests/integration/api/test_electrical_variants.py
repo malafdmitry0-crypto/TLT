@@ -1723,12 +1723,13 @@ class TestElectricalVariantCopy:
         await db_session.refresh(copied_variant)
         assert copied_variant.copied_from_id is None
 
-    async def test_fifth_graph_copy_fails_atomically_until_uuid_cutover(
+    async def test_fifth_graph_copy_uses_legacy_slot_five_after_cutover(
         self,
         client: AsyncClient,
         guest_session: str,
         db_session: AsyncSession,
     ):
+        """ER5 write cutover: fifth ER gets legacy slot 5 and can copy graph rows."""
         project = await _guest_project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
         obj = await _add_ready_pipe(client, project["id"], headers)
@@ -1758,14 +1759,24 @@ class TestElectricalVariantCopy:
             json={"name": "ЭР5"},
             headers={**headers, "Idempotency-Key": "fifth-copy"},
         )
-        assert response.status_code == 409
-        assert response.json()["detail"]["code"] == "ELECTRICAL_VARIANT_COPY_REQUIRES_UUID_CUTOVER"
+        assert response.status_code == 201, response.text
+        body = response.json()
+        assert body["legacy_variant_number"] == 5
         count = await db_session.scalar(
             select(func.count())
             .select_from(ElectricalVariant)
             .where(ElectricalVariant.project_id == UUID(project["id"]))
         )
-        assert count == 4
+        assert count == 5
+        copied_calcs = await db_session.scalar(
+            select(func.count())
+            .select_from(ElectricalCalculation)
+            .where(
+                ElectricalCalculation.project_id == UUID(project["id"]),
+                ElectricalCalculation.electrical_variant_id == UUID(body["id"]),
+            )
+        )
+        assert copied_calcs == 1
 
     async def test_copy_idempotency_returns_same_target_and_rejects_key_reuse(
         self,

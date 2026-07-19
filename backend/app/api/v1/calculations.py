@@ -447,7 +447,7 @@ async def copy_electrical_variant(
 async def list_electrical_candidates(
     project_id: UUID,
     object_id: UUID | None = None,
-    variant_number: int | None = Query(default=None, ge=1, le=4),
+    variant_number: int | None = Query(default=None, ge=1, le=5),
     electrical_variant_id: UUID | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
@@ -589,7 +589,7 @@ async def update_electrical_candidate(
 async def list_electrical_candidate_folders(
     project_id: UUID,
     object_id: UUID,
-    variant_number: int = Query(default=1, ge=1, le=4),
+    variant_number: int = Query(default=1, ge=1, le=5),
     electrical_variant_id: UUID | None = None,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),

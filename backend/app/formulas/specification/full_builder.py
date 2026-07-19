@@ -34,6 +34,17 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.electrical_result_status import is_successful_electrical_result
+from app.formulas.specification.catalog_identity import (
+    cable_identity_from_result,
+    resolve_accessory_rule,
+    temperature_group_from_result,
+)
+from app.formulas.specification.source_mapping import (
+    box_ex_rgr_matrix_meta,
+    box_ex_rgr_matrix_registered,
+    is_rule_approved,
+    rule_exclusion,
+)
 from app.reference_data.loader import list_spec_accessory_rules
 from app.schemas.specification import SpecificationItem, SpecificationOptions
 
@@ -43,12 +54,6 @@ PI = math.pi
 # Отсутствие cable_type (legacy-результаты) трактуем как саморег.
 _SELF_REGULATING_TYPES = {"self_regulating", "self_regulating_tt"}
 _RESISTIVE_TYPES = {"single_core", "three_core", "resistive"}
-
-# PDL-ER-35: official per-row Ex/Rгр box condition matrix.
-# Until a source/version artifact is registered, the matrix stays empty and
-# box-dependent quantities fail closed (no silent XLSX defaults).
-BOX_EX_RGR_MATRIX: dict[str, Any] | None = None
-BOX_EX_RGR_MATRIX_SOURCE: dict[str, Any] | None = None
 
 # Rules that require the official Ex/Rгр matrix (box SKUs + derived hardware).
 _BOX_MATRIX_RULES = frozenset(
@@ -70,7 +75,6 @@ _BOX_MATRIX_RULES = frozenset(
         "sealant_silicone",
         "z_profile",
         "label_grounding",
-        # Cable entries depend on Ex condition of box assembly context.
         "cable_entry_plastic",
         "cable_entry_armored",
         "cable_entry_under_insulation",
@@ -79,8 +83,8 @@ _BOX_MATRIX_RULES = frozenset(
 
 
 def box_ex_rgr_matrix_available() -> bool:
-    """True only when an official per-row Ex/Rгр matrix is registered."""
-    return BOX_EX_RGR_MATRIX is not None and len(BOX_EX_RGR_MATRIX) > 0
+    """True only when an official per-row Ex/Rгр matrix is registered (PDL-ER-35)."""
+    return box_ex_rgr_matrix_registered()
 
 
 def _is_successful(result: dict[str, Any]) -> bool:
@@ -149,12 +153,10 @@ def _num(value: Any, default: float = 0.0) -> float:
         return default
 
 
-def _temp_class(mark: str) -> str:
-    """Низкотемпературный (ТТН, ТЛТ) или высокотемпературный (ТТВ/ТТХ) класс."""
-    upper = (mark or "").upper()
-    if "ТТВ" in upper or "ТТХ" in upper:
-        return "high"
-    return "low"
+def _temp_class_from_result(result: dict[str, Any], mark: str) -> str | None:
+    """PDL-ER-33: temperature group from explicit fields only (no mark prefix)."""
+    del mark  # mark string is not an identity oracle
+    return temperature_group_from_result(result)
 
 
 def _box_bucket(*, d_large: bool, n_ge3: bool, k1i: bool, k2i_active: bool, kiu: bool) -> str:
@@ -232,9 +234,10 @@ def build_full_specification_detailed(
                     "зарегистрирована (PDL-ER-35). Зависимые коробки и "
                     "box-derived позиции fail-closed."
                 ),
-                "source": BOX_EX_RGR_MATRIX_SOURCE,
+                "matrix": box_ex_rgr_matrix_meta(),
             }
         )
+    missing_temp_objects: list[str] = []
 
     # --- Аккумуляторы ---
     cable_by_mark: dict[str, float] = defaultdict(float)
@@ -261,7 +264,10 @@ def build_full_specification_detailed(
             continue
         contributing_ids.append(obj_id)
 
-        mark = str(result.get("cable_mark") or result.get("selected_cable"))
+        identity = cable_identity_from_result(result)
+        if identity is None:
+            continue
+        mark = str(identity["mark"])
         n_sec = max(1, int(round(_num(result.get("num_circuits"), 1) or 1)))
         section_total = _num(
             result.get("installed_cable_length") or result.get("cable_length")
@@ -270,7 +276,7 @@ def build_full_specification_detailed(
         obj_type = _object_type(obj)
         d_mm = _num(obj.get("outer_diameter")) * 1000.0
         l_tr = _num(obj.get("pipe_length"))
-        tclass = _temp_class(mark)
+        tclass = _temp_class_from_result(result, mark)
         section_length = section_total / n_sec if n_sec else section_total
 
         cable_qty = _order_cable_qty(result, section_total)
@@ -278,6 +284,7 @@ def build_full_specification_detailed(
         cable_meta.setdefault(
             mark,
             {
+                **identity,
                 "temp_class": tclass,
                 "cable_type": _cable_type(result) or "self_regulating",
             },
@@ -291,6 +298,10 @@ def build_full_specification_detailed(
             tank_accessory_excluded.append(obj_id)
             continue
         if not is_self_regulating_result(result):
+            continue
+        if tclass is None:
+            # Cannot allocate kits without explicit temperature group (PDL-ER-33).
+            missing_temp_objects.append(obj_id)
             continue
 
         k2i_active = (
@@ -352,6 +363,18 @@ def build_full_specification_detailed(
                     "кабель; self-reg accessories не применяются (PDL-ER-32)."
                 ),
                 "object_ids": list(dict.fromkeys(resistive_accessory_excluded)),
+            }
+        )
+    if missing_temp_objects:
+        excluded_groups.append(
+            {
+                "group": "temperature_group",
+                "error_code": "CATALOG_TEMPERATURE_GROUP_MISSING",
+                "message": (
+                    "temperature_group не задан явным catalog/snapshot полем; "
+                    "комплекты/ленты не распределены (PDL-ER-33)."
+                ),
+                "object_ids": list(dict.fromkeys(missing_temp_objects)),
             }
         )
 
@@ -423,58 +446,94 @@ def build_full_specification_detailed(
 
     items: list[SpecificationItem] = []
 
-    for mark, qty in sorted(cable_by_mark.items()):
-        if qty <= 0:
-            continue
-        meta = cable_meta.get(mark, {})
-        items.append(
-            SpecificationItem(
-                category="Кабель",
-                name=f"Греющий кабель {mark}",
-                article=mark,
-                unit="м",
-                quantity=round(qty, 2),
-                params={
-                    "temp_class": meta.get("temp_class"),
-                    "catalog_base": "heating_cable",
-                    "cable_type": meta.get("cable_type"),
-                    "bom_section": "common",
-                },
+    if is_rule_approved("heating_cable_order_length"):
+        for mark, qty in sorted(cable_by_mark.items()):
+            if qty <= 0:
+                continue
+            meta = cable_meta.get(mark, {})
+            items.append(
+                SpecificationItem(
+                    category="Кабель",
+                    name=f"Греющий кабель {mark}",
+                    article=str(meta.get("nomenclature_code") or mark),
+                    unit="м",
+                    quantity=round(qty, 2),
+                    params={
+                        "mark": mark,
+                        "nomenclature_code": meta.get("nomenclature_code") or mark,
+                        "temperature_group": meta.get("temperature_group") or meta.get("temp_class"),
+                        "temp_class": meta.get("temp_class"),
+                        "catalog_base": "heating_cable",
+                        "cable_type": meta.get("cable_type"),
+                        "catalog_source": meta.get("catalog_source"),
+                        "catalog_version": meta.get("catalog_version"),
+                        "bom_section": "common",
+                    },
+                )
             )
-        )
 
+    identity_excluded: list[str] = []
     for rule in list_spec_accessory_rules():
-        rule_key = rule["rule"]
-        if rule_key in _BOX_MATRIX_RULES and not matrix_ok:
+        rule_key = str(rule["rule"])
+        # PDL-ER-34: only PDF-approved rules; PDL-ER-35 gates box matrix rules.
+        if not is_rule_approved(rule_key):
+            excl = rule_exclusion(rule_key)
+            # Aggregate matrix missing once; other exclusions listed per group.
+            if (
+                excl
+                and excl.get("error_code") != "BOX_EX_RGR_MATRIX_MISSING"
+                and excl.get("error_code")
+                not in {g.get("error_code") for g in excluded_groups}
+            ):
+                excluded_groups.append(excl)
+            continue
+        resolved, err = resolve_accessory_rule(rule_key)
+        if resolved is None:
+            identity_excluded.append(rule_key)
+            excluded_groups.append(
+                {
+                    "group": rule_key,
+                    "error_code": err or "CATALOG_IDENTITY_INCOMPLETE",
+                    "message": (
+                        f"Позиция «{rule_key}» без явных mark/nomenclature_code "
+                        "(PDL-ER-33)."
+                    ),
+                }
+            )
             continue
         value = rule_values.get(rule_key, 0.0)
         if value is None or value <= 0:
             continue
-        package_factor = rule.get("package_factor")
+        package_factor = resolved.get("package_factor")
         if package_factor:
             value *= float(package_factor)
-        unit = rule.get("unit", "шт.")
+        unit = resolved.get("unit", "шт.")
         quantity = round(value, 2) if unit == "м" else _ceil(value)
         params: dict[str, Any] = {
             "bom_section": "common",
-            "catalog_base": rule.get("rule") or rule.get("name"),
+            "mark": resolved.get("mark"),
+            "nomenclature_code": resolved.get("nomenclature_code"),
+            "temperature_group": resolved.get("temperature_group"),
+            "catalog_base": resolved.get("catalog_base"),
+            "catalog_source": resolved.get("catalog_source"),
+            "catalog_version": resolved.get("catalog_version"),
+            "code": resolved.get("nomenclature_code"),
         }
         if package_factor:
             params["package_factor"] = package_factor
-        if rule.get("mass_kg") is not None:
-            params["mass_kg"] = rule["mass_kg"]
-        if rule.get("code"):
-            params["code"] = rule["code"]
+        if resolved.get("mass_kg") is not None:
+            params["mass_kg"] = resolved["mass_kg"]
         items.append(
             SpecificationItem(
-                category=rule["category"],
-                name=rule["name"],
-                article=rule.get("article"),
+                category=resolved["category"],
+                name=resolved["name"],
+                article=str(resolved.get("mark") or resolved.get("article")),
                 unit=unit,
                 quantity=quantity,
                 params=params,
             )
         )
+    del identity_excluded
 
     items.sort(key=lambda i: (i.category, i.name))
 

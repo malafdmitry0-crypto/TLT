@@ -22,7 +22,7 @@ class ElectricalCandidateFolder(Base, TimestampMixin):
     __tablename__ = "electrical_candidate_folders"
     __table_args__ = (
         CheckConstraint(
-            "variant_number >= 1 AND variant_number <= 4",
+            "variant_number >= 1 AND variant_number <= 5",
             name="ck_electrical_candidate_folders_variant_number",
         ),
         ForeignKeyConstraint(

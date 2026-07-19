@@ -43,7 +43,8 @@ from app.services.audit_service import AuditService
 from app.services.project_service import ProjectService
 
 MAX_ELECTRICAL_VARIANTS = 5
-_LEGACY_VARIANT_NUMBERS = range(1, 5)
+# ER5 write cutover: five numeric compatibility slots map 1:1 to five named ERs.
+_LEGACY_VARIANT_NUMBERS = range(1, 6)
 _SUPPORTED_OBJECT_TYPES = {"pipe", "tank"}
 _T = TypeVar("_T")
 logger = logging.getLogger(__name__)

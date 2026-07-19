@@ -254,6 +254,9 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
 
     return SelfRegulatingResult(
         selected_cable=cable["model"],
+        cable_model=cable["model"],
+        temperature_group="low",
+        series=str(cable.get("brand") or "ТЛТ"),
         cable_length=round(cable_length, 3),
         installed_cable_length=round(cable_length, 3),
         order_cable_length=round(order_cable_length, 3),
@@ -447,10 +450,13 @@ def calc_self_regulating_tt(params: SelfRegulatingTTParams) -> SelfRegulatingTTR
     installed_power_per_meter = installed_linear_power(q_b, num_circuits)
     applied_voltage = _catalog_voltage(cable) or params.supply_voltage
 
+    temp_group = "high" if series in {"ТТВ", "ТТХ"} else "low"
     return SelfRegulatingTTResult(
         selected_cable=cable["model"],
         cable_mark=cable_mark,
         series=series,
+        cable_model=cable["model"],
+        temperature_group=temp_group,
         cable_length=round(cable_length, 3),
         installed_cable_length=round(cable_length, 3),
         order_cable_length=round(order_cable_length, 3),

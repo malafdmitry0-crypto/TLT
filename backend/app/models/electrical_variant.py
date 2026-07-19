@@ -44,7 +44,7 @@ class ElectricalVariant(Base, TimestampMixin):
         ),
         CheckConstraint(
             "legacy_variant_number IS NULL "
-            "OR (legacy_variant_number >= 1 AND legacy_variant_number <= 4)",
+            "OR (legacy_variant_number >= 1 AND legacy_variant_number <= 5)",
             name="ck_electrical_variants_legacy_number",
         ),
         CheckConstraint(

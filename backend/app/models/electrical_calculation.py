@@ -22,7 +22,7 @@ class ElectricalCalculation(Base, TimestampMixin):
     __tablename__ = "electrical_calculations"
     __table_args__ = (
         CheckConstraint(
-            "variant_number >= 1 AND variant_number <= 4",
+            "variant_number >= 1 AND variant_number <= 5",
             name="ck_electrical_calculations_variant_number",
         ),
         ForeignKeyConstraint(

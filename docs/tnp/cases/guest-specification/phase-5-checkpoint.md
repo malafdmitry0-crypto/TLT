@@ -3,7 +3,7 @@
 - Ветка: **local `main`**
 - Product decisions: PDL-ER-01…41
 - Checkpoint: 19.07.2026
-- Статус: **PARTIAL PASS — major product slices closed; residual open below**
+- Статус: **PARTIAL PASS — remaining open: perf 500 gate, Phase 4 data, corporate template**
 
 ## Closed
 
@@ -11,39 +11,37 @@
 |---|---|---|
 | PDL-ER-01 multi-ЭР generate + «Выбрать все» | PASS | API + UI |
 | PDL-ER-04 guest full BOM | PASS | guest generation allowed; manual PUT 403 |
+| PDL-ER-07 settings snapshots versioned | PASS | project defaults + snapshot + stale |
 | PDL-ER-08 dтр ≥ 57 inclusive | PASS | unit boundary |
-| PDL-ER-26 guest TTL 3d defaults | PASS | config/live 4320 |
-| CSV schema v3 export + v2 import | PASS | project_io |
-| barrel/бочка → tank (06) | PASS | project_io |
-| Report UUID-first preview | PASS | electrical_variant_id alone |
-| **PDL-ER-29 full-only product mode** | **PASS** | UI switcher removed; coerce `basic`→`full` |
-| **PDL-ER-37 stale out of report/export/print** | **PASS** | strip stale items; red banner; print hide |
-| **PDL-ER-36 preflight + confirm partial** | **PASS** | 409 + confirm_partial; UI Modal |
-| **PDL-ER-41 guest manual import reject** | **PASS** | import blocks guest+manual BOM rows |
-| **PDL-ER-31 Rгр ≠ cable order reserve** | **PASS** | cable qty without Rгр; kits use Rгр |
-| **PDL-ER-38 object_section grouping + merge** | **PASS** | Трубопроводы/Ёмкости/Общие + merge base+code |
-| **PDL-ER-39 multi-ЭР report chapters** | **PASS** | multi UUID preview + independent chapters |
-| **PDL-ER-30 desktop ≥1280 warning** | **PASS** | MainLayout banner when width < 1280 |
-| **PDL-ER-07 settings snapshots versioned** | **PASS** | project defaults + version; generation snapshot; save defaults stales without regenerate |
-| **PDL-ER-35 Ex/Rгр boxes fail-closed** | **PASS (data-blocked matrix)** | no official matrix → boxes/box-derived excluded with `BOX_EX_RGR_MATRIX_MISSING`; formula path gated for future matrix |
-| **PDL-ER-32 proven-only tank/resistive** | **PASS (partial contract)** | cable kept; pipe/self-reg accessories not transferred; diagnostics + partial |
+| PDL-ER-26 guest TTL 3d defaults | PASS | config 4320 |
+| CSV schema v3 + v2 import | PASS | project_io |
+| barrel → tank (06) | PASS | project_io |
+| Report UUID-first + multi chapters (39) | PASS | |
+| PDL-ER-29 full-only | PASS | |
+| PDL-ER-30 ≥1280 warning | PASS | MainLayout + e2e proof |
+| PDL-ER-31 Rгр ≠ order reserve | PASS | |
+| PDL-ER-32 proven tank/resistive partial | PASS | |
+| **PDL-ER-33 catalog identity** | **PASS** | explicit mark/code/temp_group; SpecTable code column; no prefix oracle |
+| **PDL-ER-34 PDF-first mapping** | **PASS** | `spec_source_mapping.json`; XLSX-only fail-closed |
+| **PDL-ER-35 fail-closed + registry** | **PASS (data still external)** | `box_ex_rgr_matrix.json` status=missing; no silent defaults |
+| PDL-ER-36 preflight | PASS | |
+| PDL-ER-37 stale exclusion | PASS | |
+| PDL-ER-38 grouping/merge | PASS | base+code |
+| PDL-ER-41 guest manual import reject | PASS | |
+| **ER5 write cutover (slots 1…5)** | **PASS** | migration 0031 + `_LEGACY_VARIANT_NUMBERS=1..5` |
 
-## Still open
+## Still open / external
 
-- PDL-ER-33 catalog identity (full explicit fields)
-- PDL-ER-34 PDF-first formula source mapping (beyond current fail-closed exclusions)
-- PDL-ER-35 official Ex/Rгр **data artifact** (implementation fail-closed; matrix still external deliverable)
-- PDL-ER-40 corporate template (functional print ok; not final brand)
-- PDL-ER-27 perf 50→500 + 30s
-- ER5 write cutover (composite FK)
-- Phase 4 blocked 15/18/28
-- Full Playwright 1–17 + desktop UI proof pack
+| Item | Status | Notes |
+|---|---|---|
+| PDL-ER-35 official matrix **data artifact** | EXTERNAL | code registry ready; needs source rows |
+| PDL-ER-27 50→500 perf gate | PARTIAL | limit stays 50; probe + skipped 500 gate test |
+| Phase 4 sections | BLOCKED | see phase-4-checkpoint.md |
+| PDL-ER-40 corporate template | OUT OF SCOPE | functional print ok |
+| Full Playwright 1–17 pack | PARTIAL | `phase5-specification-proof.spec.ts` added |
 
 ## Commits (local main, no push)
 
-- `feat(phase5): settings snapshots, Ex/Rгр fail-closed, proven tank/resistive`
-- `26a1107` feat(phase5): BOM grouping, multi-ER report chapters, 1280px warning
-- `93647d5` guest import trust and Rгр cable semantics
-- `0afed5d` preflight confirmation for partial multi-ER BOM
-- `5a9037b` full-only BOM and stale report exclusion
-- earlier: CSV v3, UUID report, PDL docs 29–41
+- feat(phase5): catalog identity, PDF mapping, ER5 slots, residual gates
+- 4270a02 settings snapshots, Ex/Rгр fail-closed, proven tank/resistive
+- earlier Phase 5 slices

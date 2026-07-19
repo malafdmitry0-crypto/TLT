@@ -96,12 +96,47 @@ export default function SpecTable({
       ),
     },
     {
-      title: 'Артикул',
+      title: 'Марка',
       dataIndex: 'article',
       sorter: (a: Row, b: Row) =>
         (a.article ?? '').localeCompare(b.article ?? ''),
-      render: (v: string | null) =>
-        v ? v : <span style={{ color: '#bbb' }}>—</span>,
+      render: (v: string | null, row: Row) => {
+        const mark = String(
+          (row.params as { mark?: string } | undefined)?.mark || v || '',
+        );
+        return mark || <span style={{ color: '#bbb' }}>—</span>;
+      },
+    },
+    {
+      title: 'Код',
+      key: 'nomenclature_code',
+      width: 120,
+      sorter: (a: Row, b: Row) => {
+        const ac = String(
+          (a.params as { nomenclature_code?: string; code?: string } | undefined)
+            ?.nomenclature_code
+            || (a.params as { code?: string } | undefined)?.code
+            || a.article
+            || '',
+        );
+        const bc = String(
+          (b.params as { nomenclature_code?: string; code?: string } | undefined)
+            ?.nomenclature_code
+            || (b.params as { code?: string } | undefined)?.code
+            || b.article
+            || '',
+        );
+        return ac.localeCompare(bc);
+      },
+      render: (_: unknown, row: Row) => {
+        const code = String(
+          (row.params as { nomenclature_code?: string; code?: string } | undefined)
+            ?.nomenclature_code
+            || (row.params as { code?: string } | undefined)?.code
+            || '',
+        );
+        return code || <span style={{ color: '#bbb' }}>—</span>;
+      },
     },
     {
       title: 'Ед.',

@@ -1,0 +1,13 @@
+{
+  "description": "PDL-ER-35: official per-row Ex/Rгр condition matrix for connection boxes. Empty until the official data artifact is registered.",
+  "status": "missing",
+  "source": null,
+  "version": null,
+  "registered_at": null,
+  "rows": {},
+  "notes": [
+    "While status=missing, full_builder fail-closes all box-dependent rules.",
+    "Do not fill rows from legacy XLSX defaults — that violates PDL-ER-35.",
+    "After official delivery: set status=registered, source name/version/page, and row conditions."
+  ]
+}

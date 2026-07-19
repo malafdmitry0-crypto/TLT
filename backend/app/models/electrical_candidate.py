@@ -24,7 +24,7 @@ class ElectricalCandidate(Base, TimestampMixin):
     __tablename__ = "electrical_candidates"
     __table_args__ = (
         CheckConstraint(
-            "variant_number >= 1 AND variant_number <= 4",
+            "variant_number >= 1 AND variant_number <= 5",
             name="ck_electrical_candidates_variant_number",
         ),
         ForeignKeyConstraint(

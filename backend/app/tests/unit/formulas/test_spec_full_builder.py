@@ -6,17 +6,59 @@ import pytest
 
 from app.formulas.specification import full_builder as fb
 from app.formulas.specification.full_builder import (
-    build_full_specification,
-    build_full_specification_detailed,
+    build_full_specification as _build_full_specification,
+)
+from app.formulas.specification.full_builder import (
+    build_full_specification_detailed as _build_full_specification_detailed,
 )
 from app.schemas.specification import SpecificationOptions
+
+
+def build_full_specification(elec, objs, **kwargs):
+    return _build_full_specification([_with_identity(r) for r in elec], objs, **kwargs)
+
+
+def build_full_specification_detailed(elec, objs, **kwargs):
+    return _build_full_specification_detailed([_with_identity(r) for r in elec], objs, **kwargs)
 
 
 def _qty(items, article):
     for i in items:
         if i.article == article:
             return i.quantity
+        # PDL-ER-33: identity may place mark in params while article is code.
+        if getattr(i, "params", None) and i.params.get("mark") == article:
+            return i.quantity
+        if getattr(i, "params", None) and i.params.get("nomenclature_code") == article:
+            return i.quantity
     return None
+
+
+def _with_identity(row: dict) -> dict:
+    """Ensure explicit catalog identity fields for BOM unit fixtures (PDL-ER-33)."""
+    out = dict(row)
+    mark = str(out.get("cable_mark") or "")
+    if out.get("error") or not mark:
+        return out
+    if "selected_cable" not in out:
+        # Use base model when order mark has known commercial suffix in fixtures.
+        base = mark
+        for suffix in ("-СТ", "-СР"):
+            if mark.endswith(suffix):
+                base = mark[: -len(suffix)]
+                break
+        out["selected_cable"] = base
+    if "temperature_group" not in out and out.get("cable_type") not in {
+        "single_core",
+        "three_core",
+        "resistive",
+    }:
+        model = str(out.get("selected_cable") or "")
+        if "ТТВ" in model or "ТТХ" in model:
+            out["temperature_group"] = "high"
+        else:
+            out["temperature_group"] = "low"
+    return out
 
 
 def _two_object_case():
@@ -24,6 +66,8 @@ def _two_object_case():
         {
             "cable_mark": "25ТТН2-СТ",
             "selected_cable": "25ТТН2",
+            "cable_model": "25ТТН2",
+            "temperature_group": "low",
             "num_circuits": 2,
             "installed_cable_length": 60.0,
             "object_id": "o1",
@@ -31,6 +75,8 @@ def _two_object_case():
         {
             "cable_mark": "45ТТХ2-СР",
             "selected_cable": "45ТТХ2",
+            "cable_model": "45ТТХ2",
+            "temperature_group": "high",
             "num_circuits": 4,
             "installed_cable_length": 120.0,
             "object_id": "o2",
@@ -46,15 +92,14 @@ def _two_object_case():
 @pytest.fixture
 def enable_box_matrix(monkeypatch):
     """PDL-ER-35: temporarily register a non-empty matrix to exercise box formulas."""
+    monkeypatch.setattr(fb, "box_ex_rgr_matrix_available", lambda: True)
     monkeypatch.setattr(
-        fb,
-        "BOX_EX_RGR_MATRIX",
-        {"registered": True, "source": "unit-test-stub"},
+        "app.formulas.specification.source_mapping.box_ex_rgr_matrix_registered",
+        lambda: True,
     )
     monkeypatch.setattr(
-        fb,
-        "BOX_EX_RGR_MATRIX_SOURCE",
-        {"name": "unit-test-stub", "version": "test"},
+        "app.formulas.specification.source_mapping.is_rule_approved",
+        lambda rule_key: True,
     )
 
 
@@ -114,6 +159,8 @@ class TestFullSpecificationBoxes:
         elec = [
             {
                 "cable_mark": "10ТТН2-СТ",
+                "selected_cable": "10ТТН2",
+                "temperature_group": "low",
                 "num_circuits": 1,
                 "installed_cable_length": 20.0,
                 "object_id": "o1",
@@ -129,6 +176,8 @@ class TestFullSpecificationBoxes:
         """PDL-ER-08: dтр ≥ 57 мм inclusive — boundary at exactly 57 mm is large."""
         base = {
             "cable_mark": "10ТТН2-СТ",
+                "selected_cable": "10ТТН2",
+                "temperature_group": "low",
             "num_circuits": 1,
             "installed_cable_length": 20.0,
         }
@@ -246,6 +295,7 @@ class TestFullSpecificationRobustness:
         elec = [
             {
                 "cable_mark": "ТТ Р1 1x2.5",
+                "selected_cable": "ТТ Р1 1x2.5",
                 "cable_type": "single_core",
                 "num_circuits": 1,
                 "installed_cable_length": 50.0,
