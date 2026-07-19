@@ -27,8 +27,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   generateSpecification,
   getSpecification,
+  getSpecificationSettings,
   listAccessoriesExtended,
   saveSpecificationItems,
+  updateSpecificationSettings,
   type AccessoryExtendedInfo,
 } from '@/api/specifications';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
@@ -144,6 +146,12 @@ export default function SpecificationPage() {
     enabled: legacyDataPlaneEnabled,
   });
 
+  const { data: projectSettings } = useQuery({
+    queryKey: ['spec-settings', project?.id],
+    queryFn: () => getSpecificationSettings(project!.id),
+    enabled: Boolean(project?.id),
+  });
+
   const { data: accessories = [] } = useQuery({
     queryKey: referenceQueryKeys.accessoriesExtended,
     queryFn: listAccessoriesExtended,
@@ -151,20 +159,25 @@ export default function SpecificationPage() {
     ...referenceQueryOptions,
   });
 
-  // Восстанавливаем options последней full-генерации после reload.
+  // PDL-ER-07: load project defaults first; snapshot from last generation only
+  // for the currently viewed ER (does not rewrite project defaults).
   useEffect(() => {
-    if (!spec) return;
-    const opts = spec.generation_options;
-    if (opts) {
-      setExZone(Boolean(opts.ex_zone));
-      setReserveCoeff(Number(opts.reserve_coefficient ?? 1));
-      setIndicationOnBoxes(Boolean(opts.indication_on_boxes));
-      setEndSectionIndication(Boolean(opts.end_section_indication));
-      setTopIndication(Boolean(opts.top_indication));
-      setMinLengthK2i(Number(opts.min_length_for_end_indication ?? 0));
+    const opts = (spec?.generation_options as Record<string, unknown> | null | undefined)
+      ?? (projectSettings?.settings as Record<string, unknown> | undefined);
+    if (!opts) return;
+    setExZone(Boolean(opts.ex_zone));
+    setReserveCoeff(Number(opts.reserve_coefficient ?? 1));
+    setIndicationOnBoxes(Boolean(opts.indication_on_boxes));
+    setEndSectionIndication(Boolean(opts.end_section_indication));
+    setTopIndication(Boolean(opts.top_indication));
+    setMinLengthK2i(Number(opts.min_length_for_end_indication ?? 0));
+    if (typeof opts.merge_identical === 'boolean') {
+      setMergeIdentical(opts.merge_identical);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spec?.id, spec?.generation_mode]);
+    if (typeof opts.group_by === 'string') {
+      setGroupBy(opts.group_by as GroupBy);
+    }
+  }, [spec?.id, spec?.generation_mode, projectSettings?.version, projectSettings?.settings]);
 
   // PDL-ER-29: product generation is always full for guest and employee.
   const effectiveMode = 'full' as const;
@@ -242,6 +255,15 @@ export default function SpecificationPage() {
           `Объектов без успешного электрорасчёта: ${result.skipped_objects} — они не вошли в полную спецификацию`
         );
       }
+      if (result.partial && (result.excluded_groups?.length ?? 0) > 0) {
+        const codes = (result.excluded_groups ?? [])
+          .map((g) => g.error_code)
+          .filter(Boolean)
+          .join(', ');
+        message.warning(
+          `Спецификация partial: исключены недоказанные группы${codes ? ` (${codes})` : ''}`,
+        );
+      }
       for (const id of variables.generateVariantIds) {
         qc.invalidateQueries({
           queryKey: ['spec', variables.projectId, id],
@@ -313,6 +335,25 @@ export default function SpecificationPage() {
     end_section_indication: endSectionIndication,
     top_indication: topIndication,
     min_length_for_end_indication: minLengthK2i,
+    group_by: groupBy,
+    merge_identical: mergeIdentical,
+  });
+
+  const saveDefaultsMut = useMutation({
+    mutationFn: () => {
+      if (!project || !canMutateProject) {
+        throw new Error('Недостаточно прав для сохранения defaults');
+      }
+      return updateSpecificationSettings(project.id, buildGenerateOptions());
+    },
+    onSuccess: (result) => {
+      message.success(
+        `Defaults сохранены (v${result.version}). Спецификации с другим snapshot помечены stale — перегенерируйте выбранные ЭР.`,
+      );
+      qc.invalidateQueries({ queryKey: ['spec-settings', project?.id] });
+      qc.invalidateQueries({ queryKey: ['spec', project?.id], exact: false });
+    },
+    onError: (e: Error) => message.error(e.message),
   });
 
   const runGenerate = (confirmPartial = false) => {
@@ -619,6 +660,25 @@ export default function SpecificationPage() {
               >
                 {hasItems ? 'Пересчитать' : 'Сформировать'}
               </Button>
+
+              <Button
+                block
+                size="small"
+                loading={saveDefaultsMut.isPending}
+                disabled={!canMutateProject}
+                onClick={() => saveDefaultsMut.mutate()}
+                aria-label="Сохранить defaults спецификации"
+              >
+                Сохранить defaults
+              </Button>
+              {projectSettings?.version != null && (
+                <Text style={{ fontSize: 11, color: '#888' }}>
+                  Project defaults v{projectSettings.version}
+                  {typeof spec?.generation_options?.settings_version === 'number'
+                    ? ` · snapshot v${spec.generation_options.settings_version as number}`
+                    : ''}
+                </Text>
+              )}
 
               {/* Режим и параметры полного BOM — в блоке заполнения параметров
                   над таблицей (workflow-params-panel), как на SC-03. */}

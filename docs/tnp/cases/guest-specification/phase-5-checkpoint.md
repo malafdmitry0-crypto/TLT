@@ -24,15 +24,16 @@
 | **PDL-ER-38 object_section grouping + merge** | **PASS** | Трубопроводы/Ёмкости/Общие + merge base+code |
 | **PDL-ER-39 multi-ЭР report chapters** | **PASS** | multi UUID preview + independent chapters |
 | **PDL-ER-30 desktop ≥1280 warning** | **PASS** | MainLayout banner when width < 1280 |
+| **PDL-ER-07 settings snapshots versioned** | **PASS** | project defaults + version; generation snapshot; save defaults stales without regenerate |
+| **PDL-ER-35 Ex/Rгр boxes fail-closed** | **PASS (data-blocked matrix)** | no official matrix → boxes/box-derived excluded with `BOX_EX_RGR_MATRIX_MISSING`; formula path gated for future matrix |
+| **PDL-ER-32 proven-only tank/resistive** | **PASS (partial contract)** | cable kept; pipe/self-reg accessories not transferred; diagnostics + partial |
 
 ## Still open
 
-- PDL-ER-32 proven-only tank/resistive partial (methodology)
 - PDL-ER-33 catalog identity (full explicit fields)
-- PDL-ER-34 PDF-first formula source mapping
-- PDL-ER-35 Ex/Rгр matrix **data-blocked**
+- PDL-ER-34 PDF-first formula source mapping (beyond current fail-closed exclusions)
+- PDL-ER-35 official Ex/Rгр **data artifact** (implementation fail-closed; matrix still external deliverable)
 - PDL-ER-40 corporate template (functional print ok; not final brand)
-- PDL-ER-07 settings snapshots versioned
 - PDL-ER-27 perf 50→500 + 30s
 - ER5 write cutover (composite FK)
 - Phase 4 blocked 15/18/28
@@ -40,6 +41,7 @@
 
 ## Commits (local main, no push)
 
+- `feat(phase5): settings snapshots, Ex/Rгр fail-closed, proven tank/resistive`
 - `26a1107` feat(phase5): BOM grouping, multi-ER report chapters, 1280px warning
 - `93647d5` guest import trust and Rгр cable semantics
 - `0afed5d` preflight confirmation for partial multi-ER BOM

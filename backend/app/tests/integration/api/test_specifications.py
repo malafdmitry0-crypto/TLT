@@ -283,6 +283,61 @@ class TestSpecification:
         spec = (await client.get(f"/api/v1/specifications/{p['id']}", headers=headers)).json()
         assert spec["generation_mode"] == "full"
         assert spec["generation_options"]["reserve_coefficient"] == 1.2
+        # PDL-ER-07: generation stores full versioned snapshot
+        assert "settings_version" in spec["generation_options"]
+        assert body.get("settings_version") == spec["generation_options"]["settings_version"]
+        # PDL-ER-35: boxes fail-closed without official matrix
+        assert body.get("partial") is True or body.get("excluded_groups") is not None
+        if body.get("excluded_groups"):
+            assert any(
+                g.get("error_code") == "BOX_EX_RGR_MATRIX_MISSING"
+                for g in body["excluded_groups"]
+            )
+
+    async def test_project_settings_versioned_without_auto_regenerate(
+        self, client: AsyncClient, employee_token: str
+    ):
+        """PDL-ER-07: save defaults bumps version and stales other snapshot, no regenerate."""
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        p = (
+            await client.post(
+                "/api/v1/projects", json={"name": "Spec-Settings"}, headers=headers
+            )
+        ).json()
+        await self._add_pipe(client, p["id"], headers)
+
+        get0 = await client.get(f"/api/v1/specifications/{p['id']}/settings", headers=headers)
+        assert get0.status_code == 200, get0.text
+        assert get0.json()["version"] == 1
+
+        gen = await client.post(
+            f"/api/v1/specifications/{p['id']}/generate",
+            json={
+                "mode": "full",
+                "options": {"reserve_coefficient": 1.0, "ex_zone": False},
+                "confirm_partial": True,
+            },
+            headers=headers,
+        )
+        assert gen.status_code == 201, gen.text
+        before = (await client.get(f"/api/v1/specifications/{p['id']}", headers=headers)).json()
+        assert before["is_stale"] is False
+        before_items = before["items"]
+
+        put = await client.put(
+            f"/api/v1/specifications/{p['id']}/settings",
+            json={"settings": {"reserve_coefficient": 1.5, "ex_zone": True}},
+            headers=headers,
+        )
+        assert put.status_code == 200, put.text
+        assert put.json()["version"] == 2
+        assert put.json()["settings"]["reserve_coefficient"] == 1.5
+
+        after = (await client.get(f"/api/v1/specifications/{p['id']}", headers=headers)).json()
+        assert after["is_stale"] is True
+        assert after["stale_reason"] == "specification_settings_changed"
+        # Saving defaults must not rewrite BOM items.
+        assert after["items"] == before_items
 
     async def test_save_items_replaces_completely(self, client: AsyncClient, employee_token: str):
         headers = {"Authorization": f"Bearer {employee_token}"}

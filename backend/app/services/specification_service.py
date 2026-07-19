@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import CurrentPrincipal
 from app.formulas.specification.builder import build_basic_specification
 from app.formulas.specification.full_builder import (
-    build_full_specification,
+    build_full_specification_detailed,
     contributes_to_full_bom,
 )
 from app.models.electrical_calculation import ElectricalCalculation
@@ -26,6 +26,32 @@ from app.services.electrical_variant_service import (
     ElectricalVariantServiceError,
 )
 
+# Option keys that participate in PDL-ER-07 snapshot equality.
+_SETTINGS_OPTION_KEYS = (
+    "reserve_coefficient",
+    "ex_zone",
+    "indication_on_boxes",
+    "end_section_indication",
+    "top_indication",
+    "min_length_for_end_indication",
+    "group_by",
+    "merge_identical",
+)
+
+
+def _normalize_settings_payload(raw: dict[str, Any] | None) -> dict[str, Any]:
+    """Normalize project/defaults payload into SpecificationOptions dump."""
+    try:
+        return SpecificationOptions(**(raw or {})).model_dump()
+    except Exception:
+        return SpecificationOptions().model_dump()
+
+
+def _settings_core(payload: dict[str, Any] | None) -> dict[str, Any]:
+    """Comparable core of a snapshot (excludes version/timestamp metadata)."""
+    data = payload or {}
+    return {key: data.get(key) for key in _SETTINGS_OPTION_KEYS}
+
 
 @dataclass
 class SpecificationGenerateResult:
@@ -35,6 +61,9 @@ class SpecificationGenerateResult:
     mode: str = "full"
     skipped_objects: int = 0
     electrical_variant_id: UUID | None = None
+    partial: bool = False
+    excluded_groups: list[dict[str, Any]] = field(default_factory=list)
+    settings_version: int | None = None
 
 
 @dataclass
@@ -50,6 +79,119 @@ class SpecificationPreflightVariant:
 class SpecificationService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+
+    async def get_project_settings(
+        self,
+        project_id: UUID,
+    ) -> tuple[int, SpecificationOptions]:
+        """Return versioned project specification defaults (PDL-ER-07)."""
+        project = await self.db.get(Project, project_id)
+        if project is None:
+            raise ValueError(f"Project {project_id} not found")
+        version = int(getattr(project, "specification_settings_version", 1) or 1)
+        settings = SpecificationOptions(
+            **_normalize_settings_payload(getattr(project, "specification_settings", None))
+        )
+        return version, settings
+
+    async def update_project_settings(
+        self,
+        project_id: UUID,
+        settings: SpecificationOptions,
+        *,
+        commit: bool = True,
+    ) -> tuple[int, SpecificationOptions]:
+        """Save project defaults without regenerating specifications (PDL-ER-07).
+
+        Specs whose generation snapshot differs from the new defaults are marked
+        stale. Explicit regeneration is required per selected ER.
+        """
+        await self._lock_project(project_id)
+        project = await self.db.get(Project, project_id)
+        if project is None:
+            raise ValueError(f"Project {project_id} not found")
+
+        new_payload = settings.model_dump()
+        old_payload = _normalize_settings_payload(
+            getattr(project, "specification_settings", None)
+        )
+        old_version = int(getattr(project, "specification_settings_version", 1) or 1)
+        if _settings_core(old_payload) == _settings_core(new_payload):
+            return old_version, SpecificationOptions(**old_payload)
+
+        new_version = old_version + 1
+        project.specification_settings = new_payload
+        project.specification_settings_version = new_version
+
+        await self._mark_specs_stale_for_settings_change(
+            project_id,
+            new_version=new_version,
+            new_settings=new_payload,
+        )
+        if commit:
+            await self.db.commit()
+        else:
+            await self.db.flush()
+        return new_version, settings
+
+    async def _mark_specs_stale_for_settings_change(
+        self,
+        project_id: UUID,
+        *,
+        new_version: int,
+        new_settings: dict[str, Any],
+    ) -> int:
+        """Stale specs whose snapshot options differ from new project defaults."""
+        result = await self.db.execute(
+            select(Specification).where(Specification.project_id == project_id)
+        )
+        specs = list(result.scalars().all())
+        if not specs:
+            return 0
+        now = datetime.now(UTC)
+        new_core = _settings_core(new_settings)
+        marked = 0
+        for spec in specs:
+            if spec.is_stale:
+                continue
+            snap = spec.generation_options or {}
+            snap_version = snap.get("settings_version")
+            snap_core = _settings_core(snap)
+            if snap_version == new_version and snap_core == new_core:
+                continue
+            if snap_core == new_core and snap_version is None:
+                # Same options, older snapshot without version — still mark so
+                # consumers re-read versioned contract after defaults save.
+                pass
+            elif snap_core == new_core:
+                continue
+            spec.is_stale = True
+            spec.stale_reason = "specification_settings_changed"
+            spec.stale_at = now
+            spec.stale_details = {
+                "reason": "specification_settings_changed",
+                "new_settings_version": new_version,
+                "snapshot_settings_version": snap_version,
+            }
+            marked += 1
+        if marked:
+            await self.db.flush()
+        return marked
+
+    async def _resolve_generation_options(
+        self,
+        project_id: UUID,
+        options: SpecificationOptions | None,
+    ) -> tuple[SpecificationOptions, int, dict[str, Any]]:
+        """Resolve options from request or project defaults; build snapshot."""
+        version, project_settings = await self.get_project_settings(project_id)
+        resolved = options if options is not None else project_settings
+        snapshot = {
+            **resolved.model_dump(),
+            "settings_version": version,
+            "snapshot_at": datetime.now(UTC).isoformat(),
+        }
+        return resolved, version, snapshot
 
     async def get_specification(
         self,
@@ -328,15 +470,15 @@ class SpecificationService:
                         # пропускаем любую битую запись, не блокируя пересчёт
                         continue
 
-        stored_options = getattr(existing_spec, "generation_options", None) if existing_spec else None
-        if mode is None and options is None and stored_options:
-            try:
-                options = SpecificationOptions(**stored_options)
-            except Exception:
-                options = None
         # PDL-ER-29: product generation is always full; basic is transitional alias only.
         if mode in (None, "basic"):
             mode = "full"
+
+        # PDL-ER-07: request options override; else project defaults.
+        # Do not silently reuse a previous ER snapshot as project defaults.
+        resolved_options, settings_version, options_snapshot = (
+            await self._resolve_generation_options(project_id, options)
+        )
 
         # Авто-позиции из электрорасчёта: UUID-first, legacy slot as fallback.
         if electrical_variant_id is not None:
@@ -379,6 +521,8 @@ class SpecificationService:
         ]
 
         skipped_objects = 0
+        partial = False
+        excluded_groups: list[dict[str, Any]] = []
         if mode == "full":
             # Полный условный BOM (ТНП) — нужны параметры объектов (dтр, Lтр).
             objects_q = await self.db.execute(
@@ -387,8 +531,8 @@ class SpecificationService:
             objects = list(objects_q.scalars().all())
             objects_by_id = {
                 str(obj.id): {
-                    # Для резервуаров наружного диаметра нет — берём diameter,
-                    # чтобы корзины коробок не уезжали молча в «малый диаметр».
+                    "object_type": obj.object_type,
+                    # Для резервуаров наружного диаметра нет — берём diameter.
                     "outer_diameter": (obj.params or {}).get("outer_diameter")
                     or (obj.params or {}).get("diameter"),
                     "pipe_length": (obj.results or {}).get("effective_length")
@@ -397,16 +541,15 @@ class SpecificationService:
                 }
                 for obj in objects
             }
-            auto_items = build_full_specification(
+            build = build_full_specification_detailed(
                 electrical_results,
                 objects_by_id,
-                options=options or SpecificationOptions(),
+                options=resolved_options,
             )
-            # Объекты без вклада в полный BOM (ошибка электрорасчёта,
-            # неподдержанный тип кабеля, нет длины) — спецификация неполная.
-            contributing_ids = {
-                r.get("object_id") for r in electrical_results if contributes_to_full_bom(r)
-            }
+            auto_items = build.items
+            excluded_groups = list(build.excluded_groups)
+            partial = bool(build.partial)
+            contributing_ids = set(build.contributing_object_ids)
             skipped_objects = sum(1 for obj in objects if str(obj.id) not in contributing_ids)
         else:
             # Общее число объектов проекта — аксессуары заказываются на каждый
@@ -445,7 +588,7 @@ class SpecificationService:
             variant_number=variant_number,
             items_payload=[i.model_dump() for i in items],
             generation_mode=mode,
-            generation_options=(options.model_dump() if options else None),
+            generation_options=options_snapshot,
             electrical_variant_id=electrical_variant_id,
         )
 
@@ -458,6 +601,9 @@ class SpecificationService:
             mode=mode,
             skipped_objects=skipped_objects,
             electrical_variant_id=electrical_variant_id,
+            partial=partial or skipped_objects > 0,
+            excluded_groups=excluded_groups,
+            settings_version=settings_version,
         )
 
     async def save_items(

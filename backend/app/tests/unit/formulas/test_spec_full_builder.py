@@ -4,7 +4,11 @@ import math
 
 import pytest
 
-from app.formulas.specification.full_builder import build_full_specification
+from app.formulas.specification import full_builder as fb
+from app.formulas.specification.full_builder import (
+    build_full_specification,
+    build_full_specification_detailed,
+)
 from app.schemas.specification import SpecificationOptions
 
 
@@ -33,10 +37,25 @@ def _two_object_case():
         },
     ]
     objs = {
-        "o1": {"outer_diameter": 0.108, "pipe_length": 50.0},
-        "o2": {"outer_diameter": 0.159, "pipe_length": 90.0},
+        "o1": {"outer_diameter": 0.108, "pipe_length": 50.0, "object_type": "pipe"},
+        "o2": {"outer_diameter": 0.159, "pipe_length": 90.0, "object_type": "pipe"},
     }
     return elec, objs
+
+
+@pytest.fixture
+def enable_box_matrix(monkeypatch):
+    """PDL-ER-35: temporarily register a non-empty matrix to exercise box formulas."""
+    monkeypatch.setattr(
+        fb,
+        "BOX_EX_RGR_MATRIX",
+        {"registered": True, "source": "unit-test-stub"},
+    )
+    monkeypatch.setattr(
+        fb,
+        "BOX_EX_RGR_MATRIX_SOURCE",
+        {"name": "unit-test-stub", "version": "test"},
+    )
 
 
 class TestFullSpecificationCable:
@@ -68,7 +87,22 @@ class TestFullSpecificationCable:
 
 
 class TestFullSpecificationBoxes:
-    def test_box_selection_by_diameter_and_sections(self):
+    def test_boxes_fail_closed_without_official_matrix(self):
+        """PDL-ER-35: no Ex/Rгр matrix → boxes and box-derived positions excluded."""
+        elec, objs = _two_object_case()
+        build = build_full_specification_detailed(elec, objs)
+        assert _qty(build.items, "СКВ 1201") is None
+        assert _qty(build.items, "СКВ 1601") is None
+        assert _qty(build.items, "КВ-пластик-М25") is None
+        assert _qty(build.items, "ХК30") is None
+        codes = {g["error_code"] for g in build.excluded_groups}
+        assert "BOX_EX_RGR_MATRIX_MISSING" in codes
+        assert build.partial is True
+        # Cable and non-box kits still present.
+        assert _qty(build.items, "25ТТН2-СТ") == 60.0
+        assert _qty(build.items, "КСН-1") == 2
+
+    def test_box_selection_by_diameter_and_sections(self, enable_box_matrix):
         elec, objs = _two_object_case()
         items = build_full_specification(elec, objs)
         # o1: d=108>57, N=2<3 -> СКВ 1201 = ceil(2/3)=1
@@ -76,7 +110,7 @@ class TestFullSpecificationBoxes:
         # o2: d=159>57, N=4>=3 -> СКВ 1601 = ceil(4/3)=2
         assert _qty(items, "СКВ 1601") == 2
 
-    def test_small_diameter_box(self):
+    def test_small_diameter_box(self, enable_box_matrix):
         elec = [
             {
                 "cable_mark": "10ТТН2-СТ",
@@ -85,13 +119,13 @@ class TestFullSpecificationBoxes:
                 "object_id": "o1",
             }
         ]
-        objs = {"o1": {"outer_diameter": 0.045, "pipe_length": 20.0}}
+        objs = {"o1": {"outer_diameter": 0.045, "pipe_length": 20.0, "object_type": "pipe"}}
         items = build_full_specification(elec, objs)
         # d=45<57, N=1<3 -> СКВ 1202 (Nk7)
         assert _qty(items, "СКВ 1202") == 1
         assert _qty(items, "СКВ 1201") is None
 
-    def test_box_threshold_inclusive_57_mm(self):
+    def test_box_threshold_inclusive_57_mm(self, enable_box_matrix):
         """PDL-ER-08: dтр ≥ 57 мм inclusive — boundary at exactly 57 mm is large."""
         base = {
             "cable_mark": "10ТТН2-СТ",
@@ -100,15 +134,15 @@ class TestFullSpecificationBoxes:
         }
         just_below = build_full_specification(
             [{**base, "object_id": "o_below"}],
-            {"o_below": {"outer_diameter": 0.056999, "pipe_length": 20.0}},
+            {"o_below": {"outer_diameter": 0.056999, "pipe_length": 20.0, "object_type": "pipe"}},
         )
         exact = build_full_specification(
             [{**base, "object_id": "o_exact"}],
-            {"o_exact": {"outer_diameter": 0.057, "pipe_length": 20.0}},
+            {"o_exact": {"outer_diameter": 0.057, "pipe_length": 20.0, "object_type": "pipe"}},
         )
         just_above = build_full_specification(
             [{**base, "object_id": "o_above"}],
-            {"o_above": {"outer_diameter": 0.057001, "pipe_length": 20.0}},
+            {"o_above": {"outer_diameter": 0.057001, "pipe_length": 20.0, "object_type": "pipe"}},
         )
         assert _qty(just_below, "СКВ 1202") == 1  # small
         assert _qty(just_below, "СКВ 1201") is None
@@ -136,13 +170,19 @@ class TestFullSpecificationKits:
 
 
 class TestFullSpecificationEntriesAndExZone:
-    def test_plastic_entry_when_no_ex(self):
+    def test_entries_fail_closed_without_matrix(self):
+        elec, objs = _two_object_case()
+        items = build_full_specification(elec, objs, options=SpecificationOptions(ex_zone=False))
+        assert _qty(items, "КВ-пластик-М25") is None
+        assert _qty(items, "КВ-бронир-М25") is None
+
+    def test_plastic_entry_when_no_ex(self, enable_box_matrix):
         elec, objs = _two_object_case()
         items = build_full_specification(elec, objs, options=SpecificationOptions(ex_zone=False))
         assert _qty(items, "КВ-пластик-М25") == 3
         assert _qty(items, "КВ-бронир-М25") is None
 
-    def test_armored_entry_when_ex(self):
+    def test_armored_entry_when_ex(self, enable_box_matrix):
         elec, objs = _two_object_case()
         items = build_full_specification(elec, objs, options=SpecificationOptions(ex_zone=True))
         assert _qty(items, "КВ-бронир-М25") == 3
@@ -150,7 +190,7 @@ class TestFullSpecificationEntriesAndExZone:
 
 
 class TestFullSpecificationDerived:
-    def test_labels_tapes_and_sealants(self):
+    def test_labels_tapes_and_sealants(self, enable_box_matrix):
         elec, objs = _two_object_case()
         items = build_full_specification(elec, objs)
         # этикетка: ceil(50/3.5)+ceil(90/3.5) = 15+26 = 41
@@ -162,7 +202,7 @@ class TestFullSpecificationDerived:
         # крепёжный элемент = (Nk1+Nk2)*2 = (1+2)*2 = 6 (без упаковочного коэф.)
         assert _qty(items, "КЭ-хомут") == 6
 
-    def test_package_factor_converts_to_packages(self):
+    def test_package_factor_converts_to_packages(self, enable_box_matrix):
         """Колонка I ТНП: метры/заделки пересчитываются в упаковки производителя."""
         elec, objs = _two_object_case()
         items = build_full_specification(elec, objs)
@@ -192,14 +232,17 @@ class TestFullSpecificationRobustness:
             }
             for i in range(10)
         ]
-        objs = {f"o{i}": {"outer_diameter": 0.108, "pipe_length": 10.0} for i in range(10)}
+        objs = {
+            f"o{i}": {"outer_diameter": 0.108, "pipe_length": 10.0, "object_type": "pipe"}
+            for i in range(10)
+        }
         items = build_full_specification(
             elec, objs, options=SpecificationOptions(reserve_coefficient=1.3)
         )
         assert _qty(items, "КСН-1") == 13
 
-    def test_non_self_regulating_cable_types_skipped(self):
-        """BOM источника описывает только саморег: резистивные позиции пропускаются."""
+    def test_resistive_keeps_proven_cable_only(self):
+        """PDL-ER-32: resistive cable is proven; self-reg accessories excluded."""
         elec = [
             {
                 "cable_mark": "ТТ Р1 1x2.5",
@@ -209,8 +252,36 @@ class TestFullSpecificationRobustness:
                 "object_id": "o1",
             }
         ]
-        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 50.0}}
-        assert build_full_specification(elec, objs) == []
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 50.0, "object_type": "pipe"}}
+        build = build_full_specification_detailed(elec, objs)
+        assert _qty(build.items, "ТТ Р1 1x2.5") == 50.0
+        assert _qty(build.items, "КСН-1") is None
+        assert any(g["error_code"] == "RESISTIVE_ACCESSORY_METHOD_UNPROVEN" for g in build.excluded_groups)
+        assert build.partial is True
+
+    def test_tank_keeps_proven_cable_without_pipe_accessories(self):
+        """PDL-ER-32: tank gets proven cable; pipe formulas not transferred."""
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "cable_type": "self_regulating",
+                "num_circuits": 2,
+                "installed_cable_length": 40.0,
+                "object_id": "t1",
+            }
+        ]
+        objs = {
+            "t1": {
+                "outer_diameter": 2.0,
+                "pipe_length": 3.0,
+                "object_type": "tank",
+            }
+        }
+        build = build_full_specification_detailed(elec, objs)
+        assert _qty(build.items, "25ТТН2-СТ") == 40.0
+        assert _qty(build.items, "КСН-1") is None
+        assert _qty(build.items, "ЛКС 12") is None
+        assert any(g["error_code"] == "TANK_ACCESSORY_METHOD_UNPROVEN" for g in build.excluded_groups)
 
     def test_missing_cable_type_treated_as_self_regulating(self):
         """Legacy-результаты без cable_type продолжают попадать в BOM."""
@@ -222,7 +293,7 @@ class TestFullSpecificationRobustness:
                 "object_id": "o1",
             }
         ]
-        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 50.0}}
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 50.0, "object_type": "pipe"}}
         items = build_full_specification(elec, objs)
         assert _qty(items, "КСН-1") == 1
 
@@ -236,7 +307,7 @@ class TestFullSpecificationRobustness:
                 "object_id": "o1",
             }
         ]
-        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 50.0}}
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 50.0, "object_type": "pipe"}}
         assert build_full_specification(elec, objs) == []
 
     def test_invalid_num_circuits_clamped(self):
@@ -256,8 +327,8 @@ class TestFullSpecificationRobustness:
             },
         ]
         objs = {
-            "o1": {"outer_diameter": 0.108, "pipe_length": 30.0},
-            "o2": {"outer_diameter": 0.108, "pipe_length": 30.0},
+            "o1": {"outer_diameter": 0.108, "pipe_length": 30.0, "object_type": "pipe"},
+            "o2": {"outer_diameter": 0.108, "pipe_length": 30.0, "object_type": "pipe"},
         }
         items = build_full_specification(elec, objs)
         # -2 → 1 секция, 2.9 → 3 секции; КСН-1 = 1 + 3 = 4
@@ -265,7 +336,7 @@ class TestFullSpecificationRobustness:
 
 
 class TestK2iSectionLengthThreshold:
-    def test_k2i_requires_section_length_not_total(self):
+    def test_k2i_requires_section_length_not_total(self, enable_box_matrix):
         """ТНП K35–K38: порог L,К2i сравнивается с длиной ОДНОЙ секции."""
         # 4 секции × 30 м (суммарно 120) при пороге 100 — К2i не активен
         elec = [
@@ -276,7 +347,7 @@ class TestK2iSectionLengthThreshold:
                 "object_id": "o1",
             }
         ]
-        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 100.0}}
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 100.0, "object_type": "pipe"}}
         items = build_full_specification(
             elec,
             objs,
@@ -288,7 +359,7 @@ class TestK2iSectionLengthThreshold:
         # коробки остаются в обычной корзине (СКВ 1601: d>57, N>=3)
         assert _qty(items, "СКВ 1601") == 2
 
-    def test_k2i_active_for_long_single_section(self):
+    def test_k2i_active_for_long_single_section(self, enable_box_matrix):
         elec = [
             {
                 "cable_mark": "25ТТН2-СТ",
@@ -297,7 +368,7 @@ class TestK2iSectionLengthThreshold:
                 "object_id": "o1",
             }
         ]
-        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 100.0}}
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 100.0, "object_type": "pipe"}}
         items = build_full_specification(
             elec,
             objs,

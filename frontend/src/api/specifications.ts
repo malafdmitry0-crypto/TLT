@@ -20,6 +20,14 @@ export interface SpecificationOptions {
   end_section_indication?: boolean;
   top_indication?: boolean;
   min_length_for_end_indication?: number;
+  group_by?: string;
+  merge_identical?: boolean;
+}
+
+export interface SpecificationSettings {
+  project_id: string;
+  version: number;
+  settings: SpecificationOptions;
 }
 
 export interface SpecificationGenerateResult {
@@ -29,12 +37,22 @@ export interface SpecificationGenerateResult {
   mode: 'basic' | 'full';
   /** Объекты без успешного электрорасчёта, не вошедшие в полный BOM. */
   skipped_objects: number;
+  partial?: boolean;
+  excluded_groups?: Array<{
+    group?: string;
+    error_code?: string;
+    message?: string;
+    object_ids?: string[];
+  }>;
+  settings_version?: number | null;
   electrical_variant_id?: string | null;
   results?: Array<{
     electrical_variant_id: string;
     items: SpecificationItem[];
     mode: 'basic' | 'full';
     skipped_objects: number;
+    partial?: boolean;
+    excluded_groups?: SpecificationGenerateResult['excluded_groups'];
   }>;
 }
 
@@ -52,6 +70,26 @@ export interface SpecificationPreflight {
   requires_confirmation: boolean;
   total_skipped_objects: number;
   variants: SpecificationPreflightVariant[];
+}
+
+export async function getSpecificationSettings(
+  projectId: string,
+): Promise<SpecificationSettings> {
+  const { data } = await apiClient.get<SpecificationSettings>(
+    `/specifications/${projectId}/settings`,
+  );
+  return data;
+}
+
+export async function updateSpecificationSettings(
+  projectId: string,
+  settings: SpecificationOptions,
+): Promise<SpecificationSettings> {
+  const { data } = await apiClient.put<SpecificationSettings>(
+    `/specifications/${projectId}/settings`,
+    { settings },
+  );
+  return data;
 }
 
 export async function generateSpecification(

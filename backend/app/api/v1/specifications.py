@@ -13,6 +13,8 @@ from app.schemas.specification import (
     SpecificationItem,
     SpecificationPreflightResponse,
     SpecificationResponse,
+    SpecificationSettingsResponse,
+    SpecificationSettingsUpdateRequest,
     SpecificationUpdateRequest,
 )
 from app.services.audit_service import AuditService
@@ -28,6 +30,68 @@ from app.services.project_service import (
 from app.services.specification_service import SpecificationService
 
 router = APIRouter()
+
+
+@router.get(
+    "/{project_id}/settings",
+    response_model=SpecificationSettingsResponse,
+    summary="Project specification defaults (PDL-ER-07)",
+)
+async def get_specification_settings(
+    project_id: UUID,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await ProjectService(db).get_project_basic(project_id, principal)
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ProjectAccessError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    version, settings = await SpecificationService(db).get_project_settings(project_id)
+    return SpecificationSettingsResponse(
+        project_id=project_id,
+        version=version,
+        settings=settings,
+    )
+
+
+@router.put(
+    "/{project_id}/settings",
+    response_model=SpecificationSettingsResponse,
+    summary="Save project specification defaults without regenerating (PDL-ER-07)",
+)
+async def update_specification_settings(
+    project_id: UUID,
+    data: SpecificationSettingsUpdateRequest,
+    principal: CurrentPrincipal = Depends(require_any()),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await ProjectService(db).get_project_for_write(project_id, principal)
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ProjectAccessError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    version, settings = await SpecificationService(db).update_project_settings(
+        project_id,
+        data.settings,
+    )
+    await AuditService(db).try_record(
+        event_type="specification.settings_updated",
+        category="specification",
+        principal=principal,
+        project_id=project_id,
+        details={"settings_version": version},
+        message="Обновлены project defaults спецификации",
+    )
+    return SpecificationSettingsResponse(
+        project_id=project_id,
+        version=version,
+        settings=settings,
+    )
 
 
 @router.get(
@@ -174,6 +238,9 @@ async def generate_specification(
                 items=primary.items,
                 mode=primary.mode,
                 skipped_objects=primary.skipped_objects,
+                partial=primary.partial,
+                excluded_groups=primary.excluded_groups,
+                settings_version=primary.settings_version,
                 electrical_variant_id=primary.electrical_variant_id,
                 results=[
                     {
@@ -181,6 +248,8 @@ async def generate_specification(
                         "items": item.items,
                         "mode": item.mode,
                         "skipped_objects": item.skipped_objects,
+                        "partial": item.partial,
+                        "excluded_groups": item.excluded_groups,
                     }
                     for item in results
                 ],
@@ -253,6 +322,9 @@ async def generate_specification(
         items=result.items,
         mode=result.mode,
         skipped_objects=result.skipped_objects,
+        partial=result.partial,
+        excluded_groups=result.excluded_groups,
+        settings_version=result.settings_version,
         electrical_variant_id=electrical_variant.id,
     )
 

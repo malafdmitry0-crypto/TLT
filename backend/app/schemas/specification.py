@@ -24,6 +24,9 @@ class SpecificationOptions(BaseModel):
 
     Параметры, которых пока нет в карточке объекта, берутся с дефолтами и могут
     переопределяться сотрудником на странице спецификации.
+
+    PDL-ER-07: эти поля — project defaults; при генерации сохраняется snapshot.
+    PDL-ER-38: group_by / merge_identical — presentation defaults в snapshot.
     """
 
     reserve_coefficient: float = Field(
@@ -50,6 +53,28 @@ class SpecificationOptions(BaseModel):
         ge=0.0,
         description="L,К2i — мин. длина секции для применения К2i, м",
     )
+    group_by: str = Field(
+        default="object_section",
+        description="PDL-ER-38: default grouping key for BOM presentation",
+    )
+    merge_identical: bool = Field(
+        default=False,
+        description="PDL-ER-38: merge identical catalog base+code after per-type calc",
+    )
+
+
+class SpecificationSettingsResponse(BaseModel):
+    """Project-level versioned specification defaults (PDL-ER-07)."""
+
+    project_id: UUID
+    version: int
+    settings: SpecificationOptions
+
+
+class SpecificationSettingsUpdateRequest(BaseModel):
+    """Update project defaults without regenerating specifications."""
+
+    settings: SpecificationOptions
 
 
 class SpecificationResponse(BaseModel):
@@ -106,6 +131,8 @@ class SpecificationGenerateVariantResult(BaseModel):
     items: list[SpecificationItem]
     mode: str = "full"
     skipped_objects: int = 0
+    partial: bool = False
+    excluded_groups: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SpecificationGenerateResponse(BaseModel):
@@ -115,6 +142,9 @@ class SpecificationGenerateResponse(BaseModel):
     mode: str = "full"
     # Объекты/группы без вклада в full BOM (partial diagnostics).
     skipped_objects: int = 0
+    partial: bool = False
+    excluded_groups: list[dict[str, Any]] = Field(default_factory=list)
+    settings_version: int | None = None
     electrical_variant_id: UUID | None = None
     # Multi-ЭР atomic generation: per-variant results (PDL-ER-01/14).
     results: list[SpecificationGenerateVariantResult] | None = None
