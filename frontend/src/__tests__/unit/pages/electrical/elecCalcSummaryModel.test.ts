@@ -34,6 +34,16 @@ function calc(objectId: string, cableMarkSource: 'auto' | 'manual'): ElectricalC
   };
 }
 
+function emptyBucket() {
+  return {
+    objectCount: 0,
+    cableLengthM: 0,
+    sectionCount: null as number | null,
+    powerW: 0,
+    startCurrentA: 0,
+  };
+}
+
 function stats(overrides: Partial<ElectricalStats> = {}): ElectricalStats {
   return {
     calcByObjectId: {},
@@ -44,6 +54,12 @@ function stats(overrides: Partial<ElectricalStats> = {}): ElectricalStats {
     totalCableLength: 0,
     totalPower: 0,
     totalCurrent: 0,
+    systemSummaries: {
+      self_regulating: emptyBucket(),
+      resistive: emptyBucket(),
+      skin: emptyBucket(),
+      total: emptyBucket(),
+    },
     ...overrides,
   };
 }

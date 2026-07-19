@@ -75,6 +75,9 @@ describe('useElectricalStats', () => {
     expect(result.current.totalCurrent).toBeCloseTo(4.8, 3);
     expect(result.current.calcedCount).toBe(2);
     expect(result.current.allCalced).toBe(true);
+    expect(result.current.systemSummaries.self_regulating.objectCount).toBe(2);
+    expect(result.current.systemSummaries.total.cableLengthM).toBe(33);
+    expect(result.current.systemSummaries.self_regulating.sectionCount).toBeNull();
   });
 
   it('суммирует заказную длину, если она есть в результате', () => {

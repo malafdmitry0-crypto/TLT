@@ -7,6 +7,7 @@ import {
 } from '@/utils/calcStatus';
 import type { ProjectObject } from '@/types/project';
 import type { ElectricalCalcSummary } from '@/types/calculation';
+import type { ElectricalSystemSummaries, SystemSummaryBucket } from '@/components/electrical/ElectricalSummary';
 
 function orderCableLength(calc: ElectricalCalcSummary) {
   const explicitRaw = calc.results?.order_cable_length;
@@ -15,6 +16,45 @@ function orderCableLength(calc: ElectricalCalcSummary) {
     if (Number.isFinite(explicitLength)) return explicitLength;
   }
   return 0;
+}
+
+function emptyBucket(): SystemSummaryBucket {
+  return {
+    objectCount: 0,
+    cableLengthM: 0,
+    sectionCount: null,
+    powerW: 0,
+    startCurrentA: 0,
+  };
+}
+
+function systemKeyOf(calc: ElectricalCalcSummary): 'self_regulating' | 'resistive' | 'skin' | null {
+  const t = String(calc.cable_type || '').toLowerCase();
+  if (t === 'self_regulating' || t === 'self_regulating_tt' || t === '') return 'self_regulating';
+  if (t === 'single_core' || t === 'three_core' || t === 'resistive') return 'resistive';
+  if (t === 'skin' || t === 'skin_effect') return 'skin';
+  return null;
+}
+
+function addToBucket(bucket: SystemSummaryBucket, calc: ElectricalCalcSummary): void {
+  bucket.objectCount += 1;
+  bucket.cableLengthM += orderCableLength(calc);
+  bucket.powerW += Number(calc.results?.total_power ?? 0);
+  const start = Number(
+    calc.results?.start_current
+    ?? calc.results?.starting_current
+    ?? calc.results?.current
+    ?? 0,
+  );
+  bucket.startCurrentA += Number.isFinite(start) ? start : 0;
+  // SEEDS empty: do not invent section counts from num_circuits.
+  const sectionsRaw = calc.results?.section_count ?? calc.results?.num_sections;
+  if (sectionsRaw !== null && sectionsRaw !== undefined && sectionsRaw !== '') {
+    const n = Number(sectionsRaw);
+    if (Number.isFinite(n) && n > 0) {
+      bucket.sectionCount = (bucket.sectionCount ?? 0) + n;
+    }
+  }
 }
 
 export interface ElectricalStats {
@@ -32,6 +72,8 @@ export interface ElectricalStats {
   totalCableLength: number;
   totalPower: number;
   totalCurrent: number;
+  /** PDF UI-PDF-02: four system buckets (success only). */
+  systemSummaries: ElectricalSystemSummaries;
 }
 
 /**
@@ -87,6 +129,30 @@ export function useElectricalStats(
       0,
     );
 
+    const self_regulating = emptyBucket();
+    const resistive = emptyBucket();
+    const skin = emptyBucket();
+    for (const calc of successCalcs) {
+      const key = systemKeyOf(calc);
+      if (key === 'self_regulating') addToBucket(self_regulating, calc);
+      else if (key === 'resistive') addToBucket(resistive, calc);
+      else if (key === 'skin') addToBucket(skin, calc);
+      else addToBucket(self_regulating, calc);
+    }
+    const total = emptyBucket();
+    for (const calc of successCalcs) {
+      addToBucket(total, calc);
+    }
+    // If no section catalog data at all, keep sectionCount null on buckets.
+    for (const b of [self_regulating, resistive, skin, total]) {
+      if (b.sectionCount === 0 && successCalcs.every((c) => {
+        const raw = c.results?.section_count ?? c.results?.num_sections;
+        return raw === null || raw === undefined || raw === '';
+      })) {
+        b.sectionCount = null;
+      }
+    }
+
     return {
       calcByObjectId,
       validObjects,
@@ -96,6 +162,7 @@ export function useElectricalStats(
       totalCableLength,
       totalPower,
       totalCurrent,
+      systemSummaries: { self_regulating, resistive, skin, total },
     };
   }, [objects, elecCalcs, selectedLegacyVariantNumber]);
 }

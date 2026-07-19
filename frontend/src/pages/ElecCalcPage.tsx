@@ -42,6 +42,7 @@ import { areCommercialFeaturesEnabled } from '@/config/featureFlags';
 import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
 
 import EmptyProjectState from '@/components/common/EmptyProjectState';
+import ElectricalSummary from '@/components/electrical/ElectricalSummary';
 import ElectricalBatchActionBar from '@/pages/electrical/ElectricalBatchActionBar';
 import ElectricalAssignmentPanel from '@/pages/electrical/ElectricalAssignmentPanel';
 import ElectricalVariantTabs, {
@@ -1600,6 +1601,16 @@ function ElecCalcWorkspace({
             />
           )}
 
+          {/* PDF UI-PDF-02: four system summary cards */}
+          <ElectricalSummary
+            systems={stats.systemSummaries}
+            totalCableLength={totalCableLength}
+            totalPower={Number(stats.totalPower)}
+            totalCurrent={totalCurrent}
+            calcedCount={calculatedCount}
+            totalObjects={totalObjects}
+          />
+
           {/* Legend / summary row */}
           <div className="legend-row-srs">
             <span>
@@ -1611,13 +1622,11 @@ function ElecCalcWorkspace({
             {calculatedCount > 0 && (
               <Space size={16}>
                 <Text style={{ fontSize: 12 }}>
-                  Кабель: <strong>{totalCableLength.toFixed(1)} м</strong>
-                </Text>
-                <Text style={{ fontSize: 12 }}>
-                  Мощность: <strong>{summaryPowerDisplay}</strong>
-                </Text>
-                <Text style={{ fontSize: 12 }}>
-                  Ток: <strong>{totalCurrent.toFixed(2)} А</strong>
+                  Итого: <strong>{totalCableLength.toFixed(1)} м</strong>
+                  {' · '}
+                  <strong>{summaryPowerDisplay}</strong>
+                  {' · '}
+                  <strong>{totalCurrent.toFixed(2)} А</strong>
                 </Text>
                 <Button
                   size="small"

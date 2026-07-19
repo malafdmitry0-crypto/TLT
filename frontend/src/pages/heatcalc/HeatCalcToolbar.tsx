@@ -37,6 +37,10 @@ export type HeatCalcTypeToolbarProps = {
   formCaptionModeLabel: string;
   onObjectScopeChange: (scope: ActiveObjectScope) => void;
   onFormBlockVisibilityChange: (checked: boolean) => void;
+  /** PDF UI-PDF-01: primary CTA to electrical with readiness gate. */
+  onContinueToElectrical?: () => void;
+  continueToElectricalDisabled?: boolean;
+  continueToElectricalTooltip?: string;
 };
 
 export type HeatCalcActionsToolbarProps = {
@@ -101,6 +105,9 @@ export function HeatCalcTypeToolbar({
   formCaptionModeLabel,
   onObjectScopeChange,
   onFormBlockVisibilityChange,
+  onContinueToElectrical,
+  continueToElectricalDisabled = false,
+  continueToElectricalTooltip = 'Перейти к электротехническому расчёту',
 }: HeatCalcTypeToolbarProps) {
   return (
     <div className="actionbar-srs actionbar-type-row" role="toolbar" aria-label="Тип объекта и блок параметров">
@@ -135,6 +142,16 @@ export function HeatCalcTypeToolbar({
         >
           Все: <strong className="action-type-count">{allButtonCountText}</strong>
         </Button>
+        <Tooltip title="Пол — будущее расширение PDF; расчёт не входит в MVP">
+          <Button
+            className="action-type-button"
+            disabled
+            aria-label="Пол (недоступно)"
+            aria-disabled
+          >
+            Пол
+          </Button>
+        </Tooltip>
       </div>
 
       <div className="actionbar-group actionbar-form-state-group">
@@ -150,6 +167,21 @@ export function HeatCalcTypeToolbar({
         >
           Показать блок заполнения параметров
         </Checkbox>
+        {onContinueToElectrical && (
+          <Tooltip title={continueToElectricalTooltip}>
+            <span className="action-tooltip-wrap">
+              <Button
+                type="primary"
+                data-testid="heat-continue-to-electrical"
+                disabled={continueToElectricalDisabled}
+                onClick={onContinueToElectrical}
+                aria-label="Далее. Электротехнический расчёт"
+              >
+                Далее → Электротехнический расчёт
+              </Button>
+            </span>
+          </Tooltip>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
 # Аудит «1 Кейс — гостевая спецификация»
 
 > **Актуальный статус — один файл:** [`STATUS.md`](STATUS.md).  
-> Не плодить новые сводные отчёты; обновлять `STATUS.md`.
+> Не плодить новые сводные отчёты; обновлять `STATUS.md`.  
+> **PDF UI parity (обязательно):** [`pdf-ui-parity-super-prompt.md`](pdf-ui-parity-super-prompt.md).
 
 Статус исходного PDF-аудита: **FAIL — Needs correction + Needs business
 decision**.

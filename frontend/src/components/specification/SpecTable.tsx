@@ -78,10 +78,18 @@ export default function SpecTable({
     rows = mergeRows(rows);
   }
 
+  // PDF §7.1 / UI-PDF-05: № · Наименование · Марка · Код · Поставщик · Ед. поставки · Кол-во
   const baseColumns = [
+    {
+      title: '№',
+      key: 'row_num',
+      width: 48,
+      render: (_: unknown, __: Row, index: number) => index + 1,
+    },
     {
       title: 'Категория',
       dataIndex: 'category',
+      width: 120,
       sorter: (a: Row, b: Row) => a.category.localeCompare(b.category),
     },
     {
@@ -108,9 +116,9 @@ export default function SpecTable({
       },
     },
     {
-      title: 'Код',
+      title: 'Номенклатурный код',
       key: 'nomenclature_code',
-      width: 120,
+      width: 140,
       sorter: (a: Row, b: Row) => {
         const ac = String(
           (a.params as { nomenclature_code?: string; code?: string } | undefined)
@@ -139,13 +147,30 @@ export default function SpecTable({
       },
     },
     {
-      title: 'Ед.',
-      dataIndex: 'unit',
-      width: 80,
-      sorter: (a: Row, b: Row) => a.unit.localeCompare(b.unit),
+      title: 'Поставщик',
+      key: 'supplier',
+      width: 120,
+      render: (_: unknown, row: Row) => {
+        const supplier = String(
+          (row.params as { supplier?: string } | undefined)?.supplier || '',
+        ).trim();
+        return supplier || <span style={{ color: '#bbb' }}>—</span>;
+      },
     },
     {
-      title: 'Кол-во',
+      title: 'Ед. поставки',
+      dataIndex: 'unit',
+      width: 100,
+      sorter: (a: Row, b: Row) => a.unit.localeCompare(b.unit),
+      render: (v: string, row: Row) => {
+        const supply = String(
+          (row.params as { supply_unit?: string } | undefined)?.supply_unit || v || '',
+        );
+        return supply || <span style={{ color: '#bbb' }}>—</span>;
+      },
+    },
+    {
+      title: 'Количество',
       dataIndex: 'quantity',
       width: 100,
       sorter: (a: Row, b: Row) => a.quantity - b.quantity,

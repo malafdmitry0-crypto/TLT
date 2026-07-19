@@ -7,8 +7,8 @@
 | Поле | Значение |
 |---|---|
 | Ветка | local `main` (Desktop TLT) |
-| HEAD (на момент записи) | local (e2e legacy prune pending) |
-| Обновлено | 2026-07-19 (legacy e2e removed) |
+| HEAD (на момент записи) | local WIP UI-PDF parity |
+| Обновлено | 2026-07-19 (UI-PDF-01…05 shell implemented) |
 
 ## Правила оценки
 
@@ -74,7 +74,7 @@ Evidence anchors: `phase-5-checkpoint.md`, `actionable-close-remaining.md`, comm
 | PROD-01 | 42 | Home: временный server project, 3 дня, не account |
 | PROD-02 | 43 | Home admin card `data-testid=home-admin-entry` + copy system role |
 | PROD-03 | 44 | `full_builder` pick-one `ceil(N/capacity)`; catalog `sections_per_kit`; options `connector_kit_sections_per_kit`; Spec UI select; PDF oracle 9/2→5 |
-| PROD-04 | 45 | без pixel-rework IA (контракт: текущий wizard) |
+| PROD-04 | 45→**superseded for UI list** | mock watermark ≠ pixel; **но** блоки PDF 21/35/49/56 **обязательны** — см. §H + `pdf-ui-parity-super-prompt.md` |
 
 Nсек-зависимый BOM по-прежнему **fail-closed** пока SEEDS пусты — это SEEDS, не gap D.
 
@@ -85,18 +85,34 @@ Nсек-зависимый BOM по-прежнему **fail-closed** пока SE
 - Corporate report template (PDL-ER-40).
 - Phase 6 cutover execute без явного go.
 - «Догадаться» числами секций/коробок без официальных сидов.
+- Pixel-perfect watermark «пример» / чужие бренды HTL из mock PNG.
+
+---
+
+## H. PDF UI parity — **обязательно** (не waiver)
+
+Промпт: [`pdf-ui-parity-super-prompt.md`](pdf-ui-parity-super-prompt.md)
+
+| ID | Что (PDF) | Статус |
+|---|---|---|
+| **UI-PDF-01** | Heat: 3 колонки (тепло / кабель / spec) + Пол disabled + **Далее** gate | **done** (wide form regroup + CTA) |
+| **UI-PDF-02** | Elec: 4 summary cards Самрег/Резистив/Скин/Итого | **done** |
+| **UI-PDF-03** | Elec: DnD assign (+ кнопки) | **done** (drag rows → tab drop) |
+| **UI-PDF-04** | Hierarchy object→sections (shell до SEEDS; full после) | **shell done** (expand empty state) |
+| **UI-PDF-05** | Spec: Поставщик + Ед. поставки + код; разделы pipe/tank/common | **done** |
 
 ---
 
 ## F. Очередь (единственная)
 
-1. **SEEDS-01 / SEEDS-02** — наполнить и зарегистрировать.  
-2. **CODE-01** — ER5 candidate/folder 1…5.  
-3. **CODE-02** — import confirm.  
-4. ~~PROD-01…04~~ — **done** (PDL-ER-42…45).  
-5. **CODE-03** — 500, если NFR обязателен.  
-6. После сидов — Phase 4 + kit emission по **PDL-ER-44**.  
-7. **CODE-04** Phase 6 — по go.
+1. **UI-PDF-01…05** — `pdf-ui-parity-super-prompt.md` (можно параллельно 02/05).  
+2. **SEEDS-01 / SEEDS-02** — наполнить (разблокирует full UI-PDF-04 + boxes).  
+3. **CODE-01** — ER5 candidate/folder 1…5.  
+4. **CODE-02** — import confirm.  
+5. ~~PROD-01…03~~ done; PROD-04 UI list → §H.  
+6. **CODE-03** — 500, если NFR обязателен.  
+7. После сидов — Phase 4 full sections + BOM.  
+8. **CODE-04** Phase 6 — по go.
 
 ---
 

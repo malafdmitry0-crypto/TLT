@@ -14,6 +14,8 @@ import {
   message as antdMessage,
 } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '@/routes/routes';
 
 import HeatCalcExcelContextMenu from '@/components/heatcalc/HeatCalcExcelContextMenu';
 import HeatCalcObjectsTableCard from '@/components/heatcalc/HeatCalcObjectsTableCard';
@@ -98,6 +100,7 @@ function changedDraftRowIds(previous: DraftRowsById, next: DraftRowsById) {
 
 export default function HeatCalcPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const project = useProjectStore((s) => s.currentProject);
   const role = useAuthStore((s) => s.role);
   const registeredUserId = useAuthStore((s) => s.user?.id ?? null);
@@ -677,6 +680,8 @@ export default function HeatCalcPage() {
   });
 
   function renderTypeBar() {
+    const invalidCount = allProjectObjects.filter((obj) => !obj.is_valid).length;
+    const readyForElectrical = allProjectObjects.length > 0 && invalidCount === 0;
     return (
       <HeatCalcTypeToolbar
         activeObjectScope={activeObjectScope}
@@ -690,6 +695,27 @@ export default function HeatCalcPage() {
         formCaptionModeLabel={formCaptionModeLabel}
         onObjectScopeChange={handleObjectScopeChange}
         onFormBlockVisibilityChange={handleFormBlockVisibilityChange}
+        onContinueToElectrical={() => {
+          if (!readyForElectrical) {
+            if (allProjectObjects.length === 0) {
+              antdMessage.warning('Добавьте хотя бы один объект перед электрорасчётом');
+              return;
+            }
+            antdMessage.error(
+              `Нельзя перейти: объектов с ошибками — ${invalidCount}. Исправьте исходные данные.`,
+            );
+            return;
+          }
+          navigate(ROUTES.elecCalc);
+        }}
+        continueToElectricalDisabled={allProjectObjects.length === 0}
+        continueToElectricalTooltip={
+          allProjectObjects.length === 0
+            ? 'Добавьте объекты'
+            : invalidCount > 0
+              ? `Есть ${invalidCount} объект(ов) с ошибками — исправьте перед переходом`
+              : 'Далее → Электротехнический расчёт (PDF §5.13)'
+        }
       />
     );
   }

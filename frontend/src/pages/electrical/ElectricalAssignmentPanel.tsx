@@ -463,7 +463,50 @@ export default function ElectricalAssignmentPanel({
           }}
           items={ASSIGNMENT_TABS.map((tab) => ({
             key: tab.key,
-            label: tabLabel(tab.label, counts[tab.key]),
+            label: (
+              <span
+                data-drop-system={tab.key}
+                onDragOver={(event) => {
+                  if (!canMutate || busy) return;
+                  if (tab.key === 'skin' || tab.key === 'mineral' || tab.key === 'unassigned') {
+                    return;
+                  }
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'move';
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  if (!canMutate || busy) return;
+                  if (tab.key === 'skin' || tab.key === 'mineral') {
+                    messageApi.warning(
+                      'Нельзя назначать в неподдерживаемую систему (Скин / Минеральный).',
+                    );
+                    return;
+                  }
+                  if (tab.key === 'unassigned') return;
+                  const raw = event.dataTransfer.getData('application/x-tlt-assignment-ids');
+                  let ids: string[] = [];
+                  try {
+                    ids = raw ? (JSON.parse(raw) as string[]) : [];
+                  } catch {
+                    ids = [];
+                  }
+                  if (!ids.length) return;
+                  const items = (assignmentsQuery.data?.items ?? []).filter((a) =>
+                    ids.includes(a.object_id));
+                  if (!items.length) return;
+                  if (tab.key === 'self_regulating' || tab.key === 'resistive') {
+                    mutation.mutate({
+                      kind: 'assign',
+                      systemType: tab.key,
+                      assignments: items,
+                    });
+                  }
+                }}
+              >
+                {tabLabel(tab.label, counts[tab.key])}
+              </span>
+            ),
             disabled: busy,
           }))}
         />
@@ -472,6 +515,9 @@ export default function ElectricalAssignmentPanel({
           Назначать новые объекты в неподдерживаемые системы нельзя.
           Вкладки «Скин» и «Минеральный» показывают сохранённые legacy-назначения,
           чтобы их можно было с подтверждением вернуть в нераспределённые.
+          {' '}
+          PDF UI-PDF-03: перетащите строки из «Нераспределённые» на вкладку Самрег/Резистив
+          (кнопки назначения сохранены).
         </Typography.Text>
 
         <div
@@ -532,6 +578,56 @@ export default function ElectricalAssignmentPanel({
               dataSource={assignmentsQuery.data?.items ?? []}
               columns={columns}
               scroll={{ x: 900 }}
+              onRow={(record) => ({
+                draggable: canMutate && !busy && activeTab === 'unassigned',
+                onDragStart: (event) => {
+                  if (!canMutate || busy || activeTab !== 'unassigned') return;
+                  const ids = selectedObjectIds.includes(record.object_id)
+                    ? selectedObjectIds
+                    : [record.object_id];
+                  event.dataTransfer.setData(
+                    'application/x-tlt-assignment-ids',
+                    JSON.stringify(ids),
+                  );
+                  event.dataTransfer.effectAllowed = 'move';
+                },
+                style:
+                  canMutate && activeTab === 'unassigned'
+                    ? { cursor: 'grab' }
+                    : undefined,
+              })}
+              expandable={
+                activeTab === 'self_regulating' || activeTab === 'resistive'
+                  ? {
+                      expandedRowRender: (record) => (
+                        <div
+                          data-testid="section-hierarchy-shell"
+                          style={{
+                            padding: '8px 12px',
+                            background: '#fafafa',
+                            borderLeft: '3px solid #d9d9d9',
+                            fontSize: 12,
+                            color: '#595959',
+                          }}
+                        >
+                          <strong>Нагревательные секции</strong>
+                          <div style={{ marginTop: 4 }}>
+                            Секции появятся после регистрации каталога секционирования
+                            (Lмакс, Iдоп, Iст.уд). Сейчас Nсек не вычисляется из сидов
+                            (UI-PDF-04 shell).
+                          </div>
+                          <div style={{ marginTop: 4 }}>
+                            Объект: {objectDisplayName(record.object)} · система:{' '}
+                            {record.system_type
+                              ? SYSTEM_LABELS[record.system_type]
+                              : '—'}
+                          </div>
+                        </div>
+                      ),
+                      rowExpandable: () => true,
+                    }
+                  : undefined
+              }
               rowSelection={canMutate ? {
                 type: 'checkbox',
                 selectedRowKeys: selectedObjectIds,
