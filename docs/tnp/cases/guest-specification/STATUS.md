@@ -7,8 +7,8 @@
 | Поле | Значение |
 |---|---|
 | Ветка | local `main` (Desktop TLT) |
-| HEAD (на момент записи) | pending commit: PDL-ER-42…45 code |
-| Обновлено | 2026-07-19 (D code implemented) |
+| HEAD (на момент записи) | `07e08bf` fix(spec) PDL-ER-42…45 code |
+| Обновлено | 2026-07-19 (D code committed) |
 
 ## Правила оценки
 
