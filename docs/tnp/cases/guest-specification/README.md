@@ -18,7 +18,7 @@ Skin/mineral tabs остаются browsable для migrated unsupported rows/un
 specification `not_generated` по PDL-ER-13. Row/batch/inline compatibility
 остаётся строгой, но fresh supported resistive assignment открывает
 `Выбор`/`Подбор` с безопасным `single_core`, а не наследует self-reg default.
-Phase 5, общий PDF/DoD и product release не завершены, Phase 4 заблокирована
+Phase 5 partial checkpoint (`phase-5-checkpoint.md`) закрывает guest full BOM, multi-ЭР generate, d≥57 и guest TTL 3d config; CSV v3/ER5 UUID-only/report full DoD ещё открыты. Phase 4 заблокирована
 PDL-ER-15/18/28. Guest TTL 3 дня и целевой лимит 500 объектов утверждены
 PDL-ER-26/27, но ещё не реализованы.
 Full frontend gate Phase 3: `1052 passed, 1 failed`; неизменённый

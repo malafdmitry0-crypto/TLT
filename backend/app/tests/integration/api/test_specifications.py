@@ -181,17 +181,38 @@ class TestSpecification:
         assert resp.status_code in (200, 404)
         # Если 200 — должен быть пустой массив, если 404 — нет данных
 
-    async def test_guest_full_mode_returns_403(self, client: AsyncClient, guest_session: str):
-        """Полная спецификация — функция сотрудника: гостю явный 403, не тихий даунгрейд."""
-        p = (await client.get("/api/v1/projects", headers={"X-Session-Id": guest_session})).json()[
-            0
-        ]
+    async def test_guest_full_mode_allowed_manual_items_still_forbidden(
+        self, client: AsyncClient, guest_session: str
+    ):
+        """PDL-ER-04: guest may generate full automatic BOM; manual item write stays 403."""
+        headers = {"X-Session-Id": guest_session}
+        p = (await client.get("/api/v1/projects", headers=headers)).json()[0]
+        await self._add_pipe(client, p["id"], headers)
         resp = await client.post(
             f"/api/v1/specifications/{p['id']}/generate",
             json={"mode": "full"},
-            headers={"X-Session-Id": guest_session},
+            headers=headers,
         )
-        assert resp.status_code == 403
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["mode"] == "full"
+
+        manual = await client.put(
+            f"/api/v1/specifications/{p['id']}/items",
+            json={
+                "items": [
+                    {
+                        "category": "manual",
+                        "name": "Ручная позиция",
+                        "unit": "шт",
+                        "quantity": 1,
+                        "source": "manual",
+                    }
+                ]
+            },
+            headers=headers,
+        )
+        assert manual.status_code == 403
 
     async def test_generate_response_reports_mode_and_persists_it(
         self, client: AsyncClient, employee_token: str
@@ -359,6 +380,75 @@ class TestSpecification:
         assert spec["items"][0]["name"] == "Новая ручная позиция"
 
 
+    async def test_multi_er_generate_is_atomic_and_scoped(
+        self, client: AsyncClient, employee_token: str
+    ):
+        """PDL-ER-01/14: explicit multi-ER generation creates independent specs."""
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        project = (
+            await client.post(
+                "/api/v1/projects", json={"name": "Multi-ER Spec"}, headers=headers
+            )
+        ).json()
+        await self._add_pipe(client, project["id"], headers)
+
+        init = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants/initialize",
+            headers=headers,
+        )
+        assert init.status_code in (200, 201), init.text
+        er1 = init.json()["variant"]
+
+        created = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants",
+            json={"name": "ЭР2-spec"},
+            headers={**headers, "Idempotency-Key": "spec-multi-er-create-2"},
+        )
+        assert created.status_code in (200, 201), created.text
+        er2 = created.json()
+        if "variant" in er2:
+            er2 = er2["variant"]
+
+        resp = await client.post(
+            f"/api/v1/specifications/{project['id']}/generate",
+            json={
+                "mode": "basic",
+                "electrical_variant_ids": [er1["id"], er2["id"]],
+            },
+            headers=headers,
+        )
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["results"] is not None
+        assert len(body["results"]) == 2
+        ids = {str(item["electrical_variant_id"]) for item in body["results"]}
+        assert ids == {er1["id"], er2["id"]}
+
+        spec1 = (
+            await client.get(
+                f"/api/v1/specifications/{project['id']}",
+                params={
+                    "variant": er1["legacy_variant_number"],
+                    "electrical_variant_id": er1["id"],
+                },
+                headers=headers,
+            )
+        ).json()
+        spec2 = (
+            await client.get(
+                f"/api/v1/specifications/{project['id']}",
+                params={
+                    "variant": er2["legacy_variant_number"],
+                    "electrical_variant_id": er2["id"],
+                },
+                headers=headers,
+            )
+        ).json()
+        assert spec1 is not None and spec2 is not None
+        assert spec1["electrical_variant_id"] == er1["id"]
+        assert spec2["electrical_variant_id"] == er2["id"]
+
+
 class TestSpecAccessoryCountForAllObjects:
     """Regression: аксессуары (УЗО и т.д.) заказываются на все объекты проекта,
     а не только на успешно рассчитанные. Раньше при fail-ах в электрорасчёте
@@ -419,3 +509,5 @@ class TestSpecAccessoryCountForAllObjects:
             assert per_object == float(
                 int(per_object)
             ), f"{acc['name']}: quantity={qty}, не кратно 3 (числу объектов проекта)"
+
+

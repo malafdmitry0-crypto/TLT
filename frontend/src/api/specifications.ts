@@ -29,6 +29,13 @@ export interface SpecificationGenerateResult {
   mode: 'basic' | 'full';
   /** Объекты без успешного электрорасчёта, не вошедшие в полный BOM. */
   skipped_objects: number;
+  electrical_variant_id?: string | null;
+  results?: Array<{
+    electrical_variant_id: string;
+    items: SpecificationItem[];
+    mode: 'basic' | 'full';
+    skipped_objects: number;
+  }>;
 }
 
 export async function generateSpecification(
@@ -37,10 +44,20 @@ export async function generateSpecification(
   electricalVariantId?: string,
   mode: 'basic' | 'full' = 'basic',
   options?: SpecificationOptions,
+  electricalVariantIds?: string[],
 ): Promise<SpecificationGenerateResult> {
+  const explicitIds = electricalVariantIds?.length
+    ? electricalVariantIds
+    : electricalVariantId
+      ? [electricalVariantId]
+      : undefined;
   const { data } = await apiClient.post(
     `/specifications/${projectId}/generate`,
-    { mode, options: options ?? null },
+    {
+      mode,
+      options: options ?? null,
+      electrical_variant_ids: explicitIds ?? null,
+    },
     { params: { variant, electrical_variant_id: electricalVariantId } }
   );
   return data;

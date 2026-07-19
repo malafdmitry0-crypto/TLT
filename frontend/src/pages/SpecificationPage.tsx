@@ -96,9 +96,11 @@ export default function SpecificationPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null);
   const [qty, setQty] = useState<number>(1);
-  // Режим спецификации: базовая (кабель + минимум) или полная (условный BOM ТНП).
-  // Полная доступна только Сотруднику/Админу.
+  // Режим спецификации: базовая или полная (PDL-ER-04 — full auto BOM доступен гостю).
+  // Ручное редактирование позиций по-прежнему только employee/admin.
   const [specMode, setSpecMode] = useState<'basic' | 'full'>('basic');
+  // PDL-ER-01: explicit multi-ЭР selection for generation; never implicit all-on-open.
+  const [selectedGenerateErIds, setSelectedGenerateErIds] = useState<string[]>([]);
   const [exZone, setExZone] = useState(false);
   const [reserveCoeff, setReserveCoeff] = useState<number>(1);
   // Опции индикации ТНП: К1i / К2i / Кiu / L,К2i
@@ -163,7 +165,25 @@ export default function SpecificationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spec?.id, spec?.generation_mode]);
 
-  const effectiveMode = canManuallyEdit ? specMode : 'basic';
+  // PDL-ER-04: guest may generate full automatic BOM; only manual item CRUD is employee-only.
+  const effectiveMode = canMutateProject ? specMode : 'basic';
+  const availableGenerateVariants = useMemo(
+    () => (variantContext.variants ?? []).filter((item) => item.legacy_variant_number != null),
+    [variantContext.variants],
+  );
+  useEffect(() => {
+    if (!selectedElectricalVariant?.id) return;
+    setSelectedGenerateErIds((prev) => {
+      if (prev.length === 0) return [selectedElectricalVariant.id];
+      const stillValid = prev.filter((id) =>
+        availableGenerateVariants.some((item) => item.id === id),
+      );
+      if (stillValid.length > 0) return stillValid;
+      return selectedElectricalVariant.legacy_variant_number != null
+        ? [selectedElectricalVariant.id]
+        : [];
+    });
+  }, [selectedElectricalVariant?.id, selectedElectricalVariant?.legacy_variant_number, availableGenerateVariants]);
   const snapshotMutationScope = (): SpecificationMutationScope => {
     if (!project || !selectedElectricalVariant || variantContext.legacyVariantNumber == null) {
       throw new Error('Выбранный ЭР недоступен для спецификации');
@@ -188,7 +208,8 @@ export default function SpecificationPage() {
       legacyVariantNumber,
       mode,
       options,
-    }: GenerateSpecificationVariables) => {
+      generateVariantIds,
+    }: GenerateSpecificationVariables & { generateVariantIds: string[] }) => {
       if (!canMutateProject) {
         throw new Error('Недостаточно прав для изменения спецификации');
       }
@@ -198,18 +219,28 @@ export default function SpecificationPage() {
         electricalVariantId,
         mode,
         options,
+        generateVariantIds,
       );
     },
     onSuccess: (result, variables) => {
+      const generatedCount = result.results?.length ?? 1;
       message.success(
-        `Спецификация (${result.mode === 'full' ? 'полная' : 'базовая'}) для «${variables.electricalVariantName}» сгенерирована`
+        generatedCount > 1
+          ? `Спецификация (${result.mode === 'full' ? 'полная' : 'базовая'}) сформирована для ${generatedCount} ЭР`
+          : `Спецификация (${result.mode === 'full' ? 'полная' : 'базовая'}) для «${variables.electricalVariantName}» сгенерирована`
       );
       if (result.mode === 'full' && result.skipped_objects > 0) {
         message.warning(
           `Объектов без успешного электрорасчёта: ${result.skipped_objects} — они не вошли в полную спецификацию`
         );
       }
-      qc.invalidateQueries({ queryKey: variables.queryKey, exact: true });
+      // Invalidate all selected ER specs after multi-generate.
+      for (const id of variables.generateVariantIds) {
+        qc.invalidateQueries({
+          queryKey: ['spec', variables.projectId, id],
+          exact: false,
+        });
+      }
     },
     onError: (e: Error) => message.error(e.message),
   });
@@ -244,8 +275,12 @@ export default function SpecificationPage() {
   const isSpecStale = spec?.is_stale === true;
   const runGenerate = () => {
     const scope = snapshotMutationScope();
+    const generateVariantIds = selectedGenerateErIds.length > 0
+      ? selectedGenerateErIds
+      : [scope.electricalVariantId];
     mut.mutate({
       ...scope,
+      generateVariantIds,
       mode: effectiveMode,
       options: effectiveMode === 'full'
         ? {
@@ -368,7 +403,7 @@ export default function SpecificationPage() {
         />
       )}
 
-      {isEmployee && (
+      {canMutateProject && (
         <div
           className="common-data-banner"
           style={{
@@ -395,7 +430,7 @@ export default function SpecificationPage() {
         </div>
       )}
 
-      {isEmployee && paramsPanelVisible && (
+      {canMutateProject && paramsPanelVisible && (
         <div
           className="form-grid-srs workflow-params-panel"
           data-testid="spec-params-panel"
@@ -408,13 +443,39 @@ export default function SpecificationPage() {
               <Segmented<'basic' | 'full'>
                 size="small"
                 value={specMode}
-                disabled={!canManuallyEdit}
+                disabled={!canMutateProject}
                 onChange={setSpecMode}
                 options={[
                   { label: 'Базовая', value: 'basic' },
                   { label: 'Полная', value: 'full' },
                 ]}
               />
+            </div>
+            <div className="workflow-params-row">
+              <Text className="workflow-params-label">ЭР для генерации</Text>
+              <Select
+                mode="multiple"
+                size="small"
+                allowClear
+                style={{ minWidth: 220, width: '100%' }}
+                placeholder="Выберите ЭР"
+                value={selectedGenerateErIds}
+                onChange={(ids: string[]) => setSelectedGenerateErIds(ids)}
+                options={availableGenerateVariants.map((item) => ({
+                  value: item.id,
+                  label: item.name,
+                }))}
+                aria-label="Выбор ЭР для генерации спецификации"
+              />
+            </div>
+            <div className="workflow-params-row">
+              <Button
+                size="small"
+                onClick={() => setSelectedGenerateErIds(availableGenerateVariants.map((item) => item.id))}
+                disabled={availableGenerateVariants.length === 0}
+              >
+                Выбрать все
+              </Button>
             </div>
             <div className="workflow-params-row">
               <Text className="workflow-params-label">Коэффициент горячего резервирования R,гр (1–3)</Text>
@@ -424,7 +485,7 @@ export default function SpecificationPage() {
                 max={3}
                 step={0.1}
                 size="small"
-                disabled={!canManuallyEdit || !fullModeActive}
+                disabled={!canMutateProject || !fullModeActive}
                 value={reserveCoeff}
                 onChange={(v) => setReserveCoeff(Number(v ?? 1))}
                 className="workflow-params-input"
@@ -441,7 +502,7 @@ export default function SpecificationPage() {
             <h4 data-step={2}><span>Требования ТНП (Ex и индикация)</span></h4>
             <div className="workflow-params-row">
               <Checkbox
-                disabled={!canManuallyEdit || !fullModeActive}
+                disabled={!canMutateProject || !fullModeActive}
                 checked={exZone}
                 onChange={(e) => setExZone(e.target.checked)}
               >
@@ -450,7 +511,7 @@ export default function SpecificationPage() {
             </div>
             <div className="workflow-params-row">
               <Checkbox
-                disabled={!canManuallyEdit || !fullModeActive}
+                disabled={!canMutateProject || !fullModeActive}
                 checked={indicationOnBoxes}
                 onChange={(e) => setIndicationOnBoxes(e.target.checked)}
               >
@@ -459,7 +520,7 @@ export default function SpecificationPage() {
             </div>
             <div className="workflow-params-row">
               <Checkbox
-                disabled={!canManuallyEdit || !fullModeActive}
+                disabled={!canMutateProject || !fullModeActive}
                 checked={endSectionIndication}
                 onChange={(e) => setEndSectionIndication(e.target.checked)}
               >
@@ -468,7 +529,7 @@ export default function SpecificationPage() {
             </div>
             <div className="workflow-params-row">
               <Checkbox
-                disabled={!canManuallyEdit || !fullModeActive}
+                disabled={!canMutateProject || !fullModeActive}
                 checked={topIndication}
                 onChange={(e) => setTopIndication(e.target.checked)}
               >
@@ -483,7 +544,7 @@ export default function SpecificationPage() {
                   min={0}
                   step={10}
                   size="small"
-                  disabled={!canManuallyEdit}
+                  disabled={!canMutateProject}
                   value={minLengthK2i}
                   onChange={(v) => setMinLengthK2i(Number(v ?? 0))}
                   className="workflow-params-input"

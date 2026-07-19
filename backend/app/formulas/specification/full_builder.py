@@ -167,9 +167,10 @@ def build_full_specification(
                 n_high_k2i += n_sec * r_res
             tape_high += (PI * d_mm * 2.5 / 1000.0) * (cable_qty / 0.3) * 1.1 if d_mm > 0 else 0.0
 
-        # Коробки: ceil(N,секц/3) в корзину по условиям
+        # Коробки: ceil(N,секц/3) в корзину по условиям.
+        # PDL-ER-08: порог включительный dтр ≥ 57 мм (включая ровно 57).
         box_count = math.ceil(n_sec / 3)
-        d_large = d_mm > 57.0
+        d_large = d_mm >= 57.0
         n_ge3 = n_sec >= 3
         bucket = _box_bucket(
             d_large=d_large,
