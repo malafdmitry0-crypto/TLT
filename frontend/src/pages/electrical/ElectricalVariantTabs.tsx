@@ -4,7 +4,6 @@ import {
   Alert,
   Button,
   Card,
-  Flex,
   Input,
   Popconfirm,
   Space,
@@ -391,10 +390,10 @@ export default function ElectricalVariantTabs({
     <Card
       size="small"
       className="electrical-variant-tabs"
-      title="Электротехнические решения"
+      styles={{ body: { padding: '8px 12px' } }}
       aria-busy={controller.isFetching || controller.isMutating}
     >
-      <Space direction="vertical" size={10} style={{ width: '100%' }}>
+      <Space direction="vertical" size={8} style={{ width: '100%' }}>
         <MutationStatus operation={controller.pendingOperation} />
         {!canMutate && (
           <Alert
@@ -425,77 +424,65 @@ export default function ElectricalVariantTabs({
           />
         )}
 
-        <div
-          ref={tablistRef}
-          className="electrical-variant-tabs__scroller"
-          role="tablist"
-          aria-label="Электротехнические решения"
-          style={{
-            display: 'flex',
-            alignItems: 'stretch',
-            gap: 8,
-            maxWidth: '100%',
-            overflowX: 'auto',
-            overflowY: 'hidden',
-            padding: '2px 2px 6px',
-            WebkitOverflowScrolling: 'touch',
-          }}
-        >
-          {controller.variants.map((variant, index) => {
-            const isSelected = variant.id === selected.id;
-            const isEditing = variant.id === editingVariantId;
-            if (isEditing) {
-              return (
-                <div
-                  key={variant.id}
-                  className="electrical-variant-tabs__rename"
-                  role="presentation"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 6,
-                    flex: '0 0 auto',
-                  }}
-                >
-                  <Button
-                    id={electricalVariantTabId(variant.id)}
-                    role="tab"
-                    aria-selected={isSelected}
-                    aria-controls={electricalVariantPanelId(variant.id)}
-                    aria-label={variant.name}
-                    tabIndex={-1}
-                    type={isSelected ? 'primary' : 'default'}
-                    data-electrical-variant-id={variant.id}
-                    title={variant.name}
-                    onKeyDown={(event) => handleTabKeyDown(index, event)}
+        {/* One row: ER tabs + lifecycle actions (no page title). */}
+        <div className="electrical-variant-tabs__row">
+          <div
+            ref={tablistRef}
+            className="electrical-variant-tabs__scroller"
+            role="tablist"
+            aria-label="Варианты ЭР"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              flex: '1 1 auto',
+              minWidth: 0,
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            {controller.variants.map((variant, index) => {
+              const isSelected = variant.id === selected.id;
+              const isEditing = variant.id === editingVariantId;
+              if (isEditing) {
+                return (
+                  <div
+                    key={variant.id}
+                    className="electrical-variant-tabs__rename"
+                    role="presentation"
                     style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
                       flex: '0 0 auto',
-                      height: 'auto',
-                      minHeight: 30,
-                      maxWidth: 'min(420px, 72vw)',
                     }}
                   >
-                    <span
-                      style={{
-                        display: 'block',
-                        minWidth: 0,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
+                    <Button
+                      id={electricalVariantTabId(variant.id)}
+                      role="tab"
+                      aria-selected={isSelected}
+                      aria-controls={electricalVariantPanelId(variant.id)}
+                      aria-label={variant.name}
+                      tabIndex={-1}
+                      type={isSelected ? 'primary' : 'default'}
+                      size="small"
+                      data-electrical-variant-id={variant.id}
+                      title={variant.name}
+                      onKeyDown={(event) => handleTabKeyDown(index, event)}
                     >
                       {variant.name}
-                    </span>
-                  </Button>
-                  <div style={{ flex: '0 0 min(320px, 72vw)' }}>
+                    </Button>
                     <Input
                       ref={renameInputRef}
+                      size="small"
                       value={renameValue}
                       maxLength={128}
                       status={renameValidationError ? 'error' : undefined}
                       aria-label={`Новое название ЭР «${variant.name}»`}
                       aria-invalid={renameValidationError ? 'true' : 'false'}
                       aria-describedby={renameValidationError ? 'electrical-variant-rename-error' : undefined}
+                      style={{ width: 200 }}
                       onChange={(event) => {
                         setRenameValue(event.target.value);
                         if (event.target.value.trim()) setRenameValidationError(null);
@@ -511,126 +498,124 @@ export default function ElectricalVariantTabs({
                       <Typography.Text
                         id="electrical-variant-rename-error"
                         type="danger"
-                        style={{ display: 'block', marginTop: 4 }}
+                        style={{ fontSize: 12 }}
                       >
                         {renameValidationError}
                       </Typography.Text>
                     )}
                   </div>
-                </div>
-              );
-            }
+                );
+              }
 
-            return (
-              <Button
-                key={variant.id}
-                id={electricalVariantTabId(variant.id)}
-                role="tab"
-                aria-selected={isSelected}
-                aria-controls={electricalVariantPanelId(variant.id)}
-                aria-label={variant.name}
-                tabIndex={isSelected ? 0 : -1}
-                type={isSelected ? 'primary' : 'default'}
-                data-electrical-variant-id={variant.id}
-                title={variant.name}
-                onClick={() => {
-                  if (canMutate) {
-                    ignoreHandledError(controller.selectAndActivateVariant(variant.id));
-                  } else {
-                    controller.selectVariant(variant.id);
-                  }
-                }}
-                onKeyDown={(event) => handleTabKeyDown(index, event)}
-                style={{
-                  flex: '0 0 auto',
-                  height: 'auto',
-                  minHeight: 30,
-                  maxWidth: 'min(420px, 72vw)',
-                }}
-              >
-                <span
-                  style={{
-                    display: 'block',
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+              return (
+                <Button
+                  key={variant.id}
+                  id={electricalVariantTabId(variant.id)}
+                  role="tab"
+                  aria-selected={isSelected}
+                  aria-controls={electricalVariantPanelId(variant.id)}
+                  aria-label={variant.name}
+                  tabIndex={isSelected ? 0 : -1}
+                  type={isSelected ? 'primary' : 'default'}
+                  size="small"
+                  data-electrical-variant-id={variant.id}
+                  title={variant.name}
+                  onClick={() => {
+                    if (canMutate) {
+                      ignoreHandledError(controller.selectAndActivateVariant(variant.id));
+                    } else {
+                      controller.selectVariant(variant.id);
+                    }
                   }}
+                  onKeyDown={(event) => handleTabKeyDown(index, event)}
                 >
                   {variant.name}
-                </span>
-              </Button>
-            );
-          })}
-        </div>
+                </Button>
+              );
+            })}
+          </div>
 
-        <Flex gap={8} wrap="wrap" className="electrical-variant-tabs__actions">
-          <Tooltip title={reachedLimit ? 'В проекте уже создано 5 ЭР' : undefined}>
-            <span>
-              <Button
-                loading={controller.pendingOperation === 'create'}
-                disabled={!canMutate || reachedLimit || lifecycleWriteLocked}
-                aria-label={
-                  reachedLimit
-                    ? 'Добавить пустой ЭР — достигнут лимит 5'
-                    : 'Добавить пустой ЭР'
-                }
-                onClick={() => ignoreHandledError(controller.createVariant())}
-              >
-                Добавить пустой ЭР
-              </Button>
-            </span>
-          </Tooltip>
-
-          <Tooltip title={reachedLimit ? 'В проекте уже создано 5 ЭР' : undefined}>
-            <span>
-              <Button
-                loading={controller.pendingOperation === 'copy'}
-                disabled={!canMutate || reachedLimit || lifecycleWriteLocked}
-                aria-label={
-                  reachedLimit
-                    ? `Создать копию «${selected.name}» — достигнут лимит 5`
-                    : `Создать копию выбранного ЭР «${selected.name}»`
-                }
-                onClick={() => ignoreHandledError(controller.copySelectedVariant())}
-              >
-                Создать копию
-              </Button>
-            </span>
-          </Tooltip>
-
-          <Button
-            loading={controller.pendingOperation === 'rename'}
-            disabled={!canMutate || lifecycleWriteLocked}
-            aria-label={`Переименовать ЭР «${selected.name}»`}
-            onClick={startRename}
+          <div
+            className="electrical-variant-tabs__actions"
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: 8,
+              flex: '0 0 auto',
+            }}
           >
-            Переименовать
-          </Button>
+            <Tooltip title={reachedLimit ? 'В проекте уже создано 5 ЭР' : undefined}>
+              <span>
+                <Button
+                  size="small"
+                  loading={controller.pendingOperation === 'create'}
+                  disabled={!canMutate || reachedLimit || lifecycleWriteLocked}
+                  aria-label={
+                    reachedLimit
+                      ? 'Добавить пустой ЭР — достигнут лимит 5'
+                      : 'Добавить пустой ЭР'
+                  }
+                  onClick={() => ignoreHandledError(controller.createVariant())}
+                >
+                  Добавить пустой ЭР
+                </Button>
+              </span>
+            </Tooltip>
 
-          <Popconfirm
-            disabled={!canMutate || isLastVariant || lifecycleWriteLocked}
-            title={`Удалить ЭР «${selected.name}»?`}
-            description="Будут удалены назначения объектов, электрические расчёты и выбранные кабели, кандидаты и их папки, а также спецификация этого ЭР. Действие нельзя отменить."
-            okText="Удалить"
-            cancelText="Отмена"
-            okButtonProps={{ danger: true }}
-            onConfirm={() => ignoreHandledError(controller.deleteVariant(selected.id))}
-          >
+            <Tooltip title={reachedLimit ? 'В проекте уже создано 5 ЭР' : undefined}>
+              <span>
+                <Button
+                  size="small"
+                  loading={controller.pendingOperation === 'copy'}
+                  disabled={!canMutate || reachedLimit || lifecycleWriteLocked}
+                  aria-label={
+                    reachedLimit
+                      ? `Создать копию «${selected.name}» — достигнут лимит 5`
+                      : `Создать копию выбранного ЭР «${selected.name}»`
+                  }
+                  onClick={() => ignoreHandledError(controller.copySelectedVariant())}
+                >
+                  Создать копию
+                </Button>
+              </span>
+            </Tooltip>
+
             <Button
-              danger
-              loading={controller.pendingOperation === 'delete'}
-              disabled={!canMutate || isLastVariant || lifecycleWriteLocked}
-              aria-label={
-                isLastVariant
-                  ? `Нельзя удалить последний ЭР «${selected.name}»`
-                  : `Удалить ЭР «${selected.name}»`
-              }
+              size="small"
+              loading={controller.pendingOperation === 'rename'}
+              disabled={!canMutate || lifecycleWriteLocked}
+              aria-label={`Переименовать ЭР «${selected.name}»`}
+              onClick={startRename}
             >
-              Удалить
+              Переименовать
             </Button>
-          </Popconfirm>
-        </Flex>
+
+            <Popconfirm
+              disabled={!canMutate || isLastVariant || lifecycleWriteLocked}
+              title={`Удалить ЭР «${selected.name}»?`}
+              description="Будут удалены назначения объектов, электрические расчёты и выбранные кабели, кандидаты и их папки, а также спецификация этого ЭР. Действие нельзя отменить."
+              okText="Удалить"
+              cancelText="Отмена"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => ignoreHandledError(controller.deleteVariant(selected.id))}
+            >
+              <Button
+                size="small"
+                danger
+                loading={controller.pendingOperation === 'delete'}
+                disabled={!canMutate || isLastVariant || lifecycleWriteLocked}
+                aria-label={
+                  isLastVariant
+                    ? `Нельзя удалить последний ЭР «${selected.name}»`
+                    : `Удалить ЭР «${selected.name}»`
+                }
+              >
+                Удалить
+              </Button>
+            </Popconfirm>
+          </div>
+        </div>
       </Space>
     </Card>
   );

@@ -73,7 +73,8 @@ describe('ElectricalVariantTabs', () => {
   it('renders ER names; current tab is selected (no separate ★ active UX)', () => {
     render(<ElectricalVariantTabs controller={controller()} />);
 
-    const tablist = screen.getByRole('tablist', { name: 'Электротехнические решения' });
+    const tablist = screen.getByRole('tablist', { name: 'Варианты ЭР' });
+    expect(screen.queryByText('Электротехнические решения')).not.toBeInTheDocument();
     const otherTab = within(tablist).getByRole('tab', { name: 'Рабочее решение' });
     const selectedTab = within(tablist).getByRole('tab', { name: /Альтернатива Ω/i });
 
