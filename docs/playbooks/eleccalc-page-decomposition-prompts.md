@@ -3,7 +3,7 @@
 ## Цель
 
 `frontend/src/pages/ElecCalcPage.tsx` - крупный route-component для SC-04:
-электрорасчёт, CO1..CO4, выбор базы кабелей, массовый пересчёт, ручной выбор
+электрорасчёт, до пяти именованных UUID ЭР, выбор базы кабелей, массовый пересчёт, ручной выбор
 марки, модалка кандидатов, основные и candidate-таблицы, настройки колонок,
 папки кандидатов и переход в спецификацию. Резать его нужно маленькими
 проверяемыми шагами: сначала audit и characterization, затем pure helpers,
@@ -22,7 +22,7 @@
 - Найди логические блоки внутри файла.
 - Раздели блоки на безопасные для первого выноса и рискованные.
 - Отдельно перечисли состояние/effects, которые нельзя двигать без тестов.
-- Отдельно перечисли business-critical flows: CO variants, batch calc, manual
+- Отдельно перечисли business-critical flows: UUID ER variants, batch calc, manual
   cable selection, candidate apply, specification transition.
 - Предложи целевую структуру файлов.
 - Не пиши код.
@@ -43,7 +43,7 @@
 - main electrical table: columns, renderers, copy values, Glide/Table engines,
   inline layout edits for winding pitch and thread count;
 - column settings: main table and candidate table preferences;
-- manual cable mark modal: source options and save-to-CO variants;
+- manual cable mark modal: source options and save-to-ER variants;
 - candidate sizing modal: auto/manual runs, applied candidate, comparison,
   folders, pin/favorite/exclude/apply;
 - result diagnostics: unsupported/stale/failed/success status and guidance;
@@ -66,7 +66,7 @@ Potential target structure:
 - `frontend/src/pages/electrical/useElecCalcCableTypeModel.ts` - available
   cable types, per-object drafts, source controls.
 - `frontend/src/pages/electrical/useElecCalcCableMarkModal.ts` - manual mark
-  modal state and save-to-CO payload.
+  modal state and save-to-ER payload.
 - `frontend/src/pages/electrical/useElecCalcCandidateModal.ts` - candidate
   sizing modal state and mutations.
 - `frontend/src/pages/electrical/useElecCalcCandidateFolders.ts` - folders,
@@ -98,7 +98,7 @@ Potential target structure:
 | Cable catalog status helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCableCatalogModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 87 pass |
 | Table filter kind helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcTableFilterModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 87 pass |
 | Cable type constants/helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCableTypeModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 89 pass |
-| CO variant, cursor and API guard helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcVariantModel.ts`, `elecCalcCursorModel.ts`, `elecCalcApiResponseGuards.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 96 pass |
+| Legacy numeric variant, cursor and API guard helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcVariantModel.ts`, `elecCalcCursorModel.ts`, `elecCalcApiResponseGuards.ts`; позднее обёрнуты UUID ER lifecycle; focused unit + previous pure units + `ElecCalcPage` integration, 96 pass |
 | Candidate folder, project cable option and filter input helpers | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcCandidateFolderModel.ts`, `shouldShowProjectCableOption`, `toInputNumberValue`; focused unit + previous pure units + `ElecCalcPage` integration, 100 pass |
 | Selection policy and page constants/types | Done | 2026-05-31: `frontend/src/pages/electrical/elecCalcSelectionPolicyModel.ts`, `elecCalcPageModel.ts`; focused unit + previous pure units + `ElecCalcPage` integration, 103 pass |
 | Candidate policy reuse and remaining page option constants | Done | 2026-05-31: candidate compare reuses `elecCalcSelectionPolicyModel.ts`; `SHOW_COMMERCIAL_CABLE_BASE_UI`, `CableMarkSelectOption` extracted; focused unit + `ElecCalcPage` integration, 71 pass |
@@ -249,7 +249,7 @@ candidate compare model.
 - Следующий безопасный шаг перед новым кодовым выносом - инвентарь оставшихся
   helpers: он не меняет UI, payload, формулы, persistence и не требует
   screenshots.
-- Рискованные зоны по документу остаются прежними: CO variants, batch calc,
+- Рискованные зоны по документу остаются прежними: UUID ER variants, batch calc,
   manual cable selection, candidate apply, specification transition,
   настройки колонок и Glide/Table renderers. Их нельзя выносить без отдельной
   characterization и UI proof, если меняется JSX/CSS/visible behavior.
@@ -288,7 +288,7 @@ Coupled helpers/components - do not move as pure helpers:
 | Main table render/copy specs | `electricalColumnRenderers`, `electricalColumnCopyValue`, Glide cell state/actions | Mix business labels, row state, active row actions, inline edit and UI actions. Needs dedicated characterization before extraction. |
 | Preferences/settings handlers | `openColumnSettings`, `updateDraft*`, `persist*`, `apply*Settings` | Coupled to user role, localStorage/server preferences, modal open state and mutation side effects. |
 | Batch/job/recalc flow | `batchMut`, `copyVariantMut`, `cancelJobMut`, active job effects, overwrite manual controls | Business-critical persistence and side effects; requires API/DB/user-flow proof. |
-| Cable mark modal flow | `openCableMarkModal`, `changeCableMarkModalCableType`, `applyCableMarkModal`, manual/auto mutations | Persists manual cable selections across CO variants; not a pure helper slice. |
+| Cable mark modal flow | `openCableMarkModal`, `changeCableMarkModalCableType`, `applyCableMarkModal`, manual/auto mutations | Persists manual cable selections across selected ER UUID scopes; not a pure helper slice. |
 | Candidate modal/folders/apply flow | candidate create/update/apply/folder mutations, compare bar, folder tabs | Mutates candidate state and backend; must stay out of pure helper pass. |
 | Route/data model hooks | project/role/variant/query state, pagination cursors, infinite pages, stats, navigation | React Query/Zustand/effects; extract only as narrow hook after characterization. |
 
@@ -437,8 +437,8 @@ Scope: только чистые helpers выбора источника/зна�
   pure-кандидат при наличии focused unit tests.
 - `docs/srs/ui/guest/03-screen-workspace-electrical.md` фиксирует, что список
   марок зависит от типа кабеля и активной базы расчёта, а ручной выбор марки
-  сохраняется отдельно по объекту/CO. Этот slice не меняет форму, JSX, тексты
-  модалки, payload, backend, формулы, persistence или CO workflow.
+  сохраняется отдельно по `объект × ЭР`. Этот slice не меняет форму, JSX, тексты
+  модалки, payload, backend, формулы, persistence или ER workflow.
 - Источник истины для отображения внешней метки уже локализован в
   `frontend/src/utils/cableCatalogSourceLabels.ts`; новая модель должна только
   делегировать туда сравнение extended/builtin строк.
@@ -488,7 +488,7 @@ Scope: только pure helpers анализа строк кабельного 
 Задача выполнена в
 `frontend/src/pages/electrical/elecCalcCableCatalogModel.ts`.
 Не двигались JSX, модалки выбора кабеля, mutations, payload builders,
-backend/API, persistence и workflow CO.
+backend/API, persistence и workflow ЭР.
 
 Evidence:
 
@@ -535,7 +535,7 @@ Scope: только default/available cable type constants и predicate для
 - `docs/srs/ui/guest/03-screen-workspace-electrical.md` фиксирует, что на SC-04
   пользователь выбирает тип кабеля; этот slice не меняет список на экране,
   source controls, object drafts, payload, backend/API, формулы, persistence
-  или CO workflow.
+  или ER workflow.
 - Этот slice не является `Cable type/source model hook`: не двигать React
   state/effects, feature flag source controls, per-object drafts,
   `normalizeAvailableCableType`, `getCableTypeForObject`, модалки,

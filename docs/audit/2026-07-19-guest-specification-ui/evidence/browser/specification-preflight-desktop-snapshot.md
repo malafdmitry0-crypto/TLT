@@ -1,0 +1,155 @@
+- generic [active] [ref=e1] [box=0,0,1440,1000]:
+  - generic [ref=e610] [box=-1,-1,1,1]:
+    - log [box=-1,-1,1,0]
+    - log [box=-1,-1,1,0]
+  - generic [ref=e72] [box=0,0,1440,1000]:
+    - banner [ref=e73] [box=0,0,1440,26]:
+      - generic [ref=e74] [box=10,0,1420,25]:
+        - generic "HeatCalc" [ref=e75] [box=10,5,86,15]:
+          - img "fire" [ref=e76] [box=10,5,15,15]
+          - heading "HeatCalc" [level=2] [ref=e79] [box=31,6,65,14]
+        - navigation "Разделы проекта" [ref=e80] [box=105,1,910,23]:
+          - menu [ref=e81] [box=105,1,910,23]:
+            - menuitem "fire Расчёт тепловых потерь check-circle 1" [ref=e1039] [cursor=pointer] [box=107,1,246,24]:
+              - img "fire" [ref=e83] [box=115,7,14,12]
+              - generic [ref=e87] [box=139,6,206,15]:
+                - text: Расчёт тепловых потерь
+                - img "check-circle" [ref=e1420] [box=292,7,14,12]
+                - superscript [ref=e1424] [box=320,6,24,15]:
+                  - generic [ref=e1425] [box=330,7,5,12]: "1"
+            - menuitem "thunderbolt Электротехнический расчёт check-circle 1" [ref=e1777] [cursor=pointer] [box=356,1,271,24]:
+              - img "thunderbolt" [ref=e595] [box=364,7,14,12]
+              - generic [ref=e599] [box=388,6,231,15]:
+                - text: Электротехнический расчёт
+                - img "check-circle" [ref=e1817] [box=568,7,14,12]
+                - superscript [ref=e1821] [box=596,6,24,15]:
+                  - generic [ref=e1822] [box=605,7,5,12]: "1"
+            - menuitem "unordered-list Спецификация" [ref=e600] [cursor=pointer] [box=632,1,132,24]:
+              - img "unordered-list" [ref=e601] [box=640,7,14,12]
+              - generic [ref=e604] [box=664,7,92,12]: Спецификация
+            - separator [box=354,2,0,21]
+            - menuitem "file-text Отчёт" [ref=e605] [cursor=pointer] [box=768,1,76,24]:
+              - img "file-text" [ref=e606] [box=776,7,14,12]
+              - generic [ref=e609] [box=800,7,36,12]: Отчёт
+            - menuitem [disabled] [box=123,0,30,24]
+        - generic [ref=e92] [box=1023,1,407,24]:
+          - generic [ref=e93] [box=1023,1,241,24]:
+            - generic [ref=e95] [box=1023,1,72,24]:
+              - img "folder-open" [ref=e97] [box=1023,9,10,10]
+              - generic "Мой проект" [ref=e101] [box=1036,1,59,22]
+            - button "download Скачать" [ref=e103] [cursor=pointer] [box=1102,2,73,22]:
+              - img "download" [ref=e105] [box=1110,7,11,11]
+              - generic [ref=e108] [box=1127,8,40,10]: Скачать
+            - button "upload Загрузить" [ref=e110] [cursor=pointer] [box=1178,2,83,22]:
+              - img "upload" [ref=e112] [box=1186,7,11,11]
+              - generic [ref=e115] [box=1203,8,50,10]: Загрузить
+          - generic [ref=e116] [box=1270,2,160,22]:
+            - button "question-circle Инструкция" [ref=e118] [cursor=pointer] [box=1270,2,92,22]:
+              - img "question-circle" [ref=e120] [box=1278,7,11,11]
+              - generic [ref=e124] [box=1295,8,60,10]: Инструкция
+            - button "logout Выход" [ref=e126] [cursor=pointer] [box=1366,2,64,22]:
+              - img "logout" [ref=e128] [box=1374,7,11,11]
+              - generic [ref=e131] [box=1390,8,32,10]: Выход
+    - main [ref=e140] [box=0,26,1440,974]:
+      - generic [ref=e1824] [box=6,28,1428,27]:
+        - generic [ref=e1825] [box=20,34,320,15]:
+          - generic [ref=e1826] [box=20,34,256,15]: "ЭР1 · спецификация: полная (BOM ТНП) ·"
+          - text: "позиций: 0"
+        - generic [ref=e1827] [cursor=pointer] [box=1188,33,236,17]:
+          - checkbox "Показать блок заполнения параметров" [checked] [ref=e1829] [box=1188,34,16,16]
+          - generic [ref=e1831] [box=1204,33,220,17]: Показать блок заполнения параметров
+      - generic [ref=e1832] [box=6,60,1428,175]:
+        - generic [ref=e1833] [box=6,60,713,175]:
+          - heading "1 ЭР и резерв R,гр" [level=4] [ref=e1834] [box=7,61,711,19]:
+            - text: "1"
+            - generic [ref=e1835] [box=31,65,78,10]: ЭР и резерв R,гр
+          - generic [ref=e1836] [box=10,85,705,26]: "Канонический режим: полный data-driven BOM (PDL-ER-29). Режим «базовая» снят."
+          - generic [ref=e1838] [box=10,113,705,42]:
+            - generic [ref=e1839] [box=14,114,697,14]: ЭР для генерации
+            - generic "Выбор ЭР для генерации спецификации" [ref=e1840] [cursor=pointer] [box=14,130,697,24]:
+              - generic [ref=e1843] [box=18,132,668,20]:
+                - generic "ЭР1" [ref=e1845] [box=18,134,53,16]
+                - combobox "Выбор ЭР для генерации спецификации" [ref=e1853] [box=75,134,4,16]
+          - button "Выбрать все" [ref=e1859] [cursor=pointer] [box=14,162,74,17]
+          - generic [ref=e1861] [box=10,185,705,26]:
+            - generic [ref=e1862] [box=14,191,581,14]: Коэффициент горячего резервирования R,гр (1–3)
+            - generic [ref=e1863] [box=601,186,110,24]:
+              - generic [box=710,187,0,22]:
+                - button "Increase Value" [ref=e1864] [cursor=pointer] [box=710,187,1,11]:
+                  - img "up" [ref=e1865] [box=708,189,7,7]
+                - button "Decrease Value" [disabled] [ref=e1868] [box=710,198,1,11]:
+                  - img "down" [ref=e1869] [box=708,201,7,7]
+              - spinbutton "Резерв R,гр" [ref=e1873] [box=602,187,108,22]: "1.0"
+          - generic [ref=e1874] [box=10,213,705,20]: "Полный BOM: кабель, коробки СКВ, комплекты, вводы, крепёж, ленты (ТНП)."
+        - generic [ref=e1875] [box=721,60,713,175]:
+          - heading "2 Требования ТНП (Ex и индикация)" [level=4] [ref=e1876] [box=722,61,711,19]:
+            - text: "2"
+            - generic [ref=e1877] [box=746,65,170,10]: Требования ТНП (Ex и индикация)
+          - generic [ref=e1879] [cursor=pointer] [box=729,87,181,22]:
+            - checkbox "Взрывоопасная зона (Ex)" [ref=e1881] [box=729,90,16,16]
+            - generic [ref=e1883] [box=745,87,165,22]: Взрывоопасная зона (Ex)
+          - generic [ref=e1885] [cursor=pointer] [box=729,115,253,22]:
+            - checkbox "Индикация питания на коробках (К1i)" [ref=e1887] [box=729,118,16,16]
+            - generic [ref=e1889] [box=745,115,237,22]: Индикация питания на коробках (К1i)
+          - generic [ref=e1891] [cursor=pointer] [box=729,143,320,22]:
+            - checkbox "Индикация в конце нагревательной секции (К2i)" [ref=e1893] [box=729,146,16,16]
+            - generic [ref=e1895] [box=745,143,304,22]: Индикация в конце нагревательной секции (К2i)
+          - generic [ref=e1897] [cursor=pointer] [box=729,171,224,22]:
+            - checkbox "Индикация сверху коробки (Кiu)" [ref=e1899] [box=729,174,16,16]
+            - generic [ref=e1901] [box=745,171,208,22]: Индикация сверху коробки (Кiu)
+      - generic [ref=e1902] [box=0,241,1440,304]:
+        - generic [ref=e1905] [box=7,242,226,302]:
+          - strong [ref=e1908] [box=19,257,117,16]:
+            - img "unordered-list" [ref=e1909] [box=19,258,13,13]
+            - text: Спецификация
+          - generic [ref=e1912] [box=19,286,202,246]:
+            - button "reload Сформировать" [ref=e1914] [cursor=pointer] [box=19,290,202,17]:
+              - img "reload" [ref=e1916] [box=75,293,10,10]
+              - generic [ref=e1919] [box=91,293,74,11]: Сформировать
+            - button "Сохранить defaults спецификации" [ref=e1921] [cursor=pointer] [box=19,320,202,17]:
+              - generic [ref=e1922] [box=73,323,94,11]: Сохранить defaults
+            - generic [ref=e1923] [box=19,346,202,22]: Project defaults v1
+            - generic [ref=e1926] [box=19,376,202,94]:
+              - text: Группировка
+              - radiogroup "segmented control" [ref=e1927] [box=19,402,202,24]:
+                - generic [ref=e1928] [box=21,404,198,20]:
+                  - generic [ref=e1929] [cursor=pointer] [box=21,404,50,20]:
+                    - radio "Тип" [checked] [box=26,407,0,0]
+                    - generic "Тип" [ref=e1930] [box=21,404,50,20]
+                  - generic [ref=e1931] [cursor=pointer] [box=71,404,50,20]:
+                    - radio "Кат." [box=76,407,0,0]
+                    - generic "Кат." [ref=e1932] [box=71,404,50,20]
+                  - generic [ref=e1933] [cursor=pointer] [box=120,404,50,20]:
+                    - radio "Ед." [box=125,407,0,0]
+                    - generic "Ед." [ref=e1934] [box=120,404,50,20]
+                  - generic [ref=e1935] [cursor=pointer] [box=170,404,50,20]:
+                    - radio "Нет" [box=175,407,0,0]
+                    - generic "Нет" [ref=e1936] [box=170,404,50,20]
+              - generic [ref=e1937] [cursor=pointer] [box=19,432,202,38]:
+                - checkbox "Объединить одинаковые (base+код)" [ref=e1939] [box=19,442,16,16]
+                - generic [ref=e1941] [box=35,432,186,38]: Объединить одинаковые (base+код)
+            - generic [ref=e1943] [box=19,483,202,49]:
+              - generic [ref=e1944] [box=28,490,184,17]:
+                - text: "Позиций:"
+                - strong [ref=e1945] [box=82,492,7,13]: "0"
+              - generic [ref=e1946] [box=28,508,184,17]:
+                - text: "Категорий:"
+                - strong [ref=e1947] [box=92,510,7,13]: "0"
+        - generic [ref=e1949] [box=246,241,1188,211]:
+          - strong [ref=e1954] [box=259,251,144,17]: Окно спецификаций
+          - generic [ref=e1955] [box=247,279,1186,172]:
+            - alert [ref=e1956] [box=259,287,1162,97]:
+              - img "exclamation-circle" [ref=e1957] [box=284,308,24,24]
+              - generic [ref=e1960] [box=320,308,952,55]:
+                - generic [ref=e1961] [box=320,308,952,25]: Спецификация не сформирована
+                - generic [ref=e1962] [box=320,341,952,22]: Убедитесь, что для всех объектов выполнен электрорасчёт (шаг 2), затем нажмите «Сформировать».
+              - button "thunderbolt К электрорасчёту" [ref=e1964] [cursor=pointer] [box=1280,312,116,17]:
+                - img "thunderbolt" [ref=e1966] [box=1286,315,10,10]
+                - generic [ref=e1969] [box=1302,315,89,11]: К электрорасчёту
+            - generic [ref=e1970] [box=259,400,1162,39]:
+              - generic [ref=e1971] [box=259,416,19,17]: "ЭР:"
+              - radiogroup "segmented control" [ref=e1973] [box=286,411,43,24]:
+                - generic [ref=e1975] [cursor=pointer] [box=288,413,39,20]:
+                  - radio "ЭР1" [checked] [box=293,416,0,0]
+                  - generic "ЭР1" [ref=e1976] [box=288,413,39,20]
+              - generic [ref=e1977] [box=337,416,387,17]: Спецификация и расчёт сохраняются отдельно для каждого варианта.

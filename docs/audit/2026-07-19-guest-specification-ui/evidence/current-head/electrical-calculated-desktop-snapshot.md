@@ -1,0 +1,202 @@
+- generic [active] [ref=f3e1] [box=0,0,1440,1000]:
+  - generic [ref=f3e632] [box=-1,-1,1,1]:
+    - log [box=-1,-1,1,0]
+    - log [box=-1,-1,1,0]
+  - generic [ref=f3e94] [box=0,0,1440,1533]:
+    - banner [ref=f3e95] [box=0,0,1440,26]:
+      - generic [ref=f3e96] [box=10,0,1420,25]:
+        - generic "HeatCalc" [ref=f3e97] [box=10,5,86,15]:
+          - img "fire" [ref=f3e98] [box=10,5,15,15]
+          - heading "HeatCalc" [level=2] [ref=f3e101] [box=31,6,65,14]
+        - navigation "Разделы проекта" [ref=f3e102] [box=105,1,910,23]:
+          - menu [ref=f3e103] [box=105,1,910,23]:
+            - menuitem "fire Расчёт тепловых потерь check-circle 1" [ref=f3e1067] [cursor=pointer] [box=107,1,246,24]:
+              - img "fire" [ref=f3e105] [box=115,7,14,12]
+              - generic [ref=f3e109] [box=139,6,206,15]:
+                - text: Расчёт тепловых потерь
+                - img "check-circle" [ref=f3e1470] [box=292,7,14,12]
+                - superscript [ref=f3e1474] [box=320,6,24,15]:
+                  - generic [ref=f3e1475] [box=330,7,5,12]: "1"
+            - menuitem "thunderbolt Электротехнический расчёт check-circle 1" [ref=f3e1827] [cursor=pointer] [box=356,1,271,24]:
+              - img "thunderbolt" [ref=f3e617] [box=364,7,14,12]
+              - generic [ref=f3e621] [box=388,6,231,15]:
+                - text: Электротехнический расчёт
+                - img "check-circle" [ref=f3e1828] [box=568,7,14,12]
+                - superscript [ref=f3e1832] [box=596,6,24,15]:
+                  - generic [ref=f3e1833] [box=605,7,5,12]: "1"
+            - menuitem "unordered-list Спецификация" [ref=f3e622] [cursor=pointer] [box=632,1,132,24]:
+              - img "unordered-list" [ref=f3e623] [box=640,7,14,12]
+              - generic [ref=f3e626] [box=664,7,92,12]: Спецификация
+            - separator [box=354,2,0,21]
+            - menuitem "file-text Отчёт" [ref=f3e627] [cursor=pointer] [box=768,1,76,24]:
+              - img "file-text" [ref=f3e628] [box=776,7,14,12]
+              - generic [ref=f3e631] [box=800,7,36,12]: Отчёт
+            - menuitem [disabled] [box=123,0,30,24]
+        - generic [ref=f3e114] [box=1023,1,407,24]:
+          - generic [ref=f3e115] [box=1023,1,241,24]:
+            - generic [ref=f3e117] [box=1023,1,72,24]:
+              - img "folder-open" [ref=f3e119] [box=1023,9,10,10]
+              - generic "Мой проект" [ref=f3e123] [box=1036,1,59,22]
+            - button "download Скачать" [ref=f3e125] [cursor=pointer] [box=1102,2,73,22]:
+              - img "download" [ref=f3e127] [box=1110,7,11,11]
+              - generic [ref=f3e130] [box=1127,8,40,10]: Скачать
+            - button "upload Загрузить" [ref=f3e132] [cursor=pointer] [box=1178,2,83,22]:
+              - img "upload" [ref=f3e134] [box=1186,7,11,11]
+              - generic [ref=f3e137] [box=1203,8,50,10]: Загрузить
+          - generic [ref=f3e138] [box=1270,2,160,22]:
+            - button "question-circle Инструкция" [ref=f3e140] [cursor=pointer] [box=1270,2,92,22]:
+              - img "question-circle" [ref=f3e142] [box=1278,7,11,11]
+              - generic [ref=f3e146] [box=1295,8,60,10]: Инструкция
+            - button "logout Выход" [ref=f3e148] [cursor=pointer] [box=1366,2,64,22]:
+              - img "logout" [ref=f3e150] [box=1374,7,11,11]
+              - generic [ref=f3e153] [box=1390,8,32,10]: Выход
+    - main [ref=f3e162] [box=0,26,1440,1507]:
+      - generic [ref=f3e1453] [box=6,34,1428,1491]:
+        - generic [ref=f3e1477] [box=6,34,1428,167]:
+          - generic [ref=f3e1478] [box=7,35,1426,38]: Электротехнические решения
+          - generic [ref=f3e1482] [box=19,84,1402,104]:
+            - tablist "Электротехнические решения" [ref=f3e1484] [box=19,84,1402,38]:
+              - tab "ЭР1, активный ЭР" [selected] [ref=f3e1485] [cursor=pointer] [box=21,86,121,30]:
+                - generic [ref=f3e1486] [box=33,90,98,22]:
+                  - generic [ref=f3e1487] [box=33,95,18,11]: ЭР1
+                  - generic [ref=f3e1488] [box=57,90,74,22]: Активный
+            - generic [ref=f3e1489] [box=19,132,1402,22]: "Выбрано: ЭР1. Активный ЭР: ЭР1."
+            - generic [ref=f3e1492] [box=19,164,1402,24]:
+              - button "Добавить пустой ЭР" [ref=f3e1494] [cursor=pointer] [box=19,165,123,22]
+              - button "Создать копию выбранного ЭР «ЭР1»" [ref=f3e1497] [cursor=pointer] [box=150,165,98,22]:
+                - generic [ref=f3e1498] [box=162,171,75,11]: Создать копию
+              - button "Переименовать ЭР «ЭР1»" [ref=f3e1499] [cursor=pointer] [box=256,164,101,22]:
+                - generic [ref=f3e1500] [box=267,169,78,11]: Переименовать
+              - button "ЭР «ЭР1» уже активный" [disabled] [ref=f3e1501] [box=365,164,115,22]:
+                - generic [box=376,169,92,11]: Сделать активным
+              - button "Нельзя удалить последний ЭР «ЭР1»" [disabled] [ref=f3e1502] [box=488,164,63,22]:
+                - generic [box=499,169,40,11]: Удалить
+        - generic [ref=f3e1504] [box=6,208,1428,324]:
+          - generic [ref=f3e1506] [box=19,217,1402,22]:
+            - generic [ref=f3e1507] [box=19,217,1348,22]: Назначение объектов · ЭР1
+            - generic [ref=f3e1509] [box=1367,217,54,22]: "Всего: 1"
+          - generic [ref=f3e1512] [box=19,258,1402,261]:
+            - generic [ref=f3e1513] [box=19,258,1402,22]: Выберите объекты и назначьте поддерживаемый тип системы. Назначение сохраняется отдельно для каждого ЭР.
+            - generic [ref=f3e1515] [box=19,288,1402,62]:
+              - tablist [ref=f3e1516] [box=19,288,1402,46]:
+                - generic [ref=f3e1518] [box=19,288,627,46]:
+                  - tab "Нераспределённые0 объектов" [ref=f3e1675] [cursor=pointer] [box=19,300,159,22]:
+                    - generic [ref=f3e1521] [box=19,302,159,17]: Нераспределённые0
+                  - tab "Самрег1 объектов" [selected] [ref=f3e1676] [cursor=pointer] [box=210,300,74,22]:
+                    - generic [ref=f3e1524] [box=210,302,74,17]: Самрег1
+                  - tab "Резистив0 объектов" [ref=f3e1526] [cursor=pointer] [box=316,300,88,22]:
+                    - generic [ref=f3e1527] [box=316,302,88,17]: Резистив0
+                  - tab "Скин0 объектов" [ref=f3e1529] [cursor=pointer] [box=435,300,59,22]:
+                    - generic [ref=f3e1530] [box=435,302,59,17]: Скин0
+                  - tab "Минеральный0 объектов" [ref=f3e1532] [cursor=pointer] [box=526,300,120,22]:
+                    - generic [ref=f3e1533] [box=526,302,120,17]: Минеральный0
+              - generic [box=19,350,1402,0]:
+                - generic [box=19,350,1402,0]:
+                  - tabpanel "Самрег1 объектов" [box=19,350,1402,0]
+            - generic [ref=f3e1534] [box=19,358,1402,44]: Назначать новые объекты в неподдерживаемые системы нельзя. Вкладки «Скин» и «Минеральный» показывают сохранённые legacy-назначения, чтобы их можно было с подтверждением вернуть в нераспределённые.
+            - toolbar "Действия с назначениями" [ref=f3e1536] [box=19,410,1402,22]:
+              - generic [ref=f3e1537] [box=19,410,77,22]: "Выбрано: 0"
+              - 'button "Назначить: Самрег" [disabled] [ref=f3e1538] [box=104,410,118,22]'
+              - 'button "Назначить: Резистив" [disabled] [ref=f3e1539] [box=230,410,127,22]'
+              - button "Вернуть в нераспределённые" [disabled] [ref=f3e1540] [box=364,410,170,22]
+            - table [ref=f3e1549] [box=19,441,1402,79]:
+              - rowgroup [ref=f3e1557] [box=19,441,1402,39]:
+                - row "Select all № Объект Тип объекта Система Состояние Диагностика" [ref=f3e1558] [box=19,441,1402,39]:
+                  - columnheader "Select all" [ref=f3e1559] [box=19,441,40,39]:
+                    - checkbox "Select all" [ref=f3e1563] [cursor=pointer] [box=31,452,16,16]
+                  - columnheader "№" [ref=f3e1565] [box=59,441,52,39]
+                  - columnheader "Объект" [ref=f3e1566] [box=111,441,260,39]
+                  - columnheader "Тип объекта" [ref=f3e1567] [box=371,441,140,39]
+                  - columnheader "Система" [ref=f3e1568] [box=511,441,130,39]
+                  - columnheader "Состояние" [ref=f3e1569] [box=641,441,165,39]
+                  - columnheader "Диагностика" [ref=f3e1570] [box=806,441,615,39]
+              - rowgroup [ref=f3e1571] [box=19,480,1402,40]:
+                - generic [box=27,480,16,22]:
+                  - generic [box=27,480,16,22]:
+                    - generic [box=27,483,16,16]:
+                      - checkbox [box=27,483,16,16]
+                - row "1 Ревалидация — трубопровод 1 Трубопровод Самрег Готов —" [ref=f3e1835] [box=19,480,1402,40]:
+                  - cell [ref=f3e1771] [box=19,480,40,40]:
+                    - checkbox [ref=f3e1774] [cursor=pointer] [box=31,491,16,16]
+                  - cell "1" [ref=f3e1776] [box=59,480,52,40]
+                  - cell "Ревалидация — трубопровод 1" [ref=f3e1777] [box=111,480,260,40]:
+                    - strong [ref=f3e1779] [box=119,490,215,17]: Ревалидация — трубопровод 1
+                  - cell "Трубопровод" [ref=f3e1780] [box=371,480,140,40]
+                  - cell "Самрег" [ref=f3e1781] [box=511,480,130,40]
+                  - cell "Готов" [ref=f3e1836] [box=641,480,165,40]
+                  - cell "—" [ref=f3e1837] [box=806,480,615,40]
+        - tabpanel "ЭР1, активный ЭР" [ref=f3e1588] [box=6,541,1428,984]:
+          - generic [ref=f3e1681] [box=6,541,1428,984]:
+            - generic [ref=f3e1683] [box=6,541,1428,27]:
+              - generic [ref=f3e1684] [box=20,547,375,15]:
+                - generic [ref=f3e1685] [box=20,547,145,15]: ЭР1 · тип по объектам ·
+                - text: "11.0 м · 200 Вт · 0.91 А · рассчитано: 1/1"
+              - generic [ref=f3e1686] [cursor=pointer] [box=1188,546,236,17]:
+                - checkbox "Показать блок заполнения параметров" [checked] [ref=f3e1688] [box=1188,546,16,16]
+                - generic [ref=f3e1690] [box=1204,546,220,17]: Показать блок заполнения параметров
+            - generic [ref=f3e1692] [box=6,573,1428,89]:
+              - generic [ref=f3e1693] [box=6,573,475,89]:
+                - heading "1 Кабель и схема подключения" [level=4] [ref=f3e1694] [box=7,574,473,19]:
+                  - text: "1"
+                  - generic [ref=f3e1695] [box=31,578,150,10]: Кабель и схема подключения
+                - generic [ref=f3e1696] [box=10,598,467,26]:
+                  - generic [ref=f3e1697] [box=14,604,263,14]: Тип кабеля
+                  - generic "Тип кабеля" [ref=f3e1698] [cursor=pointer] [box=283,599,190,24]:
+                    - generic [ref=f3e1700] [box=291,600,174,22]:
+                      - combobox "Тип кабеля" [ref=f3e1702] [box=291,600,156,22]
+                      - generic "Саморегулирующийся" [ref=f3e1703] [box=291,600,174,22]
+                - generic [ref=f3e1704] [box=10,626,467,33]: Марка кабеля — авторасчёт или ручной выбор по объекту (кнопки «Выбор» / «Подбор» в таблице).
+              - generic [ref=f3e1705] [box=483,573,475,89]:
+                - heading "2 Электропитание и температуры" [level=4] [ref=f3e1706] [box=484,574,473,19]:
+                  - text: "2"
+                  - generic [ref=f3e1707] [box=508,578,161,10]: Электропитание и температуры
+                - generic [ref=f3e1708] [box=487,598,467,26]:
+                  - generic [ref=f3e1709] [box=491,604,343,14]: Напряжение питания U, В
+                  - generic [ref=f3e1710] [box=839,599,110,24]:
+                    - generic [box=948,600,0,22]:
+                      - button "Increase Value" [ref=f3e1711] [cursor=pointer] [box=948,600,1,11]:
+                        - img "up" [ref=f3e1712] [box=946,602,7,7]
+                      - button "Decrease Value" [ref=f3e1715] [cursor=pointer] [box=948,611,1,11]:
+                        - img "down" [ref=f3e1716] [box=946,613,7,7]
+                    - spinbutton "Напряжение питания" [ref=f3e1720] [box=840,600,108,22]: "220"
+              - generic [ref=f3e1721] [box=959,573,475,89]:
+                - heading "3 Укладка кабеля" [level=4] [ref=f3e1722] [box=960,574,473,19]:
+                  - text: "3"
+                  - generic [ref=f3e1723] [box=984,578,80,10]: Укладка кабеля
+                - generic [ref=f3e1724] [box=963,598,467,33]: Шаг навива и количество ниток задаются для каждого объекта (колонки таблицы или модалка «Подбор»). Лимит Kn по диаметру — по таблице ТНП.
+            - generic [ref=f3e1726] [box=6,667,1428,30]:
+              - generic [ref=f3e1727] [box=13,670,320,24]:
+                - generic [ref=f3e1728] [box=13,673,105,17]: "Тип для пересчёта:"
+                - generic "Тип кабеля для пересчёта" [ref=f3e1729] [cursor=pointer] [box=123,670,210,24]:
+                  - generic [ref=f3e1731] [box=131,671,194,22]:
+                    - combobox "Тип кабеля для пересчёта" [ref=f3e1733] [box=131,671,176,22]
+                    - generic "Саморегулирующийся" [ref=f3e1734] [box=131,671,194,22]
+              - generic [ref=f3e1735] [box=338,671,638,22]:
+                - button "reload Пересчитать выбранные (0)" [disabled] [ref=f3e1838] [box=345,671,202,22]:
+                  - generic [box=354,676,12,13]:
+                    - img "reload" [box=354,676,12,12]
+                  - generic [box=372,676,166,12]: Пересчитать выбранные (0)
+                - button "reload Пересчитать все · ЭР1" [ref=f3e1839] [cursor=pointer] [box=552,671,168,22]:
+                  - img "reload" [ref=f3e1841] [box=561,676,12,12]
+                  - generic [ref=f3e1743] [box=579,676,132,12]: Пересчитать все · ЭР1
+                - button "Настройки" [ref=f3e1744] [cursor=pointer] [box=725,671,100,22]:
+                  - img "table" [ref=f3e1746] [box=734,676,12,12]
+                - button "Сбросить фильтры таблицы" [disabled] [ref=f3e1751] [box=829,671,147,22]:
+                  - generic [box=838,676,12,13]:
+                    - img "close-circle" [box=838,676,12,12]
+                  - generic [box=856,676,111,12]: Сбросить фильтры
+            - generic [ref=f3e1762] [box=7,1475,1426,49]:
+              - generic [ref=f3e1763] [box=17,1482,1068,35]: ⓘ Красная строка = ошибка подбора кабеля, серый статус = не применимо. Выбор и расчёт доступны только для объектов, назначенных в совместимую систему этого ЭР. «Пересчитать все» обрабатывает только назначенный UUID+system scope.
+              - generic [ref=f3e1844] [box=1097,1481,326,38]:
+                - generic [ref=f3e1846] [box=1097,1482,45,34]:
+                  - text: "Кабель:"
+                  - strong [ref=f3e1847] [box=1097,1501,36,15]: 11.0 м
+                - generic [ref=f3e1849] [box=1167,1482,65,34]:
+                  - text: "Мощность:"
+                  - strong [ref=f3e1850] [box=1167,1501,41,15]: 200 Вт
+                - generic [ref=f3e1852] [box=1253,1482,37,34]:
+                  - text: "Ток:"
+                  - strong [ref=f3e1853] [box=1253,1501,37,15]: 0.91 А
+                - button "thunderbolt Спецификация →" [ref=f3e1855] [cursor=pointer] [box=1311,1492,112,17]:
+                  - img "thunderbolt" [ref=f3e1857] [box=1317,1495,10,10]
+                  - generic [ref=f3e1860] [box=1332,1495,85,11]: Спецификация →

@@ -1,4 +1,9 @@
-# Functional Accuracy Report
+# Functional Accuracy Report — исторический baseline до dynamic-ER Phase 1–5
+
+> [!WARNING]
+> Это исходный before-аудит. Утверждения о fixed `СО1…СО4`, отсутствии Phase 5
+> и текущем runtime не использовать без повторной проверки. Актуальные решения
+> находятся в `product-decisions.md`, статус — в `phase-5-checkpoint.md`.
 
 **Scope:** PDF «1 Кейс — Расчёт спецификации для неавторизованных
 пользователей», guest workflow, backend/API, frontend/UI, specification BOM,

@@ -1,0 +1,625 @@
+{
+  "url": "http://127.0.0.1:3003/workspace/heat-calc",
+  "viewport": [
+    390,
+    844
+  ],
+  "document": {
+    "clientWidth": 390,
+    "scrollWidth": 395,
+    "clientHeight": 844,
+    "scrollHeight": 1389
+  },
+  "pageOverflow": true,
+  "clipped": [
+    {
+      "tag": "DIV",
+      "cls": "form-col-srs form-col-srs--primary",
+      "text": "НаименованиеНаружныйдиаметрммДлинатрубопроводамТолщинастенкиммИсточник теплопроводноститрубыСправочн",
+      "client": [
+        120,
+        394
+      ],
+      "scroll": [
+        154,
+        394
+      ]
+    },
+    {
+      "tag": "DIV",
+      "cls": "",
+      "text": "СправочникВручную",
+      "client": [
+        1,
+        1
+      ],
+      "scroll": [
+        96,
+        22
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "cls": "reference-picker-value",
+      "text": "Углеродистая сталь",
+      "client": [
+        85,
+        22
+      ],
+      "scroll": [
+        91,
+        22
+      ]
+    },
+    {
+      "tag": "DIV",
+      "cls": "form-col-srs form-col-srs--fittings",
+      "text": "°C220 220380Нет ДаНет°CЗадвижкиштФланцыштОпорыштЭквивалентная длиналокального элементам",
+      "client": [
+        120,
+        394
+      ],
+      "scroll": [
+        130,
+        394
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "cls": "tlt-select__value",
+      "text": "На открытом воздухе",
+      "client": [
+        29,
+        22
+      ],
+      "scroll": [
+        89,
+        22
+      ]
+    },
+    {
+      "tag": "DIV",
+      "cls": "",
+      "text": "На открытом воздухеВ помещенииПодземно",
+      "client": [
+        1,
+        1
+      ],
+      "scroll": [
+        154,
+        22
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "cls": "ant-input-number-handler ant-input-number-handler-up",
+      "text": "",
+      "client": [
+        0,
+        11
+      ],
+      "scroll": [
+        4,
+        11
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "cls": "ant-input-number-handler ant-input-number-handler-down",
+      "text": "",
+      "client": [
+        0,
+        10
+      ],
+      "scroll": [
+        4,
+        10
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "cls": "reference-picker-value",
+      "text": "Выберите город",
+      "client": [
+        24,
+        22
+      ],
+      "scroll": [
+        75,
+        22
+      ]
+    },
+    {
+      "tag": "DIV",
+      "cls": "",
+      "text": "1 слой2 слоя3 слоя",
+      "client": [
+        1,
+        1
+      ],
+      "scroll": [
+        63,
+        22
+      ]
+    },
+    {
+      "tag": "DIV",
+      "cls": "",
+      "text": "Открытый воздух, летоОткрытый воздух, зима",
+      "client": [
+        1,
+        1
+      ],
+      "scroll": [
+        167,
+        22
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "cls": "reference-picker-value",
+      "text": "Выберите материал",
+      "client": [
+        74,
+        22
+      ],
+      "scroll": [
+        92,
+        22
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "tag": "BUTTON",
+      "text": "Скачать",
+      "disabled": false,
+      "box": [
+        85.0625,
+        21,
+        71.078125,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Загрузить",
+      "disabled": false,
+      "box": [
+        159.140625,
+        21,
+        80.90625,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Инструкция",
+      "disabled": false,
+      "box": [
+        6,
+        47,
+        90.28125,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Выход",
+      "disabled": false,
+      "box": [
+        99.28125,
+        47,
+        62.390625,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Трубопровод: 0",
+      "disabled": false,
+      "box": [
+        13,
+        311.28125,
+        136.734375,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Резервуар: 0",
+      "disabled": false,
+      "box": [
+        152.734375,
+        311.28125,
+        120.453125,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Все: 0",
+      "disabled": false,
+      "box": [
+        276.1875,
+        311.28125,
+        112,
+        22
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "",
+      "disabled": false,
+      "box": [
+        148.5,
+        340.28125,
+        16,
+        16
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Наименование",
+      "disabled": false,
+      "box": [
+        16,
+        400.0625,
+        110,
+        24
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Наружный диаметр",
+      "disabled": false,
+      "box": [
+        16,
+        469.640625,
+        44.234375,
+        24
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Длина трубопровода",
+      "disabled": false,
+      "box": [
+        77,
+        479.984375,
+        55.359375,
+        24
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Толщина стенки",
+      "disabled": false,
+      "box": [
+        16,
+        549.5625,
+        44.234375,
+        24
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Справочник",
+      "disabled": false,
+      "box": [
+        77,
+        570.25,
+        88,
+        24
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Задвижки",
+      "disabled": false,
+      "box": [
+        140,
+        400.0625,
+        55.359375,
+        24
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Фланцы",
+      "disabled": false,
+      "box": [
+        201,
+        400.0625,
+        55.359375,
+        24
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Опоры",
+      "disabled": false,
+      "box": [
+        140,
+        458.84375,
+        55.359375,
+        24
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Эквивалентная длина локального элемента",
+      "disabled": false,
+      "box": [
+        201,
+        511.015625,
+        49.796875,
+        24
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "На открытом воздухе",
+      "disabled": false,
+      "box": [
+        264,
+        409.953125,
+        49,
+        24
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "text": "Increase Value",
+      "disabled": false,
+      "box": [
+        373,
+        432.546875,
+        1,
+        11
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "text": "Decrease Value",
+      "disabled": false,
+      "box": [
+        373,
+        443.546875,
+        1,
+        11
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Коэффициент запаса (Kзап)",
+      "disabled": false,
+      "box": [
+        326,
+        433.546875,
+        47,
+        22
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Температура окружающей среды",
+      "disabled": false,
+      "box": [
+        325,
+        532.15625,
+        44.234375,
+        24
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Требуемая температура объекта",
+      "disabled": false,
+      "box": [
+        264,
+        656.765625,
+        44.234375,
+        24
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Скорость ветра",
+      "disabled": false,
+      "box": [
+        325,
+        625.734375,
+        44.234375,
+        24
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Коэффициент наружной теплоотдачи α",
+      "disabled": false,
+      "box": [
+        264,
+        736.6875,
+        49.796875,
+        24
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "1 слой",
+      "disabled": false,
+      "box": [
+        16,
+        809.265625,
+        94,
+        24
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Открытый воздух, зима",
+      "disabled": false,
+      "box": [
+        16,
+        878.84375,
+        358,
+        24
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "Толщина изоляции",
+      "disabled": false,
+      "box": [
+        22,
+        1076.71875,
+        44.234375,
+        24
+      ]
+    },
+    {
+      "tag": "INPUT",
+      "text": "λ 1-го слоя",
+      "disabled": false,
+      "box": [
+        59.109375,
+        1045.6875,
+        49.796875,
+        24
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "—",
+      "disabled": false,
+      "box": [
+        96.21875,
+        1087.0625,
+        96,
+        24
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Добавить",
+      "disabled": false,
+      "box": [
+        13,
+        1135.0625,
+        24,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Сохранить",
+      "disabled": false,
+      "box": [
+        40,
+        1135.0625,
+        24,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Удалить выбранные",
+      "disabled": true,
+      "box": [
+        67,
+        1135.0625,
+        24,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Пересчитать теплопотери выбранных или активной строки",
+      "disabled": true,
+      "box": [
+        13,
+        1162.0625,
+        24,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Пересчитать все",
+      "disabled": true,
+      "box": [
+        40,
+        1162.0625,
+        135.71875,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Настройки отображения",
+      "disabled": false,
+      "box": [
+        178.71875,
+        1162.0625,
+        24,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Сбросить фильтры таблицы",
+      "disabled": true,
+      "box": [
+        205.71875,
+        1162.0625,
+        24,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Добавить копии выбранных",
+      "disabled": true,
+      "box": [
+        232.71875,
+        1162.0625,
+        24,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Импорт XLSX/CSV",
+      "disabled": false,
+      "box": [
+        13,
+        1187.0625,
+        24,
+        22
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": ".xlsx",
+      "disabled": false,
+      "box": [
+        39,
+        1188.0625,
+        48.15625,
+        20
+      ]
+    },
+    {
+      "tag": "BUTTON",
+      "text": ".csv",
+      "disabled": false,
+      "box": [
+        89.15625,
+        1188.0625,
+        45.625,
+        20
+      ]
+    }
+  ]
+}

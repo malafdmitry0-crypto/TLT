@@ -159,11 +159,11 @@
 | 3 | Запустить batch с `skip_manual=true` | Ручная марка сохранена |
 | 4 | Запустить batch с `skip_manual=false` / включить чекбокс «Перезаписать ручные выборы» | Марка заменена автоподбором, `cable_mark_source=auto` |
 | 5 | На SC-04 кликнуть строку объекта и нажать `Выбор` в колонке `Марка` | Открывается текущая модалка выбора марки кабеля |
-| 6 | В модалке выбора марки проверить блок `Сохранить в СО` | По умолчанию отмечен текущий открытый CO; можно отметить другие CO1..CO4, и ручная марка сохраняется в каждый отмеченный вариант одним атомарным запросом |
+| 6 | В модалке выбора марки проверить блок `Сохранить в ЭР` | По умолчанию отмечен текущий открытый ЭР; можно отметить другие доступные ЭР (до 5), и ручная марка сохраняется в каждый выбранный UUID scope одним атомарным запросом |
 | 7 | Нажать `Подбор` в той же ячейке | Открывается полноэкранная модалка кандидатов; слева в таблице видны пометка и действия, далее все поля электрорасчёта; применённый кандидат всегда закреплён первой строкой, остальные строки подчиняются локальной сортировке; для TT-вариантов рядом с маркой видны `T3, °C`, `T проп., °C`, `Агр.`, чтобы строки с одной маркой не выглядели дублями; отдельной колонки `Статус` нет, строка краснеет только для ошибочного кандидата; таблица кандидатов поддерживает локальную фильтрацию, сортировку, resize колонок и сравнение двух и более отмеченных вариантов с подсветкой отличающихся видимых полей; кнопка `Настройки таблицы` меняет видимость, порядок и ширину только таблицы кандидатов, не основной таблицы электрорасчёта; при открытии выполняется только чтение списка, авторасчёт не запускается |
 | 8 | В модалке нажать `Запустить авторасчёт` | Создаётся кандидат `mode=auto`; основной `ElectricalCalculation` не меняется до нажатия `Выбрать` |
 | 9 | Переключить `Ручной расчёт`, выбрать марку и нажать `Рассчитать вариант` | Создаётся кандидат `mode=manual` с выбранной маркой |
-| 10 | Нажать галочку `Выбрать` у применимого кандидата | Backend пересчитывает основной электрорасчёт для текущего СО; ровно один кандидат объекта помечен `is_applied=true`, предыдущий выбранный кандидат того же объекта/СО снимается |
+| 10 | Нажать галочку `Выбрать` у применимого кандидата | Backend пересчитывает основной электрорасчёт для текущего ЭР; ровно один кандидат объекта помечен `is_applied=true`, предыдущий выбранный кандидат того же `объект × ЭР` снимается |
 | 11 | У уже выбранного кандидата проверить галочку | Кнопка показывает `Уже выбран` и не снимает выбор в ноль; для смены выбора пользователь нажимает `Выбрать` у другого кандидата |
 
 ---
@@ -249,7 +249,7 @@
 
 ---
 
-## TC-ELEC-09A: Создать CO на основании другого CO
+## TC-ELEC-09A: Создать ЭР на основании другого ЭР
 
 **Автоматизировано:** ✅ (integration)
 `test_calculations.py::TestElectricalCalculation::test_copy_electrical_variant_validates_exact_copied_choice_without_autopick`<br>
@@ -260,14 +260,14 @@
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
-| 1 | Рассчитать `CO1` для части объектов проекта | В `CO1` есть строки `electrical_calculations` |
+| 1 | Рассчитать `ЭР1` для части объектов проекта | В scope `ЭР1` есть строки `electrical_calculations` с его UUID |
 | 2 | `POST /api/v1/calc/electrical/variants/copy` с `source_variant_number=1`, `target_variant_number=2` | HTTP 200, `copied_count=N`, новый подбор кабеля не запускается; выбранная марка проверяется как exact choice |
-| 3 | Открыть `CO2` | В `CO2` скопированы только объекты со строками в `CO1`; остальные «не рассчитаны» |
-| 4 | Повторить copy в непустой `CO2` без `overwrite` | HTTP 409 `target_not_empty` |
-| 5 | Повторить с `overwrite=true` | `CO2` полностью заменён копией `CO1`, без хвостов от старого target |
-| 6 | В `CO1` выбран валидный, но не минимальный кабель | В `CO2` сохранена та же марка; система не заменяет её оптимальным автоподбором |
-| 7 | В `CO1` критерий подбора `technical_minimum` / commercial ranking | В `CO2` сохранён тот же `applied_selection_policy` и `selection_reason`, не `manual_selection` |
-| 8 | Скопированная марка больше не проходит текущие условия объекта | В `CO2` сохраняется structured error с `copy_validation.autoselection_used=false`, другая марка не подбирается |
+| 3 | Открыть `ЭР2` | В `ЭР2` скопированы только объекты со строками в `ЭР1`; остальные «не рассчитаны» |
+| 4 | Повторить copy в непустой `ЭР2` без `overwrite` | HTTP 409 `target_not_empty` |
+| 5 | Повторить с `overwrite=true` | `ЭР2` полностью заменён копией `ЭР1`, без хвостов от старого target |
+| 6 | В `ЭР1` выбран валидный, но не минимальный кабель | В `ЭР2` сохранена та же марка; система не заменяет её оптимальным автоподбором |
+| 7 | В `ЭР1` критерий подбора `technical_minimum` / commercial ranking | В `ЭР2` сохранён тот же `applied_selection_policy` и `selection_reason`, не `manual_selection` |
+| 8 | Скопированная марка больше не проходит текущие условия объекта | В `ЭР2` сохраняется structured error с `copy_validation.autoselection_used=false`, другая марка не подбирается |
 | 9 | Проверить specification target после copy | По PDL-ER-13 target `not_generated`: specification не копируется и не регенерируется |
 | 10 | Явно передать `regenerate_specification=true` | Запрос отклоняется fail-closed до mutation; target assignment/calculation/spec graph не меняется |
 
@@ -483,10 +483,11 @@ selected payload назначениями ЭР» одновременно про
 | 14 | Создать NULL/mismatched UUID или cross-ER folder-item fixture | 409 `ELECTRICAL_ASSIGNMENT_DOWNSTREAM_SCOPE_CONFLICT` до удаления любой строки |
 | 15 | Запустить пересекающуюся active heat/electrical/report task и mutation | 409 `ELECTRICAL_ASSIGNMENT_JOB_CONFLICT`; cancel-requested active task всё ещё блокирует mutation |
 | 16 | Повторить assign/unassign одновременно с одной исходной version | Ровно один запрос выигрывает revision; второй получает version conflict |
-| 17 | Открыть пятый ЭР (`legacy_variant_number=null`) | Assignment GET/PATCH/unassign работает по UUID; calculation/spec/report остаются fail-closed до Phase 5 |
+| 17 | Создать пятый ЭР normal lifecycle | Ответ содержит `legacy_variant_number=5`; assignment, calculation, deep copy, specification, report preview и CSV v3 используют exact UUID/slot 5 без данных другого ЭР |
+| 17A | Создать candidate и candidate folder в пятом ЭР | Целевой контракт: операции успешны в exact UUID scope. Текущий результат — **FAIL / known implementation gap**: два guards в `CalculationService` отклоняют `variant_number > 4` |
 | 18 | Прямой запрос другого guest/employee без write ownership | Backend 403; read-only UI не является единственным RBAC guard |
 
-Migration `0029` отдельно проверяет upgrade/downgrade, exact-UUID reconciliation,
+Migrations `0029`/`0031` отдельно проверяют upgrade/downgrade, exact-UUID reconciliation,
 semantic CHECK, lookup index и отсутствие ложного `ready` для
 error/stale/unsupported rows. UI proof Phase 3 обязан включать desktop/mobile
 before/after, clipping/overflow/overlap/readability, disabled controls, console,

@@ -103,13 +103,15 @@ Run:
 npm run qa-agent:codex-core -- --scope="pipe heat loss formula"
 ```
 
-The command writes local repository artifacts outside ignored report folders:
+By default the command writes local artifacts into the ignored report folder:
 
-- `../codex-workspace/plan.md`
-- `../codex-workspace/tickets.md`
-- `../codex-workspace/board.md`
+- `reports/codex-core/plan.md`
+- `reports/codex-core/tickets.md`
+- `reports/codex-core/board.md`
 
 Use `QA_AGENT_CODEX_CORE_SCOPE` or `--scope="..."` to change the feature scope.
+Use `QA_AGENT_CODEX_CORE_OUTPUT_DIR` only when an explicit alternate local output
+directory is needed; generated planner artifacts are not documentation sources.
 Set `QA_AGENT_CODEX_CORE_WRITE_JSON=1` only if a machine-readable debug artifact
 is explicitly needed.
 

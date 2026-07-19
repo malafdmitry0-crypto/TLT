@@ -1,6 +1,6 @@
 # Реестр открытых бизнес-решений (блокеры 100% по полному ТЗ)
 
-**Дата среза:** 2026-05-20
+**Дата сверки:** 2026-07-19
 **Связанные документы:** [docs/tz-compliance.md](../tz-compliance.md),
 [docs/srs/07-report-requirements.md](../srs/07-report-requirements.md),
 [docs/srs.md](../srs.md) (NFR-SEC-03),
@@ -36,7 +36,7 @@
 
 ---
 
-## REPORT — отчёт (SRS 07, Q-01..Q-25)
+## REPORT — отчёт и выдача спецификации (SRS 07, Q-01..Q-26)
 
 Источник формулировок: [docs/srs/07-report-requirements.md](../srs/07-report-requirements.md) §7.
 
@@ -75,10 +75,20 @@
 | Q-23 | Спецификация в сводном CO | Open | Spec в отчёте |
 | Q-24 | Состав отчёта: проект vs профиль сотрудника | Open | Модель данных |
 | Q-25 | XLSX: листы vs один лист | Open | `excel_generator` |
+| Q-26 | Нужна ли отдельная выгрузка только спецификации | Open | Если закупкам/тендеру нужен самостоятельный файл: выбрать XLSX, DOCX, оба или использовать specification-раздел полного отчёта |
 
 **Влияние на % ТЗ:** требования к отчёту SRS — **~75%** (рабочий шаблон есть, финальный корпоративный вид — нет).
 
 **Действие после Closed:** обновить `docs/srs/07-report-requirements.md` §3 и §8, шаблоны в `backend/app/templates/`, снять Open в этой таблице.
+
+---
+
+## TRACE — воспроизводимость расчётов
+
+| ID | Тема | Текущий статус | Решение/evidence для закрытия |
+|---|---|---|---|
+| TRACE-COEFFICIENTS | История изменения коэффициентов | Generic `audit_events` существует, но отдельный доказанный coefficient-change flow не зафиксирован | Нужны actor, before/after, source/version и backend security/integration test |
+| TRACE-SNAPSHOT | Immutable snapshot формул, коэффициентов и каталогов в результате | Частичное traceability есть в отдельных calculation/specification полях | Нужен единый контракт `formula_id` + source/version + category/error и proof повторной загрузки |
 
 ---
 
@@ -116,6 +126,6 @@
 ## Порядок закрытия для приёмки
 
 1. **SEC-A** + **Q-01..Q-14** (минимум для подписания отчёта и безопасности).
-2. **Q-15..Q-25** при мульти-CO и корпоративной вёрстке.
+2. **Q-15..Q-26** при multi-ЭР, корпоративной вёрстке и отдельной выдаче спецификации.
 3. **CAB-MIN / CAB-SKIN / OBJ-*** — только после поставки методик ТНП.
 4. Обновить [docs/tz-compliance.md](../tz-compliance.md) и пересчитать сводку %.

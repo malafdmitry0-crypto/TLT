@@ -1,0 +1,55 @@
+{
+  "url": "http://127.0.0.1:3003/workspace/report?er=1ce8d179-1e70-4365-878c-0b16e8220f2d",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "document": {
+    "width": 1440,
+    "height": 1000,
+    "horizontalOverflow": false
+  },
+  "clipped": [
+    {
+      "tag": "SPAN",
+      "text": "Мой проект",
+      "client": [
+        59,
+        22
+      ],
+      "scroll": [
+        59,
+        22
+      ],
+      "overflow": "hidden",
+      "textOverflow": "ellipsis"
+    },
+    {
+      "tag": "SPAN",
+      "text": "ЭР1",
+      "client": [
+        25,
+        14
+      ],
+      "scroll": [
+        25,
+        15
+      ],
+      "overflow": "hidden",
+      "textOverflow": "ellipsis"
+    }
+  ],
+  "outside": [],
+  "printButton": [
+    "Печать"
+  ],
+  "partialText": true,
+  "rawProjectStatus": true,
+  "rawUuid": true,
+  "reportRect": [
+    31,
+    108,
+    1378,
+    44
+  ]
+}

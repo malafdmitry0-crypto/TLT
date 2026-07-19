@@ -1,0 +1,219 @@
+- generic [ref=f4e25] [box=0,0,1440,1000]:
+  - banner [ref=f4e26] [box=0,0,1440,26]:
+    - generic [ref=f4e27] [box=10,0,1420,25]:
+      - generic "HeatCalc" [ref=f4e28] [box=10,5,86,15]:
+        - img "fire" [ref=f4e29] [box=10,5,15,15]
+        - heading "HeatCalc" [level=2] [ref=f4e32] [box=31,6,65,14]
+      - navigation "Разделы проекта" [ref=f4e33] [box=105,1,910,23]:
+        - menu [ref=f4e34] [box=105,1,910,23]:
+          - menuitem "fire Расчёт тепловых потерь check-circle 1" [ref=f4e35] [cursor=pointer] [box=107,1,246,24]:
+            - img "fire" [ref=f4e36] [box=115,7,14,12]
+            - generic [ref=f4e40] [box=139,6,206,15]:
+              - text: Расчёт тепловых потерь
+              - img "check-circle" [ref=f4e408] [box=292,7,14,12]
+              - superscript [ref=f4e412] [box=320,6,24,15]:
+                - generic [ref=f4e413] [box=330,7,5,12]: "1"
+          - menuitem "thunderbolt Электротехнический расчёт check-circle 1" [ref=f4e48] [cursor=pointer] [box=356,1,271,24]:
+            - img "thunderbolt" [ref=f4e49] [box=364,7,14,12]
+            - generic [ref=f4e53] [box=388,6,231,15]:
+              - text: Электротехнический расчёт
+              - img "check-circle" [ref=f4e415] [box=568,7,14,12]
+              - superscript [ref=f4e419] [box=596,6,24,15]:
+                - generic [ref=f4e420] [box=605,7,5,12]: "1"
+          - menuitem "unordered-list Спецификация" [ref=f4e61] [cursor=pointer] [box=632,1,132,24]:
+            - img "unordered-list" [ref=f4e62] [box=640,7,14,12]
+            - generic [ref=f4e65] [box=664,7,92,12]: Спецификация
+          - separator [box=354,2,0,21]
+          - menuitem "file-text Отчёт" [active] [ref=f4e66] [cursor=pointer] [box=768,1,76,24]:
+            - img "file-text" [ref=f4e67] [box=776,7,14,12]
+            - generic [ref=f4e70] [box=800,7,36,12]: Отчёт
+          - menuitem [disabled] [box=123,0,30,24]
+      - generic [ref=f4e71] [box=1023,1,407,24]:
+        - generic [ref=f4e72] [box=1023,1,241,24]:
+          - generic [ref=f4e74] [box=1023,1,72,24]:
+            - img "folder-open" [ref=f4e76] [box=1023,9,10,10]
+            - generic "Мой проект" [ref=f4e80] [box=1036,1,59,22]
+          - button "download Скачать" [ref=f4e82] [cursor=pointer] [box=1102,2,73,22]:
+            - img "download" [ref=f4e84] [box=1110,7,11,11]
+            - generic [ref=f4e87] [box=1127,8,40,10]: Скачать
+          - button "upload Загрузить" [ref=f4e89] [cursor=pointer] [box=1178,2,83,22]:
+            - img "upload" [ref=f4e91] [box=1186,7,11,11]
+            - generic [ref=f4e94] [box=1203,8,50,10]: Загрузить
+        - generic [ref=f4e95] [box=1270,2,160,22]:
+          - button "question-circle Инструкция" [ref=f4e97] [cursor=pointer] [box=1270,2,92,22]:
+            - img "question-circle" [ref=f4e99] [box=1278,7,11,11]
+            - generic [ref=f4e103] [box=1295,8,60,10]: Инструкция
+          - button "logout Выход" [ref=f4e105] [cursor=pointer] [box=1366,2,64,22]:
+            - img "logout" [ref=f4e107] [box=1374,7,11,11]
+            - generic [ref=f4e110] [box=1390,8,32,10]: Выход
+  - main [ref=f4e112] [box=0,26,1440,974]:
+    - generic [ref=f4e422] [box=6,28,1428,915]:
+      - generic [ref=f4e424] [box=31,44,1378,25]:
+        - generic [ref=f4e426] [box=31,47,217,18]:
+          - img "file-text" [ref=f4e427] [box=31,48,16,16]
+          - text: Шаг 4. Отчёт по проекту
+        - button "Печать отчёта" [ref=f4e433] [cursor=pointer] [box=1336,46,73,22]:
+          - img "printer" [ref=f4e435] [box=1347,52,10,10]
+          - generic [ref=f4e438] [box=1363,52,35,11]: Печать
+      - generic [ref=f4e439] [box=7,84,1426,858]:
+        - generic [ref=f4e440] [box=31,108,1378,44]: "Итоговый отчёт содержит сводную информацию по проекту: объекты, результаты расчётов теплопотерь, подобранные кабели и спецификацию. Кнопка «Печать» открывает печать браузера. Server export (PDF/Word/Excel) — только сотрудникам."
+        - generic [ref=f4e441] [box=31,160,1378,46]:
+          - text: "ЭР в отчёте:"
+          - generic [ref=f4e442] [box=31,182,1378,24]:
+            - generic "Выбор ЭР для отчёта" [ref=f4e443] [cursor=pointer] [box=31,182,280,24]:
+              - generic [ref=f4e446] [box=35,184,251,20]:
+                - generic "ЭР1" [ref=f4e448] [box=35,186,53,16]
+                - combobox "Выбор ЭР для отчёта" [ref=f4e456] [box=92,186,4,16]
+            - button "Выбрать все" [ref=f4e457] [cursor=pointer] [box=319,186,74,17]
+        - generic [ref=f4e460] [box=48,235,1344,959]:
+          - heading "Отчёт по проекту" [level=1] [ref=f4e461] [box=48,235,1344,32]
+          - generic [ref=f4e462] [box=48,271,1344,35]:
+            - strong [ref=f4e463] [box=48,272,69,14]: Мой проект
+            - text: "ID: 78945392-b085-4457-a5f5-fd0132579deb · Статус: ProjectStatus.draft"
+          - generic [ref=f4e464] [box=48,318,1344,61]:
+            - generic [ref=f4e465] [box=63,329,49,39]:
+              - generic [ref=f4e466] [box=63,329,49,16]: Объектов
+              - text: "1"
+            - generic [ref=f4e467] [box=138,329,126,39]:
+              - generic [ref=f4e468] [box=138,329,126,16]: Рассчитано теплопотерь
+              - text: "1"
+            - generic [ref=f4e469] [box=290,329,102,39]:
+              - generic [ref=f4e470] [box=290,329,102,16]: Подобрано кабелей
+              - text: "1"
+            - generic [ref=f4e471] [box=418,329,129,39]:
+              - generic [ref=f4e472] [box=418,329,129,16]: Суммарные теплопотери
+              - text: 165 Вт
+            - generic [ref=f4e473] [box=572,329,158,39]:
+              - generic [ref=f4e474] [box=572,329,158,16]: Суммарная мощность кабелей
+              - text: 200 Вт
+            - generic [ref=f4e475] [box=755,329,71,39]:
+              - generic [ref=f4e476] [box=755,329,71,16]: Длина кабеля
+              - text: 11.0 м
+            - generic [ref=f4e477] [box=852,329,80,39]:
+              - generic [ref=f4e478] [box=852,329,80,16]: Суммарный ток
+              - text: 0.91 А
+          - heading "Трубопроводы (1)" [level=2] [ref=f4e479] [box=48,401,1344,29]
+          - table [ref=f4e480] [box=48,440,1344,62]:
+            - rowgroup [ref=f4e481] [box=49,440,1343,30]:
+              - row [ref=f4e482] [box=49,440,1343,30]:
+                - columnheader "#" [ref=f4e483] [box=49,440,41,30]
+                - columnheader "Наименование" [ref=f4e484] [box=89,440,329,30]
+                - columnheader "Ø, мм" [ref=f4e485] [box=418,440,87,30]
+                - columnheader "Длина, м" [ref=f4e486] [box=505,440,120,30]
+                - columnheader "δ изол., мм" [ref=f4e487] [box=625,440,143,30]
+                - columnheader "Материал" [ref=f4e488] [box=768,440,129,30]
+                - columnheader "T₀, °C" [ref=f4e489] [box=897,440,82,30]
+                - columnheader "Tподд., °C" [ref=f4e490] [box=979,440,133,30]
+                - columnheader "q, Вт/м" [ref=f4e491] [box=1112,440,99,30]
+                - columnheader "Q, Вт" [ref=f4e492] [box=1211,440,81,30]
+                - columnheader "Статус" [ref=f4e493] [box=1293,440,99,30]
+            - rowgroup [ref=f4e494] [box=49,471,1343,30]:
+              - row [ref=f4e495] [box=49,471,1343,30]:
+                - cell "1" [ref=f4e496] [box=49,471,41,30]
+                - cell "Ревалидация — трубопровод 1" [ref=f4e497] [box=89,471,329,30]
+                - cell "108" [ref=f4e498] [box=418,471,87,30]
+                - cell "10.0" [ref=f4e499] [box=505,471,120,30]
+                - cell "50" [ref=f4e500] [box=625,471,143,30]
+                - cell "other" [ref=f4e501] [box=768,471,129,30]
+                - cell "-20.0" [ref=f4e502] [box=897,471,82,30]
+                - cell "20.0" [ref=f4e503] [box=979,471,133,30]
+                - cell "15.0" [ref=f4e504] [box=1112,471,99,30]
+                - cell "165" [ref=f4e505] [box=1211,471,81,30]
+                - cell "✓ ОК" [ref=f4e506] [box=1293,471,99,30]
+          - heading "Резервуары (0)" [level=2] [ref=f4e507] [box=48,524,1344,29]
+          - paragraph [ref=f4e508] [box=48,566,1344,35]: Резервуары не добавлены
+          - heading "Электротехнический расчёт (1)" [level=2] [ref=f4e509] [box=48,623,1344,29]
+          - table [ref=f4e510] [box=48,662,1344,97]:
+            - rowgroup [ref=f4e511] [box=49,662,1343,48]:
+              - row [ref=f4e512] [box=49,662,1343,48]:
+                - columnheader "#" [ref=f4e513] [box=49,662,24,48]
+                - columnheader "Объект" [ref=f4e514] [box=72,662,149,48]
+                - columnheader "Марка кабеля" [ref=f4e515] [box=221,662,81,48]
+                - columnheader "Критерий" [ref=f4e516] [box=303,662,87,48]
+                - columnheader "Применено" [ref=f4e517] [box=390,662,87,48]
+                - columnheader "Длина кабеля, м" [ref=f4e518] [box=477,662,92,48]
+                - columnheader "Уд. мощность, Вт/м" [ref=f4e519] [box=569,662,110,48]
+                - columnheader "Суммарная мощность" [ref=f4e520] [box=679,662,121,48]
+                - columnheader "Ток, А" [ref=f4e521] [box=800,662,47,48]
+                - columnheader "U, В" [ref=f4e522] [box=847,662,47,48]
+                - columnheader "Стоимость кабеля" [ref=f4e523] [box=894,662,108,48]
+                - columnheader "Склад / срок" [ref=f4e524] [box=1002,662,75,48]
+                - columnheader "Причина выбора" [ref=f4e525] [box=1077,662,314,48]
+            - rowgroup [ref=f4e526] [box=49,710,1343,48]:
+              - row [ref=f4e527] [box=49,710,1343,48]:
+                - cell "1" [ref=f4e528] [box=49,710,24,48]
+                - cell "Ревалидация — трубопровод 1" [ref=f4e529] [box=72,710,149,48]
+                - cell "ТЛТ-20" [ref=f4e530] [box=221,710,81,48]:
+                  - strong [ref=f4e531] [box=230,718,40,14]: ТЛТ-20
+                - cell "Технический" [ref=f4e532] [box=303,710,87,48]
+                - cell "Технический" [ref=f4e533] [box=390,710,87,48]
+                - cell "10.0" [ref=f4e534] [box=477,710,92,48]
+                - cell "20.0" [ref=f4e535] [box=569,710,110,48]
+                - cell "200 Вт" [ref=f4e536] [box=679,710,121,48]
+                - cell "0.91" [ref=f4e537] [box=800,710,47,48]
+                - cell "220.0" [ref=f4e538] [box=847,710,47,48]
+                - cell "—" [ref=f4e539] [box=894,710,108,48]
+                - cell "—" [ref=f4e540] [box=1002,710,75,48]
+                - cell "Выбран минимальный технически подходящий кабель по инженерной сортировке" [ref=f4e541] [box=1077,710,314,48]
+          - heading "Спецификация" [level=2] [ref=f4e542] [box=48,781,1344,29]
+          - paragraph [ref=f4e543] [box=48,823,1344,35]: Неполная спецификация — не использовать как полный закупочный комплект.
+          - list [ref=f4e544] [box=48,871,1344,57]:
+            - listitem [ref=f4e545] [box=88,871,1304,19]:
+              - strong [ref=f4e546] [box=88,872,207,15]: BOX_EX_RGR_MATRIX_MISSING
+              - text: ": Официальная per-row матрица условий коробок Ex/Rгр не зарегистрирована (PDL-ER-35). Зависимые коробки и box-derived позиции fail-closed."
+            - listitem [ref=f4e547] [box=88,889,1304,38]:
+              - strong [ref=f4e548] [box=88,890,224,15]: SECTION_DATA_SOURCE_MISSING
+              - text: ": Официальный каталог секционирования (Lmax, Iдоп, Iст.уд) не зарегистрирован (PDL-ER-15/28). Соединительные комплекты и другие Nсек-зависимые позиции исключены; num_circuits не подменяет секции."
+          - table [ref=f4e549] [box=48,940,1344,214]:
+            - rowgroup [ref=f4e550] [box=49,941,1343,30]:
+              - row [ref=f4e551] [box=49,941,1343,30]:
+                - columnheader "#" [ref=f4e552] [box=49,941,37,30]
+                - columnheader "Категория" [ref=f4e553] [box=85,941,224,30]
+                - columnheader "Наименование" [ref=f4e554] [box=309,941,706,30]
+                - columnheader "Артикул" [ref=f4e555] [box=1015,941,231,30]
+                - columnheader "Ед." [ref=f4e556] [box=1246,941,56,30]
+                - columnheader "Кол-во" [ref=f4e557] [box=1302,941,90,30]
+            - rowgroup [ref=f4e558] [box=49,971,1343,182]:
+              - row [ref=f4e559] [box=49,971,1343,30]:
+                - cell "1" [ref=f4e560] [box=49,971,37,30]
+                - cell "Кабель" [ref=f4e561] [box=85,971,224,30]
+                - cell "Греющий кабель ТЛТ-20" [ref=f4e562] [box=309,971,706,30]
+                - cell "ТЛТ-20" [ref=f4e563] [box=1015,971,231,30]
+                - cell "м" [ref=f4e564] [box=1246,971,56,30]
+                - cell "11.0" [ref=f4e565] [box=1302,971,90,30]
+              - row [ref=f4e566] [box=49,1001,1343,30]:
+                - cell "2" [ref=f4e567] [box=49,1001,37,30]
+                - cell "Ленты и герметики" [ref=f4e568] [box=85,1001,224,30]
+                - cell "Клей-герметик силиконовый" [ref=f4e569] [box=309,1001,706,30]
+                - cell "NEO CONTACT MIX600" [ref=f4e570] [box=1015,1001,231,30]
+                - cell "шт." [ref=f4e571] [box=1246,1001,56,30]
+                - cell "1.0" [ref=f4e572] [box=1302,1001,90,30]
+              - row [ref=f4e573] [box=49,1032,1343,30]:
+                - cell "3" [ref=f4e574] [box=49,1032,37,30]
+                - cell "Ленты и герметики" [ref=f4e575] [box=85,1032,224,30]
+                - cell "Лента алюминиевая самоклеящаяся (рулон 50 м)" [ref=f4e576] [box=309,1032,706,30]
+                - cell "ЛА" [ref=f4e577] [box=1015,1032,231,30]
+                - cell "шт." [ref=f4e578] [box=1246,1032,56,30]
+                - cell "1.0" [ref=f4e579] [box=1302,1032,90,30]
+              - row [ref=f4e580] [box=49,1062,1343,30]:
+                - cell "4" [ref=f4e581] [box=49,1062,37,30]
+                - cell "Ленты и герметики" [ref=f4e582] [box=85,1062,224,30]
+                - cell "Лента стекловолоконная самоклеящаяся (низкотемп., рулон 30 м)" [ref=f4e583] [box=309,1062,706,30]
+                - cell "ЛКС 12" [ref=f4e584] [box=1015,1062,231,30]
+                - cell "шт." [ref=f4e585] [box=1246,1062,56,30]
+                - cell "2.0" [ref=f4e586] [box=1302,1062,90,30]
+              - row [ref=f4e587] [box=49,1093,1343,30]:
+                - cell "5" [ref=f4e588] [box=49,1093,37,30]
+                - cell "Маркировка" [ref=f4e589] [box=85,1093,224,30]
+                - cell "Этикетка \"Внимание электрообогрев\"" [ref=f4e590] [box=309,1093,706,30]
+                - cell "ЭТ-ВЭ" [ref=f4e591] [box=1015,1093,231,30]
+                - cell "шт." [ref=f4e592] [box=1246,1093,56,30]
+                - cell "3.0" [ref=f4e593] [box=1302,1093,90,30]
+              - row [ref=f4e594] [box=49,1123,1343,30]:
+                - cell "6" [ref=f4e595] [box=49,1123,37,30]
+                - cell "Ремонтные комплекты" [ref=f4e596] [box=85,1123,224,30]
+                - cell "Комплект ремонтный для низкотемпературных саморегулирующихся кабелей" [ref=f4e597] [box=309,1123,706,30]
+                - cell "КСР-1" [ref=f4e598] [box=1015,1123,231,30]
+                - cell "шт." [ref=f4e599] [box=1246,1123,56,30]
+                - cell "1.0" [ref=f4e600] [box=1302,1123,90,30]
+          - paragraph [ref=f4e601] [box=48,1178,1344,16]: Отчёт сформирован программным комплексом HeatCalc · Система расчёта систем электрообогрева ТЛТ

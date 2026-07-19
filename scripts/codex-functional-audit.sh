@@ -34,6 +34,7 @@ TEST_SECRET_KEY="${TEST_SECRET_KEY:-codex-test-secret-key-at-least-32-chars}"
 run_docs() {
   echo "▶ Docs drift check"
   "$ROOT/scripts/sync-docs.py" --check
+  bash "$ROOT/scripts/check-doc-semantic-drift.sh"
 }
 
 run_contracts() {

@@ -28,7 +28,8 @@
 | PDL-ER-37 stale exclusion | PASS | |
 | PDL-ER-38 grouping/merge | PASS | base+code |
 | PDL-ER-41 guest manual import reject | PASS | |
-| **ER5 write cutover (slots 1…5)** | **PASS** | migration 0031 + `_LEGACY_VARIANT_NUMBERS=1..5` |
+| **ER5 DB/lifecycle/copy/spec/report/CSV slots 1…5** | **PASS** | migration 0031 + `_LEGACY_VARIANT_NUMBERS=1..5` + fifth graph-copy test |
+| **ER5 candidate/folder create** | **PARTIAL** | schemas/DB допускают 5, но два guards в `CalculationService` всё ещё отклоняют `variant_number > 4` |
 
 ## Actionable A pack (2026-07-19)
 
@@ -48,6 +49,7 @@ alembic 0031 aligned, partial security bumps.
 | PDL-ER-40 corporate template | OUT OF SCOPE | functional print ok |
 | Full Playwright matrix beyond proof pack | PARTIAL | expanded `phase5-specification-proof.spec.ts` |
 | A4 release hygiene | PARTIAL | HeatCalc settings fail / security drift outside ER slice |
+| ER5 candidate/folder create | IMPLEMENTATION GAP | `create_electrical_candidate` и `create_electrical_candidate_folder` валидируют только `1…4`; не считать весь ER5 data plane полностью закрытым |
 
 ## Commits (local main, no push)
 

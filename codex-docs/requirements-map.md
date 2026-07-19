@@ -5,14 +5,8 @@
 | Файл/папка | Смысл |
 |---|---|
 | `docs/srs.md` | Единый SRS-документ, верхнеуровневые требования |
-| `docs/srs/01-user-stories.md` | Пользовательские истории |
-| `docs/srs/02-use-cases.md` | Use cases |
-| `docs/srs/03-elements-list.md` | Перечень элементов |
-| `docs/srs/04-validation.md` | Правила валидации |
-| `docs/srs/05-functional-nonfunctional.md` | Функциональные и нефункциональные требования |
-| `docs/srs/06-test-program.md` | Программа испытаний |
-| `docs/srs/07-report-requirements.md` | Требования к отчёту |
-| `docs/tz-compliance.md` | Сверка с ТЗ и сводка % готовности |
+| `docs/srs/README.md`, `docs/srs/` | Детальная legacy-декомпозиция; фиксированные `СО1…СО4` superseded и не являются текущим ER-контрактом |
+| `docs/tz-compliance.md` | Исторический срез 2026-05-20; не текущий процент готовности |
 | `docs/analysis/open-business-decisions.md` | Реестр открытых Q (отчёт, SEC, кабели, объекты) |
 | `docs/analysis/business-logic-strengths-weaknesses.md` | SWOT расчётной бизнес-логики |
 | `TO_DO.md` | Рабочий статус пробелов и отложенных задач |
@@ -23,6 +17,7 @@
 | `docs/tnp/cases/guest-specification/phase-1-checkpoint.md` | Финальное evidence backend/DB Phase 1 и переходные ограничения |
 | `docs/tnp/cases/guest-specification/phase-2-checkpoint.md` | Финальное frontend/consumer evidence Phase 2 и UUID/legacy boundary |
 | `docs/tnp/cases/guest-specification/phase-3-checkpoint.md` | Authoritative assignments, exact cleanup и Phase 3 verification status |
+| `docs/tnp/cases/guest-specification/phase-5-checkpoint.md` | Текущий partial-PASS checkpoint specification/report/guest/CSV/ER5 |
 
 ## Текущие границы реализации
 
@@ -38,16 +33,19 @@
   1/2/3 слоями изоляции и подземным резервуаром;
 - саморегулирующийся кабель ТЛТ как расчётно поддержанный тип;
 - до пяти динамических именованных UUID ЭР на SC-04 с lifecycle, URL selection,
-  UUID query/cache identity и контролируемым fail-closed состоянием пятого ЭР;
+  UUID query/cache identity и compatibility slots `1…5`; normal пятый ЭР имеет
+  slot 5 и собственный downstream scope;
 - backend/DB foundation именованных UUID ЭР: readiness, persisted assignments,
-  UUID-first electrical/report tasks и sparse CSV v2 import; Phase 1 и
-  frontend/consumer Phase 2 имеют статус **PASS**;
+  UUID-first electrical/report tasks, CSV v3 export и v2/v3 import; Phase 1–3
+  имеют статус **PASS**, Phase 5 — **PARTIAL PASS**;
 - authoritative Phase 3 assignments для каждого `объект × ЭР`: assignment
   panel, `self_regulating/resistive`, read/unassign-only `skin/mineral`,
   optimistic version, calculation sync и exact confirmed unassign cleanup;
 - импорт Excel/CSV;
-- базовая/расширяемая спецификация;
-- HTML-превью отчёта и экспорт PDF/DOCX/XLSX для сотрудника;
+- full automatic specification с settings snapshot, preflight и explicit
+  multi-ЭР generation; manual items — employee/admin only;
+- UUID-first multi-ЭР HTML preview/browser print и single-ЭР server export
+  PDF/DOCX/XLSX для сотрудника;
 - админка пользователей, коэффициентов и внешней БД;
 - локальные технические логи Docker-контейнеров через Loki/Grafana/Alloy;
 - бизнес-аудит мутаций, расчётов, задач, отчётов и frontend-ошибок в
@@ -58,7 +56,7 @@
 | Зона | Что проверить перед задачей |
 |---|---|
 | Другие типы кабеля | `single_core` и `three_core` согласованы с full-version VSDX fallback policy; для MI и skin нужны отдельные методики |
-| Dynamic ЭР / legacy СО | Frontend lifecycle/cache/URL UUID-first. Direct legacy calculation/candidate/folder/spec/report consumers временно передают UUID вместе с deprecated `variant_number`; backend обязан проверить точное соответствие пары до чтения/записи |
+| Dynamic ЭР / numeric compatibility | Frontend lifecycle/cache/URL UUID-first. Direct compatibility consumers временно передают UUID вместе с deprecated `variant_number=1…5`; backend обязан проверить точное соответствие пары до чтения/записи |
 | Legacy write adapter | Calculation/candidate/folder/select writes обязаны readiness-gated подготовить UUID mapping и затем проверить compatible assignment exact UUID; spec/seeds сохраняют профильные guards, sparse slot не заполняет промежуточные ЭР |
 | Project duplicate | После heat recalc ready copy готовит `ЭР1`/UUID и unassigned matrix, но не запускает electrical batch без явного выбора системы; not-ready copy остаётся без ER/electrical rows и явно audit-ится |
 | Assignment semantics | После 0029 type/state authoritative и независимы: assign → stale/calculation-required, same-system no-op, reassign только через confirmed unassign, dirty unassigned graph требует отдельный cleanup handshake, runtime calculation не auto-assign |
@@ -68,14 +66,14 @@
 | Task idempotency | Explicit key scoped по principal/type/project и навсегда binding-ит полный payload/ER; heat lookup/insert project-locked; exact terminal retry возвращает original и truthful replay audit, changed binding даёт `TASK_IDEMPOTENCY_KEY_REUSED` |
 | Electrical job selector | Omitted numeric selector → slot 1; UUID-only clears implicit default; explicit null → stable 422 до ER side effect |
 | Candidate apply/delete | Общая lifecycle project lock, re-read candidate/mapping после lock, stable 404/409 без ER recreation или integrity 500 |
-| Пятый ЭР | Доступен lifecycle, assignment API/UI и отдельный scope, но legacy calculation/candidate/spec/report graph отсутствует; UI обязан fail-closed до полного UUID-only cutover |
-| Guest persistence | PDL-ER-26 разрешает временное PostgreSQL-хранение на 3 дня с последней активности, session isolation и auto-cleanup. Валидная browser session восстанавливает проект; expiry явно создаёт новый пустой, старый восстанавливается только из локального файла. Текущие 20 минут — implementation gap |
+| Пятый ЭР | Migration 0031 и normal lifecycle дают slot 5; calculation/copy/spec/report/CSV поддерживают его. Остаточный gap: `create_electrical_candidate` и `create_electrical_candidate_folder` всё ещё валидируют только `1…4` |
+| Guest persistence | Реализован TTL 3 дня с последней активности, session isolation и cleanup по PDL-ER-26; expiry создаёт новый пустой проект, восстановление старого возможно только из файла |
 | Масштаб проекта | PDL-ER-27 фиксирует 500 объектов × 5 ЭР и PDF-пороги 30 секунд. Runtime guard 50 сохраняется до performance evidence импорта, batch-расчёта, UI, specification и report |
 | Heating sections | Семантика утверждена PDL-ER-18…25: официальный источник ТЛТ, explicit `Iдоп` по марке/напряжению, direct `Iст.уд`, minimum object/climate start temperature, voltage isolation, source-defined rounding, self-reg only, fail closed при пробеле. PDL-ER-28 подтверждает обязательность фактического артефакта; Phase 4 остаётся blocked PDL-ER-15/18/28 до его предоставления |
-| Phase 5 specification | PDL-ER-29/31…38: один full data-driven mode; PDF authoritative, `Rгр` отдельно от 10%, exact catalog identity, доказанные tank/resistive positions + explicit partial, official `Ex/Rгр` matrix, preflight/atomic multi-ЭР generation, stale read-only/no-output, split grouping default |
-| Phase 5 report | PDL-ER-39/40: явный UUID-list, один document с независимыми главами/specifications и diagnostics без cross-ЭР sums; functional HTML/browser print принимаются без финального corporate template |
-| Phase 5 project I/O | PDL-ER-41: export только v3, v2 import-only; untrusted/mismatched source stale-ит calculated state, guest manual BOM rows отклоняются атомарно |
-| Поддерживаемая ширина Phase 5 | PDL-ER-30: interactive UI от 1280 px; меньшая ширина получает явное предупреждение, mobile не входит в acceptance, browser print проверяется отдельно |
+| Phase 5 specification | **PASS в checkpoint:** один full mode, settings snapshot, exact catalog identity, explicit partial/preflight/atomic multi-ЭР generation, stale read-only/no-output и grouping; official `Ex/Rгр` data artifact остаётся external |
+| Phase 5 report | **PASS functional:** явный UUID-list, независимые главы без cross-ЭР sums, HTML/browser print; corporate template остаётся отдельным out-of-scope acceptance |
+| Phase 5 project I/O | **PASS focused:** export только v3, v2/v3 import, stale trust boundary и atomic reject guest manual BOM rows |
+| Поддерживаемая ширина Phase 5 | **PASS focused:** interactive UI от 1280 px, меньшая ширина получает предупреждение, browser print проверяется отдельно |
 | Расширенные типы объектов | Для pump/platform/other нужны формы, схемы, формулы, импорт, отчёты и тесты |
 | Безопасность раздела 5 ТЗ | Обфускация, шифрование формул/справочников, ротация ключей пока отдельный риск |
 | Табличный UX | TSV-копирование есть; Excel-like bulk edit и эскизы Приложения 4 проверять по `TO_DO.md` |
@@ -95,16 +93,8 @@
 - QA-сценарий добавлен или обновлён в `docs/qa/`;
 - автотест покрывает основной успешный сценарий и хотя бы один риск.
 
-Для dynamic-ER Phase 1 migration/backfill evidence, final-head DB invariants и
-проверка переходных numeric consumers завершены. Phase 2 закрыла именованный
-UUID frontend lifecycle, cache/URL identity, direct consumer bridge и
-desktop/mobile UI proof. Phase 3 реализовала и доказала root gate для
-authoritative assignment API/UI, exact UUID calculation scope, optimistic
-races, confirmed cleanup, live reload и post-UI DB invariants. Это не
-закрывает реализацию Phase 5, общий PDF/DoD или product release; продуктовый
-контракт Phase 5 уже закрыт PDL-ER-29…41. Семантика Phase 4 закрыта
-PDL-ER-18…25, а guest TTL/scale решения закрыты PDL-ER-26/27. Сама Phase 4
-остаётся blocked PDL-ER-15/18/28 до официального числового источника. Full
-frontend gate не green из-за pre-existing missing accessible separator test,
-который не является regression dynamic-ER Phase 3. Dependency security gate и
-общий Alembic metadata drift вне dynamic-ER diff также блокируют release.
+Для dynamic-ER Phase 1–3 evidence завершено. Phase 5 имеет partial PASS:
+settings/specification/report/guest/CSV v3/ER5 подтверждены focused evidence,
+но полный scale gate 500, Phase 4 numeric artifact, два candidate/folder guards
+slot 5 и общий release gate остаются открыты. Текущий статус брать из
+`phase-5-checkpoint.md`, а не из ранних Phase 0–3 snapshots или старых SRS.

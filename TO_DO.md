@@ -1,60 +1,53 @@
-# Актуальный статус против ТЗ
+# Активные пробелы и блокеры TLT
 
-**Дата среза:** 2026-05-20
-**Главная подробная сводка:** `docs/analysis/current-status-and-missing-info.md`
-**Сводка % по ТЗ:** `docs/tz-compliance.md` § «Сводка соответствия»
-**Открытые решения заказчика:** `docs/analysis/open-business-decisions.md`
+**Дата сверки:** 2026-07-19
 
-Этот файл — короткий рабочий список. Для оценки готовности опираться на
-`docs/tz-compliance.md`, а не на устаревшие записи ниже по дате.
+Это короткий навигационный список, а не самостоятельный источник требований и
+не декларация полной готовности. Приоритет источников описан в
+`codex-docs/source-documents.md`.
 
-## Что сейчас закрыто
+## Текущее направление
 
-| Область | Статус | Комментарий |
-|---|:---:|---|
-| Гостевой режим, сотрудник, админ | ✅ | Роли разведены по API и UI |
-| Проекты | ✅ | CRUD, один гостевой проект, проводник сотрудника, дублирование |
-| Импорт/экспорт | ✅ | XLSX/CSV объектов, CSV проектов, экспорт объектов XLSX |
-| SC-03 «Теплопотери» | ✅ | Встроенная плоская форма, 4 секции, матрица видимости |
-| Климат | ✅ | 539 городов, автозаполнение температуры и ветра |
-| Трубы / резервуары | ✅ | Многослойная стенка, грунт, 1/2/3 слоя, подземный резервуар |
-| Электрорасчёт ТЛТ | ✅ | Саморегулирующийся кабель, автоподбор, ручной выбор |
-| ТТН / ТТВ / ТТХ | ✅ | `formulas/electrical/self_regulating.py`, каталог `cables_tt.json` |
-| ТТ Р1 / ТТ Р3 | ✅ | `single_core` / `three_core`, VSDX-подбор в `resistive.py` |
-| CO1..CO4 | ✅ | Сквозной `variant_number` в API, UI, спецификации, отчёте |
-| Расширенная БД | ✅ | Кабели/аксессуары, выбор базы расчёта для сотрудника |
-| Спецификация | ✅ | Авто-спецификация, группировка/сортировка, ручные позиции |
-| Отчёт | ✅ | HTML preview, PDF/DOCX/XLSX для сотрудника, мастер состава |
-| Тесты | ✅ | См. `README.md` (блок AUTO:test-counts) |
+- Динамические именованные ЭР используют постоянные UUID и поддерживают до пяти
+  решений на проект. Числовой `variant_number` остаётся compatibility detail на
+  время миграционного окна, а не публичным идентификатором ЭР.
+- Фазы 1–3 динамических ЭР имеют сохранённое evidence. Phase 4 заблокирована до
+  официального числового источника PDL-ER-15/18/28. Phase 5 находится в активной
+  реализации и не считается завершённой без полного backend/frontend/DB/e2e
+  evidence.
+- Подробный статус: `docs/architecture/dynamic-electrical-variants.md` и
+  `docs/tnp/cases/guest-specification/README.md`.
 
-## Реальные блокеры полной версии
+## Активные P0/P1 gaps
 
-| Приоритет | Блокер | Что нужно |
+| Приоритет | Область | Требуемый результат |
 |---|---|---|
-| P0 | Кабели `mineral`, `skin` | Методики расчёта и ограничения; сейчас только тип/каталог |
-| P0 | Pump / platform / other | Формулы ТНП, поля формы, импорт, отчёт (нет данных от заказчика) |
-| P0 | Безопасность раздела 5 ТЗ | Подписать вариант А/Б/С — см. `open-business-decisions.md` § SEC |
-| P1 | Итоговый отчёт | Закрыть Q-01..Q-20+ — см. `open-business-decisions.md` § REPORT |
-| P1 | Audit/snapshot расчётов | История коэффициентов и снапшот в результате расчёта |
-| P1 | Справочник кодов ошибок | `docs/error-codes.md` (черновик в реестре открытых решений) |
-| P2 | Excel-like UX, DnD строк | Q-B; backend reorder есть, UI DnD не подключён |
+| P0 | Heating sections | Получить официальный каталог/«Таблицу Виктора» с `Lmax`, токами и правилами округления; до этого fail closed |
+| P0 | Dynamic-ER Phase 5 | Доказать UUID-isolation для calculation/specification/report/project I/O, пятого ЭР и multi-ЭР операций |
+| P0 | Release evidence | Закрыть dependency/security, Alembic metadata и полный frontend gate, перечисленные в dynamic-ER checkpoints |
+| P1 | Guest persistence | Реализовать и доказать PDL-ER-26: PostgreSQL TTL 3 дня, session isolation и cleanup; старый 20-минутный runtime — gap |
+| P1 | Масштаб | Доказать 500 объектов × 5 ЭР и PDF-порог 30 секунд до повышения runtime guard 50 |
+| P1 | Кабели `mineral` / `skin` | Получить методики расчёта и ограничения; до этого типы остаются unsupported |
+| P1 | `pump` / `platform` / `other` | Получить формулы, поля формы, импорт, спецификацию, отчёт и тестовые примеры |
+| P1 | Безопасность раздела 5 ТЗ | Зафиксировать выбранный вариант защиты формул/справочников и acceptance evidence |
+| P1 | Error catalog | Свести стабильные API/domain error codes в единый пользовательский справочник |
 
-## Документы, которые нужно держать синхронными
+## Где проверять фактический статус
 
-| Документ | Назначение |
+| Область | Источник |
 |---|---|
-| `docs/analysis/current-status-and-missing-info.md` | Срез готовности и пробелов |
-| `docs/analysis/business-logic-strengths-weaknesses.md` | SWOT расчётной бизнес-логики |
-| `docs/tz-compliance.md` | Сверка с ТЗ |
-| `docs/analysis/open-business-decisions.md` | Реестр Q-решений и SEC |
-| `docs/qa/automation-coverage.md` | Карта тестового покрытия |
-| `CLAUDE.MD`, `backend/CLAUDE.MD`, `frontend/CLAUDE.MD` | Карта реализации |
+| Целевой контракт | `ТЗ/`, `docs/tnp/`, подтверждённые product decisions |
+| Текущая бизнес-логика | `docs/business-logic-contract.md` |
+| API и БД | `docs/api.md`, `docs/db_schema.md` |
+| Реализация dynamic ER | `docs/architecture/dynamic-electrical-variants.md` |
+| Общая готовность | `codex-docs/requirements-map.md`, `docs/tz-compliance.md` |
+| Открытые решения | `docs/analysis/open-business-decisions.md` |
+| QA coverage | `docs/qa/README.md`, `docs/qa/automation-coverage.md` |
 
-## Команды проверки
+## Минимальная проверка документационного изменения
 
 ```bash
 scripts/sync-docs.py --check
-scripts/sync-docs.py
-npm run build --prefix frontend
-make lint-backend
+scripts/codex-functional-audit.sh docs
+scripts/codex-functional-audit.sh contracts
 ```

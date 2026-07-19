@@ -51,7 +51,7 @@ Agent routing:
 Hard safety rules:
 - Не делай широкий рефакторинг.
 - Не переписывай архитектуру целиком.
-- Не меняй formulas, expected/golden values, API contracts, units, CO variant
+- Не меняй formulas, expected/golden values, API contracts, units, ER variant
   semantics, candidate apply semantics or specification handoff без
   независимого источника правды.
 - Не ослабляй assertions ради green tests.
@@ -120,10 +120,10 @@ Discovery через rg:
 - useState/useEffect/useMemo/useCallback;
 - React Query calls and mutations;
 - project/object query and backend pagination path;
-- CO1..CO4 variant store and variant_number propagation;
+- UUID ER controller/query identity и transitional `variant_number=1…5` propagation;
 - cable source/type controls and feature flags;
 - batch calculation submit/cancel/polling paths;
-- manual cable mark modal and save-to-CO path;
+- manual cable mark modal and save-to-ER path;
 - candidate sizing modal: auto/manual run, apply, exclude, favorite/folders;
 - main table column render/copy/filter/sort/pagination state;
 - candidate table column render/copy/filter/sort/compare state;
@@ -161,7 +161,7 @@ Phase 1: ElecCalcPage Audit And Safety Map
 - крупные responsibility clusters;
 - API calls and mutations;
 - object/electrical query path;
-- CO variant propagation path;
+- ER UUID/compatibility-slot propagation path;
 - batch calculation submit/cancel/polling path;
 - manual mark save path;
 - candidate auto/manual/apply path;
@@ -183,8 +183,8 @@ P0 test cases: выбери только релевантные выбранно
 - batch submit формирует payload с правильными `variant_number`, cable_source,
   cable_type, selection_policy, overwrite/skip manual semantics;
 - selected-only batch не отправляет invalid/heat-loss-failed objects;
-- manual cable mark save сохраняет `cable_mark_source=manual` и выбранные CO
-  variants без изменения других CO;
+- manual cable mark save сохраняет `cable_mark_source=manual` в выбранных ER
+  UUID scopes без изменения других ЭР;
 - candidate `apply` меняет основной электрорасчёт только после явного выбора;
 - candidate compare diff не сравнивает service/action columns;
 - TT-кандидаты с одинаковой маркой различимы по T3/T prop/aggressive/thread
@@ -198,7 +198,7 @@ P0 test cases: выбери только релевантные выбранно
 
 P1 если инфраструктура уже рядом и не расширяет diff:
 - initial render without project/with project;
-- CO1..CO4 switching preserves selected variant;
+- переключение динамических именованных ЭР сохраняет selected UUID и не меняет active неявно;
 - table filters/sort/search build expected backend query;
 - candidate folders all/favorite/custom/excluded counts;
 - settings modal keeps main table settings separate from candidate settings;
@@ -254,7 +254,7 @@ Extraction rules:
 - Не менять API shape.
 - Не менять units.
 - Не менять names/labels without explicit UI bug scope.
-- Не менять CO variant semantics.
+- Не менять ER UUID/compatibility semantics.
 - Не менять candidate apply/exclude/favorite semantics.
 - Не тащить React Query/router/global stores в pure helper.
 - Не создавать giant hook.
@@ -289,7 +289,7 @@ Stop and report blocked/needs verification if:
 - refactor requires touching unrelated files broadly;
 - required change exceeds Change budget;
 - extraction creates worse coupling or giant prop chains;
-- CO variant persistence/reload cannot be verified when in scope;
+- ER UUID persistence/reload cannot be verified when in scope;
 - candidate apply persistence/reload cannot be verified when in scope;
 - formula_id/version/source/error_code traceability cannot be verified when in
   scope;
@@ -344,7 +344,7 @@ Out of scope:
 ## Почему prompt ограничен
 
 Для `ElecCalcPage` опасен широкий запрос "раздели компонент": страница держит
-несколько бизнес-критичных workflow сразу - CO variants, batch calculation,
+несколько бизнес-критичных workflow сразу - ER variants, batch calculation,
 ручной выбор марки, candidates, спецификацию. Этот prompt заставляет сначала
 зафиксировать поведение, выбрать один safe slice и остановиться при нехватке
 evidence.

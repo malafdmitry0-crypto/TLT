@@ -1,5 +1,10 @@
 # Gap-анализ: PDF «1_Кейс» vs текущая реализация
 
+> [!WARNING]
+> Исторический before-аудит от 18.07.2026. Строки о fixed `СО1…СО4`, CSV v2 и
+> отсутствующей Phase 5 superseded последующим implementation checkpoint.
+> Текущий статус: `docs/tnp/cases/guest-specification/phase-5-checkpoint.md`.
+
 **Документ-источник:**  
 `ТНП/1_Кейс_«Расчёт_спецификации_для_неавторизованных_пользователей» (1).pdf`  
 **Редакция:** 4 · **Дата:** 07.07.2026 · **Объём:** 81 стр.
@@ -391,7 +396,7 @@ variant_number 1…4
 | `backend/app/formulas/electrical/*` | подбор кабеля |
 | `backend/app/formulas/specification/full_builder.py` | BOM |
 | `backend/app/api/v1/specifications.py` | guest cannot full |
-| `Claude.md`, `demo-doc/variants-co1-co4.md` | контракт СО |
+| `docs/architecture/dynamic-electrical-variants.md`, Phase 0–3 checkpoints | текущий UUID ЭР contract и legacy evidence |
 
 ---
 

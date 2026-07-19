@@ -1,0 +1,156 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 1000,
+    "docWidth": 1440,
+    "docHeight": 1000,
+    "bodyWidth": 1440
+  },
+  "pageOverflow": false,
+  "clipped": [
+    {
+      "tag": "DIV",
+      "cls": "",
+      "text": "СправочникВручную",
+      "client": [
+        1,
+        1
+      ],
+      "scroll": [
+        96,
+        22
+      ],
+      "box": [
+        -1,
+        -1,
+        1,
+        1
+      ],
+      "overflow": [
+        "hidden",
+        "hidden"
+      ],
+      "textOverflow": "clip"
+    },
+    {
+      "tag": "DIV",
+      "cls": "",
+      "text": "На открытом воздухеВ помещенииПодземно",
+      "client": [
+        1,
+        1
+      ],
+      "scroll": [
+        154,
+        22
+      ],
+      "box": [
+        -1,
+        -1,
+        1,
+        1
+      ],
+      "overflow": [
+        "hidden",
+        "hidden"
+      ],
+      "textOverflow": "clip"
+    },
+    {
+      "tag": "SPAN",
+      "cls": "ant-input-number-handler ant-input-number-handler-up",
+      "text": "",
+      "client": [
+        0,
+        11
+      ],
+      "scroll": [
+        4,
+        11
+      ],
+      "box": [
+        1265.078125,
+        86.34375,
+        1,
+        11
+      ],
+      "overflow": [
+        "hidden",
+        "hidden"
+      ],
+      "textOverflow": "clip"
+    },
+    {
+      "tag": "SPAN",
+      "cls": "ant-input-number-handler ant-input-number-handler-down",
+      "text": "",
+      "client": [
+        0,
+        10
+      ],
+      "scroll": [
+        4,
+        10
+      ],
+      "box": [
+        1265.078125,
+        97.34375,
+        1,
+        11
+      ],
+      "overflow": [
+        "hidden",
+        "hidden"
+      ],
+      "textOverflow": "clip"
+    },
+    {
+      "tag": "DIV",
+      "cls": "",
+      "text": "1 слой2 слоя3 слоя",
+      "client": [
+        1,
+        1
+      ],
+      "scroll": [
+        63,
+        22
+      ],
+      "box": [
+        -1,
+        -1,
+        1,
+        1
+      ],
+      "overflow": [
+        "hidden",
+        "hidden"
+      ],
+      "textOverflow": "clip"
+    },
+    {
+      "tag": "DIV",
+      "cls": "",
+      "text": "Открытый воздух, летоОткрытый воздух, зима",
+      "client": [
+        1,
+        1
+      ],
+      "scroll": [
+        167,
+        22
+      ],
+      "box": [
+        -1,
+        -1,
+        1,
+        1
+      ],
+      "overflow": [
+        "hidden",
+        "hidden"
+      ],
+      "textOverflow": "clip"
+    }
+  ]
+}

@@ -298,7 +298,8 @@ async function runCodexCorePlan() {
     process.env.QA_AGENT_CODEX_CORE_SCOPE ??
     'functional accuracy operating system';
   const mode = parseCodexCoreMode(parseArgValue(['--mode', '--codex-core-mode']) ?? process.env.QA_AGENT_CODEX_CORE_MODE);
-  const outputDir = process.env.QA_AGENT_CODEX_CORE_OUTPUT_DIR ?? path.join(repoRoot, 'codex-workspace');
+  const outputDir =
+    process.env.QA_AGENT_CODEX_CORE_OUTPUT_DIR ?? path.join(qaRoot, 'reports', 'codex-core');
   const planPath = path.join(outputDir, 'plan.md');
   const ticketsPath = path.join(outputDir, 'tickets.md');
   const boardPath = path.join(outputDir, 'board.md');

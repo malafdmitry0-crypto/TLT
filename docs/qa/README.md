@@ -15,6 +15,7 @@
 | [test-cases-references.md](test-cases-references.md) | TC: Справочники |
 | [automation-coverage.md](automation-coverage.md) | Покрытие автотестами |
 | [business-logic-coverage.md](business-logic-coverage.md) | Матрица покрытия формул, алгоритмов и справочников |
+| [heatcalc-inline-editing.md](heatcalc-inline-editing.md) | Контракт Excel-inline drafts, validation и focused tests |
 | [environments.md](environments.md) | Тестовые окружения и данные |
 
 ## Автоматическое тестирование

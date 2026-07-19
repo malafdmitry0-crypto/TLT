@@ -56,9 +56,10 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
    назначения. `Выбор`/`Подбор` доступны для supported assignment даже без
    сохранённого расчёта или при его несовместимом типе: модалка выбирает
    безопасный тип системы (`resistive → single_core`) и не показывает типы
-   другой системы. Legacy graph `1…4` остаётся переходным; пятый ЭР
-   поддерживает assignments, но не подставляет расчётные данные другого
-   варианта.
+   другой системы. После migration `0031` compatibility graph использует slots
+   `1…5`; пятый ЭР имеет собственный slot 5 и не подставляет данные другого ЭР.
+   Известный остаток: создание candidate/candidate folder для slot 5 пока
+   отклоняется двумя service guards `1…4`.
 5. `SpecificationPage` показывает и редактирует спецификацию в рамках роли.
 6. `ReportPage` показывает HTML-превью и экспортирует отчёт для сотрудника.
 
@@ -73,37 +74,30 @@ HeatCalc / ТЛТ - веб-приложение для расчёта тепло
 | Админ управляет пользователями, коэффициентами, внешней БД | `frontend/src/pages/admin/`, `backend/app/api/v1/admin.py` |
 | Dynamic-ER lifecycle/readiness: до 5 UUID ЭР, первый `ЭР1` readiness-gated | `backend/app/api/v1/electrical_variants.py`, `backend/app/services/electrical_variant_service.py` |
 | Authoritative assignment: object × ЭР, type отдельно от state, optimistic version и exact cleanup | `backend/app/services/electrical_assignment_service.py`, `backend/alembic/versions/0029_electrical_assignment_versions.py`, `docs/db_schema.md` |
-| Новые electrical/report tasks UUID-first v3; number `1…4` — deprecated adapter | `backend/app/services/task_service.py`, `backend/alembic/versions/0028_background_task_electrical_variant.py` |
-| Numeric compatibility writes readiness-gated; calculation/candidate flow дополнительно требует compatible assignment; sparse slot 4 создаёт только `ЭР1 + ЭР4` | `backend/app/services/electrical_variant_service.py`, `backend/app/services/electrical_assignment_service.py`, `backend/app/api/v1/calculations.py` |
+| Новые electrical/report tasks UUID-first v3; number `1…5` — deprecated adapter | `backend/app/services/task_service.py`, `backend/alembic/versions/0028_background_task_electrical_variant.py` |
+| Numeric compatibility writes readiness-gated; calculation/candidate flow дополнительно требует compatible assignment; sparse slot 5 создаёт только `ЭР1 + ЭР5` | `backend/app/services/electrical_variant_service.py`, `backend/app/services/electrical_assignment_service.py`, `backend/app/api/v1/calculations.py` |
 | Project duplicate: ready copy создаёт `ЭР1` и unassigned matrix без guessed electrical batch; not-ready остаётся heat-only | `backend/app/api/v1/projects.py`, `backend/app/tests/integration/api/test_projects.py` |
 | Calculation/candidate/folder/task writes требуют exact compatible assignment; state sync и specification stale ограничены UUID ЭР | `backend/app/services/electrical_assignment_service.py`, `backend/app/services/calculation_service.py`, `backend/app/services/task_service.py` |
 | Dirty unassigned graph требует `CLEANUP_REQUIRED` → UI confirmation → exact scoped cleanup с сохранением heat; copy не регенерирует spec | `backend/app/services/electrical_assignment_service.py`, `frontend/src/pages/electrical/ElectricalAssignmentPanel.tsx`, `docs/api.md` |
 | Task `Idempotency-Key`: namespace principal/type/project, binding full payload/ER, heat terminal lock, truthful replay audit, changed binding → 409 | `backend/app/services/task_service.py`, `docs/api.md` |
 | Candidate apply/delete используют общую project lock; проигранная гонка даёт stable 404/409 | `backend/app/services/calculation_service.py`, `backend/app/tests/integration/api/test_electrical_variants.py` |
 | Direct calculation/specification/report consumers передают UUID вместе с переходным number и получают 409 при несовпадении; report jobs UUID-only | `backend/app/services/electrical_variant_service.py`, `frontend/src/api/calculations.ts`, `frontend/src/api/specifications.ts`, `frontend/src/api/reports.ts` |
-| Project CSV v2 строит sparse UUID graph, но export не переносит full dynamic state | `backend/app/services/project_io_service.py`, `docs/api.md` |
+| Project export всегда CSV v3; import принимает v3 и legacy v2 slots `1…5` | `backend/app/services/project_io_service.py`, `docs/api.md` |
 | Отчёт принимает набор секций | `frontend/src/components/reports/ReportWizard.tsx`, `backend/app/reports/` |
 | Бизнес-аудит мутаций хранится в Postgres | `backend/app/models/audit_event.py`, `backend/app/services/audit_service.py`, `docs/db_schema.md` |
 | Технические логи коррелируются через `X-Request-Id` | `backend/app/core/logging_config.py`, `backend/app/main.py`, `frontend/src/api/client.ts` |
 
 ## Документы рядом с кодом
 
-`CLAUDE.MD`, `backend/CLAUDE.MD`, `frontend/CLAUDE.MD` и
-`docs/analysis/current-status-and-missing-info.md` — рабочая карта проекта.
-Перед изменением всё равно сверять конкретный контракт с текущим кодом и
-тестами.
+`CLAUDE.MD`, `backend/CLAUDE.MD`, `frontend/CLAUDE.MD`, этот файл и
+`codex-docs/requirements-map.md` — рабочая карта проекта. Датированные
+`docs/analysis/*status*.md` являются историческими срезами. Перед изменением
+всё равно сверять конкретный контракт с текущим кодом и тестами.
 
-Dynamic-ER Phase 1, Phase 2 и Phase 3 имеют статус **PASS**. Authoritative
-assignments проверены root backend/browser/DB gate. Schema head Phase 3 —
-`0029`; post-UI DB invariants — 28/28. Focused frontend Phase 3 —
-6 files / 95 tests PASS; full frontend — 1052 passed / 1 pre-existing failed,
-то есть не green только из-за
-missing accessible separator test. Dependency security gate и общий Alembic metadata drift также
-не green вне dynamic-ER diff. Phase 5 имеет partial checkpoint, но
-PDL-ER-29…41 ещё не верифицированы; Phase 4 заблокирована
-PDL-ER-15/18/28 до официального числового section-каталога;
-семантика обработки данных утверждена PDL-ER-18…25, guest TTL и целевой лимит
-500 объектов — PDL-ER-26/27. Product contract Phase 5 утверждён
-PDL-ER-29…41: canonical full BOM, PDF-first formulas, partial/stale/grouping,
-multi-ЭР report, desktop width и CSV v3 trust boundary. Реализация Phase 5,
-общий PDF/DoD и product release не завершены.
+Dynamic-ER Phase 1–3 имеют статус **PASS**, Phase 5 — **PARTIAL PASS** по
+`phase-5-checkpoint.md`. Schema head — `0031`; ER5 slots `1…5`, settings,
+multi-ЭР specification/report preview, guest full BOM и CSV v3 имеют focused
+evidence. Не закрыты full performance gate 500, официальный Phase 4
+section-каталог, corporate template/release hygiene и два 4-slot guard для
+создания candidate/candidate folder. Общий PDF/DoD и product release поэтому не
+завершены; актуальные числа тестов читать только из generated-блока `README.md`.

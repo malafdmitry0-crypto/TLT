@@ -1,10 +1,12 @@
 # Схема базы данных HeatCalc
 
-Dynamic-ER migrations `0027`/`0028` создают UUID foundation, а `0029` делает
-assignments authoritative и добавляет их optimistic revision contract. Legacy
-`variant_number=1…4` пока не удалён; nullable UUID columns и sync triggers
-образуют expand-window. Phase 4 blocked PDL-ER-15/18/28 до официального числового
-каталога, Phase 5 pending; общий PDF/DoD и product release не завершены.
+Dynamic-ER migrations `0027`/`0028` создают UUID foundation, `0029` делает
+assignments authoritative, `0030` добавляет versioned project defaults
+спецификации, а `0031` расширяет временный numeric data plane до пятого ЭР.
+Legacy `variant_number=1…5` пока не удалён; nullable UUID columns и sync triggers
+образуют expand-window. UUID остаётся публичной identity, numeric slot — только
+compatibility detail. Phase 4 blocked PDL-ER-15/18/28 до официального числового
+каталога; общий PDF/DoD и product release не завершены.
 
 ## Таблицы
 
@@ -42,6 +44,8 @@ assignments authoritative и добавляет их optimistic revision contrac
 | session_id  | VARCHAR(64)  | FK → guest_sessions.session_id ON DELETE CASCADE, nullable | Владелец (гость)           |
 | status      | ENUM         | NOT NULL, default `draft`                                | `draft` / `completed`        |
 | electrical_initialized_at | TIMESTAMPTZ | nullable | Readiness-gated момент создания/восстановления первого ЭР |
+| specification_settings | JSONB | NOT NULL, default `{}` | Versioned project defaults спецификации (0030) |
+| specification_settings_version | INTEGER | NOT NULL, default 1 | Версия defaults; изменение stale-ит несовпадающие snapshots |
 | created_at  | TIMESTAMPTZ  | server default now()                                     |                              |
 | updated_at  | TIMESTAMPTZ  | auto-update                                              |                              |
 
@@ -92,14 +96,14 @@ assignments authoritative и добавляет их optimistic revision contrac
 | sort_order | INTEGER | NOT NULL, CHECK `>=0`; UNIQUE `(project_id, sort_order)` | Стабильный порядок |
 | is_active | BOOLEAN | NOT NULL, default false; partial UNIQUE по project для `true` | Backend active ЭР |
 | copied_from_id | UUID | nullable, same-project composite self-FK, deferrable | Trace прямого copy; service detach при delete source |
-| legacy_variant_number | INTEGER | nullable, CHECK `1..4`; UNIQUE внутри project | Временный compatibility slot, не ID ЭР |
+| legacy_variant_number | INTEGER | nullable, CHECK `1..5`; UNIQUE внутри project | Временный compatibility slot, не ID ЭР (0031) |
 | creation_idempotency_key_hash | VARCHAR(64) | nullable, SHA-256 CHECK; UNIQUE внутри project | Идемпотентность lifecycle copy |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL | Audit timestamps |
 
 Лимит пяти ЭР и запрет удаления последнего обеспечиваются lifecycle service под
-`SELECT ... FOR UPDATE` project row. Пятый ЭР имеет
-`legacy_variant_number=null`: его assignment graph поддерживается по UUID, а
-legacy numeric downstream graph остаётся fail-closed до Phase 5.
+`SELECT ... FOR UPDATE` project row. После `0031` все пять ЭР могут иметь
+compatibility slot `1…5`; он обслуживает переходный downstream graph и не
+становится публичным ID.
 
 ### electrical_variant_objects (0027 + 0029)
 
@@ -161,7 +165,7 @@ legacy cleanup state: assign возвращает `ELECTRICAL_ASSIGNMENT_CLEANUP
 | id             | UUID         | PK                                              |                                       |
 | project_id     | UUID         | FK → projects.id ON DELETE CASCADE, INDEX       | Проект                                |
 | object_id      | UUID         | FK → project_objects.id ON DELETE CASCADE, INDEX | Объект проекта                       |
-| variant_number | INTEGER      | NOT NULL, default 1, CHECK 1..4                 | Номер варианта расчёта для объекта    |
+| variant_number | INTEGER      | NOT NULL, default 1, CHECK 1..5 (0031)          | Временный compatibility slot          |
 | electrical_variant_id | UUID | nullable expand-window; composite FK с project/slot и assignment scope | UUID ЭР, backfill/sync migration 0027 |
 | cable_type     | VARCHAR(64)  | NOT NULL                                        | `self_regulating` / `mineral` / …    |
 | cable_mark     | VARCHAR(128) | nullable                                        | Марка кабеля (null = автоподбор)      |
@@ -187,7 +191,7 @@ legacy cleanup state: assign возвращает `ELECTRICAL_ASSIGNMENT_CLEANUP
 | id               | UUID         | PK                                              | Кандидат подбора |
 | project_id       | UUID         | FK → projects.id ON DELETE CASCADE             | Проект |
 | object_id        | UUID         | FK → project_objects.id ON DELETE CASCADE       | Объект проекта |
-| variant_number   | INTEGER      | NOT NULL, CHECK 1..4                            | СО-вариант |
+| variant_number   | INTEGER      | NOT NULL, CHECK 1..5 (0031)                     | Временный compatibility slot |
 | electrical_variant_id | UUID    | nullable expand-window; composite FK с project/slot и assignment | UUID ЭР |
 | cable_type       | VARCHAR(64)  | NOT NULL                                        | Тип кабеля |
 | cable_source     | VARCHAR(32)  | NOT NULL, default `builtin`                     | База справочника |
@@ -236,7 +240,7 @@ technical/catalog identity и type-specific поля из матрицы уни�
 | id                    | UUID         | PK                                         | Пользовательская папка вариантов |
 | project_id            | UUID         | FK → projects.id ON DELETE CASCADE         | Проект |
 | object_id             | UUID         | FK → project_objects.id ON DELETE CASCADE  | Объект проекта |
-| variant_number        | INTEGER      | NOT NULL, CHECK 1..4                       | CO-вариант |
+| variant_number        | INTEGER      | NOT NULL, CHECK 1..5 (0031)                | Временный compatibility slot |
 | electrical_variant_id | UUID         | nullable expand-window; composite FK с project/slot и assignment | UUID ЭР |
 | name                  | VARCHAR(64)  | NOT NULL                                   | Название папки |
 | color                 | VARCHAR(32)  | nullable                                   | Цветовая метка UI |
@@ -377,7 +381,7 @@ approval-gate `commercial_balanced_weights_approved` (`0` — fallback,
 | electrical_variant_id | UUID     | nullable expand-window; composite FK с project/slot; partial UNIQUE `(project_id, electrical_variant_id)` | UUID ЭР |
 | items              | JSONB       | NOT NULL, default []                     | Позиции спецификации         |
 | generation_mode    | VARCHAR(10) | NULL                                     | Режим последней генерации: basic / full (миграция 0026) |
-| generation_options | JSONB       | NULL                                     | Опции полного BOM (R,гр, Ex, К1i/К2i/Кiu, L,К2i) |
+| generation_options | JSONB       | NULL                                     | Immutable generation snapshot, включая resolved defaults и `settings_version` |
 | is_stale           | BOOLEAN     | NOT NULL, default false                  | Спецификация устарела после изменения объектов |
 | stale_reason       | VARCHAR(100)| NULL                                     | Причина устаревания          |
 | stale_at           | TIMESTAMPTZ | NULL                                     | Когда помечена устаревшей    |
@@ -472,10 +476,10 @@ Audit-таблица намеренно не имеет FK на доменные
   совместимый сериализующий `FOR UPDATE`, поэтому гонка object-create/ER-create
   не теряет assignment и не блокирует несвязанные проекты глобально.
 
-Все normal legacy writes и seeds вызывают readiness-gated UUID adapter до
-insert/update. Проверка свежей схемы `0001 → 0028` с seed получила 19
-calculations, 10 specifications, 10 variants и 28 assignments при 0 nullable
-downstream UUID и 0 project/slot scope mismatch.
+Все normal compatibility writes и seeds вызывают readiness-gated UUID adapter
+до insert/update. Миграции `0030`/`0031` не отменяют exact-UUID ownership и
+assignment constraints: они добавляют versioned specification defaults и
+пятый временный slot соответственно.
 
 Downstream UUID columns намеренно nullable до one-way UUID cutover. Миграция
 проверяет, что backfill существующих строк ненулевой и lossless, но это ещё не

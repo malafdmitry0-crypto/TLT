@@ -1,0 +1,192 @@
+- generic [ref=f2e25] [box=0,0,390,2225]:
+  - banner [ref=f2e26] [box=0,0,390,98]:
+    - generic [ref=f2e27] [box=6,0,378,97]:
+      - generic "HeatCalc" [ref=f2e28] [box=6,2,378,15]:
+        - img "fire" [ref=f2e29] [box=6,2,15,15]
+        - heading "HeatCalc" [level=2] [ref=f2e32] [box=27,3,65,14]
+      - navigation "Разделы проекта" [ref=f2e33] [box=6,72,378,23]:
+        - menu [ref=f2e34] [box=6,72,378,23]:
+          - menuitem "fire Расчёт тепловых потерь check-circle 1" [ref=f2e35] [cursor=pointer] [box=8,72,246,24]:
+            - img "fire" [ref=f2e36] [box=16,78,14,12]
+            - generic [ref=f2e40] [box=40,77,206,15]:
+              - text: Расчёт тепловых потерь
+              - img "check-circle" [ref=f2e41] [box=194,78,14,12]
+              - superscript [ref=f2e45] [box=222,77,24,15]:
+                - generic [ref=f2e46] [box=231,78,5,12]: "1"
+          - generic [box=40,5,231,15]:
+            - generic [box=40,5,231,15]:
+              - text: Электротехнический расчёт
+              - generic [box=247,5,24,15]:
+                - superscript [box=247,5,24,15]:
+                  - generic [box=257,6,5,12]: "1"
+          - generic [box=40,6,92,12]: Спецификация
+          - separator [box=256,73,0,21]
+          - generic [box=40,6,36,12]: Отчёт
+          - menuitem [ref=f2e48] [cursor=pointer] [box=274,72,30,24]:
+            - img "ellipsis" [ref=f2e49] [box=282,76,14,14]
+      - generic [ref=f2e52] [box=6,20,378,49]:
+        - generic [ref=f2e53] [box=6,20,237,24]:
+          - generic [ref=f2e55] [box=6,20,72,24]:
+            - img "folder-open" [ref=f2e57] [box=6,28,10,10]
+            - generic "Мой проект" [ref=f2e61] [box=19,20,59,22]
+          - button "download Скачать" [ref=f2e63] [cursor=pointer] [box=85,21,71,22]:
+            - img "download" [ref=f2e65] [box=92,27,11,11]
+            - generic [ref=f2e68] [box=109,27,40,10]: Скачать
+          - button "upload Загрузить" [ref=f2e70] [cursor=pointer] [box=159,21,81,22]:
+            - img "upload" [ref=f2e72] [box=166,27,11,11]
+            - generic [ref=f2e75] [box=183,27,50,10]: Загрузить
+        - generic [ref=f2e76] [box=6,47,156,22]:
+          - button "question-circle Инструкция" [ref=f2e78] [cursor=pointer] [box=6,47,90,22]:
+            - img "question-circle" [ref=f2e80] [box=13,53,11,11]
+            - generic [ref=f2e84] [box=30,53,60,10]: Инструкция
+          - button "logout Выход" [ref=f2e86] [cursor=pointer] [box=99,47,62,22]:
+            - img "logout" [ref=f2e88] [box=106,53,11,11]
+            - generic [ref=f2e91] [box=123,53,32,10]: Выход
+  - alert [ref=f2e92] [box=0,98,390,208]:
+    - img "exclamation-circle" [ref=f2e93] [box=24,118,24,24]
+    - generic [ref=f2e96] [box=60,118,306,168]:
+      - generic [ref=f2e97] [box=60,118,306,50]: Рекомендуемая ширина окна — от 1280 px
+      - generic [ref=f2e98] [box=60,176,306,110]: Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30). На меньшей ширине возможны ограничения раскладки; печать остаётся адаптивной.
+  - main [ref=f2e100] [box=0,306,390,1919]:
+    - generic [ref=f2e101] [box=6,314,378,1903]:
+      - generic [ref=f2e103] [box=6,314,378,197]:
+        - generic [ref=f2e104] [box=7,315,376,38]: Электротехнические решения
+        - generic [ref=f2e108] [box=19,364,352,134]:
+          - tablist "Электротехнические решения" [ref=f2e110] [box=19,364,352,38]:
+            - tab "ЭР1, активный ЭР" [selected] [ref=f2e111] [cursor=pointer] [box=21,366,121,30]:
+              - generic [ref=f2e112] [box=33,370,98,22]:
+                - generic [ref=f2e113] [box=33,375,18,11]: ЭР1
+                - generic [ref=f2e114] [box=57,370,74,22]: Активный
+          - generic [ref=f2e115] [box=19,412,352,22]: "Выбрано: ЭР1. Активный ЭР: ЭР1."
+          - generic [ref=f2e118] [box=19,444,352,54]:
+            - button "Добавить пустой ЭР" [ref=f2e120] [cursor=pointer] [box=19,445,123,22]
+            - button "Создать копию выбранного ЭР «ЭР1»" [ref=f2e123] [cursor=pointer] [box=150,445,98,22]:
+              - generic [ref=f2e124] [box=162,451,75,11]: Создать копию
+            - button "Переименовать ЭР «ЭР1»" [ref=f2e125] [cursor=pointer] [box=256,444,101,22]:
+              - generic [ref=f2e126] [box=267,449,78,11]: Переименовать
+            - button "ЭР «ЭР1» уже активный" [disabled] [ref=f2e127] [box=19,475,115,22]:
+              - generic [box=31,481,92,11]: Сделать активным
+            - button "Нельзя удалить последний ЭР «ЭР1»" [disabled] [ref=f2e128] [box=142,475,63,22]:
+              - generic [box=153,481,40,11]: Удалить
+      - generic [ref=f2e130] [box=6,519,378,480]:
+        - generic [ref=f2e132] [box=19,527,352,22]:
+          - generic [ref=f2e133] [box=19,527,298,22]: Назначение объектов · ЭР1
+          - generic [ref=f2e135] [box=317,527,54,22]: "Всего: 1"
+        - generic [ref=f2e138] [box=19,569,352,417]:
+          - generic [ref=f2e139] [box=19,569,352,66]: Выберите объекты и назначьте поддерживаемый тип системы. Назначение сохраняется отдельно для каждого ЭР.
+          - generic [ref=f2e141] [box=19,643,352,62]:
+            - tablist [ref=f2e142] [box=19,643,352,46]:
+              - generic [ref=f2e144] [box=19,643,627,46]:
+                - tab "Нераспределённые0 объектов" [selected] [ref=f2e146] [cursor=pointer] [box=19,655,159,22]:
+                  - generic [ref=f2e147] [box=19,657,159,17]: Нераспределённые0
+                - tab "Самрег1 объектов" [ref=f2e149] [cursor=pointer] [box=210,655,74,22]:
+                  - generic [ref=f2e150] [box=210,657,74,17]: Самрег1
+                - tab "Резистив0 объектов" [ref=f2e152] [cursor=pointer] [box=316,655,88,22]:
+                  - generic [ref=f2e153] [box=316,657,88,17]: Резистив0
+                - tab "Скин0 объектов" [ref=f2e155] [cursor=pointer] [box=435,655,59,22]:
+                  - generic [ref=f2e156] [box=435,657,59,17]: Скин0
+                - tab "Минеральный0 объектов" [ref=f2e158] [cursor=pointer] [box=526,655,120,22]:
+                  - generic [ref=f2e159] [box=526,657,120,17]: Минеральный0
+              - button "ellipsis" [ref=f2e161] [box=326,643,45,46]:
+                - img "ellipsis" [ref=f2e162] [box=342,659,13,13]
+            - generic [box=19,705,352,0]:
+              - generic [box=19,705,352,0]:
+                - tabpanel "Нераспределённые0 объектов" [box=19,705,352,0]
+          - generic [ref=f2e165] [box=19,713,352,110]: Назначать новые объекты в неподдерживаемые системы нельзя. Вкладки «Скин» и «Минеральный» показывают сохранённые legacy-назначения, чтобы их можно было с подтверждением вернуть в нераспределённые.
+          - toolbar "Действия с назначениями" [ref=f2e167] [box=19,831,352,53]:
+            - generic [ref=f2e168] [box=19,831,77,22]: "Выбрано: 0"
+            - 'button "Назначить: Самрег" [disabled] [ref=f2e169] [box=104,831,118,22]'
+            - 'button "Назначить: Резистив" [disabled] [ref=f2e170] [box=230,831,127,22]'
+            - button "Вернуть в нераспределённые" [disabled] [ref=f2e171] [box=19,861,170,22]
+          - table [ref=f2e180] [box=19,892,900,94]:
+            - rowgroup [ref=f2e188] [box=19,892,900,39]:
+              - row "Select all № Объект Тип объекта Система Состояние Диагностика" [ref=f2e189] [box=19,892,900,39]:
+                - columnheader "Select all" [ref=f2e190] [box=19,892,40,39]:
+                  - generic [ref=f2e192] [box=31,900,16,22]:
+                    - generic [box=31,903,16,16]
+                - columnheader "№" [ref=f2e193] [box=59,892,52,39]
+                - columnheader "Объект" [ref=f2e194] [box=111,892,260,39]
+                - columnheader "Тип объекта" [ref=f2e195] [box=371,892,140,39]
+                - columnheader "Система" [ref=f2e196] [box=511,892,130,39]
+                - columnheader "Состояние" [ref=f2e197] [box=641,892,165,39]
+                - columnheader "Диагностика" [ref=f2e198] [box=806,892,113,39]
+            - rowgroup [ref=f2e199] [box=19,931,900,55]:
+              - generic [box=27,931,16,22]:
+                - generic [box=27,931,16,22]:
+                  - generic [box=27,934,16,16]:
+                    - checkbox [disabled] [box=27,934,16,16]
+              - row "В разделе «Нераспределённые» объектов нет" [ref=f2e200] [box=19,931,900,55]:
+                - cell "В разделе «Нераспределённые» объектов нет" [ref=f2e201] [box=19,931,900,55]
+      - tabpanel "ЭР1, активный ЭР" [ref=f2e204] [box=6,1007,378,1210]:
+        - generic [ref=f2e206] [box=6,1007,378,1210]:
+          - generic [ref=f2e208] [box=6,1007,378,70]:
+            - generic [ref=f2e209] [box=20,1012,110,60]:
+              - generic [ref=f2e210] [box=20,1012,73,30]: ЭР1 · тип по объектам ·
+              - text: "14.3 м · 260 Вт · 1.18 А · рассчитано: 1/1"
+            - generic [ref=f2e211] [cursor=pointer] [box=138,1033,236,17]:
+              - checkbox "Показать блок заполнения параметров" [checked] [ref=f2e213] [box=138,1034,16,16]
+              - generic [ref=f2e215] [box=154,1033,220,17]: Показать блок заполнения параметров
+          - generic [ref=f2e217] [box=6,1082,378,222]:
+            - generic [ref=f2e218] [box=6,1082,378,89]:
+              - heading "1 Кабель и схема подключения" [level=4] [ref=f2e219] [box=7,1083,376,19]:
+                - text: "1"
+                - generic [ref=f2e220] [box=31,1087,150,10]: Кабель и схема подключения
+              - generic [ref=f2e221] [box=10,1107,370,26]:
+                - generic [ref=f2e222] [box=14,1113,166,14]: Тип кабеля
+                - generic "Тип кабеля" [ref=f2e223] [cursor=pointer] [box=186,1108,190,24]:
+                  - generic [ref=f2e225] [box=194,1109,174,22]:
+                    - combobox "Тип кабеля" [ref=f2e227] [box=194,1109,156,22]
+                    - generic "Саморегулирующийся" [ref=f2e228] [box=194,1109,174,22]
+              - generic [ref=f2e229] [box=10,1135,370,33]: Марка кабеля — авторасчёт или ручной выбор по объекту (кнопки «Выбор» / «Подбор» в таблице).
+            - generic [ref=f2e230] [box=6,1173,378,54]:
+              - heading "2 Электропитание и температуры" [level=4] [ref=f2e231] [box=7,1174,376,19]:
+                - text: "2"
+                - generic [ref=f2e232] [box=31,1178,161,10]: Электропитание и температуры
+              - generic [ref=f2e233] [box=10,1198,370,26]:
+                - generic [ref=f2e234] [box=14,1204,246,14]: Напряжение питания U, В
+                - generic [ref=f2e235] [box=266,1199,110,24]:
+                  - generic [box=375,1200,0,22]:
+                    - button "Increase Value" [ref=f2e236] [cursor=pointer] [box=375,1200,1,11]
+                    - button "Decrease Value" [ref=f2e240] [cursor=pointer] [box=375,1211,1,11]
+                  - spinbutton "Напряжение питания" [ref=f2e245] [box=267,1200,108,22]: "220"
+            - generic [ref=f2e246] [box=6,1229,378,75]:
+              - heading "3 Укладка кабеля" [level=4] [ref=f2e247] [box=7,1230,376,19]:
+                - text: "3"
+                - generic [ref=f2e248] [box=31,1234,80,10]: Укладка кабеля
+              - generic [ref=f2e249] [box=10,1254,370,47]: Шаг навива и количество ниток задаются для каждого объекта (колонки таблицы или модалка «Подбор»). Лимит Kn по диаметру — по таблице ТНП.
+          - generic [ref=f2e251] [box=6,1308,378,30]:
+            - generic [ref=f2e252] [box=13,1311,320,24]:
+              - generic [ref=f2e253] [box=13,1315,105,17]: "Тип для пересчёта:"
+              - generic "Тип кабеля для пересчёта" [ref=f2e254] [cursor=pointer] [box=123,1311,210,24]:
+                - generic [ref=f2e256] [box=131,1312,194,22]:
+                  - combobox "Тип кабеля для пересчёта" [ref=f2e258] [box=131,1312,176,22]
+                  - generic "Саморегулирующийся" [ref=f2e259] [box=131,1312,194,22]
+            - generic [ref=f2e260] [box=338,1312,638,22]:
+              - button "reload Пересчитать выбранные (0)" [disabled] [ref=f2e262] [box=345,1312,202,22]:
+                - generic [box=354,1317,12,13]:
+                  - img "reload" [box=354,1317,12,12]
+                - generic [box=372,1317,166,12]: Пересчитать выбранные (0)
+              - button "reload Пересчитать все · ЭР1" [ref=f2e263] [cursor=pointer] [box=552,1312,168,22]:
+                - img "reload" [ref=f2e265] [box=561,1317,12,12]
+                - generic [ref=f2e268] [box=579,1317,132,12]: Пересчитать все · ЭР1
+              - button "Настройки" [ref=f2e269] [cursor=pointer] [box=725,1312,100,22]:
+                - img "table" [ref=f2e271] [box=734,1317,12,12]
+              - button "Сбросить фильтры таблицы" [disabled] [ref=f2e276] [box=829,1312,147,22]:
+                - generic [box=838,1317,12,13]:
+                  - img "close-circle" [box=838,1317,12,12]
+                - generic [box=856,1317,111,12]: Сбросить фильтры
+          - generic [ref=f2e287] [box=7,1960,376,256]:
+            - generic [ref=f2e288] [box=17,1994,155,190]: ⓘ Красная строка = ошибка подбора кабеля, серый статус = не применимо. Выбор и расчёт доступны только для объектов, назначенных в совместимую систему этого ЭР. «Пересчитать все» обрабатывает только назначенный UUID+system scope.
+            - generic [ref=f2e289] [box=184,1966,189,245]:
+              - generic [ref=f2e291] [box=184,1977,10,222]:
+                - text: "Кабель:"
+                - strong [ref=f2e292] [box=184,2108,10,90]: 14.3 м
+              - generic [ref=f2e294] [box=209,1967,11,241]:
+                - text: "Мощность:"
+                - strong [ref=f2e295] [box=209,2118,8,90]: 260 Вт
+              - generic [ref=f2e297] [box=236,2005,9,166]:
+                - text: "Ток:"
+                - strong [ref=f2e298] [box=236,2080,9,90]: 1.18 А
+              - button "thunderbolt Спецификация →" [ref=f2e300] [cursor=pointer] [box=261,2081,112,17]:
+                - img "thunderbolt" [ref=f2e302] [box=267,2084,10,10]
+                - generic [ref=f2e305] [box=282,2084,85,11]: Спецификация →

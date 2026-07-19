@@ -88,17 +88,22 @@
 
 ---
 
-## TC-REP-08: Отчёт формируется по явно выбранному варианту CO
+## TC-REP-08: Отчёт формируется по явно выбранным UUID ЭР
 
-**Автоматизировано:** ✅ backend `test_reports.py::TestReports::test_preview_requires_explicit_variant_number` и unit `test_report_service_unit.py::TestLoadContext::test_requested_variant_picked`; frontend `ReportPage.test.tsx`.
+**Автоматизировано:** ✅ backend
+`test_reports.py::TestReports::test_preview_requires_explicit_variant_number`,
+`test_preview_multi_er_independent_chapters` и unit
+`test_report_service_unit.py::TestLoadContext::test_requested_variant_picked`;
+frontend `ReportPage.test.tsx`.
 
 | Шаг | Действие | Ожидаемый результат |
 |-----|----------|---------------------|
-| 1 | Подготовить проект с расчётами/спецификацией CO1 и CO2 | — |
-| 2 | Открыть страницу «Отчёт» после выбора CO2 на SC-04 или в мастере отчёта выбрать `CO2` | UI показывает выбранный вариант `CO2` |
-| 3 | `GET /api/v1/reports/{project_id}/preview` без `variant_number` | HTTP 422 |
-| 4 | `GET /api/v1/reports/{project_id}/preview?variant_number=2` | HTML и `variant_number` в ответе соответствуют CO2 |
-| 5 | Экспорт через direct/job endpoint с `variant_number=2` | В файл попадают `ElectricalCalculation` и `Specification` только CO2 |
+| 1 | Подготовить проект с расчётами/спецификациями в двух именованных ЭР | Сохранены два разных UUID scope |
+| 2 | Открыть страницу «Отчёт» и выбрать второй ЭР по имени | UI хранит и отправляет UUID выбранного ЭР |
+| 3 | `GET /api/v1/reports/{project_id}/preview` без UUID и без `variant_number` | HTTP 422 |
+| 4 | Передать два `electrical_variant_ids` | HTML/response содержат две независимые главы с именами ЭР; суммы не объединены |
+| 5 | Проверить deprecated `variant_number=2` | Ответ относится ровно к ЭР с compatibility slot 2 |
+| 6 | Экспортировать один ЭР через direct/job endpoint с UUID | В файл попадают `ElectricalCalculation` и `Specification` только выбранного ЭР |
 
 ---
 

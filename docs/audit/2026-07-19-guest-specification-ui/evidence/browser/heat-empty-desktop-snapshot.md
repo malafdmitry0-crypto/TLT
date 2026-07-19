@@ -1,0 +1,100 @@
+- generic [ref=e72] [box=0,0,1440,1000]:
+  - banner [ref=e73] [box=0,0,1440,26]:
+    - generic [ref=e74] [box=10,0,1420,25]:
+      - generic "HeatCalc" [ref=e75] [box=10,5,86,15]:
+        - img "fire" [ref=e76] [box=10,5,15,15]
+        - heading "HeatCalc" [level=2] [ref=e79] [box=31,6,65,14]
+      - navigation "Разделы проекта" [ref=e80] [box=105,1,913,23]:
+        - menu [ref=e81] [box=105,1,913,23]:
+          - menuitem "fire Расчёт тепловых потерь" [ref=e82] [cursor=pointer] [box=107,1,190,24]:
+            - img "fire" [ref=e83] [box=115,7,14,12]
+            - generic [ref=e86] [box=139,7,150,12]: Расчёт тепловых потерь
+          - menuitem "thunderbolt Электротехнический расчёт" [ref=e594] [cursor=pointer] [box=300,1,215,24]:
+            - img "thunderbolt" [ref=e595] [box=308,7,14,12]
+            - generic [ref=e598] [box=332,7,175,12]: Электротехнический расчёт
+          - menuitem "unordered-list Спецификация" [ref=e600] [cursor=pointer] [box=520,1,132,24]:
+            - img "unordered-list" [ref=e601] [box=528,7,14,12]
+            - generic [ref=e604] [box=552,7,92,12]: Спецификация
+          - separator [box=298,2,0,21]
+          - menuitem "file-text Отчёт" [ref=e605] [cursor=pointer] [box=656,1,76,24]:
+            - img "file-text" [ref=e606] [box=664,7,14,12]
+            - generic [ref=e609] [box=688,7,36,12]: Отчёт
+          - menuitem [disabled] [box=123,0,30,24]
+      - generic [ref=e92] [box=1026,1,404,24]:
+        - generic [ref=e93] [box=1026,1,239,24]:
+          - generic [ref=e95] [box=1026,1,72,24]:
+            - img "folder-open" [ref=e97] [box=1026,9,10,10]
+            - generic "Мой проект" [ref=e101] [box=1039,1,59,22]
+          - button "download Скачать" [ref=e103] [cursor=pointer] [box=1105,2,72,22]:
+            - img "download" [ref=e105] [box=1113,7,11,11]
+            - generic [ref=e108] [box=1130,8,40,10]: Скачать
+          - button "upload Загрузить" [ref=e110] [cursor=pointer] [box=1181,2,82,22]:
+            - img "upload" [ref=e112] [box=1188,7,11,11]
+            - generic [ref=e115] [box=1205,8,50,10]: Загрузить
+        - generic [ref=e116] [box=1272,2,158,22]:
+          - button "question-circle Инструкция" [ref=e118] [cursor=pointer] [box=1272,2,92,22]:
+            - img "question-circle" [ref=e120] [box=1280,7,11,11]
+            - generic [ref=e124] [box=1296,8,60,10]: Инструкция
+          - button "logout Выход" [ref=e126] [cursor=pointer] [box=1366,2,64,22]:
+            - img "logout" [ref=e128] [box=1374,7,11,11]
+            - generic [ref=e131] [box=1391,8,32,10]: Выход
+  - main [ref=e140] [box=0,26,1440,974]:
+    - generic [ref=e142] [box=6,28,1428,661]:
+      - toolbar "Тип объекта и блок параметров" [ref=e144] [box=6,28,1428,28]:
+        - generic "Тип объекта" [ref=e145] [box=13,31,382,22]:
+          - 'button "Трубопровод: 0" [pressed] [ref=e146] [cursor=pointer] [box=13,31,137,22]':
+            - generic [ref=e152] [box=42,36,85,12]: "Трубопровод:"
+            - strong [ref=e153] [box=133,36,8,12]: "0"
+          - 'button "Резервуар: 0" [ref=e154] [cursor=pointer] [box=153,31,120,22]':
+            - generic [ref=e160] [box=181,36,69,12]: "Резервуар:"
+            - strong [ref=e161] [box=256,36,8,12]: "0"
+          - 'button "Все: 0" [ref=e162] [cursor=pointer] [box=276,31,112,22]':
+            - img "appstore" [ref=e164] [box=303,36,12,12]
+            - generic [ref=e167] [box=321,36,27,12]: "Все:"
+            - strong [ref=e168] [box=353,36,8,12]: "0"
+        - generic [ref=e169] [box=1049,32,378,20]:
+          - generic [ref=e170] [box=1049,32,128,20]: "Режим: добавление"
+          - generic [ref=e171] [cursor=pointer] [box=1185,33,236,17]:
+            - checkbox "Показать блок заполнения параметров" [checked] [ref=e173] [box=1185,34,16,16]
+            - generic [ref=e175] [box=1201,33,220,17]: Показать блок заполнения параметров
+      - generic "Блок заполнения параметров" [ref=e177] [box=6,61,1428,426]:
+        - generic [ref=e181] [box=9,64,1422,420]:
+          - generic [ref=e182] [box=10,65,472,250]:
+            - generic [ref=e184] [box=16,71,460,38]
+            - generic [ref=e194] [box=16,120,224,38]
+            - generic [ref=e208] [box=252,120,224,38]
+            - generic [ref=e222] [box=16,169,224,38]
+            - generic [ref=e236] [box=252,169,224,38]
+            - generic [ref=e254] [box=16,219,376,38]
+          - generic [ref=e269] [box=484,65,472,250]:
+            - generic [ref=e271] [box=490,71,224,38]
+            - generic [ref=e283] [box=726,71,224,38]
+            - generic [ref=e295] [box=490,120,224,38]
+            - generic [ref=e307] [box=726,120,224,38]
+          - generic [ref=e320] [box=958,65,472,250]:
+            - generic [ref=e322] [box=964,71,224,38]
+            - generic [ref=e338] [box=1200,71,224,38]
+            - generic [ref=e360] [box=964,120,224,38]
+            - generic [ref=e374] [box=1200,120,224,62]
+            - generic [ref=e390] [box=964,194,224,38]
+            - generic [ref=e404] [box=1200,194,224,62]
+            - generic [ref=e420] [box=964,267,460,38]
+          - generic [ref=e433] [box=10,317,1420,166]:
+            - generic [ref=e435] [box=16,323,216,38]
+            - generic [ref=e453] [box=244,323,1180,38]
+            - generic [ref=e470] [box=14,371,465,106]
+      - generic [ref=e532] [box=6,492,1428,28]:
+        - toolbar "Действия блока заполнения" [ref=e533] [box=13,495,85,22]:
+          - generic [ref=e534] [box=13,495,85,22]:
+            - button "Добавить" [ref=e535] [cursor=pointer] [box=13,495,24,22]
+            - button "Сохранить" [ref=e542] [cursor=pointer] [box=40,495,24,22]
+            - button "Удалить выбранные" [disabled] [ref=e548] [box=67,495,24,22]
+        - toolbar "Действия таблицы объектов" [ref=e549] [box=103,495,1324,22]:
+          - generic [ref=e550] [box=103,495,1324,22]:
+            - button "Пересчитать теплопотери выбранных или активной строки" [disabled] [ref=e552] [box=103,495,24,22]
+            - button "Пересчитать все" [disabled] [ref=e554] [box=130,495,136,22]
+            - button "Настройки отображения" [ref=e556] [cursor=pointer] [box=269,495,24,22]
+            - button "Сбросить фильтры таблицы" [disabled] [ref=e562] [box=296,495,24,22]
+            - button "Добавить копии выбранных" [disabled] [ref=e564] [box=323,495,24,22]
+            - generic [ref=e565] [box=350,495,122,22]
+      - generic [ref=e586] [box=6,525,1428,164]: Трубопроводы не добавлены. Нажмите «+» или импортируйте XLSX/CSV.

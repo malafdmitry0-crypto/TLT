@@ -1,0 +1,6 @@
+Total messages: 4 (Errors: 1, Warnings: 0)
+
+[DEBUG] [vite] connecting... @ http://127.0.0.1:3003/@vite/client:850
+[DEBUG] [vite] connected. @ http://127.0.0.1:3003/@vite/client:954
+[INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:17232
+[ERROR] Warning: [antd: message] Static function can not consume context like dynamic theme. Please use 'App' component instead. @ http://127.0.0.1:3003/node_modules/.vite/deps/ref-M5My-Qk7.js?v=475d64da:1234

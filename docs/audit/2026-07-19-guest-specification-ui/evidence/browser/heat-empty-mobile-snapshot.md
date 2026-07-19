@@ -1,0 +1,153 @@
+- generic [ref=e72] [box=0,0,390,1389]:
+  - banner [ref=e73] [box=0,0,390,98]:
+    - generic [ref=e74] [box=6,0,378,97]:
+      - generic "HeatCalc" [ref=e75] [box=6,2,378,15]:
+        - img "fire" [ref=e76] [box=6,2,15,15]
+        - heading "HeatCalc" [level=2] [ref=e79] [box=27,3,65,14]
+      - navigation "Разделы проекта" [ref=e80] [box=6,72,378,23]:
+        - menu [ref=e81] [box=6,72,378,23]:
+          - menuitem "fire Расчёт тепловых потерь" [ref=e82] [cursor=pointer] [box=8,72,190,24]:
+            - img "fire" [ref=e83] [box=16,78,14,12]
+            - generic [ref=e86] [box=40,78,150,12]: Расчёт тепловых потерь
+          - generic [box=40,6,175,12]: Электротехнический расчёт
+          - generic [box=40,6,92,12]: Спецификация
+          - separator [box=200,73,0,21]
+          - generic [box=40,6,36,12]: Отчёт
+          - menuitem "ellipsis" [ref=e88] [cursor=pointer] [box=218,72,30,24]:
+            - img "ellipsis" [ref=e89] [box=226,76,14,14]
+      - generic [ref=e92] [box=6,20,378,49]:
+        - generic [ref=e93] [box=6,20,237,24]:
+          - generic [ref=e95] [box=6,20,72,24]:
+            - img "folder-open" [ref=e97] [box=6,28,10,10]
+            - generic "Мой проект" [ref=e101] [box=19,20,59,22]
+          - button "download Скачать" [ref=e103] [cursor=pointer] [box=85,21,71,22]:
+            - img "download" [ref=e105] [box=92,27,11,11]
+            - generic [ref=e108] [box=109,27,40,10]: Скачать
+          - button "upload Загрузить" [ref=e110] [cursor=pointer] [box=159,21,81,22]:
+            - img "upload" [ref=e112] [box=166,27,11,11]
+            - generic [ref=e115] [box=183,27,50,10]: Загрузить
+        - generic [ref=e116] [box=6,47,156,22]:
+          - button "question-circle Инструкция" [ref=e118] [cursor=pointer] [box=6,47,90,22]:
+            - img "question-circle" [ref=e120] [box=13,53,11,11]
+            - generic [ref=e124] [box=30,53,60,10]: Инструкция
+          - button "logout Выход" [ref=e126] [cursor=pointer] [box=99,47,62,22]:
+            - img "logout" [ref=e128] [box=106,53,11,11]
+            - generic [ref=e131] [box=123,53,32,10]: Выход
+  - alert [ref=e132] [box=0,98,390,208]:
+    - img "exclamation-circle" [ref=e133] [box=24,118,24,24]
+    - generic [ref=e136] [box=60,118,306,168]:
+      - generic [ref=e137] [box=60,118,306,50]: Рекомендуемая ширина окна — от 1280 px
+      - generic [ref=e138] [box=60,176,306,110]: Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30). На меньшей ширине возможны ограничения раскладки; печать остаётся адаптивной.
+  - main [ref=e140] [box=0,306,390,1083]:
+    - generic [ref=e142] [box=6,308,378,1073]:
+      - toolbar "Тип объекта и блок параметров" [ref=e144] [box=6,308,378,53]:
+        - generic "Тип объекта" [ref=e145] [box=13,311,382,22]:
+          - 'button "Трубопровод: 0" [pressed] [ref=e146] [cursor=pointer] [box=13,311,137,22]':
+            - generic [ref=e152] [box=42,316,85,12]: "Трубопровод:"
+            - strong [ref=e153] [box=133,316,8,12]: "0"
+          - 'button "Резервуар: 0" [ref=e154] [cursor=pointer] [box=153,311,120,22]':
+            - generic [ref=e160] [box=181,316,69,12]: "Резервуар:"
+            - strong [ref=e161] [box=256,316,8,12]: "0"
+          - 'button "Все: 0" [ref=e162] [cursor=pointer] [box=276,311,112,22]':
+            - img "appstore" [ref=e164] [box=303,316,12,12]
+            - generic [ref=e167] [box=321,316,27,12]: "Все:"
+            - strong [ref=e168] [box=353,316,8,12]: "0"
+        - generic [ref=e169] [box=13,338,378,20]:
+          - generic [ref=e170] [box=13,338,128,20]: "Режим: добавление"
+          - generic [ref=e171] [cursor=pointer] [box=149,340,236,17]:
+            - checkbox "Показать блок заполнения параметров" [checked] [ref=e173] [box=149,340,16,16]
+            - generic [ref=e175] [box=165,340,220,17]: Показать блок заполнения параметров
+      - generic "Блок заполнения параметров" [ref=e177] [box=6,366,378,761]:
+        - generic [ref=e181] [box=9,369,372,755]:
+          - generic [ref=e182] [box=10,370,122,396]:
+            - generic [ref=e184] [box=16,376,110,48]:
+              - generic [ref=e185] [box=16,376,110,22]: Наименование
+              - textbox "Наименование" [ref=e192] [box=16,400,110,24]
+            - generic [ref=e194] [box=16,435,49,59]:
+              - generic [ref=e197] [box=16,435,49,21]
+              - generic [ref=e204] [box=16,470,49,24]
+            - generic [ref=e208] [box=77,435,49,69]:
+              - generic [ref=e211] [box=77,435,49,31]
+              - generic [ref=e218] [box=77,480,49,24]
+            - generic [ref=e222] [box=16,515,49,59]:
+              - generic [ref=e225] [box=16,515,49,21]
+              - generic [ref=e232] [box=16,550,49,24]
+            - generic [ref=e236] [box=77,515,49,79]:
+              - generic [ref=e239] [box=77,515,49,41]
+              - generic [ref=e246] [box=77,570,88,24]
+            - generic [ref=e254] [box=16,605,110,59]:
+              - generic [ref=e257] [box=16,605,110,21]
+              - combobox "Материал трубы" [ref=e264] [cursor=pointer] [box=16,640,110,24]
+          - generic [ref=e269] [box=134,370,122,396]:
+            - generic [ref=e271] [box=140,376,49,48]:
+              - generic [ref=e272] [box=140,376,49,22]: Задвижки
+              - generic [ref=e279] [box=140,400,49,24]
+            - generic [ref=e283] [box=201,376,49,48]:
+              - generic [ref=e284] [box=201,376,49,22]: Фланцы
+              - generic [ref=e291] [box=201,400,49,24]
+            - generic [ref=e295] [box=140,435,49,48]:
+              - generic [ref=e296] [box=140,435,49,22]: Опоры
+              - generic [ref=e303] [box=140,459,49,24]
+            - generic [ref=e307] [box=201,435,49,100]:
+              - generic [ref=e310] [box=201,435,49,62]
+              - generic [ref=e317] [box=201,511,49,24]
+          - generic [ref=e320] [box=258,370,122,396]:
+            - generic [ref=e322] [box=264,376,49,58]:
+              - generic [ref=e323] [box=264,376,49,32]: Размещение
+              - generic [ref=e330] [box=264,410,49,24]
+            - generic [ref=e338] [box=325,376,49,79]:
+              - generic [ref=e341] [box=325,376,49,41]
+              - generic [ref=e348] [box=325,432,49,24]
+            - generic [ref=e360] [box=264,467,49,48]:
+              - generic [ref=e361] [box=264,467,49,22]: Климат
+              - combobox "Климат" [ref=e368] [cursor=pointer] [box=264,490,49,24]
+            - generic [ref=e374] [box=325,467,49,114]:
+              - generic [ref=e377] [box=325,467,49,52]
+              - generic [ref=e384] [box=325,532,49,24]
+            - generic [ref=e390] [box=264,591,49,90]:
+              - generic [ref=e393] [box=264,591,49,52]
+              - generic [ref=e400] [box=264,657,49,24]
+            - generic [ref=e404] [box=325,591,49,83]:
+              - generic [ref=e407] [box=325,591,49,21]
+              - generic [ref=e414] [box=325,626,49,24]
+            - generic [ref=e420] [box=264,692,110,69]:
+              - generic [ref=e423] [box=264,692,110,31]
+              - generic [ref=e430] [box=264,737,87,24]
+          - generic [ref=e433] [box=10,769,370,354]:
+            - generic [ref=e435] [box=16,775,358,59]:
+              - generic [ref=e438] [box=16,775,358,21]
+              - generic [ref=e445] [box=16,809,94,24]
+            - generic [ref=e453] [box=16,844,358,59]:
+              - generic [ref=e456] [box=16,844,358,21]
+              - generic [ref=e463] [box=16,879,358,24]
+            - generic [ref=e470] [box=14,912,115,208]:
+              - generic [ref=e472] [box=22,921,99,59]
+              - generic [ref=e488] [box=22,990,25,110]
+              - generic [ref=e502] [box=59,990,25,79]
+              - generic [ref=e516] [box=96,990,25,121]
+      - generic [ref=e532] [box=6,1132,378,80]:
+        - toolbar "Действия блока заполнения" [ref=e533] [box=13,1135,85,22]:
+          - generic [ref=e534] [box=13,1135,85,22]:
+            - button "Добавить" [ref=e535] [cursor=pointer] [box=13,1135,24,22]:
+              - img "plus" [ref=e537] [box=19,1140,12,12]
+            - button "Сохранить" [ref=e542] [cursor=pointer] [box=40,1135,24,22]:
+              - img "save" [ref=e544] [box=46,1140,12,12]
+            - button "Удалить выбранные" [disabled] [ref=e548] [box=67,1135,24,22]:
+              - generic [box=73,1140,12,12]
+        - toolbar "Действия таблицы объектов" [ref=e549] [box=13,1162,364,47]:
+          - generic [ref=e550] [box=13,1162,364,47]:
+            - button "Пересчитать теплопотери выбранных или активной строки" [disabled] [ref=e552] [box=13,1162,24,22]:
+              - generic [box=19,1167,12,12]
+            - button "Пересчитать все" [disabled] [ref=e554] [box=40,1162,136,22]:
+              - generic [box=49,1167,12,12]
+            - button "Настройки отображения" [ref=e556] [cursor=pointer] [box=179,1162,24,22]:
+              - img "table" [ref=e558] [box=185,1167,12,12]
+            - button "Сбросить фильтры таблицы" [disabled] [ref=e562] [box=206,1162,24,22]:
+              - generic [box=212,1167,12,12]
+            - button "Добавить копии выбранных" [disabled] [ref=e564] [box=233,1162,24,22]:
+              - generic [box=239,1167,12,12]
+            - generic [ref=e565] [box=13,1187,122,22]:
+              - button "Импорт XLSX/CSV" [ref=e567] [cursor=pointer] [box=13,1187,24,22]
+              - button "Скачать шаблон XLSX" [ref=e573] [cursor=pointer] [box=39,1188,48,20]
+              - button "Скачать шаблон CSV" [ref=e580] [cursor=pointer] [box=89,1188,46,20]
+      - generic [ref=e586] [box=6,1217,378,164]: Трубопроводы не добавлены. Нажмите «+» или импортируйте XLSX/CSV.

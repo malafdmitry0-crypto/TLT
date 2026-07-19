@@ -1,8 +1,8 @@
 # ADR: динамические именованные электротехнические решения
 
-- Статус ADR: **Implemented through Phase 3 / Phase 4 blocked / Phase 5 contract approved**
+- Статус ADR: **Phase 1–3 PASS / Phase 4 blocked / Phase 5 PARTIAL PASS / Phase 6 prep**
 - Статус Phase 1–3: **PASS**; Phase 4 blocked official numeric data contract;
-  Phase 5 partial implementation, PDL-ER-29…41 pending verification
+  Phase 5 partial PASS по checkpoint; remaining verification перечислена ниже
 - Даты: 18–19.07.2026; product decisions PDL-ER-01…41 утверждены пользователем
 - Ветка: `feature/tnp-dynamic-electrical-variants`
 - Область: DB → backend API/services → frontend → specification/report → CSV → tests
@@ -10,7 +10,7 @@
 ## Контекст
 
 Исходная система использовала четыре заранее существующих integer-слота
-`variant_number=1…4`, которые текущий UI всё ещё называет `СО1…СО4`. PDF редакции 4 от
+`variant_number=1…4`, которые старый UI называл `СО1…СО4`. PDF редакции 4 от
 07.07.2026 и решения PDL-ER-01…08 требуют до пяти создаваемых пользователем
 именованных ЭР с постоянными UUID, независимыми распределениями объектов,
 расчётами, спецификациями и отчётами.
@@ -93,13 +93,13 @@ Production Phase 1–3 разрешены и реализованы; Phase 4 н�
 
 | Слой | Текущий источник истины | Найденное расхождение |
 |---|---|---|
-| DB | 0027 добавляет UUID graph, 0028 — task UUID trace, 0029 — optimistic assignment `version`, semantic CHECK/index и exact-UUID reconciliation. | Legacy `variant_number=1…4` и nullable expand columns ещё не удалены; `heating_sections` отсутствует. |
-| Backend schema/API | Readiness/lifecycle и GET/PATCH/unassign assignment API реализованы с exact UUID, ownership, optimistic conflict, stable errors и exact scoped cleanup. | Direct specification/report preview и fifth-ER calculation graph остаются до Phase 5. |
-| Services/tasks | Calculation/candidate/folder/batch/task/copy paths требуют compatible assignment; calculation и candidate apply/unapply sync state и stale-ят только exact ER spec. Duplicate создаёт unassigned intent без guessed batch; legacy copy явно staging target assignment intent. | Service internals всё ещё несут numeric slot как compatibility metadata; worker временно преобразует UUID в legacy slot. |
-| Frontend | До пяти именованных UUID ЭР, `?er=`, UUID cache/query identity и assignment panel с tabs/versions/confirm-unassign. Electrical query возвращает page assignment projection; row/batch/inline compatibility остаётся strict, а supported assignment открывает manual/candidate modal с system-safe type. | Пятый ЭР assignment-capable, но calculation/spec/report data plane для него fail-closed до Phase 5. |
-| Specification/report | Exact-ER electrical/assignment mutations stale-ят только спецификацию выбранного UUID; async report task принимает UUID. Direct generation/preview/sync export остаются integer. Guest full запрещён; print отсутствует. | Нет explicit multi-select, full guest BOM и full UUID-only isolation. |
-| CSV | Import v2 валидирует sparse slots, создаёт UUID variants/assignments, связывает rows и stale-ит legacy specs. Export v2 остаётся numeric. | Имена, active, assignments, fifth ER и sections не экспортируются; CSV v3 отложен до Phase 5. |
-| Tests/docs | Phase 1–3 checkpoints PASS. Phase 3 имеет root backend/frontend/migration/browser/DB evidence и exact-UUID network proof. | Full frontend остаётся not-green только на известном HeatCalc separator test; dependency security и общий Alembic drift вне Phase 3 также блокируют release. |
+| DB | 0027 добавляет UUID graph, 0028 — task UUID trace, 0029 — optimistic assignment `version`, 0030 — specification settings, 0031 — ER5 slots. | Legacy `variant_number=1…5` и nullable expand columns ещё не удалены; `heating_sections` отсутствует. |
+| Backend schema/API | UUID lifecycle/assignments, ER5 calculation graph, multi-ЭР specification generation/report preview и CSV v3 реализованы. | Полный UUID-only cutover остаётся Phase 6; create candidate/folder для slot 5 всё ещё ошибочно ограничен `1…4`. |
+| Services/tasks | Calculation/batch/task/copy paths требуют compatible assignment; exact-ER mutations stale-ят только выбранную spec. | Numeric slot остаётся compatibility metadata; worker временно преобразует UUID в slot. |
+| Frontend | До пяти именованных UUID ЭР, `?er=`, UUID cache/query identity, assignment panel, explicit multi-ЭР specification/report selectors и width warning. | Slot-5 candidate/folder create наследует backend gap; full scale 500 не доказан. |
+| Specification/report | Full automatic guest BOM, settings snapshot, preflight/atomic multi-ЭР generation, stale exclusion и independent report chapters реализованы. | Official `Ex/Rгр` matrix data external; corporate template out of Phase 5; server export остаётся single-ЭР. |
+| CSV | Export всегда v3; import принимает v3 и legacy v2 slots `1…5`, сохраняет dynamic ER state и trust boundary. | Phase 6 ещё должна удалить numeric columns/adapters. |
+| Tests/docs | Phase 1–3 PASS; Phase 5 checkpoint PARTIAL PASS с API/UI/e2e/DB evidence. | Full 500 wall-clock, Phase 4 data, release hygiene и slot-5 candidate/folder gap остаются. |
 
 Отдельный critical baseline finding: `ElecCalcPage.tsx` обновляет широким
 `setQueriesData` кэши всех вариантов, а `useElectricalStats.ts` выбирает расчёт
@@ -296,19 +296,19 @@ target specification `not_generated`: specification не копируется и
 - Export после Phase 5 только v3; v2 остаётся import-only adapter.
 - Missing/mismatched formula/catalog source восстанавливает graph/inputs, но
   stale-ит calculated state. Guest manual BOM rows отклоняются атомарно.
-- Import v2 реализован: валидирует slots `1…4` до замены guest project, создаёт
+- Import v2 реализован: валидирует slots `1…5` до замены guest project, создаёт
   active `ЭР1` плюс только занятые slots, complete assignments и явные UUID у
   calculations/specifications; legacy specs становятся stale/not-ready.
 - Bulk v2 использует savepoint на project graph. Неизвестный electrical
   `object_key` пока silently пропускается и остаётся переходным риском.
-- Текущий Export v2 остаётся implementation gap: Phase 5 обязан заменить его
-  v3-only export, поскольку v2 не переносит names, active-state, assignments,
-  fifth ER или sections losslessly.
+- Export создаётся только в v3 и переносит names, active-state, assignments и
+  fifth ER. V2 сохранён только как import boundary adapter.
 
 ## Expand/backfill/validate/contract
 
-Phase 3 schema head: `0029` (`0026 → 0027 → 0028 → 0029`). Working stack
-обновлён до `0029 (head)`; post-UI DB invariants: **28/28 PASS**.
+Текущий schema head: `0031` (`0026 → 0027 → 0028 → 0029 → 0030 → 0031`).
+Phase 3 evidence ниже относится к историческому head `0029`; актуальный ER5
+checkpoint и DB invariants находятся в `phase-5-checkpoint.md`.
 
 1. **Выполнено 0027:** создать новые таблицы/индексы; добавить nullable UUID FK
    в legacy downstream tables; legacy columns пока не удалять.
@@ -329,11 +329,13 @@ Phase 3 schema head: `0029` (`0026 → 0027 → 0028 → 0029`). Working stack
    cascade и project ownership.
 6. **Частично:** UUID unique/FK constraints включены, но downstream columns
    остаются nullable до полного cutover.
-7. **Частично:** lifecycle и background tasks UUID-first; frontend, direct
-   services и CSV export остаются на compatibility layer.
+7. **Частично:** lifecycle, frontend, background tasks и CSV v3 UUID-first;
+   direct services всё ещё содержат numeric compatibility layer.
 8. **Выполнено 0029:** добавить assignment `version`, semantic CHECK/index и
    reconciliation only exact-UUID deployed calculations. Runtime не auto-assign.
-9. **Pending:** удалить legacy columns/constraints только отдельной contract migration и
+9. **Выполнено 0030/0031:** добавить specification settings и расширить
+   compatibility constraints/data plane до slot 5.
+10. **Pending:** удалить legacy columns/constraints только отдельной contract migration и
    после observation window.
 
 Worker временно читает no-version/v2 task payload через backfilled UUID mapping,
@@ -362,7 +364,8 @@ Read-only snapshot локальной БД перед миграцией:
 
 Предлагается короткое expand/compatibility window:
 
-- до пятого ЭР legacy slot остаётся read-only derived mapping;
+- после 0031 normal lifecycle назначает slots `1…5`; UUID остаётся публичной
+  identity, slot — только переходной mapping;
 - перед feature activation и contract migration создаётся и проверяется backup;
 - UUID — единственный writable source сразу после cutover;
 - после появления пятого ЭР/assignments/sections lossless downgrade невозможен;
@@ -380,14 +383,17 @@ Read-only snapshot локальной БД перед миграцией:
 | 2 | PASS | Frontend variant API/store/query factory/tabs + focused frontend/e2e. | UUID isolation, reload/deep-link, before/after UI proof. |
 | 3 | PASS | Assignment model/service/UI + scoped stale cleanup. | Cross-ER isolation, races, browser and DB invariants. |
 | 4 | BLOCKED PDL-ER-15/18/28 | Formula contracts + persisted sections + hierarchy. | Independent golden/boundary/metamorphic/mutation evidence. |
-| 5 | Contract approved / partial implementation | Spec/report/settings/CSV v3 + guest print/full BOM. | PDL-ER-29…41; no-mixing, partial/stale, RBAC, round-trip, browser/print and DB proof. |
+| 5 | PARTIAL PASS | Spec/report/settings/CSV v3 + guest print/full BOM + ER5 slots. | Focused evidence PASS; 500 scale, official data, release hygiene и slot-5 candidate/folder guards остаются. |
 | 6 | Pending | Legacy contract removal + docs/SRS/API updates. | Search gate and full functional audit. |
 
-Production Phase 1–3 разрешены и реализованы. Семантика Phase 4 утверждена
+Production Phase 1–3 реализованы; Phase 5 имеет partial PASS. Семантика Phase 4 утверждена
 PDL-ER-18…25, но реализация остаётся gated PDL-ER-15/18/28 до фактического
 официального числового артефакта.
 
 ## Phase 0 baseline
+
+Ниже — исторический evidence-срез Phase 0. Его числа и fixed-CO состояние не
+описывают текущий runtime.
 
 - Backend focused: calculations/specifications/reports/project-I/O — PASS.
 - Frontend focused: ElecCalc/Specification/Report/variant model — 65 PASS.
@@ -403,6 +409,9 @@ PDL-ER-18…25, но реализация остаётся gated PDL-ER-15/18/28
   `docs/tnp/cases/guest-specification/{assets/ui,evidence}`.
 
 ## Phase 1 final backend/DB evidence
+
+Ниже — исторический checkpoint Phase 1. Утверждения о `0028` и fixed
+`СО1…СО4` были верны на момент среза и superseded Phase 2/3/5.
 
 - Working DB Alembic current — **0028**.
 - Alembic 0027/0028 + metadata — **5 passed**; dynamic-ER integration —
@@ -452,10 +461,11 @@ post-scenario DB invariants — **28/28 PASS**. Полный evidence зафик
 `docs/tnp/cases/guest-specification/phase-3-checkpoint.md` и
 `evidence/phase-3-assignments/`.
 
-Phase 3 закрывает прежний MEDIUM residual `successful calculation +
+Phase 3 закрыла прежний MEDIUM residual `successful calculation +
 unassigned assignment`: migration reconciles deployed exact-UUID rows, а новые
 runtime writes fail-closed без compatible assignment. Он не закрывает Phase 4
-sections/BOM, Phase 5 UUID-only spec/report/CSV или общий PDF/DoD.
+sections/BOM или общий PDF/DoD. Последующий Phase 5 checkpoint реализовал
+spec/report/CSV v3 частично; актуальные остатки перечислены в начале ADR.
 
 ## Закрытые решения Phase 0
 

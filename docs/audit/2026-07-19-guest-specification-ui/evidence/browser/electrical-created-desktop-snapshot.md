@@ -1,0 +1,161 @@
+- generic [active] [ref=e1] [box=0,0,1440,1000]:
+  - generic [ref=e610] [box=-1,-1,1,1]:
+    - log [box=-1,-1,1,0]
+    - log [box=-1,-1,1,0]
+  - generic [ref=e72] [box=0,0,1440,1512]:
+    - banner [ref=e73] [box=0,0,1440,26]:
+      - generic [ref=e74] [box=10,0,1420,25]:
+        - generic "HeatCalc" [ref=e75] [box=10,5,86,15]:
+          - img "fire" [ref=e76] [box=10,5,15,15]
+          - heading "HeatCalc" [level=2] [ref=e79] [box=31,6,65,14]
+        - navigation "Разделы проекта" [ref=e80] [box=105,1,910,23]:
+          - menu [ref=e81] [box=105,1,910,23]:
+            - menuitem "fire Расчёт тепловых потерь check-circle 1" [ref=e1039] [cursor=pointer] [box=107,1,246,24]:
+              - img "fire" [ref=e83] [box=115,7,14,12]
+              - generic [ref=e87] [box=139,6,206,15]:
+                - text: Расчёт тепловых потерь
+                - img "check-circle" [ref=e1420] [box=292,7,14,12]
+                - superscript [ref=e1424] [box=320,6,24,15]:
+                  - generic [ref=e1425] [box=330,7,5,12]: "1"
+            - menuitem "thunderbolt Электротехнический расчёт" [ref=e594] [cursor=pointer] [box=356,1,215,24]:
+              - img "thunderbolt" [ref=e595] [box=364,7,14,12]
+              - generic [ref=e598] [box=388,7,175,12]: Электротехнический расчёт
+            - menuitem "unordered-list Спецификация" [ref=e600] [cursor=pointer] [box=576,1,132,24]:
+              - img "unordered-list" [ref=e601] [box=584,7,14,12]
+              - generic [ref=e604] [box=608,7,92,12]: Спецификация
+            - separator [box=354,2,0,21]
+            - menuitem "file-text Отчёт" [ref=e605] [cursor=pointer] [box=712,1,76,24]:
+              - img "file-text" [ref=e606] [box=720,7,14,12]
+              - generic [ref=e609] [box=744,7,36,12]: Отчёт
+            - menuitem [disabled] [box=123,0,30,24]
+        - generic [ref=e92] [box=1023,1,407,24]:
+          - generic [ref=e93] [box=1023,1,241,24]:
+            - generic [ref=e95] [box=1023,1,72,24]:
+              - img "folder-open" [ref=e97] [box=1023,9,10,10]
+              - generic "Мой проект" [ref=e101] [box=1036,1,59,22]
+            - button "download Скачать" [ref=e103] [cursor=pointer] [box=1102,2,73,22]:
+              - img "download" [ref=e105] [box=1110,7,11,11]
+              - generic [ref=e108] [box=1127,8,40,10]: Скачать
+            - button "upload Загрузить" [ref=e110] [cursor=pointer] [box=1178,2,83,22]:
+              - img "upload" [ref=e112] [box=1186,7,11,11]
+              - generic [ref=e115] [box=1203,8,50,10]: Загрузить
+          - generic [ref=e116] [box=1270,2,160,22]:
+            - button "question-circle Инструкция" [ref=e118] [cursor=pointer] [box=1270,2,92,22]:
+              - img "question-circle" [ref=e120] [box=1278,7,11,11]
+              - generic [ref=e124] [box=1295,8,60,10]: Инструкция
+            - button "logout Выход" [ref=e126] [cursor=pointer] [box=1366,2,64,22]:
+              - img "logout" [ref=e128] [box=1374,7,11,11]
+              - generic [ref=e131] [box=1390,8,32,10]: Выход
+    - main [ref=e140] [box=0,26,1440,1486]:
+      - generic [ref=e1403] [box=6,34,1428,1471]:
+        - generic [ref=e1427] [box=6,34,1428,167]:
+          - generic [ref=e1428] [box=7,35,1426,38]: Электротехнические решения
+          - generic [ref=e1432] [box=19,84,1402,104]:
+            - tablist "Электротехнические решения" [ref=e1434] [box=19,84,1402,38]:
+              - tab "ЭР1, активный ЭР" [selected] [ref=e1435] [cursor=pointer] [box=21,86,121,30]:
+                - generic [ref=e1436] [box=33,90,98,22]:
+                  - generic [ref=e1437] [box=33,95,18,11]: ЭР1
+                  - generic [ref=e1438] [box=57,90,74,22]: Активный
+            - generic [ref=e1439] [box=19,132,1402,22]: "Выбрано: ЭР1. Активный ЭР: ЭР1."
+            - generic [ref=e1442] [box=19,164,1402,24]:
+              - button "Добавить пустой ЭР" [ref=e1444] [cursor=pointer] [box=19,165,123,22]
+              - button "Создать копию выбранного ЭР «ЭР1»" [ref=e1447] [cursor=pointer] [box=150,165,98,22]:
+                - generic [ref=e1448] [box=162,171,75,11]: Создать копию
+              - button "Переименовать ЭР «ЭР1»" [ref=e1449] [cursor=pointer] [box=256,164,101,22]:
+                - generic [ref=e1450] [box=267,169,78,11]: Переименовать
+              - button "ЭР «ЭР1» уже активный" [disabled] [ref=e1451] [box=365,164,115,22]:
+                - generic [box=376,169,92,11]: Сделать активным
+              - button "Нельзя удалить последний ЭР «ЭР1»" [disabled] [ref=e1452] [box=488,164,63,22]:
+                - generic [box=499,169,40,11]: Удалить
+        - generic [ref=e1454] [box=6,208,1428,324]:
+          - generic [ref=e1456] [box=19,217,1402,22]:
+            - generic [ref=e1457] [box=19,217,1348,22]: Назначение объектов · ЭР1
+            - generic [ref=e1459] [box=1367,217,54,22]: "Всего: 1"
+          - generic [ref=e1462] [box=19,258,1402,261]:
+            - generic [ref=e1463] [box=19,258,1402,22]: Выберите объекты и назначьте поддерживаемый тип системы. Назначение сохраняется отдельно для каждого ЭР.
+            - generic [ref=e1465] [box=19,288,1402,62]:
+              - tablist [ref=e1466] [box=19,288,1402,46]:
+                - generic [ref=e1468] [box=19,288,627,46]:
+                  - tab "Нераспределённые1 объектов" [selected] [ref=e1470] [cursor=pointer] [box=19,300,157,22]
+                  - tab "Самрег0 объектов" [ref=e1473] [cursor=pointer] [box=208,300,76,22]
+                  - tab "Резистив0 объектов" [ref=e1476] [cursor=pointer] [box=316,300,88,22]
+                  - tab "Скин0 объектов" [ref=e1479] [cursor=pointer] [box=435,300,59,22]
+                  - tab "Минеральный0 объектов" [ref=e1482] [cursor=pointer] [box=526,300,120,22]
+              - generic [box=19,350,1402,0]:
+                - generic [box=19,350,1402,0]:
+                  - tabpanel "Нераспределённые1 объектов" [box=19,350,1402,0]
+            - generic [ref=e1484] [box=19,358,1402,44]: Назначать новые объекты в неподдерживаемые системы нельзя. Вкладки «Скин» и «Минеральный» показывают сохранённые legacy-назначения, чтобы их можно было с подтверждением вернуть в нераспределённые.
+            - toolbar "Действия с назначениями" [ref=e1486] [box=19,410,1402,22]:
+              - generic [ref=e1487] [box=19,410,77,22]: "Выбрано: 0"
+              - 'button "Назначить: Самрег" [disabled] [ref=e1488] [box=104,410,118,22]'
+              - 'button "Назначить: Резистив" [disabled] [ref=e1489] [box=230,410,127,22]'
+              - button "Вернуть в нераспределённые" [disabled] [ref=e1490] [box=364,410,170,22]
+            - table [ref=e1499] [box=19,441,1402,79]:
+              - rowgroup [ref=e1507] [box=19,441,1402,39]:
+                - row "Select all № Объект Тип объекта Система Состояние Диагностика" [ref=e1508] [box=19,441,1402,39]:
+                  - columnheader "Select all" [ref=e1509] [box=19,441,40,39]
+                  - columnheader "№" [ref=e1515] [box=59,441,52,39]
+                  - columnheader "Объект" [ref=e1516] [box=111,441,260,39]
+                  - columnheader "Тип объекта" [ref=e1517] [box=371,441,140,39]
+                  - columnheader "Система" [ref=e1518] [box=511,441,130,39]
+                  - columnheader "Состояние" [ref=e1519] [box=641,441,165,39]
+                  - columnheader "Диагностика" [ref=e1520] [box=806,441,615,39]
+              - rowgroup [ref=e1521] [box=19,480,1402,40]:
+                - generic [box=27,480,16,22]:
+                  - generic [box=27,480,16,22]
+                - row "1 Аудит — трубопровод 1 Трубопровод — Не распределён —" [ref=e1522] [box=19,480,1402,40]:
+                  - cell [ref=e1523] [box=19,480,40,40]
+                  - cell "1" [ref=e1528] [box=59,480,52,40]
+                  - cell "Аудит — трубопровод 1" [ref=e1529] [box=111,480,260,40]
+                  - cell "Трубопровод" [ref=e1532] [box=371,480,140,40]
+                  - cell "—" [ref=e1533] [box=511,480,130,40]
+                  - cell "Не распределён" [ref=e1534] [box=641,480,165,40]
+                  - cell "—" [ref=e1536] [box=806,480,615,40]
+        - tabpanel "ЭР1, активный ЭР" [ref=e1538] [box=6,541,1428,964]:
+          - generic [ref=e1540] [box=6,541,1428,964]:
+            - generic [ref=e1542] [box=6,541,1428,27]:
+              - generic [ref=e1543] [box=20,547,264,15]:
+                - generic [ref=e1544] [box=20,547,145,15]: ЭР1 · тип по объектам ·
+                - text: расчёт не выполнен
+              - generic [ref=e1545] [cursor=pointer] [box=1188,546,236,17]:
+                - checkbox "Показать блок заполнения параметров" [checked] [ref=e1547] [box=1188,546,16,16]
+                - generic [ref=e1549] [box=1204,546,220,17]: Показать блок заполнения параметров
+            - generic [ref=e1551] [box=6,573,1428,89]:
+              - generic [ref=e1552] [box=6,573,475,89]:
+                - heading "1 Кабель и схема подключения" [level=4] [ref=e1553] [box=7,574,473,19]:
+                  - text: "1"
+                  - generic [ref=e1554] [box=31,578,150,10]: Кабель и схема подключения
+                - generic [ref=e1555] [box=10,598,467,26]:
+                  - generic [ref=e1556] [box=14,604,263,14]: Тип кабеля
+                  - generic "Тип кабеля" [ref=e1557] [cursor=pointer] [box=283,599,190,24]
+                - generic [ref=e1563] [box=10,626,467,33]: Марка кабеля — авторасчёт или ручной выбор по объекту (кнопки «Выбор» / «Подбор» в таблице).
+              - generic [ref=e1564] [box=483,573,475,89]:
+                - heading "2 Электропитание и температуры" [level=4] [ref=e1565] [box=484,574,473,19]:
+                  - text: "2"
+                  - generic [ref=e1566] [box=508,578,161,10]: Электропитание и температуры
+                - generic [ref=e1567] [box=487,598,467,26]:
+                  - generic [ref=e1568] [box=491,604,343,14]: Напряжение питания U, В
+                  - generic [ref=e1569] [box=839,599,110,24]
+              - generic [ref=e1580] [box=959,573,475,89]:
+                - heading "3 Укладка кабеля" [level=4] [ref=e1581] [box=960,574,473,19]:
+                  - text: "3"
+                  - generic [ref=e1582] [box=984,578,80,10]: Укладка кабеля
+                - generic [ref=e1583] [box=963,598,467,33]: Шаг навива и количество ниток задаются для каждого объекта (колонки таблицы или модалка «Подбор»). Лимит Kn по диаметру — по таблице ТНП.
+            - generic [ref=e1585] [box=6,667,1428,30]:
+              - generic [ref=e1586] [box=13,670,320,24]:
+                - generic [ref=e1587] [box=13,673,105,17]: "Тип для пересчёта:"
+                - generic "Тип кабеля для пересчёта" [ref=e1588] [cursor=pointer] [box=123,670,210,24]:
+                  - generic [ref=e1590] [box=131,671,194,22]
+              - generic [ref=e1594] [box=338,671,638,22]:
+                - button "reload Пересчитать выбранные (0)" [disabled] [ref=e1596] [box=345,671,202,22]:
+                  - generic [box=354,676,12,13]
+                  - generic [box=372,676,166,12]: Пересчитать выбранные (0)
+                - button "reload Пересчитать все · ЭР1" [ref=e1597] [cursor=pointer] [box=552,671,168,22]:
+                  - img "reload" [ref=e1599] [box=561,676,12,12]
+                  - generic [ref=e1602] [box=579,676,132,12]: Пересчитать все · ЭР1
+                - button "Настройки" [ref=e1603] [cursor=pointer] [box=725,671,100,22]:
+                  - img "table" [ref=e1605] [box=734,676,12,12]
+                - button "Сбросить фильтры таблицы" [disabled] [ref=e1610] [box=829,671,147,22]:
+                  - generic [box=838,676,12,13]
+                  - generic [box=856,676,111,12]: Сбросить фильтры
+            - generic [ref=e1611] [box=6,702,1428,802]: ⓘ Красная строка = ошибка подбора кабеля, серый статус = не применимо. Выбор и расчёт доступны только для объектов, назначенных в совместимую систему этого ЭР. «Пересчитать все» обрабатывает только назначенный UUID+system scope.

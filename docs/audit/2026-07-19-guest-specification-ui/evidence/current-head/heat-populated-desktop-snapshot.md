@@ -1,0 +1,263 @@
+- generic [ref=f6e25] [box=0,0,1440,1107]:
+  - banner [ref=f6e26] [box=0,0,1440,26]:
+    - generic [ref=f6e27] [box=10,0,1420,25]:
+      - generic "HeatCalc" [ref=f6e28] [box=10,5,86,15]:
+        - img "fire" [ref=f6e29] [box=10,5,15,15]
+        - heading "HeatCalc" [level=2] [ref=f6e32] [box=31,6,65,14]
+      - navigation "Разделы проекта" [ref=f6e33] [box=105,1,910,23]:
+        - menu [ref=f6e34] [box=105,1,910,23]:
+          - menuitem "fire Расчёт тепловых потерь check-circle 1" [active] [ref=f6e35] [cursor=pointer] [box=107,1,246,24]:
+            - img "fire" [ref=f6e36] [box=115,7,14,12]
+            - generic [ref=f6e40] [box=139,6,206,15]:
+              - text: Расчёт тепловых потерь
+              - img "check-circle" [ref=f6e293] [box=292,7,14,12]
+              - superscript [ref=f6e297] [box=320,6,24,15]:
+                - generic [ref=f6e298] [box=330,7,5,12]: "1"
+          - menuitem "thunderbolt Электротехнический расчёт check-circle 1" [ref=f6e48] [cursor=pointer] [box=356,1,271,24]:
+            - img "thunderbolt" [ref=f6e49] [box=364,7,14,12]
+            - generic [ref=f6e53] [box=388,6,231,15]:
+              - text: Электротехнический расчёт
+              - img "check-circle" [ref=f6e300] [box=568,7,14,12]
+              - superscript [ref=f6e304] [box=596,6,24,15]:
+                - generic [ref=f6e305] [box=605,7,5,12]: "1"
+          - menuitem "unordered-list Спецификация" [ref=f6e61] [cursor=pointer] [box=632,1,132,24]:
+            - img "unordered-list" [ref=f6e62] [box=640,7,14,12]
+            - generic [ref=f6e65] [box=664,7,92,12]: Спецификация
+          - separator [box=354,2,0,21]
+          - menuitem "file-text Отчёт" [ref=f6e66] [cursor=pointer] [box=768,1,76,24]:
+            - img "file-text" [ref=f6e67] [box=776,7,14,12]
+            - generic [ref=f6e70] [box=800,7,36,12]: Отчёт
+          - menuitem [disabled] [box=123,0,30,24]
+      - generic [ref=f6e71] [box=1023,1,407,24]:
+        - generic [ref=f6e72] [box=1023,1,241,24]:
+          - generic [ref=f6e74] [box=1023,1,72,24]:
+            - img "folder-open" [ref=f6e76] [box=1023,9,10,10]
+            - generic "Мой проект" [ref=f6e80] [box=1036,1,59,22]
+          - button "download Скачать" [ref=f6e82] [cursor=pointer] [box=1102,2,73,22]:
+            - img "download" [ref=f6e84] [box=1110,7,11,11]
+            - generic [ref=f6e87] [box=1127,8,40,10]: Скачать
+          - button "upload Загрузить" [ref=f6e89] [cursor=pointer] [box=1178,2,83,22]:
+            - img "upload" [ref=f6e91] [box=1186,7,11,11]
+            - generic [ref=f6e94] [box=1203,8,50,10]: Загрузить
+        - generic [ref=f6e95] [box=1270,2,160,22]:
+          - button "question-circle Инструкция" [ref=f6e97] [cursor=pointer] [box=1270,2,92,22]:
+            - img "question-circle" [ref=f6e99] [box=1278,7,11,11]
+            - generic [ref=f6e103] [box=1295,8,60,10]: Инструкция
+          - button "logout Выход" [ref=f6e105] [cursor=pointer] [box=1366,2,64,22]:
+            - img "logout" [ref=f6e107] [box=1374,7,11,11]
+            - generic [ref=f6e110] [box=1390,8,32,10]: Выход
+  - main [ref=f6e112] [box=0,26,1440,1081]:
+    - generic [ref=f6e308] [box=6,28,1428,1071]:
+      - toolbar "Тип объекта и блок параметров" [ref=f6e310] [box=6,28,1428,28]:
+        - generic "Тип объекта" [ref=f6e311] [box=13,31,380,22]:
+          - 'button "Трубопровод: 1" [pressed] [ref=f6e312] [cursor=pointer] [box=13,31,135,22]':
+            - generic [ref=f6e318] [box=42,36,85,12]: "Трубопровод:"
+            - strong [ref=f6e319] [box=133,36,6,12]: "1"
+          - 'button "Резервуар: 0" [ref=f6e320] [cursor=pointer] [box=151,31,120,22]':
+            - generic [ref=f6e326] [box=179,36,69,12]: "Резервуар:"
+            - strong [ref=f6e327] [box=254,36,8,12]: "0"
+          - 'button "Все: 1" [ref=f6e328] [cursor=pointer] [box=274,31,112,22]':
+            - img "appstore" [ref=f6e330] [box=302,36,12,12]
+            - generic [ref=f6e333] [box=320,36,27,12]: "Все:"
+            - strong [ref=f6e334] [box=352,36,6,12]: "1"
+        - generic [ref=f6e335] [box=1049,32,378,20]:
+          - generic [ref=f6e336] [box=1049,32,128,20]: "Режим: добавление"
+          - generic [ref=f6e337] [cursor=pointer] [box=1185,33,236,17]:
+            - checkbox "Показать блок заполнения параметров" [checked] [ref=f6e339] [box=1185,34,16,16]
+            - generic [ref=f6e341] [box=1201,33,220,17]: Показать блок заполнения параметров
+      - generic "Блок заполнения параметров" [ref=f6e343] [box=6,61,1428,426]:
+        - generic [ref=f6e347] [box=9,64,1422,420]:
+          - generic [ref=f6e348] [box=10,65,472,250]:
+            - generic [ref=f6e350] [box=16,71,460,38]:
+              - generic [ref=f6e351] [box=16,71,460,12]: Наименование
+              - textbox "Наименование" [ref=f6e358] [box=16,85,460,24]
+            - generic [ref=f6e360] [box=16,120,224,38]:
+              - generic [ref=f6e363] [box=16,120,208,10]:
+                - generic [ref=f6e364] [box=16,120,48,10]: Наружный
+                - generic [ref=f6e365] [box=67,120,39,10]: диаметр
+              - generic [ref=f6e370] [box=16,134,65,24]:
+                - textbox "Наружный диаметр" [ref=f6e371] [box=16,134,44,24]
+                - generic [ref=f6e372] [box=60,134,21,24]: мм
+            - generic [ref=f6e374] [box=252,120,224,38]:
+              - generic [ref=f6e377] [box=252,120,208,10]:
+                - generic [ref=f6e378] [box=252,120,29,10]: Длина
+                - generic [ref=f6e379] [box=284,120,65,10]: трубопровода
+              - generic [ref=f6e384] [box=252,134,69,24]:
+                - textbox "Длина трубопровода" [ref=f6e385] [box=252,134,55,24]
+                - generic [ref=f6e386] [box=307,134,14,24]: м
+            - generic [ref=f6e388] [box=16,169,224,38]:
+              - generic [ref=f6e391] [box=16,169,208,10]:
+                - generic [ref=f6e392] [box=16,169,40,10]: Толщина
+                - generic [ref=f6e393] [box=59,169,31,10]: стенки
+              - generic [ref=f6e398] [box=16,184,65,24]:
+                - textbox "Толщина стенки" [ref=f6e399] [box=16,184,44,24]
+                - generic [ref=f6e400] [box=60,184,21,24]: мм
+            - generic [ref=f6e402] [box=252,169,224,38]:
+              - generic [ref=f6e405] [box=252,169,208,10]:
+                - generic [ref=f6e406] [box=252,169,132,10]: Источник теплопроводности
+                - generic [ref=f6e407] [box=387,169,28,10]: трубы
+              - generic [ref=f6e412] [box=252,184,88,24]:
+                - button "Справочник Источник теплопроводности трубы" [ref=f6e413] [cursor=pointer] [box=252,184,88,24]:
+                  - generic [ref=f6e414] [box=257,185,50,22]: Справочник
+                - combobox [ref=f6e418] [box=-1,1,96,19]
+            - generic [ref=f6e420] [box=16,219,376,38]:
+              - generic [ref=f6e423] [box=16,219,360,10]:
+                - generic [ref=f6e424] [box=16,219,45,10]: Материал
+                - generic [ref=f6e425] [box=64,219,28,10]: трубы
+              - combobox "Материал трубы" [ref=f6e430] [cursor=pointer] [box=16,233,376,24]:
+                - generic [ref=f6e431] [box=21,234,351,22]: Углеродистая сталь
+                - img "search" [ref=f6e432] [box=375,239,12,12]
+          - generic [ref=f6e435] [box=484,65,472,250]:
+            - generic [ref=f6e437] [box=490,71,224,38]:
+              - generic [ref=f6e438] [box=490,71,224,12]: Задвижки
+              - generic [ref=f6e445] [box=490,85,75,24]:
+                - textbox "Задвижки" [ref=f6e446] [box=490,85,55,24]
+                - generic [ref=f6e447] [box=545,85,19,24]: шт
+            - generic [ref=f6e449] [box=726,71,224,38]:
+              - generic [ref=f6e450] [box=726,71,224,12]: Фланцы
+              - generic [ref=f6e457] [box=726,85,75,24]:
+                - textbox "Фланцы" [ref=f6e458] [box=726,85,55,24]
+                - generic [ref=f6e459] [box=781,85,19,24]: шт
+            - generic [ref=f6e461] [box=490,120,224,38]:
+              - generic [ref=f6e462] [box=490,120,224,12]: Опоры
+              - generic [ref=f6e469] [box=490,134,75,24]:
+                - textbox "Опоры" [ref=f6e470] [box=490,134,55,24]
+                - generic [ref=f6e471] [box=545,134,19,24]: шт
+            - generic [ref=f6e473] [box=726,120,224,38]:
+              - generic [ref=f6e476] [box=726,120,208,10]:
+                - generic [ref=f6e477] [box=726,120,100,10]: Эквивалентная длина
+                - generic [ref=f6e478] [box=829,120,99,10]: локального элемента
+              - generic [ref=f6e483] [box=726,134,64,24]:
+                - textbox "Эквивалентная длина локального элемента" [ref=f6e484] [box=726,134,50,24]
+                - generic [ref=f6e485] [box=776,134,14,24]: м
+          - generic [ref=f6e486] [box=958,65,472,250]:
+            - generic [ref=f6e488] [box=964,71,224,38]:
+              - generic [ref=f6e489] [box=964,71,224,12]: Размещение
+              - generic [ref=f6e496] [box=964,85,224,24]:
+                - button "На открытом воздухе Размещение" [ref=f6e497] [cursor=pointer] [box=964,85,224,24]:
+                  - generic [ref=f6e498] [box=969,86,89,22]: На открытом воздухе
+                - combobox [ref=f6e502] [box=-1,1,154,19]
+            - generic [ref=f6e504] [box=1200,71,224,38]:
+              - generic [ref=f6e507] [box=1200,71,208,10]:
+                - generic [ref=f6e508] [box=1200,71,97,10]: Коэффициент запаса
+                - generic [ref=f6e509] [box=1300,71,29,10]: (Kзап)
+              - generic [ref=f6e514] [box=1200,85,66,24]:
+                - generic [box=1265,86,0,22]:
+                  - button "Increase Value" [ref=f6e515] [cursor=pointer] [box=1265,86,1,11]:
+                    - img "up" [ref=f6e516] [box=1263,88,7,7]
+                  - button "Decrease Value" [ref=f6e519] [cursor=pointer] [box=1265,97,1,11]:
+                    - img "down" [ref=f6e520] [box=1263,100,7,7]
+                - spinbutton "Коэффициент запаса (Kзап)" [ref=f6e524] [box=1201,87,64,22]
+            - generic [ref=f6e526] [box=964,120,224,38]:
+              - generic [ref=f6e527] [box=964,120,224,12]: Климат
+              - combobox "Климат" [ref=f6e534] [cursor=pointer] [box=964,134,224,24]:
+                - generic [ref=f6e535] [box=969,135,199,22]: Выберите город
+                - img "search" [ref=f6e536] [box=1171,140,12,12]
+            - generic [ref=f6e540] [box=1200,120,224,62]:
+              - generic [ref=f6e543] [box=1200,120,208,10]:
+                - generic [ref=f6e544] [box=1200,120,123,10]: Температура окружающей
+                - generic [ref=f6e545] [box=1326,120,29,10]: среды
+              - generic [ref=f6e550] [box=1200,135,62,24]:
+                - textbox "Температура окружающей среды" [ref=f6e551] [box=1200,135,44,24]
+                - generic [ref=f6e552] [box=1244,135,18,24]: °C
+            - generic [ref=f6e556] [box=964,194,224,38]:
+              - generic [ref=f6e559] [box=964,194,208,10]:
+                - generic [ref=f6e560] [box=964,194,112,10]: Требуемая температура
+                - generic [ref=f6e561] [box=1079,194,37,10]: объекта
+              - generic [ref=f6e566] [box=964,208,62,24]:
+                - textbox "Требуемая температура объекта" [ref=f6e567] [box=964,208,44,24]
+                - generic [ref=f6e568] [box=1008,208,18,24]: °C
+            - generic [ref=f6e570] [box=1200,194,224,62]:
+              - generic [ref=f6e573] [box=1200,194,208,10]:
+                - generic [ref=f6e574] [box=1200,194,43,10]: Скорость
+                - generic [ref=f6e575] [box=1246,194,26,10]: ветра
+              - generic [ref=f6e580] [box=1200,208,66,24]:
+                - textbox "Скорость ветра" [ref=f6e581] [box=1200,208,44,24]
+                - generic [ref=f6e582] [box=1244,208,22,24]: м/с
+            - generic [ref=f6e586] [box=964,267,460,38]:
+              - generic [ref=f6e589] [box=964,267,444,10]:
+                - generic [ref=f6e590] [box=964,267,111,10]: Коэффициент наружной
+                - generic [ref=f6e591] [box=1078,267,66,10]: теплоотдачи α
+              - generic [ref=f6e596] [box=964,281,87,24]:
+                - textbox "Коэффициент наружной теплоотдачи α" [ref=f6e597] [box=964,281,50,24]
+                - generic [ref=f6e598] [box=1014,281,37,24]: Вт/м²К
+          - generic [ref=f6e599] [box=10,317,1420,166]:
+            - generic [ref=f6e601] [box=16,323,216,38]:
+              - generic [ref=f6e604] [box=16,323,200,10]:
+                - generic [ref=f6e605] [box=16,323,83,10]: Количество слоёв
+                - generic [ref=f6e606] [box=102,323,43,10]: изоляции
+              - generic [ref=f6e611] [box=16,338,94,24]:
+                - button "1 слой Количество слоёв изоляции" [ref=f6e612] [cursor=pointer] [box=16,338,94,24]:
+                  - generic [ref=f6e613] [box=21,339,27,22]: 1 слой
+                - combobox [ref=f6e617] [box=-1,1,63,19]
+            - generic [ref=f6e619] [box=244,323,1180,38]:
+              - generic [ref=f6e622] [box=244,323,1164,10]:
+                - generic [ref=f6e623] [box=244,323,95,10]: Режим температуры
+                - generic [ref=f6e624] [box=342,323,65,10]: изоляции (tm)
+              - generic [ref=f6e629] [box=244,338,1180,24]:
+                - button "Открытый воздух, зима Режим температуры изоляции (tm)" [ref=f6e630] [cursor=pointer] [box=244,338,1180,24]:
+                  - generic [ref=f6e631] [box=249,339,98,22]: Открытый воздух, зима
+                - combobox [ref=f6e635] [box=-1,1,167,19]
+            - generic [ref=f6e636] [box=14,371,465,106]:
+              - generic [ref=f6e638] [box=22,380,449,38]:
+                - generic [ref=f6e641] [box=22,380,433,10]:
+                  - generic [ref=f6e642] [box=22,380,45,10]: Материал
+                  - generic [ref=f6e643] [box=70,380,43,10]: изоляции
+                - combobox "Материал изоляции" [ref=f6e648] [cursor=pointer] [box=22,394,449,24]:
+                  - generic [ref=f6e649] [box=27,395,424,22]: Выберите материал
+                  - img "search" [ref=f6e650] [box=454,400,12,12]
+              - generic [ref=f6e654] [box=22,429,142,38]:
+                - generic [ref=f6e657] [box=22,429,126,10]:
+                  - generic [ref=f6e658] [box=22,429,40,10]: Толщина
+                  - generic [ref=f6e659] [box=65,429,43,10]: изоляции
+                - generic [ref=f6e664] [box=22,443,65,24]:
+                  - textbox "Толщина изоляции" [ref=f6e665] [box=22,443,44,24]
+                  - generic [ref=f6e666] [box=66,443,21,24]: мм
+              - generic [ref=f6e668] [box=176,429,142,38]:
+                - generic [ref=f6e671] [box=176,429,126,10]:
+                  - generic [ref=f6e672] [box=176,429,26,10]: λ 1-го
+                  - generic [ref=f6e673] [box=205,429,21,10]: слоя
+                - generic [ref=f6e678] [box=176,443,83,24]:
+                  - textbox "λ 1-го слоя" [ref=f6e679] [box=176,443,50,24]
+                  - generic [ref=f6e680] [box=226,443,34,24]: Вт/мК
+              - generic [ref=f6e682] [box=330,429,142,38]:
+                - generic [ref=f6e685] [box=330,429,126,10]:
+                  - generic [ref=f6e686] [box=330,429,44,10]: Диапазон
+                  - generic [ref=f6e687] [box=377,429,54,10]: температур
+                - button "Диапазон температур" [ref=f6e692] [cursor=pointer] [box=330,443,96,24]:
+                  - generic [ref=f6e693] [box=335,444,71,22]: —
+                  - img "edit" [ref=f6e694] [box=409,449,12,12]
+      - generic [ref=f6e698] [box=6,492,1428,28]:
+        - toolbar "Действия блока заполнения" [ref=f6e699] [box=13,495,85,22]:
+          - generic [ref=f6e700] [box=13,495,85,22]:
+            - button "Добавить" [ref=f6e701] [cursor=pointer] [box=13,495,24,22]:
+              - img "plus" [ref=f6e703] [box=19,500,12,12]
+            - button "Сохранить" [ref=f6e708] [cursor=pointer] [box=40,495,24,22]:
+              - img "save" [ref=f6e710] [box=46,500,12,12]
+            - button "Удалить выбранные" [disabled] [ref=f6e714] [box=67,495,24,22]:
+              - generic [box=73,500,12,12]:
+                - img "delete" [box=73,500,12,12]
+        - toolbar "Действия таблицы объектов" [ref=f6e715] [box=103,495,1324,22]:
+          - generic [ref=f6e716] [box=103,495,1324,22]:
+            - button "Пересчитать теплопотери выбранных или активной строки" [disabled] [ref=f6e718] [box=103,495,24,22]:
+              - generic [box=109,500,12,12]:
+                - img "reload" [box=109,500,12,12]
+            - button "Пересчитать все" [ref=f6e720] [cursor=pointer] [box=130,495,136,22]:
+              - img "reload" [ref=f6e722] [box=139,500,12,12]
+            - button "Настройки отображения" [ref=f6e727] [cursor=pointer] [box=269,495,24,22]:
+              - img "table" [ref=f6e729] [box=275,500,12,12]
+            - button "Сбросить фильтры таблицы" [disabled] [ref=f6e733] [box=296,495,24,22]:
+              - generic [box=302,500,12,12]:
+                - img "close-circle" [box=302,500,12,12]
+            - button "Добавить копии выбранных" [disabled] [ref=f6e735] [box=323,495,24,22]:
+              - generic [box=329,500,12,12]:
+                - img "copy" [box=329,500,12,12]
+            - generic [ref=f6e736] [box=350,495,122,22]:
+              - button "Импорт XLSX/CSV" [ref=f6e738] [cursor=pointer] [box=350,495,24,22]:
+                - img "upload" [ref=f6e740] [box=356,500,12,12]
+              - button "Скачать шаблон XLSX" [ref=f6e744] [cursor=pointer] [box=376,496,48,20]:
+                - img "download" [ref=f6e746] [box=380,501,11,11]
+                - generic [ref=f6e749] [box=396,501,24,11]: .xlsx
+              - button "Скачать шаблон CSV" [ref=f6e751] [cursor=pointer] [box=426,496,46,20]:
+                - img "download" [ref=f6e753] [box=430,501,11,11]
+                - generic [ref=f6e756] [box=446,501,21,11]: .csv

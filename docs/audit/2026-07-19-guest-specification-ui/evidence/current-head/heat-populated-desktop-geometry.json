@@ -1,0 +1,99 @@
+{
+  "url": "http://127.0.0.1:3003/workspace/heat-calc?er=1ce8d179-1e70-4365-878c-0b16e8220f2d",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "documentWidth": 1440,
+  "horizontalOverflow": false,
+  "clipped": [
+    {
+      "tag": "SPAN",
+      "text": "Мой проект",
+      "client": [
+        59,
+        22
+      ],
+      "scroll": [
+        59,
+        22
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "text": "Справочник",
+      "client": [
+        50,
+        22
+      ],
+      "scroll": [
+        50,
+        22
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "text": "Углеродистая сталь",
+      "client": [
+        351,
+        22
+      ],
+      "scroll": [
+        351,
+        22
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "text": "На открытом воздухе",
+      "client": [
+        89,
+        22
+      ],
+      "scroll": [
+        89,
+        22
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "text": "1 слой",
+      "client": [
+        27,
+        22
+      ],
+      "scroll": [
+        27,
+        22
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "text": "Открытый воздух, зима",
+      "client": [
+        98,
+        22
+      ],
+      "scroll": [
+        98,
+        22
+      ]
+    },
+    {
+      "tag": "SPAN",
+      "text": "—",
+      "client": [
+        71,
+        22
+      ],
+      "scroll": [
+        71,
+        22
+      ]
+    }
+  ],
+  "outside": [],
+  "domTextContainsCanvasObject": false,
+  "domTextContainsCanvasResults": false,
+  "note": "Glide canvas row/result are verified by screenshot; they are not exposed through document.body.innerText."
+}

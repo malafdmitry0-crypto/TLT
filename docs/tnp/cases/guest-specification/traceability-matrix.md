@@ -1,5 +1,12 @@
 # Матрица трассируемости PDF → приложение
 
+> [!WARNING]
+> **Исторический срез до реализации Phase 5.** Строки ниже фиксируют состояние
+> Phase 1–3 и намеренно сохраняют старые fail/partial findings. Они не являются
+> текущим статусом ER5, specification/report или CSV. Текущий product contract —
+> `product-decisions.md`, текущий implementation checkpoint —
+> `phase-5-checkpoint.md`.
+
 Статусы:
 
 - `PASS` — требование доказано кодом и фактической проверкой;
@@ -14,7 +21,8 @@
 (`docs/business-logic-contract.md:18-24`). Поэтому новый PDF не используется
 для молчаливой замены существующих golden-значений.
 
-Phase 1 backend/DB, Phase 2 frontend/consumer и Phase 3 authoritative
+На момент этого исторического среза Phase 1 backend/DB, Phase 2
+frontend/consumer и Phase 3 authoritative
 assignments имеют статус **PASS** в своих границах. Evidence и переходные
 ограничения вынесены в
 [phase-1-checkpoint.md](phase-1-checkpoint.md) и
@@ -23,10 +31,9 @@ assignments имеют статус **PASS** в своих границах. Evi
 готовность полного PDF-flow: sections, UUID-only data plane, multi-ЭР
 specification и CSV v3 ещё отсутствуют.
 
-Product contract Phase 5 теперь утверждён PDL-ER-29…41. Это не повышает
-статусы реализации в матрице автоматически: поздний partial evidence вынесен в
-[phase-5-checkpoint.md](phase-5-checkpoint.md), а новые PDL-ER-29…41 ещё должны
-получить отдельную цепочку docs → backend → frontend → tests.
+Позднее product contract Phase 5 был утверждён PDL-ER-29…41, а реализация
+получила отдельный [Phase 5 checkpoint](phase-5-checkpoint.md). Статусы ниже не
+обновляются задним числом и используются только как before evidence.
 
 ## Гость, сессия и проект
 

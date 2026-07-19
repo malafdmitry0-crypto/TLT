@@ -1,0 +1,215 @@
+{
+  "url": "http://127.0.0.1:3003/workspace/elec-calc?er=1ce8d179-1e70-4365-878c-0b16e8220f2d",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "document": {
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "clientHeight": 1000,
+    "scrollHeight": 1533
+  },
+  "pageOverflow": false,
+  "clippedCount": 0,
+  "clipped": [],
+  "smallControlCount": 31,
+  "small": [
+    {
+      "tag": "BUTTON",
+      "name": "Скачать",
+      "width": 73.078125,
+      "height": 22
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Загрузить",
+      "width": 82.90625,
+      "height": 22
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Инструкция",
+      "width": 92.28125,
+      "height": 22
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Выход",
+      "width": 64.390625,
+      "height": 22
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Добавить пустой ЭР",
+      "width": 123.1875,
+      "height": 22.390625
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Создать копию выбранного ЭР «ЭР1»",
+      "width": 97.5625,
+      "height": 22.390625
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Переименовать ЭР «ЭР1»",
+      "width": 101.03125,
+      "height": 22.390625
+    },
+    {
+      "tag": "BUTTON",
+      "name": "ЭР «ЭР1» уже активный",
+      "width": 114.859375,
+      "height": 22.390625
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Нельзя удалить последний ЭР «ЭР1»",
+      "width": 62.796875,
+      "height": 22.390625
+    },
+    {
+      "tag": "DIV",
+      "name": "Нераспределённые0",
+      "width": 158.65625,
+      "height": 22
+    },
+    {
+      "tag": "DIV",
+      "name": "Самрег1",
+      "width": 74.140625,
+      "height": 22
+    },
+    {
+      "tag": "DIV",
+      "name": "Резистив0",
+      "width": 87.5,
+      "height": 22
+    },
+    {
+      "tag": "DIV",
+      "name": "Скин0",
+      "width": 59.015625,
+      "height": 22
+    },
+    {
+      "tag": "DIV",
+      "name": "Минеральный0",
+      "width": 119.609375,
+      "height": 22
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Назначить: Самрег",
+      "width": 118.0625,
+      "height": 22.390625
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Назначить: Резистив",
+      "width": 126.59375,
+      "height": 22.390625
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Вернуть в нераспределённые",
+      "width": 170.34375,
+      "height": 22.390625
+    },
+    {
+      "tag": "INPUT",
+      "name": "Select all",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "tag": "INPUT",
+      "name": "Select all",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "tag": "INPUT",
+      "name": "",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "tag": "INPUT",
+      "name": "",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "tag": "INPUT",
+      "name": "Тип кабеля",
+      "width": 156,
+      "height": 22
+    },
+    {
+      "tag": "SPAN",
+      "name": "Increase Value",
+      "width": 1,
+      "height": 11
+    },
+    {
+      "tag": "SPAN",
+      "name": "Decrease Value",
+      "width": 1,
+      "height": 11
+    },
+    {
+      "tag": "INPUT",
+      "name": "Напряжение питания",
+      "width": 108,
+      "height": 22
+    },
+    {
+      "tag": "INPUT",
+      "name": "Тип кабеля для пересчёта",
+      "width": 176,
+      "height": 22
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Пересчитать выбранные (0)",
+      "width": 201.890625,
+      "height": 22
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Пересчитать все · ЭР1",
+      "width": 167.71875,
+      "height": 22
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Настройки",
+      "width": 99.640625,
+      "height": 22
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Сбросить фильтры таблицы",
+      "width": 146.859375,
+      "height": 22
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Спецификация →",
+      "width": 112.296875,
+      "height": 16.796875
+    }
+  ],
+  "overflowContainerCount": 1,
+  "overflow": [
+    {
+      "tag": "DIV",
+      "className": "dvn-scroller heatcalc-glide-editor",
+      "clientWidth": 1424,
+      "scrollWidth": 1426,
+      "overflowX": "auto"
+    }
+  ]
+}
