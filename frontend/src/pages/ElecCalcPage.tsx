@@ -1444,6 +1444,24 @@ function ElecCalcWorkspace({
           onSelectedObjectIdsChange={setSelectedRowKeys}
           versionByObjectId={versionByObjectId}
           onAssignmentsChanged={onAssignmentsChanged}
+          onAssignedNeedCalc={(systemType, objectIds) => {
+            if (!canMutate || objectIds.length === 0) return;
+            // PDF-ER-08: assign → auto cable selection (+ sections when catalog hit).
+            const cableType = systemType === 'resistive'
+              ? 'single_core'
+              : 'self_regulating';
+            setSystemView(systemType);
+            batchMut.mutate({
+              scope: 'selected',
+              objectIds,
+              skipManual: true,
+              cableType,
+              objectOverrides: objectIds.map((object_id) => ({
+                object_id,
+                cable_type: cableType,
+              })),
+            });
+          }}
           tableDragging={tableDragging}
         />
 

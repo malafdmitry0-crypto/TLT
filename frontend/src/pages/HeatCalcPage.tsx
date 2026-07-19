@@ -16,6 +16,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/routes/routes';
+import { initializeElectricalVariants } from '@/api/electricalVariants';
 
 import HeatCalcExcelContextMenu from '@/components/heatcalc/HeatCalcExcelContextMenu';
 import HeatCalcObjectsTableCard from '@/components/heatcalc/HeatCalcObjectsTableCard';
@@ -706,7 +707,17 @@ export default function HeatCalcPage() {
             );
             return;
           }
-          navigate(ROUTES.elecCalc);
+          // PDF-HEAT-10: first transition creates ЭР1 with objects unassigned.
+          void (async () => {
+            if (project?.id) {
+              try {
+                await initializeElectricalVariants(project.id);
+              } catch {
+                // Already initialized or not ready — still open electrical page.
+              }
+            }
+            navigate(ROUTES.elecCalc);
+          })();
         }}
         continueToElectricalDisabled={allProjectObjects.length === 0}
         continueToElectricalTooltip={

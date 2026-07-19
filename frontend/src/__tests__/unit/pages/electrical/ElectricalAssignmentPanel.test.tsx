@@ -76,11 +76,13 @@ function Harness({
   initialView = 'unassigned' as ElectricalSystemView,
   selectedObjectIds = ['object-1'],
   onAssignmentsChanged,
+  onAssignedNeedCalc,
 }: {
   canMutate?: boolean;
   initialView?: ElectricalSystemView;
   selectedObjectIds?: string[];
   onAssignmentsChanged?: () => void;
+  onAssignedNeedCalc?: (systemType: 'self_regulating' | 'resistive', objectIds: string[]) => void;
 }) {
   const [systemView, setSystemView] = useState<ElectricalSystemView>(initialView);
   const [selected, setSelected] = useState(selectedObjectIds);
@@ -96,6 +98,7 @@ function Harness({
       onSelectedObjectIdsChange={setSelected}
       versionByObjectId={versionByObjectId}
       onAssignmentsChanged={onAssignmentsChanged}
+      onAssignedNeedCalc={onAssignedNeedCalc}
     />
   );
 }
@@ -168,7 +171,8 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
   it('assigns selected objects from unified table selection', async () => {
     const user = userEvent.setup();
     const onAssignmentsChanged = vi.fn();
-    renderPanel({ onAssignmentsChanged });
+    const onAssignedNeedCalc = vi.fn();
+    renderPanel({ onAssignmentsChanged, onAssignedNeedCalc });
 
     await screen.findByText(/Система обогрева/);
     await user.click(screen.getByRole('button', { name: 'Назначить: Самрег' }));
@@ -180,6 +184,9 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
       });
     });
     await waitFor(() => expect(onAssignmentsChanged).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(onAssignedNeedCalc).toHaveBeenCalledWith('self_regulating', ['object-1']);
+    });
   });
 
   it('HTML5 drop onto Самрег assigns dragged ids', async () => {

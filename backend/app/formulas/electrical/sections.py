@@ -100,6 +100,34 @@ def _parse_rows() -> list[SectionCatalogRow]:
     return out
 
 
+def _mark_lookup_keys(mark: str) -> list[str]:
+    """Catalog keys for a result mark without inventing new Lmax numbers.
+
+    TLT marks match as-is. TT-series order marks (25ТТН2-СТ) fall back to the
+    same power band ТЛТ-{n} row already registered in provisional catalog.
+    """
+    raw = mark.strip()
+    keys = [raw]
+    # 25ТТН2 / 30ТТВ2-СТ → ТЛТ-25 / ТЛТ-30 (power proxy, existing TLT rows only)
+    import re
+    m = re.match(r"^(\d{1,3})\s*ТТ", raw, flags=re.IGNORECASE)
+    if m:
+        keys.append(f"ТЛТ-{int(m.group(1))}")
+    # Strip commercial suffix if present
+    for suffix in ("-СТ", "-СР"):
+        if raw.endswith(suffix):
+            keys.append(raw[: -len(suffix)])
+            break
+    # Deduplicate preserving order
+    seen: set[str] = set()
+    out: list[str] = []
+    for key in keys:
+        if key not in seen:
+            seen.add(key)
+            out.append(key)
+    return out
+
+
 def lookup_section_row(
     *,
     mark: str,
@@ -109,18 +137,20 @@ def lookup_section_row(
     """Exact mark + nearest colder-or-equal cold-start row for voltage."""
     if not section_catalog_registered():
         return None
-    mark_key = mark.strip()
-    rows = [
-        r
-        for r in _parse_rows()
-        if r.mark == mark_key and abs(r.voltage_v - voltage_v) < 0.5
-    ]
-    if not rows:
-        return None
-    # Prefer cold_start_temp <= ambient cold-start, closest from below; else nearest.
-    colder = [r for r in rows if r.cold_start_temp_c <= cold_start_temp_c]
-    pool = colder if colder else rows
-    return min(pool, key=lambda r: abs(r.cold_start_temp_c - cold_start_temp_c))
+    all_rows = _parse_rows()
+    for mark_key in _mark_lookup_keys(mark):
+        rows = [
+            r
+            for r in all_rows
+            if r.mark == mark_key and abs(r.voltage_v - voltage_v) < 0.5
+        ]
+        if not rows:
+            continue
+        # Prefer cold_start_temp <= ambient cold-start, closest from below; else nearest.
+        colder = [r for r in rows if r.cold_start_temp_c <= cold_start_temp_c]
+        pool = colder if colder else rows
+        return min(pool, key=lambda r: abs(r.cold_start_temp_c - cold_start_temp_c))
+    return None
 
 
 def compute_section_plan(

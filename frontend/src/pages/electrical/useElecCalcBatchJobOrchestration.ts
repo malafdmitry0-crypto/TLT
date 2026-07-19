@@ -71,17 +71,23 @@ export function useElecCalcBatchJobOrchestration({
   const processedCompletionIdsRef = useRef(new Set<string>());
 
   const batchMut = useMutation({
-    mutationFn: ({ scope, objectIds, skipManual = true }: ElectricalBatchMutationArgs) => {
+    mutationFn: ({
+      scope,
+      objectIds,
+      skipManual = true,
+      cableType: cableTypeOverride,
+      objectOverrides: explicitOverrides,
+    }: ElectricalBatchMutationArgs) => {
       if (!canMutate) throw new Error(READ_ONLY_ERROR);
       if (trackedJob) throw new Error(ACTIVE_JOB_ERROR);
 
       const selectedObjectIds = objectIds ?? [];
-      const objectOverrides = scope === 'selected'
-        ? objectOverridesForIds(selectedObjectIds)
-        : [];
-      const fallbackCableType = scope === 'selected'
-        ? selectedCableType ?? defaultCableType
-        : cableTypeForRecalculation;
+      const objectOverrides = explicitOverrides
+        ?? (scope === 'selected' ? objectOverridesForIds(selectedObjectIds) : []);
+      const fallbackCableType = cableTypeOverride
+        ?? (scope === 'selected'
+          ? selectedCableType ?? defaultCableType
+          : cableTypeForRecalculation);
       const effectiveCableType = normalizeAvailableCableType(fallbackCableType);
       const selectionMode = isResistiveCableType(effectiveCableType) ? 'auto' : undefined;
       return enqueueElectricalVariantBatchJob(
@@ -102,7 +108,7 @@ export function useElecCalcBatchJobOrchestration({
           aggressiveProduct: recalc.aggressiveProduct,
           skipManual,
           objectIds: scope === 'selected' ? selectedObjectIds : undefined,
-          forceCableType: scope === 'all',
+          forceCableType: scope === 'all' || cableTypeOverride != null,
           objectOverrides: objectOverrides.length > 0 ? objectOverrides : undefined,
         },
       );

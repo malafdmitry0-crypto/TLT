@@ -8,7 +8,7 @@
 |---|---|
 | Ветка | local `main` (Desktop TLT) |
 | HEAD (на момент записи) | local WIP UI-PDF quality redemption |
-| Обновлено | 2026-07-19 (SEEDS-01/02 provisional + sections + CODE-01) |
+| Обновлено | 2026-07-19 (PDF-ER: auto-calc on assign + Далее→ER1; provisional seeds kept) |
 
 ## Правила оценки
 
@@ -46,7 +46,8 @@ Evidence anchors: `phase-5-checkpoint.md`, `actionable-close-remaining.md`, comm
 
 **Код поверх сидов:** `formulas/electrical/sections.py` (PDF §6.14), attach to self-reg results, BOM uses `section_count`, UI expand hierarchy + summary working/start current.
 
-**Остаток:** официальная «Таблица Виктора» должна заменить provisional numbers без смены API.
+**Не трогать без новой официальной таблицы:** provisional Lmax/Iдоп/Iст.уд numbers.  
+**ЭР flow:** assign→auto batch calc; heat «Далее»→initialize ER1 unassigned; TT marks map to ТЛТ power band for sections.
 
 ---
 

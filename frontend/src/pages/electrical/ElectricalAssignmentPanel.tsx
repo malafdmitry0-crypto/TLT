@@ -46,7 +46,7 @@ const REASSIGN_REQUIRES_UNASSIGN_CODE = 'ELECTRICAL_ASSIGNMENT_REASSIGN_REQUIRES
 const CLEANUP_REQUIRED_CODE = 'ELECTRICAL_ASSIGNMENT_CLEANUP_REQUIRED';
 export const ASSIGNMENT_DND_MIME = 'application/x-tlt-assignment-ids';
 
-type AssignableSystem = 'self_regulating' | 'resistive';
+export type AssignableSystem = 'self_regulating' | 'resistive';
 type DropTargetId = AssignableSystem | 'unassigned';
 
 type AssignmentMutationVariables =
@@ -198,6 +198,14 @@ export interface ElectricalAssignmentPanelProps {
   /** Assignment versions from electrical query projection. */
   versionByObjectId: ReadonlyMap<string, number>;
   onAssignmentsChanged?: () => void;
+  /**
+   * PDF-ER-08: after assign to Samreg/Resistive, run cable selection + sections.
+   * Called with assigned object ids and system type.
+   */
+  onAssignedNeedCalc?: (
+    systemType: AssignableSystem,
+    objectIds: string[],
+  ) => void;
   /** Visual drag-in-progress from the table below. */
   tableDragging?: boolean;
 }
@@ -212,6 +220,7 @@ export default function ElectricalAssignmentPanel({
   onSelectedObjectIdsChange,
   versionByObjectId,
   onAssignmentsChanged,
+  onAssignedNeedCalc,
   tableDragging = false,
 }: ElectricalAssignmentPanelProps) {
   const queryClient = useQueryClient();
@@ -291,6 +300,11 @@ export default function ElectricalAssignmentPanel({
         }),
       ]);
       onAssignmentsChanged?.();
+      // PDF §6.11–6.12: assignment into a supported system starts selection/sections.
+      if (variables.kind === 'assign' && response.changed_count > 0) {
+        const ids = variables.items.map((item) => item.object_id);
+        onAssignedNeedCalc?.(variables.systemType, ids);
+      }
     },
     onError: async (error, variables) => {
       if (isCleanupRequired(error) && variables.kind === 'assign') {
