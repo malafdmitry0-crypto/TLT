@@ -145,10 +145,10 @@ E2E-тесты (`e2e/tests/`) автоматизируют ключевые пр
 | 4.4.1 | Страница электрорасчёта с 4-колоночной раскладкой | `elec-calculation.spec.ts:12` |
 | 4.4.2 | Алерт при отсутствии объектов | `elec-calculation.spec.ts:18` |
 | 4.4.3 | Переключатель СО1..СО4 в меню электрорасчёта | `elec-calculation.spec.ts:27` |
-| 4.5.1 | Открытие страницы спецификации | `specification.spec.ts:4` |
-| 4.6.1 | Предпросмотр отчёта доступен гостю | `reports.spec.ts:13` |
-| 4.6.2 | Кнопки экспорта PDF/Word/Excel **скрыты** у гостя | `reports.spec.ts:18` |
-| 4.7.1 | Логин админа → доступ к `/admin/users` | `admin.spec.ts:4` |
+| 4.5.1 | Открытие страницы спецификации | `phase5-specification-proof.spec.ts` (5.1) |
+| 4.6.1 | Предпросмотр отчёта доступен гостю | `phase5-specification-proof.spec.ts` / report flow |
+| 4.6.2 | Server export PDF/Word/Excel **скрыт** у гостя | `phase5-specification-proof.spec.ts` (export guest) |
+| 4.7.1 | Логин админа → доступ к `/admin/users` | covered by admin API/integration; thin e2e removed |
 
 Полный список приёмочных сценариев и их статус автоматизации — в `docs/qa/`.
 

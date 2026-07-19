@@ -13,7 +13,7 @@
 **Числа тестовой базы** (автоген `scripts/sync-docs.py` — не править руками; цифры
 считаются по `def test_` / `it(` / `test(`, без учёта `parametrize`-размножения):
 <!-- AUTO:test-counts -->
-**1465 backend** (1013 unit + 452 integration) ✅ · **1052 frontend vitest** ✅ · **119 e2e Playwright** ✅
+**1465 backend** (1013 unit + 452 integration) ✅ · **1052 frontend vitest** ✅ · **110 e2e Playwright** ✅
 <!-- /AUTO -->
 Самопроверку фактических утверждений манифеста (хелперы/файлы §6/карта спеков)
 держит §11.
@@ -125,7 +125,7 @@ npx playwright test -g "автопересчёт"
 # целевые таргеты (обёртка codex-functional-audit.sh):
 bash scripts/codex-functional-audit.sh layout         # только layout-regression
 bash scripts/codex-functional-audit.sh accessibility  # только a11y-gate
-bash scripts/codex-functional-audit.sh user-flows      # auth/projects/heat/elec/cable/spec/reports
+bash scripts/codex-functional-audit.sh user-flows      # auth/projects/heat/elec/cable/phase5
 ```
 
 ### 2.3. Спец-режимы
@@ -133,7 +133,6 @@ bash scripts/codex-functional-audit.sh user-flows      # auth/projects/heat/elec
 npx playwright test --headed          # видеть браузер
 npx playwright test --ui              # инспектор Playwright
 npx playwright test --debug           # пошагово
-E2E_INCLUDE_MANUAL=1 npx playwright test tests/electrical-clickthrough.manual.spec.ts
 npx playwright show-report            # HTML-отчёт после прогона
 npx playwright show-trace test-results/<...>/trace.zip   # разбор падения
 ```
@@ -429,11 +428,14 @@ boundary-тестами):
 `inline-form-dependencies` · `elec-calculation` ·
 `electrical-candidate-selection` · `electrical-candidate-glide-default` ·
 `cable-business-flows` · `cable-source-labels` ·
-`electrical-clickthrough.manual` (@manual) · `specification` ·
-`phase5-specification-proof` · `phase5-actionable-close` · `reports` ·
-`project-csv` · `project-interaction` · `admin` · `admin-formulas-sandbox` ·
+`phase5-specification-proof` · `phase5-actionable-close` ·
+`project-csv` · `project-interaction` ·
 `accessibility` (a11y-gate) · `layout-regression` (адаптив DOM-аудит) ·
 `visual-regression` (скриншоты).
+
+Удалены legacy thin/superseded specs (covered by phase5 and remaining flow
+specs): specification, reports, admin, admin-formulas-sandbox,
+electrical-clickthrough.manual.
 
 Перед новым спеком проверь, нет ли пересечения — расширь существующий, если фича
 рядом.

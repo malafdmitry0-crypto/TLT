@@ -131,8 +131,8 @@ run_user_flows() {
         tests/heat-calculation.spec.ts \
         tests/elec-calculation.spec.ts \
         tests/cable-business-flows.spec.ts \
-        tests/specification.spec.ts \
-        tests/reports.spec.ts \
+        tests/phase5-specification-proof.spec.ts \
+        tests/phase5-actionable-close.spec.ts \
         --reporter=list
   )
   run_db_invariants

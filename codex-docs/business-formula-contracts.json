@@ -174,7 +174,7 @@
       "testRefs": [
         { "path": "backend/app/tests/unit/formulas/test_spec_builder.py", "command": "scripts/formula-qa.sh quick" },
         { "path": "backend/app/tests/integration/api/test_specifications.py", "command": "scripts/codex-functional-audit.sh business" },
-        { "path": "e2e/tests/specification.spec.ts", "command": "scripts/codex-functional-audit.sh user-flows" }
+        { "path": "e2e/tests/phase5-specification-proof.spec.ts", "command": "scripts/codex-functional-audit.sh user-flows" }
       ]
     }
   ]
