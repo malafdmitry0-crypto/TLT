@@ -7,8 +7,8 @@
 | Поле | Значение |
 |---|---|
 | Ветка | local `main` (Desktop TLT) |
-| HEAD (на момент записи) | local WIP UI-PDF parity |
-| Обновлено | 2026-07-19 (UI-PDF-01…05 shell implemented) |
+| HEAD (на момент записи) | local WIP UI-PDF quality redemption |
+| Обновлено | 2026-07-19 (quality redemption: prompt + UI craft) |
 
 ## Правила оценки
 
@@ -91,21 +91,24 @@ Nсек-зависимый BOM по-прежнему **fail-closed** пока SE
 
 ## H. PDF UI parity — **обязательно** (не waiver)
 
-Промпт: [`pdf-ui-parity-super-prompt.md`](pdf-ui-parity-super-prompt.md)
+Промпт (scope): [`pdf-ui-parity-super-prompt.md`](pdf-ui-parity-super-prompt.md)  
+**Корректирующий (quality):** [`pdf-ui-quality-redemption-prompt.md`](pdf-ui-quality-redemption-prompt.md)
 
 | ID | Что (PDF) | Статус |
 |---|---|---|
-| **UI-PDF-01** | Heat: 3 колонки (тепло / кабель / spec) + Пол disabled + **Далее** gate | **done** (wide form regroup + CTA) |
-| **UI-PDF-02** | Elec: 4 summary cards Самрег/Резистив/Скин/Итого | **done** |
-| **UI-PDF-03** | Elec: DnD assign (+ кнопки) | **done** (drag rows → tab drop) |
-| **UI-PDF-04** | Hierarchy object→sections (shell до SEEDS; full после) | **shell done** (expand empty state) |
-| **UI-PDF-05** | Spec: Поставщик + Ед. поставки + код; разделы pipe/tank/common | **done** |
+| **UI-PDF-01** | Heat: 3 колонки (тепло / кабель / spec) + Пол disabled + **Далее** gate | **quality-fixed** — CSS grid heat/cable/spec + card columns |
+| **UI-PDF-02** | Elec: 4 summary cards Самрег/Резистив/Скин/Итого | **quality-fixed** — compact metric rows **над** таблицей, без double footer |
+| **UI-PDF-03** | Elec: DnD assign (+ кнопки) | **quality-fixed** — visible drop zones + drag handle (`@dnd-kit`), tabs = navigation only |
+| **UI-PDF-04** | Hierarchy object→sections (shell до SEEDS; full после) | **shell quality-fixed** — engineer copy, no SEEDS jargon; full after SEEDS-01 |
+| **UI-PDF-05** | Spec: Поставщик + Ед. поставки + код; разделы pipe/tank/common | **quality-fixed** — PDF columns (no «Категория» in section group) |
+
+> 2026-07-19: первый shell (`686312b`) закрыл чеклист, но UX был непригоден (DnD на tab labels, summary в footer). Redemption — craft, не новый scope.
 
 ---
 
 ## F. Очередь (единственная)
 
-1. **UI-PDF-01…05** — `pdf-ui-parity-super-prompt.md` (можно параллельно 02/05).  
+1. ~~**UI-PDF-01…05** quality redemption~~ — craft done (см. §H); visual browser proof optional.  
 2. **SEEDS-01 / SEEDS-02** — наполнить (разблокирует full UI-PDF-04 + boxes).  
 3. **CODE-01** — ER5 candidate/folder 1…5.  
 4. **CODE-02** — import confirm.  

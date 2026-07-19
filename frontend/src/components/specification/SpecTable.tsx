@@ -61,6 +61,10 @@ function mergeRows(rows: Row[]): Row[] {
   return [...map.values()];
 }
 
+function EmptyCell() {
+  return <span style={{ color: '#bbb' }}>—</span>;
+}
+
 export default function SpecTable({
   items,
   groupBy = 'object_section',
@@ -79,6 +83,9 @@ export default function SpecTable({
   }
 
   // PDF §7.1 / UI-PDF-05: № · Наименование · Марка · Код · Поставщик · Ед. поставки · Кол-во
+  // «Категория» — только вне группировки по разделам object_section.
+  const showCategory = groupBy !== 'object_section';
+
   const baseColumns = [
     {
       title: '№',
@@ -86,15 +93,17 @@ export default function SpecTable({
       width: 48,
       render: (_: unknown, __: Row, index: number) => index + 1,
     },
-    {
-      title: 'Категория',
-      dataIndex: 'category',
-      width: 120,
-      sorter: (a: Row, b: Row) => a.category.localeCompare(b.category),
-    },
+    ...(showCategory
+      ? [{
+          title: 'Категория',
+          dataIndex: 'category' as const,
+          width: 120,
+          sorter: (a: Row, b: Row) => a.category.localeCompare(b.category),
+        }]
+      : []),
     {
       title: 'Наименование',
-      dataIndex: 'name',
+      dataIndex: 'name' as const,
       sorter: (a: Row, b: Row) => a.name.localeCompare(b.name),
       render: (v: string, row: Row) => (
         <Space size={4}>
@@ -105,20 +114,21 @@ export default function SpecTable({
     },
     {
       title: 'Марка',
-      dataIndex: 'article',
+      dataIndex: 'article' as const,
+      width: 120,
       sorter: (a: Row, b: Row) =>
         (a.article ?? '').localeCompare(b.article ?? ''),
       render: (v: string | null, row: Row) => {
         const mark = String(
           (row.params as { mark?: string } | undefined)?.mark || v || '',
         );
-        return mark || <span style={{ color: '#bbb' }}>—</span>;
+        return mark || <EmptyCell />;
       },
     },
     {
       title: 'Номенклатурный код',
       key: 'nomenclature_code',
-      width: 140,
+      width: 150,
       sorter: (a: Row, b: Row) => {
         const ac = String(
           (a.params as { nomenclature_code?: string; code?: string } | undefined)
@@ -143,37 +153,43 @@ export default function SpecTable({
             || (row.params as { code?: string } | undefined)?.code
             || '',
         );
-        return code || <span style={{ color: '#bbb' }}>—</span>;
+        return code || <EmptyCell />;
       },
     },
     {
       title: 'Поставщик',
       key: 'supplier',
-      width: 120,
+      width: 140,
       render: (_: unknown, row: Row) => {
         const supplier = String(
           (row.params as { supplier?: string } | undefined)?.supplier || '',
         ).trim();
-        return supplier || <span style={{ color: '#bbb' }}>—</span>;
+        return supplier || <EmptyCell />;
       },
     },
     {
       title: 'Ед. поставки',
-      dataIndex: 'unit',
+      dataIndex: 'unit' as const,
       width: 100,
       sorter: (a: Row, b: Row) => a.unit.localeCompare(b.unit),
       render: (v: string, row: Row) => {
         const supply = String(
           (row.params as { supply_unit?: string } | undefined)?.supply_unit || v || '',
         );
-        return supply || <span style={{ color: '#bbb' }}>—</span>;
+        return supply || <EmptyCell />;
       },
     },
     {
       title: 'Количество',
-      dataIndex: 'quantity',
+      dataIndex: 'quantity' as const,
       width: 100,
+      align: 'right' as const,
       sorter: (a: Row, b: Row) => a.quantity - b.quantity,
+      render: (v: number) => (
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {Number.isFinite(v) ? v.toLocaleString('ru-RU') : v}
+        </span>
+      ),
     },
   ];
 
@@ -247,21 +263,22 @@ export default function SpecTable({
 
   const innerColumns =
     groupBy === 'category'
-      ? baseColumns.filter((c) => c.dataIndex !== 'category')
+      ? baseColumns.filter((c) => !('dataIndex' in c && c.dataIndex === 'category'))
       : groupBy === 'unit'
-        ? baseColumns.filter((c) => c.dataIndex !== 'unit')
+        ? baseColumns.filter((c) => !('dataIndex' in c && c.dataIndex === 'unit'))
         : baseColumns;
 
   return (
-    <div>
+    <div data-testid="spec-table-grouped">
       {grouped.map((g) => (
-        <div key={g.key} style={{ marginBottom: 12 }}>
+        <div key={g.key} style={{ marginBottom: 14 }} data-spec-section={g.key}>
           <div
             style={{
-              padding: '6px 10px',
-              background: '#f0f5fa',
+              padding: '7px 12px',
+              background: '#f5f8fb',
               borderLeft: '3px solid #1a5276',
-              marginBottom: 4,
+              borderRadius: '0 6px 6px 0',
+              marginBottom: 6,
               fontSize: 13,
             }}
           >

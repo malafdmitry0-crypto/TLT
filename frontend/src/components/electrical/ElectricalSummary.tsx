@@ -1,4 +1,4 @@
-import { Card, Col, Row, Statistic, Typography } from 'antd';
+import { Card, Col, Row, Typography } from 'antd';
 
 const { Text } = Typography;
 
@@ -6,7 +6,7 @@ const { Text } = Typography;
 export interface SystemSummaryBucket {
   objectCount: number;
   cableLengthM: number;
-  /** Real section count when available; null/undefined → show "—" (no invent). */
+  /** Real section count when available; null → show "—" (no invent). */
   sectionCount: number | null;
   powerW: number;
   startCurrentA: number;
@@ -38,23 +38,48 @@ const EMPTY: SystemSummaryBucket = {
   startCurrentA: 0,
 };
 
-function formatPower(powerW: number): { value: string; suffix: string } {
-  if (powerW >= 1000) {
-    return { value: (powerW / 1000).toFixed(2), suffix: 'кВт' };
-  }
-  return { value: powerW.toFixed(0), suffix: 'Вт' };
+function formatPowerKw(powerW: number): string {
+  return (powerW / 1000).toFixed(1);
+}
+
+function formatLength(m: number): string {
+  if (!Number.isFinite(m) || m === 0) return '0';
+  return m >= 100 ? m.toLocaleString('ru-RU', { maximumFractionDigits: 0 }) : m.toFixed(1);
+}
+
+function formatCurrent(a: number): string {
+  return Number.isFinite(a) ? a.toFixed(1) : '0';
+}
+
+function MetricRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'baseline',
+        gap: 12,
+        padding: '3px 0',
+        borderBottom: '1px solid #f0f0f0',
+        fontSize: 12,
+        lineHeight: 1.35,
+      }}
+    >
+      <Text type="secondary" style={{ fontSize: 12 }}>{label}</Text>
+      <Text strong style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{value}</Text>
+    </div>
+  );
 }
 
 function SummaryCard({
   title,
   bucket,
-  accent,
+  testId,
 }: {
   title: string;
   bucket: SystemSummaryBucket;
-  accent: string;
+  testId: string;
 }) {
-  const power = formatPower(bucket.powerW);
   const sections =
     bucket.sectionCount === null || bucket.sectionCount === undefined
       ? '—'
@@ -63,48 +88,37 @@ function SummaryCard({
   return (
     <Card
       size="small"
-      title={<Text strong style={{ fontSize: 13 }}>{title}</Text>}
-      styles={{ body: { padding: '8px 12px' } }}
-      style={{ borderTop: `3px solid ${accent}`, height: '100%' }}
-      data-testid={`elec-summary-${title}`}
+      title={(
+        <Text strong style={{ fontSize: 13 }}>
+          {title}
+        </Text>
+      )}
+      styles={{
+        header: {
+          minHeight: 36,
+          padding: '6px 12px',
+          borderBottom: '1px solid #f0f0f0',
+        },
+        body: { padding: '4px 12px 8px' },
+      }}
+      style={{ height: '100%', borderRadius: 8 }}
+      data-testid={testId}
     >
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-        <Statistic
-          title="Объектов"
-          value={bucket.objectCount}
-          valueStyle={{ fontSize: 16 }}
-        />
-        <Statistic
-          title="Длина кабеля"
-          value={bucket.cableLengthM.toFixed(1)}
-          suffix="м"
-          valueStyle={{ fontSize: 16, color: '#1890ff' }}
-        />
-        <Statistic
-          title="Секций"
-          value={sections}
-          valueStyle={{ fontSize: 16 }}
-        />
-        <Statistic
-          title="Мощность"
-          value={power.value}
-          suffix={power.suffix}
-          valueStyle={{ fontSize: 16, color: '#fa8c16' }}
-        />
-        <Statistic
-          title="Стартовый ток"
-          value={bucket.startCurrentA.toFixed(2)}
-          suffix="А"
-          valueStyle={{ fontSize: 16, color: '#52c41a' }}
-        />
-      </div>
+      <MetricRow label="Объектов" value={String(bucket.objectCount)} />
+      <MetricRow label="Суммарная длина кабеля, м" value={formatLength(bucket.cableLengthM)} />
+      <MetricRow label="Количество секций" value={sections} />
+      <MetricRow label="Общая мощность, кВт" value={formatPowerKw(bucket.powerW)} />
+      <MetricRow
+        label="Суммарный стартовый ток, А"
+        value={formatCurrent(bucket.startCurrentA)}
+      />
     </Card>
   );
 }
 
 /**
  * PDF UI-PDF-02: four summary cards (Самрег / Резистив / Скин / Итого).
- * Success-only totals; skin unsupported stays zero without polluting success.
+ * Compact metric rows (PDF page 35), success-only totals.
  */
 export default function ElectricalSummary({
   totalCableLength = 0,
@@ -127,19 +141,35 @@ export default function ElectricalSummary({
   };
 
   return (
-    <div data-testid="elec-summary-four-cards" style={{ marginBottom: 12 }}>
-      <Row gutter={[8, 8]}>
-        <Col xs={24} sm={12} lg={6}>
-          <SummaryCard title="Саммари Самрег" bucket={resolved.self_regulating} accent="#1677ff" />
+    <div data-testid="elec-summary-four-cards" className="elec-summary-four-cards">
+      <Row gutter={[10, 10]}>
+        <Col xs={24} sm={12} xl={6}>
+          <SummaryCard
+            title="Саммари Самрег"
+            bucket={resolved.self_regulating}
+            testId="elec-summary-self_regulating"
+          />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <SummaryCard title="Саммари Резистив" bucket={resolved.resistive} accent="#722ed1" />
+        <Col xs={24} sm={12} xl={6}>
+          <SummaryCard
+            title="Саммари Резистив"
+            bucket={resolved.resistive}
+            testId="elec-summary-resistive"
+          />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <SummaryCard title="Саммари Скин" bucket={resolved.skin} accent="#8c8c8c" />
+        <Col xs={24} sm={12} xl={6}>
+          <SummaryCard
+            title="Саммари Скин"
+            bucket={resolved.skin}
+            testId="elec-summary-skin"
+          />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <SummaryCard title="Саммари Итого" bucket={resolved.total} accent="#52c41a" />
+        <Col xs={24} sm={12} xl={6}>
+          <SummaryCard
+            title="Саммари Итого"
+            bucket={resolved.total}
+            testId="elec-summary-total"
+          />
         </Col>
       </Row>
     </div>

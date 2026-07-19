@@ -1,8 +1,8 @@
 import type { ObjectWizardWidePanelProps } from './ObjectWizardPanelTypes';
 
 /**
- * PDF UI-PDF-01 (стр. 21): three-column layout —
- * A heat loss · B cable selection · C specification-oriented inputs.
+ * PDF UI-PDF-01 (стр. 21): three-column form —
+ * heat loss · cable selection · specification / climate.
  */
 export default function ObjectWizardWidePanel({
   formGridRef,
@@ -22,46 +22,43 @@ export default function ObjectWizardWidePanel({
         className="form-grid-srs form-grid-srs--merged form-grid-srs--pdf-three"
         ref={formGridRef}
         data-layout="wide-pdf-3"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-          gap: 12,
-          alignItems: 'start',
-        }}
       >
-        <div
-          className="form-col-srs form-col-srs--heat"
+        <section
+          className="form-col-srs form-col-srs--heat pdf-form-column"
           style={sectionStyle(0)}
           data-pdf-column="heat"
+          aria-labelledby="pdf-col-heat-title"
         >
-          <h4 data-step="1" style={{ margin: '0 0 8px', fontSize: 13 }}>
+          <h4 id="pdf-col-heat-title" className="pdf-form-column-title" data-step="1">
             <span>Исходные данные для расчёта теплопотерь</span>
           </h4>
           {renderGeometrySection()}
           {renderInsulationSection()}
-        </div>
+        </section>
 
-        <div
-          className="form-col-srs form-col-srs--cable"
+        <section
+          className="form-col-srs form-col-srs--cable pdf-form-column"
           style={sectionStyle(1)}
           data-pdf-column="cable"
+          aria-labelledby="pdf-col-cable-title"
         >
-          <h4 data-step="2" style={{ margin: '0 0 8px', fontSize: 13 }}>
+          <h4 id="pdf-col-cable-title" className="pdf-form-column-title" data-step="2">
             <span>Исходные данные для подбора кабеля</span>
           </h4>
           {renderFittingsSection()}
-        </div>
+        </section>
 
-        <div
-          className="form-col-srs form-col-srs--spec"
+        <section
+          className="form-col-srs form-col-srs--spec pdf-form-column"
           style={sectionStyle(2)}
           data-pdf-column="spec"
+          aria-labelledby="pdf-col-spec-title"
         >
-          <h4 data-step="3" style={{ margin: '0 0 8px', fontSize: 13 }}>
-            <span>Исходные данные для спецификации / климат</span>
+          <h4 id="pdf-col-spec-title" className="pdf-form-column-title" data-step="3">
+            <span>Исходные данные для спецификации</span>
           </h4>
           {renderTemperatureSection()}
-        </div>
+        </section>
       </div>
     </div>
   );

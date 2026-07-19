@@ -109,11 +109,17 @@ describe('ObjectWizard dependencies', () => {
     expect(document.querySelector('.inline-object-form--wide .object-wizard-side-panel')).not.toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--wide .form-grid-srs')).toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--wide .side-form-grid-srs')).not.toBeInTheDocument();
-    expect(document.querySelectorAll('.inline-object-form--wide .form-col-srs')).toHaveLength(4);
+    // PDF UI-PDF-01: three columns (heat / cable / spec)
+    expect(document.querySelectorAll('.inline-object-form--wide .form-col-srs')).toHaveLength(3);
+    expect(document.querySelector('[data-testid="heat-pdf-three-column-form"]')).toBeInTheDocument();
     expect(document.querySelectorAll('.inline-object-form--wide .form-col-resize-handle')).toHaveLength(0);
     expect([...document.querySelectorAll('.inline-object-form--wide .form-col-srs > h4')].map((title) =>
       title.textContent?.replace(/\s+/g, ' ').trim(),
-    )).toEqual([]);
+    )).toEqual([
+      'Исходные данные для расчёта теплопотерь',
+      'Исходные данные для подбора кабеля',
+      'Исходные данные для спецификации',
+    ]);
 
     cleanup();
     await mockReferences();

@@ -177,8 +177,13 @@ describe('ElectricalAssignmentPanel', () => {
     ]);
     expect(screen.getByRole('tab', { name: /Скин/iu })).toHaveAttribute('aria-disabled', 'false');
     expect(screen.getByRole('tab', { name: /Минеральный/iu })).toHaveAttribute('aria-disabled', 'false');
-    expect(screen.getByText(/назначать новые объекты в неподдерживаемые системы нельзя/iu))
+    expect(screen.getByText(/назначать в «Скин» и «Минеральный» нельзя/iu))
       .toBeInTheDocument();
+    // Visible drop zones (not tab labels) for DnD assign
+    expect(screen.getByTestId('assignment-drop-zones')).toBeInTheDocument();
+    expect(screen.getByTestId('assignment-drop-zone-self_regulating')).toBeInTheDocument();
+    expect(screen.getByTestId('assignment-drop-zone-resistive')).toBeInTheDocument();
+    expect(screen.getByTestId('assignment-drop-zone-unassigned')).toHaveAttribute('data-disabled', 'true');
     expect(screen.getByText('Трубопровод')).toBeInTheDocument();
     expect(apiMocks.list).toHaveBeenCalledWith('project-1', ER_ID, {
       view: 'unassigned',

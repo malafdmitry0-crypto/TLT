@@ -1132,7 +1132,6 @@ function ElecCalcWorkspace({
     totalCurrent,
     manualCableCount,
     selectedManualCableCount,
-    summaryPowerDisplay,
     bannerStats,
     isJobActive,
     selectedRecalcDisabled,
@@ -1504,6 +1503,16 @@ function ElecCalcWorkspace({
           />
         )}
 
+        {/* PDF UI-PDF-02: four system summary cards ABOVE the table */}
+        <ElectricalSummary
+          systems={stats.systemSummaries}
+          totalCableLength={totalCableLength}
+          totalPower={Number(stats.totalPower)}
+          totalCurrent={totalCurrent}
+          calcedCount={calculatedCount}
+          totalObjects={totalObjects}
+        />
+
         {/* Table */}
         <Card size="small" className="workspace-table-card srs-table-wrap">
           {electricalPage && totalObjects === 0 ? (
@@ -1601,42 +1610,22 @@ function ElecCalcWorkspace({
             />
           )}
 
-          {/* PDF UI-PDF-02: four system summary cards */}
-          <ElectricalSummary
-            systems={stats.systemSummaries}
-            totalCableLength={totalCableLength}
-            totalPower={Number(stats.totalPower)}
-            totalCurrent={totalCurrent}
-            calcedCount={calculatedCount}
-            totalObjects={totalObjects}
-          />
-
-          {/* Legend / summary row */}
+          {/* Legend + CTA (totals live in summary cards above — no double footer) */}
           <div className="legend-row-srs">
             <span>
               ⓘ Красная строка = ошибка подбора кабеля, серый статус = не применимо.
               Выбор и расчёт доступны только для объектов, назначенных в совместимую
-              систему этого ЭР. «Пересчитать все» обрабатывает только назначенный
-              UUID+system scope.
+              систему этого ЭР.
             </span>
             {calculatedCount > 0 && (
-              <Space size={16}>
-                <Text style={{ fontSize: 12 }}>
-                  Итого: <strong>{totalCableLength.toFixed(1)} м</strong>
-                  {' · '}
-                  <strong>{summaryPowerDisplay}</strong>
-                  {' · '}
-                  <strong>{totalCurrent.toFixed(2)} А</strong>
-                </Text>
-                <Button
-                  size="small"
-                  type="primary"
-                  icon={<ThunderboltOutlined />}
-                  onClick={() => navigate(ROUTES.specification)}
-                >
-                  Спецификация →
-                </Button>
-              </Space>
+              <Button
+                size="small"
+                type="primary"
+                icon={<ThunderboltOutlined />}
+                onClick={() => navigate(ROUTES.specification)}
+              >
+                Спецификация →
+              </Button>
             )}
           </div>
         </Card>
