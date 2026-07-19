@@ -66,28 +66,28 @@ def generate_xlsx(context: dict[str, Any]) -> bytes:
     # Sheet 3: Спецификация
     if "specification" in enabled:
         ws_spec = wb.create_sheet("Спецификация")
-        row_offset = 0
         if context.get("specification", {}).get("is_stale"):
+            # PDL-ER-37: no procurement quantities in exports for stale snapshots.
             set_safe_cell(
                 ws_spec,
                 1,
                 1,
-                "Спецификация устарела после изменения объектов. Сформируйте заново перед закупкой.",
+                "Спецификация устарела. Закупочные позиции исключены из экспорта — сформируйте заново.",
             )
             ws_spec.cell(row=1, column=1).font = Font(bold=True, color="9A3412")
-            row_offset = 2
-        spec_headers = ["Категория", "Наименование", "Артикул", "Ед.", "Кол-во"]
-        for col, h in enumerate(spec_headers, start=1):
-            cell = ws_spec.cell(row=1 + row_offset, column=col, value=h)
-            cell.font = Font(bold=True)
-            cell.fill = PatternFill("solid", fgColor="EBF5FB")
-        for idx, item in enumerate(context.get("specification", {}).get("items", []), start=1):
-            row_number = idx + 1 + row_offset
-            set_safe_cell(ws_spec, row_number, 1, item.get("category", ""))
-            set_safe_cell(ws_spec, row_number, 2, item.get("name", ""))
-            set_safe_cell(ws_spec, row_number, 3, item.get("article") or "")
-            set_safe_cell(ws_spec, row_number, 4, item.get("unit", ""))
-            set_safe_cell(ws_spec, row_number, 5, item.get("quantity", 0))
+        else:
+            spec_headers = ["Категория", "Наименование", "Артикул", "Ед.", "Кол-во"]
+            for col, h in enumerate(spec_headers, start=1):
+                cell = ws_spec.cell(row=1, column=col, value=h)
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill("solid", fgColor="EBF5FB")
+            for idx, item in enumerate(context.get("specification", {}).get("items", []), start=1):
+                row_number = idx + 1
+                set_safe_cell(ws_spec, row_number, 1, item.get("category", ""))
+                set_safe_cell(ws_spec, row_number, 2, item.get("name", ""))
+                set_safe_cell(ws_spec, row_number, 3, item.get("article") or "")
+                set_safe_cell(ws_spec, row_number, 4, item.get("unit", ""))
+                set_safe_cell(ws_spec, row_number, 5, item.get("quantity", 0))
 
     buf = io.BytesIO()
     wb.save(buf)

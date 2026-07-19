@@ -95,10 +95,13 @@ class ReportService:
             spec_result = await self.db.execute(spec_stmt)
             spec = spec_result.scalars().first()
             if spec:
-                spec_items = spec.items or []
+                is_stale = bool(getattr(spec, "is_stale", False))
+                # PDL-ER-37: stale snapshot is viewable only outside report/export
+                # quantities. Preview/print/export must not ship procurement rows.
+                raw_items = list(spec.items or [])
                 specification_context = {
-                    "items": spec_items,
-                    "is_stale": bool(getattr(spec, "is_stale", False)),
+                    "items": [] if is_stale else raw_items,
+                    "is_stale": is_stale,
                     "stale_reason": getattr(spec, "stale_reason", None),
                     "stale_at": (
                         stale_at.isoformat()
@@ -106,6 +109,8 @@ class ReportService:
                         else None
                     ),
                     "stale_details": getattr(spec, "stale_details", None),
+                    "excluded_from_output": is_stale,
+                    "retained_item_count": len(raw_items) if is_stale else 0,
                 }
 
         latest_by_object: dict[str, ElectricalCalculation] = {}

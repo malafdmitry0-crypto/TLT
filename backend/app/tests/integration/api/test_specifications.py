@@ -214,6 +214,22 @@ class TestSpecification:
         )
         assert manual.status_code == 403
 
+
+    async def test_generate_basic_mode_coerced_to_full(
+        self, client: AsyncClient, guest_session: str
+    ):
+        """PDL-ER-29: deprecated basic input is normalized to full."""
+        headers = {"X-Session-Id": guest_session}
+        p = (await client.get("/api/v1/projects", headers=headers)).json()[0]
+        await self._add_pipe(client, p["id"], headers)
+        resp = await client.post(
+            f"/api/v1/specifications/{p['id']}/generate",
+            json={"mode": "basic"},
+            headers=headers,
+        )
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["mode"] == "full"
+
     async def test_generate_response_reports_mode_and_persists_it(
         self, client: AsyncClient, employee_token: str
     ):
@@ -412,7 +428,7 @@ class TestSpecification:
         resp = await client.post(
             f"/api/v1/specifications/{project['id']}/generate",
             json={
-                "mode": "basic",
+                "mode": "full",
                 "electrical_variant_ids": [er1["id"], er2["id"]],
             },
             headers=headers,
@@ -450,9 +466,8 @@ class TestSpecification:
 
 
 class TestSpecAccessoryCountForAllObjects:
-    """Regression: аксессуары (УЗО и т.д.) заказываются на все объекты проекта,
-    а не только на успешно рассчитанные. Раньше при fail-ах в электрорасчёте
-    число УЗО падало вместе с числом успешных расчётов.
+    """PDL-ER-29: product generation is full-only; basic per-object accessory
+    scaling is no longer the canonical path.
     """
 
     async def _add_pipe(self, client: AsyncClient, project_id: str, session_id: str) -> dict:
@@ -475,39 +490,28 @@ class TestSpecAccessoryCountForAllObjects:
         assert resp.status_code in (200, 201), resp.text
         return resp.json()
 
-    async def test_accessories_scale_with_project_objects_not_successful_calcs(
+    async def test_generate_defaults_to_full_without_basic_accessory_scaling(
         self, client: AsyncClient, guest_session: str
     ):
-        """3 объекта в проекте → аксессуары × 3, даже если рассчитан только 1."""
-        p = (
-            await client.get(
-                "/api/v1/projects",
-                headers={"X-Session-Id": guest_session},
-            )
-        ).json()[0]
+        """Full mode does not invent basic UZO-per-object rows without proven calcs."""
+        headers = {"X-Session-Id": guest_session}
+        p = (await client.get("/api/v1/projects", headers=headers)).json()[0]
         for _ in range(3):
             await self._add_pipe(client, p["id"], guest_session)
 
-        # Запускаем batch — пусть все 3 рассчитаются (успешно)
-        await client.post(
-            "/api/v1/calc/electrical/batch",
-            params={"project_id": p["id"]},
-            headers={"X-Session-Id": guest_session},
-        )
-
         resp = await client.post(
             f"/api/v1/specifications/{p['id']}/generate",
-            headers={"X-Session-Id": guest_session},
+            headers=headers,
         )
-        assert resp.status_code == 201
-        items = resp.json()["items"]
-        accessories = [i for i in items if i["category"] != "Кабель"]
-        assert accessories, "Должны быть аксессуары"
-        for acc in accessories:
-            qty = float(acc["quantity"])
-            per_object = qty / 3.0
-            assert per_object == float(
-                int(per_object)
-            ), f"{acc['name']}: quantity={qty}, не кратно 3 (числу объектов проекта)"
+        assert resp.status_code == 201, resp.text
+        body = resp.json()
+        assert body["mode"] == "full"
+        # Without successful electrical results contributing to full BOM, there
+        # is no basic-mode accessory multiplier over all project objects.
+        accessories = [i for i in body["items"] if i.get("category") != "Кабель"]
+        assert all(
+            "УЗО" not in (i.get("name") or "") or float(i.get("quantity") or 0) != 3
+            for i in accessories
+        ) or not accessories
 
 

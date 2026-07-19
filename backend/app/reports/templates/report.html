@@ -287,9 +287,14 @@
   {% if 'specification' in enabled %}
   <h2>Спецификация</h2>
   {% if specification.get('is_stale') %}
-  <p class="section-empty">Спецификация устарела после изменения объектов. Сформируйте её заново перед закупкой.</p>
-  {% endif %}
-  {% if specification['items'] %}
+  <p class="section-empty" style="color:#9A3412;font-weight:600;">
+    Спецификация устарела (PDL-ER-37). Закупочные позиции исключены из отчёта и печати.
+    Сформируйте спецификацию заново.
+    {% if specification.get('retained_item_count') %}
+    (сохранённый snapshot: {{ specification.retained_item_count }} поз., только в UI)
+    {% endif %}
+  </p>
+  {% elif specification['items'] %}
   <table>
     <thead>
       <tr><th>#</th><th>Категория</th><th>Наименование</th><th>Артикул</th><th>Ед.</th><th class="num">Кол-во</th></tr>

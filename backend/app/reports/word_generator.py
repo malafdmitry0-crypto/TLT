@@ -41,8 +41,8 @@ def generate_docx(context: dict[str, Any]) -> bytes:
         doc.add_heading("Спецификация", level=2)
         if context.get("specification", {}).get("is_stale"):
             doc.add_paragraph(
-                "Спецификация устарела после изменения объектов. "
-                "Сформируйте её заново перед закупкой."
+                "Спецификация устарела (PDL-ER-37). Закупочные позиции исключены "
+                "из экспорта — сформируйте заново."
             )
     items = context.get("specification", {}).get("items", []) if "specification" in enabled else []
     if items:

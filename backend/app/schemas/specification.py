@@ -74,14 +74,18 @@ class SpecificationResponse(BaseModel):
 class SpecificationGenerateRequest(BaseModel):
     """Тело запроса генерации спецификации.
 
-    mode='basic' — кабель + минимум аксессуаров;
-    mode='full' — полный условный BOM по ТНП (PDL-ER-04: доступен и гостю).
+    PDL-ER-29: канонический режим — full data-driven BOM. ``basic`` принимается
+    только как deprecated transitional input и нормализуется в ``full`` на API.
 
     electrical_variant_ids — явный список UUID ЭР (PDL-ER-01). UI «Выбрать все»
     разворачивается в полный список текущих UUID, а не в implicit all-on-open.
     """
 
-    mode: str = Field(default="basic", pattern="^(basic|full)$")
+    mode: str = Field(
+        default="full",
+        pattern="^(basic|full)$",
+        description="Канонически full; basic — deprecated compatibility alias.",
+    )
     options: SpecificationOptions | None = None
     electrical_variant_ids: list[UUID] | None = Field(
         default=None,
@@ -93,17 +97,16 @@ class SpecificationGenerateRequest(BaseModel):
 class SpecificationGenerateVariantResult(BaseModel):
     electrical_variant_id: UUID
     items: list[SpecificationItem]
-    mode: str = "basic"
+    mode: str = "full"
     skipped_objects: int = 0
 
 
 class SpecificationGenerateResponse(BaseModel):
     project_id: UUID
     items: list[SpecificationItem]
-    # Фактически применённый режим генерации
-    mode: str = "basic"
-    # Объекты проекта без успешного электрорасчёта, не вошедшие в полный BOM.
-    # В basic-режиме всегда 0: там аксессуары заказываются на все объекты.
+    # Фактически применённый режим генерации (PDL-ER-29: full)
+    mode: str = "full"
+    # Объекты/группы без вклада в full BOM (partial diagnostics).
     skipped_objects: int = 0
     electrical_variant_id: UUID | None = None
     # Multi-ЭР atomic generation: per-variant results (PDL-ER-01/14).

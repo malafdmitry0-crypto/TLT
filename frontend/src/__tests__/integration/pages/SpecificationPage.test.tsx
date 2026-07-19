@@ -200,7 +200,7 @@ describe('SpecificationPage (integration)', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Спецификация устарела')).toBeInTheDocument();
+      expect(screen.getByText(/Спецификация устарела/i)).toBeInTheDocument();
       expect(screen.getByText('Старая позиция')).toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: /Сформировать заново/i })).toBeInTheDocument();
@@ -303,13 +303,13 @@ describe('SpecificationPage (integration)', () => {
     let resolveGeneration!: (value: {
       project_id: string;
       items: [];
-      mode: 'basic';
+      mode: 'full';
       skipped_objects: number;
     }) => void;
     const pendingGeneration = new Promise<{
       project_id: string;
       items: [];
-      mode: 'basic';
+      mode: 'full';
       skipped_objects: number;
     }>((resolve) => {
       resolveGeneration = resolve;
@@ -325,8 +325,11 @@ describe('SpecificationPage (integration)', () => {
       mockProject.id,
       1,
       firstVariant.id,
-      'basic',
-      undefined,
+      'full',
+      expect.objectContaining({
+        ex_zone: false,
+        reserve_coefficient: 1,
+      }),
       [firstVariant.id],
     );
     const scopeGroup = screen.getAllByRole('radiogroup').find((group) =>
@@ -341,7 +344,7 @@ describe('SpecificationPage (integration)', () => {
     resolveGeneration({
       project_id: mockProject.id,
       items: [],
-      mode: 'basic',
+      mode: 'full',
       skipped_objects: 0,
     });
     await waitFor(() => expect(firstScopeInput).not.toBeDisabled());

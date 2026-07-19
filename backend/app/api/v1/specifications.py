@@ -89,6 +89,8 @@ async def generate_specification(
     req = data or SpecificationGenerateRequest()
     # PDL-ER-04: полный автоматический BOM доступен гостю; manual items — только
     # сотруднику/админу (см. PUT /items + frontend canManuallyEdit).
+    # PDL-ER-29: канонический product mode = full; basic input is coerced.
+    generate_mode = "full" if req.mode in (None, "basic", "full") else "full"
 
     try:
         # PDL-ER-01: explicit multi-ER list wins over single legacy slot params.
@@ -114,7 +116,7 @@ async def generate_specification(
                 project_id,
                 principal,
                 requested_ids,
-                mode=req.mode,
+                mode=generate_mode,
                 options=req.options,
             )
             primary = results[0]
@@ -158,7 +160,7 @@ async def generate_specification(
         result = await SpecificationService(db).generate(
             project_id,
             variant,
-            mode=req.mode,
+            mode=generate_mode,
             options=req.options,
             electrical_variant_id=electrical_variant.id,
         )

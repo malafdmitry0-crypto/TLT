@@ -42,7 +42,7 @@ export async function generateSpecification(
   projectId: string,
   variant: number = 1,
   electricalVariantId?: string,
-  mode: 'basic' | 'full' = 'basic',
+  mode: 'basic' | 'full' = 'full',
   options?: SpecificationOptions,
   electricalVariantIds?: string[],
 ): Promise<SpecificationGenerateResult> {

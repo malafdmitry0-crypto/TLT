@@ -4999,3 +4999,15 @@ html, body, #root {
     min-width: 0;
   }
 }
+
+/* PDL-ER-37: stale specification quantities are read-only on screen and hidden from print. */
+@media print {
+  .specification-stale-banner {
+    color: #9a3412 !important;
+    border: 2px solid #9a3412 !important;
+  }
+  .specification-page-main .ant-table-wrapper:has(.ant-table),
+  .specification-page-main .spec-table-print-exclude {
+    display: none !important;
+  }
+}

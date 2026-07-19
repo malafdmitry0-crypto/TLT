@@ -96,9 +96,8 @@ export default function SpecificationPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null);
   const [qty, setQty] = useState<number>(1);
-  // Режим спецификации: базовая или полная (PDL-ER-04 — full auto BOM доступен гостю).
-  // Ручное редактирование позиций по-прежнему только employee/admin.
-  const [specMode, setSpecMode] = useState<'basic' | 'full'>('basic');
+  // PDL-ER-29: canonical product mode is always full data-driven BOM.
+  // Manual item CRUD remains employee/admin only (PDL-ER-04).
   // PDL-ER-01: explicit multi-ЭР selection for generation; never implicit all-on-open.
   const [selectedGenerateErIds, setSelectedGenerateErIds] = useState<string[]>([]);
   const [exZone, setExZone] = useState(false);
@@ -145,13 +144,9 @@ export default function SpecificationPage() {
     ...referenceQueryOptions,
   });
 
-  // Восстанавливаем режим и опции последней генерации после reload/смены CO,
-  // чтобы «Пересчитать» не подменял полный BOM базовым.
+  // Восстанавливаем options последней full-генерации после reload.
   useEffect(() => {
     if (!spec) return;
-    if (spec.generation_mode === 'full' || spec.generation_mode === 'basic') {
-      setSpecMode(spec.generation_mode);
-    }
     const opts = spec.generation_options;
     if (opts) {
       setExZone(Boolean(opts.ex_zone));
@@ -161,12 +156,11 @@ export default function SpecificationPage() {
       setTopIndication(Boolean(opts.top_indication));
       setMinLengthK2i(Number(opts.min_length_for_end_indication ?? 0));
     }
-    // Перезапускаем только при смене сохранённого режима/записи, не при каждом refetch
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spec?.id, spec?.generation_mode]);
 
-  // PDL-ER-04: guest may generate full automatic BOM; only manual item CRUD is employee-only.
-  const effectiveMode = canMutateProject ? specMode : 'basic';
+  // PDL-ER-29: product generation is always full for guest and employee.
+  const effectiveMode = 'full' as const;
   const availableGenerateVariants = useMemo(
     () => (variantContext.variants ?? []).filter((item) => item.legacy_variant_number != null),
     [variantContext.variants],
@@ -226,8 +220,8 @@ export default function SpecificationPage() {
       const generatedCount = result.results?.length ?? 1;
       message.success(
         generatedCount > 1
-          ? `Спецификация (${result.mode === 'full' ? 'полная' : 'базовая'}) сформирована для ${generatedCount} ЭР`
-          : `Спецификация (${result.mode === 'full' ? 'полная' : 'базовая'}) для «${variables.electricalVariantName}» сгенерирована`
+          ? `Спецификация (полная BOM) сформирована для ${generatedCount} ЭР`
+          : `Спецификация (полная BOM) для «${variables.electricalVariantName}» сгенерирована`
       );
       if (result.mode === 'full' && result.skipped_objects > 0) {
         message.warning(
@@ -389,7 +383,7 @@ export default function SpecificationPage() {
 
   const categoriesCount = new Set(items.map((i) => i.category)).size;
 
-  const fullModeActive = specMode === 'full';
+  const fullModeActive = true;
 
   return (
     <>
@@ -416,7 +410,7 @@ export default function SpecificationPage() {
         >
           <span>
             <span className="label">
-              {selectedElectricalVariant.name} · спецификация: {fullModeActive ? 'полная (BOM ТНП)' : 'базовая'} ·{' '}
+              {selectedElectricalVariant.name} · спецификация: полная (BOM ТНП) ·{' '}
             </span>
             позиций: {items.length}
           </span>
@@ -437,19 +431,11 @@ export default function SpecificationPage() {
           style={{ marginBottom: 5 }}
         >
           <div className="form-col-srs">
-            <h4 data-step={1}><span>Режим и резерв</span></h4>
+            <h4 data-step={1}><span>ЭР и резерв R,гр</span></h4>
             <div className="workflow-params-row">
-              <Text className="workflow-params-label">Режим спецификации</Text>
-              <Segmented<'basic' | 'full'>
-                size="small"
-                value={specMode}
-                disabled={!canMutateProject}
-                onChange={setSpecMode}
-                options={[
-                  { label: 'Базовая', value: 'basic' },
-                  { label: 'Полная', value: 'full' },
-                ]}
-              />
+              <Text className="workflow-params-hint">
+                Канонический режим: полный data-driven BOM (PDL-ER-29). Режим «базовая» снят.
+              </Text>
             </div>
             <div className="workflow-params-row">
               <Text className="workflow-params-label">ЭР для генерации</Text>
@@ -491,12 +477,9 @@ export default function SpecificationPage() {
                 className="workflow-params-input"
               />
             </div>
-            {!fullModeActive && (
-              <Text className="workflow-params-hint">
-                Базовая: кабель + минимум аксессуаров. Полная — условный BOM по
-                ТНП (коробки СКВ, комплекты КСН/КСВ/КСР, вводы, крепёж, ленты).
-              </Text>
-            )}
+            <Text className="workflow-params-hint">
+              Полный BOM: кабель, коробки СКВ, комплекты, вводы, крепёж, ленты (ТНП).
+            </Text>
           </div>
           <div className="form-col-srs">
             <h4 data-step={2}><span>Требования ТНП (Ex и индикация)</span></h4>
@@ -550,11 +533,6 @@ export default function SpecificationPage() {
                   className="workflow-params-input"
                 />
               </div>
-            )}
-            {!fullModeActive && (
-              <Text className="workflow-params-hint">
-                Требования применяются в режиме «Полная».
-              </Text>
             )}
           </div>
         </div>
@@ -654,11 +632,11 @@ export default function SpecificationPage() {
           >
             {isSpecStale && (
               <Alert
-                className="specification-empty-alert"
-                type="warning"
+                className="specification-empty-alert specification-stale-banner"
+                type="error"
                 showIcon
-                message="Спецификация устарела"
-                description="После изменения объектов старые позиции нельзя использовать для закупки. Сформируйте спецификацию заново."
+                message="Спецификация устарела — не для закупки / печати / отчёта"
+                description="PDL-ER-37: snapshot только для просмотра. Итоги, browser print, отчёт и server export не используют эти количества. Сформируйте спецификацию заново."
                 style={{ marginBottom: 16 }}
                 action={
                   <Button
@@ -708,13 +686,15 @@ export default function SpecificationPage() {
                   />
                 )}
 
-                <SpecTable
-                  items={items}
-                  groupBy={groupBy}
-                  canDelete={canManuallyEdit && hasItems}
-                  isStale={isSpecStale}
-                  onDelete={handleDelete}
-                />
+                <div className={isSpecStale ? 'spec-table-print-exclude' : undefined}>
+                  <SpecTable
+                    items={items}
+                    groupBy={groupBy}
+                    canDelete={canManuallyEdit && hasItems}
+                    isStale={isSpecStale}
+                    onDelete={handleDelete}
+                  />
+                </div>
               </>
             )}
 

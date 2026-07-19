@@ -3,43 +3,41 @@
 - Ветка: **local `main`**
 - Product decisions: PDL-ER-01…41
 - Checkpoint: 19.07.2026
-- Статус: **PARTIAL PASS — major Phase 5 slices landed; PDL-ER-29…41 not yet verified; DoD not complete**
+- Статус: **PARTIAL PASS — PDL-ER-29/37 landed; 30–36/38–41 and full DoD open**
 
-## Closed in Phase 5 so far
+## Closed
 
-| Item | Status | Commit / evidence |
+| Item | Status | Evidence |
 |---|---|---|
-| PDL-ER-01 multi-ЭР generate + «Выбрать все» | PASS | earlier Phase 5 partial |
-| PDL-ER-04 guest full BOM | PASS | earlier Phase 5 partial |
-| PDL-ER-08 dтр ≥ 57 inclusive | PASS | earlier Phase 5 partial |
-| PDL-ER-26 guest TTL 3d defaults | PASS | config + live stack |
-| CSV schema v3 export + v2/v3 import | PASS | `feat(project-io): export CSV schema v3…` |
-| barrel/бочка → tank (PDL-ER-06) | PASS | project_io normalize |
-| Report UUID-first preview | PASS | electrical_variant_id alone; ER5 no legacy block |
-| Report service filters by UUID | PASS | calcs/specs scoped by electrical_variant_id |
+| PDL-ER-01 multi-ЭР generate + «Выбрать все» | PASS | API + UI |
+| PDL-ER-04 guest full BOM | PASS | guest generation allowed; manual PUT 403 |
+| PDL-ER-08 dтр ≥ 57 inclusive | PASS | unit boundary |
+| PDL-ER-26 guest TTL 3d defaults | PASS | config/live 4320 |
+| CSV schema v3 export + v2 import | PASS | project_io |
+| barrel/бочка → tank (06) | PASS | project_io |
+| Report UUID-first preview | PASS | electrical_variant_id alone |
+| **PDL-ER-29 full-only product mode** | **PASS** | UI switcher removed; API/service coerce `basic`→`full`; tests |
+| **PDL-ER-37 stale out of report/export/print** | **PASS** | report context strips items when stale; red UI banner; print CSS hide table |
 
-## Still open for full Phase 5 DoD
+## Still open
 
-- UUID-only write data plane for ER5 (composite FK / CHECK cutover for calc/spec writes)
-- Settings snapshots (PDL-ER-07) versioned + stale-on-defaults-change
-- Order-length procurement vs Lсек×Nсек (depends on Phase 4 sections)
-- Perf gate before raising 50→500 (PDL-ER-27)
-- Canonical full-only product mode and basic compatibility removal (PDL-ER-29)
-- Desktop min-width warning / print contract (PDL-ER-30)
-- Separate `Rгр` semantics and snapshot without double reserve (PDL-ER-31)
-- Proven-only tank/resistive partial without formula substitution (PDL-ER-32)
-- Exact catalog identity/default without prefix/row-order inference (PDL-ER-33)
-- PDF-first formula source policy and no automatic XLSX-only rules (PDL-ER-34)
-- Official per-row `Ex/Rгр` matrix; dependent boxes stay data-blocked (PDL-ER-35)
-- One preflight/confirmation + atomic multi-ЭР partial generation (PDL-ER-36)
-- Stale read-only and excluded from totals/print/report/export (PDL-ER-37)
-- Default pipe/tank/common grouping with optional base+code merge (PDL-ER-38)
-- Multi-ЭР report with independent chapters and no cross-ЭР sums (PDL-ER-39)
-- Functional report acceptance separated from corporate template (PDL-ER-40)
-- CSV v3 trust/RBAC cases: v2 import-only, source mismatch stale, guest manual-row reject (PDL-ER-41)
-- Full Playwright flow 1–17 + browser UI proof after multi-select
-- Phase 6 legacy removal search-gate
+- PDL-ER-30 desktop ≥1280 warning
+- PDL-ER-31 Rгр vs 10% order reserve semantics fix
+- PDL-ER-32 proven-only tank/resistive partial
+- PDL-ER-33 catalog identity
+- PDL-ER-34 PDF-first formula source
+- PDL-ER-35 Ex/Rгр matrix data-blocked
+- PDL-ER-36 preflight + confirm multi-ЭР
+- PDL-ER-38 pipe/tank/common grouping
+- PDL-ER-39 multi-ЭР report chapters
+- PDL-ER-40 print CSS corporate scope (partial functional ok)
+- PDL-ER-41 guest manual import reject / source mismatch trust
+- PDL-ER-07 settings snapshots
+- PDL-ER-27 perf 50→500
+- ER5 write cutover
+- Phase 4 blocked 15/18/28
 
-## Phase 4
+## Verification (this slice)
 
-**BLOCKED** PDL-ER-15/18/28 until official numeric catalog.
+- backend `test_specifications` + `test_reports` — PASS
+- frontend SpecificationPage + ReportPage — PASS

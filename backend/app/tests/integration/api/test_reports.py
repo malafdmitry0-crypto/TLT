@@ -183,6 +183,100 @@ class TestReports:
         )
         assert resp.status_code == 422
 
+
+    async def test_preview_excludes_stale_specification_quantities(
+        self, client: AsyncClient, employee_token: str, db_session
+    ):
+        """PDL-ER-37: stale specification items must not appear in report output."""
+        from datetime import UTC, datetime
+        from uuid import UUID
+
+        from sqlalchemy import select
+
+        from app.models.specification import Specification
+
+        headers = {"Authorization": f"Bearer {employee_token}"}
+        project = (
+            await client.post(
+                "/api/v1/projects", json={"name": "Stale Spec Report"}, headers=headers
+            )
+        ).json()
+        pid = project["id"]
+        init = await client.post(
+            f"/api/v1/projects/{pid}/electrical-variants/initialize",
+            headers=headers,
+        )
+        # initialize may fail without objects — add pipe first
+        await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.108,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": "mineral_wool_boards_120",
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -30,
+                    "process_temperature": 80,
+                    "pipe_length": 50,
+                },
+            },
+            headers=headers,
+        )
+        init = await client.post(
+            f"/api/v1/projects/{pid}/electrical-variants/initialize",
+            headers=headers,
+        )
+        assert init.status_code in (200, 201), init.text
+        er = init.json()["variant"]
+        save = await client.put(
+            f"/api/v1/specifications/{pid}/items",
+            params={
+                "variant": er.get("legacy_variant_number") or 1,
+                "electrical_variant_id": er["id"],
+            },
+            json={
+                "items": [
+                    {
+                        "category": "Кабель",
+                        "name": "Греющий кабель SECRET-MARK",
+                        "article": "ART-1",
+                        "unit": "м",
+                        "quantity": 123.45,
+                        "source": "manual",
+                    }
+                ]
+            },
+            headers=headers,
+        )
+        assert save.status_code == 200, save.text
+
+        result = await db_session.execute(
+            select(Specification).where(Specification.project_id == UUID(pid))
+        )
+        spec = result.scalars().first()
+        assert spec is not None
+        assert any("SECRET-MARK" in str(item) for item in (spec.items or []))
+        spec.is_stale = True
+        spec.stale_reason = "object_updated"
+        spec.stale_at = datetime.now(UTC)
+        await db_session.commit()
+
+        preview = await client.get(
+            f"/api/v1/reports/{pid}/preview",
+            params=[
+                ("electrical_variant_id", er["id"]),
+                ("sections", "specification"),
+            ],
+            headers=headers,
+        )
+        assert preview.status_code == 200, preview.text
+        html = preview.json()["html"]
+        assert "устарела" in html.lower() or "PDL-ER-37" in html
+        assert "SECRET-MARK" not in html
+        assert "123.45" not in html
+
+
     async def test_preview_by_electrical_variant_id_alone(
         self, client: AsyncClient, guest_session: str
     ):

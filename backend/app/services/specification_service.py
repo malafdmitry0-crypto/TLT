@@ -32,7 +32,7 @@ class SpecificationGenerateResult:
     """Итог генерации: позиции + фактический режим + пропущенные объекты."""
 
     items: list[SpecificationItem] = field(default_factory=list)
-    mode: str = "basic"
+    mode: str = "full"
     skipped_objects: int = 0
     electrical_variant_id: UUID | None = None
 
@@ -155,9 +155,9 @@ class SpecificationService:
     ) -> SpecificationGenerateResult:
         """Генерирует спецификацию.
 
-        ``mode=None`` — переиспользовать режим и опции последней генерации
-        (если их нет — 'basic'): фоновые пересчёты не должны молча подменять
-        полный BOM базовым.
+        ``mode=None`` — переиспользовать опции последней генерации; канонический
+        режим всегда full (PDL-ER-29). Deprecated ``basic`` входы нормализуются
+        в full, чтобы не оставлять dual procurement semantics.
         """
         # Serialize the calculation/object snapshot and final upsert with every
         # object/assignment stale transition for this project.
@@ -188,14 +188,15 @@ class SpecificationService:
                         # пропускаем любую битую запись, не блокируя пересчёт
                         continue
 
-        if mode is None:
-            mode = getattr(existing_spec, "generation_mode", None) or "basic"
-            stored_options = getattr(existing_spec, "generation_options", None)
-            if options is None and stored_options:
-                try:
-                    options = SpecificationOptions(**stored_options)
-                except Exception:
-                    options = None
+        stored_options = getattr(existing_spec, "generation_options", None) if existing_spec else None
+        if mode is None and options is None and stored_options:
+            try:
+                options = SpecificationOptions(**stored_options)
+            except Exception:
+                options = None
+        # PDL-ER-29: product generation is always full; basic is transitional alias only.
+        if mode in (None, "basic"):
+            mode = "full"
 
         # Авто-позиции из электрорасчёта: UUID-first, legacy slot as fallback.
         if electrical_variant_id is not None:
