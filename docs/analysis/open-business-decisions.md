@@ -40,6 +40,14 @@
 
 Источник формулировок: [docs/srs/07-report-requirements.md](../srs/07-report-requirements.md) §7.
 
+> PDL-ER-39/40 от 19.07.2026 закрывают только functional scope Phase 5
+> guest-specification case: явный список UUID ЭР, один HTML/browser-print
+> report с независимыми главами/specifications и без смешения итогов.
+> Отсутствие финального corporate template не блокирует Phase 5. Q-01…Q-25
+> ниже остаются открытыми для окончательной корпоративной приёмки employee
+> PDF/DOCX/XLSX и не должны ошибочно использоваться как stop condition
+> функционального Phase 5 preview/print.
+
 | ID | Тема | Статус | Влияние |
 |---|---|:---:|---|
 | Q-01 | Перечень разделов отчёта | Open | Состав `ReportWizard` / `report.html` |

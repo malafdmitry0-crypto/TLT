@@ -18,7 +18,7 @@
 | `TO_DO.md` | Рабочий статус пробелов и отложенных задач |
 | `docs/analysis/` | Бизнес-правила, персоны, story map, диаграммы |
 | `docs/qa/` | Чек-листы и ручные тест-кейсы |
-| `docs/tnp/cases/guest-specification/product-decisions.md` | Утверждённые PDL-ER-01…28 для dynamic-ER/PDF-кейса |
+| `docs/tnp/cases/guest-specification/product-decisions.md` | Утверждённые PDL-ER-01…41 для dynamic-ER/PDF-кейса |
 | `docs/architecture/dynamic-electrical-variants.md` | ADR, phase plan и UUID cutover contract |
 | `docs/tnp/cases/guest-specification/phase-1-checkpoint.md` | Финальное evidence backend/DB Phase 1 и переходные ограничения |
 | `docs/tnp/cases/guest-specification/phase-2-checkpoint.md` | Финальное frontend/consumer evidence Phase 2 и UUID/legacy boundary |
@@ -69,9 +69,13 @@
 | Electrical job selector | Omitted numeric selector → slot 1; UUID-only clears implicit default; explicit null → stable 422 до ER side effect |
 | Candidate apply/delete | Общая lifecycle project lock, re-read candidate/mapping после lock, stable 404/409 без ER recreation или integrity 500 |
 | Пятый ЭР | Доступен lifecycle, assignment API/UI и отдельный scope, но legacy calculation/candidate/spec/report graph отсутствует; UI обязан fail-closed до полного UUID-only cutover |
-| Guest persistence | PDL-ER-26 разрешает временное PostgreSQL-хранение на 3 дня с последней активности, session isolation и auto-cleanup. Текущие 20 минут — implementation gap, а не целевой контракт |
-| Масштаб проекта | PDL-ER-27 фиксирует цель 500 объектов. Runtime guard 50 сохраняется до performance evidence импорта, batch-расчёта, UI, спецификации и отчёта |
+| Guest persistence | PDL-ER-26 разрешает временное PostgreSQL-хранение на 3 дня с последней активности, session isolation и auto-cleanup. Валидная browser session восстанавливает проект; expiry явно создаёт новый пустой, старый восстанавливается только из локального файла. Текущие 20 минут — implementation gap |
+| Масштаб проекта | PDL-ER-27 фиксирует 500 объектов × 5 ЭР и PDF-пороги 30 секунд. Runtime guard 50 сохраняется до performance evidence импорта, batch-расчёта, UI, specification и report |
 | Heating sections | Семантика утверждена PDL-ER-18…25: официальный источник ТЛТ, explicit `Iдоп` по марке/напряжению, direct `Iст.уд`, minimum object/climate start temperature, voltage isolation, source-defined rounding, self-reg only, fail closed при пробеле. PDL-ER-28 подтверждает обязательность фактического артефакта; Phase 4 остаётся blocked PDL-ER-15/18/28 до его предоставления |
+| Phase 5 specification | PDL-ER-29/31…38: один full data-driven mode; PDF authoritative, `Rгр` отдельно от 10%, exact catalog identity, доказанные tank/resistive positions + explicit partial, official `Ex/Rгр` matrix, preflight/atomic multi-ЭР generation, stale read-only/no-output, split grouping default |
+| Phase 5 report | PDL-ER-39/40: явный UUID-list, один document с независимыми главами/specifications и diagnostics без cross-ЭР sums; functional HTML/browser print принимаются без финального corporate template |
+| Phase 5 project I/O | PDL-ER-41: export только v3, v2 import-only; untrusted/mismatched source stale-ит calculated state, guest manual BOM rows отклоняются атомарно |
+| Поддерживаемая ширина Phase 5 | PDL-ER-30: interactive UI от 1280 px; меньшая ширина получает явное предупреждение, mobile не входит в acceptance, browser print проверяется отдельно |
 | Расширенные типы объектов | Для pump/platform/other нужны формы, схемы, формулы, импорт, отчёты и тесты |
 | Безопасность раздела 5 ТЗ | Обфускация, шифрование формул/справочников, ротация ключей пока отдельный риск |
 | Табличный UX | TSV-копирование есть; Excel-like bulk edit и эскизы Приложения 4 проверять по `TO_DO.md` |
@@ -97,7 +101,8 @@ UUID frontend lifecycle, cache/URL identity, direct consumer bridge и
 desktop/mobile UI proof. Phase 3 реализовала и доказала root gate для
 authoritative assignment API/UI, exact UUID calculation scope, optimistic
 races, confirmed cleanup, live reload и post-UI DB invariants. Это не
-закрывает Phase 5, общий PDF/DoD или product release; семантика Phase 4 закрыта
+закрывает реализацию Phase 5, общий PDF/DoD или product release; продуктовый
+контракт Phase 5 уже закрыт PDL-ER-29…41. Семантика Phase 4 закрыта
 PDL-ER-18…25, а guest TTL/scale решения закрыты PDL-ER-26/27. Сама Phase 4
 остаётся blocked PDL-ER-15/18/28 до официального числового источника. Full
 frontend gate не green из-за pre-existing missing accessible separator test,

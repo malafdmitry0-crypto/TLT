@@ -23,6 +23,11 @@ assignments имеют статус **PASS** в своих границах. Evi
 готовность полного PDF-flow: sections, UUID-only data plane, multi-ЭР
 specification и CSV v3 ещё отсутствуют.
 
+Product contract Phase 5 теперь утверждён PDL-ER-29…41. Это не повышает
+статусы реализации в матрице автоматически: поздний partial evidence вынесен в
+[phase-5-checkpoint.md](phase-5-checkpoint.md), а новые PDL-ER-29…41 ещё должны
+получить отдельную цепочку docs → backend → frontend → tests.
+
 ## Гость, сессия и проект
 
 | PDF ID | Статус | Документация и backend | Frontend, tests и фактическое evidence |
@@ -134,7 +139,8 @@ basic builder по-прежнему нарушает
 текущий guest SRS, потому что создаёт закупочные позиции без успешного
 electrical result. Поэтому общий PDF/DoD не закрыт.
 
-Phase 1/2/3 checkpoints завершены, Phase 5 pending, Phase 4 blocked
-PDL-ER-15/18/28, а общий product release дополнительно блокирует не-green
+Phase 1/2/3 checkpoints завершены, Phase 5 имеет только partial checkpoint и
+не доказывает PDL-ER-29…41, Phase 4 blocked PDL-ER-15/18/28, а общий product
+release дополнительно блокирует не-green
 frontend gate (`1052 passed, 1 failed`), dependency security gate и
 общий Alembic metadata drift вне dynamic-ER diff.

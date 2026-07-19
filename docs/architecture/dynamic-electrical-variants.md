@@ -1,8 +1,9 @@
 # ADR: динамические именованные электротехнические решения
 
-- Статус ADR: **Implemented through Phase 3 / Phase 4 blocked by data contract**
-- Статус Phase 1–3: **PASS**; Phase 4 blocked official numeric data contract
-- Даты: 18–19.07.2026; product decisions PDL-ER-01…28 утверждены пользователем
+- Статус ADR: **Implemented through Phase 3 / Phase 4 blocked / Phase 5 contract approved**
+- Статус Phase 1–3: **PASS**; Phase 4 blocked official numeric data contract;
+  Phase 5 partial implementation, PDL-ER-29…41 pending verification
+- Даты: 18–19.07.2026; product decisions PDL-ER-01…41 утверждены пользователем
 - Ветка: `feature/tnp-dynamic-electrical-variants`
 - Область: DB → backend API/services → frontend → specification/report → CSV → tests
 
@@ -19,6 +20,8 @@
 Правила section data contract PDL-ER-18…25 утверждены пользователем 18.07.2026
 как варианты А. Guest TTL, целевой лимит 500 и обязательность фактического
 официального numeric artifact утверждены 19.07.2026 в PDL-ER-26…28.
+Контракт specification/report/project I/O Phase 5 утверждён 19.07.2026 в
+PDL-ER-29…41.
 Production Phase 1–3 разрешены и реализованы; Phase 4 не начинается без самого
 официального числового источника PDL-ER-15/18/28.
 Границы и evidence зафиксированы в Phase 1, Phase 2 и Phase 3 checkpoints в
@@ -26,7 +29,7 @@ Production Phase 1–3 разрешены и реализованы; Phase 4 н�
 
 ## Приоритет источников
 
-1. Явные решения пользователя PDL-ER-01…28 в
+1. Явные решения пользователя PDL-ER-01…41 в
    `docs/tnp/cases/guest-specification/product-decisions.md`.
 2. Нормализованные однозначные требования PDF в
    `docs/tnp/cases/guest-specification/pdf-requirements.md`.
@@ -40,7 +43,7 @@ Production Phase 1–3 разрешены и реализованы; Phase 4 н�
 Если источники расходятся, expected/golden не меняются до явного выбора
 источника новой истины.
 
-## Уже утверждено: PDL-ER-01…28
+## Уже утверждено: PDL-ER-01…41
 
 | ID | Зафиксированный результат |
 |---|---|
@@ -70,8 +73,21 @@ Production Phase 1–3 разрешены и реализованы; Phase 4 н�
 | PDL-ER-24 | `Lогр` округляется вниз только по правилу официального источника; отсутствие правила блокирует расчёт. |
 | PDL-ER-25 | Новый section contract применяется только к саморегулирующемуся кабелю. |
 | PDL-ER-26 | Guest project временно хранится в PostgreSQL 3 дня после последней активности, изолирован по session и удаляется cleanup после TTL. |
-| PDL-ER-27 | Целевой предел — 500 объектов на проект; runtime limit 50 повышается только после полного performance gate. |
+| PDL-ER-27 | Целевой предел — 500 объектов и 5 ЭР; runtime limit 50 повышается только после полного performance gate и PDF-порогов 30 секунд. |
 | PDL-ER-28 | Phase 4 ждёт фактический официальный каталог/«Таблицу Виктора»; неполные PDF/XLSX не снимают data blocker. |
+| PDL-ER-29 | Product mode specification один: full data-driven BOM; basic остаётся только временным internal compatibility path до Phase 6. |
+| PDL-ER-30 | Интерактивный UI поддерживается от 1280 px; mobile не входит в Phase 5, browser print адаптивен. |
+| PDL-ER-31 | `Rгр` — отдельный default `1.0`, не 10% order reserve и не глобальный BOM multiplier. |
+| PDL-ER-32 | Tank/resistive включают только доказанные позиции; остальное — явно подтверждённый partial, без pipe/self-reg substitution. |
+| PDL-ER-33 | Catalog identity/default читаются из explicit fields; prefix/suffix/row-order inference запрещён. |
+| PDL-ER-34 | PDF всегда authoritative для specification semantics/formulas; XLSX-only rule требует отдельного утверждения. |
+| PDL-ER-35 | Зависимые от `Ex/Rгр` коробки fail closed до официальной per-row матрицы. |
+| PDL-ER-36 | Multi-ЭР partial использует один preflight, одно per-ЭР confirmation и одну atomic transaction. |
+| PDL-ER-37 | Stale snapshot read-only и исключён из totals/print/report/exports. |
+| PDL-ER-38 | Default grouping: pipe/tank/common; merge опционален по catalog base + code. |
+| PDL-ER-39 | Один report по явному UUID-list содержит независимые главы/specs и не смешивает суммы ЭР. |
+| PDL-ER-40 | Corporate template не блокирует functional Phase 5 preview/print и остаётся отдельным acceptance scope. |
+| PDL-ER-41 | V3-only export, v2 import-only; untrusted source snapshots stale/unsupported; guest manual rows atomic reject. |
 
 ## Текущая цепочка реализации
 
@@ -259,19 +275,35 @@ target specification `not_generated`: specification не копируется и
 - Specification независима на каждый ЭР и всегда отображает имя через FK.
 - `unassigned/error/unsupported/stale` не входят в успешные суммы.
 - Ноль успешных electrical results не может дать accessory-only success.
-- Partial generation требует явного `allow_partial/confirm_partial` и
-  возвращает object IDs + error codes.
+- Единственный target mode — full data-driven BOM; basic не является fallback.
+- Partial generation выполняет side-effect-free preflight выбранных ЭР, одно
+  per-ЭР confirmation и atomic write; возвращает object/group IDs + error codes.
+- Tank/resistive не наследуют pipe/self-reg accessory formulas и остаются
+  partial за пределами доказанных позиций.
+- PDF authoritative для specification formulas. XLSX-only rule не переносится
+  автоматически; `Ex/Rгр` boxes ждут official per-row data.
+- `Rгр=1.0` — отдельный setting, не 10% order reserve и не global multiplier.
+- Catalog identity/default не выводятся из имени или row order.
+- Stale snapshot только read-only и запрещён в totals/print/report/export.
+- Default grouping — pipe/tank/common; merge только по base + code после
+  раздельного расчёта типов.
 - Guest full generation не ослабляет ownership, rate-limit и manual RBAC.
-- Guest report: HTML + print CSS; employee/admin: server exports.
+- Guest report: HTML + print CSS; employee/admin: server exports. Multi-ЭР
+  report содержит отдельные главы без cross-ЭР sums; corporate template
+  остаётся отдельным финальным acceptance scope.
 - CSV v3 содержит variants, assignments, calculations, sections,
   specifications и settings snapshots со стабильными file-local keys.
+- Export после Phase 5 только v3; v2 остаётся import-only adapter.
+- Missing/mismatched formula/catalog source восстанавливает graph/inputs, но
+  stale-ит calculated state. Guest manual BOM rows отклоняются атомарно.
 - Import v2 реализован: валидирует slots `1…4` до замены guest project, создаёт
   active `ЭР1` плюс только занятые slots, complete assignments и явные UUID у
   calculations/specifications; legacy specs становятся stale/not-ready.
 - Bulk v2 использует savepoint на project graph. Неизвестный electrical
   `object_key` пока silently пропускается и остаётся переходным риском.
-- Export v2 остаётся numeric и не может losslessly перенести произвольные имена,
-  active-state, assignments, fifth ER или sections.
+- Текущий Export v2 остаётся implementation gap: Phase 5 обязан заменить его
+  v3-only export, поскольку v2 не переносит names, active-state, assignments,
+  fifth ER или sections losslessly.
 
 ## Expand/backfill/validate/contract
 
@@ -348,7 +380,7 @@ Read-only snapshot локальной БД перед миграцией:
 | 2 | PASS | Frontend variant API/store/query factory/tabs + focused frontend/e2e. | UUID isolation, reload/deep-link, before/after UI proof. |
 | 3 | PASS | Assignment model/service/UI + scoped stale cleanup. | Cross-ER isolation, races, browser and DB invariants. |
 | 4 | BLOCKED PDL-ER-15/18/28 | Formula contracts + persisted sections + hierarchy. | Independent golden/boundary/metamorphic/mutation evidence. |
-| 5 | Pending | Spec/report/settings/CSV v3 + guest print/full BOM. | No-mixing, RBAC, round-trip, browser and DB proof. |
+| 5 | Contract approved / partial implementation | Spec/report/settings/CSV v3 + guest print/full BOM. | PDL-ER-29…41; no-mixing, partial/stale, RBAC, round-trip, browser/print and DB proof. |
 | 6 | Pending | Legacy contract removal + docs/SRS/API updates. | Search gate and full functional audit. |
 
 Production Phase 1–3 разрешены и реализованы. Семантика Phase 4 утверждена
@@ -439,12 +471,15 @@ sections/BOM, Phase 5 UUID-only spec/report/CSV или общий PDF/DoD.
 | OPEN-ER-08 | PDF semantics, XLSX non-conflicting data. | PDL-ER-16 |
 | OPEN-ER-09 | One-way cutover с recovery point. | PDL-ER-17 |
 
-## Утверждено, но не реализуется в текущем scope
+## Утверждено, но ещё не реализовано
 
 - PDL-ER-26: guest TTL/хранение в PostgreSQL — 3 дня с последней активности;
   текущие 20 минут остаются implementation gap.
 - PDL-ER-27: целевой лимит 500 объектов; текущий rollout guard 50 нельзя снимать
   до полного performance gate.
+- PDL-ER-29…41: canonical full BOM, desktop width contract, `Rгр`, partial
+  tank/resistive, catalog identity, PDF-first source priority, `Ex/Rгр` data
+  gate, multi-ЭР partial/stale/grouping/report и CSV v3 trust boundary.
 - Формулы MI/skin, `floor`, pump/platform/other.
 - Пользовательский reorder ЭР.
 - Полная cross-browser/performance сертификация PDF.
@@ -456,4 +491,7 @@ Phase 1–3 можно выполнять вертикальными slices. Pha
 официальный источник производителя ТЛТ с `Lmax`, `Iдоп`, прямым `Iст.уд`,
 напряжениями, температурами холодного пуска и правилом округления. Утверждение
 PDL-ER-18…25 и PDL-ER-28 закрывает семантический выбор, но не заменяет числовой
-источник.
+источник. Phase 5 product choices закрыты PDL-ER-29…41, но зависимые коробки
+также нельзя принимать без per-row `Ex/Rгр` matrix PDL-ER-35, а tank/resistive
+accessories шире partial-контракта — без отдельной доказанной методики
+PDL-ER-32.

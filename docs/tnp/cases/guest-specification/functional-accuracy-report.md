@@ -381,7 +381,8 @@ Backend может быть атомарным, но пользовательс�
 
 ## Статус продуктовых решений после аудита
 
-18.07.2026 пользователь утвердил [Product Decision Log](product-decisions.md):
+18–19.07.2026 пользователь утвердил
+[Product Decision Log](product-decisions.md) PDL-ER-01…41:
 
 - dynamic ЭР1…ЭР5 **заменяют** СО1…СО4;
 - specification генерируется по одному или нескольким явно выбранным ЭР;
@@ -393,29 +394,39 @@ Backend может быть атомарным, но пользовательс�
 - MVP types: `pipe`/`tank`, `Бочка` — синоним ёмкости;
 - settings — project defaults + per-generation snapshot;
 - boundary коробок — `dтр ≥ 57 мм`.
+- specification имеет один canonical full data-driven mode; PDF всегда
+  приоритетнее XLSX-only formula;
+- временный guest project хранится в PostgreSQL со sliding TTL 3 дня;
+- interactive UI поддерживается от 1280 px;
+- Phase 5 partial/stale/grouping/multi-ЭР report/CSV v3 trust contract закрыт
+  PDL-ER-29…41.
 
-Открытыми остаются:
+Ранее открытые вопросы этого аудита закрыты так:
 
-1. Новый PDF 07.07 полностью заменяет или только дополняет старый XLSX BOM
-   29.05 для остальных формул комплектов/клея/лент/коробок?
-2. Допустимо ли временное хранение guest project/session в PostgreSQL?
-3. TTL: 3 дня или 20 минут; какое поведение при expiry/recovery?
-4. Mobile — поддерживаемый workflow или официальный min-width ≥1280 px?
+1. PDF всегда задаёт specification semantics/formulas; XLSX-only formula не
+   переносится автоматически — PDL-ER-34.
+2. Временное PostgreSQL-хранение допустимо — PDL-ER-26.
+3. Sliding TTL равен 3 дням; валидная session восстанавливается, expiry создаёт
+   новый пустой проект с явным UX — PDL-ER-26.
+4. Interactive workflow поддерживается от 1280 px; mobile не входит в Phase 5
+   acceptance — PDL-ER-30.
 
+Открыты не продуктовые развилки Phase 5, а data/evidence deliverables:
+официальный section catalog PDL-ER-28, per-row `Ex/Rгр` matrix PDL-ER-35 и
+методики аксессуаров за пределами partial tank/resistive PDL-ER-32.
 Утверждённые решения требуется зарегистрировать отдельными formula/workflow
-contracts с IDs, source/version, golden и boundary oracles. Не утверждённые
-формулы нельзя менять массовой заменой expected values.
+contracts с IDs, source/version, golden и boundary oracles.
 
 ## Residual risk
 
 - Не проверены Firefox, Opera и Яндекс Browser.
 - Не выполнены performance/load boundaries 500 objects, 5 ER и 30 секунд.
-- Не проверен реальный TTL expiry на протяжении 20 минут/3 дней.
-- Не выполнен destructive import failure scenario с повреждённым full-state
-  файлом; соответствующий формат ещё не определён.
+- Не проверен реальный целевой TTL expiry на протяжении 3 дней.
+- Не выполнен destructive import failure scenario с повреждённым CSV v3;
+  целевой trust/atomicity contract определён PDL-ER-41, но не реализован.
 - Не доказана audit-event completeness при DB/audit partial failure.
-- PDF box table не задаёт исполнимые значения Ex/Rгр для каждой строки; новый
-  oracle неполон.
+- PDF box table не задаёт исполнимые значения Ex/Rгр для каждой строки;
+  PDL-ER-35 требует официальный data artifact, oracle пока неполон.
 - UI after-screenshots исправленного поведения отсутствуют, поскольку пользователь
   запретил изменения кода; текущий audit status остаётся FAIL, не acceptance.
 

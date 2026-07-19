@@ -9,6 +9,33 @@
 Первоисточник: `ТНП/Расчет_спецификации_трубы_самрег29_05_26.xlsx`, лист
 «Список материалов Самрег». Извлечённые формулы: `docs/audit/spec-bom-oracle.md`.
 
+> **Resolution update 19.07.2026.** Этот файл сохраняется как историческое
+> evidence аудита старого XLSX-builder. Для Phase 5 сильнее решения
+> PDL-ER-29…41 из
+> `docs/tnp/cases/guest-specification/product-decisions.md`: PDF всегда задаёт
+> specification semantics/formulas, XLSX-only rule не переносится автоматически,
+> а один canonical full mode заменяет пользовательский выбор basic/full.
+
+| Старый вопрос | Статус после PDL | Каноническое решение / остаточный data gap |
+|---|---|---|
+| Б-1 | Data-blocked | PDL-ER-15/18/28: настоящее `Nсек` приходит только из доказанного section contract, не из `num_circuits`. |
+| Б-2 | Contract resolved, data required | PDL-ER-33: temperature group — explicit catalog field, prefix inference запрещён. |
+| Б-3 | Resolved | PDL-ER-08: ровно `57 мм` относится к `dтр ≥ 57`. |
+| Б-4 | Resolved for Phase 5 semantics | PDL-ER-34: применяется row-driven алгоритм PDF; legacy priority `K2i > K1i` не является oracle. |
+| Б-5 | Resolved as partial | PDL-ER-32: pipe accessories не применяются к tank; только доказанные позиции, остальное diagnostic partial. |
+| Б-6 | Resolved | PDL-ER-02/29/34: один full mode, кабель BOM использует PDF order length; basic не product fallback. |
+| Б-7 | Contract resolved, data required | PDL-ER-33: exact mark/code только из каталога, суффикс не синтезируется. |
+| Б-8 | Resolved source priority | PDL-ER-34: PDF formula сильнее старого `L×Rгр`; XLSX-only поведение не наследуется. |
+| Б-9 | Not approved for Phase 5 | Формула этикетки XLSX-only; по PDL-ER-34 она исключается до отдельного source mapping/PDL. |
+| Б-10 | Resolved scope | PDL-ER-04/29: automatic BOM следует PDF; manual rows остаются employee/admin-only. |
+| В-1 | Data-blocked | XLSX cable-entry baskets не становятся Phase 5 rule автоматически; нужен отдельный утверждённый mapping PDL-ER-34. |
+| В-2/В-3 | Data-blocked | PDL-ER-33 требует explicit catalog identity/code; row order и одна только марка недостаточны. |
+| В-4 | Resolved | PDL-ER-31: `Rгр` — отдельный project default `1.0`, применяется только explicit rules и не заменяет 10% order reserve. |
+
+Отдельно PDF упоминает `Ex/Rгр` conditions коробок, но не даёт per-row values.
+PDL-ER-35 запрещает считать пропуск как `не используется` или молча брать
+старый XLSX: затронутые позиции остаются data-blocked до официальной матрицы.
+
 ---
 
 ## 1. Нужно бизнес-решение заказчика

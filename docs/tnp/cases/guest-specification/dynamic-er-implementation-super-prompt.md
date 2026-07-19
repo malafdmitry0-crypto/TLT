@@ -138,8 +138,8 @@ SHA-256: 5bf9a5f12f1ea609e7889f12dbbf4dbc24be8653258ea0e65f3d691d19fc978d
 
 Product Decision Log зафиксирован в
 `docs/tnp/cases/guest-specification/product-decisions.md`. PDL-ER-01…17
-получены от пользователя 18.07.2026; они не
-являются открытыми gates:
+получены от пользователя 18.07.2026, PDL-ER-18…41 дополнены 18–19.07.2026;
+они не являются открытыми gates:
 
 | ID | Утверждённый контракт |
 |---|---|
@@ -169,19 +169,34 @@ Product Decision Log зафиксирован в
 | PDL-ER-24 | `Lогр` округляется вниз только по правилу официального источника; отсутствие правила блокирует расчёт. |
 | PDL-ER-25 | Новый section contract Phase 4 применяется только к саморегулирующемуся кабелю. |
 | PDL-ER-26 | Guest project временно хранится в PostgreSQL 3 дня с последней активности, изолирован по session и автоматически удаляется после TTL. |
-| PDL-ER-27 | Целевой предел — 500 объектов на проект; переход с 50 разрешён только после performance gate полного flow. |
+| PDL-ER-27 | Целевой предел — 500 объектов и 5 ЭР; переход с 50 разрешён только после performance gate полного flow и PDF-порогов 30 секунд. |
 | PDL-ER-28 | Phase 4 требует фактический официальный каталог/«Таблицу Виктора»; имеющиеся неполные PDF/XLSX не заменяют numeric artifact. |
+| PDL-ER-29 | Один канонический автоматический full data-driven BOM; `basic` — только переходный internal path до удаления в Phase 6. |
+| PDL-ER-30 | Интерактивный UI поддерживается от 1280 px; mobile не входит в Phase 5, browser print остаётся адаптивным. |
+| PDL-ER-31 | `Rгр` — отдельный project setting/default `1.0`, не 10% order reserve и не глобальный множитель BOM. |
+| PDL-ER-32 | Tank/resistive получают только доказанные BOM-позиции; недоказанные группы дают подтверждаемый `partial`, без подмены pipe/self-reg формулами. |
+| PDL-ER-33 | Mark/code/temperature group/default берутся из явных catalog fields; prefix/suffix/row-order inference запрещён. |
+| PDL-ER-34 | PDF всегда задаёт specification semantics/formulas; XLSX-only формула не переносится без отдельного утверждённого контракта. |
+| PDL-ER-35 | Условия коробок `Ex/Rгр` требуют официальной per-row матрицы; до неё зависимые позиции fail closed. |
+| PDL-ER-36 | Multi-ЭР partial: один side-effect-free preflight, одно окно с per-ЭР exclusions и одна атомарная transaction после подтверждения. |
+| PDL-ER-37 | Stale snapshot только read-only с явной пометкой; он исключён из totals/print/report/exports. |
+| PDL-ER-38 | Default grouping: `Трубопроводы / Ёмкости / Общие материалы`; merge опционален по catalog base + code. |
+| PDL-ER-39 | Один report по явному списку UUID ЭР с независимыми главами/specifications и без cross-ЭР sums. |
+| PDL-ER-40 | Финальный corporate template не блокирует Phase 5 functional HTML preview/browser print и остаётся отдельным report brief. |
+| PDL-ER-41 | Export только v3; v2 import-only. Missing/mismatched source делает imported result stale/unsupported; guest manual BOM rows атомарно отклоняются. |
 
 Эти решения сильнее расходящихся legacy SRS, текущего кода и старых golden.
 Golden values можно менять только с прямой ссылкой на соответствующий PDL,
-формулу/каталог и независимый oracle. Не возвращай PDL-ER-01…28 в статус
+формулу/каталог и независимый oracle. Не возвращай PDL-ER-01…41 в статус
 «нужно решение» без нового явного указания пользователя.
 
 PDL-ER-09…17 явно утверждены пользователем 18.07.2026 как варианты А;
 PDL-ER-18…25 — 18.07.2026 также как варианты А; PDL-ER-26…28 — 19.07.2026
-как варианты А. Продуктовые вопросы guest persistence/TTL и лимита 500 закрыты,
-но их реализация остаётся pending. Фактический numeric artifact PDL-ER-15/18/28
-по-прежнему должен быть предоставлен и не может быть заменён предположениями.
+как варианты А; PDL-ER-29…41 — 19.07.2026 как варианты А для Phase 5.
+Продуктовые вопросы guest persistence/TTL, лимита 500 и Phase 5 contract
+закрыты, но их реализация остаётся pending. Фактический numeric artifact
+PDL-ER-15/18/28, per-row `Ex/Rгр` data PDL-ER-35 и недостающие методики из
+PDL-ER-32 должны быть предоставлены и не могут быть заменены предположениями.
 
 ### 6. Зафиксированный целевой контракт ЭР
 
@@ -525,8 +540,16 @@ variant_key;...spec fields...
 - `variant_key` стабилен внутри файла и не зависит от display name;
 - экспорт v3 содержит имена, порядок, active, assignments, calculations,
   sections, specifications и generation settings;
+- после Phase 5 export создаётся только в v3; v2 export запрещён
+  (PDL-ER-41);
 - импорт v3 восстанавливает полный graph и новые UUID;
-- импорт v2 поддерживается как legacy: numbers 1…4 превращаются в ЭР1…ЭР4;
+- импорт v2 поддерживается только как legacy input adapter: numbers 1…4
+  превращаются в ЭР1…ЭР4; его удаление требует отдельного решения;
+- guest import с manual BOM rows атомарно отклоняется и не обходит manual-write
+  RBAC;
+- если formula/catalog source version отсутствует или не совпадает, inputs и
+  graph можно восстановить, но calculations/sections/specifications становятся
+  `stale`/`unsupported`, а не актуальными;
 - повреждённая ссылка variant/object делает весь single-project import
   атомарно неуспешным;
 - текущий проект не удаляется до полной проверки файла;
@@ -680,8 +703,9 @@ constraint по `(project_id, electrical_variant_id)`.
 - rename не требует переписывать specification row;
 - change одного ЭР делает stale только его specification;
 - error/stale/unsupported/unassigned объекты не входят в успешные суммы;
-- partial generation требует явного подтверждения и возвращает список/count
-  исключённых объектов;
+- multi-ЭР partial использует side-effect-free preflight, одно окно с
+  per-ЭР списком/count исключений и одну атомарную transaction после явного
+  подтверждения (PDL-ER-36);
 - нельзя генерировать accessory-only «успешную» specification при нуле
   успешных electrical results;
 - manual items не теряются по действующему контракту, но не маскируют stale
@@ -691,8 +715,9 @@ constraint по `(project_id, electrical_variant_id)`.
   (PDL-ER-01); `Выбрать все` разворачивается в явный список текущих UUID;
 - никакой фоновой/неявной генерации всех ЭР при открытии страницы или изменении
   settings;
-- full data-driven BOM доступен guest (PDL-ER-04), но manual add/edit/delete
-  items остаются backend-protected для employee/admin;
+- full data-driven BOM является единственным целевым product mode и доступен
+  guest (PDL-ER-04/29); `basic` не является fallback при ошибке, а manual
+  add/edit/delete items остаются backend-protected для employee/admin;
 - cable procurement quantity берётся из заказной длины с резервом 10% и
   коммерческим округлением (PDL-ER-02); `Lсек × Nсек` показывается и хранится
   отдельно как фактическая инженерная длина;
@@ -701,13 +726,32 @@ constraint по `(project_id, electrical_variant_id)`.
 - изменение defaults не регенерирует все ЭР автоматически; specs с отличающимся
   snapshot помечаются stale, а новые defaults применяются только к явно
   выбранным при следующей generation ЭР;
+- `Rгр` хранится отдельно с default `1.0`, применяется только явно связанными
+  catalog/formula rules и не заменяет procurement reserve 10% (PDL-ER-31);
+- для tank/resistive включаются только доказанные позиции; недоказанные группы
+  возвращаются как подтверждённый `partial`, без pipe/self-reg substitution
+  (PDL-ER-32);
+- catalog mark/code/temperature group/default читаются только из explicit
+  fields; prefix/suffix/row-order inference запрещён (PDL-ER-33);
+- PDF задаёт все specification semantics/formulas; XLSX-only rule не переносится
+  без отдельного source mapping/PDL (PDL-ER-34);
+- зависимые от `Ex/Rгр` коробки fail closed до официальной per-row матрицы
+  (PDL-ER-35);
+- stale snapshot доступен только read-only с явной красной пометкой и исключён
+  из totals, browser print, report и server exports (PDL-ER-37);
+- default grouping — `Трубопроводы / Ёмкости / Общие материалы`; merge
+  опционален только после отдельного расчёта типов и по совпадающим catalog
+  base + nomenclature code (PDL-ER-38);
 - правило коробок использует `dтр ≥ 57 мм` (PDL-ER-08), включая ровно 57 мм.
 
-Report preview/jobs должны принимать UUID ЭР, показывать его имя и не брать
-selected значение из localStorage. Guest получает HTML preview и доступное
+Report preview/jobs принимают явный список UUID ЭР, показывают их имена и не
+берут selected значение из localStorage. Один report содержит независимые
+главы/specifications выбранных ЭР; cross-ЭР sums запрещены, diagnostics
+показываются отдельно (PDL-ER-39). Guest получает HTML preview и доступное
 действие browser print с корректным print CSS (PDL-ER-05). Server exports
-PDF/DOCX/XLSX остаются backend-protected для employee/admin. Данные разных ЭР
-не смешиваются.
+PDF/DOCX/XLSX остаются backend-protected для employee/admin. Отсутствие
+финального corporate template не блокирует functional Phase 5, но текущий
+шаблон не объявляется финальным (PDL-ER-40).
 
 ### 13. Аудит, безопасность и конкурентность
 
@@ -793,11 +837,19 @@ baseline после каждого.
 
 - UUID scope everywhere;
 - явный multi-select ЭР + `Выбрать все`;
-- full guest BOM, order-length procurement и settings snapshots;
-- guest HTML preview/browser print и employee/admin server exports;
+- один canonical full guest BOM, order-length procurement и settings snapshots;
+- подтверждаемый partial только для доказанных tank/resistive позиций;
+- PDF-first formula contract; XLSX-only rules не наследуются автоматически;
+- fail-closed `Ex/Rгр` boxes до официальной per-row матрицы;
+- preflight + одно confirmation + atomic multi-ЭР generation;
+- stale read-only, но запрещён в totals/print/report/export;
+- default split grouping с optional catalog-code merge;
+- multi-ЭР report с независимыми главами;
+- guest HTML preview/browser print и employee/admin server exports; corporate
+  template остаётся отдельным acceptance scope;
 - `pipe/tank` taxonomy и `barrel -> tank` normalization;
 - inclusive `dтр ≥ 57 мм` boundary;
-- CSV v3 + v2 migration;
+- CSV v3-only export + v2 import-only migration;
 - guest persistence: PostgreSQL, sliding TTL 3 дня, cleanup и session isolation;
 - подготовка к 500 объектам без снятия rollout guard до performance gate;
 - no-mixing and round-trip tests.
@@ -864,6 +916,9 @@ in-scope gate.
 - фактическая и заказная длина хранятся раздельно;
 - заказная длина включает ровно утверждённый резерв 10% и коммерческое
   округление.
+- `Rгр` не заменяет 10% order reserve и влияет только на explicit rules;
+- XLSX-only formula не становится oracle без отдельного PDL/source contract;
+- отсутствующие `Ex/Rгр` row values дают structured data error.
 
 #### Frontend
 
@@ -887,16 +942,24 @@ in-scope gate.
 
 - v2 -> v3 import mapping;
 - v3 round trip с 5 ЭР, custom names, assignments, sections и specs;
+- export после migration не создаёт v2;
+- guest manual BOM rows отклоняются атомарно;
+- missing/mismatched source version восстанавливает inputs, но stale-ит
+  calculation/sections/specification;
 - corrupted variant_key не стирает текущий проект;
 - multi-project partial success только per project;
 - spec одного ЭР не содержит позиции другого;
-- report одного ЭР не содержит расчёты другого;
+- один multi-ЭР report содержит отдельные главы и не смешивает расчёты/итоги;
 - rename отражается без дублирования данных;
 - selected/active semantics соответствуют утверждённому contract;
 - multi-select генерирует только явно переданные ЭР, `Выбрать все` передаёт
   явный полный список;
 - guest full generation разрешена, manual item write запрещён;
 - guest preview и browser print доступны, server exports дают 403;
+- stale snapshot виден read-only, но не попадает в print/report/export;
+- default split grouping и optional merge сохраняются в settings snapshot;
+- tank/resistive partial показывает недоказанные группы и не создаёт
+  approximate accessories;
 - `Бочка` round trip нормализуется в `tank` без третьего object type;
 - settings snapshot воспроизводит результат после изменения defaults;
 - коробка на границе `56.999 / 57 / 57.001 мм` выбирается по `dтр ≥ 57`.
@@ -917,12 +980,14 @@ in-scope gate.
 10. Перезагрузить страницу и проверить names/selected/active/data.
 11. Выбрать конкретные ЭР, затем проверить multi-select и явное `Выбрать все`.
 12. Сформировать full guest specification и доказать order-length quantity.
-13. Проверить payload, persistence, HTML preview/browser print и отсутствие
-    смешения ЭР; server export для guest должен остаться запрещён.
+13. Проверить payload, persistence, multi-ЭР chapters, HTML preview/browser
+    print и отсутствие смешения ЭР; server export для guest должен остаться
+    запрещён.
 14. Изменить project defaults и доказать snapshot/stale behavior без
     автоматической регенерации всех ЭР.
 15. Изменить heat input одного объекта и проверить stale per ЭР.
-16. Export v3, импортировать, проверить полный round trip и `barrel -> tank`.
+16. Export v3, импортировать, проверить полный round trip, source-version stale,
+    guest manual-row rejection и `barrel -> tank`; v2 export отсутствует.
 17. Запустить `db-invariants` после сценария.
 
 ### 16. UI proof
@@ -931,7 +996,9 @@ in-scope gate.
 программная проверка минимум на:
 
 - desktop `1440×1000`;
-- mobile `390×844`, если mobile остаётся поддерживаемым;
+- boundary `1280 px` без clipping/overflow/overlap;
+- viewport ниже `1280 px` показывает явное unsupported-width предупреждение;
+- print preview проверяется отдельно на узком листе/viewport;
 - длинные русские имена ЭР;
 - 1 и 5 вкладок;
 - inline rename;
@@ -1020,7 +1087,7 @@ variant=99
 - before/after UI screenshots и verifier зелёные;
 - Playwright flow и последующий `db-invariants` зелёные;
 - docs, API, SRS, QA и formula contracts обновлены;
-- PDL-ER-01…28 реализованы без скрытых альтернативных semantics;
+- PDL-ER-01…41 реализованы без скрытых альтернативных semantics;
 - никакие assertions/golden values не ослаблены без источника новой правды;
 - все in-scope failures исправлены либо итог честно помечен blocked/fail.
 
@@ -1028,7 +1095,7 @@ variant=99
 
 Остановись и запроси решение, если:
 
-- обнаружена новая необходимая семантика вне PDL-ER-01…28 и действующих
+- обнаружена новая необходимая семантика вне PDL-ER-01…41 и действующих
   контрактов; уже утверждённые решения не переоткрывать молча;
 - миграция может потерять или неверно связать существующие данные;
 - невозможно однозначно отличить `num_circuits` от `Nсек`;
@@ -1080,7 +1147,7 @@ Residual risk: ...
 1. подтверждение локального `main`, отсутствие самовольного remote/worktree и
    текущий dirty-state;
 2. подтверждённый source-of-truth;
-3. подтверждение применения PDL-ER-01…28 и список только новых blockers;
+3. подтверждение применения PDL-ER-01…41 и список только новых blockers;
 4. точная текущая цепочка
    `DB -> backend API -> frontend store/pages -> spec/report/CSV -> tests`;
 5. предлагаемая схема таблиц и API;

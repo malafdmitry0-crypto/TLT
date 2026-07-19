@@ -99,8 +99,11 @@ assignments проверены root backend/browser/DB gate. Schema head Phase 3
 6 files / 95 tests PASS; full frontend — 1052 passed / 1 pre-existing failed,
 то есть не green только из-за
 missing accessible separator test. Dependency security gate и общий Alembic metadata drift также
-не green вне dynamic-ER diff. Phase 5 pending, Phase 4 заблокирована
+не green вне dynamic-ER diff. Phase 5 имеет partial checkpoint, но
+PDL-ER-29…41 ещё не верифицированы; Phase 4 заблокирована
 PDL-ER-15/18/28 до официального числового section-каталога;
 семантика обработки данных утверждена PDL-ER-18…25, guest TTL и целевой лимит
-500 объектов — PDL-ER-26/27. Общий PDF/DoD и product
-release не завершены.
+500 объектов — PDL-ER-26/27. Product contract Phase 5 утверждён
+PDL-ER-29…41: canonical full BOM, PDF-first formulas, partial/stale/grouping,
+multi-ЭР report, desktop width и CSV v3 trust boundary. Реализация Phase 5,
+общий PDF/DoD и product release не завершены.

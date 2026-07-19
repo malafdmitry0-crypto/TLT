@@ -167,6 +167,15 @@ server-side хранения/TTL дополнительно закрыт PDL-ER-
 лимит 500 закреплён PDL-ER-27, но требует performance evidence до изменения
 runtime guard.
 
+Дополнение 19.07.2026 по Phase 5: PDL-ER-29…41 фиксируют один canonical full
+data-driven BOM, desktop contract от 1280 px, отдельную семантику `Rгр`,
+partial для недоказанных tank/resistive accessories, explicit catalog identity,
+безусловный приоритет PDF над XLSX-only формулами, fail-closed коробки без
+официальных `Ex/Rгр`, единый preflight/confirmation для multi-ЭР, read-only
+stale без output, split grouping по умолчанию, multi-ЭР report и v3-only export
+с v2 import adapter. Финальный corporate template вынесен из functional
+acceptance Phase 5.
+
 Дополнение 18–19.07.2026: PDL-ER-18…25 закрывают семантику section data contract
 (официальный источник ТЛТ, explicit `Iдоп`, direct `Iст.уд`, temperature/voltage
 scope, source-defined rounding, fail-closed и self-reg-only). Фактический
@@ -178,6 +187,9 @@ scope, source-defined rounding, fail-closed и self-reg-only). Фактичес�
 Документ полезен как целевое описание новой модели ЭР и BOM, но в текущем виде
 сам по себе не является полностью однозначной спецификацией. PDL-ER-01…08
 разрешают конфликты 01–05 и 07–08 для будущей реализации, а PDL-ER-26 разрешает
-конфликт 06. Открытым внешним deliverable остаётся фактический официальный
-numeric artifact PDL-ER-28; соответствующие golden-тесты менять нельзя до его
-регистрации в formula/data contract.
+конфликт 06. PDL-ER-29…41 закрывают продуктовые развилки Phase 5, но не создают
+отсутствующие инженерные данные. Открытыми внешними deliverables остаются
+фактический официальный numeric artifact PDL-ER-28, per-row `Ex/Rгр` matrix
+PDL-ER-35 и отдельные accessory methods, если требуется результат шире
+partial-контракта PDL-ER-32. Соответствующие golden-тесты нельзя менять до
+регистрации источника в formula/data contract.
