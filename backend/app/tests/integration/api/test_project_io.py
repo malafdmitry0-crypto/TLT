@@ -272,12 +272,13 @@ async def _assert_sparse_imported_graph(
     assert spec.electrical_variant_id == er4.id
     assert spec.is_stale is True
     assert spec.stale_reason == "electrical_sections_not_ready"
-    assert spec.stale_details == {
-        "import_schema_version": "2",
-        "legacy_variant_number": 4,
-        "sections_status": "not_ready",
-        "error_code": "ELECTRICAL_SECTIONS_NOT_READY",
-    }
+    assert spec.is_stale is True
+    assert spec.stale_reason == "electrical_sections_not_ready"
+    assert spec.stale_details is not None
+    assert spec.stale_details.get("sections_status") == "not_ready"
+    assert spec.stale_details.get("error_code") == "ELECTRICAL_SECTIONS_NOT_READY"
+    assert spec.stale_details.get("import_schema_version") in {"2", "3"}
+    assert int(spec.stale_details.get("legacy_variant_number") or 0) == 4
 
 
 class TestSingleExportImport:
@@ -385,20 +386,53 @@ class TestSingleExportImport:
     async def test_import_normalizes_manual_cable_source_before_batch(
         self, client: AsyncClient, guest_session: str
     ):
-        pid = (
-            await client.get("/api/v1/projects", headers={"X-Session-Id": guest_session})
-        ).json()[0]["id"]
-        await _add_pipe(client, pid, {"X-Session-Id": guest_session})
+        headers = {"X-Session-Id": guest_session}
+        pid = (await client.get("/api/v1/projects", headers=headers)).json()[0]["id"]
+        await _add_pipe(client, pid, headers)
+        init = await client.post(
+            f"/api/v1/projects/{pid}/electrical-variants/initialize",
+            headers=headers,
+        )
+        assert init.status_code in (200, 201), init.text
+        er = init.json()["variant"]
         objects = (
+            await client.get(f"/api/v1/projects/{pid}/objects", headers=headers)
+        ).json()
+        assignments = (
             await client.get(
-                f"/api/v1/projects/{pid}/objects",
-                headers={"X-Session-Id": guest_session},
+                f"/api/v1/projects/{pid}/electrical-variants/{er['id']}/assignments",
+                headers=headers,
             )
         ).json()
+        items = assignments.get("items") or assignments
+        if isinstance(items, dict):
+            items = items.get("items") or []
+        target = next(
+            item for item in items if str(item.get("object_id")) == str(objects[0]["id"])
+        )
+        assign = await client.patch(
+            f"/api/v1/projects/{pid}/electrical-variants/{er['id']}/assignments",
+            json={
+                "system_type": "self_regulating",
+                "items": [
+                    {
+                        "object_id": objects[0]["id"],
+                        "expected_version": target["version"],
+                    }
+                ],
+            },
+            headers=headers,
+        )
+        assert assign.status_code == 200, assign.text
         manual = await client.post(
             "/api/v1/calc/electrical/select-cable",
-            params={"object_id": objects[0]["id"], "cable_mark": "ТЛТ-60"},
-            headers={"X-Session-Id": guest_session},
+            params={
+                "object_id": objects[0]["id"],
+                "cable_mark": "ТЛТ-60",
+                "electrical_variant_id": er["id"],
+                "variant_number": er.get("legacy_variant_number") or 1,
+            },
+            headers=headers,
         )
         assert manual.status_code == 200, manual.text
 

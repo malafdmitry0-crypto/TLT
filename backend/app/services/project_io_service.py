@@ -1,9 +1,11 @@
 """Экспорт / импорт проектов в CSV.
 
-Формат: «секционный CSV» с маркерами `[SECTION];<имя>`. В одном файле живут:
-metadata, objects, electrical, specifications. Для пакетного импорта/экспорта
-добавляется секция `projects` с `project_key`, который связывает записи
-между секциями.
+Формат: «секционный CSV» с маркерами `[SECTION];<имя>`.
+
+Export schema_version=3: metadata, objects, electrical_variants,
+electrical_assignments, electrical, specifications. Import accepts v2 (legacy
+variant_number slots) and v3 (named UUID-keyed ЭР). Для пакетного
+импорта/экспорта добавляется секция `projects` с `project_key`.
 
 Автоопределение разделителя (`;`, `,`, таб) — через `csv.Sniffer`.
 Кодировки: UTF-8, UTF-8 BOM, CP1251.
@@ -39,12 +41,39 @@ from app.services.spreadsheet_safety import safe_spreadsheet_cell
 
 logger = logging.getLogger("heatcalc.project_io")
 
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"  # export always writes the current contract
+LEGACY_SCHEMA_VERSION = "2"
+SUPPORTED_SCHEMA_VERSIONS = {LEGACY_SCHEMA_VERSION, SCHEMA_VERSION}
 DELIMITER = ";"  # экспорт всегда `;`; импорт определяет сам
 VALID_CABLE_TYPE_SOURCES = {"auto", "manual", "bulk"}
 VALID_CABLE_MARK_SOURCES = {"auto", "manual"}
 LEGACY_VARIANT_NUMBERS = range(1, 5)
 SECTIONS_NOT_READY_CODE = "ELECTRICAL_SECTIONS_NOT_READY"
+VALID_ASSIGNMENT_SYSTEM_TYPES = {
+    "self_regulating",
+    "resistive",
+    "skin",
+    "mineral",
+}
+VALID_ASSIGNMENT_STATES = {
+    "unassigned",
+    "ready",
+    "unsupported",
+    "stale",
+    "error",
+}
+# PDL-ER-06: barrel is a tank synonym, not a third backend object type.
+OBJECT_TYPE_ALIASES = {
+    "pipe": "pipe",
+    "трубопровод": "pipe",
+    "труба": "pipe",
+    "tank": "tank",
+    "ёмкость": "tank",
+    "емкость": "tank",
+    "резервуар": "tank",
+    "бочка": "tank",
+    "barrel": "tank",
+}
 
 
 class ProjectImportError(Exception):
@@ -74,11 +103,18 @@ def _dump_project_to_writer(
     objects: list[ProjectObject],
     electrical: list[ElectricalCalculation],
     specifications: list[Specification],
+    *,
+    variants: list[ElectricalVariant] | None = None,
+    assignments: list[ElectricalVariantObject] | None = None,
     project_key: str | None = None,
 ) -> None:
-    """Записывает секции одного проекта. Если `project_key` задан — добавляет
-    его в каждую строку (для пакетного экспорта)."""
+    """Записывает секции одного проекта (schema v3).
+
+    Если `project_key` задан — добавляет его в каждую строку (пакетный экспорт).
+    """
     prefix = [project_key] if project_key is not None else []
+    variants = list(variants or [])
+    assignments = list(assignments or [])
 
     if project_key is None:
         # одиночный экспорт — metadata в отдельной секции
@@ -127,11 +163,78 @@ def _dump_project_to_writer(
         _write_row(w, prefix + row)
     _write_row(w, [])
 
+    # Map ER UUID -> stable in-file variant_key (prefer UUID string).
+    variant_key_by_id: dict[UUID, str] = {}
+    for variant in sorted(variants, key=lambda item: (item.sort_order, str(item.id))):
+        variant_key_by_id[variant.id] = str(variant.id)
+
+    if variants:
+        _write_section(w, "electrical_variants")
+        header = [
+            "variant_key",
+            "name",
+            "sort_order",
+            "is_active",
+            "copied_from_key",
+            "legacy_variant_number",
+        ]
+        if project_key is not None:
+            header = ["project_key", *header]
+        _write_row(w, header)
+        for variant in sorted(variants, key=lambda item: (item.sort_order, str(item.id))):
+            copied_from_key = ""
+            if variant.copied_from_id is not None:
+                copied_from_key = variant_key_by_id.get(
+                    variant.copied_from_id, str(variant.copied_from_id)
+                )
+            row = [
+                variant_key_by_id[variant.id],
+                variant.name,
+                variant.sort_order,
+                "true" if variant.is_active else "false",
+                copied_from_key,
+                "" if variant.legacy_variant_number is None else variant.legacy_variant_number,
+            ]
+            _write_row(w, prefix + row)
+        _write_row(w, [])
+
+    if assignments:
+        _write_section(w, "electrical_assignments")
+        header = [
+            "variant_key",
+            "object_key",
+            "system_type",
+            "assignment_state",
+            "requested_cable_type",
+        ]
+        if project_key is not None:
+            header = ["project_key", *header]
+        _write_row(w, header)
+        for assignment in sorted(
+            assignments,
+            key=lambda item: (
+                variant_key_by_id.get(item.electrical_variant_id, str(item.electrical_variant_id)),
+                obj_key_by_id.get(item.object_id, str(item.object_id)),
+            ),
+        ):
+            row = [
+                variant_key_by_id.get(
+                    assignment.electrical_variant_id, str(assignment.electrical_variant_id)
+                ),
+                obj_key_by_id.get(assignment.object_id, str(assignment.object_id)),
+                assignment.system_type or "",
+                assignment.assignment_state,
+                assignment.requested_cable_type or "",
+            ]
+            _write_row(w, prefix + row)
+        _write_row(w, [])
+
     if electrical:
         _write_section(w, "electrical")
         header = [
+            "variant_key",
             "object_key",
-            "variant_number",
+            "legacy_variant_number",
             "cable_type",
             "cable_type_source",
             "cable_mark",
@@ -144,9 +247,17 @@ def _dump_project_to_writer(
             header = ["project_key", *header]
         _write_row(w, header)
         for calc in electrical:
+            variant_key = ""
+            calc_er_id = getattr(calc, "electrical_variant_id", None)
+            if calc_er_id is not None:
+                variant_key = variant_key_by_id.get(calc_er_id, str(calc_er_id))
+            elif getattr(calc, "variant_number", None) is not None:
+                # Expand-window rows without UUID: synthesize key from legacy slot.
+                variant_key = f"legacy-{calc.variant_number}"
             row = [
+                variant_key,
                 obj_key_by_id.get(calc.object_id, str(calc.object_id)),
-                calc.variant_number,
+                getattr(calc, "variant_number", ""),
                 calc.cable_type,
                 calc.cable_type_source,
                 calc.cable_mark or "",
@@ -162,12 +273,34 @@ def _dump_project_to_writer(
 
     if specifications:
         _write_section(w, "specifications")
-        header = ["variant_number", "items"]
+        header = [
+            "variant_key",
+            "legacy_variant_number",
+            "items",
+            "generation_mode",
+            "generation_options",
+            "is_stale",
+        ]
         if project_key is not None:
             header = ["project_key", *header]
         _write_row(w, header)
         for spec in specifications:
-            row = [spec.variant_number, json.dumps(spec.items or [], ensure_ascii=False)]
+            variant_key = ""
+            spec_er_id = getattr(spec, "electrical_variant_id", None)
+            if spec_er_id is not None:
+                variant_key = variant_key_by_id.get(spec_er_id, str(spec_er_id))
+            elif getattr(spec, "variant_number", None) is not None:
+                variant_key = f"legacy-{spec.variant_number}"
+            row = [
+                variant_key,
+                getattr(spec, "variant_number", ""),
+                json.dumps(spec.items or [], ensure_ascii=False),
+                getattr(spec, "generation_mode", None) or "",
+                json.dumps(getattr(spec, "generation_options", None), ensure_ascii=False)
+                if getattr(spec, "generation_options", None) is not None
+                else "",
+                "true" if getattr(spec, "is_stale", False) else "false",
+            ]
             _write_row(w, prefix + row)
         _write_row(w, [])
 
@@ -200,10 +333,36 @@ async def export_project(
             await db.execute(select(Specification).where(Specification.project_id == project.id))
         ).scalars()
     )
+    variants = list(
+        (
+            await db.execute(
+                select(ElectricalVariant)
+                .where(ElectricalVariant.project_id == project.id)
+                .order_by(ElectricalVariant.sort_order, ElectricalVariant.id)
+            )
+        ).scalars()
+    )
+    assignments = list(
+        (
+            await db.execute(
+                select(ElectricalVariantObject).where(
+                    ElectricalVariantObject.project_id == project.id
+                )
+            )
+        ).scalars()
+    )
 
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=DELIMITER, quoting=csv.QUOTE_MINIMAL)
-    _dump_project_to_writer(w, project, objects, electrical, specs)
+    _dump_project_to_writer(
+        w,
+        project,
+        objects,
+        electrical,
+        specs,
+        variants=variants,
+        assignments=assignments,
+    )
     filename = _suggest_filename(project.task_number, project.name)
     # UTF-8 BOM — чтобы Excel-ru открывал без «крокозябров»
     payload = ("\ufeff" + buf.getvalue()).encode("utf-8")
@@ -254,6 +413,8 @@ async def export_projects_bulk(
     objects_by_project: dict[UUID, list[ProjectObject]] = defaultdict(list)
     electrical_by_project: dict[UUID, list[ElectricalCalculation]] = defaultdict(list)
     specs_by_project: dict[UUID, list[Specification]] = defaultdict(list)
+    variants_by_project: dict[UUID, list[ElectricalVariant]] = defaultdict(list)
+    assignments_by_project: dict[UUID, list[ElectricalVariantObject]] = defaultdict(list)
 
     if unique_project_ids:
         objects_result = await db.execute(
@@ -284,6 +445,26 @@ async def export_projects_bulk(
         for spec in specs_result.scalars():
             specs_by_project[spec.project_id].append(spec)
 
+        variants_result = await db.execute(
+            select(ElectricalVariant)
+            .where(ElectricalVariant.project_id.in_(unique_project_ids))
+            .order_by(
+                ElectricalVariant.project_id,
+                ElectricalVariant.sort_order,
+                ElectricalVariant.id,
+            )
+        )
+        for variant in variants_result.scalars():
+            variants_by_project[variant.project_id].append(variant)
+
+        assignments_result = await db.execute(
+            select(ElectricalVariantObject).where(
+                ElectricalVariantObject.project_id.in_(unique_project_ids)
+            )
+        )
+        for assignment in assignments_result.scalars():
+            assignments_by_project[assignment.project_id].append(assignment)
+
     for key, project in projects:
         _dump_project_to_writer(
             w,
@@ -291,6 +472,8 @@ async def export_projects_bulk(
             objects_by_project[project.id],
             electrical_by_project[project.id],
             specs_by_project[project.id],
+            variants=variants_by_project[project.id],
+            assignments=assignments_by_project[project.id],
             project_key=key,
         )
 
@@ -375,14 +558,30 @@ def _section_key_values(sections: dict[str, list[list[str]]], name: str) -> dict
     return {r["key"]: r["value"] for r in rows if "key" in r}
 
 
-def _require_schema_version(sections: dict[str, list[list[str]]], name: str) -> None:
+def _require_schema_version(sections: dict[str, list[list[str]]], name: str) -> str:
+    """Validate and return schema_version. Export is v3; import accepts v2 and v3."""
     meta = _section_key_values(sections, name)
     version = (meta.get("schema_version") or "").strip()
-    if version != SCHEMA_VERSION:
+    if version not in SUPPORTED_SCHEMA_VERSIONS:
         raise ProjectImportError(
             f"Неподдерживаемая версия CSV-схемы: {version or 'не указана'}. "
-            f"Ожидается schema_version={SCHEMA_VERSION}."
+            f"Ожидается schema_version in {sorted(SUPPORTED_SCHEMA_VERSIONS)}."
         )
+    return version
+
+
+def _normalize_object_type(raw: str) -> str:
+    """PDL-ER-06: map barrel/бочка synonyms to tank; pipes stay pipe."""
+    key = (raw or "").strip().casefold()
+    if not key:
+        return "pipe"
+    mapped = OBJECT_TYPE_ALIASES.get(key)
+    if mapped is None:
+        raise ProjectImportError(
+            f"Неподдерживаемый тип объекта {raw!r}. "
+            "Допустимы: pipe/трубопровод, tank/ёмкость/бочка."
+        )
+    return mapped
 
 
 def _parse_json_or_empty(raw: str, default: Any) -> Any:
@@ -484,13 +683,15 @@ class _ImportedElectricalRow:
 
 
 def _assignment_diagnostics(
-    variant_number: int,
+    variant_number: int | None,
     imported: _ImportedElectricalRow | None,
+    *,
+    import_schema_version: str = LEGACY_SCHEMA_VERSION,
 ) -> dict[str, Any]:
     results = imported.results if imported is not None else None
     result = results or {}
     values = {
-        "import_schema_version": SCHEMA_VERSION,
+        "import_schema_version": import_schema_version,
         "legacy_variant_number": variant_number,
         "legacy_cable_type": imported.cable_type if imported is not None else None,
         "legacy_result_category": result.get("category"),
@@ -562,7 +763,7 @@ async def _apply_project_data(
             )
         obj = ProjectObject(
             project_id=project.id,
-            object_type=row.get("type", "").strip() or "pipe",
+            object_type=_normalize_object_type(row.get("type", "")),
             sort_order=int(row.get("sort_order", idx) or idx),
             params=params,
             results=_parse_json_or_empty(row.get("results", ""), None),
@@ -676,7 +877,7 @@ async def _apply_project_data(
             stale_reason="electrical_sections_not_ready",
             stale_at=datetime.now(UTC),
             stale_details={
-                "import_schema_version": SCHEMA_VERSION,
+                "import_schema_version": LEGACY_SCHEMA_VERSION,
                 "legacy_variant_number": variant_number,
                 "sections_status": "not_ready",
                 "error_code": SECTIONS_NOT_READY_CODE,
@@ -685,10 +886,308 @@ async def _apply_project_data(
         db.add(spec)
 
 
+
+async def _create_imported_variants_v3(
+    db: AsyncSession,
+    project: Project,
+    variant_rows: list[dict[str, str]],
+) -> dict[str, ElectricalVariant]:
+    """Create named ЭР from v3 electrical_variants section."""
+    if not variant_rows:
+        return {}
+    if len(variant_rows) > 5:
+        raise ProjectImportError("В секции electrical_variants больше 5 ЭР")
+
+    variants_by_key: dict[str, ElectricalVariant] = {}
+    seen_names: set[str] = set()
+    active_count = 0
+    pending_copied_from: list[tuple[ElectricalVariant, str]] = []
+
+    for sort_idx, row in enumerate(variant_rows):
+        variant_key = (row.get("variant_key") or "").strip()
+        if not variant_key:
+            raise ProjectImportError("В electrical_variants пустой variant_key")
+        if variant_key in variants_by_key:
+            raise ProjectImportError(f"Дублирующийся variant_key: {variant_key!r}")
+        name = (row.get("name") or "").strip() or f"ЭР{sort_idx + 1}"
+        name_normalized = name.casefold()
+        if name_normalized in seen_names:
+            raise ProjectImportError(f"Конфликт имени ЭР после trim+casefold: {name!r}")
+        seen_names.add(name_normalized)
+
+        is_active = (row.get("is_active") or "").strip().lower() == "true"
+        if is_active:
+            active_count += 1
+        legacy_raw = (row.get("legacy_variant_number") or "").strip()
+        legacy_number: int | None
+        if legacy_raw == "":
+            legacy_number = None
+        else:
+            try:
+                legacy_number = int(legacy_raw)
+            except ValueError as exc:
+                raise ProjectImportError(
+                    f"Некорректный legacy_variant_number {legacy_raw!r}"
+                ) from exc
+            if legacy_number not in LEGACY_VARIANT_NUMBERS:
+                raise ProjectImportError(
+                    f"legacy_variant_number должен быть 1..4 или пустым: {legacy_number}"
+                )
+
+        try:
+            sort_order = int((row.get("sort_order") or sort_idx) or sort_idx)
+        except ValueError as exc:
+            raise ProjectImportError(
+                f"Некорректный sort_order в electrical_variants: {row.get('sort_order')!r}"
+            ) from exc
+
+        variant = ElectricalVariant(
+            project_id=project.id,
+            name=name,
+            name_normalized=name_normalized,
+            sort_order=sort_order,
+            is_active=is_active,
+            legacy_variant_number=legacy_number,
+        )
+        db.add(variant)
+        variants_by_key[variant_key] = variant
+        copied_from_key = (row.get("copied_from_key") or "").strip()
+        if copied_from_key:
+            pending_copied_from.append((variant, copied_from_key))
+
+    if variants_by_key and active_count == 0:
+        # Guarantee exactly one active when any ER exist.
+        first = min(variants_by_key.values(), key=lambda item: (item.sort_order, item.name))
+        first.is_active = True
+    elif active_count > 1:
+        raise ProjectImportError("В electrical_variants больше одного is_active=true")
+
+    project.electrical_initialized_at = datetime.now(UTC)
+    await db.flush()
+
+    for variant, copied_from_key in pending_copied_from:
+        source = variants_by_key.get(copied_from_key)
+        if source is None:
+            raise ProjectImportError(
+                f"copied_from_key ссылается на неизвестный variant_key: {copied_from_key!r}"
+            )
+        variant.copied_from_id = source.id
+    if pending_copied_from:
+        await db.flush()
+    return variants_by_key
+
+
+async def _apply_project_data_v3(
+    db: AsyncSession,
+    project: Project,
+    objects_rows: list[dict[str, str]],
+    variant_rows: list[dict[str, str]],
+    assignment_rows: list[dict[str, str]],
+    electrical_rows: list[dict[str, str]],
+    spec_rows: list[dict[str, str]],
+) -> None:
+    """Import schema v3 graph: named ЭР, assignments, calculations, specifications."""
+    # Objects first.
+    obj_by_key: dict[str, ProjectObject] = {}
+    for idx, row in enumerate(objects_rows):
+        params = _parse_json_or_empty(row.get("params", ""), {})
+        if row.get("name") and "name" not in params:
+            params["name"] = row["name"]
+        object_key = (row.get("object_key") or "").strip()
+        if not object_key:
+            raise ProjectImportError("В секции objects отсутствует обязательный object_key")
+        if object_key in obj_by_key:
+            raise ProjectImportError(
+                "Дублирующийся object_key в секции objects: "
+                f"{object_key!r}."
+            )
+        obj = ProjectObject(
+            project_id=project.id,
+            object_type=_normalize_object_type(row.get("type", "")),
+            sort_order=int(row.get("sort_order", idx) or idx),
+            params=params,
+            results=_parse_json_or_empty(row.get("results", ""), None),
+            is_valid=(row.get("is_valid", "").strip().lower() == "true"),
+            validation_errors=_parse_json_or_empty(row.get("validation_errors", ""), None),
+        )
+        db.add(obj)
+        obj_by_key[object_key] = obj
+    await db.flush()
+
+    variants_by_key = await _create_imported_variants_v3(db, project, variant_rows)
+
+    # Assignments: explicit matrix; if absent, create unassigned for every object×ER.
+    seen_assignment: set[tuple[str, str]] = set()
+    if assignment_rows:
+        for row in assignment_rows:
+            variant_key = (row.get("variant_key") or "").strip()
+            object_key = (row.get("object_key") or "").strip()
+            if variant_key not in variants_by_key:
+                raise ProjectImportError(
+                    f"electrical_assignments: неизвестный variant_key {variant_key!r}"
+                )
+            if object_key not in obj_by_key:
+                raise ProjectImportError(
+                    f"electrical_assignments: неизвестный object_key {object_key!r}"
+                )
+            scope = (variant_key, object_key)
+            if scope in seen_assignment:
+                raise ProjectImportError(
+                    f"Дублирующееся assignment для {variant_key!r}/{object_key!r}"
+                )
+            seen_assignment.add(scope)
+            system_type = (row.get("system_type") or "").strip().lower() or None
+            if system_type is not None and system_type not in VALID_ASSIGNMENT_SYSTEM_TYPES:
+                raise ProjectImportError(f"Некорректный system_type: {system_type!r}")
+            state = (row.get("assignment_state") or "unassigned").strip().lower()
+            if state not in VALID_ASSIGNMENT_STATES:
+                raise ProjectImportError(f"Некорректный assignment_state: {state!r}")
+            if state == "unassigned":
+                system_type = None
+            requested = (row.get("requested_cable_type") or "").strip() or None
+            variant = variants_by_key[variant_key]
+            obj = obj_by_key[object_key]
+            db.add(
+                ElectricalVariantObject(
+                    project_id=project.id,
+                    electrical_variant_id=variant.id,
+                    object_id=obj.id,
+                    system_type=system_type,
+                    assignment_state=state,
+                    requested_cable_type=requested,
+                    object_version_snapshot=obj.version,
+                    diagnostics={
+                        "import_schema_version": SCHEMA_VERSION,
+                        "sections_status": "not_ready",
+                        "sections_error_code": SECTIONS_NOT_READY_CODE,
+                    },
+                )
+            )
+    else:
+        for _variant_key, variant in variants_by_key.items():
+            for _object_key, obj in obj_by_key.items():
+                db.add(
+                    ElectricalVariantObject(
+                        project_id=project.id,
+                        electrical_variant_id=variant.id,
+                        object_id=obj.id,
+                        system_type=None,
+                        assignment_state="unassigned",
+                        requested_cable_type=None,
+                        object_version_snapshot=obj.version,
+                        diagnostics={
+                            "import_schema_version": SCHEMA_VERSION,
+                            "sections_status": "not_ready",
+                            "sections_error_code": SECTIONS_NOT_READY_CODE,
+                        },
+                    )
+                )
+    if variants_by_key and obj_by_key:
+        await db.flush()
+
+    # Electrical calculations keyed by variant_key.
+    calc_scopes: set[tuple[str, str]] = set()
+    for row in electrical_rows:
+        variant_key = (row.get("variant_key") or "").strip()
+        object_key = (row.get("object_key") or "").strip()
+        if not variant_key or not object_key:
+            raise ProjectImportError(
+                "В секции electrical обязательны variant_key и object_key"
+            )
+        if variant_key not in variants_by_key:
+            raise ProjectImportError(
+                f"electrical: неизвестный variant_key {variant_key!r}"
+            )
+        obj = obj_by_key.get(object_key)
+        if obj is None:
+            raise ProjectImportError(
+                f"electrical: неизвестный object_key {object_key!r}"
+            )
+        scope = (variant_key, object_key)
+        if scope in calc_scopes:
+            raise ProjectImportError(
+                f"Дублирующийся electrical для {variant_key!r}/{object_key!r}"
+            )
+        calc_scopes.add(scope)
+        variant = variants_by_key[variant_key]
+        legacy_number = variant.legacy_variant_number
+        if legacy_number is None:
+            # Expand-window ER5 without legacy slot cannot persist calculation yet
+            # under composite FK constraints — fail the whole project import.
+            raise ProjectImportError(
+                f"ЭР {variant_key!r} без legacy_variant_number не может импортировать "
+                "electrical до UUID-only cutover (Phase 5 residual)"
+            )
+        cable_mark = row.get("cable_mark", "").strip() or None
+        cable_mark_source = _normalize_source(
+            row.get("cable_mark_source"),
+            VALID_CABLE_MARK_SOURCES,
+        ) or ("manual" if cable_mark else "auto")
+        cable_type_source = (
+            _normalize_source(row.get("cable_type_source"), VALID_CABLE_TYPE_SOURCES) or "auto"
+        )
+        cable_snapshot = _parse_json_or_empty(row.get("cable_snapshot", ""), None)
+        if isinstance(cable_snapshot, dict):
+            cable_snapshot = {**cable_snapshot, "origin": "imported_project"}
+        db.add(
+            ElectricalCalculation(
+                project_id=project.id,
+                object_id=obj.id,
+                variant_number=legacy_number,
+                electrical_variant_id=variant.id,
+                cable_type=row.get("cable_type", "").strip() or "self_regulating",
+                cable_type_source=cable_type_source,
+                cable_mark=cable_mark,
+                cable_mark_source=cable_mark_source,
+                cable_snapshot=cable_snapshot,
+                params=_parse_json_or_empty(row.get("params", ""), {}),
+                results=_parse_json_or_empty(row.get("results", ""), None),
+            )
+        )
+
+    for row in spec_rows:
+        variant_key = (row.get("variant_key") or "").strip()
+        if not variant_key:
+            raise ProjectImportError("В specifications обязателен variant_key")
+        if variant_key not in variants_by_key:
+            raise ProjectImportError(
+                f"specifications: неизвестный variant_key {variant_key!r}"
+            )
+        variant = variants_by_key[variant_key]
+        if variant.legacy_variant_number is None:
+            raise ProjectImportError(
+                f"ЭР {variant_key!r} без legacy_variant_number не может импортировать "
+                "specification до UUID-only cutover"
+            )
+        generation_mode = (row.get("generation_mode") or "").strip() or None
+        generation_options = _parse_json_or_empty(row.get("generation_options", ""), None)
+        # Phase 4 sections are not reconstructed from CSV; always mark stale.
+        db.add(
+            Specification(
+                project_id=project.id,
+                variant_number=variant.legacy_variant_number,
+                electrical_variant_id=variant.id,
+                items=_parse_json_or_empty(row.get("items", ""), []),
+                generation_mode=generation_mode,
+                generation_options=generation_options if isinstance(generation_options, dict) else None,
+                is_stale=True,
+                stale_reason="electrical_sections_not_ready",
+                stale_at=datetime.now(UTC),
+                stale_details={
+                    "import_schema_version": SCHEMA_VERSION,
+                    "variant_key": variant_key,
+                    "legacy_variant_number": variant.legacy_variant_number,
+                    "sections_status": "not_ready",
+                    "error_code": SECTIONS_NOT_READY_CODE,
+                },
+            )
+        )
+
+
 async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincipal) -> Project:
     """Одиночный импорт текущего single-формата с секцией `metadata`."""
     sections = _parse_sections(raw)
-    _require_schema_version(sections, "metadata")
+    schema_version = _require_schema_version(sections, "metadata")
     meta = _section_key_values(sections, "metadata")
     if not meta.get("name"):
         raise ProjectImportError("В секции [SECTION];metadata пустое имя проекта")
@@ -696,9 +1195,17 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
     objects_rows = _rows_to_dicts(sections.get("objects", []))
     electrical_rows = _rows_to_dicts(sections.get("electrical", []))
     spec_rows = _rows_to_dicts(sections.get("specifications", []))
-    # Guest import replaces its current project, so reject an invalid slot before
+    variant_rows = _rows_to_dicts(sections.get("electrical_variants", []))
+    assignment_rows = _rows_to_dicts(sections.get("electrical_assignments", []))
+    # Guest import replaces its current project, so reject an invalid payload before
     # staging any delete or insert in the session.
-    _occupied_legacy_slots(electrical_rows, spec_rows)
+    if schema_version == LEGACY_SCHEMA_VERSION:
+        _occupied_legacy_slots(electrical_rows, spec_rows)
+    elif not variant_rows and (electrical_rows or spec_rows):
+        raise ProjectImportError(
+            "schema_version=3 требует секцию electrical_variants, "
+            "если есть electrical/specifications"
+        )
 
     if principal.role == "guest":
         # Замещаем единственный авто-проект
@@ -729,13 +1236,24 @@ async def import_project(db: AsyncSession, raw: bytes, principal: CurrentPrincip
     db.add(project)
     await db.flush()
 
-    await _apply_project_data(
-        db,
-        project,
-        objects_rows,
-        electrical_rows,
-        spec_rows,
-    )
+    if schema_version == LEGACY_SCHEMA_VERSION:
+        await _apply_project_data(
+            db,
+            project,
+            objects_rows,
+            electrical_rows,
+            spec_rows,
+        )
+    else:
+        await _apply_project_data_v3(
+            db,
+            project,
+            objects_rows,
+            variant_rows,
+            assignment_rows,
+            electrical_rows,
+            spec_rows,
+        )
     await db.commit()
     await db.refresh(project)
     return project
@@ -749,7 +1267,7 @@ async def import_projects_bulk(
         raise ProjectAccessError("Пакетный импорт доступен только сотруднику")
 
     sections = _parse_sections(raw)
-    _require_schema_version(sections, "meta")
+    schema_version = _require_schema_version(sections, "meta")
     projects_rows = _rows_to_dicts(sections.get("projects", []))
     if not projects_rows:
         raise ProjectImportError("Отсутствует секция [SECTION];projects")
@@ -765,6 +1283,8 @@ async def import_projects_bulk(
     objects_by_key = by_project_key("objects")
     electrical_by_key = by_project_key("electrical")
     specs_by_key = by_project_key("specifications")
+    variants_by_key = by_project_key("electrical_variants")
+    assignments_by_key = by_project_key("electrical_assignments")
 
     imported = 0
     errors: list[dict[str, Any]] = []
@@ -802,13 +1322,24 @@ async def import_projects_bulk(
                 )
                 db.add(project)
                 await db.flush()
-                await _apply_project_data(
-                    db,
-                    project,
-                    objects_by_key.get(key, []),
-                    electrical_by_key.get(key, []),
-                    specs_by_key.get(key, []),
-                )
+                if schema_version == LEGACY_SCHEMA_VERSION:
+                    await _apply_project_data(
+                        db,
+                        project,
+                        objects_by_key.get(key, []),
+                        electrical_by_key.get(key, []),
+                        specs_by_key.get(key, []),
+                    )
+                else:
+                    await _apply_project_data_v3(
+                        db,
+                        project,
+                        objects_by_key.get(key, []),
+                        variants_by_key.get(key, []),
+                        assignments_by_key.get(key, []),
+                        electrical_by_key.get(key, []),
+                        specs_by_key.get(key, []),
+                    )
             imported += 1
         except Exception as exc:
             errors.append({"project_key": key, "error": str(exc)})

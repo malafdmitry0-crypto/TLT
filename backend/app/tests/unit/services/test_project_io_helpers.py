@@ -7,11 +7,15 @@ import io
 import pytest
 
 from app.services.project_io_service import (
+    SCHEMA_VERSION,
+    SUPPORTED_SCHEMA_VERSIONS,
     ProjectImportError,
     _decode_csv,
     _detect_delimiter,
+    _normalize_object_type,
     _parse_json_or_empty,
     _parse_sections,
+    _require_schema_version,
     _rows_to_dicts,
     _safe_csv_cell,
     _suggest_filename,
@@ -230,6 +234,7 @@ class TestDumpProjectToWriter:
         )
         calc = SimpleNamespace(
             object_id=obj_id,
+            electrical_variant_id=None,
             variant_number=1,
             cable_type="self_regulating",
             cable_type_source="manual",
@@ -244,7 +249,7 @@ class TestDumpProjectToWriter:
         assert "[SECTION];electrical" in text
         assert "cable_type_source" in text
         assert "cable_mark_source" in text
-        assert "obj-uuid;1;self_regulating" in text
+        assert "legacy-1;obj-uuid;1;self_regulating" in text
         assert "manual" in text
         assert "ТЛТ-25" in text
 
@@ -276,6 +281,7 @@ class TestDumpProjectToWriter:
         calculations = [
             SimpleNamespace(
                 object_id="obj-1",
+                electrical_variant_id=None,
                 variant_number=1,
                 cable_type="self_regulating",
                 cable_type_source="manual",
@@ -286,6 +292,7 @@ class TestDumpProjectToWriter:
             ),
             SimpleNamespace(
                 object_id="obj-2",
+                electrical_variant_id=None,
                 variant_number=1,
                 cable_type="self_regulating",
                 cable_type_source="manual",
@@ -302,8 +309,8 @@ class TestDumpProjectToWriter:
 
         assert "obj-1;pipe;T1;0" in text
         assert "obj-2;pipe;T1;1" in text
-        assert "obj-1;1;self_regulating" in text
-        assert "obj-2;1;self_regulating" in text
+        assert "legacy-1;obj-1;1;self_regulating" in text
+        assert "legacy-1;obj-2;1;self_regulating" in text
 
     def test_writes_specifications_section(self):
         from types import SimpleNamespace
@@ -621,3 +628,83 @@ class TestApplyProjectData:
         assert specification.stale_reason == "electrical_sections_not_ready"
         assert specification.stale_details["sections_status"] == "not_ready"
         assert specification.stale_details["error_code"] == "ELECTRICAL_SECTIONS_NOT_READY"
+
+
+class TestSchemaV3Helpers:
+    def test_export_schema_is_v3(self):
+        assert SCHEMA_VERSION == "3"
+        assert "2" in SUPPORTED_SCHEMA_VERSIONS
+        assert "3" in SUPPORTED_SCHEMA_VERSIONS
+
+    def test_require_schema_accepts_v2_and_v3(self):
+        def sections(version: str):
+            return {
+                "metadata": [
+                    ["key", "value"],
+                    ["schema_version", version],
+                    ["name", "X"],
+                ]
+            }
+
+        assert _require_schema_version(sections("2"), "metadata") == "2"
+        assert _require_schema_version(sections("3"), "metadata") == "3"
+        with pytest.raises(ProjectImportError, match="Неподдерживаемая"):
+            _require_schema_version(sections("1"), "metadata")
+
+    def test_barrel_normalizes_to_tank(self):
+        assert _normalize_object_type("barrel") == "tank"
+        assert _normalize_object_type("Бочка") == "tank"
+        assert _normalize_object_type("pipe") == "pipe"
+        assert _normalize_object_type("ёмкость") == "tank"
+        with pytest.raises(ProjectImportError):
+            _normalize_object_type("floor")
+
+    def test_dump_writes_v3_variant_sections_when_variants_present(self):
+        import csv
+        from types import SimpleNamespace
+
+        from app.services.project_io_service import _dump_project_to_writer
+
+        buf = io.StringIO()
+        w = csv.writer(buf, delimiter=";")
+        project = SimpleNamespace(name="P", description="", task_number="", status="draft")
+        obj = SimpleNamespace(
+            id="oid",
+            object_type="pipe",
+            sort_order=0,
+            params={"name": "T"},
+            results=None,
+            is_valid=True,
+            validation_errors=None,
+        )
+        from uuid import uuid4
+        er_id = uuid4()
+        variant = SimpleNamespace(
+            id=er_id,
+            name="ЭР1",
+            sort_order=0,
+            is_active=True,
+            copied_from_id=None,
+            legacy_variant_number=1,
+        )
+        assignment = SimpleNamespace(
+            electrical_variant_id=er_id,
+            object_id="oid",
+            system_type="self_regulating",
+            assignment_state="ready",
+            requested_cable_type="self_regulating",
+        )
+        _dump_project_to_writer(
+            w,
+            project,
+            [obj],
+            [],
+            [],
+            variants=[variant],
+            assignments=[assignment],
+        )
+        text = buf.getvalue()
+        assert "schema_version;3" in text
+        assert "[SECTION];electrical_variants" in text
+        assert "[SECTION];electrical_assignments" in text
+        assert "ЭР1" in text
