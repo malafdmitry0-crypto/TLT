@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SpecificationItem(BaseModel):
@@ -92,8 +92,33 @@ class SpecificationResponse(BaseModel):
     stale_reason: str | None = None
     stale_at: datetime | None = None
     stale_details: dict[str, Any] | None = None
+    # FA-01/05: persisted partial diagnostics (also mirrored in generation_options)
+    is_partial: bool = False
+    excluded_groups: list[dict[str, Any]] = Field(default_factory=list)
+    skipped_objects: int = 0
     created_at: datetime
     updated_at: datetime
+
+    @model_validator(mode="after")
+    def _hydrate_partial_diagnostics(self) -> "SpecificationResponse":
+        """Expose generation_options partial fields as first-class GET fields.
+
+        FastAPI response serialization may not call a custom model_validate
+        override; mode='after' runs for all validation paths (FA-01/05).
+        """
+        opts = self.generation_options or {}
+        if not isinstance(opts, dict):
+            return self
+        if "is_partial" in opts:
+            self.is_partial = bool(opts.get("is_partial"))
+        if isinstance(opts.get("excluded_groups"), list):
+            self.excluded_groups = list(opts.get("excluded_groups") or [])
+        if opts.get("skipped_objects") is not None:
+            try:
+                self.skipped_objects = int(opts.get("skipped_objects") or 0)
+            except (TypeError, ValueError):
+                self.skipped_objects = 0
+        return self
 
 
 class SpecificationGenerateRequest(BaseModel):
@@ -157,6 +182,7 @@ class SpecificationPreflightVariantResult(BaseModel):
     contributing_objects: int = 0
     skipped_objects: int = 0
     excluded_object_ids: list[UUID] = Field(default_factory=list)
+    excluded_groups: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SpecificationPreflightResponse(BaseModel):

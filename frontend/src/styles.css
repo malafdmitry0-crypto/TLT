@@ -5001,13 +5001,43 @@ html, body, #root {
 }
 
 /* PDL-ER-37: stale specification quantities are read-only on screen and hidden from print. */
+/* PDL-ER-05: guest browser print — hide chrome, keep diagnostics. */
 @media print {
-  .specification-stale-banner {
+  .specification-stale-banner,
+  .specification-partial-banner {
     color: #9a3412 !important;
     border: 2px solid #9a3412 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .specification-page-main .ant-table-wrapper:has(.ant-table),
   .specification-page-main .spec-table-print-exclude {
     display: none !important;
+  }
+
+  .heatcalc-header,
+  .ant-layout-sider,
+  .ant-layout-footer,
+  .report-page-actions-hint,
+  .report-page-er-selector,
+  .ant-card-extra,
+  .ant-btn {
+    display: none !important;
+  }
+
+  .ant-layout,
+  .ant-layout-content,
+  .ant-card,
+  .ant-card-body {
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .report-preview,
+  .report-preview-html {
+    width: 100% !important;
+    overflow: visible !important;
   }
 }

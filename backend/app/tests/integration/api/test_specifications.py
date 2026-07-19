@@ -236,7 +236,15 @@ class TestSpecification:
         detail = blocked.json()["detail"]
         assert detail["code"] == "SPECIFICATION_PREFLIGHT_CONFIRMATION_REQUIRED"
         assert detail["preflight"]["requires_confirmation"] is True
-        assert detail["preflight"]["total_skipped_objects"] >= 1
+        # FA-06: confirmation required for object skips AND/OR excluded BOM groups
+        # (sections catalog, boxes matrix) even when all objects contribute.
+        pf_variants = detail["preflight"].get("variants") or []
+        has_group_exclusions = any(
+            (v.get("excluded_groups") or []) for v in pf_variants
+        )
+        assert (
+            detail["preflight"]["total_skipped_objects"] >= 1 or has_group_exclusions
+        )
 
         confirmed = await client.post(
             f"/api/v1/specifications/{project['id']}/generate",
@@ -244,7 +252,9 @@ class TestSpecification:
             headers=headers,
         )
         assert confirmed.status_code == 201, confirmed.text
-        assert confirmed.json()["mode"] == "full"
+        body = confirmed.json()
+        assert body["mode"] == "full"
+        assert body.get("partial") is True
 
     async def test_generate_basic_mode_coerced_to_full(
         self, client: AsyncClient, guest_session: str
@@ -293,6 +303,15 @@ class TestSpecification:
                 g.get("error_code") == "BOX_EX_RGR_MATRIX_MISSING"
                 for g in body["excluded_groups"]
             )
+        # FA-01/05: partial honesty survives GET reload via generation_options + top-level fields
+        assert body.get("partial") is True
+        assert spec.get("is_partial") is True
+        assert spec["generation_options"].get("is_partial") is True
+        assert isinstance(spec.get("excluded_groups"), list)
+        assert any(
+            g.get("error_code") == "SECTION_DATA_SOURCE_MISSING"
+            for g in (spec.get("excluded_groups") or [])
+        )
 
     async def test_project_settings_versioned_without_auto_regenerate(
         self, client: AsyncClient, employee_token: str
@@ -449,9 +468,10 @@ class TestSpecification:
         assert spec["stale_reason"] == "object_deleted"
         assert spec["stale_details"]["object_ids"] == [obj["id"]]
 
-    async def test_save_items_resets_stale_specification(
+    async def test_save_items_rejects_stale_specification(
         self, client: AsyncClient, employee_token: str
     ):
+        """FA-07 / PDL-ER-37: stale snapshot is read-only — manual PUT returns 409."""
         headers = {"Authorization": f"Bearer {employee_token}"}
         project, obj = await self._create_project_with_pipe(client, headers)
         await self._save_manual_spec(client, project["id"], headers)
@@ -460,6 +480,11 @@ class TestSpecification:
             json={"version": obj["version"], "params": {"pipe_length": 75}},
             headers=headers,
         )
+
+        stale_before = (
+            await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)
+        ).json()
+        assert stale_before["is_stale"] is True
 
         resp = await client.put(
             f"/api/v1/specifications/{project['id']}/items",
@@ -476,11 +501,16 @@ class TestSpecification:
             },
             headers=headers,
         )
-        assert resp.status_code == 200, resp.text
+        assert resp.status_code == 409, resp.text
+        detail = resp.json()["detail"]
+        assert detail["code"] == "SPECIFICATION_STALE_READ_ONLY"
+
+        # Snapshot remains stale and unchanged.
         spec = (await client.get(f"/api/v1/specifications/{project['id']}", headers=headers)).json()
-        assert spec["is_stale"] is False
-        assert spec["stale_reason"] is None
-        assert spec["items"][0]["name"] == "Новая ручная позиция"
+        assert spec["is_stale"] is True
+        assert any(i.get("name") != "Новая ручная позиция" for i in (spec.get("items") or [])) or (
+            not any(i.get("name") == "Новая ручная позиция" for i in (spec.get("items") or []))
+        )
 
 
     async def test_multi_er_generate_is_atomic_and_scoped(

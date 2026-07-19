@@ -87,6 +87,14 @@ def box_ex_rgr_matrix_available() -> bool:
     return box_ex_rgr_matrix_registered()
 
 
+def heating_sections_ready() -> bool:
+    """True only when Phase 4 section catalog is registered (PDL-ER-15/28).
+
+    Production default is False. Tests/catalog registration may override.
+    """
+    return False
+
+
 def _is_successful(result: dict[str, Any]) -> bool:
     return is_successful_electrical_result(None, result)
 
@@ -175,7 +183,11 @@ def _box_bucket(*, d_large: bool, n_ge3: bool, k1i: bool, k2i_active: bool, kiu:
 
 
 def _order_cable_qty(result: dict[str, Any], section_total: float) -> float:
-    """PDL-ER-02/31: order/commercial length, not Rгр."""
+    """PDL-ER-02/31: final commercial order length first (not raw +10%).
+
+    Priority: commercial.required_order_length → snapshot commercial_context →
+    raw order_cable_length → installed section_total.
+    """
     commercial = result.get("commercial") if isinstance(result.get("commercial"), dict) else {}
     snapshot = (
         result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
@@ -185,12 +197,16 @@ def _order_cable_qty(result: dict[str, Any], section_total: float) -> float:
         if isinstance(snapshot.get("commercial_context"), dict)
         else {}
     )
-    order_len = _num(
-        result.get("order_cable_length")
-        or commercial.get("required_order_length")
-        or snap_ctx.get("required_order_length")
-    )
-    return order_len if order_len > 0 else section_total
+    # FA-03: commercial final must win over raw order_cable_length.
+    for candidate in (
+        commercial.get("required_order_length"),
+        snap_ctx.get("required_order_length"),
+        result.get("order_cable_length"),
+    ):
+        value = _num(candidate)
+        if value > 0:
+            return value
+    return section_total
 
 
 def _object_type(obj: dict[str, Any]) -> str:
@@ -235,6 +251,23 @@ def build_full_specification_detailed(
                     "box-derived позиции fail-closed."
                 ),
                 "matrix": box_ex_rgr_matrix_meta(),
+            }
+        )
+    # FA-02 / PDL-ER-15: real sections require Lmax/Iдоп/Iст.уд catalog — absent.
+    # num_circuits must not drive connector/box-dependent BOM quantities.
+    # Unit tests may monkeypatch heating_sections_ready() after catalog arrives.
+    sections_ready = heating_sections_ready()
+    if not sections_ready:
+        excluded_groups.append(
+            {
+                "group": "heating_sections",
+                "error_code": "SECTION_DATA_SOURCE_MISSING",
+                "message": (
+                    "Официальный каталог секционирования (Lmax, Iдоп, Iст.уд) не "
+                    "зарегистрирован (PDL-ER-15/28). Соединительные комплекты и "
+                    "другие Nсек-зависимые позиции исключены; num_circuits не "
+                    "подменяет секции."
+                ),
             }
         )
     missing_temp_objects: list[str] = []
@@ -305,25 +338,35 @@ def build_full_specification_detailed(
             continue
 
         k2i_active = (
-            opt.end_section_indication
+            sections_ready
+            and opt.end_section_indication
             and section_length >= opt.min_length_for_end_indication
         )
 
+        # Length-based groups use installed length (not order) for engineering
+        # formulas; commercial order is only for cable procurement rows.
         if tclass == "low":
             length_low += section_total
-            n_low += n_sec * r_res
-            if k2i_active:
-                n_low_k2i += n_sec * r_res
-            tape_low += (PI * d_mm * 2.5 / 1000.0) * (cable_qty / 0.3) * 1.1 if d_mm > 0 else 0.0
+            if sections_ready:
+                n_low += n_sec * r_res
+                if k2i_active:
+                    n_low_k2i += n_sec * r_res
+            # FA-04 glass tape: PDF already includes ×1.1; use installed length once.
+            tape_low += (
+                (PI * d_mm * 2.5 / 1000.0) * (section_total / 0.3) * 1.1 if d_mm > 0 else 0.0
+            )
         else:
             length_high += section_total
-            n_high += n_sec * r_res
-            if k2i_active:
-                n_high_k2i += n_sec * r_res
-            tape_high += (PI * d_mm * 2.5 / 1000.0) * (cable_qty / 0.3) * 1.1 if d_mm > 0 else 0.0
+            if sections_ready:
+                n_high += n_sec * r_res
+                if k2i_active:
+                    n_high_k2i += n_sec * r_res
+            tape_high += (
+                (PI * d_mm * 2.5 / 1000.0) * (section_total / 0.3) * 1.1 if d_mm > 0 else 0.0
+            )
 
-        # Boxes only when official Ex/Rгр matrix is available (PDL-ER-35).
-        if matrix_ok:
+        # Boxes only when matrix available AND real sections ready.
+        if matrix_ok and sections_ready:
             box_count = math.ceil(n_sec / 3)
             d_large = d_mm >= 57.0
             n_ge3 = n_sec >= 3
@@ -384,18 +427,24 @@ def build_full_specification_detailed(
     nk_large_plain = b("Nk1") + b("Nk2")
     nk_large_k1i = b("Nk3") + b("Nk4")
     nk_small_plain = b("Nk7") + b("Nk8")
-    fl1 = n_low
-    fl2 = n_low_k2i * 2
-    fl3 = n_high
-    fl4 = n_high_k2i * 2
+    fl1 = n_low if sections_ready else 0.0
+    fl2 = n_low_k2i * 2 if sections_ready else 0.0
+    fl3 = n_high if sections_ready else 0.0
+    fl4 = n_high_k2i * 2 if sections_ready else 0.0
+    repair_low = _ceil(length_low / 150.0) if length_low > 0 else 0.0
+    repair_high = _ceil(length_high / 150.0) if length_high > 0 else 0.0
+    # FA-04 glue: PDF qty = ceil((connector_kits + repair_kits) / 7).
+    # Catalog package_factor≈0.14 implements /7 before ceil in emission.
+    # Without real connectors (sections blocked), glue still covers repair kits.
+    glue_kits = fl1 + fl2 + fl3 + fl4 + repair_low + repair_high
 
     rule_values: dict[str, float] = {
         "connector_kit_low_1": fl1,
         "connector_kit_low_2": fl2,
         "connector_kit_high_1": fl3,
         "connector_kit_high_2": fl4,
-        "repair_kit_low": _ceil(length_low / 150.0) if length_low > 0 else 0.0,
-        "repair_kit_high": _ceil(length_high / 150.0) if length_high > 0 else 0.0,
+        "repair_kit_low": repair_low,
+        "repair_kit_high": repair_high,
         "box_Nk1": b("Nk1"),
         "box_Nk2": b("Nk2"),
         "box_Nk3": b("Nk3"),
@@ -424,8 +473,10 @@ def build_full_specification_detailed(
         "tape_glass_low": tape_low,
         "tape_glass_high": tape_high,
         "tape_aluminium": length_low + length_high,
-        "sealant_glue": fl1 + fl2 + fl3 + fl4,
-        "sealant_silicone": (nk_large_plain + nk_large_k1i) if matrix_ok else 0.0,
+        "sealant_glue": glue_kits,
+        "sealant_silicone": (
+            (nk_large_plain + nk_large_k1i) if (matrix_ok and sections_ready) else 0.0
+        ),
         "label_warning": label_warning,
         "label_grounding": (
             (nk_large_plain + nk_large_k1i + nk_small_plain + b("Nk11") + b("Nk12"))

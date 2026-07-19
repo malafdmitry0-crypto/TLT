@@ -40,7 +40,9 @@ def _upsert_result(spec=None):
 
 def _empty_result():
     result = MagicMock()
-    result.scalars = lambda: MagicMock(first=lambda: None, all=lambda: [])
+    result.scalars = lambda: MagicMock(
+        first=lambda: None, one_or_none=lambda: None, all=lambda: []
+    )
     return result
 
 
@@ -48,6 +50,7 @@ def _list_result(items):
     result = MagicMock()
     result.scalars = lambda: MagicMock(
         first=lambda: items[0] if items else None,
+        one_or_none=lambda: items[0] if items else None,
         all=lambda: list(items),
     )
     return result
@@ -215,28 +218,50 @@ class TestGenerate:
 class TestSaveItems:
     async def test_creates_new_when_no_existing(self):
         db = AsyncMock()
-        # lock + upsert
-        db.execute = AsyncMock(side_effect=[_empty_result(), _upsert_result()])
+        # lock + get_specification (none) + upsert
+        db.execute = AsyncMock(
+            side_effect=[_empty_result(), _list_result([]), _upsert_result()]
+        )
         db.commit = AsyncMock()
         db.add = MagicMock()
         items = [SpecificationItem(category="a", name="A", unit="шт", quantity=1)]
         result = await SpecificationService(db).save_items(uuid.uuid4(), items)
         assert result == items
         db.add.assert_not_called()
-        assert db.execute.await_count == 2
+        assert db.execute.await_count == 3
         db.commit.assert_awaited_once()
 
     async def test_replaces_when_existing(self):
+        fresh = SimpleNamespace(is_stale=False, items=[])
         db = AsyncMock()
-        db.execute = AsyncMock(side_effect=[_empty_result(), _upsert_result()])
+        db.execute = AsyncMock(
+            side_effect=[_empty_result(), _list_result([fresh]), _upsert_result()]
+        )
         db.commit = AsyncMock()
         db.add = MagicMock()
         items = [SpecificationItem(category="b", name="B", unit="шт", quantity=2)]
         result = await SpecificationService(db).save_items(uuid.uuid4(), items, variant_number=2)
         assert result == items
         db.add.assert_not_called()
-        assert db.execute.await_count == 2
+        assert db.execute.await_count == 3
         db.commit.assert_awaited_once()
+
+    async def test_rejects_stale_read_only(self):
+        """FA-07: PUT on stale specification is blocked with 409."""
+        from app.services.electrical_variant_service import ElectricalVariantServiceError
+
+        stale = SimpleNamespace(is_stale=True, items=[{"name": "old"}])
+        db = AsyncMock()
+        db.execute = AsyncMock(side_effect=[_empty_result(), _list_result([stale])])
+        db.commit = AsyncMock()
+        items = [SpecificationItem(category="c", name="C", unit="шт", quantity=1)]
+        try:
+            await SpecificationService(db).save_items(uuid.uuid4(), items)
+            raise AssertionError("expected ElectricalVariantServiceError")
+        except ElectricalVariantServiceError as exc:
+            assert exc.code == "SPECIFICATION_STALE_READ_ONLY"
+            assert exc.status_code == 409
+        db.commit.assert_not_awaited()
 
 
 class TestProjectSettings:

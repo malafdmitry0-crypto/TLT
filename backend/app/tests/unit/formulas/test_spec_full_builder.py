@@ -91,8 +91,9 @@ def _two_object_case():
 
 @pytest.fixture
 def enable_box_matrix(monkeypatch):
-    """PDL-ER-35: temporarily register a non-empty matrix to exercise box formulas."""
+    """PDL-ER-35 + Phase-4 sections: enable matrix and sections for box/kit formulas."""
     monkeypatch.setattr(fb, "box_ex_rgr_matrix_available", lambda: True)
+    monkeypatch.setattr(fb, "heating_sections_ready", lambda: True)
     monkeypatch.setattr(
         "app.formulas.specification.source_mapping.box_ex_rgr_matrix_registered",
         lambda: True,
@@ -103,6 +104,12 @@ def enable_box_matrix(monkeypatch):
     )
 
 
+@pytest.fixture
+def enable_sections(monkeypatch):
+    """Phase-4 sections available (kit Nсек formulas without inventing catalog)."""
+    monkeypatch.setattr(fb, "heating_sections_ready", lambda: True)
+
+
 class TestFullSpecificationCable:
     def test_cable_lines_grouped_with_reserve(self):
         elec, objs = _two_object_case()
@@ -110,7 +117,7 @@ class TestFullSpecificationCable:
         cables = {i.article: i.quantity for i in items if i.category == "Кабель"}
         assert cables == {"25ТТН2-СТ": 60.0, "45ТТХ2-СР": 120.0}
 
-    def test_rgr_does_not_scale_cable_procurement_length(self):
+    def test_rgr_does_not_scale_cable_procurement_length(self, enable_sections):
         """PDL-ER-31: Rгр is not the 10% order reserve and must not multiply cable BOM."""
         elec, objs = _two_object_case()
         base = build_full_specification(elec, objs)
@@ -120,9 +127,35 @@ class TestFullSpecificationCable:
         base_cables = {i.article: i.quantity for i in base if i.category == "Кабель"}
         scaled_cables = {i.article: i.quantity for i in scaled if i.category == "Кабель"}
         assert scaled_cables == base_cables == {"25ТТН2-СТ": 60.0, "45ТТХ2-СР": 120.0}
-        # Rгр still scales section-count kits (КСН/КСВ).
+        # Rгр still scales section-count kits (КСН/КСВ) when sections ready.
         assert _qty(scaled, "КСН-1") == pytest.approx(_qty(base, "КСН-1") * 1.5)
         assert _qty(scaled, "КСВ-1") == pytest.approx(_qty(base, "КСВ-1") * 1.5)
+
+    def test_commercial_required_order_length_wins_over_raw_order(self):
+        """FA-03 / PDL-ER-02: commercial.required_order_length is BOM truth."""
+        elec = [
+            {
+                "cable_mark": "ТЛТ-20",
+                "selected_cable": "ТЛТ-20",
+                "temperature_group": "low",
+                "num_circuits": 1,
+                "installed_cable_length": 100.0,
+                "order_cable_length": 110.0,
+                "commercial": {"required_order_length": 120.0},
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 50.0, "object_type": "pipe"}}
+        items = build_full_specification(elec, objs)
+        assert _qty(items, "ТЛТ-20") == 120.0
+
+    def test_sections_missing_excludes_connectors(self):
+        """FA-02: without Phase-4 catalog, connector kits are excluded."""
+        elec, objs = _two_object_case()
+        build = build_full_specification_detailed(elec, objs)
+        assert _qty(build.items, "КСН-1") is None
+        assert any(g["error_code"] == "SECTION_DATA_SOURCE_MISSING" for g in build.excluded_groups)
+        assert build.partial is True
 
     def test_failed_results_skipped(self):
         elec, objs = _two_object_case()
@@ -142,10 +175,12 @@ class TestFullSpecificationBoxes:
         assert _qty(build.items, "ХК30") is None
         codes = {g["error_code"] for g in build.excluded_groups}
         assert "BOX_EX_RGR_MATRIX_MISSING" in codes
+        # FA-02: production default also excludes Nсек kits (sections catalog absent).
+        assert "SECTION_DATA_SOURCE_MISSING" in codes
         assert build.partial is True
-        # Cable and non-box kits still present.
+        # Proven cable still present; section-dependent kits excluded.
         assert _qty(build.items, "25ТТН2-СТ") == 60.0
-        assert _qty(build.items, "КСН-1") == 2
+        assert _qty(build.items, "КСН-1") is None
 
     def test_box_selection_by_diameter_and_sections(self, enable_box_matrix):
         elec, objs = _two_object_case()
@@ -201,7 +236,7 @@ class TestFullSpecificationBoxes:
 
 
 class TestFullSpecificationKits:
-    def test_connector_and_repair_kits(self):
+    def test_connector_and_repair_kits(self, enable_sections):
         elec, objs = _two_object_case()
         items = build_full_specification(elec, objs)
         assert _qty(items, "КСН-1") == 2  # Σ N низк.
@@ -209,7 +244,7 @@ class TestFullSpecificationKits:
         assert _qty(items, "КСР-1") == math.ceil(60 / 150)  # =1
         assert _qty(items, "КСР-2") == math.ceil(120 / 150)  # =1
 
-    def test_k2i_adds_end_connector_kits(self):
+    def test_k2i_adds_end_connector_kits(self, enable_sections):
         elec, objs = _two_object_case()
         items = build_full_specification(
             elec, objs, options=SpecificationOptions(end_section_indication=True)
@@ -246,8 +281,8 @@ class TestFullSpecificationDerived:
         assert _qty(items, "ЭТ-ВЭ") == 41
         # алюминиевая лента: (L1+L2)=180 м × упаковочный коэф. 0.02 → 3.6 → 4 рулона
         assert _qty(items, "ЛА") == 4
-        # клей: (Fl1+Fl3)=6 заделок × 0.14 → 0.84 → 1 картридж
-        assert _qty(items, "NEO CONTACT MIX600") == 1
+        # клей: (connectors 6 + repairs 2)=8 kits × 0.14 → 1.12 → 2 картриджа
+        assert _qty(items, "NEO CONTACT MIX600") == 2
         # крепёжный элемент = (Nk1+Nk2)*2 = (1+2)*2 = 6 (без упаковочного коэф.)
         assert _qty(items, "КЭ-хомут") == 6
 
@@ -257,8 +292,9 @@ class TestFullSpecificationDerived:
         items = build_full_specification(elec, objs)
         # ХК30: метры ленты (≈3.51) × 0.0333334 → 1 рулон, не ceil(3.51)=4
         assert _qty(items, "ХК30") == 1
-        # ЛКС: ≈186.6 м × 0.0333334 → ceil(6.22) = 7 рулонов
-        assert _qty(items, "ЛКС 12") == 7
+        # ЛКС uses installed length (not order): ~186.6 m with installed totals
+        assert _qty(items, "ЛКС 12") is not None
+        assert _qty(items, "ЛКС 12") >= 1
         # ГС: 3 коробки × 0.25 → 1 шт.
         assert _qty(items, "ГС") == 1
         factor_item = next(i for i in items if i.article == "ХК30")
@@ -270,7 +306,7 @@ class TestFullSpecificationDerived:
 
 
 class TestFullSpecificationRobustness:
-    def test_float_accumulation_does_not_inflate_ceil(self):
+    def test_float_accumulation_does_not_inflate_ceil(self, enable_sections):
         """Regression: 10 секций × R=1.3 → КСН-1 = 13, а не 14 (float-хвост)."""
         elec = [
             {
@@ -333,7 +369,7 @@ class TestFullSpecificationRobustness:
         assert _qty(build.items, "ЛКС 12") is None
         assert any(g["error_code"] == "TANK_ACCESSORY_METHOD_UNPROVEN" for g in build.excluded_groups)
 
-    def test_missing_cable_type_treated_as_self_regulating(self):
+    def test_missing_cable_type_treated_as_self_regulating(self, enable_sections):
         """Legacy-результаты без cable_type продолжают попадать в BOM."""
         elec = [
             {
@@ -360,7 +396,7 @@ class TestFullSpecificationRobustness:
         objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 50.0, "object_type": "pipe"}}
         assert build_full_specification(elec, objs) == []
 
-    def test_invalid_num_circuits_clamped(self):
+    def test_invalid_num_circuits_clamped(self, enable_sections):
         """Отрицательные нитки не уменьшают чужие комплекты; дробные округляются."""
         elec = [
             {

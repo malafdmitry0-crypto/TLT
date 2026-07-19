@@ -74,6 +74,8 @@ class SpecificationPreflightVariant:
     contributing_objects: int
     skipped_objects: int
     excluded_object_ids: list[UUID]
+    excluded_groups: list[dict[str, Any]] = field(default_factory=list)
+    requires_confirmation: bool = False
 
 
 class SpecificationService:
@@ -267,8 +269,12 @@ class SpecificationService:
         variant_number: int,
         electrical_variant_id: UUID,
         electrical_variant_name: str | None = None,
+        options: SpecificationOptions | None = None,
     ) -> SpecificationPreflightVariant:
-        """Side-effect-free exclusion scan for one ER (PDL-ER-36)."""
+        """Side-effect-free exclusion scan for one ER (PDL-ER-36 / FA-06).
+
+        Includes object skips AND builder-level excluded groups (boxes, sections).
+        """
         objects_q = await self.db.execute(
             select(ProjectObject).where(ProjectObject.project_id == project_id)
         )
@@ -284,6 +290,25 @@ class SpecificationService:
             if contributes_to_full_bom(r)
         }
         excluded = [obj.id for obj in objects if str(obj.id) not in contributing_ids]
+        objects_by_id = {
+            str(obj.id): {
+                "object_type": obj.object_type,
+                "outer_diameter": (obj.params or {}).get("outer_diameter")
+                or (obj.params or {}).get("diameter"),
+                "pipe_length": (obj.results or {}).get("effective_length")
+                or (obj.params or {}).get("pipe_length")
+                or (obj.params or {}).get("height"),
+            }
+            for obj in objects
+        }
+        resolved, _, _ = await self._resolve_generation_options(project_id, options)
+        build = build_full_specification_detailed(
+            electrical_results,
+            objects_by_id,
+            options=resolved,
+        )
+        group_exclusions = list(build.excluded_groups)
+        requires = bool(excluded) or bool(group_exclusions)
         return SpecificationPreflightVariant(
             electrical_variant_id=electrical_variant_id,
             electrical_variant_name=electrical_variant_name,
@@ -291,6 +316,8 @@ class SpecificationService:
             contributing_objects=len(objects) - len(excluded),
             skipped_objects=len(excluded),
             excluded_object_ids=excluded,
+            excluded_groups=group_exclusions,
+            requires_confirmation=requires,
         )
 
     async def preflight_for_electrical_variants(
@@ -583,6 +610,15 @@ class SpecificationService:
             # Keep empty auto set; still persist generation snapshot as empty BOM.
             items = list(manual_items)
 
+        final_partial = bool(partial or skipped_objects > 0 or excluded_groups)
+        # FA-01/05: persist diagnostics so reload/report keep partial honesty.
+        options_snapshot = {
+            **(options_snapshot or {}),
+            "is_partial": final_partial,
+            "excluded_groups": excluded_groups,
+            "skipped_objects": skipped_objects,
+        }
+
         await self._upsert_specification(
             project_id=project_id,
             variant_number=variant_number,
@@ -601,7 +637,7 @@ class SpecificationService:
             mode=mode,
             skipped_objects=skipped_objects,
             electrical_variant_id=electrical_variant_id,
-            partial=partial or skipped_objects > 0,
+            partial=final_partial,
             excluded_groups=excluded_groups,
             settings_version=settings_version,
         )
@@ -614,8 +650,23 @@ class SpecificationService:
         *,
         electrical_variant_id: UUID | None = None,
     ) -> list[SpecificationItem]:
-        """Полностью замещает items спецификации варианта (или создаёт её)."""
+        """Полностью замещает items спецификации варианта (или создаёт её).
+
+        FA-07 / PDL-ER-37: stale specification is read-only — manual PUT rejected.
+        """
         await self._lock_project(project_id)
+        existing = await self.get_specification(
+            project_id,
+            variant_number,
+            electrical_variant_id=electrical_variant_id,
+        )
+        if existing is not None and existing.is_stale:
+            raise ElectricalVariantServiceError(
+                "SPECIFICATION_STALE_READ_ONLY",
+                "Устаревшая спецификация доступна только для чтения; "
+                "требуется явная перегенерация (PDL-ER-37).",
+                status_code=409,
+            )
         payload = [i.model_dump() for i in items]
         await self._upsert_specification(
             project_id=project_id,

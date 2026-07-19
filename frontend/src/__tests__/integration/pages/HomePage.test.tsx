@@ -36,6 +36,16 @@ describe('HomePage', () => {
     expect(screen.getAllByText(/как администратор/i)[0]).toBeInTheDocument();
   });
 
+  it('FA-11: guest TTL copy says 3 days, not 20 minutes', () => {
+    render(
+      <TestMemoryRouter>
+        <HomePage />
+      </TestMemoryRouter>
+    );
+    expect(screen.getByText(/3 дня/i)).toBeInTheDocument();
+    expect(screen.queryByText(/20 мин/i)).not.toBeInTheDocument();
+  });
+
   it('разводит вход сотрудника и администратора по разным режимам логина', async () => {
     render(
       <TestMemoryRouter>

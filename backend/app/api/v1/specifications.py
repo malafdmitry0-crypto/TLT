@@ -184,14 +184,15 @@ async def generate_specification(
                 requested_ids,
             )
             total_skipped = sum(item.skipped_objects for item in preflight)
-            if total_skipped > 0 and not req.confirm_partial:
+            requires = any(item.requires_confirmation for item in preflight)
+            if requires and not req.confirm_partial:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail={
                         "code": "SPECIFICATION_PREFLIGHT_CONFIRMATION_REQUIRED",
                         "message": (
-                            "Часть объектов будет исключена из полной спецификации. "
-                            "Подтвердите partial generation."
+                            "Часть объектов или групп BOM будет исключена. "
+                            "Подтвердите неполную (partial) генерацию."
                         ),
                         "preflight": SpecificationPreflightResponse(
                             project_id=project_id,
@@ -205,6 +206,7 @@ async def generate_specification(
                                     "contributing_objects": item.contributing_objects,
                                     "skipped_objects": item.skipped_objects,
                                     "excluded_object_ids": item.excluded_object_ids,
+                                    "excluded_groups": item.excluded_groups,
                                 }
                                 for item in preflight
                             ],
@@ -267,15 +269,16 @@ async def generate_specification(
             variant_number=electrical_variant.legacy_variant_number or variant,
             electrical_variant_id=electrical_variant.id,
             electrical_variant_name=electrical_variant.name,
+            options=req.options,
         )
-        if preflight_one.skipped_objects > 0 and not req.confirm_partial:
+        if preflight_one.requires_confirmation and not req.confirm_partial:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={
                     "code": "SPECIFICATION_PREFLIGHT_CONFIRMATION_REQUIRED",
                     "message": (
-                        "Часть объектов будет исключена из полной спецификации. "
-                        "Подтвердите partial generation."
+                        "Часть объектов или групп BOM будет исключена. "
+                        "Подтвердите неполную (partial) генерацию."
                     ),
                     "preflight": SpecificationPreflightResponse(
                         project_id=project_id,
@@ -289,6 +292,7 @@ async def generate_specification(
                                 "contributing_objects": preflight_one.contributing_objects,
                                 "skipped_objects": preflight_one.skipped_objects,
                                 "excluded_object_ids": preflight_one.excluded_object_ids,
+                                "excluded_groups": preflight_one.excluded_groups,
                             }
                         ],
                     ).model_dump(mode="json"),

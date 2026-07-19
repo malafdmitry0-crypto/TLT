@@ -206,6 +206,45 @@ describe('SpecificationPage (integration)', () => {
     expect(screen.getByRole('button', { name: /Сформировать заново/i })).toBeInTheDocument();
   });
 
+  it('показывает баннер неполной спецификации с excluded_groups (FA-01/05)', async () => {
+    const { getSpecification } = await import('@/api/specifications');
+    (getSpecification as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 's-partial',
+      project_id: mockProject.id,
+      variant_number: 1,
+      is_stale: false,
+      is_partial: true,
+      excluded_groups: [
+        {
+          group: 'heating_sections',
+          error_code: 'SECTION_DATA_SOURCE_MISSING',
+          message: 'Каталог секционирования не зарегистрирован',
+        },
+      ],
+      items: [
+        {
+          category: 'Кабель',
+          name: 'Partial cable',
+          article: 'PC-1',
+          unit: 'м',
+          quantity: 50,
+          params: {},
+        },
+      ],
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    renderPage();
+
+    expect(
+      await screen.findByText(/Неполная спецификация — не использовать как полный закупочный комплект/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/SECTION_DATA_SOURCE_MISSING/i)).toBeInTheDocument();
+    expect(document.body.textContent).toMatch(/НЕПОЛНАЯ/);
+    expect(screen.getByText('Partial cable')).toBeInTheDocument();
+  });
+
   it('не подменяет ЭР5 данными ЭР1, если legacy-привязки ещё нет', async () => {
     const { getSpecification } = await import('@/api/specifications');
     useCalculationVariantStore.getState().setSelectedVariantId(

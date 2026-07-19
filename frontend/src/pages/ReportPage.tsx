@@ -7,6 +7,7 @@ import {
   FileExcelOutlined,
   SettingOutlined,
   ExportOutlined,
+  PrinterOutlined,
 } from '@ant-design/icons';
 import { ROUTES } from '@/routes/routes';
 import { useQuery } from '@tanstack/react-query';
@@ -169,6 +170,14 @@ export default function ReportPage() {
         }
         extra={
           <Space>
+            <Button
+              icon={<PrinterOutlined />}
+              disabled={exportingFormat !== null || isLoading}
+              onClick={() => window.print()}
+              aria-label="Печать отчёта"
+            >
+              Печать
+            </Button>
             {isEmployee && (
               <Button
                 icon={<SettingOutlined />}
@@ -224,16 +233,15 @@ export default function ReportPage() {
           </Space>
         }
       >
-        <Paragraph type="secondary" style={{ marginBottom: 8 }}>
+        <Paragraph type="secondary" style={{ marginBottom: 8 }} className="report-page-actions-hint">
           Итоговый отчёт содержит сводную информацию по проекту: объекты, результаты расчётов
-          теплопотерь, подобранные кабели и спецификацию. Сотрудники могут скачать отчёт
-          в форматах PDF, Word или Excel.
-          {!isEmployee && <> Экспорт доступен только для сотрудников.</>}
+          теплопотерь, подобранные кабели и спецификацию. Кнопка «Печать» открывает печать браузера.
+          {!isEmployee && <> Server export (PDF/Word/Excel) — только сотрудникам.</>}
         </Paragraph>
 
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ marginBottom: 12 }} className="report-page-er-selector">
           <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>
-            ЭР в отчёте (PDL-ER-39):
+            ЭР в отчёте:
           </Text>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             <Select

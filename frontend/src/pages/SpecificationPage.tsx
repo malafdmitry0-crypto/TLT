@@ -245,14 +245,22 @@ export default function SpecificationPage() {
       setPreflightOpen(false);
       setPendingGenerate(null);
       const generatedCount = result.results?.length ?? 1;
-      message.success(
-        generatedCount > 1
-          ? `Спецификация (полная BOM) сформирована для ${generatedCount} ЭР`
-          : `Спецификация (полная BOM) для «${variables.electricalVariantName}» сгенерирована`
-      );
+      if (result.partial) {
+        message.warning(
+          generatedCount > 1
+            ? `Сформирована неполная спецификация для ${generatedCount} ЭР — не использовать как полный закупочный комплект`
+            : `Сформирована неполная спецификация для «${variables.electricalVariantName}» — не использовать как полный закупочный комплект`,
+        );
+      } else {
+        message.success(
+          generatedCount > 1
+            ? `Спецификация сформирована для ${generatedCount} ЭР`
+            : `Спецификация для «${variables.electricalVariantName}» сформирована`,
+        );
+      }
       if (result.mode === 'full' && result.skipped_objects > 0) {
         message.warning(
-          `Объектов без успешного электрорасчёта: ${result.skipped_objects} — они не вошли в полную спецификацию`
+          `Объектов без успешного электрорасчёта: ${result.skipped_objects} — они не вошли в спецификацию`,
         );
       }
       if (result.partial && (result.excluded_groups?.length ?? 0) > 0) {
@@ -261,7 +269,7 @@ export default function SpecificationPage() {
           .filter(Boolean)
           .join(', ');
         message.warning(
-          `Спецификация partial: исключены недоказанные группы${codes ? ` (${codes})` : ''}`,
+          `Исключённые группы: ${codes || 'см. диагностику на экране'}`,
         );
       }
       for (const id of variables.generateVariantIds) {
@@ -328,6 +336,16 @@ export default function SpecificationPage() {
     [spec]
   );
   const isSpecStale = spec?.is_stale === true;
+  const isSpecPartial = Boolean(
+    spec?.is_partial
+    || (spec?.generation_options as { is_partial?: boolean } | null | undefined)?.is_partial,
+  );
+  const excludedGroups = (
+    spec?.excluded_groups
+    ?? (spec?.generation_options as { excluded_groups?: Array<{ error_code?: string; message?: string; group?: string }> } | null | undefined)
+      ?.excluded_groups
+    ?? []
+  );
   const buildGenerateOptions = () => ({
     ex_zone: exZone,
     reserve_coefficient: reserveCoeff,
@@ -510,7 +528,16 @@ export default function SpecificationPage() {
         >
           <span>
             <span className="label">
-              {selectedElectricalVariant.name} · спецификация: полная (BOM ТНП) ·{' '}
+              {selectedElectricalVariant.name}
+              {' · '}
+              {isSpecStale
+                ? 'устарела'
+                : isSpecPartial
+                  ? 'НЕПОЛНАЯ'
+                  : hasItems
+                    ? 'полная'
+                    : 'не сформирована'}
+              {' · '}
             </span>
             позиций: {items.length}
           </span>
@@ -688,7 +715,7 @@ export default function SpecificationPage() {
                   icon={<PlusOutlined />}
                   block
                   size="small"
-                  disabled={!hasItems}
+                  disabled={!hasItems || isSpecStale}
                   onClick={() => setAddOpen(true)}
                 >
                   Добавить из БД
@@ -764,7 +791,7 @@ export default function SpecificationPage() {
                 type="error"
                 showIcon
                 message="Спецификация устарела — не для закупки / печати / отчёта"
-                description="PDL-ER-37: snapshot только для просмотра. Итоги, browser print, отчёт и server export не используют эти количества. Сформируйте спецификацию заново."
+                description="Snapshot только для просмотра. Итоги, печать, отчёт и export не используют эти количества. Сформируйте спецификацию заново."
                 style={{ marginBottom: 16 }}
                 action={
                   <Button
@@ -778,6 +805,30 @@ export default function SpecificationPage() {
                     Сформировать заново
                   </Button>
                 }
+              />
+            )}
+
+            {!isSpecStale && isSpecPartial && hasItems && (
+              <Alert
+                className="specification-partial-banner"
+                type="warning"
+                showIcon
+                message="Неполная спецификация — не использовать как полный закупочный комплект"
+                description={
+                  excludedGroups.length
+                    ? (
+                        <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+                          {excludedGroups.map((g) => (
+                            <li key={String(g.error_code || g.group || g.message)}>
+                              <strong>{g.error_code || g.group}</strong>
+                              {g.message ? ` — ${g.message}` : ''}
+                            </li>
+                          ))}
+                        </ul>
+                      )
+                    : 'Часть групп BOM исключена (секции, коробки или недоказанные методики).'
+                }
+                style={{ marginBottom: 16 }}
               />
             )}
 
@@ -819,7 +870,7 @@ export default function SpecificationPage() {
                     items={items}
                     groupBy={groupBy}
                     mergeIdentical={mergeIdentical}
-                    canDelete={canManuallyEdit && hasItems}
+                    canDelete={canManuallyEdit && hasItems && !isSpecStale}
                     isStale={isSpecStale}
                     onDelete={handleDelete}
                   />

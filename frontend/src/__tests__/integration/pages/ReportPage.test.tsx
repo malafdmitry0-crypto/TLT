@@ -162,6 +162,32 @@ describe('ReportPage (integration)', () => {
     });
   });
 
+  it('FA-09: guest and employee see browser print button', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    useAuthStore.setState({
+      role: 'guest',
+      user: null,
+      sessionId: 'sid',
+      accessToken: null,
+      refreshToken: null,
+    });
+    const { getReportPreview } = await import('@/api/reports');
+    (getReportPreview as ReturnType<typeof vi.fn>).mockResolvedValue({
+      project_id: 'p-1',
+      html: '<div class="tlt-report"><h1>Отчёт</h1></div>',
+      sections: ['Проект'],
+      variant_number: 1,
+    });
+    useProjectStore.getState().setCurrentProject(mockProject);
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined);
+    renderPage();
+    const printBtn = await screen.findByRole('button', { name: /Печать/i });
+    expect(printBtn).toBeInTheDocument();
+    await user.click(printBtn);
+    expect(printSpy).toHaveBeenCalled();
+    printSpy.mockRestore();
+  });
+
   it('сотрудник: клик по PDF триггерит exportReport', async () => {
     const userEvent = (await import('@testing-library/user-event')).default;
     const { getReportPreview, exportReport } = await import('@/api/reports');
@@ -309,7 +335,7 @@ describe('ReportPage (integration)', () => {
     expect(screen.queryByRole('button', { name: /Word/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Excel/i })).not.toBeInTheDocument();
     expect(
-      screen.getByText(/Экспорт доступен только для сотрудников/i)
+      screen.getByText(/Server export \(PDF\/Word\/Excel\) — только сотрудникам/i)
     ).toBeInTheDocument();
   });
 

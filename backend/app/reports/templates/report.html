@@ -303,6 +303,18 @@
     {% endif %}
   </p>
   {% elif specification['items'] %}
+  {% if specification.get('is_partial') %}
+  <p class="section-empty" style="color:#B45309;font-weight:600;">
+    Неполная спецификация — не использовать как полный закупочный комплект.
+  </p>
+  {% if specification.get('excluded_groups') %}
+  <ul>
+    {% for g in specification.excluded_groups %}
+    <li><strong>{{ g.error_code or g.group }}</strong>{% if g.message %}: {{ g.message }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% endif %}
   <table>
     <thead>
       <tr><th>#</th><th>Категория</th><th>Наименование</th><th>Артикул</th><th>Ед.</th><th class="num">Кол-во</th></tr>
@@ -556,6 +568,18 @@
     {% endif %}
   </p>
   {% elif specification['items'] %}
+  {% if specification.get('is_partial') %}
+  <p class="section-empty" style="color:#B45309;font-weight:600;">
+    Неполная спецификация — не использовать как полный закупочный комплект.
+  </p>
+  {% if specification.get('excluded_groups') %}
+  <ul>
+    {% for g in specification.excluded_groups %}
+    <li><strong>{{ g.error_code or g.group }}</strong>{% if g.message %}: {{ g.message }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% endif %}
   <table>
     <thead>
       <tr><th>#</th><th>Категория</th><th>Наименование</th><th>Артикул</th><th>Ед.</th><th class="num">Кол-во</th></tr>

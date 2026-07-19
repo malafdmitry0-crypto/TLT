@@ -22,6 +22,14 @@ export interface Specification {
   stale_reason?: string | null;
   stale_at?: string | null;
   stale_details?: Record<string, unknown> | null;
+  /** FA-01/05: partial BOM honesty after reload */
+  is_partial?: boolean;
+  excluded_groups?: Array<{
+    group?: string;
+    error_code?: string;
+    message?: string;
+  }>;
+  skipped_objects?: number;
   created_at: string;
   updated_at: string;
 }

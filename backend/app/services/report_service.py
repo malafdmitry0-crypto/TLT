@@ -99,6 +99,13 @@ class ReportService:
                 # PDL-ER-37: stale snapshot is viewable only outside report/export
                 # quantities. Preview/print/export must not ship procurement rows.
                 raw_items = list(spec.items or [])
+                gen_opts = getattr(spec, "generation_options", None) or {}
+                is_partial = bool(gen_opts.get("is_partial")) if isinstance(gen_opts, dict) else False
+                excluded_groups = (
+                    list(gen_opts.get("excluded_groups") or [])
+                    if isinstance(gen_opts, dict)
+                    else []
+                )
                 specification_context = {
                     "items": [] if is_stale else raw_items,
                     "is_stale": is_stale,
@@ -109,6 +116,8 @@ class ReportService:
                         else None
                     ),
                     "stale_details": getattr(spec, "stale_details", None),
+                    "is_partial": is_partial and not is_stale,
+                    "excluded_groups": excluded_groups if not is_stale else [],
                     "excluded_from_output": is_stale,
                     "retained_item_count": len(raw_items) if is_stale else 0,
                 }
