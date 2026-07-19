@@ -294,7 +294,10 @@ describe('HeatCalcPage settings', () => {
       });
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
-    it('запоминает ширину горизонтальных областей формы после перетаскивания разделителя', async () => {
+    it('wide-форма (top) не показывает section-resize handles — layout CSS grid', async () => {
+      // После layout wide/side (ObjectWizardWidePanel) междесекционные separator'ы
+      // сняты: sectionResizeEnabled=false, handles не рендерятся. Side-form resize
+      // (слева/справа) покрыт соседним тестом «боковых областей».
       const { listObjects } = await import('@/api/projects');
       (listObjects as ReturnType<typeof vi.fn>).mockResolvedValue([makeObject()]);
 
@@ -305,28 +308,15 @@ describe('HeatCalcPage settings', () => {
       await waitFor(() => {
         expect(document.querySelector('.form-grid-srs')).toBeInTheDocument();
       });
-      const grid = document.querySelector('.form-grid-srs') as HTMLElement;
-      vi.spyOn(grid, 'getBoundingClientRect').mockReturnValue({
-        x: 0,
-        y: 0,
-        left: 0,
-        top: 0,
-        right: 1400,
-        bottom: 240,
-        width: 1400,
-        height: 240,
-        toJSON: () => ({}),
-      } as DOMRect);
-
-      const handles = screen.getAllByRole('separator', { name: 'Изменить ширину областей формы' });
-      fireEvent.mouseDown(handles[1], { clientX: 700 });
-      fireEvent.mouseMove(window, { clientX: 820 });
-      fireEvent.mouseUp(window, { clientX: 820 });
-
-      const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
-      expect(saved.formPlacement).toBe('top');
-      expect(saved.formSectionWeights[1]).toBeGreaterThan(1.35);
-      expect(saved.formSectionWeights[2]).toBeLessThan(1.2);
+      expect(document.querySelector('.form-grid-srs--merged')).toBeInTheDocument();
+      expect(document.querySelectorAll('.form-col-resize-handle')).toHaveLength(0);
+      expect(
+        screen.queryByRole('separator', { name: 'Изменить ширину областей формы' }),
+      ).not.toBeInTheDocument();
+      // Side workspace separator must not appear for top placement either.
+      expect(
+        screen.queryByRole('separator', { name: 'Изменить ширину областей' }),
+      ).not.toBeInTheDocument();
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 
     it('показывает расшифровку расчёта без ошибочного Tср', async () => {

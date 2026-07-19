@@ -12,7 +12,7 @@ Branch: local `main`. Super-prompt residual work without external data.
 | A1.7 | Report multi-ER explicit UUID / no implicit selection | **DONE** | flow + e2e report tests |
 | A3.1–A3.3 | Phase 6 prep | **DONE** | `docs/architecture/phase-6-uuid-cutover-prep.md` + `test_phase6_prep_inventory.py` |
 | A1.5 | Guest TTL 3d semantics | **DONE** | auth integration: 1d idle kept; >TTL removed with product 4320 |
-| A4.* | Release hygiene | **PARTIAL** | documented; HeatCalc settings separator / security gate not fixed in this slice |
+| A4.* | Release hygiene | **PARTIAL** | HeatCalc settings separator test fixed; security/cross-browser residual remain |
 
 ## Still external (not A)
 

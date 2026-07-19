@@ -1,12 +1,16 @@
 # A4 release hygiene — residual outside ER slice
 
-Date: 2026-07-19.
+Date: 2026-07-19 (updated after HeatCalc settings fix).
 
-## Known residual (not fixed in actionable A pack)
+## Fixed
 
-1. **HeatCalc settings separator** — pre-existing frontend test failure
-   (`HeatCalcPage.settings`) referenced in case README; outside dynamic-ER
-   Phase 5 functional path. Track as general frontend fix.
+1. **HeatCalc settings separator** — obsolete test expected section-resize
+   handles removed in wide/side layout (`sectionResizeEnabled=false`,
+   `ObjectWizardWidePanel` without `.form-col-resize-handle`). Test updated to
+   assert no section separators on top placement; side-form resize remains
+   covered by sibling test. `HeatCalcPage.settings.test.tsx` **11/11 green**.
+
+## Still residual (not ER / not blocking Phase 5 evidence)
 
 2. **Dependency security / Alembic metadata drift** — repository-level gates
    outside super-prompt Phase 5 code path. Run full `scripts/security-scan.sh`
@@ -21,3 +25,4 @@ Date: 2026-07-19.
 - Guest TTL 3d cleanup tests
 - Corrupt/manual CSV guest reject tests
 - Phase 5 e2e proof pack green (9/9)
+- HeatCalc settings unit tests green

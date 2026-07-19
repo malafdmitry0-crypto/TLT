@@ -24,11 +24,10 @@ catalog identity, PDF mapping, ER5 slots 1…5, actionable A evidence pack —
 **partial PASS**. Product contract утверждён до PDL-ER-41. Phase 4 blocked
 PDL-ER-15/18/28. Остаются: PDL-ER-27 full 500 wall-clock gate, PDL-ER-35
 matrix **data**, Phase 6 UUID-only cutover execute, corporate template (40).
-Full frontend gate Phase 3: `1052 passed, 1 failed`; неизменённый
-`HeatCalcPage.settings.test.tsx:321` не находит accessible separator. Это
-pre-existing дефект вне dynamic-ER Phase 3 и blocker общего release.
-Dependency security gate и общий Alembic metadata drift также остаются
-не-green вне dynamic-ER diff и блокируют общий release.
+HeatCalc settings separator residual (wide layout without section-resize
+handles) закрыт обновлением unit-теста под актуальный layout. Dependency
+security gate и общий Alembic metadata drift могут оставаться не-green вне
+dynamic-ER diff и должны проверяться перед production release.
 
 Читать в таком порядке:
 
