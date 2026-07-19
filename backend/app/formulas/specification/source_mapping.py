@@ -21,6 +21,10 @@ def _box_matrix() -> dict[str, Any]:
         return {"status": "missing", "rows": {}}
 
 
+def clear_box_matrix_cache() -> None:
+    _box_matrix.cache_clear()
+
+
 def box_ex_rgr_matrix_registered() -> bool:
     data = _box_matrix()
     if data.get("status") != "registered":

@@ -8,7 +8,7 @@
 |---|---|
 | Ветка | local `main` (Desktop TLT) |
 | HEAD (на момент записи) | local WIP UI-PDF quality redemption |
-| Обновлено | 2026-07-19 (ER: selected tab = working ER; no ★ active UX) |
+| Обновлено | 2026-07-19 (SEEDS-01/02 provisional + sections + CODE-01) |
 
 ## Правила оценки
 
@@ -41,14 +41,12 @@ Evidence anchors: `phase-5-checkpoint.md`, `actionable-close-remaining.md`, comm
 
 | ID | Что | Факт |
 |---|---|---|
-| SEEDS-01 | Каталог секционирования (Lmax, Iдоп, Iст.уд, …) | **не заполнен / не зарегистрирован** |
-| SEEDS-02 | `box_ex_rgr_matrix.json` | **`status=missing`, rows пустые** |
+| SEEDS-01 | Каталог секционирования (Lmax, Iдоп, Iст.уд, …) | **provisional registered** `section_catalog.json` dev-1.0.0 (user-authorized synthetic; replace with official TLT table) |
+| SEEDS-02 | `box_ex_rgr_matrix.json` | **provisional registered** dev-1.0.0 (user-authorized; replace with official Ex/Rгр matrix) |
 
-**Следствие runtime (ожидаемо):** partial BOM + diagnostics  
-`SECTION_DATA_SOURCE_MISSING` / `BOX_EX_RGR_MATRIX_MISSING`.  
-Это **не** «спека/код не сделаны».
+**Код поверх сидов:** `formulas/electrical/sections.py` (PDF §6.14), attach to self-reg results, BOM uses `section_count`, UI expand hierarchy + summary working/start current.
 
-После наполнения сидов: Phase 4 wiring (sections persist/UI, BOM Nсек/boxes) — см. `phase-4-checkpoint.md`.
+**Остаток:** официальная «Таблица Виктора» должна заменить provisional numbers без смены API.
 
 ---
 
@@ -56,9 +54,9 @@ Evidence anchors: `phase-5-checkpoint.md`, `actionable-close-remaining.md`, comm
 
 | ID | Что | Где |
 |---|---|---|
-| ~~CODE-ARCH-01~~ | ~~Два контура assign table + calc table~~ | **fixed** (WIP tree): shared `systemView`, one table |
-| ~~CODE-ARCH-02~~ | ~~selected ≠ is_active «Сделать активным»~~ | **fixed**: tab click / create / copy → select+activate; no ★ button |
-| CODE-01 | ER5: candidate / candidate_folder create — guard `variant_number > 4` (только 1…4) | `calculation_service.py` |
+| ~~CODE-ARCH-01~~ | ~~Два контура assign table + calc table~~ | **fixed**: shared `systemView`, one table |
+| ~~CODE-ARCH-02~~ | ~~selected ≠ is_active «Сделать активным»~~ | **fixed**: tab = working ER |
+| ~~CODE-01~~ | ~~ER5 candidate/folder 1…4~~ | **fixed**: `variant_number` 1…5 |
 | CODE-02 | Import CSV: нет warn «заменят данные» + confirm (PDF §5.11) | `ProjectMenu.tsx` |
 | CODE-03 | Лимит объектов **50**, не 500; wall-clock gate 500 не закрыт | config + perf |
 | CODE-04 | Phase 6 UUID-only **execute** (есть только prep) | architecture prep |
@@ -99,9 +97,9 @@ Nсек-зависимый BOM по-прежнему **fail-closed** пока SE
 | ID | Что (PDF) | Статус |
 |---|---|---|
 | **UI-PDF-01** | Heat: 3 колонки (тепло / кабель / spec) + Пол disabled + **Далее** gate | **quality-fixed** — CSS grid heat/cable/spec + card columns |
-| **UI-PDF-02** | Elec: 4 summary cards Самрег/Резистив/Скин/Итого | **quality-fixed** — cards над таблицей; yellow banner totals removed; params panel **default off** |
-| **UI-PDF-03** | Elec: DnD assign (+ кнопки) | **arch-fixed** — shared system tabs + HTML5 row drag to zones; **one** object table |
-| **UI-PDF-04** | Hierarchy object→sections (shell до SEEDS; full после) | **shell quality-fixed** — engineer copy, no SEEDS jargon; full after SEEDS-01 |
+| **UI-PDF-02** | Elec: 4 summary cards Самрег/Резистив/Скин/Итого | **done** — cards + working/start current + sections when catalog present |
+| **UI-PDF-03** | Elec: DnD assign (+ кнопки) | **done** — one table + zones |
+| **UI-PDF-04** | Hierarchy object→sections | **done** — expandable sections from calc results (after SEEDS-01) |
 | **UI-PDF-05** | Spec: Поставщик + Ед. поставки + код; разделы pipe/tank/common | **quality-fixed** — PDF columns (no «Категория» in section group) |
 
 > 2026-07-19: первый shell (`686312b`) закрыл чеклист, но UX был непригоден (DnD на tab labels, summary в footer). Redemption — craft, не новый scope.
@@ -110,14 +108,11 @@ Nсек-зависимый BOM по-прежнему **fail-closed** пока SE
 
 ## F. Очередь (единственная)
 
-1. ~~**UI-PDF-01…05** quality redemption~~ — craft done (см. §H); visual browser proof optional.  
-2. **SEEDS-01 / SEEDS-02** — наполнить (разблокирует full UI-PDF-04 + boxes).  
-3. **CODE-01** — ER5 candidate/folder 1…5.  
-4. **CODE-02** — import confirm.  
-5. ~~PROD-01…03~~ done; PROD-04 UI list → §H.  
-6. **CODE-03** — 500, если NFR обязателен.  
-7. После сидов — Phase 4 full sections + BOM.  
-8. **CODE-04** Phase 6 — по go.
+1. ~~UI-PDF / SEEDS-01/02 provisional / CODE-01~~ done (заменить provisional numbers официальной таблицей).  
+2. **CODE-02** — import confirm.  
+3. **CODE-03** — 500, если NFR обязателен.  
+4. **CODE-04** Phase 6 — по go.  
+5. Official section catalog / box matrix superseding dev-1.0.0.
 
 ---
 

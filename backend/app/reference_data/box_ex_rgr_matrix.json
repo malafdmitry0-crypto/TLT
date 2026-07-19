@@ -1,13 +1,55 @@
 {
-  "description": "PDL-ER-35: official per-row Ex/Rгр condition matrix for connection boxes. Empty until the official data artifact is registered.",
-  "status": "missing",
-  "source": null,
-  "version": null,
-  "registered_at": null,
-  "rows": {},
+  "description": "Provisional Ex/Rгр box matrix (SEEDS-02). User-authorized synthetic rows to unblock BOM boxes until the official matrix is registered.",
+  "status": "registered",
+  "source": "provisional-dev-matrix-user-authorized-2026-07-19",
+  "version": "dev-1.0.0",
+  "registered_at": "2026-07-19",
   "notes": [
-    "While status=missing, full_builder fail-closes all box-dependent rules.",
-    "Do not fill rows from legacy XLSX defaults — that violates PDL-ER-35.",
-    "After official delivery: set status=registered, source name/version/page, and row conditions."
-  ]
+    "Replace with official per-row Ex/Rгр matrix (PDL-ER-35) when available.",
+    "Minimal rows enable SKB selection by diameter and section count."
+  ],
+  "rows": {
+    "skb_1201": {
+      "code": "СКВ 1201",
+      "name": "Соединительная коробка СКВ 1201",
+      "unit": "шт.",
+      "divider": 3,
+      "min_quantity": 1,
+      "round": "up",
+      "conditions": {
+        "d_mm_min": 0,
+        "d_mm_max": 57,
+        "n_sec_max": 2,
+        "requires_ex": false
+      }
+    },
+    "skb_1601": {
+      "code": "СКВ 1601",
+      "name": "Соединительная коробка СКВ 1601",
+      "unit": "шт.",
+      "divider": 3,
+      "min_quantity": 1,
+      "round": "up",
+      "conditions": {
+        "d_mm_min": 57,
+        "d_mm_max": null,
+        "n_sec_min": 3,
+        "requires_ex": false
+      }
+    },
+    "skb_1201_large": {
+      "code": "СКВ 1201",
+      "name": "Соединительная коробка СКВ 1201",
+      "unit": "шт.",
+      "divider": 3,
+      "min_quantity": 1,
+      "round": "up",
+      "conditions": {
+        "d_mm_min": 57,
+        "d_mm_max": null,
+        "n_sec_max": 2,
+        "requires_ex": false
+      }
+    }
+  }
 }

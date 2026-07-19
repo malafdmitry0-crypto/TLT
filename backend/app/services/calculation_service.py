@@ -1383,7 +1383,61 @@ class CalculationService:
             )
 
         self._apply_thread_result_metadata(request.data, result_dict)
+        self._apply_section_plan(request, result_dict, cable_mark)
         return cable_mark, result_dict
+
+    def _apply_section_plan(
+        self,
+        request: ElectricalRequest,
+        result_dict: dict[str, Any],
+        cable_mark: str | None,
+    ) -> None:
+        """Attach Phase-4 section metrics when SEEDS-01 catalog is registered."""
+        if request.cable_type not in {"self_regulating", "self_regulating_tt"}:
+            return
+        if not cable_mark or not isinstance(result_dict, dict):
+            return
+        try:
+            from app.formulas.electrical.sections import (
+                compute_section_plan,
+                section_catalog_registered,
+                section_plan_to_result_fields,
+            )
+        except Exception:
+            return
+        if not section_catalog_registered():
+            return
+        data = request.data if isinstance(request.data, dict) else {}
+        cold = data.get("ambient_temperature")
+        if cold is None:
+            cold = data.get("min_switch_temperature")
+        try:
+            cold_f = float(cold) if cold is not None else -20.0
+        except (TypeError, ValueError):
+            cold_f = -20.0
+        try:
+            voltage = float(result_dict.get("voltage") or data.get("supply_voltage") or 220)
+        except (TypeError, ValueError):
+            voltage = 220.0
+        plan = compute_section_plan(
+            mark=str(
+                result_dict.get("cable_model")
+                or result_dict.get("selected_cable")
+                or cable_mark
+            ),
+            installed_cable_length_m=float(
+                result_dict.get("installed_cable_length")
+                or result_dict.get("cable_length")
+                or 0
+            ),
+            power_per_meter_w=float(result_dict.get("power_per_meter") or 0),
+            working_current_total_a=float(result_dict.get("current") or 0),
+            voltage_v=voltage,
+            cold_start_temp_c=cold_f,
+        )
+        if plan is None:
+            return
+        result_dict.update(section_plan_to_result_fields(plan))
 
     def _build_cable_snapshot_for_result(
         self,
@@ -3126,8 +3180,8 @@ class CalculationService:
         created_by_user_id: UUID | None,
         created_by_session_id: str | None,
     ) -> dict[str, Any]:
-        if variant_number < 1 or variant_number > 4:
-            raise CalculationError("variant_number должен быть от 1 до 4")
+        if variant_number < 1 or variant_number > 5:
+            raise CalculationError("variant_number должен быть от 1 до 5")
         if electrical_variant_id is None:
             raise ElectricalAssignmentServiceError(
                 "ELECTRICAL_ASSIGNMENT_REQUIRED",
@@ -3549,8 +3603,8 @@ class CalculationService:
         electrical_params: dict[str, Any] | None = None,
     ) -> tuple[ElectricalCandidate, str]:
         """Считает и upsert-ит кандидат кабеля, не применяя его в ElectricalCalculation."""
-        if variant_number < 1 or variant_number > 4:
-            raise CalculationError("variant_number должен быть от 1 до 4")
+        if variant_number < 1 or variant_number > 5:
+            raise CalculationError("variant_number должен быть от 1 до 5")
         if mode not in {"auto", "manual"}:
             raise CalculationError("mode должен быть auto или manual")
         if mode == "manual" and not cable_mark:

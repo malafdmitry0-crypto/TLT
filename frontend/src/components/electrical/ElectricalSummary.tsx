@@ -10,6 +10,8 @@ export interface SystemSummaryBucket {
   sectionCount: number | null;
   powerW: number;
   startCurrentA: number;
+  /** Working (operating) current, А — PDF §6.2. */
+  workingCurrentA: number;
 }
 
 export interface ElectricalSystemSummaries {
@@ -36,6 +38,7 @@ const EMPTY: SystemSummaryBucket = {
   sectionCount: null,
   powerW: 0,
   startCurrentA: 0,
+  workingCurrentA: 0,
 };
 
 function formatPowerKw(powerW: number): string {
@@ -109,6 +112,10 @@ function SummaryCard({
       <MetricRow label="Количество секций" value={sections} />
       <MetricRow label="Общая мощность, кВт" value={formatPowerKw(bucket.powerW)} />
       <MetricRow
+        label="Суммарный рабочий ток, А"
+        value={formatCurrent(bucket.workingCurrentA)}
+      />
+      <MetricRow
         label="Суммарный стартовый ток, А"
         value={formatCurrent(bucket.startCurrentA)}
       />
@@ -137,6 +144,7 @@ export default function ElectricalSummary({
       sectionCount: null,
       powerW: totalPower,
       startCurrentA: totalCurrent,
+      workingCurrentA: totalCurrent,
     },
   };
 

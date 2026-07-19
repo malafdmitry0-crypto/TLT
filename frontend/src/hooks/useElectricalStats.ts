@@ -25,6 +25,7 @@ function emptyBucket(): SystemSummaryBucket {
     sectionCount: null,
     powerW: 0,
     startCurrentA: 0,
+    workingCurrentA: 0,
   };
 }
 
@@ -40,14 +41,22 @@ function addToBucket(bucket: SystemSummaryBucket, calc: ElectricalCalcSummary): 
   bucket.objectCount += 1;
   bucket.cableLengthM += orderCableLength(calc);
   bucket.powerW += Number(calc.results?.total_power ?? 0);
-  const start = Number(
-    calc.results?.start_current
-    ?? calc.results?.starting_current
+  const working = Number(
+    calc.results?.working_current
+    ?? calc.results?.section_working_current_a
     ?? calc.results?.current
     ?? 0,
   );
+  bucket.workingCurrentA += Number.isFinite(working) ? working : 0;
+  const start = Number(
+    calc.results?.start_current
+    ?? calc.results?.starting_current
+    ?? calc.results?.section_start_current_a
+    ?? 0,
+  );
+  // Do not fall back to working current for start — show 0 if unknown.
   bucket.startCurrentA += Number.isFinite(start) ? start : 0;
-  // SEEDS empty: do not invent section counts from num_circuits.
+  // Real section_count from Phase-4 catalog only (not num_circuits).
   const sectionsRaw = calc.results?.section_count ?? calc.results?.num_sections;
   if (sectionsRaw !== null && sectionsRaw !== undefined && sectionsRaw !== '') {
     const n = Number(sectionsRaw);

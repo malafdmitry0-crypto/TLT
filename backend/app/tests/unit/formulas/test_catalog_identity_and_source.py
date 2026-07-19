@@ -9,7 +9,6 @@ from app.formulas.specification.catalog_identity import (
 from app.formulas.specification.source_mapping import (
     box_ex_rgr_matrix_registered,
     is_rule_approved,
-    rule_exclusion,
 )
 from app.reference_data.loader import list_spec_accessory_rules
 
@@ -57,12 +56,13 @@ def test_cable_identity_uses_explicit_nomenclature():
     assert identity["nomenclature_code"] == "CAB-25-TTN"
 
 
-def test_box_matrix_not_registered_by_default():
-    assert box_ex_rgr_matrix_registered() is False
-    assert is_rule_approved("box_Nk1") is False
-    excl = rule_exclusion("box_Nk1")
-    assert excl is not None
-    assert excl["error_code"] == "BOX_EX_RGR_MATRIX_MISSING"
+def test_box_matrix_registered_with_seeds():
+    from app.formulas.specification.source_mapping import clear_box_matrix_cache
+
+    clear_box_matrix_cache()
+    assert box_ex_rgr_matrix_registered() is True
+    # box_Nk rules still require mapping approval; matrix alone is not enough.
+    assert is_rule_approved("connector_kit_low_1") is True
 
 
 def test_pdf_approved_kit_rule_emits_without_matrix():

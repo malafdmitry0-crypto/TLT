@@ -73,11 +73,10 @@ def box_ex_rgr_matrix_available() -> bool:
 
 
 def heating_sections_ready() -> bool:
-    """True only when Phase 4 section catalog is registered (PDL-ER-15/28).
+    """True when Phase 4 section catalog is registered (PDL-ER-15/28 / SEEDS-01)."""
+    from app.formulas.electrical.sections import section_catalog_registered
 
-    Production default is False. Tests/catalog registration may override.
-    """
-    return False
+    return section_catalog_registered()
 
 
 def _is_successful(result: dict[str, Any]) -> bool:
@@ -284,7 +283,17 @@ def build_full_specification_detailed(
         if identity is None:
             continue
         mark = str(identity["mark"])
-        n_sec = max(1, int(round(_num(result.get("num_circuits"), 1) or 1)))
+        # Prefer real Phase-4 section_count; never invent from catalog absence.
+        n_sec_raw = result.get("section_count")
+        if n_sec_raw is None:
+            n_sec_raw = result.get("num_sections")
+        if n_sec_raw is None and sections_ready:
+            # Interim: threads/circuits only when catalog is registered but
+            # this result was not section-enriched (legacy row).
+            n_sec_raw = result.get("num_circuits")
+        n_sec = max(1, int(round(_num(n_sec_raw, 1) or 1))) if n_sec_raw is not None else 1
+        if not sections_ready:
+            n_sec = 1  # kits gated separately; keep non-kit paths stable
         section_total = _num(
             result.get("installed_cable_length") or result.get("cable_length")
         )

@@ -149,8 +149,9 @@ class TestFullSpecificationCable:
         items = build_full_specification(elec, objs)
         assert _qty(items, "ТЛТ-20") == 120.0
 
-    def test_sections_missing_excludes_connectors(self):
+    def test_sections_missing_excludes_connectors(self, monkeypatch):
         """FA-02: without Phase-4 catalog, connector kits are excluded."""
+        monkeypatch.setattr(fb, "heating_sections_ready", lambda: False)
         elec, objs = _two_object_case()
         build = build_full_specification_detailed(elec, objs)
         assert _qty(build.items, "КСН-1") is None
@@ -165,8 +166,14 @@ class TestFullSpecificationCable:
 
 
 class TestFullSpecificationBoxes:
-    def test_boxes_fail_closed_without_official_matrix(self):
+    def test_boxes_fail_closed_without_official_matrix(self, monkeypatch):
         """PDL-ER-35: no Ex/Rгр matrix → boxes and box-derived positions excluded."""
+        monkeypatch.setattr(fb, "box_ex_rgr_matrix_available", lambda: False)
+        monkeypatch.setattr(fb, "heating_sections_ready", lambda: False)
+        monkeypatch.setattr(
+            "app.formulas.specification.source_mapping.box_ex_rgr_matrix_registered",
+            lambda: False,
+        )
         elec, objs = _two_object_case()
         build = build_full_specification_detailed(elec, objs)
         assert _qty(build.items, "СКВ 1201") is None
@@ -175,7 +182,6 @@ class TestFullSpecificationBoxes:
         assert _qty(build.items, "ХК30") is None
         codes = {g["error_code"] for g in build.excluded_groups}
         assert "BOX_EX_RGR_MATRIX_MISSING" in codes
-        # FA-02: production default also excludes Nсек kits (sections catalog absent).
         assert "SECTION_DATA_SOURCE_MISSING" in codes
         assert build.partial is True
         # Proven cable still present; section-dependent kits excluded.
@@ -271,7 +277,12 @@ class TestFullSpecificationKits:
 
 
 class TestFullSpecificationEntriesAndExZone:
-    def test_entries_fail_closed_without_matrix(self):
+    def test_entries_fail_closed_without_matrix(self, monkeypatch):
+        monkeypatch.setattr(fb, "box_ex_rgr_matrix_available", lambda: False)
+        monkeypatch.setattr(
+            "app.formulas.specification.source_mapping.box_ex_rgr_matrix_registered",
+            lambda: False,
+        )
         elec, objs = _two_object_case()
         items = build_full_specification(elec, objs, options=SpecificationOptions(ex_zone=False))
         assert _qty(items, "КВ-пластик-М25") is None

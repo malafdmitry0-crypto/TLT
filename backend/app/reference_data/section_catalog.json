@@ -1,0 +1,36 @@
+{
+  "description": "Provisional TLT heating-section catalog (SEEDS-01). User-authorized synthetic data to unblock Phase 4 until the official manufacturer table is registered.",
+  "status": "registered",
+  "source": "provisional-dev-catalog-user-authorized-2026-07-19",
+  "version": "dev-1.0.0",
+  "registered_at": "2026-07-19",
+  "rounding": "floor_l_ogr",
+  "notes": [
+    "Replace with official TLT/«Таблица Виктора» (PDL-ER-28) when available.",
+    "Rows are voltage-scoped (PDL-ER-23) and keyed by mark × voltage × cold_start_temp.",
+    "I_st_ud is direct A/m (PDL-ER-21); I_dop is explicit (PDL-ER-20).",
+    "Values are engineering-plausible placeholders, not factory certificates."
+  ],
+  "rows": [
+    {"mark": "ТЛТ-10", "voltage_v": 220, "cold_start_temp_c": -20, "l_max_m": 200, "i_dop_a": 16, "i_st_ud_a_per_m": 0.08},
+    {"mark": "ТЛТ-15", "voltage_v": 220, "cold_start_temp_c": -20, "l_max_m": 180, "i_dop_a": 16, "i_st_ud_a_per_m": 0.10},
+    {"mark": "ТЛТ-20", "voltage_v": 220, "cold_start_temp_c": -20, "l_max_m": 160, "i_dop_a": 16, "i_st_ud_a_per_m": 0.12},
+    {"mark": "ТЛТ-25", "voltage_v": 220, "cold_start_temp_c": -20, "l_max_m": 140, "i_dop_a": 20, "i_st_ud_a_per_m": 0.15},
+    {"mark": "ТЛТ-30", "voltage_v": 220, "cold_start_temp_c": -20, "l_max_m": 130, "i_dop_a": 20, "i_st_ud_a_per_m": 0.18},
+    {"mark": "ТЛТ-40", "voltage_v": 220, "cold_start_temp_c": -20, "l_max_m": 110, "i_dop_a": 25, "i_st_ud_a_per_m": 0.22},
+    {"mark": "ТЛТ-50", "voltage_v": 220, "cold_start_temp_c": -20, "l_max_m": 100, "i_dop_a": 25, "i_st_ud_a_per_m": 0.26},
+    {"mark": "ТЛТ-60", "voltage_v": 220, "cold_start_temp_c": -20, "l_max_m": 90, "i_dop_a": 32, "i_st_ud_a_per_m": 0.30},
+    {"mark": "ТЛТ-75", "voltage_v": 220, "cold_start_temp_c": -20, "l_max_m": 80, "i_dop_a": 32, "i_st_ud_a_per_m": 0.35},
+    {"mark": "ТЛТ-100", "voltage_v": 220, "cold_start_temp_c": -20, "l_max_m": 65, "i_dop_a": 40, "i_st_ud_a_per_m": 0.45},
+    {"mark": "ТЛТ-10", "voltage_v": 220, "cold_start_temp_c": -40, "l_max_m": 180, "i_dop_a": 16, "i_st_ud_a_per_m": 0.10},
+    {"mark": "ТЛТ-15", "voltage_v": 220, "cold_start_temp_c": -40, "l_max_m": 160, "i_dop_a": 16, "i_st_ud_a_per_m": 0.12},
+    {"mark": "ТЛТ-20", "voltage_v": 220, "cold_start_temp_c": -40, "l_max_m": 140, "i_dop_a": 16, "i_st_ud_a_per_m": 0.15},
+    {"mark": "ТЛТ-25", "voltage_v": 220, "cold_start_temp_c": -40, "l_max_m": 120, "i_dop_a": 20, "i_st_ud_a_per_m": 0.18},
+    {"mark": "ТЛТ-30", "voltage_v": 220, "cold_start_temp_c": -40, "l_max_m": 110, "i_dop_a": 20, "i_st_ud_a_per_m": 0.22},
+    {"mark": "ТЛТ-40", "voltage_v": 220, "cold_start_temp_c": -40, "l_max_m": 95, "i_dop_a": 25, "i_st_ud_a_per_m": 0.26},
+    {"mark": "ТЛТ-50", "voltage_v": 220, "cold_start_temp_c": -40, "l_max_m": 85, "i_dop_a": 25, "i_st_ud_a_per_m": 0.30},
+    {"mark": "ТЛТ-60", "voltage_v": 220, "cold_start_temp_c": -40, "l_max_m": 75, "i_dop_a": 32, "i_st_ud_a_per_m": 0.35},
+    {"mark": "ТЛТ-75", "voltage_v": 220, "cold_start_temp_c": -40, "l_max_m": 65, "i_dop_a": 32, "i_st_ud_a_per_m": 0.40},
+    {"mark": "ТЛТ-100", "voltage_v": 220, "cold_start_temp_c": -40, "l_max_m": 55, "i_dop_a": 40, "i_st_ud_a_per_m": 0.50}
+  ]
+}
