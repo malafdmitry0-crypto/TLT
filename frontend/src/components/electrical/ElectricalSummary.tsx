@@ -1,4 +1,4 @@
-import { Card, Col, Row, Typography } from 'antd';
+import { Card, Typography } from 'antd';
 
 const { Text } = Typography;
 
@@ -54,27 +54,15 @@ function formatCurrent(a: number): string {
   return Number.isFinite(a) ? a.toFixed(1) : '0';
 }
 
-function MetricRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'baseline',
-        gap: 12,
-        padding: '3px 0',
-        borderBottom: '1px solid #f0f0f0',
-        fontSize: 12,
-        lineHeight: 1.35,
-      }}
-    >
-      <Text type="secondary" style={{ fontSize: 12 }}>{label}</Text>
-      <Text strong style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{value}</Text>
-    </div>
-  );
+function formatSections(bucket: SystemSummaryBucket) {
+  const sections =
+    bucket.sectionCount === null || bucket.sectionCount === undefined
+      ? '—'
+      : String(bucket.sectionCount);
+  return sections;
 }
 
-function SummaryCard({
+function SummaryTableRow({
   title,
   bucket,
   testId,
@@ -83,49 +71,22 @@ function SummaryCard({
   bucket: SystemSummaryBucket;
   testId: string;
 }) {
-  const sections =
-    bucket.sectionCount === null || bucket.sectionCount === undefined
-      ? '—'
-      : String(bucket.sectionCount);
-
   return (
-    <Card
-      size="small"
-      title={(
-        <Text strong style={{ fontSize: 13 }}>
-          {title}
-        </Text>
-      )}
-      styles={{
-        header: {
-          minHeight: 36,
-          padding: '6px 12px',
-          borderBottom: '1px solid #f0f0f0',
-        },
-        body: { padding: '4px 12px 8px' },
-      }}
-      style={{ height: '100%', borderRadius: 8 }}
-      data-testid={testId}
-    >
-      <MetricRow label="Объектов" value={String(bucket.objectCount)} />
-      <MetricRow label="Суммарная длина кабеля, м" value={formatLength(bucket.cableLengthM)} />
-      <MetricRow label="Количество секций" value={sections} />
-      <MetricRow label="Общая мощность, кВт" value={formatPowerKw(bucket.powerW)} />
-      <MetricRow
-        label="Суммарный рабочий ток, А"
-        value={formatCurrent(bucket.workingCurrentA)}
-      />
-      <MetricRow
-        label="Суммарный стартовый ток, А"
-        value={formatCurrent(bucket.startCurrentA)}
-      />
-    </Card>
+    <tr data-testid={testId}>
+      <th scope="row">{title}</th>
+      <td>{bucket.objectCount}</td>
+      <td>{formatLength(bucket.cableLengthM)}</td>
+      <td>{formatSections(bucket)}</td>
+      <td>{formatPowerKw(bucket.powerW)}</td>
+      <td>{formatCurrent(bucket.workingCurrentA)}</td>
+      <td>{formatCurrent(bucket.startCurrentA)}</td>
+    </tr>
   );
 }
 
 /**
- * PDF UI-PDF-02: four summary cards (Самрег / Резистив / Скин / Итого).
- * Compact metric rows (PDF page 35), success-only totals.
+ * One compact system summary table (Самрег / Резистив / Скин / Итого).
+ * Success-only totals, without duplicating the system tabs below.
  */
 export default function ElectricalSummary({
   totalCableLength = 0,
@@ -149,37 +110,33 @@ export default function ElectricalSummary({
   };
 
   return (
-    <div data-testid="elec-summary-four-cards" className="elec-summary-four-cards">
-      <Row gutter={[10, 10]}>
-        <Col xs={24} sm={12} xl={6}>
-          <SummaryCard
-            title="Саммари Самрег"
-            bucket={resolved.self_regulating}
-            testId="elec-summary-self_regulating"
-          />
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <SummaryCard
-            title="Саммари Резистив"
-            bucket={resolved.resistive}
-            testId="elec-summary-resistive"
-          />
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <SummaryCard
-            title="Саммари Скин"
-            bucket={resolved.skin}
-            testId="elec-summary-skin"
-          />
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <SummaryCard
-            title="Саммари Итого"
-            bucket={resolved.total}
-            testId="elec-summary-total"
-          />
-        </Col>
-      </Row>
-    </div>
+    <Card
+      size="small"
+      className="elec-summary-table-card"
+      title={<Text strong style={{ fontSize: 13 }}>Итоги по кабелю</Text>}
+      data-testid="elec-summary-table"
+    >
+      <div className="elec-summary-table-scroll">
+        <table className="elec-summary-table">
+          <thead>
+            <tr>
+              <th scope="col">Тип кабеля</th>
+              <th scope="col">Объекты</th>
+              <th scope="col">Длина, м</th>
+              <th scope="col">Секции</th>
+              <th scope="col">Мощность, кВт</th>
+              <th scope="col">Рабочий ток, А</th>
+              <th scope="col">Пусковой ток, А</th>
+            </tr>
+          </thead>
+          <tbody>
+            <SummaryTableRow title="Самрег" bucket={resolved.self_regulating} testId="elec-summary-self_regulating" />
+            <SummaryTableRow title="Резистив" bucket={resolved.resistive} testId="elec-summary-resistive" />
+            <SummaryTableRow title="Скин" bucket={resolved.skin} testId="elec-summary-skin" />
+            <SummaryTableRow title="Итого" bucket={resolved.total} testId="elec-summary-total" />
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }

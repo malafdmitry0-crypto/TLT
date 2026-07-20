@@ -112,6 +112,8 @@ interface HeatCalcNormalGlideGridProps {
   onLoadMore: () => void;
   onCellAction?: (record: ProjectObject, columnKey: string, actionKey: string) => void;
   onRegisterDraftInvalidator?: (invalidateRows: HeatCalcNormalGlideDraftInvalidator) => () => void;
+  /** PDF-HEAT-08: Glide row drag → new visual order indices (visible rows). */
+  onRowMoved?: (startIndex: number, endIndex: number) => void;
   fillAvailableWidth?: boolean;
   renderFilterDropdown?: (props: {
     column: HeatCalcGlideGridColumn;
@@ -487,6 +489,7 @@ function HeatCalcNormalGlideGrid({
   onLoadMore,
   onCellAction,
   onRegisterDraftInvalidator,
+  onRowMoved,
   fillAvailableWidth = false,
   renderFilterDropdown,
 }: HeatCalcNormalGlideGridProps) {
@@ -1039,6 +1042,7 @@ function HeatCalcNormalGlideGrid({
         rowSelectionMode="multi"
         rangeSelect="cell"
         columnSelect="none"
+        onRowMoved={onRowMoved}
         getRowThemeOverride={(rowIndex) => {
           const record = rows[rowIndex];
           if (!record) return undefined;

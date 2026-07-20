@@ -43,11 +43,23 @@ test.describe('CSV-обмен проектами (US-02.6, US-02.7, US-02.8)', (
     await page.locator('button[title="Скачать проект (CSV)"]').click();
     const file = await saveDownload(downloadPromise);
 
-    // Шаг 2: загружаем его обратно — проект должен замеситься
-    const fileInput = page.locator('input[type="file"]').first();
+    // Шаг 2: CODE-02 / PDF §5.11 — confirm replace, then pick file
+    await page.getByTestId('project-menu-import-csv').click();
+    await expect(page.getByTestId('project-import-replace-confirm')).toBeVisible({ timeout: 5_000 });
+    await page.getByRole('button', { name: 'Заменить' }).click();
+    const fileInput = page.getByTestId('project-menu-import-file-input');
     await fileInput.setInputFiles(file);
     await expect(page.getByText(/Импортирован проект/i)).toBeVisible({ timeout: 10_000 });
     fs.unlinkSync(file);
+  });
+
+  test('CODE-02: отмена confirm не открывает замену', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: /Начать без регистрации/i }).click();
+    await page.getByTestId('project-menu-import-csv').click();
+    await expect(page.getByTestId('project-import-replace-confirm')).toBeVisible();
+    await page.getByRole('button', { name: 'Отмена' }).click();
+    await expect(page.getByTestId('project-import-replace-confirm')).toBeHidden({ timeout: 5_000 });
   });
 
   test('round-trip: импорт Excel → экспорт CSV → новый гость импортирует CSV', async ({ page, request }) => {

@@ -147,17 +147,27 @@ describe('useHeatCalcResizeModel', () => {
       clientX: 480,
       currentViewSettings,
       state: { placement: 'left', rect },
-    })).toBe(48);
+    })).toBe(52);
     expect(resolveSideFormWidthPctFromClientX({
       clientX: 520,
       currentViewSettings,
       state: { placement: 'right', rect },
-    })).toBe(48);
+    })).toBe(52);
     expect(resolveSideFormWidthPctFromClientX({
       clientX: 900,
       currentViewSettings,
       state: { placement: 'left', rect },
     })).toBe(62);
+    expect(resolveSideFormWidthPctFromClientX({
+      clientX: 200,
+      currentViewSettings,
+      state: { placement: 'left', rect },
+    })).toBe(52);
+    expect(resolveSideFormWidthPctFromClientX({
+      clientX: 800,
+      currentViewSettings,
+      state: { placement: 'right', rect },
+    })).toBe(52);
     expect(resolveSideFormWidthPctFromClientX({
       clientX: 480,
       currentViewSettings,
@@ -177,7 +187,7 @@ describe('useHeatCalcResizeModel', () => {
     act(() => {
       window.dispatchEvent(new MouseEvent('mousemove', { clientX: 480, bubbles: true }));
     });
-    expect(applySideFormWidthPct).toHaveBeenCalledWith(48);
+    expect(applySideFormWidthPct).toHaveBeenCalledWith(52);
 
     act(() => {
       window.dispatchEvent(new MouseEvent('mouseup', { clientX: 480, bubbles: true }));
@@ -185,7 +195,7 @@ describe('useHeatCalcResizeModel', () => {
 
     expect(persistTableViewOnly).toHaveBeenCalledWith(expect.objectContaining({
       formPlacement: 'left',
-      sideFormWidthPct: 48,
+      sideFormWidthPct: 52,
     }));
     expect(document.body).not.toHaveClass('heatcalc-side-resizing');
   });

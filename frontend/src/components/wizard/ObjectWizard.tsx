@@ -726,7 +726,6 @@ export default function ObjectWizard({
       </Form.Item>
       {layoutVariant === 'side' ? (
         <ObjectWizardSidePanel
-          geometryTitle={geometryTitle}
           renderGeometrySection={renderGeometrySection}
           renderInsulationSection={renderInsulationSection}
           renderTemperatureSection={renderTemperatureSection}

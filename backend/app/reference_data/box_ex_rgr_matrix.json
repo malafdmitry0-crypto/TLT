@@ -1,17 +1,109 @@
 {
-  "description": "Provisional Ex/Rгр box matrix (SEEDS-02). User-authorized synthetic rows to unblock BOM boxes until the official matrix is registered.",
+  "description": "Provisional Ex/Rгр box matrix (SEEDS-02). PDF §7.15 data-driven rows. User-authorized synthetic until official TLT matrix is registered.",
   "status": "registered",
   "source": "provisional-dev-matrix-user-authorized-2026-07-19",
-  "version": "dev-1.0.0",
-  "registered_at": "2026-07-19",
+  "version": "dev-1.0.1",
+  "registered_at": "2026-07-20",
   "notes": [
     "Replace with official per-row Ex/Rгр matrix (PDL-ER-35) when available.",
-    "Minimal rows enable SKB selection by diameter and section count."
+    "Each row maps to a box_Nk* rule in spec_accessories.json for catalog identity.",
+    "d_mm_min inclusive, d_mm_max exclusive (null = open). PDL-ER-08: large branch d≥57.",
+    "Boolean flags true/false/omit: omit = don't care. Plain Nk rows omit kiu (legacy bucket ignores kiu without K1i/K2i).",
+    "qty = max(round(Nсек/divider), min_quantity); round=up → ceil, down → floor."
   ],
   "rows": {
-    "skb_1201": {
+    "box_Nk1": {
+      "rule_key": "box_Nk1",
       "code": "СКВ 1201",
-      "name": "Соединительная коробка СКВ 1201",
+      "name": "Коробка соединительная СКВ 1201",
+      "unit": "шт.",
+      "divider": 3,
+      "min_quantity": 1,
+      "round": "up",
+      "conditions": {
+        "d_mm_min": 57,
+        "n_sec_max": 2,
+        "requires_k1i": false,
+        "requires_k2i": false
+      }
+    },
+    "box_Nk2": {
+      "rule_key": "box_Nk2",
+      "code": "СКВ 1601",
+      "name": "Коробка соединительная СКВ 1601",
+      "unit": "шт.",
+      "divider": 3,
+      "min_quantity": 1,
+      "round": "up",
+      "conditions": {
+        "d_mm_min": 57,
+        "n_sec_min": 3,
+        "requires_k1i": false,
+        "requires_k2i": false
+      }
+    },
+    "box_Nk3": {
+      "rule_key": "box_Nk3",
+      "code": "СКВ 1601-С",
+      "name": "Коробка соединительная СКВ 1601-С",
+      "unit": "шт.",
+      "divider": 3,
+      "min_quantity": 1,
+      "round": "up",
+      "conditions": {
+        "d_mm_min": 57,
+        "requires_k1i": true,
+        "requires_k2i": false,
+        "requires_kiu": false
+      }
+    },
+    "box_Nk4": {
+      "rule_key": "box_Nk4",
+      "code": "СКВ 1601-С1",
+      "name": "Коробка соединительная СКВ 1601-С1",
+      "unit": "шт.",
+      "divider": 3,
+      "min_quantity": 1,
+      "round": "up",
+      "conditions": {
+        "d_mm_min": 57,
+        "requires_k1i": true,
+        "requires_k2i": false,
+        "requires_kiu": true
+      }
+    },
+    "box_Nk5": {
+      "rule_key": "box_Nk5",
+      "code": "СКВ 1201-С",
+      "name": "Коробка соединительная СКВ 1201-С",
+      "unit": "шт.",
+      "divider": 3,
+      "min_quantity": 1,
+      "round": "up",
+      "conditions": {
+        "d_mm_min": 57,
+        "requires_k2i": true,
+        "requires_kiu": false
+      }
+    },
+    "box_Nk6": {
+      "rule_key": "box_Nk6",
+      "code": "СКВ 1201-С1",
+      "name": "Коробка соединительная СКВ 1201-С1",
+      "unit": "шт.",
+      "divider": 3,
+      "min_quantity": 1,
+      "round": "up",
+      "conditions": {
+        "d_mm_min": 57,
+        "requires_k2i": true,
+        "requires_kiu": true
+      }
+    },
+    "box_Nk7": {
+      "rule_key": "box_Nk7",
+      "code": "СКВ 1202",
+      "name": "Коробка соединительная СКВ 1202",
       "unit": "шт.",
       "divider": 3,
       "min_quantity": 1,
@@ -20,35 +112,86 @@
         "d_mm_min": 0,
         "d_mm_max": 57,
         "n_sec_max": 2,
-        "requires_ex": false
+        "requires_k1i": false,
+        "requires_k2i": false
       }
     },
-    "skb_1601": {
-      "code": "СКВ 1601",
-      "name": "Соединительная коробка СКВ 1601",
+    "box_Nk8": {
+      "rule_key": "box_Nk8",
+      "code": "СКВ 1602",
+      "name": "Коробка соединительная СКВ 1602",
       "unit": "шт.",
       "divider": 3,
       "min_quantity": 1,
       "round": "up",
       "conditions": {
-        "d_mm_min": 57,
-        "d_mm_max": null,
+        "d_mm_min": 0,
+        "d_mm_max": 57,
         "n_sec_min": 3,
-        "requires_ex": false
+        "requires_k1i": false,
+        "requires_k2i": false
       }
     },
-    "skb_1201_large": {
-      "code": "СКВ 1201",
-      "name": "Соединительная коробка СКВ 1201",
+    "box_Nk9": {
+      "rule_key": "box_Nk9",
+      "code": "СКВ 1202-С",
+      "name": "Коробка соединительная СКВ 1202-С",
       "unit": "шт.",
       "divider": 3,
       "min_quantity": 1,
       "round": "up",
       "conditions": {
-        "d_mm_min": 57,
-        "d_mm_max": null,
-        "n_sec_max": 2,
-        "requires_ex": false
+        "d_mm_min": 0,
+        "d_mm_max": 57,
+        "requires_k2i": true,
+        "requires_kiu": false
+      }
+    },
+    "box_Nk10": {
+      "rule_key": "box_Nk10",
+      "code": "СКВ 1202-С1",
+      "name": "Коробка соединительная СКВ 1202-С1",
+      "unit": "шт.",
+      "divider": 3,
+      "min_quantity": 1,
+      "round": "up",
+      "conditions": {
+        "d_mm_min": 0,
+        "d_mm_max": 57,
+        "requires_k2i": true,
+        "requires_kiu": true
+      }
+    },
+    "box_Nk11": {
+      "rule_key": "box_Nk11",
+      "code": "СКВ 1602-С",
+      "name": "Коробка соединительная СКВ 1602-С",
+      "unit": "шт.",
+      "divider": 3,
+      "min_quantity": 1,
+      "round": "up",
+      "conditions": {
+        "d_mm_min": 0,
+        "d_mm_max": 57,
+        "requires_k1i": true,
+        "requires_k2i": false,
+        "requires_kiu": false
+      }
+    },
+    "box_Nk12": {
+      "rule_key": "box_Nk12",
+      "code": "СКВ 1602-С1",
+      "name": "Коробка соединительная СКВ 1602-С1",
+      "unit": "шт.",
+      "divider": 3,
+      "min_quantity": 1,
+      "round": "up",
+      "conditions": {
+        "d_mm_min": 0,
+        "d_mm_max": 57,
+        "requires_k1i": true,
+        "requires_k2i": false,
+        "requires_kiu": true
       }
     }
   }

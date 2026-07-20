@@ -42,6 +42,25 @@ def box_ex_rgr_matrix_meta() -> dict[str, Any]:
     }
 
 
+def list_box_ex_rgr_matrix_rows() -> list[dict[str, Any]]:
+    """PDF §7.15 data-driven rows (empty when matrix not registered)."""
+    if not box_ex_rgr_matrix_registered():
+        return []
+    rows = _box_matrix().get("rows") or {}
+    if not isinstance(rows, dict):
+        return []
+    out: list[dict[str, Any]] = []
+    for row_id, raw in rows.items():
+        if not isinstance(raw, dict):
+            continue
+        item = dict(raw)
+        item.setdefault("row_id", str(row_id))
+        if not item.get("rule_key"):
+            item["rule_key"] = str(row_id)
+        out.append(item)
+    return out
+
+
 def rule_mapping(rule_key: str) -> dict[str, Any] | None:
     rules = _mapping().get("rules") or {}
     item = rules.get(rule_key)

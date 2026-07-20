@@ -449,6 +449,206 @@ class TestFullSpecificationRobustness:
         assert _qty(items, "КСН-1") == 4
 
 
+class TestPdfBomGoldens:
+    """PDF-BOM-02…06 oracles from pdf-requirements.md."""
+
+    def test_pdf_bom_02_connector_9_over_2_is_5(self, enable_sections):
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "selected_cable": "25ТТН2",
+                "temperature_group": "low",
+                "num_circuits": 9,
+                "installed_cable_length": 729.0,
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 100.0, "object_type": "pipe"}}
+        items = build_full_specification(
+            elec, objs, options=SpecificationOptions(connector_kit_sections_per_kit=2)
+        )
+        assert _qty(items, "КСН-2") == 5
+
+    def test_pdf_bom_03_repair_729_over_150_is_5(self, enable_sections):
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "selected_cable": "25ТТН2",
+                "temperature_group": "low",
+                "num_circuits": 9,
+                "installed_cable_length": 729.0,
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 100.0, "object_type": "pipe"}}
+        items = build_full_specification(elec, objs)
+        assert _qty(items, "КСР-1") == 5
+
+    def test_pdf_bom_04_glue_connector_plus_repair_over_7(self, enable_sections):
+        """Oracle (9+5)/7 → 2: connector kits + repair kits / kits_per_unit."""
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "selected_cable": "25ТТН2",
+                "temperature_group": "low",
+                "num_circuits": 9,
+                "installed_cable_length": 729.0,
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 100.0, "object_type": "pipe"}}
+        items = build_full_specification(
+            elec, objs, options=SpecificationOptions(connector_kit_sections_per_kit=1)
+        )
+        # N=9 → 9 connector kits; repair ceil(729/150)=5; ceil(14/7)=2
+        assert _qty(items, "КСН-1") == 9
+        assert _qty(items, "КСР-1") == 5
+        assert _qty(items, "NEO CONTACT MIX600") == 2
+
+    def test_pdf_bom_05_glass_tape_8939_over_30_is_298(self, enable_sections):
+        """Oracle: tape_m=8939 → ceil(8939/30)=298 reels."""
+        # Solve: tape_m = (π * d_mm * 2.5 / 1000) * (L / 0.3) * 1.1 = 8939
+        # With d_mm=108: factor = (π*108*2.5/1000)*1.1/0.3 ≈ 3.110… → L = 8939/factor
+        d_mm = 108.0
+        target_tape = 8939.0
+        factor = (math.pi * d_mm * 2.5 / 1000.0) * (1.0 / 0.3) * 1.1
+        length = target_tape / factor
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "selected_cable": "25ТТН2",
+                "temperature_group": "low",
+                "num_circuits": 1,
+                "installed_cable_length": length,
+                "object_id": "o1",
+            }
+        ]
+        objs = {
+            "o1": {
+                "outer_diameter": d_mm / 1000.0,
+                "pipe_length": 100.0,
+                "object_type": "pipe",
+            }
+        }
+        items = build_full_specification(elec, objs)
+        assert _qty(items, "ЛКС 12") == 298
+
+    def test_pdf_bom_06_aluminium_729_over_50_is_15(self, enable_sections):
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "selected_cable": "25ТТН2",
+                "temperature_group": "low",
+                "num_circuits": 1,
+                "installed_cable_length": 729.0,
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 100.0, "object_type": "pipe"}}
+        items = build_full_specification(elec, objs)
+        assert _qty(items, "ЛА") == 15
+
+    def test_pdf_bom_07_matrix_row_divider_and_d57(self, enable_box_matrix):
+        """Data-driven row: N=4, divider=3 → 2; d=57 inclusive large."""
+        elec = [
+            {
+                "cable_mark": "25ТТН2-СТ",
+                "selected_cable": "25ТТН2",
+                "temperature_group": "low",
+                "num_circuits": 4,
+                "installed_cable_length": 100.0,
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.057, "pipe_length": 50.0, "object_type": "pipe"}}
+        items = build_full_specification(elec, objs)
+        assert _qty(items, "СКВ 1601") == 2
+        assert _qty(items, "СКВ 1202") is None
+
+
+class TestCatalogSupplierAndSupplyUnit:
+    def test_cable_and_accessory_have_supplier_and_supply_unit(self, enable_sections):
+        elec = [
+            {
+                "cable_mark": "ТЛТ-20",
+                "selected_cable": "ТЛТ-20",
+                "temperature_group": "low",
+                "num_circuits": 1,
+                "installed_cable_length": 50.0,
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 50.0, "object_type": "pipe"}}
+        items = build_full_specification(elec, objs)
+        cable = next(i for i in items if i.category == "Кабель")
+        assert cable.params.get("supplier")
+        assert cable.params.get("supply_unit") in {"м", "m", "шт.", "шт"}
+        kit = next((i for i in items if i.article == "КСН-1"), None)
+        if kit is not None:
+            assert kit.params.get("supplier")
+            assert kit.params.get("supply_unit")
+
+
+class TestBomSectionAndDualLength:
+    def test_pipe_and_tank_bom_sections(self, enable_sections):
+        elec = [
+            {
+                "cable_mark": "ТЛТ-20",
+                "selected_cable": "ТЛТ-20",
+                "temperature_group": "low",
+                "cable_type": "self_regulating",
+                "num_circuits": 1,
+                "installed_cable_length": 40.0,
+                "commercial": {"required_order_length": 50.0},
+                "object_id": "p1",
+            },
+            {
+                "cable_mark": "ТЛТ-30",
+                "selected_cable": "ТЛТ-30",
+                "temperature_group": "low",
+                "cable_type": "self_regulating",
+                "num_circuits": 1,
+                "installed_cable_length": 20.0,
+                "object_id": "t1",
+            },
+        ]
+        objs = {
+            "p1": {"outer_diameter": 0.108, "pipe_length": 40.0, "object_type": "pipe"},
+            "t1": {"outer_diameter": 2.0, "pipe_length": 3.0, "object_type": "tank"},
+        }
+        items = build_full_specification(elec, objs)
+        pipe_cable = next(i for i in items if i.params and i.params.get("mark") == "ТЛТ-20")
+        tank_cable = next(i for i in items if i.params and i.params.get("mark") == "ТЛТ-30")
+        assert pipe_cable.params["bom_section"] == "pipe"
+        assert tank_cable.params["bom_section"] == "tank"
+        assert pipe_cable.params["order_qty"] == 50.0
+        assert pipe_cable.params["installed_qty"] == 40.0
+        # kits only from pipe path
+        assert _qty(items, "КСН-1") == 1
+        kits = [i for i in items if i.article == "КСН-1"]
+        assert kits[0].params.get("bom_section") == "pipe"
+
+    def test_commercial_order_in_params(self):
+        elec = [
+            {
+                "cable_mark": "ТЛТ-20",
+                "selected_cable": "ТЛТ-20",
+                "temperature_group": "low",
+                "num_circuits": 1,
+                "installed_cable_length": 100.0,
+                "order_cable_length": 110.0,
+                "commercial": {"required_order_length": 120.0},
+                "object_id": "o1",
+            }
+        ]
+        objs = {"o1": {"outer_diameter": 0.108, "pipe_length": 50.0, "object_type": "pipe"}}
+        items = build_full_specification(elec, objs)
+        cable = next(i for i in items if i.category == "Кабель")
+        assert cable.quantity == 120.0
+        assert cable.params["order_qty"] == 120.0
+        assert cable.params["installed_qty"] == 100.0
+
+
 class TestK2iSectionLengthThreshold:
     def test_k2i_requires_section_length_not_total(self, enable_box_matrix):
         """ТНП K35–K38: порог L,К2i сравнивается с длиной ОДНОЙ секции."""

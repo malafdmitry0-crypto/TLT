@@ -110,7 +110,7 @@ describe('ObjectWizard dependencies', () => {
     expect(document.querySelector('.inline-object-form--wide .form-grid-srs')).toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--wide .side-form-grid-srs')).not.toBeInTheDocument();
     // SC-03: three semantic columns from SRS 5.3.
-    expect(document.querySelectorAll('.inline-object-form--wide .form-col-srs')).toHaveLength(4);
+    expect(document.querySelectorAll('.inline-object-form--wide .form-col-srs')).toHaveLength(3);
     expect(document.querySelector('[data-testid="heat-pdf-three-column-form"]')).toBeInTheDocument();
     expect(document.querySelectorAll('.inline-object-form--wide .form-col-resize-handle')).toHaveLength(0);
     expect([...document.querySelectorAll('.inline-object-form--wide .form-col-srs > h4')].map((title) =>
@@ -118,7 +118,6 @@ describe('ObjectWizard dependencies', () => {
     )).toEqual([
       'Параметры трубопровода',
       'Условия эксплуатации',
-      'Локальные элементы',
       'Теплоизоляция',
     ]);
 
@@ -132,9 +131,10 @@ describe('ObjectWizard dependencies', () => {
     expect(document.querySelector('.inline-object-form--side .side-form-grid-srs')).toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--side .form-grid-srs')).not.toBeInTheDocument();
     expect(document.querySelectorAll('.inline-object-form--side .form-col-resize-handle')).toHaveLength(0);
-    expect([...document.querySelectorAll('.inline-object-form--side .side-form-section > h4')].map((title) =>
-      title.textContent?.replace(/\s+/g, ' ').trim(),
-    )).toEqual(['Геометрия и размещение трубы', 'Теплоизоляция', 'Климат и температуры']);
+    expect(screen.getByTestId('heat-side-compact-form')).toBeInTheDocument();
+    expect(document.querySelectorAll('.inline-object-form--side .side-form-section')).toHaveLength(0);
+    expect(screen.queryByText('Геометрия и размещение трубы')).not.toBeInTheDocument();
+    expect(screen.queryByText('Климат и температуры')).not.toBeInTheDocument();
   });
 
   it('дефолтит однозначные select-поля новой трубы, но не подставляет числовые инженерные значения', async () => {
@@ -980,8 +980,10 @@ describe('ObjectWizard dependencies', () => {
               : {}),
           };
 
-      renderWizard({ objectType: item.objectType, initialParams });
+      renderWizard({ objectType: item.objectType, initialParams, layoutVariant: 'side' });
       await screen.findByTestId(item.visible[0]);
+      expect(screen.getByTestId('heat-side-compact-form')).toBeInTheDocument();
+      expect(document.querySelectorAll('.inline-object-form--side .side-form-section')).toHaveLength(0);
       for (const testId of item.visible) {
         expect(screen.getByTestId(testId)).toBeVisible();
       }
@@ -1052,6 +1054,7 @@ describe('ObjectWizard dependencies', () => {
 
     for (const item of layerCases) {
       renderWizard({
+        layoutVariant: 'side',
         initialParams: {
           ...basePipeParams,
           insulation_layer_count: item.count,
@@ -1073,6 +1076,7 @@ describe('ObjectWizard dependencies', () => {
     }
 
     renderWizard({
+      layoutVariant: 'side',
       initialParams: {
         ...basePipeParams,
         insulation_material: 'other',

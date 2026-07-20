@@ -48,6 +48,13 @@ def accessory_identity(rule: dict[str, Any]) -> dict[str, Any] | None:
     code = rule.get("nomenclature_code") or rule.get("code")
     if not mark or not code:
         return None
+    supplier = (
+        rule.get("supplier")
+        or rule.get("supplier_name")
+        or rule.get("manufacturer")
+        or "ТЛТ"
+    )
+    supply_unit = rule.get("supply_unit") or rule.get("unit") or "шт."
     return {
         "mark": str(mark),
         "nomenclature_code": str(code),
@@ -55,6 +62,8 @@ def accessory_identity(rule: dict[str, Any]) -> dict[str, Any] | None:
         "catalog_base": rule.get("catalog_base") or rule.get("rule") or rule.get("name"),
         "catalog_source": rule.get("catalog_source") or "spec_accessories",
         "catalog_version": rule.get("catalog_version"),
+        "supplier": str(supplier),
+        "supply_unit": str(supply_unit),
     }
 
 
@@ -141,6 +150,21 @@ def cable_identity_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
         or mark  # mark doubles as procurement article when catalog code absent
     )
     temp = temperature_group_from_result(result)
+    supplier = (
+        result.get("supplier")
+        or result.get("supplier_name")
+        or snapshot.get("supplier_name")
+        or technical.get("supplier_name")
+        or technical.get("supplier")
+        or "ТЛТ"
+    )
+    supply_unit = (
+        result.get("supply_unit")
+        or snapshot.get("supply_unit")
+        or technical.get("supply_unit")
+        or technical.get("unit")
+        or "м"
+    )
     return {
         "mark": str(mark),
         "nomenclature_code": str(code),
@@ -149,4 +173,6 @@ def cable_identity_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
         "catalog_source": snapshot.get("actual_catalog_source") or "builtin",
         "catalog_entry_id": snapshot.get("catalog_entry_id"),
         "catalog_version": snapshot.get("schema_version"),
+        "supplier": str(supplier),
+        "supply_unit": str(supply_unit),
     }

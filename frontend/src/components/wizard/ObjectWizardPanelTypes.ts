@@ -17,6 +17,4 @@ export interface ObjectWizardWidePanelProps extends ObjectWizardPanelRenderers {
   formGridRef: RefCallback<HTMLDivElement>;
 }
 
-export interface ObjectWizardSidePanelProps extends ObjectWizardPanelRenderers {
-  geometryTitle: string;
-}
+export type ObjectWizardSidePanelProps = ObjectWizardPanelRenderers;

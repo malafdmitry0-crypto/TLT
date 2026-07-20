@@ -1,0 +1,37 @@
+- generic [ref=f4e25] [box=0,0,390,844]:
+  - banner [ref=f4e26] [box=0,0,390,98]:
+    - generic [ref=f4e27] [box=6,0,378,97]:
+      - generic "HeatCalc" [ref=f4e28] [box=6,2,378,15]:
+        - img "fire" [ref=f4e29] [box=6,2,15,15]
+        - heading "HeatCalc" [level=2] [ref=f4e32] [box=27,3,65,14]
+      - navigation "Разделы проекта" [ref=f4e33] [box=6,72,378,23]:
+        - menu [ref=f4e34] [box=6,72,378,23]:
+          - menuitem "fire Расчёт тепловых потерь" [ref=f4e35] [cursor=pointer] [box=8,72,190,24]
+          - generic [box=40,6,175,12]: Электротехнический расчёт
+          - generic [box=40,6,92,12]: Спецификация
+          - separator [box=200,73,0,21]
+          - generic [box=40,6,36,12]: Отчёт
+          - menuitem "ellipsis" [ref=f4e41] [cursor=pointer] [box=218,72,30,24]
+      - generic [ref=f4e45] [box=6,20,378,49]:
+        - generic [ref=f4e46] [box=6,20,241,24]:
+          - generic [ref=f4e48] [box=6,20,72,24]
+          - button "download Скачать" [ref=f4e56] [cursor=pointer] [box=85,21,73,22]
+          - button "upload Загрузить" [ref=f4e63] [cursor=pointer] [box=161,21,83,22]
+        - generic [ref=f4e69] [box=6,47,160,22]:
+          - button "question-circle Инструкция" [ref=f4e71] [cursor=pointer] [box=6,47,92,22]
+          - button "logout Выход" [ref=f4e79] [cursor=pointer] [box=101,47,64,22]
+  - alert [ref=f4e129] [box=0,98,390,208]:
+    - img "exclamation-circle" [ref=f4e130] [box=24,118,24,24]
+    - generic [ref=f4e133] [box=60,118,306,168]:
+      - generic [ref=f4e134] [box=60,118,306,50]: Рекомендуемая ширина окна — от 1280 px
+      - generic [ref=f4e135] [box=60,176,306,110]: Интерактивный рабочий поток Phase 5 официально поддерживается от 1280 px (PDL-ER-30). На меньшей ширине возможны ограничения раскладки; печать остаётся адаптивной.
+  - main [ref=f4e93] [box=0,306,390,538]:
+    - alert [ref=f4e98] [box=6,308,378,145]:
+      - img "exclamation-circle" [ref=f4e99] [box=31,329,24,24]
+      - generic [ref=f4e102] [box=67,329,207,103]:
+        - generic [ref=f4e103] [box=67,329,207,25]: ЭР пока нельзя создать
+        - generic [ref=f4e105] [box=67,362,207,70]:
+          - generic [ref=f4e106] [box=67,362,207,22]: "Готово объектов: 0 из 0."
+          - list [ref=f4e109] [box=67,388,207,44]
+      - button "Создать ЭР1 — сначала завершите теплорасчёт" [disabled] [ref=f4e112] [box=274,331,85,22]:
+        - generic [box=286,336,62,11]: Создать ЭР1

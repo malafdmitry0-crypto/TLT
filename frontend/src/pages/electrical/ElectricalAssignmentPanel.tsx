@@ -513,7 +513,7 @@ export default function ElectricalAssignmentPanel({
           setCleanupRequiredIds(null);
           mutation.reset();
         }}
-        items={ELECTRICAL_SYSTEM_VIEWS.map((tab) => ({
+        items={ELECTRICAL_SYSTEM_VIEWS.filter((tab) => tab.key !== 'all').map((tab) => ({
           key: tab.key,
           label: tabLabel(tab.label, countForView(counts, totalLabel, tab.key)),
           disabled: busy,

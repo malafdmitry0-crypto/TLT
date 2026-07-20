@@ -290,7 +290,7 @@ describe('HeatCalcPage settings', () => {
       const saved = JSON.parse(localStorage.getItem(HEATCALC_GUEST_TABLE_VIEW_STORAGE_KEY) ?? '{}');
       expect(saved).toMatchObject({
         formPlacement: 'left',
-        sideFormWidthPct: 48,
+        sideFormWidthPct: 52,
       });
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 

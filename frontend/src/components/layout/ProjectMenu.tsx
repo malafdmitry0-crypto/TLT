@@ -63,12 +63,45 @@ export default function ProjectMenu() {
       setCurrent(project);
       qc.invalidateQueries({ queryKey: ['projects'] });
       qc.invalidateQueries({ queryKey: ['project', project.id] });
+      // Broad invalidate so heat/electrical/spec tables reload after replace.
+      qc.invalidateQueries({ queryKey: ['project', project.id, 'objects'] });
+      qc.invalidateQueries({ queryKey: ['spec'] });
       message.success(`Импортирован проект «${project.name}»`);
     },
-    onError: (err: Error) => message.error(err.message),
+    onError: (err: Error) => {
+      // PDF-GUEST-07: failed parse must not replace current project.
+      message.error(err.message || 'Не удалось импортировать файл. Текущий проект не изменён.');
+    },
   });
 
-  const handleImportClick = () => fileInputRef.current?.click();
+  const handleImportClick = () => {
+    // PDF §5.11 / CODE-02: warn that open/import replaces current temporary project.
+    if (!currentProject) {
+      fileInputRef.current?.click();
+      return;
+    }
+    Modal.confirm({
+      title: 'Заменить текущий проект?',
+      content: (
+        <div data-testid="project-import-replace-confirm">
+          <p>
+            Загрузка CSV заменит текущий проект «{currentProject.name}» данными из файла.
+            Несохранённые изменения в браузере будут потеряны.
+          </p>
+          <p style={{ marginBottom: 0 }}>
+            При ошибке разбора файла текущий проект останется без изменений.
+          </p>
+        </div>
+      ),
+      okText: 'Заменить',
+      cancelText: 'Отмена',
+      okButtonProps: { danger: true, 'data-testid': 'project-import-replace-ok' },
+      cancelButtonProps: { 'data-testid': 'project-import-replace-cancel' },
+      onOk: () => {
+        fileInputRef.current?.click();
+      },
+    });
+  };
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) importMut.mutate(file);
@@ -119,7 +152,8 @@ export default function ProjectMenu() {
             icon={<UploadOutlined />}
             onClick={handleImportClick}
             loading={importMut.isPending}
-            title="Загрузить проект (CSV)"
+            title="Загрузить проект (CSV) — заменит текущий"
+            data-testid="project-menu-import-csv"
           >
             Загрузить
           </Button>
@@ -128,6 +162,7 @@ export default function ProjectMenu() {
             type="file"
             accept=".csv,text/csv"
             style={{ display: 'none' }}
+            data-testid="project-menu-import-file-input"
             onChange={handleFileChange}
           />
         </>

@@ -17,12 +17,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/routes/routes';
 import { initializeElectricalVariants } from '@/api/electricalVariants';
+import { listObjects, reorderObjects } from '@/api/projects';
 
 import HeatCalcExcelContextMenu from '@/components/heatcalc/HeatCalcExcelContextMenu';
 import HeatCalcObjectsTableCard from '@/components/heatcalc/HeatCalcObjectsTableCard';
 import { areCommercialFeaturesEnabled } from '@/config/featureFlags';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
+import { rebuildObjectOrderAfterVisibleMove } from '@/utils/heatCalcObjectReorder';
 import { useWorkspaceHeaderStore } from '@/store/workspaceHeaderStore';
 import { useFocusableTableScrollRegions } from '@/hooks/useFocusableTableScrollRegions';
 import {
@@ -140,6 +142,7 @@ export default function HeatCalcPage() {
   const [tableEditingMode, setTableEditingMode] = useState<TableEditingMode>('normal');
   const commercialFeaturesAvailable = areCommercialFeaturesEnabled();
   const tableFindabilityAvailable = true;
+  const rowReorderPendingRef = useRef(false);
   const closeColumnSettingsRef = useRef<(() => void) | null>(null);
   const normalGridDraftInvalidatorRef = useRef<NormalGridDraftInvalidator | null>(null);
   const previousNormalGridDraftRowsRef = useRef<DraftRowsById>({});
@@ -331,6 +334,43 @@ export default function HeatCalcPage() {
       visibleAllTableRows,
     ],
   );
+
+  /** PDF-HEAT-08: persist Glide row DnD via PUT /objects/reorder (full ID list). */
+  const handleObjectsRowMoved = useCallback(async (startIndex: number, endIndex: number) => {
+    if (!project?.id || excelModeEnabled || rowReorderPendingRef.current) return;
+    if (startIndex === endIndex) return;
+    const visibleIds = visibleTableObjects.map((row) => row.id);
+    if (
+      startIndex < 0
+      || endIndex < 0
+      || startIndex >= visibleIds.length
+      || endIndex >= visibleIds.length
+    ) {
+      return;
+    }
+    rowReorderPendingRef.current = true;
+    try {
+      const full = await listObjects(project.id);
+      const fullIds = full
+        .slice()
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        .map((row) => row.id);
+      const nextOrder = rebuildObjectOrderAfterVisibleMove(
+        fullIds,
+        visibleIds,
+        startIndex,
+        endIndex,
+      );
+      await reorderObjects(project.id, nextOrder);
+      await queryClient.invalidateQueries({ queryKey: ['project', project.id, 'objects'] });
+      antdMessage.success('Порядок объектов сохранён');
+    } catch (err) {
+      antdMessage.error((err as Error).message || 'Не удалось изменить порядок объектов');
+    } finally {
+      rowReorderPendingRef.current = false;
+    }
+  }, [excelModeEnabled, project?.id, queryClient, visibleTableObjects]);
+
   const {
     add,
     remove,
@@ -935,6 +975,7 @@ export default function HeatCalcPage() {
                 onOpenEditWizard={openEditWizard}
                 onResetCurrentTableViewState={resetCurrentTableViewState}
                 onSelectedRowKeysChange={setSelectedRowKeys}
+                onRowMoved={excelModeEnabled ? undefined : handleObjectsRowMoved}
                 rowClassName={tableRowClassName}
               />
             </div>

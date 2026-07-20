@@ -85,6 +85,8 @@ interface HeatCalcObjectsTableCardProps {
   onOpenEditWizard: (record: ProjectObject) => void;
   onResetCurrentTableViewState: () => void;
   onSelectedRowKeysChange: (keys: string[]) => void;
+  /** PDF-HEAT-08 row DnD on normal Glide grid. */
+  onRowMoved?: (startIndex: number, endIndex: number) => void;
   rowClassName: (record: ProjectObject) => string;
 }
 
@@ -180,6 +182,7 @@ export default function HeatCalcObjectsTableCard({
   onOpenEditWizard,
   onResetCurrentTableViewState,
   onSelectedRowKeysChange,
+  onRowMoved,
   rowClassName,
 }: HeatCalcObjectsTableCardProps) {
   const excelEngine = excelModeEnabled ? resolveHeatCalcExcelEngine() : 'table';
@@ -269,6 +272,7 @@ export default function HeatCalcObjectsTableCard({
             onColumnResizeEnd={onGlideColumnResizeEnd}
             onPageChange={onNormalPageChange}
             onLoadMore={onNormalLoadMore}
+            onRowMoved={onRowMoved}
           />
         </Suspense>
       )}

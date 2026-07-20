@@ -17,6 +17,7 @@ import {
   type HeatCalcTableColumnSettings,
 } from '@/utils/heatCalcTableColumns';
 import {
+  HEATCALC_SIDE_FORM_MIN_WIDTH_PX,
   normalizeTableViewSettings,
   type HeatCalcFormPlacement,
   type HeatCalcTableViewSettings,
@@ -61,9 +62,10 @@ export function resolveSideFormWidthPctFromClientX({
   const rawWidthPct = state.placement === 'left'
     ? ((clientX - state.rect.left) / state.rect.width) * 100
     : ((state.rect.right - clientX) / state.rect.width) * 100;
+  const minimumWidthPct = (HEATCALC_SIDE_FORM_MIN_WIDTH_PX / state.rect.width) * 100;
   return normalizeTableViewSettings({
     ...currentViewSettings,
-    sideFormWidthPct: rawWidthPct,
+    sideFormWidthPct: Math.max(rawWidthPct, minimumWidthPct),
   }).sideFormWidthPct;
 }
 

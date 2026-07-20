@@ -76,18 +76,27 @@ export async function createEmptyElectricalVariant(page: Page, name: string) {
   }>;
 }
 
-export async function batchCalcElectrical(page: Page, electricalVariantId: string) {
+export async function batchCalcElectrical(
+  page: Page,
+  electricalVariantId: string,
+  opts?: { variantNumber?: number; cableType?: string },
+) {
   const { projectId, sessionId } = await currentGuestContext(page);
+  // Backend expects project_id as query param (see frontend calculations.ts).
   const resp = await page.request.post(`${API_BASE}/api/v1/calc/electrical/batch`, {
     headers: { 'X-Session-Id': sessionId },
-    data: {
+    params: {
       project_id: projectId,
+      cable_source: 'builtin',
+      variant_number: opts?.variantNumber ?? 1,
+      cable_type: opts?.cableType ?? 'self_regulating',
+      include_results: true,
+      include_errors: true,
+      // Prefer UUID when supported; ignored if only legacy path is active.
       electrical_variant_id: electricalVariantId,
-      cable_type: 'self_regulating',
     },
   });
-  // Some builds accept variant query/body shapes; tolerate 200/201/202.
-  expect([200, 201, 202, 422]).toContain(resp.status());
+  expect([200, 201, 202]).toContain(resp.status());
   return resp;
 }
 

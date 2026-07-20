@@ -327,7 +327,7 @@ function ElecCalcWorkspace({
   const commercialFeaturesAvailable = areCommercialFeaturesEnabled();
   const location = useLocation();
   /** One system tab for the whole workspace (assign chrome + filtered table). */
-  const [systemView, setSystemView] = useState<ElectricalSystemView>('all');
+  const [systemView, setSystemView] = useState<ElectricalSystemView>('unassigned');
   const [tableDragging, setTableDragging] = useState(false);
   const {
     availableCableTypeKeys,

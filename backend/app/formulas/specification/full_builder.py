@@ -8,7 +8,8 @@ PDL-ER-32: tank/resistive — только доказанный кабель.
 PDL-ER-35: box matrix missing → fail-closed.
 SEEDS: sections/matrix empty → partial diagnostics, no invented quantities.
 
-Количества штучных позиций: ``package_factor`` каталога перед ceil (ленты/клей).
+PDF-BOM-07: коробки — data-driven rows из box_ex_rgr_matrix.json.
+Упаковка: kits_per_unit / reel_m / package_factor из каталога (PDF-BOM-03…06).
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from app.formulas.specification.source_mapping import (
     box_ex_rgr_matrix_meta,
     box_ex_rgr_matrix_registered,
     is_rule_approved,
+    list_box_ex_rgr_matrix_rows,
     rule_exclusion,
 )
 from app.reference_data.loader import list_spec_accessory_rules
@@ -66,6 +68,25 @@ _BOX_MATRIX_RULES = frozenset(
     }
 )
 
+_BOX_RULE_KEYS = frozenset(
+    {
+        "box_Nk1",
+        "box_Nk2",
+        "box_Nk3",
+        "box_Nk4",
+        "box_Nk5",
+        "box_Nk6",
+        "box_Nk7",
+        "box_Nk8",
+        "box_Nk9",
+        "box_Nk10",
+        "box_Nk11",
+        "box_Nk12",
+    }
+)
+
+_DEFAULT_REPAIR_LENGTH_PER_KIT = 150.0
+
 
 def box_ex_rgr_matrix_available() -> bool:
     """True only when an official per-row Ex/Rгр matrix is registered (PDL-ER-35)."""
@@ -86,6 +107,10 @@ def _is_successful(result: dict[str, Any]) -> bool:
 def _ceil(value: float) -> float:
     """Округление вверх с гашением накопленной float-ошибки (1.3×10 → 13, не 14)."""
     return float(math.ceil(round(value, 9)))
+
+
+def _floor(value: float) -> float:
+    return float(math.floor(round(value, 9)))
 
 
 def _cable_type(result: dict[str, Any]) -> str | None:
@@ -152,7 +177,7 @@ def _temp_class_from_result(result: dict[str, Any], mark: str) -> str | None:
 
 
 def _box_bucket(*, d_large: bool, n_ge3: bool, k1i: bool, k2i_active: bool, kiu: bool) -> str:
-    """Возвращает ключ Nk-корзины коробки по условиям ТНП."""
+    """Legacy Nk bucket (tests / derived mapping). Prefer matrix rows for SKUs."""
     if k2i_active:
         if d_large:
             return "Nk6" if kiu else "Nk5"
@@ -164,6 +189,92 @@ def _box_bucket(*, d_large: bool, n_ge3: bool, k1i: bool, k2i_active: bool, kiu:
     if d_large:
         return "Nk2" if n_ge3 else "Nk1"
     return "Nk8" if n_ge3 else "Nk7"
+
+
+def _match_box_conditions(
+    conds: dict[str, Any],
+    *,
+    d_mm: float,
+    n_sec: int,
+    k1i: bool,
+    k2i: bool,
+    kiu: bool,
+    ex_zone: bool,
+    l_sec: float,
+) -> bool:
+    """PDF §7.15 tri-state conditions. d_mm_min inclusive, d_mm_max exclusive."""
+    if not isinstance(conds, dict):
+        return False
+    d_min = conds.get("d_mm_min")
+    d_max = conds.get("d_mm_max")
+    if d_min is not None and d_mm < float(d_min):
+        return False
+    if d_max is not None and d_mm >= float(d_max):
+        return False
+    n_min = conds.get("n_sec_min")
+    n_max = conds.get("n_sec_max")
+    if n_min is not None and n_sec < int(n_min):
+        return False
+    if n_max is not None and n_sec > int(n_max):
+        return False
+    for key, actual in (
+        ("requires_k1i", k1i),
+        ("requires_k2i", k2i),
+        ("requires_kiu", kiu),
+        ("requires_ex", ex_zone),
+    ):
+        if key not in conds or conds[key] is None:
+            continue
+        if bool(conds[key]) is not bool(actual):
+            return False
+    l_sec_min = conds.get("l_sec_min")
+    return l_sec_min is None or l_sec >= float(l_sec_min)
+
+
+def _qty_from_box_row(row: dict[str, Any], n_sec: int) -> float:
+    """raw=Nсек/divider → round up|down → max(result, min_quantity)."""
+    divider = _num(row.get("divider"), 1.0) or 1.0
+    raw = float(n_sec) / divider
+    round_mode = str(row.get("round") or "up").strip().lower()
+    rounded = _floor(raw) if round_mode == "down" else _ceil(raw)
+    min_q = _num(row.get("min_quantity"), 1.0)
+    if min_q < 1:
+        min_q = 1.0
+    return max(rounded, min_q)
+
+
+def evaluate_box_matrix_for_object(
+    *,
+    d_mm: float,
+    n_sec: int,
+    k1i: bool,
+    k2i: bool,
+    kiu: bool,
+    ex_zone: bool,
+    l_sec: float,
+    rows: list[dict[str, Any]] | None = None,
+) -> dict[str, float]:
+    """PDF-BOM-07: match matrix rows → qty by rule_key (sum by code via rule emission)."""
+    matrix_rows = rows if rows is not None else list_box_ex_rgr_matrix_rows()
+    out: dict[str, float] = defaultdict(float)
+    for row in matrix_rows:
+        conds = row.get("conditions") if isinstance(row.get("conditions"), dict) else {}
+        if not _match_box_conditions(
+            conds,
+            d_mm=d_mm,
+            n_sec=n_sec,
+            k1i=k1i,
+            k2i=k2i,
+            kiu=kiu,
+            ex_zone=ex_zone,
+            l_sec=l_sec,
+        ):
+            continue
+        rule_key = str(row.get("rule_key") or row.get("row_id") or "")
+        if not rule_key:
+            continue
+        out[rule_key] += _qty_from_box_row(row, n_sec)
+    return dict(out)
 
 
 def _order_cable_qty(result: dict[str, Any], section_total: float) -> float:
@@ -201,6 +312,47 @@ def _object_type(obj: dict[str, Any]) -> str:
     return "pipe"
 
 
+def _repair_length_per_kit() -> float:
+    for rule in list_spec_accessory_rules():
+        if rule.get("rule") in {"repair_kit_low", "repair_kit_high"}:
+            value = _num(rule.get("cable_length_per_kit"), 0.0)
+            if value > 0:
+                return value
+    return _DEFAULT_REPAIR_LENGTH_PER_KIT
+
+
+def _package_quantity(
+    raw_value: float, resolved: dict[str, Any]
+) -> tuple[float, dict[str, Any]]:
+    """PDF packing: kits_per_unit / reel_m preferred over float package_factor."""
+    extra: dict[str, Any] = {}
+    unit = resolved.get("unit", "шт.")
+    if raw_value is None or raw_value <= 0:
+        return 0.0, extra
+
+    kits_per_unit = resolved.get("kits_per_unit")
+    reel_m = resolved.get("reel_m")
+    package_factor = resolved.get("package_factor")
+
+    if kits_per_unit is not None and _num(kits_per_unit) > 0:
+        extra["kits_per_unit"] = float(kits_per_unit)
+        return _ceil(raw_value / float(kits_per_unit)), extra
+
+    if reel_m is not None and _num(reel_m) > 0 and unit != "м":
+        extra["reel_m"] = float(reel_m)
+        if package_factor is not None:
+            extra["package_factor"] = package_factor
+        return _ceil(raw_value / float(reel_m)), extra
+
+    if package_factor is not None and _num(package_factor) > 0:
+        extra["package_factor"] = package_factor
+        return _ceil(raw_value * float(package_factor)), extra
+
+    if unit == "м":
+        return round(float(raw_value), 2), extra
+    return _ceil(float(raw_value)), extra
+
+
 @dataclass
 class FullSpecificationBuild:
     """Detailed full BOM build with PDL-ER-32/35 diagnostics."""
@@ -223,6 +375,7 @@ def build_full_specification_detailed(
     r_res = opt.reserve_coefficient
     excluded_groups: list[dict[str, Any]] = []
     matrix_ok = box_ex_rgr_matrix_available()
+    matrix_rows = list_box_ex_rgr_matrix_rows() if matrix_ok else []
 
     if not matrix_ok:
         excluded_groups.append(
@@ -257,13 +410,15 @@ def build_full_specification_detailed(
     missing_temp_objects: list[str] = []
 
     # --- Аккумуляторы ---
-    cable_by_mark: dict[str, float] = defaultdict(float)
+    # (mark, bom_section) → order qty / installed qty
+    cable_by_key: dict[tuple[str, str], float] = defaultdict(float)
+    installed_by_key: dict[tuple[str, str], float] = defaultdict(float)
     cable_meta: dict[str, dict[str, Any]] = {}
-    length_low = 0.0  # ΣL1
+    length_low = 0.0  # ΣL1 installed
     length_high = 0.0  # ΣL2
     n_low = 0.0  # Σ N,секц (низк.) с резервом
     n_high = 0.0  # Σ N,секц (выс.) с резервом
-    boxes: dict[str, float] = defaultdict(float)
+    boxes: dict[str, float] = defaultdict(float)  # rule_key → qty
     homut = 0.0
     tape_low = 0.0
     tape_high = 0.0
@@ -272,6 +427,7 @@ def build_full_specification_detailed(
     contributing_ids: list[str] = []
     tank_accessory_excluded: list[str] = []
     resistive_accessory_excluded: list[str] = []
+    repair_per_kit = _repair_length_per_kit()
 
     for result in electrical_results:
         obj_id = str(result.get("object_id") or "")
@@ -299,13 +455,15 @@ def build_full_specification_detailed(
         )
         obj = objects_by_id.get(obj_id, {})
         obj_type = _object_type(obj)
+        bom_section = "tank" if obj_type == "tank" else "pipe"
         d_mm = _num(obj.get("outer_diameter")) * 1000.0
         l_tr = _num(obj.get("pipe_length"))
         tclass = _temp_class_from_result(result, mark)
         section_length = section_total / n_sec if n_sec else section_total
 
         cable_qty = _order_cable_qty(result, section_total)
-        cable_by_mark[mark] += cable_qty
+        cable_by_key[(mark, bom_section)] += cable_qty
+        installed_by_key[(mark, bom_section)] += section_total
         cable_meta.setdefault(
             mark,
             {
@@ -353,20 +511,24 @@ def build_full_specification_detailed(
                 (PI * d_mm * 2.5 / 1000.0) * (section_total / 0.3) * 1.1 if d_mm > 0 else 0.0
             )
 
-        # Boxes only when matrix available AND real sections ready.
+        # PDF-BOM-07: data-driven matrix rows when registered + sections ready.
         if matrix_ok and sections_ready:
-            box_count = math.ceil(n_sec / 3)
-            d_large = d_mm >= 57.0
-            n_ge3 = n_sec >= 3
-            bucket = _box_bucket(
-                d_large=d_large,
-                n_ge3=n_ge3,
-                k1i=opt.indication_on_boxes,
-                k2i_active=k2i_active,
-                kiu=opt.top_indication,
+            matched = evaluate_box_matrix_for_object(
+                d_mm=d_mm,
+                n_sec=n_sec,
+                k1i=bool(opt.indication_on_boxes),
+                k2i=bool(k2i_active),
+                kiu=bool(opt.top_indication),
+                ex_zone=bool(opt.ex_zone),
+                l_sec=section_length,
+                rows=matrix_rows,
             )
-            boxes[bucket] += box_count
-            if d_large and bucket in {"Nk1", "Nk2", "Nk3", "Nk4", "Nk5", "Nk6"}:
+            for rule_key, qty in matched.items():
+                boxes[rule_key] += qty
+            # Clamp length for large-diameter boxes (legacy derived formula).
+            d_large = d_mm >= 57.0
+            box_count = sum(matched.values())
+            if d_large and box_count > 0:
                 homut += ((d_mm * PI * 1.2) + 50.0) / 1000.0 * 2.0 * box_count
 
         if l_tr > 0:
@@ -409,15 +571,13 @@ def build_full_specification_detailed(
             }
         )
 
-    def b(key: str) -> float:
-        return boxes.get(key, 0.0)
+    def b(rule_key: str) -> float:
+        return boxes.get(rule_key, 0.0)
 
-    nk_large_plain = b("Nk1") + b("Nk2")
-    nk_large_k1i = b("Nk3") + b("Nk4")
-    nk_small_plain = b("Nk7") + b("Nk8")
+    nk_large_plain = b("box_Nk1") + b("box_Nk2")
+    nk_large_k1i = b("box_Nk3") + b("box_Nk4")
+    nk_small_plain = b("box_Nk7") + b("box_Nk8")
     # PDL-ER-44 / PDF §7.10: pick ONE kit capacity per temp group.
-    # qty = ceil(Nсек / sections_per_kit); default capacity=1 (КСН-1/КСВ-1).
-    # Dual XLSX «КСН-1=N and КСН-2=N×2 end-kits» is not the PDF oracle.
     kit_cap = int(getattr(opt, "connector_kit_sections_per_kit", 1) or 1)
     if kit_cap not in (1, 2):
         kit_cap = 1
@@ -432,9 +592,9 @@ def build_full_specification_detailed(
     fl2 = conn_low if kit_cap == 2 else 0.0
     fl3 = conn_high if kit_cap == 1 else 0.0
     fl4 = conn_high if kit_cap == 2 else 0.0
-    repair_low = _ceil(length_low / 150.0) if length_low > 0 else 0.0
-    repair_high = _ceil(length_high / 150.0) if length_high > 0 else 0.0
-    # FA-04 / PDF §7.12: ceil((connector_kits + repair_kits) / 7) via package_factor.
+    repair_low = _ceil(length_low / repair_per_kit) if length_low > 0 else 0.0
+    repair_high = _ceil(length_high / repair_per_kit) if length_high > 0 else 0.0
+    # FA-04 / PDF §7.12: ceil((connector_kits + repair_kits) / kits_per_unit).
     glue_kits = fl1 + fl2 + fl3 + fl4 + repair_low + repair_high
 
     rule_values: dict[str, float] = {
@@ -444,26 +604,33 @@ def build_full_specification_detailed(
         "connector_kit_high_2": fl4,
         "repair_kit_low": repair_low,
         "repair_kit_high": repair_high,
-        "box_Nk1": b("Nk1"),
-        "box_Nk2": b("Nk2"),
-        "box_Nk3": b("Nk3"),
-        "box_Nk4": b("Nk4"),
-        "box_Nk5": b("Nk5"),
-        "box_Nk6": b("Nk6"),
-        "box_Nk7": b("Nk7"),
-        "box_Nk8": b("Nk8"),
-        "box_Nk9": b("Nk9"),
-        "box_Nk10": b("Nk10"),
-        "box_Nk11": b("Nk11"),
-        "box_Nk12": b("Nk12"),
+        "box_Nk1": b("box_Nk1"),
+        "box_Nk2": b("box_Nk2"),
+        "box_Nk3": b("box_Nk3"),
+        "box_Nk4": b("box_Nk4"),
+        "box_Nk5": b("box_Nk5"),
+        "box_Nk6": b("box_Nk6"),
+        "box_Nk7": b("box_Nk7"),
+        "box_Nk8": b("box_Nk8"),
+        "box_Nk9": b("box_Nk9"),
+        "box_Nk10": b("box_Nk10"),
+        "box_Nk11": b("box_Nk11"),
+        "box_Nk12": b("box_Nk12"),
         "cable_entry_plastic": (
-            (nk_large_plain + nk_large_k1i + b("Nk7")) if (matrix_ok and not opt.ex_zone) else 0.0
+            (nk_large_plain + nk_large_k1i + b("box_Nk7")) if (matrix_ok and not opt.ex_zone) else 0.0
         ),
         "cable_entry_armored": (
-            (nk_large_plain + nk_large_k1i + b("Nk7")) if (matrix_ok and opt.ex_zone) else 0.0
+            (nk_large_plain + nk_large_k1i + b("box_Nk7")) if (matrix_ok and opt.ex_zone) else 0.0
         ),
         "cable_entry_under_insulation": (
-            (b("Nk7") + b("Nk8") + b("Nk9") + b("Nk10") + b("Nk11") + b("Nk12"))
+            (
+                b("box_Nk7")
+                + b("box_Nk8")
+                + b("box_Nk9")
+                + b("box_Nk10")
+                + b("box_Nk11")
+                + b("box_Nk12")
+            )
             if matrix_ok
             else 0.0
         ),
@@ -478,12 +645,25 @@ def build_full_specification_detailed(
         ),
         "label_warning": label_warning,
         "label_grounding": (
-            (nk_large_plain + nk_large_k1i + nk_small_plain + b("Nk11") + b("Nk12"))
+            (
+                nk_large_plain
+                + nk_large_k1i
+                + nk_small_plain
+                + b("box_Nk11")
+                + b("box_Nk12")
+            )
             if matrix_ok
             else 0.0
         ),
         "z_profile": (
-            (b("Nk7") + b("Nk8") + b("Nk9") + b("Nk10") + b("Nk11") + b("Nk12"))
+            (
+                b("box_Nk7")
+                + b("box_Nk8")
+                + b("box_Nk9")
+                + b("box_Nk10")
+                + b("box_Nk11")
+                + b("box_Nk12")
+            )
             if matrix_ok
             else 0.0
         ),
@@ -497,10 +677,11 @@ def build_full_specification_detailed(
     items: list[SpecificationItem] = []
 
     if is_rule_approved("heating_cable_order_length"):
-        for mark, qty in sorted(cable_by_mark.items()):
+        for (mark, bom_section), qty in sorted(cable_by_key.items()):
             if qty <= 0:
                 continue
             meta = cable_meta.get(mark, {})
+            installed_qty = installed_by_key.get((mark, bom_section), 0.0)
             items.append(
                 SpecificationItem(
                     category="Кабель",
@@ -510,6 +691,7 @@ def build_full_specification_detailed(
                     quantity=round(qty, 2),
                     params={
                         "mark": mark,
+                        "cable_mark": mark,
                         "nomenclature_code": meta.get("nomenclature_code") or mark,
                         "temperature_group": meta.get("temperature_group") or meta.get("temp_class"),
                         "temp_class": meta.get("temp_class"),
@@ -517,10 +699,17 @@ def build_full_specification_detailed(
                         "cable_type": meta.get("cable_type"),
                         "catalog_source": meta.get("catalog_source"),
                         "catalog_version": meta.get("catalog_version"),
-                        "bom_section": "common",
+                        "bom_section": bom_section,
+                        "order_qty": round(qty, 2),
+                        "installed_qty": round(installed_qty, 2),
+                        "supplier": meta.get("supplier") or "ТЛТ",
+                        "supply_unit": meta.get("supply_unit") or "м",
                     },
                 )
             )
+
+    # Accessories from self-reg pipe formulas → pipe section (PDL-ER-38).
+    accessory_bom_section = "pipe"
 
     identity_excluded: list[str] = []
     for rule in list_spec_accessory_rules():
@@ -554,13 +743,12 @@ def build_full_specification_detailed(
         value = rule_values.get(rule_key, 0.0)
         if value is None or value <= 0:
             continue
-        package_factor = resolved.get("package_factor")
-        if package_factor:
-            value *= float(package_factor)
+        quantity, pack_params = _package_quantity(float(value), resolved)
+        if quantity <= 0:
+            continue
         unit = resolved.get("unit", "шт.")
-        quantity = round(value, 2) if unit == "м" else _ceil(value)
         params: dict[str, Any] = {
-            "bom_section": "common",
+            "bom_section": accessory_bom_section,
             "mark": resolved.get("mark"),
             "nomenclature_code": resolved.get("nomenclature_code"),
             "temperature_group": resolved.get("temperature_group"),
@@ -568,11 +756,14 @@ def build_full_specification_detailed(
             "catalog_source": resolved.get("catalog_source"),
             "catalog_version": resolved.get("catalog_version"),
             "code": resolved.get("nomenclature_code"),
+            "supplier": resolved.get("supplier") or resolved.get("supplier_name") or "ТЛТ",
+            "supply_unit": resolved.get("supply_unit") or unit,
+            **pack_params,
         }
-        if package_factor:
-            params["package_factor"] = package_factor
         if resolved.get("mass_kg") is not None:
             params["mass_kg"] = resolved["mass_kg"]
+        if resolved.get("cable_length_per_kit") is not None:
+            params["cable_length_per_kit"] = resolved["cable_length_per_kit"]
         items.append(
             SpecificationItem(
                 category=resolved["category"],

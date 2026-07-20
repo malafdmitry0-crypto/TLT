@@ -151,13 +151,13 @@ describe('ElectricalAssignmentPanel (system scope chrome)', () => {
     await waitFor(() => {
       const tabs = screen.getAllByRole('tab');
       expect(tabs.map((tab) => tab.textContent?.replace(/\s+/gu, ' ').trim())).toEqual([
-        'Все5',
         'Нераспределённые1',
         'Самрег2',
         'Резистив2',
         'Скин0',
         'Минеральный0',
       ]);
+      expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     });
     expect(screen.getByTestId('assignment-drop-zone-self_regulating'))
       .toHaveAttribute('data-disabled', 'false');

@@ -114,7 +114,6 @@ describe('HeatCalcPage basics', () => {
       )).toEqual([
         'Параметры трубопровода',
         'Условия эксплуатации',
-        'Локальные элементы',
         'Теплоизоляция',
       ]);
       expect([...document.querySelectorAll('.inline-form-section-banner')].map((title) =>

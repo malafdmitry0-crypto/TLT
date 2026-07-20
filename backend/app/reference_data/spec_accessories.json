@@ -77,7 +77,8 @@
       "catalog_base": "repair_kit_low",
       "catalog_source": "spec_accessories",
       "catalog_version": "1",
-      "temperature_group": "low"
+      "temperature_group": "low",
+      "cable_length_per_kit": 150
     },
     {
       "rule": "repair_kit_high",
@@ -91,7 +92,8 @@
       "catalog_base": "repair_kit_high",
       "catalog_source": "spec_accessories",
       "catalog_version": "1",
-      "temperature_group": "high"
+      "temperature_group": "high",
+      "cable_length_per_kit": 150
     },
     {
       "rule": "box_Nk1",
@@ -302,7 +304,8 @@
       "nomenclature_code": "004-001-001",
       "catalog_base": "clamp_hk30",
       "catalog_source": "spec_accessories",
-      "catalog_version": "1"
+      "catalog_version": "1",
+      "reel_m": 30
     },
     {
       "rule": "clamp_fastener",
@@ -330,7 +333,8 @@
       "catalog_base": "tape_glass_low",
       "catalog_source": "spec_accessories",
       "catalog_version": "1",
-      "temperature_group": "low"
+      "temperature_group": "low",
+      "reel_m": 30
     },
     {
       "rule": "tape_glass_high",
@@ -345,7 +349,8 @@
       "catalog_base": "tape_glass_high",
       "catalog_source": "spec_accessories",
       "catalog_version": "1",
-      "temperature_group": "high"
+      "temperature_group": "high",
+      "reel_m": 30
     },
     {
       "rule": "tape_aluminium",
@@ -359,7 +364,8 @@
       "nomenclature_code": "005-001-003",
       "catalog_base": "tape_aluminium",
       "catalog_source": "spec_accessories",
-      "catalog_version": "1"
+      "catalog_version": "1",
+      "reel_m": 50
     },
     {
       "rule": "sealant_glue",
@@ -373,7 +379,8 @@
       "nomenclature_code": "005-002-001",
       "catalog_base": "sealant_glue",
       "catalog_source": "spec_accessories",
-      "catalog_version": "1"
+      "catalog_version": "1",
+      "kits_per_unit": 7
     },
     {
       "rule": "sealant_silicone",
