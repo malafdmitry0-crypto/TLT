@@ -252,9 +252,7 @@ class TestAlpha:
         assert indoor.alpha_vnesh == pytest.approx(9.0)
         assert outdoor.alpha_vnesh == pytest.approx(11.6)
         assert indoor.external_resistance > outdoor.external_resistance
-        assert indoor.location_factor == pytest.approx(0.9)
-        assert outdoor.location_factor == pytest.approx(1.0)
-        assert indoor.total_heat_loss < outdoor.total_heat_loss
+        # Итог зависит также от режима tm; дополнительного Kразм нет.
 
 
 # ---------------------------------------------------------------------------
@@ -284,12 +282,12 @@ class TestSafetyFactor:
 
 
 # ---------------------------------------------------------------------------
-# Коэффициент размещения
+# Legacy-коэффициенты не входят в формулу ТНП
 # ---------------------------------------------------------------------------
 
 
-class TestLocationFactor:
-    def test_location_factor_applies_only_to_total(self):
+class TestLegacyFactorsIgnored:
+    def test_location_coefficients_do_not_change_total(self):
         base = calc_tank_heat_loss(
             _cyl(location="indoor"),
             coefficients={"location_indoor": 1.0},
@@ -300,8 +298,38 @@ class TestLocationFactor:
         )
 
         assert adjusted.heat_loss_per_m2 == pytest.approx(base.heat_loss_per_m2, rel=1e-6)
-        assert adjusted.total_heat_loss == pytest.approx(base.total_heat_loss * 0.9, rel=1e-3)
-        assert adjusted.location_factor == pytest.approx(0.9)
+        assert adjusted.total_heat_loss == pytest.approx(base.total_heat_loss, rel=1e-6)
+        assert "location_factor" not in adjusted.model_dump()
+
+    def test_legacy_wind_factor_does_not_change_alpha_or_total(self):
+        base = calc_tank_heat_loss(_cyl(wind_speed=4.0))
+        legacy = calc_tank_heat_loss(_cyl(wind_speed=4.0), coefficients={"wind_factor": 0.5})
+        assert legacy.alpha_vnesh == pytest.approx(base.alpha_vnesh)
+        assert legacy.total_heat_loss == pytest.approx(base.total_heat_loss)
+
+
+class TestTnpGoldenFormula:
+    def test_air_tank_total_is_independent_tnp_oracle(self):
+        """Число вычислено напрямую по P-TANK без вызова backend-вспомогателей."""
+        params = _cyl(
+            diameter=2.0,
+            height=3.0,
+            insulation_thickness=0.1,
+            ambient_temperature=-20.0,
+            process_temperature=80.0,
+            wind_speed=4.0,
+            safety_factor=1.2,
+            q_additional=50.0,
+        )
+        lam_ins = 0.045 + 0.00021 * 40.0
+        alpha = 11.6 + 7.0 * math.sqrt(4.0)
+        area = math.pi * 2.0 * 3.0 + math.pi * 2.0**2 / 2.0
+        q = (80.0 - (-20.0)) / (0.1 / lam_ins + 1.0 / alpha)
+        expected_total = q * area * 1.2 + 50.0
+
+        result = calc_tank_heat_loss(params)
+        assert result.heat_loss_per_m2 == pytest.approx(q, abs=1e-3)
+        assert result.total_heat_loss == pytest.approx(expected_total, abs=1e-3)
 
 
 # ---------------------------------------------------------------------------

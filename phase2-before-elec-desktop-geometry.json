@@ -1,0 +1,13 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "page": {
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "horizontalOverflow": false
+  },
+  "clippedControls": [],
+  "zeroSizeControls": []
+}

@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.formulas.heat_loss.common import (
-    location_key,
     merge_coefficients,
     validate_positive,
     validate_temperature_range,
@@ -149,15 +148,14 @@ def _calc_alpha(params: TankHeatLossParams) -> float:
 
     α = 11,6 + 7·√v  (SNiP 41-03-2003, формула ТНП)
     Помещение: α = 9.0
-    Диапазон: [11.6, 52] Вт/(м²·К)
+    Ручной ``alpha_vnesh`` сохраняется как разрешённый параметрический ввод.
     """
     if params.alpha_vnesh is not None:
         return params.alpha_vnesh
     if params.location == "indoor":
         return 9.0
     v = max(params.wind_speed or 0.0, 0.0)
-    alpha = 11.6 + 7.0 * math.sqrt(v)
-    return min(max(alpha, 11.6), 52.0)
+    return 11.6 + 7.0 * math.sqrt(v)
 
 
 def _resolve_layers(params: TankHeatLossParams) -> list[InsulationLayer]:
@@ -261,7 +259,6 @@ def calc_tank_heat_loss(
     # --- 7. Коэффициент запаса ---
     merged = merge_coefficients(coefficients)
     k = params.safety_factor or merged.get("safety_factor", 1.1)
-    location_factor = merged.get(location_key(params.location), 1.0)
 
     r_common = r_wall + r_ins
     buried_height = params.burial_depth or 0.0
@@ -285,7 +282,7 @@ def calc_tank_heat_loss(
                 hot_side_temperature=params.process_temperature - heat_flux * r_wall,
             )
         area = s_air + s_ground
-        q_total = (q_air * s_air + q_ground * s_ground) * k * location_factor
+        q_total = (q_air * s_air + q_ground * s_ground) * k
         q_per_m2 = (q_air * s_air + q_ground * s_ground) / area
     else:
         # --- 4–5. Тепловой поток на м² ---
@@ -301,7 +298,7 @@ def calc_tank_heat_loss(
         area = _surface_area(params)
 
         # --- 8. Итоговые теплопотери ---
-        q_total = q_per_m2 * area * k * location_factor
+        q_total = q_per_m2 * area * k
 
     q_additional = getattr(params, "q_additional", 0.0) or 0.0
     q_total += q_additional
@@ -319,7 +316,6 @@ def calc_tank_heat_loss(
         wind_speed=params.wind_speed,
         ground_conductivity=round(lambda_gr, 3) if lambda_gr is not None else None,
         safety_factor=round(k, 3),
-        location_factor=round(location_factor, 3),
         air_surface_area=round(s_air, 3) if s_air is not None else None,
         ground_surface_area=round(s_ground, 3) if s_ground is not None else None,
         heat_loss_air_per_m2=round(q_air, 3) if q_air is not None else None,

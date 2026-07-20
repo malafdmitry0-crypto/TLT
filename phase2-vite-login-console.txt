@@ -1,0 +1,1405 @@
+Total messages: 8 (Errors: 5, Warnings: 0)
+Returning 71 messages for level "error"
+
+[ERROR] Warning: React has detected a change in the order of Hooks called by %s. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://reactjs.org/link/rules-of-hooks
+
+   Previous render            Next render
+   ------------------------------------------------------
+%s   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+%s ElecCalcPage 1. useRef                     useRef
+2. useMemo                    useMemo
+3. useSyncExternalStore       useSyncExternalStore
+4. useEffect                  useEffect
+5. useDebugValue              useDebugValue
+6. useDebugValue              useDebugValue
+7. useRef                     useRef
+8. useMemo                    useMemo
+9. useSyncExternalStore       useSyncExternalStore
+10. useEffect                 useEffect
+11. useDebugValue             useDebugValue
+12. useDebugValue             useDebugValue
+13. useRef                    useRef
+14. useMemo                   useMemo
+15. useSyncExternalStore      useSyncExternalStore
+16. useEffect                 useEffect
+17. useDebugValue             useDebugValue
+18. useDebugValue             useDebugValue
+19. useContext                useContext
+20. useContext                useContext
+21. useMemo                   useMemo
+22. useMemo                   useMemo
+23. useRef                    useRef
+24. useMemo                   useMemo
+25. useSyncExternalStore      useSyncExternalStore
+26. useEffect                 useEffect
+27. useDebugValue             useDebugValue
+28. useDebugValue             useDebugValue
+29. useRef                    useRef
+30. useMemo                   useMemo
+31. useSyncExternalStore      useSyncExternalStore
+32. useEffect                 useEffect
+33. useDebugValue             useDebugValue
+34. useDebugValue             useDebugValue
+35. useCallback               useCallback
+36. useState                  useState
+37. useState                  useState
+38. useState                  useState
+39. useState                  useState
+40. useState                  useState
+41. useState                  useState
+42. useState                  useState
+43. useState                  useState
+44. useState                  useState
+45. useMemo                   useMemo
+46. useMemo                   useMemo
+47. useState                  useState
+48. useState                  useState
+49. useState                  useState
+50. useState                  useState
+51. useMemo                   useMemo
+52. useCallback               useCallback
+53. useCallback               useCallback
+54. useCallback               useCallback
+55. useCallback               useCallback
+56. useCallback               useCallback
+57. useCallback               useCallback
+58. useState                  useState
+59. useState                  useState
+60. useState                  useState
+61. useState                  useState
+62. useState                  useState
+63. useContext                useContext
+64. useContext                useContext
+65. useContext                useContext
+66. useEffect                 useEffect
+67. useState                  useState
+68. useCallback               useCallback
+69. useSyncExternalStore      useSyncExternalStore
+70. useEffect                 useEffect
+71. useContext                useContext
+72. useContext                useContext
+73. useContext                useContext
+74. useEffect                 useEffect
+75. useState                  useState
+76. useCallback               useCallback
+77. useSyncExternalStore      useSyncExternalStore
+78. useEffect                 useEffect
+79. useContext                useContext
+80. useContext                useContext
+81. useContext                useContext
+82. useEffect                 useEffect
+83. useState                  useState
+84. useCallback               useCallback
+85. useSyncExternalStore      useSyncExternalStore
+86. useEffect                 useEffect
+87. useContext                useContext
+88. useState                  useState
+89. useEffect                 useEffect
+90. useCallback               useCallback
+91. useSyncExternalStore      useSyncExternalStore
+92. useCallback               useCallback
+93. useContext                useContext
+94. useState                  useState
+95. useEffect                 useEffect
+96. useCallback               useCallback
+97. useSyncExternalStore      useSyncExternalStore
+98. useCallback               useCallback
+99. useContext                useContext
+100. useState                 useState
+101. useEffect                useEffect
+102. useCallback              useCallback
+103. useSyncExternalStore     useSyncExternalStore
+104. useCallback              useCallback
+105. useEffect                useEffect
+106. useEffect                useEffect
+107. useEffect                useEffect
+108. useEffect                useEffect
+109. useMemo                  useMemo
+110. useMemo                  useMemo
+111. useMemo                  useMemo
+112. useMemo                  useMemo
+113. useMemo                  useMemo
+114. useMemo                  useMemo
+115. useState                 useState
+116. useState                 useState
+117. useEffect                useEffect
+118. useEffect                useEffect
+119. useCallback              useCallback
+120. useCallback              useCallback
+121. useCallback              useCallback
+122. useCallback              useCallback
+123. useCallback              useCallback
+124. useCallback              useCallback
+125. useCallback              useCallback
+126. useCallback              useCallback
+127. useState                 useState
+128. useState                 useState
+129. useCallback              useCallback
+130. useRef                   useRef
+131. useEffect                useEffect
+132. useContext               useContext
+133. useContext               useContext
+134. useContext               useContext
+135. useContext               useContext
+136. useContext               useContext
+137. useContext               useContext
+138. useContext               useContext
+139. useContext               useContext
+140. useRef                   useRef
+141. useContext               useContext
+142. useLayoutEffect          useLayoutEffect
+143. useCallback              useCallback
+144. useContext               useContext
+145. useContext               useContext
+146. useContext               useContext
+147. useEffect                useEffect
+148. useState                 useState
+149. useCallback              useCallback
+150. useSyncExternalStore     useSyncExternalStore
+151. useEffect                useEffect
+152. useMemo                  useMemo
+153. useContext               useContext
+154. useContext               useContext
+155. useContext               useContext
+156. useEffect                useEffect
+157. useState                 useState
+158. useCallback              useCallback
+159. useSyncExternalStore     useSyncExternalStore
+160. useEffect                useEffect
+161. useMemo                  useMemo
+162. useMemo                  useMemo
+163. useMemo                  useMemo
+164. useMemo                  useMemo
+165. useState                 useState
+166. useState                 useState
+167. useEffect                useEffect
+168. useEffect                useEffect
+169. useEffect                useEffect
+170. useCallback              useCallback
+171. useCallback              useCallback
+172. useCallback              useCallback
+173. useCallback              useCallback
+174. useState                 useState
+175. useState                 useState
+176. useCallback              useCallback
+177. useEffect                useEffect
+178. useEffect                useEffect
+179. useCallback              useCallback
+180. useCallback              useCallback
+181. useCallback              useCallback
+182. useMemo                  useMemo
+183. useMemo                  useMemo
+184. useCallback              useCallback
+185. useContext               useContext
+186. useState                 useState
+187. useState                 useState
+188. useRef                   useRef
+189. useContext               useContext
+190. useContext               useContext
+191. useContext               useContext
+192. useEffect                useEffect
+193. useState                 useState
+194. useCallback              useCallback
+195. useSyncExternalStore     useSyncExternalStore
+196. useEffect                useEffect
+197. useContext               useContext
+198. useState                 useState
+199. useEffect                useEffect
+200. useCallback              useCallback
+201. useSyncExternalStore     useSyncExternalStore
+202. useCallback              useCallback
+203. useContext               useContext
+204. useState                 useState
+205. useEffect                useEffect
+206. useCallback              useCallback
+207. useSyncExternalStore     useSyncExternalStore
+208. useCallback              useCallback
+209. useContext               useEffect
+ 
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400825168:76:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30) @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:442
+[ERROR] The above error occurred in the <ElecCalcPage> component:
+
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400825168:76:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] The above error occurred in the <ElecCalcPage> component:
+
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400857241:76:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] The above error occurred in the <ElecCalcPage> component:
+
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400866817:76:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] The above error occurred in the <ElecCalcPage> component:
+
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400866817:76:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] The above error occurred in the <ElecCalcPage> component:
+
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400940370:76:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] The above error occurred in the <ElecCalcPage> component:
+
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400940498:76:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] The above error occurred in the <ElecCalcPage> component:
+
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400940619:76:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] The above error occurred in the <ElecCalcPage> component:
+
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400953209:76:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] The above error occurred in the <ElecCalcPage> component:
+
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400953333:76:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] The above error occurred in the <ElecCalcPage> component:
+
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400953461:76:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] The above error occurred in the <ElecCalcPage> component:
+
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400968006:76:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784400968006:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784400968006:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx?t=1784400968006:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784400968006:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] [vite] SyntaxError: The requested module '/src/pages/electrical/elecCalcVariantModel.ts?t=1784401273847' does not provide an export named 'normalizeCalculationVariantList' @ http://127.0.0.1:3003/@vite/client:928
+[ERROR] [vite] Failed to reload /src/pages/ElecCalcPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:3003/@vite/client:928
+[ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784401277670:0
+[ERROR] [vite] Failed to reload /src/pages/ElecCalcPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:3003/@vite/client:928
+[ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:8000/api/v1/projects/c8b2d9cf-3124-4ac8-ae23-e73507c833af/electrical-variants:0
+[ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:8000/api/v1/projects/c8b2d9cf-3124-4ac8-ae23-e73507c833af/electrical-readiness:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8000/api/v1/projects/c8b2d9cf-3124-4ac8-ae23-e73507c833af/electrical-variants:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8000/api/v1/projects/c8b2d9cf-3124-4ac8-ae23-e73507c833af/electrical-readiness:0
+[ERROR] Warning: React has detected a change in the order of Hooks called by %s. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://reactjs.org/link/rules-of-hooks
+
+   Previous render            Next render
+   ------------------------------------------------------
+%s   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+%s ElecCalcProject 1. useContext                 useContext
+2. useContext                 useContext
+3. useContext                 useContext
+4. useContext                 useContext
+5. useContext                 useContext
+6. useContext                 useContext
+7. useContext                 useContext
+8. useContext                 useContext
+9. useContext                 useContext
+10. useContext                useContext
+11. useRef                    useRef
+12. useContext                useContext
+13. useLayoutEffect           useLayoutEffect
+14. useCallback               useCallback
+15. useRef                    useRef
+16. useMemo                   useMemo
+17. useSyncExternalStore      useSyncExternalStore
+18. useEffect                 useEffect
+19. useDebugValue             useDebugValue
+20. useDebugValue             useDebugValue
+21. useRef                    useRef
+22. useMemo                   useMemo
+23. useSyncExternalStore      useSyncExternalStore
+24. useEffect                 useEffect
+25. useDebugValue             useDebugValue
+26. useDebugValue             useDebugValue
+27. useRef                    useRef
+28. useMemo                   useMemo
+29. useSyncExternalStore      useSyncExternalStore
+30. useEffect                 useEffect
+31. useDebugValue             useDebugValue
+32. useDebugValue             useDebugValue
+33. useState                  useState
+34. useContext                useRef
+ 
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784408408362:121:28)
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784408408362:80:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784400968006:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784400968006:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx?t=1784400968006:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784400968006:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30) @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:442
+[ERROR] The above error occurred in the <ElecCalcProject> component:
+
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784408408362:121:28)
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784408408362:80:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784400968006:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784400968006:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx?t=1784400968006:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784400968006:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] Warning: React has detected a change in the order of Hooks called by %s. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://reactjs.org/link/rules-of-hooks
+
+   Previous render            Next render
+   ------------------------------------------------------
+%s   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+%s ElecCalcProject 1. useContext                 useContext
+2. useContext                 useContext
+3. useContext                 useContext
+4. useContext                 useContext
+5. useContext                 useContext
+6. useContext                 useContext
+7. useContext                 useContext
+8. useContext                 useContext
+9. useContext                 useContext
+10. useContext                useContext
+11. useContext                useContext
+12. useContext                useContext
+13. useRef                    useRef
+14. useContext                useContext
+15. useLayoutEffect           useLayoutEffect
+16. useCallback               useCallback
+17. useRef                    useRef
+18. useMemo                   useMemo
+19. useSyncExternalStore      useSyncExternalStore
+20. useEffect                 useEffect
+21. useDebugValue             useDebugValue
+22. useDebugValue             useDebugValue
+23. useRef                    useRef
+24. useMemo                   useMemo
+25. useSyncExternalStore      useSyncExternalStore
+26. useEffect                 useEffect
+27. useDebugValue             useDebugValue
+28. useDebugValue             useDebugValue
+29. useRef                    useRef
+30. useMemo                   useMemo
+31. useSyncExternalStore      useSyncExternalStore
+32. useEffect                 useEffect
+33. useDebugValue             useDebugValue
+34. useDebugValue             useDebugValue
+35. useState                  useState
+36. useRef                    useState
+ 
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784410794488:122:28)
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784410794488:81:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784410510523:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784410510523:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx?t=1784410510523:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784410510523:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30) @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:442
+[ERROR] The above error occurred in the <ElecCalcProject> component:
+
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784410794488:122:28)
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784410794488:81:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784410510523:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784410510523:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx?t=1784410510523:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784410510523:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] The above error occurred in the <ElecCalcProject> component:
+
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784411401106:122:28)
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784411401106:81:18)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784410510523:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784410510523:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx?t=1784410510523:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784410510523:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] Warning: React has detected a change in the order of Hooks called by %s. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://reactjs.org/link/rules-of-hooks
+
+   Previous render            Next render
+   ------------------------------------------------------
+%s   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+%s Sidebar 1. useContext                 useContext
+2. useContext                 useContext
+3. useContext                 useContext
+4. useContext                 useContext
+5. useContext                 useContext
+6. useContext                 useContext
+7. useContext                 useContext
+8. useRef                     useRef
+9. useContext                 useContext
+10. useLayoutEffect           useLayoutEffect
+11. useCallback               useCallback
+12. useContext                useContext
+13. useContext                useContext
+14. useRef                    useRef
+15. useMemo                   useMemo
+16. useSyncExternalStore      useSyncExternalStore
+17. useEffect                 useEffect
+18. useDebugValue             useDebugValue
+19. useDebugValue             useDebugValue
+20. useContext                useContext
+21. useContext                useContext
+22. useContext                useContext
+23. useContext                useContext
+24. useContext                useContext
+25. useContext                useContext
+26. useContext                useContext
+27. useContext                useContext
+28. useContext                useContext
+29. useContext                useContext
+30. useRef                    useRef
+31. useContext                useContext
+32. useLayoutEffect           useLayoutEffect
+33. useCallback               useCallback
+34. useRef                    useRef
+35. useMemo                   useMemo
+36. useSyncExternalStore      useSyncExternalStore
+37. useEffect                 useEffect
+38. useDebugValue             useDebugValue
+39. useDebugValue             useDebugValue
+40. useRef                    useRef
+41. useMemo                   useMemo
+42. useSyncExternalStore      useSyncExternalStore
+43. useEffect                 useEffect
+44. useDebugValue             useDebugValue
+45. useDebugValue             useDebugValue
+46. useRef                    useRef
+47. useMemo                   useMemo
+48. useSyncExternalStore      useSyncExternalStore
+49. useEffect                 useEffect
+50. useDebugValue             useDebugValue
+51. useDebugValue             useDebugValue
+52. useState                  useState
+53. useState                  useState
+54. useRef                    useState
+ 
+    at Sidebar (http://127.0.0.1:3003/src/components/layout/Sidebar.tsx?t=1784411949701:49:19)
+    at nav
+    at div
+    at header
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Header
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx?t=1784410510523:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784410510523:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30) @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:442
+[ERROR] The above error occurred in the <Sidebar> component:
+
+    at Sidebar (http://127.0.0.1:3003/src/components/layout/Sidebar.tsx?t=1784411949701:49:19)
+    at nav
+    at div
+    at header
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Header
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx?t=1784410510523:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784410510523:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] The above error occurred in the <Sidebar> component:
+
+    at Sidebar (http://127.0.0.1:3003/src/components/layout/Sidebar.tsx?t=1784412388100:49:19)
+    at nav
+    at div
+    at header
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Header
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx?t=1784410510523:115:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784410510523:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:11718
+[ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3003/src/pages/electrical/useElecCalcCandidateState.ts?t=1784413116203:0
+[ERROR] [vite] Failed to reload /src/pages/ElecCalcPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:3003/@vite/client:928
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:5173/favicon.ico:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:5173/favicon.ico:0
+[ERROR] Access to XMLHttpRequest at 'http://localhost:8000/api/v1/auth/guest' from origin 'http://127.0.0.1:5173' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5173/:0
+[ERROR] Warning: [antd: message] Static function can not consume context like dynamic theme. Please use 'App' component instead. @ http://127.0.0.1:5173/@vite/client:509
+[ERROR] Failed to load resource: net::ERR_FAILED @ http://localhost:8000/api/v1/auth/guest:0
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useElecCalcCableSizingModalState (http://127.0.0.1:3003/src/pages/electrical/useElecCalcCableSizingModalState.ts:5:34)
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400825168:210:27)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13096:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useElecCalcCableSizingModalState (http://127.0.0.1:3003/src/pages/electrical/useElecCalcCableSizingModalState.ts:5:34)
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400825168:210:27)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13096:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400857241:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400857241:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400866817:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400866817:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400866817:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400866817:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400940370:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400940370:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400940498:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400940498:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400940619:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400940619:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400953209:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400953209:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400953333:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400953333:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400953461:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400953461:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400968006:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+TypeError: Cannot read properties of undefined (reading 'isPending')
+    at ElecCalcPage (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784400968006:620:18)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at mountLazyComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12309:14)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13092:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+    at Object.invokeGuardedCallbackDev (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3162:14)
+    at invokeGuardedCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3201:32)
+    at beginWork$1 (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15990:5)
+    at performUnitOfWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:15568:12)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useBaseQuery (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2691:34)
+    at useQuery (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2719:9)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784408408365:39:20)
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784408408362:123:21)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useBaseQuery (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2691:34)
+    at useQuery (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2719:9)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784408408365:39:20)
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784408408362:123:21)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784410794488:38:44)
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784410794488:125:21)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13096:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784410794488:38:44)
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784410794488:125:21)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13096:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useBaseQuery (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2691:34)
+    at useQuery (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2719:9)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784411401111:41:20)
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784411401106:125:21)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useBaseQuery (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2691:34)
+    at useQuery (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2719:9)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784411401111:41:20)
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784411401106:125:21)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784411949701:39:44)
+    at useLegacyElectricalVariantContext (http://127.0.0.1:3003/src/pages/electrical/useLegacyElectricalVariantContext.ts?t=1784411949701:13:21)
+    at Sidebar (http://127.0.0.1:3003/src/components/layout/Sidebar.tsx?t=1784411949701:52:25)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13096:13)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784411949701:39:44)
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784411949701:125:21)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13096:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784411949701:39:44)
+    at useLegacyElectricalVariantContext (http://127.0.0.1:3003/src/pages/electrical/useLegacyElectricalVariantContext.ts?t=1784411949701:13:21)
+    at Sidebar (http://127.0.0.1:3003/src/components/layout/Sidebar.tsx?t=1784411949701:52:25)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13096:13)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784411949701:39:44)
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784411949701:125:21)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13096:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784412388100:49:82)
+    at useLegacyElectricalVariantContext (http://127.0.0.1:3003/src/pages/electrical/useLegacyElectricalVariantContext.ts?t=1784412388100:13:21)
+    at Sidebar (http://127.0.0.1:3003/src/components/layout/Sidebar.tsx?t=1784412388100:52:25)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13096:13)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784412388100:49:82)
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784412388100:125:21)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13096:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784412388100:49:82)
+    at useLegacyElectricalVariantContext (http://127.0.0.1:3003/src/pages/electrical/useLegacyElectricalVariantContext.ts?t=1784412388100:13:21)
+    at Sidebar (http://127.0.0.1:3003/src/components/layout/Sidebar.tsx?t=1784412388100:52:25)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13096:13)
+Error: Should have a queue. This is likely a bug in React. Please file an issue.
+    at updateReducer (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9768:30)
+    at updateState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9993:11)
+    at Object.useState (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:10639:13)
+    at useState (http://127.0.0.1:3003/node_modules/.vite/deps/react.js?v=b33e4870:963:31)
+    at useElectricalVariantSelection (http://127.0.0.1:3003/src/pages/electrical/useElectricalVariantSelection.ts?t=1784412388100:49:82)
+    at ElecCalcProject (http://127.0.0.1:3003/src/pages/ElecCalcPage.tsx?t=1784412388100:125:21)
+    at renderWithHooks (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:9632:19)
+    at updateFunctionComponent (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:12122:19)
+    at beginWork (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:13096:13)
+    at HTMLUnknownElement.callCallback (http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:3142:11)

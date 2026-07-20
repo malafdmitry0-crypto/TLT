@@ -9,8 +9,9 @@
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_pipe_total_heat_loss" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_pipe_heat_loss_no_double_k" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_climate_safety_factor" },
-        { "path": "docs/business-logic-contract.md", "symbol": "tlt_heat_loss_location_factor_source_gap" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_heat_loss_location_factor_removed" },
         { "path": "docs/tnp/block-heat-loss-and-cable-selection/pipe-heat-loss-and-cable-selection.md" },
+        { "path": "docs/tnp/internal-references/pipe-wall-thickness.md" },
         { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_pipe_total_heat_loss" },
         { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_climate_safety_factor" },
         { "path": "formules.md", "symbol": "Теплопотери" },
@@ -46,7 +47,7 @@
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_tank_total_heat_loss" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_rectangular_tank_perimeter" },
         { "path": "docs/business-logic-contract.md", "symbol": "tlt_tank_heat_loss_no_double_k" },
-        { "path": "docs/business-logic-contract.md", "symbol": "tlt_heat_loss_location_factor_source_gap" },
+        { "path": "docs/business-logic-contract.md", "symbol": "tlt_heat_loss_location_factor_removed" },
         { "path": "docs/tnp/block-heat-loss-and-cable-selection/tank-heat-loss-and-cable-selection.md" },
         { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_tank_external_resistance" },
         { "path": "formules.md", "symbol": "резервуар" },
@@ -84,6 +85,7 @@
         { "path": "docs/tnp/project-reconciliation-audit.md", "symbol": "ALG-SR-01" },
         { "path": "docs/tnp/algorithms/self-regulating-pipe-selection.md" },
         { "path": "docs/tnp/algorithms/winding.md" },
+        { "path": "docs/tnp/internal-references/self-regulating-cables.md" },
         { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_max_winding_coefficient" },
         { "path": "qa-agent/examples/tlt-formulas.registry.yaml", "symbol": "tlt_tt_power_curve" },
         { "path": "docs/context/formulas-summary.md", "symbol": "Саморегулирующийся" },
@@ -158,7 +160,8 @@
       "title": "Спецификация из актуального варианта электротехнического расчета",
       "requirementRefs": [
         { "path": "docs/srs/05-functional-nonfunctional.md", "symbol": "спецификац" },
-        { "path": "docs/srs/ui/employee/05-screen-workspace-specification.md", "symbol": "спецификац" }
+        { "path": "docs/srs/ui/employee/05-screen-workspace-specification.md", "symbol": "спецификац" },
+        { "path": "docs/tnp/internal-references/full-product-catalog.md" }
       ],
       "backendRefs": [
         { "path": "backend/app/formulas/specification/builder.py" },

@@ -1,6 +1,6 @@
 formulas:
   - id: tlt_alpha_outdoor
-    expression: "alpha = clamp(11.6 + 7 * sqrt(windSpeed), 11.6, 52)"
+    expression: "alpha = 11.6 + 7 * sqrt(windSpeed)"
     variables: [windSpeed]
     output: alpha_vnesh
     tolerance:
@@ -9,8 +9,8 @@ formulas:
     constraints:
       - "windSpeed >= 0"
     sourceRefs:
-      - "backend/app/formulas/heat_loss/pipe.py:calc_alpha_vnesh"
-      - "backend/app/formulas/heat_loss/tank.py:_calc_alpha"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
     implementationRefs:
       - "backend/app/formulas/heat_loss/pipe.py"
       - "backend/app/formulas/heat_loss/tank.py"
@@ -19,7 +19,7 @@ formulas:
       notes:
         - "Independent TypeScript primitive mirrors the documented SNiP/TNP expression."
     engineeringReview:
-      - "Clamp protects against unrealistic wind coefficients; indoor alpha is a separate branch, not this formula."
+      - "No additional wind_factor is permitted; indoor alpha is a separate branch, not this formula."
       - "A negative wind speed should be normalized before this primitive or rejected by input validation."
     examples:
       - id: alpha-outdoor-4ms
@@ -40,7 +40,7 @@ formulas:
       - "numLocalElements >= 0"
       - "localElementEquivLength >= 0"
     sourceRefs:
-      - "backend/app/formulas/heat_loss/pipe.py:calc_pipe_heat_loss"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
     implementationRefs:
       - "backend/app/formulas/heat_loss/pipe.py"
     oracle:
@@ -68,7 +68,7 @@ formulas:
       - "rOut > 0"
       - "lambda > 0"
     sourceRefs:
-      - "backend/app/formulas/heat_loss/pipe.py:_r_cylindrical"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
     implementationRefs:
       - "backend/app/formulas/heat_loss/pipe.py"
     oracle:
@@ -94,7 +94,7 @@ formulas:
       - "rOuter > 0"
       - "alpha > 0"
     sourceRefs:
-      - "backend/app/formulas/heat_loss/pipe.py:_r_external"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
     implementationRefs:
       - "backend/app/formulas/heat_loss/pipe.py"
     oracle:
@@ -118,7 +118,7 @@ formulas:
       - "rOuter > 0"
       - "lambdaGround > 0"
     sourceRefs:
-      - "backend/app/formulas/heat_loss/pipe.py:_r_ground"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
     implementationRefs:
       - "backend/app/formulas/heat_loss/pipe.py"
     oracle:
@@ -146,7 +146,7 @@ formulas:
       - "deltaT > 0"
       - "thermalResistance > 0"
     sourceRefs:
-      - "backend/app/formulas/heat_loss/pipe.py:calc_pipe_heat_loss"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
     implementationRefs:
       - "backend/app/formulas/heat_loss/pipe.py"
     oracle:
@@ -173,7 +173,7 @@ formulas:
       - "effectiveLength > 0"
       - "safetyFactor > 0"
     sourceRefs:
-      - "backend/app/formulas/heat_loss/pipe.py:calc_pipe_heat_loss"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
     implementationRefs:
       - "backend/app/formulas/heat_loss/pipe.py"
     backendEndpoint:
@@ -209,8 +209,7 @@ formulas:
     constraints:
       - "heatLossPerMeter >= 0"
     sourceRefs:
-      - "docs/tnp/block-heat-loss-and-cable-selection/pipe-heat-loss-and-cable-selection.md"
-      - "backend/app/services/calculation_service.py:_required_power_per_meter"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
     implementationRefs:
       - "backend/app/services/calculation_service.py"
     oracle:
@@ -238,7 +237,7 @@ formulas:
       - safety_factor
     output: PipeHeatLossResult
     sourceRefs:
-      - "backend/app/formulas/heat_loss/pipe.py:calc_pipe_heat_loss"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
       - "docs/context/formulas-summary.md"
     implementationRefs:
       - "backend/app/formulas/heat_loss/pipe.py"
@@ -270,7 +269,7 @@ formulas:
       - "diameter > 0"
       - "height > 0"
     sourceRefs:
-      - "backend/app/formulas/heat_loss/tank.py:_surface_area"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
     implementationRefs:
       - "backend/app/formulas/heat_loss/tank.py"
     oracle:
@@ -295,7 +294,7 @@ formulas:
       - "width > 0"
       - "height > 0"
     sourceRefs:
-      - "backend/app/formulas/heat_loss/tank.py:_surface_area"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
     implementationRefs:
       - "backend/app/formulas/heat_loss/tank.py"
     oracle:
@@ -319,7 +318,7 @@ formulas:
     constraints:
       - "diameter > 0"
     sourceRefs:
-      - "backend/app/formulas/heat_loss/tank.py:_surface_area"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
     implementationRefs:
       - "backend/app/formulas/heat_loss/tank.py"
     oracle:
@@ -341,8 +340,8 @@ formulas:
     constraints:
       - "alpha > 0"
     sourceRefs:
-      - "docs/tnp/block-heat-loss-and-cable-selection/tank-heat-loss-and-cable-selection.md"
-      - "backend/app/formulas/heat_loss/tank.py:calc_tank_heat_loss"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
     implementationRefs:
       - "backend/app/formulas/heat_loss/tank.py"
     oracle:
@@ -371,7 +370,7 @@ formulas:
       - "insulationResistance > 0"
       - "externalResistance > 0"
     sourceRefs:
-      - "backend/app/formulas/heat_loss/tank.py:calc_tank_heat_loss"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
     implementationRefs:
       - "backend/app/formulas/heat_loss/tank.py"
     oracle:
@@ -400,7 +399,7 @@ formulas:
       - "safetyFactor > 0"
       - "qAdditional >= 0"
     sourceRefs:
-      - "backend/app/formulas/heat_loss/tank.py:calc_tank_heat_loss"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
     implementationRefs:
       - "backend/app/formulas/heat_loss/tank.py"
     backendEndpoint:
@@ -437,8 +436,6 @@ formulas:
       - "cableLength > 0"
     sourceRefs:
       - "docs/tnp/block-heat-loss-and-cable-selection/tank-heat-loss-and-cable-selection.md"
-      - "backend/app/services/calculation_service.py:_tank_heat_loss_without_double_safety"
-      - "backend/app/services/calculation_service.py:_required_power_per_meter"
     implementationRefs:
       - "backend/app/services/calculation_service.py"
     oracle:
@@ -468,8 +465,8 @@ formulas:
       - safety_factor
     output: TankHeatLossResult
     sourceRefs:
-      - "backend/app/formulas/heat_loss/tank.py:calc_tank_heat_loss"
-      - "docs/context/formulas-summary.md"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
+      - "docs/tnp/internal-references/insulation.md"
     implementationRefs:
       - "backend/app/formulas/heat_loss/tank.py"
       - "backend/app/schemas/calculation.py:TankHeatLossParams"

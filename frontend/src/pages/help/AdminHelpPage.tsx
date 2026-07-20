@@ -83,7 +83,6 @@ export default function AdminHelpPage() {
                     <Paragraph style={{ margin: 0 }}>Настройка корректирующих коэффициентов для расчётов:</Paragraph>
                     <ul style={{ margin: '8px 0 0 0' }}>
                       <li><Text strong>safety_factor</Text> — множитель K для Q (тепловые потери), по умолчанию <Text code>1.1</Text>. Применяется и к трубопроводам, и к резервуарам. Также используется в электрорасчёте как коэффициент запаса по мощности кабеля</li>
-                      <li><Text strong>wind_factor</Text> — множитель α_внеш для труб, по умолчанию <Text code>1.0</Text> (устаревший, в текущей модели не используется — скорость ветра задаётся для объекта напрямую)</li>
                     </ul>
                     <Paragraph type="secondary" style={{ margin: '8px 0 0 0' }}>
                       Все формулы и их вывод см. в файле <Text code>formules.md</Text> репозитория.

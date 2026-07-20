@@ -37,7 +37,7 @@ export default function PipeGeometryStep({ fieldInputSettings }: Props) {
   return (
     <>
       <Form.Item
-        className="fit-label-form-item short-number-form-item helped-form-item"
+        className="fit-label-form-item short-number-form-item outer-diameter-form-item helped-form-item"
         label={fieldLabel('outer_diameter_mm')}
         name="outer_diameter_mm"
         rules={heatCalcFormFieldRules(form, 'pipe', 'outer_diameter_mm')}
@@ -53,7 +53,7 @@ export default function PipeGeometryStep({ fieldInputSettings }: Props) {
       </Form.Item>
 
       <Form.Item
-        className="fit-label-form-item long-number-form-item helped-form-item"
+        className="fit-label-form-item long-number-form-item pipe-length-form-item helped-form-item"
         label={fieldLabel('pipe_length')}
         name="pipe_length"
         rules={heatCalcFormFieldRules(form, 'pipe', 'pipe_length')}

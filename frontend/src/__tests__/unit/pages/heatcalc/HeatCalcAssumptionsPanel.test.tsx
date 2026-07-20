@@ -15,7 +15,6 @@ const detailedSettings: HeatCalcCalculationDetailsSettings = {
     'delta_t',
     'applied_alpha_vnesh',
     'applied_safety_factor',
-    'applied_location_factor',
     'insulation_resistance',
     'external_resistance',
     'ground_resistance',
@@ -46,7 +45,6 @@ function makeObject(overrides: Partial<ProjectObject> = {}): ProjectObject {
     results: {
       alpha_vnesh: 24.1,
       safety_factor: 1.2,
-      location_factor: 1.05,
       insulation_resistance: 1.5447,
       external_resistance: 0.0389,
       effective_length: 64,
@@ -118,7 +116,6 @@ describe('HeatCalcAssumptionsPanel', () => {
           results: {
             alpha_vnesh: 18.2,
             safety_factor: 1.15,
-            location_factor: 1,
             insulation_resistance: 0.9876,
             external_resistance: 0.0245,
             surface_area: 36.42,

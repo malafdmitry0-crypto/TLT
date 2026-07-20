@@ -58,7 +58,7 @@ export default function PlacementGroundStep({
   return (
     <>
       <Form.Item
-        className="fixed-select-form-item reduced-select-form-item helped-form-item"
+        className="fixed-select-form-item reduced-select-form-item placement-form-item helped-form-item"
         label={fieldLabel('placement', objectType)}
         name="placement"
         rules={heatCalcFormFieldRules(form, objectType, 'placement')}
@@ -76,7 +76,7 @@ export default function PlacementGroundStep({
       {isUnderground && (
         <>
           <Form.Item
-            className="fit-label-form-item helped-form-item"
+            className="fit-label-form-item burial-depth-form-item helped-form-item"
             label={fieldLabel('burial_depth', objectType)}
             name="burial_depth"
             preserve={false}
@@ -92,7 +92,7 @@ export default function PlacementGroundStep({
             )}
           </Form.Item>
           <Form.Item
-            className="fixed-select-form-item helped-form-item"
+            className="fixed-select-form-item ground-type-form-item helped-form-item"
             label={fieldLabel('ground_type', objectType)}
             name="ground_type"
             preserve={false}
@@ -113,7 +113,7 @@ export default function PlacementGroundStep({
             )}
           </Form.Item>
           <Form.Item
-            className="numeric-form-item coefficient-form-item helped-form-item"
+            className="numeric-form-item coefficient-form-item ground-conductivity-form-item helped-form-item"
             label={fieldLabel('ground_conductivity', objectType)}
             name="ground_conductivity"
             preserve={false}

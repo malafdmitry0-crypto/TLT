@@ -1,7 +1,27 @@
 """Integration-тесты объектов проекта с автопересчётом."""
 
+import re
+from uuid import UUID
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.cache import cache
+from app.models.coefficient import CorrectionCoefficient
+from app.models.project_object import ProjectObject
+from app.reference_data.loader import (
+    PIPE_HEAT_LOSS_MATERIALS_SOURCE,
+    pipe_heat_loss_materials_version,
+)
+from app.services.calculation_service import (
+    PIPE_HEAT_LOSS_COEFFICIENTS_SOURCE,
+    PIPE_HEAT_LOSS_FORMULA_SOURCE,
+    PIPE_HEAT_LOSS_FORMULA_VERSION,
+    TANK_HEAT_LOSS_FORMULA_SOURCE,
+    TANK_HEAT_LOSS_FORMULA_VERSION,
+)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -19,6 +39,319 @@ async def _project(client: AsyncClient, session_id: str) -> str:
 
 
 class TestObjectsLifecycle:
+    async def test_pipe_calculation_trace_is_returned_persisted_and_reloaded(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+    ):
+        pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        created_response = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.108,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 50,
+                },
+            },
+            headers=headers,
+        )
+        assert created_response.status_code == 201, created_response.text
+        created = created_response.json()
+        trace = created["results"]["calculation_trace"]
+        assert trace["formula_id"] == "pipe_heat_loss"
+        assert trace["formula_version"] == PIPE_HEAT_LOSS_FORMULA_VERSION
+        assert trace["formula_source"] == PIPE_HEAT_LOSS_FORMULA_SOURCE
+        assert trace["coefficients_source"] == PIPE_HEAT_LOSS_COEFFICIENTS_SOURCE
+        assert re.fullmatch(r"sha256:[0-9a-f]{64}", trace["coefficients_version"])
+        assert trace["materials_source"] == PIPE_HEAT_LOSS_MATERIALS_SOURCE
+        assert trace["materials_version"] == pipe_heat_loss_materials_version()
+        assert trace["tm_mode"] == "outdoor_winter"
+        assert trace["insulation_tm"] == pytest.approx(40.0)
+        assert trace["applied_coefficients"] == {"safety_factor": 1.1}
+        assert trace["safety_factor"] == pytest.approx(1.1)
+
+        stored = (
+            await db_session.execute(
+                select(ProjectObject).where(ProjectObject.id == UUID(created["id"]))
+            )
+        ).scalar_one()
+        assert (stored.results or {})["calculation_trace"] == trace
+
+        reloaded_response = await client.get(
+            f"/api/v1/projects/{pid}/objects",
+            headers=headers,
+        )
+        assert reloaded_response.status_code == 200, reloaded_response.text
+        reloaded = next(item for item in reloaded_response.json() if item["id"] == created["id"])
+        assert reloaded["results"]["calculation_trace"] == trace
+
+        recalculated_response = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={"version": created["version"], "params": created["params"]},
+            headers=headers,
+        )
+        assert recalculated_response.status_code == 200, recalculated_response.text
+        recalculated = recalculated_response.json()["results"]
+        assert recalculated["calculation_trace"] == trace
+        assert {
+            key: value for key, value in recalculated.items() if key != "calculation_trace"
+        } == {key: value for key, value in created["results"].items() if key != "calculation_trace"}
+
+    async def test_pipe_recalculation_refreshes_trace_for_resolved_tm_mode(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+    ):
+        pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        created_response = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.1,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 10,
+                },
+            },
+            headers=headers,
+        )
+        assert created_response.status_code == 201, created_response.text
+        created = created_response.json()
+        winter_trace = created["results"]["calculation_trace"]
+
+        wind_factor = (
+            await db_session.execute(
+                select(CorrectionCoefficient).where(CorrectionCoefficient.key == "wind_factor")
+            )
+        ).scalar_one_or_none()
+        if wind_factor is None:
+            db_session.add(
+                CorrectionCoefficient(
+                    key="wind_factor",
+                    value=1.1,
+                    description="Traceability test coefficient",
+                )
+            )
+        else:
+            wind_factor.value += 0.1
+        await db_session.commit()
+        cache.invalidate("coefficients")
+
+        recalculated_response = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={
+                "version": created["version"],
+                "params": {
+                    **created["params"],
+                    "insulation_temperature_basis": "outdoor_summer",
+                },
+            },
+            headers=headers,
+        )
+        assert recalculated_response.status_code == 200, recalculated_response.text
+        summer_trace = recalculated_response.json()["results"]["calculation_trace"]
+        assert summer_trace["coefficients_version"] == winter_trace["coefficients_version"]
+        assert {
+            key: value
+            for key, value in summer_trace.items()
+            if key not in {"tm_mode", "insulation_tm"}
+        } == {
+            key: value
+            for key, value in winter_trace.items()
+            if key not in {"tm_mode", "insulation_tm"}
+        }
+        assert summer_trace["tm_mode"] == "outdoor_summer"
+        assert summer_trace["insulation_tm"] == pytest.approx(60.0)
+
+    async def test_tank_calculation_trace_is_persisted_with_tnp_source(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+    ):
+        pid = await _project(client, guest_session)
+        response = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "tank",
+                "params": {
+                    "shape": "cylindrical",
+                    "diameter": 2,
+                    "height": 3,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                },
+            },
+            headers={"X-Session-Id": guest_session},
+        )
+        assert response.status_code == 201, response.text
+        trace = response.json()["results"]["calculation_trace"]
+        assert trace["formula_id"] == "tank_heat_loss"
+        assert trace["formula_version"] == TANK_HEAT_LOSS_FORMULA_VERSION
+        assert trace["formula_source"] == TANK_HEAT_LOSS_FORMULA_SOURCE
+        assert trace["applied_coefficients"] == {"safety_factor": 1.1}
+
+    async def test_legacy_pipe_result_without_calculation_trace_loads(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+    ):
+        pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        created_response = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.1,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 10,
+                },
+            },
+            headers=headers,
+        )
+        assert created_response.status_code == 201, created_response.text
+        created = created_response.json()
+        stored = (
+            await db_session.execute(
+                select(ProjectObject).where(ProjectObject.id == UUID(created["id"]))
+            )
+        ).scalar_one()
+        stored.results = {
+            key: value
+            for key, value in (stored.results or {}).items()
+            if key != "calculation_trace"
+        }
+        await db_session.commit()
+
+        reloaded_response = await client.get(
+            f"/api/v1/projects/{pid}/objects",
+            headers=headers,
+        )
+        assert reloaded_response.status_code == 200, reloaded_response.text
+        reloaded = next(item for item in reloaded_response.json() if item["id"] == created["id"])
+        assert "calculation_trace" not in reloaded["results"]
+        assert reloaded["results"]["heat_loss_per_meter"] == created["results"]["heat_loss_per_meter"]
+
+    async def test_new_pipe_results_omit_surface_temperature_after_recalculate_and_reload(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+    ):
+        pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        created_response = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.1,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 10,
+                },
+            },
+            headers=headers,
+        )
+        assert created_response.status_code == 201, created_response.text
+        created = created_response.json()
+        assert "surface_temperature" not in created["results"]
+
+        object_id = UUID(created["id"])
+        stored = (
+            await db_session.execute(select(ProjectObject).where(ProjectObject.id == object_id))
+        ).scalar_one()
+        assert "surface_temperature" not in (stored.results or {})
+
+        recalculated_response = await client.put(
+            f"/api/v1/projects/{pid}/objects/{created['id']}",
+            json={
+                "version": created["version"],
+                "params": {**created["params"], "insulation_thickness": 0.04},
+            },
+            headers=headers,
+        )
+        assert recalculated_response.status_code == 200, recalculated_response.text
+        recalculated = recalculated_response.json()
+        assert "surface_temperature" not in recalculated["results"]
+
+        await db_session.refresh(stored)
+        assert "surface_temperature" not in (stored.results or {})
+        reloaded_response = await client.get(
+            f"/api/v1/projects/{pid}/objects",
+            headers=headers,
+        )
+        assert reloaded_response.status_code == 200, reloaded_response.text
+        reloaded = next(item for item in reloaded_response.json() if item["id"] == created["id"])
+        assert "surface_temperature" not in reloaded["results"]
+
+    async def test_legacy_pipe_result_with_surface_temperature_loads(
+        self,
+        client: AsyncClient,
+        guest_session: str,
+        db_session: AsyncSession,
+    ):
+        pid = await _project(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        created_response = await client.post(
+            f"/api/v1/projects/{pid}/objects",
+            json={
+                "object_type": "pipe",
+                "params": {
+                    "outer_diameter": 0.1,
+                    "insulation_thickness": 0.05,
+                    "insulation_material": MINERAL_WOOL,
+                    "insulation_temperature_basis": "outdoor_winter",
+                    "ambient_temperature": -20,
+                    "process_temperature": 80,
+                    "pipe_length": 10,
+                },
+            },
+            headers=headers,
+        )
+        assert created_response.status_code == 201, created_response.text
+        created = created_response.json()
+        stored = (
+            await db_session.execute(
+                select(ProjectObject).where(ProjectObject.id == UUID(created["id"]))
+            )
+        ).scalar_one()
+        stored.results = {**(stored.results or {}), "surface_temperature": None}
+        await db_session.commit()
+
+        reloaded_response = await client.get(
+            f"/api/v1/projects/{pid}/objects",
+            headers=headers,
+        )
+        assert reloaded_response.status_code == 200, reloaded_response.text
+        reloaded = next(item for item in reloaded_response.json() if item["id"] == created["id"])
+        assert reloaded["results"]["surface_temperature"] is None
+
     async def test_add_object_triggers_calculation(self, client: AsyncClient, guest_session: str):
         pid = await _project(client, guest_session)
         resp = await client.post(

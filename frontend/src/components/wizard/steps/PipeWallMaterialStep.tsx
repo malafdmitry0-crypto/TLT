@@ -1,13 +1,10 @@
 import { Form } from 'antd';
 import type { ReactElement } from 'react';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
-import { TltSelect } from '@/components/form-controls';
 import {
   heatCalcCustomControlRequiredProps,
   heatCalcFormFieldRules,
   heatCalcNumberInputProps,
-  heatCalcSelectInputProps,
-  heatCalcSelectOptions,
 } from '@/utils/heatCalcWizardFieldRules';
 import type { HeatCalcFieldInputSettings } from '@/utils/heatCalcFieldInputSettings';
 import type { ReferenceOption } from '@/utils/referenceOptions';
@@ -38,16 +35,14 @@ interface Props {
 
 export default function PipeWallMaterialStep({ fieldInputSettings, pipeMaterialOptions }: Props) {
   const form = Form.useFormInstance();
-  const pipeLambdaMode = Form.useWatch('pipe_lambda_mode', form);
+  const pipeMaterial = Form.useWatch('pipe_material', form);
   const numberInputProps = (fieldId: string) =>
     heatCalcNumberInputProps('pipe', fieldId, { fieldInputSettings, form });
-  const selectInputProps = (fieldId: string) =>
-    heatCalcSelectInputProps('pipe', fieldId, { form });
 
   return (
     <>
       <Form.Item
-        className="fit-label-form-item short-number-form-item helped-form-item"
+        className="fit-label-form-item short-number-form-item wall-thickness-form-item helped-form-item"
         label={fieldLabel('wall_thickness_mm')}
         name="wall_thickness_mm"
         rules={heatCalcFormFieldRules(form, 'pipe', 'wall_thickness_mm')}
@@ -62,24 +57,26 @@ export default function PipeWallMaterialStep({ fieldInputSettings, pipeMaterialO
         )}
       </Form.Item>
       <Form.Item
-        className="compact-select-form-item helped-form-item"
-        label={fieldLabel('pipe_lambda_mode')}
-        name="pipe_lambda_mode"
-        rules={heatCalcFormFieldRules(form, 'pipe', 'pipe_lambda_mode')}
+        className="pipe-material-form-item reduced-select-form-item helped-form-item"
+        label={fieldLabel('pipe_material')}
+        name="pipe_material"
+        rules={heatCalcFormFieldRules(form, 'pipe', 'pipe_material')}
       >
         {withHelp(
-          <TltSelect
-            data-testid="pipe-lambda-mode-select"
-            {...selectInputProps('pipe_lambda_mode')}
-            placeholder="Выберите режим"
-            options={heatCalcSelectOptions('pipe', 'pipe_lambda_mode')}
+          <ReferencePicker
+            data-testid="pipe-material-select"
+            options={pipeMaterialOptions}
+            placeholder="Выберите материал"
+            modalTitle="Материал трубы"
+            searchPlaceholder="Поиск материала трубы"
+            {...heatCalcCustomControlRequiredProps(form, 'pipe', 'pipe_material')}
           />,
-          fieldHelp('pipe_lambda_mode'),
+          fieldHelp('pipe_material'),
         )}
       </Form.Item>
-      {pipeLambdaMode === 'manual' ? (
+      {pipeMaterial === 'other' ? (
         <Form.Item
-          className="fit-label-form-item helped-form-item"
+          className="fit-label-form-item pipe-lambda-manual-form-item helped-form-item"
           label={fieldLabel('pipe_lambda')}
           name="pipe_lambda"
           preserve={false}
@@ -92,26 +89,6 @@ export default function PipeWallMaterialStep({ fieldInputSettings, pipeMaterialO
               unit="Вт/мК"
             />,
             fieldHelp('pipe_lambda'),
-          )}
-        </Form.Item>
-      ) : pipeLambdaMode === 'reference' ? (
-        <Form.Item
-          className="pipe-material-form-item reduced-select-form-item helped-form-item"
-          label={fieldLabel('pipe_material')}
-          name="pipe_material"
-          preserve={false}
-          rules={heatCalcFormFieldRules(form, 'pipe', 'pipe_material')}
-        >
-          {withHelp(
-            <ReferencePicker
-              data-testid="pipe-material-select"
-              options={pipeMaterialOptions}
-              placeholder="Выберите материал"
-              modalTitle="Материал трубы"
-              searchPlaceholder="Поиск материала трубы"
-              {...heatCalcCustomControlRequiredProps(form, 'pipe', 'pipe_material')}
-            />,
-            fieldHelp('pipe_material'),
           )}
         </Form.Item>
       ) : null}

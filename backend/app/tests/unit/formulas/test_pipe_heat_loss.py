@@ -370,12 +370,12 @@ class TestSafetyFactor:
 
 
 # ---------------------------------------------------------------------------
-# Коэффициент размещения
+# Legacy-коэффициенты не входят в формулу ТНП
 # ---------------------------------------------------------------------------
 
 
-class TestLocationFactor:
-    def test_location_factor_applies_only_to_total(self):
+class TestLegacyFactorsIgnored:
+    def test_location_coefficients_do_not_change_total(self):
         base = calc_pipe_heat_loss(
             _params(location="indoor"),
             coefficients={"location_indoor": 1.0},
@@ -386,8 +386,43 @@ class TestLocationFactor:
         )
 
         assert adjusted.heat_loss_per_meter == pytest.approx(base.heat_loss_per_meter, rel=1e-6)
-        assert adjusted.total_heat_loss == pytest.approx(base.total_heat_loss * 0.9, rel=1e-3)
-        assert adjusted.location_factor == pytest.approx(0.9)
+        assert adjusted.total_heat_loss == pytest.approx(base.total_heat_loss, rel=1e-6)
+        assert "location_factor" not in adjusted.model_dump()
+
+    def test_legacy_wind_factor_does_not_change_alpha_or_total(self):
+        base = calc_pipe_heat_loss(_params(wind_speed=4.0))
+        legacy = calc_pipe_heat_loss(_params(wind_speed=4.0), coefficients={"wind_factor": 0.5})
+        assert legacy.alpha_vnesh == pytest.approx(base.alpha_vnesh)
+        assert legacy.total_heat_loss == pytest.approx(base.total_heat_loss)
+
+
+class TestTnpGoldenFormula:
+    def test_pipe_total_is_independent_tnp_oracle(self):
+        """Число вычислено напрямую по формуле P-PIPE, не production-функцией."""
+        params = _params(
+            outer_diameter=0.1,
+            insulation_thickness=0.05,
+            ambient_temperature=-20.0,
+            process_temperature=80.0,
+            pipe_length=10.0,
+            num_local_elements=2,
+            local_element_equiv_length=0.5,
+            wind_speed=4.0,
+            safety_factor=1.2,
+        )
+        # λиз = 0.045 + 0.00021 × tm; outdoor_winter: tm=Tж/2=40°C.
+        lam_ins = 0.045 + 0.00021 * 40.0
+        d = 0.1
+        d_out = d + 2 * 0.05
+        alpha = 11.6 + 7.0 * math.sqrt(4.0)
+        r_ins = math.log(d_out / d) / (2 * math.pi * lam_ins)
+        r_ext = 1.0 / (math.pi * alpha * d_out)
+        expected_q = (80.0 - (-20.0)) / (r_ins + r_ext)
+        expected_total = expected_q * (10.0 + 2 * 0.5) * 1.2
+
+        result = calc_pipe_heat_loss(params)
+        assert result.heat_loss_per_meter == pytest.approx(expected_q, abs=1e-3)
+        assert result.total_heat_loss == pytest.approx(expected_total, abs=1e-3)
 
 
 # ---------------------------------------------------------------------------
@@ -409,10 +444,9 @@ class TestAlphaVnesh:
         alpha = calc_alpha_vnesh(wind_speed=3.0, location="outdoor")
         assert alpha == pytest.approx(11.6 + 7.0 * math.sqrt(3.0), rel=1e-3)
 
-    def test_high_wind_capped(self):
-        # При v≥33.3 м/с α ограничен 52 Вт/(м²·К): 11.6+7*√34 ≈ 52.4 → cap
+    def test_high_wind_follows_primary_formula_without_cap(self):
         alpha = calc_alpha_vnesh(wind_speed=34.0, location="outdoor")
-        assert alpha == pytest.approx(52.0)
+        assert alpha == pytest.approx(11.6 + 7.0 * math.sqrt(34.0))
 
     def test_alpha_in_range(self):
         for v in [0, 1, 5, 10, 20]:

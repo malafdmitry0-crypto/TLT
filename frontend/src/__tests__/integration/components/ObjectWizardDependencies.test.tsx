@@ -109,16 +109,17 @@ describe('ObjectWizard dependencies', () => {
     expect(document.querySelector('.inline-object-form--wide .object-wizard-side-panel')).not.toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--wide .form-grid-srs')).toBeInTheDocument();
     expect(document.querySelector('.inline-object-form--wide .side-form-grid-srs')).not.toBeInTheDocument();
-    // PDF UI-PDF-01: three columns (heat / cable / spec)
-    expect(document.querySelectorAll('.inline-object-form--wide .form-col-srs')).toHaveLength(3);
+    // SC-03: three semantic columns from SRS 5.3.
+    expect(document.querySelectorAll('.inline-object-form--wide .form-col-srs')).toHaveLength(4);
     expect(document.querySelector('[data-testid="heat-pdf-three-column-form"]')).toBeInTheDocument();
     expect(document.querySelectorAll('.inline-object-form--wide .form-col-resize-handle')).toHaveLength(0);
     expect([...document.querySelectorAll('.inline-object-form--wide .form-col-srs > h4')].map((title) =>
       title.textContent?.replace(/\s+/g, ' ').trim(),
     )).toEqual([
-      'Исходные данные для расчёта теплопотерь',
-      'Исходные данные для подбора кабеля',
-      'Исходные данные для спецификации',
+      'Параметры трубопровода',
+      'Условия эксплуатации',
+      'Локальные элементы',
+      'Теплоизоляция',
     ]);
 
     cleanup();
@@ -141,12 +142,13 @@ describe('ObjectWizard dependencies', () => {
 
     expect(await screen.findByTestId('wall-thickness-input')).toHaveValue('');
     expect(screen.getByTestId('min-switch-temperature-input')).toHaveValue('');
-    expect(screen.getByTestId('safety-factor-input')).toHaveValue('');
-    expect(screen.getByTestId('valve-count-input')).toHaveValue('');
-    expect(screen.getByTestId('flange-count-input')).toHaveValue('');
-    expect(screen.getByTestId('support-count-input')).toHaveValue('');
-    expect(screen.getByTestId('local-element-equiv-length-input')).toHaveValue('');
-    expect(screen.getByTestId('pipe-lambda-mode-select')).toHaveTextContent('Справочник');
+    expect(screen.queryByTestId('safety-factor-input')).not.toBeInTheDocument();
+    expect(screen.getByTestId('local-elements-count-input')).toHaveValue('');
+    expect(screen.queryByTestId('valve-count-input')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('flange-count-input')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('support-count-input')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('local-element-equiv-length-input')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('pipe-lambda-mode-select')).not.toBeInTheDocument();
     expect(screen.getByTestId('placement-select')).toHaveTextContent('На открытом воздухе');
     expect(screen.getByTestId('insulation-layer-count-select')).toHaveTextContent('1 слой');
     expect(screen.getByTestId('insulation-cover-material-select')).toHaveTextContent('Не указано');
@@ -161,7 +163,7 @@ describe('ObjectWizard dependencies', () => {
     });
     expect(screen.queryByTestId('pipe-lambda-input')).not.toBeInTheDocument();
     expect(screen.getByTestId('wind-speed-input')).toHaveValue('');
-    expect(screen.getByTestId('alpha-vnesh-input')).toHaveValue('');
+    expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
   });
 
   it('лениво загружает климатический справочник только при открытии выбора климата', async () => {
@@ -247,7 +249,7 @@ describe('ObjectWizard dependencies', () => {
     expect(await screen.findByTestId('outer-diameter-input')).toHaveAttribute('aria-required', 'true');
     expect(screen.getByTestId('pipe-length-input')).toHaveAttribute('aria-required', 'true');
     expect(screen.getByTestId('wall-thickness-input')).toHaveAttribute('aria-required', 'true');
-    expect(screen.getByTestId('valve-count-input')).not.toHaveAttribute('aria-required');
+    expect(screen.getByTestId('local-elements-count-input')).not.toHaveAttribute('aria-required');
   });
 
   it('не подсвечивает пустые обязательные поля новой трубы до backend-ошибки', async () => {
@@ -562,7 +564,7 @@ describe('ObjectWizard dependencies', () => {
 
     expect(await screen.findByTestId('climate-basis-display')).toHaveDisplayValue(/0,92/);
     expect(screen.getByTestId('wind-speed-input')).toBeVisible();
-    expect(screen.getByTestId('alpha-vnesh-input')).toBeVisible();
+    expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
     expect(screen.getAllByText('из климата').length).toBeGreaterThanOrEqual(1);
     expect(spinValue('ambient-temperature-input')).toHaveDisplayValue(/^-25(?:\.0)?$/);
     expect(spinValue('wind-speed-input')).toHaveValue('4.2');
@@ -591,7 +593,7 @@ describe('ObjectWizard dependencies', () => {
     expect(payload.climate_temperature_basis).toBe('t_0_92');
   });
 
-  it('помечает ручную правку Kзап как manual даже при значении 1.1', async () => {
+  it('скрывает Kзап из формы и сохраняет существующее значение для downstream-расчёта', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
@@ -603,15 +605,14 @@ describe('ObjectWizard dependencies', () => {
       },
     });
 
-    const input = await screen.findByTestId('safety-factor-input');
-    await user.clear(input);
-    await user.type(input, '1.1');
+    await screen.findByTestId('placement-select');
+    expect(screen.queryByTestId('safety-factor-input')).not.toBeInTheDocument();
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
-    expect(payload.safety_factor).toBe(1.1);
-    expect(payload.safety_factor_source).toBe('manual');
+    expect(payload.safety_factor).toBe(1.12);
+    expect(payload.safety_factor_source).toBe('climate_policy');
   });
 
   it('открывает длинный справочник в модальном окне и подставляет выбранный материал', async () => {
@@ -629,22 +630,28 @@ describe('ObjectWizard dependencies', () => {
     });
   });
 
-  it('оставляет λ и диапазон T активными и переключает справочный слой на Другое при ручной правке', async () => {
+  it('показывает справочные λ/диапазон как текст и открывает ручной ввод только для Другого материала', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     renderWizard({ initialParams: basePipeParams, onSubmit });
 
     const materialPicker = await screen.findByTestId('insulation-material-select');
-    const lambdaInput = await screen.findByTestId('first-insulation-lambda-input');
-    await waitFor(() => expect(lambdaInput).toHaveValue('0.045'));
-    expect(lambdaInput).not.toBeDisabled();
-    expect(screen.getByTestId('first-insulation-temperature-range-button')).toBeVisible();
+    expect(await screen.findByTestId('first-insulation-lambda-reference')).toHaveTextContent('0.045 Вт/мК');
+    expect(screen.getByTestId('first-insulation-temperature-range-reference')).toHaveTextContent('-60...400 °C');
+    expect(screen.queryByTestId('first-insulation-lambda-input')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('first-insulation-temperature-range-button')).not.toBeInTheDocument();
 
+    await user.click(materialPicker);
+    const materialDialog = await screen.findByRole('dialog', { name: 'Материал изоляции' });
+    await user.click(within(materialDialog).getByRole('option', { name: 'Другое' }));
+
+    const lambdaInput = await screen.findByTestId('first-insulation-lambda-input');
     await user.clear(lambdaInput);
     await user.type(lambdaInput, '0.049');
     await user.tab();
 
     await waitFor(() => expect(materialPicker).toHaveTextContent('Другое'));
+    expect(screen.getByTestId('first-insulation-temperature-range-button')).toBeVisible();
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
@@ -658,7 +665,7 @@ describe('ObjectWizard dependencies', () => {
     ]);
   });
 
-  it('для подземной трубы показывает грунт и скрывает ветер/alpha', async () => {
+  it('для подземной трубы показывает грунт и скрывает ветер; alpha отсутствует во всей форме', async () => {
     renderWizard({
       initialParams: {
         ...basePipeParams,
@@ -678,7 +685,7 @@ describe('ObjectWizard dependencies', () => {
     expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
   });
 
-  it('для подземного резервуара оставляет ветер/alpha и добавляет грунт', async () => {
+  it('для подземного резервуара оставляет ветер, добавляет грунт и не показывает alpha', async () => {
     renderWizard({
       objectType: 'tank',
       initialParams: {
@@ -702,7 +709,7 @@ describe('ObjectWizard dependencies', () => {
     expect(await screen.findByTestId('burial-depth-input')).toBeVisible();
     expect(screen.getByTestId('ground-type-select')).toBeVisible();
     expect(screen.getByTestId('wind-speed-input')).toBeVisible();
-    expect(screen.getByTestId('alpha-vnesh-input')).toBeVisible();
+    expect(screen.queryByTestId('alpha-vnesh-input')).not.toBeInTheDocument();
   });
 
   it('Q_доп: показывается только для резервуара и сохраняется в payload', async () => {
@@ -739,11 +746,11 @@ describe('ObjectWizard dependencies', () => {
       objectType: 'pipe',
       initialParams: basePipeParams,
     });
-    await screen.findByTestId('safety-factor-input');
+    await screen.findByTestId('placement-select');
     expect(screen.queryByTestId('q-additional-input')).not.toBeInTheDocument();
   });
 
-  it('L_ekv отображается для трубы и уходит в payload', async () => {
+  it('L_ekv не редактируется в форме, но существующее справочное значение сохраняется', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
@@ -757,7 +764,8 @@ describe('ObjectWizard dependencies', () => {
       },
     });
 
-    expect(await screen.findByTestId('local-element-equiv-length-input')).toBeVisible();
+    expect(await screen.findByTestId('local-elements-count-input')).toHaveValue('2');
+    expect(screen.queryByTestId('local-element-equiv-length-input')).not.toBeInTheDocument();
 
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
@@ -766,7 +774,7 @@ describe('ObjectWizard dependencies', () => {
     expect(payload.local_element_equiv_length).toBe(2.4);
   });
 
-  it('помечает L_ekv, когда заданы локальные элементы, но позволяет сохранить для расчёта статуса', async () => {
+  it('не показывает L_ekv и позволяет backend применить справочное значение', async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
     renderWizard({
@@ -780,13 +788,13 @@ describe('ObjectWizard dependencies', () => {
       },
     });
 
-    const input = await screen.findByTestId('local-element-equiv-length-input');
-    expect(input).toHaveAttribute('aria-required', 'true');
+    expect(await screen.findByTestId('local-elements-count-input')).toHaveValue('1');
+    expect(screen.queryByTestId('local-element-equiv-length-input')).not.toBeInTheDocument();
 
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
-    expect(payload.local_element_equiv_length).toBeNull();
+    expect(payload.local_element_equiv_length).toBeUndefined();
   });
 
   it('помечает λ грунта только для ручного грунта, но позволяет сохранить для расчёта статуса', async () => {
@@ -891,7 +899,7 @@ describe('ObjectWizard dependencies', () => {
     });
 
     expect(await screen.findByTestId('pipe-lambda-input')).toBeVisible();
-    expect(screen.queryByTestId('pipe-material-select')).not.toBeInTheDocument();
+    expect(screen.getByTestId('pipe-material-select')).toHaveTextContent('Другой материал');
     expect(screen.getByTestId('third-insulation-material-select')).toBeVisible();
 
     await user.click(document.querySelector<HTMLButtonElement>('#inline-object-save')!);
@@ -913,38 +921,38 @@ describe('ObjectWizard dependencies', () => {
       {
         objectType: 'pipe' as const,
         placement: 'outdoor',
-        visible: ['wind-speed-input', 'alpha-vnesh-input'],
-        hidden: ['burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
+        visible: ['ambient-temperature-input', 'wind-speed-input'],
+        hidden: ['alpha-vnesh-input', 'burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
       },
       {
         objectType: 'pipe' as const,
         placement: 'indoor',
-        visible: ['alpha-vnesh-input'],
-        hidden: ['wind-speed-input', 'burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
+        visible: ['ambient-temperature-input'],
+        hidden: ['alpha-vnesh-input', 'wind-speed-input', 'burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
       },
       {
         objectType: 'pipe' as const,
         placement: 'underground',
         visible: ['burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
-        hidden: ['wind-speed-input', 'alpha-vnesh-input'],
+        hidden: ['alpha-vnesh-input', 'wind-speed-input'],
       },
       {
         objectType: 'tank' as const,
         placement: 'outdoor',
-        visible: ['wind-speed-input', 'alpha-vnesh-input'],
-        hidden: ['burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
+        visible: ['ambient-temperature-input', 'wind-speed-input'],
+        hidden: ['alpha-vnesh-input', 'burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
       },
       {
         objectType: 'tank' as const,
         placement: 'indoor',
-        visible: ['alpha-vnesh-input'],
-        hidden: ['wind-speed-input', 'burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
+        visible: ['ambient-temperature-input'],
+        hidden: ['alpha-vnesh-input', 'wind-speed-input', 'burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
       },
       {
         objectType: 'tank' as const,
         placement: 'underground',
-        visible: ['wind-speed-input', 'alpha-vnesh-input', 'burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
-        hidden: [],
+        visible: ['wind-speed-input', 'burial-depth-input', 'ground-type-select', 'ground-conductivity-input'],
+        hidden: ['alpha-vnesh-input'],
       },
     ];
 
@@ -1004,7 +1012,7 @@ describe('ObjectWizard dependencies', () => {
       },
     });
     expect(await screen.findByTestId('pipe-lambda-input')).toBeVisible();
-    expect(screen.queryByTestId('pipe-material-select')).not.toBeInTheDocument();
+    expect(screen.getByTestId('pipe-material-select')).toHaveTextContent('Другой материал');
   });
 
   it('фиксирует матрицу видимости слоёв изоляции и ручной λ', async () => {
@@ -1014,8 +1022,8 @@ describe('ObjectWizard dependencies', () => {
         count: '1',
         visible: [
           'insulation-material-select',
-          'first-insulation-lambda-input',
-          'first-insulation-temperature-range-button',
+          'first-insulation-lambda-reference',
+          'first-insulation-temperature-range-reference',
         ],
         hidden: ['second-insulation-material-select', 'third-insulation-material-select'],
       },
@@ -1024,8 +1032,8 @@ describe('ObjectWizard dependencies', () => {
         visible: [
           'second-insulation-material-select',
           'second-insulation-thickness-input',
-          'second-insulation-lambda-input',
-          'second-insulation-temperature-range-button',
+          'second-insulation-lambda-reference',
+          'second-insulation-temperature-range-reference',
         ],
         hidden: ['third-insulation-material-select', 'third-insulation-thickness-input'],
       },
@@ -1035,8 +1043,8 @@ describe('ObjectWizard dependencies', () => {
           'second-insulation-material-select',
           'third-insulation-material-select',
           'third-insulation-thickness-input',
-          'third-insulation-lambda-input',
-          'third-insulation-temperature-range-button',
+          'third-insulation-lambda-reference',
+          'third-insulation-temperature-range-reference',
         ],
         hidden: [],
       },

@@ -51,7 +51,7 @@ sequenceDiagram
     Auth-->>API: valid
     API->>Calc: create_object_with_calc(params)
     Calc->>DB: SELECT correction_coefficients
-    DB-->>Calc: { safety_factor: 1.1,\n  wind_factor: 1.05, ... }
+    DB-->>Calc: { safety_factor: 1.1, ... }
     Calc->>Form: calc_pipe_heat_loss(\n  diameter=100, length=100,\n  t_proc=80, t_amb=-30,\n  insulation=[{mat:"minvata", thick:50}],\n  coefficients={...})
     Form-->>Calc: { heat_loss_per_meter: 32.4,\n  total_heat_loss: 3240 }
     Calc->>Form: calc_self_regulating(\n  required_power=3240,\n  pipe_length=100)
@@ -85,7 +85,7 @@ sequenceDiagram
     participant Coef as CorrectionCoefficients
 
     API->>Coef: load_coefficients()
-    Coef-->>API: { safety_factor: 1.1,\n  wind_factor: 1.0,\n  location_outdoor: 1.0 }
+    Coef-->>API: { safety_factor: 1.1 }
 
     API->>Form: calc_pipe_heat_loss(\n  d_outer=114mm, wall=4mm,\n  length=100m, t_proc=80°C,\n  t_amb=-30°C,\n  layers=[{mat:"minvata",\n    thick=50mm, lambda=0.04}],\n  underground=false,\n  coefficients={...})
 
@@ -102,7 +102,7 @@ sequenceDiagram
     Form->>Form: R_ins = ln(0.107/0.057)\n/ (2π · 0.04 · 1)\n= 2.35 (м·°C/Вт)
 
     Note over Form: 4. Внешнее конвективное сопротивление
-    Form->>Form: alpha_ext = min((11.6 + 7√v)\n× wind_factor, 52)
+    Form->>Form: alpha_ext = 11.6 + 7√v
     Form->>Form: R_ext = 1 / (2π · r_ins_outer · alpha_ext)\n= 0.149 (м·°C/Вт)
 
     Note over Form: 5. Суммарное сопротивление
@@ -113,10 +113,10 @@ sequenceDiagram
     Form->>Form: q_base = ΔT / R_total = 110 / 2.499\n= 44.0 Вт/м
 
     Note over Form: 7. Удельные теплопотери без K
-    Form->>Form: q_linear = q_base\nlocation_factor применяется только к Q
+    Form->>Form: q_linear = q_base
 
     Note over Form: 8. Коэффициенты итогового Q
-    Form->>Form: Q_total = q_linear × L_eff\n× safety_factor × location_factor
+    Form->>Form: Q_total = q_linear × L_eff\n× safety_factor
 
     Form-->>API: { heat_loss_per_meter: q_linear,\n  total_heat_loss: Q_total,\n  r_wall: 0.000184,\n  r_insulation: [2.35],\n  r_ext: 0.149,\n  safety_factor:1.1 }
 ```

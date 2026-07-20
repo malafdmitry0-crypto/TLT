@@ -351,7 +351,6 @@ class PipeHeatLossResult(BaseModel):
         description="Теплопроводность грунта, Вт/(м·К)",
     )
     safety_factor: float | None = Field(default=None, description="Коэффициент запаса")
-    location_factor: float | None = Field(default=None, description="Коэффициент размещения")
     local_elements_count: int | None = Field(
         default=None,
         description="Количество локальных элементов",
@@ -360,7 +359,6 @@ class PipeHeatLossResult(BaseModel):
         default=None,
         description="Эквивалентная длина одного локального элемента, м",
     )
-    surface_temperature: float | None = None
 
 
 class TankHeatLossParams(BaseModel):
@@ -482,7 +480,6 @@ class TankHeatLossResult(BaseModel):
     wind_speed: float | None = None
     ground_conductivity: float | None = None
     safety_factor: float | None = None
-    location_factor: float | None = None
     air_surface_area: float | None = None
     ground_surface_area: float | None = None
     heat_loss_air_per_m2: float | None = None

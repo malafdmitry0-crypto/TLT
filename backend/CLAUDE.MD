@@ -468,8 +468,8 @@ class TestPipeHeatLoss:
         """Корректирующий коэффициент увеличивает теплопотери."""
         params = PipeHeatLossParams(...)
         base = calc_pipe_heat_loss(params)
-        corrected = calc_pipe_heat_loss(params, coefficients={"wind_factor": 1.3})
-        assert corrected.total_heat_loss > base.total_heat_loss
+        legacy = calc_pipe_heat_loss(params, coefficients={"wind_factor": 1.3})
+        assert legacy.total_heat_loss == base.total_heat_loss
 
     @pytest.mark.parametrize("temp", [-60, -40, -20, 0, 20])
     def test_various_ambient_temperatures(self, temp):
@@ -695,8 +695,8 @@ class TestHeatLossCalculation:
 class TestAdminCoefficients:
     async def test_update_coefficient(self, client, admin_token):
         resp = await client.put(
-            "/api/v1/admin/coefficients/wind_factor",
-            json={"value": 1.3, "description": "Ветровой фактор"},
+            "/api/v1/admin/coefficients/safety_factor",
+            json={"value": 1.3, "description": "Коэффициент запаса"},
             headers={"Authorization": f"Bearer {admin_token}"},
         )
         assert resp.status_code == 200
@@ -704,7 +704,7 @@ class TestAdminCoefficients:
 
     async def test_employee_cannot_update_coefficient(self, client, employee_token):
         resp = await client.put(
-            "/api/v1/admin/coefficients/wind_factor",
+            "/api/v1/admin/coefficients/safety_factor",
             json={"value": 1.5},
             headers={"Authorization": f"Bearer {employee_token}"},
         )

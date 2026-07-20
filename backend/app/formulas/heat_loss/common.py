@@ -1,19 +1,9 @@
-"""Общие утилиты расчёта теплопотерь.
-
-ВНИМАНИЕ: Финальные формулы будут предоставлены отдельно (см. CLAUDE.md).
-Текущая реализация — физически корректная приближённая математика
-(теплопроводность по закону Фурье), пригодная для сквозной интеграции
-и тестирования структуры расчёта. Заменяется точечно в соответствующих
-модулях без изменения сигнатур.
-"""
+"""Общие утилиты расчёта теплопотерь по первичным формулам ТНП."""
 
 from typing import Any
 
 DEFAULT_COEFFICIENTS: dict[str, float] = {
-    "wind_factor": 1.0,
     "safety_factor": 1.1,
-    "location_indoor": 0.9,
-    "location_outdoor": 1.0,
 }
 
 
@@ -40,10 +30,6 @@ def validate_positive(name: str, value: float) -> None:
 def validate_temperature_range(ambient: float, process: float) -> None:
     if process <= ambient:
         raise ValueError("Температура продукта должна быть выше температуры окружающей среды")
-
-
-def location_key(location: str) -> str:
-    return f"location_{location}"
 
 
 def merge_coefficients(

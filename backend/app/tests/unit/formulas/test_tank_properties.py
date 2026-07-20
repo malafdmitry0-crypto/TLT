@@ -173,9 +173,7 @@ class TestMetamorphicTank:
         assert indoor.alpha_vnesh == pytest.approx(9.0)
         assert outdoor.alpha_vnesh == pytest.approx(11.6)
         assert indoor.external_resistance > outdoor.external_resistance
-        assert indoor.location_factor == pytest.approx(0.9)
-        assert outdoor.location_factor == pytest.approx(1.0)
-        assert indoor.total_heat_loss < outdoor.total_heat_loss
+        # Итог зависит также от режима tm; дополнительного Kразм нет.
 
     def test_safety_factor_scales_only_total(self):
         """K влияет на Q, не на q. Диапазон ТЗ: 1.05…1.7."""

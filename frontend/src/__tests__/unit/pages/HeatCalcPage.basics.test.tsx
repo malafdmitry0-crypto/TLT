@@ -105,16 +105,17 @@ describe('HeatCalcPage basics', () => {
       // Пустая секция «алгоритм выбора кабеля» удалена из SC-03 (2026-06-10).
       expect(screen.queryByText('алгоритм выбора кабеля')).not.toBeInTheDocument();
       expect(screen.queryByText('Электропараметры и арматура')).not.toBeInTheDocument();
-      // PDF UI-PDF-01: wide form — three column titles (heat / cable / spec).
+      // SC-03: wide form follows the three semantic SRS columns.
       expect(document.querySelector('.object-wizard-wide-panel[data-panel="wide"]')).toBeInTheDocument();
       expect(document.querySelector('[data-testid="heat-pdf-three-column-form"]')).toBeInTheDocument();
       expect(document.querySelector('.object-wizard-side-panel')).not.toBeInTheDocument();
       expect([...document.querySelectorAll('.form-grid-srs .form-col-srs > h4')].map((title) =>
         title.textContent?.replace(/\s+/g, ' ').trim(),
       )).toEqual([
-        'Исходные данные для расчёта теплопотерь',
-        'Исходные данные для подбора кабеля',
-        'Исходные данные для спецификации',
+        'Параметры трубопровода',
+        'Условия эксплуатации',
+        'Локальные элементы',
+        'Теплоизоляция',
       ]);
       expect([...document.querySelectorAll('.inline-form-section-banner')].map((title) =>
         title.textContent?.replace(/\s+/g, ' ').trim(),
@@ -158,7 +159,8 @@ describe('HeatCalcPage basics', () => {
       await waitFor(() => {
         expect(within(typeToolbar).getByText('Режим: добавление')).toBeInTheDocument();
       });
-      expect(screen.getByTestId('pipe-lambda-mode-select')).toBeInTheDocument();
+      expect(screen.getByTestId('pipe-material-select')).toBeInTheDocument();
+      expect(screen.queryByTestId('pipe-lambda-mode-select')).not.toBeInTheDocument();
       expect(screen.queryByTestId('tank-shape-select')).not.toBeInTheDocument();
     }, HEATCALC_PAGE_TEST_TIMEOUT);
 

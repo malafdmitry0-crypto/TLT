@@ -4,6 +4,7 @@
 и хранятся в модульных переменных. Для тестов предоставляется clear_cache().
 """
 
+import hashlib
 import json
 from collections.abc import Sequence
 from functools import lru_cache
@@ -11,6 +12,9 @@ from pathlib import Path
 from typing import Any, cast
 
 _BASE_DIR = Path(__file__).parent
+
+PIPE_HEAT_LOSS_MATERIALS_SOURCE = "reference_data/insulation.json+pipe_materials.json"
+TANK_HEAT_LOSS_MATERIALS_SOURCE = "reference_data/insulation.json"
 
 INSULATION_MATERIAL_RESELECTION_MESSAGE = (
     "Уточните конкретный материал и плотность из справочника теплоизоляции"
@@ -264,6 +268,32 @@ def list_pipe_materials() -> list[dict[str, Any]]:
     return list(_pipe_materials())
 
 
+@lru_cache
+def pipe_heat_loss_materials_version() -> str:
+    """Content-version справочников, используемых формулой теплопотерь трубы.
+
+    В исходных JSON нет отдельного поля версии. Хеш исходных байтов обоих
+    справочников даёт стабильную, воспроизводимую версию именно применённых
+    материалов без добавления фиктивной даты или версии релиза.
+    """
+    digest = hashlib.sha256()
+    for name in ("insulation.json", "pipe_materials.json"):
+        digest.update(name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update((_BASE_DIR / name).read_bytes())
+        digest.update(b"\0")
+    return f"sha256:{digest.hexdigest()}"
+
+
+@lru_cache
+def tank_heat_loss_materials_version() -> str:
+    """Content-version единственного справочника изоляции резервуара."""
+    digest = hashlib.sha256()
+    digest.update(b"insulation.json\0")
+    digest.update((_BASE_DIR / "insulation.json").read_bytes())
+    return f"sha256:{digest.hexdigest()}"
+
+
 def list_soil_conductivity() -> list[dict[str, Any]]:
     return list(_soil_conductivity())
 
@@ -390,6 +420,8 @@ def clear_cache() -> None:
     _tlt_cables_by_mark.cache_clear()
     _accessories.cache_clear()
     _pipe_materials.cache_clear()
+    pipe_heat_loss_materials_version.cache_clear()
+    tank_heat_loss_materials_version.cache_clear()
     _soil_conductivity.cache_clear()
     _resistive_cables.cache_clear()
     _cables_tt.cache_clear()

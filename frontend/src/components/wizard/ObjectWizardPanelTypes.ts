@@ -1,5 +1,4 @@
 import type {
-  CSSProperties,
   ReactNode,
   RefCallback,
 } from 'react';
@@ -13,9 +12,9 @@ export interface ObjectWizardPanelRenderers {
 }
 
 export interface ObjectWizardWidePanelProps extends ObjectWizardPanelRenderers {
+  geometryTitle: string;
   renderFittingsSection: () => ReactNode;
   formGridRef: RefCallback<HTMLDivElement>;
-  sectionStyle: (sectionIndex: number) => CSSProperties;
 }
 
 export interface ObjectWizardSidePanelProps extends ObjectWizardPanelRenderers {

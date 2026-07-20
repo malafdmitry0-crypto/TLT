@@ -25,6 +25,11 @@ from app.electrical_input_validation import (
     PROCESS_TEMPERATURE_NUMBER_MESSAGE,
     PROCESS_TEMPERATURE_REQUIRED_MESSAGE,
 )
+from app.models.electrical_calculation import ElectricalCalculation
+from app.models.electrical_candidate import ElectricalCandidate
+from app.models.electrical_variant import ElectricalVariantObject
+from app.models.project import Project
+from app.models.project_object import ProjectObject
 from app.schemas.calculation import ElectricalRequest
 from app.services.calculation_service import (
     BatchCancelChecker,
@@ -60,6 +65,69 @@ def _objects_result(objects: list[object]) -> MagicMock:
     result = MagicMock()
     result.scalars = lambda: MagicMock(all=lambda: objects)
     return result
+
+
+def _statement_entity(statement: object) -> object | None:
+    descriptions = getattr(statement, "column_descriptions", ())
+    return descriptions[0].get("entity") if descriptions else None
+
+
+def _batch_execute_mock(
+    *,
+    total_count: int,
+    object_chunks: list[list[object]],
+) -> AsyncMock:
+    """Mock batch reads by query role, not by a fragile positional side effect."""
+    remaining_chunks = iter(object_chunks)
+    query_names: list[str] = []
+
+    async def execute(statement: object) -> MagicMock:
+        entity = _statement_entity(statement)
+        if entity is Project:
+            query_names.append("project_lock")
+            return _objects_result([])
+        if entity is ProjectObject:
+            description = statement.column_descriptions[0]
+            if description["name"] == "count":
+                query_names.append("object_count")
+                return _count_result(total_count)
+            query_names.append("object_chunk")
+            try:
+                return _objects_result(next(remaining_chunks))
+            except StopIteration as exc:
+                raise AssertionError("Unexpected extra project-object chunk query") from exc
+        raise AssertionError(f"Unexpected batch DB query for {entity!r}")
+
+    mock = AsyncMock(side_effect=execute)
+    mock.query_names = query_names
+    return mock
+
+
+def _stale_execute_mock(
+    *,
+    calculations: list[object],
+    candidates: list[object],
+    assignments: list[object],
+) -> AsyncMock:
+    """Provide explicit stale-invalidation reads for every affected ER entity."""
+    query_names: list[str] = []
+
+    async def execute(statement: object) -> MagicMock:
+        entity = _statement_entity(statement)
+        if entity is ElectricalCalculation:
+            query_names.append("electrical_calculations")
+            return _objects_result(calculations)
+        if entity is ElectricalCandidate:
+            query_names.append("electrical_candidates")
+            return _objects_result(candidates)
+        if entity is ElectricalVariantObject:
+            query_names.append("electrical_assignments")
+            return _objects_result(assignments)
+        raise AssertionError(f"Unexpected stale-invalidation DB query for {entity!r}")
+
+    mock = AsyncMock(side_effect=execute)
+    mock.query_names = query_names
+    return mock
 
 
 def _minimal_pipe_params() -> dict[str, object]:
@@ -291,7 +359,7 @@ class TestGetCoefficients:
         db.execute = AsyncMock(return_value=result)
         service = CalculationService(db)
         coeffs = await service.get_coefficients()
-        assert coeffs == {"safety_factor": 1.2, "wind_factor": 1.0}
+        assert coeffs == {"safety_factor": 1.2}
 
     async def test_returns_empty_dict_when_no_rows(self):
         service = CalculationService(_mock_db_empty())
@@ -639,7 +707,7 @@ class TestCableLayoutMapping:
         assert data["requested_number_of_threads"] is None
         assert data["number_of_threads_source"] == "auto"
 
-    def test_pipe_required_power_applies_location_factor_without_double_safety(self):
+    def test_pipe_required_power_uses_raw_heat_loss_without_preapplied_factors(self):
         service = CalculationService(_mock_db_empty())
         obj = SimpleNamespace(
             object_type="pipe",
@@ -651,7 +719,6 @@ class TestCableLayoutMapping:
             },
             results={
                 "heat_loss_per_meter": 20.0,
-                "location_factor": 0.9,
                 "effective_length": 50,
             },
             is_valid=True,
@@ -665,7 +732,7 @@ class TestCableLayoutMapping:
             overrides={"safety_factor": 1.3},
         )
 
-        assert data["required_power_per_meter"] == pytest.approx(18.0)
+        assert data["required_power_per_meter"] == pytest.approx(20.0)
         assert data["safety_factor"] == pytest.approx(1.3)
 
     def test_ttn_uses_object_aggressive_product_when_override_absent(self):
@@ -1036,7 +1103,11 @@ class TestElectricalStale:
             },
         )
         db = _mock_db_empty()
-        db.execute = AsyncMock(side_effect=[_objects_result([calc]), _objects_result([])])
+        db.execute = _stale_execute_mock(
+            calculations=[calc],
+            candidates=[],
+            assignments=[],
+        )
         db.flush = AsyncMock()
 
         count = await CalculationService(db).mark_electrical_calculations_stale(
@@ -1048,6 +1119,11 @@ class TestElectricalStale:
         assert calc.results["selected_cable"] == "ТЛТ-30"
         assert calc.results["category"] == "stale"
         assert calc.results["error_code"] == "STALE_HEAT_LOSS"
+        assert db.execute.query_names == [
+            "electrical_calculations",
+            "electrical_candidates",
+            "electrical_assignments",
+        ]
         db.flush.assert_awaited_once()
 
 
@@ -1087,13 +1163,9 @@ class TestBatchRecalculate:
             for index in range(5)
         ]
         db = AsyncMock()
-        db.execute = AsyncMock(
-            side_effect=[
-                _count_result(5),
-                _objects_result(objects[:2]),
-                _objects_result(objects[2:4]),
-                _objects_result(objects[4:]),
-            ]
+        db.execute = _batch_execute_mock(
+            total_count=5,
+            object_chunks=[objects[:2], objects[2:4], objects[4:]],
         )
         db.flush = AsyncMock()
         db.commit = AsyncMock()
@@ -1114,7 +1186,14 @@ class TestBatchRecalculate:
         assert updated == 5
         assert failed == 0
         assert errors == []
-        assert db.execute.await_count == 4
+        assert db.execute.query_names == [
+            "project_lock",
+            "object_count",
+            "object_chunk",
+            "object_chunk",
+            "object_chunk",
+        ]
+        assert db.execute.await_count == 5
         assert db.flush.await_count == 3
         assert service.try_recalculate.await_count == 5
 
@@ -1143,7 +1222,7 @@ class TestBatchRecalculate:
             for index in range(5)
         ]
         db = AsyncMock()
-        db.execute = AsyncMock(side_effect=[_count_result(5), _objects_result(objects)])
+        db.execute = _batch_execute_mock(total_count=5, object_chunks=[objects])
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
@@ -1163,6 +1242,7 @@ class TestBatchRecalculate:
         assert updated == 5
         assert failed == 0
         assert errors == []
+        assert db.execute.query_names == ["project_lock", "object_count", "object_chunk"]
         assert sleep.await_count == 3
         assert all(item.args == (0,) for item in sleep.await_args_list)
 
@@ -1208,7 +1288,7 @@ class TestBatchRecalculate:
                 validation_errors=None,
             ),
         ]
-        db.execute = AsyncMock(side_effect=[_count_result(2), _objects_result(objects)])
+        db.execute = _batch_execute_mock(total_count=2, object_chunks=[objects])
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
@@ -1230,6 +1310,7 @@ class TestBatchRecalculate:
         assert errors[0]["error"]["message"] == "process temperature ниже ambient"
         assert errors[0]["error"]["error_code"] == "invalid_object_params"
         assert errors[0]["error"]["category"] == "validation"
+        assert db.execute.query_names == ["project_lock", "object_count", "object_chunk"]
         db.commit.assert_awaited_once()
 
     async def test_loads_coefficients_once_for_batch(self):
@@ -1248,7 +1329,7 @@ class TestBatchRecalculate:
             for index in range(3)
         ]
         db = AsyncMock()
-        db.execute = AsyncMock(side_effect=[_count_result(3), _objects_result(objects)])
+        db.execute = _batch_execute_mock(total_count=3, object_chunks=[objects])
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
@@ -1270,6 +1351,7 @@ class TestBatchRecalculate:
             call.args[2] is coefficients
             for call in service._calc_heat_loss_with_coefficients.call_args_list
         )
+        assert db.execute.query_names == ["project_lock", "object_count", "object_chunk"]
 
     async def test_climate_lookup_is_indexed_for_late_and_unknown_city_batch(
         self,
@@ -1304,7 +1386,7 @@ class TestBatchRecalculate:
             for index in range(object_count)
         ]
         db = AsyncMock()
-        db.execute = AsyncMock(side_effect=[_count_result(object_count), _objects_result(objects)])
+        db.execute = _batch_execute_mock(total_count=object_count, object_chunks=[objects])
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
@@ -1335,6 +1417,7 @@ class TestBatchRecalculate:
         assert failed == 0
         assert errors == []
         assert climate_calls == object_count
+        assert db.execute.query_names == ["project_lock", "object_count", "object_chunk"]
         assert elapsed_s < 1.0, (
             "heat-loss batch with late-list and unknown climate cities regressed: "
             f"{elapsed_s:.3f}s for {object_count} objects"
@@ -1353,7 +1436,7 @@ class TestBatchRecalculate:
             validation_errors=None,
         )
         db = AsyncMock()
-        db.execute = AsyncMock(side_effect=[_count_result(1), _objects_result([obj])])
+        db.execute = _batch_execute_mock(total_count=1, object_chunks=[[obj]])
         db.flush = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
@@ -1376,6 +1459,7 @@ class TestBatchRecalculate:
         assert progress[1].current == 1
         assert progress[1].total == 1
         assert progress[1].calculated == 1
+        assert db.execute.query_names == ["project_lock", "object_count", "object_chunk"]
 
     async def test_cancel_stops_before_commit(self):
         db = AsyncMock()

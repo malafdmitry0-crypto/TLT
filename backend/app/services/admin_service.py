@@ -1,5 +1,6 @@
 """Сервис администрирования: пользователи, коэффициенты, расширенные БД."""
 
+from typing import ClassVar
 from uuid import UUID
 
 from sqlalchemy import select
@@ -25,6 +26,12 @@ class AdminError(Exception):
 
 
 class AdminService:
+    _RETIRED_HEAT_LOSS_COEFFICIENTS: ClassVar[set[str]] = {
+        "wind_factor",
+        "location_indoor",
+        "location_outdoor",
+    }
+
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
@@ -78,12 +85,18 @@ class AdminService:
     # ---- Coefficients ----
 
     async def list_coefficients(self) -> list[CorrectionCoefficient]:
-        result = await self.db.execute(select(CorrectionCoefficient))
+        result = await self.db.execute(
+            select(CorrectionCoefficient).where(
+                CorrectionCoefficient.key.not_in(self._RETIRED_HEAT_LOSS_COEFFICIENTS)
+            )
+        )
         return list(result.scalars().all())
 
     async def upsert_coefficient(
         self, key: str, data: CoefficientUpdate, user_id: UUID | None
     ) -> CorrectionCoefficient:
+        if key in self._RETIRED_HEAT_LOSS_COEFFICIENTS:
+            raise AdminError(f"Коэффициент {key} выведен из расчётного контура ТНП")
         result = await self.db.execute(
             select(CorrectionCoefficient).where(CorrectionCoefficient.key == key)
         )

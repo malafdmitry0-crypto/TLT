@@ -56,7 +56,6 @@ interface Props {
   hasClimate: boolean;
   climateBasisDisplay: string;
   showWindField: boolean;
-  showAlphaField: boolean;
   ambientTemperatureSourceFallback?: unknown;
   windSpeedSourceFallback?: unknown;
 }
@@ -70,7 +69,6 @@ export default function TemperatureEnvironmentStep({
   hasClimate,
   climateBasisDisplay,
   showWindField,
-  showAlphaField,
   ambientTemperatureSourceFallback,
   windSpeedSourceFallback,
 }: Props) {
@@ -81,7 +79,7 @@ export default function TemperatureEnvironmentStep({
   return (
     <>
       <Form.Item
-        className="fixed-select-form-item reduced-select-form-item helped-form-item"
+        className="fixed-select-form-item reduced-select-form-item climate-form-item helped-form-item"
         label={fieldLabel('climate_key', objectType)}
         name="climate_key"
       >
@@ -102,7 +100,7 @@ export default function TemperatureEnvironmentStep({
       </Form.Item>
       {hasClimate && (
         <Form.Item
-          className="compact-select-form-item helped-form-item"
+          className="compact-select-form-item climate-basis-form-item helped-form-item"
           label={fieldLabel('climate_temperature_basis', objectType)}
         >
           {withHelp(
@@ -116,7 +114,7 @@ export default function TemperatureEnvironmentStep({
         </Form.Item>
       )}
       <Form.Item
-        className="numeric-form-item temperature-number-form-item helped-form-item"
+        className="numeric-form-item temperature-number-form-item ambient-temperature-form-item helped-form-item"
         label={fieldLabel('ambient_temperature', objectType)}
         name="ambient_temperature"
         extra={
@@ -137,7 +135,7 @@ export default function TemperatureEnvironmentStep({
         )}
       </Form.Item>
       <Form.Item
-        className="numeric-form-item temperature-number-form-item helped-form-item"
+        className="numeric-form-item temperature-number-form-item process-temperature-form-item helped-form-item"
         label={fieldLabel('process_temperature', objectType)}
         name="process_temperature"
         dependencies={['ambient_temperature']}
@@ -154,7 +152,7 @@ export default function TemperatureEnvironmentStep({
       </Form.Item>
       {showWindField && (
         <Form.Item
-          className="numeric-form-item short-number-form-item helped-form-item"
+          className="numeric-form-item short-number-form-item wind-speed-form-item helped-form-item"
           label={fieldLabel('wind_speed', objectType)}
           name="wind_speed"
           preserve={false}
@@ -175,24 +173,6 @@ export default function TemperatureEnvironmentStep({
               unit="м/с"
             />,
             fieldHelp('wind_speed', objectType),
-          )}
-        </Form.Item>
-      )}
-      {showAlphaField && (
-        <Form.Item
-          className="numeric-form-item coefficient-form-item alpha-vnesh-form-item helped-form-item"
-          label={fieldLabel('alpha_vnesh', objectType)}
-          name="alpha_vnesh"
-          preserve={false}
-          rules={heatCalcFormFieldRules(form, objectType, 'alpha_vnesh')}
-        >
-          {withHelp(
-            <UnitInputNumber
-              data-testid="alpha-vnesh-input"
-              {...numberInputProps('alpha_vnesh')}
-              unit="Вт/м²К"
-            />,
-            fieldHelp('alpha_vnesh', objectType),
           )}
         </Form.Item>
       )}

@@ -10,7 +10,7 @@ import { Button, Form, Input, type FormInstance } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import type { ObjectType } from '@/constants/objectTypes';
 import { referenceQueryKeys, referenceQueryOptions } from '@/api/referenceQueries';
-import ElectricalAndFittingsStep, { SafetyFactorField } from './steps/ElectricalAndFittingsStep';
+import ElectricalAndFittingsStep from './steps/ElectricalAndFittingsStep';
 import InsulationLayersStep from './steps/InsulationLayersStep';
 import PlacementGroundStep from './steps/PlacementGroundStep';
 import PipeGeometryStep from './steps/PipeGeometryStep';
@@ -177,7 +177,7 @@ export default function ObjectWizard({
 }: Props) {
   const [form] = Form.useForm();
   const heatCalcObjectType = objectType as HeatCalcObjectType;
-  const { formGridRef, sectionStyle } = useObjectWizardSectionResize({
+  const { formGridRef } = useObjectWizardSectionResize({
     formSectionWeights,
     sectionResizeEnabled,
     onFormSectionWeightsChange,
@@ -244,9 +244,6 @@ export default function ObjectWizard({
   const hasClimate = selectedClimateKey.length > 0;
   const isUnderground = placement === 'underground';
   const showWindField = placement === 'outdoor' || (objectType === 'tank' && isUnderground);
-  const showAlphaField = placement === 'outdoor'
-    || placement === 'indoor'
-    || (objectType === 'tank' && isUnderground);
   const [climateReferenceRequested, setClimateReferenceRequested] = useState(false);
   const [soilReferenceRequested, setSoilReferenceRequested] = useState(false);
   const { data: insulationMaterials = [], isError: insulationMaterialsError, isFetching: isInsulationMaterialsFetching } = useQuery({
@@ -279,9 +276,12 @@ export default function ObjectWizard({
     [insulationMaterials],
   );
   const pipeMaterialOptions = useMemo(
-    () => pipeMaterials.length > 0
-      ? buildPipeMaterialReferenceOptions(pipeMaterials)
-      : [{ value: 'carbon_steel', label: 'Углеродистая сталь' }],
+    () => [
+      ...(pipeMaterials.length > 0
+        ? buildPipeMaterialReferenceOptions(pipeMaterials)
+        : [{ value: 'carbon_steel', label: 'Углеродистая сталь' }]),
+      { value: 'other', label: 'Другой материал' },
+    ],
     [pipeMaterials],
   );
   const climateOptions = useMemo(
@@ -551,9 +551,11 @@ export default function ObjectWizard({
     if (Object.prototype.hasOwnProperty.call(changed, 'wind_speed')) {
       setSyncedFields({ wind_speed_source: 'manual' });
     }
-    if (Object.prototype.hasOwnProperty.call(changed, 'safety_factor')) {
+    if (Object.prototype.hasOwnProperty.call(changed, 'pipe_material')) {
+      const manualPipeLambda = changed.pipe_material === 'other';
       setSyncedFields({
-        safety_factor_source: changed.safety_factor == null ? undefined : 'manual',
+        pipe_lambda_mode: manualPipeLambda ? 'manual' : 'reference',
+        ...(!manualPipeLambda ? { pipe_lambda: undefined } : {}),
       });
     }
     const layerSyncValues = collectInsulationLayerSyncValues(changed);
@@ -635,7 +637,6 @@ export default function ObjectWizard({
       <ElectricalAndFittingsStep
         objectType={heatCalcObjectType}
         fieldInputSettings={fieldInputSettings}
-        showSafetyFactor={false}
       />
     );
   }
@@ -672,10 +673,6 @@ export default function ObjectWizard({
               onSoilPickerOpen={() => setSoilReferenceRequested(true)}
               soilOptions={soilOptions}
             />
-            <SafetyFactorField
-              objectType={heatCalcObjectType}
-              fieldInputSettings={fieldInputSettings}
-            />
           </>
         )}
         <TemperatureEnvironmentStep
@@ -687,7 +684,6 @@ export default function ObjectWizard({
           hasClimate={hasClimate}
           climateBasisDisplay={climateBasisDisplay}
           showWindField={showWindField}
-          showAlphaField={showAlphaField}
           ambientTemperatureSourceFallback={watchedValue('ambient_temperature_source')}
           windSpeedSourceFallback={watchedValue('wind_speed_source')}
         />
@@ -737,8 +733,8 @@ export default function ObjectWizard({
         />
       ) : (
         <ObjectWizardWidePanel
+          geometryTitle={objectType === 'pipe' ? 'Параметры трубопровода' : geometryTitle}
           formGridRef={formGridRef}
-          sectionStyle={sectionStyle}
           renderGeometrySection={renderGeometrySection}
           renderFittingsSection={renderFittingsSection}
           renderInsulationSection={renderInsulationSection}

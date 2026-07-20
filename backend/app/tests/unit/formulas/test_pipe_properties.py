@@ -125,15 +125,13 @@ class TestMetamorphicPipe:
         assert qs[-1] > qs[0]
 
     def test_indoor_location_contract_no_wind(self):
-        """MR8: indoor uses α=9 and its own tm basis; location factor affects only Q."""
+        """MR8: indoor uses α=9 and its own tm basis without a hidden Kразм."""
         indoor = calc_pipe_heat_loss(_p(location="indoor"))
         outdoor = calc_pipe_heat_loss(_p(location="outdoor", wind_speed=0))
         assert indoor.alpha_vnesh == pytest.approx(9.0)
         assert outdoor.alpha_vnesh == pytest.approx(11.6)
         assert indoor.external_resistance > outdoor.external_resistance
-        assert indoor.location_factor == pytest.approx(0.9)
-        assert outdoor.location_factor == pytest.approx(1.0)
-        assert indoor.total_heat_loss < outdoor.total_heat_loss
+        # Итог зависит также от режима tm; дополнительного Kразм нет.
 
     def test_lower_conductivity_material_reduces_loss(self):
         """MR9: ↓λ_из → ↓q (ППУ лучше минваты при тех же условиях)."""
@@ -221,13 +219,13 @@ class TestGoldenFromFormulesMd:
     """
 
     def test_pipe_example_from_docs_cylindrical_R(self):
-        """Пример из formules.md §3.3: R_из = ln(0.104/0.054)/(2π·0.045) ≈ 0.732 м·К/Вт.
+        """Контрольный пример formules.md для цилиндрической стенки трубы.
 
-        Это реальное значение R_изоляции для цилиндрической стенки (не плоской!).
-        Для полной трубы: R_итого = R_изол + R_внеш ≈ 2.45 м·К/Вт, q ≈ 40.8 Вт/м.
-        Важно: formules.md §3.6 даёт q=123 Вт/м — это число корректно для ПЛОСКОЙ
-        стенки с упрощённой формулой, но для цилиндра (как в коде) верно ≈40-41.
-        Тест фиксирует физически правильное значение.
+        Для `mineral_wool_boards_120` в режиме outdoor_winter: tm=80/2=40 °C,
+        λиз(tm)=0,045+0,00021×40=0,0534 Вт/(м·К). Применяется цилиндрическая
+        формула Rиз=ln(0,104/0,054)/(2π×0,0534)≈1,953394 м·К/Вт, а не плоская.
+        При α=11,6 Вт/(м²·К): Rвнеш≈0,131926, RΣ≈2,085320 м·К/Вт,
+        q≈47,954282 Вт/м и Q≈2637,485 Вт для L=50 м, K=1,1, Kразм=1,0.
         """
         r = calc_pipe_heat_loss(
             _p(
@@ -242,14 +240,12 @@ class TestGoldenFromFormulesMd:
                 location="outdoor",
             )
         )
-        # q ≈ 48 Вт/м для concrete-кода mineral_wool_boards_120:
-        # λ(tm=40°C)=0.045+0.00021×40≈0.0534.
+        # Цилиндрическое Rиз: ln(0.104/0.054)/(2π×0.0534) ≈ 1.953394 м·К/Вт.
+        # λиз(tm=40 °C)=0.045+0.00021×40=0.0534 Вт/(м·К).
         assert r.heat_loss_per_meter == pytest.approx(47.954, rel=0.05)
-        # R_из должно быть ~0.732 из формулы ln(r_out/r_in)/(2π·λ)
-        # R_внеш ≈ 1/(2π·0.104·11.6) ≈ 0.132
-        # R_итого фиксируется через справочную λ(tm); результат ≈2.085.
+        # Rвнеш=1/(2π×0.104×11.6)≈0.131926; RΣ≈2.085320 м·К/Вт.
         assert r.thermal_resistance > 0
-        # Q = q × L × K
+        # Q=q×50×1.1×1.0≈2637.485 Вт.
         assert r.total_heat_loss == pytest.approx(r.heat_loss_per_meter * 50 * 1.1, rel=1e-3)
 
     def test_alpha_formula_vnesh_exact(self):
@@ -260,8 +256,7 @@ class TestGoldenFromFormulesMd:
         assert calc_alpha_vnesh(0, "outdoor") == pytest.approx(11.6)
         assert calc_alpha_vnesh(3, "outdoor") == pytest.approx(11.6 + 7 * math.sqrt(3), rel=1e-4)
         assert calc_alpha_vnesh(5, "outdoor") == pytest.approx(11.6 + 7 * math.sqrt(5), rel=1e-4)
-        # Верхний cap — 52 Вт/(м²·К) достигается при v≥33.3 м/с
-        assert calc_alpha_vnesh(100, "outdoor") == pytest.approx(52.0)
+        assert calc_alpha_vnesh(100, "outdoor") == pytest.approx(11.6 + 7 * math.sqrt(100))
 
     def test_alpha_indoor_is_9(self):
         """В помещении α = 9.0 Вт/(м²·К)."""

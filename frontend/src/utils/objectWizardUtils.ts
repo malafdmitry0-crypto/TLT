@@ -253,6 +253,7 @@ export interface PipeFormValues {
   valve_count?: number;
   flange_count?: number;
   support_count?: number;
+  num_local_elements?: number;
   local_element_equiv_length?: number;
 }
 
@@ -361,30 +362,37 @@ export function pipeFormToApiParams(
     pipe_length: numberOrNull(v.pipe_length),
   };
   applyCommonObjectParams(params, v);
-  if (v.pipe_lambda_mode === 'manual') {
+  if (v.pipe_material === 'other' || v.pipe_lambda_mode === 'manual') {
     params.pipe_lambda = numberOrNull(v.pipe_lambda);
   } else {
     params.pipe_material = v.pipe_material ?? null;
   }
-  const hasExplicitLocalCounts = [
+  if (hasExplicitNumberValue(v.num_local_elements)) {
+    params.num_local_elements = numberOrZero(v.num_local_elements);
+    if (hasExplicitNumberValue(v.local_element_equiv_length)) {
+      params.local_element_equiv_length = numberOrNull(v.local_element_equiv_length);
+    }
+  } else {
+    const hasExplicitLocalCounts = [
     v.valve_count,
     v.flange_count,
     v.support_count,
-  ].some(hasExplicitNumberValue);
-  if (hasExplicitLocalCounts) {
-    const valveCount = numberOrZero(v.valve_count);
-    const flangeCount = numberOrZero(v.flange_count);
-    const supportCount = numberOrZero(v.support_count);
-    const localCount = valveCount + flangeCount + supportCount;
-    params.valve_count = valveCount;
-    params.flange_count = flangeCount;
-    params.support_count = supportCount;
-    if (localCount > 0) params.num_local_elements = localCount;
-    if (localCount > 0 || hasExplicitNumberValue(v.local_element_equiv_length)) {
+    ].some(hasExplicitNumberValue);
+    if (hasExplicitLocalCounts) {
+      const valveCount = numberOrZero(v.valve_count);
+      const flangeCount = numberOrZero(v.flange_count);
+      const supportCount = numberOrZero(v.support_count);
+      const localCount = valveCount + flangeCount + supportCount;
+      params.valve_count = valveCount;
+      params.flange_count = flangeCount;
+      params.support_count = supportCount;
+      if (localCount > 0) params.num_local_elements = localCount;
+      if (localCount > 0 || hasExplicitNumberValue(v.local_element_equiv_length)) {
+        params.local_element_equiv_length = numberOrNull(v.local_element_equiv_length);
+      }
+    } else if (hasExplicitNumberValue(v.local_element_equiv_length)) {
       params.local_element_equiv_length = numberOrNull(v.local_element_equiv_length);
     }
-  } else if (hasExplicitNumberValue(v.local_element_equiv_length)) {
-    params.local_element_equiv_length = numberOrNull(v.local_element_equiv_length);
   }
   applyInsulationLayers(params, v);
   if (v.name) params.name = v.name;
@@ -568,7 +576,7 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
   return {
     outer_diameter_mm: p.outer_diameter != null ? Number(p.outer_diameter) * 1000 : undefined,
     wall_thickness_mm: p.wall_thickness != null ? Number(p.wall_thickness) * 1000 : undefined,
-    pipe_material: p.pipe_material as string | undefined,
+    pipe_material: p.pipe_lambda != null ? 'other' : p.pipe_material as string | undefined,
     pipe_lambda: p.pipe_lambda as number | undefined,
     pipe_lambda_mode: p.pipe_lambda != null ? 'manual' : 'reference',
     insulation_thickness_mm:
@@ -636,6 +644,14 @@ export function pipeApiParamsToForm(p: Record<string, unknown>): Partial<PipeFor
     valve_count: p.valve_count as number | undefined,
     flange_count: p.flange_count as number | undefined,
     support_count: p.support_count as number | undefined,
+    num_local_elements: p.num_local_elements != null
+      ? Number(p.num_local_elements)
+      : [p.valve_count, p.flange_count, p.support_count].some((value) => value != null)
+        ? [p.valve_count, p.flange_count, p.support_count].reduce<number>(
+            (sum, value) => sum + (Number(value) || 0),
+            0,
+          )
+        : undefined,
     local_element_equiv_length: p.local_element_equiv_length as number | undefined,
     name: p.name as string | undefined,
   };

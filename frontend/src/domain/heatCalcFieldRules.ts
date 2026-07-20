@@ -174,8 +174,8 @@ function fieldRequired(fieldId: string, context: HeatCalcFieldContext) {
     if (fieldId === 'wall_thickness_mm') return hasValue(context.values.wall_lambda);
     if (fieldId === 'wall_lambda') return hasValue(context.values.wall_thickness_mm);
   }
-  if (fieldId === 'pipe_material') return context.objectType === 'pipe' && context.values.pipe_lambda_mode === 'reference';
-  if (fieldId === 'pipe_lambda') return context.objectType === 'pipe' && context.values.pipe_lambda_mode === 'manual';
+  if (fieldId === 'pipe_material') return context.objectType === 'pipe';
+  if (fieldId === 'pipe_lambda') return context.objectType === 'pipe' && context.values.pipe_material === 'other';
   if (fieldId === 'burial_depth' || fieldId === 'ground_type') return context.values.placement === 'underground';
   if (fieldId === 'ground_conductivity') {
     return context.values.placement === 'underground' && isCustomGroundType(context.values.ground_type);
@@ -226,8 +226,8 @@ function pairValidationError(fieldId: string, context: HeatCalcFieldContext) {
 export function isHeatCalcFieldVisible(fieldId: string, context: HeatCalcFieldContext): boolean {
   if (RANGE_BOUND_FIELDS.has(fieldId)) return false;
   if (!fieldExistsForContext(fieldId, context)) return false;
-  if (fieldId === 'pipe_material') return context.objectType === 'pipe' && context.values.pipe_lambda_mode === 'reference';
-  if (fieldId === 'pipe_lambda') return context.objectType === 'pipe' && context.values.pipe_lambda_mode === 'manual';
+  if (fieldId === 'pipe_material') return context.objectType === 'pipe';
+  if (fieldId === 'pipe_lambda') return context.objectType === 'pipe' && context.values.pipe_material === 'other';
   if (fieldId === 'burial_depth' || fieldId === 'ground_type' || fieldId === 'ground_conductivity') {
     return context.values.placement === 'underground';
   }

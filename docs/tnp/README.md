@@ -13,6 +13,7 @@
 
 ## ТНП: Блок теплопотери
 
+- [Карта конверсии и статус источников](tnp-block-heat-loss/README.md)
 - [ТНП: теплопотери в трубопроводах](tnp-block-heat-loss/pipe-heat-loss.md)
 - [ТНП: теплопотери в резервуарах](tnp-block-heat-loss/tank-heat-loss.md)
 - [ТНП: переменные трубопроводов](tnp-block-heat-loss/pipe-variables.md)
@@ -40,10 +41,14 @@ python3 scripts/convert-vsdx-algorithms.py
 
 ## Внутренние справочники
 
+- [Карта папки `ТНП/Внутренние справочники777`](internal-references-777/README.md)
 - [Климатические параметры](internal-references/climate-parameters.md)
 - [Теплоизоляция](internal-references/insulation.md)
 - [Теплопроводность грунта](internal-references/soil-conductivity.md)
 - [Формулы теплопроводности материалов](internal-references/material-conductivity-formulas.md)
+- [Справочник толщины стенки трубопроводов](internal-references/pipe-wall-thickness.md)
+- [Саморегулирующиеся нагревательные кабели](internal-references/self-regulating-cables.md)
+- [Полный перечень продукции для спецификаций](internal-references/full-product-catalog.md)
 - [Резистивный кабель ТТ Р1](internal-references/resistive-cable-r1.md)
 - [Резистивный кабель ТТ Р3](internal-references/resistive-cable-r3.md)
 - [ТНП: климат](tnp-internal-references/climate.md)

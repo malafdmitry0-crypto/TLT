@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.formulas.heat_loss.common import (
-    location_key,
     merge_coefficients,
     validate_positive,
     validate_temperature_range,
@@ -49,13 +48,12 @@ def calc_alpha_vnesh(wind_speed: float | None, location: str) -> float:
 
     Для помещения: α = 9.0 (свободная конвекция)
     Для улицы: α = 11,6 + 7·√v  (SNiP 41-03-2003, формула для трубопроводов)
-    Диапазон: 11.6–52 Вт/(м²·К)
+    Отдельный ручной ``alpha_vnesh`` допускается параметрическим контрактом.
     """
     if location == "indoor":
         return 9.0
     v = max(wind_speed or 0.0, 0.0)
-    alpha = 11.6 + 7.0 * math.sqrt(v)
-    return min(max(alpha, 11.6), 52.0)
+    return 11.6 + 7.0 * math.sqrt(v)
 
 
 # ---------------------------------------------------------------------------
@@ -240,8 +238,8 @@ def calc_pipe_heat_loss(
     Args:
         params: валидированные параметры трубопровода. Инварианты: наличие
             изоляции (layers или thickness+material), ΔT > 0, L > 0.
-        coefficients: корректирующие коэффициенты (safety_factor, wind_factor,
-            ground_conductivity). Приоритет: `params.safety_factor` > coefficients >
+        coefficients: `safety_factor` и `ground_conductivity`. Приоритет:
+            `params.safety_factor` > coefficients >
             DEFAULT_COEFFICIENTS.
 
     Returns:
@@ -309,10 +307,6 @@ def calc_pipe_heat_loss(
             if params.alpha_vnesh is not None
             else calc_alpha_vnesh(params.wind_speed, params.location)
         )
-        # Дополнительный коэффициент внешней теплоотдачи из настроек расчёта.
-        wind_k = merged_coeffs.get("wind_factor", 1.0)
-        if wind_k != 1.0:
-            alpha = min(alpha * wind_k, 52.0)
         r_external = _r_external(r_outer_total, alpha)
 
     r_total = r_pipe_wall + r_ins + r_external
@@ -332,10 +326,9 @@ def calc_pipe_heat_loss(
 
     # --- 6. Коэффициент запаса ---
     k = params.safety_factor or merged_coeffs.get("safety_factor", 1.1)
-    location_factor = merged_coeffs.get(location_key(params.location), 1.0)
 
     # --- 7. Итоговые теплопотери ---
-    q_total = q_linear * l_eff * k * location_factor
+    q_total = q_linear * l_eff * k
 
     return PipeHeatLossResult(
         heat_loss_per_meter=round(q_linear, 3),
@@ -349,8 +342,6 @@ def calc_pipe_heat_loss(
         wind_speed=params.wind_speed,
         ground_conductivity=round(lambda_gr, 3) if lambda_gr is not None else None,
         safety_factor=round(k, 3),
-        location_factor=round(location_factor, 3),
         local_elements_count=n_i,
         local_element_equiv_length=round(l_ekv, 3),
-        surface_temperature=None,
     )

@@ -9,7 +9,6 @@ import pytest
 from app.formulas.heat_loss.common import (
     DEFAULT_COEFFICIENTS,
     apply_coefficients,
-    location_key,
     merge_coefficients,
     safe_dict_get,
     validate_positive,
@@ -85,14 +84,6 @@ class TestMergeCoefficients:
 
     def test_default_safety_factor_is_1_1(self):
         assert DEFAULT_COEFFICIENTS["safety_factor"] == 1.1
-
-
-class TestLocationKey:
-    def test_indoor(self):
-        assert location_key("indoor") == "location_indoor"
-
-    def test_outdoor(self):
-        assert location_key("outdoor") == "location_outdoor"
 
 
 class TestSafeDictGet:

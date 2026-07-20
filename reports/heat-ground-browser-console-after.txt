@@ -1,0 +1,91 @@
+Total messages: 7 (Errors: 1, Warnings: 0)
+Returning 1 messages for level "warning"
+
+[ERROR] Warning: Encountered two children with the same key, `%s`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.%s suglinok:1300:8 
+    at div
+    at div
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:11575:14
+    at div
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:11589:24
+    at DomWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:4590:3)
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:4911:30
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:11671:24
+    at div
+    at div
+    at Dialog (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:11724:31)
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:11489:19
+    at DialogWrap (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:11830:22)
+    at NoFormStyle (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:14628:22)
+    at NoCompactStyle (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:8615:10)
+    at ContextIsolator (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:14650:10)
+    at Modal$1 (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:15509:21)
+    at ReferencePicker (http://127.0.0.1:3003/src/components/wizard/ReferencePicker.tsx:15:43)
+    at span
+    at HelpedControl (http://127.0.0.1:3003/src/components/wizard/HelpedControl.tsx:8:41)
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:51378:52
+    at StatusProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:51196:27)
+    at div
+    at div
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:42321:51
+    at FormItemInput (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:51060:10)
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:42438:21
+    at div
+    at ItemHolder (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:51251:10)
+    at Field (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:13165:3)
+    at WrapperField (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:13540:19)
+    at InternalFormItem (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:51390:10)
+    at PlacementGroundStep (http://127.0.0.1:3003/src/components/wizard/steps/PlacementGroundStep.tsx?t=1784496646811:35:47)
+    at section
+    at div
+    at div
+    at ObjectWizardWidePanel (http://127.0.0.1:3003/src/components/wizard/ObjectWizardWidePanel.tsx?t=1784489865619:4:49)
+    at form
+    at Form (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:14478:18)
+    at NoFormStyle (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:14628:22)
+    at FormProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:14428:30)
+    at FormProvider
+    at DisabledContextProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3449:34)
+    at InternalForm (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:50859:39)
+    at ObjectWizard (http://127.0.0.1:3003/src/components/wizard/ObjectWizard.tsx?t=1784497343018:91:40)
+    at Suspense
+    at div
+    at div
+    at HeatCalcWizardFormPanel (http://127.0.0.1:3003/src/pages/heatcalc/HeatCalcWizardFormPanel.tsx?t=1784497343018:7:51)
+    at div
+    at Item$1 (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:49331:17)
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:49389:178
+    at div
+    at HeatCalcPage (http://127.0.0.1:3003/src/pages/HeatCalcPage.tsx?t=1784497343018:58:22)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Outlet (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3700:25)
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784458118649:21:16)
+    at RouteErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784458118649:113:38)
+    at main
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54009:21
+    at Content
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at div
+    at http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:54025:37
+    at Layout
+    at MainLayout (http://127.0.0.1:3003/src/components/layout/MainLayout.tsx?t=1784485388969:118:38)
+    at ProtectedRoute (http://127.0.0.1:3003/src/routes/ProtectedRoute.tsx:6:42)
+    at RenderedRoute (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3329:8)
+    at Routes (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3772:8)
+    at Suspense
+    at AppRoutes
+    at ErrorBoundary (http://127.0.0.1:3003/src/components/common/ErrorBoundary.tsx?t=1784458118649:21:16)
+    at App
+    at Router (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:3720:18)
+    at BrowserRouter (http://127.0.0.1:3003/node_modules/.vite/deps/react-router-dom.js?v=41fa1e84:4395:8)
+    at LocaleProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:3021:10)
+    at MotionWrapper (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5141:36)
+    at ProviderChildren (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5226:10)
+    at ConfigProvider (http://127.0.0.1:3003/node_modules/.vite/deps/antd.js?v=f5896d22:5385:31)
+    at QueryClientProvider (http://127.0.0.1:3003/node_modules/.vite/deps/@tanstack_react-query.js?v=8af38e04:2549:30) @ http://127.0.0.1:3003/node_modules/.vite/deps/react-dom-BRJs3cXW.js?v=475d64da:442

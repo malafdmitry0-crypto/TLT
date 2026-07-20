@@ -1,0 +1,204 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "page": {
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "horizontalOverflow": false
+  },
+  "controls": [
+    {
+      "text": "Скачать",
+      "left": 85.0625,
+      "right": 156.140625,
+      "top": 21,
+      "bottom": 43,
+      "width": 71.078125,
+      "height": 22,
+      "clippedViewport": false
+    },
+    {
+      "text": "Загрузить",
+      "left": 159.140625,
+      "right": 240.046875,
+      "top": 21,
+      "bottom": 43,
+      "width": 80.90625,
+      "height": 22,
+      "clippedViewport": false
+    },
+    {
+      "text": "Инструкция",
+      "left": 6,
+      "right": 96.28125,
+      "top": 47,
+      "bottom": 69,
+      "width": 90.28125,
+      "height": 22,
+      "clippedViewport": false
+    },
+    {
+      "text": "Выход",
+      "left": 99.28125,
+      "right": 161.671875,
+      "top": 47,
+      "bottom": 69,
+      "width": 62.390625,
+      "height": 22,
+      "clippedViewport": false
+    },
+    {
+      "text": "",
+      "left": 137.5625,
+      "right": 153.5625,
+      "top": 127,
+      "bottom": 143,
+      "width": 16,
+      "height": 16,
+      "clippedViewport": false
+    },
+    {
+      "text": "Тип кабеля",
+      "left": 234,
+      "right": 350,
+      "top": 202,
+      "bottom": 224,
+      "width": 116,
+      "height": 22,
+      "clippedViewport": false
+    },
+    {
+      "text": "Increase Value",
+      "left": 375,
+      "right": 376,
+      "top": 293,
+      "bottom": 304,
+      "width": 1,
+      "height": 11,
+      "clippedViewport": false
+    },
+    {
+      "text": "Decrease Value",
+      "left": 375,
+      "right": 376,
+      "top": 304,
+      "bottom": 315,
+      "width": 1,
+      "height": 11,
+      "clippedViewport": false
+    },
+    {
+      "text": "Напряжение питания",
+      "left": 267,
+      "right": 375,
+      "top": 293,
+      "bottom": 315,
+      "width": 108,
+      "height": 22,
+      "clippedViewport": false
+    },
+    {
+      "text": "СО1",
+      "left": 13,
+      "right": 54.53125,
+      "top": 405.5,
+      "bottom": 427.5,
+      "width": 41.53125,
+      "height": 22,
+      "clippedViewport": false
+    },
+    {
+      "text": "СО2",
+      "left": 59.53125,
+      "right": 102.75,
+      "top": 405.5,
+      "bottom": 427.5,
+      "width": 43.21875,
+      "height": 22,
+      "clippedViewport": false
+    },
+    {
+      "text": "СО3",
+      "left": 107.75,
+      "right": 151.25,
+      "top": 405.5,
+      "bottom": 427.5,
+      "width": 43.5,
+      "height": 22,
+      "clippedViewport": false
+    },
+    {
+      "text": "СО4",
+      "left": 156.25,
+      "right": 199.9375,
+      "top": 405.5,
+      "bottom": 427.5,
+      "width": 43.6875,
+      "height": 22,
+      "clippedViewport": false
+    },
+    {
+      "text": "Создать на основании",
+      "left": 204.9375,
+      "right": 373.140625,
+      "top": 405.5,
+      "bottom": 427.5,
+      "width": 168.203125,
+      "height": 22,
+      "clippedViewport": false
+    },
+    {
+      "text": "Тип кабеля для пересчёта",
+      "left": 508.34375,
+      "right": 684.34375,
+      "top": 405.5,
+      "bottom": 427.5,
+      "width": 176,
+      "height": 22,
+      "clippedViewport": true
+    },
+    {
+      "text": "Пересчитать выбранные (0)",
+      "left": 722.34375,
+      "right": 924.234375,
+      "top": 405.5,
+      "bottom": 427.5,
+      "width": 201.890625,
+      "height": 22,
+      "clippedViewport": true
+    },
+    {
+      "text": "Пересчитать все СО1",
+      "left": 929.234375,
+      "right": 1091.40625,
+      "top": 405.5,
+      "bottom": 427.5,
+      "width": 162.171875,
+      "height": 22,
+      "clippedViewport": true
+    },
+    {
+      "text": "Настройки",
+      "left": 1096.40625,
+      "right": 1196.046875,
+      "top": 405.5,
+      "bottom": 427.5,
+      "width": 99.640625,
+      "height": 22,
+      "clippedViewport": true
+    },
+    {
+      "text": "Сбросить фильтры таблицы",
+      "left": 1201.046875,
+      "right": 1347.90625,
+      "top": 405.5,
+      "bottom": 427.5,
+      "width": 146.859375,
+      "height": 22,
+      "clippedViewport": true
+    }
+  ],
+  "overlapPairs": []
+}

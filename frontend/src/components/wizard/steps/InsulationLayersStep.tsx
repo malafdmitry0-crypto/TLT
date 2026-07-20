@@ -18,6 +18,7 @@ import {
 } from '@/domain/heatCalcFields';
 import HelpedControl from '../HelpedControl';
 import FieldLabel from '../FieldLabel';
+import InsulationConductivityField from '../InsulationConductivityField';
 import InsulationTemperatureRangeField from '../InsulationTemperatureRangeField';
 import ReferencePicker, { type ReferencePickerOption } from '../ReferencePicker';
 import ThermalStep from './ThermalStep';
@@ -74,7 +75,8 @@ export default function InsulationLayersStep({
 
   return (
     <>
-      <Form.Item
+      <div className="insulation-settings-row">
+        <Form.Item
         className="layer-count-form-item insulation-layer-count-form-item helped-form-item"
         label={fieldLabel('insulation_layer_count', objectType)}
         name="insulation_layer_count"
@@ -89,8 +91,8 @@ export default function InsulationLayersStep({
           />,
           fieldHelp('insulation_layer_count', objectType),
         )}
-      </Form.Item>
-      <Form.Item
+        </Form.Item>
+        <Form.Item
         className="fixed-select-form-item insulation-temperature-basis-form-item helped-form-item"
         label={fieldLabel('insulation_temperature_basis', objectType)}
         name="insulation_temperature_basis"
@@ -109,20 +111,31 @@ export default function InsulationLayersStep({
           />,
           fieldHelp('insulation_temperature_basis', objectType),
         )}
-      </Form.Item>
-      <div className="insulation-layer-group">
-        <ThermalStep
-          objectType={objectType}
-          fieldInputSettings={fieldInputSettings}
-          insulationMaterials={insulationMaterials}
-          onProgrammaticValuesChange={onProgrammaticValuesChange}
-          insulationMaterialOptions={insulationMaterialOptions}
-          insulationMaterialsError={insulationMaterialsError}
-          isInsulationMaterialsFetching={isInsulationMaterialsFetching}
-        />
+        </Form.Item>
       </div>
-      {layerCount >= 2 && (
+      <div className="insulation-layers-header" aria-hidden="true">
+        <span>Слой</span>
+        <span>Материал изоляции</span>
+        <span>Толщина изоляции</span>
+        <span>λ слоя</span>
+        <span>Диапазон температур</span>
+      </div>
+      <div className={`insulation-layers-grid insulation-layers-grid--${layerCount}`}>
         <div className="insulation-layer-group">
+          <span className="insulation-layer-index" aria-hidden="true">1</span>
+          <ThermalStep
+            objectType={objectType}
+            fieldInputSettings={fieldInputSettings}
+            insulationMaterials={insulationMaterials}
+            onProgrammaticValuesChange={onProgrammaticValuesChange}
+            insulationMaterialOptions={insulationMaterialOptions}
+            insulationMaterialsError={insulationMaterialsError}
+            isInsulationMaterialsFetching={isInsulationMaterialsFetching}
+          />
+        </div>
+        {layerCount >= 2 && (
+          <div className="insulation-layer-group">
+          <span className="insulation-layer-index" aria-hidden="true">2</span>
           <Form.Item
             className="medium-select-form-item layer-material-form-item second-layer-material-form-item helped-form-item"
             label={fieldLabel('second_insulation_material', objectType)}
@@ -160,26 +173,15 @@ export default function InsulationLayersStep({
               fieldHelp('second_insulation_thickness_mm', objectType),
             )}
           </Form.Item>
-          <Form.Item
-            className="numeric-form-item coefficient-form-item helped-form-item"
-            label={fieldLabel('second_insulation_lambda', objectType)}
+          <InsulationConductivityField
+            material={secondInsulationMaterial}
+            selectedMaterial={selectedSecondInsulation}
             name="second_insulation_lambda"
-            preserve={false}
-            rules={heatCalcFormFieldRules(form, objectType, 'second_insulation_lambda')}
-          >
-            {withHelp(
-              <UnitInputNumber
-                data-testid="second-insulation-lambda-input"
-                {...numberInputProps('second_insulation_lambda')}
-                unit="Вт/мК"
-              />,
-              fieldHelp(
-                'second_insulation_lambda',
-                objectType,
-                secondInsulationMaterial === 'other' ? 'manual' : 'reference',
-              ),
-            )}
-          </Form.Item>
+            dataTestIdPrefix="second-insulation"
+            objectType={objectType}
+            fieldInputSettings={fieldInputSettings}
+            labelFieldId="second_insulation_lambda"
+          />
           <InsulationTemperatureRangeField
             material={secondInsulationMaterial}
             selectedMaterial={selectedSecondInsulation}
@@ -192,10 +194,11 @@ export default function InsulationLayersStep({
             required={heatCalcCustomControlRequiredProps(form, objectType, 'second_insulation_temperature_range').required}
             onRangeChange={onProgrammaticValuesChange}
           />
-        </div>
-      )}
-      {layerCount >= 3 && (
-        <div className="insulation-layer-group">
+          </div>
+        )}
+        {layerCount >= 3 && (
+          <div className="insulation-layer-group">
+          <span className="insulation-layer-index" aria-hidden="true">3</span>
           <Form.Item
             className="medium-select-form-item layer-material-form-item third-layer-material-form-item helped-form-item"
             label={fieldLabel('third_insulation_material', objectType)}
@@ -233,26 +236,15 @@ export default function InsulationLayersStep({
               fieldHelp('third_insulation_thickness_mm', objectType),
             )}
           </Form.Item>
-          <Form.Item
-            className="numeric-form-item coefficient-form-item helped-form-item"
-            label={fieldLabel('third_insulation_lambda', objectType)}
+          <InsulationConductivityField
+            material={thirdInsulationMaterial}
+            selectedMaterial={selectedThirdInsulation}
             name="third_insulation_lambda"
-            preserve={false}
-            rules={heatCalcFormFieldRules(form, objectType, 'third_insulation_lambda')}
-          >
-            {withHelp(
-              <UnitInputNumber
-                data-testid="third-insulation-lambda-input"
-                {...numberInputProps('third_insulation_lambda')}
-                unit="Вт/мК"
-              />,
-              fieldHelp(
-                'third_insulation_lambda',
-                objectType,
-                thirdInsulationMaterial === 'other' ? 'manual' : 'reference',
-              ),
-            )}
-          </Form.Item>
+            dataTestIdPrefix="third-insulation"
+            objectType={objectType}
+            fieldInputSettings={fieldInputSettings}
+            labelFieldId="third_insulation_lambda"
+          />
           <InsulationTemperatureRangeField
             material={thirdInsulationMaterial}
             selectedMaterial={selectedThirdInsulation}
@@ -265,8 +257,9 @@ export default function InsulationLayersStep({
             required={heatCalcCustomControlRequiredProps(form, objectType, 'third_insulation_temperature_range').required}
             onRangeChange={onProgrammaticValuesChange}
           />
-        </div>
-      )}
+          </div>
+        )}
+      </div>
       {/* Материал покрытия изоляции отсутствует в ТНП «Список переменных» и
           в формуле теплопотерь не участвует — скрыт (round-trip метаданные).
           См. docs/analysis/sc03-heat-form-cleanup-2026-06-10.md. */}

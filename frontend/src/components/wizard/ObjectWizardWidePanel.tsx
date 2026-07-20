@@ -1,12 +1,9 @@
 import type { ObjectWizardWidePanelProps } from './ObjectWizardPanelTypes';
 
-/**
- * PDF UI-PDF-01 (стр. 21): three-column form —
- * heat loss · cable selection · specification / climate.
- */
+/** SC-03: flat engineering workspace with four always-visible semantic regions. */
 export default function ObjectWizardWidePanel({
+  geometryTitle,
   formGridRef,
-  sectionStyle,
   renderGeometrySection,
   renderFittingsSection,
   renderInsulationSection,
@@ -21,43 +18,40 @@ export default function ObjectWizardWidePanel({
       <div
         className="form-grid-srs form-grid-srs--merged form-grid-srs--pdf-three"
         ref={formGridRef}
-        data-layout="wide-pdf-3"
+        data-layout="wide-engineering-workspace"
       >
         <section
-          className="form-col-srs form-col-srs--heat pdf-form-column"
-          style={sectionStyle(0)}
-          data-pdf-column="heat"
-          aria-labelledby="pdf-col-heat-title"
+          className="form-col-srs form-col-srs--primary pdf-form-column"
+          data-form-column="geometry"
+          aria-labelledby="form-col-geometry-title"
         >
-          <h4 id="pdf-col-heat-title" className="pdf-form-column-title" data-step="1">
-            <span>Исходные данные для расчёта теплопотерь</span>
+          <h4 id="form-col-geometry-title" className="pdf-form-column-title" data-step="1">
+            <span>{geometryTitle}</span>
           </h4>
           {renderGeometrySection()}
-          {renderInsulationSection()}
-        </section>
-
-        <section
-          className="form-col-srs form-col-srs--cable pdf-form-column"
-          style={sectionStyle(1)}
-          data-pdf-column="cable"
-          aria-labelledby="pdf-col-cable-title"
-        >
-          <h4 id="pdf-col-cable-title" className="pdf-form-column-title" data-step="2">
-            <span>Исходные данные для подбора кабеля</span>
-          </h4>
           {renderFittingsSection()}
         </section>
 
         <section
-          className="form-col-srs form-col-srs--spec pdf-form-column"
-          style={sectionStyle(2)}
-          data-pdf-column="spec"
-          aria-labelledby="pdf-col-spec-title"
+          className="form-col-srs form-col-srs--climate pdf-form-column"
+          data-form-column="environment"
+          aria-labelledby="form-col-environment-title"
         >
-          <h4 id="pdf-col-spec-title" className="pdf-form-column-title" data-step="3">
-            <span>Исходные данные для спецификации</span>
+          <h4 id="form-col-environment-title" className="pdf-form-column-title" data-step="2">
+            <span>Условия эксплуатации</span>
           </h4>
           {renderTemperatureSection()}
+        </section>
+
+        <section
+          className="form-col-srs form-col-srs--insulation pdf-form-column"
+          data-form-column="insulation"
+          aria-labelledby="form-col-insulation-title"
+        >
+          <h4 id="form-col-insulation-title" className="pdf-form-column-title" data-step="4">
+            <span>Теплоизоляция</span>
+          </h4>
+          {renderInsulationSection()}
         </section>
       </div>
     </div>

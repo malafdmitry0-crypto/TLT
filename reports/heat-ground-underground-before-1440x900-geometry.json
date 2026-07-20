@@ -1,0 +1,89 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440
+  },
+  "controls": {
+    "placement-select": {
+      "left": 730,
+      "top": 109.796875,
+      "right": 1070.484375,
+      "bottom": 133.796875,
+      "width": 340.484375,
+      "height": 24
+    },
+    "climate-select": {
+      "left": 730,
+      "top": 151.34375,
+      "right": 1070.484375,
+      "bottom": 175.34375,
+      "width": 340.484375,
+      "height": 24
+    },
+    "ambient-temperature-input": {
+      "left": 1084.484375,
+      "top": 152.4375,
+      "right": 1128.71875,
+      "bottom": 176.4375,
+      "width": 44.234375,
+      "height": 24
+    },
+    "process-temperature-input": {
+      "left": 730,
+      "top": 219.078125,
+      "right": 774.234375,
+      "bottom": 243.078125,
+      "width": 44.234375,
+      "height": 24
+    },
+    "ground-type-select": {
+      "left": 730,
+      "top": 219.078125,
+      "right": 1070.484375,
+      "bottom": 243.078125,
+      "width": 340.484375,
+      "height": 24
+    },
+    "burial-depth-input": {
+      "left": 1084.484375,
+      "top": 219.078125,
+      "right": 1139.84375,
+      "bottom": 243.078125,
+      "width": 55.359375,
+      "height": 24
+    },
+    "ground-conductivity-input": {
+      "left": 1261.75,
+      "top": 219.078125,
+      "right": 1311.546875,
+      "bottom": 243.078125,
+      "width": 49.796875,
+      "height": 24
+    }
+  },
+  "pairs": {
+    "placement-select__climate-select": 0,
+    "placement-select__ambient-temperature-input": 0,
+    "placement-select__process-temperature-input": 0,
+    "placement-select__ground-type-select": 0,
+    "placement-select__burial-depth-input": 0,
+    "placement-select__ground-conductivity-input": 0,
+    "climate-select__ambient-temperature-input": 0,
+    "climate-select__process-temperature-input": 0,
+    "climate-select__ground-type-select": 0,
+    "climate-select__burial-depth-input": 0,
+    "climate-select__ground-conductivity-input": 0,
+    "ambient-temperature-input__process-temperature-input": 0,
+    "ambient-temperature-input__ground-type-select": 0,
+    "ambient-temperature-input__burial-depth-input": 0,
+    "ambient-temperature-input__ground-conductivity-input": 0,
+    "process-temperature-input__ground-type-select": 1061.625,
+    "process-temperature-input__burial-depth-input": 0,
+    "process-temperature-input__ground-conductivity-input": 0,
+    "ground-type-select__burial-depth-input": 0,
+    "ground-type-select__ground-conductivity-input": 0,
+    "burial-depth-input__ground-conductivity-input": 0
+  }
+}

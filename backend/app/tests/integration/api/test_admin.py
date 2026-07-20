@@ -179,14 +179,15 @@ class TestAdminUsers:
 
 
 class TestAdminCoefficients:
-    async def test_update_coefficient(self, client: AsyncClient, admin_token: str):
+    async def test_retires_legacy_wind_factor_from_admin_settings(
+        self, client: AsyncClient, admin_token: str
+    ):
         resp = await client.put(
             "/api/v1/admin/coefficients/wind_factor",
             json={"value": 1.3, "description": "Ветровой фактор"},
             headers={"Authorization": f"Bearer {admin_token}"},
         )
-        assert resp.status_code == 200
-        assert resp.json()["value"] == 1.3
+        assert resp.status_code == 400
 
     async def test_create_new_coefficient(self, client: AsyncClient, admin_token: str):
         # PUT для нового ключа должен создавать запись
@@ -212,7 +213,7 @@ class TestAdminCoefficients:
         self, client: AsyncClient, employee_token: str
     ):
         resp = await client.put(
-            "/api/v1/admin/coefficients/wind_factor",
+            "/api/v1/admin/coefficients/safety_factor",
             json={"value": 1.5},
             headers={"Authorization": f"Bearer {employee_token}"},
         )

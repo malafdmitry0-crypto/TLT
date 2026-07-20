@@ -21,6 +21,7 @@ import {
 } from '@/utils/referenceOptions';
 import HelpedControl from '../HelpedControl';
 import FieldLabel from '../FieldLabel';
+import InsulationConductivityField from '../InsulationConductivityField';
 import ReferencePicker, { type ReferencePickerOption } from '../ReferencePicker';
 import InsulationTemperatureRangeField from '../InsulationTemperatureRangeField';
 
@@ -118,22 +119,15 @@ export default function ThermalStep({
         )}
       </Form.Item>
 
-      <Form.Item
-        className="numeric-form-item coefficient-form-item helped-form-item"
-        label={fieldLabel('first_insulation_lambda', objectType)}
+      <InsulationConductivityField
+        material={typeof insulationMaterial === 'string' ? insulationMaterial : undefined}
+        selectedMaterial={selectedMaterial}
         name="first_insulation_lambda"
-        preserve={false}
-        rules={heatCalcFormFieldRules(form, objectType, 'first_insulation_lambda')}
-      >
-        {withHelp(
-          <UnitInputNumber
-            data-testid="first-insulation-lambda-input"
-            {...numberInputProps('first_insulation_lambda')}
-                    unit="Вт/мК"
-          />,
-          fieldHelp('first_insulation_lambda', objectType, insulationMaterial === 'other' ? 'manual' : 'reference'),
-        )}
-      </Form.Item>
+        dataTestIdPrefix="first-insulation"
+        objectType={objectType}
+        fieldInputSettings={fieldInputSettings}
+        labelFieldId="first_insulation_lambda"
+      />
 
       <InsulationTemperatureRangeField
         material={typeof insulationMaterial === 'string' ? insulationMaterial : undefined}

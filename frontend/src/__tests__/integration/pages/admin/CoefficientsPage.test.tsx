@@ -24,12 +24,10 @@ describe('CoefficientsPage', () => {
     const { listCoefficients } = await import('@/api/admin');
     (listCoefficients as ReturnType<typeof vi.fn>).mockResolvedValue([
       { key: 'safety_factor', value: 1.1, description: 'Запас' },
-      { key: 'wind_factor', value: 1.0, description: 'Ветер' },
     ]);
     renderPage();
     await waitFor(() => {
       expect(screen.getByText('safety_factor')).toBeInTheDocument();
-      expect(screen.getByText('wind_factor')).toBeInTheDocument();
     });
   });
 

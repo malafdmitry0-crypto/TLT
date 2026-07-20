@@ -1,0 +1,107 @@
+{
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "scrollWidth": 1280,
+  "clientWidth": 1280,
+  "panelRect": {
+    "left": 644,
+    "top": 64,
+    "right": 1271,
+    "bottom": 297.734375,
+    "width": 627,
+    "height": 233.734375
+  },
+  "fields": {
+    "placement-select": {
+      "left": 648,
+      "top": 95.25,
+      "right": 952.5,
+      "bottom": 133.796875,
+      "width": 304.5,
+      "height": 38.546875
+    },
+    "climate-select": {
+      "left": 648,
+      "top": 187.171875,
+      "right": 952.5,
+      "bottom": 225.71875,
+      "width": 304.5,
+      "height": 38.546875
+    },
+    "ambient-temperature-input": {
+      "left": 962.5,
+      "top": 95.25,
+      "right": 1109.75,
+      "bottom": 184.171875,
+      "width": 147.25,
+      "height": 88.921875
+    },
+    "process-temperature-input": {
+      "left": 1119.75,
+      "top": 95.25,
+      "right": 1267,
+      "bottom": 160.171875,
+      "width": 147.25,
+      "height": 64.921875
+    },
+    "ground-type-select": {
+      "left": 962.5,
+      "top": 187.171875,
+      "right": 1267,
+      "bottom": 239.453125,
+      "width": 304.5,
+      "height": 52.28125
+    },
+    "burial-depth-input": {
+      "left": 648,
+      "top": 242.453125,
+      "right": 847.65625,
+      "bottom": 294.734375,
+      "width": 199.65625,
+      "height": 52.28125
+    },
+    "ground-conductivity-input": {
+      "left": 857.65625,
+      "top": 242.453125,
+      "right": 1057.328125,
+      "bottom": 294.734375,
+      "width": 199.671875,
+      "height": 52.28125
+    }
+  },
+  "insidePanel": {
+    "placement-select": true,
+    "climate-select": true,
+    "ambient-temperature-input": true,
+    "process-temperature-input": true,
+    "ground-type-select": true,
+    "burial-depth-input": true,
+    "ground-conductivity-input": true
+  },
+  "overlaps": {
+    "placement-select__climate-select": 0,
+    "placement-select__ambient-temperature-input": 0,
+    "placement-select__process-temperature-input": 0,
+    "placement-select__ground-type-select": 0,
+    "placement-select__burial-depth-input": 0,
+    "placement-select__ground-conductivity-input": 0,
+    "climate-select__ambient-temperature-input": 0,
+    "climate-select__process-temperature-input": 0,
+    "climate-select__ground-type-select": 0,
+    "climate-select__burial-depth-input": 0,
+    "climate-select__ground-conductivity-input": 0,
+    "ambient-temperature-input__process-temperature-input": 0,
+    "ambient-temperature-input__ground-type-select": 0,
+    "ambient-temperature-input__burial-depth-input": 0,
+    "ambient-temperature-input__ground-conductivity-input": 0,
+    "process-temperature-input__ground-type-select": 0,
+    "process-temperature-input__burial-depth-input": 0,
+    "process-temperature-input__ground-conductivity-input": 0,
+    "ground-type-select__burial-depth-input": 0,
+    "ground-type-select__ground-conductivity-input": 0,
+    "burial-depth-input__ground-conductivity-input": 0
+  },
+  "groundCenterHit": "ground-type-select"
+}

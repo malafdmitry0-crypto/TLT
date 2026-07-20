@@ -107,8 +107,8 @@ def calc_self_regulating(params: SelfRegulatingParams) -> SelfRegulatingResult:
 
     Контракт safety_factor:
         Применяется здесь **ровно один раз**. Вызывающий код должен передавать
-        `required_power_per_meter = q_linear × K_разм` (без Kзап из
-        теплорасчёта), а не q_total / L. Иначе Kзап накрутится дважды. Этот
+        `required_power_per_meter = q_linear` (без Kзап из теплорасчёта), а не
+        q_total / L. Иначе Kзап накрутится дважды. Этот
         контракт залочен тестами `test_no_double_safety.py` и
         `TestNoDoubleSafetyFactor`.
 

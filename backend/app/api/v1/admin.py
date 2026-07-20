@@ -260,7 +260,10 @@ async def update_coefficient(
     principal: CurrentPrincipal = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
 ):
-    coefficient = await AdminService(db).upsert_coefficient(key, data, principal.user_id)
+    try:
+        coefficient = await AdminService(db).upsert_coefficient(key, data, principal.user_id)
+    except AdminError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     await AuditService(db).try_record(
         event_type="admin.coefficient.updated",
         category="calculation",

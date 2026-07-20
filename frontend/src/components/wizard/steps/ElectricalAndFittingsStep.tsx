@@ -1,4 +1,4 @@
-import { Form, InputNumber } from 'antd';
+import { Form } from 'antd';
 import type { ReactElement } from 'react';
 import UnitInputNumber from '@/components/common/UnitInputNumber';
 import { TltSelect } from '@/components/form-controls';
@@ -31,42 +31,11 @@ function fieldHelp(fieldId: string, objectType: HeatCalcObjectType) {
 interface Props {
   objectType: HeatCalcObjectType;
   fieldInputSettings?: HeatCalcFieldInputSettings;
-  showSafetyFactor?: boolean;
-}
-
-export function SafetyFactorField({ objectType, fieldInputSettings }: Pick<Props, 'objectType' | 'fieldInputSettings'>) {
-  const form = Form.useFormInstance();
-  const numberInputProps = (
-    fieldId: string,
-    options: { includeStep?: boolean } = {},
-  ) => heatCalcNumberInputProps(objectType, fieldId, {
-    ...options,
-    fieldInputSettings,
-    form,
-  });
-
-  return (
-    <Form.Item
-      className="numeric-form-item coefficient-form-item safety-factor-form-item helped-form-item"
-      label={fieldLabel('safety_factor', objectType)}
-      name="safety_factor"
-      rules={heatCalcFormFieldRules(form, objectType, 'safety_factor')}
-    >
-      {withHelp(
-        <InputNumber
-          data-testid="safety-factor-input"
-          {...numberInputProps('safety_factor')}
-        />,
-        fieldHelp('safety_factor', objectType),
-      )}
-    </Form.Item>
-  );
 }
 
 export default function ElectricalAndFittingsStep({
   objectType,
   fieldInputSettings,
-  showSafetyFactor = true,
 }: Props) {
   const form = Form.useFormInstance();
   const numberInputProps = (
@@ -95,15 +64,9 @@ export default function ElectricalAndFittingsStep({
           options={heatCalcSelectOptions(objectType, 'supply_voltage')}
         />
       </Form.Item>
-      {showSafetyFactor && (
-        <SafetyFactorField
-          objectType={objectType}
-          fieldInputSettings={fieldInputSettings}
-        />
-      )}
       {objectType === 'tank' && (
         <Form.Item
-          className="numeric-form-item coefficient-form-item helped-form-item"
+          className="numeric-form-item coefficient-form-item tank-additional-heat-loss-form-item helped-form-item"
           label={fieldLabel('q_additional', objectType)}
           name="q_additional"
           preserve={false}
@@ -129,68 +92,20 @@ export default function ElectricalAndFittingsStep({
         <UnitInputNumber data-testid="vapor-temperature-input" unit="°C" />
       </Form.Item>
       {objectType === 'pipe' && (
-        <>
-          <Form.Item
-            className="numeric-form-item fitting-count-form-item helped-form-item"
-            label={fieldLabel('valve_count', objectType)}
-            name="valve_count"
-            rules={heatCalcFormFieldRules(form, objectType, 'valve_count')}
-          >
-            {withHelp(
-              <UnitInputNumber
-                data-testid="valve-count-input"
-                {...numberInputProps('valve_count')}
-                unit="шт"
-              />,
-              fieldHelp('valve_count', objectType),
-            )}
-          </Form.Item>
-          <Form.Item
-            className="numeric-form-item fitting-count-form-item helped-form-item"
-            label={fieldLabel('flange_count', objectType)}
-            name="flange_count"
-            rules={heatCalcFormFieldRules(form, objectType, 'flange_count')}
-          >
-            {withHelp(
-              <UnitInputNumber
-                data-testid="flange-count-input"
-                {...numberInputProps('flange_count')}
-                unit="шт"
-              />,
-              fieldHelp('flange_count', objectType),
-            )}
-          </Form.Item>
-          <Form.Item
-            className="numeric-form-item fitting-count-form-item helped-form-item"
-            label={fieldLabel('support_count', objectType)}
-            name="support_count"
-            rules={heatCalcFormFieldRules(form, objectType, 'support_count')}
-          >
-            {withHelp(
-              <UnitInputNumber
-                data-testid="support-count-input"
-                {...numberInputProps('support_count')}
-                unit="шт"
-              />,
-              fieldHelp('support_count', objectType),
-            )}
-          </Form.Item>
-          <Form.Item
-            className="numeric-form-item coefficient-form-item local-element-equiv-length-form-item helped-form-item"
-            label={fieldLabel('local_element_equiv_length', objectType)}
-            name="local_element_equiv_length"
-            rules={heatCalcFormFieldRules(form, objectType, 'local_element_equiv_length')}
-          >
-            {withHelp(
-              <UnitInputNumber
-                data-testid="local-element-equiv-length-input"
-                {...numberInputProps('local_element_equiv_length')}
-                unit="м"
-              />,
-              fieldHelp('local_element_equiv_length', objectType),
-            )}
-          </Form.Item>
-        </>
+        <Form.Item
+          className="numeric-form-item fitting-count-form-item local-elements-count-form-item helped-form-item"
+          label={<span>Количество локальных элементов</span>}
+          name="num_local_elements"
+        >
+          {withHelp(
+            <UnitInputNumber
+              data-testid="local-elements-count-input"
+              {...numberInputProps('valve_count')}
+              unit="шт"
+            />,
+            'Суммарное количество локальных элементов трубопровода.',
+          )}
+        </Form.Item>
       )}
     </>
   );

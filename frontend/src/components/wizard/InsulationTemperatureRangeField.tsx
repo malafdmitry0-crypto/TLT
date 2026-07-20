@@ -59,6 +59,7 @@ interface Props {
 }
 
 export default function InsulationTemperatureRangeField({
+  material,
   selectedMaterial,
   minName,
   maxName,
@@ -76,6 +77,27 @@ export default function InsulationTemperatureRangeField({
   const currentMin = numericValue(Form.useWatch(minName, form) ?? form.getFieldValue(minName));
   const currentMax = numericValue(Form.useWatch(maxName, form) ?? form.getFieldValue(maxName));
   const editableRange = formatEditableRange(currentMin, currentMax);
+
+  if (material !== 'other') {
+    return (
+      <Form.Item
+        className="fit-label-form-item insulation-temperature-range-form-item insulation-reference-form-item helped-form-item"
+        label={fieldLabel(labelFieldId)}
+      >
+        {withHelp(
+          <output
+            className="insulation-reference-value"
+            data-testid={`${dataTestIdPrefix}-temperature-range-reference`}
+            aria-label={`Диапазон температур материала: ${referenceRange}`}
+          >
+            {referenceRange}
+          </output>,
+          hint,
+        )}
+      </Form.Item>
+    );
+  }
+
   const minInputConfig = getHeatCalcFieldInputConfig(minName);
   const maxInputConfig = getHeatCalcFieldInputConfig(maxName);
   const modalMinLimit = minInputConfig?.min ?? -273;

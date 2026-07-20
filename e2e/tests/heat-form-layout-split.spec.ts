@@ -217,9 +217,9 @@ async function inspectHeatForm(page: Page) {
         const labelLineHeight = Number.parseFloat(labelTextStyle.lineHeight)
           || Number.parseFloat(labelTextStyle.fontSize) * 1.2
           || 12;
-        if (labelTextRect.height - labelLineHeight > 3) {
+        if (labelTextRect.height - (labelLineHeight * 2) > 3) {
           wideLabelFlowIssues.push({
-            type: 'wide-label-wrapped',
+            type: 'wide-label-exceeds-two-lines',
             selector: describe(item),
             details: `labelHeight=${Math.round(labelTextRect.height)}, lineHeight=${Math.round(labelLineHeight)}`,
           });
@@ -237,14 +237,8 @@ async function inspectHeatForm(page: Page) {
       const primaryPlacement = primaryPanel
         ?.querySelector<HTMLElement>('[data-testid="placement-select"]')
         ?.closest<HTMLElement>('.ant-form-item');
-      const primarySafetyFactor = primaryPanel
-        ?.querySelector<HTMLElement>('[data-testid="safety-factor-input"]')
-        ?.closest<HTMLElement>('.ant-form-item');
       const temperaturePlacement = temperaturePanel
         ?.querySelector<HTMLElement>('[data-testid="placement-select"]')
-        ?.closest<HTMLElement>('.ant-form-item');
-      const temperatureSafetyFactor = temperaturePanel
-        ?.querySelector<HTMLElement>('[data-testid="safety-factor-input"]')
         ?.closest<HTMLElement>('.ant-form-item');
 
       if (primaryPlacement && visible(primaryPlacement)) {
@@ -254,13 +248,6 @@ async function inspectHeatForm(page: Page) {
           details: 'placement must be in climate/temperature column',
         });
       }
-      if (primarySafetyFactor && visible(primarySafetyFactor)) {
-        wideCompactIssues.push({
-          type: 'wide-field-in-wrong-column',
-          selector: describe(primarySafetyFactor),
-          details: 'safety_factor must be in climate/temperature column',
-        });
-      }
       if (!temperaturePlacement || !visible(temperaturePlacement)) {
         wideCompactIssues.push({
           type: 'wide-field-missing-in-temperature-column',
@@ -268,12 +255,20 @@ async function inspectHeatForm(page: Page) {
           details: 'placement not found in climate/temperature column',
         });
       }
-      if (!temperatureSafetyFactor || !visible(temperatureSafetyFactor)) {
-        wideCompactIssues.push({
-          type: 'wide-field-missing-in-temperature-column',
-          selector: '.object-wizard-wide-panel .form-col-srs--climate [data-testid="safety-factor-input"]',
-          details: 'safety_factor not found in climate/temperature column',
-        });
+      for (const testId of [
+        'alpha-vnesh-input',
+        'safety-factor-input',
+        'local-element-equiv-length-input',
+        'pipe-lambda-mode-select',
+      ]) {
+        const obsoleteControl = form.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
+        if (obsoleteControl && visible(obsoleteControl)) {
+          wideCompactIssues.push({
+            type: 'obsolete-heat-form-control-visible',
+            selector: describe(obsoleteControl),
+            details: `${testId} must not be editable in the heat-loss form`,
+          });
+        }
       }
 
       for (const [name, item, maxWidth] of [
@@ -311,9 +306,9 @@ async function inspectHeatForm(page: Page) {
       if (window.innerWidth >= 1180 && insulationPanel && visible(insulationPanel) && layerGroups.length === 1) {
         const groupRect = layerGroups[0].getBoundingClientRect();
         const insulationRect = insulationPanel.getBoundingClientRect();
-        if (groupRect.width > insulationRect.width * 0.45) {
+        if (groupRect.width < insulationRect.width * 0.55) {
           wideSectionLayoutIssues.push({
-            type: 'wide-single-insulation-layer-too-wide',
+            type: 'wide-single-insulation-layer-too-narrow',
             selector: '.object-wizard-wide-panel .insulation-layer-group',
             details: `groupWidth=${Math.round(groupRect.width)}, insulationWidth=${Math.round(insulationRect.width)}`,
           });
@@ -321,13 +316,16 @@ async function inspectHeatForm(page: Page) {
       }
       if (window.innerWidth >= 1180 && layerGroups.length >= 2) {
         const groupRects = layerGroups.map((group) => group.getBoundingClientRect());
-        const minTop = Math.min(...groupRects.map((rect) => rect.top));
-        const maxTop = Math.max(...groupRects.map((rect) => rect.top));
-        if (maxTop - minTop > 3) {
+        const tableRowsAligned = groupRects.every((rect, index) => (
+          Math.abs(rect.left - groupRects[0].left) <= 3
+          && Math.abs(rect.width - groupRects[0].width) <= 3
+          && (index === 0 || rect.top >= groupRects[index - 1].bottom - 3)
+        ));
+        if (!tableRowsAligned) {
           wideSectionLayoutIssues.push({
-            type: 'wide-insulation-layer-groups-not-one-row',
+            type: 'wide-insulation-layer-groups-not-table-rows',
             selector: '.object-wizard-wide-panel .insulation-layer-group',
-            details: `tops=${groupRects.map((rect) => Math.round(rect.top)).join('/')}`,
+            details: `rects=${groupRects.map((rect) => `${Math.round(rect.left)},${Math.round(rect.top)},${Math.round(rect.width)}`).join('/')}`,
           });
         }
       }
@@ -359,7 +357,8 @@ async function inspectHeatForm(page: Page) {
         && visible(temperaturePanel)
         && visible(insulationPanel)
       ) {
-        const topRects = [primaryPanel, fittingsPanel, temperaturePanel].map((section) => section.getBoundingClientRect());
+        const topRects = [primaryPanel, temperaturePanel].map((section) => section.getBoundingClientRect());
+        const fittingsRect = fittingsPanel.getBoundingClientRect();
         const insulationRect = insulationPanel.getBoundingClientRect();
         const gridRect = form.querySelector<HTMLElement>('.object-wizard-wide-panel .form-grid-srs')?.getBoundingClientRect();
         const minTop = Math.min(...topRects.map((rect) => rect.top));
@@ -368,15 +367,22 @@ async function inspectHeatForm(page: Page) {
         if (maxTop - minTop > 3) {
           wideSectionLayoutIssues.push({
             type: 'wide-top-sections-not-one-row',
-            selector: '.object-wizard-wide-panel .form-col-srs--primary/.form-col-srs--fittings/.form-col-srs--climate',
+            selector: '.object-wizard-wide-panel .form-col-srs--primary/.form-col-srs--climate',
             details: `tops=${topRects.map((rect) => Math.round(rect.top)).join('/')}`,
           });
         }
-        if (insulationRect.top - maxFirstRowBottom < -3) {
+        if (fittingsRect.top - maxFirstRowBottom < -3) {
           wideSectionLayoutIssues.push({
-            type: 'wide-insulation-not-below-top-row',
+            type: 'wide-fittings-not-below-top-row',
+            selector: '.object-wizard-wide-panel .form-col-srs--fittings',
+            details: `fittingsTop=${Math.round(fittingsRect.top)}, topBottom=${Math.round(maxFirstRowBottom)}`,
+          });
+        }
+        if (insulationRect.top - fittingsRect.bottom < -3) {
+          wideSectionLayoutIssues.push({
+            type: 'wide-insulation-not-below-fittings',
             selector: '.object-wizard-wide-panel .form-col-srs--insulation',
-            details: `insulationTop=${Math.round(insulationRect.top)}, topBottom=${Math.round(maxFirstRowBottom)}`,
+            details: `insulationTop=${Math.round(insulationRect.top)}, fittingsBottom=${Math.round(fittingsRect.bottom)}`,
           });
         }
         if (gridRect && (
@@ -387,6 +393,16 @@ async function inspectHeatForm(page: Page) {
             type: 'wide-insulation-not-full-width',
             selector: '.object-wizard-wide-panel .form-col-srs--insulation',
             details: `insulation=${Math.round(insulationRect.left)}/${Math.round(insulationRect.right)}, grid=${Math.round(gridRect.left)}/${Math.round(gridRect.right)}`,
+          });
+        }
+        if (gridRect && (
+          Math.abs(fittingsRect.left - gridRect.left) > 3
+          || Math.abs(fittingsRect.right - gridRect.right) > 3
+        )) {
+          wideSectionLayoutIssues.push({
+            type: 'wide-fittings-not-full-width',
+            selector: '.object-wizard-wide-panel .form-col-srs--fittings',
+            details: `fittings=${Math.round(fittingsRect.left)}/${Math.round(fittingsRect.right)}, grid=${Math.round(gridRect.left)}/${Math.round(gridRect.right)}`,
           });
         }
       }
@@ -468,9 +484,13 @@ test('SC-03 has independent wide and side form layouts', async ({ page }) => {
   expect(wide.formClass).toContain('inline-object-form--wide');
   expect(wide.widePanelCount).toBe(1);
   expect(wide.sidePanelCount).toBe(0);
-  expect(wide.wideSectionCount).toBe(4);
+  expect(wide.wideSectionCount).toBe(3);
   expect(wide.wideBannerCount).toBe(0);
-  expect(wide.wideHeadings).toEqual([]);
+  expect(wide.wideHeadings).toEqual([
+    'Параметры трубопровода',
+    'Условия эксплуатации',
+    'Теплоизоляция',
+  ]);
   expect(wide.sideHeadings).toEqual([]);
   expect(wide.wideGridCount).toBe(1);
   expect(wide.sideGridCount).toBe(0);
@@ -489,7 +509,7 @@ test('SC-03 has independent wide and side form layouts', async ({ page }) => {
 
   expect(wideLargeSingleLayer.shellLayout).toBe('wide');
   expect(wideLargeSingleLayer.formLayout).toBe('wide');
-  expect(wideLargeSingleLayer.wideSectionCount).toBe(4);
+  expect(wideLargeSingleLayer.wideSectionCount).toBe(3);
   expect(wideLargeSingleLayer.visibleResizeHandleCount).toBe(0);
   expect(wideLargeSingleLayer.labelPlacementIssues).toEqual([]);
   expect(wideLargeSingleLayer.wideLabelFlowIssues).toEqual([]);
@@ -505,7 +525,7 @@ test('SC-03 has independent wide and side form layouts', async ({ page }) => {
 
   expect(wideLarge.shellLayout).toBe('wide');
   expect(wideLarge.formLayout).toBe('wide');
-  expect(wideLarge.wideSectionCount).toBe(4);
+  expect(wideLarge.wideSectionCount).toBe(3);
   expect(wideLarge.visibleResizeHandleCount).toBe(0);
   expect(wideLarge.labelPlacementIssues).toEqual([]);
   expect(wideLarge.wideLabelFlowIssues).toEqual([]);
@@ -527,9 +547,13 @@ test('SC-03 has independent wide and side form layouts', async ({ page }) => {
   expect(bottomWide.formClass).toContain('inline-object-form--wide');
   expect(bottomWide.widePanelCount).toBe(1);
   expect(bottomWide.sidePanelCount).toBe(0);
-  expect(bottomWide.wideSectionCount).toBe(4);
+  expect(bottomWide.wideSectionCount).toBe(3);
   expect(bottomWide.wideBannerCount).toBe(0);
-  expect(bottomWide.wideHeadings).toEqual([]);
+  expect(bottomWide.wideHeadings).toEqual([
+    'Параметры трубопровода',
+    'Условия эксплуатации',
+    'Теплоизоляция',
+  ]);
   expect(bottomWide.sideHeadings).toEqual([]);
   expect(bottomWide.wideGridCount).toBe(1);
   expect(bottomWide.sideGridCount).toBe(0);

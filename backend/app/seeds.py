@@ -420,22 +420,9 @@ async def seed_coefficients(db, admin_id: uuid.UUID) -> list[CorrectionCoefficie
 
     coefficients = [
         dict(
-            key="wind_factor", value=1.0, description="Поправочный коэффициент на скорость ветра."
-        ),
-        dict(
             key="safety_factor",
             value=1.1,
             description="Коэффициент запаса К для расчёта теплопотерь трубопровода.",
-        ),
-        dict(
-            key="location_indoor",
-            value=0.9,
-            description="Понижающий коэффициент для объектов внутри помещения.",
-        ),
-        dict(
-            key="location_outdoor",
-            value=1.0,
-            description="Коэффициент для объектов на открытом воздухе.",
         ),
         dict(
             key="ground_conductivity",
