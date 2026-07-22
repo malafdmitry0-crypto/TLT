@@ -63,6 +63,7 @@
  */
 
 import type { ReactNode } from 'react';
+import { CompactFieldGrid } from '@/components/ui-kit';
 import type { ObjectWizardLayoutVariant } from './ObjectWizardPanelTypes';
 /** CSS island — only styles under .heat-object-fields (see WIZARD-CSS-ISLANDS.md) */
 import './heat-object-fields.css';
@@ -91,9 +92,16 @@ export default function HeatCalcObjectFieldsPanel({
       data-wizard-island="heat-object-fields"
       data-layout={layout}
     >
-      <div className="heat-object-fields__geometry" data-slot="geometry">
+      <CompactFieldGrid
+        className="heat-object-fields__geometry"
+        data-slot="geometry"
+        density="compact"
+        flow="columns"
+        maxRowsPerColumn={5}
+        antFormAdapter
+      >
         {geometry}
-      </div>
+      </CompactFieldGrid>
       <div className="heat-object-fields__climate" data-slot="climate">
         {climate}
       </div>
