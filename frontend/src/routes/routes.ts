@@ -1,6 +1,7 @@
 export const ROUTES = {
   home: '/',
   login: '/login',
+  uiKit: '/ui-kit',
   workspace: '/workspace',
   heatCalc: '/workspace/heat-calc',
   elecCalc: '/workspace/elec-calc',

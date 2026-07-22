@@ -6,6 +6,7 @@ import { ROUTES } from './routes';
 
 const HomePage = lazy(() => import('@/pages/HomePage'));
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
+const UIKitPage = lazy(() => import('@/pages/UIKitPage'));
 const WorkspacePage = lazy(() => import('@/pages/WorkspacePage'));
 const HeatCalcPage = lazy(() => import('@/pages/HeatCalcPage'));
 const ElecCalcPage = lazy(() => import('@/pages/ElecCalcPage'));
@@ -32,6 +33,7 @@ export default function AppRoutes() {
       <Routes>
         <Route path={ROUTES.home} element={<HomePage />} />
         <Route path={ROUTES.login} element={<LoginPage />} />
+        <Route path={ROUTES.uiKit} element={<UIKitPage />} />
         <Route path="/help/guest" element={<GuestHelpPage />} />
         <Route path="/help/employee" element={<EmployeeHelpPage />} />
         <Route path="/help/admin" element={<AdminHelpPage />} />

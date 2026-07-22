@@ -146,6 +146,11 @@ describe('AppRoutes', () => {
     expect((await screen.findAllByText(/Войти/i))[0]).toBeInTheDocument();
   });
 
+  it('/ui-kit показывает публичную витрину компактных компонентов', async () => {
+    renderAt('/ui-kit');
+    expect(await screen.findByRole('heading', { name: 'Инженерный UI Kit' }, lazyRouteTimeout)).toBeInTheDocument();
+  });
+
   it('/help/guest рендерит GuestHelpPage', async () => {
     renderAt('/help/guest');
     // Help-страницы — статичный текст

@@ -1,0 +1,418 @@
+/*
+ * Shared compact-field contract — visual parity with HeatCalc dual-form
+ * (`.heat-object-fields--wide` / SC-03).
+ * UI Kit is the showcase; feature screens migrate staged.
+ */
+
+.tlt-compact-field-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--tlt-field-grid-columns, 3), max-content);
+  gap: var(--tlt-field-row-gap) var(--tlt-field-column-gap);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  justify-content: start;
+  align-items: start;
+  /* Inherit HeatCalc field tokens when not set by parent */
+  --tlt-compact-label-width: var(--tlt-field-label-width, 98px);
+}
+
+.tlt-compact-field-grid--sizing-equal {
+  grid-template-columns: repeat(var(--tlt-field-grid-columns, 3), minmax(150px, 1fr));
+  justify-content: stretch;
+}
+
+.tlt-compact-field-grid--flow-columns {
+  grid-template-columns: none;
+  grid-template-rows: repeat(var(--tlt-field-grid-max-rows, 5), auto);
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  align-items: start;
+  width: max-content;
+  max-width: 100%;
+}
+
+.tlt-compact-field-grid--flow-columns.tlt-compact-field-grid--sizing-equal {
+  grid-auto-columns: minmax(150px, 1fr);
+  width: 100%;
+}
+
+/* Optional looser density — not used by HeatCalc SC-03 showcase */
+.tlt-compact-field-grid--comfortable {
+  --tlt-field-control-height: 32px;
+  --tlt-field-control-font-size: 14px;
+  --tlt-field-number-font-size: 14px;
+  --tlt-field-unit-font-size: 12px;
+  --tlt-field-select-font-size: 12px;
+  --tlt-field-row-gap: 12px;
+}
+
+.tlt-compact-field {
+  display: grid;
+  grid-template-columns: var(--tlt-compact-label-width, 98px) var(--tlt-compact-control-width, var(--tlt-field-ctrl-num, 4rem));
+  column-gap: var(--tlt-field-gap);
+  align-items: center;
+  min-width: 0;
+  /* HeatCalc form-item row is control-height; form-item shell ~28px for 2-line labels */
+  min-height: var(--tlt-field-control-height, 26px);
+  width: max-content;
+  max-width: 100%;
+}
+
+.tlt-compact-field__label {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: var(--tlt-compact-label-width, 98px);
+  max-width: var(--tlt-compact-label-width, 98px);
+  /* reserve 2× label line like HeatCalc dual-line labels (~17px) */
+  min-height: calc(var(--tlt-field-label-font-size, 8.5px) * 2);
+  color: var(--tlt-field-label-color);
+  font-size: var(--tlt-field-label-font-size);
+  font-weight: 600;
+  line-height: var(--tlt-field-label-line-height);
+  padding-top: 0;
+  overflow-wrap: break-word;
+}
+
+.tlt-compact-field__label .field-label-two-line {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.tlt-compact-field__label .field-label-two-line > span {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+.tlt-compact-field__label .field-label-two-line > span + span::before {
+  content: none;
+}
+
+.tlt-compact-field__hint,
+.tlt-compact-field__message {
+  grid-column: 2;
+  min-height: 13px;
+  color: #7d8999;
+  font-size: var(--tlt-field-message-font-size);
+  line-height: 1.3;
+}
+
+.tlt-compact-field__control {
+  display: flex;
+  align-items: stretch;
+  grid-column: 2;
+  min-width: 0;
+  width: var(--tlt-compact-control-width, var(--tlt-field-ctrl-num, 4rem));
+  max-width: var(--tlt-compact-control-width, var(--tlt-field-ctrl-num, 4rem));
+}
+
+.tlt-compact-field--vertical {
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: var(--tlt-field-gap);
+}
+
+.tlt-compact-field--vertical .tlt-compact-field__label,
+.tlt-compact-field--vertical .tlt-compact-field__control,
+.tlt-compact-field--vertical .tlt-compact-field__hint,
+.tlt-compact-field--vertical .tlt-compact-field__message {
+  grid-column: 1;
+}
+
+.tlt-compact-field--vertical .tlt-compact-field__label {
+  padding-top: 0;
+}
+
+.tlt-compact-field__message {
+  color: #ff4d4f;
+}
+
+.tlt-compact-field__control > *,
+.tlt-compact-field .tlt-text-field,
+.tlt-compact-field .tlt-number-field,
+.tlt-compact-field .tlt-select,
+.tlt-compact-field .tlt-select__trigger,
+.tlt-compact-field .ant-input,
+.tlt-compact-field .ant-input-affix-wrapper,
+.tlt-compact-field .ant-input-number,
+.tlt-compact-field .ant-input-number-group-wrapper,
+.tlt-compact-field .ant-select,
+.tlt-compact-field > .ant-select {
+  width: 100%;
+  min-width: 0;
+}
+
+.tlt-compact-field .tlt-text-field__input,
+.tlt-compact-field .tlt-number-field__input,
+.tlt-compact-field .tlt-select__trigger,
+.tlt-compact-field .ant-input,
+.tlt-compact-field .ant-input-affix-wrapper,
+.tlt-compact-field .ant-input-number,
+.tlt-compact-field .ant-input-number-input,
+.tlt-compact-field .ant-select-selector {
+  height: var(--tlt-field-control-height) !important;
+  min-height: var(--tlt-field-control-height) !important;
+  padding: 0 var(--tlt-field-control-padding-inline, 3px) !important;
+  border-radius: var(--tlt-field-radius) !important;
+  font-size: var(--tlt-field-control-font-size) !important;
+  line-height: calc(var(--tlt-field-control-height) - 2px) !important;
+  box-sizing: border-box !important;
+}
+
+/* HeatCalc SC-03: number body 12px, unit 9px, select value 9px */
+.tlt-compact-field .tlt-number-field__input,
+.tlt-compact-field .ant-input-number-input {
+  font-size: var(--tlt-field-number-font-size, 12px) !important;
+}
+
+.tlt-compact-field .tlt-select__value,
+.tlt-compact-field .ant-select-selection-item,
+.tlt-compact-field .ant-select-selection-placeholder {
+  font-size: var(--tlt-field-select-font-size, 9px) !important;
+  line-height: calc(var(--tlt-field-control-height) - 2px) !important;
+}
+
+/* Number + unit fills track; unit sits on the right (HeatCalc) */
+.tlt-compact-field .tlt-number-field {
+  display: flex !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: var(--tlt-field-control-height) !important;
+}
+
+.tlt-compact-field .tlt-number-field__input {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+.tlt-compact-field .tlt-number-field:has(.tlt-number-field__unit) .tlt-number-field__input {
+  border-radius: var(--tlt-field-radius) 0 0 var(--tlt-field-radius) !important;
+}
+
+.tlt-compact-field .tlt-number-field__unit {
+  flex: 0 0 auto !important;
+  height: var(--tlt-field-control-height) !important;
+  padding: 0 var(--tlt-field-control-padding-inline, 3px) !important;
+  font-size: var(--tlt-field-unit-font-size, 9px) !important;
+  line-height: calc(var(--tlt-field-control-height) - 2px) !important;
+  border-radius: 0 var(--tlt-field-radius) var(--tlt-field-radius) 0 !important;
+}
+
+.tlt-compact-field .ant-input-affix-wrapper {
+  padding-block: 0;
+}
+
+.tlt-compact-field .ant-input-affix-wrapper .ant-input {
+  height: calc(var(--tlt-field-control-height) - 2px);
+  min-height: calc(var(--tlt-field-control-height) - 2px);
+}
+
+.tlt-compact-field--required .tlt-text-field__input,
+.tlt-compact-field--required .tlt-number-field__input,
+.tlt-compact-field--required .tlt-select__trigger,
+.tlt-compact-field--required .ant-input,
+.tlt-compact-field--required .ant-input-affix-wrapper,
+.tlt-compact-field--required .ant-input-number,
+.tlt-compact-field--required .ant-select-selector,
+.tlt-compact-field--required .reference-picker-control {
+  background-color: #fffdf6;
+  box-shadow: inset 2px 0 0 #d48806;
+}
+
+.tlt-compact-field--error .tlt-text-field__input,
+.tlt-compact-field--error .tlt-number-field__input,
+.tlt-compact-field--error .tlt-select__trigger,
+.tlt-compact-field--error .ant-input,
+.tlt-compact-field--error .ant-input-affix-wrapper,
+.tlt-compact-field--error .ant-input-number,
+.tlt-compact-field--error .ant-select-selector,
+.tlt-compact-field--error .reference-picker-control {
+  border-color: #ff4d4f;
+  background-color: #fff1f0;
+}
+
+.tlt-compact-field .tlt-number-field__unit {
+  height: calc(var(--tlt-field-control-height) - 2px);
+  line-height: calc(var(--tlt-field-control-height) - 2px);
+}
+
+/* Ant Form adapter: makes existing feature forms follow CompactField. */
+.tlt-compact-field-grid--ant-form .ant-form-item {
+  grid-column: auto !important;
+  grid-row: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  break-inside: avoid;
+}
+
+.tlt-compact-field-grid--ant-form .ant-form-item-row {
+  display: grid !important;
+  grid-template-columns: var(--tlt-compact-label-width, 98px) var(--tlt-compact-control-width, var(--tlt-field-ctrl-num, 4rem)) !important;
+  align-items: center !important;
+  column-gap: var(--tlt-field-gap) !important;
+  width: max-content !important;
+  min-width: 0 !important;
+}
+
+.tlt-compact-field-grid--ant-form .ant-form-item-label {
+  grid-column: 1 !important;
+  width: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: left !important;
+  overflow: visible !important;
+}
+
+.tlt-compact-field-grid--ant-form .ant-form-item-label > label,
+.tlt-compact-field-grid--ant-form .field-label-two-line,
+.tlt-compact-field-grid--ant-form .field-label-two-line > span {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: var(--tlt-field-label-color) !important;
+  font-size: var(--tlt-field-label-font-size) !important;
+  font-weight: 650 !important;
+  line-height: var(--tlt-field-label-line-height) !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  padding-top: 4px !important;
+}
+
+.tlt-compact-field-grid--ant-form .field-label-two-line {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 0 !important;
+}
+
+.tlt-compact-field-grid--ant-form .field-label-two-line > span + span::before {
+  content: none !important;
+}
+
+.tlt-compact-field-grid--ant-form .ant-form-item-control,
+.tlt-compact-field-grid--ant-form .field-control-with-help,
+.tlt-compact-field-grid--ant-form .ant-form-item-control-input,
+.tlt-compact-field-grid--ant-form .ant-form-item-control-input-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.tlt-compact-field-grid--ant-form .ant-form-item-control,
+.tlt-compact-field-grid--ant-form .field-control-with-help {
+  grid-column: 2 !important;
+}
+
+.tlt-compact-field-grid--ant-form .helped-form-item .ant-form-item-control,
+.tlt-compact-field-grid--ant-form .helped-form-item .ant-form-item-control-input,
+.tlt-compact-field-grid--ant-form .helped-form-item .ant-form-item-control-input-content {
+  display: contents;
+}
+
+.tlt-compact-field-grid--ant-form .ant-form-item-extra,
+.tlt-compact-field-grid--ant-form .ant-form-item-explain {
+  grid-column: 2 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  font-size: var(--tlt-field-message-font-size) !important;
+  line-height: 1.3 !important;
+}
+
+.tlt-compact-field-grid--ant-form .ant-input,
+.tlt-compact-field-grid--ant-form .ant-input-number,
+.tlt-compact-field-grid--ant-form .ant-input-number-group-wrapper,
+.tlt-compact-field-grid--ant-form .ant-select,
+.tlt-compact-field-grid--ant-form .tlt-text-field,
+.tlt-compact-field-grid--ant-form .tlt-number-field,
+.tlt-compact-field-grid--ant-form .tlt-select,
+.tlt-compact-field-grid--ant-form .tlt-select__trigger,
+.tlt-compact-field-grid--ant-form .reference-picker-control,
+.tlt-compact-field-grid--ant-form .field-control-with-help {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  font-size: var(--tlt-field-control-font-size) !important;
+}
+
+.tlt-compact-field-grid--ant-form .ant-input,
+.tlt-compact-field-grid--ant-form .ant-input-number,
+.tlt-compact-field-grid--ant-form .ant-input-number-input,
+.tlt-compact-field-grid--ant-form .tlt-text-field__input,
+.tlt-compact-field-grid--ant-form .tlt-number-field__input,
+.tlt-compact-field-grid--ant-form .tlt-select__trigger,
+.tlt-compact-field-grid--ant-form .reference-picker-control {
+  height: var(--tlt-field-control-height) !important;
+  min-height: var(--tlt-field-control-height) !important;
+  border-radius: var(--tlt-field-radius) !important;
+  font-size: var(--tlt-field-control-font-size) !important;
+}
+
+.tlt-compact-field-grid--ant-form .tlt-number-field,
+.tlt-compact-field-grid--ant-form .unit-input-number {
+  display: flex !important;
+}
+
+.tlt-compact-field-grid--ant-form .tlt-number-field__input,
+.tlt-compact-field-grid--ant-form .unit-input-number .tlt-number-field__input {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+.tlt-compact-field-grid--ant-form .tlt-number-field__unit,
+.tlt-compact-field-grid--ant-form .unit-input-number__addon {
+  flex: 0 0 auto !important;
+  height: calc(var(--tlt-field-control-height) - 2px) !important;
+  line-height: calc(var(--tlt-field-control-height) - 2px) !important;
+}
+
+@media (max-width: 720px) {
+  .tlt-compact-field-grid,
+  .tlt-compact-field-grid--flow-columns {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .tlt-compact-field {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--tlt-field-gap);
+    width: 100%;
+  }
+
+  .tlt-compact-field .tlt-compact-field__label,
+  .tlt-compact-field .tlt-compact-field__control,
+  .tlt-compact-field .tlt-compact-field__hint,
+  .tlt-compact-field .tlt-compact-field__message {
+    grid-column: 1;
+  }
+
+  .tlt-compact-field .tlt-compact-field__label {
+    padding-top: 0;
+    width: auto;
+    max-width: 100%;
+  }
+
+  .tlt-compact-field .tlt-compact-field__control {
+    width: 100%;
+    max-width: 100%;
+  }
+}

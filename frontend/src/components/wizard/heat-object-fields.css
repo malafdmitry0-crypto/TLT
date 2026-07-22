@@ -44,7 +44,9 @@
    *   • placement / climate / basis     → --hof-climate
    *   • tm / ground                     → --hof-tm
    */
-  --hof-num: 5.25rem;
+  /* Трек числового поля ужат под реальный максимум значения: «9 999»/«1 420»
+     ≈ 31px текста + «мм»/«м·с» ≈ 22px + паддинг. 84px были вдвое шире нужного. */
+  --hof-num: 4rem;
   --hof-count: var(--hof-num);
   --hof-name: 7.5rem;
   --hof-material: var(--hof-name);
