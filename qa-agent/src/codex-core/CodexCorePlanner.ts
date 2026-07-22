@@ -17,167 +17,28 @@ import type {
 const BASE_DOCS: Array<Omit<EvidenceRef, 'status'>> = [
   {
     layer: 'documentation',
-    path: 'AGENTS.md',
+    path: 'qa-agent/examples/tlt-formulas.registry.yaml',
     required: true,
-    reason: 'Repo-level evidence protocol, routing, stop conditions and report format.',
-  },
-  {
-    layer: 'documentation',
-    path: '.agents/routing.yaml',
-    required: true,
-    reason: 'Primary role and verification mode routing.',
-  },
-  {
-    layer: 'documentation',
-    path: '.agents/roles/functional-accuracy.md',
-    required: true,
-    reason: 'Functional accuracy lead responsibilities and verification gates.',
-  },
-  {
-    layer: 'documentation',
-    path: 'codex-docs/README.md',
-    required: true,
-    reason: 'Working documentation navigation and source-of-truth map.',
-  },
-  {
-    layer: 'documentation',
-    path: 'codex-docs/project-map.md',
-    required: true,
-    reason: 'TLT architecture, product flow and important contracts.',
-  },
-  {
-    layer: 'documentation',
-    path: 'codex-docs/requirements-map.md',
-    required: true,
-    reason: 'Requirement sources, current implementation boundaries and traceability rules.',
-  },
-  {
-    layer: 'documentation',
-    path: 'codex-docs/testing.md',
-    required: true,
-    reason: 'Minimum verification command selection by change type.',
-  },
-  {
-    layer: 'documentation',
-    path: 'codex-docs/business-formula-contracts.json',
-    required: true,
-    reason: 'Machine-readable docs -> formula -> API -> UI -> tests matrix.',
-  },
-  {
-    layer: 'documentation',
-    path: 'codex-docs/functional-accuracy-agent.md',
-    required: true,
-    reason: 'Functional accuracy audit playbook.',
-  },
-  {
-    layer: 'documentation',
-    path: 'docs/srs.md',
-    required: true,
-    reason: 'Top-level product requirements and acceptance expectations.',
-  },
-  {
-    layer: 'documentation',
-    path: 'docs/api.md',
-    required: true,
-    reason: 'API contract, roles, persistence and side effects.',
-  },
-  {
-    layer: 'documentation',
-    path: 'docs/analysis/business-rules.md',
-    required: true,
-    reason: 'Business rules and implementation references.',
-  },
-  {
-    layer: 'documentation',
-    path: 'docs/qa/README.md',
-    required: true,
-    reason: 'QA scenario catalog and automation coverage entry point.',
+    reason: 'Machine-readable formula/algorithm registry (project Markdown removed).',
   },
 ];
 
 const FORMULA_DOCS: Array<Omit<EvidenceRef, 'status'>> = [
   {
     layer: 'documentation',
-    path: 'formules.md',
-    required: true,
-    reason: 'Human-readable formula and user workflow reference.',
-  },
-  {
-    layer: 'documentation',
-    path: 'coefficients.MD',
-    required: true,
-    reason: 'Calculation parameter ranges and coefficients.',
-  },
-  {
-    layer: 'documentation',
-    path: 'docs/context/formulas-summary.md',
-    required: true,
-    reason: 'Current formula source priority and compact formula summary.',
-  },
-  {
-    layer: 'documentation',
-    path: 'docs/playbooks/formula-validation-agent.md',
-    required: true,
-    reason: 'Golden, boundary, metamorphic and mutation evidence requirements.',
-  },
-  {
-    layer: 'documentation',
     path: 'qa-agent/examples/tlt-formulas.registry.yaml',
     required: true,
-    reason: 'Machine-readable formula/algorithm registry for deterministic oracle work.',
+    reason: 'Formula registry for oracle and formula QA.',
+  },
+  {
+    layer: 'backend',
+    path: 'backend/app/formulas',
+    required: true,
+    reason: 'Authoritative formula implementation.',
   },
 ];
 
-const SRS_DOCS: Array<Omit<EvidenceRef, 'status'>> = [
-  {
-    layer: 'documentation',
-    path: 'docs/srs/01-user-stories.md',
-    required: true,
-    reason: 'User stories and acceptance criteria.',
-  },
-  {
-    layer: 'documentation',
-    path: 'docs/srs/02-use-cases.md',
-    required: true,
-    reason: 'Formal user flows and postconditions.',
-  },
-  {
-    layer: 'documentation',
-    path: 'docs/srs/03-elements-list.md',
-    required: true,
-    reason: 'Screens, fields, units, tables and entity contracts.',
-  },
-  {
-    layer: 'documentation',
-    path: 'docs/srs/04-validation.md',
-    required: true,
-    reason: 'Input validation and error expectations.',
-  },
-  {
-    layer: 'documentation',
-    path: 'docs/srs/05-functional-nonfunctional.md',
-    required: true,
-    reason: 'Formal functional and non-functional requirements.',
-  },
-  {
-    layer: 'documentation',
-    path: 'docs/srs/06-test-program.md',
-    required: true,
-    reason: 'Acceptance test program.',
-  },
-  {
-    layer: 'documentation',
-    path: 'docs/srs/07-report-requirements.md',
-    required: true,
-    reason: 'Report composition, role-specific exports and CO variant expectations.',
-  },
-  {
-    layer: 'documentation',
-    path: 'docs/tz-compliance.md',
-    required: true,
-    reason: 'Current TЗ compliance status, blockers and automated evidence summary.',
-  },
-];
+const SRS_DOCS: Array<Omit<EvidenceRef, 'status'>> = [];
 
 function statusFor(repoRoot: string | undefined, relativePath: string): EvidenceStatus {
   if (!repoRoot) return 'not_checked';
@@ -289,7 +150,7 @@ function implementationSearches(scope: string): ImplementationSearch[] {
     {
       layer: 'documentation',
       query,
-      paths: ['docs', 'codex-docs', 'formules.md', 'coefficients.MD'],
+      paths: ['backend/app/formulas', 'qa-agent/examples', 'frontend/src'],
       reason: 'Find the requirement or explicitly mark it as undocumented.',
     },
     {

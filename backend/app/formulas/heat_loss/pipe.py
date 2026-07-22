@@ -251,7 +251,7 @@ def calc_pipe_heat_loss(
             толстая стенка, H < r_out для подземной прокладки).
 
     See Also:
-        formules.md — формулы с численными примерами
+        golden cases in unit tests
         docs/context/formulas-summary.md — краткий справочник
     """
     validate_positive("Наружный диаметр", params.outer_diameter)

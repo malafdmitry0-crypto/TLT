@@ -146,20 +146,4 @@ describe('feature boundaries (architecture)', () => {
     }
   });
 
-  it('agent navigation files exist', () => {
-    const repoRoot = path.resolve(SRC_ROOT, '../..');
-    const required = [
-      path.join(repoRoot, 'AGENTS.md'),
-      path.join(repoRoot, 'frontend/AGENTS.md'),
-      path.join(SRC_ROOT, 'pages/electrical/AGENTS.md'),
-      path.join(SRC_ROOT, 'pages/heatcalc/AGENTS.md'),
-      path.join(SRC_ROOT, 'components/wizard/AGENTS.md'),
-      path.join(repoRoot, 'docs/domains/heat-loss.md'),
-      path.join(repoRoot, 'docs/domains/electrical.md'),
-      path.join(repoRoot, 'docs/architecture/frontend-agent-architecture.md'),
-    ];
-    for (const f of required) {
-      expect(fs.existsSync(f), `missing agent nav: ${f}`).toBe(true);
-    }
-  });
 });

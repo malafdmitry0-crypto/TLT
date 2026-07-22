@@ -21,8 +21,8 @@ describe('Codex core planner', () => {
     });
 
     expect(plan.mode).toBe('fix_focused');
-    expect(plan.docs.map((doc) => doc.path)).toContain('codex-docs/business-formula-contracts.json');
-    expect(plan.docs.map((doc) => doc.path)).toContain('docs/playbooks/formula-validation-agent.md');
+    expect(plan.docs.map((doc) => doc.path)).toContain('qa-agent/examples/tlt-formulas.registry.yaml');
+    expect(plan.docs.map((doc) => doc.path)).toContain('backend/app/formulas');
     expect(plan.verificationCommands.map((command) => command.id)).toContain('formula-quick');
     expect(plan.verificationCommands.map((command) => command.id)).toContain('calc-gate');
     expect(plan.ticketDrafts[0].title).toContain('pipe heat loss formula');

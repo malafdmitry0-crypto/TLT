@@ -344,7 +344,7 @@ async function runTltAiCases() {
   const htmlReportPath = path.join(root, 'reports', 'qa-agent-tlt-ai-cases-report.html');
   const documentationPath =
     process.env.QA_AGENT_DOCUMENTATION_PATH ??
-    path.resolve(root, '..', 'docs', 'business-logic-contract.md');
+    path.resolve(root, 'examples', 'tlt-formulas.registry.yaml');
   const pipeCases = intEnv('QA_AGENT_TLT_PIPE_CASES', 20);
   const tankCases = intEnv('QA_AGENT_TLT_TANK_CASES', 20);
   const limit = intEnv('QA_AGENT_TLT_CASE_LIMIT', pipeCases + tankCases);

@@ -32,16 +32,16 @@ TARGET="${1:-docs}"
 TEST_SECRET_KEY="${TEST_SECRET_KEY:-codex-test-secret-key-at-least-32-chars}"
 
 run_docs() {
-  echo "▶ Docs drift check (disabled: project Markdown removed)"
-  if [ -x "$ROOT/scripts/check-doc-semantic-drift.sh" ]; then
-    bash "$ROOT/scripts/check-doc-semantic-drift.sh" || true
-  fi
+  echo "▶ Docs drift check (skipped: project Markdown removed)"
 }
 
 run_contracts() {
-  echo "▶ Docs → formula → API → UI contract matrix"
-  python3 "$ROOT/scripts/sync-heatcalc-field-contract.py" --check
-  python3 "$ROOT/scripts/verify-business-contracts.py"
+  echo "▶ Field contract matrix (code-only)"
+  if [ -f "$ROOT/scripts/sync-heatcalc-field-contract.py" ]; then
+    python3 "$ROOT/scripts/sync-heatcalc-field-contract.py" --check
+  else
+    echo "  (sync-heatcalc-field-contract.py not present — skip)"
+  fi
 }
 
 run_db_invariants() {

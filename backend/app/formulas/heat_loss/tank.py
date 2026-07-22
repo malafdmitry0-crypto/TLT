@@ -226,7 +226,7 @@ def calc_tank_heat_loss(
             невалидные температуры/толщины.
 
     See Also:
-        formules.md, docs/context/formulas-summary.md
+        backend formula unit tests / golden cases
     """
     validate_positive("Толщина изоляции", params.insulation_thickness)
     validate_temperature_range(params.ambient_temperature, params.process_temperature)
