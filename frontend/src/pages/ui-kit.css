@@ -460,6 +460,61 @@
   gap: 8px;
 }
 
+.uikit-primitive-grid,
+.uikit-primitive-data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.uikit-primitive-stack {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.uikit-primitive-actions,
+.uikit-primitive-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.uikit-primitive-alerts,
+.uikit-primitive-state-stack {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.uikit-primitive-tab-content {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 50px;
+  padding: 8px 10px;
+  border: 1px solid #eef3f8;
+  border-radius: 4px;
+  background: #fbfdff;
+  color: #63758b;
+  font-size: 10px;
+}
+
+.uikit-primitive-tab-content strong {
+  color: var(--ui-ink);
+  font-size: 11px;
+}
+
+.uikit-primitive-tab-content > span {
+  grid-column: 2;
+}
+
+.uikit-primitive-data-grid > .tlt-ui-card {
+  min-width: 0;
+}
+
 .uikit-toolbar {
   width: min(100%, 380px);
 }
@@ -1010,6 +1065,11 @@
     grid-template-columns: 1fr;
   }
 
+  .uikit-primitive-grid,
+  .uikit-primitive-data-grid {
+    grid-template-columns: 1fr;
+  }
+
   .uikit-metrics {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
   }
@@ -1142,6 +1202,14 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .uikit-primitive-tab-content {
+    grid-template-columns: 1fr;
+  }
+
+  .uikit-primitive-tab-content > span {
+    grid-column: auto;
+  }
+
   .uikit-demo-group {
     min-width: 0;
   }
@@ -1236,6 +1304,17 @@
 
   .uikit-heatcalc-form .uikit-heatcalc-layers {
     margin: 4px 10px 10px;
+    max-width: calc(100% - 20px);
+    overflow-x: auto;
+  }
+
+  .uikit-heatcalc-reference,
+  .uikit-heatcalc-form,
+  .uikit-heatcalc-form .heatcalc-dual-forms,
+  .uikit-heatcalc-form .heatcalc-dual-forms__heat,
+  .uikit-heatcalc-form .heatcalc-dual-forms__cable {
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   .uikit-empty {

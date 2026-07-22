@@ -11,10 +11,26 @@ Import components only from the barrel:
 import {
   CompactField,
   CompactFieldGrid,
+  TltAlert,
+  TltBadge,
+  TltButton,
+  TltCard,
   TltNumberField,
   TltSelect,
+  TltTable,
+  TltTabs,
   TltTextField,
 } from '@/components/ui-kit';
+```
+
+Базовые CSS-first примитивы: `TltButton`, `TltBadge`, `TltCard`, `TltAlert`,
+`TltTabs`, `TltTable`, `TltEmptyState` и `TltSkeleton`. Они не знают о
+расчётах, запросах или сторах и принимают только данные/колбэки представления.
+
+```tsx
+<TltCard title="Объекты" actions={<TltBadge tone="success">Готово</TltBadge>}>
+  <TltButton variant="primary">Сохранить</TltButton>
+</TltCard>
 ```
 
 Visual contract = HeatCalc dual-form (SC-03):

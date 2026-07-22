@@ -1,4 +1,5 @@
 import './compact-fields.css';
+import './primitives.css';
 
 export { default as CompactField } from './CompactField';
 export type { CompactFieldProps } from './CompactField';
@@ -15,3 +16,28 @@ export type {
   TltSelectProps,
   TltTextFieldProps,
 } from '../form-controls';
+export {
+  TltAlert,
+  TltBadge,
+  TltButton,
+  TltCard,
+  TltEmptyState,
+  TltSkeleton,
+  TltTable,
+  TltTabs,
+} from './UiPrimitives';
+export type {
+  TltAlertProps,
+  TltBadgeProps,
+  TltButtonProps,
+  TltButtonSize,
+  TltButtonVariant,
+  TltCardProps,
+  TltEmptyStateProps,
+  TltSkeletonProps,
+  TltTableColumn,
+  TltTableProps,
+  TltTabItem,
+  TltTabsProps,
+  TltUiTone,
+} from './UiPrimitives';
